@@ -22,26 +22,23 @@ import { KalypsisLogo } from "./KalypsisLogo";
 import { LanguageToggle } from "./LanguageToggle";
 
 interface PublicNavProps {
-  /** Use transparent background when at the top, solid after scroll. */
+  /** Deprecated — kept for backwards compatibility; nav is always solid white now. */
   overlayHero?: boolean;
 }
 
-export function PublicNav({ overlayHero = false }: PublicNavProps) {
+export function PublicNav(_: PublicNavProps = {}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
 
+  // Deepen the shadow once the user scrolls a few pixels so the nav has a clear lift.
   useEffect(() => {
-    if (!overlayHero) {
-      setScrolled(true);
-      return;
-    }
-    const onScroll = () => setScrolled(window.scrollY > 8);
+    const onScroll = () => setScrolled(window.scrollY > 4);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [overlayHero]);
+  }, []);
 
   const navLinks = [
     { to: "/", labelKey: "publicNav.home" },
@@ -52,38 +49,51 @@ export function PublicNav({ overlayHero = false }: PublicNavProps) {
     { to: "/contact", labelKey: "publicNav.contact" }
   ];
 
-  const transparent = overlayHero && !scrolled;
-  const textColor = transparent ? "common.white" : "text.primary";
-
   return (
     <>
       <AppBar
-        position={overlayHero ? "fixed" : "sticky"}
-        elevation={transparent ? 0 : 1}
+        position="sticky"
+        elevation={0}
         sx={{
-          bgcolor: transparent ? "transparent" : "rgba(255,255,255,0.96)",
-          backdropFilter: transparent ? "none" : "saturate(180%) blur(10px)",
-          color: textColor,
-          transition: "background-color 250ms ease, box-shadow 250ms ease, color 250ms ease",
-          borderBottom: transparent ? "none" : "1px solid",
-          borderColor: "rgba(11,37,69,0.06)"
+          bgcolor: "common.white",
+          color: "text.primary",
+          borderBottom: "1px solid",
+          borderColor: scrolled ? "transparent" : "rgba(11,37,69,0.08)",
+          boxShadow: scrolled
+            ? "0 10px 30px -16px rgba(11,37,69,0.25)"
+            : "none",
+          transition: "box-shadow 250ms ease, border-color 250ms ease"
         }}
       >
         <Container maxWidth="lg">
-          <Toolbar disableGutters sx={{ py: { xs: 1, md: 1.5 }, gap: 2 }}>
+          <Toolbar
+            disableGutters
+            sx={{
+              gap: 2,
+              minHeight: { xs: 72, md: 84 },
+              alignItems: "center"
+            }}
+          >
             <Box
               component={RouterLink}
               to="/"
-              sx={{ display: "flex", alignItems: "center", textDecoration: "none", color: "inherit" }}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                textDecoration: "none",
+                color: "inherit",
+                py: 1
+              }}
             >
-              <KalypsisLogo size={56} color={transparent ? "light" : "default"} />
+              <KalypsisLogo size={64} />
             </Box>
 
             <Box sx={{ flex: 1 }} />
 
+            {/* Desktop nav links */}
             <Stack
               direction="row"
-              spacing={3}
+              spacing={0.5}
               alignItems="center"
               sx={{ display: { xs: "none", md: "flex" } }}
             >
@@ -105,13 +115,35 @@ export function PublicNav({ overlayHero = false }: PublicNavProps) {
                     }
                   }}
                   sx={{
-                    color: "inherit",
+                    position: "relative",
+                    px: 1.75,
+                    py: 1,
+                    mx: 0.25,
+                    borderRadius: 1.5,
+                    color: "text.primary",
                     textDecoration: "none",
-                    fontWeight: 500,
+                    fontWeight: 600,
                     fontSize: 15,
-                    opacity: 0.92,
+                    letterSpacing: 0.1,
                     cursor: "pointer",
-                    "&:hover": { opacity: 1, color: transparent ? "common.white" : "primary.main" }
+                    transition: "color 200ms ease, background-color 200ms ease",
+                    "&::after": {
+                      content: '""',
+                      position: "absolute",
+                      left: "50%",
+                      bottom: 4,
+                      width: 0,
+                      height: 2,
+                      bgcolor: "primary.main",
+                      borderRadius: 1,
+                      transform: "translateX(-50%)",
+                      transition: "width 240ms ease"
+                    },
+                    "&:hover": {
+                      color: "primary.main",
+                      bgcolor: "rgba(11,37,69,0.04)",
+                      "&::after": { width: "55%" }
+                    }
                   }}
                 >
                   {t(link.labelKey)}
@@ -119,19 +151,27 @@ export function PublicNav({ overlayHero = false }: PublicNavProps) {
               ))}
             </Stack>
 
+            {/* Desktop CTAs */}
             <Stack
               direction="row"
               spacing={1.5}
               alignItems="center"
-              sx={{ display: { xs: "none", md: "flex" } }}
+              sx={{ display: { xs: "none", md: "flex" }, ml: 2 }}
             >
               <LanguageToggle />
               <Button
                 component={RouterLink}
                 to="/login"
                 variant="text"
-                color="inherit"
-                sx={{ fontWeight: 600 }}
+                color="primary"
+                sx={{
+                  fontWeight: 700,
+                  fontSize: 15,
+                  px: 2.5,
+                  py: 1.1,
+                  borderRadius: 1.5,
+                  "&:hover": { bgcolor: "rgba(11,37,69,0.05)" }
+                }}
               >
                 {t("publicNav.signIn")}
               </Button>
@@ -139,13 +179,27 @@ export function PublicNav({ overlayHero = false }: PublicNavProps) {
                 component={RouterLink}
                 to="/register"
                 variant="contained"
-                color={transparent ? "secondary" : "primary"}
-                sx={{ fontWeight: 700, px: 2.4 }}
+                color="primary"
+                disableElevation
+                sx={{
+                  fontWeight: 700,
+                  fontSize: 15,
+                  px: 3.5,
+                  py: 1.25,
+                  borderRadius: 1.5,
+                  boxShadow: "0 8px 20px -10px rgba(11,37,69,0.45)",
+                  "&:hover": {
+                    boxShadow: "0 14px 28px -12px rgba(11,37,69,0.55)",
+                    transform: "translateY(-1px)"
+                  },
+                  transition: "transform 200ms ease, box-shadow 200ms ease"
+                }}
               >
                 {t("publicNav.register")}
               </Button>
             </Stack>
 
+            {/* Mobile hamburger (unchanged) */}
             <IconButton
               onClick={() => setOpen(true)}
               sx={{ display: { xs: "inline-flex", md: "none" }, color: "inherit" }}
@@ -158,6 +212,7 @@ export function PublicNav({ overlayHero = false }: PublicNavProps) {
         </Container>
       </AppBar>
 
+      {/* Mobile drawer (unchanged) */}
       <Drawer anchor="right" open={open} onClose={() => setOpen(false)} PaperProps={{ sx: { width: 300 } }}>
         <Box sx={{ p: 2 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>

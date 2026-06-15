@@ -53,11 +53,11 @@ function Hero() {
     <Box
       sx={{
         position: "relative",
-        minHeight: { xs: "92vh", md: "88vh" },
+        minHeight: { xs: "80vh", md: "78vh" },
         display: "flex",
         alignItems: "center",
         overflow: "hidden",
-        pt: { xs: 14, md: 16 },
+        pt: { xs: 8, md: 10 },
         pb: { xs: 10, md: 12 }
       }}
     >
