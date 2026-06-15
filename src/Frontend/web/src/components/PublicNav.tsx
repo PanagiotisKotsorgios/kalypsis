@@ -40,14 +40,15 @@ export function PublicNav(_: PublicNavProps = {}) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const navLinks = [
+  // Shared link set (no Για Γραφεία / Για Ασφαλιστές on either platform).
+  const mobileLinks = [
     { to: "/", labelKey: "publicNav.home" },
     { to: "/#features", labelKey: "publicNav.platform" },
-    { to: "/#for-agencies", labelKey: "publicNav.forAgencies" },
-    { to: "/#for-agents", labelKey: "publicNav.forAgents" },
     { to: "/#pricing", labelKey: "publicNav.pricing" },
     { to: "/contact", labelKey: "publicNav.contact" }
   ];
+  // Desktop additionally drops Αρχική (the logo already routes home).
+  const desktopLinks = mobileLinks.filter((l) => l.labelKey !== "publicNav.home");
 
   return (
     <>
@@ -70,7 +71,7 @@ export function PublicNav(_: PublicNavProps = {}) {
             disableGutters
             sx={{
               gap: 2,
-              minHeight: { xs: 72, md: 84 },
+              minHeight: { xs: 72, md: 92 },
               alignItems: "center"
             }}
           >
@@ -97,7 +98,7 @@ export function PublicNav(_: PublicNavProps = {}) {
               alignItems="center"
               sx={{ display: { xs: "none", md: "flex" } }}
             >
-              {navLinks.map((link) => (
+              {desktopLinks.map((link) => (
                 <Box
                   key={link.to}
                   component="a"
@@ -116,15 +117,15 @@ export function PublicNav(_: PublicNavProps = {}) {
                   }}
                   sx={{
                     position: "relative",
-                    px: 1.75,
-                    py: 1,
-                    mx: 0.25,
+                    px: 2.25,
+                    py: 1.25,
+                    mx: 0.4,
                     borderRadius: 1.5,
                     color: "text.primary",
                     textDecoration: "none",
                     fontWeight: 600,
-                    fontSize: 15,
-                    letterSpacing: 0.1,
+                    fontSize: 17,
+                    letterSpacing: 0.2,
                     cursor: "pointer",
                     transition: "color 200ms ease, background-color 200ms ease",
                     "&::after": {
@@ -141,8 +142,8 @@ export function PublicNav(_: PublicNavProps = {}) {
                     },
                     "&:hover": {
                       color: "primary.main",
-                      bgcolor: "rgba(11,37,69,0.04)",
-                      "&::after": { width: "55%" }
+                      bgcolor: "rgba(11,37,69,0.05)",
+                      "&::after": { width: "60%" }
                     }
                   }}
                 >
@@ -166,9 +167,9 @@ export function PublicNav(_: PublicNavProps = {}) {
                 color="primary"
                 sx={{
                   fontWeight: 700,
-                  fontSize: 15,
-                  px: 2.5,
-                  py: 1.1,
+                  fontSize: 17,
+                  px: 3,
+                  py: 1.4,
                   borderRadius: 1.5,
                   "&:hover": { bgcolor: "rgba(11,37,69,0.05)" }
                 }}
@@ -183,9 +184,9 @@ export function PublicNav(_: PublicNavProps = {}) {
                 disableElevation
                 sx={{
                   fontWeight: 700,
-                  fontSize: 15,
-                  px: 3.5,
-                  py: 1.25,
+                  fontSize: 17,
+                  px: 4.25,
+                  py: 1.5,
                   borderRadius: 1.5,
                   boxShadow: "0 8px 20px -10px rgba(11,37,69,0.45)",
                   "&:hover": {
@@ -222,7 +223,7 @@ export function PublicNav(_: PublicNavProps = {}) {
             </IconButton>
           </Stack>
           <List>
-            {navLinks.map((link) => (
+            {mobileLinks.map((link) => (
               <ListItem key={link.to} disablePadding>
                 <ListItemButton
                   onClick={() => {
