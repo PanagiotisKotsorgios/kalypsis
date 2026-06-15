@@ -14,9 +14,13 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { useAuth, type Role } from "./auth/AuthContext";
 import { AppLayout, type NavItem } from "./components/AppLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
+import { TenantsPage } from "./pages/TenantsPage";
+import { EmployeesPage } from "./pages/EmployeesPage";
+import { CustomersPage } from "./pages/CustomersPage";
 
 const navByRole: Record<Role, NavItem[]> = {
   Customer: [
@@ -53,47 +57,48 @@ const navByRole: Record<Role, NavItem[]> = {
   ],
   PlatformAdmin: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
-    { to: "/tenants", labelKey: "nav.tenants", icon: <BusinessIcon /> },
-    { to: "/users", labelKey: "nav.users", icon: <GroupIcon /> },
-    { to: "/reports", labelKey: "nav.reports", icon: <DashboardIcon /> }
+    { to: "/tenants", labelKey: "nav.tenants", icon: <BusinessIcon /> }
   ],
   PlatformEmployee: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
-    { to: "/tenants", labelKey: "nav.tenants", icon: <BusinessIcon /> },
-    { to: "/reports", labelKey: "nav.reports", icon: <DashboardIcon /> }
+    { to: "/tenants", labelKey: "nav.tenants", icon: <BusinessIcon /> }
   ]
 };
 
 export default function App() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+
+  if (loading) return null;
 
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
+      <Route path="/" element={user ? <Navigate to="/app" replace /> : <LandingPage />} />
+      <Route path="/login" element={user ? <Navigate to="/app" replace /> : <LoginPage />} />
       <Route
-        path="/*"
+        path="/app/*"
         element={
           <ProtectedRoute>
             <AppLayout navItems={user ? navByRole[user.role] : []}>
               <Routes>
                 <Route index element={<DashboardPage />} />
-                <Route path="customers" element={<PlaceholderPage titleKey="nav.customers" />} />
+                <Route path="customers" element={<CustomersPage />} />
                 <Route path="policies" element={<PlaceholderPage titleKey="nav.policies" />} />
                 <Route path="documents" element={<PlaceholderPage titleKey="nav.documents" />} />
                 <Route path="notifications" element={<PlaceholderPage titleKey="nav.notifications" />} />
-                <Route path="users" element={<PlaceholderPage titleKey="nav.users" />} />
-                <Route path="tenants" element={<PlaceholderPage titleKey="nav.tenants" />} />
+                <Route path="users" element={<EmployeesPage />} />
+                <Route path="tenants" element={<TenantsPage />} />
                 <Route path="tasks" element={<PlaceholderPage titleKey="nav.tasks" />} />
                 <Route path="producers" element={<PlaceholderPage titleKey="nav.producers" />} />
                 <Route path="claims" element={<PlaceholderPage titleKey="nav.claims" />} />
                 <Route path="reports" element={<PlaceholderPage titleKey="nav.reports" />} />
                 <Route path="profile" element={<PlaceholderPage titleKey="nav.profile" />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="*" element={<Navigate to="/app" replace />} />
               </Routes>
             </AppLayout>
           </ProtectedRoute>
         }
       />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

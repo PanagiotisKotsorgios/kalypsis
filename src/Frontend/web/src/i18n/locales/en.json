@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "Kalypsis",
-    "tagline": "Insurance Agency Platform"
+    "tagline": "Coverage you can trust",
+    "subtitle": "Insurance Agency Management Platform"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -9,23 +10,81 @@
     "policies": "Policies",
     "documents": "Documents",
     "notifications": "Notifications",
-    "users": "Users",
+    "users": "Staff",
     "tenants": "Agencies",
     "profile": "Profile",
     "logout": "Sign out",
     "tasks": "Tasks",
     "producers": "Producers",
     "claims": "Claims",
-    "reports": "Reports"
+    "reports": "Reports",
+    "back": "Back"
+  },
+  "landing": {
+    "headline": "Your entire agency. In one platform.",
+    "lead": "Manage customers, policies and notifications in a modern, secure and multi-tenant environment.",
+    "loginCta": "Sign in",
+    "whoAreYou": "Who are you?",
+    "rolesIntro": "Pick your role to sign in to your area.",
+    "roles": {
+      "customer": {
+        "title": "CUSTOMER",
+        "subtitle": "Insured",
+        "description": "See your policies, download documents and track renewals."
+      },
+      "agencyAdmin": {
+        "title": "AGENCY",
+        "subtitle": "Agency Administrator",
+        "description": "Manage employees, customers, policies and reports of your office."
+      },
+      "agencyUser": {
+        "title": "STAFF",
+        "subtitle": "Agency Employee",
+        "description": "Register customers and policies, manage daily tasks."
+      },
+      "producer": {
+        "title": "PRODUCER",
+        "subtitle": "Partner",
+        "description": "Track your own policies, production and commissions."
+      },
+      "platform": {
+        "title": "PLATFORM ADMIN",
+        "subtitle": "Super Admin",
+        "description": "Create and manage insurance agencies on the platform."
+      }
+    },
+    "features": {
+      "title": "Why Kalypsis",
+      "multi": {
+        "title": "Many agencies, one platform",
+        "body": "Full data isolation per agency. Every office has its own secure environment."
+      },
+      "easy": {
+        "title": "One-click customer onboarding",
+        "body": "Register a new customer and we automatically create their portal account."
+      },
+      "secure": {
+        "title": "Secure from day one",
+        "body": "JWT authentication, hashed passwords, audit log, automatic role-based access."
+      }
+    },
+    "footer": "© 2026 Kalypsis Insurance Platform"
   },
   "auth": {
     "login": "Sign in",
     "email": "Email",
     "password": "Password",
     "signIn": "Sign in",
+    "signingIn": "Signing in...",
     "loginTitle": "Sign in to the platform",
     "loginSubtitle": "Enter your credentials to continue",
-    "rememberMe": "Remember me"
+    "logout": "Sign out",
+    "noAccount": "Don't have an account? Contact your agency.",
+    "errors": {
+      "invalid": "Invalid email or password.",
+      "network": "Cannot reach the server.",
+      "generic": "Something went wrong."
+    }
   },
   "common": {
     "language": "Language",
@@ -40,7 +99,13 @@
     "search": "Search",
     "back": "Back",
     "welcome": "Welcome",
-    "noData": "No data"
+    "noData": "No data",
+    "close": "Close",
+    "actions": "Actions",
+    "yes": "Yes",
+    "no": "No",
+    "copy": "Copy",
+    "copied": "Copied!"
   },
   "roles": {
     "PlatformAdmin": "Platform Administrator",
@@ -56,6 +121,73 @@
     "unreadNotifications": "Unread Notifications",
     "customersCount": "Total Customers",
     "policiesCount": "Total Policies",
-    "documentsUploaded": "Documents"
+    "documentsUploaded": "Documents",
+    "agenciesCount": "Agencies on platform",
+    "usersCount": "Total users"
+  },
+  "tenants": {
+    "title": "Insurance Agencies",
+    "create": "New Agency",
+    "createTitle": "Create agency",
+    "createSubtitle": "A new agency is created together with its first administrator.",
+    "name": "Agency name",
+    "code": "Agency code",
+    "codeHelp": "Latin letters, numbers, dashes or underscores only.",
+    "subscriptionPlan": "Plan",
+    "adminSection": "First agency administrator",
+    "adminFirstName": "First name",
+    "adminLastName": "Last name",
+    "adminEmail": "Admin email",
+    "adminPhone": "Phone",
+    "adminPassword": "Admin password",
+    "created": "Agency created!",
+    "users": "Users",
+    "customersCol": "Customers",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "users": {
+    "title": "Agency Staff",
+    "create": "New employee",
+    "createTitle": "Create employee",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email",
+    "phone": "Phone",
+    "password": "Temporary password",
+    "role": "Role",
+    "fullName": "Full name",
+    "created": "Employee created!"
+  },
+  "customers": {
+    "title": "Customers",
+    "create": "New Customer",
+    "createTitle": "Register a new customer",
+    "createHelp": "Fill in the basics. Optionally we'll automatically create the customer's portal account.",
+    "type": "Customer type",
+    "individual": "Individual",
+    "company": "Company",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "companyName": "Company name",
+    "vatNumber": "VAT no.",
+    "email": "Email",
+    "phone": "Phone",
+    "address": "Address",
+    "city": "City",
+    "postalCode": "Postcode",
+    "birthDate": "Date of birth",
+    "notes": "Notes",
+    "createPortalAccount": "Auto-create customer portal account",
+    "customerNumber": "Customer #",
+    "portalAccount": "Portal",
+    "yes": "Yes",
+    "no": "No",
+    "createdTitle": "Customer created!",
+    "createdWithPortal": "Hand the customer these credentials so they can sign in to the portal:",
+    "tempPassword": "Temporary password",
+    "searchPlaceholder": "Search by name, email, VAT or customer #...",
+    "noCustomers": "No customers yet. Click 'New Customer' to start."
   }
 }

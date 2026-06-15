@@ -1,52 +1,82 @@
 import { Box, Card, CardContent, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../api/client";
 
 interface Tile {
   labelKey: string;
   value: string | number;
 }
 
-const tilesByRole: Record<string, Tile[]> = {
-  Customer: [
-    { labelKey: "dashboard.activePolicies", value: 3 },
-    { labelKey: "dashboard.expiringSoon", value: 1 },
-    { labelKey: "dashboard.unreadNotifications", value: 2 }
-  ],
-  AgencyAdmin: [
-    { labelKey: "dashboard.customersCount", value: 128 },
-    { labelKey: "dashboard.policiesCount", value: 342 },
-    { labelKey: "dashboard.expiringSoon", value: 14 },
-    { labelKey: "dashboard.documentsUploaded", value: 921 }
-  ],
-  AgencyUser: [
-    { labelKey: "dashboard.customersCount", value: 128 },
-    { labelKey: "dashboard.policiesCount", value: 342 },
-    { labelKey: "dashboard.expiringSoon", value: 14 }
-  ],
-  Producer: [
-    { labelKey: "dashboard.policiesCount", value: 87 },
-    { labelKey: "dashboard.expiringSoon", value: 4 }
-  ],
-  PlatformAdmin: [
-    { labelKey: "nav.tenants", value: 7 },
-    { labelKey: "nav.users", value: 54 }
-  ],
-  PlatformEmployee: [
-    { labelKey: "nav.tenants", value: 7 },
-    { labelKey: "nav.users", value: 54 }
-  ]
-};
-
 export function DashboardPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const tiles = user ? tilesByRole[user.role] ?? [] : [];
+
+  const isPlatform = user?.role === "PlatformAdmin" || user?.role === "PlatformEmployee";
+  const isAgency = user?.role === "AgencyAdmin" || user?.role === "AgencyUser";
+
+  const tenantsQuery = useQuery({
+    queryKey: ["dashboard", "tenants"],
+    queryFn: async () => (await api.get<{ id: string; userCount: number; customerCount: number }[]>("/tenants")).data,
+    enabled: isPlatform
+  });
+
+  const customersQuery = useQuery({
+    queryKey: ["dashboard", "customers"],
+    queryFn: async () => (await api.get<unknown[]>("/customers")).data,
+    enabled: isAgency
+  });
+
+  const usersQuery = useQuery({
+    queryKey: ["dashboard", "users"],
+    queryFn: async () => (await api.get<unknown[]>("/users")).data,
+    enabled: user?.role === "AgencyAdmin"
+  });
+
+  let tiles: Tile[] = [];
+  if (isPlatform) {
+    const total = tenantsQuery.data ?? [];
+    tiles = [
+      { labelKey: "dashboard.agenciesCount", value: total.length },
+      {
+        labelKey: "dashboard.usersCount",
+        value: total.reduce((acc, t) => acc + t.userCount, 0)
+      },
+      {
+        labelKey: "dashboard.customersCount",
+        value: total.reduce((acc, t) => acc + t.customerCount, 0)
+      }
+    ];
+  } else if (user?.role === "AgencyAdmin") {
+    tiles = [
+      { labelKey: "dashboard.customersCount", value: (customersQuery.data ?? []).length },
+      { labelKey: "dashboard.usersCount", value: (usersQuery.data ?? []).length }
+    ];
+  } else if (user?.role === "AgencyUser") {
+    tiles = [
+      { labelKey: "dashboard.customersCount", value: (customersQuery.data ?? []).length }
+    ];
+  } else if (user?.role === "Customer") {
+    tiles = [
+      { labelKey: "dashboard.activePolicies", value: 0 },
+      { labelKey: "dashboard.expiringSoon", value: 0 },
+      { labelKey: "dashboard.unreadNotifications", value: 0 }
+    ];
+  } else if (user?.role === "Producer") {
+    tiles = [
+      { labelKey: "dashboard.policiesCount", value: 0 },
+      { labelKey: "dashboard.expiringSoon", value: 0 }
+    ];
+  }
 
   return (
     <>
       <Typography variant="h4" gutterBottom>
         {t("common.welcome")}, {user?.firstName ?? user?.email}
+      </Typography>
+      <Typography color="text.secondary" mb={4}>
+        {user?.tenantName}
       </Typography>
       <Box
         sx={{

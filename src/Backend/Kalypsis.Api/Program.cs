@@ -1,9 +1,15 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using System.Text.Json.Serialization;
+using Kalypsis.Api.Middleware;
 using Kalypsis.Application;
 using Kalypsis.Infrastructure;
 using Kalypsis.Infrastructure.Auth;
+using Kalypsis.Infrastructure.Persistence.Seeders;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +24,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     {
         options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
         options.SaveToken = true;
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -27,11 +34,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = jwt.Issuer,
             ValidAudience = jwt.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Secret)),
-            ClockSkew = TimeSpan.FromSeconds(30)
+            ClockSkew = TimeSpan.FromSeconds(30),
+            RoleClaimType = "role",
+            NameClaimType = "sub"
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(opt =>
+{
+    opt.AddPolicy("PlatformAdmin", p => p.RequireClaim("role", nameof(Kalypsis.Domain.Enums.Role.PlatformAdmin)));
+    opt.AddPolicy("PlatformLevel", p => p.RequireClaim("role",
+        nameof(Kalypsis.Domain.Enums.Role.PlatformAdmin),
+        nameof(Kalypsis.Domain.Enums.Role.PlatformEmployee)));
+    opt.AddPolicy("AgencyAdmin", p => p.RequireClaim("role", nameof(Kalypsis.Domain.Enums.Role.AgencyAdmin)));
+    opt.AddPolicy("AgencyStaff", p => p.RequireClaim("role",
+        nameof(Kalypsis.Domain.Enums.Role.AgencyAdmin),
+        nameof(Kalypsis.Domain.Enums.Role.AgencyUser)));
+});
 
 builder.Services.AddCors(o => o.AddPolicy("frontend", p =>
     p.WithOrigins(
@@ -41,7 +60,10 @@ builder.Services.AddCors(o => o.AddPolicy("frontend", p =>
         .AllowAnyMethod()
         .AllowCredentials()));
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(opt =>
+{
+    opt.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -53,6 +75,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseMiddleware<ExceptionMiddleware>();
 app.UseCors("frontend");
 app.UseAuthentication();
 app.UseAuthorization();
@@ -65,5 +88,7 @@ app.MapGet("/api/health", () => Results.Ok(new
 }));
 
 app.MapControllers();
+
+await DataSeeder.SeedAsync(app.Services);
 
 app.Run();

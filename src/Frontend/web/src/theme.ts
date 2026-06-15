@@ -3,11 +3,12 @@ import { createTheme } from "@mui/material/styles";
 export const theme = createTheme({
   palette: {
     mode: "light",
-    primary: { main: "#0f4c81" },
-    secondary: { main: "#f6a623" },
-    background: { default: "#f5f7fa", paper: "#ffffff" }
+    primary: { main: "#0b2545", light: "#1d4e89", dark: "#061a36" },
+    secondary: { main: "#1ea7e1" },
+    background: { default: "#f4f7fb", paper: "#ffffff" },
+    text: { primary: "#0b2545", secondary: "#456079" }
   },
-  shape: { borderRadius: 8 },
+  shape: { borderRadius: 10 },
   typography: {
     fontFamily: [
       "Inter",
@@ -16,6 +17,25 @@ export const theme = createTheme({
       "Helvetica",
       "Arial",
       "sans-serif"
-    ].join(",")
+    ].join(","),
+    h1: { fontWeight: 800, letterSpacing: -0.5 },
+    h2: { fontWeight: 800, letterSpacing: -0.5 },
+    h3: { fontWeight: 700 },
+    h4: { fontWeight: 700 },
+    h5: { fontWeight: 700 },
+    h6: { fontWeight: 600 },
+    button: { fontWeight: 600, textTransform: "none" }
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: { borderRadius: 8 }
+      }
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: { boxShadow: "0 4px 24px rgba(11, 37, 69, 0.06)" }
+      }
+    }
   }
 });

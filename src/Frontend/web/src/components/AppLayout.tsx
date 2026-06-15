@@ -11,7 +11,8 @@ import {
   Toolbar,
   Typography,
   Divider,
-  Stack
+  Stack,
+  Avatar
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -20,6 +21,7 @@ import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../auth/AuthContext";
 import { LanguageToggle } from "./LanguageToggle";
+import { KalypsisLogo } from "./KalypsisLogo";
 
 export interface NavItem {
   to: string;
@@ -32,7 +34,7 @@ interface AppLayoutProps {
   children: ReactNode;
 }
 
-const DRAWER_WIDTH = 240;
+const DRAWER_WIDTH = 250;
 
 export function AppLayout({ navItems, children }: AppLayoutProps) {
   const { t } = useTranslation();
@@ -43,44 +45,56 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
 
   const handleSignOut = () => {
     signOut();
-    navigate("/login", { replace: true });
+    navigate("/", { replace: true });
   };
+
+  const initials = user ? `${user.firstName[0] ?? ""}${user.lastName[0] ?? ""}`.toUpperCase() : "?";
 
   const drawerContent = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <Toolbar sx={{ px: 2 }}>
-        <Typography variant="h6" noWrap fontWeight={700}>
-          {t("app.name")}
-        </Typography>
+        <KalypsisLogo size={32} />
       </Toolbar>
       <Divider />
-      <List sx={{ flex: 1 }}>
+      <List sx={{ flex: 1, py: 1 }}>
         {navItems.map((item) => (
           <ListItemButton
             key={item.to}
             component={RouterLink}
-            to={item.to}
-            selected={location.pathname.startsWith(item.to)}
+            to={`/app${item.to === "/" ? "" : item.to}`}
+            selected={
+              item.to === "/"
+                ? location.pathname === "/app"
+                : location.pathname.startsWith(`/app${item.to}`)
+            }
+            sx={{ mx: 1, mb: 0.5, borderRadius: 1.5 }}
           >
-            <ListItemIcon>{item.icon}</ListItemIcon>
-            <ListItemText primary={t(item.labelKey)} />
+            <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
+            <ListItemText primary={t(item.labelKey)} primaryTypographyProps={{ fontWeight: 500 }} />
           </ListItemButton>
         ))}
       </List>
       <Divider />
       <Box sx={{ p: 2 }}>
-        <Typography variant="caption" color="text.secondary">
-          {user ? t(`roles.${user.role}`) : ""}
-        </Typography>
-        <Typography variant="body2" noWrap>
-          {user?.email}
-        </Typography>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36, fontSize: 14 }}>
+            {initials}
+          </Avatar>
+          <Box sx={{ overflow: "hidden", minWidth: 0 }}>
+            <Typography variant="body2" fontWeight={600} noWrap>
+              {user?.firstName} {user?.lastName}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" noWrap display="block">
+              {user ? t(`roles.${user.role}`) : ""}
+            </Typography>
+          </Box>
+        </Stack>
       </Box>
     </Box>
   );
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh" }}>
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
       <AppBar
         position="fixed"
         sx={{
@@ -88,18 +102,18 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           backgroundColor: "background.paper",
           color: "text.primary"
         }}
-        elevation={1}
+        elevation={0}
       >
-        <Toolbar>
+        <Toolbar sx={{ borderBottom: "1px solid", borderColor: "divider" }}>
           <IconButton edge="start" onClick={() => setOpen((v) => !v)} sx={{ mr: 1 }}>
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" sx={{ flex: 1 }}>
-            {t("app.tagline")}
+          <Typography variant="subtitle1" sx={{ flex: 1, fontWeight: 600 }}>
+            {user?.tenantName ?? t("app.subtitle")}
           </Typography>
           <Stack direction="row" spacing={2} alignItems="center">
             <LanguageToggle />
-            <IconButton onClick={handleSignOut} title={t("nav.logout")}>
+            <IconButton onClick={handleSignOut} title={t("auth.logout")}>
               <LogoutIcon />
             </IconButton>
           </Stack>
@@ -113,13 +127,15 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           flexShrink: 0,
           "& .MuiDrawer-paper": {
             width: DRAWER_WIDTH,
-            boxSizing: "border-box"
+            boxSizing: "border-box",
+            borderRight: "1px solid",
+            borderColor: "divider"
           }
         }}
       >
         {drawerContent}
       </Drawer>
-      <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 8 }}>
+      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 4 }, mt: 8 }}>
         {children}
       </Box>
     </Box>
