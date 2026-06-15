@@ -101,6 +101,15 @@ export function LoginPage() {
               <KalypsisLogo size={80} />
             </Box>
 
+            <Stack spacing={1} mb={3.5}>
+              <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: -0.5 }}>
+                {t("auth.loginTitle")}
+              </Typography>
+              <Typography color="text.secondary">
+                {t("auth.loginSubtitle")}
+              </Typography>
+            </Stack>
+
             {error && (
               <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
                 {error}
