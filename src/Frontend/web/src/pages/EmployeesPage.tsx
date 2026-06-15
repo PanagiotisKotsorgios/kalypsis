@@ -25,6 +25,7 @@ import AddIcon from "@mui/icons-material/Add";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { PasswordField } from "../components/PasswordField";
 
 interface UserDto {
   id: string;
@@ -200,7 +201,7 @@ function CreateDialog({
             <MenuItem value="AgencyUser">{t("roles.AgencyUser")}</MenuItem>
             <MenuItem value="AgencyAdmin">{t("roles.AgencyAdmin")}</MenuItem>
           </TextField>
-          <TextField
+          <PasswordField
             label={t("users.password")}
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}

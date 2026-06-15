@@ -27,6 +27,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { PasswordField } from "../components/PasswordField";
 
 interface Tenant {
   id: string;
@@ -249,9 +250,8 @@ function CreateTenantDialog({ open, onClose, onSubmit, submitting }: CreateDialo
             onChange={(e) => setForm({ ...form, adminPhone: e.target.value })}
             fullWidth
           />
-          <TextField
+          <PasswordField
             label={t("tenants.adminPassword")}
-            type="text"
             value={form.adminPassword}
             onChange={(e) => setForm({ ...form, adminPassword: e.target.value })}
             fullWidth

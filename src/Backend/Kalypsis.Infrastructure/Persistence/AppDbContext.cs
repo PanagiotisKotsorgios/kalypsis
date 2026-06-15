@@ -32,6 +32,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<AgencyTask> AgencyTasks => Set<AgencyTask>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<PlatformSetting> PlatformSettings => Set<PlatformSetting>();
 
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
     public bool BypassTenantFilter => _currentUser.IsPlatformLevel;

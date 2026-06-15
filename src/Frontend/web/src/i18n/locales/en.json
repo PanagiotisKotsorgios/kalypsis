@@ -28,7 +28,8 @@
     "producers": "Producers",
     "claims": "Claims",
     "reports": "Reports",
-    "back": "Back"
+    "back": "Back",
+    "settings": "Settings"
   },
   "landing": {
     "eyebrow": "BUILT IN GREECE · CERTIFIED SECURITY",
@@ -167,16 +168,69 @@
     }
   },
   "login": {
-    "brandStrip": "WELCOME TO KALYPSIS",
-    "heroTitle": "Welcome back.",
-    "heroBody": "Sign in to manage your customers, policies and production. All organised, all in Greek.",
-    "point1": "Full access to customers and policies.",
-    "point2": "Producers and commissions management.",
-    "point3": "Customer portal at no per-seat cost.",
-    "footnote": "By signing in, you accept the Terms of Service and Privacy Policy.",
     "noAccountQ": "Don't have an account yet?",
     "registerHere": "Sign up",
-    "demoLabel": "DEMO ACCOUNT"
+    "forgot": "Forgot your password?"
+  },
+  "forgot": {
+    "title": "Reset your password",
+    "subtitle": "We'll email you a link to reset it.",
+    "emailHelp": "Enter your account email. The link is valid for 1 hour.",
+    "submit": "Send link",
+    "sending": "Sending...",
+    "backToLogin": "Back to sign in",
+    "success": {
+      "title": "Check your email"
+    }
+  },
+  "reset": {
+    "title": "New password",
+    "subtitle": "Set a new password for your account.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "passwordHelp": "At least 8 characters.",
+    "submit": "Save",
+    "saving": "Saving...",
+    "errors": {
+      "noToken": "Invalid link. Please request a new one.",
+      "short": "Password must be at least 8 characters.",
+      "mismatch": "Passwords don't match."
+    },
+    "success": {
+      "title": "Password changed!",
+      "body": "Redirecting to sign in..."
+    }
+  },
+  "settings": {
+    "title": "Platform Settings",
+    "subtitle": "Manage platform-wide parameters: email sending and base addresses.",
+    "save": "Save settings",
+    "saved": "Settings saved.",
+    "supportEmail": "Support email",
+    "supportEmailHelp": "Shown in user-facing emails as the contact address.",
+    "appBaseUrl": "Public platform URL",
+    "appBaseUrlHelp": "Used to build links in emails (e.g. password reset).",
+    "brevo": {
+      "title": "Brevo (email sending)",
+      "subtitle": "Brevo API credentials for transactional email (password reset, notifications).",
+      "configured": "ACTIVE",
+      "notConfigured": "INACTIVE",
+      "apiKey": "Brevo API key",
+      "apiKeyHelp": "Leave blank to keep the current key. Create a new one from Brevo › SMTP & API.",
+      "apiKeyPlaceholder": "xkeysib-...",
+      "currentlySet": "Current",
+      "senderEmail": "Sender email",
+      "senderEmailHelp": "Must be verified on Brevo.",
+      "senderName": "Sender name"
+    },
+    "test": {
+      "title": "Send a test email",
+      "subtitle": "Send a test email to verify your Brevo settings are correct.",
+      "toEmail": "Recipient",
+      "send": "Send test"
+    },
+    "testSuccess": "Test email sent.",
+    "testFailGeneric": "Send failed. Check your Brevo settings."
   },
   "register": {
     "eyebrow": "JOIN KALYPSIS",

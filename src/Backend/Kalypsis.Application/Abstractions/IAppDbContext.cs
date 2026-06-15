@@ -19,6 +19,8 @@ public interface IAppDbContext
     DbSet<AgencyTask> AgencyTasks { get; }
     DbSet<Notification> Notifications { get; }
     DbSet<AuditLog> AuditLogs { get; }
+    DbSet<PasswordResetToken> PasswordResetTokens { get; }
+    DbSet<PlatformSetting> PlatformSettings { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

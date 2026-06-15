@@ -35,6 +35,9 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
 
+        services.AddHttpClient("brevo");
+        services.AddScoped<IEmailSender, BrevoEmailSender>();
+
         return services;
     }
 }

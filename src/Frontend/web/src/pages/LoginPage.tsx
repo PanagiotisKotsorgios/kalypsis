@@ -11,13 +11,12 @@ import {
   Typography
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import ShieldIcon from "@mui/icons-material/Shield";
 import { useTranslation } from "react-i18next";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { KalypsisLogo } from "../components/KalypsisLogo";
 import { LanguageToggle } from "../components/LanguageToggle";
-import { BrandImage } from "../components/BrandImage";
+import { PasswordField } from "../components/PasswordField";
 import { extractErrorMessage } from "../api/client";
 
 export function LoginPage() {
@@ -51,56 +50,37 @@ export function LoginPage() {
         gridTemplateColumns: { xs: "1fr", md: "1.1fr 1fr" }
       }}
     >
-      {/* Left visual panel */}
+      {/* Left: pure white panel, just the big logo */}
       <Box
         sx={{
           position: "relative",
           display: { xs: "none", md: "flex" },
-          flexDirection: "column",
-          justifyContent: "space-between",
-          color: "common.white",
-          overflow: "hidden",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "#ffffff",
+          borderRight: "1px solid",
+          borderColor: "rgba(11,37,69,0.06)",
           p: 6
         }}
       >
-        <BrandImage seed="kalypsis-login-greek-coast" width={1400} height={1600} overlay="navy-strong" />
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ position: "relative", zIndex: 1 }}>
-          <Box component={RouterLink} to="/" sx={{ display: "inline-flex", textDecoration: "none" }}>
-            <KalypsisLogo size={80} color="light" />
-          </Box>
-        </Stack>
-
-        <Stack spacing={4} sx={{ position: "relative", zIndex: 1, maxWidth: 460 }}>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ opacity: 0.85 }}>
-            <ShieldIcon />
-            <Typography variant="overline" sx={{ letterSpacing: 2 }}>
-              {t("login.brandStrip")}
-            </Typography>
-          </Stack>
-          <Typography variant="h3" sx={{ fontWeight: 900, lineHeight: 1.1, letterSpacing: -0.5 }}>
-            {t("login.heroTitle")}
-          </Typography>
-          <Typography sx={{ fontSize: 17, lineHeight: 1.7, opacity: 0.92 }}>
-            {t("login.heroBody")}
-          </Typography>
-
-          <Stack spacing={1.5} sx={{ pt: 2 }}>
-            {["login.point1", "login.point2", "login.point3"].map((k) => (
-              <Stack key={k} direction="row" spacing={1.5} alignItems="center">
-                <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "secondary.main" }} />
-                <Typography sx={{ opacity: 0.92 }}>{t(k)}</Typography>
-              </Stack>
-            ))}
-          </Stack>
-        </Stack>
-
-        <Typography variant="caption" sx={{ position: "relative", zIndex: 1, opacity: 0.7 }}>
-          {t("login.footnote")}
-        </Typography>
+        <Box
+          component={RouterLink}
+          to="/"
+          sx={{ display: "inline-flex", textDecoration: "none", maxWidth: "82%" }}
+        >
+          <KalypsisLogo size={420} />
+        </Box>
       </Box>
 
-      {/* Right form panel */}
-      <Box sx={{ display: "flex", flexDirection: "column", p: { xs: 3, md: 5 }, bgcolor: "background.default" }}>
+      {/* Right: slightly off-white form panel */}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          p: { xs: 3, md: 5 },
+          bgcolor: "background.default"
+        }}
+      >
         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
           <Button
             component={RouterLink}
@@ -116,16 +96,10 @@ export function LoginPage() {
 
         <Box sx={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "center" }}>
           <Container maxWidth="xs" disableGutters>
-            <Box sx={{ display: { xs: "block", md: "none" }, mb: 3 }}>
-              <KalypsisLogo size={56} />
+            {/* Mobile-only mini logo */}
+            <Box sx={{ display: { xs: "flex", md: "none" }, justifyContent: "center", mb: 3 }}>
+              <KalypsisLogo size={80} />
             </Box>
-
-            <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-              {t("auth.loginTitle")}
-            </Typography>
-            <Typography color="text.secondary" sx={{ mb: 4 }}>
-              {t("auth.loginSubtitle")}
-            </Typography>
 
             {error && (
               <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
@@ -134,7 +108,7 @@ export function LoginPage() {
             )}
 
             <form onSubmit={handleSubmit} noValidate>
-              <Stack spacing={2}>
+              <Stack spacing={2.5}>
                 <TextField
                   label={t("auth.email")}
                   type="email"
@@ -146,9 +120,8 @@ export function LoginPage() {
                   autoComplete="email"
                   disabled={submitting}
                 />
-                <TextField
+                <PasswordField
                   label={t("auth.password")}
-                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -156,6 +129,17 @@ export function LoginPage() {
                   autoComplete="current-password"
                   disabled={submitting}
                 />
+
+                <Box sx={{ textAlign: "right", mt: -1 }}>
+                  <Link
+                    component={RouterLink}
+                    to="/forgot-password"
+                    sx={{ fontSize: 14, fontWeight: 600 }}
+                  >
+                    {t("login.forgot")}
+                  </Link>
+                </Box>
+
                 <Button
                   type="submit"
                   variant="contained"
@@ -163,7 +147,7 @@ export function LoginPage() {
                   fullWidth
                   disabled={submitting}
                   startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
-                  sx={{ py: 1.4, fontWeight: 700 }}
+                  sx={{ py: 1.5, fontWeight: 700, fontSize: 16 }}
                 >
                   {submitting ? t("auth.signingIn") : t("auth.signIn")}
                 </Button>
@@ -176,15 +160,6 @@ export function LoginPage() {
                 <Link component={RouterLink} to="/register" sx={{ fontWeight: 600 }}>
                   {t("login.registerHere")}
                 </Link>
-              </Typography>
-            </Box>
-
-            <Box sx={{ mt: 4, p: 2, bgcolor: "background.paper", border: "1px dashed", borderColor: "divider", borderRadius: 2 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1, fontWeight: 600 }}>
-                {t("login.demoLabel")}
-              </Typography>
-              <Typography variant="caption" component="div" sx={{ fontFamily: "monospace", lineHeight: 1.8 }}>
-                superadmin@kalypsis.gr · Kalypsis@2026!
               </Typography>
             </Box>
           </Container>

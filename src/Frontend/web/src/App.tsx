@@ -10,6 +10,7 @@ import AssignmentIcon from "@mui/icons-material/Assignment";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import ReportIcon from "@mui/icons-material/Report";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import SettingsIcon from "@mui/icons-material/Settings";
 
 import { useAuth, type Role } from "./auth/AuthContext";
 import { AppLayout, type NavItem } from "./components/AppLayout";
@@ -17,6 +18,8 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { CookieBanner } from "./components/CookieBanner";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { RegisterChoicePage } from "./pages/RegisterChoicePage";
 import { RegisterAgencyPage } from "./pages/RegisterAgencyPage";
 import { RegisterAgentPage } from "./pages/RegisterAgentPage";
@@ -29,6 +32,7 @@ import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { TenantsPage } from "./pages/TenantsPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
 import { CustomersPage } from "./pages/CustomersPage";
+import { AdminSettingsPage } from "./pages/AdminSettingsPage";
 
 const navByRole: Record<Role, NavItem[]> = {
   Customer: [
@@ -65,7 +69,8 @@ const navByRole: Record<Role, NavItem[]> = {
   ],
   PlatformAdmin: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
-    { to: "/tenants", labelKey: "nav.tenants", icon: <BusinessIcon /> }
+    { to: "/tenants", labelKey: "nav.tenants", icon: <BusinessIcon /> },
+    { to: "/settings", labelKey: "nav.settings", icon: <SettingsIcon /> }
   ],
   PlatformEmployee: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
@@ -83,6 +88,14 @@ export default function App() {
       <Routes>
         <Route path="/" element={user ? <Navigate to="/app" replace /> : <LandingPage />} />
         <Route path="/login" element={user ? <Navigate to="/app" replace /> : <LoginPage />} />
+        <Route
+          path="/forgot-password"
+          element={user ? <Navigate to="/app" replace /> : <ForgotPasswordPage />}
+        />
+        <Route
+          path="/reset-password"
+          element={user ? <Navigate to="/app" replace /> : <ResetPasswordPage />}
+        />
         <Route path="/register" element={user ? <Navigate to="/app" replace /> : <RegisterChoicePage />} />
         <Route
           path="/register/agency"
@@ -112,6 +125,7 @@ export default function App() {
                   />
                   <Route path="users" element={<EmployeesPage />} />
                   <Route path="tenants" element={<TenantsPage />} />
+                  <Route path="settings" element={<AdminSettingsPage />} />
                   <Route path="tasks" element={<PlaceholderPage titleKey="nav.tasks" />} />
                   <Route path="producers" element={<PlaceholderPage titleKey="nav.producers" />} />
                   <Route path="claims" element={<PlaceholderPage titleKey="nav.claims" />} />
