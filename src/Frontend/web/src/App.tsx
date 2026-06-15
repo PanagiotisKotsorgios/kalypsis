@@ -16,6 +16,9 @@ import { AppLayout, type NavItem } from "./components/AppLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
+import { RegisterChoicePage } from "./pages/RegisterChoicePage";
+import { RegisterAgencyPage } from "./pages/RegisterAgencyPage";
+import { RegisterAgentPage } from "./pages/RegisterAgentPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { TenantsPage } from "./pages/TenantsPage";
@@ -74,6 +77,9 @@ export default function App() {
     <Routes>
       <Route path="/" element={user ? <Navigate to="/app" replace /> : <LandingPage />} />
       <Route path="/login" element={user ? <Navigate to="/app" replace /> : <LoginPage />} />
+      <Route path="/register" element={user ? <Navigate to="/app" replace /> : <RegisterChoicePage />} />
+      <Route path="/register/agency" element={user ? <Navigate to="/app" replace /> : <RegisterAgencyPage />} />
+      <Route path="/register/agent" element={user ? <Navigate to="/app" replace /> : <RegisterAgentPage />} />
       <Route
         path="/app/*"
         element={

@@ -4,6 +4,16 @@
     "tagline": "Coverage you can trust",
     "subtitle": "Insurance Agency Management Platform"
   },
+  "publicNav": {
+    "home": "Home",
+    "platform": "Platform",
+    "forAgencies": "For Agencies",
+    "forAgents": "For Brokers",
+    "pricing": "Pricing",
+    "contact": "Contact",
+    "signIn": "Sign in",
+    "register": "Get started"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "customers": "Customers",
@@ -21,54 +31,314 @@
     "back": "Back"
   },
   "landing": {
-    "headline": "Your entire agency. In one platform.",
-    "lead": "Manage customers, policies and notifications in a modern, secure and multi-tenant environment.",
-    "loginCta": "Sign in",
-    "whoAreYou": "Who are you?",
-    "rolesIntro": "Pick your role to sign in to your area.",
-    "roles": {
-      "customer": {
-        "title": "CUSTOMER",
-        "subtitle": "Insured",
-        "description": "See your policies, download documents and track renewals."
-      },
-      "agencyAdmin": {
-        "title": "AGENCY",
-        "subtitle": "Agency Administrator",
-        "description": "Manage employees, customers, policies and reports of your office."
-      },
-      "agencyUser": {
-        "title": "STAFF",
-        "subtitle": "Agency Employee",
-        "description": "Register customers and policies, manage daily tasks."
-      },
-      "producer": {
-        "title": "PRODUCER",
-        "subtitle": "Partner",
-        "description": "Track your own policies, production and commissions."
-      },
-      "platform": {
-        "title": "PLATFORM ADMIN",
-        "subtitle": "Super Admin",
-        "description": "Create and manage insurance agencies on the platform."
-      }
+    "eyebrow": "BUILT IN GREECE · CERTIFIED SECURITY",
+    "headline": "Your entire insurance agency. In one platform.",
+    "lead": "From issuing a policy to renewal reminders and commission settlement, Kalypsis keeps your office organised and your customers informed — in Greek, by the rules of the Greek market.",
+    "ctaPrimary": "Start free",
+    "ctaSecondary": "Sign in",
+    "heroTag": {
+      "idd": "Compliant with Law 4583/2018 (IDD)",
+      "gdpr": "GDPR & HDPA",
+      "boe": "Bank of Greece supervised"
     },
+    "trustedBy": "WORKING WITH GREECE'S LARGEST INSURERS",
     "features": {
-      "title": "Why Kalypsis",
-      "multi": {
-        "title": "Many agencies, one platform",
-        "body": "Full data isolation per agency. Every office has its own secure environment."
+      "eyebrow": "PLATFORM FEATURES",
+      "title": "Everything a modern agency needs",
+      "lead": "Stop juggling Excel, email and phone reminders. Kalypsis handles the lot.",
+      "policies": {
+        "title": "Policy Management",
+        "body": "Motor, home, life, health, business — all lines in one view with history, renewals and documents."
       },
-      "easy": {
-        "title": "One-click customer onboarding",
-        "body": "Register a new customer and we automatically create their portal account."
+      "renewals": {
+        "title": "Smart Reminders",
+        "body": "Automatic 30/15/7-day renewal alerts for customers and staff. No expired policy ever again."
       },
-      "secure": {
-        "title": "Secure from day one",
-        "body": "JWT authentication, hashed passwords, audit log, automatic role-based access."
+      "portal": {
+        "title": "Customer Portal",
+        "body": "Customers see their policies and documents without calling you. Fewer calls, happier clients."
+      },
+      "commissions": {
+        "title": "Commissions & Production",
+        "body": "Track production per producer, carrier and line. No more spreadsheet errors at settlement."
+      },
+      "mobile": {
+        "title": "Mobile-first design",
+        "body": "Works beautifully on phone and tablet. Onboard a customer right on the metro."
+      },
+      "integrations": {
+        "title": "Integration-ready",
+        "body": "APIs for e-Parabolo, the Tax Office, insurance carriers, accounting and SMS providers."
       }
     },
-    "footer": "© 2026 Kalypsis Insurance Platform"
+    "forAgencies": {
+      "eyebrow": "FOR YOUR AGENCY",
+      "title": "One office. Many branches. Zero chaos.",
+      "lead": "Whether you're solo or running a 30-person team with branches across Athens and the regions, Kalypsis keeps everyone aligned.",
+      "badge": "Hosted in a European data centre",
+      "point1": "Multiple branches with separate staff and permissions.",
+      "point2": "One-click customer onboarding with auto-created portal account.",
+      "point3": "Full audit trail of every policy change.",
+      "point4": "Production reports per employee, line and carrier.",
+      "point5": "Free team training and data migration from your previous system.",
+      "cta": "Register an agency"
+    },
+    "forAgents": {
+      "eyebrow": "FOR INSURANCE INTERMEDIARIES",
+      "title": "Work freely. Track professionally.",
+      "lead": "For insurance agents, coordinators, consultants and brokers who want real-time visibility into their production and zero missed commissions.",
+      "licensesTitle": "SUPPORTED LICENCE TYPES",
+      "licenses": {
+        "agent": "Insurance Agent",
+        "coordinator": "Insurance Agents Coordinator",
+        "consultant": "Insurance Consultant",
+        "broker": "Insurance Broker"
+      },
+      "cta": "Register as a broker"
+    },
+    "stats": {
+      "agencies": "Insurance agencies",
+      "agents": "Intermediaries",
+      "policies": "Active policies",
+      "uptime": "Uptime"
+    },
+    "pricing": {
+      "eyebrow": "TRANSPARENT PRICING",
+      "title": "Pick the plan that fits your agency",
+      "lead": "Every plan includes a 14-day free trial, no card required. Cancel any time.",
+      "month": "month",
+      "popular": "POPULAR",
+      "starter": {
+        "name": "Starter",
+        "tagline": "For solo brokers and small offices.",
+        "f1": "Up to 2 users",
+        "f2": "Up to 300 customers",
+        "f3": "Customer portal",
+        "f4": "Email support",
+        "cta": "Get started"
+      },
+      "pro": {
+        "name": "Professional",
+        "tagline": "For active offices with teams and branches.",
+        "f1": "Up to 15 users",
+        "f2": "Unlimited customers",
+        "f3": "Producers & commissions",
+        "f4": "Claims & tasks",
+        "f5": "SMS alerts (1,000/month)",
+        "f6": "Priority support",
+        "cta": "Start free"
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "tagline": "For groups and coordinator networks.",
+        "f1": "Unlimited users",
+        "f2": "Custom integrations",
+        "f3": "SSO & 99.9% SLA",
+        "f4": "Dedicated account manager",
+        "cta": "Contact us"
+      }
+    },
+    "compliance": {
+      "eyebrow": "SECURITY & COMPLIANCE",
+      "title": "Built for Greek and EU regulation.",
+      "lead": "From day one, Kalypsis aligns with the requirements of supervisory authorities and the General Data Protection Regulation.",
+      "boe": {
+        "title": "Bank of Greece supervised",
+        "body": "Architecture and permissions matching the insurance distribution oversight framework."
+      },
+      "idd": {
+        "title": "Law 4583/2018 (IDD)",
+        "body": "Customer records, intermediary licences and disclosure documents per the IDD directive."
+      },
+      "gdpr": {
+        "title": "GDPR & HDPA",
+        "body": "Consents, right to erasure, data access — all baked in."
+      },
+      "iso": {
+        "title": "Bank-grade encryption",
+        "body": "TLS 1.3, AES-256 at rest, daily encrypted backups inside the EU."
+      }
+    },
+    "faq": {
+      "eyebrow": "FREQUENTLY ASKED",
+      "title": "What you might be wondering",
+      "q1": {
+        "q": "How long does it take to go live?",
+        "a": "From signing to full operation, our average setup time is 5 working days — including importing data from Excel or another system."
+      },
+      "q2": {
+        "q": "Can I import customers from my old system?",
+        "a": "Yes. We support imports from Excel, CSV and from the older specialised Greek market software. Migration is free on Professional and Enterprise."
+      },
+      "q3": {
+        "q": "How is my customers' data protected?",
+        "a": "All data is hosted in the EU with AES-256 encryption. No agency sees another's data thanks to our multi-tenant architecture."
+      },
+      "q4": {
+        "q": "Does it work on mobile?",
+        "a": "Yes — everything is available on phone and tablet, no app needed. Just open the browser."
+      },
+      "q5": {
+        "q": "What happens if I want to leave?",
+        "a": "You can export all your data to CSV at any time and cancel your subscription without penalties."
+      }
+    },
+    "finalCta": {
+      "title": "Ready to modernise your agency?",
+      "lead": "14-day free trial. No card. We migrate your data for you.",
+      "ctaPrimary": "Start now",
+      "ctaSecondary": "I already have an account"
+    }
+  },
+  "login": {
+    "brandStrip": "WELCOME TO KALYPSIS",
+    "heroTitle": "Welcome back.",
+    "heroBody": "Sign in to manage your customers, policies and production. All organised, all in Greek.",
+    "point1": "Full access to customers and policies.",
+    "point2": "Producers and commissions management.",
+    "point3": "Customer portal at no per-seat cost.",
+    "footnote": "By signing in, you accept the Terms of Service and Privacy Policy.",
+    "noAccountQ": "Don't have an account yet?",
+    "registerHere": "Sign up",
+    "demoLabel": "DEMO ACCOUNT"
+  },
+  "register": {
+    "eyebrow": "JOIN KALYPSIS",
+    "headline": "Tell us who you are.",
+    "lead": "Pick whether you're signing up as an insurance agency or as an individual intermediary. We review applications within one business day.",
+    "choice": {
+      "agency": {
+        "title": "Insurance Agency",
+        "subtitle": "FOR FIRMS & BROKERAGES",
+        "body": "Legal entities operating in insurance distribution with branches and a staff team.",
+        "p1": "Multiple users with roles",
+        "p2": "Producer & commission management",
+        "p3": "Unlimited customer portals",
+        "p4": "API & integrations",
+        "cta": "Register as agency"
+      },
+      "agent": {
+        "title": "Insurance Intermediary",
+        "subtitle": "INDIVIDUAL LICENCE",
+        "body": "Agents, coordinators, consultants and brokers holding an individual licence.",
+        "p1": "Up to 300 customers on Starter",
+        "p2": "Real-time production tracking",
+        "p3": "Renewal reminders",
+        "p4": "Instant activation",
+        "cta": "Register as broker"
+      }
+    },
+    "alreadyHave": "Already have an account?",
+    "backToChoice": "Back to registration options",
+    "step": {
+      "company": "Business",
+      "location": "Operations",
+      "contact": "Contact",
+      "review": "Review"
+    },
+    "agency": {
+      "eyebrow": "AGENCY REGISTRATION",
+      "title": "Agency details",
+      "lead": "Fill in the details below to activate your agency. Our team will contact you within one business day.",
+      "companyTitle": "Company details",
+      "legalName": "Legal name (per articles of association)",
+      "brandName": "Trade name",
+      "brandHelp": "e.g. 'Alpha Insurance Brokers'",
+      "vat": "VAT number",
+      "vatHelp": "9 digits, no spaces",
+      "doy": "Tax office (DOY)",
+      "gemi": "GEMI number",
+      "gemiHelp": "Optional, for legal entities",
+      "license": "Intermediary licence number",
+      "licenseHelp": "e.g. registration number from the chamber",
+      "locationTitle": "Headquarters & operations",
+      "address": "Registered address",
+      "city": "City",
+      "postalCode": "Postcode",
+      "employees": "Number of employees",
+      "years": "Years in business",
+      "partners": "Insurance carriers you work with",
+      "partnersHelp": "List the key carriers you already partner with.",
+      "contactTitle": "Primary contact",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "contactName2": "Contact",
+      "role": "Role in company",
+      "roleHelp": "e.g. Director, Partner",
+      "email": "Contact email",
+      "phone": "Phone",
+      "notes": "Comments or questions",
+      "reviewTitle": "Review your details"
+    },
+    "agent": {
+      "eyebrow": "INTERMEDIARY REGISTRATION",
+      "title": "Individual licence details",
+      "lead": "Enter the details of your individual chamber licence. All data is protected under GDPR.",
+      "personalTitle": "Personal details",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "fatherName": "Father's name",
+      "vat": "VAT number",
+      "vatHelp": "9 digits",
+      "amka": "AMKA",
+      "amkaHelp": "11 digits (optional)",
+      "licenseTitle": "Licence details",
+      "licenseType": "Licence type",
+      "licenseTypes": {
+        "agent": "Insurance Agent",
+        "coordinator": "Insurance Agents Coordinator",
+        "consultant": "Insurance Consultant",
+        "broker": "Insurance Broker"
+      },
+      "licenseNumber": "Registration number",
+      "licenseNumberHelp": "As shown on your chamber registration",
+      "licenseYear": "Issue year",
+      "workingMode": "Working mode",
+      "modes": {
+        "independent": "Independent",
+        "affiliated": "Partnered with an agency",
+        "employee": "Employed by an agency"
+      },
+      "affiliatedAgency": "Partner agency name",
+      "contactTitle": "Contact details",
+      "email": "Email",
+      "phone": "Phone",
+      "city": "Base city",
+      "notes": "Comments"
+    },
+    "errors": {
+      "legalName": "Please enter the legal company name.",
+      "contactName": "Please enter first and last name.",
+      "vat": "VAT number must be 9 digits.",
+      "doy": "Please enter the tax office.",
+      "address": "Please enter the full registered address.",
+      "email": "Email is not valid.",
+      "phone": "Please enter a contact phone.",
+      "license": "Please enter the licence registration number.",
+      "terms": "You must accept the terms to continue."
+    },
+    "terms": "I confirm the above is accurate and accept the Kalypsis Privacy Policy and Terms of Service. I consent to the Kalypsis team contacting me to verify these details.",
+    "prev": "Back",
+    "next": "Next",
+    "submit": "Submit application",
+    "success": {
+      "title": "We've received your application!",
+      "body": "Our team will contact you within one business day to verify your details and activate your account.",
+      "refCode": "REFERENCE CODE",
+      "backHome": "Back home"
+    }
+  },
+  "footer": {
+    "intro": "Kalypsis is a modern Greek insurance management platform, designed around the needs of the Greek broker and the requirements of EU regulation.",
+    "compliance": "Compliant with Law 4583/2018 (IDD), GDPR and the supervision of the Bank of Greece.",
+    "product": "Product",
+    "company": "Company",
+    "contact": "Contact",
+    "about": "About",
+    "faq": "FAQ",
+    "terms": "Terms of service",
+    "privacy": "Privacy policy",
+    "cookies": "Cookies"
   },
   "auth": {
     "login": "Sign in",
