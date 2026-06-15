@@ -16,7 +16,7 @@ export function PublicFooter() {
           }}
         >
           <Stack spacing={2}>
-            <KalypsisLogo size={56} color="light" showTagline />
+            <KalypsisLogo size={64} color="light" />
             <Typography variant="body2" sx={{ opacity: 0.78, maxWidth: 360, lineHeight: 1.7 }}>
               {t("footer.intro")}
             </Typography>

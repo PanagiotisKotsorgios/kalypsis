@@ -66,7 +66,7 @@ export function LoginPage() {
         <BrandImage seed="kalypsis-login-greek-coast" width={1400} height={1600} overlay="navy-strong" />
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ position: "relative", zIndex: 1 }}>
           <Box component={RouterLink} to="/" sx={{ display: "inline-flex", textDecoration: "none" }}>
-            <KalypsisLogo size={72} color="light" showTagline />
+            <KalypsisLogo size={80} color="light" />
           </Box>
         </Stack>
 

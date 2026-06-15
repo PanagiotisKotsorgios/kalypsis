@@ -827,7 +827,7 @@ function FinalCta() {
       <BrandImage seed="kalypsis-final-cta-meditteranean" width={1800} height={900} overlay="navy-strong" />
       <Container maxWidth="md" sx={{ position: "relative", zIndex: 1, textAlign: "center" }}>
         <Stack spacing={3} alignItems="center">
-          <KalypsisLogo size={72} color="light" showText={false} />
+          <KalypsisLogo size={88} color="light" />
           <Typography variant="h2" sx={{ fontWeight: 900, letterSpacing: -1 }}>
             {t("landing.finalCta.title")}
           </Typography>
