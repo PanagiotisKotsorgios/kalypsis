@@ -1,0 +1,35 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.vscode/
+
+# Build outputs
+publish/
+artifacts/
+
+# Logs
+*.log
+logs/
+
+# Node / Frontend
+node_modules/
+dist/
+.vite/
+.cache/
+
+# Local secrets / env
+*.local.json
+appsettings.Local.json
+.env
+.env.local
+.env.*.local
+
+# Uploads (local file storage)
+src/Backend/Kalypsis.Api/uploads/
+
+# OS
+.DS_Store
+Thumbs.db

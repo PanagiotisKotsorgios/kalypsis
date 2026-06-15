@@ -1,0 +1,61 @@
+{
+  "app": {
+    "name": "Kalypsis",
+    "tagline": "Πλατφόρμα Ασφαλιστικού Γραφείου"
+  },
+  "nav": {
+    "dashboard": "Πίνακας Ελέγχου",
+    "customers": "Πελάτες",
+    "policies": "Συμβόλαια",
+    "documents": "Έγγραφα",
+    "notifications": "Ειδοποιήσεις",
+    "users": "Χρήστες",
+    "tenants": "Γραφεία",
+    "profile": "Προφίλ",
+    "logout": "Αποσύνδεση",
+    "tasks": "Εργασίες",
+    "producers": "Παραγωγοί",
+    "claims": "Ζημιές",
+    "reports": "Αναφορές"
+  },
+  "auth": {
+    "login": "Σύνδεση",
+    "email": "Email",
+    "password": "Κωδικός",
+    "signIn": "Είσοδος",
+    "loginTitle": "Σύνδεση στην πλατφόρμα",
+    "loginSubtitle": "Εισάγετε τα στοιχεία σας για να συνεχίσετε",
+    "rememberMe": "Να με θυμάσαι"
+  },
+  "common": {
+    "language": "Γλώσσα",
+    "greek": "Ελληνικά",
+    "english": "Αγγλικά",
+    "loading": "Φόρτωση...",
+    "save": "Αποθήκευση",
+    "cancel": "Άκυρο",
+    "edit": "Επεξεργασία",
+    "delete": "Διαγραφή",
+    "create": "Δημιουργία",
+    "search": "Αναζήτηση",
+    "back": "Πίσω",
+    "welcome": "Καλώς ήρθατε",
+    "noData": "Δεν υπάρχουν δεδομένα"
+  },
+  "roles": {
+    "PlatformAdmin": "Διαχειριστής Πλατφόρμας",
+    "PlatformEmployee": "Υπάλληλος Πλατφόρμας",
+    "AgencyAdmin": "Διαχειριστής Γραφείου",
+    "AgencyUser": "Υπάλληλος Γραφείου",
+    "Producer": "Παραγωγός",
+    "Customer": "Πελάτης"
+  },
+  "dashboard": {
+    "activePolicies": "Ενεργά Συμβόλαια",
+    "expiringSoon": "Λήγουν Σύντομα",
+    "unreadNotifications": "Μη αναγνωσμένες ειδοποιήσεις",
+    "customersCount": "Σύνολο Πελατών",
+    "policiesCount": "Σύνολο Συμβολαίων",
+    "documentsUploaded": "Έγγραφα"
+  }
+}

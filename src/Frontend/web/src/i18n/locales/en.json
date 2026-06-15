@@ -1,0 +1,61 @@
+{
+  "app": {
+    "name": "Kalypsis",
+    "tagline": "Insurance Agency Platform"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "customers": "Customers",
+    "policies": "Policies",
+    "documents": "Documents",
+    "notifications": "Notifications",
+    "users": "Users",
+    "tenants": "Agencies",
+    "profile": "Profile",
+    "logout": "Sign out",
+    "tasks": "Tasks",
+    "producers": "Producers",
+    "claims": "Claims",
+    "reports": "Reports"
+  },
+  "auth": {
+    "login": "Sign in",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign in",
+    "loginTitle": "Sign in to the platform",
+    "loginSubtitle": "Enter your credentials to continue",
+    "rememberMe": "Remember me"
+  },
+  "common": {
+    "language": "Language",
+    "greek": "Greek",
+    "english": "English",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "create": "Create",
+    "search": "Search",
+    "back": "Back",
+    "welcome": "Welcome",
+    "noData": "No data"
+  },
+  "roles": {
+    "PlatformAdmin": "Platform Administrator",
+    "PlatformEmployee": "Platform Employee",
+    "AgencyAdmin": "Agency Administrator",
+    "AgencyUser": "Agency Employee",
+    "Producer": "Producer",
+    "Customer": "Customer"
+  },
+  "dashboard": {
+    "activePolicies": "Active Policies",
+    "expiringSoon": "Expiring Soon",
+    "unreadNotifications": "Unread Notifications",
+    "customersCount": "Total Customers",
+    "policiesCount": "Total Policies",
+    "documentsUploaded": "Documents"
+  }
+}

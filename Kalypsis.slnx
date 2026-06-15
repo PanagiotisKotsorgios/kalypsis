@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Backend/">
+    <Project Path="src/Backend/Kalypsis.Api/Kalypsis.Api.csproj" />
+    <Project Path="src/Backend/Kalypsis.Application/Kalypsis.Application.csproj" />
+    <Project Path="src/Backend/Kalypsis.Domain/Kalypsis.Domain.csproj" />
+    <Project Path="src/Backend/Kalypsis.Infrastructure/Kalypsis.Infrastructure.csproj" />
+  </Folder>
+</Solution>
