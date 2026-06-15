@@ -6,7 +6,7 @@ import { KalypsisLogo } from "./KalypsisLogo";
 export function PublicFooter() {
   const { t } = useTranslation();
   return (
-    <Box id="contact" component="footer" sx={{ bgcolor: "#061a36", color: "rgba(255,255,255,0.85)", pt: 8, pb: 4 }}>
+    <Box component="footer" sx={{ bgcolor: "#061a36", color: "rgba(255,255,255,0.85)", pt: 8, pb: 4 }}>
       <Container maxWidth="lg">
         <Box
           sx={{
@@ -38,8 +38,8 @@ export function PublicFooter() {
           <FooterColumn
             heading={t("footer.company")}
             links={[
-              { to: "/#about", label: t("footer.about") },
               { to: "/#faq", label: t("footer.faq") },
+              { to: "/contact", label: t("publicNav.contact") },
               { to: "/register", label: t("publicNav.register") },
               { to: "/login", label: t("publicNav.signIn") }
             ]}
@@ -69,13 +69,13 @@ export function PublicFooter() {
         >
           <Box>© {new Date().getFullYear()} Kalypsis Insurance Platform — {t("app.tagline")}</Box>
           <Stack direction="row" spacing={3}>
-            <Link component={RouterLink} to="/#terms" color="inherit" underline="hover">
+            <Link component={RouterLink} to="/terms" color="inherit" underline="hover">
               {t("footer.terms")}
             </Link>
-            <Link component={RouterLink} to="/#privacy" color="inherit" underline="hover">
+            <Link component={RouterLink} to="/privacy" color="inherit" underline="hover">
               {t("footer.privacy")}
             </Link>
-            <Link component={RouterLink} to="/#cookies" color="inherit" underline="hover">
+            <Link component={RouterLink} to="/cookies" color="inherit" underline="hover">
               {t("footer.cookies")}
             </Link>
           </Stack>

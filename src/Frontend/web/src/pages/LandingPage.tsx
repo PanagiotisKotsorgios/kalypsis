@@ -1,8 +1,11 @@
+import { useEffect, useRef, useState } from "react";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Box,
   Button,
   Card,
-  CardContent,
   Chip,
   Container,
   Divider,
@@ -13,17 +16,14 @@ import {
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PolicyIcon from "@mui/icons-material/Policy";
 import GroupsIcon from "@mui/icons-material/Groups";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
-import SecurityIcon from "@mui/icons-material/Security";
 import PhoneIphoneIcon from "@mui/icons-material/PhoneIphone";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import IntegrationInstructionsIcon from "@mui/icons-material/IntegrationInstructions";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import StarIcon from "@mui/icons-material/Star";
 import { PublicShell } from "../components/PublicShell";
 import { BrandImage } from "../components/BrandImage";
 import { KalypsisLogo } from "../components/KalypsisLogo";
@@ -38,7 +38,6 @@ export function LandingPage() {
       <ForAgents />
       <Stats />
       <Pricing />
-      <Compliance />
       <Faq />
       <FinalCta />
     </PublicShell>
@@ -54,7 +53,7 @@ function Hero() {
     <Box
       sx={{
         position: "relative",
-        minHeight: { xs: "100vh", md: "92vh" },
+        minHeight: { xs: "92vh", md: "88vh" },
         display: "flex",
         alignItems: "center",
         overflow: "hidden",
@@ -76,155 +75,66 @@ function Hero() {
           pointerEvents: "none"
         }}
       />
-      <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1, color: "common.white" }}>
-        <Box
-          sx={{
-            display: "grid",
-            gap: { xs: 6, md: 8 },
-            gridTemplateColumns: { xs: "1fr", md: "1.15fr 1fr" },
-            alignItems: "center"
-          }}
-        >
-          <Stack spacing={4}>
-            <Chip
-              label={t("landing.eyebrow")}
+      <Container maxWidth="md" sx={{ position: "relative", zIndex: 1, color: "common.white", textAlign: "center" }}>
+        <Stack spacing={4} alignItems="center">
+          <Typography
+            variant="h1"
+            sx={{
+              fontSize: { xs: 38, sm: 52, md: 68 },
+              fontWeight: 900,
+              lineHeight: 1.05,
+              letterSpacing: -1.5,
+              maxWidth: 900
+            }}
+          >
+            {t("landing.headline")}
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: { xs: 17, md: 20 },
+              lineHeight: 1.65,
+              opacity: 0.92,
+              maxWidth: 720
+            }}
+          >
+            {t("landing.lead")}
+          </Typography>
+
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ pt: 2 }}>
+            <Button
+              component={RouterLink}
+              to="/register"
+              size="large"
+              variant="contained"
+              color="secondary"
+              endIcon={<ArrowForwardIcon />}
+              sx={{ px: 4.5, py: 1.6, fontSize: 16, fontWeight: 700 }}
+            >
+              {t("landing.ctaPrimary")}
+            </Button>
+            <Button
+              component={RouterLink}
+              to="/login"
+              size="large"
+              variant="outlined"
               sx={{
-                alignSelf: "flex-start",
-                bgcolor: "rgba(255,255,255,0.12)",
+                px: 4.5,
+                py: 1.6,
                 color: "common.white",
-                fontWeight: 600,
-                letterSpacing: 0.5,
-                border: "1px solid rgba(255,255,255,0.2)"
-              }}
-            />
-            <Typography
-              variant="h1"
-              sx={{
-                fontSize: { xs: 36, sm: 48, md: 60 },
-                fontWeight: 900,
-                lineHeight: 1.05,
-                letterSpacing: -1
+                borderColor: "rgba(255,255,255,0.5)",
+                "&:hover": { borderColor: "common.white", bgcolor: "rgba(255,255,255,0.08)" }
               }}
             >
-              {t("landing.headline")}
-            </Typography>
-            <Typography
-              sx={{
-                fontSize: { xs: 17, md: 19 },
-                lineHeight: 1.6,
-                opacity: 0.92,
-                maxWidth: 560
-              }}
-            >
-              {t("landing.lead")}
-            </Typography>
-
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ pt: 1 }}>
-              <Button
-                component={RouterLink}
-                to="/register"
-                size="large"
-                variant="contained"
-                color="secondary"
-                endIcon={<ArrowForwardIcon />}
-                sx={{ px: 4, py: 1.6, fontSize: 16, fontWeight: 700 }}
-              >
-                {t("landing.ctaPrimary")}
-              </Button>
-              <Button
-                component={RouterLink}
-                to="/login"
-                size="large"
-                variant="outlined"
-                sx={{
-                  px: 4,
-                  py: 1.6,
-                  color: "common.white",
-                  borderColor: "rgba(255,255,255,0.5)",
-                  "&:hover": { borderColor: "common.white", bgcolor: "rgba(255,255,255,0.08)" }
-                }}
-              >
-                {t("landing.ctaSecondary")}
-              </Button>
-            </Stack>
-
-            <Stack direction="row" spacing={3} sx={{ pt: 3, opacity: 0.85, flexWrap: "wrap" }}>
-              <HeroTag icon={<VerifiedUserIcon fontSize="small" />} label={t("landing.heroTag.idd")} />
-              <HeroTag icon={<SecurityIcon fontSize="small" />} label={t("landing.heroTag.gdpr")} />
-              <HeroTag icon={<AccountBalanceIcon fontSize="small" />} label={t("landing.heroTag.boe")} />
-            </Stack>
+              {t("landing.ctaSecondary")}
+            </Button>
           </Stack>
 
-          {/* Right column: showcase card */}
-          <Box sx={{ position: "relative", display: { xs: "none", md: "block" } }}>
-            <Card
-              sx={{
-                bgcolor: "rgba(255,255,255,0.07)",
-                backdropFilter: "blur(14px)",
-                border: "1px solid rgba(255,255,255,0.18)",
-                color: "common.white",
-                borderRadius: 4,
-                overflow: "hidden"
-              }}
-            >
-              <Box sx={{ position: "relative", height: 220 }}>
-                <BrandImage seed="kalypsis-office-team" width={900} height={500} overlay="tint" />
-                <Box sx={{ position: "absolute", left: 20, bottom: 16, zIndex: 1 }}>
-                  <KalypsisLogo size={42} color="light" />
-                </Box>
-              </Box>
-              <CardContent sx={{ p: 3 }}>
-                <Stack spacing={2}>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <StarIcon key={i} sx={{ fontSize: 18, color: "#f6c452" }} />
-                    ))}
-                    <Typography variant="caption" sx={{ opacity: 0.85, ml: 1 }}>
-                      4.9 · ELITE INSURANCE BROKERS Α.Ε.
-                    </Typography>
-                  </Stack>
-                  <Typography sx={{ fontSize: 16, lineHeight: 1.6, fontStyle: "italic", opacity: 0.95 }}>
-                    «Από τότε που μεταβήκαμε στο Kalypsis, οι ανανεώσεις δεν χάνονται και οι πελάτες
-                    βλέπουν μόνοι τους τα συμβόλαιά τους. Ο χρόνος που εξοικονομούμε μετράει.»
-                  </Typography>
-                  <Stack direction="row" spacing={2} alignItems="center">
-                    <Box
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: "50%",
-                        bgcolor: "rgba(255,255,255,0.15)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: 700
-                      }}
-                    >
-                      ΣΚ
-                    </Box>
-                    <Box>
-                      <Typography sx={{ fontWeight: 600 }}>Σταύρος Καραγιάννης</Typography>
-                      <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                        Διευθυντής Λειτουργιών, Χαλάνδρι
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Box>
-        </Box>
+          <Typography variant="caption" sx={{ opacity: 0.7, letterSpacing: 1.2, mt: 2 }}>
+            {t("landing.heroNote")}
+          </Typography>
+        </Stack>
       </Container>
     </Box>
-  );
-}
-
-function HeroTag({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <Stack direction="row" spacing={0.75} alignItems="center" sx={{ fontSize: 13 }}>
-      {icon}
-      <span>{label}</span>
-    </Stack>
   );
 }
 
@@ -600,12 +510,7 @@ function Pricing() {
       key: "starter",
       price: "€39",
       featured: false,
-      features: [
-        "pricing.starter.f1",
-        "pricing.starter.f2",
-        "pricing.starter.f3",
-        "pricing.starter.f4"
-      ]
+      features: ["pricing.starter.f1", "pricing.starter.f2", "pricing.starter.f3", "pricing.starter.f4"]
     },
     {
       key: "pro",
@@ -636,16 +541,22 @@ function Pricing() {
   return (
     <Box id="pricing" sx={{ py: { xs: 8, md: 14 }, bgcolor: "background.paper" }}>
       <Container maxWidth="lg">
-        <Stack spacing={1.5} alignItems="center" textAlign="center" mb={6}>
+        <Stack spacing={1.5} alignItems="center" textAlign="center" mb={5}>
           <Typography variant="overline" color="secondary.main" sx={{ letterSpacing: 2, fontWeight: 700 }}>
             {t("landing.pricing.eyebrow")}
           </Typography>
           <Typography variant="h3" sx={{ fontWeight: 800 }}>
             {t("landing.pricing.title")}
           </Typography>
-          <Typography color="text.secondary" sx={{ maxWidth: 600 }}>
+          <Typography color="text.secondary" sx={{ maxWidth: 620 }}>
             {t("landing.pricing.lead")}
           </Typography>
+          <Chip
+            label={t("landing.pricing.unified")}
+            color="primary"
+            variant="outlined"
+            sx={{ mt: 1, fontWeight: 600, borderStyle: "dashed" }}
+          />
         </Stack>
 
         <Box
@@ -718,83 +629,36 @@ function Pricing() {
   );
 }
 
-/* ----------------------- COMPLIANCE / SECURITY ----------------------- */
-function Compliance() {
-  const { t } = useTranslation();
-  const items = [
-    { icon: <AccountBalanceIcon />, key: "boe" },
-    { icon: <VerifiedUserIcon />, key: "idd" },
-    { icon: <SecurityIcon />, key: "gdpr" },
-    { icon: <PolicyIcon />, key: "iso" }
-  ];
-  return (
-    <Box sx={{ py: { xs: 6, md: 10 } }}>
-      <Container maxWidth="lg">
-        <Box
-          sx={{
-            display: "grid",
-            gap: { xs: 4, md: 8 },
-            gridTemplateColumns: { xs: "1fr", md: "1fr 2fr" },
-            alignItems: "center"
-          }}
-        >
-          <Stack spacing={2}>
-            <Typography variant="overline" color="secondary.main" sx={{ letterSpacing: 2, fontWeight: 700 }}>
-              {t("landing.compliance.eyebrow")}
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800 }}>
-              {t("landing.compliance.title")}
-            </Typography>
-            <Typography color="text.secondary">
-              {t("landing.compliance.lead")}
-            </Typography>
-          </Stack>
-
-          <Box
-            sx={{
-              display: "grid",
-              gap: 2,
-              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }
-            }}
-          >
-            {items.map((it) => (
-              <Card key={it.key} sx={{ p: 3, display: "flex", gap: 2, alignItems: "flex-start" }}>
-                <Box
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 1.5,
-                    bgcolor: "primary.main",
-                    color: "common.white",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center"
-                  }}
-                >
-                  {it.icon}
-                </Box>
-                <Box>
-                  <Typography sx={{ fontWeight: 700 }}>{t(`landing.compliance.${it.key}.title`)}</Typography>
-                  <Typography color="text.secondary" sx={{ fontSize: 14, mt: 0.5 }}>
-                    {t(`landing.compliance.${it.key}.body`)}
-                  </Typography>
-                </Box>
-              </Card>
-            ))}
-          </Box>
-        </Box>
-      </Container>
-    </Box>
-  );
-}
-
-/* ----------------------- FAQ ----------------------- */
+/* ----------------------- FAQ (animated accordion) ----------------------- */
 function Faq() {
   const { t } = useTranslation();
   const items = ["q1", "q2", "q3", "q4", "q5"];
+  const [expanded, setExpanded] = useState<string | false>("q1");
+  const [visibleCount, setVisibleCount] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Reveal items one by one when the section scrolls into view (staggered).
+  useEffect(() => {
+    const node = rootRef.current;
+    if (!node) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          items.forEach((_, idx) =>
+            setTimeout(() => setVisibleCount((v) => Math.max(v, idx + 1)), idx * 100)
+          );
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.15 }
+    );
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, [items]);
+
   return (
     <Box id="faq" sx={{ py: { xs: 8, md: 12 }, bgcolor: "background.paper" }}>
-      <Container maxWidth="md">
+      <Container maxWidth="md" ref={rootRef}>
         <Stack spacing={1.5} alignItems="center" textAlign="center" mb={5}>
           <Typography variant="overline" color="secondary.main" sx={{ letterSpacing: 2, fontWeight: 700 }}>
             {t("landing.faq.eyebrow")}
@@ -804,15 +668,74 @@ function Faq() {
           </Typography>
         </Stack>
 
-        <Stack spacing={2}>
-          {items.map((q) => (
-            <Card key={q} sx={{ p: 3 }}>
-              <Typography sx={{ fontWeight: 700, mb: 1 }}>{t(`landing.faq.${q}.q`)}</Typography>
-              <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-                {t(`landing.faq.${q}.a`)}
-              </Typography>
-            </Card>
-          ))}
+        <Stack spacing={1.5}>
+          {items.map((q, idx) => {
+            const isOpen = expanded === q;
+            const isVisible = idx < visibleCount;
+            return (
+              <Accordion
+                key={q}
+                expanded={isOpen}
+                onChange={(_, isExpanded) => setExpanded(isExpanded ? q : false)}
+                disableGutters
+                elevation={0}
+                sx={{
+                  bgcolor: "background.default",
+                  border: "1px solid",
+                  borderColor: isOpen ? "primary.main" : "divider",
+                  borderRadius: 2,
+                  overflow: "hidden",
+                  transition:
+                    "transform 250ms ease, opacity 350ms ease, box-shadow 250ms ease, border-color 250ms ease",
+                  transform: isVisible ? "translateY(0)" : "translateY(20px)",
+                  opacity: isVisible ? 1 : 0,
+                  "&:before": { display: "none" },
+                  "&:hover": {
+                    borderColor: "primary.light",
+                    boxShadow: "0 8px 24px rgba(11,37,69,0.08)"
+                  },
+                  "&.Mui-expanded": {
+                    boxShadow: "0 14px 40px rgba(11,37,69,0.12)",
+                    bgcolor: "common.white"
+                  }
+                }}
+              >
+                <AccordionSummary
+                  expandIcon={
+                    <Box
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        bgcolor: isOpen ? "primary.main" : "background.paper",
+                        color: isOpen ? "common.white" : "primary.main",
+                        transition: "background 200ms"
+                      }}
+                    >
+                      <ExpandMoreIcon />
+                    </Box>
+                  }
+                  sx={{
+                    py: 1,
+                    px: 3,
+                    "& .MuiAccordionSummary-content": { my: 1.5 }
+                  }}
+                >
+                  <Typography sx={{ fontWeight: 700, fontSize: 17, color: isOpen ? "primary.main" : "text.primary" }}>
+                    {t(`landing.faq.${q}.q`)}
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: 3, pb: 3 }}>
+                  <Typography color="text.secondary" sx={{ lineHeight: 1.75, fontSize: 15.5 }}>
+                    {t(`landing.faq.${q}.a`)}
+                  </Typography>
+                </AccordionDetails>
+              </Accordion>
+            );
+          })}
         </Stack>
       </Container>
     </Box>

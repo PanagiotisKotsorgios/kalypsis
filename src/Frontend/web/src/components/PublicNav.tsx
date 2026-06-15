@@ -49,7 +49,7 @@ export function PublicNav({ overlayHero = false }: PublicNavProps) {
     { to: "/#for-agencies", labelKey: "publicNav.forAgencies" },
     { to: "/#for-agents", labelKey: "publicNav.forAgents" },
     { to: "/#pricing", labelKey: "publicNav.pricing" },
-    { to: "/#contact", labelKey: "publicNav.contact" }
+    { to: "/contact", labelKey: "publicNav.contact" }
   ];
 
   const transparent = overlayHero && !scrolled;

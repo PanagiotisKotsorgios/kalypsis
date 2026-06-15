@@ -14,11 +14,16 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { useAuth, type Role } from "./auth/AuthContext";
 import { AppLayout, type NavItem } from "./components/AppLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { CookieBanner } from "./components/CookieBanner";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterChoicePage } from "./pages/RegisterChoicePage";
 import { RegisterAgencyPage } from "./pages/RegisterAgencyPage";
 import { RegisterAgentPage } from "./pages/RegisterAgentPage";
+import { ContactPage } from "./pages/ContactPage";
+import { TermsPage } from "./pages/TermsPage";
+import { PrivacyPage } from "./pages/PrivacyPage";
+import { CookiesPage } from "./pages/CookiesPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { TenantsPage } from "./pages/TenantsPage";
@@ -74,37 +79,53 @@ export default function App() {
   if (loading) return null;
 
   return (
-    <Routes>
-      <Route path="/" element={user ? <Navigate to="/app" replace /> : <LandingPage />} />
-      <Route path="/login" element={user ? <Navigate to="/app" replace /> : <LoginPage />} />
-      <Route path="/register" element={user ? <Navigate to="/app" replace /> : <RegisterChoicePage />} />
-      <Route path="/register/agency" element={user ? <Navigate to="/app" replace /> : <RegisterAgencyPage />} />
-      <Route path="/register/agent" element={user ? <Navigate to="/app" replace /> : <RegisterAgentPage />} />
-      <Route
-        path="/app/*"
-        element={
-          <ProtectedRoute>
-            <AppLayout navItems={user ? navByRole[user.role] : []}>
-              <Routes>
-                <Route index element={<DashboardPage />} />
-                <Route path="customers" element={<CustomersPage />} />
-                <Route path="policies" element={<PlaceholderPage titleKey="nav.policies" />} />
-                <Route path="documents" element={<PlaceholderPage titleKey="nav.documents" />} />
-                <Route path="notifications" element={<PlaceholderPage titleKey="nav.notifications" />} />
-                <Route path="users" element={<EmployeesPage />} />
-                <Route path="tenants" element={<TenantsPage />} />
-                <Route path="tasks" element={<PlaceholderPage titleKey="nav.tasks" />} />
-                <Route path="producers" element={<PlaceholderPage titleKey="nav.producers" />} />
-                <Route path="claims" element={<PlaceholderPage titleKey="nav.claims" />} />
-                <Route path="reports" element={<PlaceholderPage titleKey="nav.reports" />} />
-                <Route path="profile" element={<PlaceholderPage titleKey="nav.profile" />} />
-                <Route path="*" element={<Navigate to="/app" replace />} />
-              </Routes>
-            </AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={user ? <Navigate to="/app" replace /> : <LandingPage />} />
+        <Route path="/login" element={user ? <Navigate to="/app" replace /> : <LoginPage />} />
+        <Route path="/register" element={user ? <Navigate to="/app" replace /> : <RegisterChoicePage />} />
+        <Route
+          path="/register/agency"
+          element={user ? <Navigate to="/app" replace /> : <RegisterAgencyPage />}
+        />
+        <Route
+          path="/register/agent"
+          element={user ? <Navigate to="/app" replace /> : <RegisterAgentPage />}
+        />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/cookies" element={<CookiesPage />} />
+        <Route
+          path="/app/*"
+          element={
+            <ProtectedRoute>
+              <AppLayout navItems={user ? navByRole[user.role] : []}>
+                <Routes>
+                  <Route index element={<DashboardPage />} />
+                  <Route path="customers" element={<CustomersPage />} />
+                  <Route path="policies" element={<PlaceholderPage titleKey="nav.policies" />} />
+                  <Route path="documents" element={<PlaceholderPage titleKey="nav.documents" />} />
+                  <Route
+                    path="notifications"
+                    element={<PlaceholderPage titleKey="nav.notifications" />}
+                  />
+                  <Route path="users" element={<EmployeesPage />} />
+                  <Route path="tenants" element={<TenantsPage />} />
+                  <Route path="tasks" element={<PlaceholderPage titleKey="nav.tasks" />} />
+                  <Route path="producers" element={<PlaceholderPage titleKey="nav.producers" />} />
+                  <Route path="claims" element={<PlaceholderPage titleKey="nav.claims" />} />
+                  <Route path="reports" element={<PlaceholderPage titleKey="nav.reports" />} />
+                  <Route path="profile" element={<PlaceholderPage titleKey="nav.profile" />} />
+                  <Route path="*" element={<Navigate to="/app" replace />} />
+                </Routes>
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <CookieBanner />
+    </>
   );
 }

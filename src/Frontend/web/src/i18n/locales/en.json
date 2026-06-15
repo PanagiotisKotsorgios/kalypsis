@@ -36,11 +36,7 @@
     "lead": "From issuing a policy to renewal reminders and commission settlement, Kalypsis keeps your office organised and your customers informed — in Greek, by the rules of the Greek market.",
     "ctaPrimary": "Start free",
     "ctaSecondary": "Sign in",
-    "heroTag": {
-      "idd": "Compliant with Law 4583/2018 (IDD)",
-      "gdpr": "GDPR & HDPA",
-      "boe": "Bank of Greece supervised"
-    },
+    "heroNote": "14-DAY FREE TRIAL · NO CARD REQUIRED",
     "trustedBy": "WORKING WITH GREECE'S LARGEST INSURERS",
     "features": {
       "eyebrow": "PLATFORM FEATURES",
@@ -104,13 +100,14 @@
     },
     "pricing": {
       "eyebrow": "TRANSPARENT PRICING",
-      "title": "Pick the plan that fits your agency",
+      "title": "Pick the plan that fits you",
       "lead": "Every plan includes a 14-day free trial, no card required. Cancel any time.",
+      "unified": "Same plans for agencies and individual brokers — pick by users and customers, not by who you are.",
       "month": "month",
       "popular": "POPULAR",
       "starter": {
         "name": "Starter",
-        "tagline": "For solo brokers and small offices.",
+        "tagline": "For people getting started: solo licence or a two-person team.",
         "f1": "Up to 2 users",
         "f2": "Up to 300 customers",
         "f3": "Customer portal",
@@ -119,7 +116,7 @@
       },
       "pro": {
         "name": "Professional",
-        "tagline": "For active offices with teams and branches.",
+        "tagline": "For growing operations: teams up to 15 with full production tools.",
         "f1": "Up to 15 users",
         "f2": "Unlimited customers",
         "f3": "Producers & commissions",
@@ -130,33 +127,12 @@
       },
       "enterprise": {
         "name": "Enterprise",
-        "tagline": "For groups and coordinator networks.",
+        "tagline": "For scaling operations: unlimited team, custom integrations and SLA.",
         "f1": "Unlimited users",
         "f2": "Custom integrations",
         "f3": "SSO & 99.9% SLA",
         "f4": "Dedicated account manager",
         "cta": "Contact us"
-      }
-    },
-    "compliance": {
-      "eyebrow": "SECURITY & COMPLIANCE",
-      "title": "Built for Greek and EU regulation.",
-      "lead": "From day one, Kalypsis aligns with the requirements of supervisory authorities and the General Data Protection Regulation.",
-      "boe": {
-        "title": "Bank of Greece supervised",
-        "body": "Architecture and permissions matching the insurance distribution oversight framework."
-      },
-      "idd": {
-        "title": "Law 4583/2018 (IDD)",
-        "body": "Customer records, intermediary licences and disclosure documents per the IDD directive."
-      },
-      "gdpr": {
-        "title": "GDPR & HDPA",
-        "body": "Consents, right to erasure, data access — all baked in."
-      },
-      "iso": {
-        "title": "Bank-grade encryption",
-        "body": "TLS 1.3, AES-256 at rest, daily encrypted backups inside the EU."
       }
     },
     "faq": {
@@ -459,5 +435,86 @@
     "tempPassword": "Temporary password",
     "searchPlaceholder": "Search by name, email, VAT or customer #...",
     "noCustomers": "No customers yet. Click 'New Customer' to start."
+  },
+  "contact": {
+    "eyebrow": "CONTACT",
+    "title": "How can we help?",
+    "lead": "Tell us what's on your mind. We respond within one business day for general queries and immediately for urgent support issues.",
+    "form": {
+      "title": "Send us a message",
+      "subtitle": "Fill in the form and we'll respond at the email you provide.",
+      "inquiryType": "Type of inquiry",
+      "inquiryTypes": {
+        "sales": "Information & sales",
+        "support": "Technical support",
+        "agency": "I'm an insurance agency",
+        "agent": "I'm an intermediary",
+        "customer": "I'm an agency's customer",
+        "press": "Press / media",
+        "other": "Other"
+      },
+      "firstName": "First name",
+      "lastName": "Last name",
+      "email": "Email",
+      "phone": "Phone (optional)",
+      "agencyOrCity": "Agency / city (optional)",
+      "subject": "Subject",
+      "message": "Your message",
+      "consent": "I consent to the Kalypsis team contacting me about this request and accept the Privacy Policy.",
+      "submit": "Send message",
+      "submitting": "Sending..."
+    },
+    "info": {
+      "hq": { "title": "Headquarters" },
+      "phone": { "title": "Phone" },
+      "email": {
+        "title": "Email",
+        "sales": "Information & sales",
+        "support": "Technical support",
+        "privacy": "Data protection (DPO)",
+        "general": "General queries"
+      },
+      "hours": {
+        "title": "Hours",
+        "weekdays": "Monday – Friday · 09:00 – 18:00 EET",
+        "support": "24/7 emergency support for Enterprise customers"
+      }
+    },
+    "errors": {
+      "name": "Please enter first and last name.",
+      "email": "Email is not valid.",
+      "subject": "Please enter a subject.",
+      "message": "Message must be at least 10 characters.",
+      "consent": "You must accept the Privacy Policy to continue."
+    },
+    "success": {
+      "title": "We received your message!",
+      "body": "Thanks for reaching out. Our team will respond within one business day at the email you provided.",
+      "refCode": "REQUEST REFERENCE",
+      "backHome": "Home page",
+      "newMessage": "New message"
+    }
+  },
+  "legal": {
+    "lastUpdated": "Last updated: {{date}}",
+    "terms": {
+      "eyebrow": "LEGAL",
+      "title": "Terms of Service"
+    },
+    "privacy": {
+      "eyebrow": "DATA PROTECTION",
+      "title": "Privacy Policy"
+    },
+    "cookies": {
+      "eyebrow": "COOKIES",
+      "title": "Cookie Policy"
+    }
+  },
+  "cookieBanner": {
+    "title": "We use cookies.",
+    "body": "Necessary cookies make the Platform work; optional ones help us understand usage anonymously. Choose what you allow.",
+    "learnMore": "Learn more",
+    "acceptAll": "Accept all",
+    "rejectAll": "Necessary only"
   }
 }
