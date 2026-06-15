@@ -19,6 +19,7 @@ node_modules/
 dist/
 .vite/
 .cache/
+*.tsbuildinfo
 
 # Local secrets / env
 *.local.json
