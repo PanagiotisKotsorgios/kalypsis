@@ -22,8 +22,10 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import CloseIcon from "@mui/icons-material/Close";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthContext";
+import { api } from "../api/client";
 import { LanguageToggle } from "./LanguageToggle";
 import { NotificationBell } from "./NotificationBell";
 import { KalypsisLogo } from "./KalypsisLogo";
@@ -52,6 +54,19 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [open, setOpen] = useState(!isMobile);
 
+  const logoQuery = useQuery({
+    queryKey: ["tenant-logo", user?.tenantId ?? "none"],
+    enabled: !!user?.tenantId,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const res = await api.get("/agency-profile/logo", { responseType: "blob" });
+      if (res.status === 204 || !res.data || (res.data as Blob).size === 0) return null;
+      return URL.createObjectURL(res.data as Blob);
+    }
+  });
+  useEffect(() => () => { if (logoQuery.data) URL.revokeObjectURL(logoQuery.data); }, [logoQuery.data]);
+  const tenantLogoUrl = logoQuery.data ?? null;
+
   // Snap drawer state when crossing breakpoint and auto-close on mobile navigation.
   useEffect(() => {
     setOpen(!isMobile);
@@ -69,8 +84,19 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
 
   const drawerContent = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <Toolbar sx={{ px: 2, justifyContent: "space-between" }}>
-        <KalypsisLogo size={32} />
+      <Toolbar sx={{ px: 2, justifyContent: "space-between", gap: 1 }}>
+        {tenantLogoUrl ? (
+          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ minWidth: 0 }}>
+            <Box
+              component="img"
+              src={tenantLogoUrl}
+              alt={user?.tenantName ?? ""}
+              sx={{ height: 36, maxWidth: 140, objectFit: "contain" }}
+            />
+          </Stack>
+        ) : (
+          <KalypsisLogo size={32} />
+        )}
         {isMobile && (
           <IconButton size="small" onClick={() => setOpen(false)}>
             <CloseIcon />
@@ -157,12 +183,22 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           <IconButton edge="start" onClick={() => setOpen((v) => !v)} sx={{ mr: 1 }}>
             <MenuIcon />
           </IconButton>
-          <Typography
-            variant="subtitle1"
-            sx={{ flex: 1, fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-          >
-            {user?.tenantName ?? t("app.subtitle")}
-          </Typography>
+          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
+            {tenantLogoUrl && (
+              <Box
+                component="img"
+                src={tenantLogoUrl}
+                alt=""
+                sx={{ height: 32, maxWidth: 110, objectFit: "contain", display: { xs: "none", sm: "block" } }}
+              />
+            )}
+            <Typography
+              variant="subtitle1"
+              sx={{ fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            >
+              {user?.tenantName ?? t("app.subtitle")}
+            </Typography>
+          </Stack>
           <Stack direction="row" spacing={{ xs: 0.5, md: 1.5 }} alignItems="center">
             <NotificationBell />
             <Box sx={{ display: { xs: "none", sm: "block" } }}>

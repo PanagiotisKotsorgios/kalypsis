@@ -104,3 +104,127 @@ public class UpdateMyAgencyProfileCommandHandler : IRequestHandler<UpdateMyAgenc
         return c.StartsWith("#") ? c.ToUpperInvariant() : "#" + c.ToUpperInvariant();
     }
 }
+
+/* ========= Logo upload / download ========= */
+
+public record UploadAgencyLogoCommand(
+    string FileName,
+    string ContentType,
+    long SizeBytes,
+    Stream Content) : IRequest<AgencyProfileDto>;
+
+public class UploadAgencyLogoCommandHandler : IRequestHandler<UploadAgencyLogoCommand, AgencyProfileDto>
+{
+    private readonly IAppDbContext _db;
+    private readonly IFileStorage _storage;
+    private readonly ICurrentUser _current;
+
+    public UploadAgencyLogoCommandHandler(IAppDbContext db, IFileStorage storage, ICurrentUser current)
+    {
+        _db = db; _storage = storage; _current = current;
+    }
+
+    public async Task<AgencyProfileDto> Handle(UploadAgencyLogoCommand request, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var t = await _db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == tenantId, ct)
+            ?? throw AppException.NotFound("Tenant");
+
+        if (request.SizeBytes <= 0) throw AppException.Validation("Empty file.");
+        if (request.SizeBytes > 4_000_000) throw AppException.Validation("Max logo size is 4 MB.");
+        var ct2 = (request.ContentType ?? "").ToLowerInvariant();
+        if (!(ct2.StartsWith("image/png") || ct2.StartsWith("image/jpeg") || ct2.StartsWith("image/svg") || ct2.StartsWith("image/webp")))
+            throw AppException.Validation("Logo must be PNG, JPEG, SVG or WebP.");
+
+        var oldPath = t.LogoUrl;
+        var key = $"branding/{tenantId}";
+        var path = await _storage.UploadAsync(key, request.FileName, request.ContentType, request.Content, ct);
+        t.LogoUrl = path;
+        await _db.SaveChangesAsync(ct);
+
+        if (!string.IsNullOrWhiteSpace(oldPath) && oldPath != path)
+        {
+            try { await _storage.DeleteAsync(oldPath, ct); } catch { /* best effort */ }
+        }
+
+        return new AgencyProfileDto(
+            t.Id, t.Name, t.Code, t.SubscriptionPlan,
+            t.LogoUrl, t.BrandColorHex, t.ContactEmail, t.ContactPhone,
+            t.AddressLine, t.VatNumber, t.DefaultCurrency, t.DefaultPolicyDurationMonths);
+    }
+}
+
+public record GetMyAgencyLogoQuery() : IRequest<(Stream Stream, string FileName, string MimeType)?>;
+
+public class GetMyAgencyLogoQueryHandler : IRequestHandler<GetMyAgencyLogoQuery, (Stream Stream, string FileName, string MimeType)?>
+{
+    private readonly IAppDbContext _db;
+    private readonly IFileStorage _storage;
+    private readonly ICurrentUser _current;
+
+    public GetMyAgencyLogoQueryHandler(IAppDbContext db, IFileStorage storage, ICurrentUser current)
+    {
+        _db = db; _storage = storage; _current = current;
+    }
+
+    public async Task<(Stream Stream, string FileName, string MimeType)?> Handle(GetMyAgencyLogoQuery request, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var t = await _db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == tenantId, ct);
+        if (t is null || string.IsNullOrWhiteSpace(t.LogoUrl)) return null;
+        if (t.LogoUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)) return null;
+
+        var stream = await _storage.DownloadAsync(t.LogoUrl, ct);
+        var fileName = Path.GetFileName(t.LogoUrl);
+        var mime = GuessMime(fileName);
+        return (stream, fileName, mime);
+    }
+
+    private static string GuessMime(string fileName)
+    {
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        return ext switch
+        {
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".svg" => "image/svg+xml",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
+        };
+    }
+}
+
+public record DeleteMyAgencyLogoCommand() : IRequest<AgencyProfileDto>;
+
+public class DeleteMyAgencyLogoCommandHandler : IRequestHandler<DeleteMyAgencyLogoCommand, AgencyProfileDto>
+{
+    private readonly IAppDbContext _db;
+    private readonly IFileStorage _storage;
+    private readonly ICurrentUser _current;
+
+    public DeleteMyAgencyLogoCommandHandler(IAppDbContext db, IFileStorage storage, ICurrentUser current)
+    {
+        _db = db; _storage = storage; _current = current;
+    }
+
+    public async Task<AgencyProfileDto> Handle(DeleteMyAgencyLogoCommand request, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var t = await _db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == tenantId, ct)
+            ?? throw AppException.NotFound("Tenant");
+
+        var old = t.LogoUrl;
+        t.LogoUrl = null;
+        await _db.SaveChangesAsync(ct);
+
+        if (!string.IsNullOrWhiteSpace(old) && !old.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            try { await _storage.DeleteAsync(old, ct); } catch { /* best effort */ }
+        }
+
+        return new AgencyProfileDto(
+            t.Id, t.Name, t.Code, t.SubscriptionPlan,
+            t.LogoUrl, t.BrandColorHex, t.ContactEmail, t.ContactPhone,
+            t.AddressLine, t.VatNumber, t.DefaultCurrency, t.DefaultPolicyDurationMonths);
+    }
+}

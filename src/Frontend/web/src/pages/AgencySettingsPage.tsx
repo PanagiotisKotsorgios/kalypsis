@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  Alert, Box, Button, Card, CardContent, Chip, CircularProgress,
+  Alert, Avatar, Box, Button, Card, CardContent, Chip, CircularProgress,
   InputAdornment, Stack, TextField, Typography
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
+import UploadIcon from "@mui/icons-material/Upload";
+import DeleteIcon from "@mui/icons-material/Delete";
+import BusinessIcon from "@mui/icons-material/Business";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -39,6 +42,11 @@ export function AgencySettingsPage() {
   });
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [logoVersion, setLogoVersion] = useState(0); // cache-bust preview after upload
+
+  const hasLogo = !!q.data?.logoUrl;
+  const logoPreviewUrl = hasLogo ? `/api/agency-profile/logo?v=${logoVersion}` : null;
 
   useEffect(() => {
     if (q.data) {
@@ -66,6 +74,45 @@ export function AgencySettingsPage() {
     onError: (err) => setError(extractErrorMessage(err))
   });
 
+  const uploadLogo = useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await api.post<AgencyProfile>("/agency-profile/logo", fd, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      setLogoVersion((v) => v + 1);
+      void qc.invalidateQueries({ queryKey: ["agency-profile"] });
+      void qc.invalidateQueries({ queryKey: ["tenant-logo"] });
+    },
+    onError: (err) => setError(extractErrorMessage(err))
+  });
+
+  const deleteLogo = useMutation({
+    mutationFn: async () => (await api.delete<AgencyProfile>("/agency-profile/logo")).data,
+    onSuccess: () => {
+      setLogoVersion((v) => v + 1);
+      void qc.invalidateQueries({ queryKey: ["agency-profile"] });
+      void qc.invalidateQueries({ queryKey: ["tenant-logo"] });
+    },
+    onError: (err) => setError(extractErrorMessage(err))
+  });
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setError(null);
+    if (f.size > 4_000_000) {
+      setError(t("agencySettings.logoTooBig"));
+      return;
+    }
+    uploadLogo.mutate(f);
+    e.target.value = "";
+  };
+
   if (q.isLoading) return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
 
   return (
@@ -87,9 +134,59 @@ export function AgencySettingsPage() {
             <Stack spacing={2.5}>
               <TextField label={t("agencySettings.name")} value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth required />
-              <TextField label={t("agencySettings.logoUrl")} value={form.logoUrl}
-                onChange={(e) => setForm({ ...form, logoUrl: e.target.value })} fullWidth
-                helperText={t("agencySettings.logoHelp")} />
+
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                  {t("agencySettings.logoLabel")}
+                </Typography>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
+                  <Avatar
+                    src={logoPreviewUrl ?? undefined}
+                    variant="rounded"
+                    sx={{
+                      width: 96, height: 96, bgcolor: "rgba(11,37,69,0.06)",
+                      border: "1px solid", borderColor: "divider",
+                      "& img": { objectFit: "contain", p: 1 }
+                    }}
+                  >
+                    <BusinessIcon sx={{ color: "text.disabled", fontSize: 36 }} />
+                  </Avatar>
+                  <Stack spacing={1} sx={{ flex: 1 }}>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                      hidden
+                      onChange={handleFile}
+                    />
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                      <Button
+                        variant="outlined"
+                        startIcon={<UploadIcon />}
+                        onClick={() => fileRef.current?.click()}
+                        disabled={uploadLogo.isPending}
+                      >
+                        {uploadLogo.isPending ? <CircularProgress size={18} /> : t("agencySettings.logoUploadBtn")}
+                      </Button>
+                      {hasLogo && (
+                        <Button
+                          variant="text"
+                          color="error"
+                          startIcon={<DeleteIcon />}
+                          onClick={() => deleteLogo.mutate()}
+                          disabled={deleteLogo.isPending}
+                        >
+                          {t("agencySettings.logoRemove")}
+                        </Button>
+                      )}
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary">
+                      {t("agencySettings.logoHelp")}
+                    </Typography>
+                  </Stack>
+                </Stack>
+              </Box>
+
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
                 <TextField label={t("agencySettings.brandColor")} value={form.brandColorHex}
                   onChange={(e) => setForm({ ...form, brandColorHex: e.target.value })} fullWidth
