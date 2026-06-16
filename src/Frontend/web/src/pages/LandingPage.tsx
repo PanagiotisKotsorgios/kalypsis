@@ -128,10 +128,6 @@ function Hero() {
               {t("landing.ctaSecondary")}
             </Button>
           </Stack>
-
-          <Typography variant="caption" sx={{ opacity: 0.7, letterSpacing: 1.2, mt: 2 }}>
-            {t("landing.heroNote")}
-          </Typography>
         </Stack>
       </Container>
     </Box>
@@ -333,7 +329,7 @@ function ForAgencies() {
             <Box sx={{ pt: 2 }}>
               <Button
                 component={RouterLink}
-                to="/register/agency"
+                to="/register"
                 variant="contained"
                 size="large"
                 endIcon={<ArrowForwardIcon />}
@@ -399,7 +395,7 @@ function ForAgents() {
             <Box sx={{ pt: 2 }}>
               <Button
                 component={RouterLink}
-                to="/register/agent"
+                to="/register"
                 variant="contained"
                 size="large"
                 color="primary"

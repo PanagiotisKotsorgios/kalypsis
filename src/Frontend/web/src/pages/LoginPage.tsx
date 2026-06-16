@@ -3,8 +3,10 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   CircularProgress,
   Container,
+  FormControlLabel,
   Link,
   Stack,
   TextField,
@@ -25,6 +27,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +36,7 @@ export function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await signIn(email.trim(), password);
+      await signIn(email.trim(), password, rememberMe);
       navigate("/app", { replace: true });
     } catch (err) {
       setError(extractErrorMessage(err, t("auth.errors.generic")));
@@ -78,7 +81,7 @@ export function LoginPage() {
           display: "flex",
           flexDirection: "column",
           p: { xs: 3, md: 5 },
-          bgcolor: "background.default"
+          bgcolor: "#dfe6f0"
         }}
       >
         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
@@ -139,7 +142,28 @@ export function LoginPage() {
                   disabled={submitting}
                 />
 
-                <Box sx={{ textAlign: "right", mt: -1 }}>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  sx={{ mt: -1 }}
+                >
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        size="small"
+                        disabled={submitting}
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {t("auth.rememberMe")}
+                      </Typography>
+                    }
+                    sx={{ ml: -0.5 }}
+                  />
                   <Link
                     component={RouterLink}
                     to="/forgot-password"
@@ -147,7 +171,7 @@ export function LoginPage() {
                   >
                     {t("login.forgot")}
                   </Link>
-                </Box>
+                </Stack>
 
                 <Button
                   type="submit"

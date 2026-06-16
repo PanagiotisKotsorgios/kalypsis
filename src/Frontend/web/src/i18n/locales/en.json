@@ -37,7 +37,6 @@
     "lead": "From issuing a policy to renewal reminders and commission settlement, Kalypsis keeps your office organised and your customers informed — in Greek, by the rules of the Greek market.",
     "ctaPrimary": "Start free",
     "ctaSecondary": "Sign in",
-    "heroNote": "14-DAY FREE TRIAL · NO CARD REQUIRED",
     "trustedBy": "WORKING WITH GREECE'S LARGEST INSURERS",
     "features": {
       "eyebrow": "PLATFORM FEATURES",
@@ -234,32 +233,32 @@
   },
   "register": {
     "eyebrow": "JOIN KALYPSIS",
-    "headline": "Tell us who you are.",
-    "lead": "Pick whether you're signing up as an insurance agency or as an individual intermediary. We review applications within one business day.",
-    "choice": {
-      "agency": {
-        "title": "Insurance Agency",
-        "subtitle": "FOR FIRMS & BROKERAGES",
-        "body": "Legal entities operating in insurance distribution with branches and a staff team.",
-        "p1": "Multiple users with roles",
-        "p2": "Producer & commission management",
-        "p3": "Unlimited customer portals",
-        "p4": "API & integrations",
-        "cta": "Register as agency"
-      },
-      "agent": {
-        "title": "Insurance Intermediary",
-        "subtitle": "INDIVIDUAL LICENCE",
-        "body": "Agents, coordinators, consultants and brokers holding an individual licence.",
-        "p1": "Up to 300 customers on Starter",
-        "p2": "Real-time production tracking",
-        "p3": "Renewal reminders",
-        "p4": "Instant activation",
-        "cta": "Register as broker"
-      }
+    "headline": "One application. Everyone welcome.",
+    "lead": "Whether you're an insurance agency, an intermediary or an independent broker, fill in the same simple form. Our team will reach out within one business day and activate your account with the right setup.",
+    "formTitle": "Registration form",
+    "formLead": "Tell us about yourself. The professional fields are optional — we ask for them so we can give you the right role from day one.",
+    "sections": {
+      "personal": "CONTACT DETAILS",
+      "professional": "PROFESSIONAL DETAILS (OPTIONAL)",
+      "message": "COMMENTS"
     },
+    "professionalHelp": "Fill in whatever applies. If you're an agency, give us the company name and VAT. If you hold an individual licence, give us the registration number. Leave blank if none applies.",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email",
+    "phone": "Phone",
+    "city": "City",
+    "organizationName": "Agency / company name",
+    "organizationHelp": "If you're registering as an agency.",
+    "vat": "VAT number",
+    "vatHelp": "9 digits (optional)",
+    "licenseNumber": "Licence / Chamber registration number",
+    "licenseNumberHelp": "If you have an individual or agency licence.",
+    "message": "Tell us a few words",
+    "messageHelp": "A short description of your activity, team size and what you want from the platform. So we're prepared when we call you.",
+    "submit": "Submit application",
+    "submitting": "Sending...",
     "alreadyHave": "Already have an account?",
-    "backToChoice": "Back to registration options",
     "step": {
       "company": "Business",
       "location": "Operations",
@@ -337,6 +336,7 @@
       "notes": "Comments"
     },
     "errors": {
+      "name": "Please enter first and last name.",
       "legalName": "Please enter the legal company name.",
       "contactName": "Please enter first and last name.",
       "vat": "VAT number must be 9 digits.",
@@ -376,6 +376,7 @@
     "password": "Password",
     "signIn": "Sign in",
     "signingIn": "Signing in...",
+    "rememberMe": "Remember me",
     "loginTitle": "Sign in to the platform",
     "loginSubtitle": "Enter your credentials to continue",
     "logout": "Sign out",

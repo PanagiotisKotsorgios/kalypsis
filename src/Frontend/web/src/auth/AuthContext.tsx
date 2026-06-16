@@ -40,13 +40,14 @@ interface AuthContextValue {
   user: AuthUser | null;
   accessToken: string | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<AuthUser>;
+  signIn: (email: string, password: string, rememberMe?: boolean) => Promise<AuthUser>;
   signOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const STORAGE_KEY = "kalypsis_auth";
+const PERSISTENCE_KEY = "kalypsis_auth_persist"; // "local" | "session"
 
 interface StoredAuth {
   accessToken: string;
@@ -55,15 +56,32 @@ interface StoredAuth {
   accessTokenExpiresAt: string;
 }
 
+/** Pick the storage tier based on a flag set at login. localStorage = remember-me on. */
+function getStorageMode(): "local" | "session" {
+  return (localStorage.getItem(PERSISTENCE_KEY) as "local" | "session" | null) ?? "local";
+}
+
+function getActiveStorage(): Storage {
+  return getStorageMode() === "local" ? localStorage : sessionStorage;
+}
+
 function readStored(): StoredAuth | null {
-  const raw = localStorage.getItem(STORAGE_KEY);
+  // Try both stores so a previous session survives a page reload regardless of choice.
+  const raw = sessionStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as StoredAuth;
   } catch {
+    sessionStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(STORAGE_KEY);
     return null;
   }
+}
+
+function clearStored() {
+  sessionStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(PERSISTENCE_KEY);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -84,13 +102,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .get<AuthUser>("/auth/me")
       .then((res) => {
         setUser(res.data);
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({ ...stored, user: res.data } satisfies StoredAuth)
-        );
+        const next = JSON.stringify({ ...stored, user: res.data } satisfies StoredAuth);
+        getActiveStorage().setItem(STORAGE_KEY, next);
       })
       .catch(() => {
-        localStorage.removeItem(STORAGE_KEY);
+        clearStored();
         setAuthToken(null);
         setAccessToken(null);
         setUser(null);
@@ -98,24 +114,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    const res = await api.post<LoginResponse>("/auth/login", { email, password });
-    const payload = res.data;
-    const stored: StoredAuth = {
-      accessToken: payload.accessToken,
-      refreshToken: payload.refreshToken,
-      user: payload.user,
-      accessTokenExpiresAt: payload.accessTokenExpiresAt
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-    setAuthToken(payload.accessToken);
-    setAccessToken(payload.accessToken);
-    setUser(payload.user);
-    return payload.user;
-  }, []);
+  const signIn = useCallback(
+    async (email: string, password: string, rememberMe: boolean = true) => {
+      const res = await api.post<LoginResponse>("/auth/login", { email, password });
+      const payload = res.data;
+      const stored: StoredAuth = {
+        accessToken: payload.accessToken,
+        refreshToken: payload.refreshToken,
+        user: payload.user,
+        accessTokenExpiresAt: payload.accessTokenExpiresAt
+      };
+
+      // Always nuke both stores first so we never leak across modes.
+      sessionStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEY);
+
+      localStorage.setItem(PERSISTENCE_KEY, rememberMe ? "local" : "session");
+      (rememberMe ? localStorage : sessionStorage).setItem(STORAGE_KEY, JSON.stringify(stored));
+
+      setAuthToken(payload.accessToken);
+      setAccessToken(payload.accessToken);
+      setUser(payload.user);
+      return payload.user;
+    },
+    []
+  );
 
   const signOut = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
+    clearStored();
     setAuthToken(null);
     setAccessToken(null);
     setUser(null);

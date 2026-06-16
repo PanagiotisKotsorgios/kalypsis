@@ -20,9 +20,7 @@ import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
-import { RegisterChoicePage } from "./pages/RegisterChoicePage";
-import { RegisterAgencyPage } from "./pages/RegisterAgencyPage";
-import { RegisterAgentPage } from "./pages/RegisterAgentPage";
+import { RegisterPage } from "./pages/RegisterPage";
 import { ContactPage } from "./pages/ContactPage";
 import { TermsPage } from "./pages/TermsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
@@ -96,15 +94,9 @@ export default function App() {
           path="/reset-password"
           element={user ? <Navigate to="/app" replace /> : <ResetPasswordPage />}
         />
-        <Route path="/register" element={user ? <Navigate to="/app" replace /> : <RegisterChoicePage />} />
-        <Route
-          path="/register/agency"
-          element={user ? <Navigate to="/app" replace /> : <RegisterAgencyPage />}
-        />
-        <Route
-          path="/register/agent"
-          element={user ? <Navigate to="/app" replace /> : <RegisterAgentPage />}
-        />
+        <Route path="/register" element={user ? <Navigate to="/app" replace /> : <RegisterPage />} />
+        <Route path="/register/agency" element={<Navigate to="/register" replace />} />
+        <Route path="/register/agent" element={<Navigate to="/register" replace />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
