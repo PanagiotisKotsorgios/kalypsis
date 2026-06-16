@@ -1,5 +1,6 @@
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
+using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,6 +27,18 @@ public class ListCustomersQueryHandler : IRequestHandler<ListCustomersQuery, IRe
         var q = _db.Customers
             .IgnoreQueryFilters()
             .Where(c => c.TenantId == tenantId && c.DeletedAt == null);
+
+        if (_currentUser.Role == Role.Producer)
+        {
+            var userId = _currentUser.UserId ?? throw AppException.Unauthorized();
+            var producerId = await _db.Users.IgnoreQueryFilters()
+                .Where(u => u.Id == userId).Select(u => u.ProducerId).FirstOrDefaultAsync(cancellationToken);
+            if (producerId is null) return Array.Empty<CustomerDto>();
+            var customerIds = _db.Policies.IgnoreQueryFilters()
+                .Where(p => p.ProducerId == producerId && p.DeletedAt == null)
+                .Select(p => p.CustomerId).Distinct();
+            q = q.Where(c => customerIds.Contains(c.Id));
+        }
 
         if (!string.IsNullOrWhiteSpace(request.Search))
         {

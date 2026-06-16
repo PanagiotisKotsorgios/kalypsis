@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
+import { ProducerDashboardPage } from "./ProducerDashboardPage";
 
 interface Tile {
   labelKey: string;
@@ -12,6 +13,9 @@ interface Tile {
 export function DashboardPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
+
+  // Producers get a dedicated dashboard backed by /api/reports/producer.
+  if (user?.role === "Producer") return <ProducerDashboardPage />;
 
   const isPlatform = user?.role === "PlatformAdmin" || user?.role === "PlatformEmployee";
   const isAgency = user?.role === "AgencyAdmin" || user?.role === "AgencyUser";
@@ -62,11 +66,6 @@ export function DashboardPage() {
       { labelKey: "dashboard.activePolicies", value: 0 },
       { labelKey: "dashboard.expiringSoon", value: 0 },
       { labelKey: "dashboard.unreadNotifications", value: 0 }
-    ];
-  } else if (user?.role === "Producer") {
-    tiles = [
-      { labelKey: "dashboard.policiesCount", value: 0 },
-      { labelKey: "dashboard.expiringSoon", value: 0 }
     ];
   }
 

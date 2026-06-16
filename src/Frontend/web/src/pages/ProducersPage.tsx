@@ -7,9 +7,11 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import VpnKeyIcon from "@mui/icons-material/VpnKey";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { CredentialsDialog } from "./TenantsPage";
 
 type ProducerStatus = "Active" | "Suspended" | "Terminated";
 
@@ -29,10 +31,18 @@ export function ProducersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ProducerDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [issuedCreds, setIssuedCreds] = useState<{ email: string; password: string } | null>(null);
 
   const q = useQuery({
     queryKey: ["producers"],
     queryFn: async () => (await api.get<ProducerDto[]>("/producers")).data
+  });
+
+  const issuePortal = useMutation({
+    mutationFn: async (id: string) =>
+      (await api.post<{ email: string; temporaryPassword: string }>(`/producers/${id}/portal-account`, {})).data,
+    onSuccess: (data) => setIssuedCreds({ email: data.email, password: data.temporaryPassword }),
+    onError: (err) => setError(extractErrorMessage(err))
   });
 
   const del = useMutation({
@@ -83,6 +93,11 @@ export function ProducersPage() {
                     <TableCell><Chip size="small" color={STATUS_COLOR[p.status]} label={t(`producers.statuses.${p.status}`)} /></TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                        <IconButton size="small" title={t("producers.issuePortal")}
+                          disabled={!p.email || p.status !== "Active" || issuePortal.isPending}
+                          onClick={() => issuePortal.mutate(p.id)}>
+                          <VpnKeyIcon fontSize="small" />
+                        </IconButton>
                         <IconButton size="small" onClick={() => setEditing(p)}><EditIcon fontSize="small" /></IconButton>
                         <IconButton size="small" color="error" onClick={() => { if (confirm(t("producers.confirmDelete", { name: p.name }))) del.mutate(p.id); }}>
                           <DeleteIcon fontSize="small" />
@@ -109,6 +124,15 @@ export function ProducersPage() {
       <ProducerDialog
         open={!!editing} onClose={() => setEditing(null)} producer={editing}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["producers"] }); setEditing(null); }}
+      />
+
+      <CredentialsDialog
+        open={!!issuedCreds}
+        email={issuedCreds?.email ?? ""}
+        password={issuedCreds?.password ?? ""}
+        onClose={() => setIssuedCreds(null)}
+        title={t("producers.portalCreated")}
+        introKey="producers.portalCreatedBody"
       />
     </Box>
   );

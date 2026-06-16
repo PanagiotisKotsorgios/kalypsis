@@ -91,7 +91,29 @@
       "status": "Κατάσταση"
     },
     "statuses": { "Active": "Ενεργός", "Suspended": "Σε αναστολή", "Terminated": "Έληξε" },
-    "form": { "createTitle": "Νέος παραγωγός", "editTitle": "Επεξεργασία παραγωγού" }
+    "form": { "createTitle": "Νέος παραγωγός", "editTitle": "Επεξεργασία παραγωγού" },
+    "issuePortal": "Δημιουργία λογαριασμού portal",
+    "portalCreated": "Δημιουργήθηκε λογαριασμός παραγωγού!",
+    "portalCreatedBody": "Δώστε στον παραγωγό τα παρακάτω στοιχεία για να συνδεθεί στην πλατφόρμα:"
+  },
+  "producerDashboard": {
+    "welcome": "Καλώς ήρθατε, {{name}}",
+    "kpi": {
+      "customers": "Πελάτες μου",
+      "activePolicies": "Ενεργά συμβόλαια",
+      "expiringSoon": "Λήγουν σε 30ημ",
+      "monthlyPremium": "Ασφάλιστρα σε ισχύ",
+      "renewalsYear": "Ανανεώσεις φέτος"
+    },
+    "chart": {
+      "production": "Παραγωγή ασφαλίστρων (6 μήνες)",
+      "byType": "Συμβόλαια ανά κλάδο",
+      "byStatus": "Συμβόλαια ανά κατάσταση",
+      "carriers": "Παραγωγή ανά εταιρεία"
+    },
+    "expiringList": "Συμβόλαια που λήγουν σύντομα",
+    "noExpiring": "Κανένα συμβόλαιο δεν λήγει στις επόμενες 30 ημέρες.",
+    "endsOn": "Λήγει"
   },
   "reports": {
     "title": "Αναφορές",

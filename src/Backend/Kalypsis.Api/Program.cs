@@ -50,6 +50,7 @@ builder.Services.AddAuthorization(opt =>
     opt.AddPolicy("AgencyStaff", p => p.RequireClaim("role",
         nameof(Kalypsis.Domain.Enums.Role.AgencyAdmin),
         nameof(Kalypsis.Domain.Enums.Role.AgencyUser)));
+    opt.AddPolicy("Producer", p => p.RequireClaim("role", nameof(Kalypsis.Domain.Enums.Role.Producer)));
 });
 
 builder.Services.AddCors(o => o.AddPolicy("frontend", p =>

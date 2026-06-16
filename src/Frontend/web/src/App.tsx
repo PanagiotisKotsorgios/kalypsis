@@ -83,6 +83,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
     { to: "/policies", labelKey: "nav.policies", icon: <DescriptionIcon /> },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon /> },
+    { to: "/notifications", labelKey: "nav.notifications", icon: <NotificationsIcon /> },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
   PlatformAdmin: [

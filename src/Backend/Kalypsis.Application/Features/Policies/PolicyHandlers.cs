@@ -46,6 +46,14 @@ public class ListPoliciesQueryHandler : IRequestHandler<ListPoliciesQuery, IRead
             if (customerId is null) return Array.Empty<PolicyDto>();
             q = q.Where(p => p.CustomerId == customerId);
         }
+        else if (_current.Role == Role.Producer)
+        {
+            var userId = _current.UserId ?? throw AppException.Unauthorized();
+            var producerId = await _db.Users.IgnoreQueryFilters()
+                .Where(u => u.Id == userId).Select(u => u.ProducerId).FirstOrDefaultAsync(ct);
+            if (producerId is null) return Array.Empty<PolicyDto>();
+            q = q.Where(p => p.ProducerId == producerId);
+        }
         else if (request.CustomerId.HasValue)
         {
             q = q.Where(p => p.CustomerId == request.CustomerId.Value);

@@ -86,7 +86,29 @@
       "status": "Status"
     },
     "statuses": { "Active": "Active", "Suspended": "Suspended", "Terminated": "Terminated" },
-    "form": { "createTitle": "New producer", "editTitle": "Edit producer" }
+    "form": { "createTitle": "New producer", "editTitle": "Edit producer" },
+    "issuePortal": "Create portal account",
+    "portalCreated": "Producer portal account created!",
+    "portalCreatedBody": "Hand the producer these credentials so they can sign in to the platform:"
+  },
+  "producerDashboard": {
+    "welcome": "Welcome back, {{name}}",
+    "kpi": {
+      "customers": "My customers",
+      "activePolicies": "Active policies",
+      "expiringSoon": "Expiring in 30d",
+      "monthlyPremium": "Premium in force",
+      "renewalsYear": "Renewals this year"
+    },
+    "chart": {
+      "production": "Premium production (6 months)",
+      "byType": "Policies by line",
+      "byStatus": "Policies by status",
+      "carriers": "Production by carrier"
+    },
+    "expiringList": "Policies expiring soon",
+    "noExpiring": "No policies expire in the next 30 days.",
+    "endsOn": "Ends"
   },
   "reports": {
     "title": "Reports",

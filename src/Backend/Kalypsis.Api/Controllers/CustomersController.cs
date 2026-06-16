@@ -1,5 +1,4 @@
 using Kalypsis.Application.Features.Customers;
-using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,17 +7,20 @@ namespace Kalypsis.Api.Controllers;
 
 [ApiController]
 [Route("api/customers")]
-[Authorize(Policy = "AgencyStaff")]
+[Authorize]
 public class CustomersController : ControllerBase
 {
     private readonly IMediator _mediator;
     public CustomersController(IMediator mediator) => _mediator = mediator;
 
+    // GET is open to any authed user — the handler scopes Customer and Producer
+    // roles to their own slice; AgencyStaff sees the full tenant.
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<CustomerDto>>> List([FromQuery] string? search, CancellationToken cancellationToken)
         => Ok(await _mediator.Send(new ListCustomersQuery(search), cancellationToken));
 
     [HttpPost]
+    [Authorize(Policy = "AgencyStaff")]
     public async Task<ActionResult<CreateCustomerResponse>> Create([FromBody] CreateCustomerRequest request, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new CreateCustomerCommand(request), cancellationToken);

@@ -34,4 +34,9 @@ public class ProducersController : ControllerBase
         await _mediator.Send(new DeleteProducerCommand(id), cancellationToken);
         return NoContent();
     }
+
+    [HttpPost("{id:guid}/portal-account")]
+    public async Task<ActionResult<CreateProducerPortalAccountResponse>> CreatePortalAccount(
+        Guid id, CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(new CreateProducerPortalAccountCommand(id), cancellationToken));
 }
