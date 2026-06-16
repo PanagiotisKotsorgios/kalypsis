@@ -231,6 +231,10 @@
     "testSuccess": "Test email sent.",
     "testFailGeneric": "Send failed. Check your Brevo settings."
   },
+  "pricing": {
+    "footnote": "Need custom volume or special requirements? We're here.",
+    "contactSales": "Talk to sales"
+  },
   "register": {
     "eyebrow": "JOIN KALYPSIS",
     "headline": "One application. Everyone welcome.",

@@ -231,6 +231,10 @@
     "testSuccess": "Το test email στάλθηκε επιτυχώς.",
     "testFailGeneric": "Η αποστολή απέτυχε. Ελέγξτε τις ρυθμίσεις Brevo."
   },
+  "pricing": {
+    "footnote": "Χρειάζεστε custom όγκο ή ξεχωριστές απαιτήσεις; Είμαστε εδώ.",
+    "contactSales": "Επικοινωνία με την ομάδα πωλήσεων"
+  },
   "register": {
     "eyebrow": "ΕΓΓΡΑΦΗ ΣΤΗΝ KALYPSIS",
     "headline": "Μία αίτηση. Όλοι μαζί.",

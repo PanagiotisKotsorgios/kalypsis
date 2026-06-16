@@ -44,7 +44,7 @@ export function PublicNav(_: PublicNavProps = {}) {
   const mobileLinks = [
     { to: "/", labelKey: "publicNav.home" },
     { to: "/#features", labelKey: "publicNav.platform" },
-    { to: "/#pricing", labelKey: "publicNav.pricing" },
+    { to: "/pricing", labelKey: "publicNav.pricing" },
     { to: "/contact", labelKey: "publicNav.contact" }
   ];
   // Desktop additionally drops Αρχική (the logo already routes home).

@@ -8,7 +8,6 @@ import {
   Card,
   Chip,
   Container,
-  Divider,
   Stack,
   Typography,
   useTheme
@@ -37,7 +36,6 @@ export function LandingPage() {
       <ForAgencies />
       <ForAgents />
       <Stats />
-      <Pricing />
       <Faq />
       <FinalCta />
     </PublicShell>
@@ -491,133 +489,6 @@ function Stats() {
                 {t(s.labelKey)}
               </Typography>
             </Stack>
-          ))}
-        </Box>
-      </Container>
-    </Box>
-  );
-}
-
-/* ----------------------- PRICING ----------------------- */
-function Pricing() {
-  const { t } = useTranslation();
-  const tiers = [
-    {
-      key: "starter",
-      price: "€39",
-      featured: false,
-      features: ["pricing.starter.f1", "pricing.starter.f2", "pricing.starter.f3", "pricing.starter.f4"]
-    },
-    {
-      key: "pro",
-      price: "€89",
-      featured: true,
-      features: [
-        "pricing.pro.f1",
-        "pricing.pro.f2",
-        "pricing.pro.f3",
-        "pricing.pro.f4",
-        "pricing.pro.f5",
-        "pricing.pro.f6"
-      ]
-    },
-    {
-      key: "enterprise",
-      price: "—",
-      featured: false,
-      features: [
-        "pricing.enterprise.f1",
-        "pricing.enterprise.f2",
-        "pricing.enterprise.f3",
-        "pricing.enterprise.f4"
-      ]
-    }
-  ];
-
-  return (
-    <Box id="pricing" sx={{ py: { xs: 8, md: 14 }, bgcolor: "background.paper" }}>
-      <Container maxWidth="lg">
-        <Stack spacing={1.5} alignItems="center" textAlign="center" mb={5}>
-          <Typography variant="overline" color="secondary.main" sx={{ letterSpacing: 2, fontWeight: 700 }}>
-            {t("landing.pricing.eyebrow")}
-          </Typography>
-          <Typography variant="h3" sx={{ fontWeight: 800 }}>
-            {t("landing.pricing.title")}
-          </Typography>
-          <Typography color="text.secondary" sx={{ maxWidth: 620 }}>
-            {t("landing.pricing.lead")}
-          </Typography>
-          <Chip
-            label={t("landing.pricing.unified")}
-            color="primary"
-            variant="outlined"
-            sx={{ mt: 1, fontWeight: 600, borderStyle: "dashed" }}
-          />
-        </Stack>
-
-        <Box
-          sx={{
-            display: "grid",
-            gap: 3,
-            gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }
-          }}
-        >
-          {tiers.map((tier) => (
-            <Card
-              key={tier.key}
-              sx={{
-                p: 4,
-                border: "1px solid",
-                borderColor: tier.featured ? "primary.main" : "divider",
-                position: "relative",
-                ...(tier.featured && {
-                  boxShadow: "0 24px 60px rgba(11,37,69,0.18)",
-                  transform: { md: "translateY(-12px)" }
-                })
-              }}
-            >
-              {tier.featured && (
-                <Chip
-                  label={t("landing.pricing.popular")}
-                  color="secondary"
-                  sx={{ position: "absolute", top: 16, right: 16, fontWeight: 700 }}
-                />
-              )}
-              <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5 }}>
-                {t(`landing.pricing.${tier.key}.name`)}
-              </Typography>
-              <Stack direction="row" alignItems="flex-end" spacing={1} sx={{ mt: 1 }}>
-                <Typography variant="h2" sx={{ fontWeight: 900, lineHeight: 1 }}>
-                  {tier.price}
-                </Typography>
-                {tier.price !== "—" && (
-                  <Typography color="text.secondary" sx={{ pb: 1 }}>
-                    /{t("landing.pricing.month")}
-                  </Typography>
-                )}
-              </Stack>
-              <Typography color="text.secondary" sx={{ mt: 1, mb: 3 }}>
-                {t(`landing.pricing.${tier.key}.tagline`)}
-              </Typography>
-              <Divider sx={{ mb: 3 }} />
-              <Stack spacing={1.5} sx={{ mb: 3 }}>
-                {tier.features.map((f) => (
-                  <Stack key={f} direction="row" spacing={1} alignItems="flex-start">
-                    <CheckCircleIcon sx={{ color: "primary.main", fontSize: 20, mt: 0.2 }} />
-                    <Typography>{t(`landing.${f}`)}</Typography>
-                  </Stack>
-                ))}
-              </Stack>
-              <Button
-                component={RouterLink}
-                to="/register"
-                fullWidth
-                size="large"
-                variant={tier.featured ? "contained" : "outlined"}
-              >
-                {t(`landing.pricing.${tier.key}.cta`)}
-              </Button>
-            </Card>
           ))}
         </Box>
       </Container>

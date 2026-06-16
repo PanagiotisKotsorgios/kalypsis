@@ -31,7 +31,7 @@ export function PublicFooter() {
               { to: "/#features", label: t("publicNav.platform") },
               { to: "/#for-agencies", label: t("publicNav.forAgencies") },
               { to: "/#for-agents", label: t("publicNav.forAgents") },
-              { to: "/#pricing", label: t("publicNav.pricing") }
+              { to: "/pricing", label: t("publicNav.pricing") }
             ]}
           />
 
