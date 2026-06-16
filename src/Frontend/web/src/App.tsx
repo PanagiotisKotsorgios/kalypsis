@@ -28,6 +28,26 @@ import PaletteIcon from "@mui/icons-material/Palette";
 import RuleFolderIcon from "@mui/icons-material/RuleFolder";
 import TranslateIcon from "@mui/icons-material/Translate";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
+import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import PriceChangeIcon from "@mui/icons-material/PriceChange";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import PercentIcon from "@mui/icons-material/Percent";
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
+import EventIcon from "@mui/icons-material/Event";
+import FolderSpecialIcon from "@mui/icons-material/FolderSpecial";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import HubIcon from "@mui/icons-material/Hub";
+import LinkIcon from "@mui/icons-material/Link";
+import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
+import RestoreIcon from "@mui/icons-material/Restore";
+import LocalShippingIcon from "@mui/icons-material/LocalShipping";
+import LeaderboardIcon from "@mui/icons-material/Leaderboard";
+import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
+import ImportExportIcon from "@mui/icons-material/ImportExport";
+import CalculateIcon from "@mui/icons-material/Calculate";
+import StackedLineChartIcon from "@mui/icons-material/StackedLineChart";
 
 import { useAuth, type Role } from "./auth/AuthContext";
 import { AppLayout, type NavItem } from "./components/AppLayout";
@@ -86,6 +106,42 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, comingSoon: true },
     { to: "/producers", labelKey: "nav.producers", icon: <HandshakeIcon />, comingSoon: true },
     { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, comingSoon: true },
+
+    // Operations & insurance lifecycle
+    { to: "/agency/tariffs", labelKey: "nav.tariffs", icon: <PriceChangeIcon />, comingSoon: true },
+    { to: "/agency/cover-notes", labelKey: "nav.coverNotes", icon: <DescriptionOutlinedIcon />, comingSoon: true },
+    { to: "/agency/branch-designer", labelKey: "nav.branchDesigner", icon: <AccountTreeIcon />, comingSoon: true },
+    { to: "/agency/delivery-tracking", labelKey: "nav.deliveryTracking", icon: <LocalShippingIcon />, comingSoon: true },
+
+    // Commercial CRM
+    { to: "/agency/appointments", labelKey: "nav.appointments", icon: <EventIcon />, comingSoon: true },
+    { to: "/agency/document-manager", labelKey: "nav.documentManager", icon: <FolderSpecialIcon />, comingSoon: true },
+    { to: "/agency/marketing", labelKey: "nav.marketing", icon: <MailOutlineIcon />, comingSoon: true },
+    { to: "/agency/portals", labelKey: "nav.b2bPortal", icon: <HubIcon />, comingSoon: true },
+
+    // Commissions & production
+    { to: "/agency/commissions", labelKey: "nav.commissions", icon: <PercentIcon />, comingSoon: true },
+    { to: "/agency/over-commissions", labelKey: "nav.overCommissions", icon: <StackedLineChartIcon />, comingSoon: true },
+    { to: "/agency/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, comingSoon: true },
+    { to: "/agency/goals", labelKey: "nav.goals", icon: <EmojiEventsIcon />, comingSoon: true },
+
+    // Financial circuits
+    { to: "/agency/financials", labelKey: "nav.financials", icon: <AttachMoneyIcon />, comingSoon: true },
+    { to: "/agency/receipts", labelKey: "nav.receipts", icon: <ReceiptLongIcon />, comingSoon: true },
+    { to: "/agency/payments", labelKey: "nav.payments", icon: <RequestQuoteIcon />, comingSoon: true },
+    { to: "/agency/securities", labelKey: "nav.securities", icon: <RestoreIcon />, comingSoon: true },
+
+    // Banking & integrations
+    { to: "/agency/dias", labelKey: "nav.dias", icon: <AccountBalanceIcon />, comingSoon: true },
+    { to: "/agency/bank-connections", labelKey: "nav.bankConnections", icon: <LinkIcon />, comingSoon: true },
+    { to: "/agency/third-party", labelKey: "nav.thirdParty", icon: <ExtensionIcon />, comingSoon: true },
+
+    // Accounting & reporting
+    { to: "/agency/accounting", labelKey: "nav.accounting", icon: <CalculateIcon />, comingSoon: true },
+    { to: "/agency/kepyo", labelKey: "nav.kepyo", icon: <GavelIcon />, comingSoon: true },
+    { to: "/agency/financial-printouts", labelKey: "nav.financialPrintouts", icon: <ReceiptLongIcon />, comingSoon: true },
+    { to: "/agency/magnetic-import", labelKey: "nav.magneticImport", icon: <ImportExportIcon />, comingSoon: true },
+
     { to: "/agency-settings", labelKey: "nav.agencySettings", icon: <SettingsIcon />, comingSoon: true },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
@@ -196,6 +252,7 @@ export default function App() {
                   <Route path="agency-settings" element={<AgencySettingsPage />} />
                   <Route path="coming-soon" element={<ComingSoonPage />} />
                   <Route path="platform/*" element={<ComingSoonPage />} />
+                  <Route path="agency/*" element={<ComingSoonPage />} />
                   <Route path="*" element={<Navigate to="/app" replace />} />
                 </Routes>
               </AppLayout>

@@ -51,14 +51,245 @@
     "status": "System Status",
     "compliance": "Compliance & Legal",
     "support": "Support",
-    "platformAnalytics": "Platform Analytics"
+    "platformAnalytics": "Platform Analytics",
+    "tariffs": "Tariffs & Pricing",
+    "coverNotes": "Cover Notes",
+    "branchDesigner": "Branch Designer",
+    "deliveryTracking": "Contract Delivery",
+    "appointments": "Appointments & Calendar",
+    "documentManager": "Document Manager",
+    "marketing": "Marketing & Newsletters",
+    "b2bPortal": "B2B / C2B Portals",
+    "commissions": "Commissions",
+    "overCommissions": "Over-commissions",
+    "productionStats": "Production Stats",
+    "goals": "Goals & Retention",
+    "financials": "Financial Movements",
+    "receipts": "Receipts",
+    "payments": "Payments",
+    "securities": "Securities",
+    "dias": "DIAS Interbank",
+    "bankConnections": "Bank Connections",
+    "thirdParty": "Third-party Apps",
+    "accounting": "Accounting",
+    "kepyo": "KEPYO Reports",
+    "financialPrintouts": "Financial Printouts",
+    "magneticImport": "Magnetic Media Import"
   },
   "comingSoon": {
     "tag": "UNDER CONSTRUCTION",
     "title": "Coming soon",
     "feature": "This feature",
     "body": "This module is still in development. We're working to bring it live soon. Meanwhile you can continue with customer, contract and document management.",
-    "back": "Back to dashboard"
+    "back": "Back to dashboard",
+    "features": {
+      "tariffs": {
+        "intro": "Parametric tariffs per insurance company, branch and insured object — with automatic premium calculation and one-click proposal/policy issuance.",
+        "bullets": [
+          "Multiple tariffs per company, usage and term",
+          "Pricing recipes with age, zone and discount factors",
+          "Automatic tariff selection from customer answers",
+          "Issue Cover Note or full policy in one click"
+        ]
+      },
+      "coverNotes": {
+        "intro": "Instant temporary cover notes from quotes, with auto-fill of customer and insured object details.",
+        "bullets": [
+          "Print/PDF cover note from the proposal screen",
+          "Numbering, validity, auto-expiry and conversion to a full policy",
+          "Send to customer or partner by email"
+        ]
+      },
+      "branchDesigner": {
+        "intro": "Design new insurance branches without development — define objects, coverages, questionnaire, pricing and issuance flow yourself.",
+        "bullets": [
+          "Custom fields per branch (Auto, Boat, Solar, Drones…)",
+          "Coverages, packages and options with commission factors",
+          "Your own questionnaire for online issuance",
+          "Review / approval flow before issuing"
+        ]
+      },
+      "deliveryTracking": {
+        "intro": "Track contract delivery to customers, with auto-classification and reminders for those not yet received.",
+        "bullets": [
+          "Log delivery channel (email, courier, in-person)",
+          "Auto 'delivered' based on open-rate / signature",
+          "Reminders for pending customers",
+          "Monthly production vs delivery report"
+        ]
+      },
+      "appointments": {
+        "intro": "Calendar and appointments with customers/partners in day/week/month view — shared, with reminders and Google/Outlook sync.",
+        "bullets": [
+          "Drag & drop appointments per employee and room",
+          "SMS/email reminders to the customer",
+          "Sync with Google Calendar / Outlook 365",
+          "Link appointments to requests and contracts"
+        ]
+      },
+      "documentManager": {
+        "intro": "Central document management per customer, contract, claim and employee — with tagging, full-text search and version control.",
+        "bullets": [
+          "Customer folders and drag-and-drop upload",
+          "OCR and full-text search across PDFs/images",
+          "Role-based access control",
+          "Tied to the client portal"
+        ]
+      },
+      "marketing": {
+        "intro": "Mass email campaigns to customer segments with automatic audience selection (expiries, birthdays, new branches) and customer card updates after send.",
+        "bullets": [
+          "Drag-and-drop editor with branded templates",
+          "Smart segments (expiries, age, branches, companies)",
+          "Track open / click rate",
+          "Auto-log communication on the customer card"
+        ]
+      },
+      "b2bPortal": {
+        "intro": "B2B and C2B portals for partners and customers — issue contracts, track activity and self-serve through the web.",
+        "bullets": [
+          "Branded login for partners using credentials you issue",
+          "Online application/issuance by the customer",
+          "Live production and commission tracking",
+          "API tokens for third-party apps"
+        ]
+      },
+      "commissions": {
+        "intro": "Parametric commissions by Partner × Insured Object × Coverage, with annual changes that preserve history.",
+        "bullets": [
+          "Commission tables per partner / branch / coverage",
+          "Different rate for annual premium increases",
+          "Splits across multiple partners",
+          "Full audit trail of changes"
+        ]
+      },
+      "overCommissions": {
+        "intro": "Up to 9-level over-commission pyramid — automatic calculation and settlement for agents, managers and teams.",
+        "bullets": [
+          "9 levels of hierarchy (manager → senior → agent…)",
+          "Your own rates per level and branch",
+          "Separate settlement per pyramid",
+          "Team visualization"
+        ]
+      },
+      "productionStats": {
+        "intro": "Detailed production statistics per partner, company, branch, year — with charts and export.",
+        "bullets": [
+          "Production per month / quarter / year",
+          "YoY comparison and trend analysis",
+          "Breakdown by company, branch, employee",
+          "Export to Excel / PDF"
+        ]
+      },
+      "goals": {
+        "intro": "Production goals and retention rates — with live scoring per partner and team.",
+        "bullets": [
+          "Set monthly / annual goals",
+          "Live progress bars on the dashboard",
+          "Retention rate per partner and company",
+          "Bonus rules with automatic activation"
+        ]
+      },
+      "financials": {
+        "intro": "Financial movements per contract: customer charges, partner charges, company credits, commissions and over-commissions — all wired together.",
+        "bullets": [
+          "Customer / partner / company ledgers",
+          "Auto-link movement ↔ contract",
+          "Netting and balances",
+          "Aging indicators"
+        ]
+      },
+      "receipts": {
+        "intro": "Receipt circuit with multiple payment methods (cash, card, deposit, securities) and automatic balance closing.",
+        "bullets": [
+          "Partial or full receipt with mixed methods",
+          "Automatic numbered receipt",
+          "Linked to securities and banks",
+          "Auto-update customer card"
+        ]
+      },
+      "payments": {
+        "intro": "Payments to companies and partners with commission netting (mixed-minus-commissions) and full traceability.",
+        "bullets": [
+          "Company settlement minus commissions",
+          "Pay partners with and without over-commission",
+          "Payment batches with bank export",
+          "Accounting entries"
+        ]
+      },
+      "securities": {
+        "intro": "Manage securities (cheques, promissory notes) with maturity tracking and automatic commission delivery to partners on payment.",
+        "bullets": [
+          "Receipt via cheque / promissory note",
+          "Maturity calendar and portfolio",
+          "Auto commission release after payment",
+          "Sweep to bank account"
+        ]
+      },
+      "dias": {
+        "intro": "DIAS interbank integration for premium collection with RF code; automatic policy delivery the moment your office receives payment confirmation.",
+        "bullets": [
+          "RF / bill payment codes per contract",
+          "Bank payment webhook",
+          "Auto-issue & email the contract",
+          "Real-time customer card update"
+        ]
+      },
+      "bankConnections": {
+        "intro": "Connections to bank accounts (Open Banking / extracted statements) for automatic identification of deposits and customer card updates.",
+        "bullets": [
+          "Open Banking sync or statement upload",
+          "Auto-match by RF code",
+          "In-app bank reconciliation",
+          "Alerts for unidentified amounts"
+        ]
+      },
+      "thirdParty": {
+        "intro": "Communication with external apps — production import, partner agencies, reinsurers and custom APIs.",
+        "bullets": [
+          "Push/Pull production via REST",
+          "Mapping for insurer feeds",
+          "Webhooks for external systems",
+          "Data transformation zone"
+        ]
+      },
+      "accounting": {
+        "intro": "Direct integration with accounting systems (BlueByte or third-party). Generate accounting entries from every financial movement.",
+        "bullets": [
+          "Chart-of-accounts mapping",
+          "Auto-create entry from every record",
+          "Safe replay/correction",
+          "Connectors for leading accounting suites"
+        ]
+      },
+      "kepyo": {
+        "intro": "KEPYO (customer/supplier summary statements) updates in one click, auto-filled from the year's data.",
+        "bullets": [
+          "Generate XML / AADE file",
+          "VAT-number consistency checks",
+          "Validate and submit",
+          "History of previous years"
+        ]
+      },
+      "financialPrintouts": {
+        "intro": "Ledgers, journals and trial balances — complete financial printouts with filters and export to PDF/Excel.",
+        "bullets": [
+          "Customer / partner / company ledger",
+          "Receipts and payments journal",
+          "General and detailed trial balance",
+          "Export to PDF / Excel / CSV"
+        ]
+      },
+      "magneticImport": {
+        "intro": "Import production/receipts from magnetic media (insurer files) with auto-matching to contracts.",
+        "bullets": [
+          "Templates per insurer",
+          "Auto-match production to contracts",
+          "Discrepancy checks",
+          "Bulk approve & post"
+        ]
+      }
+    }
   },
   "customerDashboard": {
     "eyebrow": "YOUR PORTAL",
