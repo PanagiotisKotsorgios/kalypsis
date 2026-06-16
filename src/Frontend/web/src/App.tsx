@@ -37,6 +37,8 @@ import { AuditLogsPage } from "./pages/AuditLogsPage";
 import { PoliciesPage } from "./pages/PoliciesPage";
 import { AllUsersPage } from "./pages/AllUsersPage";
 import { ClaimsPage } from "./pages/ClaimsPage";
+import { NotificationsPage } from "./pages/NotificationsPage";
+import { DocumentsPage } from "./pages/DocumentsPage";
 
 const navByRole: Record<Role, NavItem[]> = {
   Customer: [
@@ -126,11 +128,8 @@ export default function App() {
                   <Route path="customers" element={<CustomersPage />} />
                   <Route path="policies" element={<PoliciesPage />} />
                   <Route path="all-users" element={<AllUsersPage />} />
-                  <Route path="documents" element={<PlaceholderPage titleKey="nav.documents" />} />
-                  <Route
-                    path="notifications"
-                    element={<PlaceholderPage titleKey="nav.notifications" />}
-                  />
+                  <Route path="documents" element={<DocumentsPage />} />
+                  <Route path="notifications" element={<NotificationsPage />} />
                   <Route path="users" element={<EmployeesPage />} />
                   <Route path="tenants" element={<TenantsPage />} />
                   <Route path="settings" element={<AdminSettingsPage />} />

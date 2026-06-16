@@ -309,6 +309,47 @@
       "agencyMessage": "Message from the agency"
     }
   },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "{{count}} unread",
+    "empty": "No notifications.",
+    "markRead": "Mark as read",
+    "markAll": "Mark all as read"
+  },
+  "documents": {
+    "agencyTitle": "Documents",
+    "agencyLead": "All documents attached to your agency's policies.",
+    "customerTitle": "My documents",
+    "customerLead": "All documents from your policies — available to download.",
+    "uploadBtn": "New document",
+    "empty": "No documents yet.",
+    "download": "Download",
+    "confirmDelete": "Delete file {{name}}?",
+    "col": {
+      "file": "File",
+      "type": "Type",
+      "policy": "Policy",
+      "customer": "Customer",
+      "uploadedAt": "Uploaded"
+    },
+    "types": {
+      "Policy": "Policy",
+      "GreenCard": "Green card",
+      "Roadside": "Roadside",
+      "Invoice": "Invoice",
+      "Other": "Other"
+    },
+    "upload": {
+      "title": "Upload document",
+      "policy": "Policy",
+      "type": "Document type",
+      "choose": "Choose file",
+      "submit": "Upload"
+    },
+    "errors": {
+      "required": "Pick a policy and a file."
+    }
+  },
   "claims": {
     "agencyTitle": "Claims",
     "agencyLead": "All claim filings handled by your agency — pending, under review, approved or paid.",

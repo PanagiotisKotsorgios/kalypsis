@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../auth/AuthContext";
 import { LanguageToggle } from "./LanguageToggle";
+import { NotificationBell } from "./NotificationBell";
 import { KalypsisLogo } from "./KalypsisLogo";
 
 export interface NavItem {
@@ -111,7 +112,8 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           <Typography variant="subtitle1" sx={{ flex: 1, fontWeight: 600 }}>
             {user?.tenantName ?? t("app.subtitle")}
           </Typography>
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <NotificationBell />
             <LanguageToggle />
             <IconButton onClick={handleSignOut} title={t("auth.logout")}>
               <LogoutIcon />
