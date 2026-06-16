@@ -936,7 +936,14 @@
       "name": "Name", "email": "Email", "tenant": "Agency",
       "role": "Role", "status": "Status", "lastLogin": "Last login"
     },
-    "edit": { "title": "Edit user", "active": "Active" }
+    "edit": { "title": "Edit user", "active": "Active" },
+    "selected": "{{count}} selected",
+    "bulk": {
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "delete": "Delete",
+      "deleteConfirm": "Delete {{count}} users?"
+    }
   },
   "audit": {
     "title": "Audit Log",
@@ -1132,12 +1139,17 @@
     "copied": "Copied!",
     "active": "Active",
     "inactive": "Inactive",
+    "delete": "Delete",
     "status": "Status",
     "description": "Description",
     "notes": "Notes",
     "all": "All",
     "confirmDelete": "Are you sure?",
     "done": "Done"
+  },
+  "impersonation": {
+    "viewingAs": "Viewing as: {{name}}",
+    "exit": "Exit"
   },
   "policyType": {
     "Auto": "Auto",
@@ -1376,7 +1388,25 @@
     "active": "Active",
     "inactive": "Inactive",
     "confirmDelete": "Delete agency {{name}}?",
-    "edit": { "title": "Edit agency" }
+    "edit": { "title": "Edit agency" },
+    "openDetail": "Open details",
+    "enterAs": "Enter agency",
+    "enterToBrowse": "Enter the agency to see this section as its admin.",
+    "loadError": "Couldn't load the agency.",
+    "createdAt": "Created",
+    "lastLogin": "Last login",
+    "recentUsers": "Recent users",
+    "userName": "Name",
+    "userRole": "Role",
+    "userLastLogin": "Last login",
+    "userActivate": "Activate",
+    "userDeactivate": "Deactivate",
+    "tab": { "overview": "Overview", "users": "Users", "customers": "Customers", "policies": "Policies" },
+    "stat": {
+      "users": "Users", "customers": "Customers", "policies": "Policies",
+      "active": "active", "documents": "Documents", "claims": "Claims",
+      "producers": "Producers", "premium": "Premium"
+    }
   },
   "users": {
     "title": "Agency Staff",

@@ -26,6 +26,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../api/client";
+import { useImpersonation } from "../impersonation/ImpersonationContext";
+import { ImpersonationBanner } from "./ImpersonationBanner";
 import { LanguageToggle } from "./LanguageToggle";
 import { NotificationBell } from "./NotificationBell";
 import { KalypsisLogo } from "./KalypsisLogo";
@@ -54,8 +56,9 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [open, setOpen] = useState(!isMobile);
 
+  const { tenantId: impersonatedTenantId } = useImpersonation();
   const logoQuery = useQuery({
-    queryKey: ["tenant-logo", user?.tenantId ?? "none"],
+    queryKey: ["tenant-logo", impersonatedTenantId ?? user?.tenantId ?? "none"],
     enabled: !!user?.tenantId,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
@@ -240,6 +243,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           maxWidth: "100%"
         }}
       >
+        <ImpersonationBanner />
         {children}
       </Box>
     </Box>

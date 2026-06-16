@@ -29,8 +29,29 @@ public sealed class HttpContextCurrentUser : ICurrentUser
     {
         get
         {
+            // PlatformAdmin / PlatformEmployee can scope themselves into a single
+            // tenant by sending X-Impersonate-Tenant. All downstream queries then
+            // honour the existing tenant filter as if the user were inside that
+            // tenant.
+            if (IsPlatformLevel)
+            {
+                var imp = _accessor.HttpContext?.Request.Headers["X-Impersonate-Tenant"].ToString();
+                if (!string.IsNullOrWhiteSpace(imp) && Guid.TryParse(imp, out var impId))
+                    return impId;
+            }
+
             var raw = Principal?.FindFirstValue("tenantId");
             return Guid.TryParse(raw, out var id) ? id : null;
+        }
+    }
+
+    public bool IsImpersonating
+    {
+        get
+        {
+            if (!IsPlatformLevel) return false;
+            var imp = _accessor.HttpContext?.Request.Headers["X-Impersonate-Tenant"].ToString();
+            return !string.IsNullOrWhiteSpace(imp) && Guid.TryParse(imp, out _);
         }
     }
 

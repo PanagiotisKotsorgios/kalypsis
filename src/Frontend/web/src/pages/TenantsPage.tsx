@@ -26,10 +26,14 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import LoginIcon from "@mui/icons-material/Login";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { FormControlLabel, Switch } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
+import { useImpersonation } from "../impersonation/ImpersonationContext";
 import { PasswordField } from "../components/PasswordField";
 
 interface Tenant {
@@ -65,6 +69,8 @@ const PLANS = ["Trial", "Basic", "Pro", "Enterprise"];
 export function TenantsPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const { enter: enterImpersonation } = useImpersonation();
   const [open, setOpen] = useState(false);
   const [createdInfo, setCreatedInfo] = useState<{ email: string; password: string } | null>(null);
   const [editing, setEditing] = useState<Tenant | null>(null);
@@ -149,6 +155,15 @@ export function TenantsPage() {
                     </TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                        <IconButton size="small" title={t("tenants.openDetail")}
+                          onClick={() => navigate(`/app/tenants/${row.id}`)} disabled={isPlatform}>
+                          <OpenInNewIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton size="small" color="primary" title={t("tenants.enterAs")}
+                          onClick={() => { enterImpersonation(row.id, row.name); navigate("/app", { replace: false }); }}
+                          disabled={isPlatform}>
+                          <LoginIcon fontSize="small" />
+                        </IconButton>
                         <IconButton size="small" onClick={() => setEditing(row)} disabled={isPlatform}>
                           <EditIcon fontSize="small" />
                         </IconButton>

@@ -10,4 +10,5 @@ public interface ICurrentUser
     string? Email { get; }
     bool IsAuthenticated { get; }
     bool IsPlatformLevel { get; }
+    bool IsImpersonating { get; }
 }

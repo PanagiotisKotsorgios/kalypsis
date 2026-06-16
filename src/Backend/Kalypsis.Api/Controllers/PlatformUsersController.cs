@@ -32,4 +32,23 @@ public class PlatformUsersController : ControllerBase
         await _mediator.Send(new DeletePlatformUserCommand(id), cancellationToken);
         return NoContent();
     }
+
+    public record BulkUserActionBody(IReadOnlyList<Guid> UserIds, BulkUserAction Action);
+
+    [HttpPost("bulk")]
+    public async Task<ActionResult<int>> Bulk([FromBody] BulkUserActionBody body, CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(new BulkUserActionCommand(body.UserIds, body.Action), cancellationToken));
+}
+
+[ApiController]
+[Route("api/tenants/{tenantId:guid}/overview")]
+[Authorize(Policy = "PlatformAdmin")]
+public class TenantOverviewController : ControllerBase
+{
+    private readonly IMediator _mediator;
+    public TenantOverviewController(IMediator mediator) => _mediator = mediator;
+
+    [HttpGet]
+    public async Task<ActionResult<TenantOverviewDto>> Get(Guid tenantId, CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(new GetTenantOverviewQuery(tenantId), cancellationToken));
 }

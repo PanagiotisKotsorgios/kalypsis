@@ -59,7 +59,11 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<MagneticImport> MagneticImports => Set<MagneticImport>();
 
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
-    public bool BypassTenantFilter => _currentUser.IsPlatformLevel;
+
+    // PlatformAdmin / PlatformEmployee normally bypass the tenant filter, but
+    // when they're impersonating a tenant (via X-Impersonate-Tenant) we scope
+    // them to that tenant so every page behaves as if they were inside it.
+    public bool BypassTenantFilter => _currentUser.IsPlatformLevel && !_currentUser.IsImpersonating;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

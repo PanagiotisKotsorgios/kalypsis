@@ -10,6 +10,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Checkbox,
   FormControlLabel,
   IconButton,
   InputAdornment,
@@ -23,11 +24,17 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Toolbar,
   Typography
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import BlockIcon from "@mui/icons-material/Block";
+import { useNavigate } from "react-router-dom";
+import LoginIcon from "@mui/icons-material/Login";
+import { useImpersonation } from "../impersonation/ImpersonationContext";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
@@ -68,12 +75,30 @@ export function AllUsersPage() {
   const { t } = useTranslation();
   const { user: me } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const { enter } = useImpersonation();
 
   const [search, setSearch] = useState("");
   const [tenantFilter, setTenantFilter] = useState("");
   const [roleFilter, setRoleFilter] = useState<Role | "">("");
   const [editing, setEditing] = useState<PlatformUserDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const bulkMutation = useMutation({
+    mutationFn: async (action: "Activate" | "Deactivate" | "Delete") =>
+      (await api.post<number>("/platform/users/bulk", { userIds: Array.from(selected), action })).data,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["platform-users"] }); setSelected(new Set()); },
+    onError: (err) => setError(extractErrorMessage(err))
+  });
+
+  const toggle = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const usersQuery = useQuery({
     queryKey: ["platform-users", search, tenantFilter, roleFilter],
@@ -136,6 +161,29 @@ export function AllUsersPage() {
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
 
+      {selected.size > 0 && (
+        <Card sx={{ mb: 2, bgcolor: "primary.main", color: "primary.contrastText" }}>
+          <Toolbar variant="dense" sx={{ gap: 1 }}>
+            <Typography sx={{ flex: 1, fontWeight: 700 }}>
+              {t("allUsers.selected", { count: selected.size })}
+            </Typography>
+            <Button startIcon={<CheckCircleIcon />} color="inherit" size="small" variant="outlined"
+              onClick={() => bulkMutation.mutate("Activate")} disabled={bulkMutation.isPending}>
+              {t("allUsers.bulk.activate")}
+            </Button>
+            <Button startIcon={<BlockIcon />} color="inherit" size="small" variant="outlined"
+              onClick={() => bulkMutation.mutate("Deactivate")} disabled={bulkMutation.isPending}>
+              {t("allUsers.bulk.deactivate")}
+            </Button>
+            <Button startIcon={<DeleteIcon />} color="inherit" size="small" variant="outlined"
+              onClick={() => { if (confirm(t("allUsers.bulk.deleteConfirm", { count: selected.size }))) bulkMutation.mutate("Delete"); }}
+              disabled={bulkMutation.isPending}>
+              {t("allUsers.bulk.delete")}
+            </Button>
+          </Toolbar>
+        </Card>
+      )}
+
       {usersQuery.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
       ) : (
@@ -144,6 +192,13 @@ export function AllUsersPage() {
             <Table size="small">
               <TableHead>
                 <TableRow>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      indeterminate={selected.size > 0 && selected.size < rows.length}
+                      checked={rows.length > 0 && selected.size === rows.length}
+                      onChange={(e) => setSelected(e.target.checked ? new Set(rows.map(r => r.id)) : new Set())}
+                    />
+                  </TableCell>
                   <TableCell>{t("allUsers.col.name")}</TableCell>
                   <TableCell>{t("allUsers.col.email")}</TableCell>
                   <TableCell>{t("allUsers.col.tenant")}</TableCell>
@@ -155,7 +210,10 @@ export function AllUsersPage() {
               </TableHead>
               <TableBody>
                 {rows.map((u) => (
-                  <TableRow key={u.id} hover>
+                  <TableRow key={u.id} hover selected={selected.has(u.id)}>
+                    <TableCell padding="checkbox">
+                      <Checkbox checked={selected.has(u.id)} onChange={() => toggle(u.id)} />
+                    </TableCell>
                     <TableCell><Typography fontWeight={600}>{u.firstName} {u.lastName}</Typography></TableCell>
                     <TableCell sx={{ fontFamily: "monospace", fontSize: 13 }}>{u.email}</TableCell>
                     <TableCell>{u.tenantName ?? "—"}</TableCell>
@@ -169,6 +227,12 @@ export function AllUsersPage() {
                     </TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                        {u.tenantId && u.tenantName && (
+                          <IconButton size="small" color="primary" title={t("tenants.enterAs")}
+                            onClick={() => { enter(u.tenantId!, u.tenantName!); navigate("/app"); }}>
+                            <LoginIcon fontSize="small" />
+                          </IconButton>
+                        )}
                         <IconButton size="small" onClick={() => setEditing(u)}><EditIcon fontSize="small" /></IconButton>
                         <IconButton size="small" color="error"
                           disabled={u.id === me?.userId}
@@ -181,7 +245,7 @@ export function AllUsersPage() {
                 ))}
                 {rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7}>
+                    <TableCell colSpan={8}>
                       <Typography textAlign="center" color="text.secondary" py={4}>{t("common.noData")}</Typography>
                     </TableCell>
                   </TableRow>

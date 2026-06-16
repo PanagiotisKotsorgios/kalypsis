@@ -986,7 +986,14 @@
       "name": "Ονοματεπώνυμο", "email": "Email", "tenant": "Γραφείο",
       "role": "Ρόλος", "status": "Κατάσταση", "lastLogin": "Τελευταία σύνδεση"
     },
-    "edit": { "title": "Επεξεργασία χρήστη", "active": "Ενεργός" }
+    "edit": { "title": "Επεξεργασία χρήστη", "active": "Ενεργός" },
+    "selected": "{{count}} επιλεγμένοι",
+    "bulk": {
+      "activate": "Ενεργοποίηση",
+      "deactivate": "Απενεργοποίηση",
+      "delete": "Διαγραφή",
+      "deleteConfirm": "Σίγουρα θέλετε να διαγράψετε {{count}} χρήστες;"
+    }
   },
   "audit": {
     "title": "Audit Log",
@@ -1182,12 +1189,17 @@
     "copied": "Αντιγράφηκε!",
     "active": "Ενεργό",
     "inactive": "Ανενεργό",
+    "delete": "Διαγραφή",
     "status": "Κατάσταση",
     "description": "Περιγραφή",
     "notes": "Σημειώσεις",
     "all": "Όλα",
     "confirmDelete": "Είστε σίγουροι;",
     "done": "Έγινε"
+  },
+  "impersonation": {
+    "viewingAs": "Λειτουργείτε ως: {{name}}",
+    "exit": "Έξοδος"
   },
   "policyType": {
     "Auto": "Αυτοκίνητο",
@@ -1571,7 +1583,35 @@
     "active": "Ενεργό",
     "inactive": "Ανενεργό",
     "confirmDelete": "Σίγουρα θέλετε να διαγράψετε το γραφείο {{name}};",
-    "edit": { "title": "Επεξεργασία γραφείου" }
+    "edit": { "title": "Επεξεργασία γραφείου" },
+    "openDetail": "Άνοιγμα λεπτομερειών",
+    "enterAs": "Είσοδος στο γραφείο",
+    "enterToBrowse": "Μπείτε στο γραφείο για να δείτε αυτή την ενότητα όπως ο διαχειριστής του.",
+    "loadError": "Δεν φορτώθηκαν τα στοιχεία του γραφείου.",
+    "createdAt": "Δημιουργήθηκε",
+    "lastLogin": "Τελευταία σύνδεση",
+    "recentUsers": "Πρόσφατοι χρήστες",
+    "userName": "Όνομα",
+    "userRole": "Ρόλος",
+    "userLastLogin": "Τελευταία σύνδεση",
+    "userActivate": "Ενεργοποίηση",
+    "userDeactivate": "Απενεργοποίηση",
+    "tab": {
+      "overview": "Επισκόπηση",
+      "users": "Χρήστες",
+      "customers": "Πελάτες",
+      "policies": "Συμβόλαια"
+    },
+    "stat": {
+      "users": "Χρήστες",
+      "customers": "Πελάτες",
+      "policies": "Συμβόλαια",
+      "active": "ενεργά",
+      "documents": "Έγγραφα",
+      "claims": "Ζημιές",
+      "producers": "Συνεργάτες",
+      "premium": "Ασφάλιστρα"
+    }
   },
   "users": {
     "title": "Υπάλληλοι Γραφείου",

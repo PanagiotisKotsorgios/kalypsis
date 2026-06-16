@@ -146,3 +146,100 @@ public class DeletePlatformUserCommandHandler : IRequestHandler<DeletePlatformUs
         return Unit.Value;
     }
 }
+
+/* ========= Bulk actions on users (PlatformAdmin) ========= */
+
+public enum BulkUserAction { Activate, Deactivate, Delete }
+
+public record BulkUserActionCommand(IReadOnlyList<Guid> UserIds, BulkUserAction Action) : IRequest<int>;
+
+public class BulkUserActionCommandHandler : IRequestHandler<BulkUserActionCommand, int>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+
+    public BulkUserActionCommandHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
+
+    public async Task<int> Handle(BulkUserActionCommand request, CancellationToken ct)
+    {
+        if (request.UserIds.Count == 0) return 0;
+        if (request.UserIds.Count > 500) throw AppException.Validation("Πολλοί χρήστες ανά μαζική ενέργεια (μέγιστο 500).");
+
+        var users = await _db.Users.IgnoreQueryFilters()
+            .Where(u => request.UserIds.Contains(u.Id) && u.DeletedAt == null)
+            .ToListAsync(ct);
+
+        var affected = 0;
+        foreach (var u in users)
+        {
+            if (u.Id == _current.UserId) continue;
+            switch (request.Action)
+            {
+                case BulkUserAction.Activate:   u.IsActive = true; affected++; break;
+                case BulkUserAction.Deactivate: u.IsActive = false; affected++; break;
+                case BulkUserAction.Delete:     u.DeletedAt = DateTime.UtcNow; u.IsActive = false; affected++; break;
+            }
+        }
+        await _db.SaveChangesAsync(ct);
+        return affected;
+    }
+}
+
+/* ========= Tenant overview (PlatformAdmin) ========= */
+
+public record TenantOverviewDto(
+    Guid TenantId,
+    string Name,
+    string Code,
+    bool IsActive,
+    string SubscriptionPlan,
+    DateTime CreatedAt,
+    int UserCount,
+    int CustomerCount,
+    int PolicyCount,
+    int ActivePolicyCount,
+    int DocumentCount,
+    int ClaimCount,
+    int ProducerCount,
+    decimal TotalPremium,
+    DateTime? LastUserLoginAt,
+    IReadOnlyList<PlatformUserDto> RecentUsers);
+
+public record GetTenantOverviewQuery(Guid TenantId) : IRequest<TenantOverviewDto>;
+
+public class GetTenantOverviewQueryHandler : IRequestHandler<GetTenantOverviewQuery, TenantOverviewDto>
+{
+    private readonly IAppDbContext _db;
+    public GetTenantOverviewQueryHandler(IAppDbContext db) => _db = db;
+
+    public async Task<TenantOverviewDto> Handle(GetTenantOverviewQuery request, CancellationToken ct)
+    {
+        var t = await _db.Tenants.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == request.TenantId, ct)
+            ?? throw AppException.NotFound("Tenant");
+
+        var users = _db.Users.IgnoreQueryFilters().Where(u => u.TenantId == t.Id && u.DeletedAt == null);
+        var policies = _db.Policies.IgnoreQueryFilters().Where(p => p.TenantId == t.Id && p.DeletedAt == null);
+
+        var userCount = await users.CountAsync(ct);
+        var customerCount = await _db.Customers.IgnoreQueryFilters().CountAsync(c => c.TenantId == t.Id && c.DeletedAt == null, ct);
+        var policyCount = await policies.CountAsync(ct);
+        var activePolicyCount = await policies.CountAsync(p => p.Status == Domain.Enums.PolicyStatus.Active, ct);
+        var documentCount = await _db.PolicyDocuments.IgnoreQueryFilters().CountAsync(d => d.TenantId == t.Id && d.DeletedAt == null, ct);
+        var claimCount = await _db.Claims.IgnoreQueryFilters().CountAsync(c => c.TenantId == t.Id && c.DeletedAt == null, ct);
+        var producerCount = await _db.Producers.IgnoreQueryFilters().CountAsync(p => p.TenantId == t.Id && p.DeletedAt == null, ct);
+        var totalPremium = await policies.SumAsync(p => (decimal?)p.Premium, ct) ?? 0;
+        var lastLogin = await users.MaxAsync(u => (DateTime?)u.LastLoginAt, ct);
+
+        var recent = await users.OrderByDescending(u => u.CreatedAt).Take(10)
+            .Select(u => new PlatformUserDto(
+                u.Id, u.Email, u.FirstName, u.LastName, u.Phone, u.Role, u.IsActive,
+                u.TenantId, t.Name, u.CreatedAt, u.LastLoginAt))
+            .ToListAsync(ct);
+
+        return new TenantOverviewDto(
+            t.Id, t.Name, t.Code, t.IsActive, t.SubscriptionPlan.ToString(), t.CreatedAt,
+            userCount, customerCount, policyCount, activePolicyCount, documentCount, claimCount, producerCount,
+            totalPremium, lastLogin, recent);
+    }
+}

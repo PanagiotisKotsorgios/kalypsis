@@ -9,6 +9,7 @@ import App from "./App";
 import { theme } from "./theme";
 import { i18n } from "./i18n";
 import { AuthProvider } from "./auth/AuthContext";
+import { ImpersonationProvider } from "./impersonation/ImpersonationContext";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,9 +24,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <ThemeProvider theme={theme}>
           <CssBaseline />
           <AuthProvider>
-            <BrowserRouter>
-              <App />
-            </BrowserRouter>
+            <ImpersonationProvider>
+              <BrowserRouter>
+                <App />
+              </BrowserRouter>
+            </ImpersonationProvider>
           </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>

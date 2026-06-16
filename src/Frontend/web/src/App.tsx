@@ -49,6 +49,7 @@ import CalculateIcon from "@mui/icons-material/Calculate";
 import StackedLineChartIcon from "@mui/icons-material/StackedLineChart";
 
 import { useAuth, type Role } from "./auth/AuthContext";
+import { useImpersonation } from "./impersonation/ImpersonationContext";
 import { AppLayout, type NavItem } from "./components/AppLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { CookieBanner } from "./components/CookieBanner";
@@ -103,6 +104,7 @@ import { MagneticImportsPage } from "./pages/MagneticImportsPage";
 import { OverCommissionsPage } from "./pages/OverCommissionsPage";
 import { ProductionGoalsPage } from "./pages/ProductionGoalsPage";
 import { ProductionStatsPage } from "./pages/ProductionStatsPage";
+import { TenantDetailPage } from "./pages/TenantDetailPage";
 
 const navByRole: Record<Role, NavItem[]> = {
   Customer: [
@@ -219,8 +221,18 @@ const navByRole: Record<Role, NavItem[]> = {
 
 export default function App() {
   const { user, loading } = useAuth();
+  const { tenantId: impersonatedTenantId } = useImpersonation();
 
   if (loading) return null;
+
+  // While a PlatformAdmin / PlatformEmployee is "viewing as" a tenant we render
+  // the AgencyAdmin sidebar so they see (and can use) everything an agency
+  // admin would inside that tenant.
+  const effectiveRole: Role | undefined = user
+    ? (impersonatedTenantId && (user.role === "PlatformAdmin" || user.role === "PlatformEmployee")
+        ? "AgencyAdmin"
+        : user.role)
+    : undefined;
 
   return (
     <>
@@ -247,7 +259,7 @@ export default function App() {
           path="/app/*"
           element={
             <ProtectedRoute>
-              <AppLayout navItems={user ? navByRole[user.role] : []}>
+              <AppLayout navItems={effectiveRole ? navByRole[effectiveRole] : []}>
                 <Routes>
                   <Route index element={<DashboardPage />} />
                   <Route path="customers" element={<CustomersPage />} />
@@ -259,6 +271,7 @@ export default function App() {
                   <Route path="notifications" element={<NotificationsPage />} />
                   <Route path="users" element={<EmployeesPage />} />
                   <Route path="tenants" element={<TenantsPage />} />
+                  <Route path="tenants/:id" element={<TenantDetailPage />} />
                   <Route path="settings" element={<AdminSettingsPage />} />
                   <Route path="requests" element={<RequestsPage />} />
                   <Route path="audit" element={<AuditLogsPage />} />

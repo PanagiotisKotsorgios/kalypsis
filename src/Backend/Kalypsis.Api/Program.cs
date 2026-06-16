@@ -46,10 +46,18 @@ builder.Services.AddAuthorization(opt =>
     opt.AddPolicy("PlatformLevel", p => p.RequireClaim("role",
         nameof(Kalypsis.Domain.Enums.Role.PlatformAdmin),
         nameof(Kalypsis.Domain.Enums.Role.PlatformEmployee)));
-    opt.AddPolicy("AgencyAdmin", p => p.RequireClaim("role", nameof(Kalypsis.Domain.Enums.Role.AgencyAdmin)));
+    // PlatformAdmin / PlatformEmployee are allowed everywhere so that, while
+    // impersonating a tenant via X-Impersonate-Tenant, they can hit the same
+    // endpoints the tenant's own staff would.
+    opt.AddPolicy("AgencyAdmin", p => p.RequireClaim("role",
+        nameof(Kalypsis.Domain.Enums.Role.AgencyAdmin),
+        nameof(Kalypsis.Domain.Enums.Role.PlatformAdmin),
+        nameof(Kalypsis.Domain.Enums.Role.PlatformEmployee)));
     opt.AddPolicy("AgencyStaff", p => p.RequireClaim("role",
         nameof(Kalypsis.Domain.Enums.Role.AgencyAdmin),
-        nameof(Kalypsis.Domain.Enums.Role.AgencyUser)));
+        nameof(Kalypsis.Domain.Enums.Role.AgencyUser),
+        nameof(Kalypsis.Domain.Enums.Role.PlatformAdmin),
+        nameof(Kalypsis.Domain.Enums.Role.PlatformEmployee)));
     opt.AddPolicy("Producer", p => p.RequireClaim("role", nameof(Kalypsis.Domain.Enums.Role.Producer)));
 });
 
