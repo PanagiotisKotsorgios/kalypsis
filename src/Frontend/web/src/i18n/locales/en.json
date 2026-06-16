@@ -29,7 +29,9 @@
     "claims": "Claims",
     "reports": "Reports",
     "back": "Back",
-    "settings": "Settings"
+    "settings": "Settings",
+    "requests": "Requests",
+    "audit": "Audit Log"
   },
   "landing": {
     "eyebrow": "BUILT IN GREECE · CERTIFIED SECURITY",
@@ -234,6 +236,93 @@
   "pricing": {
     "footnote": "Need custom volume or special requirements? We're here.",
     "contactSales": "Talk to sales"
+  },
+  "requests": {
+    "customerTitle": "My requests",
+    "customerLead": "Send a request to your agency: new policy, accident report, document request or general question.",
+    "agencyTitle": "Customer requests",
+    "agencyLead": "Queue of requests from all of your customers. Update status, assign to an employee, leave notes.",
+    "newRequest": "New request",
+    "noRequests": "No requests yet.",
+    "col": {
+      "number": "Ref #",
+      "type": "Type",
+      "subject": "Subject",
+      "customer": "Customer",
+      "status": "Status",
+      "created": "Created"
+    },
+    "types": {
+      "NewPolicy": "New policy",
+      "AccidentReport": "Accident report",
+      "DocumentRequest": "Document request",
+      "PolicyChange": "Policy change",
+      "GeneralQuestion": "General question"
+    },
+    "statuses": {
+      "Submitted": "New",
+      "InReview": "In review",
+      "AwaitingCustomerInfo": "Awaiting customer",
+      "Resolved": "Resolved",
+      "Closed": "Closed",
+      "Rejected": "Rejected"
+    },
+    "attachmentCategories": {
+      "DrivingLicense": "Driving licence",
+      "VehicleRegistration": "Vehicle registration",
+      "AccidentPhoto": "Accident photo",
+      "AccidentReport": "Accident report form",
+      "IdCard": "ID card",
+      "Other": "Other"
+    },
+    "create": {
+      "title": "New request",
+      "subtitle": "Tell us what you need. After submission you'll be able to attach files (photos, documents).",
+      "type": "Request type",
+      "subject": "Subject",
+      "description": "Description",
+      "descriptionHelp": "Give us details (at least 10 characters).",
+      "accidentSection": "Accident details",
+      "incidentDate": "Incident date",
+      "incidentLocation": "Location",
+      "otherParty": "Other parties involved (if any)",
+      "otherPartyHelp": "Name, phone, plate number of the other vehicle.",
+      "attachmentsAfterCreate": "Once created, you can attach files like photos or your driving licence.",
+      "submit": "Create request"
+    },
+    "detail": {
+      "type": "Type",
+      "customer": "Customer",
+      "createdAt": "Created",
+      "resolvedAt": "Resolved",
+      "description": "Description",
+      "accidentInfo": "Accident details",
+      "attachments": "Attachments",
+      "noAttachments": "No files attached yet.",
+      "uploadTitle": "Attach a file",
+      "attachmentCategory": "Category",
+      "uploadButton": "Choose file",
+      "agencyActions": "Manage (agency)",
+      "changeStatus": "Change status",
+      "agencyNotes": "Agency notes (visible to customer)",
+      "agencyMessage": "Message from the agency"
+    }
+  },
+  "audit": {
+    "title": "Audit Log",
+    "subtitle": "All activity records across the platform: creates, updates and deletes.",
+    "filters": {
+      "entityName": "Entity",
+      "action": "Action",
+      "allActions": "All"
+    },
+    "col": {
+      "timestamp": "Time",
+      "action": "Action",
+      "entity": "Entity",
+      "user": "User",
+      "tenant": "Tenant"
+    }
   },
   "register": {
     "eyebrow": "JOIN KALYPSIS",

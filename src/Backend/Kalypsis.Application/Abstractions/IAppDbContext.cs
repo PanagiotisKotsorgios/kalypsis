@@ -21,6 +21,8 @@ public interface IAppDbContext
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<PasswordResetToken> PasswordResetTokens { get; }
     DbSet<PlatformSetting> PlatformSettings { get; }
+    DbSet<ServiceRequest> ServiceRequests { get; }
+    DbSet<ServiceRequestAttachment> ServiceRequestAttachments { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

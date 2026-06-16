@@ -34,6 +34,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<PlatformSetting> PlatformSettings => Set<PlatformSetting>();
+    public DbSet<ServiceRequest> ServiceRequests => Set<ServiceRequest>();
+    public DbSet<ServiceRequestAttachment> ServiceRequestAttachments => Set<ServiceRequestAttachment>();
 
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
     public bool BypassTenantFilter => _currentUser.IsPlatformLevel;
@@ -62,7 +64,107 @@ public class AppDbContext : DbContext, IAppDbContext
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         ApplyAuditAndTenantStamps();
-        return await base.SaveChangesAsync(cancellationToken);
+        var audits = BuildAuditEntries();
+        var rows = await base.SaveChangesAsync(cancellationToken);
+        if (audits.Count > 0)
+        {
+            AuditLogs.AddRange(audits);
+            await base.SaveChangesAsync(cancellationToken);
+        }
+        return rows;
+    }
+
+    /// <summary>
+    /// Snapshot ChangeTracker before SaveChanges so we can persist a paired
+    /// AuditLog row for every meaningful entity mutation.
+    /// </summary>
+    private List<AuditLog> BuildAuditEntries()
+    {
+        var now = _clock.UtcNow;
+        var userId = _currentUser.UserId;
+        var tenantId = _currentUser.TenantId;
+        var list = new List<AuditLog>();
+
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            if (entry.Entity is AuditLog) continue;        // never audit the audit log
+            if (entry.Entity is RefreshToken) continue;     // noisy, security-sensitive
+            if (entry.Entity is PasswordResetToken) continue;
+            if (entry.State is not (EntityState.Added or EntityState.Modified or EntityState.Deleted)) continue;
+
+            var clrType = entry.Entity.GetType();
+            var idProp = clrType.GetProperty("Id");
+            var idValue = idProp?.GetValue(entry.Entity)?.ToString() ?? string.Empty;
+            string? entityTenantId = null;
+            if (entry.Entity is TenantEntity te) entityTenantId = te.TenantId.ToString();
+
+            var action = entry.State switch
+            {
+                EntityState.Added => "Create",
+                EntityState.Modified => entry.Entity is BaseEntity be && be.DeletedAt is not null ? "Delete" : "Update",
+                EntityState.Deleted => "Delete",
+                _ => "Unknown"
+            };
+
+            string? oldValuesJson = null;
+            string? newValuesJson = null;
+            if (entry.State == EntityState.Modified)
+            {
+                var changed = entry.Properties
+                    .Where(p => p.IsModified && !string.Equals(p.Metadata.Name, "UpdatedAt", StringComparison.Ordinal))
+                    .ToList();
+                if (changed.Count > 0)
+                {
+                    oldValuesJson = JsonSerialize(changed.ToDictionary(p => p.Metadata.Name, p => RedactIfSensitive(p.Metadata.Name, p.OriginalValue)));
+                    newValuesJson = JsonSerialize(changed.ToDictionary(p => p.Metadata.Name, p => RedactIfSensitive(p.Metadata.Name, p.CurrentValue)));
+                }
+            }
+            else if (entry.State == EntityState.Added)
+            {
+                newValuesJson = JsonSerialize(entry.Properties
+                    .Where(p => p.CurrentValue is not null)
+                    .ToDictionary(p => p.Metadata.Name, p => RedactIfSensitive(p.Metadata.Name, p.CurrentValue)));
+            }
+
+            list.Add(new AuditLog
+            {
+                Id = Guid.NewGuid(),
+                CreatedAt = now,
+                TenantId = entityTenantId is null ? tenantId : Guid.Parse(entityTenantId),
+                UserId = userId,
+                EntityName = clrType.Name,
+                EntityId = idValue,
+                Action = action,
+                OldValues = oldValuesJson,
+                NewValues = newValuesJson
+            });
+        }
+        return list;
+    }
+
+    private static readonly System.Text.Json.JsonSerializerOptions _jsonOpts = new()
+    {
+        WriteIndented = false,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    };
+
+    private static string JsonSerialize(object? value)
+    {
+        try { return System.Text.Json.JsonSerializer.Serialize(value, _jsonOpts); }
+        catch { return "{}"; }
+    }
+
+    private static object? RedactIfSensitive(string propertyName, object? value)
+    {
+        if (value is null) return null;
+        if (propertyName.Contains("Password", StringComparison.OrdinalIgnoreCase)
+            || propertyName.Contains("Token", StringComparison.OrdinalIgnoreCase)
+            || propertyName.Contains("Secret", StringComparison.OrdinalIgnoreCase)
+            || propertyName.Contains("ApiKey", StringComparison.OrdinalIgnoreCase))
+        {
+            return "***";
+        }
+        return value;
     }
 
     private void ApplyAuditAndTenantStamps()

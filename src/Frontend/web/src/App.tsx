@@ -32,11 +32,14 @@ import { TenantsPage } from "./pages/TenantsPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
 import { CustomersPage } from "./pages/CustomersPage";
 import { AdminSettingsPage } from "./pages/AdminSettingsPage";
+import { RequestsPage } from "./pages/RequestsPage";
+import { AuditLogsPage } from "./pages/AuditLogsPage";
 
 const navByRole: Record<Role, NavItem[]> = {
   Customer: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
     { to: "/policies", labelKey: "nav.policies", icon: <DescriptionIcon /> },
+    { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon /> },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon /> },
     { to: "/notifications", labelKey: "nav.notifications", icon: <NotificationsIcon /> },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
@@ -46,6 +49,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon /> },
     { to: "/policies", labelKey: "nav.policies", icon: <DescriptionIcon /> },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon /> },
+    { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon /> },
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon /> },
     { to: "/producers", labelKey: "nav.producers", icon: <HandshakeIcon /> },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon /> },
@@ -57,6 +61,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon /> },
     { to: "/policies", labelKey: "nav.policies", icon: <DescriptionIcon /> },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon /> },
+    { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon /> },
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon /> },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon /> }
   ],
@@ -69,11 +74,13 @@ const navByRole: Record<Role, NavItem[]> = {
   PlatformAdmin: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
     { to: "/tenants", labelKey: "nav.tenants", icon: <BusinessIcon /> },
+    { to: "/audit", labelKey: "nav.audit", icon: <ReportIcon /> },
     { to: "/settings", labelKey: "nav.settings", icon: <SettingsIcon /> }
   ],
   PlatformEmployee: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
-    { to: "/tenants", labelKey: "nav.tenants", icon: <BusinessIcon /> }
+    { to: "/tenants", labelKey: "nav.tenants", icon: <BusinessIcon /> },
+    { to: "/audit", labelKey: "nav.audit", icon: <ReportIcon /> }
   ]
 };
 
@@ -120,6 +127,8 @@ export default function App() {
                   <Route path="users" element={<EmployeesPage />} />
                   <Route path="tenants" element={<TenantsPage />} />
                   <Route path="settings" element={<AdminSettingsPage />} />
+                  <Route path="requests" element={<RequestsPage />} />
+                  <Route path="audit" element={<AuditLogsPage />} />
                   <Route path="tasks" element={<PlaceholderPage titleKey="nav.tasks" />} />
                   <Route path="producers" element={<PlaceholderPage titleKey="nav.producers" />} />
                   <Route path="claims" element={<PlaceholderPage titleKey="nav.claims" />} />
