@@ -1129,7 +1129,212 @@
     "yes": "Yes",
     "no": "No",
     "copy": "Copy",
-    "copied": "Copied!"
+    "copied": "Copied!",
+    "active": "Active",
+    "inactive": "Inactive",
+    "status": "Status",
+    "description": "Description",
+    "notes": "Notes",
+    "all": "All",
+    "confirmDelete": "Are you sure?",
+    "done": "Done"
+  },
+  "policyType": {
+    "Auto": "Auto",
+    "Home": "Home",
+    "Health": "Health",
+    "Life": "Life",
+    "Business": "Business",
+    "Travel": "Travel",
+    "Other": "Other"
+  },
+  "paymentMethod": {
+    "Cash": "Cash",
+    "Card": "Card",
+    "BankTransfer": "Bank Transfer",
+    "Cheque": "Cheque",
+    "PromissoryNote": "Promissory Note",
+    "Other": "Other"
+  },
+  "appointments": {
+    "title": "Appointments & Calendar",
+    "subtitle": "Manage meetings with customers and partners.",
+    "create": "New appointment",
+    "createTitle": "New appointment",
+    "editTitle": "Edit appointment",
+    "empty": "No appointments.",
+    "titleField": "Title", "location": "Location", "startsAt": "Starts", "endsAt": "Ends",
+    "status_": "Status", "assignedTo": "Assigned to", "customer": "Customer", "notes": "Notes",
+    "status": { "Scheduled": "Scheduled", "Done": "Done", "Cancelled": "Cancelled" }
+  },
+  "tariffs": {
+    "title": "Tariffs",
+    "subtitle": "Parametric tariffs per insurance company and branch.",
+    "create": "New tariff", "createTitle": "New tariff", "editTitle": "Edit tariff",
+    "empty": "No tariffs yet.",
+    "currency": "Currency", "effectiveFrom": "From", "effectiveTo": "Until",
+    "factorsJson": "Factors (JSON)",
+    "col": { "name": "Name", "type": "Type", "company": "Company", "premium": "Premium", "commission": "Commission", "status": "Status" }
+  },
+  "coverNotes": {
+    "title": "Cover Notes",
+    "subtitle": "Temporary cover certificates.",
+    "create": "New cover note", "createTitle": "New cover note", "editTitle": "Edit",
+    "empty": "No cover notes.",
+    "number": "Number", "customer": "Customer", "type": "Branch", "company": "Company",
+    "from": "From", "until": "Until", "validity": "Validity",
+    "premium": "Estimated premium", "subject": "Subject", "print": "Print",
+    "status": { "Active": "Active", "Converted": "Converted", "Expired": "Expired", "Cancelled": "Cancelled" }
+  },
+  "branches": {
+    "title": "Branch Designer",
+    "subtitle": "Parametric insurance branches with your own fields and coverages.",
+    "create": "New branch", "createTitle": "New branch", "editTitle": "Edit branch",
+    "empty": "No branches.",
+    "code": "Code", "name": "Name", "fieldsJson": "Fields (JSON)", "coveragesJson": "Coverages (JSON)"
+  },
+  "receipts": {
+    "title": "Receipts", "subtitle": "Record receipts with auto financial movement.",
+    "create": "New receipt", "createTitle": "New receipt", "empty": "No receipts.",
+    "number": "Number", "date": "Date", "customer": "Customer", "policy": "Policy",
+    "method": "Method", "amount": "Amount", "totalShown": "Total shown"
+  },
+  "payments": {
+    "title": "Payments", "subtitle": "Payments with commission netting.",
+    "create": "New payment", "createTitle": "New payment", "empty": "No payments.",
+    "number": "Number", "date": "Date", "beneficiary": "Beneficiary",
+    "method": "Method", "amount": "Amount", "netted": "Commissions (-)",
+    "totalsLabel": "Totals",
+    "benType": { "InsuranceCompany": "Insurer", "Producer": "Partner", "Vendor": "Vendor" },
+    "companyBen": "Insurance company", "producerBen": "Partner", "vendorName": "Vendor name"
+  },
+  "securities": {
+    "title": "Securities", "subtitle": "Cheques and promissory notes with maturity tracking.",
+    "create": "New security", "createTitle": "New security", "editTitle": "Edit security",
+    "empty": "No securities.",
+    "number": "Number", "kind": "Kind", "customer": "Customer", "bank": "Bank",
+    "issued": "Issued", "maturity": "Maturity", "paid": "Paid", "amount": "Amount",
+    "kindLabel": { "Cheque": "Cheque", "PromissoryNote": "Promissory note" },
+    "statusLabel": { "Open": "Open", "Paid": "Paid", "Bounced": "Bounced", "Cancelled": "Cancelled" }
+  },
+  "financials": {
+    "title": "Financial Movements",
+    "subtitle": "Movement ledger per customer, partner and company.",
+    "empty": "No movements.",
+    "year": "Year", "kind": "Type", "date": "Date", "refs": "Refs", "amount": "Amount",
+    "monthlyChart": "Monthly",
+    "kpis": { "receipts": "Receipts", "payments": "Payments", "commissions": "Commissions" },
+    "kindLabel": {
+      "CustomerCharge": "Customer charge",
+      "CustomerCredit": "Customer credit",
+      "PartnerCharge": "Partner charge",
+      "PartnerCredit": "Partner credit",
+      "CompanyCharge": "Company charge",
+      "CompanyCredit": "Company credit",
+      "CommissionEarned": "Commission",
+      "OverCommissionEarned": "Over-commission",
+      "Adjustment": "Adjustment"
+    }
+  },
+  "bankConnections": {
+    "title": "Bank Connections", "subtitle": "Bank accounts and auto reconciliation.",
+    "create": "New connection", "createTitle": "New connection", "editTitle": "Edit",
+    "empty": "No bank connections.",
+    "bank": "Bank", "accountName": "Account name", "lastSync": "Last sync", "sync": "Sync"
+  },
+  "marketing": {
+    "title": "Marketing & Campaigns", "subtitle": "Mass email to customer segments.",
+    "create": "New campaign", "createTitle": "New campaign", "editTitle": "Edit campaign",
+    "empty": "No campaigns.",
+    "name": "Name", "subject": "Email subject", "segment": "Audience",
+    "recipients": "Recipients", "sentAt": "Sent at",
+    "bodyHtml": "Body (HTML)", "bodyHelp": "HTML supported for formatting.",
+    "scheduleFor": "Schedule for", "send": "Send",
+    "sendConfirm": "Send to recipients?",
+    "segmentLabel": { "all": "All customers", "expiring": "Expiring soon", "with_email": "With email" },
+    "statusLabel": { "Draft": "Draft", "Scheduled": "Scheduled", "Sent": "Sent" }
+  },
+  "delivery": {
+    "title": "Contract Delivery", "subtitle": "Track delivery of contracts to customers.",
+    "create": "New record", "createTitle": "New delivery", "editTitle": "Edit",
+    "empty": "No delivery records.",
+    "policy": "Policy", "channel": "Channel",
+    "dispatched": "Dispatched", "delivered": "Delivered", "acknowledged": "Acknowledged",
+    "reference": "Reference",
+    "channelLabel": { "Email": "Email", "Courier": "Courier", "InPerson": "In person", "Portal": "Portal" },
+    "statusLabel": { "Pending": "Pending", "InTransit": "In transit", "Delivered": "Delivered", "Failed": "Failed" }
+  },
+  "documentManager": {
+    "title": "Document Manager", "subtitle": "Document folders per customer.",
+    "create": "New folder", "createTitle": "New folder", "empty": "No folders.",
+    "name": "Name", "customer": "Customer", "color": "Color"
+  },
+  "partnerPortals": {
+    "title": "Partner Portals", "subtitle": "Manage partner B2B access.",
+    "create": "New access", "createTitle": "New access", "editTitle": "Edit access",
+    "empty": "No accesses.",
+    "producer": "Partner", "permissions": "Permissions", "lastLogin": "Last login",
+    "issue": "Issue", "commissions": "Commissions", "customers": "Customers",
+    "canIssue": "Can issue policies", "canViewCommissions": "Can view commissions", "canViewCustomers": "Can view customers"
+  },
+  "apiKeys": {
+    "title": "API Keys", "subtitle": "Tokens for third-party apps.",
+    "create": "New API key", "createTitle": "New API key", "empty": "No API keys.",
+    "name": "Name", "prefix": "Prefix", "scopes": "Scopes",
+    "lastUsed": "Last used", "expires": "Expires", "revoked": "Revoked",
+    "revokeConfirm": "Revoke this key?",
+    "secretTitle": "Your new API key",
+    "secretWarning": "Copy it now. It will not be shown again."
+  },
+  "dias": {
+    "title": "DIAS Interbank", "subtitle": "RF codes and automatic payment receipt.",
+    "create": "New code", "createTitle": "New DIAS code", "empty": "No codes.",
+    "rfCode": "RF code", "policy": "Policy", "amount": "Amount",
+    "dueDate": "Due", "paidAt": "Paid", "bankRef": "Bank ref",
+    "markPaid": "Mark paid", "bankRefPrompt": "Bank reference (optional)",
+    "statusLabel": { "Pending": "Pending", "Paid": "Paid", "Cancelled": "Cancelled" }
+  },
+  "accounting": {
+    "title": "Accounting Export", "subtitle": "Generate files for accounting systems.",
+    "run": "Run", "empty": "No exports.",
+    "year": "Year", "month": "Month", "period": "Period",
+    "runAt": "Run at", "entries": "Entries", "fileName": "File",
+    "statusLabel": { "Pending": "Pending", "Running": "Running", "Completed": "Completed", "Failed": "Failed" }
+  },
+  "kepyo": {
+    "title": "KEPYO", "subtitle": "Customer/supplier summary statements.",
+    "year": "Year", "run": "Run", "empty": "No reports.",
+    "runAt": "Run at", "suppliers": "Suppliers", "customers": "Customers",
+    "total": "Total", "fileName": "File"
+  },
+  "magnetic": {
+    "title": "Magnetic Media Import", "subtitle": "Import production from insurer files.",
+    "upload": "Upload", "source": "Source", "empty": "No imports.",
+    "fileName": "File", "rows": "Rows", "matched": "Matched", "failed": "Failed",
+    "completedAt": "Completed"
+  },
+  "overCommissions": {
+    "title": "Over-commissions", "subtitle": "9-level commission hierarchy.",
+    "create": "New rule", "createTitle": "New over-commission rule", "editTitle": "Edit rule",
+    "empty": "No rules.",
+    "level": "Level", "manager": "Manager (up)", "subordinate": "Partner (down)",
+    "percentage": "Percentage %", "branchType": "Branch",
+    "effective": "Validity", "effectiveFrom": "From", "effectiveTo": "Until"
+  },
+  "goals": {
+    "title": "Production Goals", "subtitle": "Goals per partner, branch and period.",
+    "create": "New goal", "createTitle": "New goal", "editTitle": "Edit goal",
+    "empty": "No goals.",
+    "producer": "Partner", "period": "Period", "branch": "Branch",
+    "targetPremium": "Premium target", "targetPolicies": "Policy count target",
+    "month": "Month", "agencyWide": "Agency-wide", "yearWide": "Whole year"
+  },
+  "productionStats": {
+    "title": "Production Stats", "subtitle": "Production analytics by month, branch and partner.",
+    "totalPremium": "Total premium", "totalPolicies": "Total policies", "avgPremium": "Average",
+    "monthlyPremium": "Monthly premium", "byType": "By branch", "byProducer": "By partner",
+    "producer": "Partner", "policies": "Policies", "premium": "Premium", "avg": "Avg",
+    "empty": "No data."
   },
   "roles": {
     "PlatformAdmin": "Platform Administrator",

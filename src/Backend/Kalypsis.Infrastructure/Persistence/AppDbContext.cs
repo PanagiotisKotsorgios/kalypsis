@@ -37,6 +37,27 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<ServiceRequest> ServiceRequests => Set<ServiceRequest>();
     public DbSet<ServiceRequestAttachment> ServiceRequestAttachments => Set<ServiceRequestAttachment>();
 
+    public DbSet<Appointment> Appointments => Set<Appointment>();
+    public DbSet<Tariff> Tariffs => Set<Tariff>();
+    public DbSet<CoverNote> CoverNotes => Set<CoverNote>();
+    public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<OverCommissionRule> OverCommissionRules => Set<OverCommissionRule>();
+    public DbSet<ProductionGoal> ProductionGoals => Set<ProductionGoal>();
+    public DbSet<Receipt> Receipts => Set<Receipt>();
+    public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<Security> Securities => Set<Security>();
+    public DbSet<FinancialMovement> FinancialMovements => Set<FinancialMovement>();
+    public DbSet<BankConnection> BankConnections => Set<BankConnection>();
+    public DbSet<MarketingCampaign> MarketingCampaigns => Set<MarketingCampaign>();
+    public DbSet<DeliveryRecord> DeliveryRecords => Set<DeliveryRecord>();
+    public DbSet<DocumentFolder> DocumentFolders => Set<DocumentFolder>();
+    public DbSet<PartnerPortalAccess> PartnerPortalAccesses => Set<PartnerPortalAccess>();
+    public DbSet<ThirdPartyApiKey> ThirdPartyApiKeys => Set<ThirdPartyApiKey>();
+    public DbSet<DiasCode> DiasCodes => Set<DiasCode>();
+    public DbSet<AccountingExport> AccountingExports => Set<AccountingExport>();
+    public DbSet<KepyoReport> KepyoReports => Set<KepyoReport>();
+    public DbSet<MagneticImport> MagneticImports => Set<MagneticImport>();
+
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
     public bool BypassTenantFilter => _currentUser.IsPlatformLevel;
 

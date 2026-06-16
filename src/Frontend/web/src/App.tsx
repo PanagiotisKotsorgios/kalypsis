@@ -31,7 +31,6 @@ import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import PriceChangeIcon from "@mui/icons-material/PriceChange";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import PercentIcon from "@mui/icons-material/Percent";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import EventIcon from "@mui/icons-material/Event";
 import FolderSpecialIcon from "@mui/icons-material/FolderSpecial";
@@ -83,6 +82,27 @@ import { AgencySettingsPage } from "./pages/AgencySettingsPage";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { CustomerContractDetailsPage } from "./pages/CustomerContractDetailsPage";
 import { NewContractWizardPage } from "./pages/NewContractWizardPage";
+import { AppointmentsPage } from "./pages/AppointmentsPage";
+import { TariffsPage } from "./pages/TariffsPage";
+import { CoverNotesPage } from "./pages/CoverNotesPage";
+import { BranchesPage } from "./pages/BranchesPage";
+import { ReceiptsPage } from "./pages/ReceiptsPage";
+import { PaymentsPage } from "./pages/PaymentsPage";
+import { SecuritiesPage } from "./pages/SecuritiesPage";
+import { FinancialMovementsPage } from "./pages/FinancialMovementsPage";
+import { BankConnectionsPage } from "./pages/BankConnectionsPage";
+import { MarketingCampaignsPage } from "./pages/MarketingCampaignsPage";
+import { DeliveryTrackingPage } from "./pages/DeliveryTrackingPage";
+import { DocumentManagerPage } from "./pages/DocumentManagerPage";
+import { PartnerPortalsPage } from "./pages/PartnerPortalsPage";
+import { ApiKeysPage } from "./pages/ApiKeysPage";
+import { DiasCodesPage } from "./pages/DiasCodesPage";
+import { AccountingExportsPage } from "./pages/AccountingExportsPage";
+import { KepyoReportsPage } from "./pages/KepyoReportsPage";
+import { MagneticImportsPage } from "./pages/MagneticImportsPage";
+import { OverCommissionsPage } from "./pages/OverCommissionsPage";
+import { ProductionGoalsPage } from "./pages/ProductionGoalsPage";
+import { ProductionStatsPage } from "./pages/ProductionStatsPage";
 
 const navByRole: Record<Role, NavItem[]> = {
   Customer: [
@@ -108,39 +128,37 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, comingSoon: true },
 
     // Operations & insurance lifecycle
-    { to: "/agency/tariffs", labelKey: "nav.tariffs", icon: <PriceChangeIcon />, comingSoon: true },
-    { to: "/agency/cover-notes", labelKey: "nav.coverNotes", icon: <DescriptionOutlinedIcon />, comingSoon: true },
-    { to: "/agency/branch-designer", labelKey: "nav.branchDesigner", icon: <AccountTreeIcon />, comingSoon: true },
-    { to: "/agency/delivery-tracking", labelKey: "nav.deliveryTracking", icon: <LocalShippingIcon />, comingSoon: true },
+    { to: "/tariffs", labelKey: "nav.tariffs", icon: <PriceChangeIcon /> },
+    { to: "/cover-notes", labelKey: "nav.coverNotes", icon: <DescriptionOutlinedIcon /> },
+    { to: "/branches", labelKey: "nav.branchDesigner", icon: <AccountTreeIcon /> },
+    { to: "/delivery-tracking", labelKey: "nav.deliveryTracking", icon: <LocalShippingIcon /> },
 
     // Commercial CRM
-    { to: "/agency/appointments", labelKey: "nav.appointments", icon: <EventIcon />, comingSoon: true },
-    { to: "/agency/document-manager", labelKey: "nav.documentManager", icon: <FolderSpecialIcon />, comingSoon: true },
-    { to: "/agency/marketing", labelKey: "nav.marketing", icon: <MailOutlineIcon />, comingSoon: true },
-    { to: "/agency/portals", labelKey: "nav.b2bPortal", icon: <HubIcon />, comingSoon: true },
+    { to: "/appointments", labelKey: "nav.appointments", icon: <EventIcon /> },
+    { to: "/document-manager", labelKey: "nav.documentManager", icon: <FolderSpecialIcon /> },
+    { to: "/marketing", labelKey: "nav.marketing", icon: <MailOutlineIcon /> },
+    { to: "/partner-portals", labelKey: "nav.b2bPortal", icon: <HubIcon /> },
 
     // Commissions & production
-    { to: "/agency/commissions", labelKey: "nav.commissions", icon: <PercentIcon />, comingSoon: true },
-    { to: "/agency/over-commissions", labelKey: "nav.overCommissions", icon: <StackedLineChartIcon />, comingSoon: true },
-    { to: "/agency/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, comingSoon: true },
-    { to: "/agency/goals", labelKey: "nav.goals", icon: <EmojiEventsIcon />, comingSoon: true },
+    { to: "/over-commissions", labelKey: "nav.overCommissions", icon: <StackedLineChartIcon /> },
+    { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon /> },
+    { to: "/goals", labelKey: "nav.goals", icon: <EmojiEventsIcon /> },
 
     // Financial circuits
-    { to: "/agency/financials", labelKey: "nav.financials", icon: <AttachMoneyIcon />, comingSoon: true },
-    { to: "/agency/receipts", labelKey: "nav.receipts", icon: <ReceiptLongIcon />, comingSoon: true },
-    { to: "/agency/payments", labelKey: "nav.payments", icon: <RequestQuoteIcon />, comingSoon: true },
-    { to: "/agency/securities", labelKey: "nav.securities", icon: <RestoreIcon />, comingSoon: true },
+    { to: "/financial-movements", labelKey: "nav.financials", icon: <AttachMoneyIcon /> },
+    { to: "/receipts", labelKey: "nav.receipts", icon: <ReceiptLongIcon /> },
+    { to: "/payments", labelKey: "nav.payments", icon: <RequestQuoteIcon /> },
+    { to: "/securities", labelKey: "nav.securities", icon: <RestoreIcon /> },
 
     // Banking & integrations
-    { to: "/agency/dias", labelKey: "nav.dias", icon: <AccountBalanceIcon />, comingSoon: true },
-    { to: "/agency/bank-connections", labelKey: "nav.bankConnections", icon: <LinkIcon />, comingSoon: true },
-    { to: "/agency/third-party", labelKey: "nav.thirdParty", icon: <ExtensionIcon />, comingSoon: true },
+    { to: "/dias", labelKey: "nav.dias", icon: <AccountBalanceIcon /> },
+    { to: "/bank-connections", labelKey: "nav.bankConnections", icon: <LinkIcon /> },
+    { to: "/api-keys", labelKey: "nav.thirdParty", icon: <ExtensionIcon /> },
 
     // Accounting & reporting
-    { to: "/agency/accounting", labelKey: "nav.accounting", icon: <CalculateIcon />, comingSoon: true },
-    { to: "/agency/kepyo", labelKey: "nav.kepyo", icon: <GavelIcon />, comingSoon: true },
-    { to: "/agency/financial-printouts", labelKey: "nav.financialPrintouts", icon: <ReceiptLongIcon />, comingSoon: true },
-    { to: "/agency/magnetic-import", labelKey: "nav.magneticImport", icon: <ImportExportIcon />, comingSoon: true },
+    { to: "/accounting", labelKey: "nav.accounting", icon: <CalculateIcon /> },
+    { to: "/kepyo", labelKey: "nav.kepyo", icon: <GavelIcon /> },
+    { to: "/magnetic-import", labelKey: "nav.magneticImport", icon: <ImportExportIcon /> },
 
     { to: "/agency-settings", labelKey: "nav.agencySettings", icon: <SettingsIcon />, comingSoon: true },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
@@ -253,6 +271,28 @@ export default function App() {
                   <Route path="coming-soon" element={<ComingSoonPage />} />
                   <Route path="platform/*" element={<ComingSoonPage />} />
                   <Route path="agency/*" element={<ComingSoonPage />} />
+
+                  <Route path="appointments" element={<AppointmentsPage />} />
+                  <Route path="tariffs" element={<TariffsPage />} />
+                  <Route path="cover-notes" element={<CoverNotesPage />} />
+                  <Route path="branches" element={<BranchesPage />} />
+                  <Route path="receipts" element={<ReceiptsPage />} />
+                  <Route path="payments" element={<PaymentsPage />} />
+                  <Route path="securities" element={<SecuritiesPage />} />
+                  <Route path="financial-movements" element={<FinancialMovementsPage />} />
+                  <Route path="bank-connections" element={<BankConnectionsPage />} />
+                  <Route path="marketing" element={<MarketingCampaignsPage />} />
+                  <Route path="delivery-tracking" element={<DeliveryTrackingPage />} />
+                  <Route path="document-manager" element={<DocumentManagerPage />} />
+                  <Route path="partner-portals" element={<PartnerPortalsPage />} />
+                  <Route path="api-keys" element={<ApiKeysPage />} />
+                  <Route path="dias" element={<DiasCodesPage />} />
+                  <Route path="accounting" element={<AccountingExportsPage />} />
+                  <Route path="kepyo" element={<KepyoReportsPage />} />
+                  <Route path="magnetic-import" element={<MagneticImportsPage />} />
+                  <Route path="over-commissions" element={<OverCommissionsPage />} />
+                  <Route path="goals" element={<ProductionGoalsPage />} />
+                  <Route path="production-stats" element={<ProductionStatsPage />} />
                   <Route path="*" element={<Navigate to="/app" replace />} />
                 </Routes>
               </AppLayout>
