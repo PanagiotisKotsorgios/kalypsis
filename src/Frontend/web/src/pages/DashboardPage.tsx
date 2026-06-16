@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { ProducerDashboardPage } from "./ProducerDashboardPage";
+import { CustomerDashboardPage } from "./CustomerDashboardPage";
 
 interface Tile {
   labelKey: string;
@@ -16,6 +17,8 @@ export function DashboardPage() {
 
   // Producers get a dedicated dashboard backed by /api/reports/producer.
   if (user?.role === "Producer") return <ProducerDashboardPage />;
+  // Customers get the simple portal dashboard.
+  if (user?.role === "Customer") return <CustomerDashboardPage />;
 
   const isPlatform = user?.role === "PlatformAdmin" || user?.role === "PlatformEmployee";
   const isAgency = user?.role === "AgencyAdmin" || user?.role === "AgencyUser";
@@ -61,7 +64,7 @@ export function DashboardPage() {
     tiles = [
       { labelKey: "dashboard.customersCount", value: (customersQuery.data ?? []).length }
     ];
-  } else if (user?.role === "Customer") {
+  } else if ((user?.role as string) === "Customer") {
     tiles = [
       { labelKey: "dashboard.activePolicies", value: 0 },
       { labelKey: "dashboard.expiringSoon", value: 0 },

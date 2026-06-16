@@ -33,7 +33,55 @@
     "requests": "Requests",
     "audit": "Audit Log",
     "allUsers": "All Users",
-    "agencySettings": "Agency Settings"
+    "agencySettings": "Agency Settings",
+    "contracts": "Contracts",
+    "comingSoonChip": "Soon",
+    "carriers": "Insurance Carriers",
+    "subscriptionPlans": "Subscription Plans",
+    "billing": "Billing & Invoicing",
+    "emailTemplates": "Email Templates",
+    "broadcast": "Broadcast Announcements",
+    "translations": "Translations",
+    "branding": "Branding",
+    "apiKeys": "API Keys",
+    "integrations": "Integrations",
+    "backups": "Backups",
+    "storage": "Storage",
+    "jobs": "Scheduled Jobs",
+    "status": "System Status",
+    "compliance": "Compliance & Legal",
+    "support": "Support",
+    "platformAnalytics": "Platform Analytics"
+  },
+  "comingSoon": {
+    "tag": "UNDER CONSTRUCTION",
+    "title": "Coming soon",
+    "feature": "This feature",
+    "body": "This module is still in development. We're working to bring it live soon. Meanwhile you can continue with customer, contract and document management.",
+    "back": "Back to dashboard"
+  },
+  "customerDashboard": {
+    "eyebrow": "YOUR PORTAL",
+    "hello": "Hello, {{name}} 👋",
+    "subtitle": "All your contracts, documents and notifications in one place. Your agency keeps them up to date for you.",
+    "expiringHint": "{{count}} contracts expiring soon",
+    "tile": {
+      "policies": "Active contracts",
+      "expiring": "Expiring soon",
+      "documents": "Documents",
+      "notifications": "New notifications"
+    },
+    "section": {
+      "contracts": "My contracts",
+      "documents": "Recent documents"
+    },
+    "viewAll": "View all",
+    "noContracts": "No active contracts yet.",
+    "noDocuments": "No documents yet.",
+    "cta": {
+      "title": "Need something from your agency?",
+      "subtitle": "Send a request, report an accident or ask for a document — your agency team will reply."
+    }
   },
   "profile": {
     "title": "My profile",
