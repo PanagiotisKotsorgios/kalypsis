@@ -32,7 +32,103 @@
     "settings": "Settings",
     "requests": "Requests",
     "audit": "Audit Log",
-    "allUsers": "All Users"
+    "allUsers": "All Users",
+    "agencySettings": "Agency Settings"
+  },
+  "profile": {
+    "title": "My profile",
+    "subtitle": "Manage your personal details and account security.",
+    "section": { "basic": "Personal details", "password": "Account security" },
+    "email": "Email",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "phone": "Phone",
+    "language": "Preferred language",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "changePassword": "Change password",
+    "saved": "Profile updated.",
+    "passwordChanged": "Password changed."
+  },
+  "tasks": {
+    "title": "Tasks",
+    "subtitle": "Agency-wide tasks. Manage status, priority and assignment.",
+    "create": "New task",
+    "empty": "No tasks",
+    "confirmDelete": "Delete task?",
+    "statuses": { "Open": "Open", "InProgress": "In progress", "Completed": "Completed", "Cancelled": "Cancelled" },
+    "priorities": { "Low": "Low", "Normal": "Normal", "High": "High", "Urgent": "Urgent" },
+    "form": {
+      "createTitle": "New task",
+      "editTitle": "Edit task",
+      "titleField": "Title",
+      "description": "Description",
+      "status": "Status",
+      "priority": "Priority",
+      "assignedTo": "Assigned to",
+      "customer": "Link to customer",
+      "dueAt": "Due date"
+    }
+  },
+  "producers": {
+    "title": "Producers",
+    "subtitle": "Manage your agency's producers and production partners.",
+    "create": "New producer",
+    "empty": "No producers yet.",
+    "confirmDelete": "Delete producer {{name}}?",
+    "col": {
+      "code": "Code",
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "policies": "Policies",
+      "status": "Status"
+    },
+    "statuses": { "Active": "Active", "Suspended": "Suspended", "Terminated": "Terminated" },
+    "form": { "createTitle": "New producer", "editTitle": "Edit producer" }
+  },
+  "reports": {
+    "title": "Reports",
+    "subtitle": "Real-time agency summary — straight from your existing data.",
+    "empty": "No data yet.",
+    "kpi": {
+      "customers": "Customers",
+      "activePolicies": "Active policies",
+      "expiringSoon": "Expiring in 30d",
+      "monthlyPremium": "Premium in force",
+      "openClaims": "Open claims",
+      "openRequests": "Open requests"
+    },
+    "chart": {
+      "monthlyPremium": "Premium produced (last 6 months)",
+      "policiesByType": "Policies by line",
+      "policiesByStatus": "Policies by status",
+      "claimsByStatus": "Claims by status",
+      "requestsByStatus": "Requests by status",
+      "topCarriers": "Top carriers",
+      "policiesLabel": "Policies",
+      "premiumLabel": "Premium"
+    }
+  },
+  "agencySettings": {
+    "title": "Agency settings",
+    "subtitle": "Identity, contact info and defaults that apply across the agency.",
+    "saved": "Settings saved.",
+    "section": { "identity": "Identity", "contact": "Contact", "defaults": "Defaults" },
+    "name": "Trade name",
+    "logoUrl": "Logo URL",
+    "logoHelp": "Public image URL. Leave blank for the default.",
+    "brandColor": "Brand colour",
+    "vat": "VAT number",
+    "contactEmail": "Contact email",
+    "contactPhone": "Contact phone",
+    "addressLine": "Address",
+    "currency": "Currency",
+    "currencyHelp": "e.g. EUR, USD",
+    "duration": "Default policy duration",
+    "durationHelp": "How many months are pre-filled when creating a new policy.",
+    "months": "months"
   },
   "landing": {
     "eyebrow": "BUILT IN GREECE · CERTIFIED SECURITY",

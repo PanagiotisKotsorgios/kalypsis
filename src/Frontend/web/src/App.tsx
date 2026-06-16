@@ -27,7 +27,6 @@ import { TermsPage } from "./pages/TermsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { CookiesPage } from "./pages/CookiesPage";
 import { DashboardPage } from "./pages/DashboardPage";
-import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { TenantsPage } from "./pages/TenantsPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
 import { CustomersPage } from "./pages/CustomersPage";
@@ -39,6 +38,11 @@ import { AllUsersPage } from "./pages/AllUsersPage";
 import { ClaimsPage } from "./pages/ClaimsPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { DocumentsPage } from "./pages/DocumentsPage";
+import { ProfilePage } from "./pages/ProfilePage";
+import { TasksPage } from "./pages/TasksPage";
+import { ProducersPage } from "./pages/ProducersPage";
+import { ReportsPage } from "./pages/ReportsPage";
+import { AgencySettingsPage } from "./pages/AgencySettingsPage";
 
 const navByRole: Record<Role, NavItem[]> = {
   Customer: [
@@ -60,7 +64,9 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/producers", labelKey: "nav.producers", icon: <HandshakeIcon /> },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon /> },
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon /> },
-    { to: "/reports", labelKey: "nav.reports", icon: <DashboardIcon /> }
+    { to: "/reports", labelKey: "nav.reports", icon: <DashboardIcon /> },
+    { to: "/agency-settings", labelKey: "nav.agencySettings", icon: <SettingsIcon /> },
+    { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
   AgencyUser: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
@@ -69,7 +75,9 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon /> },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon /> },
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon /> },
-    { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon /> }
+    { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon /> },
+    { to: "/reports", labelKey: "nav.reports", icon: <DashboardIcon /> },
+    { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
   Producer: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
@@ -135,11 +143,12 @@ export default function App() {
                   <Route path="settings" element={<AdminSettingsPage />} />
                   <Route path="requests" element={<RequestsPage />} />
                   <Route path="audit" element={<AuditLogsPage />} />
-                  <Route path="tasks" element={<PlaceholderPage titleKey="nav.tasks" />} />
-                  <Route path="producers" element={<PlaceholderPage titleKey="nav.producers" />} />
+                  <Route path="tasks" element={<TasksPage />} />
+                  <Route path="producers" element={<ProducersPage />} />
                   <Route path="claims" element={<ClaimsPage />} />
-                  <Route path="reports" element={<PlaceholderPage titleKey="nav.reports" />} />
-                  <Route path="profile" element={<PlaceholderPage titleKey="nav.profile" />} />
+                  <Route path="reports" element={<ReportsPage />} />
+                  <Route path="profile" element={<ProfilePage />} />
+                  <Route path="agency-settings" element={<AgencySettingsPage />} />
                   <Route path="*" element={<Navigate to="/app" replace />} />
                 </Routes>
               </AppLayout>
