@@ -20,6 +20,8 @@ public static class DataSeeder
 
         await db.Database.MigrateAsync(cancellationToken);
 
+        await SeedInsuranceCompaniesAsync(db, logger, cancellationToken);
+
         var seedEmail = (config["Seed:PlatformAdminEmail"] ?? "superadmin@kalypsis.gr").ToLowerInvariant();
         var seedPassword = config["Seed:PlatformAdminPassword"] ?? "Kalypsis@2026!";
         var seedFirstName = config["Seed:PlatformAdminFirstName"] ?? "Super";
@@ -64,5 +66,39 @@ public static class DataSeeder
         await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Seeded platform admin {Email}.", seedEmail);
+    }
+
+    private static async Task SeedInsuranceCompaniesAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        var seed = new (string Code, string Name, string Country)[]
+        {
+            ("INTERAMERICAN", "Interamerican Ελληνική Ασφαλιστική", "GR"),
+            ("ETHNIKI",      "Εθνική Ασφαλιστική",                 "GR"),
+            ("EUROLIFE",     "Eurolife FFH",                       "GR"),
+            ("ERGO",         "ERGO Ασφαλιστική",                   "GR"),
+            ("ALLIANZ",      "Allianz Ελλάδος",                    "GR"),
+            ("NN",           "NN Hellas",                          "GR"),
+            ("GENERALI",     "Generali Hellas",                    "GR"),
+            ("INTERLIFE",    "Interlife Α.Α.Ε.Γ.Α.",               "GR")
+        };
+
+        var existing = await db.InsuranceCompanies.IgnoreQueryFilters()
+            .Select(c => c.Code).ToListAsync(ct);
+        var missing = seed.Where(s => !existing.Contains(s.Code, StringComparer.OrdinalIgnoreCase)).ToList();
+        if (missing.Count == 0) return;
+
+        foreach (var s in missing)
+        {
+            db.InsuranceCompanies.Add(new InsuranceCompany
+            {
+                Id = Guid.NewGuid(),
+                Code = s.Code,
+                Name = s.Name,
+                Country = s.Country,
+                IsActive = true
+            });
+        }
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("Seeded {Count} insurance companies.", missing.Count);
     }
 }

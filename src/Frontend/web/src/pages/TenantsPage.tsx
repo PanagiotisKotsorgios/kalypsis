@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Box,
@@ -23,7 +23,10 @@ import {
   Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import { FormControlLabel, Switch } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -64,7 +67,14 @@ export function TenantsPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [createdInfo, setCreatedInfo] = useState<{ email: string; password: string } | null>(null);
+  const [editing, setEditing] = useState<Tenant | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => api.delete(`/tenants/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["tenants"] }),
+    onError: (err) => setError(extractErrorMessage(err))
+  });
 
   const tenantsQuery = useQuery({
     queryKey: ["tenants"],
@@ -113,10 +123,13 @@ export function TenantsPage() {
                   <TableCell align="right">{t("tenants.users")}</TableCell>
                   <TableCell align="right">{t("tenants.customersCol")}</TableCell>
                   <TableCell>{t("tenants.status")}</TableCell>
+                  <TableCell align="right" />
                 </TableRow>
               </TableHead>
               <TableBody>
-                {tenantsQuery.data?.map((row) => (
+                {tenantsQuery.data?.map((row) => {
+                  const isPlatform = row.code === "PLATFORM";
+                  return (
                   <TableRow key={row.id} hover>
                     <TableCell>
                       <Typography fontWeight={600}>{row.name}</Typography>
@@ -134,8 +147,20 @@ export function TenantsPage() {
                         size="small"
                       />
                     </TableCell>
+                    <TableCell align="right">
+                      <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                        <IconButton size="small" onClick={() => setEditing(row)} disabled={isPlatform}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton size="small" color="error" disabled={isPlatform}
+                          onClick={() => { if (confirm(t("tenants.confirmDelete", { name: row.name }))) deleteMutation.mutate(row.id); }}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
@@ -147,6 +172,12 @@ export function TenantsPage() {
         onClose={() => setOpen(false)}
         onSubmit={(b) => createMutation.mutate(b)}
         submitting={createMutation.isPending}
+      />
+
+      <EditTenantDialog
+        tenant={editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => { void qc.invalidateQueries({ queryKey: ["tenants"] }); setEditing(null); }}
       />
 
       <CredentialsDialog
@@ -281,6 +312,53 @@ interface CredentialsDialogProps {
   onClose: () => void;
   title: string;
   introKey: string;
+}
+
+function EditTenantDialog({ tenant, onClose, onSaved }: {
+  tenant: Tenant | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { t } = useTranslation();
+  const [form, setForm] = useState({ name: "", subscriptionPlan: "Pro", isActive: true });
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (tenant) setForm({ name: tenant.name, subscriptionPlan: tenant.subscriptionPlan, isActive: tenant.isActive });
+  }, [tenant?.id]);
+
+  const save = useMutation({
+    mutationFn: async () => (await api.put<Tenant>(`/tenants/${tenant!.id}`, form)).data,
+    onSuccess: onSaved,
+    onError: (err) => setError(extractErrorMessage(err))
+  });
+
+  return (
+    <Dialog open={!!tenant} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>{t("tenants.edit.title")}</DialogTitle>
+      <DialogContent>
+        {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
+        <Stack spacing={2.5} mt={1}>
+          <TextField label={t("tenants.name")} value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth required />
+          <TextField select label={t("tenants.subscriptionPlan")} value={form.subscriptionPlan}
+            onChange={(e) => setForm({ ...form, subscriptionPlan: e.target.value })} fullWidth>
+            {["Trial","Basic","Pro","Enterprise"].map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+          </TextField>
+          <FormControlLabel
+            control={<Switch checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />}
+            label={t("tenants.active")}
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>{t("common.cancel")}</Button>
+        <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>
+          {save.isPending ? <CircularProgress size={18} /> : t("common.save")}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 }
 
 export function CredentialsDialog({ open, email, password, onClose, title }: CredentialsDialogProps) {

@@ -34,6 +34,8 @@ import { CustomersPage } from "./pages/CustomersPage";
 import { AdminSettingsPage } from "./pages/AdminSettingsPage";
 import { RequestsPage } from "./pages/RequestsPage";
 import { AuditLogsPage } from "./pages/AuditLogsPage";
+import { PoliciesPage } from "./pages/PoliciesPage";
+import { AllUsersPage } from "./pages/AllUsersPage";
 
 const navByRole: Record<Role, NavItem[]> = {
   Customer: [
@@ -74,12 +76,14 @@ const navByRole: Record<Role, NavItem[]> = {
   PlatformAdmin: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
     { to: "/tenants", labelKey: "nav.tenants", icon: <BusinessIcon /> },
+    { to: "/all-users", labelKey: "nav.allUsers", icon: <GroupIcon /> },
     { to: "/audit", labelKey: "nav.audit", icon: <ReportIcon /> },
     { to: "/settings", labelKey: "nav.settings", icon: <SettingsIcon /> }
   ],
   PlatformEmployee: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
     { to: "/tenants", labelKey: "nav.tenants", icon: <BusinessIcon /> },
+    { to: "/all-users", labelKey: "nav.allUsers", icon: <GroupIcon /> },
     { to: "/audit", labelKey: "nav.audit", icon: <ReportIcon /> }
   ]
 };
@@ -118,7 +122,8 @@ export default function App() {
                 <Routes>
                   <Route index element={<DashboardPage />} />
                   <Route path="customers" element={<CustomersPage />} />
-                  <Route path="policies" element={<PlaceholderPage titleKey="nav.policies" />} />
+                  <Route path="policies" element={<PoliciesPage />} />
+                  <Route path="all-users" element={<AllUsersPage />} />
                   <Route path="documents" element={<PlaceholderPage titleKey="nav.documents" />} />
                   <Route
                     path="notifications"

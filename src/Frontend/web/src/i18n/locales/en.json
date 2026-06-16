@@ -31,7 +31,8 @@
     "back": "Back",
     "settings": "Settings",
     "requests": "Requests",
-    "audit": "Audit Log"
+    "audit": "Audit Log",
+    "allUsers": "All Users"
   },
   "landing": {
     "eyebrow": "BUILT IN GREECE · CERTIFIED SECURITY",
@@ -308,6 +309,55 @@
       "agencyMessage": "Message from the agency"
     }
   },
+  "policies": {
+    "agencyTitle": "Policies",
+    "agencyLead": "All policies for your agency. Create, renew, cancel.",
+    "customerTitle": "My policies",
+    "customerLead": "All active and previous policies, kept up to date by your agency.",
+    "create": "New policy",
+    "noPolicies": "No policies yet.",
+    "searchPlaceholder": "Search by policy number...",
+    "expiresIn": "Expires in {{days}} days",
+    "confirmCancel": "Cancel this policy?",
+    "col": {
+      "number": "Policy #", "type": "Line", "customer": "Customer",
+      "carrier": "Carrier", "dates": "Period", "premium": "Premium", "status": "Status"
+    },
+    "types": {
+      "Auto": "Motor", "Home": "Home", "Health": "Health", "Life": "Life",
+      "Business": "Business", "Travel": "Travel", "Other": "Other"
+    },
+    "statuses": {
+      "Draft": "Draft", "Active": "Active", "Expired": "Expired",
+      "Cancelled": "Cancelled", "Renewed": "Renewed", "PendingRenewal": "Pending renewal"
+    },
+    "actions": { "renew": "Renew", "cancel": "Cancel" },
+    "form": {
+      "createTitle": "New policy", "editTitle": "Edit policy",
+      "customer": "Customer", "customerLocked": "Customer can't be changed after creation.",
+      "carrier": "Insurance carrier", "type": "Line",
+      "startDate": "Start date", "endDate": "End date", "premium": "Premium"
+    },
+    "renew": {
+      "title": "Renew policy",
+      "body": "A new policy will be created from {{num}}. The original will be marked as Renewed."
+    }
+  },
+  "allUsers": {
+    "title": "All Users",
+    "subtitle": "Manage every user across every agency on the platform.",
+    "searchPlaceholder": "Search by name or email...",
+    "tenant": "Agency",
+    "role": "Role",
+    "allTenants": "All agencies",
+    "allRoles": "All roles",
+    "confirmDelete": "Delete user {{name}}?",
+    "col": {
+      "name": "Name", "email": "Email", "tenant": "Agency",
+      "role": "Role", "status": "Status", "lastLogin": "Last login"
+    },
+    "edit": { "title": "Edit user", "active": "Active" }
+  },
   "audit": {
     "title": "Audit Log",
     "subtitle": "All activity records across the platform: creates, updates and deletes.",
@@ -539,7 +589,9 @@
     "customersCol": "Customers",
     "status": "Status",
     "active": "Active",
-    "inactive": "Inactive"
+    "inactive": "Inactive",
+    "confirmDelete": "Delete agency {{name}}?",
+    "edit": { "title": "Edit agency" }
   },
   "users": {
     "title": "Agency Staff",

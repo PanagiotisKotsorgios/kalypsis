@@ -25,4 +25,17 @@ public class TenantsController : ControllerBase
         var result = await _mediator.Send(new CreateTenantCommand(request), cancellationToken);
         return CreatedAtAction(nameof(List), null, result);
     }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<TenantDto>> Update(Guid id, [FromBody] UpdateTenantBody body, CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(new UpdateTenantCommand(id, body), cancellationToken));
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        await _mediator.Send(new DeleteTenantCommand(id), cancellationToken);
+        return NoContent();
+    }
 }
