@@ -309,6 +309,42 @@
       "agencyMessage": "Message from the agency"
     }
   },
+  "claims": {
+    "agencyTitle": "Claims",
+    "agencyLead": "All claim filings handled by your agency — pending, under review, approved or paid.",
+    "customerTitle": "My claims",
+    "customerLead": "History of your own claim filings, with their current status.",
+    "create": "New claim",
+    "noClaims": "No claims yet.",
+    "col": {
+      "number": "Claim #",
+      "policy": "Policy",
+      "customer": "Customer",
+      "incidentDate": "Incident date",
+      "claimed": "Claimed",
+      "approved": "Approved",
+      "status": "Status"
+    },
+    "statuses": {
+      "Reported": "Reported",
+      "UnderReview": "Under review",
+      "Approved": "Approved",
+      "Rejected": "Rejected",
+      "Paid": "Paid",
+      "Closed": "Closed"
+    },
+    "form": {
+      "createTitle": "New claim",
+      "editTitle": "Edit claim",
+      "policy": "Policy",
+      "incidentDate": "Incident date",
+      "reportedDate": "Reported date",
+      "claimedAmount": "Claimed amount",
+      "approvedAmount": "Approved amount",
+      "description": "Incident description",
+      "descriptionHelp": "Describe the circumstances, injuries and damage."
+    }
+  },
   "policies": {
     "agencyTitle": "Policies",
     "agencyLead": "All policies for your agency. Create, renew, cancel.",

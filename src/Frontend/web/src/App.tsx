@@ -36,11 +36,13 @@ import { RequestsPage } from "./pages/RequestsPage";
 import { AuditLogsPage } from "./pages/AuditLogsPage";
 import { PoliciesPage } from "./pages/PoliciesPage";
 import { AllUsersPage } from "./pages/AllUsersPage";
+import { ClaimsPage } from "./pages/ClaimsPage";
 
 const navByRole: Record<Role, NavItem[]> = {
   Customer: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
     { to: "/policies", labelKey: "nav.policies", icon: <DescriptionIcon /> },
+    { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon /> },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon /> },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon /> },
     { to: "/notifications", labelKey: "nav.notifications", icon: <NotificationsIcon /> },
@@ -136,7 +138,7 @@ export default function App() {
                   <Route path="audit" element={<AuditLogsPage />} />
                   <Route path="tasks" element={<PlaceholderPage titleKey="nav.tasks" />} />
                   <Route path="producers" element={<PlaceholderPage titleKey="nav.producers" />} />
-                  <Route path="claims" element={<PlaceholderPage titleKey="nav.claims" />} />
+                  <Route path="claims" element={<ClaimsPage />} />
                   <Route path="reports" element={<PlaceholderPage titleKey="nav.reports" />} />
                   <Route path="profile" element={<PlaceholderPage titleKey="nav.profile" />} />
                   <Route path="*" element={<Navigate to="/app" replace />} />
