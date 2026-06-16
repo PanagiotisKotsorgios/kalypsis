@@ -62,7 +62,7 @@
   },
   "customerDashboard": {
     "eyebrow": "YOUR PORTAL",
-    "hello": "Hello, {{name}} 👋",
+    "hello": "Hello, {{name}},",
     "subtitle": "All your contracts, documents and notifications in one place. Your agency keeps them up to date for you.",
     "expiringHint": "{{count}} contracts expiring soon",
     "tile": {
@@ -80,7 +80,110 @@
     "noDocuments": "No documents yet.",
     "cta": {
       "title": "Need something from your agency?",
-      "subtitle": "Send a request, report an accident or ask for a document — your agency team will reply."
+      "subtitle": "Send a request, report an accident or ask for a document — your agency team will reply.",
+      "newContract": "New Contract"
+    }
+  },
+  "contractDetails": {
+    "loadError": "We couldn't load this contract.",
+    "inForce": "In force",
+    "policeMode": "Show to police",
+    "customer": "Insured",
+    "startDate": "Start",
+    "endDate": "End",
+    "premium": "Premium",
+    "documents": "Contract documents",
+    "noDocuments": "Your agency hasn't uploaded documents yet.",
+    "view": "View",
+    "download": "Download",
+    "print": "Print"
+  },
+  "policeMode": {
+    "eyebrow": "POLICE / ENFORCEMENT MODE",
+    "active": "POLICY IN FORCE",
+    "policyNumber": "POLICY #",
+    "holder": "POLICY HOLDER",
+    "carrier": "INSURANCE CARRIER",
+    "type": "LINE",
+    "dates": "VALIDITY",
+    "footer": "CERTIFIED BY KALYPSIS INSURANCE PLATFORM"
+  },
+  "wizard": {
+    "title": "New Contract",
+    "subtitle": "Tell us what you need and we'll send it to your agency to process.",
+    "step": { "type": "Type", "details": "Details", "review": "Review" },
+    "step1": { "title": "What do you want to insure?" },
+    "step2": {
+      "title": "Details for {{type}}",
+      "subtitle": "Fill in what you can. We can complete missing fields together by phone."
+    },
+    "step3": {
+      "title": "Confirm your request",
+      "subtitle": "Make sure everything is right, then submit to your agency."
+    },
+    "subjectPrefix": "New contract request",
+    "startWish": "Preferred start date",
+    "notes": "Extra notes",
+    "notesHelp": "Anything else you find useful (quote code, old policy, etc).",
+    "submitInfo": "On submit, the request is sent to your agency. They will contact you with a quote.",
+    "prev": "Back",
+    "next": "Next",
+    "submit": "Submit to agency",
+    "errors": {
+      "pickType": "Pick what you want to insure.",
+      "fillRequired": "Fill in all required fields (*)."
+    },
+    "review": { "type": "Insurance type" },
+    "success": {
+      "title": "We received your request!",
+      "body": "Your agency will process it and reach out with a quote shortly.",
+      "ref": "REQUEST REFERENCE",
+      "dashboard": "Dashboard",
+      "requests": "My requests"
+    },
+    "auto": {
+      "make": "Vehicle make *", "model": "Model *", "year": "Year *",
+      "plate": "Plate number *", "usage": "Usage *",
+      "usagePersonal": "Personal", "usageCommercial": "Commercial", "usageTaxi": "Taxi",
+      "annualKm": "Annual km", "driverAge": "Driver age", "licenseYear": "Licence year",
+      "accidents": "Accidents in last 5 years *",
+      "currentInsurer": "Current insurer",
+      "coverage": "Coverage *",
+      "coverageThirdPartyOnly": "Third-party only",
+      "coverageThirdPartyPlus": "Third-party + fire/theft",
+      "coverageComprehensive": "Comprehensive"
+    },
+    "home": {
+      "type": "Property type *", "apartment": "Apartment", "house": "House",
+      "address": "Address *", "sqm": "Square metres *", "year": "Year built",
+      "contents": "Contents value (€)", "alarm": "Alarm?",
+      "coverage": "Coverage *",
+      "coverageFire": "Fire only", "coverageFirePlus": "Fire + theft",
+      "coverageComprehensive": "Comprehensive (earthquake, water, liability)"
+    },
+    "health": {
+      "for": "Cover for *", "myself": "Myself", "family": "Family",
+      "members": "Members", "ages": "Ages", "agesHelp": "e.g. 35, 32, 5, 2",
+      "preExisting": "Pre-existing conditions",
+      "tier": "Tier *", "basic": "Basic", "mid": "Standard", "premium": "Premium"
+    },
+    "life": {
+      "for": "Cover for *", "myself": "Myself", "spouse": "Spouse", "child": "Child",
+      "age": "Age", "occupation": "Occupation", "smoker": "Smoker?",
+      "amount": "Coverage amount (€)", "term": "Term (years)"
+    },
+    "business": {
+      "type": "Business type *", "employees": "Employees",
+      "turnover": "Annual turnover (€)", "location": "Location", "cover": "What to cover"
+    },
+    "travel": {
+      "destination": "Destination *", "days": "Duration (days) *",
+      "travelers": "Travellers", "ages": "Traveller ages",
+      "activities": "Special activities (ski, watersports, etc)"
+    },
+    "other": {
+      "details": "Describe what you want to insure *",
+      "help": "Tell us about the item you want to insure."
     }
   },
   "profile": {

@@ -10,11 +10,12 @@ import {
   Typography
 } from "@mui/material";
 import DescriptionIcon from "@mui/icons-material/Description";
-import FolderOpenIcon from "@mui/icons-material/FolderOpen";
-import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
+import FolderIcon from "@mui/icons-material/Folder";
+import NotificationsIcon from "@mui/icons-material/Notifications";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import EventBusyIcon from "@mui/icons-material/EventBusy";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import AddIcon from "@mui/icons-material/Add";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -112,19 +113,31 @@ export function CustomerDashboardPage() {
           <Typography sx={{ opacity: 0.92, maxWidth: 560 }}>
             {t("customerDashboard.subtitle")}
           </Typography>
-          {expiringSoon.length > 0 && (
-            <Chip
-              icon={<EventBusyIcon sx={{ color: "common.white !important" }} />}
-              label={t("customerDashboard.expiringHint", { count: expiringSoon.length })}
-              sx={{
-                mt: 3,
-                bgcolor: "rgba(255,255,255,0.16)",
-                color: "common.white",
-                border: "1px solid rgba(255,255,255,0.3)",
-                fontWeight: 700
-              }}
-            />
-          )}
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 3 }} alignItems="flex-start">
+            <Button
+              variant="contained"
+              color="secondary"
+              size="large"
+              startIcon={<AddIcon />}
+              onClick={() => navigate("/app/contracts/new")}
+              sx={{ fontWeight: 700 }}
+            >
+              {t("customerDashboard.cta.newContract")}
+            </Button>
+            {expiringSoon.length > 0 && (
+              <Chip
+                icon={<EventBusyIcon sx={{ color: "common.white !important" }} />}
+                label={t("customerDashboard.expiringHint", { count: expiringSoon.length })}
+                sx={{
+                  bgcolor: "rgba(255,255,255,0.16)",
+                  color: "common.white",
+                  border: "1px solid rgba(255,255,255,0.3)",
+                  fontWeight: 700,
+                  alignSelf: "center"
+                }}
+              />
+            )}
+          </Stack>
         </CardContent>
       </Card>
 
@@ -153,14 +166,14 @@ export function CustomerDashboardPage() {
           highlight={expiringSoon.length > 0}
         />
         <BigTile
-          icon={<FolderOpenIcon />}
+          icon={<FolderIcon />}
           number={documents.length}
           labelKey="customerDashboard.tile.documents"
           onClick={() => navigate("/app/documents")}
           color="secondary.main"
         />
         <BigTile
-          icon={<NotificationsActiveIcon />}
+          icon={<NotificationsIcon />}
           number={unreadCount}
           labelKey="customerDashboard.tile.notifications"
           onClick={() => navigate("/app/notifications")}
@@ -198,7 +211,7 @@ export function CustomerDashboardPage() {
                       cursor: "pointer",
                       "&:hover": { borderColor: "primary.main", bgcolor: "rgba(11,37,69,0.02)" }
                     }}
-                    onClick={() => navigate("/app/policies")}
+                    onClick={() => navigate(`/app/contracts/${p.id}`)}
                   >
                     <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1.5}>
                       <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -274,7 +287,7 @@ export function CustomerDashboardPage() {
                           flexShrink: 0
                         }}
                       >
-                        <FolderOpenIcon />
+                        <FolderIcon />
                       </Box>
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Typography fontWeight={700} noWrap>
