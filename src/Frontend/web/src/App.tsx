@@ -55,6 +55,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { CookieBanner } from "./components/CookieBanner";
 import { OnboardingWizard } from "./components/OnboardingWizard";
 import { PageLoader } from "./components/PageLoader";
+import { ScrollToTop } from "./components/ScrollToTop";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
@@ -243,6 +244,7 @@ export default function App() {
 
   return (
     <>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={user ? <Navigate to="/app" replace /> : <LandingPage />} />
         <Route path="/login" element={user ? <Navigate to="/app" replace /> : <LoginPage />} />

@@ -71,22 +71,34 @@ export function PublicNav(_: PublicNavProps = {}) {
             disableGutters
             sx={{
               gap: 2,
-              minHeight: { xs: 72, md: 92 },
+              minHeight: { xs: 76, md: 108 },
               alignItems: "center"
             }}
           >
+            {/*
+             * Force a full reload on click — even when already on `/`, the
+             * landing page animations replay and any in-memory state is
+             * reset cleanly. <a href> instead of RouterLink does that.
+             */}
             <Box
-              component={RouterLink}
-              to="/"
+              component="a"
+              href="/"
               sx={{
                 display: "flex",
                 alignItems: "center",
                 textDecoration: "none",
                 color: "inherit",
-                py: 1
+                py: 0.5,
+                transition: "transform 200ms ease",
+                "&:hover": { transform: "scale(1.02)" }
               }}
             >
-              <KalypsisLogo size={64} />
+              <Box sx={{ display: { xs: "block", md: "none" } }}>
+                <KalypsisLogo size={64} crop />
+              </Box>
+              <Box sx={{ display: { xs: "none", md: "block" } }}>
+                <KalypsisLogo size={96} crop />
+              </Box>
             </Box>
 
             <Box sx={{ flex: 1 }} />
@@ -224,7 +236,7 @@ export function PublicNav(_: PublicNavProps = {}) {
       <Drawer anchor="right" open={open} onClose={() => setOpen(false)} PaperProps={{ sx: { width: 300 } }}>
         <Box sx={{ p: 2 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-            <KalypsisLogo size={44} />
+            <KalypsisLogo size={56} crop />
             <IconButton onClick={() => setOpen(false)}>
               <CloseIcon />
             </IconButton>
