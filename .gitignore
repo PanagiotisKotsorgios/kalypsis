@@ -34,3 +34,6 @@ src/Backend/Kalypsis.Api/uploads/
 # OS
 .DS_Store
 Thumbs.db
+
+# Word/Office lock files
+~$*
