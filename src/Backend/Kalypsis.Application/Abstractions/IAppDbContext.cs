@@ -44,6 +44,9 @@ public interface IAppDbContext
     DbSet<AccountingExport> AccountingExports { get; }
     DbSet<KepyoReport> KepyoReports { get; }
     DbSet<MagneticImport> MagneticImports { get; }
+    DbSet<CommissionRun> CommissionRuns { get; }
+    DbSet<CommissionRunLine> CommissionRunLines { get; }
+    DbSet<CompanyBridge> CompanyBridges { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

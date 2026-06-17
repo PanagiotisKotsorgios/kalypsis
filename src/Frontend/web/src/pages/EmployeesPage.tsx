@@ -22,10 +22,13 @@ import {
   Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import VpnKeyIcon from "@mui/icons-material/VpnKey";
+import IconButton from "@mui/material/IconButton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { PasswordField } from "../components/PasswordField";
+import { UserPermissionsDialog } from "../components/UserPermissionsDialog";
 
 interface UserDto {
   id: string;
@@ -53,6 +56,7 @@ export function EmployeesPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [permsUserId, setPermsUserId] = useState<string | null>(null);
 
   const usersQuery = useQuery({
     queryKey: ["users"],
@@ -97,6 +101,7 @@ export function EmployeesPage() {
                   <TableCell>{t("users.email")}</TableCell>
                   <TableCell>{t("users.phone")}</TableCell>
                   <TableCell>{t("users.role")}</TableCell>
+                  <TableCell align="right" />
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -108,11 +113,16 @@ export function EmployeesPage() {
                     <TableCell>
                       <Chip label={t(`roles.${u.role}`)} size="small" color={u.role === "AgencyAdmin" ? "primary" : "default"} />
                     </TableCell>
+                    <TableCell align="right">
+                      <IconButton size="small" onClick={() => setPermsUserId(u.id)} title={t("permissions.title")}>
+                        <VpnKeyIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {(usersQuery.data ?? []).length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4}>
+                    <TableCell colSpan={5}>
                       <Typography color="text.secondary" textAlign="center" py={4}>
                         {t("common.noData")}
                       </Typography>
@@ -131,6 +141,8 @@ export function EmployeesPage() {
         onSubmit={(b) => createMutation.mutate(b)}
         submitting={createMutation.isPending}
       />
+
+      <UserPermissionsDialog userId={permsUserId} onClose={() => setPermsUserId(null)} />
     </Box>
   );
 }

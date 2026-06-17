@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { api } from "../api/client";
+import { ExportButton } from "../components/ExportButton";
 
 const KINDS = ["CustomerCharge","CustomerCredit","PartnerCharge","PartnerCredit","CompanyCharge","CompanyCredit","CommissionEarned","OverCommissionEarned","Adjustment"] as const;
 type Kind = typeof KINDS[number];
@@ -52,7 +53,7 @@ export function FinancialMovementsPage() {
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Box><Typography variant="h4" sx={{ fontWeight: 800 }}>{t("financials.title")}</Typography>
           <Typography color="text.secondary">{t("financials.subtitle")}</Typography></Box>
-        <Stack direction="row" spacing={2}>
+        <Stack direction="row" spacing={2} alignItems="center">
           <TextField select size="small" label={t("financials.year")} value={year} onChange={e => setYear(Number(e.target.value))} sx={{ minWidth: 100 }}>
             {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
           </TextField>
@@ -60,6 +61,7 @@ export function FinancialMovementsPage() {
             <MenuItem value="">{t("common.all")}</MenuItem>
             {KINDS.map(k => <MenuItem key={k} value={k}>{t(`financials.kindLabel.${k}`)}</MenuItem>)}
           </TextField>
+          <ExportButton href={`/api/exports/financial-movements.csv?year=${year}`} />
         </Stack>
       </Stack>
 

@@ -25,6 +25,7 @@ import {
   Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import { ExportButton } from "../components/ExportButton";
 import SearchIcon from "@mui/icons-material/Search";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -101,9 +102,12 @@ export function CustomersPage() {
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} gap={2} flexWrap="wrap">
         <Typography variant="h4">{t("customers.title")}</Typography>
-        <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setOpen(true); }}>
-          {t("customers.create")}
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <ExportButton href="/api/exports/customers.csv" />
+          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setOpen(true); }}>
+            {t("customers.create")}
+          </Button>
+        </Stack>
       </Stack>
 
       <Card sx={{ mb: 2, p: 2 }}>

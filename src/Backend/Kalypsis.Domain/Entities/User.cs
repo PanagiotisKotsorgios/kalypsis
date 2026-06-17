@@ -22,6 +22,13 @@ public class User : TenantEntity
 
     public DateTime? LastLoginAt { get; set; }
 
+    /// <summary>
+    /// JSON array of permission codes the agency admin has granted this user
+    /// (e.g. ["customers.read","customers.write","commissions.run"]). Null /
+    /// empty means use the role defaults.
+    /// </summary>
+    public string? PermissionsJson { get; set; }
+
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 }
 

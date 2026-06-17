@@ -33,6 +33,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
+import { ExportButton } from "../components/ExportButton";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal";
@@ -127,11 +128,14 @@ export function PoliciesPage() {
             {isCustomer ? t("policies.customerLead") : t("policies.agencyLead")}
           </Typography>
         </Box>
-        {canEdit && (
-          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateOpen(true); }}>
-            {t("policies.create")}
-          </Button>
-        )}
+        <Stack direction="row" spacing={1}>
+          {canEdit && <ExportButton href="/api/exports/policies.csv" />}
+          {canEdit && (
+            <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateOpen(true); }}>
+              {t("policies.create")}
+            </Button>
+          )}
+        </Stack>
       </Stack>
 
       {!isCustomer && (

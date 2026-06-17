@@ -105,6 +105,8 @@ import { OverCommissionsPage } from "./pages/OverCommissionsPage";
 import { ProductionGoalsPage } from "./pages/ProductionGoalsPage";
 import { ProductionStatsPage } from "./pages/ProductionStatsPage";
 import { TenantDetailPage } from "./pages/TenantDetailPage";
+import { CommissionRunsPage } from "./pages/CommissionRunsPage";
+import { CompanyBridgesPage } from "./pages/CompanyBridgesPage";
 
 const navByRole: Record<Role, NavItem[]> = {
   Customer: [
@@ -142,6 +144,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/partner-portals", labelKey: "nav.b2bPortal", icon: <HubIcon /> },
 
     // Commissions & production
+    { to: "/commission-runs", labelKey: "nav.commissionRuns", icon: <CalculateIcon /> },
     { to: "/over-commissions", labelKey: "nav.overCommissions", icon: <StackedLineChartIcon /> },
     { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon /> },
     { to: "/goals", labelKey: "nav.goals", icon: <EmojiEventsIcon /> },
@@ -155,6 +158,7 @@ const navByRole: Record<Role, NavItem[]> = {
     // Banking & integrations
     { to: "/dias", labelKey: "nav.dias", icon: <AccountBalanceIcon /> },
     { to: "/bank-connections", labelKey: "nav.bankConnections", icon: <LinkIcon /> },
+    { to: "/company-bridges", labelKey: "nav.companyBridges", icon: <HubIcon /> },
     { to: "/api-keys", labelKey: "nav.thirdParty", icon: <ExtensionIcon /> },
 
     // Accounting & reporting
@@ -306,6 +310,8 @@ export default function App() {
                   <Route path="over-commissions" element={<OverCommissionsPage />} />
                   <Route path="goals" element={<ProductionGoalsPage />} />
                   <Route path="production-stats" element={<ProductionStatsPage />} />
+                  <Route path="commission-runs" element={<CommissionRunsPage />} />
+                  <Route path="company-bridges" element={<CompanyBridgesPage />} />
                   <Route path="*" element={<Navigate to="/app" replace />} />
                 </Routes>
               </AppLayout>

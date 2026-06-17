@@ -1,5 +1,6 @@
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
+using Kalypsis.Application.Features.Users;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -48,6 +49,7 @@ public class GetCurrentUserQueryHandler : IRequestHandler<GetCurrentUserQuery, A
             user.FirstName,
             user.LastName,
             user.Role,
-            user.PreferredLanguage);
+            user.PreferredLanguage,
+            PermissionCatalog.ResolveEffective(user.Role, user.PermissionsJson));
     }
 }

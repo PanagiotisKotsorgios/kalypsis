@@ -12,7 +12,8 @@ public record AuthenticatedUserDto(
     string FirstName,
     string LastName,
     Role Role,
-    string PreferredLanguage);
+    string PreferredLanguage,
+    string[] Permissions);
 
 public record LoginResponse(
     string AccessToken,

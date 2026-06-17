@@ -1,6 +1,7 @@
 using FluentValidation;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
+using Kalypsis.Application.Features.Users;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -74,7 +75,8 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
             user.FirstName,
             user.LastName,
             user.Role,
-            user.PreferredLanguage);
+            user.PreferredLanguage,
+            PermissionCatalog.ResolveEffective(user.Role, user.PermissionsJson));
 
         return new LoginResponse(
             tokens.AccessToken,

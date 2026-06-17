@@ -8,6 +8,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { ExportButton } from "../components/ExportButton";
 
 const METHODS = ["Cash","Card","BankTransfer","Cheque","PromissoryNote","Other"] as const;
 type Method = typeof METHODS[number];
@@ -47,6 +48,7 @@ export function PaymentsPage() {
             <Typography variant="caption" color="text.secondary">{t("payments.totalsLabel")}</Typography>
             <Typography variant="body1" fontWeight={800}>{total.toFixed(2)} € · {t("payments.netted")} {netted.toFixed(2)} €</Typography>
           </Box>
+          <ExportButton href="/api/exports/payments.csv" />
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("payments.create")}</Button>
         </Stack>
       </Stack>

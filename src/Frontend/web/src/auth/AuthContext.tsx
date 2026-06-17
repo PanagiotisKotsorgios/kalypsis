@@ -26,6 +26,7 @@ export interface AuthUser {
   lastName: string;
   role: Role;
   preferredLanguage: string;
+  permissions: string[];
 }
 
 interface LoginResponse {

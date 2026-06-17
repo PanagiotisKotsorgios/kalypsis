@@ -57,6 +57,9 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<AccountingExport> AccountingExports => Set<AccountingExport>();
     public DbSet<KepyoReport> KepyoReports => Set<KepyoReport>();
     public DbSet<MagneticImport> MagneticImports => Set<MagneticImport>();
+    public DbSet<CommissionRun> CommissionRuns => Set<CommissionRun>();
+    public DbSet<CommissionRunLine> CommissionRunLines => Set<CommissionRunLine>();
+    public DbSet<CompanyBridge> CompanyBridges => Set<CompanyBridge>();
 
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
 
