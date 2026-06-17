@@ -68,6 +68,7 @@ import { TermsPage } from "./pages/TermsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { CookiesPage } from "./pages/CookiesPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { UnderMaintenancePage } from "./pages/UnderMaintenancePage";
 import { TenantsPage } from "./pages/TenantsPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
 import { CustomersPage } from "./pages/CustomersPage";
@@ -242,6 +243,35 @@ export default function App() {
         : user.role)
     : undefined;
 
+  // ---------------- LAUNCH GATE ----------------
+  // For the public launch we only expose the Customer Portal. Agency users
+  // (AgencyAdmin / AgencyUser / Producer) get a branded "Under Maintenance"
+  // screen instead of their dashboards; the data and the API stay live so
+  // we can flip this off later without redeploys.
+  // PlatformAdmin / PlatformEmployee keep full access for support — and an
+  // explicit override URL lets the team unlock their own dashboards if
+  // they need to test (?staff=1 stored in localStorage).
+  const launchGateOn = (import.meta.env.VITE_LAUNCH_GATE ?? "true") !== "false";
+  const overrideKey = "kalypsis.launchOverride";
+  if (typeof window !== "undefined") {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("staff") === "1") {
+      window.localStorage.setItem(overrideKey, "1");
+    } else if (url.searchParams.get("staff") === "0") {
+      window.localStorage.removeItem(overrideKey);
+    }
+  }
+  const staffOverride =
+    typeof window !== "undefined" && window.localStorage.getItem(overrideKey) === "1";
+
+  const gatedRoles: Role[] = ["AgencyAdmin", "AgencyUser", "Producer"];
+  const isGated =
+    launchGateOn &&
+    !!user &&
+    !staffOverride &&
+    !impersonatedTenantId && // platform users impersonating a tenant still see the agency UI
+    gatedRoles.includes(user.role);
+
   return (
     <>
       <ScrollToTop />
@@ -269,6 +299,7 @@ export default function App() {
           path="/app/*"
           element={
             <ProtectedRoute>
+              {isGated ? <UnderMaintenancePage /> : (
               <AppLayout navItems={effectiveRole ? navByRole[effectiveRole] : []}>
                 <Routes>
                   <Route index element={<DashboardPage />} />
@@ -321,6 +352,7 @@ export default function App() {
                   <Route path="*" element={<Navigate to="/app" replace />} />
                 </Routes>
               </AppLayout>
+              )}
             </ProtectedRoute>
           }
         />

@@ -1223,6 +1223,15 @@
     "viewingAs": "Viewing as: {{name}}",
     "exit": "Exit"
   },
+  "maintenance": {
+    "eyebrow": "GOING LIVE SOON",
+    "title": "Welcome {{name}}! We're getting the platform ready.",
+    "body": "Kalypsis is in launch preparation for insurance agencies. Your account has been created and your data is fully preserved. We'll email you the moment your dashboard goes live. In the meantime, your customer portal works as expected.",
+    "eta": "Estimated activation in {{eta}}",
+    "dataSafe": "Your data is safe",
+    "contactCta": "Contact us",
+    "logout": "Sign out"
+  },
   "onboarding": {
     "title": "Welcome to Kalypsis",
     "subtitle": "Let's set up your agency in 4 steps.",
