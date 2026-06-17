@@ -54,12 +54,14 @@ import { AppLayout, type NavItem } from "./components/AppLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { CookieBanner } from "./components/CookieBanner";
 import { OnboardingWizard } from "./components/OnboardingWizard";
+import { PageLoader } from "./components/PageLoader";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { PricingPage } from "./pages/PricingPage";
+import { FaqPage } from "./pages/FaqPage";
 import { ContactPage } from "./pages/ContactPage";
 import { TermsPage } from "./pages/TermsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
@@ -228,7 +230,7 @@ export default function App() {
   const { user, loading } = useAuth();
   const { tenantId: impersonatedTenantId } = useImpersonation();
 
-  if (loading) return null;
+  if (loading) return <PageLoader minHeight="100vh" />;
 
   // While a PlatformAdmin / PlatformEmployee is "viewing as" a tenant we render
   // the AgencyAdmin sidebar so they see (and can use) everything an agency
@@ -256,6 +258,7 @@ export default function App() {
         <Route path="/register/agency" element={<Navigate to="/register" replace />} />
         <Route path="/register/agent" element={<Navigate to="/register" replace />} />
         <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/faq" element={<FaqPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />

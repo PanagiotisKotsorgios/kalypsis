@@ -675,7 +675,8 @@
       "q5": {
         "q": "What happens if I want to leave?",
         "a": "You can export all your data to CSV at any time and cancel your subscription without penalties."
-      }
+      },
+      "cta": "View all questions"
     },
     "finalCta": {
       "title": "Ready to modernise your agency?",
@@ -1106,11 +1107,69 @@
     "product": "Product",
     "company": "Company",
     "contact": "Contact",
+    "legal": "Legal",
     "about": "About",
     "faq": "FAQ",
+    "press": "Press",
+    "careers": "Careers",
+    "dpo": "Data Protection Officer",
     "terms": "Terms of service",
     "privacy": "Privacy policy",
-    "cookies": "Cookies"
+    "cookies": "Cookies",
+    "newsletter": {
+      "title": "Stay in the loop",
+      "subtitle": "New features, best-practice guides and market updates — straight to your inbox. No spam, one-click unsubscribe.",
+      "placeholder": "Your email",
+      "cta": "Subscribe",
+      "success": "Thanks! Your subscription is confirmed.",
+      "failed": "We couldn't complete your subscription. Please try again later.",
+      "invalidEmail": "Please enter a valid email address."
+    }
+  },
+  "faq": {
+    "eyebrow": "FREQUENTLY ASKED",
+    "title": "Everything you might be wondering",
+    "lead": "We collected the most common questions about the platform, pricing, security and support.",
+    "searchPlaceholder": "Search questions…",
+    "all": "All",
+    "noResults": "No results. Try different keywords.",
+    "cat": {
+      "platform": "Platform", "pricing": "Pricing", "data": "Data",
+      "security": "Security", "billing": "Billing", "integrations": "Integrations", "support": "Support"
+    },
+    "notFound": {
+      "title": "Didn't find what you needed?",
+      "body": "Our team replies within one business day. Drop us a line and we'll get back to you.",
+      "cta": "Contact us"
+    },
+    "q": {
+      "f1": { "q": "What exactly is Kalypsis?", "a": "An end-to-end Greek SaaS platform for insurance agencies, intermediaries and brokers. One system unifies CRM, contract issuance and tracking, receipts, commission calculation, marketing and integration with insurance carriers, banks (DIAS) and third-party apps." },
+      "f2": { "q": "Who is it for?", "a": "From small specialised one-user agencies to networks with dozens of partners, to multi-carrier brokers and partner networks with up to 9-level over-commission pyramids." },
+      "f3": { "q": "Do I need to install anything?", "a": "No. Kalypsis is 100% cloud — works from any browser on desktop, tablet or phone. No install, no updates, no IT department needed." },
+      "f4": { "q": "Is it available in English?", "a": "Yes. Greek is the primary language but every page has a toggle for English — useful when your agency serves international customers." },
+      "p1": { "q": "What does it cost?", "a": "Three plans: Basic, Professional and Enterprise. See the Pricing page for details. All plans include a 14-day free trial with no card required." },
+      "p2": { "q": "Is there a free trial?", "a": "Yes — 14 days on every plan. We don't ask for payment details to start, just an email and your agency name." },
+      "p3": { "q": "How many users does each plan include?", "a": "Basic: 3 users. Professional: 10. Enterprise: unlimited. You can add extra seats above the limit with a small monthly surcharge." },
+      "p4": { "q": "Can I cancel anytime?", "a": "Yes, anytime, no cancellation fees. Your data stays available for export 60 days after cancellation." },
+      "d1": { "q": "Can I import customers from my old system?", "a": "Yes. We support Excel, CSV and direct migration from the most common Greek market systems. Migration is free on Professional and Enterprise." },
+      "d2": { "q": "Where is my data hosted?", "a": "In an EU data centre (Frankfurt), with AES-256 encryption at rest and TLS 1.3 in transit. Daily automated backups with 30-day retention." },
+      "d3": { "q": "Can I export my data?", "a": "Anytime. Every list (customers, contracts, receipts, financial movements) has an Excel/CSV export button. Full JSON backup is also supported." },
+      "s1": { "q": "How safe is my data?", "a": "Multi-tenant architecture with strict database-level isolation — no agency sees another's data. JWT auth, BCrypt for passwords, SHA-256 for tokens, full audit log." },
+      "s2": { "q": "Are you GDPR compliant?", "a": "Fully. All data-subject rights are implemented (access, correction, deletion, portability). We have a DPO and a complete processing register." },
+      "s3": { "q": "How are passwords protected?", "a": "Hashed with BCrypt (cost 12), never stored in plaintext. Email reset links use SHA-256 hashed tokens and rate limiting on auth endpoints." },
+      "s4": { "q": "Do you support 2FA?", "a": "Coming soon for Professional and Enterprise plans — both authenticator app and SMS." },
+      "b1": { "q": "How do I pay?", "a": "Debit/credit cards, DIAS and bank transfer for annual subscriptions (with 15% discount). Invoices include your VAT details." },
+      "b2": { "q": "Can I switch plans?", "a": "Yes, anytime. Upgrades apply immediately, downgrades from the next billing cycle." },
+      "b3": { "q": "Do you issue invoices?", "a": "Yes. Every charge comes with an electronic invoice to your agency email with all VAT details." },
+      "i1": { "q": "Do you integrate with insurance carriers?", "a": "Yes. Per-agency, per-carrier Bridges over REST API, FTP, email parsing or webhook. Automatic policy and update exchange." },
+      "i2": { "q": "Do you support DIAS?", "a": "Yes. RF code per contract, payment tracking and auto contract delivery the moment your office receives confirmation." },
+      "i3": { "q": "Do you have a public API?", "a": "Yes. Full REST API with tokens and scopes. Connect accounting suites, mobile apps or third-party tools." },
+      "i4": { "q": "Do you integrate with accounting systems?", "a": "Direct connectors for the most common Greek accounting systems (BlueByte and others), XML/CSV export for the rest. Auto journal entries from every financial movement." },
+      "u1": { "q": "How do I get support?", "a": "In-app chat, email at support@kalypsis.gr and phone for Enterprise. Average response under 2 hours on business days." },
+      "u2": { "q": "Do you provide training?", "a": "Yes. Free 2-hour online training for your agency, detailed Greek manuals, video tutorials and a monthly webinar." },
+      "u3": { "q": "What are your hours?", "a": "Monday through Friday, 09:00–18:00 EET. Enterprise plans include 24/7 support for critical issues." },
+      "u4": { "q": "How do you ship updates?", "a": "New features every week, zero downtime and no action required from you. All updates and improvements are included in your subscription." }
+    }
   },
   "auth": {
     "login": "Sign in",

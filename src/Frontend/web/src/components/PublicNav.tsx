@@ -163,7 +163,7 @@ export function PublicNav(_: PublicNavProps = {}) {
               <Button
                 component={RouterLink}
                 to="/login"
-                variant="text"
+                variant="outlined"
                 color="primary"
                 sx={{
                   fontWeight: 700,
@@ -171,7 +171,14 @@ export function PublicNav(_: PublicNavProps = {}) {
                   px: 3,
                   py: 1.4,
                   borderRadius: 1.5,
-                  "&:hover": { bgcolor: "rgba(11,37,69,0.05)" }
+                  borderWidth: 2,
+                  borderColor: "primary.main",
+                  color: "primary.main",
+                  "&:hover": {
+                    borderWidth: 2,
+                    borderColor: "primary.dark",
+                    bgcolor: "rgba(11,37,69,0.06)"
+                  }
                 }}
               >
                 {t("publicNav.signIn")}

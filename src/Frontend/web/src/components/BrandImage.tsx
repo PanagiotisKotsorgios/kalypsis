@@ -2,6 +2,8 @@ import { Box, type SxProps, type Theme } from "@mui/material";
 
 interface BrandImageProps {
   seed: string;
+  /** Override the seed-generated picsum URL with an explicit image URL. */
+  imageUrl?: string;
   width?: number;
   height?: number;
   blur?: number;
@@ -18,6 +20,7 @@ interface BrandImageProps {
  */
 export function BrandImage({
   seed,
+  imageUrl,
   width = 1600,
   height = 900,
   blur = 0,
@@ -26,7 +29,8 @@ export function BrandImage({
   rounded = false,
   aspect
 }: BrandImageProps) {
-  const url = `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}${blur > 0 ? `?blur=${blur}` : ""}`;
+  const url = imageUrl
+    ?? `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}${blur > 0 ? `?blur=${blur}` : ""}`;
 
   const gradient =
     overlay === "navy-strong"

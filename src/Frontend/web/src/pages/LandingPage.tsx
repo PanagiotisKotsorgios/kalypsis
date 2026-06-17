@@ -14,18 +14,31 @@ import {
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import PolicyIcon from "@mui/icons-material/Policy";
-import GroupsIcon from "@mui/icons-material/Groups";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+// Sidebar-themed flat icons (one tone) — match the post-login app shell.
+import DescriptionIcon from "@mui/icons-material/Description";
+import PeopleIcon from "@mui/icons-material/People";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import PhoneIphoneIcon from "@mui/icons-material/PhoneIphone";
-import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
-import IntegrationInstructionsIcon from "@mui/icons-material/IntegrationInstructions";
+import NotificationsIcon from "@mui/icons-material/Notifications";
+import ExtensionIcon from "@mui/icons-material/Extension";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { PublicShell } from "../components/PublicShell";
 import { BrandImage } from "../components/BrandImage";
-import { KalypsisLogo } from "../components/KalypsisLogo";
+import { RevealOnScroll } from "../components/RevealOnScroll";
+import { api } from "../api/client";
+
+const HERO_IMAGE =
+  "https://media.canadianunderwriter.ca/uploads/2024/07/iStock-1479275024-modified-78c42d3a-3ec3-44d2-98a4-882c8c742d8e.jpg";
+const FOR_AGENCIES_IMAGE =
+  "https://img.magnific.com/premium-photo/businessman-holding-different-icons-dark-background-closeup-insurance-concept_495423-31062.jpg";
+const FOR_AGENTS_IMAGE =
+  "https://img.freepik.com/premium-vector/insurance-services-concept-with-magnifier-hand-magnifying-glass-virtual-screen_127544-770.jpg";
+
+interface PublicStats { agencies: number; producers: number; activePolicies: number; uptime: string }
 
 export function LandingPage() {
   return (
@@ -36,7 +49,7 @@ export function LandingPage() {
       <ForAgencies />
       <ForAgents />
       <Stats />
-      <Faq />
+      <FaqTeaser />
       <FinalCta />
     </PublicShell>
   );
@@ -59,8 +72,7 @@ function Hero() {
         pb: { xs: 10, md: 12 }
       }}
     >
-      <BrandImage seed="kalypsis-hero-athens-city" width={2000} height={1200} overlay="navy-strong" />
-      {/* radial accent */}
+      <BrandImage seed="kalypsis-hero" imageUrl={HERO_IMAGE} overlay="navy-strong" />
       <Box
         sx={{
           position: "absolute",
@@ -75,6 +87,7 @@ function Hero() {
       />
       <Container maxWidth="md" sx={{ position: "relative", zIndex: 1, color: "common.white", textAlign: "center" }}>
         <Stack spacing={4} alignItems="center">
+          <RevealOnScroll direction="up" duration={900}>
           <Typography
             variant="h1"
             sx={{
@@ -87,6 +100,8 @@ function Hero() {
           >
             {t("landing.headline")}
           </Typography>
+          </RevealOnScroll>
+          <RevealOnScroll direction="up" delay={150}>
           <Typography
             sx={{
               fontSize: { xs: 17, md: 20 },
@@ -97,7 +112,9 @@ function Hero() {
           >
             {t("landing.lead")}
           </Typography>
+          </RevealOnScroll>
 
+          <RevealOnScroll direction="up" delay={300}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ pt: 2 }}>
             <Button
               component={RouterLink}
@@ -126,6 +143,7 @@ function Hero() {
               {t("landing.ctaSecondary")}
             </Button>
           </Stack>
+          </RevealOnScroll>
         </Stack>
       </Container>
     </Box>
@@ -138,6 +156,7 @@ function PartnersStrip() {
   return (
     <Box sx={{ bgcolor: "background.paper", py: 5, borderBottom: "1px solid", borderColor: "divider" }}>
       <Container maxWidth="lg">
+        <RevealOnScroll direction="up">
         <Stack
           direction={{ xs: "column", md: "row" }}
           spacing={4}
@@ -170,6 +189,7 @@ function PartnersStrip() {
             ))}
           </Stack>
         </Stack>
+        </RevealOnScroll>
       </Container>
     </Box>
   );
@@ -179,16 +199,17 @@ function PartnersStrip() {
 function Features() {
   const { t } = useTranslation();
   const features = [
-    { icon: <PolicyIcon />, key: "policies", color: "primary.main" },
-    { icon: <NotificationsActiveIcon />, key: "renewals", color: "secondary.main" },
-    { icon: <GroupsIcon />, key: "portal", color: "primary.light" },
-    { icon: <TrendingUpIcon />, key: "commissions", color: "#f6a623" },
-    { icon: <PhoneIphoneIcon />, key: "mobile", color: "secondary.main" },
-    { icon: <IntegrationInstructionsIcon />, key: "integrations", color: "primary.main" }
+    { icon: <DescriptionIcon />, key: "policies" },
+    { icon: <NotificationsIcon />, key: "renewals" },
+    { icon: <PeopleIcon />, key: "portal" },
+    { icon: <TrendingUpIcon />, key: "commissions" },
+    { icon: <PhoneIphoneIcon />, key: "mobile" },
+    { icon: <ExtensionIcon />, key: "integrations" }
   ];
   return (
     <Box id="features" sx={{ py: { xs: 8, md: 14 } }}>
       <Container maxWidth="lg">
+        <RevealOnScroll direction="up">
         <Stack spacing={1.5} alignItems="center" textAlign="center" mb={6}>
           <Typography variant="overline" color="secondary.main" sx={{ letterSpacing: 2, fontWeight: 700 }}>
             {t("landing.features.eyebrow")}
@@ -200,6 +221,7 @@ function Features() {
             {t("landing.features.lead")}
           </Typography>
         </Stack>
+        </RevealOnScroll>
 
         <Box
           sx={{
@@ -212,44 +234,46 @@ function Features() {
             }
           }}
         >
-          {features.map((f) => (
-            <Card
-              key={f.key}
-              sx={{
-                p: 3.5,
-                height: "100%",
-                border: "1px solid",
-                borderColor: "divider",
-                transition: "transform 200ms, box-shadow 200ms, border-color 200ms",
-                "&:hover": {
-                  transform: "translateY(-4px)",
-                  borderColor: "primary.light",
-                  boxShadow: "0 18px 40px rgba(11, 37, 69, 0.12)"
-                }
-              }}
-            >
-              <Box
+          {features.map((f, idx) => (
+            <RevealOnScroll key={f.key} delay={idx * 80} direction="up">
+              <Card
                 sx={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: 2,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: `linear-gradient(135deg, ${f.color}22, ${f.color}11)`,
-                  color: f.color,
-                  mb: 2.5
+                  p: 3.5,
+                  height: "100%",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  transition: "transform 200ms, box-shadow 200ms, border-color 200ms",
+                  "&:hover": {
+                    transform: "translateY(-4px)",
+                    borderColor: "primary.light",
+                    boxShadow: "0 18px 40px rgba(11, 37, 69, 0.12)"
+                  }
                 }}
               >
-                {f.icon}
-              </Box>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-                {t(`landing.features.${f.key}.title`)}
-              </Typography>
-              <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-                {t(`landing.features.${f.key}.body`)}
-              </Typography>
-            </Card>
+                <Box
+                  sx={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    bgcolor: "rgba(11,37,69,0.06)",
+                    color: "primary.main",
+                    mb: 2.5,
+                    "& svg": { fontSize: 28 }
+                  }}
+                >
+                  {f.icon}
+                </Box>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                  {t(`landing.features.${f.key}.title`)}
+                </Typography>
+                <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
+                  {t(`landing.features.${f.key}.body`)}
+                </Typography>
+              </Card>
+            </RevealOnScroll>
           ))}
         </Box>
       </Container>
@@ -279,63 +303,67 @@ function ForAgencies() {
             alignItems: "center"
           }}
         >
-          <Box sx={{ position: "relative", aspectRatio: "5/4", borderRadius: 4, overflow: "hidden" }}>
-            <BrandImage seed="kalypsis-agency-office-meeting" width={1200} height={1000} overlay="tint" />
-            <Box
-              sx={{
-                position: "absolute",
-                left: 20,
-                bottom: 20,
-                px: 2.5,
-                py: 1.5,
-                bgcolor: "rgba(11,37,69,0.92)",
-                color: "common.white",
-                borderRadius: 2,
-                fontSize: 13,
-                fontWeight: 600,
-                letterSpacing: 0.8,
-                zIndex: 1
-              }}
-            >
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <CheckCircleIcon sx={{ color: "#7be295", fontSize: 18 }} />
-                <span>{t("landing.forAgencies.badge")}</span>
-              </Stack>
-            </Box>
-          </Box>
-
-          <Stack spacing={3}>
-            <Typography variant="overline" color="secondary.main" sx={{ letterSpacing: 2, fontWeight: 700 }}>
-              {t("landing.forAgencies.eyebrow")}
-            </Typography>
-            <Typography variant="h3" sx={{ fontWeight: 800 }}>
-              {t("landing.forAgencies.title")}
-            </Typography>
-            <Typography color="text.secondary" sx={{ fontSize: 17, lineHeight: 1.7 }}>
-              {t("landing.forAgencies.lead")}
-            </Typography>
-
-            <Stack spacing={1.5} sx={{ pt: 1 }}>
-              {points.map((p) => (
-                <Stack key={p} direction="row" spacing={1.5} alignItems="flex-start">
-                  <CheckCircleIcon sx={{ color: "secondary.main", mt: 0.4 }} />
-                  <Typography>{t(`landing.${p}`)}</Typography>
-                </Stack>
-              ))}
-            </Stack>
-
-            <Box sx={{ pt: 2 }}>
-              <Button
-                component={RouterLink}
-                to="/register"
-                variant="contained"
-                size="large"
-                endIcon={<ArrowForwardIcon />}
+          <RevealOnScroll direction="left">
+            <Box sx={{ position: "relative", aspectRatio: "5/4", borderRadius: 4, overflow: "hidden" }}>
+              <BrandImage seed="for-agencies" imageUrl={FOR_AGENCIES_IMAGE} overlay="tint" />
+              <Box
+                sx={{
+                  position: "absolute",
+                  left: 20,
+                  bottom: 20,
+                  px: 2.5,
+                  py: 1.5,
+                  bgcolor: "rgba(11,37,69,0.92)",
+                  color: "common.white",
+                  borderRadius: 2,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  letterSpacing: 0.8,
+                  zIndex: 1
+                }}
               >
-                {t("landing.forAgencies.cta")}
-              </Button>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <CheckCircleIcon sx={{ color: "primary.contrastText", fontSize: 18 }} />
+                  <span>{t("landing.forAgencies.badge")}</span>
+                </Stack>
+              </Box>
             </Box>
-          </Stack>
+          </RevealOnScroll>
+
+          <RevealOnScroll direction="right" delay={100}>
+            <Stack spacing={3}>
+              <Typography variant="overline" color="secondary.main" sx={{ letterSpacing: 2, fontWeight: 700 }}>
+                {t("landing.forAgencies.eyebrow")}
+              </Typography>
+              <Typography variant="h3" sx={{ fontWeight: 800 }}>
+                {t("landing.forAgencies.title")}
+              </Typography>
+              <Typography color="text.secondary" sx={{ fontSize: 17, lineHeight: 1.7 }}>
+                {t("landing.forAgencies.lead")}
+              </Typography>
+
+              <Stack spacing={1.5} sx={{ pt: 1 }}>
+                {points.map((p) => (
+                  <Stack key={p} direction="row" spacing={1.5} alignItems="flex-start">
+                    <CheckCircleIcon sx={{ color: "primary.main", mt: 0.4 }} />
+                    <Typography>{t(`landing.${p}`)}</Typography>
+                  </Stack>
+                ))}
+              </Stack>
+
+              <Box sx={{ pt: 2 }}>
+                <Button
+                  component={RouterLink}
+                  to="/register"
+                  variant="contained"
+                  size="large"
+                  endIcon={<ArrowForwardIcon />}
+                >
+                  {t("landing.forAgencies.cta")}
+                </Button>
+              </Box>
+            </Stack>
+          </RevealOnScroll>
         </Box>
       </Container>
     </Box>
@@ -363,95 +391,91 @@ function ForAgents() {
             alignItems: "center"
           }}
         >
-          <Stack spacing={3} sx={{ order: { xs: 1, md: 0 } }}>
-            <Typography variant="overline" color="secondary.main" sx={{ letterSpacing: 2, fontWeight: 700 }}>
-              {t("landing.forAgents.eyebrow")}
-            </Typography>
-            <Typography variant="h3" sx={{ fontWeight: 800 }}>
-              {t("landing.forAgents.title")}
-            </Typography>
-            <Typography color="text.secondary" sx={{ fontSize: 17, lineHeight: 1.7 }}>
-              {t("landing.forAgents.lead")}
-            </Typography>
-
-            <Box>
-              <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5 }}>
-                {t("landing.forAgents.licensesTitle")}
+          <RevealOnScroll direction="right" sx={{ order: { xs: 1, md: 0 } }}>
+            <Stack spacing={3}>
+              <Typography variant="overline" color="secondary.main" sx={{ letterSpacing: 2, fontWeight: 700 }}>
+                {t("landing.forAgents.eyebrow")}
               </Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 1, gap: 1 }}>
-                {licenses.map((lk) => (
-                  <Chip
-                    key={lk}
-                    label={t(lk)}
-                    variant="outlined"
-                    sx={{ borderColor: "primary.light", color: "primary.dark", fontWeight: 600 }}
-                  />
-                ))}
-              </Stack>
-            </Box>
+              <Typography variant="h3" sx={{ fontWeight: 800 }}>
+                {t("landing.forAgents.title")}
+              </Typography>
+              <Typography color="text.secondary" sx={{ fontSize: 17, lineHeight: 1.7 }}>
+                {t("landing.forAgents.lead")}
+              </Typography>
 
-            <Box sx={{ pt: 2 }}>
-              <Button
-                component={RouterLink}
-                to="/register"
-                variant="contained"
-                size="large"
-                color="primary"
-                endIcon={<ArrowForwardIcon />}
-              >
-                {t("landing.forAgents.cta")}
-              </Button>
-            </Box>
-          </Stack>
+              <Box>
+                <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5 }}>
+                  {t("landing.forAgents.licensesTitle")}
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 1, gap: 1 }}>
+                  {licenses.map((lk) => (
+                    <Chip
+                      key={lk}
+                      label={t(lk)}
+                      variant="outlined"
+                      sx={{ borderColor: "primary.light", color: "primary.dark", fontWeight: 600 }}
+                    />
+                  ))}
+                </Stack>
+              </Box>
 
-          <Box
-            sx={{
-              position: "relative",
-              aspectRatio: "5/4",
-              borderRadius: 4,
-              overflow: "hidden",
-              order: { xs: 0, md: 1 }
-            }}
+              <Box sx={{ pt: 2 }}>
+                <Button
+                  component={RouterLink}
+                  to="/register"
+                  variant="contained"
+                  size="large"
+                  color="primary"
+                  endIcon={<ArrowForwardIcon />}
+                >
+                  {t("landing.forAgents.cta")}
+                </Button>
+              </Box>
+            </Stack>
+          </RevealOnScroll>
+
+          <RevealOnScroll
+            direction="left"
+            delay={100}
+            sx={{ order: { xs: 0, md: 1 } }}
           >
-            <BrandImage seed="kalypsis-greek-broker-portrait" width={1200} height={1000} overlay="tint" />
-            <Card
+            <Box
               sx={{
-                position: "absolute",
-                right: 20,
-                bottom: 20,
-                p: 2,
-                bgcolor: "common.white",
-                borderRadius: 2,
-                width: 220,
-                boxShadow: "0 12px 30px rgba(0,0,0,0.2)"
+                position: "relative",
+                aspectRatio: "5/4",
+                borderRadius: 4,
+                overflow: "hidden",
+                bgcolor: "background.paper"
               }}
             >
-              <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: 1 }}>
-                ΜΗΝΙΑΙΕΣ ΠΡΟΜΗΘΕΙΕΣ
-              </Typography>
-              <Typography variant="h5" sx={{ fontWeight: 800, color: "primary.main" }}>
-                €14.820
-              </Typography>
-              <Typography variant="caption" color="success.main" fontWeight={700}>
-                ↑ 18% vs. προηγ. μήνα
-              </Typography>
-            </Card>
-          </Box>
+              <BrandImage seed="for-agents" imageUrl={FOR_AGENTS_IMAGE} overlay="none" />
+            </Box>
+          </RevealOnScroll>
         </Box>
       </Container>
     </Box>
   );
 }
 
-/* ----------------------- STATS ----------------------- */
+/* ----------------------- STATS (real data from /api/public/stats) ----------------------- */
 function Stats() {
   const { t } = useTranslation();
+  const q = useQuery({
+    queryKey: ["public-stats"],
+    queryFn: async () => (await api.get<PublicStats>("/public/stats")).data,
+    staleTime: 5 * 60 * 1000
+  });
+
+  const fmt = (n: number | undefined) =>
+    n === undefined ? "—" : n.toLocaleString("el-GR");
+
   const stats = [
-    { value: "412+", labelKey: "landing.stats.agencies" },
-    { value: "1.380", labelKey: "landing.stats.agents" },
-    { value: "76.000", labelKey: "landing.stats.policies" },
-    { value: "99,98%", labelKey: "landing.stats.uptime" }
+    { value: q.data ? `${fmt(q.data.agencies)}+` : "—", labelKey: "landing.stats.agencies" },
+    { value: q.data ? fmt(q.data.producers) : "—", labelKey: "landing.stats.agents" },
+    { value: q.data ? fmt(q.data.activePolicies) : "—", labelKey: "landing.stats.policies" },
+    { value: q.data?.uptime ?? "99,98%", labelKey: "landing.stats.uptime" }
   ];
+
   return (
     <Box
       sx={{
@@ -461,7 +485,7 @@ function Stats() {
         color: "common.white"
       }}
     >
-      <BrandImage seed="kalypsis-stats-greek-architecture" width={1800} height={900} overlay="navy-strong" blur={1} />
+      <BrandImage seed="kalypsis-stats" width={1800} height={900} overlay="navy-strong" blur={1} />
       <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1 }}>
         <Box
           sx={{
@@ -471,24 +495,26 @@ function Stats() {
             textAlign: "center"
           }}
         >
-          {stats.map((s) => (
-            <Stack key={s.labelKey} spacing={0.5}>
-              <Typography
-                sx={{
-                  fontSize: { xs: 36, md: 56 },
-                  fontWeight: 900,
-                  letterSpacing: -1,
-                  background: "linear-gradient(135deg, #ffffff 0%, #9ecaff 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent"
-                }}
-              >
-                {s.value}
-              </Typography>
-              <Typography sx={{ opacity: 0.85, fontSize: { xs: 13, md: 15 }, letterSpacing: 0.5 }}>
-                {t(s.labelKey)}
-              </Typography>
-            </Stack>
+          {stats.map((s, idx) => (
+            <RevealOnScroll key={s.labelKey} delay={idx * 100} direction="up">
+              <Stack spacing={0.5}>
+                <Typography
+                  sx={{
+                    fontSize: { xs: 36, md: 56 },
+                    fontWeight: 900,
+                    letterSpacing: -1,
+                    background: "linear-gradient(135deg, #ffffff 0%, #9ecaff 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent"
+                  }}
+                >
+                  {s.value}
+                </Typography>
+                <Typography sx={{ opacity: 0.85, fontSize: { xs: 13, md: 15 }, letterSpacing: 0.5 }}>
+                  {t(s.labelKey)}
+                </Typography>
+              </Stack>
+            </RevealOnScroll>
           ))}
         </Box>
       </Container>
@@ -496,15 +522,14 @@ function Stats() {
   );
 }
 
-/* ----------------------- FAQ (animated accordion) ----------------------- */
-function Faq() {
+/* ----------------------- FAQ teaser (real page lives at /faq) ----------------------- */
+function FaqTeaser() {
   const { t } = useTranslation();
-  const items = ["q1", "q2", "q3", "q4", "q5"];
+  const items = ["q1", "q2", "q3"];
   const [expanded, setExpanded] = useState<string | false>("q1");
   const [visibleCount, setVisibleCount] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // Reveal items one by one when the section scrolls into view (staggered).
   useEffect(() => {
     const node = rootRef.current;
     if (!node) return;
@@ -526,14 +551,16 @@ function Faq() {
   return (
     <Box id="faq" sx={{ py: { xs: 8, md: 12 }, bgcolor: "background.paper" }}>
       <Container maxWidth="md" ref={rootRef}>
-        <Stack spacing={1.5} alignItems="center" textAlign="center" mb={5}>
-          <Typography variant="overline" color="secondary.main" sx={{ letterSpacing: 2, fontWeight: 700 }}>
-            {t("landing.faq.eyebrow")}
-          </Typography>
-          <Typography variant="h3" sx={{ fontWeight: 800 }}>
-            {t("landing.faq.title")}
-          </Typography>
-        </Stack>
+        <RevealOnScroll direction="up">
+          <Stack spacing={1.5} alignItems="center" textAlign="center" mb={5}>
+            <Typography variant="overline" color="secondary.main" sx={{ letterSpacing: 2, fontWeight: 700 }}>
+              {t("landing.faq.eyebrow")}
+            </Typography>
+            <Typography variant="h3" sx={{ fontWeight: 800 }}>
+              {t("landing.faq.title")}
+            </Typography>
+          </Stack>
+        </RevealOnScroll>
 
         <Stack spacing={1.5}>
           {items.map((q, idx) => {
@@ -604,6 +631,38 @@ function Faq() {
             );
           })}
         </Stack>
+
+        {/* Big animated CTA → /faq */}
+        <RevealOnScroll direction="up" delay={150}>
+          <Box sx={{ display: "flex", justifyContent: "center", mt: 6 }}>
+            <Button
+              component={RouterLink}
+              to="/faq"
+              size="large"
+              variant="contained"
+              startIcon={<HelpOutlineIcon sx={{ fontSize: "28px !important" }} />}
+              endIcon={<ArrowForwardIcon />}
+              sx={{
+                px: { xs: 4, md: 6 },
+                py: { xs: 2, md: 2.5 },
+                fontSize: { xs: 17, md: 20 },
+                fontWeight: 800,
+                borderRadius: 3,
+                letterSpacing: 0.3,
+                background: "linear-gradient(135deg, #0b2545 0%, #1d4e89 100%)",
+                boxShadow: "0 14px 38px -10px rgba(11,37,69,0.55)",
+                transition: "transform 240ms ease, box-shadow 240ms ease, background 240ms ease",
+                "&:hover": {
+                  transform: "translateY(-4px) scale(1.02)",
+                  boxShadow: "0 28px 60px -16px rgba(11,37,69,0.7)",
+                  background: "linear-gradient(135deg, #0b2545 0%, #1ea7e1 100%)"
+                }
+              }}
+            >
+              {t("landing.faq.cta")}
+            </Button>
+          </Box>
+        </RevealOnScroll>
       </Container>
     </Box>
   );
@@ -616,43 +675,44 @@ function FinalCta() {
     <Box sx={{ position: "relative", py: { xs: 8, md: 14 }, overflow: "hidden", color: "common.white" }}>
       <BrandImage seed="kalypsis-final-cta-meditteranean" width={1800} height={900} overlay="navy-strong" />
       <Container maxWidth="md" sx={{ position: "relative", zIndex: 1, textAlign: "center" }}>
-        <Stack spacing={3} alignItems="center">
-          <KalypsisLogo size={88} color="light" />
-          <Typography variant="h2" sx={{ fontWeight: 900, letterSpacing: -1 }}>
-            {t("landing.finalCta.title")}
-          </Typography>
-          <Typography sx={{ opacity: 0.92, fontSize: 18, maxWidth: 600, lineHeight: 1.6 }}>
-            {t("landing.finalCta.lead")}
-          </Typography>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ pt: 2 }}>
-            <Button
-              component={RouterLink}
-              to="/register"
-              size="large"
-              variant="contained"
-              color="secondary"
-              endIcon={<ArrowForwardIcon />}
-              sx={{ px: 4, py: 1.5, fontWeight: 700 }}
-            >
-              {t("landing.finalCta.ctaPrimary")}
-            </Button>
-            <Button
-              component={RouterLink}
-              to="/login"
-              size="large"
-              variant="outlined"
-              sx={{
-                px: 4,
-                py: 1.5,
-                color: "common.white",
-                borderColor: "rgba(255,255,255,0.5)",
-                "&:hover": { borderColor: "common.white", bgcolor: "rgba(255,255,255,0.08)" }
-              }}
-            >
-              {t("landing.finalCta.ctaSecondary")}
-            </Button>
+        <RevealOnScroll direction="up">
+          <Stack spacing={3} alignItems="center">
+            <Typography variant="h2" sx={{ fontWeight: 900, letterSpacing: -1 }}>
+              {t("landing.finalCta.title")}
+            </Typography>
+            <Typography sx={{ opacity: 0.92, fontSize: 18, maxWidth: 600, lineHeight: 1.6 }}>
+              {t("landing.finalCta.lead")}
+            </Typography>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ pt: 2 }}>
+              <Button
+                component={RouterLink}
+                to="/register"
+                size="large"
+                variant="contained"
+                color="secondary"
+                endIcon={<ArrowForwardIcon />}
+                sx={{ px: 4, py: 1.5, fontWeight: 700 }}
+              >
+                {t("landing.finalCta.ctaPrimary")}
+              </Button>
+              <Button
+                component={RouterLink}
+                to="/login"
+                size="large"
+                variant="outlined"
+                sx={{
+                  px: 4,
+                  py: 1.5,
+                  color: "common.white",
+                  borderColor: "rgba(255,255,255,0.5)",
+                  "&:hover": { borderColor: "common.white", bgcolor: "rgba(255,255,255,0.08)" }
+                }}
+              >
+                {t("landing.finalCta.ctaSecondary")}
+              </Button>
+            </Stack>
           </Stack>
-        </Stack>
+        </RevealOnScroll>
       </Container>
     </Box>
   );

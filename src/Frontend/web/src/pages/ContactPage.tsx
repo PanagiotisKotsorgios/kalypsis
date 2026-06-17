@@ -24,6 +24,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PublicShell } from "../components/PublicShell";
 import { BrandImage } from "../components/BrandImage";
+import { RevealOnScroll } from "../components/RevealOnScroll";
 
 type ContactForm = {
   inquiryType: string;
@@ -140,19 +141,25 @@ export function ContactPage() {
     <PublicShell>
       {/* Hero */}
       <Box sx={{ position: "relative", py: { xs: 10, md: 14 }, color: "common.white", overflow: "hidden" }}>
-        <BrandImage seed="kalypsis-contact-headquarters" width={1800} height={900} overlay="navy-strong" />
+        <BrandImage
+          seed="kalypsis-contact-headquarters"
+          imageUrl="https://img.magnific.com/free-photo/busy-woman-doing-many-things-same-time_1098-3232.jpg"
+          overlay="navy-strong"
+        />
         <Container maxWidth="md" sx={{ position: "relative", textAlign: "center" }}>
-          <Stack spacing={2.5} alignItems="center">
-            <Typography variant="overline" sx={{ letterSpacing: 2.5, opacity: 0.8 }}>
-              {t("contact.eyebrow")}
-            </Typography>
-            <Typography variant="h2" sx={{ fontWeight: 900, letterSpacing: -1 }}>
-              {t("contact.title")}
-            </Typography>
-            <Typography sx={{ opacity: 0.92, fontSize: 18, maxWidth: 640 }}>
-              {t("contact.lead")}
-            </Typography>
-          </Stack>
+          <RevealOnScroll direction="up" duration={800}>
+            <Stack spacing={2.5} alignItems="center">
+              <Typography variant="overline" sx={{ letterSpacing: 2.5, opacity: 0.8 }}>
+                {t("contact.eyebrow")}
+              </Typography>
+              <Typography variant="h2" sx={{ fontWeight: 900, letterSpacing: -1 }}>
+                {t("contact.title")}
+              </Typography>
+              <Typography sx={{ opacity: 0.92, fontSize: 18, maxWidth: 640 }}>
+                {t("contact.lead")}
+              </Typography>
+            </Stack>
+          </RevealOnScroll>
         </Container>
       </Box>
 
@@ -166,6 +173,7 @@ export function ContactPage() {
           }}
         >
           {/* Form */}
+          <RevealOnScroll direction="left">
           <Card sx={{ p: { xs: 3, md: 5 }, borderRadius: 4 }}>
             <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>
               {t("contact.form.title")}
@@ -283,8 +291,10 @@ export function ContactPage() {
               </Stack>
             </form>
           </Card>
+          </RevealOnScroll>
 
           {/* Sidebar */}
+          <RevealOnScroll direction="right" delay={100}>
           <Stack spacing={3}>
             <ContactBlock
               icon={<LocationOnIcon />}
@@ -332,6 +342,7 @@ export function ContactPage() {
               lines={[t("contact.info.hours.weekdays"), t("contact.info.hours.support")]}
             />
           </Stack>
+          </RevealOnScroll>
         </Box>
       </Container>
     </PublicShell>
