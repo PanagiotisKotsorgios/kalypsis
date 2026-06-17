@@ -477,12 +477,22 @@
   },
   "producerDashboard": {
     "welcome": "Welcome back, {{name}}",
+    "myCommissions": "My Commissions",
+    "noCommissionLines": "No commission records yet.",
+    "runPeriod": "Period",
+    "premium": "Premium",
+    "rate": "Rate",
+    "commission": "Commission",
     "kpi": {
       "customers": "My customers",
       "activePolicies": "Active policies",
       "expiringSoon": "Expiring in 30d",
       "monthlyPremium": "Premium in force",
-      "renewalsYear": "Renewals this year"
+      "renewalsYear": "Renewals this year",
+      "commissionMtd": "Commission MTD",
+      "commissionYtd": "Commission YTD",
+      "overCommissionYtd": "Over-commission YTD",
+      "premiumYtd": "Premium YTD"
     },
     "chart": {
       "production": "Premium production (6 months)",
@@ -1153,6 +1163,23 @@
   "impersonation": {
     "viewingAs": "Viewing as: {{name}}",
     "exit": "Exit"
+  },
+  "onboarding": {
+    "title": "Welcome to Kalypsis",
+    "subtitle": "Let's set up your agency in 4 steps.",
+    "step": { "branding": "Branding", "contact": "Contact", "rule": "Commission", "done": "Done" },
+    "brandingIntro": "Upload your agency logo and pick your brand colour — they'll appear across the platform and your customer portal.",
+    "uploadLogo": "Upload logo",
+    "brandColor": "Brand colour",
+    "contactIntro": "Contact details shown on contracts, customer emails and the portal.",
+    "ruleIntro": "Create a first commission rule as a default — change it later from Commission Runs.",
+    "percent": "Percent %",
+    "createRule": "Create rule",
+    "doneTitle": "You're ready!",
+    "doneBody": "Your agency is set up. Explore everything from the sidebar and change settings anytime under Agency Settings.",
+    "skip": "Skip",
+    "next": "Next",
+    "finish": "Finish"
   },
   "commissionRuns": {
     "title": "Commission Runs",

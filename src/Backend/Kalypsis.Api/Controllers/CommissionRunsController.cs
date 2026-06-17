@@ -1,4 +1,5 @@
 using System.Globalization;
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.Bridges;
@@ -21,31 +22,38 @@ public class CommissionRunsController : ControllerBase
     public CommissionRunsController(IMediator m) => _m = m;
 
     [HttpGet]
+    [RequirePermission("commissions.read")]
     public async Task<ActionResult<IReadOnlyList<CommissionRunDto>>> List([FromQuery] int? year, CancellationToken ct)
         => Ok(await _m.Send(new ListCommissionRunsQuery(year), ct));
 
     [HttpPost]
+    [RequirePermission("commissions.run")]
     public async Task<ActionResult<CommissionRunDto>> Generate([FromBody] GenerateCommissionRunBody body, CancellationToken ct)
         => Ok(await _m.Send(new GenerateCommissionRunCommand(body), ct));
 
     [HttpGet("{id:guid}")]
+    [RequirePermission("commissions.read")]
     public async Task<ActionResult<CommissionRunDetailDto>> Detail(Guid id, CancellationToken ct)
         => Ok(await _m.Send(new GetCommissionRunDetailQuery(id), ct));
 
     [HttpPost("lines/{lineId:guid}/override")]
+    [RequirePermission("commissions.run")]
     public async Task<ActionResult<CommissionRunLineDto>> Override(Guid lineId, [FromBody] OverrideBody body, CancellationToken ct)
         => Ok(await _m.Send(new OverrideCommissionLineCommand(lineId, body.Amount, body.Reason), ct));
     public record OverrideBody(decimal Amount, string? Reason);
 
     [HttpPost("{id:guid}/finalise")]
+    [RequirePermission("commissions.run")]
     public async Task<ActionResult<CommissionRunDto>> Finalise(Guid id, CancellationToken ct)
         => Ok(await _m.Send(new FinaliseCommissionRunCommand(id), ct));
 
     [HttpDelete("{id:guid}")]
+    [RequirePermission("commissions.run")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     { await _m.Send(new DeleteCommissionRunCommand(id), ct); return NoContent(); }
 
     [HttpGet("{id:guid}/export.csv")]
+    [RequirePermission("commissions.read")]
     public async Task<IActionResult> ExportCsv(Guid id, CancellationToken ct)
     {
         var detail = await _m.Send(new GetCommissionRunDetailQuery(id), ct);
@@ -63,6 +71,20 @@ public class CommissionRunsController : ControllerBase
 }
 
 [ApiController]
+[Route("api/commission-rules")]
+[Authorize(Policy = "AgencyAdmin")]
+public class CommissionRulesController : ControllerBase
+{
+    private readonly IMediator _m; public CommissionRulesController(IMediator m) => _m = m;
+    [HttpGet] [RequirePermission("commissions.read")] public async Task<ActionResult<IReadOnlyList<CommissionRuleDto>>> List(CancellationToken ct)
+        => Ok(await _m.Send(new ListCommissionRulesQuery(), ct));
+    [HttpPost] [RequirePermission("commissions.run")] public async Task<ActionResult<CommissionRuleDto>> Create([FromBody] CommissionRuleBody body, CancellationToken ct)
+        => Ok(await _m.Send(new CreateCommissionRuleCommand(body), ct));
+    [HttpDelete("{id:guid}")] [RequirePermission("commissions.run")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    { await _m.Send(new DeleteCommissionRuleCommand(id), ct); return NoContent(); }
+}
+
+[ApiController]
 [Route("api/company-bridges")]
 [Authorize(Policy = "AgencyAdmin")]
 public class CompanyBridgesController : ControllerBase
@@ -70,15 +92,15 @@ public class CompanyBridgesController : ControllerBase
     private readonly IMediator _m;
     public CompanyBridgesController(IMediator m) => _m = m;
 
-    [HttpGet] public async Task<ActionResult<IReadOnlyList<CompanyBridgeDto>>> List(CancellationToken ct)
+    [HttpGet] [RequirePermission("bridges.read")] public async Task<ActionResult<IReadOnlyList<CompanyBridgeDto>>> List(CancellationToken ct)
         => Ok(await _m.Send(new ListCompanyBridgesQuery(), ct));
-    [HttpPost] public async Task<ActionResult<CompanyBridgeDto>> Create([FromBody] CompanyBridgeBody body, CancellationToken ct)
+    [HttpPost] [RequirePermission("bridges.sync")] public async Task<ActionResult<CompanyBridgeDto>> Create([FromBody] CompanyBridgeBody body, CancellationToken ct)
         => Ok(await _m.Send(new UpsertCompanyBridgeCommand(null, body), ct));
-    [HttpPut("{id:guid}")] public async Task<ActionResult<CompanyBridgeDto>> Update(Guid id, [FromBody] CompanyBridgeBody body, CancellationToken ct)
+    [HttpPut("{id:guid}")] [RequirePermission("bridges.sync")] public async Task<ActionResult<CompanyBridgeDto>> Update(Guid id, [FromBody] CompanyBridgeBody body, CancellationToken ct)
         => Ok(await _m.Send(new UpsertCompanyBridgeCommand(id, body), ct));
-    [HttpPost("{id:guid}/sync")] public async Task<ActionResult<CompanyBridgeDto>> Sync(Guid id, CancellationToken ct)
+    [HttpPost("{id:guid}/sync")] [RequirePermission("bridges.sync")] public async Task<ActionResult<CompanyBridgeDto>> Sync(Guid id, CancellationToken ct)
         => Ok(await _m.Send(new SyncCompanyBridgeCommand(id), ct));
-    [HttpDelete("{id:guid}")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    [HttpDelete("{id:guid}")] [RequirePermission("bridges.sync")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     { await _m.Send(new DeleteCompanyBridgeCommand(id), ct); return NoContent(); }
 }
 
@@ -110,6 +132,7 @@ public class PermissionsController : ControllerBase
 [ApiController]
 [Route("api/exports")]
 [Authorize(Policy = "AgencyStaff")]
+[RequirePermission("exports.run")]
 public class ExportsController : ControllerBase
 {
     private readonly IAppDbContext _db;

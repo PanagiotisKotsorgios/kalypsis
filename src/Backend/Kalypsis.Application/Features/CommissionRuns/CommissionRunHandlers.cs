@@ -23,7 +23,8 @@ public record CommissionRunLineDto(
     Guid InsuranceCompanyId, string InsuranceCompanyName,
     PolicyType PolicyType, string? PackageCode,
     decimal Premium, decimal RatePercent, decimal CommissionAmount,
-    bool IsOverridden, decimal? OriginalCommissionAmount, string? OverrideReason);
+    bool IsOverridden, decimal? OriginalCommissionAmount, string? OverrideReason,
+    bool IsOverCommission, int OverCommissionLevel, Guid? OnBehalfOfProducerId, string? OnBehalfOfProducerName);
 
 public record CommissionRunDetailDto(CommissionRunDto Run, IReadOnlyList<CommissionRunLineDto> Lines);
 
@@ -103,6 +104,13 @@ public class GenerateCommissionRunCommandHandler : IRequestHandler<GenerateCommi
             .Where(r => (r.EffectiveTo == null || r.EffectiveTo >= firstDay) && r.EffectiveFrom <= lastDay)
             .ToListAsync(ct);
 
+        // 9-level over-commission rules active this month.
+        var overRules = await _db.OverCommissionRules
+            .Where(o => o.IsActive
+                        && (o.EffectiveTo == null || o.EffectiveTo >= firstDay)
+                        && o.EffectiveFrom <= lastDay)
+            .ToListAsync(ct);
+
         decimal MatchScore(CommissionRule r, Policy p)
         {
             decimal s = 0;
@@ -167,6 +175,56 @@ public class GenerateCommissionRunCommandHandler : IRequestHandler<GenerateCommi
             totalPremium += p.Premium;
             totalCommission += commission;
             lineCount++;
+
+            // Walk the 9-level over-commission pyramid: every manager whose
+            // SubordinateProducerId matches the policy's producer earns a payout,
+            // and we recurse so chains stack (manager-of-manager up to level 9).
+            if (!p.ProducerId.HasValue) continue;
+
+            var visited = new HashSet<Guid> { p.ProducerId.Value };
+            var queue = new Queue<Guid>();
+            queue.Enqueue(p.ProducerId.Value);
+            var depth = 0;
+
+            while (queue.Count > 0 && depth < 9)
+            {
+                depth++;
+                var levelSize = queue.Count;
+                for (var i = 0; i < levelSize; i++)
+                {
+                    var subordinate = queue.Dequeue();
+                    var managers = overRules
+                        .Where(r => r.SubordinateProducerId == subordinate
+                                    && r.Level == depth
+                                    && (!r.PolicyType.HasValue || r.PolicyType == p.PolicyType));
+                    foreach (var rule in managers)
+                    {
+                        if (!visited.Add(rule.ManagerProducerId)) continue;
+                        var overAmount = Math.Round(p.Premium * (rule.Percentage / 100m), 2);
+
+                        _db.CommissionRunLines.Add(new CommissionRunLine
+                        {
+                            Id = Guid.NewGuid(),
+                            CommissionRunId = run.Id,
+                            PolicyId = p.Id,
+                            ProducerId = rule.ManagerProducerId,
+                            InsuranceCompanyId = p.InsuranceCompanyId,
+                            PolicyType = p.PolicyType,
+                            Premium = p.Premium,
+                            RatePercent = rule.Percentage,
+                            CommissionAmount = overAmount,
+                            Currency = p.Currency,
+                            IsOverCommission = true,
+                            OverCommissionLevel = depth,
+                            OnBehalfOfProducerId = p.ProducerId
+                        });
+                        totalCommission += overAmount;
+                        lineCount++;
+
+                        queue.Enqueue(rule.ManagerProducerId);
+                    }
+                }
+            }
         }
 
         run.LineCount = lineCount;
@@ -203,8 +261,10 @@ public class GetCommissionRunDetailQueryHandler : IRequestHandler<GetCommissionR
             .Include(l => l.Policy)
             .Include(l => l.Producer)
             .Include(l => l.InsuranceCompany)
+            .Include(l => l.OnBehalfOfProducer)
             .Where(l => l.CommissionRunId == run.Id)
             .OrderBy(l => l.Producer == null ? "" : l.Producer.Name)
+            .ThenBy(l => l.IsOverCommission)
             .ThenBy(l => l.Policy.PolicyNumber)
             .ToListAsync(ct);
 
@@ -214,7 +274,8 @@ public class GetCommissionRunDetailQueryHandler : IRequestHandler<GetCommissionR
             l.InsuranceCompanyId, l.InsuranceCompany.Name,
             l.PolicyType, l.PackageCode,
             l.Premium, l.RatePercent, l.CommissionAmount,
-            l.IsOverridden, l.OriginalCommissionAmount, l.OverrideReason)).ToList();
+            l.IsOverridden, l.OriginalCommissionAmount, l.OverrideReason,
+            l.IsOverCommission, l.OverCommissionLevel, l.OnBehalfOfProducerId, l.OnBehalfOfProducer?.Name)).ToList();
 
         return new CommissionRunDetailDto(ListCommissionRunsQueryHandler.Map(run), lineDtos);
     }
@@ -267,7 +328,8 @@ public class OverrideCommissionLineCommandHandler : IRequestHandler<OverrideComm
             line.InsuranceCompanyId, line.InsuranceCompany.Name,
             line.PolicyType, line.PackageCode,
             line.Premium, line.RatePercent, line.CommissionAmount,
-            line.IsOverridden, line.OriginalCommissionAmount, line.OverrideReason);
+            line.IsOverridden, line.OriginalCommissionAmount, line.OverrideReason,
+            line.IsOverCommission, line.OverCommissionLevel, line.OnBehalfOfProducerId, null);
     }
 }
 
@@ -329,6 +391,81 @@ public class DeleteCommissionRunCommandHandler : IRequestHandler<DeleteCommissio
         if (run.Status == CommissionRunStatus.Finalised)
             throw AppException.Conflict("Δεν διαγράφεται οριστικοποιημένη εκκαθάριση.");
         run.DeletedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Unit.Value;
+    }
+}
+
+/* ========= CommissionRule CRUD (default rules per agency) ========= */
+
+public record CommissionRuleDto(
+    Guid Id, Guid? ProducerId, string? ProducerName,
+    Guid? InsuranceCompanyId, string? InsuranceCompanyName,
+    PolicyType? PolicyType, CommissionType CommissionType, decimal Value,
+    DateOnly EffectiveFrom, DateOnly? EffectiveTo);
+
+public record CommissionRuleBody(
+    Guid? ProducerId, Guid? InsuranceCompanyId, PolicyType? PolicyType,
+    CommissionType CommissionType, decimal Value,
+    DateOnly EffectiveFrom, DateOnly? EffectiveTo);
+
+public record ListCommissionRulesQuery() : IRequest<IReadOnlyList<CommissionRuleDto>>;
+public class ListCommissionRulesQueryHandler : IRequestHandler<ListCommissionRulesQuery, IReadOnlyList<CommissionRuleDto>>
+{
+    private readonly IAppDbContext _db;
+    public ListCommissionRulesQueryHandler(IAppDbContext db) => _db = db;
+    public async Task<IReadOnlyList<CommissionRuleDto>> Handle(ListCommissionRulesQuery _, CancellationToken ct)
+    {
+        var rows = await _db.CommissionRules
+            .Include(r => r.Producer).Include(r => r.InsuranceCompany)
+            .OrderByDescending(r => r.EffectiveFrom).Take(500).ToListAsync(ct);
+        return rows.Select(r => new CommissionRuleDto(
+            r.Id, r.ProducerId, r.Producer?.Name,
+            r.InsuranceCompanyId, r.InsuranceCompany?.Name,
+            r.PolicyType, r.CommissionType, r.Value,
+            r.EffectiveFrom, r.EffectiveTo)).ToList();
+    }
+}
+
+public record CreateCommissionRuleCommand(CommissionRuleBody Body) : IRequest<CommissionRuleDto>;
+public class CreateCommissionRuleCommandHandler : IRequestHandler<CreateCommissionRuleCommand, CommissionRuleDto>
+{
+    private readonly IAppDbContext _db;
+    public CreateCommissionRuleCommandHandler(IAppDbContext db) => _db = db;
+    public async Task<CommissionRuleDto> Handle(CreateCommissionRuleCommand r, CancellationToken ct)
+    {
+        var b = r.Body;
+        var rule = new CommissionRule
+        {
+            Id = Guid.NewGuid(),
+            ProducerId = b.ProducerId,
+            InsuranceCompanyId = b.InsuranceCompanyId,
+            PolicyType = b.PolicyType,
+            CommissionType = b.CommissionType,
+            Value = b.Value,
+            EffectiveFrom = b.EffectiveFrom,
+            EffectiveTo = b.EffectiveTo
+        };
+        _db.CommissionRules.Add(rule);
+        await _db.SaveChangesAsync(ct);
+        rule = await _db.CommissionRules.Include(x => x.Producer).Include(x => x.InsuranceCompany).FirstAsync(x => x.Id == rule.Id, ct);
+        return new CommissionRuleDto(rule.Id, rule.ProducerId, rule.Producer?.Name,
+            rule.InsuranceCompanyId, rule.InsuranceCompany?.Name,
+            rule.PolicyType, rule.CommissionType, rule.Value,
+            rule.EffectiveFrom, rule.EffectiveTo);
+    }
+}
+
+public record DeleteCommissionRuleCommand(Guid Id) : IRequest<Unit>;
+public class DeleteCommissionRuleCommandHandler : IRequestHandler<DeleteCommissionRuleCommand, Unit>
+{
+    private readonly IAppDbContext _db;
+    public DeleteCommissionRuleCommandHandler(IAppDbContext db) => _db = db;
+    public async Task<Unit> Handle(DeleteCommissionRuleCommand request, CancellationToken ct)
+    {
+        var rule = await _db.CommissionRules.FirstOrDefaultAsync(x => x.Id == request.Id, ct)
+            ?? throw AppException.NotFound("Rule");
+        rule.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
         return Unit.Value;
     }

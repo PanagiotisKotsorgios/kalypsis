@@ -43,6 +43,7 @@ public class CommissionRunLineConfiguration : IEntityTypeConfiguration<Commissio
         b.HasOne(x => x.Policy).WithMany().HasForeignKey(x => x.PolicyId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne(x => x.Producer).WithMany().HasForeignKey(x => x.ProducerId).OnDelete(DeleteBehavior.SetNull);
         b.HasOne(x => x.InsuranceCompany).WithMany().HasForeignKey(x => x.InsuranceCompanyId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.OnBehalfOfProducer).WithMany().HasForeignKey(x => x.OnBehalfOfProducerId).OnDelete(DeleteBehavior.SetNull);
         b.HasIndex(x => new { x.TenantId, x.CommissionRunId, x.ProducerId });
     }
 }

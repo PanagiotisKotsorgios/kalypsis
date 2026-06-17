@@ -62,5 +62,15 @@ public class CommissionRunLine : TenantEntity
     public decimal? OriginalCommissionAmount { get; set; }
     public string? OverrideReason { get; set; }
 
+    /// <summary>True when this line represents an over-commission earned by a
+    /// manager from a subordinate's policy (vs the direct commission line).</summary>
+    public bool IsOverCommission { get; set; }
+    public int OverCommissionLevel { get; set; }
+
+    /// <summary>For over-commission lines, the producer whose policy generated
+    /// this payout (the manager is ProducerId).</summary>
+    public Guid? OnBehalfOfProducerId { get; set; }
+    public Producer? OnBehalfOfProducer { get; set; }
+
     public string Currency { get; set; } = "EUR";
 }

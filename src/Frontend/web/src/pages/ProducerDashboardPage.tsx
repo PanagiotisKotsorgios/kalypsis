@@ -36,6 +36,25 @@ interface ProducerReportDto {
   expiringSoon: RecentPolicy[];
 }
 
+interface SelfSummaryDto {
+  producerId: string;
+  name: string;
+  status: string;
+  activePolicies: number;
+  policiesMtd: number; policiesYtd: number;
+  premiumMtd: number; premiumYtd: number;
+  commissionMtd: number; commissionYtd: number;
+  overCommissionYtd: number;
+  customersServed: number;
+}
+
+interface MyRunLineDto {
+  runId: string; runTitle: string; year: number; month: number; runStatus: string;
+  lineId: string; policyNumber: string; insuranceCompanyName: string;
+  policyType: string; premium: number; ratePercent: number; commissionAmount: number;
+  isOverCommission: boolean; overCommissionLevel: number; onBehalfOfProducerName: string | null;
+}
+
 const COLORS = ["#0b2545", "#1d4e89", "#1ea7e1", "#f6a623", "#7be295", "#c0392b", "#7f8c8d"];
 
 export function ProducerDashboardPage() {
@@ -45,6 +64,14 @@ export function ProducerDashboardPage() {
   const q = useQuery({
     queryKey: ["producer-report"],
     queryFn: async () => (await api.get<ProducerReportDto>("/reports/producer")).data
+  });
+  const self = useQuery({
+    queryKey: ["producer-self-summary"],
+    queryFn: async () => (await api.get<SelfSummaryDto>("/producer/me/summary")).data
+  });
+  const myLines = useQuery({
+    queryKey: ["producer-self-commissions"],
+    queryFn: async () => (await api.get<MyRunLineDto[]>("/producer/me/commissions")).data
   });
 
   if (q.isLoading || !q.data) {
@@ -75,6 +102,56 @@ export function ProducerDashboardPage() {
           value={`€${r.kpis.monthlyPremium.toLocaleString("el-GR", { minimumFractionDigits: 0 })}`} />
         <Kpi label={t("producerDashboard.kpi.renewalsYear")} value={r.kpis.renewalsThisYear.toLocaleString("el-GR")} />
       </Box>
+
+      {/* My commission section (from /api/producer/me) */}
+      {self.data && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" fontWeight={700} mb={2}>{t("producerDashboard.myCommissions")}</Typography>
+            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, mb: 2 }}>
+              <Kpi label={t("producerDashboard.kpi.commissionMtd")} value={`€${self.data.commissionMtd.toFixed(2)}`} />
+              <Kpi label={t("producerDashboard.kpi.commissionYtd")} value={`€${self.data.commissionYtd.toFixed(2)}`} />
+              <Kpi label={t("producerDashboard.kpi.overCommissionYtd")} value={`€${self.data.overCommissionYtd.toFixed(2)}`} />
+              <Kpi label={t("producerDashboard.kpi.premiumYtd")} value={`€${self.data.premiumYtd.toFixed(2)}`} />
+            </Box>
+
+            {(myLines.data ?? []).length === 0 ? (
+              <Typography color="text.secondary" textAlign="center" py={3}>{t("producerDashboard.noCommissionLines")}</Typography>
+            ) : (
+              <TableContainer>
+                <Table size="small">
+                  <TableHead><TableRow>
+                    <TableCell>{t("producerDashboard.runPeriod")}</TableCell>
+                    <TableCell>{t("policies.col.number")}</TableCell>
+                    <TableCell>{t("policies.col.carrier")}</TableCell>
+                    <TableCell>{t("policies.col.type")}</TableCell>
+                    <TableCell align="right">{t("producerDashboard.premium")}</TableCell>
+                    <TableCell align="right">{t("producerDashboard.rate")}</TableCell>
+                    <TableCell align="right">{t("producerDashboard.commission")}</TableCell>
+                  </TableRow></TableHead>
+                  <TableBody>
+                    {(myLines.data ?? []).slice(0, 20).map(l => (
+                      <TableRow key={l.lineId} hover sx={l.isOverCommission ? { bgcolor: "rgba(246,166,35,0.08)" } : undefined}>
+                        <TableCell>{l.year}-{l.month.toString().padStart(2, "0")} <Typography variant="caption" color="text.secondary">· {l.runTitle}</Typography></TableCell>
+                        <TableCell sx={{ fontFamily: "monospace" }}>{l.policyNumber}</TableCell>
+                        <TableCell>{l.insuranceCompanyName}</TableCell>
+                        <TableCell>
+                          {t(`policyType.${l.policyType}`)}
+                          {l.isOverCommission && <Chip label={`OVR L${l.overCommissionLevel}`} size="small" color="warning" sx={{ ml: 0.5, height: 18 }} />}
+                          {l.onBehalfOfProducerName && <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{l.onBehalfOfProducerName}</Typography>}
+                        </TableCell>
+                        <TableCell align="right">{l.premium.toFixed(2)} €</TableCell>
+                        <TableCell align="right">{l.ratePercent.toFixed(2)}%</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700, color: "primary.main" }}>{l.commissionAmount.toFixed(2)} €</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Monthly production line */}
       <Card sx={{ mb: 3 }}>

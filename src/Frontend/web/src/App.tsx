@@ -53,6 +53,7 @@ import { useImpersonation } from "./impersonation/ImpersonationContext";
 import { AppLayout, type NavItem } from "./components/AppLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { CookieBanner } from "./components/CookieBanner";
+import { OnboardingWizard } from "./components/OnboardingWizard";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
@@ -321,6 +322,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <CookieBanner />
+      {user?.role === "AgencyAdmin" && !impersonatedTenantId && <OnboardingWizard />}
     </>
   );
 }

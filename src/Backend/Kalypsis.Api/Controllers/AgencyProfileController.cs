@@ -6,6 +6,23 @@ using Microsoft.AspNetCore.Mvc;
 namespace Kalypsis.Api.Controllers;
 
 [ApiController]
+[Route("api/agency-profile/onboarding")]
+[Authorize(Policy = "AgencyAdmin")]
+public class OnboardingController : ControllerBase
+{
+    private readonly IMediator _m;
+    public OnboardingController(IMediator m) => _m = m;
+
+    [HttpGet]
+    public async Task<ActionResult<OnboardingStateDto>> Get(CancellationToken ct)
+        => Ok(await _m.Send(new GetOnboardingStateQuery(), ct));
+
+    [HttpPost("complete")]
+    public async Task<ActionResult<OnboardingStateDto>> Complete(CancellationToken ct)
+        => Ok(await _m.Send(new CompleteOnboardingCommand(), ct));
+}
+
+[ApiController]
 [Route("api/agency-profile")]
 public class AgencyProfileController : ControllerBase
 {
