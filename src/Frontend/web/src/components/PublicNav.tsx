@@ -52,7 +52,7 @@ export function PublicNav(_: PublicNavProps = {}) {
           transition: "border-color 360ms var(--ease-editorial)"
         }}
       >
-        <Container maxWidth="lg">
+        <Container maxWidth="xl" sx={{ px: { xs: 2, md: 5, lg: 6 } }}>
           <Toolbar
             disableGutters
             sx={{
@@ -87,7 +87,7 @@ export function PublicNav(_: PublicNavProps = {}) {
             {/* Desktop nav links */}
             <Stack
               direction="row"
-              spacing={5}
+              spacing={{ md: 4, lg: 6 }}
               alignItems="center"
               sx={{ display: { xs: "none", md: "flex" } }}
             >
@@ -140,7 +140,7 @@ export function PublicNav(_: PublicNavProps = {}) {
             </Stack>
 
             {/* Desktop CTAs */}
-            <Stack direction="row" spacing={2} alignItems="center" sx={{ display: { xs: "none", md: "flex" }, ml: 4 }}>
+            <Stack direction="row" spacing={2} alignItems="center" sx={{ display: { xs: "none", md: "flex" }, ml: { md: 4, lg: 6 } }}>
               <Box sx={{
                 "& .MuiButton-root": {
                   fontFamily: "var(--sans)",
