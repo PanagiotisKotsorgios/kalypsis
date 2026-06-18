@@ -1,42 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Box,
-  Button,
-  Card,
-  Chip,
-  Container,
-  Stack,
-  Typography,
-  useTheme
-} from "@mui/material";
+import { Box, Container, Stack } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import ArrowOutwardIcon from "@mui/icons-material/ArrowOutward";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
-// Sidebar-themed flat icons (one tone) — match the post-login app shell.
-import DescriptionIcon from "@mui/icons-material/Description";
-import PeopleIcon from "@mui/icons-material/People";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import PhoneIphoneIcon from "@mui/icons-material/PhoneIphone";
-import NotificationsIcon from "@mui/icons-material/Notifications";
-import ExtensionIcon from "@mui/icons-material/Extension";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { PublicShell } from "../components/PublicShell";
-import { BrandImage } from "../components/BrandImage";
-import { RevealOnScroll } from "../components/RevealOnScroll";
+import { EdReveal } from "../components/EdReveal";
 import { api } from "../api/client";
-
-const HERO_IMAGE =
-  "https://media.canadianunderwriter.ca/uploads/2024/07/iStock-1479275024-modified-78c42d3a-3ec3-44d2-98a4-882c8c742d8e.jpg";
-const FOR_AGENCIES_IMAGE =
-  "https://img.magnific.com/premium-photo/businessman-holding-different-icons-dark-background-closeup-insurance-concept_495423-31062.jpg";
-const FOR_AGENTS_IMAGE =
-  "https://img.freepik.com/premium-vector/insurance-services-concept-with-magnifier-hand-magnifying-glass-virtual-screen_127544-770.jpg";
 
 interface PublicStats { agencies: number; producers: number; activePolicies: number; uptime: string }
 
@@ -44,236 +15,282 @@ export function LandingPage() {
   return (
     <PublicShell overlayHero>
       <Hero />
-      <PartnersStrip />
+      <TrustMarquee />
+      <Manifesto />
       <Features />
       <ForAgencies />
-      <ForAgents />
       <Stats />
+      <PullQuote />
+      <ForAgents />
       <FaqTeaser />
       <FinalCta />
     </PublicShell>
   );
 }
 
-/* ----------------------- HERO ----------------------- */
+/* =============================================================
+   01 — HERO
+   ============================================================= */
 function Hero() {
   const { t } = useTranslation();
-  const theme = useTheme();
-
   return (
-    <Box
-      sx={{
-        position: "relative",
-        minHeight: { xs: "80vh", md: "78vh" },
-        display: "flex",
-        alignItems: "center",
-        overflow: "hidden",
-        pt: { xs: 8, md: 10 },
-        pb: { xs: 10, md: 12 }
-      }}
-    >
-      <BrandImage seed="kalypsis-hero" imageUrl={HERO_IMAGE} overlay="navy-strong" />
-      <Box
-        sx={{
-          position: "absolute",
-          top: "-20%",
-          right: "-10%",
-          width: 720,
-          height: 720,
-          background: `radial-gradient(circle, ${theme.palette.secondary.main}33 0%, transparent 60%)`,
-          filter: "blur(20px)",
-          pointerEvents: "none"
-        }}
-      />
-      <Container maxWidth="md" sx={{ position: "relative", zIndex: 1, color: "common.white", textAlign: "center" }}>
-        <Stack spacing={4} alignItems="center">
-          <RevealOnScroll direction="up" duration={900}>
-          <Typography
-            variant="h1"
-            sx={{
-              fontSize: { xs: 38, sm: 52, md: 68 },
-              fontWeight: 900,
-              lineHeight: 1.05,
-              letterSpacing: -1.5,
-              maxWidth: 900
-            }}
-          >
-            {t("landing.headline")}
-          </Typography>
-          </RevealOnScroll>
-          <RevealOnScroll direction="up" delay={150}>
-          <Typography
-            sx={{
-              fontSize: { xs: 17, md: 20 },
-              lineHeight: 1.65,
-              opacity: 0.92,
-              maxWidth: 720
-            }}
-          >
-            {t("landing.lead")}
-          </Typography>
-          </RevealOnScroll>
+    <Box className="editorial-grain" sx={{
+      position: "relative",
+      pt: { xs: 10, md: 16 },
+      pb: { xs: 10, md: 16 },
+      borderBottom: "1px solid var(--rule)"
+    }}>
+      <Container maxWidth="lg">
+        <Box sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "1fr 56px" },
+          gap: { md: 4 },
+          alignItems: "start"
+        }}>
+          <Box>
+            <EdReveal>
+              <Stack direction="row" alignItems="baseline" spacing={2} mb={{ xs: 4, md: 6 }}>
+                <span className="number-marker">№ 01</span>
+                <Box sx={{ flex: 1, height: "1px", bgcolor: "var(--rule)" }} />
+                <span className="eyebrow">{t("landing.eyebrow")}</span>
+              </Stack>
+            </EdReveal>
 
-          <RevealOnScroll direction="up" delay={300}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ pt: 2 }}>
-            <Button
-              component={RouterLink}
-              to="/register"
-              size="large"
-              variant="contained"
-              color="secondary"
-              endIcon={<ArrowForwardIcon />}
-              sx={{ px: 4.5, py: 1.6, fontSize: 16, fontWeight: 700 }}
-            >
-              {t("landing.ctaPrimary")}
-            </Button>
-            <Button
-              component={RouterLink}
-              to="/login"
-              size="large"
-              variant="outlined"
-              sx={{
-                px: 4.5,
-                py: 1.6,
-                color: "common.white",
-                borderColor: "rgba(255,255,255,0.5)",
-                "&:hover": { borderColor: "common.white", bgcolor: "rgba(255,255,255,0.08)" }
-              }}
-            >
-              {t("landing.ctaSecondary")}
-            </Button>
-          </Stack>
-          </RevealOnScroll>
+            <EdReveal delay={120}>
+              <Box className="display" sx={{
+                fontSize: { xs: 56, sm: 80, md: 116, lg: 132 },
+                color: "var(--ink)",
+                mb: 4,
+                maxWidth: 1100
+              }}>
+                {t("landing.editorial.headlineA")}{" "}
+                <span className="display-italic" style={{ color: "var(--terracotta)" }}>
+                  {t("landing.editorial.headlineB")}
+                </span>{" "}
+                {t("landing.editorial.headlineC")}
+                <span className="caret" />
+              </Box>
+            </EdReveal>
+
+            <EdReveal delay={240}>
+              <Box sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "1fr 1.4fr" },
+                gap: { xs: 3, md: 6 },
+                mt: { xs: 4, md: 8 }
+              }}>
+                <Box className="marginalia">
+                  <Box sx={{ borderTop: "1px solid var(--ink)", pt: 2, mb: 2, color: "var(--ink)" }}>
+                    <span className="eyebrow">{t("landing.editorial.byline")}</span>
+                  </Box>
+                  {t("landing.editorial.byBody")}
+                </Box>
+                <Box>
+                  <p style={{
+                    fontSize: 19,
+                    lineHeight: 1.65,
+                    color: "var(--ink-soft)",
+                    marginTop: 0,
+                    maxWidth: 560
+                  }}>
+                    {t("landing.lead")}
+                  </p>
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 4 }}>
+                    <RouterLink to="/register" className="ink-button">
+                      <span>{t("landing.ctaPrimary")}</span>
+                      <ArrowOutwardIcon sx={{ fontSize: 18 }} />
+                    </RouterLink>
+                    <RouterLink to="/login" className="ghost-button">
+                      <span>{t("landing.ctaSecondary")}</span>
+                    </RouterLink>
+                  </Stack>
+                </Box>
+              </Box>
+            </EdReveal>
+          </Box>
+
+          <Box sx={{
+            display: { xs: "none", md: "flex" },
+            flexDirection: "column",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            height: "100%",
+            color: "var(--ink-muted)",
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            letterSpacing: "0.16em",
+            lineHeight: 2,
+            pt: 1
+          }}>
+            <Box sx={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+              ΑΘΗΝΑ &nbsp;·&nbsp; {new Date().getFullYear()} &nbsp;·&nbsp; ΤΕΥΧΟΣ N°01
+            </Box>
+          </Box>
+        </Box>
+      </Container>
+    </Box>
+  );
+}
+
+/* =============================================================
+   02 — TRUST MARQUEE
+   ============================================================= */
+function TrustMarquee() {
+  const { t } = useTranslation();
+  const carriers = ["INTERAMERICAN", "ΕΘΝΙΚΗ", "EUROLIFE FFH", "ERGO", "ALLIANZ", "NN HELLAS", "GENERALI", "INTERLIFE"];
+  const stream = [...carriers, ...carriers];
+  return (
+    <Box sx={{ borderBottom: "1px solid var(--rule)", py: 4 }}>
+      <Container maxWidth="lg">
+        <Stack direction={{ xs: "column", md: "row" }} spacing={3} alignItems="center">
+          <Box className="eyebrow" sx={{ whiteSpace: "nowrap" }}>{t("landing.trustedBy")}</Box>
+          <Box className="trust-marquee" sx={{ flex: 1, width: "100%" }}>
+            <Box className="track">
+              {stream.map((name, i) => (
+                <Box key={i} sx={{
+                  fontFamily: "var(--display)",
+                  fontStyle: "italic",
+                  fontVariationSettings: "'opsz' 144, 'SOFT' 60",
+                  fontSize: { xs: 22, md: 28 },
+                  color: "var(--ink-muted)",
+                  letterSpacing: "-0.01em",
+                  whiteSpace: "nowrap"
+                }}>
+                  {name}
+                </Box>
+              ))}
+            </Box>
+          </Box>
         </Stack>
       </Container>
     </Box>
   );
 }
 
-/* ----------------------- PARTNERS / TRUST STRIP ----------------------- */
-function PartnersStrip() {
+/* =============================================================
+   03 — MANIFESTO with drop cap
+   ============================================================= */
+function Manifesto() {
   const { t } = useTranslation();
   return (
-    <Box sx={{ bgcolor: "background.paper", py: 5, borderBottom: "1px solid", borderColor: "divider" }}>
-      <Container maxWidth="lg">
-        <RevealOnScroll direction="up">
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={4}
-          alignItems="center"
-          justifyContent="space-between"
-        >
-          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 2 }}>
-            {t("landing.trustedBy")}
-          </Typography>
-          <Stack
-            direction="row"
-            spacing={{ xs: 3, md: 5 }}
-            flexWrap="wrap"
-            justifyContent="center"
-            sx={{ opacity: 0.7 }}
-          >
-            {["INTERAMERICAN", "ETHNIKI", "EUROLIFE FFH", "ERGO", "ALLIANZ", "NN HELLAS"].map((name) => (
-              <Typography
-                key={name}
-                sx={{
-                  fontFamily: "'Manrope', sans-serif",
-                  fontWeight: 800,
-                  letterSpacing: 1.2,
-                  color: "text.secondary",
-                  fontSize: { xs: 14, md: 16 }
-                }}
-              >
-                {name}
-              </Typography>
-            ))}
-          </Stack>
-        </Stack>
-        </RevealOnScroll>
+    <Box sx={{ py: { xs: 10, md: 18 }, borderBottom: "1px solid var(--rule)" }}>
+      <Container maxWidth="md">
+        <EdReveal>
+          <Box className="section-band" sx={{ mb: 6 }}>
+            <Box><span className="number-marker">№ 02</span></Box>
+            <Box>
+              <span className="eyebrow">{t("landing.manifesto.eyebrow")}</span>
+            </Box>
+          </Box>
+        </EdReveal>
+
+        <EdReveal delay={120}>
+          <Box className="display" sx={{
+            fontSize: { xs: 36, md: 56 },
+            mb: 5,
+            maxWidth: 720,
+            color: "var(--ink)"
+          }}>
+            {t("landing.manifesto.title")}
+          </Box>
+        </EdReveal>
+
+        <EdReveal delay={220}>
+          <Box className="drop-cap" sx={{
+            fontSize: 19,
+            lineHeight: 1.75,
+            color: "var(--ink-soft)",
+            maxWidth: 720
+          }}>
+            {t("landing.manifesto.body")}
+          </Box>
+        </EdReveal>
       </Container>
     </Box>
   );
 }
 
-/* ----------------------- FEATURES ----------------------- */
+/* =============================================================
+   04 — FEATURES
+   ============================================================= */
 function Features() {
   const { t } = useTranslation();
   const features = [
-    { icon: <DescriptionIcon />, key: "policies" },
-    { icon: <NotificationsIcon />, key: "renewals" },
-    { icon: <PeopleIcon />, key: "portal" },
-    { icon: <TrendingUpIcon />, key: "commissions" },
-    { icon: <PhoneIphoneIcon />, key: "mobile" },
-    { icon: <ExtensionIcon />, key: "integrations" }
+    { key: "policies",     glyph: "I" },
+    { key: "renewals",     glyph: "II" },
+    { key: "portal",       glyph: "III" },
+    { key: "commissions",  glyph: "IV" },
+    { key: "mobile",       glyph: "V" },
+    { key: "integrations", glyph: "VI" }
   ];
   return (
-    <Box id="features" sx={{ py: { xs: 8, md: 14 } }}>
+    <Box id="features" sx={{ py: { xs: 10, md: 18 }, borderBottom: "1px solid var(--rule)" }}>
       <Container maxWidth="lg">
-        <RevealOnScroll direction="up">
-        <Stack spacing={1.5} alignItems="center" textAlign="center" mb={6}>
-          <Typography variant="overline" color="secondary.main" sx={{ letterSpacing: 2, fontWeight: 700 }}>
-            {t("landing.features.eyebrow")}
-          </Typography>
-          <Typography variant="h3" sx={{ fontWeight: 800, maxWidth: 800 }}>
-            {t("landing.features.title")}
-          </Typography>
-          <Typography color="text.secondary" sx={{ maxWidth: 640 }}>
-            {t("landing.features.lead")}
-          </Typography>
-        </Stack>
-        </RevealOnScroll>
+        <EdReveal>
+          <Box className="section-band" sx={{ mb: 6 }}>
+            <Box><span className="number-marker">№ 03</span></Box>
+            <Box>
+              <span className="eyebrow">{t("landing.features.eyebrow")}</span>
+              <Box className="display" sx={{
+                fontSize: { xs: 36, md: 56 },
+                mt: 2,
+                color: "var(--ink)",
+                maxWidth: 880
+              }}>
+                {t("landing.features.title")}
+              </Box>
+              <Box sx={{ mt: 3, maxWidth: 640, color: "var(--ink-soft)", fontSize: 17, lineHeight: 1.65 }}>
+                {t("landing.features.lead")}
+              </Box>
+            </Box>
+          </Box>
+        </EdReveal>
 
-        <Box
-          sx={{
-            display: "grid",
-            gap: 3,
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, 1fr)",
-              md: "repeat(3, 1fr)"
-            }
-          }}
-        >
-          {features.map((f, idx) => (
-            <RevealOnScroll key={f.key} delay={idx * 80} direction="up">
-              <Card
-                sx={{
-                  p: 3.5,
-                  height: "100%",
-                  border: "1px solid",
-                  borderColor: "divider",
-                  transition: "transform 200ms, box-shadow 200ms, border-color 200ms",
-                  "&:hover": {
-                    transform: "translateY(-4px)",
-                    borderColor: "primary.light",
-                    boxShadow: "0 18px 40px rgba(11, 37, 69, 0.12)"
-                  }
-                }}
-              >
-                <Box
-                  sx={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 2,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    bgcolor: "rgba(11,37,69,0.06)",
-                    color: "primary.main",
-                    mb: 2.5,
-                    "& svg": { fontSize: 28 }
-                  }}
-                >
-                  {f.icon}
+        <Box sx={{
+          display: "grid",
+          gap: 0,
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+          mt: 8,
+          borderTop: "1px solid var(--rule)",
+          borderLeft: { sm: "1px solid var(--rule)" }
+        }}>
+          {features.map((f, i) => (
+            <EdReveal key={f.key} delay={i * 90}>
+              <Box className="paper-card" sx={{
+                p: { xs: 4, md: 5 },
+                height: "100%",
+                border: "none",
+                borderRight: "1px solid var(--rule)",
+                borderBottom: "1px solid var(--rule)",
+                background: "transparent"
+              }}>
+                <Box sx={{
+                  fontFamily: "var(--display)",
+                  fontStyle: "italic",
+                  fontSize: 14,
+                  color: "var(--gold)",
+                  letterSpacing: "0.04em",
+                  mb: 4
+                }}>
+                  {f.glyph}.
                 </Box>
-                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                <Box className="display" sx={{
+                  fontSize: { xs: 26, md: 30 },
+                  color: "var(--ink)",
+                  mb: 2,
+                  lineHeight: 1.05
+                }}>
                   {t(`landing.features.${f.key}.title`)}
-                </Typography>
-                <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
+                </Box>
+                <Box sx={{
+                  color: "var(--ink-soft)",
+                  fontSize: 15,
+                  lineHeight: 1.7
+                }}>
                   {t(`landing.features.${f.key}.body`)}
-                </Typography>
-              </Card>
-            </RevealOnScroll>
+                </Box>
+              </Box>
+            </EdReveal>
           ))}
         </Box>
       </Container>
@@ -281,96 +298,185 @@ function Features() {
   );
 }
 
-/* ----------------------- FOR AGENCIES ----------------------- */
+/* =============================================================
+   05 — FOR AGENCIES — asymmetric, marginalia
+   ============================================================= */
 function ForAgencies() {
   const { t } = useTranslation();
-  const points = [
-    "forAgencies.point1",
-    "forAgencies.point2",
-    "forAgencies.point3",
-    "forAgencies.point4",
-    "forAgencies.point5"
-  ];
-
+  const points = ["forAgencies.point1","forAgencies.point2","forAgencies.point3","forAgencies.point4","forAgencies.point5"];
   return (
-    <Box id="for-agencies" sx={{ py: { xs: 8, md: 14 }, bgcolor: "background.paper" }}>
+    <Box id="for-agencies" sx={{
+      py: { xs: 10, md: 18 },
+      borderBottom: "1px solid var(--rule)",
+      bgcolor: "var(--paper-deep)"
+    }}>
       <Container maxWidth="lg">
-        <Box
-          sx={{
-            display: "grid",
-            gap: { xs: 5, md: 8 },
-            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-            alignItems: "center"
-          }}
-        >
-          <RevealOnScroll direction="left">
-            <Box sx={{ position: "relative", aspectRatio: "5/4", borderRadius: 4, overflow: "hidden" }}>
-              <BrandImage seed="for-agencies" imageUrl={FOR_AGENCIES_IMAGE} overlay="tint" />
-              <Box
-                sx={{
-                  position: "absolute",
-                  left: 20,
-                  bottom: 20,
-                  px: 2.5,
-                  py: 1.5,
-                  bgcolor: "rgba(11,37,69,0.92)",
-                  color: "common.white",
-                  borderRadius: 2,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  letterSpacing: 0.8,
-                  zIndex: 1
-                }}
-              >
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <CheckCircleIcon sx={{ color: "primary.contrastText", fontSize: 18 }} />
-                  <span>{t("landing.forAgencies.badge")}</span>
-                </Stack>
+        <EdReveal>
+          <Box className="section-band" sx={{ mb: 6 }}>
+            <Box><span className="number-marker">№ 04</span></Box>
+            <Box>
+              <span className="eyebrow">{t("landing.forAgencies.eyebrow")}</span>
+            </Box>
+          </Box>
+        </EdReveal>
+
+        <Box sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "5fr 7fr" },
+          gap: { xs: 4, md: 8 },
+          alignItems: "start"
+        }}>
+          <EdReveal delay={100}>
+            <Box className="display" sx={{
+              fontSize: { xs: 38, md: 56 },
+              color: "var(--ink)",
+              position: { md: "sticky" },
+              top: 120
+            }}>
+              <span>{t("landing.editorial.agencyA")}</span>{" "}
+              <span className="display-italic" style={{ color: "var(--terracotta)" }}>
+                {t("landing.editorial.agencyB")}
+              </span>
+            </Box>
+          </EdReveal>
+
+          <EdReveal delay={200}>
+            <Box>
+              <Box sx={{ fontSize: 18, lineHeight: 1.75, color: "var(--ink-soft)", mb: 5 }}>
+                {t("landing.forAgencies.lead")}
+              </Box>
+
+              <Box sx={{ borderTop: "1px solid var(--ink)" }}>
+                {points.map((p, i) => (
+                  <Box key={p} sx={{
+                    display: "grid",
+                    gridTemplateColumns: "48px 1fr",
+                    gap: 3,
+                    py: 3,
+                    borderBottom: "1px solid var(--rule)",
+                    alignItems: "baseline"
+                  }}>
+                    <Box className="number-marker">{String(i + 1).padStart(2, "0")}</Box>
+                    <Box sx={{ fontSize: 17, lineHeight: 1.55, color: "var(--ink)" }}>
+                      {t(`landing.${p}`)}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+
+              <Box sx={{ mt: 5 }}>
+                <RouterLink to="/register" className="ink-button">
+                  <span>{t("landing.forAgencies.cta")}</span>
+                  <ArrowOutwardIcon sx={{ fontSize: 18 }} />
+                </RouterLink>
               </Box>
             </Box>
-          </RevealOnScroll>
-
-          <RevealOnScroll direction="right" delay={100}>
-            <Stack spacing={3}>
-              <Typography variant="overline" color="secondary.main" sx={{ letterSpacing: 2, fontWeight: 700 }}>
-                {t("landing.forAgencies.eyebrow")}
-              </Typography>
-              <Typography variant="h3" sx={{ fontWeight: 800 }}>
-                {t("landing.forAgencies.title")}
-              </Typography>
-              <Typography color="text.secondary" sx={{ fontSize: 17, lineHeight: 1.7 }}>
-                {t("landing.forAgencies.lead")}
-              </Typography>
-
-              <Stack spacing={1.5} sx={{ pt: 1 }}>
-                {points.map((p) => (
-                  <Stack key={p} direction="row" spacing={1.5} alignItems="flex-start">
-                    <CheckCircleIcon sx={{ color: "primary.main", mt: 0.4 }} />
-                    <Typography>{t(`landing.${p}`)}</Typography>
-                  </Stack>
-                ))}
-              </Stack>
-
-              <Box sx={{ pt: 2 }}>
-                <Button
-                  component={RouterLink}
-                  to="/register"
-                  variant="contained"
-                  size="large"
-                  endIcon={<ArrowForwardIcon />}
-                >
-                  {t("landing.forAgencies.cta")}
-                </Button>
-              </Box>
-            </Stack>
-          </RevealOnScroll>
+          </EdReveal>
         </Box>
       </Container>
     </Box>
   );
 }
 
-/* ----------------------- FOR AGENTS ----------------------- */
+/* =============================================================
+   06 — STATS, on ink
+   ============================================================= */
+function Stats() {
+  const { t } = useTranslation();
+  const q = useQuery({
+    queryKey: ["public-stats"],
+    queryFn: async () => (await api.get<PublicStats>("/public/stats")).data,
+    staleTime: 5 * 60 * 1000
+  });
+  const fmt = (n: number | undefined) => n === undefined ? "—" : n.toLocaleString("el-GR");
+  const stats = [
+    { value: q.data ? `${fmt(q.data.agencies)}+` : "—", labelKey: "landing.stats.agencies" },
+    { value: q.data ? fmt(q.data.producers)        : "—", labelKey: "landing.stats.agents" },
+    { value: q.data ? fmt(q.data.activePolicies)   : "—", labelKey: "landing.stats.policies" },
+    { value: q.data?.uptime ?? "99,98%",                  labelKey: "landing.stats.uptime" }
+  ];
+  return (
+    <Box sx={{
+      bgcolor: "var(--ink)",
+      color: "var(--paper)",
+      borderBottom: "1px solid rgba(255,255,255,0.06)",
+      py: { xs: 8, md: 14 }
+    }} className="editorial-grain">
+      <Container maxWidth="lg">
+        <EdReveal>
+          <Box className="section-band" sx={{ mb: 6 }}>
+            <Box><span className="number-marker">№ 05</span></Box>
+            <Box>
+              <span className="eyebrow" style={{ color: "rgba(245,237,225,0.7)" }}>
+                {t("landing.stats.eyebrow")}
+              </span>
+            </Box>
+          </Box>
+        </EdReveal>
+
+        <Box sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
+          borderTop: "1px solid rgba(245,237,225,0.18)"
+        }}>
+          {stats.map((s, i) => (
+            <EdReveal key={s.labelKey} delay={i * 120}>
+              <Box sx={{
+                p: { xs: 4, md: 6 },
+                borderBottom: "1px solid rgba(245,237,225,0.18)",
+                borderRight: { md: i < 3 ? "1px solid rgba(245,237,225,0.18)" : "none" }
+              }}>
+                <Box className="display" sx={{
+                  fontSize: { xs: 56, md: 96 },
+                  color: "var(--paper)",
+                  lineHeight: 0.95,
+                  mb: 2
+                }}>
+                  {s.value}
+                </Box>
+                <Box className="eyebrow" sx={{ color: "rgba(245,237,225,0.7)" }}>
+                  {t(s.labelKey)}
+                </Box>
+              </Box>
+            </EdReveal>
+          ))}
+        </Box>
+      </Container>
+    </Box>
+  );
+}
+
+/* =============================================================
+   07 — PULL QUOTE
+   ============================================================= */
+function PullQuote() {
+  const { t } = useTranslation();
+  return (
+    <Box sx={{ py: { xs: 10, md: 18 }, borderBottom: "1px solid var(--rule)" }}>
+      <Container maxWidth="md">
+        <EdReveal>
+          <Box className="pull-quote" sx={{ textAlign: "left", maxWidth: 760 }}>
+            {t("landing.pullQuote.text")}
+          </Box>
+        </EdReveal>
+        <EdReveal delay={150}>
+          <Box sx={{
+            mt: 4, pt: 3, borderTop: "1px solid var(--rule)",
+            display: "flex", justifyContent: "space-between", alignItems: "baseline",
+            color: "var(--ink-soft)"
+          }}>
+            <Box className="eyebrow">{t("landing.pullQuote.author")}</Box>
+            <Box className="marginalia">{t("landing.pullQuote.role")}</Box>
+          </Box>
+        </EdReveal>
+      </Container>
+    </Box>
+  );
+}
+
+/* =============================================================
+   08 — FOR AGENTS, mirrored asymmetric
+   ============================================================= */
 function ForAgents() {
   const { t } = useTranslation();
   const licenses = [
@@ -379,155 +485,94 @@ function ForAgents() {
     "landing.forAgents.licenses.consultant",
     "landing.forAgents.licenses.broker"
   ];
-
   return (
-    <Box id="for-agents" sx={{ py: { xs: 8, md: 14 } }}>
+    <Box id="for-agents" sx={{
+      py: { xs: 10, md: 18 },
+      borderBottom: "1px solid var(--rule)"
+    }}>
       <Container maxWidth="lg">
-        <Box
-          sx={{
-            display: "grid",
-            gap: { xs: 5, md: 8 },
-            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-            alignItems: "center"
-          }}
-        >
-          <RevealOnScroll direction="right" sx={{ order: { xs: 1, md: 0 } }}>
-            <Stack spacing={3}>
-              <Typography variant="overline" color="secondary.main" sx={{ letterSpacing: 2, fontWeight: 700 }}>
-                {t("landing.forAgents.eyebrow")}
-              </Typography>
-              <Typography variant="h3" sx={{ fontWeight: 800 }}>
-                {t("landing.forAgents.title")}
-              </Typography>
-              <Typography color="text.secondary" sx={{ fontSize: 17, lineHeight: 1.7 }}>
-                {t("landing.forAgents.lead")}
-              </Typography>
-
-              <Box>
-                <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5 }}>
-                  {t("landing.forAgents.licensesTitle")}
-                </Typography>
-                <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 1, gap: 1 }}>
-                  {licenses.map((lk) => (
-                    <Chip
-                      key={lk}
-                      label={t(lk)}
-                      variant="outlined"
-                      sx={{ borderColor: "primary.light", color: "primary.dark", fontWeight: 600 }}
-                    />
-                  ))}
-                </Stack>
-              </Box>
-
-              <Box sx={{ pt: 2 }}>
-                <Button
-                  component={RouterLink}
-                  to="/register"
-                  variant="contained"
-                  size="large"
-                  color="primary"
-                  endIcon={<ArrowForwardIcon />}
-                >
-                  {t("landing.forAgents.cta")}
-                </Button>
-              </Box>
-            </Stack>
-          </RevealOnScroll>
-
-          <RevealOnScroll
-            direction="left"
-            delay={100}
-            sx={{ order: { xs: 0, md: 1 } }}
-          >
-            <Box
-              sx={{
-                position: "relative",
-                aspectRatio: "5/4",
-                borderRadius: 4,
-                overflow: "hidden",
-                bgcolor: "background.paper"
-              }}
-            >
-              <BrandImage seed="for-agents" imageUrl={FOR_AGENTS_IMAGE} overlay="none" />
+        <EdReveal>
+          <Box className="section-band" sx={{ mb: 6 }}>
+            <Box><span className="number-marker">№ 06</span></Box>
+            <Box>
+              <span className="eyebrow">{t("landing.forAgents.eyebrow")}</span>
             </Box>
-          </RevealOnScroll>
+          </Box>
+        </EdReveal>
+
+        <Box sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "7fr 5fr" },
+          gap: { xs: 4, md: 8 },
+          alignItems: "start"
+        }}>
+          <EdReveal delay={100}>
+            <Box>
+              <Box className="display" sx={{ fontSize: { xs: 36, md: 56 }, color: "var(--ink)", mb: 4 }}>
+                {t("landing.forAgents.title")}
+              </Box>
+              <Box sx={{ fontSize: 18, lineHeight: 1.75, color: "var(--ink-soft)", maxWidth: 580, mb: 6 }}>
+                {t("landing.forAgents.lead")}
+              </Box>
+
+              <Box className="eyebrow" sx={{ mb: 2 }}>
+                {t("landing.forAgents.licensesTitle")}
+              </Box>
+              <Box>
+                {licenses.map((lk, i) => (
+                  <Box key={lk} sx={{
+                    py: 2,
+                    pr: 4,
+                    borderTop: i === 0 ? "1px solid var(--ink)" : "none",
+                    borderBottom: "1px solid var(--ink)",
+                    fontFamily: "var(--display)",
+                    fontStyle: "italic",
+                    fontSize: 20,
+                    color: "var(--ink)",
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 2
+                  }}>
+                    <span className="number-marker">{String(i + 1).padStart(2, "0")}</span>
+                    {t(lk)}
+                  </Box>
+                ))}
+              </Box>
+
+              <Box sx={{ mt: 6 }}>
+                <RouterLink to="/register" className="ink-button">
+                  <span>{t("landing.forAgents.cta")}</span>
+                  <ArrowOutwardIcon sx={{ fontSize: 18 }} />
+                </RouterLink>
+              </Box>
+            </Box>
+          </EdReveal>
+
+          <EdReveal delay={200}>
+            <Box className="marginalia" sx={{
+              borderLeft: "1px solid var(--rule)",
+              pl: 4,
+              maxWidth: 380
+            }}>
+              <Box sx={{ fontSize: 13, color: "var(--ink-muted)", mb: 2, fontFamily: "var(--mono)", letterSpacing: "0.12em" }}>
+                — {t("landing.editorial.sideNote")}
+              </Box>
+              {t("landing.editorial.agentMarginalia")}
+            </Box>
+          </EdReveal>
         </Box>
       </Container>
     </Box>
   );
 }
 
-/* ----------------------- STATS (real data from /api/public/stats) ----------------------- */
-function Stats() {
-  const { t } = useTranslation();
-  const q = useQuery({
-    queryKey: ["public-stats"],
-    queryFn: async () => (await api.get<PublicStats>("/public/stats")).data,
-    staleTime: 5 * 60 * 1000
-  });
-
-  const fmt = (n: number | undefined) =>
-    n === undefined ? "—" : n.toLocaleString("el-GR");
-
-  const stats = [
-    { value: q.data ? `${fmt(q.data.agencies)}+` : "—", labelKey: "landing.stats.agencies" },
-    { value: q.data ? fmt(q.data.producers) : "—", labelKey: "landing.stats.agents" },
-    { value: q.data ? fmt(q.data.activePolicies) : "—", labelKey: "landing.stats.policies" },
-    { value: q.data?.uptime ?? "99,98%", labelKey: "landing.stats.uptime" }
-  ];
-
-  return (
-    <Box
-      sx={{
-        position: "relative",
-        py: { xs: 8, md: 12 },
-        overflow: "hidden",
-        color: "common.white"
-      }}
-    >
-      <BrandImage seed="kalypsis-stats" width={1800} height={900} overlay="navy-strong" blur={1} />
-      <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1 }}>
-        <Box
-          sx={{
-            display: "grid",
-            gap: { xs: 4, md: 2 },
-            gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
-            textAlign: "center"
-          }}
-        >
-          {stats.map((s, idx) => (
-            <RevealOnScroll key={s.labelKey} delay={idx * 100} direction="up">
-              <Stack spacing={0.5}>
-                <Typography
-                  sx={{
-                    fontSize: { xs: 36, md: 56 },
-                    fontWeight: 900,
-                    letterSpacing: -1,
-                    background: "linear-gradient(135deg, #ffffff 0%, #9ecaff 100%)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent"
-                  }}
-                >
-                  {s.value}
-                </Typography>
-                <Typography sx={{ opacity: 0.85, fontSize: { xs: 13, md: 15 }, letterSpacing: 0.5 }}>
-                  {t(s.labelKey)}
-                </Typography>
-              </Stack>
-            </RevealOnScroll>
-          ))}
-        </Box>
-      </Container>
-    </Box>
-  );
-}
-
-/* ----------------------- FAQ teaser (real page lives at /faq) ----------------------- */
+/* =============================================================
+   09 — FAQ TEASER
+   ============================================================= */
 function FaqTeaser() {
   const { t } = useTranslation();
   const items = ["q1", "q2", "q3"];
-  const [expanded, setExpanded] = useState<string | false>("q1");
-  const [visibleCount, setVisibleCount] = useState(0);
+  const [open, setOpen] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -536,183 +581,148 @@ function FaqTeaser() {
     const obs = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          items.forEach((_, idx) =>
-            setTimeout(() => setVisibleCount((v) => Math.max(v, idx + 1)), idx * 100)
-          );
+          let i = 0;
+          const id = setInterval(() => {
+            i++;
+            if (i >= items.length) { clearInterval(id); return; }
+            setOpen(i);
+          }, 2200);
           obs.disconnect();
         }
-      },
-      { threshold: 0.15 }
+      }, { threshold: 0.2 }
     );
     obs.observe(node);
     return () => obs.disconnect();
-  }, [items]);
+  }, [items.length]);
 
   return (
-    <Box id="faq" sx={{ py: { xs: 8, md: 12 }, bgcolor: "background.paper" }}>
-      <Container maxWidth="md" ref={rootRef}>
-        <RevealOnScroll direction="up">
-          <Stack spacing={1.5} alignItems="center" textAlign="center" mb={5}>
-            <Typography variant="overline" color="secondary.main" sx={{ letterSpacing: 2, fontWeight: 700 }}>
-              {t("landing.faq.eyebrow")}
-            </Typography>
-            <Typography variant="h3" sx={{ fontWeight: 800 }}>
-              {t("landing.faq.title")}
-            </Typography>
-          </Stack>
-        </RevealOnScroll>
+    <Box id="faq" sx={{ py: { xs: 10, md: 18 }, borderBottom: "1px solid var(--rule)", bgcolor: "var(--paper-deep)" }} ref={rootRef}>
+      <Container maxWidth="lg">
+        <EdReveal>
+          <Box className="section-band" sx={{ mb: 6 }}>
+            <Box><span className="number-marker">№ 07</span></Box>
+            <Box>
+              <span className="eyebrow">{t("landing.faq.eyebrow")}</span>
+              <Box className="display" sx={{ fontSize: { xs: 36, md: 56 }, mt: 2, color: "var(--ink)" }}>
+                {t("landing.faq.title")}
+              </Box>
+            </Box>
+          </Box>
+        </EdReveal>
 
-        <Stack spacing={1.5}>
-          {items.map((q, idx) => {
-            const isOpen = expanded === q;
-            const isVisible = idx < visibleCount;
+        <Box sx={{ borderTop: "1px solid var(--ink)", mb: 5 }}>
+          {items.map((q, i) => {
+            const active = open === i;
             return (
-              <Accordion
-                key={q}
-                expanded={isOpen}
-                onChange={(_, isExpanded) => setExpanded(isExpanded ? q : false)}
-                disableGutters
-                elevation={0}
-                sx={{
-                  bgcolor: "background.default",
-                  border: "1px solid",
-                  borderColor: isOpen ? "primary.main" : "divider",
-                  borderRadius: 2,
-                  overflow: "hidden",
-                  transition:
-                    "transform 250ms ease, opacity 350ms ease, box-shadow 250ms ease, border-color 250ms ease",
-                  transform: isVisible ? "translateY(0)" : "translateY(20px)",
-                  opacity: isVisible ? 1 : 0,
-                  "&:before": { display: "none" },
-                  "&:hover": {
-                    borderColor: "primary.light",
-                    boxShadow: "0 8px 24px rgba(11,37,69,0.08)"
-                  },
-                  "&.Mui-expanded": {
-                    boxShadow: "0 14px 40px rgba(11,37,69,0.12)",
-                    bgcolor: "common.white"
-                  }
-                }}
-              >
-                <AccordionSummary
-                  expandIcon={
-                    <Box
-                      sx={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: "50%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        bgcolor: isOpen ? "primary.main" : "background.paper",
-                        color: isOpen ? "common.white" : "primary.main",
-                        transition: "background 200ms"
-                      }}
-                    >
-                      <ExpandMoreIcon />
-                    </Box>
-                  }
+              <EdReveal key={q} delay={i * 100}>
+                <Box
+                  onClick={() => setOpen(i)}
                   sx={{
-                    py: 1,
-                    px: 3,
-                    "& .MuiAccordionSummary-content": { my: 1.5 }
-                  }}
-                >
-                  <Typography sx={{ fontWeight: 700, fontSize: 17, color: isOpen ? "primary.main" : "text.primary" }}>
-                    {t(`landing.faq.${q}.q`)}
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails sx={{ px: 3, pb: 3 }}>
-                  <Typography color="text.secondary" sx={{ lineHeight: 1.75, fontSize: 15.5 }}>
-                    {t(`landing.faq.${q}.a`)}
-                  </Typography>
-                </AccordionDetails>
-              </Accordion>
+                    cursor: "pointer",
+                    display: "grid",
+                    gridTemplateColumns: "60px 1fr auto",
+                    gap: 3,
+                    py: { xs: 3, md: 5 },
+                    borderBottom: "1px solid var(--rule)",
+                    transition: "background 500ms var(--ease-editorial)",
+                    bgcolor: active ? "var(--bone)" : "transparent",
+                    "&:hover": { bgcolor: "var(--bone)" }
+                  }}>
+                  <Box className="number-marker">{String(i + 1).padStart(2, "0")}</Box>
+                  <Box>
+                    <Box className="display" sx={{
+                      fontSize: { xs: 24, md: 32 },
+                      color: "var(--ink)",
+                      lineHeight: 1.1,
+                      mb: active ? 2 : 0,
+                      transition: "margin 500ms var(--ease-editorial)"
+                    }}>
+                      {t(`landing.faq.${q}.q`)}
+                    </Box>
+                    <Box sx={{
+                      maxHeight: active ? 220 : 0,
+                      opacity: active ? 1 : 0,
+                      overflow: "hidden",
+                      transition: "max-height 600ms var(--ease-editorial), opacity 600ms var(--ease-editorial)",
+                      color: "var(--ink-soft)",
+                      lineHeight: 1.7,
+                      fontSize: 16,
+                      maxWidth: 720
+                    }}>
+                      {t(`landing.faq.${q}.a`)}
+                    </Box>
+                  </Box>
+                  <Box sx={{
+                    fontFamily: "var(--display)",
+                    fontStyle: "italic",
+                    fontSize: 18,
+                    color: active ? "var(--gold)" : "var(--ink-muted)",
+                    transition: "color 500ms var(--ease-editorial)"
+                  }}>
+                    {active ? "—" : "+"}
+                  </Box>
+                </Box>
+              </EdReveal>
             );
           })}
-        </Stack>
+        </Box>
 
-        {/* Big animated CTA → /faq */}
-        <RevealOnScroll direction="up" delay={150}>
-          <Box sx={{ display: "flex", justifyContent: "center", mt: 6 }}>
-            <Button
-              component={RouterLink}
-              to="/faq"
-              size="large"
-              variant="contained"
-              startIcon={<HelpOutlineIcon sx={{ fontSize: "28px !important" }} />}
-              endIcon={<ArrowForwardIcon />}
-              sx={{
-                px: { xs: 4, md: 6 },
-                py: { xs: 2, md: 2.5 },
-                fontSize: { xs: 17, md: 20 },
-                fontWeight: 800,
-                borderRadius: 3,
-                letterSpacing: 0.3,
-                background: "linear-gradient(135deg, #0b2545 0%, #1d4e89 100%)",
-                boxShadow: "0 14px 38px -10px rgba(11,37,69,0.55)",
-                transition: "transform 240ms ease, box-shadow 240ms ease, background 240ms ease",
-                "&:hover": {
-                  transform: "translateY(-4px) scale(1.02)",
-                  boxShadow: "0 28px 60px -16px rgba(11,37,69,0.7)",
-                  background: "linear-gradient(135deg, #0b2545 0%, #1ea7e1 100%)"
-                }
-              }}
-            >
-              {t("landing.faq.cta")}
-            </Button>
+        <EdReveal delay={250}>
+          <Box sx={{ display: "flex", justifyContent: "center" }}>
+            <RouterLink to="/faq" className="ink-button">
+              <span>{t("landing.faq.cta")}</span>
+              <ArrowForwardIcon sx={{ fontSize: 18 }} />
+            </RouterLink>
           </Box>
-        </RevealOnScroll>
+        </EdReveal>
       </Container>
     </Box>
   );
 }
 
-/* ----------------------- FINAL CTA ----------------------- */
+/* =============================================================
+   10 — FINAL CTA — colophon style
+   ============================================================= */
 function FinalCta() {
   const { t } = useTranslation();
   return (
-    <Box sx={{ position: "relative", py: { xs: 8, md: 14 }, overflow: "hidden", color: "common.white" }}>
-      <BrandImage seed="kalypsis-final-cta-meditteranean" width={1800} height={900} overlay="navy-strong" />
-      <Container maxWidth="md" sx={{ position: "relative", zIndex: 1, textAlign: "center" }}>
-        <RevealOnScroll direction="up">
-          <Stack spacing={3} alignItems="center">
-            <Typography variant="h2" sx={{ fontWeight: 900, letterSpacing: -1 }}>
-              {t("landing.finalCta.title")}
-            </Typography>
-            <Typography sx={{ opacity: 0.92, fontSize: 18, maxWidth: 600, lineHeight: 1.6 }}>
-              {t("landing.finalCta.lead")}
-            </Typography>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ pt: 2 }}>
-              <Button
-                component={RouterLink}
-                to="/register"
-                size="large"
-                variant="contained"
-                color="secondary"
-                endIcon={<ArrowForwardIcon />}
-                sx={{ px: 4, py: 1.5, fontWeight: 700 }}
-              >
-                {t("landing.finalCta.ctaPrimary")}
-              </Button>
-              <Button
-                component={RouterLink}
-                to="/login"
-                size="large"
-                variant="outlined"
-                sx={{
-                  px: 4,
-                  py: 1.5,
-                  color: "common.white",
-                  borderColor: "rgba(255,255,255,0.5)",
-                  "&:hover": { borderColor: "common.white", bgcolor: "rgba(255,255,255,0.08)" }
-                }}
-              >
-                {t("landing.finalCta.ctaSecondary")}
-              </Button>
-            </Stack>
+    <Box sx={{ py: { xs: 12, md: 20 }, position: "relative" }} className="editorial-grain">
+      <Container maxWidth="md">
+        <EdReveal>
+          <Box className="eyebrow" sx={{ mb: 4 }}>
+            № 08 — {t("landing.finalCta.eyebrow")}
+          </Box>
+        </EdReveal>
+        <EdReveal delay={100}>
+          <Box className="display" sx={{
+            fontSize: { xs: 48, md: 88 },
+            color: "var(--ink)",
+            mb: 4,
+            maxWidth: 880
+          }}>
+            {t("landing.editorial.finalA")}{" "}
+            <span className="display-italic" style={{ color: "var(--terracotta)" }}>
+              {t("landing.editorial.finalB")}
+            </span>
+            ?
+          </Box>
+        </EdReveal>
+        <EdReveal delay={200}>
+          <Box sx={{ fontSize: 19, lineHeight: 1.7, color: "var(--ink-soft)", maxWidth: 600, mb: 5 }}>
+            {t("landing.finalCta.lead")}
+          </Box>
+        </EdReveal>
+        <EdReveal delay={300}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+            <RouterLink to="/register" className="ink-button">
+              <span>{t("landing.finalCta.ctaPrimary")}</span>
+              <ArrowOutwardIcon sx={{ fontSize: 18 }} />
+            </RouterLink>
+            <RouterLink to="/contact" className="ghost-button">
+              <span>{t("landing.finalCta.ctaSecondary")}</span>
+            </RouterLink>
           </Stack>
-        </RevealOnScroll>
+        </EdReveal>
       </Container>
     </Box>
   );

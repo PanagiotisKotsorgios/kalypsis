@@ -1,20 +1,9 @@
-import {
-  Box,
-  Button,
-  Card,
-  Chip,
-  Container,
-  Divider,
-  Stack,
-  Typography
-} from "@mui/material";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import { Box, Container, Stack } from "@mui/material";
+import ArrowOutwardIcon from "@mui/icons-material/ArrowOutward";
 import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PublicShell } from "../components/PublicShell";
-import { BrandImage } from "../components/BrandImage";
-import { RevealOnScroll } from "../components/RevealOnScroll";
+import { EdReveal } from "../components/EdReveal";
 
 export function PricingPage() {
   const { t } = useTranslation();
@@ -22,161 +11,193 @@ export function PricingPage() {
   const tiers = [
     {
       key: "starter",
-      price: "€39",
+      price: "39",
       featured: false,
       features: ["pricing.starter.f1", "pricing.starter.f2", "pricing.starter.f3", "pricing.starter.f4"]
     },
     {
       key: "pro",
-      price: "€89",
+      price: "89",
       featured: true,
       features: [
-        "pricing.pro.f1",
-        "pricing.pro.f2",
-        "pricing.pro.f3",
-        "pricing.pro.f4",
-        "pricing.pro.f5",
-        "pricing.pro.f6"
+        "pricing.pro.f1", "pricing.pro.f2", "pricing.pro.f3",
+        "pricing.pro.f4", "pricing.pro.f5", "pricing.pro.f6"
       ]
     },
     {
       key: "enterprise",
-      price: "—",
+      price: null,
       featured: false,
-      features: [
-        "pricing.enterprise.f1",
-        "pricing.enterprise.f2",
-        "pricing.enterprise.f3",
-        "pricing.enterprise.f4"
-      ]
+      features: ["pricing.enterprise.f1", "pricing.enterprise.f2", "pricing.enterprise.f3", "pricing.enterprise.f4"]
     }
   ];
 
   return (
     <PublicShell>
-      {/* Hero band */}
-      <Box
-        sx={{
-          position: "relative",
-          py: { xs: 10, md: 14 },
-          color: "common.white",
-          overflow: "hidden"
-        }}
-      >
-        <BrandImage
-          seed="kalypsis-pricing-hero"
-          imageUrl="https://image.slidesdocs.com/responsive-images/background/insurance-gold-coin-financial-management-yellow-light-effect-business-powerpoint-background_a339a63e08__960_540.jpg"
-          overlay="navy-strong"
-        />
-        <Container maxWidth="md" sx={{ position: "relative", textAlign: "center" }}>
-          <RevealOnScroll direction="up" duration={800}>
-            <Stack spacing={2.5} alignItems="center">
-              <Typography variant="overline" sx={{ letterSpacing: 2.5, opacity: 0.8 }}>
-                {t("landing.pricing.eyebrow")}
-              </Typography>
-              <Typography variant="h2" sx={{ fontWeight: 900, letterSpacing: -1 }}>
-                {t("landing.pricing.title")}
-              </Typography>
-              <Typography sx={{ opacity: 0.92, fontSize: 18, maxWidth: 640 }}>
-                {t("landing.pricing.lead")}
-              </Typography>
-              <Chip
-                label={t("landing.pricing.unified")}
-                sx={{
-                  mt: 2,
-                  bgcolor: "rgba(255,255,255,0.12)",
-                  color: "common.white",
-                  fontWeight: 600,
-                  border: "1px dashed rgba(255,255,255,0.4)"
-                }}
-              />
+      <Box className="editorial-grain" sx={{
+        py: { xs: 10, md: 16 },
+        borderBottom: "1px solid var(--rule)"
+      }}>
+        <Container maxWidth="lg">
+          <EdReveal>
+            <Stack direction="row" alignItems="baseline" spacing={2} mb={{ xs: 4, md: 6 }}>
+              <span className="number-marker">№ 01</span>
+              <Box sx={{ flex: 1, height: "1px", bgcolor: "var(--rule)" }} />
+              <span className="eyebrow">{t("landing.pricing.eyebrow")}</span>
             </Stack>
-          </RevealOnScroll>
+          </EdReveal>
+
+          <EdReveal delay={120}>
+            <Box className="display" sx={{
+              fontSize: { xs: 48, md: 96 },
+              maxWidth: 900,
+              color: "var(--ink)",
+              mb: 5
+            }}>
+              {t("pricing.editorial.titleA")}{" "}
+              <span className="display-italic" style={{ color: "var(--terracotta)" }}>
+                {t("pricing.editorial.titleB")}
+              </span>.
+            </Box>
+          </EdReveal>
+
+          <EdReveal delay={220}>
+            <Box sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1.5fr" },
+              gap: { xs: 3, md: 8 },
+              mt: 4
+            }}>
+              <Box className="marginalia" sx={{ borderTop: "1px solid var(--ink)", pt: 2 }}>
+                <span className="eyebrow" style={{ color: "var(--ink)" }}>
+                  {t("pricing.editorial.lede")}
+                </span>
+                <Box sx={{ mt: 2 }}>{t("pricing.editorial.marginalia")}</Box>
+              </Box>
+              <Box sx={{ fontSize: 19, lineHeight: 1.7, color: "var(--ink-soft)", maxWidth: 640 }}>
+                {t("landing.pricing.lead")}
+              </Box>
+            </Box>
+          </EdReveal>
         </Container>
       </Box>
 
-      {/* Tiers (overlapping the hero a touch) */}
-      <Container maxWidth="lg" sx={{ pb: { xs: 8, md: 12 }, mt: { xs: -6, md: -10 }, position: "relative", zIndex: 2 }}>
-        <Box
-          sx={{
+      <Box sx={{ py: { xs: 10, md: 14 }, borderBottom: "1px solid var(--rule)" }}>
+        <Container maxWidth="lg">
+          <Box sx={{
             display: "grid",
-            gap: 3,
-            gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }
-          }}
-        >
-          {tiers.map((tier, idx) => (
-            <RevealOnScroll key={tier.key} delay={idx * 120} direction="up">
-            <Card
-              sx={{
-                p: 4,
-                border: "1px solid",
-                borderColor: tier.featured ? "primary.main" : "divider",
-                position: "relative",
-                bgcolor: "common.white",
-                ...(tier.featured && {
-                  boxShadow: "0 24px 60px rgba(11,37,69,0.18)",
-                  transform: { md: "translateY(-12px)" }
-                })
-              }}
-            >
-              {tier.featured && (
-                <Chip
-                  label={t("landing.pricing.popular")}
-                  color="secondary"
-                  sx={{ position: "absolute", top: 16, right: 16, fontWeight: 700 }}
-                />
-              )}
-              <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5 }}>
-                {t(`landing.pricing.${tier.key}.name`)}
-              </Typography>
-              <Stack direction="row" alignItems="flex-end" spacing={1} sx={{ mt: 1 }}>
-                <Typography variant="h2" sx={{ fontWeight: 900, lineHeight: 1 }}>
-                  {tier.price}
-                </Typography>
-                {tier.price !== "—" && (
-                  <Typography color="text.secondary" sx={{ pb: 1 }}>
-                    /{t("landing.pricing.month")}
-                  </Typography>
-                )}
-              </Stack>
-              <Typography color="text.secondary" sx={{ mt: 1, mb: 3 }}>
-                {t(`landing.pricing.${tier.key}.tagline`)}
-              </Typography>
-              <Divider sx={{ mb: 3 }} />
-              <Stack spacing={1.5} sx={{ mb: 3 }}>
-                {tier.features.map((f) => (
-                  <Stack key={f} direction="row" spacing={1} alignItems="flex-start">
-                    <CheckCircleIcon sx={{ color: "primary.main", fontSize: 20, mt: 0.2 }} />
-                    <Typography>{t(`landing.${f}`)}</Typography>
-                  </Stack>
-                ))}
-              </Stack>
-              <Button
-                component={RouterLink}
-                to="/register"
-                fullWidth
-                size="large"
-                variant={tier.featured ? "contained" : "outlined"}
-                endIcon={<ArrowForwardIcon />}
-              >
-                {t(`landing.pricing.${tier.key}.cta`)}
-              </Button>
-            </Card>
-            </RevealOnScroll>
-          ))}
-        </Box>
-
-        <RevealOnScroll direction="up">
-          <Box sx={{ textAlign: "center", mt: 8 }}>
-            <Typography color="text.secondary" sx={{ mb: 2 }}>
-              {t("pricing.footnote")}
-            </Typography>
-            <Button component={RouterLink} to="/contact" variant="text" sx={{ fontWeight: 700 }}>
-              {t("pricing.contactSales")} →
-            </Button>
+            gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
+            border: "1px solid var(--rule)"
+          }}>
+            {tiers.map((tier, idx) => (
+              <EdReveal key={tier.key} delay={idx * 140}>
+                <Box sx={{
+                  p: { xs: 4, md: 6 },
+                  height: "100%",
+                  bgcolor: tier.featured ? "var(--bone)" : "transparent",
+                  position: "relative",
+                  borderRight: { md: idx < 2 ? "1px solid var(--rule)" : "none" },
+                  borderBottom: { xs: idx < 2 ? "1px solid var(--rule)" : "none", md: "none" }
+                }}>
+                  {tier.featured && (
+                    <Box sx={{
+                      position: "absolute", top: 16, right: 16,
+                      fontFamily: "var(--display)", fontStyle: "italic",
+                      fontSize: 12, color: "var(--gold)", letterSpacing: "0.08em"
+                    }}>
+                      ✦ {t("landing.pricing.popular")}
+                    </Box>
+                  )}
+                  <Box sx={{ mb: 4 }}>
+                    <span className="number-marker">
+                      {String(idx + 1).padStart(2, "0")} · {t("pricing.editorial.tier")}
+                    </span>
+                  </Box>
+                  <Box className="display" sx={{
+                    fontSize: { xs: 36, md: 44 },
+                    color: "var(--ink)", mb: 1, lineHeight: 1
+                  }}>
+                    {t(`landing.pricing.${tier.key}.name`)}
+                  </Box>
+                  <Box sx={{ minHeight: 76, mt: 4, mb: 3 }}>
+                    {tier.price ? (
+                      <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1 }}>
+                        <Box sx={{
+                          fontFamily: "var(--display)",
+                          fontSize: { xs: 64, md: 88 },
+                          color: "var(--ink)", lineHeight: 0.9,
+                          fontVariationSettings: "'opsz' 144, 'SOFT' 30"
+                        }}>
+                          €{tier.price}
+                        </Box>
+                        <Box sx={{
+                          fontFamily: "var(--display)", fontStyle: "italic",
+                          fontSize: 18, color: "var(--ink-muted)", pb: 2
+                        }}>
+                          / {t("landing.pricing.month")}
+                        </Box>
+                      </Box>
+                    ) : (
+                      <Box sx={{
+                        fontFamily: "var(--display)", fontStyle: "italic",
+                        fontSize: { xs: 36, md: 48 },
+                        color: "var(--ink-soft)", lineHeight: 1
+                      }}>
+                        {t("pricing.editorial.custom")}
+                      </Box>
+                    )}
+                  </Box>
+                  <Box sx={{
+                    color: "var(--ink-soft)", fontSize: 15, lineHeight: 1.6,
+                    mb: 5, minHeight: 56
+                  }}>
+                    {t(`landing.pricing.${tier.key}.tagline`)}
+                  </Box>
+                  <Box sx={{ borderTop: "1px solid var(--rule)", pt: 3, mb: 5 }}>
+                    {tier.features.map((f) => (
+                      <Box key={f} sx={{
+                        display: "grid", gridTemplateColumns: "20px 1fr", gap: 2,
+                        py: 1.5, borderBottom: "1px solid var(--rule-soft)", alignItems: "baseline"
+                      }}>
+                        <Box sx={{
+                          color: "var(--gold)", fontFamily: "var(--display)",
+                          fontStyle: "italic", fontSize: 16
+                        }}>✓</Box>
+                        <Box sx={{ fontSize: 15, lineHeight: 1.5, color: "var(--ink)" }}>
+                          {t(`landing.${f}`)}
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                  <RouterLink
+                    to="/register"
+                    className={tier.featured ? "ink-button" : "ghost-button"}
+                    style={{ width: "100%", boxSizing: "border-box" }}
+                  >
+                    <span>{t(`landing.pricing.${tier.key}.cta`)}</span>
+                    <ArrowOutwardIcon sx={{ fontSize: 16 }} />
+                  </RouterLink>
+                </Box>
+              </EdReveal>
+            ))}
           </Box>
-        </RevealOnScroll>
-      </Container>
+
+          <EdReveal delay={150}>
+            <Box sx={{
+              textAlign: "center", mt: 8, pt: 6,
+              borderTop: "1px solid var(--rule)"
+            }}>
+              <Box className="marginalia" sx={{ mb: 2 }}>{t("pricing.footnote")}</Box>
+              <RouterLink to="/contact" className="editorial-link" style={{
+                fontFamily: "var(--display)", fontStyle: "italic",
+                fontSize: 22, color: "var(--ink)"
+              }}>
+                {t("pricing.contactSales")} →
+              </RouterLink>
+            </Box>
+          </EdReveal>
+        </Container>
+      </Box>
     </PublicShell>
   );
 }

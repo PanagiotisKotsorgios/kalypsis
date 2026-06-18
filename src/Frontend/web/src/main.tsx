@@ -7,6 +7,7 @@ import { I18nextProvider } from "react-i18next";
 
 import App from "./App";
 import { theme } from "./theme";
+import "./styles/editorial.css";
 import { i18n } from "./i18n";
 import { AuthProvider } from "./auth/AuthContext";
 import { ImpersonationProvider } from "./impersonation/ImpersonationContext";

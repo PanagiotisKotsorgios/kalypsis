@@ -1,18 +1,7 @@
 import { useEffect, useState } from "react";
 import {
-  AppBar,
-  Box,
-  Button,
-  Container,
-  Drawer,
-  IconButton,
-  Stack,
-  Toolbar,
-  Divider,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText
+  AppBar, Box, Container, Drawer, IconButton, List, ListItem, ListItemButton,
+  Stack, Toolbar
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
@@ -22,32 +11,32 @@ import { KalypsisLogo } from "./KalypsisLogo";
 import { LanguageToggle } from "./LanguageToggle";
 
 interface PublicNavProps {
-  /** Deprecated — kept for backwards compatibility; nav is always solid white now. */
   overlayHero?: boolean;
 }
 
+/**
+ * Editorial public nav — paper background, hairline rule, slim type.
+ */
 export function PublicNav(_: PublicNavProps = {}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
 
-  // Deepen the shadow once the user scrolls a few pixels so the nav has a clear lift.
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 4);
+    const onScroll = () => setScrolled(window.scrollY > 6);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Shared link set (no Για Γραφεία / Για Ασφαλιστές on either platform).
   const mobileLinks = [
     { to: "/", labelKey: "publicNav.home" },
     { to: "/#features", labelKey: "publicNav.platform" },
     { to: "/pricing", labelKey: "publicNav.pricing" },
+    { to: "/faq", labelKey: "footer.faq" },
     { to: "/contact", labelKey: "publicNav.contact" }
   ];
-  // Desktop additionally drops Αρχική (the logo already routes home).
   const desktopLinks = mobileLinks.filter((l) => l.labelKey !== "publicNav.home");
 
   return (
@@ -56,14 +45,11 @@ export function PublicNav(_: PublicNavProps = {}) {
         position="sticky"
         elevation={0}
         sx={{
-          bgcolor: "common.white",
-          color: "text.primary",
+          bgcolor: "var(--paper)",
+          color: "var(--ink)",
           borderBottom: "1px solid",
-          borderColor: scrolled ? "transparent" : "rgba(11,37,69,0.08)",
-          boxShadow: scrolled
-            ? "0 10px 30px -16px rgba(11,37,69,0.25)"
-            : "none",
-          transition: "box-shadow 250ms ease, border-color 250ms ease"
+          borderColor: scrolled ? "var(--rule)" : "transparent",
+          transition: "border-color 360ms var(--ease-editorial)"
         }}
       >
         <Container maxWidth="lg">
@@ -71,15 +57,10 @@ export function PublicNav(_: PublicNavProps = {}) {
             disableGutters
             sx={{
               gap: 2,
-              minHeight: { xs: 76, md: 108 },
+              minHeight: { xs: 76, md: 100 },
               alignItems: "center"
             }}
           >
-            {/*
-             * Force a full reload on click — even when already on `/`, the
-             * landing page animations replay and any in-memory state is
-             * reset cleanly. <a href> instead of RouterLink does that.
-             */}
             <Box
               component="a"
               href="/"
@@ -89,15 +70,15 @@ export function PublicNav(_: PublicNavProps = {}) {
                 textDecoration: "none",
                 color: "inherit",
                 py: 0.5,
-                transition: "transform 200ms ease",
-                "&:hover": { transform: "scale(1.02)" }
+                transition: "opacity 360ms var(--ease-editorial)",
+                "&:hover": { opacity: 0.88 }
               }}
             >
               <Box sx={{ display: { xs: "block", md: "none" } }}>
-                <KalypsisLogo size={64} crop />
+                <KalypsisLogo size={56} crop />
               </Box>
               <Box sx={{ display: { xs: "none", md: "block" } }}>
-                <KalypsisLogo size={96} crop />
+                <KalypsisLogo size={84} crop />
               </Box>
             </Box>
 
@@ -106,7 +87,7 @@ export function PublicNav(_: PublicNavProps = {}) {
             {/* Desktop nav links */}
             <Stack
               direction="row"
-              spacing={0.5}
+              spacing={4}
               alignItems="center"
               sx={{ display: { xs: "none", md: "flex" } }}
             >
@@ -128,34 +109,28 @@ export function PublicNav(_: PublicNavProps = {}) {
                     }
                   }}
                   sx={{
-                    position: "relative",
-                    px: 2.25,
-                    py: 1.25,
-                    mx: 0.4,
-                    borderRadius: 1.5,
-                    color: "text.primary",
+                    fontFamily: "var(--sans)",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    letterSpacing: "0.04em",
+                    color: "var(--ink)",
                     textDecoration: "none",
-                    fontWeight: 600,
-                    fontSize: 17,
-                    letterSpacing: 0.2,
+                    position: "relative",
                     cursor: "pointer",
-                    transition: "color 200ms ease, background-color 200ms ease",
+                    py: 1,
                     "&::after": {
                       content: '""',
                       position: "absolute",
-                      left: "50%",
-                      bottom: 4,
-                      width: 0,
-                      height: 2,
-                      bgcolor: "primary.main",
-                      borderRadius: 1,
-                      transform: "translateX(-50%)",
-                      transition: "width 240ms ease"
+                      left: 0, right: 0, bottom: 4,
+                      height: "1px",
+                      background: "var(--ink)",
+                      transform: "scaleX(0)",
+                      transformOrigin: "right",
+                      transition: "transform 380ms var(--ease-editorial)"
                     },
-                    "&:hover": {
-                      color: "primary.main",
-                      bgcolor: "rgba(11,37,69,0.05)",
-                      "&::after": { width: "60%" }
+                    "&:hover::after": {
+                      transform: "scaleX(1)",
+                      transformOrigin: "left"
                     }
                   }}
                 >
@@ -165,64 +140,28 @@ export function PublicNav(_: PublicNavProps = {}) {
             </Stack>
 
             {/* Desktop CTAs */}
-            <Stack
-              direction="row"
-              spacing={1.5}
-              alignItems="center"
-              sx={{ display: { xs: "none", md: "flex" }, ml: 2 }}
-            >
-              <LanguageToggle />
-              <Button
-                component={RouterLink}
-                to="/login"
-                variant="outlined"
-                color="primary"
-                sx={{
-                  fontWeight: 700,
-                  fontSize: 17,
-                  px: 3,
-                  py: 1.4,
-                  borderRadius: 1.5,
-                  borderWidth: 2,
-                  borderColor: "primary.main",
-                  color: "primary.main",
-                  "&:hover": {
-                    borderWidth: 2,
-                    borderColor: "primary.dark",
-                    bgcolor: "rgba(11,37,69,0.06)"
-                  }
-                }}
-              >
-                {t("publicNav.signIn")}
-              </Button>
-              <Button
-                component={RouterLink}
-                to="/register"
-                variant="contained"
-                color="primary"
-                disableElevation
-                sx={{
-                  fontWeight: 700,
-                  fontSize: 17,
-                  px: 4.25,
-                  py: 1.5,
-                  borderRadius: 1.5,
-                  boxShadow: "0 8px 20px -10px rgba(11,37,69,0.45)",
-                  "&:hover": {
-                    boxShadow: "0 14px 28px -12px rgba(11,37,69,0.55)",
-                    transform: "translateY(-1px)"
-                  },
-                  transition: "transform 200ms ease, box-shadow 200ms ease"
-                }}
-              >
-                {t("publicNav.register")}
-              </Button>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ display: { xs: "none", md: "flex" }, ml: 3 }}>
+              <Box sx={{
+                "& .MuiButton-root": {
+                  fontFamily: "var(--sans)",
+                  fontSize: 13,
+                  color: "var(--ink)"
+                }
+              }}>
+                <LanguageToggle />
+              </Box>
+              <RouterLink to="/login" className="ghost-button" style={{ padding: "10px 18px", fontSize: 13 }}>
+                <span>{t("publicNav.signIn")}</span>
+              </RouterLink>
+              <RouterLink to="/register" className="ink-button" style={{ padding: "11px 20px", fontSize: 13 }}>
+                <span>{t("publicNav.register")}</span>
+              </RouterLink>
             </Stack>
 
-            {/* Mobile hamburger (unchanged) */}
+            {/* Mobile hamburger */}
             <IconButton
               onClick={() => setOpen(true)}
-              sx={{ display: { xs: "inline-flex", md: "none" }, color: "inherit" }}
+              sx={{ display: { xs: "inline-flex", md: "none" }, color: "var(--ink)" }}
               edge="end"
               aria-label="menu"
             >
@@ -232,18 +171,22 @@ export function PublicNav(_: PublicNavProps = {}) {
         </Container>
       </AppBar>
 
-      {/* Mobile drawer (unchanged) */}
-      <Drawer anchor="right" open={open} onClose={() => setOpen(false)} PaperProps={{ sx: { width: 300 } }}>
-        <Box sx={{ p: 2 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+      <Drawer
+        anchor="right"
+        open={open}
+        onClose={() => setOpen(false)}
+        PaperProps={{ sx: { width: 320, bgcolor: "var(--paper)" } }}
+      >
+        <Box sx={{ p: 3 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
             <KalypsisLogo size={56} crop />
-            <IconButton onClick={() => setOpen(false)}>
+            <IconButton onClick={() => setOpen(false)} sx={{ color: "var(--ink)" }}>
               <CloseIcon />
             </IconButton>
           </Stack>
-          <List>
+          <List sx={{ borderTop: "1px solid var(--ink)" }}>
             {mobileLinks.map((link) => (
-              <ListItem key={link.to} disablePadding>
+              <ListItem key={link.to} disablePadding sx={{ borderBottom: "1px solid var(--rule)" }}>
                 <ListItemButton
                   onClick={() => {
                     setOpen(false);
@@ -257,33 +200,27 @@ export function PublicNav(_: PublicNavProps = {}) {
                   }}
                   component={RouterLink}
                   to={link.to.startsWith("/#") ? "/" : link.to}
+                  sx={{
+                    py: 2.5,
+                    fontFamily: "var(--display)",
+                    fontStyle: "italic",
+                    fontSize: 22,
+                    color: "var(--ink)"
+                  }}
                 >
-                  <ListItemText primary={t(link.labelKey)} />
+                  {t(link.labelKey)}
                 </ListItemButton>
               </ListItem>
             ))}
           </List>
-          <Divider sx={{ my: 2 }} />
-          <Stack spacing={1}>
-            <Button
-              component={RouterLink}
-              to="/login"
-              variant="outlined"
-              fullWidth
-              onClick={() => setOpen(false)}
-            >
-              {t("publicNav.signIn")}
-            </Button>
-            <Button
-              component={RouterLink}
-              to="/register"
-              variant="contained"
-              fullWidth
-              onClick={() => setOpen(false)}
-            >
-              {t("publicNav.register")}
-            </Button>
-            <Box pt={1}>
+          <Stack spacing={1.5} mt={4}>
+            <RouterLink to="/login" className="ghost-button" onClick={() => setOpen(false)}>
+              <span>{t("publicNav.signIn")}</span>
+            </RouterLink>
+            <RouterLink to="/register" className="ink-button" onClick={() => setOpen(false)}>
+              <span>{t("publicNav.register")}</span>
+            </RouterLink>
+            <Box pt={2}>
               <LanguageToggle />
             </Box>
           </Stack>

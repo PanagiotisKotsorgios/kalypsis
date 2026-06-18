@@ -1,23 +1,14 @@
 import { useState } from "react";
-import {
-  Accordion, AccordionDetails, AccordionSummary, Box, Button, Card, Chip, Container,
-  InputAdornment, Stack, TextField, Typography
-} from "@mui/material";
+import { Box, Container, InputAdornment, Stack, TextField } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SearchIcon from "@mui/icons-material/Search";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import ContactSupportIcon from "@mui/icons-material/ContactSupport";
+import ArrowOutwardIcon from "@mui/icons-material/ArrowOutward";
 import { PublicShell } from "../components/PublicShell";
+import { EdReveal } from "../components/EdReveal";
 
-const CATEGORIES = [
-  "platform", "pricing", "data", "security", "billing", "integrations", "support"
-] as const;
-
+const CATEGORIES = ["platform", "pricing", "data", "security", "billing", "integrations", "support"] as const;
 type Category = typeof CATEGORIES[number];
-
 interface FaqItem { id: string; category: Category; q: string; a: string }
 
 export function FaqPage() {
@@ -26,7 +17,6 @@ export function FaqPage() {
   const [activeCat, setActiveCat] = useState<Category | "all">("all");
   const [expanded, setExpanded] = useState<string | false>(false);
 
-  // 26 questions across the platform — pulled from i18n
   const items: FaqItem[] = [
     { id: "f1", category: "platform", q: t("faq.q.f1.q"), a: t("faq.q.f1.a") },
     { id: "f2", category: "platform", q: t("faq.q.f2.q"), a: t("faq.q.f2.a") },
@@ -72,123 +62,243 @@ export function FaqPage() {
 
   return (
     <PublicShell>
-      <Box sx={{ position: "relative", py: { xs: 8, md: 12 }, color: "common.white", overflow: "hidden",
-        background: "linear-gradient(135deg, #0b2545 0%, #13315c 50%, #1d4e89 100%)" }}>
-        <Container maxWidth="md" sx={{ textAlign: "center", position: "relative" }}>
-          <Stack spacing={2.5} alignItems="center">
-            <Box sx={{ width: 80, height: 80, borderRadius: "50%", bgcolor: "rgba(255,255,255,0.1)",
-              display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
-              <HelpOutlineIcon sx={{ fontSize: 44, color: "common.white" }} />
+      {/* Editorial hero */}
+      <Box className="editorial-grain" sx={{
+        py: { xs: 10, md: 16 },
+        borderBottom: "1px solid var(--rule)"
+      }}>
+        <Container maxWidth="lg">
+          <EdReveal>
+            <Stack direction="row" alignItems="baseline" spacing={2} mb={{ xs: 4, md: 6 }}>
+              <span className="number-marker">№ 01</span>
+              <Box sx={{ flex: 1, height: "1px", bgcolor: "var(--rule)" }} />
+              <span className="eyebrow">{t("faq.eyebrow")}</span>
+            </Stack>
+          </EdReveal>
+
+          <EdReveal delay={120}>
+            <Box className="display" sx={{
+              fontSize: { xs: 48, md: 110 },
+              maxWidth: 1100, color: "var(--ink)", mb: 5
+            }}>
+              {t("faq.editorial.titleA")}{" "}
+              <span className="display-italic" style={{ color: "var(--terracotta)" }}>
+                {t("faq.editorial.titleB")}
+              </span>.
             </Box>
-            <Typography variant="overline" sx={{ letterSpacing: 2.5, opacity: 0.8 }}>{t("faq.eyebrow")}</Typography>
-            <Typography variant="h2" sx={{ fontWeight: 900, letterSpacing: -1, fontSize: { xs: 38, md: 58 } }}>
-              {t("faq.title")}
-            </Typography>
-            <Typography sx={{ opacity: 0.92, fontSize: 18, maxWidth: 640 }}>{t("faq.lead")}</Typography>
-            <TextField
-              fullWidth
-              placeholder={t("faq.searchPlaceholder")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              sx={{
-                mt: 3, maxWidth: 500,
-                "& .MuiOutlinedInput-root": {
-                  bgcolor: "rgba(255,255,255,0.94)", borderRadius: 3,
-                  "& fieldset": { border: "none" }
-                }
-              }}
-              InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
-            />
-          </Stack>
+          </EdReveal>
+
+          <EdReveal delay={200}>
+            <Box sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1.4fr" },
+              gap: { xs: 4, md: 8 }
+            }}>
+              <Box className="marginalia" sx={{ borderTop: "1px solid var(--ink)", pt: 2 }}>
+                <span className="eyebrow" style={{ color: "var(--ink)" }}>
+                  {t("faq.editorial.lede")}
+                </span>
+                <Box sx={{ mt: 2 }}>{t("faq.lead")}</Box>
+              </Box>
+
+              <TextField
+                fullWidth
+                placeholder={t("faq.searchPlaceholder")}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "var(--bone)",
+                    fontFamily: "var(--sans)",
+                    fontSize: 17,
+                    borderRadius: 0,
+                    "& fieldset": { border: "1px solid var(--ink)" },
+                    "&:hover fieldset": { border: "1px solid var(--ink)" },
+                    "&.Mui-focused fieldset": { border: "1px solid var(--ink)" }
+                  },
+                  "& .MuiOutlinedInput-input": { padding: "20px 16px" }
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start" sx={{ pl: 1 }}>
+                      <SearchIcon sx={{ color: "var(--ink)" }} />
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </Box>
+          </EdReveal>
         </Container>
       </Box>
 
-      <Container maxWidth="md" sx={{ py: { xs: 6, md: 10 } }}>
-        {/* Category filters */}
-        <Stack direction="row" spacing={1} flexWrap="wrap" gap={1} mb={4} justifyContent="center">
-          <Chip
-            label={`${t("faq.all")} (${items.length})`}
-            onClick={() => setActiveCat("all")}
-            color={activeCat === "all" ? "primary" : "default"}
-            variant={activeCat === "all" ? "filled" : "outlined"}
-            sx={{ fontWeight: 600 }}
-          />
-          {CATEGORIES.map((c) => {
-            const count = items.filter((i) => i.category === c).length;
-            return (
-              <Chip
-                key={c}
-                label={`${t(`faq.cat.${c}`)} (${count})`}
-                onClick={() => setActiveCat(c)}
-                color={activeCat === c ? "primary" : "default"}
-                variant={activeCat === c ? "filled" : "outlined"}
-                sx={{ fontWeight: 600 }}
+      {/* Categories + list */}
+      <Box sx={{ py: { xs: 8, md: 12 }, borderBottom: "1px solid var(--rule)" }}>
+        <Container maxWidth="lg">
+          <EdReveal>
+            <Box className="number-marker" sx={{ mb: 2 }}>
+              № 02 — {filtered.length} / {items.length}
+            </Box>
+            <Stack direction="row" spacing={0} flexWrap="wrap" gap={0} sx={{
+              borderTop: "1px solid var(--ink)",
+              borderBottom: "1px solid var(--ink)",
+              mb: 6
+            }}>
+              <CategoryPill
+                label={t("faq.all")}
+                count={items.length}
+                active={activeCat === "all"}
+                onClick={() => setActiveCat("all")}
               />
-            );
-          })}
-        </Stack>
+              {CATEGORIES.map((c) => (
+                <CategoryPill
+                  key={c}
+                  label={t(`faq.cat.${c}`)}
+                  count={items.filter((i) => i.category === c).length}
+                  active={activeCat === c}
+                  onClick={() => setActiveCat(c)}
+                />
+              ))}
+            </Stack>
+          </EdReveal>
 
-        {filtered.length === 0 ? (
-          <Card variant="outlined" sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
-            {t("faq.noResults")}
-          </Card>
-        ) : (
-          <Stack spacing={1.5}>
-            {filtered.map((it) => {
-              const open = expanded === it.id;
-              return (
-                <Accordion key={it.id} disableGutters elevation={0}
-                  expanded={open}
-                  onChange={(_, e) => setExpanded(e ? it.id : false)}
-                  sx={{
-                    bgcolor: "background.paper",
-                    border: "1px solid",
-                    borderColor: open ? "primary.main" : "divider",
-                    borderRadius: 2,
-                    overflow: "hidden",
-                    "&:before": { display: "none" },
-                    transition: "border-color 200ms, box-shadow 200ms",
-                    "&:hover": { borderColor: "primary.light", boxShadow: "0 8px 24px rgba(11,37,69,0.08)" },
-                    "&.Mui-expanded": { boxShadow: "0 14px 40px rgba(11,37,69,0.12)" }
-                  }}>
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 3, py: 1 }}>
-                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
-                      <Chip label={t(`faq.cat.${it.category}`)} size="small" variant="outlined" />
-                      <Typography sx={{ fontWeight: 700, fontSize: 17, color: open ? "primary.main" : "text.primary" }}>
-                        {it.q}
-                      </Typography>
-                    </Stack>
-                  </AccordionSummary>
-                  <AccordionDetails sx={{ px: 3, pb: 3 }}>
-                    <Typography color="text.secondary" sx={{ lineHeight: 1.75, fontSize: 15.5, whiteSpace: "pre-wrap" }}>
-                      {it.a}
-                    </Typography>
-                  </AccordionDetails>
-                </Accordion>
-              );
-            })}
-          </Stack>
-        )}
+          {filtered.length === 0 ? (
+            <EdReveal>
+              <Box sx={{
+                py: 8, textAlign: "center",
+                color: "var(--ink-muted)",
+                fontFamily: "var(--display)",
+                fontStyle: "italic",
+                fontSize: 22
+              }}>
+                {t("faq.noResults")}
+              </Box>
+            </EdReveal>
+          ) : (
+            <Box sx={{ borderTop: "1px solid var(--ink)" }}>
+              {filtered.map((it, idx) => {
+                const open = expanded === it.id;
+                return (
+                  <EdReveal key={it.id} delay={Math.min(idx, 8) * 60}>
+                    <Box
+                      onClick={() => setExpanded(open ? false : it.id)}
+                      sx={{
+                        cursor: "pointer",
+                        display: "grid",
+                        gridTemplateColumns: { xs: "44px 1fr 28px", md: "60px 1fr 200px 40px" },
+                        gap: { xs: 2, md: 4 },
+                        py: { xs: 3, md: 4 },
+                        borderBottom: "1px solid var(--rule)",
+                        transition: "background 480ms var(--ease-editorial)",
+                        bgcolor: open ? "var(--bone)" : "transparent",
+                        "&:hover": { bgcolor: "var(--bone)" },
+                        alignItems: "baseline"
+                      }}>
+                      <Box className="number-marker">
+                        {String(idx + 1).padStart(2, "0")}
+                      </Box>
+                      <Box>
+                        <Box className="display" sx={{
+                          fontSize: { xs: 22, md: 30 },
+                          color: "var(--ink)",
+                          lineHeight: 1.15,
+                          mb: open ? 2 : 0,
+                          transition: "margin 480ms var(--ease-editorial)"
+                        }}>
+                          {it.q}
+                        </Box>
+                        <Box sx={{
+                          maxHeight: open ? 600 : 0,
+                          opacity: open ? 1 : 0,
+                          overflow: "hidden",
+                          transition: "max-height 700ms var(--ease-editorial), opacity 500ms var(--ease-editorial)",
+                          fontSize: 16, lineHeight: 1.75, color: "var(--ink-soft)",
+                          maxWidth: 760, whiteSpace: "pre-wrap"
+                        }}>
+                          {it.a}
+                        </Box>
+                      </Box>
+                      <Box className="eyebrow" sx={{
+                        display: { xs: "none", md: "block" },
+                        color: open ? "var(--gold)" : "var(--ink-muted)",
+                        transition: "color 480ms var(--ease-editorial)"
+                      }}>
+                        {t(`faq.cat.${it.category}`)}
+                      </Box>
+                      <Box sx={{
+                        fontFamily: "var(--display)",
+                        fontStyle: "italic",
+                        fontSize: { xs: 22, md: 28 },
+                        color: open ? "var(--gold)" : "var(--ink-muted)",
+                        textAlign: "right",
+                        transition: "color 480ms var(--ease-editorial), transform 480ms var(--ease-editorial)",
+                        transform: open ? "rotate(45deg)" : "rotate(0)"
+                      }}>
+                        +
+                      </Box>
+                    </Box>
+                  </EdReveal>
+                );
+              })}
+            </Box>
+          )}
+        </Container>
+      </Box>
 
-        {/* Bottom CTA */}
-        <Card sx={{ mt: 6, p: { xs: 3, md: 5 }, textAlign: "center",
-          background: "linear-gradient(135deg, #0b2545 0%, #13315c 100%)", color: "common.white" }}>
-          <ContactSupportIcon sx={{ fontSize: 48, mb: 1.5, color: "secondary.main" }} />
-          <Typography variant="h5" fontWeight={800} mb={1}>{t("faq.notFound.title")}</Typography>
-          <Typography sx={{ opacity: 0.88, mb: 3, maxWidth: 500, mx: "auto" }}>{t("faq.notFound.body")}</Typography>
-          <Button
-            component={RouterLink}
-            to="/contact"
-            variant="contained"
-            color="secondary"
-            size="large"
-            endIcon={<ArrowForwardIcon />}
-            sx={{ px: 4, py: 1.5, fontWeight: 700 }}
-          >
-            {t("faq.notFound.cta")}
-          </Button>
-        </Card>
-      </Container>
+      {/* Bottom CTA */}
+      <Box className="editorial-grain" sx={{ py: { xs: 10, md: 16 }, bgcolor: "var(--ink)", color: "var(--paper)" }}>
+        <Container maxWidth="md">
+          <EdReveal>
+            <Box className="number-marker" sx={{ color: "var(--gold)", mb: 3 }}>
+              № 03 — {t("faq.notFound.title")}
+            </Box>
+            <Box className="display" sx={{
+              fontSize: { xs: 36, md: 56 },
+              color: "var(--paper)", mb: 3, maxWidth: 620
+            }}>
+              {t("faq.notFound.title")}
+            </Box>
+            <Box sx={{ fontSize: 18, lineHeight: 1.7, opacity: 0.86, maxWidth: 520, mb: 5 }}>
+              {t("faq.notFound.body")}
+            </Box>
+            <RouterLink to="/contact" className="ghost-button" style={{
+              color: "var(--paper)",
+              borderColor: "var(--paper)"
+            }}>
+              <span>{t("faq.notFound.cta")}</span>
+              <ArrowOutwardIcon sx={{ fontSize: 18 }} />
+            </RouterLink>
+          </EdReveal>
+        </Container>
+      </Box>
     </PublicShell>
+  );
+}
+
+function CategoryPill({ label, count, active, onClick }:
+  { label: string; count: number; active: boolean; onClick: () => void }) {
+  return (
+    <Box onClick={onClick} sx={{
+      cursor: "pointer",
+      px: { xs: 2, md: 3 },
+      py: { xs: 2, md: 2.5 },
+      borderRight: "1px solid var(--rule)",
+      "&:last-of-type": { borderRight: "none" },
+      fontFamily: "var(--display)",
+      fontStyle: active ? "italic" : "normal",
+      fontSize: 15,
+      color: active ? "var(--ink)" : "var(--ink-muted)",
+      transition: "color 380ms var(--ease-editorial)",
+      "&:hover": { color: "var(--ink)" }
+    }}>
+      {label}{" "}
+      <span style={{
+        fontSize: 11,
+        verticalAlign: "super",
+        marginLeft: 4,
+        color: active ? "var(--gold)" : "var(--ink-muted)"
+      }}>
+        ({count})
+      </span>
+    </Box>
   );
 }

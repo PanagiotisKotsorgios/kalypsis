@@ -550,7 +550,33 @@
     "months": "months"
   },
   "landing": {
-    "eyebrow": "BUILT IN GREECE · CERTIFIED SECURITY",
+    "eyebrow": "ISSUE N°01 · ATHENS",
+    "editorial": {
+      "headlineA": "Your agency,",
+      "headlineB": "quietly",
+      "headlineC": "in place.",
+      "byline": "FROM THE EDITORIAL DESK",
+      "byBody": "A platform for Greek insurance agencies and intermediaries. Designed with attention to detail.",
+      "agencyA": "Fewer windows.",
+      "agencyB": "More work done.",
+      "sideNote": "side note",
+      "agentMarginalia": "From the independent broker serving 60 customers to the brokerage with a 200-person network. Same system, different scale.",
+      "finalA": "Ready to",
+      "finalB": "try it"
+    },
+    "manifesto": {
+      "eyebrow": "THE PHILOSOPHY",
+      "title": "One office, one system. Not seven different tools.",
+      "body": "We built Kalypsis around how a Greek insurance office actually works — small or large, with or without partners, in Athens or in the regions. Policies, renewals, receipts, commissions and customer communication. Same page, same interface, in Greek."
+    },
+    "stats": {
+      "eyebrow": "THE PLATFORM IN NUMBERS"
+    },
+    "pullQuote": {
+      "text": "We stopped being afraid of our inbox. Kalypsis reminded us our job is to serve people — not fill in spreadsheets.",
+      "author": "PAPADAKIS INSURANCE",
+      "role": "Heraklion · 14 years operating"
+    },
     "headline": "Your entire insurance agency. In one platform.",
     "lead": "From issuing a policy to renewal reminders and commission settlement, Kalypsis keeps your office organised and your customers informed — in Greek, by the rules of the Greek market.",
     "ctaPrimary": "Start free",
@@ -679,10 +705,11 @@
       "cta": "View all questions"
     },
     "finalCta": {
+      "eyebrow": "NEXT STEP",
       "title": "Ready to modernise your agency?",
-      "lead": "14-day free trial. No card. We migrate your data for you.",
-      "ctaPrimary": "Start now",
-      "ctaSecondary": "I already have an account"
+      "lead": "14-day free trial, no card required. We migrate your data for you.",
+      "ctaPrimary": "Start 14-day trial",
+      "ctaSecondary": "Talk to us"
     }
   },
   "login": {
@@ -752,7 +779,15 @@
   },
   "pricing": {
     "footnote": "Need custom volume or special requirements? We're here.",
-    "contactSales": "Talk to sales"
+    "contactSales": "Talk to sales",
+    "editorial": {
+      "titleA": "Pick your plan,",
+      "titleB": "quietly",
+      "lede": "14-DAY GUARANTEE",
+      "marginalia": "Every plan includes free data migration from your old system and 2 hours of team training. Cancel anytime, no penalties.",
+      "tier": "PLAN",
+      "custom": "by request"
+    }
   },
   "requests": {
     "customerTitle": "My requests",
@@ -1129,6 +1164,11 @@
   "faq": {
     "eyebrow": "FREQUENTLY ASKED",
     "title": "Everything you might be wondering",
+    "editorial": {
+      "titleA": "Everything you might",
+      "titleB": "be wondering",
+      "lede": "26 QUESTIONS · 7 TOPICS"
+    },
     "lead": "We collected the most common questions about the platform, pricing, security and support.",
     "searchPlaceholder": "Search questions…",
     "all": "All",
@@ -1629,6 +1669,10 @@
   "contact": {
     "eyebrow": "CONTACT",
     "title": "How can we help?",
+    "editorial": {
+      "titleA": "Tell us",
+      "titleB": "what's on your mind"
+    },
     "lead": "Tell us what's on your mind. We respond within one business day for general queries and immediately for urgent support issues.",
     "form": {
       "title": "Send us a message",

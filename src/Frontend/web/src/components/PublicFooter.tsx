@@ -1,32 +1,16 @@
 import { useState, type FormEvent } from "react";
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  Container,
-  Divider,
-  IconButton,
-  InputAdornment,
-  Link,
-  Stack,
-  TextField,
-  Typography
-} from "@mui/material";
+import { Alert, Box, CircularProgress, Container, Divider, IconButton, Stack, TextField } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import EmailIcon from "@mui/icons-material/Email";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import PhoneIcon from "@mui/icons-material/Phone";
-import VerifiedIcon from "@mui/icons-material/Verified";
-import ShieldIcon from "@mui/icons-material/Shield";
-import LanguageIcon from "@mui/icons-material/Language";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import FacebookIcon from "@mui/icons-material/Facebook";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { KalypsisLogo } from "./KalypsisLogo";
 import { api } from "../api/client";
+import { KalypsisLogo } from "./KalypsisLogo";
 
 export function PublicFooter() {
   const { t } = useTranslation();
@@ -58,37 +42,39 @@ export function PublicFooter() {
   };
 
   return (
-    <Box component="footer" sx={{ bgcolor: "#061a36", color: "rgba(255,255,255,0.85)" }}>
-      {/* Newsletter strip */}
-      <Box
-        sx={{
-          background: "linear-gradient(135deg, #0b2545 0%, #13315c 100%)",
-          py: { xs: 5, md: 6 },
-          borderBottom: "1px solid rgba(255,255,255,0.08)"
-        }}
-      >
+    <Box component="footer" sx={{ bgcolor: "var(--paper)", borderTop: "1px solid var(--ink)" }}>
+      {/* Newsletter strip — ink band */}
+      <Box className="editorial-grain" sx={{
+        bgcolor: "var(--ink)",
+        color: "var(--paper)",
+        py: { xs: 5, md: 7 }
+      }}>
         <Container maxWidth="lg">
-          <Box
-            sx={{
-              display: "grid",
-              gap: 4,
-              gridTemplateColumns: { xs: "1fr", md: "1fr 1.2fr" },
-              alignItems: "center"
-            }}
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={5}
+            alignItems={{ md: "center" }}
+            justifyContent="space-between"
           >
-            <Stack spacing={1}>
-              <Stack direction="row" spacing={1.5} alignItems="center">
-                <EmailIcon sx={{ color: "secondary.main", fontSize: 28 }} />
-                <Typography variant="h6" sx={{ fontWeight: 800, color: "common.white" }}>
-                  {t("footer.newsletter.title")}
-                </Typography>
-              </Stack>
-              <Typography sx={{ opacity: 0.78, fontSize: 14, maxWidth: 460 }}>
+            <Box sx={{ maxWidth: 540 }}>
+              <Box className="number-marker" sx={{ color: "var(--gold)", mb: 1 }}>
+                — {t("footer.newsletter.title")}
+              </Box>
+              <Box className="display" sx={{
+                fontSize: { xs: 28, md: 40 },
+                color: "var(--paper)",
+                lineHeight: 1.05,
+                mb: 2
+              }}>
+                {t("footer.newsletter.title")}
+              </Box>
+              <Box sx={{ opacity: 0.78, fontSize: 14, lineHeight: 1.6 }}>
                 {t("footer.newsletter.subtitle")}
-              </Typography>
-            </Stack>
-            <Box component="form" onSubmit={subscribe}>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              </Box>
+            </Box>
+
+            <Box component="form" onSubmit={subscribe} sx={{ flex: 1, maxWidth: 540 }}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems="stretch">
                 <TextField
                   fullWidth
                   type="email"
@@ -98,78 +84,87 @@ export function PublicFooter() {
                   disabled={submitting}
                   sx={{
                     "& .MuiOutlinedInput-root": {
-                      bgcolor: "rgba(255,255,255,0.92)",
-                      borderRadius: 2,
-                      "& fieldset": { border: "none" }
-                    }
-                  }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <EmailIcon sx={{ color: "text.secondary" }} />
-                      </InputAdornment>
-                    )
+                      bgcolor: "transparent",
+                      color: "var(--paper)",
+                      fontFamily: "var(--sans)",
+                      borderRadius: 0,
+                      "& fieldset": {
+                        border: "none",
+                        borderBottom: "1px solid rgba(245,237,225,0.45)"
+                      },
+                      "&:hover fieldset": { borderBottom: "1px solid var(--paper)" },
+                      "&.Mui-focused fieldset": {
+                        border: "none",
+                        borderBottom: "1px solid var(--gold)"
+                      }
+                    },
+                    "& .MuiOutlinedInput-input": { padding: "16px 0", color: "var(--paper)" },
+                    "& .MuiOutlinedInput-input::placeholder": { color: "rgba(245,237,225,0.55)", opacity: 1 }
                   }}
                 />
-                <Button
+                <button
                   type="submit"
-                  variant="contained"
-                  color="secondary"
                   disabled={submitting}
-                  endIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <SendIcon />}
-                  sx={{ px: 4, py: 1.5, fontWeight: 700, whiteSpace: "nowrap" }}
+                  className="ink-button"
+                  style={{
+                    background: "var(--gold)",
+                    color: "var(--ink)",
+                    borderColor: "var(--gold)",
+                    minWidth: 160,
+                    whiteSpace: "nowrap"
+                  }}
                 >
-                  {t("footer.newsletter.cta")}
-                </Button>
+                  <span>{submitting ? "..." : t("footer.newsletter.cta")}</span>
+                  {submitting ? <CircularProgress size={14} color="inherit" /> : <SendIcon sx={{ fontSize: 14 }} />}
+                </button>
               </Stack>
               {status === "ok" && (
-                <Alert severity="success" variant="filled" sx={{ mt: 2 }} onClose={() => setStatus("idle")}>
+                <Alert
+                  severity="success"
+                  variant="outlined"
+                  sx={{ mt: 2, color: "var(--paper)", borderColor: "var(--gold)", bgcolor: "transparent" }}
+                  onClose={() => setStatus("idle")}
+                >
                   {t("footer.newsletter.success")}
                 </Alert>
               )}
               {status === "err" && errMsg && (
-                <Alert severity="error" variant="filled" sx={{ mt: 2 }} onClose={() => setStatus("idle")}>
+                <Alert
+                  severity="error"
+                  variant="outlined"
+                  sx={{ mt: 2, color: "var(--paper)", borderColor: "#e67261", bgcolor: "transparent" }}
+                  onClose={() => setStatus("idle")}
+                >
                   {errMsg}
                 </Alert>
               )}
             </Box>
-          </Box>
+          </Stack>
         </Container>
       </Box>
 
-      {/* Main grid */}
-      <Container maxWidth="lg" sx={{ pt: { xs: 6, md: 8 }, pb: 4 }}>
-        <Box
-          sx={{
-            display: "grid",
-            gap: 5,
-            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1.6fr 1fr 1fr 1fr 1fr" }
-          }}
-        >
-          {/* Brand column */}
-          <Stack spacing={2}>
-            <KalypsisLogo size={64} color="light" />
-            <Typography variant="body2" sx={{ opacity: 0.78, maxWidth: 360, lineHeight: 1.7 }}>
+      {/* Masthead / colophon */}
+      <Container maxWidth="lg" sx={{ py: { xs: 8, md: 10 } }}>
+        <Box sx={{
+          display: "grid",
+          gap: 5,
+          gridTemplateColumns: { xs: "1fr", md: "1.6fr 1fr 1fr 1.4fr" }
+        }}>
+          {/* Brand */}
+          <Box>
+            <KalypsisLogo size={88} crop />
+            <Box sx={{ mt: 3, color: "var(--ink-soft)", fontSize: 14, lineHeight: 1.7, maxWidth: 380 }}>
               {t("footer.intro")}
-            </Typography>
-            <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+            </Box>
+            <Stack direction="row" spacing={1} sx={{ mt: 3 }}>
               <SocialIcon href="https://github.com/PanagiotisKotsorgios/kalypsis" icon={<GitHubIcon fontSize="small" />} />
               <SocialIcon href="#" icon={<LinkedInIcon fontSize="small" />} />
               <SocialIcon href="#" icon={<FacebookIcon fontSize="small" />} />
             </Stack>
-            <Stack direction="row" spacing={2} mt={2} alignItems="center" sx={{ opacity: 0.85 }}>
-              <Stack direction="row" spacing={0.5} alignItems="center">
-                <VerifiedIcon sx={{ color: "#7be295", fontSize: 18 }} />
-                <Typography variant="caption">GDPR Ready</Typography>
-              </Stack>
-              <Stack direction="row" spacing={0.5} alignItems="center">
-                <ShieldIcon sx={{ color: "#7be295", fontSize: 18 }} />
-                <Typography variant="caption">ISO 27001</Typography>
-              </Stack>
-            </Stack>
-          </Stack>
+          </Box>
 
           <FooterColumn
+            number="I"
             heading={t("footer.product")}
             links={[
               { to: "/#features", label: t("publicNav.platform") },
@@ -181,104 +176,102 @@ export function PublicFooter() {
           />
 
           <FooterColumn
+            number="II"
             heading={t("footer.company")}
             links={[
               { to: "/contact", label: t("publicNav.contact") },
-              { to: "/contact?type=press", label: t("footer.press") },
-              { to: "/contact?type=careers", label: t("footer.careers") },
               { to: "/register", label: t("publicNav.register") },
-              { to: "/login", label: t("publicNav.signIn") }
-            ]}
-          />
-
-          <FooterColumn
-            heading={t("footer.legal")}
-            links={[
+              { to: "/login", label: t("publicNav.signIn") },
               { to: "/terms", label: t("footer.terms") },
-              { to: "/privacy", label: t("footer.privacy") },
-              { to: "/cookies", label: t("footer.cookies") },
-              { to: "/contact?type=privacy", label: t("footer.dpo") }
+              { to: "/privacy", label: t("footer.privacy") }
             ]}
           />
 
-          <Stack spacing={1.5}>
-            <Typography sx={{ color: "common.white", fontWeight: 700, letterSpacing: 0.5, mb: 1 }}>
-              {t("footer.contact")}
-            </Typography>
-            <Stack direction="row" spacing={1.2} alignItems="flex-start" sx={{ opacity: 0.85, fontSize: 14 }}>
-              <LocationOnIcon fontSize="small" sx={{ mt: 0.3, color: "rgba(255,255,255,0.6)" }} />
-              <Box>Λ. Κηφισίας 268<br />152 32 Χαλάνδρι, Αθήνα</Box>
+          <Box>
+            <Box className="number-marker" sx={{ mb: 1 }}>III</Box>
+            <Box className="eyebrow" sx={{ mb: 2 }}>{t("footer.contact")}</Box>
+            <Stack spacing={1.5} sx={{ fontSize: 14, color: "var(--ink-soft)" }}>
+              <Stack direction="row" spacing={1.2} alignItems="flex-start">
+                <LocationOnIcon fontSize="small" sx={{ color: "var(--ink-muted)", mt: 0.3 }} />
+                <Box>Λ. Κηφισίας 268<br />152 32 Χαλάνδρι, Αθήνα</Box>
+              </Stack>
+              <Stack direction="row" spacing={1.2} alignItems="center">
+                <PhoneIcon fontSize="small" sx={{ color: "var(--ink-muted)" }} />
+                <Box component="a" href="tel:+302106000000" className="editorial-link" sx={{ color: "var(--ink)" }}>
+                  +30 210 600 0000
+                </Box>
+              </Stack>
+              <Stack direction="row" spacing={1.2} alignItems="center">
+                <EmailIcon fontSize="small" sx={{ color: "var(--ink-muted)" }} />
+                <Box component="a" href="mailto:hello@kalypsis.gr" className="editorial-link"
+                  sx={{ color: "var(--ink)", fontFamily: "var(--mono)" }}>
+                  hello@kalypsis.gr
+                </Box>
+              </Stack>
             </Stack>
-            <Stack direction="row" spacing={1.2} alignItems="center" sx={{ opacity: 0.85, fontSize: 14 }}>
-              <PhoneIcon fontSize="small" sx={{ color: "rgba(255,255,255,0.6)" }} />
-              <Link href="tel:+302106000000" color="inherit" underline="hover">+30 210 600 0000</Link>
-            </Stack>
-            <Stack direction="row" spacing={1.2} alignItems="center" sx={{ opacity: 0.85, fontSize: 14 }}>
-              <EmailIcon fontSize="small" sx={{ color: "rgba(255,255,255,0.6)" }} />
-              <Link href="mailto:hello@kalypsis.gr" color="inherit" underline="hover">hello@kalypsis.gr</Link>
-            </Stack>
-            <Stack direction="row" spacing={1.2} alignItems="center" sx={{ opacity: 0.85, fontSize: 14 }}>
-              <LanguageIcon fontSize="small" sx={{ color: "rgba(255,255,255,0.6)" }} />
-              <Link href="https://www.kalypsis.gr" color="inherit" underline="hover" target="_blank">www.kalypsis.gr</Link>
-            </Stack>
-          </Stack>
+          </Box>
         </Box>
 
-        <Divider sx={{ my: 4, borderColor: "rgba(255,255,255,0.12)" }} />
+        <Divider sx={{ my: 5, borderColor: "var(--rule)" }} />
 
         <Stack
           direction={{ xs: "column", md: "row" }}
           spacing={2}
           justifyContent="space-between"
           alignItems={{ xs: "flex-start", md: "center" }}
-          sx={{ opacity: 0.7, fontSize: 13 }}
+          sx={{ color: "var(--ink-muted)", fontSize: 12, letterSpacing: "0.02em" }}
         >
-          <Box>© {new Date().getFullYear()} Kalypsis Insurance Platform — {t("app.tagline")}</Box>
+          <Box>© {new Date().getFullYear()} Kalypsis · {t("app.tagline")}</Box>
           <Stack direction="row" spacing={3}>
-            <Link component={RouterLink} to="/terms" color="inherit" underline="hover">
+            <Box component={RouterLink} to="/terms" className="editorial-link"
+              sx={{ color: "var(--ink-muted)" }}>
               {t("footer.terms")}
-            </Link>
-            <Link component={RouterLink} to="/privacy" color="inherit" underline="hover">
+            </Box>
+            <Box component={RouterLink} to="/privacy" className="editorial-link"
+              sx={{ color: "var(--ink-muted)" }}>
               {t("footer.privacy")}
-            </Link>
-            <Link component={RouterLink} to="/cookies" color="inherit" underline="hover">
+            </Box>
+            <Box component={RouterLink} to="/cookies" className="editorial-link"
+              sx={{ color: "var(--ink-muted)" }}>
               {t("footer.cookies")}
-            </Link>
+            </Box>
           </Stack>
         </Stack>
 
-        <Typography variant="caption" sx={{ opacity: 0.45, display: "block", mt: 2 }}>
+        <Box sx={{ mt: 2, fontSize: 11, color: "var(--ink-muted)", lineHeight: 1.6, maxWidth: 720 }}>
           {t("footer.compliance")}
-        </Typography>
+        </Box>
       </Container>
     </Box>
   );
 }
 
-function FooterColumn({
-  heading,
-  links
-}: {
-  heading: string;
-  links: { to: string; label: string }[];
-}) {
+function FooterColumn({ number, heading, links }:
+  { number: string; heading: string; links: { to: string; label: string }[] }) {
   return (
-    <Stack spacing={1.4}>
-      <Typography sx={{ color: "common.white", fontWeight: 700, letterSpacing: 0.5, mb: 1 }}>
-        {heading}
-      </Typography>
-      {links.map((link) => (
-        <Link
-          key={link.to + link.label}
-          component={RouterLink}
-          to={link.to}
-          underline="none"
-          sx={{ color: "rgba(255,255,255,0.78)", fontSize: 14, "&:hover": { color: "common.white" } }}
-        >
-          {link.label}
-        </Link>
-      ))}
-    </Stack>
+    <Box>
+      <Box className="number-marker" sx={{ mb: 1 }}>{number}</Box>
+      <Box className="eyebrow" sx={{ mb: 2 }}>{heading}</Box>
+      <Stack spacing={1.2}>
+        {links.map((link) => (
+          <Box
+            key={link.to + link.label}
+            component={RouterLink}
+            to={link.to}
+            className="editorial-link"
+            sx={{
+              fontFamily: "var(--display)",
+              fontStyle: "italic",
+              fontSize: 17,
+              color: "var(--ink)",
+              textDecoration: "none"
+            }}
+          >
+            {link.label}
+          </Box>
+        ))}
+      </Stack>
+    </Box>
   );
 }
 
@@ -290,9 +283,13 @@ function SocialIcon({ href, icon }: { href: string; icon: React.ReactNode }) {
       target="_blank"
       rel="noopener"
       sx={{
-        color: "rgba(255,255,255,0.75)",
-        bgcolor: "rgba(255,255,255,0.06)",
-        "&:hover": { color: "common.white", bgcolor: "rgba(255,255,255,0.15)" }
+        color: "var(--ink)",
+        border: "1px solid var(--rule)",
+        width: 36,
+        height: 36,
+        borderRadius: 0,
+        transition: "background 380ms var(--ease-editorial), color 380ms var(--ease-editorial)",
+        "&:hover": { bgcolor: "var(--ink)", color: "var(--paper)" }
       }}
     >
       {icon}
