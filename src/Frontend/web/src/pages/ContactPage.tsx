@@ -9,6 +9,10 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PublicShell } from "../components/PublicShell";
 import { EdReveal } from "../components/EdReveal";
+import { EditorialImage } from "../components/EditorialImage";
+
+const CONTACT_HERO =
+  "https://img.magnific.com/free-photo/busy-woman-doing-many-things-same-time_1098-3232.jpg";
 
 type ContactForm = {
   inquiryType: string;
@@ -150,8 +154,17 @@ export function ContactPage() {
             </Box>
           </EdReveal>
           <EdReveal delay={220}>
-            <Box sx={{ fontSize: 19, lineHeight: 1.7, color: "var(--ink-soft)", maxWidth: 640 }}>
-              {t("contact.lead")}
+            <Box sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "1.5fr 1fr" },
+              gap: { xs: 4, md: 6 },
+              mt: 5,
+              alignItems: "center"
+            }}>
+              <Box sx={{ fontSize: 19, lineHeight: 1.7, color: "var(--ink-soft)" }}>
+                {t("contact.lead")}
+              </Box>
+              <EditorialImage src={CONTACT_HERO} aspect="5 / 4" caption="ΥΠΟΣΤΗΡΙΞΗ · 09:00–18:00" align="right" />
             </Box>
           </EdReveal>
         </Container>

@@ -5,9 +5,24 @@ import { Link as RouterLink } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import ArrowOutwardIcon from "@mui/icons-material/ArrowOutward";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+// Sidebar-matched outlined icons for the feature grid (bigger, single tone).
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
+import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
+import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
+import PhoneIphoneOutlinedIcon from "@mui/icons-material/PhoneIphoneOutlined";
+import ExtensionOutlinedIcon from "@mui/icons-material/ExtensionOutlined";
 import { PublicShell } from "../components/PublicShell";
 import { EdReveal } from "../components/EdReveal";
+import { EditorialImage } from "../components/EditorialImage";
 import { api } from "../api/client";
+
+const HERO_IMAGE =
+  "https://media.canadianunderwriter.ca/uploads/2024/07/iStock-1479275024-modified-78c42d3a-3ec3-44d2-98a4-882c8c742d8e.jpg";
+const FOR_AGENCIES_IMAGE =
+  "https://img.magnific.com/premium-photo/businessman-holding-different-icons-dark-background-closeup-insurance-concept_495423-31062.jpg";
+const FOR_AGENTS_IMAGE =
+  "https://img.freepik.com/premium-vector/insurance-services-concept-with-magnifier-hand-magnifying-glass-virtual-screen_127544-770.jpg";
 
 interface PublicStats { agencies: number; producers: number; activePolicies: number; uptime: string }
 
@@ -29,27 +44,27 @@ export function LandingPage() {
 }
 
 /* =============================================================
-   01 — HERO
+   01 — HERO with editorial portrait
    ============================================================= */
 function Hero() {
   const { t } = useTranslation();
   return (
     <Box className="editorial-grain" sx={{
       position: "relative",
-      pt: { xs: 10, md: 16 },
-      pb: { xs: 10, md: 16 },
+      pt: { xs: 8, md: 14 },
+      pb: { xs: 8, md: 14 },
       borderBottom: "1px solid var(--rule)"
     }}>
       <Container maxWidth="lg">
         <Box sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "1fr 56px" },
-          gap: { md: 4 },
-          alignItems: "start"
+          gridTemplateColumns: { xs: "1fr", lg: "1.35fr 1fr" },
+          gap: { xs: 6, lg: 10 },
+          alignItems: "center"
         }}>
           <Box>
             <EdReveal>
-              <Stack direction="row" alignItems="baseline" spacing={2} mb={{ xs: 4, md: 6 }}>
+              <Stack direction="row" alignItems="baseline" spacing={2} mb={{ xs: 3, md: 5 }}>
                 <span className="number-marker">№ 01</span>
                 <Box sx={{ flex: 1, height: "1px", bgcolor: "var(--rule)" }} />
                 <span className="eyebrow">{t("landing.eyebrow")}</span>
@@ -58,10 +73,9 @@ function Hero() {
 
             <EdReveal delay={120}>
               <Box className="display" sx={{
-                fontSize: { xs: 56, sm: 80, md: 116, lg: 132 },
+                fontSize: { xs: 52, sm: 72, md: 92, lg: 108 },
                 color: "var(--ink)",
-                mb: 4,
-                maxWidth: 1100
+                mb: 4
               }}>
                 {t("landing.editorial.headlineA")}{" "}
                 <span className="display-italic" style={{ color: "var(--terracotta)" }}>
@@ -72,60 +86,95 @@ function Hero() {
               </Box>
             </EdReveal>
 
-            <EdReveal delay={240}>
+            <EdReveal delay={220}>
               <Box sx={{
+                fontSize: { xs: 18, md: 20 },
+                lineHeight: 1.65,
+                color: "var(--ink-soft)",
+                maxWidth: 560,
+                mb: 5
+              }}>
+                {t("landing.lead")}
+              </Box>
+            </EdReveal>
+
+            <EdReveal delay={320}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                <RouterLink to="/register" className="ink-button" style={{ fontSize: 16, padding: "18px 32px" }}>
+                  <span>{t("landing.ctaPrimary")}</span>
+                  <ArrowOutwardIcon sx={{ fontSize: 20 }} />
+                </RouterLink>
+                <RouterLink to="/login" className="ghost-button" style={{ fontSize: 16, padding: "17px 30px" }}>
+                  <span>{t("landing.ctaSecondary")}</span>
+                </RouterLink>
+              </Stack>
+            </EdReveal>
+
+            <EdReveal delay={420}>
+              <Box sx={{
+                mt: { xs: 5, md: 7 },
+                pt: 3,
+                borderTop: "1px solid var(--rule)",
                 display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "1fr 1.4fr" },
-                gap: { xs: 3, md: 6 },
-                mt: { xs: 4, md: 8 }
+                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                gap: 3,
+                maxWidth: 640
               }}>
                 <Box className="marginalia">
-                  <Box sx={{ borderTop: "1px solid var(--ink)", pt: 2, mb: 2, color: "var(--ink)" }}>
+                  <Box sx={{ color: "var(--ink)", mb: 1 }}>
                     <span className="eyebrow">{t("landing.editorial.byline")}</span>
                   </Box>
                   {t("landing.editorial.byBody")}
                 </Box>
-                <Box>
-                  <p style={{
-                    fontSize: 19,
-                    lineHeight: 1.65,
-                    color: "var(--ink-soft)",
-                    marginTop: 0,
-                    maxWidth: 560
-                  }}>
-                    {t("landing.lead")}
-                  </p>
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 4 }}>
-                    <RouterLink to="/register" className="ink-button">
-                      <span>{t("landing.ctaPrimary")}</span>
-                      <ArrowOutwardIcon sx={{ fontSize: 18 }} />
-                    </RouterLink>
-                    <RouterLink to="/login" className="ghost-button">
-                      <span>{t("landing.ctaSecondary")}</span>
-                    </RouterLink>
-                  </Stack>
+                <Box sx={{
+                  fontFamily: "var(--mono)",
+                  fontSize: 11,
+                  letterSpacing: "0.16em",
+                  textTransform: "uppercase",
+                  color: "var(--ink-muted)",
+                  lineHeight: 1.9,
+                  alignSelf: "end"
+                }}>
+                  ΑΘΗΝΑ · {new Date().getFullYear()} · ΤΕΥΧΟΣ N°01
                 </Box>
               </Box>
             </EdReveal>
           </Box>
 
-          <Box sx={{
-            display: { xs: "none", md: "flex" },
-            flexDirection: "column",
-            alignItems: "flex-end",
-            justifyContent: "space-between",
-            height: "100%",
-            color: "var(--ink-muted)",
-            fontFamily: "var(--mono)",
-            fontSize: 11,
-            letterSpacing: "0.16em",
-            lineHeight: 2,
-            pt: 1
-          }}>
-            <Box sx={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
-              ΑΘΗΝΑ &nbsp;·&nbsp; {new Date().getFullYear()} &nbsp;·&nbsp; ΤΕΥΧΟΣ N°01
+          <EdReveal delay={200}>
+            <Box sx={{ position: "relative", display: { xs: "none", lg: "block" } }}>
+              <EditorialImage
+                src={HERO_IMAGE}
+                aspect="3 / 4"
+                caption="ΦΩΤ. KALYPSIS"
+                align="right"
+                sx={{ maxWidth: 520, ml: "auto" }}
+              />
+              <Box sx={{
+                position: "absolute",
+                left: -32,
+                bottom: 64,
+                bgcolor: "var(--bone)",
+                border: "1px solid var(--ink)",
+                px: 3,
+                py: 2,
+                maxWidth: 240,
+                fontFamily: "var(--display)",
+                fontStyle: "italic",
+                fontSize: 16,
+                color: "var(--ink)",
+                lineHeight: 1.4,
+                boxShadow: "0 20px 40px -22px rgba(11,37,69,0.35)"
+              }}>
+                <span style={{ color: "var(--gold)" }}>“</span>
+                {t("landing.editorial.heroPlate")}
+              </Box>
             </Box>
-          </Box>
+            {/* Mobile / tablet: full-width image below copy */}
+            <Box sx={{ display: { xs: "block", lg: "none" }, mt: 4 }}>
+              <EditorialImage src={HERO_IMAGE} aspect="16 / 10" />
+            </Box>
+          </EdReveal>
         </Box>
       </Container>
     </Box>
@@ -216,12 +265,12 @@ function Manifesto() {
 function Features() {
   const { t } = useTranslation();
   const features = [
-    { key: "policies",     glyph: "I" },
-    { key: "renewals",     glyph: "II" },
-    { key: "portal",       glyph: "III" },
-    { key: "commissions",  glyph: "IV" },
-    { key: "mobile",       glyph: "V" },
-    { key: "integrations", glyph: "VI" }
+    { key: "policies",     glyph: "I",   icon: <DescriptionOutlinedIcon /> },
+    { key: "renewals",     glyph: "II",  icon: <NotificationsNoneOutlinedIcon /> },
+    { key: "portal",       glyph: "III", icon: <GroupsOutlinedIcon /> },
+    { key: "commissions",  glyph: "IV",  icon: <TrendingUpOutlinedIcon /> },
+    { key: "mobile",       glyph: "V",   icon: <PhoneIphoneOutlinedIcon /> },
+    { key: "integrations", glyph: "VI",  icon: <ExtensionOutlinedIcon /> }
   ];
   return (
     <Box id="features" sx={{ py: { xs: 10, md: 18 }, borderBottom: "1px solid var(--rule)" }}>
@@ -264,18 +313,34 @@ function Features() {
                 borderBottom: "1px solid var(--rule)",
                 background: "transparent"
               }}>
-                <Box sx={{
-                  fontFamily: "var(--display)",
-                  fontStyle: "italic",
-                  fontSize: 14,
-                  color: "var(--gold)",
-                  letterSpacing: "0.04em",
-                  mb: 4
-                }}>
-                  {f.glyph}.
-                </Box>
+                <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 4 }}>
+                  {/* Bigger, consistent outlined icon matching the post-login sidebar tone */}
+                  <Box sx={{
+                    width: 56,
+                    height: 56,
+                    border: "1.5px solid var(--ink)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "var(--ink)",
+                    bgcolor: "var(--bone)",
+                    transition: "background 420ms var(--ease-editorial), color 420ms var(--ease-editorial)",
+                    "& svg": { fontSize: 30 }
+                  }}>
+                    {f.icon}
+                  </Box>
+                  <Box sx={{
+                    fontFamily: "var(--display)",
+                    fontStyle: "italic",
+                    fontSize: 14,
+                    color: "var(--gold)",
+                    letterSpacing: "0.04em"
+                  }}>
+                    №{f.glyph}.
+                  </Box>
+                </Stack>
                 <Box className="display" sx={{
-                  fontSize: { xs: 26, md: 30 },
+                  fontSize: { xs: 28, md: 32 },
                   color: "var(--ink)",
                   mb: 2,
                   lineHeight: 1.05
@@ -284,7 +349,7 @@ function Features() {
                 </Box>
                 <Box sx={{
                   color: "var(--ink-soft)",
-                  fontSize: 15,
+                  fontSize: 16,
                   lineHeight: 1.7
                 }}>
                   {t(`landing.features.${f.key}.body`)}
@@ -323,20 +388,26 @@ function ForAgencies() {
         <Box sx={{
           display: "grid",
           gridTemplateColumns: { xs: "1fr", md: "5fr 7fr" },
-          gap: { xs: 4, md: 8 },
+          gap: { xs: 5, md: 8 },
           alignItems: "start"
         }}>
           <EdReveal delay={100}>
-            <Box className="display" sx={{
-              fontSize: { xs: 38, md: 56 },
-              color: "var(--ink)",
-              position: { md: "sticky" },
-              top: 120
-            }}>
-              <span>{t("landing.editorial.agencyA")}</span>{" "}
-              <span className="display-italic" style={{ color: "var(--terracotta)" }}>
-                {t("landing.editorial.agencyB")}
-              </span>
+            <Box>
+              <Box className="display" sx={{
+                fontSize: { xs: 38, md: 56 },
+                color: "var(--ink)",
+                mb: { xs: 4, md: 5 }
+              }}>
+                <span>{t("landing.editorial.agencyA")}</span>{" "}
+                <span className="display-italic" style={{ color: "var(--terracotta)" }}>
+                  {t("landing.editorial.agencyB")}
+                </span>
+              </Box>
+              <EditorialImage
+                src={FOR_AGENCIES_IMAGE}
+                aspect="4 / 5"
+                caption={t("landing.editorial.agencyCaption")}
+              />
             </Box>
           </EdReveal>
 
@@ -365,9 +436,9 @@ function ForAgencies() {
               </Box>
 
               <Box sx={{ mt: 5 }}>
-                <RouterLink to="/register" className="ink-button">
+                <RouterLink to="/register" className="ink-button" style={{ fontSize: 16, padding: "18px 30px" }}>
                   <span>{t("landing.forAgencies.cta")}</span>
-                  <ArrowOutwardIcon sx={{ fontSize: 18 }} />
+                  <ArrowOutwardIcon sx={{ fontSize: 20 }} />
                 </RouterLink>
               </Box>
             </Box>
@@ -540,24 +611,45 @@ function ForAgents() {
               </Box>
 
               <Box sx={{ mt: 6 }}>
-                <RouterLink to="/register" className="ink-button">
+                <RouterLink to="/register" className="ink-button" style={{ fontSize: 16, padding: "18px 30px" }}>
                   <span>{t("landing.forAgents.cta")}</span>
-                  <ArrowOutwardIcon sx={{ fontSize: 18 }} />
+                  <ArrowOutwardIcon sx={{ fontSize: 20 }} />
                 </RouterLink>
               </Box>
             </Box>
           </EdReveal>
 
           <EdReveal delay={200}>
-            <Box className="marginalia" sx={{
-              borderLeft: "1px solid var(--rule)",
-              pl: 4,
-              maxWidth: 380
-            }}>
-              <Box sx={{ fontSize: 13, color: "var(--ink-muted)", mb: 2, fontFamily: "var(--mono)", letterSpacing: "0.12em" }}>
-                — {t("landing.editorial.sideNote")}
+            <Box>
+              <EditorialImage
+                src={FOR_AGENTS_IMAGE}
+                aspect="4 / 5"
+                caption={t("landing.editorial.agentsCaption")}
+                align="right"
+              />
+              <Box sx={{
+                mt: 4,
+                pt: 3,
+                borderTop: "1px solid var(--rule)",
+                fontFamily: "var(--display)",
+                fontStyle: "italic",
+                fontSize: 17,
+                lineHeight: 1.55,
+                color: "var(--ink-soft)",
+                maxWidth: 420
+              }}>
+                <Box sx={{
+                  fontSize: 11,
+                  color: "var(--ink-muted)",
+                  mb: 1,
+                  fontFamily: "var(--mono)",
+                  letterSpacing: "0.16em",
+                  textTransform: "uppercase"
+                }}>
+                  — {t("landing.editorial.sideNote")}
+                </Box>
+                {t("landing.editorial.agentMarginalia")}
               </Box>
-              {t("landing.editorial.agentMarginalia")}
             </Box>
           </EdReveal>
         </Box>

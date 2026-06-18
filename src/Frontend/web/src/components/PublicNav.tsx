@@ -78,7 +78,7 @@ export function PublicNav(_: PublicNavProps = {}) {
                 <KalypsisLogo size={56} crop />
               </Box>
               <Box sx={{ display: { xs: "none", md: "block" } }}>
-                <KalypsisLogo size={84} crop />
+                <KalypsisLogo size={92} crop />
               </Box>
             </Box>
 
@@ -87,7 +87,7 @@ export function PublicNav(_: PublicNavProps = {}) {
             {/* Desktop nav links */}
             <Stack
               direction="row"
-              spacing={4}
+              spacing={5}
               alignItems="center"
               sx={{ display: { xs: "none", md: "flex" } }}
             >
@@ -110,19 +110,19 @@ export function PublicNav(_: PublicNavProps = {}) {
                   }}
                   sx={{
                     fontFamily: "var(--sans)",
-                    fontSize: 14,
+                    fontSize: 17,
                     fontWeight: 500,
-                    letterSpacing: "0.04em",
+                    letterSpacing: "0.01em",
                     color: "var(--ink)",
                     textDecoration: "none",
                     position: "relative",
                     cursor: "pointer",
-                    py: 1,
+                    py: 1.25,
                     "&::after": {
                       content: '""',
                       position: "absolute",
-                      left: 0, right: 0, bottom: 4,
-                      height: "1px",
+                      left: 0, right: 0, bottom: 2,
+                      height: "2px",
                       background: "var(--ink)",
                       transform: "scaleX(0)",
                       transformOrigin: "right",
@@ -150,10 +150,10 @@ export function PublicNav(_: PublicNavProps = {}) {
               }}>
                 <LanguageToggle />
               </Box>
-              <RouterLink to="/login" className="ghost-button" style={{ padding: "10px 18px", fontSize: 13 }}>
+              <RouterLink to="/login" className="ghost-button" style={{ padding: "13px 24px", fontSize: 15 }}>
                 <span>{t("publicNav.signIn")}</span>
               </RouterLink>
-              <RouterLink to="/register" className="ink-button" style={{ padding: "11px 20px", fontSize: 13 }}>
+              <RouterLink to="/register" className="ink-button" style={{ padding: "14px 26px", fontSize: 15 }}>
                 <span>{t("publicNav.register")}</span>
               </RouterLink>
             </Stack>

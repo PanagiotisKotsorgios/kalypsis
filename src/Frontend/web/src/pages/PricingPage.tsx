@@ -4,6 +4,10 @@ import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PublicShell } from "../components/PublicShell";
 import { EdReveal } from "../components/EdReveal";
+import { EditorialImage } from "../components/EditorialImage";
+
+const PRICING_HERO =
+  "https://image.slidesdocs.com/responsive-images/background/insurance-gold-coin-financial-management-yellow-light-effect-business-powerpoint-background_a339a63e08__960_540.jpg";
 
 export function PricingPage() {
   const { t } = useTranslation();
@@ -64,9 +68,10 @@ export function PricingPage() {
           <EdReveal delay={220}>
             <Box sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "1fr 1.5fr" },
-              gap: { xs: 3, md: 8 },
-              mt: 4
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1.2fr" },
+              gap: { xs: 4, md: 6 },
+              mt: 4,
+              alignItems: "start"
             }}>
               <Box className="marginalia" sx={{ borderTop: "1px solid var(--ink)", pt: 2 }}>
                 <span className="eyebrow" style={{ color: "var(--ink)" }}>
@@ -74,9 +79,10 @@ export function PricingPage() {
                 </span>
                 <Box sx={{ mt: 2 }}>{t("pricing.editorial.marginalia")}</Box>
               </Box>
-              <Box sx={{ fontSize: 19, lineHeight: 1.7, color: "var(--ink-soft)", maxWidth: 640 }}>
+              <Box sx={{ fontSize: 18, lineHeight: 1.7, color: "var(--ink-soft)" }}>
                 {t("landing.pricing.lead")}
               </Box>
+              <EditorialImage src={PRICING_HERO} aspect="4 / 3" caption="MARKET · 2026" align="right" />
             </Box>
           </EdReveal>
         </Container>
