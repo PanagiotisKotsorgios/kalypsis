@@ -57,7 +57,7 @@ export function PublicNav(_: PublicNavProps = {}) {
             disableGutters
             sx={{
               gap: 2,
-              minHeight: { xs: 76, md: 100 },
+              minHeight: { xs: 88, md: 128 },
               alignItems: "center"
             }}
           >
@@ -75,10 +75,10 @@ export function PublicNav(_: PublicNavProps = {}) {
               }}
             >
               <Box sx={{ display: { xs: "block", md: "none" } }}>
-                <KalypsisLogo size={56} crop />
+                <KalypsisLogo size={72} crop />
               </Box>
               <Box sx={{ display: { xs: "none", md: "block" } }}>
-                <KalypsisLogo size={92} crop />
+                <KalypsisLogo size={108} crop />
               </Box>
             </Box>
 
@@ -110,18 +110,18 @@ export function PublicNav(_: PublicNavProps = {}) {
                   }}
                   sx={{
                     fontFamily: "var(--sans)",
-                    fontSize: 17,
+                    fontSize: 19,
                     fontWeight: 500,
-                    letterSpacing: "0.01em",
+                    letterSpacing: "0.005em",
                     color: "var(--ink)",
                     textDecoration: "none",
                     position: "relative",
                     cursor: "pointer",
-                    py: 1.25,
+                    py: 1.5,
                     "&::after": {
                       content: '""',
                       position: "absolute",
-                      left: 0, right: 0, bottom: 2,
+                      left: 0, right: 0, bottom: 0,
                       height: "2px",
                       background: "var(--ink)",
                       transform: "scaleX(0)",
@@ -140,28 +140,36 @@ export function PublicNav(_: PublicNavProps = {}) {
             </Stack>
 
             {/* Desktop CTAs */}
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ display: { xs: "none", md: "flex" }, ml: 3 }}>
+            <Stack direction="row" spacing={2} alignItems="center" sx={{ display: { xs: "none", md: "flex" }, ml: 4 }}>
               <Box sx={{
                 "& .MuiButton-root": {
                   fontFamily: "var(--sans)",
-                  fontSize: 13,
+                  fontSize: 14,
                   color: "var(--ink)"
                 }
               }}>
                 <LanguageToggle />
               </Box>
-              <RouterLink to="/login" className="ghost-button" style={{ padding: "13px 24px", fontSize: 15 }}>
+              <RouterLink to="/login" className="ghost-button" style={{ padding: "16px 30px", fontSize: 17 }}>
                 <span>{t("publicNav.signIn")}</span>
               </RouterLink>
-              <RouterLink to="/register" className="ink-button" style={{ padding: "14px 26px", fontSize: 15 }}>
+              <RouterLink to="/register" className="ink-button" style={{ padding: "17px 32px", fontSize: 17 }}>
                 <span>{t("publicNav.register")}</span>
               </RouterLink>
             </Stack>
 
-            {/* Mobile hamburger */}
+            {/* Mobile hamburger — bigger touch target */}
             <IconButton
               onClick={() => setOpen(true)}
-              sx={{ display: { xs: "inline-flex", md: "none" }, color: "var(--ink)" }}
+              sx={{
+                display: { xs: "inline-flex", md: "none" },
+                color: "var(--ink)",
+                width: 52,
+                height: 52,
+                border: "1px solid var(--rule)",
+                borderRadius: 0,
+                "& svg": { fontSize: 28 }
+              }}
               edge="end"
               aria-label="menu"
             >
@@ -171,20 +179,49 @@ export function PublicNav(_: PublicNavProps = {}) {
         </Container>
       </AppBar>
 
+      {/*
+       * The Drawer renders in a React portal OUTSIDE the <PublicShell> .editorial
+       * scope, so CSS variables like var(--paper) don't resolve there. We give the
+       * Paper an explicit cream background and wrap its contents in `editorial` so
+       * the type variables (display, sans, ink, gold…) and the buttons read
+       * correctly inside the drawer too.
+       */}
       <Drawer
         anchor="right"
         open={open}
         onClose={() => setOpen(false)}
-        PaperProps={{ sx: { width: 320, bgcolor: "var(--paper)" } }}
+        PaperProps={{
+          sx: {
+            width: { xs: "min(86vw, 380px)", sm: 380 },
+            backgroundColor: "#f5ede1",  // paper, literal
+            borderLeft: "1px solid #d6c6ab",
+            boxShadow: "0 0 0 100vmax rgba(11,37,69,0.32)"
+          }
+        }}
+        ModalProps={{
+          BackdropProps: {
+            sx: { backgroundColor: "rgba(11,37,69,0.42)" }
+          }
+        }}
       >
-        <Box sx={{ p: 3 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
-            <KalypsisLogo size={56} crop />
-            <IconButton onClick={() => setOpen(false)} sx={{ color: "var(--ink)" }}>
+        <Box className="editorial" sx={{ p: 3.5, height: "100%", backgroundColor: "#f5ede1" }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={5}>
+            <KalypsisLogo size={72} crop />
+            <IconButton
+              onClick={() => setOpen(false)}
+              sx={{
+                color: "var(--ink)",
+                width: 52,
+                height: 52,
+                border: "1px solid var(--rule)",
+                borderRadius: 0,
+                "& svg": { fontSize: 26 }
+              }}
+            >
               <CloseIcon />
             </IconButton>
           </Stack>
-          <List sx={{ borderTop: "1px solid var(--ink)" }}>
+          <List sx={{ borderTop: "1px solid var(--ink)", p: 0 }}>
             {mobileLinks.map((link) => (
               <ListItem key={link.to} disablePadding sx={{ borderBottom: "1px solid var(--rule)" }}>
                 <ListItemButton
@@ -201,11 +238,17 @@ export function PublicNav(_: PublicNavProps = {}) {
                   component={RouterLink}
                   to={link.to.startsWith("/#") ? "/" : link.to}
                   sx={{
-                    py: 2.5,
+                    py: 3.25,
+                    px: 1,
                     fontFamily: "var(--display)",
                     fontStyle: "italic",
-                    fontSize: 22,
-                    color: "var(--ink)"
+                    fontSize: 28,
+                    color: "var(--ink)",
+                    transition: "color 280ms var(--ease-editorial), background 280ms var(--ease-editorial)",
+                    "&:hover": {
+                      color: "var(--terracotta)",
+                      backgroundColor: "rgba(176, 138, 62, 0.06)"
+                    }
                   }}
                 >
                   {t(link.labelKey)}
@@ -213,14 +256,24 @@ export function PublicNav(_: PublicNavProps = {}) {
               </ListItem>
             ))}
           </List>
-          <Stack spacing={1.5} mt={4}>
-            <RouterLink to="/login" className="ghost-button" onClick={() => setOpen(false)}>
+          <Stack spacing={1.5} mt={5}>
+            <RouterLink
+              to="/login"
+              className="ghost-button"
+              onClick={() => setOpen(false)}
+              style={{ fontSize: 17, padding: "18px 30px", width: "100%", boxSizing: "border-box" }}
+            >
               <span>{t("publicNav.signIn")}</span>
             </RouterLink>
-            <RouterLink to="/register" className="ink-button" onClick={() => setOpen(false)}>
+            <RouterLink
+              to="/register"
+              className="ink-button"
+              onClick={() => setOpen(false)}
+              style={{ fontSize: 17, padding: "19px 32px", width: "100%", boxSizing: "border-box" }}
+            >
               <span>{t("publicNav.register")}</span>
             </RouterLink>
-            <Box pt={2}>
+            <Box pt={3} sx={{ borderTop: "1px solid var(--rule)", mt: 2 }}>
               <LanguageToggle />
             </Box>
           </Stack>
