@@ -1,10 +1,9 @@
-import { Box, Container, Stack } from "@mui/material";
+import { Box, Container } from "@mui/material";
 import ArrowOutwardIcon from "@mui/icons-material/ArrowOutward";
 import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PublicShell } from "../components/PublicShell";
 import { EdReveal } from "../components/EdReveal";
-import { EditorialImage } from "../components/EditorialImage";
 
 const PRICING_HERO =
   "https://image.slidesdocs.com/responsive-images/background/insurance-gold-coin-financial-management-yellow-light-effect-business-powerpoint-background_a339a63e08__960_540.jpg";
@@ -38,53 +37,53 @@ export function PricingPage() {
 
   return (
     <PublicShell>
-      <Box className="editorial-grain" sx={{
-        py: { xs: 10, md: 16 },
-        borderBottom: "1px solid var(--rule)"
+      <Box sx={{
+        position: "relative",
+        py: { xs: 8, md: 12 },
+        borderBottom: "1px solid rgba(245,237,225,0.18)",
+        backgroundImage:
+          `linear-gradient(180deg, rgba(6,20,38,0.96) 0%, rgba(6,20,38,0.88) 50%, rgba(6,20,38,0.96) 100%),` +
+          `linear-gradient(90deg, rgba(6,20,38,0.8) 0%, rgba(6,20,38,0.2) 70%),` +
+          `url(${PRICING_HERO})`,
+        backgroundSize: "cover, cover, cover",
+        backgroundPosition: "center",
+        backgroundAttachment: { xs: "scroll", md: "fixed" },
+        color: "var(--paper)",
+        overflow: "hidden"
       }}>
-        <Container maxWidth="lg">
-          <EdReveal>
-            <Stack direction="row" alignItems="baseline" spacing={2} mb={{ xs: 4, md: 6 }}>
-              <span className="number-marker">№ 01</span>
-              <Box sx={{ flex: 1, height: "1px", bgcolor: "var(--rule)" }} />
-              <span className="eyebrow">{t("landing.pricing.eyebrow")}</span>
-            </Stack>
-          </EdReveal>
+        <Box className="editorial-grain" sx={{ position: "absolute", inset: 0, opacity: 0.4, pointerEvents: "none" }} />
 
-          <EdReveal delay={120}>
-            <Box className="display" sx={{
-              fontSize: { xs: 48, md: 96 },
-              maxWidth: 900,
-              color: "var(--ink)",
-              mb: 5
-            }}>
-              {t("pricing.editorial.titleA")}{" "}
-              <span className="display-italic" style={{ color: "var(--terracotta)" }}>
-                {t("pricing.editorial.titleB")}
-              </span>.
-            </Box>
-          </EdReveal>
-
-          <EdReveal delay={220}>
-            <Box sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1.2fr" },
-              gap: { xs: 4, md: 6 },
-              mt: 4,
-              alignItems: "start"
-            }}>
-              <Box className="marginalia" sx={{ borderTop: "1px solid var(--ink)", pt: 2 }}>
-                <span className="eyebrow" style={{ color: "var(--ink)" }}>
-                  {t("pricing.editorial.lede")}
-                </span>
-                <Box sx={{ mt: 2 }}>{t("pricing.editorial.marginalia")}</Box>
+        <Container maxWidth="xl" sx={{ position: "relative" }}>
+          <Box sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "7fr 5fr" },
+            gap: { xs: 4, md: 8 },
+            alignItems: "end"
+          }}>
+            <EdReveal delay={100}>
+              <Box className="display" sx={{
+                fontSize: { xs: 44, md: 84 },
+                lineHeight: 1.02,
+                color: "var(--paper)"
+              }}>
+                {t("pricing.editorial.titleA")}{" "}
+                <span className="display-italic" style={{ color: "var(--gold)" }}>
+                  {t("pricing.editorial.titleB")}
+                </span>.
               </Box>
-              <Box sx={{ fontSize: 18, lineHeight: 1.7, color: "var(--ink-soft)" }}>
+            </EdReveal>
+
+            <EdReveal delay={200}>
+              <Box sx={{
+                fontSize: { xs: 17, md: 19 },
+                lineHeight: 1.6,
+                color: "rgba(245,237,225,0.88)",
+                maxWidth: 560
+              }}>
                 {t("landing.pricing.lead")}
               </Box>
-              <EditorialImage src={PRICING_HERO} aspect="4 / 3" caption="MARKET · 2026" align="right" />
-            </Box>
-          </EdReveal>
+            </EdReveal>
+          </Box>
         </Container>
       </Box>
 
@@ -114,10 +113,8 @@ export function PricingPage() {
                       ✦ {t("landing.pricing.popular")}
                     </Box>
                   )}
-                  <Box sx={{ mb: 4 }}>
-                    <span className="number-marker">
-                      {String(idx + 1).padStart(2, "0")} · {t("pricing.editorial.tier")}
-                    </span>
+                  <Box className="eyebrow" sx={{ mb: 4 }}>
+                    {t("pricing.editorial.tier")}
                   </Box>
                   <Box className="display" sx={{
                     fontSize: { xs: 36, md: 44 },

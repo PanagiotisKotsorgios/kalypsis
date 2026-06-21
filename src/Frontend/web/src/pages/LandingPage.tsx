@@ -12,9 +12,11 @@ import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import PhoneIphoneOutlinedIcon from "@mui/icons-material/PhoneIphoneOutlined";
 import ExtensionOutlinedIcon from "@mui/icons-material/ExtensionOutlined";
+import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
+import QuestionAnswerRoundedIcon from "@mui/icons-material/QuestionAnswerRounded";
+import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
 import { PublicShell } from "../components/PublicShell";
 import { EdReveal } from "../components/EdReveal";
-import { EditorialImage } from "../components/EditorialImage";
 import { api } from "../api/client";
 
 const HERO_IMAGE =
@@ -24,8 +26,6 @@ const FOR_AGENCIES_IMAGE =
 const FOR_AGENTS_IMAGE =
   "https://img.freepik.com/premium-vector/insurance-services-concept-with-magnifier-hand-magnifying-glass-virtual-screen_127544-770.jpg";
 
-interface PublicStats { agencies: number; producers: number; activePolicies: number; uptime: string }
-
 export function LandingPage() {
   return (
     <PublicShell overlayHero>
@@ -34,11 +34,9 @@ export function LandingPage() {
       <Manifesto />
       <Features />
       <ForAgencies />
-      <Stats />
       <PullQuote />
       <ForAgents />
       <FaqTeaser />
-      <FinalCta />
     </PublicShell>
   );
 }
@@ -49,133 +47,108 @@ export function LandingPage() {
 function Hero() {
   const { t } = useTranslation();
   return (
-    <Box className="editorial-grain" sx={{
+    <Box sx={{
       position: "relative",
-      pt: { xs: 8, md: 14 },
-      pb: { xs: 8, md: 14 },
-      borderBottom: "1px solid var(--rule)"
+      overflow: "hidden",
+      borderBottom: "1px solid rgba(245,237,225,0.18)",
+      // The portrait now spans the full width as the hero backdrop.
+      backgroundImage:
+        // Top-to-bottom ink veil so type stays legible no matter the source crop
+        `linear-gradient(180deg, rgba(11,37,69,0.78) 0%, rgba(11,37,69,0.62) 45%, rgba(11,37,69,0.86) 100%),` +
+        // Plus a left-side darker gradient so the editorial copy block reads cleanly
+        `linear-gradient(90deg, rgba(11,37,69,0.55) 0%, rgba(11,37,69,0) 60%),` +
+        `url(${HERO_IMAGE})`,
+      backgroundSize: "cover, cover, cover",
+      backgroundPosition: "center, center, center",
+      color: "var(--paper)"
     }}>
-      <Container maxWidth="lg">
-        <Box sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", lg: "1.35fr 1fr" },
-          gap: { xs: 6, lg: 10 },
-          alignItems: "center"
-        }}>
-          <Box>
-            <EdReveal>
-              <Stack direction="row" alignItems="baseline" spacing={2} mb={{ xs: 3, md: 5 }}>
-                <span className="number-marker">№ 01</span>
-                <Box sx={{ flex: 1, height: "1px", bgcolor: "var(--rule)" }} />
-                <span className="eyebrow">{t("landing.eyebrow")}</span>
-              </Stack>
-            </EdReveal>
+      {/* Grain on top of the image for tactile feel */}
+      <Box className="editorial-grain" sx={{ position: "absolute", inset: 0, opacity: 0.35 }} />
 
-            <EdReveal delay={120}>
-              <Box className="display" sx={{
-                fontSize: { xs: 52, sm: 72, md: 92, lg: 108 },
-                color: "var(--ink)",
-                mb: 4
-              }}>
-                {t("landing.editorial.headlineA")}{" "}
-                <span className="display-italic" style={{ color: "var(--terracotta)" }}>
-                  {t("landing.editorial.headlineB")}
-                </span>{" "}
-                {t("landing.editorial.headlineC")}
-                <span className="caret" />
-              </Box>
-            </EdReveal>
-
-            <EdReveal delay={220}>
-              <Box sx={{
-                fontSize: { xs: 18, md: 20 },
-                lineHeight: 1.65,
-                color: "var(--ink-soft)",
-                maxWidth: 560,
-                mb: 5
-              }}>
-                {t("landing.lead")}
-              </Box>
-            </EdReveal>
-
-            <EdReveal delay={320}>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                <RouterLink to="/register" className="ink-button" style={{ fontSize: 16, padding: "18px 32px" }}>
-                  <span>{t("landing.ctaPrimary")}</span>
-                  <ArrowOutwardIcon sx={{ fontSize: 20 }} />
-                </RouterLink>
-                <RouterLink to="/login" className="ghost-button" style={{ fontSize: 16, padding: "17px 30px" }}>
-                  <span>{t("landing.ctaSecondary")}</span>
-                </RouterLink>
-              </Stack>
-            </EdReveal>
-
-            <EdReveal delay={420}>
-              <Box sx={{
-                mt: { xs: 5, md: 7 },
-                pt: 3,
-                borderTop: "1px solid var(--rule)",
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                gap: 3,
-                maxWidth: 640
-              }}>
-                <Box className="marginalia">
-                  <Box sx={{ color: "var(--ink)", mb: 1 }}>
-                    <span className="eyebrow">{t("landing.editorial.byline")}</span>
-                  </Box>
-                  {t("landing.editorial.byBody")}
-                </Box>
-                <Box sx={{
-                  fontFamily: "var(--mono)",
-                  fontSize: 11,
-                  letterSpacing: "0.16em",
-                  textTransform: "uppercase",
-                  color: "var(--ink-muted)",
-                  lineHeight: 1.9,
-                  alignSelf: "end"
-                }}>
-                  ΑΘΗΝΑ · {new Date().getFullYear()} · ΤΕΥΧΟΣ N°01
-                </Box>
-              </Box>
-            </EdReveal>
+      <Container
+        maxWidth="xl"
+        sx={{
+          position: "relative",
+          zIndex: 1,
+          pt: { xs: 7, md: 11 },
+          pb: { xs: 7, md: 11 }
+        }}
+      >
+        {/* Wide editorial headline — much wider, much less vertical */}
+        <EdReveal delay={120}>
+          <Box
+            className="display"
+            sx={{
+              fontSize: { xs: 44, sm: 64, md: 84, lg: 102, xl: 116 },
+              color: "var(--paper)",
+              lineHeight: 0.98,
+              letterSpacing: "-0.035em",
+              maxWidth: { xs: "100%", md: "1180px" },
+              mb: { xs: 4, md: 6 }
+            }}
+          >
+            {t("landing.editorial.headlineA")}{" "}
+            <span
+              className="display-italic"
+              style={{ color: "var(--gold)" }}
+            >
+              {t("landing.editorial.headlineB")}
+            </span>{" "}
+            {t("landing.editorial.headlineC")}
           </Box>
+        </EdReveal>
 
-          <EdReveal delay={200}>
-            <Box sx={{ position: "relative", display: { xs: "none", lg: "block" } }}>
-              <EditorialImage
-                src={HERO_IMAGE}
-                aspect="3 / 4"
-                caption="ΦΩΤ. KALYPSIS"
-                align="right"
-                sx={{ maxWidth: 520, ml: "auto" }}
-              />
-              <Box sx={{
-                position: "absolute",
-                left: -32,
-                bottom: 64,
-                bgcolor: "var(--bone)",
-                border: "1px solid var(--ink)",
-                px: 3,
-                py: 2,
-                maxWidth: 240,
-                fontFamily: "var(--display)",
-                fontStyle: "italic",
-                fontSize: 16,
-                color: "var(--ink)",
-                lineHeight: 1.4,
-                boxShadow: "0 20px 40px -22px rgba(11,37,69,0.35)"
-              }}>
-                <span style={{ color: "var(--gold)" }}>“</span>
-                {t("landing.editorial.heroPlate")}
-              </Box>
+        {/* Lead + CTAs row */}
+        <EdReveal delay={220}>
+          <Box sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "1.5fr 1fr" },
+            gap: { xs: 4, md: 8 },
+            alignItems: "start",
+            mb: { xs: 5, md: 7 }
+          }}>
+            <Box
+              sx={{
+                fontSize: { xs: 17, md: 19 },
+                lineHeight: 1.65,
+                color: "rgba(245,237,225,0.88)",
+                maxWidth: 720
+              }}
+            >
+              {t("landing.lead")}
             </Box>
-            {/* Mobile / tablet: full-width image below copy */}
-            <Box sx={{ display: { xs: "block", lg: "none" }, mt: 4 }}>
-              <EditorialImage src={HERO_IMAGE} aspect="16 / 10" />
-            </Box>
-          </EdReveal>
-        </Box>
+
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ justifyContent: { md: "flex-end" } }}>
+              <RouterLink
+                to="/register"
+                className="ink-button"
+                style={{
+                  fontSize: 16,
+                  padding: "18px 32px",
+                  background: "var(--paper)",
+                  color: "var(--ink)",
+                  borderColor: "var(--paper)"
+                }}
+              >
+                <span>{t("landing.ctaPrimary")}</span>
+                <ArrowOutwardIcon sx={{ fontSize: 20 }} />
+              </RouterLink>
+              <RouterLink
+                to="/login"
+                className="ghost-button"
+                style={{
+                  fontSize: 16,
+                  padding: "17px 30px",
+                  color: "var(--paper)",
+                  borderColor: "rgba(245,237,225,0.6)"
+                }}
+              >
+                <span>{t("landing.ctaSecondary")}</span>
+              </RouterLink>
+            </Stack>
+          </Box>
+        </EdReveal>
+
       </Container>
     </Box>
   );
@@ -184,9 +157,19 @@ function Hero() {
 /* =============================================================
    02 — TRUST MARQUEE
    ============================================================= */
+interface PartnerDto { id: string; name: string; logoUrl: string | null; url: string | null; displayOrder: number; isActive: boolean }
 function TrustMarquee() {
   const { t } = useTranslation();
-  const carriers = ["INTERAMERICAN", "ΕΘΝΙΚΗ", "EUROLIFE FFH", "ERGO", "ALLIANZ", "NN HELLAS", "GENERALI", "INTERLIFE"];
+  // Sourced from /api/public/partners — the superadmin curates the list in
+  // /app/platform/partners. We hide the strip entirely when empty so the
+  // page doesn't show a placeholder before the platform has any.
+  const q = useQuery({
+    queryKey: ["public-partners"],
+    queryFn: async () => (await api.get<PartnerDto[]>("/public/partners")).data,
+    staleTime: 10 * 60 * 1000
+  });
+  const carriers = (q.data ?? []).map(p => p.name).filter(Boolean);
+  if (carriers.length === 0) return null;
   const stream = [...carriers, ...carriers];
   return (
     <Box sx={{ borderBottom: "1px solid var(--rule)", py: 4 }}>
@@ -224,15 +207,6 @@ function Manifesto() {
   return (
     <Box sx={{ py: { xs: 10, md: 18 }, borderBottom: "1px solid var(--rule)" }}>
       <Container maxWidth="md">
-        <EdReveal>
-          <Box className="section-band" sx={{ mb: 6 }}>
-            <Box><span className="number-marker">№ 02</span></Box>
-            <Box>
-              <span className="eyebrow">{t("landing.manifesto.eyebrow")}</span>
-            </Box>
-          </Box>
-        </EdReveal>
-
         <EdReveal delay={120}>
           <Box className="display" sx={{
             fontSize: { xs: 36, md: 56 },
@@ -276,21 +250,15 @@ function Features() {
     <Box id="features" sx={{ py: { xs: 10, md: 18 }, borderBottom: "1px solid var(--rule)" }}>
       <Container maxWidth="lg">
         <EdReveal>
-          <Box className="section-band" sx={{ mb: 6 }}>
-            <Box><span className="number-marker">№ 03</span></Box>
-            <Box>
-              <span className="eyebrow">{t("landing.features.eyebrow")}</span>
-              <Box className="display" sx={{
-                fontSize: { xs: 36, md: 56 },
-                mt: 2,
-                color: "var(--ink)",
-                maxWidth: 880
-              }}>
-                {t("landing.features.title")}
-              </Box>
-              <Box sx={{ mt: 3, maxWidth: 640, color: "var(--ink-soft)", fontSize: 17, lineHeight: 1.65 }}>
-                {t("landing.features.lead")}
-              </Box>
+          <Box sx={{ mb: 6, maxWidth: 880 }}>
+            <Box className="display" sx={{
+              fontSize: { xs: 36, md: 56 },
+              color: "var(--ink)"
+            }}>
+              {t("landing.features.title")}
+            </Box>
+            <Box sx={{ mt: 3, maxWidth: 640, color: "var(--ink-soft)", fontSize: 17, lineHeight: 1.65 }}>
+              {t("landing.features.lead")}
             </Box>
           </Box>
         </EdReveal>
@@ -329,15 +297,6 @@ function Features() {
                   }}>
                     {f.icon}
                   </Box>
-                  <Box sx={{
-                    fontFamily: "var(--display)",
-                    fontStyle: "italic",
-                    fontSize: 14,
-                    color: "var(--gold)",
-                    letterSpacing: "0.04em"
-                  }}>
-                    №{f.glyph}.
-                  </Box>
                 </Stack>
                 <Box className="display" sx={{
                   fontSize: { xs: 28, md: 32 },
@@ -371,147 +330,93 @@ function ForAgencies() {
   const points = ["forAgencies.point1","forAgencies.point2","forAgencies.point3","forAgencies.point4","forAgencies.point5"];
   return (
     <Box id="for-agencies" sx={{
-      py: { xs: 10, md: 18 },
-      borderBottom: "1px solid var(--rule)",
-      bgcolor: "var(--paper-deep)"
+      position: "relative",
+      py: { xs: 8, md: 12 },
+      borderBottom: "1px solid rgba(245,237,225,0.18)",
+      backgroundImage:
+        `linear-gradient(180deg, rgba(6,20,38,0.96) 0%, rgba(6,20,38,0.88) 50%, rgba(6,20,38,0.96) 100%),` +
+        `linear-gradient(90deg, rgba(6,20,38,0.8) 0%, rgba(6,20,38,0.2) 70%),` +
+        `url(${FOR_AGENCIES_IMAGE})`,
+      backgroundSize: "cover, cover, cover",
+      backgroundPosition: "center",
+      backgroundAttachment: { xs: "scroll", md: "fixed" },
+      color: "var(--paper)",
+      overflow: "hidden"
     }}>
-      <Container maxWidth="lg">
-        <EdReveal>
-          <Box className="section-band" sx={{ mb: 6 }}>
-            <Box><span className="number-marker">№ 04</span></Box>
-            <Box>
-              <span className="eyebrow">{t("landing.forAgencies.eyebrow")}</span>
-            </Box>
-          </Box>
-        </EdReveal>
+      <Box className="editorial-grain" sx={{ position: "absolute", inset: 0, opacity: 0.4, pointerEvents: "none" }} />
 
+      <Container maxWidth="xl" sx={{ position: "relative" }}>
         <Box sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "5fr 7fr" },
-          gap: { xs: 5, md: 8 },
-          alignItems: "start"
+          gridTemplateColumns: { xs: "1fr", md: "6fr 6fr" },
+          gap: { xs: 4, md: 8 },
+          alignItems: "end",
+          mb: { xs: 5, md: 7 }
         }}>
           <EdReveal delay={100}>
-            <Box>
-              <Box className="display" sx={{
-                fontSize: { xs: 38, md: 56 },
-                color: "var(--ink)",
-                mb: { xs: 4, md: 5 }
-              }}>
-                <span>{t("landing.editorial.agencyA")}</span>{" "}
-                <span className="display-italic" style={{ color: "var(--terracotta)" }}>
-                  {t("landing.editorial.agencyB")}
-                </span>
-              </Box>
-              <EditorialImage
-                src={FOR_AGENCIES_IMAGE}
-                aspect="4 / 5"
-                caption={t("landing.editorial.agencyCaption")}
-              />
+            <Box className="display" sx={{
+              fontSize: { xs: 38, md: 64 },
+              lineHeight: 1.02,
+              color: "var(--paper)"
+            }}>
+              <span>{t("landing.editorial.agencyA")}</span>{" "}
+              <span className="display-italic" style={{ color: "var(--gold)" }}>
+                {t("landing.editorial.agencyB")}
+              </span>
             </Box>
           </EdReveal>
 
           <EdReveal delay={200}>
-            <Box>
-              <Box sx={{ fontSize: 18, lineHeight: 1.75, color: "var(--ink-soft)", mb: 5 }}>
-                {t("landing.forAgencies.lead")}
-              </Box>
-
-              <Box sx={{ borderTop: "1px solid var(--ink)" }}>
-                {points.map((p, i) => (
-                  <Box key={p} sx={{
-                    display: "grid",
-                    gridTemplateColumns: "48px 1fr",
-                    gap: 3,
-                    py: 3,
-                    borderBottom: "1px solid var(--rule)",
-                    alignItems: "baseline"
-                  }}>
-                    <Box className="number-marker">{String(i + 1).padStart(2, "0")}</Box>
-                    <Box sx={{ fontSize: 17, lineHeight: 1.55, color: "var(--ink)" }}>
-                      {t(`landing.${p}`)}
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
-
-              <Box sx={{ mt: 5 }}>
-                <RouterLink to="/register" className="ink-button" style={{ fontSize: 16, padding: "18px 30px" }}>
-                  <span>{t("landing.forAgencies.cta")}</span>
-                  <ArrowOutwardIcon sx={{ fontSize: 20 }} />
-                </RouterLink>
-              </Box>
+            <Box sx={{
+              fontSize: { xs: 17, md: 19 },
+              lineHeight: 1.6,
+              color: "rgba(245,237,225,0.88)",
+              maxWidth: 620
+            }}>
+              {t("landing.forAgencies.lead")}
             </Box>
           </EdReveal>
         </Box>
-      </Container>
-    </Box>
-  );
-}
 
-/* =============================================================
-   06 — STATS, on ink
-   ============================================================= */
-function Stats() {
-  const { t } = useTranslation();
-  const q = useQuery({
-    queryKey: ["public-stats"],
-    queryFn: async () => (await api.get<PublicStats>("/public/stats")).data,
-    staleTime: 5 * 60 * 1000
-  });
-  const fmt = (n: number | undefined) => n === undefined ? "—" : n.toLocaleString("el-GR");
-  const stats = [
-    { value: q.data ? `${fmt(q.data.agencies)}+` : "—", labelKey: "landing.stats.agencies" },
-    { value: q.data ? fmt(q.data.producers)        : "—", labelKey: "landing.stats.agents" },
-    { value: q.data ? fmt(q.data.activePolicies)   : "—", labelKey: "landing.stats.policies" },
-    { value: q.data?.uptime ?? "99,98%",                  labelKey: "landing.stats.uptime" }
-  ];
-  return (
-    <Box sx={{
-      bgcolor: "var(--ink)",
-      color: "var(--paper)",
-      borderBottom: "1px solid rgba(255,255,255,0.06)",
-      py: { xs: 8, md: 14 }
-    }} className="editorial-grain">
-      <Container maxWidth="lg">
-        <EdReveal>
-          <Box className="section-band" sx={{ mb: 6 }}>
-            <Box><span className="number-marker">№ 05</span></Box>
-            <Box>
-              <span className="eyebrow" style={{ color: "rgba(245,237,225,0.7)" }}>
-                {t("landing.stats.eyebrow")}
-              </span>
-            </Box>
+        <EdReveal delay={260}>
+          <Box sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(5, 1fr)" },
+            borderTop: "1px solid rgba(245,237,225,0.28)",
+            borderBottom: "1px solid rgba(245,237,225,0.28)"
+          }}>
+            {points.map((p, i) => (
+              <Box key={p} sx={{
+                p: { xs: 3, md: 3.5 },
+                borderRight: { md: i < points.length - 1 ? "1px solid rgba(245,237,225,0.18)" : "none" },
+                borderBottom: { xs: i < points.length - 1 ? "1px solid rgba(245,237,225,0.18)" : "none", md: "none" }
+              }}>
+                <Box sx={{ fontSize: 15, lineHeight: 1.5, color: "rgba(245,237,225,0.92)" }}>
+                  {t(`landing.${p}`)}
+                </Box>
+              </Box>
+            ))}
           </Box>
         </EdReveal>
 
-        <Box sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
-          borderTop: "1px solid rgba(245,237,225,0.18)"
-        }}>
-          {stats.map((s, i) => (
-            <EdReveal key={s.labelKey} delay={i * 120}>
-              <Box sx={{
-                p: { xs: 4, md: 6 },
-                borderBottom: "1px solid rgba(245,237,225,0.18)",
-                borderRight: { md: i < 3 ? "1px solid rgba(245,237,225,0.18)" : "none" }
-              }}>
-                <Box className="display" sx={{
-                  fontSize: { xs: 56, md: 96 },
-                  color: "var(--paper)",
-                  lineHeight: 0.95,
-                  mb: 2
-                }}>
-                  {s.value}
-                </Box>
-                <Box className="eyebrow" sx={{ color: "rgba(245,237,225,0.7)" }}>
-                  {t(s.labelKey)}
-                </Box>
-              </Box>
-            </EdReveal>
-          ))}
-        </Box>
+        <EdReveal delay={340}>
+          <Box sx={{ mt: { xs: 5, md: 6 }, display: "flex", justifyContent: { xs: "flex-start", md: "flex-end" } }}>
+            <RouterLink
+              to="/register"
+              className="ink-button"
+              style={{
+                fontSize: 16,
+                padding: "18px 36px",
+                backgroundColor: "var(--gold)",
+                color: "var(--ink)",
+                borderColor: "var(--gold)"
+              }}
+            >
+              <span>{t("landing.forAgencies.cta")}</span>
+              <ArrowOutwardIcon sx={{ fontSize: 20 }} />
+            </RouterLink>
+          </Box>
+        </EdReveal>
       </Container>
     </Box>
   );
@@ -528,16 +433,6 @@ function PullQuote() {
         <EdReveal>
           <Box className="pull-quote" sx={{ textAlign: "left", maxWidth: 760 }}>
             {t("landing.pullQuote.text")}
-          </Box>
-        </EdReveal>
-        <EdReveal delay={150}>
-          <Box sx={{
-            mt: 4, pt: 3, borderTop: "1px solid var(--rule)",
-            display: "flex", justifyContent: "space-between", alignItems: "baseline",
-            color: "var(--ink-soft)"
-          }}>
-            <Box className="eyebrow">{t("landing.pullQuote.author")}</Box>
-            <Box className="marginalia">{t("landing.pullQuote.role")}</Box>
           </Box>
         </EdReveal>
       </Container>
@@ -558,101 +453,102 @@ function ForAgents() {
   ];
   return (
     <Box id="for-agents" sx={{
-      py: { xs: 10, md: 18 },
-      borderBottom: "1px solid var(--rule)"
+      position: "relative",
+      py: { xs: 8, md: 12 },
+      borderBottom: "1px solid rgba(245,237,225,0.18)",
+      backgroundImage:
+        `linear-gradient(180deg, rgba(6,20,38,0.96) 0%, rgba(6,20,38,0.88) 50%, rgba(6,20,38,0.96) 100%),` +
+        `linear-gradient(270deg, rgba(6,20,38,0.8) 0%, rgba(6,20,38,0.2) 70%),` +
+        `url(${FOR_AGENTS_IMAGE})`,
+      backgroundSize: "cover, cover, cover",
+      backgroundPosition: "center",
+      backgroundAttachment: { xs: "scroll", md: "fixed" },
+      color: "var(--paper)",
+      overflow: "hidden"
     }}>
-      <Container maxWidth="lg">
-        <EdReveal>
-          <Box className="section-band" sx={{ mb: 6 }}>
-            <Box><span className="number-marker">№ 06</span></Box>
-            <Box>
-              <span className="eyebrow">{t("landing.forAgents.eyebrow")}</span>
-            </Box>
-          </Box>
-        </EdReveal>
+      <Box className="editorial-grain" sx={{ position: "absolute", inset: 0, opacity: 0.4, pointerEvents: "none" }} />
 
+      <Container maxWidth="xl" sx={{ position: "relative" }}>
         <Box sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "7fr 5fr" },
+          gridTemplateColumns: { xs: "1fr", md: "6fr 6fr" },
           gap: { xs: 4, md: 8 },
-          alignItems: "start"
+          alignItems: "end",
+          mb: { xs: 5, md: 7 }
         }}>
           <EdReveal delay={100}>
-            <Box>
-              <Box className="display" sx={{ fontSize: { xs: 36, md: 56 }, color: "var(--ink)", mb: 4 }}>
-                {t("landing.forAgents.title")}
-              </Box>
-              <Box sx={{ fontSize: 18, lineHeight: 1.75, color: "var(--ink-soft)", maxWidth: 580, mb: 6 }}>
-                {t("landing.forAgents.lead")}
-              </Box>
-
-              <Box className="eyebrow" sx={{ mb: 2 }}>
-                {t("landing.forAgents.licensesTitle")}
-              </Box>
-              <Box>
-                {licenses.map((lk, i) => (
-                  <Box key={lk} sx={{
-                    py: 2,
-                    pr: 4,
-                    borderTop: i === 0 ? "1px solid var(--ink)" : "none",
-                    borderBottom: "1px solid var(--ink)",
-                    fontFamily: "var(--display)",
-                    fontStyle: "italic",
-                    fontSize: 20,
-                    color: "var(--ink)",
-                    display: "flex",
-                    alignItems: "baseline",
-                    gap: 2
-                  }}>
-                    <span className="number-marker">{String(i + 1).padStart(2, "0")}</span>
-                    {t(lk)}
-                  </Box>
-                ))}
-              </Box>
-
-              <Box sx={{ mt: 6 }}>
-                <RouterLink to="/register" className="ink-button" style={{ fontSize: 16, padding: "18px 30px" }}>
-                  <span>{t("landing.forAgents.cta")}</span>
-                  <ArrowOutwardIcon sx={{ fontSize: 20 }} />
-                </RouterLink>
-              </Box>
+            <Box className="display" sx={{
+              fontSize: { xs: 36, md: 60 },
+              lineHeight: 1.02,
+              color: "var(--paper)"
+            }}>
+              {t("landing.forAgents.title")}
             </Box>
           </EdReveal>
 
           <EdReveal delay={200}>
-            <Box>
-              <EditorialImage
-                src={FOR_AGENTS_IMAGE}
-                aspect="4 / 5"
-                caption={t("landing.editorial.agentsCaption")}
-                align="right"
-              />
-              <Box sx={{
-                mt: 4,
-                pt: 3,
-                borderTop: "1px solid var(--rule)",
-                fontFamily: "var(--display)",
-                fontStyle: "italic",
-                fontSize: 17,
-                lineHeight: 1.55,
-                color: "var(--ink-soft)",
-                maxWidth: 420
-              }}>
-                <Box sx={{
-                  fontSize: 11,
-                  color: "var(--ink-muted)",
-                  mb: 1,
-                  fontFamily: "var(--mono)",
-                  letterSpacing: "0.16em",
-                  textTransform: "uppercase"
-                }}>
-                  — {t("landing.editorial.sideNote")}
-                </Box>
-                {t("landing.editorial.agentMarginalia")}
-              </Box>
+            <Box sx={{
+              fontSize: { xs: 17, md: 19 },
+              lineHeight: 1.6,
+              color: "rgba(245,237,225,0.88)",
+              maxWidth: 620
+            }}>
+              {t("landing.forAgents.lead")}
             </Box>
           </EdReveal>
         </Box>
+
+        <EdReveal delay={260}>
+          <Box className="eyebrow" sx={{ color: "rgba(245,237,225,0.7)", mb: 2 }}>
+            {t("landing.forAgents.licensesTitle")}
+          </Box>
+          <Box sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
+            borderTop: "1px solid rgba(245,237,225,0.28)",
+            borderBottom: "1px solid rgba(245,237,225,0.28)"
+          }}>
+            {licenses.map((lk, i) => (
+              <Box key={lk} sx={{
+                p: { xs: 3, md: 3.5 },
+                borderRight: { md: i < licenses.length - 1 ? "1px solid rgba(245,237,225,0.18)" : "none" },
+                borderBottom: { xs: i < licenses.length - 1 ? "1px solid rgba(245,237,225,0.18)" : "none", md: "none" },
+                display: "flex",
+                flexDirection: "column",
+                gap: 1.25
+              }}>
+                <Box sx={{
+                  fontFamily: "var(--display)",
+                  fontStyle: "italic",
+                  fontSize: { xs: 18, md: 20 },
+                  lineHeight: 1.25,
+                  color: "var(--paper)"
+                }}>
+                  {t(lk)}
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        </EdReveal>
+
+        <EdReveal delay={340}>
+          <Box sx={{ mt: { xs: 5, md: 6 }, display: "flex", justifyContent: { xs: "flex-start", md: "flex-end" } }}>
+            <RouterLink
+              to="/register"
+              className="ink-button"
+              style={{
+                fontSize: 16,
+                padding: "18px 36px",
+                backgroundColor: "var(--gold)",
+                color: "var(--ink)",
+                borderColor: "var(--gold)"
+              }}
+            >
+              <span>{t("landing.forAgents.cta")}</span>
+              <ArrowOutwardIcon sx={{ fontSize: 20 }} />
+            </RouterLink>
+          </Box>
+        </EdReveal>
       </Container>
     </Box>
   );
@@ -687,24 +583,23 @@ function FaqTeaser() {
     return () => obs.disconnect();
   }, [items.length]);
 
+  const icons = [HelpOutlineRoundedIcon, QuestionAnswerRoundedIcon, LightbulbOutlinedIcon];
+
   return (
     <Box id="faq" sx={{ py: { xs: 10, md: 18 }, borderBottom: "1px solid var(--rule)", bgcolor: "var(--paper-deep)" }} ref={rootRef}>
       <Container maxWidth="lg">
         <EdReveal>
-          <Box className="section-band" sx={{ mb: 6 }}>
-            <Box><span className="number-marker">№ 07</span></Box>
-            <Box>
-              <span className="eyebrow">{t("landing.faq.eyebrow")}</span>
-              <Box className="display" sx={{ fontSize: { xs: 36, md: 56 }, mt: 2, color: "var(--ink)" }}>
-                {t("landing.faq.title")}
-              </Box>
+          <Box sx={{ mb: 7 }}>
+            <Box className="display" sx={{ fontSize: { xs: 44, md: 72 }, color: "var(--ink)" }}>
+              {t("landing.faq.title")}
             </Box>
           </Box>
         </EdReveal>
 
-        <Box sx={{ borderTop: "1px solid var(--ink)", mb: 5 }}>
+        <Box sx={{ borderTop: "1px solid var(--ink)", mb: 6 }}>
           {items.map((q, i) => {
             const active = open === i;
+            const Icon = icons[i % icons.length];
             return (
               <EdReveal key={q} delay={i * 100}>
                 <Box
@@ -712,46 +607,56 @@ function FaqTeaser() {
                   sx={{
                     cursor: "pointer",
                     display: "grid",
-                    gridTemplateColumns: "60px 1fr auto",
-                    gap: 3,
-                    py: { xs: 3, md: 5 },
+                    gridTemplateColumns: { xs: "72px 1fr", md: "120px 1fr" },
+                    gap: { xs: 3, md: 5 },
+                    alignItems: "start",
+                    py: { xs: 4, md: 6 },
                     borderBottom: "1px solid var(--rule)",
                     transition: "background 500ms var(--ease-editorial)",
                     bgcolor: active ? "var(--bone)" : "transparent",
                     "&:hover": { bgcolor: "var(--bone)" }
                   }}>
-                  <Box className="number-marker">{String(i + 1).padStart(2, "0")}</Box>
+                  <Box sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: active ? "var(--gold)" : "var(--ink-muted)",
+                    transition: "color 600ms var(--ease-editorial), transform 600ms var(--ease-editorial)",
+                    transform: active ? "scale(1.08)" : "scale(1)",
+                    "& svg": {
+                      fontSize: { xs: 56, md: 96 },
+                      animation: active ? "faqFloat 3.4s ease-in-out infinite" : "none",
+                      filter: active ? "drop-shadow(0 6px 24px rgba(214,168,80,0.35))" : "none"
+                    },
+                    "@keyframes faqFloat": {
+                      "0%, 100%": { transform: "translateY(0px) rotate(0deg)" },
+                      "50%": { transform: "translateY(-8px) rotate(-3deg)" }
+                    }
+                  }}>
+                    <Icon />
+                  </Box>
                   <Box>
                     <Box className="display" sx={{
-                      fontSize: { xs: 24, md: 32 },
+                      fontSize: { xs: 28, md: 44 },
                       color: "var(--ink)",
                       lineHeight: 1.1,
-                      mb: active ? 2 : 0,
+                      mb: active ? 3 : 0,
                       transition: "margin 500ms var(--ease-editorial)"
                     }}>
                       {t(`landing.faq.${q}.q`)}
                     </Box>
                     <Box sx={{
-                      maxHeight: active ? 220 : 0,
+                      maxHeight: active ? 320 : 0,
                       opacity: active ? 1 : 0,
                       overflow: "hidden",
                       transition: "max-height 600ms var(--ease-editorial), opacity 600ms var(--ease-editorial)",
                       color: "var(--ink-soft)",
                       lineHeight: 1.7,
-                      fontSize: 16,
-                      maxWidth: 720
+                      fontSize: { xs: 17, md: 20 },
+                      maxWidth: 820
                     }}>
                       {t(`landing.faq.${q}.a`)}
                     </Box>
-                  </Box>
-                  <Box sx={{
-                    fontFamily: "var(--display)",
-                    fontStyle: "italic",
-                    fontSize: 18,
-                    color: active ? "var(--gold)" : "var(--ink-muted)",
-                    transition: "color 500ms var(--ease-editorial)"
-                  }}>
-                    {active ? "—" : "+"}
                   </Box>
                 </Box>
               </EdReveal>
@@ -772,50 +677,3 @@ function FaqTeaser() {
   );
 }
 
-/* =============================================================
-   10 — FINAL CTA — colophon style
-   ============================================================= */
-function FinalCta() {
-  const { t } = useTranslation();
-  return (
-    <Box sx={{ py: { xs: 12, md: 20 }, position: "relative" }} className="editorial-grain">
-      <Container maxWidth="md">
-        <EdReveal>
-          <Box className="eyebrow" sx={{ mb: 4 }}>
-            № 08 — {t("landing.finalCta.eyebrow")}
-          </Box>
-        </EdReveal>
-        <EdReveal delay={100}>
-          <Box className="display" sx={{
-            fontSize: { xs: 48, md: 88 },
-            color: "var(--ink)",
-            mb: 4,
-            maxWidth: 880
-          }}>
-            {t("landing.editorial.finalA")}{" "}
-            <span className="display-italic" style={{ color: "var(--terracotta)" }}>
-              {t("landing.editorial.finalB")}
-            </span>
-            ?
-          </Box>
-        </EdReveal>
-        <EdReveal delay={200}>
-          <Box sx={{ fontSize: 19, lineHeight: 1.7, color: "var(--ink-soft)", maxWidth: 600, mb: 5 }}>
-            {t("landing.finalCta.lead")}
-          </Box>
-        </EdReveal>
-        <EdReveal delay={300}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-            <RouterLink to="/register" className="ink-button">
-              <span>{t("landing.finalCta.ctaPrimary")}</span>
-              <ArrowOutwardIcon sx={{ fontSize: 18 }} />
-            </RouterLink>
-            <RouterLink to="/contact" className="ghost-button">
-              <span>{t("landing.finalCta.ctaSecondary")}</span>
-            </RouterLink>
-          </Stack>
-        </EdReveal>
-      </Container>
-    </Box>
-  );
-}

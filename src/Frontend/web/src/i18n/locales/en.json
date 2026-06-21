@@ -37,6 +37,7 @@
     "contracts": "Contracts",
     "comingSoonChip": "Soon",
     "carriers": "Insurance Carriers",
+    "partners": "Partner Carriers",
     "subscriptionPlans": "Subscription Plans",
     "billing": "Billing & Invoicing",
     "emailTemplates": "Email Templates",
@@ -1753,5 +1754,19 @@
     "learnMore": "Learn more",
     "acceptAll": "Accept all",
     "rejectAll": "Necessary only"
+  },
+  "platformPartners": {
+    "title": "Partner carriers",
+    "subtitle": "Manage the insurance carriers displayed on the public landing page.",
+    "create": "New partner",
+    "createTitle": "New partner carrier",
+    "editTitle": "Edit partner",
+    "name": "Name",
+    "nameHelp": "e.g. INTERAMERICAN, ETHNIKI, EUROLIFE FFH",
+    "logoUrl": "Logo URL",
+    "url": "Website (URL)",
+    "order": "Order",
+    "orderHelp": "Lower number = appears first",
+    "empty": "No partners added yet."
   }
 }

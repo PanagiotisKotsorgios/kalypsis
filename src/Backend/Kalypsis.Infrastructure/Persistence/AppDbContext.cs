@@ -60,6 +60,12 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<CommissionRun> CommissionRuns => Set<CommissionRun>();
     public DbSet<CommissionRunLine> CommissionRunLines => Set<CommissionRunLine>();
     public DbSet<CompanyBridge> CompanyBridges => Set<CompanyBridge>();
+    public DbSet<PlatformPartner> PlatformPartners => Set<PlatformPartner>();
+    public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
+    public DbSet<CommunicationLog> CommunicationLogs => Set<CommunicationLog>();
+    public DbSet<CustomerContact> CustomerContacts => Set<CustomerContact>();
+    public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
+    public DbSet<TwoFactorRecoveryCode> TwoFactorRecoveryCodes => Set<TwoFactorRecoveryCode>();
 
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
 

@@ -17,6 +17,10 @@ public class PublicController : ControllerBase
     public async Task<ActionResult<PublicStatsDto>> Stats(CancellationToken ct)
         => Ok(await _m.Send(new GetPublicStatsQuery(), ct));
 
+    [HttpGet("partners")]
+    public async Task<ActionResult<IReadOnlyList<PartnerDto>>> Partners(CancellationToken ct)
+        => Ok(await _m.Send(new GetPublicPartnersQuery(), ct));
+
     public record NewsletterBody(string Email);
 
     [HttpPost("newsletter")]
@@ -27,4 +31,22 @@ public class PublicController : ControllerBase
         await _m.Send(new NewsletterSubscribeCommand(body.Email.Trim().ToLowerInvariant()), ct);
         return Ok();
     }
+}
+
+[ApiController]
+[Route("api/platform/partners")]
+[Authorize(Policy = "PlatformAdmin")]
+public class PlatformPartnersController : ControllerBase
+{
+    private readonly IMediator _m;
+    public PlatformPartnersController(IMediator m) => _m = m;
+
+    [HttpGet] public async Task<ActionResult<IReadOnlyList<PartnerDto>>> List(CancellationToken ct)
+        => Ok(await _m.Send(new ListPartnersQuery(), ct));
+    [HttpPost] public async Task<ActionResult<PartnerDto>> Create([FromBody] PartnerBody body, CancellationToken ct)
+        => Ok(await _m.Send(new CreatePartnerCommand(body), ct));
+    [HttpPut("{id:guid}")] public async Task<ActionResult<PartnerDto>> Update(Guid id, [FromBody] PartnerBody body, CancellationToken ct)
+        => Ok(await _m.Send(new UpdatePartnerCommand(id, body), ct));
+    [HttpDelete("{id:guid}")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    { await _m.Send(new DeletePartnerCommand(id), ct); return NoContent(); }
 }

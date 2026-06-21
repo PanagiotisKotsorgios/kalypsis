@@ -2,11 +2,13 @@ using Kalypsis.Application.Features.Auth;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Kalypsis.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
+[EnableRateLimiting("auth")]
 public class AuthController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -17,6 +19,18 @@ public class AuthController : ControllerBase
     public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new LoginCommand(request.Email, request.Password), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Mobile app entry point. Only Role.Customer accounts can authenticate here —
+    /// any other role gets a 403, even with correct credentials.
+    /// </summary>
+    [HttpPost("mobile/login")]
+    [AllowAnonymous]
+    public async Task<ActionResult<LoginResponse>> MobileLogin([FromBody] LoginRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new MobileLoginCommand(request.Email, request.Password), cancellationToken);
         return Ok(result);
     }
 

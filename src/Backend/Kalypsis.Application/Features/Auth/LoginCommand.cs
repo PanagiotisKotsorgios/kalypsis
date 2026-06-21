@@ -42,17 +42,39 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
             .Where(u => u.Email == email && u.DeletedAt == null)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (user is null || !user.IsActive || !_hasher.Verify(request.Password, user.PasswordHash))
+        if (user is null)
         {
             throw AppException.Unauthorized("Λανθασμένο email ή κωδικός.");
         }
 
-        var tenantName = user.TenantId == Guid.Empty
+        if (user.LockedUntil is not null && user.LockedUntil > _clock.UtcNow)
+        {
+            var minutes = (int)Math.Ceiling((user.LockedUntil.Value - _clock.UtcNow).TotalMinutes);
+            throw AppException.Unauthorized($"Ο λογαριασμός είναι κλειδωμένος. Δοκιμάστε ξανά σε {minutes} λεπτά.");
+        }
+
+        if (!user.IsActive || !_hasher.Verify(request.Password, user.PasswordHash))
+        {
+            user.FailedLoginAttempts++;
+            if (user.FailedLoginAttempts >= 5)
+            {
+                user.LockedUntil = _clock.UtcNow.AddMinutes(30);
+                user.FailedLoginAttempts = 0;
+            }
+            await _db.SaveChangesAsync(cancellationToken);
+            throw AppException.Unauthorized("Λανθασμένο email ή κωδικός.");
+        }
+
+        // Successful login — reset the lockout counter.
+        user.FailedLoginAttempts = 0;
+        user.LockedUntil = null;
+
+        var tenantInfo = user.TenantId == Guid.Empty
             ? null
             : await _db.Tenants
                 .IgnoreQueryFilters()
                 .Where(t => t.Id == user.TenantId)
-                .Select(t => t.Name)
+                .Select(t => new { t.Name, t.LogoUrl, t.BrandColorHex })
                 .FirstOrDefaultAsync(cancellationToken);
 
         var tokens = _jwt.IssueTokens(user);
@@ -70,13 +92,15 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
         var dto = new AuthenticatedUserDto(
             user.Id,
             user.TenantId == Guid.Empty ? null : user.TenantId,
-            tenantName,
+            tenantInfo?.Name,
             user.Email,
             user.FirstName,
             user.LastName,
             user.Role,
             user.PreferredLanguage,
-            PermissionCatalog.ResolveEffective(user.Role, user.PermissionsJson));
+            PermissionCatalog.ResolveEffective(user.Role, user.PermissionsJson),
+            tenantInfo?.LogoUrl,
+            tenantInfo?.BrandColorHex);
 
         return new LoginResponse(
             tokens.AccessToken,

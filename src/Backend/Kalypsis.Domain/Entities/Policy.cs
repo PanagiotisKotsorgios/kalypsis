@@ -25,6 +25,16 @@ public class Policy : TenantEntity
     public decimal Premium { get; set; }
     public string Currency { get; set; } = "EUR";
 
+    public PaymentFrequency PaymentFrequency { get; set; } = PaymentFrequency.Annual;
+    public bool PremiumIncludesVat { get; set; } = true;
+
+    /// <summary>
+    /// Free-form JSON for type-specific data — vehicle plate / Bonus-Malus / VIN for autos,
+    /// square meters / floor / replacement value for property, covered persons + limits for health, etc.
+    /// Shape is determined by <see cref="PolicyType"/>.
+    /// </summary>
+    public string? SpecsJson { get; set; }
+
     public Guid? CreatedByUserId { get; set; }
     public User? CreatedByUser { get; set; }
 

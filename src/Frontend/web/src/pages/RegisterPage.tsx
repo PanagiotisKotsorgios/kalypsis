@@ -3,19 +3,21 @@ import {
   Alert,
   Box,
   Button,
-  Card,
+  Checkbox,
   CircularProgress,
   Container,
+  FormControlLabel,
+  Link,
   Stack,
   TextField,
   Typography
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { PublicShell } from "../components/PublicShell";
-import { BrandImage } from "../components/BrandImage";
+import { useNavigate, Link as RouterLink } from "react-router-dom";
+import { KalypsisLogo } from "../components/KalypsisLogo";
+import { LanguageToggle } from "../components/LanguageToggle";
 
 type RegisterForm = {
   firstName: string;
@@ -78,222 +80,258 @@ export function RegisterPage() {
       setSubmitting(false);
       const ref = `KLP-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
       setSubmitted({ ref });
-      window.scrollTo({ top: 0, behavior: "smooth" });
     }, 700);
   };
 
-  if (submitted) {
-    return (
-      <PublicShell>
-        <Container maxWidth="sm" sx={{ py: { xs: 10, md: 16 } }}>
-          <Card sx={{ p: { xs: 4, md: 6 }, textAlign: "center", borderRadius: 4 }}>
-            <CheckCircleIcon sx={{ fontSize: 72, color: "success.main", mb: 2 }} />
-            <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-              {t("register.success.title")}
-            </Typography>
-            <Typography color="text.secondary" sx={{ mb: 3 }}>
-              {t("register.success.body")}
-            </Typography>
-            <Box
-              sx={{
-                p: 2,
-                bgcolor: "background.default",
-                border: "1px dashed",
-                borderColor: "divider",
-                borderRadius: 2,
-                mb: 4
-              }}
-            >
-              <Typography variant="overline" color="text.secondary">
-                {t("register.success.refCode")}
-              </Typography>
-              <Typography sx={{ fontFamily: "monospace", fontSize: 20, fontWeight: 700 }}>
-                {submitted.ref}
-              </Typography>
-            </Box>
-            <Stack direction="row" spacing={2} justifyContent="center">
-              <Button variant="outlined" onClick={() => navigate("/")}>
-                {t("register.success.backHome")}
-              </Button>
-              <Button variant="contained" onClick={() => navigate("/login")}>
-                {t("auth.signIn")}
-              </Button>
-            </Stack>
-          </Card>
-        </Container>
-      </PublicShell>
-    );
-  }
-
   return (
-    <PublicShell>
-      {/* Hero */}
-      <Box sx={{ position: "relative", py: { xs: 10, md: 14 }, color: "common.white", overflow: "hidden" }}>
-        <BrandImage seed="kalypsis-register-greek-mosaic" width={1800} height={900} overlay="navy-strong" />
-        <Container maxWidth="md" sx={{ position: "relative", textAlign: "center" }}>
-          <Stack spacing={2.5} alignItems="center">
-            <Typography variant="overline" sx={{ letterSpacing: 2.5, opacity: 0.8 }}>
-              {t("register.eyebrow")}
-            </Typography>
-            <Typography variant="h2" sx={{ fontWeight: 900, letterSpacing: -1 }}>
-              {t("register.headline")}
-            </Typography>
-            <Typography sx={{ opacity: 0.92, fontSize: 18, maxWidth: 640 }}>
-              {t("register.lead")}
-            </Typography>
-          </Stack>
-        </Container>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "grid",
+        gridTemplateColumns: { xs: "1fr", md: "1.1fr 1fr" }
+      }}
+    >
+      {/* Left: pure white panel, just the big logo */}
+      <Box
+        sx={{
+          position: "relative",
+          display: { xs: "none", md: "flex" },
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "#ffffff",
+          borderRight: "1px solid",
+          borderColor: "rgba(11,37,69,0.06)",
+          p: 6
+        }}
+      >
+        <Box
+          component={RouterLink}
+          to="/"
+          sx={{ display: "inline-flex", textDecoration: "none", maxWidth: "82%" }}
+        >
+          <KalypsisLogo size={420} />
+        </Box>
       </Box>
 
-      {/* Body */}
-      <Container maxWidth="md" sx={{ py: { xs: 6, md: 10 }, mt: { xs: -6, md: -8 }, position: "relative", zIndex: 2 }}>
-        <Card sx={{ p: { xs: 3, md: 5 }, borderRadius: 4 }}>
+      {/* Right: slightly off-white form panel */}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          p: { xs: 3, md: 5 },
+          bgcolor: "#dfe6f0"
+        }}
+      >
+        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
           <Button
             component={RouterLink}
             to="/"
             startIcon={<ArrowBackIcon />}
+            color="inherit"
             size="small"
-            sx={{ mb: 2 }}
           >
             {t("nav.back")}
           </Button>
+          <LanguageToggle />
+        </Stack>
 
-          <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-            {t("register.formTitle")}
-          </Typography>
-          <Typography color="text.secondary" sx={{ mb: 4, maxWidth: 600 }}>
-            {t("register.formLead")}
-          </Typography>
+        <Box sx={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "center", py: 4 }}>
+          <Container maxWidth="sm" disableGutters>
+            {/* Mobile-only mini logo */}
+            <Box sx={{ display: { xs: "flex", md: "none" }, justifyContent: "center", mb: 3 }}>
+              <KalypsisLogo size={80} />
+            </Box>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-              {error}
-            </Alert>
-          )}
-
-          <form onSubmit={handleSubmit}>
-            <Stack spacing={3}>
-              <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5 }}>
-                {t("register.sections.personal")}
-              </Typography>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                <TextField
-                  label={t("register.firstName")}
-                  value={form.firstName}
-                  onChange={(e) => set("firstName", e.target.value)}
-                  fullWidth
-                  required
-                />
-                <TextField
-                  label={t("register.lastName")}
-                  value={form.lastName}
-                  onChange={(e) => set("lastName", e.target.value)}
-                  fullWidth
-                  required
-                />
-              </Stack>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                <TextField
-                  label={t("register.email")}
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => set("email", e.target.value)}
-                  fullWidth
-                  required
-                />
-                <TextField
-                  label={t("register.phone")}
-                  value={form.phone}
-                  onChange={(e) => set("phone", e.target.value)}
-                  fullWidth
-                  required
-                />
-              </Stack>
-              <TextField
-                label={t("register.city")}
-                value={form.city}
-                onChange={(e) => set("city", e.target.value)}
-                fullWidth
-              />
-
-              <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5, mt: 1 }}>
-                {t("register.sections.professional")}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: -1.5 }}>
-                {t("register.professionalHelp")}
-              </Typography>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                <TextField
-                  label={t("register.organizationName")}
-                  helperText={t("register.organizationHelp")}
-                  value={form.organizationName}
-                  onChange={(e) => set("organizationName", e.target.value)}
-                  fullWidth
-                />
-                <TextField
-                  label={t("register.vat")}
-                  helperText={t("register.vatHelp")}
-                  value={form.vatNumber}
-                  onChange={(e) => set("vatNumber", e.target.value.replace(/\D/g, "").slice(0, 9))}
-                  fullWidth
-                />
-              </Stack>
-              <TextField
-                label={t("register.licenseNumber")}
-                helperText={t("register.licenseNumberHelp")}
-                value={form.licenseNumber}
-                onChange={(e) => set("licenseNumber", e.target.value)}
-                fullWidth
-              />
-
-              <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5, mt: 1 }}>
-                {t("register.sections.message")}
-              </Typography>
-              <TextField
-                label={t("register.message")}
-                helperText={t("register.messageHelp")}
-                value={form.message}
-                onChange={(e) => set("message", e.target.value)}
-                fullWidth
-                multiline
-                rows={4}
-              />
-
-              <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ mt: 1 }}>
-                <input
-                  type="checkbox"
-                  checked={form.agreedTerms}
-                  onChange={(e) => set("agreedTerms", e.target.checked)}
-                  style={{ marginTop: 5 }}
-                />
-                <Typography variant="body2" color="text.secondary">
-                  {t("register.terms")}
+            {submitted ? (
+              <Box sx={{ textAlign: "center" }}>
+                <CheckCircleIcon sx={{ fontSize: 72, color: "success.main", mb: 2 }} />
+                <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
+                  {t("register.success.title")}
                 </Typography>
-              </Stack>
+                <Typography color="text.secondary" sx={{ mb: 3 }}>
+                  {t("register.success.body")}
+                </Typography>
+                <Box
+                  sx={{
+                    p: 2,
+                    bgcolor: "rgba(255,255,255,0.7)",
+                    border: "1px dashed",
+                    borderColor: "rgba(11,37,69,0.2)",
+                    borderRadius: 2,
+                    mb: 4
+                  }}
+                >
+                  <Typography variant="overline" color="text.secondary">
+                    {t("register.success.refCode")}
+                  </Typography>
+                  <Typography sx={{ fontFamily: "monospace", fontSize: 20, fontWeight: 700 }}>
+                    {submitted.ref}
+                  </Typography>
+                </Box>
+                <Stack direction="row" spacing={2} justifyContent="center">
+                  <Button variant="outlined" onClick={() => navigate("/")}>
+                    {t("register.success.backHome")}
+                  </Button>
+                  <Button variant="contained" onClick={() => navigate("/login")}>
+                    {t("auth.signIn")}
+                  </Button>
+                </Stack>
+              </Box>
+            ) : (
+              <>
+                <Stack spacing={1} mb={3.5}>
+                  <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: -0.5 }}>
+                    {t("register.formTitle")}
+                  </Typography>
+                  <Typography color="text.secondary">
+                    {t("register.formLead")}
+                  </Typography>
+                </Stack>
 
-              <Button
-                type="submit"
-                variant="contained"
-                size="large"
-                disabled={submitting}
-                startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
-                sx={{ alignSelf: "flex-start", fontWeight: 700, px: 4, py: 1.4 }}
-              >
-                {submitting ? t("register.submitting") : t("register.submit")}
-              </Button>
-            </Stack>
-          </form>
-        </Card>
+                {error && (
+                  <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+                    {error}
+                  </Alert>
+                )}
 
-        <Box sx={{ textAlign: "center", mt: 5 }}>
-          <Typography color="text.secondary">
-            {t("register.alreadyHave")}{" "}
-            <Button component={RouterLink} to="/login" variant="text" sx={{ fontWeight: 700 }}>
-              {t("auth.signIn")}
-            </Button>
-          </Typography>
+                <form onSubmit={handleSubmit} noValidate>
+                  <Stack spacing={2.5}>
+                    <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5 }}>
+                      {t("register.sections.personal")}
+                    </Typography>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                      <TextField
+                        label={t("register.firstName")}
+                        value={form.firstName}
+                        onChange={(e) => set("firstName", e.target.value)}
+                        fullWidth
+                        required
+                        disabled={submitting}
+                      />
+                      <TextField
+                        label={t("register.lastName")}
+                        value={form.lastName}
+                        onChange={(e) => set("lastName", e.target.value)}
+                        fullWidth
+                        required
+                        disabled={submitting}
+                      />
+                    </Stack>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                      <TextField
+                        label={t("register.email")}
+                        type="email"
+                        value={form.email}
+                        onChange={(e) => set("email", e.target.value)}
+                        fullWidth
+                        required
+                        autoComplete="email"
+                        disabled={submitting}
+                      />
+                      <TextField
+                        label={t("register.phone")}
+                        value={form.phone}
+                        onChange={(e) => set("phone", e.target.value)}
+                        fullWidth
+                        required
+                        autoComplete="tel"
+                        disabled={submitting}
+                      />
+                    </Stack>
+                    <TextField
+                      label={t("register.city")}
+                      value={form.city}
+                      onChange={(e) => set("city", e.target.value)}
+                      fullWidth
+                      disabled={submitting}
+                    />
+
+                    <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5, mt: 1 }}>
+                      {t("register.sections.professional")}
+                    </Typography>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                      <TextField
+                        label={t("register.organizationName")}
+                        value={form.organizationName}
+                        onChange={(e) => set("organizationName", e.target.value)}
+                        fullWidth
+                        disabled={submitting}
+                      />
+                      <TextField
+                        label={t("register.vat")}
+                        value={form.vatNumber}
+                        onChange={(e) => set("vatNumber", e.target.value.replace(/\D/g, "").slice(0, 9))}
+                        fullWidth
+                        disabled={submitting}
+                      />
+                    </Stack>
+                    <TextField
+                      label={t("register.licenseNumber")}
+                      helperText={t("register.licenseNumberHelp")}
+                      value={form.licenseNumber}
+                      onChange={(e) => set("licenseNumber", e.target.value)}
+                      fullWidth
+                      disabled={submitting}
+                    />
+
+                    <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5, mt: 1 }}>
+                      {t("register.sections.message")}
+                    </Typography>
+                    <TextField
+                      label={t("register.message")}
+                      value={form.message}
+                      onChange={(e) => set("message", e.target.value)}
+                      fullWidth
+                      multiline
+                      rows={3}
+                      disabled={submitting}
+                    />
+
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={form.agreedTerms}
+                          onChange={(e) => set("agreedTerms", e.target.checked)}
+                          size="small"
+                          disabled={submitting}
+                          sx={{ alignSelf: "flex-start", mt: -0.5 }}
+                        />
+                      }
+                      label={
+                        <Typography variant="body2" color="text.secondary">
+                          {t("register.terms")}
+                        </Typography>
+                      }
+                      sx={{ alignItems: "flex-start", ml: -0.5 }}
+                    />
+
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      size="large"
+                      fullWidth
+                      disabled={submitting}
+                      startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
+                      sx={{ py: 1.5, fontWeight: 700, fontSize: 16 }}
+                    >
+                      {submitting ? t("register.submitting") : t("register.submit")}
+                    </Button>
+                  </Stack>
+                </form>
+
+                <Box sx={{ mt: 4, textAlign: "center" }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {t("register.alreadyHave")}{" "}
+                    <Link component={RouterLink} to="/login" sx={{ fontWeight: 600 }}>
+                      {t("auth.signIn")}
+                    </Link>
+                  </Typography>
+                </Box>
+              </>
+            )}
+          </Container>
         </Box>
-      </Container>
-    </PublicShell>
+      </Box>
+    </Box>
   );
 }

@@ -144,27 +144,32 @@ export function PublicFooter() {
       </Box>
 
       {/* Masthead / colophon */}
-      <Container maxWidth="lg" sx={{ py: { xs: 8, md: 10 } }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 10, md: 14 } }}>
         <Box sx={{
           display: "grid",
-          gap: 5,
+          gap: { xs: 7, md: 8 },
           gridTemplateColumns: { xs: "1fr", md: "1.6fr 1fr 1fr 1.4fr" }
         }}>
           {/* Brand */}
           <Box>
-            <KalypsisLogo size={88} crop />
-            <Box sx={{ mt: 3, color: "var(--ink-soft)", fontSize: 14, lineHeight: 1.7, maxWidth: 380 }}>
+            <KalypsisLogo size={140} crop />
+            <Box sx={{
+              mt: 4,
+              color: "var(--ink-soft)",
+              fontSize: { xs: 17, md: 18 },
+              lineHeight: 1.65,
+              maxWidth: 440
+            }}>
               {t("footer.intro")}
             </Box>
-            <Stack direction="row" spacing={1} sx={{ mt: 3 }}>
-              <SocialIcon href="https://github.com/PanagiotisKotsorgios/kalypsis" icon={<GitHubIcon fontSize="small" />} />
-              <SocialIcon href="#" icon={<LinkedInIcon fontSize="small" />} />
-              <SocialIcon href="#" icon={<FacebookIcon fontSize="small" />} />
+            <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
+              <SocialIcon href="https://github.com/PanagiotisKotsorgios/kalypsis" icon={<GitHubIcon sx={{ fontSize: 28 }} />} />
+              <SocialIcon href="#" icon={<LinkedInIcon sx={{ fontSize: 28 }} />} />
+              <SocialIcon href="#" icon={<FacebookIcon sx={{ fontSize: 28 }} />} />
             </Stack>
           </Box>
 
           <FooterColumn
-            number="I"
             heading={t("footer.product")}
             links={[
               { to: "/#features", label: t("publicNav.platform") },
@@ -176,7 +181,6 @@ export function PublicFooter() {
           />
 
           <FooterColumn
-            number="II"
             heading={t("footer.company")}
             links={[
               { to: "/contact", label: t("publicNav.contact") },
@@ -188,23 +192,47 @@ export function PublicFooter() {
           />
 
           <Box>
-            <Box className="number-marker" sx={{ mb: 1 }}>III</Box>
-            <Box className="eyebrow" sx={{ mb: 2 }}>{t("footer.contact")}</Box>
-            <Stack spacing={1.5} sx={{ fontSize: 14, color: "var(--ink-soft)" }}>
-              <Stack direction="row" spacing={1.2} alignItems="flex-start">
-                <LocationOnIcon fontSize="small" sx={{ color: "var(--ink-muted)", mt: 0.3 }} />
-                <Box>Λ. Κηφισίας 268<br />152 32 Χαλάνδρι, Αθήνα</Box>
+            <Box sx={{
+              fontFamily: "var(--display)",
+              fontSize: { xs: 22, md: 26 },
+              fontWeight: 600,
+              color: "var(--ink)",
+              mb: 3,
+              letterSpacing: "-0.01em"
+            }}>
+              {t("footer.contact")}
+            </Box>
+            <Stack spacing={2.5} sx={{ fontSize: { xs: 16, md: 17 }, color: "var(--ink-soft)" }}>
+              <Stack direction="row" spacing={1.8} alignItems="flex-start">
+                <LocationOnIcon sx={{ fontSize: 28, color: "var(--gold)", mt: 0.2 }} />
+                <Box sx={{ lineHeight: 1.55 }}>Λ. Κηφισίας 268<br />152 32 Χαλάνδρι, Αθήνα</Box>
               </Stack>
-              <Stack direction="row" spacing={1.2} alignItems="center">
-                <PhoneIcon fontSize="small" sx={{ color: "var(--ink-muted)" }} />
-                <Box component="a" href="tel:+302106000000" className="editorial-link" sx={{ color: "var(--ink)" }}>
+              <Stack direction="row" spacing={1.8} alignItems="center">
+                <PhoneIcon sx={{ fontSize: 28, color: "var(--gold)" }} />
+                <Box
+                  component="a"
+                  href="tel:+302106000000"
+                  sx={{
+                    color: "var(--ink)",
+                    textDecoration: "none",
+                    "&:hover": { textDecoration: "underline" }
+                  }}
+                >
                   +30 210 600 0000
                 </Box>
               </Stack>
-              <Stack direction="row" spacing={1.2} alignItems="center">
-                <EmailIcon fontSize="small" sx={{ color: "var(--ink-muted)" }} />
-                <Box component="a" href="mailto:hello@kalypsis.gr" className="editorial-link"
-                  sx={{ color: "var(--ink)", fontFamily: "var(--mono)" }}>
+              <Stack direction="row" spacing={1.8} alignItems="center">
+                <EmailIcon sx={{ fontSize: 28, color: "var(--gold)" }} />
+                <Box
+                  component="a"
+                  href="mailto:hello@kalypsis.gr"
+                  sx={{
+                    color: "var(--ink)",
+                    fontFamily: "var(--mono)",
+                    textDecoration: "none",
+                    "&:hover": { textDecoration: "underline" }
+                  }}
+                >
                   hello@kalypsis.gr
                 </Box>
               </Stack>
@@ -212,59 +240,84 @@ export function PublicFooter() {
           </Box>
         </Box>
 
-        <Divider sx={{ my: 5, borderColor: "var(--rule)" }} />
+        <Divider sx={{ my: { xs: 6, md: 8 }, borderColor: "var(--rule)" }} />
 
         <Stack
           direction={{ xs: "column", md: "row" }}
-          spacing={2}
+          spacing={3}
           justifyContent="space-between"
           alignItems={{ xs: "flex-start", md: "center" }}
-          sx={{ color: "var(--ink-muted)", fontSize: 12, letterSpacing: "0.02em" }}
+          sx={{ color: "var(--ink-soft)", fontSize: { xs: 14, md: 15 } }}
         >
           <Box>© {new Date().getFullYear()} Kalypsis · {t("app.tagline")}</Box>
-          <Stack direction="row" spacing={3}>
-            <Box component={RouterLink} to="/terms" className="editorial-link"
-              sx={{ color: "var(--ink-muted)" }}>
+          <Stack direction="row" spacing={4}>
+            <Box
+              component={RouterLink}
+              to="/terms"
+              sx={{
+                color: "var(--ink-soft)",
+                textDecoration: "none",
+                "&:hover": { textDecoration: "underline", color: "var(--ink)" }
+              }}
+            >
               {t("footer.terms")}
             </Box>
-            <Box component={RouterLink} to="/privacy" className="editorial-link"
-              sx={{ color: "var(--ink-muted)" }}>
+            <Box
+              component={RouterLink}
+              to="/privacy"
+              sx={{
+                color: "var(--ink-soft)",
+                textDecoration: "none",
+                "&:hover": { textDecoration: "underline", color: "var(--ink)" }
+              }}
+            >
               {t("footer.privacy")}
             </Box>
-            <Box component={RouterLink} to="/cookies" className="editorial-link"
-              sx={{ color: "var(--ink-muted)" }}>
+            <Box
+              component={RouterLink}
+              to="/cookies"
+              sx={{
+                color: "var(--ink-soft)",
+                textDecoration: "none",
+                "&:hover": { textDecoration: "underline", color: "var(--ink)" }
+              }}
+            >
               {t("footer.cookies")}
             </Box>
           </Stack>
         </Stack>
 
-        <Box sx={{ mt: 2, fontSize: 11, color: "var(--ink-muted)", lineHeight: 1.6, maxWidth: 720 }}>
-          {t("footer.compliance")}
-        </Box>
       </Container>
     </Box>
   );
 }
 
-function FooterColumn({ number, heading, links }:
-  { number: string; heading: string; links: { to: string; label: string }[] }) {
+function FooterColumn({ heading, links }:
+  { heading: string; links: { to: string; label: string }[] }) {
   return (
     <Box>
-      <Box className="number-marker" sx={{ mb: 1 }}>{number}</Box>
-      <Box className="eyebrow" sx={{ mb: 2 }}>{heading}</Box>
-      <Stack spacing={1.2}>
+      <Box sx={{
+        fontFamily: "var(--display)",
+        fontSize: { xs: 22, md: 26 },
+        fontWeight: 600,
+        color: "var(--ink)",
+        mb: 3,
+        letterSpacing: "-0.01em"
+      }}>
+        {heading}
+      </Box>
+      <Stack spacing={1.8}>
         {links.map((link) => (
           <Box
             key={link.to + link.label}
             component={RouterLink}
             to={link.to}
-            className="editorial-link"
             sx={{
-              fontFamily: "var(--display)",
-              fontStyle: "italic",
-              fontSize: 17,
+              fontSize: { xs: 17, md: 18 },
               color: "var(--ink)",
-              textDecoration: "none"
+              textDecoration: "none",
+              transition: "color 200ms ease",
+              "&:hover": { textDecoration: "underline", color: "var(--gold)" }
             }}
           >
             {link.label}
@@ -285,10 +338,10 @@ function SocialIcon({ href, icon }: { href: string; icon: React.ReactNode }) {
       sx={{
         color: "var(--ink)",
         border: "1px solid var(--rule)",
-        width: 36,
-        height: 36,
+        width: 56,
+        height: 56,
         borderRadius: 0,
-        transition: "background 380ms var(--ease-editorial), color 380ms var(--ease-editorial)",
+        transition: "background 200ms ease, color 200ms ease",
         "&:hover": { bgcolor: "var(--ink)", color: "var(--paper)" }
       }}
     >

@@ -37,3 +37,9 @@ Thumbs.db
 
 # Word/Office lock files
 ~$*
+
+# Windows file-explorer droppings
+desktop.ini
+
+# Local scratch
+NOTHING.txt

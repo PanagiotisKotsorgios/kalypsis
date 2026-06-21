@@ -47,6 +47,12 @@ public interface IAppDbContext
     DbSet<CommissionRun> CommissionRuns { get; }
     DbSet<CommissionRunLine> CommissionRunLines { get; }
     DbSet<CompanyBridge> CompanyBridges { get; }
+    DbSet<PlatformPartner> PlatformPartners { get; }
+    DbSet<ConsentRecord> ConsentRecords { get; }
+    DbSet<CommunicationLog> CommunicationLogs { get; }
+    DbSet<CustomerContact> CustomerContacts { get; }
+    DbSet<EmailTemplate> EmailTemplates { get; }
+    DbSet<TwoFactorRecoveryCode> TwoFactorRecoveryCodes { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

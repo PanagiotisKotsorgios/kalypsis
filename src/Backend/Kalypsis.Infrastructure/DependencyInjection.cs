@@ -1,7 +1,9 @@
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Infrastructure.Auth;
 using Kalypsis.Infrastructure.Persistence;
+using Kalypsis.Infrastructure.Scheduling;
 using Kalypsis.Infrastructure.Services;
+using Kalypsis.Infrastructure.Sms;
 using Kalypsis.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -37,6 +39,10 @@ public static class DependencyInjection
 
         services.AddHttpClient("brevo");
         services.AddScoped<IEmailSender, BrevoEmailSender>();
+        services.AddScoped<ISmsSender, DevSmsSender>();
+        services.AddSingleton<ITotpService, TotpService>();
+
+        services.AddHostedService<PolicyRenewalReminderJob>();
 
         return services;
     }

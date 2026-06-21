@@ -13,7 +13,9 @@ public record AuthenticatedUserDto(
     string LastName,
     Role Role,
     string PreferredLanguage,
-    string[] Permissions);
+    string[] Permissions,
+    string? TenantLogoUrl = null,
+    string? TenantBrandColorHex = null);
 
 public record LoginResponse(
     string AccessToken,

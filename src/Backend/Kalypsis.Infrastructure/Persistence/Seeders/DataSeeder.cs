@@ -36,36 +36,119 @@ public static class DataSeeder
                 Name = "Kalypsis Platform",
                 Code = "PLATFORM",
                 IsActive = true,
-                SubscriptionPlan = SubscriptionPlan.Enterprise
+                SubscriptionPlan = SubscriptionPlan.Enterprise,
+                LogoUrl = "/static/kalypsis-logo.jpg",
+                BrandColorHex = "#0B2545",
+                ContactEmail = "hello@kalypsis.gr",
+                ContactPhone = "+30 210 600 0000",
+                AddressLine = "Λ. Κηφισίας 268, 152 32 Χαλάνδρι, Αθήνα"
             };
             db.Tenants.Add(platformTenant);
             await db.SaveChangesAsync(cancellationToken);
             logger.LogInformation("Seeded platform tenant.");
         }
-
-        var exists = await db.Users.IgnoreQueryFilters().AnyAsync(u => u.Role == Role.PlatformAdmin, cancellationToken);
-        if (exists)
+        else if (string.IsNullOrEmpty(platformTenant.LogoUrl) ||
+                 (platformTenant.LogoUrl?.StartsWith("https://kalypsis.gr") ?? false))
         {
-            logger.LogInformation("Platform admin already exists; skipping seed.");
+            // Backfill branding on the existing platform tenant so the mobile app has something to show.
+            platformTenant.LogoUrl = "/static/kalypsis-logo.jpg";
+            platformTenant.BrandColorHex = "#0B2545";
+            platformTenant.ContactEmail = "hello@kalypsis.gr";
+            platformTenant.ContactPhone = "+30 210 600 0000";
+            platformTenant.AddressLine = "Λ. Κηφισίας 268, 152 32 Χαλάνδρι, Αθήνα";
+            await db.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Backfilled platform tenant branding.");
+        }
+
+        var adminExists = await db.Users.IgnoreQueryFilters().AnyAsync(u => u.Role == Role.PlatformAdmin, cancellationToken);
+        if (!adminExists)
+        {
+            var admin = new User
+            {
+                Id = Guid.NewGuid(),
+                TenantId = platformTenant.Id,
+                Email = seedEmail,
+                PasswordHash = hasher.Hash(seedPassword),
+                FirstName = seedFirstName,
+                LastName = seedLastName,
+                Role = Role.PlatformAdmin,
+                IsActive = true,
+                PreferredLanguage = "el"
+            };
+            db.Users.Add(admin);
+            await db.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Seeded platform admin {Email}.", seedEmail);
+        }
+        else
+        {
+            logger.LogInformation("Platform admin already exists; skipping admin seed.");
+        }
+
+        await SeedTestCustomerAsync(db, hasher, platformTenant.Id, logger, cancellationToken);
+    }
+
+    /// <summary>
+    /// Seeds a Customer entity + matching User (Role.Customer) on the platform tenant
+    /// so the mobile client-portal app has a known account to log in with during development.
+    /// Idempotent — skips if the user already exists.
+    /// </summary>
+    private static async Task SeedTestCustomerAsync(
+        AppDbContext db,
+        IPasswordHasher hasher,
+        Guid platformTenantId,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        const string email = "client@example.com";
+        const string password = "Kalypsis@2026!";
+        const string customerNumber = "CLIENT-DEMO";
+
+        var existingUser = await db.Users.IgnoreQueryFilters()
+            .AnyAsync(u => u.Email == email, cancellationToken);
+        if (existingUser)
+        {
+            logger.LogInformation("Test customer user already exists; skipping.");
             return;
         }
 
-        var admin = new User
+        var customer = await db.Customers.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.TenantId == platformTenantId && c.CustomerNumber == customerNumber, cancellationToken);
+        if (customer is null)
+        {
+            customer = new Customer
+            {
+                Id = Guid.NewGuid(),
+                TenantId = platformTenantId,
+                CustomerNumber = customerNumber,
+                Type = CustomerType.Individual,
+                FirstName = "Δημήτρης",
+                LastName = "Παπαδόπουλος",
+                Email = email,
+                Phone = "+30 6900000000",
+                City = "Αθήνα"
+            };
+            db.Customers.Add(customer);
+            await db.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Seeded test customer record {Number}.", customerNumber);
+        }
+
+        var user = new User
         {
             Id = Guid.NewGuid(),
-            TenantId = platformTenant.Id,
-            Email = seedEmail,
-            PasswordHash = hasher.Hash(seedPassword),
-            FirstName = seedFirstName,
-            LastName = seedLastName,
-            Role = Role.PlatformAdmin,
+            TenantId = platformTenantId,
+            Email = email,
+            PasswordHash = hasher.Hash(password),
+            FirstName = customer.FirstName ?? "Demo",
+            LastName = customer.LastName ?? "Client",
+            Role = Role.Customer,
+            CustomerId = customer.Id,
             IsActive = true,
             PreferredLanguage = "el"
         };
-        db.Users.Add(admin);
+        db.Users.Add(user);
         await db.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Seeded platform admin {Email}.", seedEmail);
+        logger.LogInformation("Seeded test customer user {Email} (password: {Password}).", email, password);
     }
 
     private static async Task SeedInsuranceCompaniesAsync(AppDbContext db, ILogger logger, CancellationToken ct)

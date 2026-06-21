@@ -72,6 +72,7 @@ import { UnderMaintenancePage } from "./pages/UnderMaintenancePage";
 import { TenantsPage } from "./pages/TenantsPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
 import { CustomersPage } from "./pages/CustomersPage";
+import { CustomerDetailPage } from "./pages/CustomerDetailPage";
 import { AdminSettingsPage } from "./pages/AdminSettingsPage";
 import { RequestsPage } from "./pages/RequestsPage";
 import { AuditLogsPage } from "./pages/AuditLogsPage";
@@ -110,6 +111,7 @@ import { OverCommissionsPage } from "./pages/OverCommissionsPage";
 import { ProductionGoalsPage } from "./pages/ProductionGoalsPage";
 import { ProductionStatsPage } from "./pages/ProductionStatsPage";
 import { TenantDetailPage } from "./pages/TenantDetailPage";
+import { PlatformPartnersPage } from "./pages/PlatformPartnersPage";
 import { CommissionRunsPage } from "./pages/CommissionRunsPage";
 import { CompanyBridgesPage } from "./pages/CompanyBridgesPage";
 
@@ -199,7 +201,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/audit", labelKey: "nav.audit", icon: <GavelIcon /> },
     { to: "/settings", labelKey: "nav.settings", icon: <SettingsIcon /> },
     // Coming-soon platform-wide operations
-    { to: "/platform/carriers", labelKey: "nav.carriers", icon: <SecurityIcon />, comingSoon: true },
+    { to: "/platform/partners", labelKey: "nav.partners", icon: <SecurityIcon /> },
     { to: "/platform/plans", labelKey: "nav.subscriptionPlans", icon: <CreditCardIcon />, comingSoon: true },
     { to: "/platform/billing", labelKey: "nav.billing", icon: <PaymentsIcon />, comingSoon: true },
     { to: "/platform/email-templates", labelKey: "nav.emailTemplates", icon: <EmailIcon />, comingSoon: true },
@@ -304,6 +306,7 @@ export default function App() {
                 <Routes>
                   <Route index element={<DashboardPage />} />
                   <Route path="customers" element={<CustomersPage />} />
+                  <Route path="customers/:id" element={<CustomerDetailPage />} />
                   <Route path="contracts/new" element={<NewContractWizardPage />} />
                   <Route path="contracts/:id" element={<CustomerContractDetailsPage />} />
                   <Route path="policies" element={<PoliciesPage />} />
@@ -323,6 +326,7 @@ export default function App() {
                   <Route path="profile" element={<ProfilePage />} />
                   <Route path="agency-settings" element={<AgencySettingsPage />} />
                   <Route path="coming-soon" element={<ComingSoonPage />} />
+                  <Route path="platform/partners" element={<PlatformPartnersPage />} />
                   <Route path="platform/*" element={<ComingSoonPage />} />
                   <Route path="agency/*" element={<ComingSoonPage />} />
 

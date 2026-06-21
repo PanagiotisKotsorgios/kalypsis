@@ -16,7 +16,12 @@ public record MyProfileDto(
     string PreferredLanguage,
     Role Role,
     Guid? TenantId,
-    string? TenantName);
+    string? TenantName,
+    string? TenantLogoUrl = null,
+    string? TenantBrandColorHex = null,
+    string? TenantContactEmail = null,
+    string? TenantContactPhone = null,
+    string? TenantAddressLine = null);
 
 public record UpdateProfileBody(string FirstName, string LastName, string? Phone, string PreferredLanguage);
 public record ChangePasswordBody(string CurrentPassword, string NewPassword);
@@ -37,10 +42,15 @@ public class GetMyProfileQueryHandler : IRequestHandler<GetMyProfileQuery, MyPro
         var u = await _db.Users.IgnoreQueryFilters()
             .FirstOrDefaultAsync(x => x.Id == userId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Χρήστης");
-        var tenantName = await _db.Tenants.IgnoreQueryFilters()
-            .Where(t => t.Id == u.TenantId).Select(t => t.Name).FirstOrDefaultAsync(ct);
-        return new MyProfileDto(u.Id, u.Email, u.FirstName, u.LastName, u.Phone, u.PreferredLanguage, u.Role,
-            u.TenantId == Guid.Empty ? null : u.TenantId, tenantName);
+        var tenant = await _db.Tenants.IgnoreQueryFilters()
+            .Where(t => t.Id == u.TenantId)
+            .Select(t => new { t.Name, t.LogoUrl, t.BrandColorHex, t.ContactEmail, t.ContactPhone, t.AddressLine })
+            .FirstOrDefaultAsync(ct);
+        return new MyProfileDto(
+            u.Id, u.Email, u.FirstName, u.LastName, u.Phone, u.PreferredLanguage, u.Role,
+            u.TenantId == Guid.Empty ? null : u.TenantId,
+            tenant?.Name, tenant?.LogoUrl, tenant?.BrandColorHex,
+            tenant?.ContactEmail, tenant?.ContactPhone, tenant?.AddressLine);
     }
 }
 
@@ -77,10 +87,15 @@ public class UpdateMyProfileCommandHandler : IRequestHandler<UpdateMyProfileComm
         u.PreferredLanguage = request.Body.PreferredLanguage.Trim();
         await _db.SaveChangesAsync(ct);
 
-        var tenantName = await _db.Tenants.IgnoreQueryFilters()
-            .Where(t => t.Id == u.TenantId).Select(t => t.Name).FirstOrDefaultAsync(ct);
-        return new MyProfileDto(u.Id, u.Email, u.FirstName, u.LastName, u.Phone, u.PreferredLanguage, u.Role,
-            u.TenantId == Guid.Empty ? null : u.TenantId, tenantName);
+        var tenant = await _db.Tenants.IgnoreQueryFilters()
+            .Where(t => t.Id == u.TenantId)
+            .Select(t => new { t.Name, t.LogoUrl, t.BrandColorHex, t.ContactEmail, t.ContactPhone, t.AddressLine })
+            .FirstOrDefaultAsync(ct);
+        return new MyProfileDto(
+            u.Id, u.Email, u.FirstName, u.LastName, u.Phone, u.PreferredLanguage, u.Role,
+            u.TenantId == Guid.Empty ? null : u.TenantId,
+            tenant?.Name, tenant?.LogoUrl, tenant?.BrandColorHex,
+            tenant?.ContactEmail, tenant?.ContactPhone, tenant?.AddressLine);
     }
 }
 

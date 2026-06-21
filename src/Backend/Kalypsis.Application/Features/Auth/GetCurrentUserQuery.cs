@@ -33,23 +33,25 @@ public class GetCurrentUserQueryHandler : IRequestHandler<GetCurrentUserQuery, A
             .FirstOrDefaultAsync(cancellationToken)
             ?? throw AppException.NotFound("Ο χρήστης");
 
-        var tenantName = user.TenantId == Guid.Empty
+        var tenantInfo = user.TenantId == Guid.Empty
             ? null
             : await _db.Tenants
                 .IgnoreQueryFilters()
                 .Where(t => t.Id == user.TenantId)
-                .Select(t => t.Name)
+                .Select(t => new { t.Name, t.LogoUrl, t.BrandColorHex })
                 .FirstOrDefaultAsync(cancellationToken);
 
         return new AuthenticatedUserDto(
             user.Id,
             user.TenantId == Guid.Empty ? null : user.TenantId,
-            tenantName,
+            tenantInfo?.Name,
             user.Email,
             user.FirstName,
             user.LastName,
             user.Role,
             user.PreferredLanguage,
-            PermissionCatalog.ResolveEffective(user.Role, user.PermissionsJson));
+            PermissionCatalog.ResolveEffective(user.Role, user.PermissionsJson),
+            tenantInfo?.LogoUrl,
+            tenantInfo?.BrandColorHex);
     }
 }

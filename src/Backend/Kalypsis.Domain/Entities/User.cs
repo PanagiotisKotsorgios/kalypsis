@@ -22,6 +22,17 @@ public class User : TenantEntity
 
     public DateTime? LastLoginAt { get; set; }
 
+    /// <summary>Track failed login attempts to power lockout after N consecutive failures.</summary>
+    public int FailedLoginAttempts { get; set; }
+    /// <summary>If set and in the future, login is rejected even with correct credentials.</summary>
+    public DateTime? LockedUntil { get; set; }
+
+    /// <summary>TOTP secret, Base32-encoded. When non-null and TwoFactorEnabled, 2FA is enforced.</summary>
+    public string? TotpSecret { get; set; }
+    public bool TwoFactorEnabled { get; set; }
+    public DateTime? TwoFactorEnabledAt { get; set; }
+    public ICollection<TwoFactorRecoveryCode> RecoveryCodes { get; set; } = new List<TwoFactorRecoveryCode>();
+
     /// <summary>
     /// JSON array of permission codes the agency admin has granted this user
     /// (e.g. ["customers.read","customers.write","commissions.run"]). Null /

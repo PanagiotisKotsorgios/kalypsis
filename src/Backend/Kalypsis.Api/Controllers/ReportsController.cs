@@ -22,4 +22,14 @@ public class ReportsController : ControllerBase
     [Authorize(Policy = "Producer")]
     public async Task<ActionResult<ProducerReportDto>> Producer(CancellationToken cancellationToken)
         => Ok(await _mediator.Send(new GetProducerReportQuery(), cancellationToken));
+
+    [HttpGet("agency-user")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<AgencyUserReportDto>> AgencyUser(CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(new GetAgencyUserReportQuery(), cancellationToken));
+
+    [HttpGet("platform")]
+    [Authorize(Policy = "PlatformLevel")]
+    public async Task<ActionResult<PlatformReportDto>> Platform(CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(new GetPlatformReportQuery(), cancellationToken));
 }

@@ -153,7 +153,12 @@ export function CustomersPage() {
               </TableHead>
               <TableBody>
                 {customers.map((c) => (
-                  <TableRow key={c.id} hover>
+                  <TableRow
+                    key={c.id}
+                    hover
+                    sx={{ cursor: "pointer" }}
+                    onClick={() => { window.location.href = `/app/customers/${c.id}`; }}
+                  >
                     <TableCell><Chip label={c.customerNumber} size="small" variant="outlined" /></TableCell>
                     <TableCell>
                       {c.type === "Individual" ? t("customers.individual") : t("customers.company")}

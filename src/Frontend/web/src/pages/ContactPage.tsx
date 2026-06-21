@@ -9,7 +9,6 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PublicShell } from "../components/PublicShell";
 import { EdReveal } from "../components/EdReveal";
-import { EditorialImage } from "../components/EditorialImage";
 
 const CONTACT_HERO =
   "https://img.magnific.com/free-photo/busy-woman-doing-many-things-same-time_1098-3232.jpg";
@@ -43,31 +42,31 @@ const fieldSx = {
   "& .MuiOutlinedInput-root": {
     bgcolor: "transparent",
     fontFamily: "var(--sans)",
-    fontSize: 16,
+    fontSize: 19,
     color: "var(--ink)",
     borderRadius: 0,
     "& fieldset": {
       border: "none",
-      borderBottom: "1px solid var(--rule)"
+      borderBottom: "1.5px solid var(--rule)"
     },
-    "&:hover fieldset": { borderBottom: "1px solid var(--ink)" },
+    "&:hover fieldset": { borderBottom: "1.5px solid var(--ink)" },
     "&.Mui-focused fieldset": {
       border: "none",
-      borderBottom: "1px solid var(--ink)"
+      borderBottom: "1.5px solid var(--gold)"
     }
   },
   "& .MuiInputLabel-root": {
     fontFamily: "var(--sans)",
     color: "var(--ink-muted)",
-    fontSize: 14,
-    letterSpacing: "0.02em",
-    transform: "translate(0, 18px) scale(1)",
+    fontSize: 17,
+    letterSpacing: "0.01em",
+    transform: "translate(0, 22px) scale(1)",
     "&.MuiInputLabel-shrink": {
-      transform: "translate(0, -2px) scale(0.85)",
+      transform: "translate(0, -2px) scale(0.78)",
       color: "var(--ink-muted)"
     }
   },
-  "& .MuiOutlinedInput-input": { padding: "16px 0 12px" }
+  "& .MuiOutlinedInput-input": { padding: "20px 0 14px" }
 } as const;
 
 export function ContactPage() {
@@ -102,7 +101,7 @@ export function ContactPage() {
       <PublicShell>
         <Container maxWidth="md" sx={{ py: { xs: 12, md: 20 } }}>
           <EdReveal>
-            <Box className="number-marker" sx={{ mb: 4 }}>№ 02 — {t("contact.success.refCode")}</Box>
+            <Box className="eyebrow" sx={{ mb: 4 }}>{t("contact.success.refCode")}</Box>
             <Box className="display" sx={{ fontSize: { xs: 48, md: 80 }, color: "var(--ink)", mb: 4 }}>
               {t("contact.success.title")}
             </Box>
@@ -133,40 +132,53 @@ export function ContactPage() {
   return (
     <PublicShell>
       {/* Hero */}
-      <Box className="editorial-grain" sx={{ py: { xs: 10, md: 16 }, borderBottom: "1px solid var(--rule)" }}>
-        <Container maxWidth="lg">
-          <EdReveal>
-            <Stack direction="row" alignItems="baseline" spacing={2} mb={{ xs: 4, md: 6 }}>
-              <span className="number-marker">№ 01</span>
-              <Box sx={{ flex: 1, height: "1px", bgcolor: "var(--rule)" }} />
-              <span className="eyebrow">{t("contact.eyebrow")}</span>
-            </Stack>
-          </EdReveal>
-          <EdReveal delay={120}>
-            <Box className="display" sx={{
-              fontSize: { xs: 48, md: 96 },
-              color: "var(--ink)", mb: 4, maxWidth: 1000
-            }}>
-              {t("contact.editorial.titleA")}{" "}
-              <span className="display-italic" style={{ color: "var(--terracotta)" }}>
-                {t("contact.editorial.titleB")}
-              </span>
-            </Box>
-          </EdReveal>
-          <EdReveal delay={220}>
-            <Box sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "1.5fr 1fr" },
-              gap: { xs: 4, md: 6 },
-              mt: 5,
-              alignItems: "center"
-            }}>
-              <Box sx={{ fontSize: 19, lineHeight: 1.7, color: "var(--ink-soft)" }}>
+      <Box sx={{
+        position: "relative",
+        py: { xs: 8, md: 12 },
+        borderBottom: "1px solid rgba(245,237,225,0.18)",
+        backgroundImage:
+          `linear-gradient(180deg, rgba(6,20,38,0.96) 0%, rgba(6,20,38,0.88) 50%, rgba(6,20,38,0.96) 100%),` +
+          `linear-gradient(90deg, rgba(6,20,38,0.8) 0%, rgba(6,20,38,0.2) 70%),` +
+          `url(${CONTACT_HERO})`,
+        backgroundSize: "cover, cover, cover",
+        backgroundPosition: "center",
+        backgroundAttachment: { xs: "scroll", md: "fixed" },
+        color: "var(--paper)",
+        overflow: "hidden"
+      }}>
+        <Box className="editorial-grain" sx={{ position: "absolute", inset: 0, opacity: 0.4, pointerEvents: "none" }} />
+
+        <Container maxWidth="xl" sx={{ position: "relative" }}>
+          <Box sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "7fr 5fr" },
+            gap: { xs: 4, md: 8 },
+            alignItems: "end"
+          }}>
+            <EdReveal delay={100}>
+              <Box className="display" sx={{
+                fontSize: { xs: 44, md: 84 },
+                lineHeight: 1.02,
+                color: "var(--paper)"
+              }}>
+                {t("contact.editorial.titleA")}{" "}
+                <span className="display-italic" style={{ color: "var(--gold)" }}>
+                  {t("contact.editorial.titleB")}
+                </span>
+              </Box>
+            </EdReveal>
+
+            <EdReveal delay={200}>
+              <Box sx={{
+                fontSize: { xs: 17, md: 19 },
+                lineHeight: 1.6,
+                color: "rgba(245,237,225,0.88)",
+                maxWidth: 560
+              }}>
                 {t("contact.lead")}
               </Box>
-              <EditorialImage src={CONTACT_HERO} aspect="5 / 4" caption="ΥΠΟΣΤΗΡΙΞΗ · 09:00–18:00" align="right" />
-            </Box>
-          </EdReveal>
+            </EdReveal>
+          </Box>
         </Container>
       </Box>
 
@@ -182,8 +194,8 @@ export function ContactPage() {
             {/* Form column */}
             <EdReveal>
               <form onSubmit={handleSubmit}>
-                <Box className="number-marker" sx={{ mb: 3 }}>
-                  № 02 — {t("contact.form.title")}
+                <Box className="display" sx={{ fontSize: { xs: 36, md: 56 }, color: "var(--ink)", mb: 5 }}>
+                  {t("contact.form.title")}
                 </Box>
 
                 {error && (
@@ -232,20 +244,20 @@ export function ContactPage() {
                   <Box>
                     <label style={{
                       display: "flex",
-                      gap: 10,
+                      gap: 14,
                       alignItems: "flex-start",
                       cursor: "pointer",
                       color: "var(--ink-soft)",
-                      fontSize: 14,
-                      lineHeight: 1.55
+                      fontSize: 17,
+                      lineHeight: 1.6
                     }}>
                       <input
                         type="checkbox"
                         checked={form.consent}
                         onChange={(e) => set("consent", e.target.checked)}
                         style={{
-                          width: 18, height: 18, marginTop: 2,
-                          accentColor: "var(--ink)"
+                          width: 22, height: 22, marginTop: 3,
+                          accentColor: "var(--gold)"
                         }}
                       />
                       <span>{t("contact.form.consent")}</span>
@@ -253,9 +265,21 @@ export function ContactPage() {
                   </Box>
 
                   <Box sx={{ pt: 2 }}>
-                    <button type="submit" disabled={submitting} className="ink-button" style={{ minWidth: 240 }}>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="ink-button"
+                      style={{
+                        minWidth: 280,
+                        fontSize: 18,
+                        padding: "20px 36px",
+                        backgroundColor: "var(--gold)",
+                        color: "var(--ink)",
+                        borderColor: "var(--gold)"
+                      }}
+                    >
                       <span>{submitting ? t("contact.form.submitting") : t("contact.form.submit")}</span>
-                      <ArrowOutwardIcon sx={{ fontSize: 18 }} />
+                      <ArrowOutwardIcon sx={{ fontSize: 22 }} />
                     </button>
                   </Box>
                 </Stack>
@@ -265,23 +289,25 @@ export function ContactPage() {
             {/* Sidebar */}
             <EdReveal delay={150}>
               <Box sx={{ position: { md: "sticky" }, top: 120 }}>
-                <Box className="number-marker" sx={{ mb: 3 }}>№ 03 — {t("contact.info.email.title")}</Box>
+                <Box className="display" sx={{ fontSize: { xs: 32, md: 44 }, color: "var(--ink)", mb: 4 }}>
+                  {t("contact.info.email.title")}
+                </Box>
 
-                <Box sx={{ borderTop: "1px solid var(--ink)", pt: 3 }}>
-                  <ContactRow icon={<LocationOnIcon fontSize="small" />}
+                <Box sx={{ borderTop: "1.5px solid var(--ink)", pt: 4 }}>
+                  <ContactRow icon={<LocationOnIcon sx={{ fontSize: 44 }} />}
                     title={t("contact.info.hq.title")}
                     body={["Λ. Κηφισίας 268", "152 32 Χαλάνδρι, Αθήνα"]} />
-                  <ContactRow icon={<PhoneIcon fontSize="small" />}
+                  <ContactRow icon={<PhoneIcon sx={{ fontSize: 44 }} />}
                     title={t("contact.info.phone.title")}
                     body={["+30 210 600 0000", "+30 210 600 0001 (fax)"]} />
-                  <ContactRow icon={<MailOutlineIcon fontSize="small" />}
+                  <ContactRow icon={<MailOutlineIcon sx={{ fontSize: 44 }} />}
                     title={t("contact.info.email.title")}
                     body={[
                       "sales@kalypsis.gr",
                       "support@kalypsis.gr",
                       "privacy@kalypsis.gr"
                     ]} mono />
-                  <ContactRow icon={<AccessTimeIcon fontSize="small" />}
+                  <ContactRow icon={<AccessTimeIcon sx={{ fontSize: 44 }} />}
                     title={t("contact.info.hours.title")}
                     body={[t("contact.info.hours.weekdays"), t("contact.info.hours.support")]} last />
                 </Box>
@@ -299,18 +325,28 @@ function ContactRow({ icon, title, body, mono, last }:
   return (
     <Box sx={{
       display: "grid",
-      gridTemplateColumns: "24px 1fr",
+      gridTemplateColumns: "56px 1fr",
       gap: 3,
-      py: 3,
-      borderBottom: last ? "none" : "1px solid var(--rule)"
+      py: 4,
+      borderBottom: last ? "none" : "1px solid var(--rule)",
+      alignItems: "start"
     }}>
-      <Box sx={{ color: "var(--ink)", pt: 0.5 }}>{icon}</Box>
+      <Box sx={{ color: "var(--gold)", pt: 0.5 }}>{icon}</Box>
       <Box>
-        <Box className="eyebrow" sx={{ mb: 1 }}>{title}</Box>
+        <Box sx={{
+          fontFamily: "var(--display)",
+          fontSize: { xs: 20, md: 22 },
+          fontWeight: 600,
+          color: "var(--ink)",
+          mb: 1.5,
+          letterSpacing: "-0.01em"
+        }}>
+          {title}
+        </Box>
         {body.map((line) => (
           <Box key={line} sx={{
             fontFamily: mono ? "var(--mono)" : "var(--sans)",
-            fontSize: 14,
+            fontSize: { xs: 16, md: 17 },
             lineHeight: 1.7,
             color: "var(--ink-soft)"
           }}>
