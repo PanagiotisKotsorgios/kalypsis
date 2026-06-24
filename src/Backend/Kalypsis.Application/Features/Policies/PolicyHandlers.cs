@@ -168,11 +168,22 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
         // Validate customer + carrier belong to scope.
         var customer = await _db.Customers.IgnoreQueryFilters()
             .FirstOrDefaultAsync(c => c.Id == r.CustomerId && c.TenantId == tenantId && c.DeletedAt == null, ct)
-            ?? throw AppException.Validation("Ο πελάτης δεν βρέθηκε.");
+            ?? throw new AppException("customer_not_found",
+                "Ο πελάτης δεν βρέθηκε.", 400,
+                title: "Λείπει ο πελάτης",
+                why: "Επιλέξατε πελάτη που έχει διαγραφεί ή δεν ανήκει στο γραφείο σας. Πιθανώς ο πελάτης ήταν προσωρινός και διαγράφηκε από άλλο χρήστη.",
+                fix: "Πατήστε «Νέος πελάτης» για να τον δημιουργήσετε, ή επιλέξτε άλλον από τη λίστα.",
+                fixLink: "/app/customers");
 
         var carrierExists = await _db.InsuranceCompanies.IgnoreQueryFilters()
             .AnyAsync(c => c.Id == r.InsuranceCompanyId && c.DeletedAt == null, ct);
-        if (!carrierExists) throw AppException.Validation("Η ασφαλιστική εταιρεία δεν βρέθηκε.");
+        if (!carrierExists)
+            throw new AppException("carrier_not_found",
+                "Η ασφαλιστική εταιρεία δεν βρέθηκε.", 400,
+                title: "Λείπει η ασφαλιστική",
+                why: "Η ασφαλιστική που επιλέξατε δεν υπάρχει στον κατάλογό σας. Πιθανώς δεν την έχετε προσθέσει ακόμη ή διαγράφηκε.",
+                fix: "Μεταβείτε στις «Ασφαλιστικές Εταιρείες» και προσθέστε την, μετά ξαναπροσπαθήστε.",
+                fixLink: "/app/insurance-companies");
 
         var count = await _db.Policies.IgnoreQueryFilters().CountAsync(p => p.TenantId == tenantId, ct);
         var number = $"P-{(count + 1):D6}";

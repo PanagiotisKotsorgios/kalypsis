@@ -34,17 +34,31 @@ public class CreateProducerPortalAccountCommandHandler
             ?? throw AppException.NotFound("Παραγωγός");
 
         if (string.IsNullOrWhiteSpace(producer.Email))
-            throw AppException.Validation("Πρέπει πρώτα να καταχωρήσετε email για τον παραγωγό.");
+            throw new AppException("producer_no_email",
+                "Πρέπει πρώτα να καταχωρήσετε email για τον παραγωγό.", 400,
+                title: "Λείπει email παραγωγού",
+                why: "Για να δημιουργηθεί portal account χρειάζεται email αποστολής διαπιστευτηρίων.",
+                fix: $"Ανοίξτε το προφίλ του παραγωγού «{producer.Name}» και συμπληρώστε email.",
+                fixLink: $"/app/producers");
 
         var existing = await _db.Users.IgnoreQueryFilters()
             .FirstOrDefaultAsync(u => u.ProducerId == producer.Id && u.DeletedAt == null, ct);
         if (existing is not null)
-            throw AppException.Conflict("Ο παραγωγός έχει ήδη λογαριασμό portal.");
+            throw new AppException("producer_account_exists",
+                "Ο παραγωγός έχει ήδη λογαριασμό portal.", 409,
+                title: "Υπάρχει ήδη λογαριασμός",
+                why: $"Ο παραγωγός «{producer.Name}» έχει ήδη πρόσβαση μέσω email {existing.Email}.",
+                fix: "Αν χάθηκαν τα διαπιστευτήρια, χρησιμοποιήστε «Ξέχασα τον κωδικό» στη σελίδα εισόδου.",
+                fixLink: "/login");
 
         var emailTaken = await _db.Users.IgnoreQueryFilters()
             .AnyAsync(u => u.Email == producer.Email && u.DeletedAt == null, ct);
         if (emailTaken)
-            throw AppException.Conflict($"Υπάρχει ήδη λογαριασμός με email '{producer.Email}'.");
+            throw new AppException("email_taken",
+                $"Υπάρχει ήδη λογαριασμός με email '{producer.Email}'.", 409,
+                title: "Email σε χρήση",
+                why: $"Το email {producer.Email} χρησιμοποιείται από άλλον χρήστη — πιθανώς από πελάτη, υπάλληλο ή άλλον παραγωγό.",
+                fix: "Αλλάξτε το email του παραγωγού σε διαφορετική διεύθυνση.");
 
         var tempPassword = GenerateTemporaryPassword();
         var firstName = producer.Name.Split(' ').FirstOrDefault() ?? producer.Name;

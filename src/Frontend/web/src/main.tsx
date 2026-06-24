@@ -10,6 +10,9 @@ import { theme } from "./theme";
 import "./styles/editorial.css";
 import { i18n } from "./i18n";
 import { AuthProvider } from "./auth/AuthContext";
+import { PackagesProvider } from "./auth/PackagesContext";
+import { WorkspaceProvider } from "./auth/WorkspaceContext";
+import { MaintenanceProvider } from "./auth/MaintenanceContext";
 import { ImpersonationProvider } from "./impersonation/ImpersonationContext";
 
 const queryClient = new QueryClient({
@@ -24,13 +27,19 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider theme={theme}>
           <CssBaseline />
-          <AuthProvider>
-            <ImpersonationProvider>
-              <BrowserRouter>
-                <App />
-              </BrowserRouter>
-            </ImpersonationProvider>
-          </AuthProvider>
+          <MaintenanceProvider>
+            <AuthProvider>
+              <PackagesProvider>
+                <WorkspaceProvider>
+                  <ImpersonationProvider>
+                    <BrowserRouter>
+                      <App />
+                    </BrowserRouter>
+                  </ImpersonationProvider>
+                </WorkspaceProvider>
+              </PackagesProvider>
+            </AuthProvider>
+          </MaintenanceProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </I18nextProvider>

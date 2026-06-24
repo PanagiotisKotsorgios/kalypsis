@@ -55,7 +55,12 @@ public class CreateServiceRequestCommandHandler : IRequestHandler<CreateServiceR
         else
         {
             customerId = request.Body.CustomerId
-                ?? throw AppException.Validation("Πρέπει να ορίσετε πελάτη.");
+                ?? throw new AppException("customer_required",
+                    "Πρέπει να ορίσετε πελάτη.", 400,
+                    title: "Λείπει ο πελάτης",
+                    why: "Κάθε αίτημα/εργασία πρέπει να συνδέεται με συγκεκριμένο πελάτη ώστε να φαίνεται στο ιστορικό του και να ευθύνεται κάποιος για παρακολούθηση.",
+                    fix: "Επιλέξτε πελάτη από το dropdown ή πατήστε «+ Νέος πελάτης» αν είναι πρώτη φορά.",
+                    fixLink: "/app/customers");
         }
 
         var count = await _db.ServiceRequests.IgnoreQueryFilters()

@@ -1,4 +1,6 @@
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Features.EmailTemplates;
+using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +10,7 @@ namespace Kalypsis.Api.Controllers;
 [ApiController]
 [Route("api/email-templates")]
 [Authorize(Policy = "AgencyAdmin")]
+[RequiresPackage(PackageCode.Crm)]
 public class EmailTemplatesController : ControllerBase
 {
     private readonly IMediator _m;

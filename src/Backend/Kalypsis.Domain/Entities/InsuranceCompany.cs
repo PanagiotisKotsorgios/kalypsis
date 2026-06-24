@@ -10,5 +10,20 @@ public class InsuranceCompany : BaseEntity
     public string? Website { get; set; }
     public bool IsActive { get; set; } = true;
 
+    /// <summary>
+    /// Phase 8.7 — null = global carrier (visible to every tenant);
+    /// non-null = tenant-specific carrier the agency added themselves
+    /// (e.g. small regional carrier, or a niche provider).
+    /// </summary>
+    public Guid? TenantId { get; set; }
+
+    // Additional contact / commercial metadata
+    public string? AgentCode { get; set; }                   // the agency's contract code with this carrier
+    public string? ContactName { get; set; }
+    public string? ContactEmail { get; set; }
+    public string? ContactPhone { get; set; }
+    public string? AfmVat { get; set; }
+    public string? Notes { get; set; }
+
     public ICollection<Policy> Policies { get; set; } = new List<Policy>();
 }

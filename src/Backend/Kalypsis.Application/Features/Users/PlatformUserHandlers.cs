@@ -163,7 +163,11 @@ public class BulkUserActionCommandHandler : IRequestHandler<BulkUserActionComman
     public async Task<int> Handle(BulkUserActionCommand request, CancellationToken ct)
     {
         if (request.UserIds.Count == 0) return 0;
-        if (request.UserIds.Count > 500) throw AppException.Validation("Πολλοί χρήστες ανά μαζική ενέργεια (μέγιστο 500).");
+        if (request.UserIds.Count > 500) throw new AppException("bulk_too_many",
+            "Πολλοί χρήστες ανά μαζική ενέργεια (μέγιστο 500).", 400,
+            title: "Πολύ μεγάλη επιλογή",
+            why: $"Επιλέξατε {request.UserIds.Count} χρήστες. Το όριο των 500 ανά παρτίδα προστατεύει τη βάση από timeout και επιτρέπει undo σε περίπτωση λάθους.",
+            fix: "Σπάστε τη μαζική ενέργεια σε μικρότερα κομμάτια — π.χ. φιλτράρετε ανά γραφείο ή ρόλο και επεξεργαστείτε τους 500-500.");
 
         var users = await _db.Users.IgnoreQueryFilters()
             .Where(u => request.UserIds.Contains(u.Id) && u.DeletedAt == null)

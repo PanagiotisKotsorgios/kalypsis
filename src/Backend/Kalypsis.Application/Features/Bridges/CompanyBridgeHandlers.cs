@@ -95,7 +95,12 @@ public class SyncCompanyBridgeCommandHandler : IRequestHandler<SyncCompanyBridge
     {
         var bridge = await _db.CompanyBridges.Include(b => b.InsuranceCompany).FirstOrDefaultAsync(x => x.Id == r.Id, ct)
             ?? throw AppException.NotFound("Bridge");
-        if (!bridge.IsActive) throw AppException.Validation("Η γέφυρα είναι ανενεργή.");
+        if (!bridge.IsActive) throw new AppException("bridge_inactive",
+            "Η γέφυρα είναι ανενεργή.", 400,
+            title: "Ανενεργή γέφυρα",
+            why: $"Η γέφυρα με την «{bridge.InsuranceCompany.Name}» είναι απενεργοποιημένη. Δεν μπορούμε να τραβήξουμε δεδομένα από κλειστή σύνδεση.",
+            fix: "Ενεργοποιήστε τη γέφυρα από την οθόνη ασφαλιστικών εταιρειών (πεδίο «Ενεργή») και ξαναπροσπαθήστε.",
+            fixLink: "/app/bridges");
 
         var rows = Random.Shared.Next(5, 30);
         var matched = (int)(rows * 0.9);

@@ -119,7 +119,12 @@ public class AnonymizeCustomerHandler : IRequestHandler<AnonymizeCustomerCommand
             .AnyAsync(p => p.TenantId == tenantId && p.CustomerId == customer.Id
                            && p.Status == Domain.Enums.PolicyStatus.Active && p.DeletedAt == null, ct);
         if (hasActive)
-            throw AppException.Conflict("Δεν επιτρέπεται ανωνυμοποίηση όσο υπάρχουν ενεργά συμβόλαια.");
+            throw new AppException("gdpr_active_policies",
+                "Δεν επιτρέπεται ανωνυμοποίηση όσο υπάρχουν ενεργά συμβόλαια.", 409,
+                title: "Ενεργά συμβόλαια",
+                why: "Ο πελάτης έχει ενεργά συμβόλαια. Η ανωνυμοποίηση θα έσπαγε τη συμβατική σας υποχρέωση να γνωρίζετε ποιον ασφαλίζετε και θα δημιουργούσε ζητήματα με τις ασφαλιστικές εταιρείες.",
+                fix: "Πρώτα ακυρώστε ή λήξτε όλα τα ενεργά συμβόλαια του πελάτη, και μετά ανωνυμοποιήστε.",
+                fixLink: $"/app/customers/{customer.Id}/policies");
 
         var anonId = Guid.NewGuid().ToString("N")[..8];
         customer.FirstName = $"ANON-{anonId}";

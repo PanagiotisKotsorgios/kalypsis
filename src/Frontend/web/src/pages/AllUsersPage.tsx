@@ -38,6 +38,7 @@ import { useImpersonation } from "../impersonation/ImpersonationContext";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
+import PersonOffIcon from "@mui/icons-material/PersonOff";
 import { api, extractErrorMessage } from "../api/client";
 
 type Role = "PlatformAdmin" | "PlatformEmployee" | "AgencyAdmin" | "AgencyUser" | "Producer" | "Customer";
@@ -73,7 +74,7 @@ const ROLE_COLOR: Record<Role, "primary" | "secondary" | "default" | "info" | "w
 
 export function AllUsersPage() {
   const { t } = useTranslation();
-  const { user: me } = useAuth();
+  const { user: me, startUserImpersonation } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { enter } = useImpersonation();
@@ -231,6 +232,25 @@ export function AllUsersPage() {
                           <IconButton size="small" color="primary" title={t("tenants.enterAs")}
                             onClick={() => { enter(u.tenantId!, u.tenantName!); navigate("/app"); }}>
                             <LoginIcon fontSize="small" />
+                          </IconButton>
+                        )}
+                        {u.id !== me?.userId && (
+                          <IconButton size="small" color="warning"
+                            title={t("userImpersonation.tooltip")}
+                            disabled={!u.isActive}
+                            onClick={async () => {
+                              if (!confirm(t("userImpersonation.loginAsConfirm", {
+                                name: `${u.firstName} ${u.lastName}`, email: u.email
+                              }))) return;
+                              try {
+                                await startUserImpersonation(u.id);
+                                navigate("/app", { replace: true });
+                                window.location.reload();
+                              } catch (e) {
+                                alert("Σφάλμα κατά τη σύνδεση ως χρήστης.");
+                              }
+                            }}>
+                            <PersonOffIcon fontSize="small" />
                           </IconButton>
                         )}
                         <IconButton size="small" onClick={() => setEditing(u)}><EditIcon fontSize="small" /></IconButton>

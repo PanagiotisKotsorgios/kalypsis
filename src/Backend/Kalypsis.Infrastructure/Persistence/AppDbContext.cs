@@ -67,6 +67,121 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
     public DbSet<TwoFactorRecoveryCode> TwoFactorRecoveryCodes => Set<TwoFactorRecoveryCode>();
 
+    // Phase 3
+    public DbSet<CarrierConnection> CarrierConnections => Set<CarrierConnection>();
+    public DbSet<CarrierOperationLog> CarrierOperationLogs => Set<CarrierOperationLog>();
+    public DbSet<Quote> Quotes => Set<Quote>();
+    public DbSet<QuoteOffer> QuoteOffers => Set<QuoteOffer>();
+    public DbSet<PolicyApplication> PolicyApplications => Set<PolicyApplication>();
+    public DbSet<Installment> Installments => Set<Installment>();
+    public DbSet<InstallmentPayment> InstallmentPayments => Set<InstallmentPayment>();
+    public DbSet<BankStatementImport> BankStatementImports => Set<BankStatementImport>();
+    public DbSet<BankStatementLine> BankStatementLines => Set<BankStatementLine>();
+    public DbSet<MyDataInvoice> MyDataInvoices => Set<MyDataInvoice>();
+    public DbSet<MyDataInvoiceLine> MyDataInvoiceLines => Set<MyDataInvoiceLine>();
+    public DbSet<CommissionSplit> CommissionSplits => Set<CommissionSplit>();
+    public DbSet<DocumentExtraction> DocumentExtractions => Set<DocumentExtraction>();
+    public DbSet<FileScanResult> FileScanResults => Set<FileScanResult>();
+    public DbSet<WorkflowRule> WorkflowRules => Set<WorkflowRule>();
+    public DbSet<WorkflowRuleAction> WorkflowRuleActions => Set<WorkflowRuleAction>();
+    public DbSet<WorkflowExecution> WorkflowExecutions => Set<WorkflowExecution>();
+    public DbSet<MailboxConnection> MailboxConnections => Set<MailboxConnection>();
+    public DbSet<InboundMail> InboundMails => Set<InboundMail>();
+    public DbSet<TelephonyConnection> TelephonyConnections => Set<TelephonyConnection>();
+    public DbSet<CallRecord> CallRecords => Set<CallRecord>();
+    public DbSet<Transcript> Transcripts => Set<Transcript>();
+    public DbSet<AiInvocation> AiInvocations => Set<AiInvocation>();
+    public DbSet<ChurnScore> ChurnScores => Set<ChurnScore>();
+    public DbSet<ProducerHierarchyLink> ProducerHierarchyLinks => Set<ProducerHierarchyLink>();
+    public DbSet<TenantSubscription> TenantSubscriptions => Set<TenantSubscription>();
+    public DbSet<SubscriptionUsage> SubscriptionUsage => Set<SubscriptionUsage>();
+    public DbSet<ReportDefinition> ReportDefinitions => Set<ReportDefinition>();
+
+    // Phase 4 — Datawise parity
+    public DbSet<RiskProfile> RiskProfiles => Set<RiskProfile>();
+    public DbSet<CoverageOption> CoverageOptions => Set<CoverageOption>();
+    public DbSet<PendingItem> PendingItems => Set<PendingItem>();
+    public DbSet<PaymentNotice> PaymentNotices => Set<PaymentNotice>();
+    public DbSet<PaymentNoticeLine> PaymentNoticeLines => Set<PaymentNoticeLine>();
+    public DbSet<ProducerPlafond> ProducerPlafonds => Set<ProducerPlafond>();
+    public DbSet<KoumparasLine> KoumparasLines => Set<KoumparasLine>();
+    public DbSet<CarrierOrder> CarrierOrders => Set<CarrierOrder>();
+    public DbSet<OnlinePaymentSession> OnlinePaymentSessions => Set<OnlinePaymentSession>();
+    public DbSet<BackofficeBridgeConnection> BackofficeBridgeConnections => Set<BackofficeBridgeConnection>();
+    public DbSet<SmsLog> SmsLogs => Set<SmsLog>();
+    public DbSet<ViberLog> ViberLogs => Set<ViberLog>();
+
+    // Phase 5 — Modular packaging
+    public DbSet<TenantPackageGrant> TenantPackageGrants => Set<TenantPackageGrant>();
+
+    // Phase 6 — Multi-office agencies
+    public DbSet<AgencyOffice> AgencyOffices => Set<AgencyOffice>();
+    public DbSet<UserAgencyOffice> UserAgencyOffices => Set<UserAgencyOffice>();
+
+    // Phase 7 — Tenant contracts
+    public DbSet<TenantContract> TenantContracts => Set<TenantContract>();
+
+    // Phase 8.5 — Platform-level email templates
+    public DbSet<PlatformEmailTemplate> PlatformEmailTemplates => Set<PlatformEmailTemplate>();
+
+    // Phase 9 — Policy lifecycle ops + reference catalogs
+    public DbSet<PolicyEndorsement> PolicyEndorsements => Set<PolicyEndorsement>();
+
+    // Phase 10.2 — Carrier parametric files
+    public DbSet<CarrierParametricFile> CarrierParametricFiles => Set<CarrierParametricFile>();
+    public DbSet<CancellationReason> CancellationReasons => Set<CancellationReason>();
+    public DbSet<PolicyCancellation> PolicyCancellations => Set<PolicyCancellation>();
+    public DbSet<CreditNote> CreditNotes => Set<CreditNote>();
+    public DbSet<Bank> Banks => Set<Bank>();
+    public DbSet<TaxOffice> TaxOffices => Set<TaxOffice>();
+    public DbSet<CustomerCategory> CustomerCategories => Set<CustomerCategory>();
+    public DbSet<ProducerCategory> ProducerCategories => Set<ProducerCategory>();
+    public DbSet<Nationality> Nationalities => Set<Nationality>();
+    public DbSet<Occupation> Occupations => Set<Occupation>();
+    public DbSet<City> Cities => Set<City>();
+    public DbSet<LegalForm> LegalForms => Set<LegalForm>();
+
+    // Phase 11 — Remaining ALIS gap features
+    public DbSet<GroupPolicy> GroupPolicies => Set<GroupPolicy>();
+    public DbSet<GroupPolicyMember> GroupPolicyMembers => Set<GroupPolicyMember>();
+    public DbSet<ClaimProvision> ClaimProvisions => Set<ClaimProvision>();
+    public DbSet<ClaimIndemnity> ClaimIndemnities => Set<ClaimIndemnity>();
+    public DbSet<Garage> Garages => Set<Garage>();
+    public DbSet<GlAccount> GlAccounts => Set<GlAccount>();
+    public DbSet<GlEntry> GlEntries => Set<GlEntry>();
+    public DbSet<CashAccount> CashAccounts => Set<CashAccount>();
+    public DbSet<CashMovement> CashMovements => Set<CashMovement>();
+    public DbSet<NameDay> NameDays => Set<NameDay>();
+    public DbSet<MyDataSubmission> MyDataSubmissions => Set<MyDataSubmission>();
+    public DbSet<DocumentTemplate> DocumentTemplates => Set<DocumentTemplate>();
+    public DbSet<DocumentNumberingRule> DocumentNumberingRules => Set<DocumentNumberingRule>();
+
+    // Phase 12 — BluByte parity
+    public DbSet<FriendlySettlement> FriendlySettlements => Set<FriendlySettlement>();
+    public DbSet<ClaimVictim> ClaimVictims => Set<ClaimVictim>();
+    public DbSet<SettlementPayment> SettlementPayments => Set<SettlementPayment>();
+    public DbSet<CallerIdLog> CallerIdLogs => Set<CallerIdLog>();
+    public DbSet<UsaeSubmission> UsaeSubmissions => Set<UsaeSubmission>();
+    public DbSet<VehicleModel> VehicleModels => Set<VehicleModel>();
+
+    // Phase 13 — full BluByte parity
+    public DbSet<IntegrationSetting> IntegrationSettings => Set<IntegrationSetting>();
+    public DbSet<CustomFieldDefinition> CustomFieldDefinitions => Set<CustomFieldDefinition>();
+    public DbSet<CustomFieldValue> CustomFieldValues => Set<CustomFieldValue>();
+    public DbSet<MovementType> MovementTypes => Set<MovementType>();
+    public DbSet<BonusMalusRule> BonusMalusRules => Set<BonusMalusRule>();
+    public DbSet<RenewalRule> RenewalRules => Set<RenewalRule>();
+    public DbSet<RegisterTemplate> RegisterTemplates => Set<RegisterTemplate>();
+    public DbSet<AdvancePayment> AdvancePayments => Set<AdvancePayment>();
+    public DbSet<ReconciliationLink> ReconciliationLinks => Set<ReconciliationLink>();
+    public DbSet<TachyPaymentBatch> TachyPaymentBatches => Set<TachyPaymentBatch>();
+    public DbSet<TachyPaymentLine> TachyPaymentLines => Set<TachyPaymentLine>();
+    public DbSet<ContactExportLog> ContactExportLogs => Set<ContactExportLog>();
+    public DbSet<EditableDocument> EditableDocuments => Set<EditableDocument>();
+    public DbSet<InfoCenterExport> InfoCenterExports => Set<InfoCenterExport>();
+    public DbSet<SapBridgeMapping> SapBridgeMappings => Set<SapBridgeMapping>();
+    public DbSet<PeriodLock> PeriodLocks => Set<PeriodLock>();
+
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
 
     // PlatformAdmin / PlatformEmployee normally bypass the tenant filter, but

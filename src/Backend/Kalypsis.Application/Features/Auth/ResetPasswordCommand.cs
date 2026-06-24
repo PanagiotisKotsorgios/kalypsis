@@ -42,12 +42,28 @@ public class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordCommand,
             .IgnoreQueryFilters()
             .Include(t => t.User)
             .FirstOrDefaultAsync(t => t.TokenHash == hash, cancellationToken)
-            ?? throw AppException.Validation("Ο σύνδεσμος ανάκτησης δεν είναι έγκυρος.");
+            ?? throw new AppException("reset_link_invalid",
+                "Ο σύνδεσμος ανάκτησης δεν είναι έγκυρος.", 400,
+                title: "Λανθασμένος σύνδεσμος",
+                why: "Ο σύνδεσμος που πατήσατε δεν αντιστοιχεί σε αίτηση ανάκτησης κωδικού. Πιθανώς έγινε copy-paste μερικώς ή τροποποιήθηκε.",
+                fix: "Επιστρέψτε στη σελίδα εισόδου και ζητήστε νέο σύνδεσμο ανάκτησης.",
+                fixLink: "/forgot-password");
 
         if (record.UsedAt is not null)
-            throw AppException.Validation("Ο σύνδεσμος ανάκτησης έχει ήδη χρησιμοποιηθεί.");
+            throw new AppException("reset_link_used",
+                "Ο σύνδεσμος ανάκτησης έχει ήδη χρησιμοποιηθεί.", 400,
+                title: "Σύνδεσμος χρησιμοποιημένος",
+                why: $"Αυτός ο σύνδεσμος χρησιμοποιήθηκε στις {record.UsedAt:dd/MM/yyyy HH:mm}. Για ασφάλεια, κάθε σύνδεσμος ανάκτησης ισχύει για μία μόνο χρήση.",
+                fix: "Αν δεν θυμάστε τον κωδικό σας, ζητήστε νέο σύνδεσμο ανάκτησης.",
+                fixLink: "/forgot-password");
+
         if (record.ExpiresAt < _clock.UtcNow)
-            throw AppException.Validation("Ο σύνδεσμος ανάκτησης έχει λήξει.");
+            throw new AppException("reset_link_expired",
+                "Ο σύνδεσμος ανάκτησης έχει λήξει.", 400,
+                title: "Σύνδεσμος έληξε",
+                why: $"Οι σύνδεσμοι ανάκτησης ισχύουν για περιορισμένο χρόνο για ασφάλεια. Αυτός έληξε στις {record.ExpiresAt:dd/MM/yyyy HH:mm}.",
+                fix: "Ζητήστε νέο σύνδεσμο ανάκτησης — θα φτάσει στο email σας μέσα σε λίγα λεπτά.",
+                fixLink: "/forgot-password");
 
         record.User.PasswordHash = _hasher.Hash(request.NewPassword);
         record.UsedAt = _clock.UtcNow;

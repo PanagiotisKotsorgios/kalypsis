@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { HelpHint } from "../components/HelpHint";
 import {
   Alert,
   Box,
@@ -101,7 +102,10 @@ export function TenantsPage() {
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">{t("tenants.title")}</Typography>
+        <Stack direction="row" alignItems="center" spacing={0.5}>
+          <Typography variant="h4">{t("tenants.title")}</Typography>
+          <HelpHint id="page.tenants" />
+        </Stack>
         <Button startIcon={<AddIcon />} variant="contained" onClick={() => { setError(null); setOpen(true); }}>
           {t("tenants.create")}
         </Button>

@@ -54,7 +54,12 @@ public class BeginTwoFactorEnrollmentHandler : IRequestHandler<BeginTwoFactorEnr
             .FirstOrDefaultAsync(u => u.Id == uid, ct) ?? throw AppException.NotFound("Χρήστης");
 
         if (user.TwoFactorEnabled)
-            throw AppException.Conflict("Το 2FA είναι ήδη ενεργό.");
+            throw new AppException("2fa_already_active",
+                "Το 2FA είναι ήδη ενεργό.", 409,
+                title: "Το 2FA είναι ενεργό",
+                why: "Έχετε ήδη ενεργοποιήσει την επαλήθευση δύο παραγόντων. Δεν χρειάζεται να την ενεργοποιήσετε ξανά.",
+                fix: "Αν χάσατε το αυθεντικοποιητή (Google/Microsoft Authenticator), απενεργοποιήστε πρώτα το 2FA από τις «Ρυθμίσεις λογαριασμού» και μετά ενεργοποιήστε ξανά.",
+                fixLink: "/app/profile");
 
         var secret = _totp.GenerateSecret();
         user.TotpSecret = secret; // stored, but not yet enabled — confirmed by next call
@@ -88,10 +93,19 @@ public class ConfirmTwoFactorHandler : IRequestHandler<ConfirmTwoFactorCommand, 
             .FirstOrDefaultAsync(u => u.Id == uid, ct) ?? throw AppException.NotFound("Χρήστης");
 
         if (string.IsNullOrEmpty(user.TotpSecret))
-            throw AppException.Validation("Δεν έχει ξεκινήσει η εγγραφή 2FA.");
+            throw new AppException("2fa_no_enrollment",
+                "Δεν έχει ξεκινήσει η εγγραφή 2FA.", 400,
+                title: "Δεν υπάρχει εκκρεμής εγγραφή",
+                why: "Προσπαθήσατε να επιβεβαιώσετε κωδικό 2FA χωρίς να έχετε ξεκινήσει τη διαδικασία ενεργοποίησης.",
+                fix: "Πατήστε «Ενεργοποίηση 2FA» πρώτα για να σαρώσετε τον QR κώδικα με τον αυθεντικοποιητή σας.",
+                fixLink: "/app/profile");
 
         if (!_totp.VerifyCode(user.TotpSecret, request.Code))
-            throw AppException.Validation("Λανθασμένος κωδικός.");
+            throw new AppException("2fa_wrong_code",
+                "Λανθασμένος κωδικός.", 400,
+                title: "Λανθασμένος κωδικός 2FA",
+                why: "Ο 6-ψήφιος κωδικός δεν ταιριάζει. Πιθανές αιτίες: (1) έχετε σαρώσει λάθος QR, (2) η ώρα του κινητού δεν συγχρονίζεται με το internet (οι κωδικοί 2FA εξαρτώνται από την ώρα), (3) πληκτρολογήσατε λάθος.",
+                fix: "Ελέγξτε ότι το κινητό σας έχει σωστή ώρα (Ρυθμίσεις > Ώρα > Αυτόματη). Δοκιμάστε τον επόμενο κωδικό που εμφανίζει η εφαρμογή.");
 
         user.TwoFactorEnabled = true;
         user.TwoFactorEnabledAt = _clock.UtcNow;

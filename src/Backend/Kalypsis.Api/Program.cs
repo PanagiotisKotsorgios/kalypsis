@@ -16,6 +16,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// Phase 13 — external integration stub clients (replace with real implementations once credentials wired in IntegrationSettings)
+builder.Services.AddScoped<Kalypsis.Application.Features.Phase13.IAadeClient, Kalypsis.Application.Features.Phase13.StubAadeClient>();
+builder.Services.AddScoped<Kalypsis.Application.Features.Phase13.IGemiClient, Kalypsis.Application.Features.Phase13.StubGemiClient>();
+builder.Services.AddScoped<Kalypsis.Application.Features.Phase13.IUsaeClient, Kalypsis.Application.Features.Phase13.StubUsaeClient>();
+builder.Services.AddScoped<Kalypsis.Application.Features.Phase13.IDiasClient, Kalypsis.Application.Features.Phase13.StubDiasClient>();
+
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
           ?? throw new InvalidOperationException("Jwt configuration section is missing.");
 
@@ -119,5 +125,6 @@ app.MapGet("/api/health", () => Results.Ok(new
 app.MapControllers();
 
 await DataSeeder.SeedAsync(app.Services);
+await DemoDataSeeder.SeedAsync(app.Services);
 
 app.Run();

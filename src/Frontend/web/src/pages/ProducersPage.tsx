@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { HelpHint } from "../components/HelpHint";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, MenuItem, Stack, Table, TableBody,
@@ -57,7 +58,10 @@ export function ProducersPage() {
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("producers.title")}</Typography>
+          <Stack direction="row" alignItems="center" spacing={0.5}>
+            <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("producers.title")}</Typography>
+            <HelpHint id="page.producers" />
+          </Stack>
           <Typography color="text.secondary">{t("producers.subtitle")}</Typography>
         </Box>
         <Button variant="contained" size="large" startIcon={<AddIcon />} onClick={() => { setError(null); setCreateOpen(true); }}>

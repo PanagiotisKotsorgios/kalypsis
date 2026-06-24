@@ -307,7 +307,12 @@ public class OverrideCommissionLineCommandHandler : IRequestHandler<OverrideComm
             ?? throw AppException.NotFound("Line");
 
         if (line.CommissionRun.Status == CommissionRunStatus.Finalised)
-            throw AppException.Conflict("Η εκκαθάριση έχει οριστικοποιηθεί.");
+            throw new AppException("run_finalised",
+                "Η εκκαθάριση έχει οριστικοποιηθεί.", 409,
+                title: "Κλειδωμένη εκκαθάριση",
+                why: $"Η εκκαθάριση «{line.CommissionRun.Title}» έχει οριστικοποιηθεί στις {line.CommissionRun.FinalisedAt:dd/MM/yyyy} — οι γραμμές προμηθειών δεν αλλάζουν πια.",
+                fix: "Αν χρειάζεται διόρθωση, εκδώστε πιστωτικό σημείωμα ή δημιουργήστε νέα εκκαθάριση για τον επόμενο μήνα.",
+                fixLink: "/app/credit-notes");
 
         if (!line.IsOverridden) line.OriginalCommissionAmount = line.CommissionAmount;
         line.IsOverridden = true;
@@ -389,7 +394,12 @@ public class DeleteCommissionRunCommandHandler : IRequestHandler<DeleteCommissio
         var run = await _db.CommissionRuns.FirstOrDefaultAsync(x => x.Id == request.Id, ct)
             ?? throw AppException.NotFound("Run");
         if (run.Status == CommissionRunStatus.Finalised)
-            throw AppException.Conflict("Δεν διαγράφεται οριστικοποιημένη εκκαθάριση.");
+            throw new AppException("run_finalised_delete",
+                "Δεν διαγράφεται οριστικοποιημένη εκκαθάριση.", 409,
+                title: "Οριστικοποιημένη εκκαθάριση",
+                why: $"Η εκκαθάριση «{run.Title}» έχει ήδη παράξει κινήσεις στα ταμεία/εκκαθαρίσεις παραγωγών. Η διαγραφή θα διέρρηγνε τη λογιστική ιχνηλάτηση.",
+                fix: "Αν η εκκαθάριση είναι λάθος, αναιρέστε με αντίστροφη εκκαθάριση ή πιστωτικά σημειώματα. Επικοινωνήστε με τον λογιστή σας.",
+                fixLink: "/app/credit-notes");
         run.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
         return Unit.Value;

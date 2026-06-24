@@ -38,7 +38,7 @@ export function TenantDetailPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { enter } = useImpersonation();
-  const [tab, setTab] = useState<"overview" | "users" | "customers" | "policies">("overview");
+  const [tab, setTab] = useState<"overview" | "packages" | "billing" | "contracts" | "activity" | "users" | "customers" | "policies">("overview");
   const [err, setErr] = useState<string | null>(null);
 
   const overviewQ = useQuery({
@@ -113,6 +113,10 @@ export function TenantDetailPage() {
       <Card sx={{ mb: 2 }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ px: 2 }}>
           <Tab label={t("tenants.tab.overview")} value="overview" />
+          <Tab label={t("tenants.tab.packages")} value="packages" />
+          <Tab label={t("tenants.tab.billing")} value="billing" />
+          <Tab label={t("tenants.tab.contracts")} value="contracts" />
+          <Tab label={t("tenants.tab.activity")} value="activity" />
           <Tab label={t("tenants.tab.users")} value="users" />
           <Tab label={t("tenants.tab.customers")} value="customers" />
           <Tab label={t("tenants.tab.policies")} value="policies" />
@@ -152,6 +156,22 @@ export function TenantDetailPage() {
             </Stack>
           </CardContent>
         </Card>
+      )}
+
+      {tab === "packages" && id && (
+        <PackagesTab tenantId={id} onError={setErr} />
+      )}
+
+      {tab === "billing" && id && (
+        <BillingTab tenantId={id} onError={setErr} />
+      )}
+
+      {tab === "contracts" && id && (
+        <ContractsTab tenantId={id} onError={setErr} />
+      )}
+
+      {tab === "activity" && id && (
+        <ActivityTab tenantId={id} />
       )}
 
       {tab === "users" && (
@@ -201,5 +221,681 @@ export function TenantDetailPage() {
         </Card>
       )}
     </Box>
+  );
+}
+
+/* ------------------------------------------------------------------------- */
+/* Phase 5 — Packages tab: 5 toggle switches per package. PlatformAdmin only. */
+/* ------------------------------------------------------------------------- */
+
+import { Switch, FormControlLabel, Divider } from "@mui/material";
+import LockOpenIcon from "@mui/icons-material/LockOpen";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import type { PackageCode } from "../auth/PackagesContext";
+
+interface TenantPackagesResponse {
+  tenantId: string;
+  tenantName: string;
+  packages: PackageCode[];
+}
+
+const PACKAGE_ORDER: PackageCode[] = ["BackOffice", "FrontOffice", "Crm", "Intelligence", "Integrations"];
+
+const PACKAGE_META: Record<PackageCode, { nameKey: string; tagKey: string; bodyKey: string }> = {
+  BackOffice:   { nameKey: "tenants.packagesTab.items.BackOffice.name",   tagKey: "tenants.packagesTab.items.BackOffice.tag",   bodyKey: "tenants.packagesTab.items.BackOffice.body" },
+  FrontOffice:  { nameKey: "tenants.packagesTab.items.FrontOffice.name",  tagKey: "tenants.packagesTab.items.FrontOffice.tag",  bodyKey: "tenants.packagesTab.items.FrontOffice.body" },
+  Crm:          { nameKey: "tenants.packagesTab.items.Crm.name",          tagKey: "tenants.packagesTab.items.Crm.tag",          bodyKey: "tenants.packagesTab.items.Crm.body" },
+  Intelligence: { nameKey: "tenants.packagesTab.items.Intelligence.name", tagKey: "tenants.packagesTab.items.Intelligence.tag", bodyKey: "tenants.packagesTab.items.Intelligence.body" },
+  Integrations: { nameKey: "tenants.packagesTab.items.Integrations.name", tagKey: "tenants.packagesTab.items.Integrations.tag", bodyKey: "tenants.packagesTab.items.Integrations.body" }
+};
+
+function PackagesTab({ tenantId, onError }: { tenantId: string; onError: (m: string | null) => void }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [draft, setDraft] = useState<Set<PackageCode> | null>(null);
+
+  const q = useQuery({
+    queryKey: ["tenant-packages", tenantId],
+    queryFn: async () => (await api.get<TenantPackagesResponse>(`/platform/tenants/${tenantId}/packages`)).data
+  });
+
+  const save = useMutation({
+    mutationFn: async (next: PackageCode[]) =>
+      (await api.put<TenantPackagesResponse>(`/platform/tenants/${tenantId}/packages`, { packages: next })).data,
+    onSuccess: (r) => {
+      qc.setQueryData(["tenant-packages", tenantId], r);
+      setDraft(null);
+      onError(null);
+    },
+    onError: (e) => onError(extractErrorMessage(e))
+  });
+
+  if (q.isLoading) {
+    return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
+  }
+
+  const current = draft ?? new Set(q.data?.packages ?? []);
+  const isDirty = draft !== null;
+
+  function toggle(pkg: PackageCode) {
+    const next = new Set(current);
+    if (next.has(pkg)) next.delete(pkg);
+    else next.add(pkg);
+    setDraft(next);
+  }
+
+  return (
+    <Card variant="outlined">
+      <CardContent>
+        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={2} sx={{ mb: 3 }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {t("tenants.packagesTab.title")}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {t("tenants.packagesTab.subtitle")}
+            </Typography>
+          </Box>
+          {isDirty && (
+            <Stack direction="row" spacing={1}>
+              <Button onClick={() => setDraft(null)}>{t("common.cancel")}</Button>
+              <Button variant="contained" disabled={save.isPending}
+                onClick={() => save.mutate(Array.from(current))}>
+                {save.isPending ? <CircularProgress size={16} color="inherit" /> : t("common.save")}
+              </Button>
+            </Stack>
+          )}
+        </Stack>
+
+        <Stack divider={<Divider flexItem />} spacing={0}>
+          {PACKAGE_ORDER.map((pkg) => {
+            const meta = PACKAGE_META[pkg];
+            const enabled = current.has(pkg);
+            return (
+              <Stack key={pkg} direction={{ xs: "column", sm: "row" }} spacing={2}
+                alignItems={{ sm: "center" }}
+                sx={{ py: 2.5 }}>
+                <Box sx={{ width: 60, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {enabled
+                    ? <LockOpenIcon sx={{ fontSize: 28, color: "success.main" }} />
+                    : <LockOutlinedIcon sx={{ fontSize: 28, color: "text.disabled" }} />}
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Stack direction="row" spacing={1.5} alignItems="baseline">
+                    <Typography sx={{ fontWeight: 700, fontSize: 17 }}>
+                      {t(meta.nameKey)}
+                    </Typography>
+                    <Chip size="small" label={t(meta.tagKey)}
+                      color={enabled ? "success" : "default"}
+                      variant={enabled ? "filled" : "outlined"} />
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, maxWidth: 560 }}>
+                    {t(meta.bodyKey)}
+                  </Typography>
+                </Box>
+                <FormControlLabel
+                  control={<Switch checked={enabled} onChange={() => toggle(pkg)} />}
+                  label={enabled ? t("common.enabled") : t("common.disabled")}
+                  labelPlacement="start"
+                />
+              </Stack>
+            );
+          })}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------------- */
+/* Phase 6 — Billing tab: office-surcharge breakdown + editable surcharge    */
+/* ------------------------------------------------------------------------- */
+
+import HomeWorkIcon from "@mui/icons-material/HomeWork";
+import StarIcon from "@mui/icons-material/Star";
+import { TextField } from "@mui/material";
+
+interface BillingBreakdown {
+  tenantId: string;
+  tenantName: string;
+  plan: string | null;
+  officeIncludedCount: number;
+  officeSurchargeAmount: number;
+  officeSurchargeCurrency: string;
+  activeOfficeCount: number;
+  billableOfficeCount: number;
+  monthlyOfficeSurchargeTotal: number;
+  offices: {
+    id: string; code: string; name: string; city: string | null;
+    isHeadquarters: boolean; isActive: boolean;
+  }[];
+}
+
+function BillingTab({ tenantId, onError }: { tenantId: string; onError: (m: string | null) => void }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [draft, setDraft] = useState<{ included: number; amount: number; currency: string } | null>(null);
+
+  const q = useQuery({
+    queryKey: ["tenant-billing", tenantId],
+    queryFn: async () => (await api.get<BillingBreakdown>(`/platform/tenants/${tenantId}/billing`)).data
+  });
+
+  const save = useMutation({
+    mutationFn: async (next: { included: number; amount: number; currency: string }) =>
+      (await api.put<BillingBreakdown>(`/platform/tenants/${tenantId}/billing/office-surcharge`, {
+        officeIncludedCount: next.included,
+        officeSurchargeAmount: next.amount,
+        officeSurchargeCurrency: next.currency
+      })).data,
+    onSuccess: (r) => { qc.setQueryData(["tenant-billing", tenantId], r); setDraft(null); onError(null); },
+    onError: (e) => onError(extractErrorMessage(e))
+  });
+
+  if (q.isLoading || !q.data) {
+    return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
+  }
+
+  const b = q.data;
+  const editing = draft ?? { included: b.officeIncludedCount, amount: b.officeSurchargeAmount, currency: b.officeSurchargeCurrency };
+  const isDirty = draft !== null;
+
+  return (
+    <Stack spacing={3}>
+      <Card variant="outlined">
+        <CardContent>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>{t("tenants.billingTab.summary")}</Typography>
+          <Box sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(4, 1fr)" },
+            gap: 3
+          }}>
+            <Stat label={t("tenants.billingTab.activeOffices")} value={b.activeOfficeCount} icon={<HomeWorkIcon />} />
+            <Stat label={t("tenants.billingTab.included")} value={b.officeIncludedCount} icon={<StarIcon color="warning" />} />
+            <Stat label={t("tenants.billingTab.billable")}  value={b.billableOfficeCount} />
+            <Stat
+              label={t("tenants.billingTab.monthlyTotal")}
+              value={`${b.monthlyOfficeSurchargeTotal.toFixed(2)} ${b.officeSurchargeCurrency}`}
+              big
+              highlight={b.monthlyOfficeSurchargeTotal > 0} />
+          </Box>
+        </CardContent>
+      </Card>
+
+      <Card variant="outlined">
+        <CardContent>
+          <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={2} mb={2}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>{t("tenants.billingTab.surchargeRule")}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {t("tenants.billingTab.surchargeRuleHelp")}
+              </Typography>
+            </Box>
+            {isDirty && (
+              <Stack direction="row" spacing={1}>
+                <Button onClick={() => setDraft(null)}>{t("common.cancel")}</Button>
+                <Button variant="contained" disabled={save.isPending}
+                  onClick={() => save.mutate(editing)}>
+                  {save.isPending ? <CircularProgress size={16} color="inherit" /> : t("common.save")}
+                </Button>
+              </Stack>
+            )}
+          </Stack>
+
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <TextField type="number" label={t("tenants.billingTab.includedField")} value={editing.included}
+              onChange={(e) => setDraft({ ...editing, included: Math.max(0, Number(e.target.value)) })}
+              sx={{ width: 180 }} inputProps={{ min: 0 }} />
+            <TextField type="number" label={t("tenants.billingTab.amountField")} value={editing.amount}
+              onChange={(e) => setDraft({ ...editing, amount: Math.max(0, Number(e.target.value)) })}
+              sx={{ width: 200 }} inputProps={{ min: 0, step: "0.01" }}
+              InputProps={{ endAdornment: editing.currency }} />
+            <TextField label={t("tenants.billingTab.currencyField")} value={editing.currency}
+              onChange={(e) => setDraft({ ...editing, currency: e.target.value.toUpperCase().slice(0, 3) })}
+              sx={{ width: 100 }} />
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Card variant="outlined" sx={{ overflowX: "auto" }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>{t("tenants.billingTab.officesList")}</Typography>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>{t("tenants.billingTab.col.code")}</TableCell>
+                <TableCell>{t("tenants.billingTab.col.name")}</TableCell>
+                <TableCell>{t("tenants.billingTab.col.city")}</TableCell>
+                <TableCell>{t("tenants.billingTab.col.role")}</TableCell>
+                <TableCell>{t("tenants.billingTab.col.status")}</TableCell>
+                <TableCell align="right">{t("tenants.billingTab.col.lineCharge")}</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {b.offices.length === 0 && (
+                <TableRow><TableCell colSpan={6} align="center" sx={{ color: "text.secondary", py: 3 }}>
+                  {t("tenants.billingTab.noOffices")}
+                </TableCell></TableRow>
+              )}
+              {b.offices.map((o, idx) => {
+                const willCharge = o.isActive && !o.isHeadquarters && idx >= b.officeIncludedCount;
+                // Simpler chargeable test: not HQ, active, and the count exceeds included.
+                // (Backend computes the total — here we just display per-row hints.)
+                const chargeable = o.isActive && !o.isHeadquarters;
+                return (
+                  <TableRow key={o.id}>
+                    <TableCell sx={{ fontFamily: "monospace" }}>{o.code}</TableCell>
+                    <TableCell><Typography fontWeight={600}>{o.name}</Typography></TableCell>
+                    <TableCell>{o.city ?? "—"}</TableCell>
+                    <TableCell>
+                      {o.isHeadquarters
+                        ? <Chip size="small" icon={<StarIcon />} label={t("tenants.billingTab.headquarters")} color="warning" />
+                        : <Chip size="small" label={t("tenants.billingTab.branch")} />}
+                    </TableCell>
+                    <TableCell>
+                      <Chip size="small" color={o.isActive ? "success" : "default"}
+                        label={o.isActive ? t("common.enabled") : t("common.disabled")} />
+                    </TableCell>
+                    <TableCell align="right">
+                      {chargeable ? (
+                        <Typography sx={{ fontWeight: 700, color: willCharge ? "primary.main" : "text.secondary" }}>
+                          {b.officeSurchargeAmount.toFixed(2)} {b.officeSurchargeCurrency}
+                        </Typography>
+                      ) : (
+                        <Typography color="text.secondary">—</Typography>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </Stack>
+  );
+}
+
+function Stat({ label, value, icon, big, highlight }: {
+  label: string; value: string | number; icon?: React.ReactNode; big?: boolean; highlight?: boolean;
+}) {
+  return (
+    <Box>
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ color: "text.secondary", fontSize: 12.5, letterSpacing: "0.04em", fontWeight: 600, mb: 0.5 }}>
+        {icon}
+        <span>{label.toUpperCase()}</span>
+      </Stack>
+      <Typography sx={{
+        fontFamily: "var(--display, serif)",
+        fontWeight: 700,
+        fontSize: big ? { xs: 28, md: 34 } : { xs: 22, md: 26 },
+        color: highlight ? "primary.main" : "text.primary",
+        lineHeight: 1
+      }}>
+        {value}
+      </Typography>
+    </Box>
+  );
+}
+
+/* ------------------------------------------------------------------------- */
+/* Phase 7 — Contracts tab                                                   */
+/* ------------------------------------------------------------------------- */
+
+import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
+import GavelIcon from "@mui/icons-material/Gavel";
+import DownloadIcon from "@mui/icons-material/Download";
+import UploadIcon from "@mui/icons-material/Upload";
+
+interface ContractDto {
+  id: string; contractNumber: string;
+  signedAt: string; effectiveFrom: string; effectiveTo: string | null;
+  plan: string; monthlyBaseAmount: number; officeSurchargePerExtra: number;
+  officeIncludedCount: number; currency: string;
+  autoRenew: boolean; renewalTermMonths: number;
+  signedByName: string | null; signedByEmail: string | null; signedByRole: string | null;
+  contractFileKey: string | null; contractFileName: string | null; contractFileSizeBytes: number | null;
+  isActive: boolean; terminatedAt: string | null; terminationReason: string | null;
+  notes: string | null; createdAt: string;
+}
+
+function ContractsTab({ tenantId, onError }: { tenantId: string; onError: (m: string | null) => void }) {
+  const qc = useQueryClient();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editing, setEditing] = useState<ContractDto | null>(null);
+
+  const q = useQuery({
+    queryKey: ["tenant-contracts", tenantId],
+    queryFn: async () => (await api.get<ContractDto[]>(`/platform/tenants/${tenantId}/contracts`)).data
+  });
+
+  const terminate = useMutation({
+    mutationFn: async (vars: { id: string; reason: string }) =>
+      api.post(`/platform/tenants/${tenantId}/contracts/${vars.id}/terminate`, { reason: vars.reason }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["tenant-contracts", tenantId] }),
+    onError: (e) => onError(extractErrorMessage(e))
+  });
+
+  if (q.isLoading) {
+    return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
+  }
+
+  return (
+    <Stack spacing={3}>
+      <Card variant="outlined">
+        <CardContent>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+            <Stack direction="row" alignItems="center" spacing={2}>
+              <GavelIcon color="primary" />
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>Συμβόλαια γραφείου</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Εμπορικές συμφωνίες Kalypsis ↔ γραφείο. Ένα ενεργό συμβόλαιο τη φορά.
+                </Typography>
+              </Box>
+            </Stack>
+            <Button variant="contained" onClick={() => setCreateOpen(true)}>Νέο συμβόλαιο</Button>
+          </Stack>
+
+          {q.data?.length === 0 ? (
+            <Typography textAlign="center" color="text.secondary" sx={{ py: 4 }}>
+              Δεν υπάρχει καταχωρημένο συμβόλαιο. Φτιάξτε το πρώτο.
+            </Typography>
+          ) : (
+            <Stack spacing={2}>
+              {(q.data ?? []).map(c => (
+                <Card key={c.id} variant="outlined" sx={{ bgcolor: c.isActive ? "rgba(91,139,62,0.06)" : "rgba(0,0,0,0.02)" }}>
+                  <CardContent>
+                    <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between">
+                      <Box sx={{ flex: 1 }}>
+                        <Stack direction="row" spacing={2} alignItems="baseline">
+                          <Typography sx={{ fontFamily: "monospace", fontWeight: 700, fontSize: 16 }}>{c.contractNumber}</Typography>
+                          <Chip size="small" label={c.plan} />
+                          {c.isActive ? (
+                            <Chip size="small" color="success" label="Ενεργό" />
+                          ) : (
+                            <Chip size="small" color="default" label={c.terminatedAt ? "Τερματισμένο" : "Ανενεργό"} />
+                          )}
+                        </Stack>
+                        <Box sx={{ mt: 1.5, display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, gap: 2, fontSize: 13 }}>
+                          <Stat label="Υπογραφή" value={new Date(c.signedAt).toLocaleDateString("el-GR")} />
+                          <Stat label="Έναρξη ισχύος" value={new Date(c.effectiveFrom).toLocaleDateString("el-GR")} />
+                          <Stat label="Λήξη" value={c.effectiveTo ? new Date(c.effectiveTo).toLocaleDateString("el-GR") : "Ανοιχτό"} />
+                          <Stat label="Μηνιαία βάση" value={`${c.monthlyBaseAmount.toFixed(2)} ${c.currency}`} highlight />
+                        </Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+                          {c.officeIncludedCount} υποκαταστήματα στη βάση, +{c.officeSurchargePerExtra.toFixed(2)} {c.currency} ανά επιπλέον ·{" "}
+                          {c.autoRenew ? `Αυτόματη ανανέωση κάθε ${c.renewalTermMonths} μήνες` : "Χωρίς αυτόματη ανανέωση"}
+                        </Typography>
+                        {c.signedByName && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            Υπογραφή από: <strong>{c.signedByName}</strong>{c.signedByRole && ` · ${c.signedByRole}`}{c.signedByEmail && ` · ${c.signedByEmail}`}
+                          </Typography>
+                        )}
+                        {c.terminationReason && (
+                          <Alert severity="warning" sx={{ mt: 1.5 }}>Αιτία τερματισμού: {c.terminationReason}</Alert>
+                        )}
+                      </Box>
+                      <Stack spacing={1} sx={{ minWidth: 200 }}>
+                        {c.contractFileKey ? (
+                          <Button variant="outlined" startIcon={<DownloadIcon />}
+                            component="a" href={`/api/platform/tenants/${tenantId}/contracts/${c.id}/download`} target="_blank">
+                            Λήψη PDF
+                          </Button>
+                        ) : (
+                          <UploadButton contractId={c.id} tenantId={tenantId}
+                            onUploaded={() => void qc.invalidateQueries({ queryKey: ["tenant-contracts", tenantId] })} />
+                        )}
+                        <Button variant="text" onClick={() => setEditing(c)}>Επεξεργασία</Button>
+                        {c.isActive && (
+                          <Button variant="text" color="error" onClick={() => {
+                            const reason = prompt("Αιτία τερματισμού;");
+                            if (reason) terminate.mutate({ id: c.id, reason });
+                          }}>
+                            Τερματισμός
+                          </Button>
+                        )}
+                      </Stack>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              ))}
+            </Stack>
+          )}
+        </CardContent>
+      </Card>
+
+      <ContractDialog
+        open={createOpen || !!editing}
+        onClose={() => { setCreateOpen(false); setEditing(null); }}
+        tenantId={tenantId}
+        item={editing}
+        onSaved={() => { void qc.invalidateQueries({ queryKey: ["tenant-contracts", tenantId] }); setCreateOpen(false); setEditing(null); }} />
+    </Stack>
+  );
+}
+
+function UploadButton({ tenantId, contractId, onUploaded }: { tenantId: string; contractId: string; onUploaded: () => void }) {
+  const [uploading, setUploading] = useState(false);
+  return (
+    <Button variant="outlined" startIcon={uploading ? <CircularProgress size={14} /> : <UploadIcon />} component="label" disabled={uploading}>
+      Ανέβασμα PDF
+      <input type="file" accept="application/pdf" hidden onChange={async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploading(true);
+        try {
+          const form = new FormData();
+          form.append("file", file);
+          await api.post(`/platform/tenants/${tenantId}/contracts/${contractId}/upload`, form, {
+            headers: { "Content-Type": "multipart/form-data" }
+          });
+          onUploaded();
+        } finally {
+          setUploading(false);
+          e.target.value = "";
+        }
+      }} />
+    </Button>
+  );
+}
+
+function ContractDialog({ open, onClose, tenantId, item, onSaved }: {
+  open: boolean; onClose: () => void; tenantId: string; item: ContractDto | null; onSaved: () => void;
+}) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const [form, setForm] = useState({
+    contractNumber: "", signedAt: todayStr, effectiveFrom: todayStr, effectiveTo: "",
+    plan: "Custom", monthlyBaseAmount: 0, officeSurchargePerExtra: 0, officeIncludedCount: 1,
+    currency: "EUR", autoRenew: true, renewalTermMonths: 12,
+    signedByName: "", signedByEmail: "", signedByRole: "", notes: ""
+  });
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (item) {
+      setForm({
+        contractNumber: item.contractNumber,
+        signedAt: item.signedAt, effectiveFrom: item.effectiveFrom, effectiveTo: item.effectiveTo ?? "",
+        plan: item.plan, monthlyBaseAmount: item.monthlyBaseAmount,
+        officeSurchargePerExtra: item.officeSurchargePerExtra,
+        officeIncludedCount: item.officeIncludedCount,
+        currency: item.currency, autoRenew: item.autoRenew, renewalTermMonths: item.renewalTermMonths,
+        signedByName: item.signedByName ?? "", signedByEmail: item.signedByEmail ?? "",
+        signedByRole: item.signedByRole ?? "", notes: item.notes ?? ""
+      });
+    } else if (open) {
+      setForm({
+        contractNumber: `KAL-${new Date().getFullYear()}-${Math.floor(Math.random() * 900 + 100)}`,
+        signedAt: todayStr, effectiveFrom: todayStr, effectiveTo: "",
+        plan: "Custom", monthlyBaseAmount: 0, officeSurchargePerExtra: 0, officeIncludedCount: 1,
+        currency: "EUR", autoRenew: true, renewalTermMonths: 12,
+        signedByName: "", signedByEmail: "", signedByRole: "", notes: ""
+      });
+    }
+  }, [item, open, todayStr]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const body = { ...form, effectiveTo: form.effectiveTo || null };
+      if (item) return (await api.put(`/platform/tenants/${tenantId}/contracts/${item.id}`, body)).data;
+      return (await api.post(`/platform/tenants/${tenantId}/contracts`, body)).data;
+    },
+    onSuccess: onSaved,
+    onError: (e) => setErr(extractErrorMessage(e))
+  });
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+      <DialogTitle>{item ? `Επεξεργασία — ${item.contractNumber}` : "Νέο συμβόλαιο"}</DialogTitle>
+      <DialogContent>
+        {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+        <Stack spacing={2} mt={1}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <TextField label="Αριθμός συμβολαίου" required value={form.contractNumber}
+              onChange={(e) => setForm({ ...form, contractNumber: e.target.value })} sx={{ flex: 1 }} />
+            <TextField label="Πλάνο" value={form.plan} onChange={(e) => setForm({ ...form, plan: e.target.value })} sx={{ width: 200 }} />
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <TextField type="date" label="Ημ. υπογραφής" InputLabelProps={{ shrink: true }} value={form.signedAt}
+              onChange={(e) => setForm({ ...form, signedAt: e.target.value })} sx={{ flex: 1 }} />
+            <TextField type="date" label="Ισχύς από" InputLabelProps={{ shrink: true }} value={form.effectiveFrom}
+              onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })} sx={{ flex: 1 }} />
+            <TextField type="date" label="Ισχύς έως" InputLabelProps={{ shrink: true }} value={form.effectiveTo}
+              onChange={(e) => setForm({ ...form, effectiveTo: e.target.value })} sx={{ flex: 1 }} />
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <TextField type="number" label="Μηνιαία βάση" value={form.monthlyBaseAmount}
+              onChange={(e) => setForm({ ...form, monthlyBaseAmount: Number(e.target.value) })} sx={{ flex: 1 }} inputProps={{ step: "0.01" }} />
+            <TextField type="number" label="Χρέωση ανά extra υποκ." value={form.officeSurchargePerExtra}
+              onChange={(e) => setForm({ ...form, officeSurchargePerExtra: Number(e.target.value) })} sx={{ flex: 1 }} inputProps={{ step: "0.01" }} />
+            <TextField type="number" label="Υποκ. στη βάση" value={form.officeIncludedCount}
+              onChange={(e) => setForm({ ...form, officeIncludedCount: Number(e.target.value) })} sx={{ width: 140 }} />
+            <TextField label="Νόμισμα" value={form.currency} sx={{ width: 100 }}
+              onChange={(e) => setForm({ ...form, currency: e.target.value.toUpperCase().slice(0, 3) })} />
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <FormControlLabel control={<Switch checked={form.autoRenew}
+              onChange={(e) => setForm({ ...form, autoRenew: e.target.checked })} />} label="Αυτόματη ανανέωση" />
+            <TextField type="number" label="Όροι ανανέωσης (μήνες)" value={form.renewalTermMonths}
+              onChange={(e) => setForm({ ...form, renewalTermMonths: Number(e.target.value) })} sx={{ width: 200 }} />
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <TextField label="Υπογράφων" value={form.signedByName}
+              onChange={(e) => setForm({ ...form, signedByName: e.target.value })} sx={{ flex: 1 }} />
+            <TextField label="Ρόλος" value={form.signedByRole}
+              onChange={(e) => setForm({ ...form, signedByRole: e.target.value })} sx={{ flex: 1 }} />
+            <TextField label="Email υπογράφοντος" value={form.signedByEmail}
+              onChange={(e) => setForm({ ...form, signedByEmail: e.target.value })} sx={{ flex: 1 }} />
+          </Stack>
+          <TextField label="Σημειώσεις" multiline minRows={3} value={form.notes}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })} fullWidth />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Άκυρο</Button>
+        <Button variant="contained" disabled={save.isPending || !form.contractNumber.trim()}
+          onClick={() => save.mutate()}>
+          {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+/* ------------------------------------------------------------------------- */
+/* Phase 7 — Activity timeline tab                                            */
+/* ------------------------------------------------------------------------- */
+
+import HistoryIcon from "@mui/icons-material/History";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import BoltIcon from "@mui/icons-material/Bolt";
+import { useEffect } from "react";
+
+interface TimelineEntry {
+  at: string; kind: string; title: string; detail: string | null;
+  actorUserId: string | null; actorEmail: string | null;
+}
+
+const KIND_ICON: Record<string, React.ReactNode> = {
+  audit: <HistoryIcon />,
+  user_created: <PersonAddIcon />,
+  user_login: <LoginIcon />,
+  package_change: <BoltIcon />,
+  office_added: <HomeWorkIcon />,
+  office_removed: <HomeWorkIcon />,
+  contract_signed: <GavelIcon />,
+  contract_terminated: <GavelIcon />
+};
+
+const KIND_COLOR: Record<string, string> = {
+  audit: "text.secondary",
+  user_created: "success.main",
+  user_login: "info.main",
+  package_change: "warning.main",
+  office_added: "success.main",
+  office_removed: "error.main",
+  contract_signed: "primary.main",
+  contract_terminated: "error.main"
+};
+
+function ActivityTab({ tenantId }: { tenantId: string }) {
+  const q = useQuery({
+    queryKey: ["tenant-activity", tenantId],
+    queryFn: async () => (await api.get<TimelineEntry[]>(`/platform/tenants/${tenantId}/activity?take=200`)).data
+  });
+
+  if (q.isLoading) return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
+
+  const entries = q.data ?? [];
+
+  return (
+    <Card variant="outlined">
+      <CardContent>
+        <Stack direction="row" alignItems="center" spacing={2} mb={3}>
+          <HistoryIcon color="primary" />
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>Ιστορικό δραστηριότητας</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Τελευταίες 200 πράξεις σε αυτό το γραφείο — audit, χρήστες, πακέτα, υποκαταστήματα, συμβόλαια.
+            </Typography>
+          </Box>
+        </Stack>
+
+        {entries.length === 0 ? (
+          <Typography textAlign="center" color="text.secondary" sx={{ py: 4 }}>
+            Καμία πράξη στο διάστημα.
+          </Typography>
+        ) : (
+          <Stack spacing={0}>
+            {entries.map((e, i) => (
+              <Stack key={i} direction="row" spacing={2} sx={{ position: "relative", pl: 1, py: 1.5, borderLeft: "2px solid", borderColor: KIND_COLOR[e.kind] ?? "divider" }}>
+                <Box sx={{ display: "flex", alignItems: "flex-start", color: KIND_COLOR[e.kind] ?? "text.disabled", pt: 0.5 }}>
+                  {KIND_ICON[e.kind] ?? <HistoryIcon />}
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+                    <Typography sx={{ fontWeight: 600 }}>{e.title}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {new Date(e.at).toLocaleString("el-GR")}
+                    </Typography>
+                  </Stack>
+                  {e.detail && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, fontSize: 12.5, whiteSpace: "pre-wrap" }}>
+                      {e.detail.length > 240 ? e.detail.slice(0, 240) + "…" : e.detail}
+                    </Typography>
+                  )}
+                  {e.actorEmail && (
+                    <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>
+                      {e.actorEmail}
+                    </Typography>
+                  )}
+                </Box>
+              </Stack>
+            ))}
+          </Stack>
+        )}
+      </CardContent>
+    </Card>
   );
 }

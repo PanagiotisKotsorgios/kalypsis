@@ -128,7 +128,12 @@ public class ChangeMyPasswordCommandHandler : IRequestHandler<ChangeMyPasswordCo
             ?? throw AppException.NotFound("Χρήστης");
 
         if (!_hasher.Verify(request.Body.CurrentPassword, u.PasswordHash))
-            throw AppException.Validation("Ο τρέχων κωδικός είναι λανθασμένος.");
+            throw new AppException("wrong_current_password",
+                "Ο τρέχων κωδικός είναι λανθασμένος.", 400,
+                title: "Λανθασμένος τρέχων κωδικός",
+                why: "Ο κωδικός που πληκτρολογήσατε στο πεδίο «Τρέχων κωδικός» δεν ταιριάζει με τον τρέχοντα κωδικό σας. Η επαλήθευση γίνεται για ασφάλεια.",
+                fix: "Δοκιμάστε ξανά τον τρέχοντα κωδικό. Αν τον έχετε ξεχάσει, αποσυνδεθείτε και χρησιμοποιήστε «Ξέχασα τον κωδικό μου» στη σελίδα εισόδου.",
+                fixLink: "/login");
 
         u.PasswordHash = _hasher.Hash(request.Body.NewPassword);
         await _db.SaveChangesAsync(ct);

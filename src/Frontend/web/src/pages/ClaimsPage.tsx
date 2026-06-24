@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { HelpHint } from "../components/HelpHint";
 import {
   Alert,
   Box,
@@ -95,9 +96,12 @@ export function ClaimsPage() {
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} gap={2} flexWrap="wrap">
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800 }}>
-            {isCustomer ? t("claims.customerTitle") : t("claims.agencyTitle")}
-          </Typography>
+          <Stack direction="row" alignItems="center" spacing={0.5}>
+            <Typography variant="h4" sx={{ fontWeight: 800 }}>
+              {isCustomer ? t("claims.customerTitle") : t("claims.agencyTitle")}
+            </Typography>
+            <HelpHint id="page.claims" />
+          </Stack>
           <Typography color="text.secondary">
             {isCustomer ? t("claims.customerLead") : t("claims.agencyLead")}
           </Typography>

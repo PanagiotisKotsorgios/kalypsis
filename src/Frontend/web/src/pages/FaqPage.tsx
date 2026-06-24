@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Box, Container, InputAdornment, Stack, TextField } from "@mui/material";
+import { Box, Container, InputAdornment, TextField } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import SearchIcon from "@mui/icons-material/Search";
@@ -13,8 +13,7 @@ import { EdReveal } from "../components/EdReveal";
 const FAQ_HERO =
   "https://img.freepik.com/premium-photo/young-business-woman-working-laptop-office_466689-77321.jpg";
 
-const CATEGORIES = ["platform", "pricing", "data", "security", "billing", "integrations", "support"] as const;
-type Category = typeof CATEGORIES[number];
+type Category = "platform" | "pricing" | "data" | "security" | "billing" | "integrations" | "support";
 interface FaqItem { id: string; category: Category; q: string; a: string }
 
 const FAQ_ICONS = [HelpOutlineRoundedIcon, QuestionAnswerRoundedIcon, LightbulbOutlinedIcon];
@@ -22,7 +21,6 @@ const FAQ_ICONS = [HelpOutlineRoundedIcon, QuestionAnswerRoundedIcon, LightbulbO
 export function FaqPage() {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
-  const [activeCat, setActiveCat] = useState<Category | "all">("all");
   const [expanded, setExpanded] = useState<string | false>(false);
 
   const items: FaqItem[] = [
@@ -61,7 +59,6 @@ export function FaqPage() {
   ];
 
   const matches = (it: FaqItem) => {
-    if (activeCat !== "all" && it.category !== activeCat) return false;
     if (!search.trim()) return true;
     const s = search.toLowerCase();
     return it.q.toLowerCase().includes(s) || it.a.toLowerCase().includes(s);
@@ -165,27 +162,6 @@ export function FaqPage() {
             }}>
               {filtered.length} / {items.length}
             </Box>
-            <Stack direction="row" spacing={0} flexWrap="wrap" gap={0} sx={{
-              borderTop: "1px solid var(--ink)",
-              borderBottom: "1px solid var(--ink)",
-              mb: 7
-            }}>
-              <CategoryPill
-                label={t("faq.all")}
-                count={items.length}
-                active={activeCat === "all"}
-                onClick={() => setActiveCat("all")}
-              />
-              {CATEGORIES.map((c) => (
-                <CategoryPill
-                  key={c}
-                  label={t(`faq.cat.${c}`)}
-                  count={items.filter((i) => i.category === c).length}
-                  active={activeCat === c}
-                  onClick={() => setActiveCat(c)}
-                />
-              ))}
-            </Stack>
           </EdReveal>
 
           {filtered.length === 0 ? (
@@ -315,31 +291,3 @@ export function FaqPage() {
   );
 }
 
-function CategoryPill({ label, count, active, onClick }:
-  { label: string; count: number; active: boolean; onClick: () => void }) {
-  return (
-    <Box onClick={onClick} sx={{
-      cursor: "pointer",
-      px: { xs: 2.5, md: 3.5 },
-      py: { xs: 2, md: 2.5 },
-      borderRight: "1px solid var(--rule)",
-      "&:last-of-type": { borderRight: "none" },
-      fontFamily: "var(--display)",
-      fontStyle: active ? "italic" : "normal",
-      fontSize: { xs: 16, md: 18 },
-      color: active ? "var(--ink)" : "var(--ink-muted)",
-      transition: "color 380ms var(--ease-editorial)",
-      "&:hover": { color: "var(--ink)" }
-    }}>
-      {label}{" "}
-      <span style={{
-        fontSize: 12,
-        verticalAlign: "super",
-        marginLeft: 4,
-        color: active ? "var(--gold)" : "var(--ink-muted)"
-      }}>
-        ({count})
-      </span>
-    </Box>
-  );
-}

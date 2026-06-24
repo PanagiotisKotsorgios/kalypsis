@@ -53,7 +53,12 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
         if (r.CreatePortalAccount)
         {
             var emailExists = await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Email == email, cancellationToken);
-            if (emailExists) throw AppException.Conflict($"Υπάρχει ήδη λογαριασμός με email '{email}'.");
+            if (emailExists) throw new AppException("email_taken",
+                $"Υπάρχει ήδη λογαριασμός με email '{email}'.", 409,
+                title: "Email σε χρήση",
+                why: $"Το email {email} χρησιμοποιείται από άλλον λογαριασμό — πιθανώς ο πελάτης υπάρχει ήδη, ή χρησιμοποιείται ως email υπαλλήλου/παραγωγού.",
+                fix: "Αναζητήστε τον πελάτη πρώτα — μπορεί να υπάρχει ήδη. Αν είναι νέος, χρησιμοποιήστε διαφορετική διεύθυνση email ή απενεργοποιήστε το «Δημιουργία portal account».",
+                fixLink: "/app/customers");
         }
 
         var lastNumber = await _db.Customers

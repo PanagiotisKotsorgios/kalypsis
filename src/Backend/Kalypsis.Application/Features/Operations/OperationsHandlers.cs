@@ -194,7 +194,12 @@ public class UpsertPartnerPortalAccessCommandHandler : IRequestHandler<UpsertPar
         else
         {
             if (await _db.PartnerPortalAccesses.AnyAsync(x => x.ProducerId == b.ProducerId, ct))
-                throw AppException.Conflict("Υπάρχει ήδη πρόσβαση για τον συνεργάτη.");
+                throw new AppException("partner_access_exists",
+                    "Υπάρχει ήδη πρόσβαση για τον συνεργάτη.", 409,
+                    title: "Υπάρχει ήδη πρόσβαση",
+                    why: "Ο συνεργάτης έχει ήδη ενεργή ή ανενεργή πρόσβαση στο portal. Δεν επιτρέπεται διπλή εγγραφή.",
+                    fix: "Επεξεργαστείτε την υπάρχουσα πρόσβαση από τη λίστα προσβάσεων αντί να δημιουργήσετε νέα.",
+                    fixLink: "/app/partner-access");
             a = new PartnerPortalAccess { Id = Guid.NewGuid() };
             _db.PartnerPortalAccesses.Add(a);
         }

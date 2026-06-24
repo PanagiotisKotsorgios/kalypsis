@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { HelpHint } from "../components/HelpHint";
 import {
   Alert,
   Box,
@@ -108,9 +109,12 @@ export function AdminSettingsPage() {
 
   return (
     <Box>
-      <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-        {t("settings.title")}
-      </Typography>
+      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 1 }}>
+        <Typography variant="h4" sx={{ fontWeight: 800 }}>
+          {t("settings.title")}
+        </Typography>
+        <HelpHint id="page.settings" />
+      </Stack>
       <Typography color="text.secondary" mb={4}>
         {t("settings.subtitle")}
       </Typography>

@@ -85,6 +85,52 @@ public static class DataSeeder
         }
 
         await SeedTestCustomerAsync(db, hasher, platformTenant.Id, logger, cancellationToken);
+
+        await BackfillPackageGrantsAsync(db, logger, cancellationToken);
+    }
+
+    /// <summary>
+    /// Phase 5 backfill — every tenant that exists when the package layer goes
+    /// live gets all five packages enabled by default. The superadmin can then
+    /// disable individual packages per tenant from <c>/app/tenants/{id}</c>.
+    /// New tenants created after this point also get all five via the tenant
+    /// creation flow (handled in <c>TenantsController.Create</c>).
+    /// Idempotent — only inserts grants that are missing.
+    /// </summary>
+    private static async Task BackfillPackageGrantsAsync(
+        AppDbContext db, ILogger logger, CancellationToken cancellationToken)
+    {
+        var tenants = await db.Tenants.IgnoreQueryFilters().Select(t => t.Id).ToListAsync(cancellationToken);
+        var all = Enum.GetValues<PackageCode>();
+        // We include soft-deleted rows because the (TenantId, Package) unique
+        // index in MySQL is NOT filtered — re-inserting would violate it.
+        var existing = await db.TenantPackageGrants.IgnoreQueryFilters()
+            .Select(g => new { g.TenantId, g.Package })
+            .ToListAsync(cancellationToken);
+        var existingSet = existing.Select(e => (e.TenantId, e.Package)).ToHashSet();
+
+        var inserted = 0;
+        foreach (var tenantId in tenants)
+        {
+            foreach (var pkg in all)
+            {
+                if (existingSet.Contains((tenantId, pkg))) continue;
+                db.TenantPackageGrants.Add(new TenantPackageGrant
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    Package = pkg,
+                    EnabledAt = DateTime.UtcNow,
+                    Notes = "Backfill — Phase 5 rollout"
+                });
+                inserted++;
+            }
+        }
+        if (inserted > 0)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Backfilled {Count} package grants across {Tenants} tenants.", inserted, tenants.Count);
+        }
     }
 
     /// <summary>

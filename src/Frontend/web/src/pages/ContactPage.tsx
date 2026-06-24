@@ -296,7 +296,7 @@ export function ContactPage() {
                 <Box sx={{ borderTop: "1.5px solid var(--ink)", pt: 4 }}>
                   <ContactRow icon={<LocationOnIcon sx={{ fontSize: 44 }} />}
                     title={t("contact.info.hq.title")}
-                    body={["Λ. Κηφισίας 268", "152 32 Χαλάνδρι, Αθήνα"]} />
+                    body={[t("footer.address1"), t("footer.address2")]} />
                   <ContactRow icon={<PhoneIcon sx={{ fontSize: 44 }} />}
                     title={t("contact.info.phone.title")}
                     body={["+30 210 600 0000", "+30 210 600 0001 (fax)"]} />

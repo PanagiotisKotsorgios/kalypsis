@@ -41,10 +41,20 @@ public class CreateTenantCommandHandler : IRequestHandler<CreateTenantCommand, C
         var email = r.AdminEmail.Trim().ToLowerInvariant();
 
         var codeExists = await _db.Tenants.IgnoreQueryFilters().AnyAsync(t => t.Code == code, cancellationToken);
-        if (codeExists) throw AppException.Conflict($"Ο κωδικός γραφείου '{code}' υπάρχει ήδη.");
+        if (codeExists) throw new AppException("tenant_code_taken",
+            $"Ο κωδικός γραφείου '{code}' υπάρχει ήδη.", 409,
+            title: "Κωδικός γραφείου σε χρήση",
+            why: $"Ο κωδικός «{code}» χρησιμοποιείται από άλλο γραφείο στην πλατφόρμα. Οι κωδικοί γραφείων πρέπει να είναι μοναδικοί σε όλο το σύστημα.",
+            fix: "Επιλέξτε διαφορετικό κωδικό (π.χ. προσθέστε την πόλη ή έναν αύξοντα αριθμό).",
+            fixLink: "/admin/tenants");
 
         var emailExists = await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Email == email, cancellationToken);
-        if (emailExists) throw AppException.Conflict($"Ο χρήστης με email '{email}' υπάρχει ήδη.");
+        if (emailExists) throw new AppException("admin_email_taken",
+            $"Ο χρήστης με email '{email}' υπάρχει ήδη.", 409,
+            title: "Email σε χρήση",
+            why: $"Το email {email} χρησιμοποιείται ήδη — πιθανώς ο admin έχει λογαριασμό σε άλλο γραφείο ή είχε δοκιμαστική εγγραφή.",
+            fix: "Χρησιμοποιήστε διαφορετικό email για τον admin του νέου γραφείου, ή διαγράψτε πρώτα τον υπάρχοντα χρήστη.",
+            fixLink: "/admin/users");
 
         var tenant = new Tenant
         {

@@ -44,7 +44,12 @@ public class CreateBranchCommandHandler : IRequestHandler<CreateBranchCommand, B
     {
         var b = r.Body;
         if (await _db.Branches.AnyAsync(x => x.Code == b.Code, ct))
-            throw AppException.Conflict("Υπάρχει ήδη κλάδος με αυτόν τον κωδικό.");
+            throw new AppException("branch_code_taken",
+                "Υπάρχει ήδη κλάδος με αυτόν τον κωδικό.", 409,
+                title: "Κωδικός κλάδου σε χρήση",
+                why: $"Ο κωδικός κλάδου «{b.Code}» χρησιμοποιείται ήδη. Οι κωδικοί κλάδων (π.χ. ΑΥΤ για αυτοκίνητα) πρέπει να είναι μοναδικοί ώστε να ξεχωρίζουν στα reports.",
+                fix: "Επιλέξτε διαφορετικό κωδικό για τον νέο κλάδο. Δείτε την υπάρχουσα λίστα κλάδων για να αποφύγετε σύγκρουση.",
+                fixLink: "/app/lookups/branches");
         var br = new Branch
         {
             Id = Guid.NewGuid(), Code = b.Code.Trim(), Name = b.Name.Trim(),

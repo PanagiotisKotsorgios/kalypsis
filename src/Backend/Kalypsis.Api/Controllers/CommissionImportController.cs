@@ -1,4 +1,6 @@
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Features.Commissions;
+using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +10,7 @@ namespace Kalypsis.Api.Controllers;
 [ApiController]
 [Route("api/commissions/import")]
 [Authorize(Policy = "AgencyAdmin")]
+[RequiresPackage(PackageCode.BackOffice)]
 public class CommissionImportController : ControllerBase
 {
     private readonly IMediator _m;

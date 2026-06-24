@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { HelpHint } from "../components/HelpHint";
 import {
   Alert,
   Box,
@@ -101,7 +102,10 @@ export function CustomersPage() {
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} gap={2} flexWrap="wrap">
-        <Typography variant="h4">{t("customers.title")}</Typography>
+        <Stack direction="row" alignItems="center" spacing={0.5}>
+          <Typography variant="h4">{t("customers.title")}</Typography>
+          <HelpHint id="page.customers" />
+        </Stack>
         <Stack direction="row" spacing={1}>
           <ExportButton href="/api/exports/customers.csv" />
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setOpen(true); }}>

@@ -14,6 +14,20 @@ public class PlatformSetting : BaseEntity
     public string? SupportEmail { get; set; }
     public string? AppBaseUrl { get; set; }
 
+    // Phase 8 — Launch gate: when true, agency-side roles (AgencyAdmin/User/Producer)
+    // see <c>LaunchGatePage</c> instead of their dashboards. Platform staff + customers
+    // are unaffected. Used during pre-launch to expose only the Customer Portal.
+    public bool LaunchGateEnabled { get; set; }
+    public string? LaunchGateTitle { get; set; }
+    public string? LaunchGateMessage { get; set; }
+
+    // Phase 8 — Site-wide maintenance: when true, EVERYONE (including customers and
+    // platform staff who haven't overridden) sees a full-screen maintenance page.
+    // Used for major migrations or outages.
+    public bool MaintenanceModeEnabled { get; set; }
+    public string? MaintenanceTitle { get; set; }
+    public string? MaintenanceMessage { get; set; }
+
     public Guid? LastUpdatedByUserId { get; set; }
     public User? LastUpdatedByUser { get; set; }
 }

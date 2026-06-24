@@ -8,35 +8,22 @@ import { EdReveal } from "../components/EdReveal";
 const PRICING_HERO =
   "https://image.slidesdocs.com/responsive-images/background/insurance-gold-coin-financial-management-yellow-light-effect-business-powerpoint-background_a339a63e08__960_540.jpg";
 
+const PACKAGES: { key: string; numeral: string }[] = [
+  { key: "backoffice",  numeral: "I" },
+  { key: "frontoffice", numeral: "II" },
+  { key: "crm",         numeral: "III" },
+  { key: "intelligence", numeral: "IV" },
+  { key: "integrations", numeral: "V" }
+];
+
+const COMBINATIONS: string[] = ["onlyBackoffice", "backFront", "backFrontCrm", "all", "custom"];
+
 export function PricingPage() {
   const { t } = useTranslation();
 
-  const tiers = [
-    {
-      key: "starter",
-      price: "39",
-      featured: false,
-      features: ["pricing.starter.f1", "pricing.starter.f2", "pricing.starter.f3", "pricing.starter.f4"]
-    },
-    {
-      key: "pro",
-      price: "89",
-      featured: true,
-      features: [
-        "pricing.pro.f1", "pricing.pro.f2", "pricing.pro.f3",
-        "pricing.pro.f4", "pricing.pro.f5", "pricing.pro.f6"
-      ]
-    },
-    {
-      key: "enterprise",
-      price: null,
-      featured: false,
-      features: ["pricing.enterprise.f1", "pricing.enterprise.f2", "pricing.enterprise.f3", "pricing.enterprise.f4"]
-    }
-  ];
-
   return (
     <PublicShell>
+      {/* HERO */}
       <Box sx={{
         position: "relative",
         py: { xs: 8, md: 12 },
@@ -66,9 +53,9 @@ export function PricingPage() {
                 lineHeight: 1.02,
                 color: "var(--paper)"
               }}>
-                {t("pricing.editorial.titleA")}{" "}
+                {t("pricing.hero.titleA")}{" "}
                 <span className="display-italic" style={{ color: "var(--gold)" }}>
-                  {t("pricing.editorial.titleB")}
+                  {t("pricing.hero.titleB")}
                 </span>.
               </Box>
             </EdReveal>
@@ -80,122 +67,214 @@ export function PricingPage() {
                 color: "rgba(245,237,225,0.88)",
                 maxWidth: 560
               }}>
-                {t("landing.pricing.lead")}
+                {t("pricing.hero.lead")}
               </Box>
             </EdReveal>
           </Box>
         </Container>
       </Box>
 
-      <Box sx={{ py: { xs: 10, md: 14 }, borderBottom: "1px solid var(--rule)" }}>
+      {/* INTRO BLOCK — explains the model */}
+      <Box sx={{ py: { xs: 8, md: 12 }, borderBottom: "1px solid var(--rule)" }}>
+        <Container maxWidth="md">
+          <EdReveal>
+            <Box className="number-marker" sx={{ color: "var(--gold)", mb: 2 }}>
+              — {t("pricing.intro.eyebrow")}
+            </Box>
+            <Box className="display" sx={{
+              fontSize: { xs: 32, md: 48 },
+              color: "var(--ink)",
+              lineHeight: 1.1,
+              mb: 3
+            }}>
+              {t("pricing.intro.title")}
+            </Box>
+            <Box sx={{ color: "var(--ink-soft)", fontSize: { xs: 17, md: 19 }, lineHeight: 1.65 }}>
+              {t("pricing.intro.body1")}
+            </Box>
+            <Box sx={{ color: "var(--ink-soft)", fontSize: { xs: 17, md: 19 }, lineHeight: 1.65, mt: 2.5 }}>
+              {t("pricing.intro.body2")}
+            </Box>
+          </EdReveal>
+        </Container>
+      </Box>
+
+      {/* FIVE PACKAGES */}
+      <Box sx={{ py: { xs: 8, md: 14 }, borderBottom: "1px solid var(--rule)", bgcolor: "var(--bone)" }}>
         <Container maxWidth="lg">
-          <Box sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
-            border: "1px solid var(--rule)"
-          }}>
-            {tiers.map((tier, idx) => (
-              <EdReveal key={tier.key} delay={idx * 140}>
+          <EdReveal>
+            <Box sx={{ textAlign: "center", mb: { xs: 6, md: 9 } }}>
+              <Box className="number-marker" sx={{ color: "var(--gold)", mb: 1.5 }}>
+                — {t("pricing.packages.eyebrow")}
+              </Box>
+              <Box className="display" sx={{ fontSize: { xs: 32, md: 48 }, color: "var(--ink)" }}>
+                {t("pricing.packages.title")}
+              </Box>
+            </Box>
+          </EdReveal>
+
+          <Box sx={{ display: "grid", gap: { xs: 4, md: 5 } }}>
+            {PACKAGES.map((p, i) => (
+              <EdReveal key={p.key} delay={i * 90}>
                 <Box sx={{
-                  p: { xs: 4, md: 6 },
-                  height: "100%",
-                  bgcolor: tier.featured ? "var(--bone)" : "transparent",
-                  position: "relative",
-                  borderRight: { md: idx < 2 ? "1px solid var(--rule)" : "none" },
-                  borderBottom: { xs: idx < 2 ? "1px solid var(--rule)" : "none", md: "none" }
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", md: "1fr 4fr 5fr" },
+                  gap: { xs: 2, md: 5 },
+                  alignItems: "start",
+                  py: { xs: 4, md: 5 },
+                  borderTop: "1px solid var(--rule)"
                 }}>
-                  {tier.featured && (
+                  {/* Roman numeral + label */}
+                  <Box>
                     <Box sx={{
-                      position: "absolute", top: 16, right: 16,
-                      fontFamily: "var(--display)", fontStyle: "italic",
-                      fontSize: 12, color: "var(--gold)", letterSpacing: "0.08em"
+                      fontFamily: "var(--display)",
+                      fontStyle: "italic",
+                      fontSize: { xs: 48, md: 72 },
+                      color: "var(--gold)",
+                      lineHeight: 0.85,
+                      mb: 1
                     }}>
-                      ✦ {t("landing.pricing.popular")}
+                      {p.numeral}
                     </Box>
-                  )}
-                  <Box className="eyebrow" sx={{ mb: 4 }}>
-                    {t("pricing.editorial.tier")}
+                    <Box className="number-marker" sx={{ color: "var(--ink-muted)" }}>
+                      {t("pricing.packages.label")}
+                    </Box>
                   </Box>
-                  <Box className="display" sx={{
-                    fontSize: { xs: 36, md: 44 },
-                    color: "var(--ink)", mb: 1, lineHeight: 1
-                  }}>
-                    {t(`landing.pricing.${tier.key}.name`)}
+
+                  {/* Name + tagline */}
+                  <Box>
+                    <Box className="display" sx={{
+                      fontSize: { xs: 28, md: 36 },
+                      color: "var(--ink)",
+                      lineHeight: 1.05,
+                      mb: 1.5
+                    }}>
+                      {t(`pricing.packages.items.${p.key}.name`)}
+                    </Box>
+                    <Box sx={{
+                      fontFamily: "var(--display)",
+                      fontStyle: "italic",
+                      fontSize: { xs: 18, md: 20 },
+                      color: "var(--gold)"
+                    }}>
+                      {t(`pricing.packages.items.${p.key}.tagline`)}
+                    </Box>
                   </Box>
-                  <Box sx={{ minHeight: 76, mt: 4, mb: 3 }}>
-                    {tier.price ? (
-                      <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1 }}>
-                        <Box sx={{
-                          fontFamily: "var(--display)",
-                          fontSize: { xs: 64, md: 88 },
-                          color: "var(--ink)", lineHeight: 0.9,
-                          fontVariationSettings: "'opsz' 144, 'SOFT' 30"
-                        }}>
-                          €{tier.price}
-                        </Box>
-                        <Box sx={{
-                          fontFamily: "var(--display)", fontStyle: "italic",
-                          fontSize: 18, color: "var(--ink-muted)", pb: 2
-                        }}>
-                          / {t("landing.pricing.month")}
-                        </Box>
-                      </Box>
-                    ) : (
-                      <Box sx={{
-                        fontFamily: "var(--display)", fontStyle: "italic",
-                        fontSize: { xs: 36, md: 48 },
-                        color: "var(--ink-soft)", lineHeight: 1
-                      }}>
-                        {t("pricing.editorial.custom")}
-                      </Box>
-                    )}
+
+                  {/* Description + example */}
+                  <Box>
+                    <Box sx={{
+                      color: "var(--ink-soft)",
+                      fontSize: { xs: 16, md: 17 },
+                      lineHeight: 1.65,
+                      mb: 2.5
+                    }}>
+                      {t(`pricing.packages.items.${p.key}.body`)}
+                    </Box>
+                    <Box sx={{
+                      borderLeft: "3px solid var(--gold)",
+                      pl: 2.5,
+                      py: 1,
+                      color: "var(--ink-muted)",
+                      fontSize: 15,
+                      lineHeight: 1.55,
+                      fontStyle: "italic"
+                    }}>
+                      <strong style={{ color: "var(--ink)", fontStyle: "normal" }}>
+                        {t("pricing.packages.exampleLabel")}:
+                      </strong>{" "}
+                      {t(`pricing.packages.items.${p.key}.example`)}
+                    </Box>
                   </Box>
-                  <Box sx={{
-                    color: "var(--ink-soft)", fontSize: 15, lineHeight: 1.6,
-                    mb: 5, minHeight: 56
-                  }}>
-                    {t(`landing.pricing.${tier.key}.tagline`)}
-                  </Box>
-                  <Box sx={{ borderTop: "1px solid var(--rule)", pt: 3, mb: 5 }}>
-                    {tier.features.map((f) => (
-                      <Box key={f} sx={{
-                        display: "grid", gridTemplateColumns: "20px 1fr", gap: 2,
-                        py: 1.5, borderBottom: "1px solid var(--rule-soft)", alignItems: "baseline"
-                      }}>
-                        <Box sx={{
-                          color: "var(--gold)", fontFamily: "var(--display)",
-                          fontStyle: "italic", fontSize: 16
-                        }}>✓</Box>
-                        <Box sx={{ fontSize: 15, lineHeight: 1.5, color: "var(--ink)" }}>
-                          {t(`landing.${f}`)}
-                        </Box>
-                      </Box>
-                    ))}
-                  </Box>
-                  <RouterLink
-                    to="/register"
-                    className={tier.featured ? "ink-button" : "ghost-button"}
-                    style={{ width: "100%", boxSizing: "border-box" }}
-                  >
-                    <span>{t(`landing.pricing.${tier.key}.cta`)}</span>
-                    <ArrowOutwardIcon sx={{ fontSize: 16 }} />
-                  </RouterLink>
                 </Box>
               </EdReveal>
             ))}
           </Box>
+        </Container>
+      </Box>
 
-          <EdReveal delay={150}>
-            <Box sx={{
-              textAlign: "center", mt: 8, pt: 6,
-              borderTop: "1px solid var(--rule)"
-            }}>
-              <Box className="marginalia" sx={{ mb: 2 }}>{t("pricing.footnote")}</Box>
-              <RouterLink to="/contact" className="editorial-link" style={{
-                fontFamily: "var(--display)", fontStyle: "italic",
-                fontSize: 22, color: "var(--ink)"
+      {/* COMBINATION EXAMPLES */}
+      <Box sx={{ py: { xs: 8, md: 14 }, borderBottom: "1px solid var(--rule)" }}>
+        <Container maxWidth="lg">
+          <EdReveal>
+            <Box sx={{ maxWidth: 760, mb: { xs: 6, md: 8 } }}>
+              <Box className="number-marker" sx={{ color: "var(--gold)", mb: 1.5 }}>
+                — {t("pricing.combos.eyebrow")}
+              </Box>
+              <Box className="display" sx={{ fontSize: { xs: 32, md: 48 }, color: "var(--ink)", lineHeight: 1.1, mb: 2 }}>
+                {t("pricing.combos.title")}
+              </Box>
+              <Box sx={{ color: "var(--ink-soft)", fontSize: { xs: 17, md: 19 }, lineHeight: 1.6 }}>
+                {t("pricing.combos.lead")}
+              </Box>
+            </Box>
+          </EdReveal>
+
+          <Box sx={{
+            display: "grid",
+            gap: 0,
+            gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
+            border: "1px solid var(--rule)"
+          }}>
+            {COMBINATIONS.map((c, i) => (
+              <EdReveal key={c} delay={i * 90}>
+                <Box sx={{
+                  p: { xs: 3.5, md: 5 },
+                  height: "100%",
+                  borderRight: { md: i % 2 === 0 ? "1px solid var(--rule)" : "none" },
+                  borderBottom: "1px solid var(--rule)"
+                }}>
+                  <Box sx={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 12,
+                    color: "var(--gold)",
+                    letterSpacing: "0.08em",
+                    mb: 1.5
+                  }}>
+                    {t(`pricing.combos.items.${c}.packages`)}
+                  </Box>
+                  <Box className="display" sx={{
+                    fontSize: { xs: 22, md: 26 },
+                    color: "var(--ink)",
+                    mb: 2,
+                    lineHeight: 1.15
+                  }}>
+                    {t(`pricing.combos.items.${c}.title`)}
+                  </Box>
+                  <Box sx={{
+                    color: "var(--ink-soft)",
+                    fontSize: 15.5,
+                    lineHeight: 1.65
+                  }}>
+                    {t(`pricing.combos.items.${c}.body`)}
+                  </Box>
+                </Box>
+              </EdReveal>
+            ))}
+          </Box>
+        </Container>
+      </Box>
+
+      {/* CONTACT CTA */}
+      <Box sx={{ py: { xs: 8, md: 12 } }}>
+        <Container maxWidth="md">
+          <EdReveal>
+            <Box sx={{ textAlign: "center" }}>
+              <Box className="display" sx={{
+                fontSize: { xs: 28, md: 40 },
+                color: "var(--ink)",
+                lineHeight: 1.15,
+                mb: 2
               }}>
-                {t("pricing.contactSales")} →
+                {t("pricing.contact.title")}
+              </Box>
+              <Box sx={{ color: "var(--ink-soft)", fontSize: { xs: 16, md: 18 }, lineHeight: 1.6, mb: 4 }}>
+                {t("pricing.contact.lead")}
+              </Box>
+              <RouterLink to="/contact" className="ink-button"
+                style={{ display: "inline-flex", padding: "16px 32px", fontSize: 16 }}>
+                <span>{t("pricing.contact.cta")}</span>
+                <ArrowOutwardIcon sx={{ fontSize: 18 }} />
               </RouterLink>
             </Box>
           </EdReveal>

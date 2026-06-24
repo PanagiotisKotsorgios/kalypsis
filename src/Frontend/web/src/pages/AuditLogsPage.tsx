@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { HelpHint } from "../components/HelpHint";
 import {
   Box,
   Card,
@@ -64,9 +65,12 @@ export function AuditLogsPage() {
 
   return (
     <Box>
-      <Typography variant="h4" sx={{ fontWeight: 800 }}>
-        {t("audit.title")}
-      </Typography>
+      <Stack direction="row" alignItems="center" spacing={0.5}>
+        <Typography variant="h4" sx={{ fontWeight: 800 }}>
+          {t("audit.title")}
+        </Typography>
+        <HelpHint id="page.audit" />
+      </Stack>
       <Typography color="text.secondary" sx={{ mb: 3 }}>
         {t("audit.subtitle")}
       </Typography>

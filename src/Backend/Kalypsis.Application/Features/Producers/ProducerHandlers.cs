@@ -65,7 +65,12 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
         var b = request.Body;
         var code = b.Code.Trim().ToUpperInvariant();
         if (await _db.Producers.IgnoreQueryFilters().AnyAsync(p => p.TenantId == tenantId && p.Code == code && p.DeletedAt == null, ct))
-            throw AppException.Conflict($"Παραγωγός με κωδικό {code} υπάρχει ήδη.");
+            throw new AppException("producer_code_taken",
+                $"Παραγωγός με κωδικό {code} υπάρχει ήδη.", 409,
+                title: "Κωδικός σε χρήση",
+                why: $"Ο κωδικός παραγωγού «{code}» υπάρχει ήδη στο γραφείο σας. Οι κωδικοί παραγωγών πρέπει να είναι μοναδικοί.",
+                fix: "Επιλέξτε διαφορετικό κωδικό για τον νέο παραγωγό (π.χ. προσθέστε αύξοντα αριθμό ή τα αρχικά της πόλης).",
+                fixLink: "/app/producers");
 
         var p = new Producer
         {

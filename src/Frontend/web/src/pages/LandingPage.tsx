@@ -17,6 +17,7 @@ import QuestionAnswerRoundedIcon from "@mui/icons-material/QuestionAnswerRounded
 import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
 import { PublicShell } from "../components/PublicShell";
 import { EdReveal } from "../components/EdReveal";
+import { DashboardShowcase } from "../components/DashboardShowcase";
 import { api } from "../api/client";
 
 const HERO_IMAGE =
@@ -34,7 +35,7 @@ export function LandingPage() {
       <Manifesto />
       <Features />
       <ForAgencies />
-      <PullQuote />
+      <DashboardShowcase />
       <ForAgents />
       <FaqTeaser />
     </PublicShell>
@@ -274,16 +275,45 @@ function Features() {
           {features.map((f, i) => (
             <EdReveal key={f.key} delay={i * 90}>
               <Box className="paper-card" sx={{
+                position: "relative",
                 p: { xs: 4, md: 5 },
                 height: "100%",
                 border: "none",
                 borderRight: "1px solid var(--rule)",
                 borderBottom: "1px solid var(--rule)",
-                background: "transparent"
+                background: "transparent",
+                transition: "background-color 420ms var(--ease-editorial), transform 420ms var(--ease-editorial), box-shadow 420ms var(--ease-editorial)",
+                cursor: "default",
+                "&::after": {
+                  content: '""',
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: "3px",
+                  bgcolor: "var(--ink)",
+                  transformOrigin: "left",
+                  transform: "scaleX(0)",
+                  transition: "transform 540ms var(--ease-editorial)"
+                },
+                "&:hover": {
+                  bgcolor: "var(--ink)",
+                  color: "var(--paper)",
+                  transform: "translateY(-2px)",
+                  boxShadow: "0 24px 60px -28px rgba(11,37,69,0.55)",
+                  "& .feature-icon": {
+                    bgcolor: "var(--gold)",
+                    borderColor: "var(--gold)",
+                    color: "var(--ink)",
+                    transform: "rotate(-3deg) scale(1.06)"
+                  },
+                  "& .feature-title": { color: "var(--paper)" },
+                  "& .feature-body":  { color: "rgba(245,237,225,0.82)" },
+                  "&::after": { transform: "scaleX(1)" }
+                }
               }}>
                 <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 4 }}>
-                  {/* Bigger, consistent outlined icon matching the post-login sidebar tone */}
-                  <Box sx={{
+                  <Box className="feature-icon" sx={{
                     width: 56,
                     height: 56,
                     border: "1.5px solid var(--ink)",
@@ -292,24 +322,26 @@ function Features() {
                     justifyContent: "center",
                     color: "var(--ink)",
                     bgcolor: "var(--bone)",
-                    transition: "background 420ms var(--ease-editorial), color 420ms var(--ease-editorial)",
+                    transition: "background 420ms var(--ease-editorial), color 420ms var(--ease-editorial), border-color 420ms var(--ease-editorial), transform 420ms var(--ease-editorial)",
                     "& svg": { fontSize: 30 }
                   }}>
                     {f.icon}
                   </Box>
                 </Stack>
-                <Box className="display" sx={{
+                <Box className="display feature-title" sx={{
                   fontSize: { xs: 28, md: 32 },
                   color: "var(--ink)",
                   mb: 2,
-                  lineHeight: 1.05
+                  lineHeight: 1.05,
+                  transition: "color 420ms var(--ease-editorial)"
                 }}>
                   {t(`landing.features.${f.key}.title`)}
                 </Box>
-                <Box sx={{
+                <Box className="feature-body" sx={{
                   color: "var(--ink-soft)",
                   fontSize: 16,
-                  lineHeight: 1.7
+                  lineHeight: 1.7,
+                  transition: "color 420ms var(--ease-editorial)"
                 }}>
                   {t(`landing.features.${f.key}.body`)}
                 </Box>
@@ -423,24 +455,7 @@ function ForAgencies() {
 }
 
 /* =============================================================
-   07 — PULL QUOTE
-   ============================================================= */
-function PullQuote() {
-  const { t } = useTranslation();
-  return (
-    <Box sx={{ py: { xs: 10, md: 18 }, borderBottom: "1px solid var(--rule)" }}>
-      <Container maxWidth="md">
-        <EdReveal>
-          <Box className="pull-quote" sx={{ textAlign: "left", maxWidth: 760 }}>
-            {t("landing.pullQuote.text")}
-          </Box>
-        </EdReveal>
-      </Container>
-    </Box>
-  );
-}
-
-/* =============================================================
+   07 — DASHBOARD SHOWCASE (DashboardShowcase component handles this)
    08 — FOR AGENTS, mirrored asymmetric
    ============================================================= */
 function ForAgents() {

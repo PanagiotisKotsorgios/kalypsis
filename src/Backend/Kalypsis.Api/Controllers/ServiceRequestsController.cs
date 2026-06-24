@@ -1,3 +1,4 @@
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Features.Requests;
 using Kalypsis.Domain.Enums;
 using MediatR;
@@ -9,6 +10,7 @@ namespace Kalypsis.Api.Controllers;
 [ApiController]
 [Route("api/service-requests")]
 [Authorize]
+[RequiresPackage(PackageCode.Crm)]
 public class ServiceRequestsController : ControllerBase
 {
     private readonly IMediator _mediator;

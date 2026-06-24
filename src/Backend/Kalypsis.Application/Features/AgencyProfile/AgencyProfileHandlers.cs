@@ -130,11 +130,27 @@ public class UploadAgencyLogoCommandHandler : IRequestHandler<UploadAgencyLogoCo
         var t = await _db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == tenantId, ct)
             ?? throw AppException.NotFound("Tenant");
 
-        if (request.SizeBytes <= 0) throw AppException.Validation("Empty file.");
-        if (request.SizeBytes > 4_000_000) throw AppException.Validation("Max logo size is 4 MB.");
+        if (request.SizeBytes <= 0)
+            throw new AppException("logo_empty",
+                "Empty file.", 400,
+                title: "Κενό αρχείο",
+                why: "Το αρχείο λογότυπου που ανεβάσατε έχει μηδενικό μέγεθος. Πιθανώς διακόπηκε το upload ή το αρχείο είναι κατεστραμμένο.",
+                fix: "Επιλέξτε ξανά το αρχείο από τον υπολογιστή σας και βεβαιωθείτε ότι ανοίγει κανονικά πριν το ανεβάσετε.");
+
+        if (request.SizeBytes > 4_000_000)
+            throw new AppException("logo_too_large",
+                "Max logo size is 4 MB.", 400,
+                title: "Λογότυπο υπερβολικά μεγάλο",
+                why: $"Ανεβάσατε αρχείο {request.SizeBytes / 1024} KB. Το όριο είναι 4 MB ώστε να φορτώνει γρήγορα παντού στο εκτυπώσιμα παραστατικά και emails.",
+                fix: "Μειώστε το μέγεθος του αρχείου σε εργαλείο όπως tinypng.com ή εξάγετέ το ξανά σε μικρότερη ανάλυση (συνιστάται 512×512 PNG).");
+
         var ct2 = (request.ContentType ?? "").ToLowerInvariant();
         if (!(ct2.StartsWith("image/png") || ct2.StartsWith("image/jpeg") || ct2.StartsWith("image/svg") || ct2.StartsWith("image/webp")))
-            throw AppException.Validation("Logo must be PNG, JPEG, SVG or WebP.");
+            throw new AppException("logo_wrong_format",
+                "Logo must be PNG, JPEG, SVG or WebP.", 400,
+                title: "Μη υποστηριζόμενος τύπος",
+                why: $"Το αρχείο σας είναι τύπου {request.ContentType ?? "άγνωστο"}. Υποστηρίζουμε μόνο PNG, JPEG, SVG ή WebP — αυτοί οι τύποι δουλεύουν σε όλους τους browsers και τα PDF παραστατικά.",
+                fix: "Εξάγετε το λογότυπο σε PNG (καλύτερο για διαφάνεια) ή SVG (καλύτερο για ευκρίνεια σε μεγάλες αναλύσεις).");
 
         var oldPath = t.LogoUrl;
         var key = $"branding/{tenantId}";

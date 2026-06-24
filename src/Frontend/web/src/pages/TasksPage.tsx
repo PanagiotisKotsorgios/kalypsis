@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { HelpHint } from "../components/HelpHint";
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField, Typography
@@ -66,7 +67,10 @@ export function TasksPage() {
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("tasks.title")}</Typography>
+          <Stack direction="row" alignItems="center" spacing={0.5}>
+            <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("tasks.title")}</Typography>
+            <HelpHint id="page.tasks" />
+          </Stack>
           <Typography color="text.secondary">{t("tasks.subtitle")}</Typography>
         </Box>
         <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateOpen(true); }}>

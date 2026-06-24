@@ -44,7 +44,12 @@ public class CreateEmployeeCommandHandler : IRequestHandler<CreateEmployeeComman
         var email = request.Request.Email.Trim().ToLowerInvariant();
 
         var emailExists = await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Email == email, cancellationToken);
-        if (emailExists) throw AppException.Conflict($"Ο χρήστης με email '{email}' υπάρχει ήδη.");
+        if (emailExists) throw new AppException("user_email_taken",
+            $"Ο χρήστης με email '{email}' υπάρχει ήδη.", 409,
+            title: "Email σε χρήση",
+            why: $"Το email {email} χρησιμοποιείται από άλλον χρήστη — μπορεί να είναι σε άλλο γραφείο ή να ανήκει σε παραγωγό/πελάτη.",
+            fix: "Χρησιμοποιήστε διαφορετική διεύθυνση email για τον νέο υπάλληλο (π.χ. προσθέστε αύξοντα αριθμό ή χρησιμοποιήστε email του τμήματος).",
+            fixLink: "/app/users");
 
         var user = new User
         {

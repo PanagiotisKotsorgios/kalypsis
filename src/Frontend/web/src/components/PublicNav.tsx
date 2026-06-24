@@ -5,6 +5,8 @@ import {
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
+import ArrowOutwardIcon from "@mui/icons-material/ArrowOutward";
+import LoginIcon from "@mui/icons-material/LoginOutlined";
 import { Link as RouterLink, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { KalypsisLogo } from "./KalypsisLogo";
@@ -57,7 +59,7 @@ export function PublicNav(_: PublicNavProps = {}) {
             disableGutters
             sx={{
               gap: 2,
-              minHeight: { xs: 88, md: 128 },
+              minHeight: { xs: 72, md: 92 },
               alignItems: "center"
             }}
           >
@@ -75,10 +77,10 @@ export function PublicNav(_: PublicNavProps = {}) {
               }}
             >
               <Box sx={{ display: { xs: "block", md: "none" } }}>
-                <KalypsisLogo size={72} crop />
+                <KalypsisLogo size={56} crop />
               </Box>
               <Box sx={{ display: { xs: "none", md: "block" } }}>
-                <KalypsisLogo size={108} crop />
+                <KalypsisLogo size={80} crop />
               </Box>
             </Box>
 
@@ -87,7 +89,7 @@ export function PublicNav(_: PublicNavProps = {}) {
             {/* Desktop nav links */}
             <Stack
               direction="row"
-              spacing={{ md: 4, lg: 6 }}
+              spacing={{ md: 2.5, lg: 4 }}
               alignItems="center"
               sx={{ display: { xs: "none", md: "flex" } }}
             >
@@ -110,14 +112,15 @@ export function PublicNav(_: PublicNavProps = {}) {
                   }}
                   sx={{
                     fontFamily: "var(--sans)",
-                    fontSize: 19,
+                    fontSize: { md: 14.5, lg: 15.5 },
                     fontWeight: 500,
                     letterSpacing: "0.005em",
                     color: "var(--ink)",
                     textDecoration: "none",
                     position: "relative",
                     cursor: "pointer",
-                    py: 1.5,
+                    py: 1,
+                    whiteSpace: "nowrap",
                     "&::after": {
                       content: '""',
                       position: "absolute",
@@ -140,21 +143,31 @@ export function PublicNav(_: PublicNavProps = {}) {
             </Stack>
 
             {/* Desktop CTAs */}
-            <Stack direction="row" spacing={2} alignItems="center" sx={{ display: { xs: "none", md: "flex" }, ml: { md: 4, lg: 6 } }}>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ display: { xs: "none", md: "flex" }, ml: { md: 2.5, lg: 4 } }}>
               <Box sx={{
                 "& .MuiButton-root": {
                   fontFamily: "var(--sans)",
-                  fontSize: 14,
+                  fontSize: 13,
                   color: "var(--ink)"
                 }
               }}>
                 <LanguageToggle />
               </Box>
-              <RouterLink to="/login" className="ghost-button" style={{ padding: "16px 30px", fontSize: 17 }}>
+              <RouterLink
+                to="/login"
+                className="ghost-button"
+                style={{ padding: "12px 20px", fontSize: 14, fontWeight: 700, letterSpacing: "0.01em", whiteSpace: "nowrap" }}
+              >
+                <LoginIcon style={{ fontSize: 17 }} />
                 <span>{t("publicNav.signIn")}</span>
               </RouterLink>
-              <RouterLink to="/register" className="ink-button" style={{ padding: "17px 32px", fontSize: 17 }}>
-                <span>{t("publicNav.register")}</span>
+              <RouterLink
+                to="/register"
+                className="ink-button"
+                style={{ padding: "13px 22px", fontSize: 14, fontWeight: 700, letterSpacing: "0.01em", whiteSpace: "nowrap" }}
+              >
+                <span>{t("publicNav.tryFree")}</span>
+                <ArrowOutwardIcon style={{ fontSize: 17 }} />
               </RouterLink>
             </Stack>
 
@@ -164,11 +177,11 @@ export function PublicNav(_: PublicNavProps = {}) {
               sx={{
                 display: { xs: "inline-flex", md: "none" },
                 color: "var(--ink)",
-                width: 52,
-                height: 52,
+                width: 44,
+                height: 44,
                 border: "1px solid var(--rule)",
                 borderRadius: 0,
-                "& svg": { fontSize: 28 }
+                "& svg": { fontSize: 24 }
               }}
               edge="end"
               aria-label="menu"
@@ -206,16 +219,16 @@ export function PublicNav(_: PublicNavProps = {}) {
       >
         <Box className="editorial" sx={{ p: 3.5, height: "100%", backgroundColor: "#f5ede1" }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" mb={5}>
-            <KalypsisLogo size={72} crop />
+            <KalypsisLogo size={56} crop />
             <IconButton
               onClick={() => setOpen(false)}
               sx={{
                 color: "var(--ink)",
-                width: 52,
-                height: 52,
+                width: 44,
+                height: 44,
                 border: "1px solid var(--rule)",
                 borderRadius: 0,
-                "& svg": { fontSize: 26 }
+                "& svg": { fontSize: 22 }
               }}
             >
               <CloseIcon />
@@ -238,11 +251,11 @@ export function PublicNav(_: PublicNavProps = {}) {
                   component={RouterLink}
                   to={link.to.startsWith("/#") ? "/" : link.to}
                   sx={{
-                    py: 3.25,
+                    py: 2.5,
                     px: 1,
                     fontFamily: "var(--display)",
                     fontStyle: "italic",
-                    fontSize: 28,
+                    fontSize: 22,
                     color: "var(--ink)",
                     transition: "color 280ms var(--ease-editorial), background 280ms var(--ease-editorial)",
                     "&:hover": {
@@ -261,17 +274,19 @@ export function PublicNav(_: PublicNavProps = {}) {
               to="/login"
               className="ghost-button"
               onClick={() => setOpen(false)}
-              style={{ fontSize: 17, padding: "18px 30px", width: "100%", boxSizing: "border-box" }}
+              style={{ fontSize: 15, fontWeight: 700, padding: "16px 24px", width: "100%", boxSizing: "border-box" }}
             >
+              <LoginIcon style={{ fontSize: 19 }} />
               <span>{t("publicNav.signIn")}</span>
             </RouterLink>
             <RouterLink
               to="/register"
               className="ink-button"
               onClick={() => setOpen(false)}
-              style={{ fontSize: 17, padding: "19px 32px", width: "100%", boxSizing: "border-box" }}
+              style={{ fontSize: 15, fontWeight: 700, padding: "17px 26px", width: "100%", boxSizing: "border-box" }}
             >
-              <span>{t("publicNav.register")}</span>
+              <span>{t("publicNav.tryFree")}</span>
+              <ArrowOutwardIcon style={{ fontSize: 19 }} />
             </RouterLink>
             <Box pt={3} sx={{ borderTop: "1px solid var(--rule)", mt: 2 }}>
               <LanguageToggle />

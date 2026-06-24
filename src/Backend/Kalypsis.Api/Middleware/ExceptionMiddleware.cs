@@ -41,8 +41,13 @@ public class ExceptionMiddleware
             await ctx.Response.WriteAsync(JsonSerializer.Serialize(new
             {
                 code = ex.Code,
-                message = ex.Message
-            }));
+                message = ex.Message,
+                title = ex.Title,
+                why = ex.WhyText,
+                fix = ex.FixText,
+                fixLink = ex.FixLink,
+                severity = ex.Severity
+            }, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }));
         }
         catch (Exception ex)
         {
@@ -52,7 +57,11 @@ public class ExceptionMiddleware
             await ctx.Response.WriteAsync(JsonSerializer.Serialize(new
             {
                 code = "internal_error",
-                message = "Παρουσιάστηκε εσωτερικό σφάλμα."
+                message = "Παρουσιάστηκε εσωτερικό σφάλμα.",
+                title = "Απρόσμενο σφάλμα",
+                why = "Κάτι πήγε στραβά στον διακομιστή. Δεν φταίτε εσείς.",
+                fix = "Δοκιμάστε ξανά σε λίγο. Αν το πρόβλημα επιμένει, επικοινωνήστε με την υποστήριξη με το ακριβές μήνυμα που βλέπετε.",
+                severity = "error"
             }));
         }
     }

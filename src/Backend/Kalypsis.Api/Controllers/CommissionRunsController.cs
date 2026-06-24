@@ -16,6 +16,7 @@ namespace Kalypsis.Api.Controllers;
 [ApiController]
 [Route("api/commission-runs")]
 [Authorize(Policy = "AgencyAdmin")]
+[RequiresPackage(Kalypsis.Domain.Enums.PackageCode.BackOffice)]
 public class CommissionRunsController : ControllerBase
 {
     private readonly IMediator _m;
@@ -73,6 +74,7 @@ public class CommissionRunsController : ControllerBase
 [ApiController]
 [Route("api/commission-rules")]
 [Authorize(Policy = "AgencyAdmin")]
+[RequiresPackage(Kalypsis.Domain.Enums.PackageCode.BackOffice)]
 public class CommissionRulesController : ControllerBase
 {
     private readonly IMediator _m; public CommissionRulesController(IMediator m) => _m = m;
@@ -87,6 +89,7 @@ public class CommissionRulesController : ControllerBase
 [ApiController]
 [Route("api/company-bridges")]
 [Authorize(Policy = "AgencyAdmin")]
+[RequiresPackage(Kalypsis.Domain.Enums.PackageCode.Integrations)]
 public class CompanyBridgesController : ControllerBase
 {
     private readonly IMediator _m;

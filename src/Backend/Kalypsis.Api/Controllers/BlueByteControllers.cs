@@ -1,3 +1,4 @@
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Features.Appointments;
 using Kalypsis.Application.Features.Branches;
 using Kalypsis.Application.Features.CoverNotes;
@@ -17,6 +18,7 @@ namespace Kalypsis.Api.Controllers;
 [ApiController]
 [Route("api/appointments")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.Crm)]
 public class AppointmentsController : ControllerBase
 {
     private readonly IMediator _m;
@@ -44,6 +46,7 @@ public class AppointmentsController : ControllerBase
 [ApiController]
 [Route("api/tariffs")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.BackOffice)]
 public class TariffsController : ControllerBase
 {
     private readonly IMediator _m; public TariffsController(IMediator m) => _m = m;
@@ -56,6 +59,7 @@ public class TariffsController : ControllerBase
 [ApiController]
 [Route("api/cover-notes")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.FrontOffice)]
 public class CoverNotesController : ControllerBase
 {
     private readonly IMediator _m; public CoverNotesController(IMediator m) => _m = m;
@@ -68,6 +72,7 @@ public class CoverNotesController : ControllerBase
 [ApiController]
 [Route("api/branches")]
 [Authorize(Policy = "AgencyAdmin")]
+[RequiresPackage(PackageCode.Integrations)]
 public class BranchesController : ControllerBase
 {
     private readonly IMediator _m; public BranchesController(IMediator m) => _m = m;
@@ -80,6 +85,7 @@ public class BranchesController : ControllerBase
 [ApiController]
 [Route("api/receipts")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.BackOffice)]
 public class ReceiptsController : ControllerBase
 {
     private readonly IMediator _m; public ReceiptsController(IMediator m) => _m = m;
@@ -92,6 +98,7 @@ public class ReceiptsController : ControllerBase
 [ApiController]
 [Route("api/payments")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.BackOffice)]
 public class PaymentsController : ControllerBase
 {
     private readonly IMediator _m; public PaymentsController(IMediator m) => _m = m;
@@ -104,6 +111,7 @@ public class PaymentsController : ControllerBase
 [ApiController]
 [Route("api/securities")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.BackOffice)]
 public class SecuritiesController : ControllerBase
 {
     private readonly IMediator _m; public SecuritiesController(IMediator m) => _m = m;
@@ -116,6 +124,7 @@ public class SecuritiesController : ControllerBase
 [ApiController]
 [Route("api/financial-movements")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.BackOffice)]
 public class FinancialMovementsController : ControllerBase
 {
     private readonly IMediator _m; public FinancialMovementsController(IMediator m) => _m = m;
@@ -133,6 +142,7 @@ public class FinancialMovementsController : ControllerBase
 [ApiController]
 [Route("api/bank-connections")]
 [Authorize(Policy = "AgencyAdmin")]
+[RequiresPackage(PackageCode.Integrations)]
 public class BankConnectionsController : ControllerBase
 {
     private readonly IMediator _m; public BankConnectionsController(IMediator m) => _m = m;
@@ -146,6 +156,7 @@ public class BankConnectionsController : ControllerBase
 [ApiController]
 [Route("api/marketing-campaigns")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.Crm)]
 public class MarketingCampaignsController : ControllerBase
 {
     private readonly IMediator _m; public MarketingCampaignsController(IMediator m) => _m = m;
@@ -159,6 +170,7 @@ public class MarketingCampaignsController : ControllerBase
 [ApiController]
 [Route("api/delivery-records")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.Crm)]
 public class DeliveryRecordsController : ControllerBase
 {
     private readonly IMediator _m; public DeliveryRecordsController(IMediator m) => _m = m;
@@ -171,6 +183,7 @@ public class DeliveryRecordsController : ControllerBase
 [ApiController]
 [Route("api/document-folders")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.Crm)]
 public class DocumentFoldersController : ControllerBase
 {
     private readonly IMediator _m; public DocumentFoldersController(IMediator m) => _m = m;
@@ -182,6 +195,7 @@ public class DocumentFoldersController : ControllerBase
 [ApiController]
 [Route("api/partner-portal-accesses")]
 [Authorize(Policy = "AgencyAdmin")]
+[RequiresPackage(PackageCode.Integrations)]
 public class PartnerPortalAccessesController : ControllerBase
 {
     private readonly IMediator _m; public PartnerPortalAccessesController(IMediator m) => _m = m;
@@ -194,6 +208,7 @@ public class PartnerPortalAccessesController : ControllerBase
 [ApiController]
 [Route("api/api-keys")]
 [Authorize(Policy = "AgencyAdmin")]
+[RequiresPackage(PackageCode.Integrations)]
 public class ApiKeysController : ControllerBase
 {
     private readonly IMediator _m; public ApiKeysController(IMediator m) => _m = m;
@@ -205,6 +220,7 @@ public class ApiKeysController : ControllerBase
 [ApiController]
 [Route("api/dias-codes")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.Integrations)]
 public class DiasCodesController : ControllerBase
 {
     private readonly IMediator _m; public DiasCodesController(IMediator m) => _m = m;
@@ -217,6 +233,7 @@ public class DiasCodesController : ControllerBase
 [ApiController]
 [Route("api/accounting-exports")]
 [Authorize(Policy = "AgencyAdmin")]
+[RequiresPackage(PackageCode.BackOffice)]
 public class AccountingExportsController : ControllerBase
 {
     private readonly IMediator _m; public AccountingExportsController(IMediator m) => _m = m;
@@ -228,6 +245,7 @@ public class AccountingExportsController : ControllerBase
 [ApiController]
 [Route("api/kepyo-reports")]
 [Authorize(Policy = "AgencyAdmin")]
+[RequiresPackage(PackageCode.BackOffice)]
 public class KepyoReportsController : ControllerBase
 {
     private readonly IMediator _m; public KepyoReportsController(IMediator m) => _m = m;
@@ -239,6 +257,7 @@ public class KepyoReportsController : ControllerBase
 [ApiController]
 [Route("api/magnetic-imports")]
 [Authorize(Policy = "AgencyAdmin")]
+[RequiresPackage(PackageCode.BackOffice)]
 public class MagneticImportsController : ControllerBase
 {
     private readonly IMediator _m; public MagneticImportsController(IMediator m) => _m = m;
@@ -260,6 +279,7 @@ public class MagneticImportsController : ControllerBase
 [ApiController]
 [Route("api/over-commission-rules")]
 [Authorize(Policy = "AgencyAdmin")]
+[RequiresPackage(PackageCode.BackOffice)]
 public class OverCommissionRulesController : ControllerBase
 {
     private readonly IMediator _m; public OverCommissionRulesController(IMediator m) => _m = m;
@@ -272,6 +292,7 @@ public class OverCommissionRulesController : ControllerBase
 [ApiController]
 [Route("api/production-goals")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.Intelligence)]
 public class ProductionGoalsController : ControllerBase
 {
     private readonly IMediator _m; public ProductionGoalsController(IMediator m) => _m = m;
@@ -284,6 +305,7 @@ public class ProductionGoalsController : ControllerBase
 [ApiController]
 [Route("api/production-stats")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.Intelligence)]
 public class ProductionStatsController : ControllerBase
 {
     private readonly IMediator _m; public ProductionStatsController(IMediator m) => _m = m;

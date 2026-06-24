@@ -53,6 +53,40 @@ public sealed class JwtTokenService : IJwtTokenService
         return new JwtTokens(access, accessExpires, refresh, refreshExpires);
     }
 
+    public string IssueImpersonationAccessToken(User targetUser, ImpersonatorIdentity impersonator, int minutes = 30)
+    {
+        var now = _clock.UtcNow;
+        var expires = now.AddMinutes(minutes);
+
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, targetUser.Id.ToString()),
+            new(JwtRegisteredClaimNames.Email, targetUser.Email),
+            new("tenantId", targetUser.TenantId.ToString()),
+            new("role", targetUser.Role.ToString()),
+            new(ClaimTypes.Role, targetUser.Role.ToString()),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            // Impersonation metadata — frontend reads these to render the "exit" banner
+            // and the backend audit pipeline includes the original admin's identity.
+            new("impersonator_sub", impersonator.UserId.ToString()),
+            new("impersonator_email", impersonator.Email),
+            new("is_impersonation", "true")
+        };
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Secret));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var jwt = new JwtSecurityToken(
+            issuer: _options.Issuer,
+            audience: _options.Audience,
+            claims: claims,
+            notBefore: now,
+            expires: expires,
+            signingCredentials: creds);
+
+        return new JwtSecurityTokenHandler().WriteToken(jwt);
+    }
+
     public string HashRefreshToken(string refreshToken)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(refreshToken));

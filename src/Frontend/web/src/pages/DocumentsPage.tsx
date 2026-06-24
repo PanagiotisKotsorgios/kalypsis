@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { HelpHint } from "../components/HelpHint";
 import {
   Alert,
   Box,
@@ -89,9 +90,12 @@ export function DocumentsPage() {
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800 }}>
-            {isCustomer ? t("documents.customerTitle") : t("documents.agencyTitle")}
-          </Typography>
+          <Stack direction="row" alignItems="center" spacing={0.5}>
+            <Typography variant="h4" sx={{ fontWeight: 800 }}>
+              {isCustomer ? t("documents.customerTitle") : t("documents.agencyTitle")}
+            </Typography>
+            <HelpHint id="page.documents" />
+          </Stack>
           <Typography color="text.secondary">
             {isCustomer ? t("documents.customerLead") : t("documents.agencyLead")}
           </Typography>

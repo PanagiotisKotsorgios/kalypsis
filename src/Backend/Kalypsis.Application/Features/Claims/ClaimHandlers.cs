@@ -111,7 +111,12 @@ public class CreateClaimCommandHandler : IRequestHandler<CreateClaimCommand, Cla
 
         var policy = await _db.Policies.IgnoreQueryFilters()
             .FirstOrDefaultAsync(p => p.Id == r.PolicyId && p.TenantId == tenantId && p.DeletedAt == null, ct)
-            ?? throw AppException.Validation("Το συμβόλαιο δεν βρέθηκε.");
+            ?? throw new AppException("policy_not_found",
+                "Το συμβόλαιο δεν βρέθηκε.", 400,
+                title: "Λείπει το συμβόλαιο",
+                why: "Δεν μπορείτε να καταχωρήσετε ζημιά χωρίς ενεργό συμβόλαιο. Το συμβόλαιο που επιλέξατε διαγράφηκε ή δεν ανήκει στο γραφείο σας.",
+                fix: "Επιλέξτε άλλο συμβόλαιο από τη λίστα ή δημιουργήστε νέο συμβόλαιο για τον πελάτη.",
+                fixLink: "/app/policies");
 
         var count = await _db.Claims.IgnoreQueryFilters().CountAsync(c => c.TenantId == tenantId, ct);
         var number = $"CL-{(count + 1):D6}";

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { HelpHint } from "../components/HelpHint";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
@@ -38,7 +39,7 @@ export function TariffsPage() {
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
-        <Box><Typography variant="h4" sx={{ fontWeight: 800 }}>{t("tariffs.title")}</Typography>
+        <Box><Stack direction="row" alignItems="center" spacing={0.5}><Typography variant="h4" sx={{ fontWeight: 800 }}>{t("tariffs.title")}</Typography><HelpHint id="page.tariffs" /></Stack>
           <Typography color="text.secondary">{t("tariffs.subtitle")}</Typography></Box>
         <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>
           {t("tariffs.create")}

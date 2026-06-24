@@ -41,6 +41,19 @@ public class Policy : TenantEntity
     public Guid? RenewedFromPolicyId { get; set; }
     public Policy? RenewedFromPolicy { get; set; }
 
+    // Phase 12 — BluByte parity: renewal preservation flags + special commissions + delivery
+    public DateOnly? NextRenewalDate { get; set; }                  // Λήξη επόμενης ανανέωσης
+    public Guid? RenewalTransferToProducerId { get; set; }          // αλλαγή συνεργάτη στην ανανέωση
+    public Guid? RenewalTransferToCarrierId { get; set; }           // αλλαγή εταιρίας στην ανανέωση
+    public bool RetainCommissionsOnRenewal { get; set; }            // Ιστ.Υπερ/ων
+    public bool RetainDocumentNumberOnRenewal { get; set; }
+    public bool RetainSpecialCommissionsOnRenewal { get; set; }
+    public decimal? SpecialCommissionPercent { get; set; }          // Ειδικές προμήθειες (override)
+    public string? RenewalInstructions { get; set; }                // Εντολές ανανέωσης (free text)
+    public DateOnly? DeliveredAt { get; set; }                       // Παράδοση συμβολαίου
+    public string? DeliveredTo { get; set; }                         // Παραλήπτης
+    public string? DeliveryMethod { get; set; }                      // hand / post / email
+
     public ICollection<PolicyDocument> Documents { get; set; } = new List<PolicyDocument>();
     public ICollection<Claim> Claims { get; set; } = new List<Claim>();
     public ICollection<CommissionTransaction> CommissionTransactions { get; set; } = new List<CommissionTransaction>();
