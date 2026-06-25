@@ -63,7 +63,12 @@ services:
       Jwt__Secret:   ${JWT_SECRET:-REPLACE-WITH-AT-LEAST-32-CHAR-SECRET-FROM-COOLIFY-UI}
       Jwt__AccessTokenMinutes: "60"
       Jwt__RefreshTokenDays:   "30"
-      Cors__FrontendOrigin: ${PUBLIC_ORIGIN:-http://localhost}
+      # CORS origin priority:
+      #   1) explicit PUBLIC_ORIGIN (set this on local Compose runs), then
+      #   2) Coolify auto-injects SERVICE_URL_WEB based on the domain
+      #      configured under Domains → Domains for web, then
+      #   3) localhost as a safe last-resort default.
+      Cors__FrontendOrigin: ${PUBLIC_ORIGIN:-${SERVICE_URL_WEB:-http://localhost}}
       Storage__LocalRoot: /data/uploads
       Brevo__ApiKey:       ${BREVO_API_KEY:-}
       Brevo__SenderEmail:  ${BREVO_SENDER_EMAIL:-no-reply@kalypsis.gr}
