@@ -31,7 +31,11 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
+# Use 127.0.0.1 instead of `localhost` so the check never depends on the
+# resolver's IPv4-vs-IPv6 preference inside the container. Combined with
+# nginx's `listen [::]:80;` line in nginx.conf, the service stays green
+# even if Coolify's proxy talks to it over either IP family.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=5 \
-  CMD wget -qO- http://localhost/ || exit 1
+  CMD wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
