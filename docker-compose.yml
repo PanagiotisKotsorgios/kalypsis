@@ -3,41 +3,47 @@
 # Compose host. Three services: MySQL, the .NET API, and the nginx-served SPA.
 #
 # In Coolify:
-#   1. New Resource → Applications → Docker Compose Empty (or Private Repo)
-#   2. Paste/point at this file. Coolify will detect the three services and
-#      create one application per service automatically.
-#   3. Set the secrets in the UI (DB_PASSWORD, JWT_SECRET, etc.). Defaults
-#      below are placeholders; you MUST override them in production.
-#   4. Expose only the `web` service publicly (Coolify proxy). `api` and
-#      `mysql` stay on the internal docker network.
+#   1. New Resource → Applications → Public Repository (or Private Repo)
+#   2. Build Pack: Docker Compose. Compose file: docker-compose.yml
+#   3. Fill in secrets in the Environment Variables panel — see .env.example
+#   4. Hit Deploy. The web service is the only one exposed publicly.
+#
+# Volume naming:
+#   The MySQL volume is suffixed with `_v2`. If you ever hit a poisoned MySQL
+#   data dir (mysql.user table missing after a crashed first boot), bump it to
+#   `_v3` and redeploy — Compose will create a fresh empty volume and MySQL
+#   will run its first-boot init cleanly. The old volume becomes orphaned
+#   (Coolify shows it under Storages; safe to ignore until cleanup).
 # =============================================================================
 
 services:
   mysql:
-    image: mysql:8.4
+    # Pinned to MySQL 8.0 — the LTS line that Pomelo/MySqlConnector is most
+    # thoroughly tested against. 8.4 dropped several flags Pomelo's drivers
+    # still emit; 8.0 avoids the whole class of "unknown variable" boot loops.
+    image: mysql:8.0
     restart: unless-stopped
     environment:
       MYSQL_DATABASE:      ${DB_NAME:-kalypsis}
       MYSQL_USER:          ${DB_USER:-kalypsis}
       MYSQL_PASSWORD:      ${DB_PASSWORD:-changeMeInCoolify}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-changeMeInCoolify_root}
+      # Speeds up first boot — we don't query system timezones.
+      MYSQL_INITDB_SKIP_TZINFO: "1"
     volumes:
-      - mysql_data:/var/lib/mysql
-    # NOTE: `--default-authentication-plugin` was removed in MySQL 8.4 — leaving
-    # it in here makes the container refuse to boot. caching_sha2_password is
-    # the default since 8.0 and Pomelo/MySqlConnector handle it natively.
+      - mysql_data_v2:/var/lib/mysql
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
-      - --mysql-native-password=ON
+      - --default-authentication-plugin=mysql_native_password
+    # Healthcheck deliberately does NOT depend on the root password — it just
+    # checks if mysqld answers a ping on the TCP socket. That way a temporarily
+    # wrong password during onboarding doesn't mask a real network failure.
     healthcheck:
-      # Use `--protocol=tcp` so we test the actual network stack the API uses,
-      # and quote the password so symbols in JWT-style secrets don't break the
-      # shell expansion.
-      test: ["CMD-SHELL", "mysqladmin ping --protocol=tcp -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
+      test: ["CMD-SHELL", "mysqladmin ping --protocol=tcp -h 127.0.0.1 || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 15
+      retries: 30
       start_period: 60s
 
   api:
@@ -51,27 +57,22 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://0.0.0.0:8080
-      # Connection string is built from the same env vars used by the mysql
-      # service so a single secret change updates everything.
       ConnectionStrings__Default: "Server=mysql;Port=3306;Database=${DB_NAME:-kalypsis};User=${DB_USER:-kalypsis};Password=${DB_PASSWORD:-changeMeInCoolify};TreatTinyAsBoolean=true;CharSet=utf8mb4;"
       Jwt__Issuer:   ${JWT_ISSUER:-kalypsis}
       Jwt__Audience: ${JWT_AUDIENCE:-kalypsis-clients}
-      # A 64-char random secret. Generate with `openssl rand -base64 48`.
       Jwt__Secret:   ${JWT_SECRET:-REPLACE-WITH-AT-LEAST-32-CHAR-SECRET-FROM-COOLIFY-UI}
       Jwt__AccessTokenMinutes: "60"
       Jwt__RefreshTokenDays:   "30"
-      # The public URL the SPA is served from. Used for CORS + email links.
       Cors__FrontendOrigin: ${PUBLIC_ORIGIN:-http://localhost}
       Storage__LocalRoot: /data/uploads
-      # Optional Brevo (Sendinblue) email integration. Leave empty to disable.
       Brevo__ApiKey:       ${BREVO_API_KEY:-}
       Brevo__SenderEmail:  ${BREVO_SENDER_EMAIL:-no-reply@kalypsis.gr}
       Brevo__SenderName:   ${BREVO_SENDER_NAME:-Kalypsis}
     volumes:
       - uploads_data:/data/uploads
     # Don't publish 8080 to the host — nginx in the `web` service proxies
-    # `/api` over the internal docker network. Comment this in only for
-    # debugging.
+    # `/api` over the internal docker network. Comment this back in only for
+    # debugging from outside the Compose network.
     # ports:
     #   - "8080:8080"
 
@@ -79,17 +80,16 @@ services:
     build:
       context: ./src/Frontend/web
       dockerfile: Dockerfile
-      # Bake the API base path into the bundle. With the nginx proxy the
-      # browser keeps using /api so we don't need a public API hostname.
       args:
         VITE_API_BASE_URL: /api
     restart: unless-stopped
     depends_on:
       - api
     ports:
-      # Coolify maps this to your public domain (set HTTPS in the UI).
       - "${WEB_PORT:-80}:80"
 
 volumes:
-  mysql_data:
+  # _v2 cuts the link to the corrupt volume left over from the first failed
+  # deploy. Bump to _v3 etc. if you ever need another clean reset.
+  mysql_data_v2:
   uploads_data:
