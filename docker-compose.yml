@@ -90,8 +90,14 @@ services:
     restart: unless-stopped
     depends_on:
       - api
-    ports:
-      - "${WEB_PORT:-80}:80"
+    # Coolify's built-in reverse-proxy (Traefik/Caddy) already owns the
+    # host's port 80/443 and terminates TLS for every app it manages.
+    # `expose:` keeps the port reachable on the internal docker network
+    # only — the proxy connects to web:80 directly via the network and
+    # routes the domain it discovered from SERVICE_FQDN_WEB.
+    # Use `ports:` only on bare `docker compose up` outside Coolify.
+    expose:
+      - "80"
 
 volumes:
   # _v2 cuts the link to the corrupt volume left over from the first failed
