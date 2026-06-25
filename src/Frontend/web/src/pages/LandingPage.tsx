@@ -4,6 +4,8 @@ import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import CloudSyncOutlinedIcon from "@mui/icons-material/CloudSyncOutlined";
 import LeaderboardOutlinedIcon from "@mui/icons-material/LeaderboardOutlined";
@@ -44,10 +46,35 @@ export function LandingPage() {
       fontFamily: '"Inter", "Segoe UI", system-ui, -apple-system, sans-serif',
       display: "flex", flexDirection: "column"
     }}>
-      {/* Tiny top bar — language picker, perched on the white page. */}
+      {/* Tiny top bar — contact info on the left, language picker on the right. */}
       <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 }, pt: { xs: 2, md: 2.5 } }}>
-        <Stack direction="row" justifyContent="flex-end">
-          <LanguageToggle />
+        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+          <Stack direction="row" spacing={{ xs: 1.5, sm: 3 }} alignItems="center"
+            sx={{ display: { xs: "none", sm: "flex" } }}>
+            <Box component="a" href="tel:+302631028971"
+              sx={{
+                display: "inline-flex", alignItems: "center", gap: 0.75,
+                color: NAVY, textDecoration: "none", fontSize: 13.5, fontWeight: 600,
+                letterSpacing: "0.01em",
+                "&:hover": { color: ACCENT }
+              }}>
+              <PhoneOutlinedIcon sx={{ fontSize: 17 }} />
+              2631028971
+            </Box>
+            <Box component="a" href="mailto:info@kalypsis.gr"
+              sx={{
+                display: "inline-flex", alignItems: "center", gap: 0.75,
+                color: NAVY, textDecoration: "none", fontSize: 13.5, fontWeight: 600,
+                letterSpacing: "0.01em",
+                "&:hover": { color: ACCENT }
+              }}>
+              <MailOutlineIcon sx={{ fontSize: 17 }} />
+              info@kalypsis.gr
+            </Box>
+          </Stack>
+          <Box sx={{ ml: "auto" }}>
+            <LanguageToggle />
+          </Box>
         </Stack>
       </Container>
 
@@ -178,25 +205,44 @@ function FeatureGrid() {
         </Typography>
       </Box>
 
+      {/* Bento-style asymmetric grid — one large hero tile, two smaller
+          stacked next to it, and three regular tiles below. On mobile it
+          falls back to a single-column stack. */}
       <Box sx={{
-        display: "grid", gap: 0,
-        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1fr 1fr 1fr" },
-        border: `1px solid ${RULE}`,
-        borderRadius: 3,
-        overflow: "hidden",
-        bgcolor: SURFACE
+        display: "grid",
+        gap: { xs: 1.5, md: 2 },
+        // 6-col grid only kicks in from md up; before that we stack 1 or 2 across.
+        gridTemplateColumns: {
+          xs: "1fr",
+          sm: "repeat(2, 1fr)",
+          md: "repeat(6, 1fr)"
+        },
+        gridTemplateAreas: {
+          xs: `"a" "b" "c" "d" "e" "f"`,
+          sm: `"a a" "b c" "d e" "f f"`,
+          md: `
+            "a a a a b b"
+            "a a a a c c"
+            "d d e e f f"
+          `
+        }
       }}>
         {FEATURE_KEYS.map((f, i) => (
-          <FeatureCell key={f.t} index={i} icon={f.icon}
-            title={t(f.t)} body={t(f.b)} />
+          <FeatureCell key={f.t} index={i}
+            icon={f.icon}
+            title={t(f.t)} body={t(f.b)}
+            area={String.fromCharCode(97 + i)}      // a, b, c, d, e, f
+            featured={i === 0}                       // first tile = large hero
+          />
         ))}
       </Box>
     </Box>
   );
 }
 
-function FeatureCell({ icon: Icon, title, body, index }: {
+function FeatureCell({ icon: Icon, title, body, index, area, featured }: {
   icon: typeof HubOutlinedIcon; title: string; body: string; index: number;
+  area: string; featured?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -207,34 +253,47 @@ function FeatureCell({ icon: Icon, title, body, index }: {
     io.observe(ref.current);
     return () => io.disconnect();
   }, []);
-  // Build a thin internal grid: bottom border on every row except the last
-  // visible-row of the grid, right border between columns. We just apply a
-  // 1px wash of RULE on the right/bottom of each cell and rely on the wrapper
-  // to clip the outer edges.
   return (
     <Box ref={ref} sx={{
-      p: { xs: 3, md: 3.5 },
-      bgcolor: "#fff",
-      borderRight: { sm: `1px solid ${RULE}` },
-      borderBottom: `1px solid ${RULE}`,
-      // Strip the right border on the last column to avoid a double line
-      // against the wrapper border.
-      "&:nth-of-type(2n)": { sm: { borderRight: 0 } },
-      "&:nth-of-type(3n)": { md: { borderRight: 0 } },
-      transform: visible ? "translateY(0)" : "translateY(12px)",
+      gridArea: area,
+      p: { xs: 3, md: featured ? 4.5 : 3.5 },
+      borderRadius: 2.5,
+      // Two distinct surfaces — the hero tile gets the surface tint, the others
+      // stay pure white. Hairline border + a hover lift give the bento its
+      // "card stack" feel without the noise of inner dividers.
+      bgcolor: featured ? SURFACE : "#fff",
+      border: `1px solid ${RULE}`,
+      display: "flex", flexDirection: "column", justifyContent: "flex-start",
+      transition: `transform 600ms cubic-bezier(0.16, 1, 0.3, 1) ${index * 80}ms, opacity 600ms ease ${index * 80}ms, box-shadow 220ms ease, border-color 220ms ease`,
+      transform: visible ? "translateY(0)" : "translateY(14px)",
       opacity: visible ? 1 : 0,
-      transition: `transform 600ms cubic-bezier(0.16, 1, 0.3, 1) ${index * 60}ms, opacity 600ms ease ${index * 60}ms`
+      "&:hover": {
+        borderColor: NAVY,
+        boxShadow: "0 14px 30px -16px rgba(11,37,69,0.18)"
+      }
     }}>
-      <Box sx={{ color: ACCENT, mb: 2 }}>
-        <Icon sx={{ fontSize: 26 }} />
+      <Box sx={{
+        color: ACCENT, mb: featured ? 3 : 2,
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        width: featured ? 56 : 44, height: featured ? 56 : 44,
+        borderRadius: 1.5,
+        bgcolor: "rgba(31,123,179,0.08)"
+      }}>
+        <Icon sx={{ fontSize: featured ? 30 : 24 }} />
       </Box>
       <Typography sx={{
-        fontSize: 16, fontWeight: 700, color: NAVY, mb: 0.75, letterSpacing: "-0.005em"
+        fontSize: featured ? { xs: 22, md: 28 } : { xs: 18, md: 20 },
+        fontWeight: 800, color: NAVY,
+        mb: featured ? 1.25 : 1,
+        letterSpacing: "-0.015em",
+        lineHeight: 1.2
       }}>
         {title}
       </Typography>
       <Typography sx={{
-        fontSize: 14, lineHeight: 1.6, color: NAVY_SOFT
+        fontSize: featured ? { xs: 15.5, md: 17 } : { xs: 14.5, md: 15.5 },
+        lineHeight: 1.65,
+        color: NAVY_SOFT
       }}>
         {body}
       </Typography>
