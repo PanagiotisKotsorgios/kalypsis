@@ -23,16 +23,22 @@ services:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-changeMeInCoolify_root}
     volumes:
       - mysql_data:/var/lib/mysql
+    # NOTE: `--default-authentication-plugin` was removed in MySQL 8.4 — leaving
+    # it in here makes the container refuse to boot. caching_sha2_password is
+    # the default since 8.0 and Pomelo/MySqlConnector handle it natively.
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
-      - --default-authentication-plugin=mysql_native_password
+      - --mysql-native-password=ON
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      # Use `--protocol=tcp` so we test the actual network stack the API uses,
+      # and quote the password so symbols in JWT-style secrets don't break the
+      # shell expansion.
+      test: ["CMD-SHELL", "mysqladmin ping --protocol=tcp -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 30s
+      retries: 15
+      start_period: 60s
 
   api:
     build:
