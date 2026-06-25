@@ -127,19 +127,27 @@ export function CustomerDetailPage() {
         </Box>
       </Stack>
 
+      <CustomerSummaryCard customerId={id} />
+
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3, borderBottom: 1, borderColor: "divider" }}>
         <Tab label="Επισκόπηση" />
+        <Tab label="Συμβόλαια" />
+        <Tab label="Ζημίες" />
         <Tab label="Επικοινωνία" />
+        <Tab label="Ειδοποιήσεις" />
         <Tab label="Συγκαταθέσεις (GDPR)" />
         <Tab label="Επαφές" />
         <Tab label="GDPR ενέργειες" />
       </Tabs>
 
       {tab === 0 && <OverviewTab customer={customer} />}
-      {tab === 1 && <CommunicationsTab customerId={id} />}
-      {tab === 2 && <ConsentsTab customerId={id} />}
-      {tab === 3 && <ContactsTab customerId={id} customerType={customer.type} />}
-      {tab === 4 && <GdprActionsTab customerId={id} />}
+      {tab === 1 && <CustomerPoliciesTab customerId={id} />}
+      {tab === 2 && <CustomerClaimsTab customerId={id} />}
+      {tab === 3 && <CommunicationsTab customerId={id} />}
+      {tab === 4 && <CustomerNotificationsTab customerId={id} />}
+      {tab === 5 && <ConsentsTab customerId={id} />}
+      {tab === 6 && <ContactsTab customerId={id} customerType={customer.type} />}
+      {tab === 7 && <GdprActionsTab customerId={id} />}
     </Box>
   );
 }
@@ -153,6 +161,195 @@ function statusColor(s: string): "default" | "primary" | "warning" | "error" | "
     case "Blocked": return "error";
     default: return "default";
   }
+}
+
+/* ---------- Summary card ---------- */
+
+interface CustomerSummary {
+  activePolicyCount: number; totalPolicyCount: number;
+  lifetimeGrossPremium: number; currentYearGrossPremium: number;
+  lifetimeAgencyCommission: number;
+  openClaimCount: number; totalClaimCount: number;
+  notificationCount: number; communicationCount: number;
+  tier: "Premium" | "Gold" | "Standard" | "Basic";
+  tierReason: string;
+}
+
+const TIER_COLOR: Record<string, "default" | "primary" | "success" | "warning"> = {
+  Premium: "warning", Gold: "primary", Standard: "success", Basic: "default"
+};
+
+function CustomerSummaryCard({ customerId }: { customerId: string }) {
+  const q = useQuery({
+    queryKey: ["customer-summary", customerId],
+    queryFn: async () => (await api.get<CustomerSummary>(`/customers/${customerId}/summary`)).data,
+    enabled: !!customerId
+  });
+  const fmt = (n: number) => n.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  return (
+    <Card variant="outlined" sx={{ p: 2.5, mb: 3 }}>
+      {q.isLoading ? <CircularProgress size={22} /> : q.data ? (
+        <Stack direction="row" spacing={3} flexWrap="wrap" alignItems="center">
+          <Chip label={`Κατηγορία: ${q.data.tier}`}
+            color={TIER_COLOR[q.data.tier] ?? "default"} sx={{ fontWeight: 800 }}
+            title={q.data.tierReason} />
+          <Box>
+            <Typography variant="caption" color="text.secondary">Συμβόλαια</Typography>
+            <Typography fontWeight={800}>{q.data.activePolicyCount} ενεργά / {q.data.totalPolicyCount} σύνολο</Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">Μεικτό φέτος</Typography>
+            <Typography fontWeight={800}>{fmt(q.data.currentYearGrossPremium)} €</Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">Σύνολο μεικτό</Typography>
+            <Typography fontWeight={800}>{fmt(q.data.lifetimeGrossPremium)} €</Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">Έσοδα γραφείου</Typography>
+            <Typography fontWeight={800} color="primary.main">{fmt(q.data.lifetimeAgencyCommission)} €</Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">Ζημίες</Typography>
+            <Typography fontWeight={800}>{q.data.openClaimCount} ανοιχτές / {q.data.totalClaimCount}</Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">Ειδοποιήσεις · Επικοινωνίες</Typography>
+            <Typography fontWeight={800}>{q.data.notificationCount} · {q.data.communicationCount}</Typography>
+          </Box>
+        </Stack>
+      ) : <Typography color="text.secondary">—</Typography>}
+    </Card>
+  );
+}
+
+/* ---------- Policies tab ---------- */
+
+function CustomerPoliciesTab({ customerId }: { customerId: string }) {
+  const q = useQuery({
+    queryKey: ["customer-policies", customerId],
+    queryFn: async () => (await api.get<{
+      id: string; policyNumber: string; insuranceCompanyName: string; policyType: string;
+      status: string; startDate: string; endDate: string; premium: number; currency: string;
+    }[]>("/policies", { params: { customerId } })).data
+  });
+  if (q.isLoading) return <CircularProgress />;
+  const rows = q.data ?? [];
+  if (rows.length === 0) return <Alert severity="info">Δεν υπάρχουν συμβόλαια.</Alert>;
+  return (
+    <Card variant="outlined">
+      <Table size="small">
+        <TableHead><TableRow>
+          <TableCell>Αρ.Συμβ.</TableCell>
+          <TableCell>Εταιρία</TableCell>
+          <TableCell>Κλάδος</TableCell>
+          <TableCell>Έναρξη → Λήξη</TableCell>
+          <TableCell align="right">Ασφάλιστρο</TableCell>
+          <TableCell>Κατάσταση</TableCell>
+          <TableCell />
+        </TableRow></TableHead>
+        <TableBody>
+          {rows.map(p => (
+            <TableRow key={p.id} hover>
+              <TableCell sx={{ fontFamily: "monospace" }}>{p.policyNumber}</TableCell>
+              <TableCell>{p.insuranceCompanyName}</TableCell>
+              <TableCell>{p.policyType}</TableCell>
+              <TableCell>{p.startDate} → {p.endDate}</TableCell>
+              <TableCell align="right">{p.premium.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {p.currency}</TableCell>
+              <TableCell><Chip size="small" label={p.status} /></TableCell>
+              <TableCell>
+                <Button size="small" component={RouterLink} to={`/app/policies?focus=${p.id}`}>Προβολή</Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
+  );
+}
+
+/* ---------- Claims tab ---------- */
+
+function CustomerClaimsTab({ customerId: _customerId }: { customerId: string }) {
+  // Claims are filtered by policy on the backend; fetch all and filter client-side
+  // for the user's policies.
+  const policiesQ = useQuery({
+    queryKey: ["customer-policies-for-claims", _customerId],
+    queryFn: async () => (await api.get<{ id: string }[]>("/policies", { params: { customerId: _customerId } })).data
+  });
+  const claimsQ = useQuery({
+    queryKey: ["customer-claims", _customerId],
+    queryFn: async () => (await api.get<any[]>("/claims")).data
+  });
+  if (policiesQ.isLoading || claimsQ.isLoading) return <CircularProgress />;
+  const policyIds = new Set((policiesQ.data ?? []).map(p => p.id));
+  const claims = (claimsQ.data ?? []).filter((c: any) => policyIds.has(c.policyId));
+  if (claims.length === 0) return <Alert severity="success">Δεν υπάρχουν ζημίες.</Alert>;
+  return (
+    <Card variant="outlined">
+      <Table size="small">
+        <TableHead><TableRow>
+          <TableCell>Αρ. Ζημίας</TableCell>
+          <TableCell>Συμβόλαιο</TableCell>
+          <TableCell>Συμβάν</TableCell>
+          <TableCell>Κατάσταση</TableCell>
+          <TableCell align="right">Διεκδικ.</TableCell>
+          <TableCell align="right">Εγκρ.</TableCell>
+        </TableRow></TableHead>
+        <TableBody>
+          {claims.map((c: any) => (
+            <TableRow key={c.id} hover>
+              <TableCell>{c.claimNumber}</TableCell>
+              <TableCell sx={{ fontFamily: "monospace" }}>{c.policyNumber}</TableCell>
+              <TableCell>{c.incidentDate}</TableCell>
+              <TableCell><Chip size="small" label={c.status} /></TableCell>
+              <TableCell align="right">{c.claimedAmount?.toFixed?.(2) ?? "—"}</TableCell>
+              <TableCell align="right">{c.approvedAmount?.toFixed?.(2) ?? "—"}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
+  );
+}
+
+/* ---------- Notifications tab ---------- */
+
+function CustomerNotificationsTab({ customerId }: { customerId: string }) {
+  const q = useQuery({
+    queryKey: ["customer-notifications", customerId],
+    queryFn: async () => {
+      try { return (await api.get<any[]>(`/customers/${customerId}/notifications`)).data; }
+      catch { return [] as any[]; }
+    }
+  });
+  if (q.isLoading) return <CircularProgress />;
+  const rows = q.data ?? [];
+  if (!Array.isArray(rows) || rows.length === 0)
+    return <Alert severity="info">Δεν έχουν αποσταλεί ειδοποιήσεις προς αυτόν τον πελάτη.</Alert>;
+  return (
+    <Card variant="outlined">
+      <Table size="small">
+        <TableHead><TableRow>
+          <TableCell>Ημ/νία</TableCell>
+          <TableCell>Τύπος</TableCell>
+          <TableCell>Θέμα</TableCell>
+          <TableCell>Κατάσταση</TableCell>
+        </TableRow></TableHead>
+        <TableBody>
+          {rows.map((n: any) => (
+            <TableRow key={n.id}>
+              <TableCell>{n.createdAt}</TableCell>
+              <TableCell>{n.kind ?? n.type ?? "—"}</TableCell>
+              <TableCell>{n.title ?? n.subject ?? "—"}</TableCell>
+              <TableCell>{n.isRead ? "Αναγνώστηκε" : "Μη αναγνωσμένη"}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
+  );
 }
 
 /* ---------- Overview ---------- */

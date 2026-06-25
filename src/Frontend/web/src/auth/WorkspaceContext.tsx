@@ -18,6 +18,8 @@ const Ctx = createContext<WorkspaceCtx | null>(null);
  * top-bar chips. The state survives a hard refresh via sessionStorage.
  */
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  // Phase 15.1 — restored hub flow: user lands on hub (workspace = null) and
+  // picks BackOffice or CRM Client Portal. State survives reload via sessionStorage.
   const [workspace, setW] = useState<PackageCode | null>(() => {
     if (typeof window === "undefined") return null;
     const v = sessionStorage.getItem(STORAGE_KEY);
@@ -47,7 +49,8 @@ export function useWorkspace(): WorkspaceCtx {
 
 /** Mapping each package to the page the "Open workspace" button navigates to. */
 export const WORKSPACE_DEFAULT_ROUTE: Record<PackageCode, string> = {
-  BackOffice:   "/app/financial-movements",
+  // BackOffice lands on the agency dashboard (charts + KPIs), not a leaf page.
+  BackOffice:   "/app",
   FrontOffice:  "/app/quote-builder",
   Crm:          "/app/customers",
   Intelligence: "/app/report-builder",

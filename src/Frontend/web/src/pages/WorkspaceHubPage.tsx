@@ -20,13 +20,14 @@ interface PackageMeta {
   bodyKey: string;
 }
 
+// Phase 15.1 — for now only BackOffice + Crm (client portal) are operational.
+// Other workspaces are intentionally hidden until they're production-ready.
 const PACKAGES: PackageMeta[] = [
   { code: "BackOffice",   icon: <AccountBalanceIcon />, tagKey: "tag.I",   nameKey: "ws.BackOffice.name",   bodyKey: "ws.BackOffice.body" },
-  { code: "FrontOffice",  icon: <RequestQuoteIcon />,   tagKey: "tag.II",  nameKey: "ws.FrontOffice.name",  bodyKey: "ws.FrontOffice.body" },
-  { code: "Crm",          icon: <PeopleIcon />,         tagKey: "tag.III", nameKey: "ws.Crm.name",          bodyKey: "ws.Crm.body" },
-  { code: "Intelligence", icon: <InsightsIcon />,       tagKey: "tag.IV",  nameKey: "ws.Intelligence.name", bodyKey: "ws.Intelligence.body" },
-  { code: "Integrations", icon: <HubIcon />,            tagKey: "tag.V",   nameKey: "ws.Integrations.name", bodyKey: "ws.Integrations.body" }
+  { code: "Crm",          icon: <PeopleIcon />,         tagKey: "tag.II",  nameKey: "ws.Crm.name",          bodyKey: "ws.Crm.body" }
 ];
+// Kept for type safety — re-enable these by moving them into PACKAGES above.
+void RequestQuoteIcon; void InsightsIcon; void HubIcon;
 
 // One palette across all five. Dark navy border + gold accent only.
 const INK = "#0b2545";

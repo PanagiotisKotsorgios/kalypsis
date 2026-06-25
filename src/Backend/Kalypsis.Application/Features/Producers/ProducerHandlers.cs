@@ -10,10 +10,10 @@ namespace Kalypsis.Application.Features.Producers;
 
 public record ProducerDto(
     Guid Id, string Code, string Name, string? Email, string? Phone,
-    ProducerStatus Status, int PolicyCount, DateTime CreatedAt);
+    ProducerStatus Status, ProducerTier Tier, int PolicyCount, DateTime CreatedAt);
 
-public record CreateProducerBody(string Code, string Name, string? Email, string? Phone, ProducerStatus Status);
-public record UpdateProducerBody(string Code, string Name, string? Email, string? Phone, ProducerStatus Status);
+public record CreateProducerBody(string Code, string Name, string? Email, string? Phone, ProducerStatus Status, ProducerTier Tier = ProducerTier.None);
+public record UpdateProducerBody(string Code, string Name, string? Email, string? Phone, ProducerStatus Status, ProducerTier Tier = ProducerTier.None);
 
 /* ========= List ========= */
 
@@ -32,7 +32,7 @@ public class ListProducersQueryHandler : IRequestHandler<ListProducersQuery, IRe
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null)
             .OrderBy(p => p.Name)
             .Select(p => new ProducerDto(
-                p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status,
+                p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, p.Tier,
                 _db.Policies.IgnoreQueryFilters().Count(x => x.ProducerId == p.Id && x.DeletedAt == null),
                 p.CreatedAt))
             .ToListAsync(ct);
@@ -77,11 +77,11 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
             Id = Guid.NewGuid(), TenantId = tenantId,
             Code = code, Name = b.Name.Trim(),
             Email = b.Email?.Trim().ToLowerInvariant(), Phone = b.Phone?.Trim(),
-            Status = b.Status
+            Status = b.Status, Tier = b.Tier
         };
         _db.Producers.Add(p);
         await _db.SaveChangesAsync(ct);
-        return new ProducerDto(p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, 0, p.CreatedAt);
+        return new ProducerDto(p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, p.Tier, 0, p.CreatedAt);
     }
 }
 
@@ -108,11 +108,12 @@ public class UpdateProducerCommandHandler : IRequestHandler<UpdateProducerComman
         p.Email = b.Email?.Trim().ToLowerInvariant();
         p.Phone = b.Phone?.Trim();
         p.Status = b.Status;
+        p.Tier   = b.Tier;
         await _db.SaveChangesAsync(ct);
 
         var count = await _db.Policies.IgnoreQueryFilters()
             .CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct);
-        return new ProducerDto(p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, count, p.CreatedAt);
+        return new ProducerDto(p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, p.Tier, count, p.CreatedAt);
     }
 }
 

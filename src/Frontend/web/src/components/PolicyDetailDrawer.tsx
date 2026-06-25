@@ -1,0 +1,402 @@
+import { useEffect, useState } from "react";
+import {
+  Alert, Box, Button, Chip, CircularProgress, Divider, Drawer, IconButton, MenuItem,
+  Stack, Switch, Tab, Tabs, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import SaveIcon from "@mui/icons-material/Save";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { api, extractErrorMessage } from "../api/client";
+
+// Mirrors PolicyDetailDto from the backend (see PolicyDetailQuery.cs).
+export interface PolicyDetail {
+  id: string; policyNumber: string; policyType: string; status: string;
+  startDate: string; endDate: string;
+  createdAt: string; updatedAt: string | null; createdByName: string | null;
+  customerId: string; customerDisplay: string;
+  customerEmail: string | null; customerPhone: string | null; customerVat: string | null;
+  insuranceCompanyId: string; insuranceCompanyName: string; insuranceCompanyCode: string | null;
+  producerId: string | null; producerName: string | null; producerCode: string | null;
+  premium: number; currency: string;
+  paymentFrequency: string; premiumIncludesVat: boolean;
+  specialCommissionPercent: number | null;
+  specsJson: string | null;
+  nextRenewalDate: string | null;
+  renewalTransferToProducerId: string | null; renewalTransferToProducerName: string | null;
+  renewalTransferToCarrierId: string | null; renewalTransferToCarrierName: string | null;
+  retainCommissionsOnRenewal: boolean; retainDocumentNumberOnRenewal: boolean; retainSpecialCommissionsOnRenewal: boolean;
+  renewalInstructions: string | null;
+  deliveredAt: string | null; deliveredTo: string | null; deliveryMethod: string | null;
+  renewedFromPolicyId: string | null; renewedFromPolicyNumber: string | null;
+  endorsementCount: number; cancellationCount: number; claimCount: number; commissionTxnCount: number;
+  documentCount: number; receiptCount: number;
+  totalReceived: number; outstanding: number; totalCommissions: number;
+}
+
+interface Props {
+  policyId: string | null;
+  open: boolean;
+  onClose: () => void;
+}
+
+const STATUS_COLOR: Record<string, "default" | "success" | "warning" | "info" | "error"> = {
+  Active: "success", Draft: "default", Expired: "warning", Cancelled: "error",
+  Renewed: "info", PendingRenewal: "warning"
+};
+
+const FREQUENCIES = ["Annual", "Semiannual", "Quarterly", "Monthly", "Single"];
+const DELIVERY_METHODS = ["Hand", "Post", "Email", "Courier"];
+
+export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [tab, setTab] = useState(0);
+  const [err, setErr] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const q = useQuery({
+    queryKey: ["policy-detail", policyId],
+    enabled: !!policyId && open,
+    queryFn: async () => (await api.get<PolicyDetail>(`/policies/${policyId}/detail`)).data
+  });
+
+  // Editable extended form (Phase 12 fields). Initialized from query data.
+  const [form, setForm] = useState({
+    paymentFrequency: "Annual",
+    premiumIncludesVat: true,
+    specialCommissionPercent: "",
+    specsJson: "",
+    nextRenewalDate: "",
+    renewalTransferToProducerId: "",
+    renewalTransferToCarrierId: "",
+    retainCommissionsOnRenewal: false,
+    retainDocumentNumberOnRenewal: false,
+    retainSpecialCommissionsOnRenewal: false,
+    renewalInstructions: "",
+    deliveredAt: "",
+    deliveredTo: "",
+    deliveryMethod: ""
+  });
+  useEffect(() => {
+    if (q.data) {
+      setForm({
+        paymentFrequency: q.data.paymentFrequency,
+        premiumIncludesVat: q.data.premiumIncludesVat,
+        specialCommissionPercent: q.data.specialCommissionPercent?.toString() ?? "",
+        specsJson: q.data.specsJson ?? "",
+        nextRenewalDate: q.data.nextRenewalDate ?? "",
+        renewalTransferToProducerId: q.data.renewalTransferToProducerId ?? "",
+        renewalTransferToCarrierId: q.data.renewalTransferToCarrierId ?? "",
+        retainCommissionsOnRenewal: q.data.retainCommissionsOnRenewal,
+        retainDocumentNumberOnRenewal: q.data.retainDocumentNumberOnRenewal,
+        retainSpecialCommissionsOnRenewal: q.data.retainSpecialCommissionsOnRenewal,
+        renewalInstructions: q.data.renewalInstructions ?? "",
+        deliveredAt: q.data.deliveredAt ?? "",
+        deliveredTo: q.data.deliveredTo ?? "",
+        deliveryMethod: q.data.deliveryMethod ?? ""
+      });
+    }
+  }, [q.data]);
+
+  // Tab-specific data sources (loaded only when the tab is opened).
+  const endorsements = useQuery({
+    queryKey: ["policy-endorsements", policyId],
+    enabled: open && tab === 5 && !!policyId,
+    queryFn: async () => (await api.get<any[]>("/endorsements", { params: { policyId } })).data.filter((e: any) => e.policyId === policyId)
+  });
+  const claims = useQuery({
+    queryKey: ["policy-claims", policyId],
+    enabled: open && tab === 6 && !!policyId,
+    queryFn: async () => (await api.get<any[]>("/claims", { params: { policyId } })).data
+  });
+  const receipts = useQuery({
+    queryKey: ["policy-receipts", policyId],
+    enabled: open && tab === 7 && !!policyId,
+    queryFn: async () => (await api.get<any[]>("/receipts")).data.filter((r: any) => r.policyId === policyId)
+  });
+
+  const save = useMutation({
+    mutationFn: async () => (await api.put<PolicyDetail>(`/policies/${policyId}/extended`, {
+      paymentFrequency: form.paymentFrequency,
+      premiumIncludesVat: form.premiumIncludesVat,
+      specialCommissionPercent: form.specialCommissionPercent ? Number(form.specialCommissionPercent) : null,
+      specsJson: form.specsJson || null,
+      nextRenewalDate: form.nextRenewalDate || null,
+      renewalTransferToProducerId: form.renewalTransferToProducerId || null,
+      renewalTransferToCarrierId: form.renewalTransferToCarrierId || null,
+      retainCommissionsOnRenewal: form.retainCommissionsOnRenewal,
+      retainDocumentNumberOnRenewal: form.retainDocumentNumberOnRenewal,
+      retainSpecialCommissionsOnRenewal: form.retainSpecialCommissionsOnRenewal,
+      renewalInstructions: form.renewalInstructions || null,
+      deliveredAt: form.deliveredAt || null,
+      deliveredTo: form.deliveredTo || null,
+      deliveryMethod: form.deliveryMethod || null
+    })).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] });
+      void qc.invalidateQueries({ queryKey: ["policies"] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    },
+    onError: (e) => setErr(extractErrorMessage(e))
+  });
+
+  const p = q.data;
+
+  return (
+    <Drawer anchor="right" open={open} onClose={onClose}
+      PaperProps={{ sx: { width: { xs: "100%", md: 720 } } }}>
+      <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        {/* Sticky header */}
+        <Box sx={{ p: 2.5, borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.paper" }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
+            <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 700 }}>
+              {t("policyDetail.header")}
+            </Typography>
+            <IconButton size="small" onClick={onClose}><CloseIcon /></IconButton>
+          </Stack>
+          {q.isLoading ? <CircularProgress size={20} /> : p ? (
+            <>
+              <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap">
+                <Typography variant="h5" fontWeight={800} sx={{ fontFamily: "monospace" }}>{p.policyNumber}</Typography>
+                <Chip size="small" color={STATUS_COLOR[p.status] ?? "default"} label={p.status} />
+                <Chip size="small" variant="outlined" label={p.policyType} />
+              </Stack>
+              <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                {p.customerDisplay} · {p.insuranceCompanyName}
+              </Typography>
+              <Stack direction="row" spacing={3} mt={2}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">{t("policyDetail.premium")}</Typography>
+                  <Typography fontWeight={700}>{p.premium.toFixed(2)} {p.currency}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">{t("policyDetail.received")}</Typography>
+                  <Typography fontWeight={700} color="success.main">{p.totalReceived.toFixed(2)}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">{t("policyDetail.outstanding")}</Typography>
+                  <Typography fontWeight={700} color={p.outstanding > 0 ? "error.main" : "text.primary"}>
+                    {p.outstanding.toFixed(2)}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">{t("policyDetail.commissions")}</Typography>
+                  <Typography fontWeight={700}>{p.totalCommissions.toFixed(2)}</Typography>
+                </Box>
+              </Stack>
+            </>
+          ) : null}
+        </Box>
+
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" sx={{ px: 1, borderBottom: "1px solid", borderColor: "divider" }}>
+          <Tab label={t("policyDetail.tab.summary")} />
+          <Tab label={t("policyDetail.tab.financials")} />
+          <Tab label={t("policyDetail.tab.parties")} />
+          <Tab label={t("policyDetail.tab.renewal")} />
+          <Tab label={t("policyDetail.tab.delivery")} />
+          <Tab label={`${t("policyDetail.tab.endorsements")} (${p?.endorsementCount ?? 0})`} />
+          <Tab label={`${t("policyDetail.tab.claims")} (${p?.claimCount ?? 0})`} />
+          <Tab label={`${t("policyDetail.tab.receipts")} (${p?.receiptCount ?? 0})`} />
+        </Tabs>
+
+        {/* Scrollable content */}
+        <Box sx={{ flex: 1, overflowY: "auto", p: 3 }}>
+          {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+          {saved && <Alert severity="success" sx={{ mb: 2 }}>{t("common.savedOk")}</Alert>}
+
+          {!p ? <CircularProgress /> : (
+            <>
+              {/* SUMMARY */}
+              {tab === 0 && (
+                <Stack spacing={2}>
+                  <KV label={t("policyDetail.policyNumber")} value={p.policyNumber} mono />
+                  <KV label={t("policyDetail.policyType")} value={p.policyType} />
+                  <KV label={t("policyDetail.status")} value={<Chip size="small" color={STATUS_COLOR[p.status]} label={p.status} />} />
+                  <KV label={t("policyDetail.startDate")} value={p.startDate} />
+                  <KV label={t("policyDetail.endDate")} value={p.endDate} />
+                  <Divider />
+                  <KV label={t("policyDetail.createdAt")} value={new Date(p.createdAt).toLocaleString("el-GR")} />
+                  {p.updatedAt && <KV label={t("policyDetail.updatedAt")} value={new Date(p.updatedAt).toLocaleString("el-GR")} />}
+                  {p.createdByName && <KV label={t("policyDetail.createdBy")} value={p.createdByName} />}
+                  {p.renewedFromPolicyNumber && (
+                    <KV label={t("policyDetail.renewedFrom")} value={p.renewedFromPolicyNumber} mono />
+                  )}
+                </Stack>
+              )}
+
+              {/* FINANCIALS */}
+              {tab === 1 && (
+                <Stack spacing={2.5}>
+                  <KV label={t("policyDetail.premium")} value={`${p.premium.toFixed(2)} ${p.currency}`} />
+                  <TextField select fullWidth label={t("policyDetail.paymentFrequency")} value={form.paymentFrequency}
+                    onChange={e => setForm({ ...form, paymentFrequency: e.target.value })}>
+                    {FREQUENCIES.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
+                  </TextField>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Switch checked={form.premiumIncludesVat} onChange={e => setForm({ ...form, premiumIncludesVat: e.target.checked })} />
+                    <Typography>{t("policyDetail.premiumIncludesVat")}</Typography>
+                  </Stack>
+                  <TextField type="number" fullWidth label={t("policyDetail.specialCommission")}
+                    value={form.specialCommissionPercent}
+                    onChange={e => setForm({ ...form, specialCommissionPercent: e.target.value })}
+                    helperText={t("policyDetail.specialCommissionHelp")} />
+                  <Divider />
+                  <KV label={t("policyDetail.totalReceived")} value={`${p.totalReceived.toFixed(2)} ${p.currency}`} />
+                  <KV label={t("policyDetail.outstanding")} value={`${p.outstanding.toFixed(2)} ${p.currency}`} />
+                  <KV label={t("policyDetail.totalCommissions")} value={`${p.totalCommissions.toFixed(2)} ${p.currency}`} />
+                </Stack>
+              )}
+
+              {/* PARTIES */}
+              {tab === 2 && (
+                <Stack spacing={2}>
+                  <Typography variant="overline" color="text.secondary" fontWeight={700}>{t("policyDetail.customer")}</Typography>
+                  <KV label={t("policyDetail.name")} value={p.customerDisplay} />
+                  {p.customerVat && <KV label="ΑΦΜ" value={p.customerVat} mono />}
+                  {p.customerEmail && <KV label="Email" value={<a href={`mailto:${p.customerEmail}`}>{p.customerEmail}</a>} />}
+                  {p.customerPhone && <KV label={t("policyDetail.phone")} value={<a href={`tel:${p.customerPhone}`}>{p.customerPhone}</a>} />}
+                  <Divider />
+                  <Typography variant="overline" color="text.secondary" fontWeight={700}>{t("policyDetail.insurer")}</Typography>
+                  <KV label={t("policyDetail.name")} value={p.insuranceCompanyName} />
+                  {p.insuranceCompanyCode && <KV label={t("policyDetail.code")} value={p.insuranceCompanyCode} mono />}
+                  <Divider />
+                  <Typography variant="overline" color="text.secondary" fontWeight={700}>{t("policyDetail.producer")}</Typography>
+                  <KV label={t("policyDetail.name")} value={p.producerName ?? "—"} />
+                  {p.producerCode && <KV label={t("policyDetail.code")} value={p.producerCode} mono />}
+                </Stack>
+              )}
+
+              {/* RENEWAL */}
+              {tab === 3 && (
+                <Stack spacing={2.5}>
+                  <TextField type="date" fullWidth label={t("policyDetail.nextRenewal")} InputLabelProps={{ shrink: true }}
+                    value={form.nextRenewalDate} onChange={e => setForm({ ...form, nextRenewalDate: e.target.value })} />
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Switch checked={form.retainCommissionsOnRenewal} onChange={e => setForm({ ...form, retainCommissionsOnRenewal: e.target.checked })} />
+                    <Typography>{t("policyDetail.retainCommissions")}</Typography>
+                  </Stack>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Switch checked={form.retainDocumentNumberOnRenewal} onChange={e => setForm({ ...form, retainDocumentNumberOnRenewal: e.target.checked })} />
+                    <Typography>{t("policyDetail.retainDocNumber")}</Typography>
+                  </Stack>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Switch checked={form.retainSpecialCommissionsOnRenewal} onChange={e => setForm({ ...form, retainSpecialCommissionsOnRenewal: e.target.checked })} />
+                    <Typography>{t("policyDetail.retainSpecialCommissions")}</Typography>
+                  </Stack>
+                  <TextField fullWidth multiline rows={3} label={t("policyDetail.renewalInstructions")}
+                    value={form.renewalInstructions} onChange={e => setForm({ ...form, renewalInstructions: e.target.value })}
+                    placeholder={t("policyDetail.renewalInstructionsPlaceholder")} />
+                </Stack>
+              )}
+
+              {/* DELIVERY */}
+              {tab === 4 && (
+                <Stack spacing={2.5}>
+                  <TextField type="date" fullWidth label={t("policyDetail.deliveredAt")} InputLabelProps={{ shrink: true }}
+                    value={form.deliveredAt} onChange={e => setForm({ ...form, deliveredAt: e.target.value })} />
+                  <TextField fullWidth label={t("policyDetail.deliveredTo")} value={form.deliveredTo}
+                    onChange={e => setForm({ ...form, deliveredTo: e.target.value })} />
+                  <TextField select fullWidth label={t("policyDetail.deliveryMethod")} value={form.deliveryMethod}
+                    onChange={e => setForm({ ...form, deliveryMethod: e.target.value })}>
+                    <MenuItem value="">—</MenuItem>
+                    {DELIVERY_METHODS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                  </TextField>
+                </Stack>
+              )}
+
+              {/* RELATED LISTS */}
+              {tab === 5 && (
+                endorsements.isLoading ? <CircularProgress /> :
+                <SimpleList rows={endorsements.data ?? []}
+                  cols={[
+                    { key: "endorsementNumber", label: t("policyDetail.endorsementNo") },
+                    { key: "issuedAt", label: t("policyDetail.issuedAt") },
+                    { key: "premiumDelta", label: "ΔΑσφάλιστρο", numeric: true },
+                    { key: "description", label: t("common.description") }
+                  ]}
+                  emptyKey="policyDetail.noEndorsements" />
+              )}
+              {tab === 6 && (
+                claims.isLoading ? <CircularProgress /> :
+                <SimpleList rows={claims.data ?? []}
+                  cols={[
+                    { key: "claimNumber", label: t("policyDetail.claimNo") },
+                    { key: "incidentDate", label: t("policyDetail.incidentDate") },
+                    { key: "status", label: t("common.status") },
+                    { key: "approvedAmount", label: t("policyDetail.amount"), numeric: true }
+                  ]}
+                  emptyKey="policyDetail.noClaims" />
+              )}
+              {tab === 7 && (
+                receipts.isLoading ? <CircularProgress /> :
+                <SimpleList rows={receipts.data ?? []}
+                  cols={[
+                    { key: "number", label: t("policyDetail.receiptNo") },
+                    { key: "receivedOn", label: t("policyDetail.paidOn") },
+                    { key: "method", label: t("policyDetail.method") },
+                    { key: "amount", label: t("policyDetail.amount"), numeric: true }
+                  ]}
+                  emptyKey="policyDetail.noReceipts" />
+              )}
+            </>
+          )}
+        </Box>
+
+        {/* Sticky footer with save (only on editable tabs) */}
+        {(tab >= 1 && tab <= 4) && (
+          <Box sx={{ p: 2, borderTop: "1px solid", borderColor: "divider" }}>
+            <Stack direction="row" spacing={1} justifyContent="flex-end">
+              <Button onClick={onClose}>{t("common.cancel")}</Button>
+              <Button variant="contained" startIcon={<SaveIcon />} disabled={save.isPending} onClick={() => save.mutate()}>
+                {save.isPending ? <CircularProgress size={18} /> : t("common.save")}
+              </Button>
+            </Stack>
+          </Box>
+        )}
+      </Box>
+    </Drawer>
+  );
+}
+
+function KV({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
+  return (
+    <Stack direction="row" spacing={2} sx={{ py: 0.5 }}>
+      <Typography sx={{ width: 200, color: "text.secondary", flexShrink: 0 }}>{label}</Typography>
+      <Typography sx={{ fontFamily: mono ? "monospace" : undefined, fontWeight: 500, wordBreak: "break-word" }}>
+        {value}
+      </Typography>
+    </Stack>
+  );
+}
+
+function SimpleList({ rows, cols, emptyKey }: {
+  rows: any[];
+  cols: { key: string; label: string; numeric?: boolean }[];
+  emptyKey: string;
+}) {
+  const { t } = useTranslation();
+  if (rows.length === 0) {
+    return <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>{t(emptyKey)}</Typography>;
+  }
+  return (
+    <Table size="small">
+      <TableHead><TableRow>
+        {cols.map(c => <TableCell key={c.key} align={c.numeric ? "right" : "left"}>{c.label}</TableCell>)}
+      </TableRow></TableHead>
+      <TableBody>
+        {rows.map((row, i) => (
+          <TableRow key={row.id ?? i} hover>
+            {cols.map(c => (
+              <TableCell key={c.key} align={c.numeric ? "right" : "left"}
+                sx={{ fontFamily: c.key.toLowerCase().includes("number") || c.key.toLowerCase().includes("no") ? "monospace" : undefined }}>
+                {c.numeric && typeof row[c.key] === "number" ? row[c.key].toFixed(2) : (row[c.key] ?? "—")}
+              </TableCell>
+            ))}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}

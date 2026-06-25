@@ -30,6 +30,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
+import { ClaimDetailDrawer } from "../components/ClaimDetailDrawer";
+import { useTableState } from "../components/useTableState";
+import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type ClaimStatus = "Reported" | "UnderReview" | "Approved" | "Rejected" | "Paid" | "Closed";
@@ -79,7 +82,13 @@ export function ClaimsPage() {
   const [statusFilter, setStatusFilter] = useState<ClaimStatus | "">("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ClaimDto | null>(null);
+  const [detail, setDetail] = useState<ClaimDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [customerFilter, setCustomerFilter] = useState("");
+  const [carrierFilter,  setCarrierFilter]  = useState("");
+  const [typeFilter,     setTypeFilter]     = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate,   setToDate]   = useState("");
 
   const claimsQuery = useQuery({
     queryKey: ["claims", statusFilter],
@@ -90,7 +99,27 @@ export function ClaimsPage() {
     }
   });
 
-  const rows = claimsQuery.data ?? [];
+  const rawClaims = claimsQuery.data ?? [];
+  const allClaims = rawClaims.filter(c => {
+    if (carrierFilter && !c.insuranceCompanyName.toLowerCase().includes(carrierFilter.toLowerCase())) return false;
+    if (typeFilter && c.policyType !== typeFilter) return false;
+    if (customerFilter) {
+      const f = customerFilter.toLowerCase();
+      const hay = `${c.customerDisplay ?? ""} ${c.policyNumber ?? ""}`.toLowerCase();
+      if (!hay.includes(f)) return false;
+    }
+    if (fromDate && c.incidentDate < fromDate) return false;
+    if (toDate   && c.incidentDate > toDate)   return false;
+    return true;
+  });
+  const table = useTableState<ClaimDto>({
+    rows: allClaims,
+    searchableText: (c) => `${c.claimNumber} ${c.policyNumber} ${c.customerDisplay} ${c.insuranceCompanyName} ${c.policyType} ${c.status} ${c.description ?? ""}`,
+    pageSize: 25,
+    initialSortKey: "createdAt" as keyof ClaimDto,
+    initialSortDir: "desc"
+  });
+  const rows = table.paged;
 
   return (
     <Box>
@@ -107,7 +136,7 @@ export function ClaimsPage() {
           </Typography>
         </Box>
         {canEdit && (
-          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateOpen(true); }}>
+          <Button data-tour="claims-new" startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateOpen(true); }}>
             {t("claims.create")}
           </Button>
         )}
@@ -115,21 +144,64 @@ export function ClaimsPage() {
 
       {!isCustomer && (
         <Card sx={{ p: 2, mb: 2 }}>
-          <TextField
-            select size="small" label={t("claims.col.status")}
-            value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "")}
-            sx={{ minWidth: { sm: 220 } }}
-          >
-            <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
-            {(["Reported","UnderReview","Approved","Rejected","Paid","Closed"] as const).map(s =>
-              <MenuItem key={s} value={s}>{t(`claims.statuses.${s}`)}</MenuItem>
-            )}
-          </TextField>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
+            <TextField select size="small" label={t("claims.col.status")}
+              value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "")}
+              sx={{ minWidth: 180 }}>
+              <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
+              {(["Reported","UnderReview","Approved","Rejected","Paid","Closed"] as const).map(s =>
+                <MenuItem key={s} value={s}>{t(`claims.statuses.${s}`)}</MenuItem>)}
+            </TextField>
+            <TextField size="small" label="Πελάτης / Συμβόλαιο / ΑΦΜ" placeholder="…αναζήτηση…"
+              value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)}
+              sx={{ minWidth: 260 }} />
+            <TextField size="small" label="Εταιρία"
+              value={carrierFilter} onChange={(e) => setCarrierFilter(e.target.value)}
+              sx={{ minWidth: 180 }} />
+            <TextField select size="small" label="Κλάδος"
+              value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
+              sx={{ minWidth: 160 }}>
+              <MenuItem value="">Όλοι</MenuItem>
+              {(["Auto","Home","Health","Life","Business","Travel","Other"] as const).map(p =>
+                <MenuItem key={p} value={p}>{t(`policies.types.${p}`)}</MenuItem>)}
+            </TextField>
+            <TextField size="small" type="date" label="Συμβάν από" InputLabelProps={{ shrink: true }}
+              value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+            <TextField size="small" type="date" label="Συμβάν έως" InputLabelProps={{ shrink: true }}
+              value={toDate} onChange={(e) => setToDate(e.target.value)} />
+            <Button size="small" onClick={() => {
+              setStatusFilter(""); setCustomerFilter(""); setCarrierFilter("");
+              setTypeFilter(""); setFromDate(""); setToDate("");
+            }}>Καθαρισμός</Button>
+          </Stack>
         </Card>
       )}
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
 
+      <Box sx={{ mb: 2 }}>
+        <TableToolbar<ClaimDto>
+          query={table.query} onQuery={table.setQuery}
+          count={allClaims.length} filteredCount={table.filtered.length}
+          pageSize={table.pageSize} onPageSize={table.setPageSize}
+          exportRows={table.filtered}
+          exportFileName={`claims-${new Date().toISOString().slice(0, 10)}`}
+          serverEntity="claims"
+          serverParams={{ search: table.query }}
+          exportColumns={[
+            { key: "claimNumber", label: "Αρ. Ζημιάς" },
+            { key: "policyNumber", label: "Αρ. Συμβ." },
+            { key: "customerDisplay", label: "Πελάτης" },
+            { key: "insuranceCompanyName", label: "Εταιρία" },
+            { key: "policyType", label: "Κλάδος" },
+            { key: "incidentDate", label: "Ημ. ατυχήματος" },
+            { key: "reportedDate", label: "Δηλώθηκε" },
+            { key: "status", label: "Κατάσταση" },
+            { key: "claimedAmount", label: "Αιτηθέν" },
+            { key: "approvedAmount", label: "Εγκριθέν" }
+          ]}
+        />
+      </Box>
       {claimsQuery.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
       ) : (
@@ -149,9 +221,14 @@ export function ClaimsPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {rows.map((c) => (
-                  <TableRow key={c.id} hover>
-                    <TableCell><Chip label={c.claimNumber} variant="outlined" size="small" /></TableCell>
+                {rows.map((c, idx) => (
+                  <TableRow key={c.id} hover sx={{ cursor: "pointer" }}
+                    data-tour={idx === 0 ? "claims-row" : undefined}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest("button, a, .MuiIconButton-root")) return;
+                      setDetail(c);
+                    }}>
+                    <TableCell><Chip data-tour={idx === 0 ? "claims-status" : undefined} label={c.claimNumber} variant="outlined" size="small" /></TableCell>
                     <TableCell>
                       <Typography fontWeight={600}>{c.policyNumber}</Typography>
                       <Typography variant="caption" color="text.secondary">
@@ -196,6 +273,9 @@ export function ClaimsPage() {
               </TableBody>
             </Table>
           </TableContainer>
+          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} />
+          </Box>
         </Card>
       )}
 
@@ -213,6 +293,7 @@ export function ClaimsPage() {
           />
         </>
       )}
+      <ClaimDetailDrawer claim={detail as any} open={!!detail} onClose={() => setDetail(null)} />
     </Box>
   );
 }

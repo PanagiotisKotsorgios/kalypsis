@@ -24,4 +24,15 @@ public class UsersController : ControllerBase
         var result = await _mediator.Send(new CreateEmployeeCommand(request), cancellationToken);
         return CreatedAtAction(nameof(List), null, result);
     }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<UserDto>> Update(Guid id, [FromBody] UpdateEmployeeRequest body, CancellationToken ct)
+        => Ok(await _mediator.Send(new UpdateEmployeeCommand(id, body), ct));
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        await _mediator.Send(new DeleteEmployeeCommand(id), ct);
+        return NoContent();
+    }
 }

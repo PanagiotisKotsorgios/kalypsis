@@ -69,6 +69,29 @@ public static class DemoDataSeeder
             log.LogInformation("Seeded demo tenant {Code}", DemoTenantCode);
         }
 
+        // Demo tenant gets every package so screenshots and QA cover all features.
+        // Idempotent — skips any grant that already exists (works even with soft-deleted
+        // rows because the unique index includes deleted entries).
+        var existingPkgs = await db.TenantPackageGrants.IgnoreQueryFilters()
+            .Where(g => g.TenantId == tenant.Id).Select(g => g.Package).ToListAsync(ct);
+        var missing = Enum.GetValues<PackageCode>().Where(p => !existingPkgs.Contains(p)).ToList();
+        foreach (var pkg in missing)
+        {
+            db.TenantPackageGrants.Add(new TenantPackageGrant
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenant.Id,
+                Package = pkg,
+                EnabledAt = clock.UtcNow,
+                Notes = "Demo seed — full feature set"
+            });
+        }
+        if (missing.Count > 0)
+        {
+            await db.SaveChangesAsync(ct);
+            log.LogInformation("Granted {Count} packages to demo tenant", missing.Count);
+        }
+
         var rng = new Random(unchecked((int)tenant.Id.GetHashCode()));
 
         // ----- 2. Users (AgencyAdmin + AgencyUser + Producer) --------------

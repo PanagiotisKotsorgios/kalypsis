@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import {
-  Alert, Box, Button, Card, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -10,6 +10,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { ExportButton } from "../components/ExportButton";
+import { useTableState } from "../components/useTableState";
+import { NumberedPager } from "../components/TableToolbar";
 
 const METHODS = ["Cash","Card","BankTransfer","Cheque","PromissoryNote","Other"] as const;
 type Method = typeof METHODS[number];
@@ -20,26 +22,87 @@ interface ReceiptDto {
   method: Method; amount: number; currency: string; notes: string | null;
 }
 
+interface PolicyPaymentSummary {
+  policyId: string; policyNumber: string;
+  premium: number; paidAmount: number; remainingAmount: number;
+  status: "Unpaid" | "Partial" | "Paid" | "Overpaid";
+  statusLabelGr: string; lastReceiptDate: string | null; receiptCount: number;
+}
+
+const STATUS_COLOR: Record<PolicyPaymentSummary["status"], "default" | "success" | "warning" | "error" | "info"> = {
+  Paid: "success", Partial: "warning", Unpaid: "error", Overpaid: "info"
+};
+
+function PaidChip({ policyId }: { policyId: string | null }) {
+  const q = useQuery({
+    queryKey: ["policy-payment-summary", policyId],
+    queryFn: async () => (await api.get<PolicyPaymentSummary>(`/policies/${policyId}/payment-summary`)).data,
+    enabled: !!policyId, staleTime: 60_000
+  });
+  if (!policyId) return <Typography variant="caption" color="text.secondary">—</Typography>;
+  if (q.isLoading) return <Chip size="small" label="…" />;
+  if (!q.data) return <Chip size="small" label="?" />;
+  return (
+    <Chip size="small" color={STATUS_COLOR[q.data.status]}
+      label={`${q.data.statusLabelGr} (${q.data.paidAmount.toFixed(0)}/${q.data.premium.toFixed(0)} €)`}
+      sx={{ fontWeight: 700 }} />
+  );
+}
+
 export function ReceiptsPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
-  const q = useQuery({ queryKey: ["receipts"], queryFn: async () => (await api.get<ReceiptDto[]>("/receipts")).data });
+  const [search, setSearch] = useState("");
+  const [methodFilter, setMethodFilter] = useState<Method | "">("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [customerFilter, setCustomerFilter] = useState("");
+
+  const q = useQuery({
+    queryKey: ["receipts"],
+    queryFn: async () => (await api.get<ReceiptDto[]>("/receipts")).data
+  });
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/receipts/${id}`),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["receipts"] }),
     onError: e => setErr(extractErrorMessage(e))
   });
 
-  const total = (q.data ?? []).reduce((s, r) => s + r.amount, 0);
+  const rawRows = q.data ?? [];
+  const filtered = useMemo(() => rawRows.filter(r => {
+    if (methodFilter && r.method !== methodFilter) return false;
+    if (fromDate && r.receivedOn < fromDate) return false;
+    if (toDate   && r.receivedOn > toDate)   return false;
+    if (customerFilter) {
+      const c = customerFilter.toLowerCase();
+      if (!`${r.customerName} ${r.policyNumber ?? ""}`.toLowerCase().includes(c)) return false;
+    }
+    return true;
+  }), [rawRows, methodFilter, fromDate, toDate, customerFilter]);
+
+  const table = useTableState<ReceiptDto>({
+    rows: filtered,
+    searchableText: (r) => `${r.number} ${r.customerName} ${r.policyNumber ?? ""} ${r.method} ${r.notes ?? ""}`,
+    pageSize: 25
+  });
+  const rows = table.paged;
+  const total = filtered.reduce((s, r) => s + r.amount, 0);
+
+  useEffect(() => { table.setQuery(search); }, [search, table]);
 
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
-        <Box><Stack direction="row" alignItems="center" spacing={0.5}><Typography variant="h4" sx={{ fontWeight: 800 }}>{t("receipts.title")}</Typography><HelpHint id="page.receipts" /></Stack>
-          <Typography color="text.secondary">{t("receipts.subtitle")}</Typography></Box>
+        <Box>
+          <Stack direction="row" alignItems="center" spacing={0.5}>
+            <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("receipts.title")}</Typography>
+            <HelpHint id="page.receipts" />
+          </Stack>
+          <Typography color="text.secondary">{t("receipts.subtitle")}</Typography>
+        </Box>
         <Stack direction="row" spacing={2} alignItems="center">
           <Box sx={{ textAlign: "right" }}>
             <Typography variant="caption" color="text.secondary">{t("receipts.totalShown")}</Typography>
@@ -49,7 +112,31 @@ export function ReceiptsPage() {
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("receipts.create")}</Button>
         </Stack>
       </Stack>
+
+      <Card sx={{ p: 2, mb: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
+          <TextField size="small" placeholder="Αριθμός, πελάτης, συμβόλαιο, σημείωση…"
+            value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
+          <TextField select size="small" label="Μέθοδος"
+            value={methodFilter} onChange={(e) => setMethodFilter(e.target.value as Method | "")}
+            sx={{ minWidth: 160 }}>
+            <MenuItem value="">Όλες</MenuItem>
+            {METHODS.map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`)}</MenuItem>)}
+          </TextField>
+          <TextField size="small" label="Πελάτης / Συμβόλαιο"
+            value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)} sx={{ minWidth: 200 }} />
+          <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
+            value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
+            value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          <Button size="small" onClick={() => {
+            setSearch(""); setMethodFilter(""); setFromDate(""); setToDate(""); setCustomerFilter("");
+          }}>Καθαρισμός</Button>
+        </Stack>
+      </Card>
+
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
@@ -58,20 +145,22 @@ export function ReceiptsPage() {
               <TableCell>{t("receipts.date")}</TableCell>
               <TableCell>{t("receipts.customer")}</TableCell>
               <TableCell>{t("receipts.policy")}</TableCell>
+              <TableCell>Κατάσταση συμβολαίου</TableCell>
               <TableCell>{t("receipts.method")}</TableCell>
               <TableCell align="right">{t("receipts.amount")}</TableCell>
               <TableCell align="right" />
             </TableRow></TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
-                <TableRow><TableCell colSpan={7} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("receipts.empty")}</TableCell></TableRow>
+              {rows.length === 0 && (
+                <TableRow><TableCell colSpan={8} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("receipts.empty")}</TableCell></TableRow>
               )}
-              {(q.data ?? []).map(r => (
+              {rows.map(r => (
                 <TableRow key={r.id} hover>
                   <TableCell><Typography fontWeight={700} sx={{ fontFamily: "monospace" }}>{r.number}</Typography></TableCell>
                   <TableCell>{r.receivedOn}</TableCell>
                   <TableCell>{r.customerName}</TableCell>
                   <TableCell>{r.policyNumber ?? "—"}</TableCell>
+                  <TableCell><PaidChip policyId={r.policyId} /></TableCell>
                   <TableCell>{t(`paymentMethod.${r.method}`)}</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700 }}>{r.amount.toFixed(2)} {r.currency}</TableCell>
                   <TableCell align="right">
@@ -83,30 +172,73 @@ export function ReceiptsPage() {
               ))}
             </TableBody>
           </Table>
+          <Box sx={{ display: "flex", justifyContent: "center", py: 1.5 }}>
+            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} />
+          </Box>
         </Card>
       )}
 
       <FormDialog open={createOpen} onClose={() => setCreateOpen(false)}
-        onSaved={() => { void qc.invalidateQueries({ queryKey: ["receipts"] }); setCreateOpen(false); }} />
+        onSaved={() => {
+          void qc.invalidateQueries({ queryKey: ["receipts"] });
+          void qc.invalidateQueries({ queryKey: ["policy-payment-summary"] });
+          setCreateOpen(false);
+        }} />
     </Box>
   );
 }
 
 function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: () => void }) {
   const { t } = useTranslation();
-  const customers = useQuery({ queryKey: ["customers-lite"], enabled: open,
-    queryFn: async () => (await api.get<{ id: string; type: string; firstName?: string; lastName?: string; companyName?: string; }[]>("/customers")).data });
+  const customers = useQuery({
+    queryKey: ["customers-lite"], enabled: open,
+    queryFn: async () => (await api.get<{ id: string; type: string; firstName?: string; lastName?: string; companyName?: string; }[]>("/customers")).data
+  });
   const today = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({ number: "", receivedOn: today, customerId: "", policyId: "", method: "Cash" as Method, amount: 0, currency: "EUR", notes: "" });
+  const [form, setForm] = useState({
+    number: "", receivedOn: today, customerId: "", policyId: "",
+    method: "Cash" as Method, amount: 0, currency: "EUR", notes: ""
+  });
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => { if (open) setForm({ number: `R-${Date.now().toString().slice(-6)}`, receivedOn: today, customerId: "", policyId: "", method: "Cash", amount: 0, currency: "EUR", notes: "" }); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [open]);
+  // When customer is picked, fetch their open policies so the user can attach
+  // the receipt and auto-mark the contract as paid/partial.
+  const customerPolicies = useQuery({
+    queryKey: ["customer-policies-for-receipt", form.customerId],
+    enabled: open && !!form.customerId,
+    queryFn: async () => (await api.get<{ id: string; policyNumber: string; premium: number; insuranceCompanyName: string }[]>(
+      "/policies", { params: { customerId: form.customerId } })).data
+  });
+  const policyPayment = useQuery({
+    queryKey: ["policy-payment-summary", form.policyId],
+    enabled: open && !!form.policyId,
+    queryFn: async () => (await api.get<PolicyPaymentSummary>(`/policies/${form.policyId}/payment-summary`)).data
+  });
+
+  useEffect(() => {
+    if (open) setForm({
+      number: `R-${Date.now().toString().slice(-6)}`, receivedOn: today,
+      customerId: "", policyId: "", method: "Cash", amount: 0, currency: "EUR", notes: ""
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // When the user selects a policy with a remaining balance, prefill the receipt
+  // amount with the remaining so the receipt fully clears it (the user can edit).
+  useEffect(() => {
+    if (policyPayment.data && form.amount === 0) {
+      setForm(f => ({ ...f, amount: Number(policyPayment.data.remainingAmount.toFixed(2)) }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [policyPayment.data]);
 
   const save = useMutation({
     mutationFn: async () => {
-      const body = { number: form.number.trim(), receivedOn: form.receivedOn, customerId: form.customerId,
+      const body = {
+        number: form.number.trim(), receivedOn: form.receivedOn, customerId: form.customerId,
         policyId: form.policyId || null, method: form.method, amount: Number(form.amount),
-        currency: form.currency.toUpperCase(), notes: form.notes || null };
+        currency: form.currency.toUpperCase(), notes: form.notes || null
+      };
       return (await api.post("/receipts", body)).data;
     },
     onSuccess: onSaved, onError: e => setErr(extractErrorMessage(e))
@@ -119,25 +251,54 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2.5} mt={1}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField required label={t("receipts.number")} value={form.number} onChange={e => setForm({ ...form, number: e.target.value })} fullWidth />
-            <TextField type="date" label={t("receipts.date")} InputLabelProps={{ shrink: true }} value={form.receivedOn} onChange={e => setForm({ ...form, receivedOn: e.target.value })} fullWidth />
+            <TextField required label={t("receipts.number")} value={form.number}
+              onChange={e => setForm({ ...form, number: e.target.value })} fullWidth />
+            <TextField type="date" label={t("receipts.date")} InputLabelProps={{ shrink: true }}
+              value={form.receivedOn} onChange={e => setForm({ ...form, receivedOn: e.target.value })} fullWidth />
           </Stack>
-          <TextField select required label={t("receipts.customer")} value={form.customerId} onChange={e => setForm({ ...form, customerId: e.target.value })} fullWidth>
-            {(customers.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.type === "Individual" ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() : c.companyName}</MenuItem>)}
+          <TextField select required label={t("receipts.customer")} value={form.customerId}
+            onChange={e => setForm({ ...form, customerId: e.target.value, policyId: "" })} fullWidth>
+            {(customers.data ?? []).map(c => (
+              <MenuItem key={c.id} value={c.id}>
+                {c.type === "Individual" ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() : c.companyName}
+              </MenuItem>
+            ))}
           </TextField>
+          {form.customerId && (
+            <TextField select label="Συμβόλαιο (προαιρετικό)" value={form.policyId}
+              onChange={e => setForm({ ...form, policyId: e.target.value, amount: 0 })} fullWidth>
+              <MenuItem value="">— Καμία σύνδεση —</MenuItem>
+              {(customerPolicies.data ?? []).map(p => (
+                <MenuItem key={p.id} value={p.id}>
+                  {p.policyNumber} · {p.insuranceCompanyName} · {p.premium.toFixed(2)} €
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
+          {policyPayment.data && (
+            <Alert severity={STATUS_COLOR[policyPayment.data.status] === "success" ? "info" : STATUS_COLOR[policyPayment.data.status] as any}>
+              {policyPayment.data.statusLabelGr} · Πληρωμένο {policyPayment.data.paidAmount.toFixed(2)} € / {policyPayment.data.premium.toFixed(2)} € ·
+              Υπόλοιπο {policyPayment.data.remainingAmount.toFixed(2)} €
+            </Alert>
+          )}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("receipts.method")} value={form.method} onChange={e => setForm({ ...form, method: e.target.value as Method })} fullWidth>
+            <TextField select label={t("receipts.method")} value={form.method}
+              onChange={e => setForm({ ...form, method: e.target.value as Method })} fullWidth>
               {METHODS.map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`)}</MenuItem>)}
             </TextField>
-            <TextField type="number" required label={t("receipts.amount")} value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth />
-            <TextField label={t("tariffs.currency")} value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value.toUpperCase().slice(0, 3) })} fullWidth />
+            <TextField type="number" required label={t("receipts.amount")} value={form.amount}
+              onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth />
+            <TextField label={t("tariffs.currency")} value={form.currency}
+              onChange={e => setForm({ ...form, currency: e.target.value.toUpperCase().slice(0, 3) })} fullWidth />
           </Stack>
-          <TextField label={t("common.notes")} multiline rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} fullWidth />
+          <TextField label={t("common.notes")} multiline rows={2} value={form.notes}
+            onChange={e => setForm({ ...form, notes: e.target.value })} fullWidth />
         </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.number.trim() || !form.customerId || form.amount <= 0}>
+        <Button variant="contained" onClick={() => save.mutate()}
+          disabled={save.isPending || !form.number.trim() || !form.customerId || form.amount <= 0}>
           {save.isPending ? <CircularProgress size={18} /> : t("common.save")}
         </Button>
       </DialogActions>

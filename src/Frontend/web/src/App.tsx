@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+﻿import { Navigate, Route, Routes } from "react-router-dom";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import PeopleIcon from "@mui/icons-material/People";
 import DescriptionIcon from "@mui/icons-material/Description";
@@ -29,33 +29,16 @@ import RuleFolderIcon from "@mui/icons-material/RuleFolder";
 import TranslateIcon from "@mui/icons-material/Translate";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
-import PriceChangeIcon from "@mui/icons-material/PriceChange";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import EventIcon from "@mui/icons-material/Event";
-import FolderSpecialIcon from "@mui/icons-material/FolderSpecial";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
-import HubIcon from "@mui/icons-material/Hub";
 import LinkIcon from "@mui/icons-material/Link";
-import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
-import RestoreIcon from "@mui/icons-material/Restore";
-import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import LeaderboardIcon from "@mui/icons-material/Leaderboard";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
-import ImportExportIcon from "@mui/icons-material/ImportExport";
 import CalculateIcon from "@mui/icons-material/Calculate";
-import StackedLineChartIcon from "@mui/icons-material/StackedLineChart";
-import BoltIcon from "@mui/icons-material/Bolt";
-import PsychologyAltIcon from "@mui/icons-material/PsychologyAlt";
-import AssessmentIcon from "@mui/icons-material/Assessment";
-import PrintIcon from "@mui/icons-material/Print";
-import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
-import DriveEtaIcon from "@mui/icons-material/DriveEta";
 import ImageIcon from "@mui/icons-material/Image";
 import EngineeringIcon from "@mui/icons-material/Engineering";
-import HomeWorkIcon from "@mui/icons-material/HomeWork";
 
 import { useAuth, type Role } from "./auth/AuthContext";
 import { useImpersonation } from "./impersonation/ImpersonationContext";
@@ -145,6 +128,7 @@ import { EndorsementsPage } from "./pages/EndorsementsPage";
 import { PolicyCancellationsPage } from "./pages/PolicyCancellationsPage";
 import { CreditNotesPage } from "./pages/CreditNotesPage";
 import { BulkCommissionsPage } from "./pages/BulkCommissionsPage";
+import { CommissionRulesPage } from "./pages/CommissionRulesPage";
 import { ReferenceCatalogsPage } from "./pages/ReferenceCatalogsPage";
 import { ParametricFilesPage } from "./pages/ParametricFilesPage";
 import { PlatformParametricFilesPage } from "./pages/PlatformParametricFilesPage";
@@ -169,33 +153,51 @@ import { ConfigHubPage } from "./pages/ConfigHubPage";
 import { AdvancePaymentsPage, ReconciliationPage, TachyPaymentsPage, InfoCenterPage, VehicleModelsPage } from "./pages/Phase13Pages";
 import VpnKeyIcon from "@mui/icons-material/VpnKey";
 import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
-import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
-import SavingsOutlinedIcon from "@mui/icons-material/SavingsOutlined";
-import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
-import LocalPostOfficeIcon from "@mui/icons-material/LocalPostOffice";
-import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
-import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
-import HandshakeOutlinedIcon from "@mui/icons-material/HandshakeOutlined";
-import MergeIcon from "@mui/icons-material/Merge";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import MovingIcon from "@mui/icons-material/Moving";
-import PhoneCallbackIcon from "@mui/icons-material/PhoneCallback";
-import RuleIcon from "@mui/icons-material/Rule";
-import InventoryIcon from "@mui/icons-material/Inventory";
+import AppsIcon from "@mui/icons-material/Apps";
+// PriceChangeIcon (used for tariffs) is no longer referenced — tariffs removed from sidebar.
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import TuneIcon from "@mui/icons-material/Tune";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
+import DesignServicesIcon from "@mui/icons-material/DesignServices";
 import GroupsIcon from "@mui/icons-material/Groups";
-import BuildIcon from "@mui/icons-material/Build";
-import SavingsIcon from "@mui/icons-material/Savings";
-import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
+// ΖΗΜΙΕΣ ΚΑΙ ΔΙΑΚΑΝΟΝΙΣΜΟΙ group icons (Build/Savings/PaymentsOutlined/HandshakeOutlined)
+// were removed from the sidebar; their imports are no longer needed.
+import RuleIcon from "@mui/icons-material/Rule";
 import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlined";
 import LocalAtmIcon from "@mui/icons-material/LocalAtm";
-import CakeIcon from "@mui/icons-material/Cake";
+import SavingsOutlinedIcon from "@mui/icons-material/SavingsOutlined";
+import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
+import RestoreIcon from "@mui/icons-material/Restore";
+import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
+import StackedLineChartIcon from "@mui/icons-material/StackedLineChart";
+import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import GavelOutlinedIcon from "@mui/icons-material/GavelOutlined";
-import DesignServicesIcon from "@mui/icons-material/DesignServices";
+import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
+import ImportExportIcon from "@mui/icons-material/ImportExport";
+import MovingIcon from "@mui/icons-material/Moving";
+import CakeIcon from "@mui/icons-material/Cake";
+import PhoneCallbackIcon from "@mui/icons-material/PhoneCallback";
+import MergeIcon from "@mui/icons-material/Merge";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+// DirectionsCarIcon was the vehicle-models entry — removed from sidebar.
+import InventoryIcon from "@mui/icons-material/Inventory";
+import HubIcon from "@mui/icons-material/Hub";
+import FolderSpecialIcon from "@mui/icons-material/FolderSpecial";
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
+import HomeWorkIcon from "@mui/icons-material/HomeWork";
+import LocalShippingIcon from "@mui/icons-material/LocalShipping";
+import { AllToolsPage } from "./pages/AllToolsPage";
+import { DefaultValueRulesPage } from "./pages/DefaultValueRulesPage";
+import { BridgeImportPage } from "./pages/BridgeImportPage";
+import { CarrierBridgesPage } from "./pages/CarrierBridgesPage";
+import { ProductionListsPage } from "./pages/ProductionListsPage";
+import {
+  SubscriptionPlansPage, PlatformBillingPage, BroadcastPage, PlatformTranslationsPage,
+  PlatformBrandingPage, PlatformApiKeysPage, PlatformIntegrationsPage, PlatformBackupsPage,
+  PlatformStoragePage, PlatformJobsPage, PlatformStatusPage, PlatformCompliancePage, PlatformSupportPage
+} from "./pages/PlatformAdminPages";
 
 const navByRole: Record<Role, NavItem[]> = {
   Customer: [
@@ -208,126 +210,124 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
   AgencyAdmin: [
-    // Dashboard appears in every workspace
+    // ===== Top home link, every workspace =====
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />,
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
 
-    // Foundational catalogs — visible in the workspaces that actually use them
-    { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />,
-      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence"] },
-    { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />,
-      workspaces: ["BackOffice","FrontOffice","Intelligence"] },
-    { to: "/producers", labelKey: "nav.producers", icon: <HandshakeIcon />,
-      workspaces: ["BackOffice","FrontOffice","Intelligence"] },
-    { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />,
-      workspaces: ["BackOffice","FrontOffice","Crm"] },
-    { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />,
-      workspaces: ["BackOffice","Crm","Intelligence"] },
-    { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />,
-      workspaces: ["BackOffice","Crm"] },
-    { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />,
-      workspaces: ["Crm"] },
-    { to: "/users", labelKey: "nav.users", icon: <GroupIcon />,
-      workspaces: ["BackOffice","Integrations"] },
-    { to: "/notifications", labelKey: "nav.notifications", icon: <NotificationsIcon /> /* always visible */ },
-    { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, package: "Intelligence" },
+    // ===== BackOffice — Standalone "Γέφυρες Εταιριών" (carrier xlsx/csv import) =====
+    { to: "/carrier-bridges", labelKey: "nav.carrierBridges", icon: <CloudUploadIcon />, package: "BackOffice" },
 
-    // Phase 3 — integrations & intelligence
-    { to: "/quote-builder", labelKey: "nav.quoteBuilder", icon: <RequestQuoteIcon />, package: "FrontOffice" },
-    { to: "/risk-profiles", labelKey: "nav.riskProfiles", icon: <DriveEtaIcon />, package: "FrontOffice" },
-    { to: "/workflows", labelKey: "nav.workflows", icon: <BoltIcon />, package: "Intelligence" },
-    { to: "/churn", labelKey: "nav.churn", icon: <PsychologyAltIcon />, package: "Intelligence" },
-    { to: "/report-builder", labelKey: "nav.reportBuilder", icon: <AssessmentIcon />, package: "Intelligence" },
+    // ===== BackOffice — ΠΑΡΑΓΩΓΗ (core production records: customers, policies, claims) =====
+    { to: "/production-lists", labelKey: "nav.productionLists", icon: <LeaderboardIcon />, package: "BackOffice", group: "production" },
+    { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice", group: "production" },
+    { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice", group: "production" },
+    { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice", group: "production" },
+    { to: "/producers", labelKey: "nav.producers", icon: <HandshakeIcon />, package: "BackOffice", group: "production" },
+    { to: "/group-policies", labelKey: "nav.groupPolicies", icon: <GroupsIcon />, package: "BackOffice", group: "production" },
+    { to: "/endorsements", labelKey: "nav.endorsements", icon: <EditNoteIcon />, package: "BackOffice", group: "production" },
+    { to: "/cancellations", labelKey: "nav.cancellations", icon: <CancelPresentationIcon />, package: "BackOffice", group: "production" },
+    { to: "/policy-delivery", labelKey: "nav.policyDelivery", icon: <MovingIcon />, package: "BackOffice", group: "production" },
 
-    // Phase 4 — Datawise parity
-    { to: "/print-pay", labelKey: "nav.printPay", icon: <PrintIcon />, package: "FrontOffice" },
-    { to: "/plafond", labelKey: "nav.plafond", icon: <AccountBalanceWalletIcon />, package: "FrontOffice" },
+    // BackOffice → ΟΙΚΟΝΟΜΙΚΑ
+    { to: "/receipts", labelKey: "nav.receipts", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
+    { to: "/payments", labelKey: "nav.payments", icon: <RequestQuoteIcon />, package: "BackOffice", group: "financials" },
+    { to: "/cash", labelKey: "nav.cash", icon: <LocalAtmIcon />, package: "BackOffice", group: "financials" },
+    { to: "/advance-payments", labelKey: "nav.advance", icon: <SavingsOutlinedIcon />, package: "BackOffice", group: "financials" },
+    { to: "/reconciliation", labelKey: "nav.reconciliation", icon: <CompareArrowsIcon />, package: "BackOffice", group: "financials" },
+    { to: "/financial-movements", labelKey: "nav.financials", icon: <AttachMoneyIcon />, package: "BackOffice", group: "financials" },
+    { to: "/securities", labelKey: "nav.securities", icon: <RestoreIcon />, package: "BackOffice", group: "financials" },
+    { to: "/credit-notes", labelKey: "nav.creditNotes", icon: <ReceiptLongOutlinedIcon />, package: "BackOffice", group: "financials" },
 
-    // Operations & insurance lifecycle
-    { to: "/insurance-companies", labelKey: "nav.insuranceCompanies", icon: <BusinessIcon />, package: "BackOffice" },
-    { to: "/tariffs", labelKey: "nav.tariffs", icon: <PriceChangeIcon />, package: "BackOffice" },
-    { to: "/endorsements", labelKey: "nav.endorsements", icon: <EditNoteIcon />, package: "BackOffice" },
-    { to: "/cancellations", labelKey: "nav.cancellations", icon: <CancelPresentationIcon />, package: "BackOffice" },
-    { to: "/credit-notes", labelKey: "nav.creditNotes", icon: <ReceiptLongOutlinedIcon />, package: "BackOffice" },
-    { to: "/bulk-commissions", labelKey: "nav.bulkCommissions", icon: <TuneIcon />, package: "BackOffice" },
-    { to: "/lookups", labelKey: "nav.lookups", icon: <MenuBookIcon />, package: "BackOffice" },
-    { to: "/parametric-files", labelKey: "nav.parametricFiles", icon: <InventoryIcon />, package: "BackOffice" },
-    { to: "/group-policies", labelKey: "nav.groupPolicies", icon: <GroupsIcon />, package: "BackOffice" },
-    { to: "/garages", labelKey: "nav.garages", icon: <BuildIcon />, package: "BackOffice" },
-    { to: "/claim-provisions", labelKey: "nav.provisions", icon: <SavingsIcon />, package: "BackOffice" },
-    { to: "/indemnities", labelKey: "nav.indemnities", icon: <PaymentsOutlinedIcon />, package: "BackOffice" },
-    { to: "/gl", labelKey: "nav.gl", icon: <AccountBalanceOutlinedIcon />, package: "BackOffice" },
-    { to: "/cash", labelKey: "nav.cash", icon: <LocalAtmIcon />, package: "BackOffice" },
-    { to: "/name-days", labelKey: "nav.nameDays", icon: <CakeIcon />, package: "Crm" },
-    { to: "/mydata", labelKey: "nav.mydata", icon: <GavelOutlinedIcon />, package: "Integrations" },
-    { to: "/document-designer", labelKey: "nav.docDesigner", icon: <DesignServicesIcon />, package: "BackOffice" },
-    { to: "/friendly-settlements", labelKey: "nav.friendly", icon: <HandshakeOutlinedIcon />, package: "BackOffice" },
-    { to: "/customer-merge", labelKey: "nav.merge", icon: <MergeIcon />, package: "BackOffice" },
-    { to: "/persistency", labelKey: "nav.persistency", icon: <TrendingUpIcon />, package: "Intelligence" },
-    { to: "/policy-delivery", labelKey: "nav.policyDelivery", icon: <MovingIcon />, package: "BackOffice" },
-    { to: "/caller-id", labelKey: "nav.callerId", icon: <PhoneCallbackIcon />, package: "Crm" },
-    { to: "/usae", labelKey: "nav.usae", icon: <RuleIcon />, package: "Integrations" },
-    { to: "/integration-settings", labelKey: "nav.integrationSettings", icon: <VpnKeyIcon />, package: "Integrations" },
-    { to: "/named-reports", labelKey: "nav.namedReports", icon: <AssessmentOutlinedIcon />, package: "Intelligence" },
-    { to: "/config-hub", labelKey: "nav.configHub", icon: <TuneOutlinedIcon />, package: "BackOffice" },
-    { to: "/advance-payments", labelKey: "nav.advance", icon: <SavingsOutlinedIcon />, package: "BackOffice" },
-    { to: "/reconciliation", labelKey: "nav.reconciliation", icon: <CompareArrowsIcon />, package: "BackOffice" },
-    { to: "/tachypayments", labelKey: "nav.tachy", icon: <LocalPostOfficeIcon />, package: "BackOffice" },
-    { to: "/info-center", labelKey: "nav.infoCenter", icon: <CloudUploadOutlinedIcon />, package: "Integrations" },
-    { to: "/vehicle-models", labelKey: "nav.vehicleModels", icon: <DirectionsCarIcon />, package: "BackOffice" },
-    { to: "/cover-notes", labelKey: "nav.coverNotes", icon: <DescriptionOutlinedIcon />, package: "FrontOffice" },
-    { to: "/branches", labelKey: "nav.branchDesigner", icon: <AccountTreeIcon />, package: "Integrations" },
-    { to: "/agency-offices", labelKey: "nav.agencyOffices", icon: <HomeWorkIcon />, package: "Integrations" },
-    { to: "/delivery-tracking", labelKey: "nav.deliveryTracking", icon: <LocalShippingIcon />, package: "Crm" },
+    // BackOffice → ΠΡΟΜΗΘΕΙΕΣ — items moved to παραγωγή/παραμετροποίηση where they belong.
+    // Εκκαθαρίσεις & Υπερπρομήθειες are tied to contracts/producers → ΠΑΡΑΓΩΓΗ.
+    { to: "/commission-runs",  labelKey: "nav.commissionRuns",  icon: <CalculateIcon />,         package: "BackOffice", group: "production" },
+    { to: "/over-commissions", labelKey: "nav.overCommissions", icon: <StackedLineChartIcon />,  package: "BackOffice", group: "production" },
+    // Μαζική επεξεργασία προμηθειών είναι ρύθμιση/παραμετροποίηση, όχι ημερήσια παραγωγή.
+    { to: "/bulk-commissions", labelKey: "nav.bulkCommissions", icon: <TuneIcon />,              package: "BackOffice", group: "params" },
 
-    // Commercial CRM
+    // BackOffice → ΛΟΓΙΣΤΙΚΗ
+    { to: "/gl", labelKey: "nav.gl", icon: <AccountBalanceOutlinedIcon />, package: "BackOffice", group: "accounting" },
+    { to: "/accounting", labelKey: "nav.accounting", icon: <CalculateIcon />, package: "BackOffice", group: "accounting" },
+    { to: "/kepyo", labelKey: "nav.kepyo", icon: <GavelIcon />, package: "BackOffice", group: "accounting" },
+    { to: "/magnetic-import", labelKey: "nav.magneticImport", icon: <ImportExportIcon />, package: "BackOffice", group: "accounting" },
+
+    // BackOffice → ΖΗΜΙΕΣ ΚΑΙ ΔΙΑΚΑΝΟΝΙΣΜΟΙ — temporarily disabled (per user request).
+    // Routes below still resolve so we don't crash existing deep-links, but the
+    // sidebar entries are gone. Restore these lines to re-enable the group.
+
+    // BackOffice → ΠΑΡΑΜΕΤΡΟΠΟΙΗΣΗ — order requested by the agency:
+    // Εταιρείες → Κλάδοι/Πακέτα/Καλύψεις (lookups) → Κανόνες Προμηθειών → Μαζική → Κανόνες Προεπιλεγμένων Τιμών.
+    { to: "/insurance-companies", labelKey: "nav.insuranceCompanies", icon: <BusinessIcon />,           package: "BackOffice", group: "params" },
+    { to: "/lookups",             labelKey: "nav.lookups",            icon: <MenuBookIcon />,           package: "BackOffice", group: "params" },
+    { to: "/commission-rules",    labelKey: "nav.commissionRules",    icon: <StackedLineChartIcon />,   package: "BackOffice", group: "params" },
+    { to: "/bulk-commissions",    labelKey: "nav.bulkCommissions",    icon: <TuneIcon />,               package: "BackOffice", group: "params" },
+    { to: "/default-value-rules", labelKey: "nav.dvr",                icon: <RuleIcon />,               package: "BackOffice", group: "params" },
+    // — secondary configuration tools below the four primary items —
+    { to: "/parametric-files",    labelKey: "nav.parametricFiles",    icon: <InventoryIcon />,      package: "BackOffice", group: "params" },
+    { to: "/document-designer",   labelKey: "nav.docDesigner",        icon: <DesignServicesIcon />, package: "BackOffice", group: "params" },
+    { to: "/config-hub",          labelKey: "nav.configHub",          icon: <TuneOutlinedIcon />,   package: "BackOffice", group: "params" },
+
+    // BackOffice → ΔΙΟΙΚΗΣΗ
+    { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
+    { to: "/customer-merge", labelKey: "nav.merge", icon: <MergeIcon />, package: "BackOffice", group: "admin" },
+    { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "BackOffice", group: "admin" },
+
+    // Standalone top-level — agency-wide backup & document archive
+    { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
+
+    // ===== CRM — top-level (3) + grouped (5) =====
+    { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
+    { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/appointments", labelKey: "nav.appointments", icon: <EventIcon />, package: "Crm" },
-    { to: "/document-manager", labelKey: "nav.documentManager", icon: <FolderSpecialIcon />, package: "Crm" },
-    { to: "/marketing", labelKey: "nav.marketing", icon: <MailOutlineIcon />, package: "Crm" },
-    { to: "/partner-portals", labelKey: "nav.b2bPortal", icon: <HubIcon />, package: "Integrations" },
+    { to: "/marketing", labelKey: "nav.marketing", icon: <MailOutlineIcon />, package: "Crm", group: "crm" },
+    { to: "/name-days", labelKey: "nav.nameDays", icon: <CakeIcon />, package: "Crm", group: "crm" },
+    { to: "/caller-id", labelKey: "nav.callerId", icon: <PhoneCallbackIcon />, package: "Crm", group: "crm" },
+    { to: "/document-manager", labelKey: "nav.documentManager", icon: <FolderSpecialIcon />, package: "Crm", group: "crm" },
+    { to: "/delivery-tracking", labelKey: "nav.deliveryTracking", icon: <LocalShippingIcon />, package: "Crm", group: "crm" },
+    { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Crm" },
 
-    // Commissions & production
-    { to: "/commission-runs", labelKey: "nav.commissionRuns", icon: <CalculateIcon />, package: "BackOffice" },
-    { to: "/over-commissions", labelKey: "nav.overCommissions", icon: <StackedLineChartIcon />, package: "BackOffice" },
+    // ===== FrontOffice =====
+    { to: "/quote-builder", labelKey: "nav.quoteBuilder", icon: <RequestQuoteIcon />, package: "FrontOffice" },
+    { to: "/cover-notes", labelKey: "nav.coverNotes", icon: <DescriptionOutlinedIcon />, package: "FrontOffice" },
+    { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "FrontOffice" },
+
+    // ===== Intelligence =====
+    { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, package: "Intelligence" },
+    { to: "/named-reports", labelKey: "nav.namedReports", icon: <AssessmentOutlinedIcon />, package: "Intelligence" },
+    { to: "/persistency", labelKey: "nav.persistency", icon: <TrendingUpIcon />, package: "Intelligence" },
     { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, package: "Intelligence" },
-    { to: "/goals", labelKey: "nav.goals", icon: <EmojiEventsIcon />, package: "Intelligence" },
+    { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Intelligence" },
 
-    // Financial circuits
-    { to: "/financial-movements", labelKey: "nav.financials", icon: <AttachMoneyIcon />, package: "BackOffice" },
-    { to: "/receipts", labelKey: "nav.receipts", icon: <ReceiptLongIcon />, package: "BackOffice" },
-    { to: "/payments", labelKey: "nav.payments", icon: <RequestQuoteIcon />, package: "BackOffice" },
-    { to: "/securities", labelKey: "nav.securities", icon: <RestoreIcon />, package: "BackOffice" },
+    // ===== Integrations =====
+    { to: "/integration-settings", labelKey: "nav.integrationSettings", icon: <VpnKeyIcon />, package: "Integrations" },
+    { to: "/mydata", labelKey: "nav.mydata", icon: <GavelOutlinedIcon />, package: "Integrations" },
+    { to: "/usae", labelKey: "nav.usae", icon: <RuleIcon />, package: "Integrations", group: "integrationsGrp" },
+    { to: "/dias", labelKey: "nav.dias", icon: <AccountBalanceIcon />, package: "Integrations", group: "integrationsGrp" },
+    { to: "/bank-connections", labelKey: "nav.bankConnections", icon: <LinkIcon />, package: "Integrations", group: "integrationsGrp" },
+    { to: "/company-bridges", labelKey: "nav.companyBridges", icon: <HubIcon />, package: "Integrations", group: "integrationsGrp" },
+    { to: "/bridge-import", labelKey: "nav.bridgeImport", icon: <CloudUploadIcon />, package: "Integrations", group: "integrationsGrp" },
+    { to: "/info-center", labelKey: "nav.infoCenter", icon: <CloudUploadOutlinedIcon />, package: "Integrations", group: "integrationsGrp" },
+    { to: "/partner-portals", labelKey: "nav.b2bPortal", icon: <HubIcon />, package: "Integrations", group: "integrationsGrp" },
+    { to: "/api-keys", labelKey: "nav.thirdParty", icon: <ExtensionIcon />, package: "Integrations", group: "integrationsGrp" },
+    { to: "/branches", labelKey: "nav.branchDesigner", icon: <AccountTreeIcon />, package: "Integrations", group: "setup" },
+    { to: "/agency-offices", labelKey: "nav.agencyOffices", icon: <HomeWorkIcon />, package: "Integrations", group: "setup" },
+    { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Integrations" },
 
-    // Banking & integrations
-    { to: "/dias", labelKey: "nav.dias", icon: <AccountBalanceIcon />, package: "Integrations" },
-    { to: "/bank-connections", labelKey: "nav.bankConnections", icon: <LinkIcon />, package: "Integrations" },
-    { to: "/company-bridges", labelKey: "nav.companyBridges", icon: <HubIcon />, package: "Integrations",
-      workspaces: ["BackOffice","Integrations"] },
-    { to: "/api-keys", labelKey: "nav.thirdParty", icon: <ExtensionIcon />, package: "Integrations" },
-
-    // Accounting & reporting
-    { to: "/accounting", labelKey: "nav.accounting", icon: <CalculateIcon />, package: "BackOffice" },
-    { to: "/kepyo", labelKey: "nav.kepyo", icon: <GavelIcon />, package: "BackOffice" },
-    { to: "/magnetic-import", labelKey: "nav.magneticImport", icon: <ImportExportIcon />, package: "BackOffice" },
-
-    { to: "/agency-settings", labelKey: "nav.agencySettings", icon: <SettingsIcon />, comingSoon: true /* always visible */ },
-    { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> /* always visible */ }
+    // Always-visible footer
+    { to: "/agency-settings", labelKey: "nav.agencySettings", icon: <SettingsIcon /> },
+    { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
   AgencyUser: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />,
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
-    { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />,
-      workspaces: ["BackOffice","FrontOffice","Crm"] },
-    { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />,
-      workspaces: ["BackOffice","FrontOffice"] },
-    { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />,
-      workspaces: ["BackOffice","FrontOffice","Crm"] },
-    { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, workspaces: ["Crm"] },
-    { to: "/notifications", labelKey: "nav.notifications", icon: <NotificationsIcon /> },
-    { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />,
-      workspaces: ["BackOffice","Crm"] },
-    { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />,
-      workspaces: ["BackOffice","Crm"] },
+    // BackOffice
+    { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
+    { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice" },
+    { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
+    { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
+    // CRM
+    { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
+    { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
   Producer: [
@@ -348,20 +348,20 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/platform/showcase-images", labelKey: "nav.showcaseImages", icon: <ImageIcon /> },
     { to: "/platform/maintenance", labelKey: "nav.maintenance", icon: <EngineeringIcon /> },
     { to: "/platform/parametric-files", labelKey: "nav.broadcastParametric", icon: <InventoryIcon /> },
-    { to: "/platform/plans", labelKey: "nav.subscriptionPlans", icon: <CreditCardIcon />, comingSoon: true },
-    { to: "/platform/billing", labelKey: "nav.billing", icon: <PaymentsIcon />, comingSoon: true },
+    { to: "/platform/plans", labelKey: "nav.subscriptionPlans", icon: <CreditCardIcon /> },
+    { to: "/platform/billing", labelKey: "nav.billing", icon: <PaymentsIcon /> },
     { to: "/platform/email-templates", labelKey: "nav.emailTemplates", icon: <EmailIcon /> },
-    { to: "/platform/broadcast", labelKey: "nav.broadcast", icon: <CampaignIcon />, comingSoon: true },
-    { to: "/platform/i18n", labelKey: "nav.translations", icon: <TranslateIcon />, comingSoon: true },
-    { to: "/platform/branding", labelKey: "nav.branding", icon: <PaletteIcon />, comingSoon: true },
-    { to: "/platform/api-keys", labelKey: "nav.apiKeys", icon: <KeyIcon />, comingSoon: true },
-    { to: "/platform/integrations", labelKey: "nav.integrations", icon: <ExtensionIcon />, comingSoon: true },
-    { to: "/platform/backups", labelKey: "nav.backups", icon: <CloudUploadIcon />, comingSoon: true },
-    { to: "/platform/storage", labelKey: "nav.storage", icon: <StorageIcon />, comingSoon: true },
-    { to: "/platform/jobs", labelKey: "nav.jobs", icon: <ScheduleIcon />, comingSoon: true },
-    { to: "/platform/status", labelKey: "nav.status", icon: <MonitorHeartIcon />, comingSoon: true },
-    { to: "/platform/compliance", labelKey: "nav.compliance", icon: <RuleFolderIcon />, comingSoon: true },
-    { to: "/platform/support", labelKey: "nav.support", icon: <SupportAgentIcon />, comingSoon: true },
+    { to: "/platform/broadcast", labelKey: "nav.broadcast", icon: <CampaignIcon /> },
+    { to: "/platform/i18n", labelKey: "nav.translations", icon: <TranslateIcon /> },
+    { to: "/platform/branding", labelKey: "nav.branding", icon: <PaletteIcon /> },
+    { to: "/platform/api-keys", labelKey: "nav.apiKeys", icon: <KeyIcon /> },
+    { to: "/platform/integrations", labelKey: "nav.integrations", icon: <ExtensionIcon /> },
+    { to: "/platform/backups", labelKey: "nav.backups", icon: <CloudUploadIcon /> },
+    { to: "/platform/storage", labelKey: "nav.storage", icon: <StorageIcon /> },
+    { to: "/platform/jobs", labelKey: "nav.jobs", icon: <ScheduleIcon /> },
+    { to: "/platform/status", labelKey: "nav.status", icon: <MonitorHeartIcon /> },
+    { to: "/platform/compliance", labelKey: "nav.compliance", icon: <RuleFolderIcon /> },
+    { to: "/platform/support", labelKey: "nav.support", icon: <SupportAgentIcon /> },
     { to: "/platform/economics", labelKey: "nav.platformEconomics", icon: <AnalyticsIcon /> },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
@@ -370,8 +370,8 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/tenants", labelKey: "nav.tenants", icon: <BusinessIcon /> },
     { to: "/all-users", labelKey: "nav.allUsers", icon: <GroupIcon /> },
     { to: "/audit", labelKey: "nav.audit", icon: <GavelIcon /> },
-    { to: "/platform/support", labelKey: "nav.support", icon: <SupportAgentIcon />, comingSoon: true },
-    { to: "/platform/status", labelKey: "nav.status", icon: <MonitorHeartIcon />, comingSoon: true },
+    { to: "/platform/support", labelKey: "nav.support", icon: <SupportAgentIcon /> },
+    { to: "/platform/status", labelKey: "nav.status", icon: <MonitorHeartIcon /> },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ]
 };
@@ -396,7 +396,7 @@ export default function App() {
   // Maintenance page) and are read by <MaintenanceProvider>.
   //   launchGateEnabled:    agency-side roles see the under-construction page.
   //   maintenanceModeEnabled: EVERYONE (including customers + visitors) sees the full-site maintenance page.
-  // PlatformAdmin / PlatformEmployee bypass both — they need to manage the system.
+  // PlatformAdmin / PlatformEmployee bypass both β€” they need to manage the system.
   // An explicit `?staff=1` override flag is also preserved for emergency access.
   const maintenance = useMaintenance();
   const overrideKey = "kalypsis.launchOverride";
@@ -525,6 +525,7 @@ export default function App() {
                   <Route path="cancellations" element={<PolicyCancellationsPage />} />
                   <Route path="credit-notes" element={<CreditNotesPage />} />
                   <Route path="bulk-commissions" element={<BulkCommissionsPage />} />
+                  <Route path="commission-rules" element={<CommissionRulesPage />} />
                   <Route path="lookups" element={<ReferenceCatalogsPage />} />
                   <Route path="parametric-files" element={<ParametricFilesPage />} />
                   <Route path="platform/parametric-files" element={<PlatformParametricFilesPage />} />
@@ -551,6 +552,24 @@ export default function App() {
                   <Route path="policy-delivery" element={<PolicyDeliveryPage />} />
                   <Route path="caller-id" element={<CallerIdPage />} />
                   <Route path="usae" element={<UsaeSubmissionsPage />} />
+                  <Route path="all-tools" element={<AllToolsPage />} />
+                  <Route path="default-value-rules" element={<DefaultValueRulesPage />} />
+                  <Route path="bridge-import" element={<BridgeImportPage />} />
+                  <Route path="carrier-bridges" element={<CarrierBridgesPage />} />
+                  <Route path="production-lists" element={<ProductionListsPage />} />
+                  <Route path="platform/plans" element={<SubscriptionPlansPage />} />
+                  <Route path="platform/billing" element={<PlatformBillingPage />} />
+                  <Route path="platform/broadcast" element={<BroadcastPage />} />
+                  <Route path="platform/i18n" element={<PlatformTranslationsPage />} />
+                  <Route path="platform/branding" element={<PlatformBrandingPage />} />
+                  <Route path="platform/api-keys" element={<PlatformApiKeysPage />} />
+                  <Route path="platform/integrations" element={<PlatformIntegrationsPage />} />
+                  <Route path="platform/backups" element={<PlatformBackupsPage />} />
+                  <Route path="platform/storage" element={<PlatformStoragePage />} />
+                  <Route path="platform/jobs" element={<PlatformJobsPage />} />
+                  <Route path="platform/status" element={<PlatformStatusPage />} />
+                  <Route path="platform/compliance" element={<PlatformCompliancePage />} />
+                  <Route path="platform/support" element={<PlatformSupportPage />} />
                   <Route path="integration-settings" element={<IntegrationSettingsPage />} />
                   <Route path="named-reports" element={<NamedReportsPage />} />
                   <Route path="config-hub" element={<ConfigHubPage />} />

@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
@@ -14,10 +15,13 @@ import {
   Typography,
   useTheme
 } from "@mui/material";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from "recharts";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
+import { useWorkspace } from "../../auth/WorkspaceContext";
 
 interface AgencyUserKpi {
   myCustomers: number;
@@ -49,6 +53,8 @@ const intFmt = new Intl.NumberFormat("el-GR");
 export function AgencyUserDashboard() {
   const theme = useTheme();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { exitToHub } = useWorkspace();
 
   const q = useQuery({
     queryKey: ["report", "agency-user"],
@@ -70,6 +76,14 @@ export function AgencyUserDashboard() {
 
   return (
     <Box>
+      <Button
+        startIcon={<ArrowBackIcon />}
+        size="small"
+        onClick={() => { exitToHub(); navigate("/app"); }}
+        sx={{ mb: 2, color: "text.secondary" }}
+      >
+        Επιστροφή στον αρχικό Πίνακα Ελέγχου
+      </Button>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 800 }}>

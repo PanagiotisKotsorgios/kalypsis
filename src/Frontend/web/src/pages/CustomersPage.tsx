@@ -32,6 +32,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { CredentialsDialog } from "./TenantsPage";
+import { useTableState } from "../components/useTableState";
+import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 
 type CustomerType = "Individual" | "Company";
 
@@ -97,7 +99,13 @@ export function CustomersPage() {
     onError: (err) => setError(extractErrorMessage(err))
   });
 
-  const customers = customersQuery.data ?? [];
+  const allCustomers = customersQuery.data ?? [];
+  const table = useTableState<CustomerDto>({
+    rows: allCustomers,
+    searchableText: (c) => `${c.customerNumber} ${c.firstName ?? ""} ${c.lastName ?? ""} ${c.companyName ?? ""} ${c.vatNumber ?? ""} ${c.email ?? ""} ${c.phone ?? ""} ${c.city ?? ""}`,
+    pageSize: 25
+  });
+  const customers = table.paged;
 
   return (
     <Box>
@@ -107,14 +115,14 @@ export function CustomersPage() {
           <HelpHint id="page.customers" />
         </Stack>
         <Stack direction="row" spacing={1}>
-          <ExportButton href="/api/exports/customers.csv" />
-          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setOpen(true); }}>
+          <Box data-tour="customers-export"><ExportButton href="/api/exports/customers.csv" /></Box>
+          <Button data-tour="customers-new" startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setOpen(true); }}>
             {t("customers.create")}
           </Button>
         </Stack>
       </Stack>
 
-      <Card sx={{ mb: 2, p: 2 }}>
+      <Card sx={{ mb: 2, p: 2 }} data-tour="customers-search">
         <TextField
           fullWidth
           placeholder={t("customers.searchPlaceholder")}
@@ -136,12 +144,34 @@ export function CustomersPage() {
         </Alert>
       )}
 
+      <Box sx={{ mb: 2 }}>
+        <TableToolbar<CustomerDto>
+          query={table.query} onQuery={table.setQuery}
+          count={allCustomers.length} filteredCount={table.filtered.length}
+          pageSize={table.pageSize} onPageSize={table.setPageSize}
+          exportRows={table.filtered}
+          exportFileName={`customers-${new Date().toISOString().slice(0, 10)}`}
+          serverEntity="customers"
+          serverParams={{ search: table.query }}
+          exportColumns={[
+            { key: "customerNumber", label: "Αρ. Πελάτη" },
+            { key: "type", label: "Τύπος" },
+            { key: "firstName", label: "Όνομα" },
+            { key: "lastName", label: "Επώνυμο" },
+            { key: "companyName", label: "Επωνυμία" },
+            { key: "vatNumber", label: "ΑΦΜ" },
+            { key: "email", label: "Email" },
+            { key: "phone", label: "Τηλέφωνο" },
+            { key: "city", label: "Πόλη" }
+          ]}
+        />
+      </Box>
       {customersQuery.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
           <CircularProgress />
         </Box>
       ) : (
-        <Card>
+        <Card data-tour="customers-table">
           <TableContainer>
             <Table>
               <TableHead>
@@ -203,6 +233,9 @@ export function CustomersPage() {
               </TableBody>
             </Table>
           </TableContainer>
+          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} />
+          </Box>
         </Card>
       )}
 

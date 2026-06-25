@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
   DialogTitle, IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow,
   TextField, Typography
 } from "@mui/material";
+import { NumberedPager } from "../components/TableToolbar";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -46,12 +47,63 @@ export function CommissionRunsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
 
+  // -------- Filter state --------
+  const [search, setSearch] = useState("");
+  const [yearFilter, setYearFilter]   = useState<string>("");
+  const [monthFilter, setMonthFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [carrierFilter, setCarrierFilter]   = useState<string>("");
+  const [producerFilter, setProducerFilter] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
+
   const q = useQuery({ queryKey: ["commission-runs"], queryFn: async () => (await api.get<RunDto[]>("/commission-runs")).data });
+  const carriersQ = useQuery({ queryKey: ["insurance-companies-lite-runs"],
+    queryFn: async () => (await api.get<CompanyLite[]>("/insurance-companies")).data });
+  const producersQ = useQuery({ queryKey: ["producers-lite-runs"],
+    queryFn: async () => (await api.get<ProducerLite[]>("/producers")).data });
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/commission-runs/${id}`),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["commission-runs"] }),
     onError: e => setErr(extractErrorMessage(e))
   });
+
+  const rawRuns = q.data ?? [];
+  const filtered = useMemo(() => rawRuns.filter(r => {
+    if (yearFilter   && String(r.year)  !== yearFilter)  return false;
+    if (monthFilter  && String(r.month) !== monthFilter) return false;
+    if (statusFilter && r.status        !== statusFilter) return false;
+    if (carrierFilter  && r.filterInsuranceCompanyId !== carrierFilter)  return false;
+    if (producerFilter && r.filterProducerId          !== producerFilter) return false;
+    if (search) {
+      const s = search.toLowerCase();
+      const hay = `${r.title ?? ""} ${r.filterInsuranceCompanyName ?? ""} ${r.filterProducerName ?? ""} ${r.filterPolicyType ?? ""} ${r.filterPackageCode ?? ""} ${r.notes ?? ""}`.toLowerCase();
+      if (!hay.includes(s)) return false;
+    }
+    return true;
+  }), [rawRuns, yearFilter, monthFilter, statusFilter, carrierFilter, producerFilter, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  useEffect(() => { if (page > totalPages) setPage(1); }, [totalPages, page]);
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const totalCommission = filtered.reduce((s, r) => s + r.totalCommission, 0);
+  const totalPremium    = filtered.reduce((s, r) => s + r.totalPremium, 0);
+  const totalLines      = filtered.reduce((s, r) => s + r.lineCount, 0);
+  const years = useMemo(() => [...new Set(rawRuns.map(r => r.year))].sort((a, b) => b - a), [rawRuns]);
+
+  // Auth-aware CSV download (anchor `href` would strip the JWT).
+  async function downloadCsv(runId: string) {
+    try {
+      const res = await api.get(`/commission-runs/${runId}/export.csv`, { responseType: "blob" });
+      const blob = new Blob([res.data], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `commission-run-${runId}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) { setErr(extractErrorMessage(e)); }
+  }
 
   return (
     <Box>
@@ -65,6 +117,66 @@ export function CommissionRunsPage() {
         </Button>
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+
+      {/* Filter bar */}
+      <Card sx={{ p: 2, mb: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
+          <TextField size="small" placeholder="Τίτλος, εταιρία, συνεργάτης, σημείωση…"
+            value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
+          <TextField select size="small" label="Έτος" value={yearFilter}
+            onChange={(e) => setYearFilter(e.target.value)} sx={{ minWidth: 120 }}>
+            <MenuItem value="">Όλα</MenuItem>
+            {years.map(y => <MenuItem key={y} value={String(y)}>{y}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label="Μήνας" value={monthFilter}
+            onChange={(e) => setMonthFilter(e.target.value)} sx={{ minWidth: 120 }}>
+            <MenuItem value="">Όλοι</MenuItem>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map(m =>
+              <MenuItem key={m} value={String(m)}>{m.toString().padStart(2, "0")}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label="Κατάσταση" value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 160 }}>
+            <MenuItem value="">Όλες</MenuItem>
+            <MenuItem value="Draft">Πρόχειρη</MenuItem>
+            <MenuItem value="Finalised">Οριστική</MenuItem>
+            <MenuItem value="Cancelled">Ακυρωμένη</MenuItem>
+          </TextField>
+          <TextField select size="small" label="Εταιρία" value={carrierFilter}
+            onChange={(e) => setCarrierFilter(e.target.value)} sx={{ minWidth: 200 }}>
+            <MenuItem value="">Όλες</MenuItem>
+            {(carriersQ.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label="Συνεργάτης" value={producerFilter}
+            onChange={(e) => setProducerFilter(e.target.value)} sx={{ minWidth: 200 }}>
+            <MenuItem value="">Όλοι</MenuItem>
+            {(producersQ.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
+          </TextField>
+          <Button size="small" onClick={() => {
+            setSearch(""); setYearFilter(""); setMonthFilter(""); setStatusFilter("");
+            setCarrierFilter(""); setProducerFilter("");
+          }}>Καθαρισμός</Button>
+        </Stack>
+      </Card>
+
+      {/* KPI strip (filter-aware) */}
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} mb={2}>
+        <Card variant="outlined" sx={{ p: 2, flex: 1 }}>
+          <Typography variant="caption" color="text.secondary">Εκκαθαρίσεις</Typography>
+          <Typography variant="h5" fontWeight={800}>{filtered.length}</Typography>
+        </Card>
+        <Card variant="outlined" sx={{ p: 2, flex: 1 }}>
+          <Typography variant="caption" color="text.secondary">Γραμμές</Typography>
+          <Typography variant="h5" fontWeight={800}>{totalLines}</Typography>
+        </Card>
+        <Card variant="outlined" sx={{ p: 2, flex: 1 }}>
+          <Typography variant="caption" color="text.secondary">Συνολικό μεικτό</Typography>
+          <Typography variant="h5" fontWeight={800}>{totalPremium.toFixed(2)} €</Typography>
+        </Card>
+        <Card variant="outlined" sx={{ p: 2, flex: 1 }}>
+          <Typography variant="caption" color="text.secondary">Συνολικές προμήθειες</Typography>
+          <Typography variant="h5" fontWeight={800} color="primary.main">{totalCommission.toFixed(2)} €</Typography>
+        </Card>
+      </Stack>
 
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
@@ -80,10 +192,10 @@ export function CommissionRunsPage() {
               <TableCell align="right" />
             </TableRow></TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
+              {filtered.length === 0 && (
                 <TableRow><TableCell colSpan={8} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("commissionRuns.empty")}</TableCell></TableRow>
               )}
-              {(q.data ?? []).map(r => (
+              {paged.map(r => (
                 <TableRow key={r.id} hover>
                   <TableCell><Typography fontWeight={700}>{r.year}-{r.month.toString().padStart(2, "0")}</Typography></TableCell>
                   <TableCell>{r.title}</TableCell>
@@ -106,7 +218,7 @@ export function CommissionRunsPage() {
                     <IconButton size="small" onClick={() => setDetailId(r.id)} title={t("commissionRuns.viewDetail")}>
                       <VisibilityIcon fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" component="a" href={`/api/commission-runs/${r.id}/export.csv`} title={t("commissionRuns.export")}>
+                    <IconButton size="small" onClick={() => downloadCsv(r.id)} title={t("commissionRuns.export")}>
                       <DownloadIcon fontSize="small" />
                     </IconButton>
                     <IconButton size="small" color="error" disabled={r.status === "Finalised"}
@@ -118,6 +230,9 @@ export function CommissionRunsPage() {
               ))}
             </TableBody>
           </Table>
+          <Box sx={{ display: "flex", justifyContent: "center", py: 1.5 }}>
+            <NumberedPager page={page} totalPages={totalPages} onPage={setPage} />
+          </Box>
         </Card>
       )}
 
@@ -237,7 +352,18 @@ function DetailDialog({ runId, onClose, onChanged }: { runId: string | null; onC
           <Typography variant="h6" fontWeight={800}>{r ? `${r.title} · ${r.year}-${r.month.toString().padStart(2, "0")}` : t("common.loading")}</Typography>
           {r && (
             <Stack direction="row" spacing={1}>
-              <Button startIcon={<DownloadIcon />} component="a" href={`/api/commission-runs/${runId}/export.csv`} size="small">
+              <Button startIcon={<DownloadIcon />} size="small"
+                onClick={async () => {
+                  try {
+                    const res = await api.get(`/commission-runs/${runId}/export.csv`, { responseType: "blob" });
+                    const blob = new Blob([res.data], { type: "text/csv;charset=utf-8" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url; a.download = `commission-run-${runId}.csv`;
+                    document.body.appendChild(a); a.click(); a.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                  } catch (e) { setErr(extractErrorMessage(e)); }
+                }}>
                 {t("commissionRuns.export")}
               </Button>
               {r.status !== "Finalised" && (

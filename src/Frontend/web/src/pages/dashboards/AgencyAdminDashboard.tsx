@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
@@ -9,6 +10,9 @@ import {
   alpha,
   useTheme
 } from "@mui/material";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { useNavigate } from "react-router-dom";
+import { useWorkspace } from "../../auth/WorkspaceContext";
 import {
   Bar,
   BarChart,
@@ -63,6 +67,8 @@ const intFmt = new Intl.NumberFormat("el-GR");
 export function AgencyAdminDashboard() {
   const theme = useTheme();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { exitToHub } = useWorkspace();
 
   const q = useQuery({
     queryKey: ["report", "agency"],
@@ -95,6 +101,15 @@ export function AgencyAdminDashboard() {
 
   return (
     <Box>
+      {/* Back-to-hub button — exits BackOffice workspace and returns to the package selector. */}
+      <Button
+        startIcon={<ArrowBackIcon />}
+        size="small"
+        onClick={() => { exitToHub(); navigate("/app"); }}
+        sx={{ mb: 2, color: "text.secondary" }}
+      >
+        Επιστροφή στον αρχικό Πίνακα Ελέγχου
+      </Button>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 800 }}>Πίνακας ελέγχου διαχειριστή</Typography>

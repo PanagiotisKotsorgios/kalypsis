@@ -17,6 +17,9 @@ public class Policy : TenantEntity
     public Producer? Producer { get; set; }
 
     public PolicyType PolicyType { get; set; }
+    /// <summary>Vehicle-use sub-classification for motor policies (ΕΙΧ, ΦΔΧ, etc.).
+    /// Optional and ignored on non-motor policies.</summary>
+    public VehicleUseCategory? VehicleUseCategory { get; set; }
     public PolicyStatus Status { get; set; } = PolicyStatus.Draft;
 
     public DateOnly StartDate { get; set; }

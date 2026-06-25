@@ -182,6 +182,10 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<SapBridgeMapping> SapBridgeMappings => Set<SapBridgeMapping>();
     public DbSet<PeriodLock> PeriodLocks => Set<PeriodLock>();
 
+    // Phase 14
+    public DbSet<DefaultValueRule> DefaultValueRules => Set<DefaultValueRule>();
+    public DbSet<CompanyBridgeRun> CompanyBridgeRuns => Set<CompanyBridgeRun>();
+
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
 
     // PlatformAdmin / PlatformEmployee normally bypass the tenant filter, but

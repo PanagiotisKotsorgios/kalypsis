@@ -30,11 +30,15 @@ import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
 import CancelIcon from "@mui/icons-material/Cancel";
+import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
 import { ExportButton } from "../components/ExportButton";
+import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
+import { useTableState } from "../components/useTableState";
+import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal";
@@ -92,9 +96,23 @@ export function PoliciesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<PolicyStatus | "">("");
   const [typeFilter, setTypeFilter] = useState<PolicyType | "">("");
+  const [carrierFilter, setCarrierFilter] = useState<string>("");
+  const [producerFilter, setProducerFilter] = useState<string>("");
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
+
+  const carriersQuery = useQuery({
+    queryKey: ["insurance-companies-for-filter"],
+    queryFn: async () => (await api.get<CarrierDto[]>("/insurance-companies")).data
+  });
+  const producersQuery = useQuery({
+    queryKey: ["producers-for-filter"],
+    queryFn: async () => (await api.get<{ id: string; name: string; code: string }[]>("/producers")).data
+  });
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<PolicyDto | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [renewing, setRenewing] = useState<PolicyDto | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,7 +134,36 @@ export function PoliciesPage() {
     onError: (err) => setError(extractErrorMessage(err))
   });
 
-  const rows = policiesQuery.data ?? [];
+  const [blockers, setBlockers] = useState<{ kind: string; count: number; message: string }[] | null>(null);
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) =>
+      (await api.delete<{ deleted: boolean; blockers: { kind: string; count: number; message: string }[] }>(`/policies/${id}`)).data,
+    onSuccess: (res) => {
+      if (!res.deleted) { setBlockers(res.blockers); return; }
+      setBlockers(null);
+      void qc.invalidateQueries({ queryKey: ["policies"] });
+    },
+    onError: (err) => setError(extractErrorMessage(err))
+  });
+
+  const rawRows = policiesQuery.data ?? [];
+  const allRows = useMemo(() => rawRows.filter(p => {
+    if (carrierFilter  && p.insuranceCompanyId !== carrierFilter) return false;
+    if (producerFilter && p.producerId         !== producerFilter) return false;
+    if (fromDate && p.startDate < fromDate) return false;
+    if (toDate   && p.startDate > toDate)   return false;
+    return true;
+  }), [rawRows, carrierFilter, producerFilter, fromDate, toDate]);
+
+  // Phase 15.2 — client-side search + sort + pagination.
+  const table = useTableState<PolicyDto>({
+    rows: allRows,
+    searchableText: (p) => `${p.policyNumber} ${p.customerDisplay ?? ""} ${p.insuranceCompanyName} ${p.producerName ?? ""} ${p.policyType} ${p.status}`,
+    pageSize: 25,
+    initialSortKey: "createdAt" as keyof PolicyDto,
+    initialSortDir: "desc"
+  });
+  const rows = table.paged;
 
   return (
     <Box>
@@ -135,7 +182,7 @@ export function PoliciesPage() {
         <Stack direction="row" spacing={1}>
           {canEdit && <ExportButton href="/api/exports/policies.csv" />}
           {canEdit && (
-            <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateOpen(true); }}>
+            <Button data-tour="policies-new" startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateOpen(true); }}>
               {t("policies.create")}
             </Button>
           )}
@@ -143,36 +190,51 @@ export function PoliciesPage() {
       </Stack>
 
       {!isCustomer && (
-        <Card sx={{ p: 2, mb: 2 }}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField
-              fullWidth
-              size="small"
-              placeholder={t("policies.searchPlaceholder")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
-            />
-            <TextField
-              select size="small" label={t("policies.col.status")}
-              value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as PolicyStatus | "")}
-              sx={{ minWidth: { sm: 180 } }}
-            >
-              <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
-              {(["Draft","Active","Expired","Cancelled","Renewed","PendingRenewal"] as const).map(s =>
-                <MenuItem key={s} value={s}>{t(`policies.statuses.${s}`)}</MenuItem>
-              )}
-            </TextField>
-            <TextField
-              select size="small" label={t("policies.col.type")}
-              value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as PolicyType | "")}
-              sx={{ minWidth: { sm: 180 } }}
-            >
-              <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
-              {(["Auto","Home","Health","Life","Business","Travel","Other"] as const).map(tp =>
-                <MenuItem key={tp} value={tp}>{t(`policies.types.${tp}`)}</MenuItem>
-              )}
-            </TextField>
+        <Card sx={{ p: 2, mb: 2 }} data-tour="policies-search">
+          <Stack spacing={2}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+              <TextField
+                fullWidth size="small"
+                placeholder={t("policies.searchPlaceholder") + " · ΑΦΜ · αρ. απόδειξης · πινακίδα"}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
+              />
+              <TextField select size="small" label={t("policies.col.status")}
+                value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as PolicyStatus | "")}
+                sx={{ minWidth: { sm: 170 } }}>
+                <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
+                {(["Draft","Active","Expired","Cancelled","Renewed","PendingRenewal"] as const).map(s =>
+                  <MenuItem key={s} value={s}>{t(`policies.statuses.${s}`)}</MenuItem>)}
+              </TextField>
+              <TextField select size="small" label={t("policies.col.type")}
+                value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as PolicyType | "")}
+                sx={{ minWidth: { sm: 170 } }}>
+                <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
+                {(["Auto","Home","Health","Life","Business","Travel","Other"] as const).map(tp =>
+                  <MenuItem key={tp} value={tp}>{t(`policies.types.${tp}`)}</MenuItem>)}
+              </TextField>
+            </Stack>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+              <TextField select size="small" label="Εταιρία"
+                value={carrierFilter} onChange={(e) => setCarrierFilter(e.target.value)} fullWidth>
+                <MenuItem value="">Όλες</MenuItem>
+                {(carriersQuery.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+              </TextField>
+              <TextField select size="small" label="Συνεργάτης"
+                value={producerFilter} onChange={(e) => setProducerFilter(e.target.value)} fullWidth>
+                <MenuItem value="">Όλοι</MenuItem>
+                {(producersQuery.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
+              </TextField>
+              <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
+                value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: { sm: 160 } }} />
+              <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
+                value={toDate}   onChange={(e) => setToDate(e.target.value)}   sx={{ minWidth: { sm: 160 } }} />
+              <Button size="small" onClick={() => {
+                setCarrierFilter(""); setProducerFilter("");
+                setFromDate(""); setToDate(""); setStatusFilter(""); setTypeFilter(""); setSearch("");
+              }}>Καθαρισμός</Button>
+            </Stack>
           </Stack>
         </Card>
       )}
@@ -183,6 +245,29 @@ export function PoliciesPage() {
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
       ) : (
         <Card>
+          <Box sx={{ px: 2, pt: 2 }}>
+            <TableToolbar<PolicyDto>
+              query={table.query} onQuery={table.setQuery}
+              count={allRows.length} filteredCount={table.filtered.length}
+              pageSize={table.pageSize} onPageSize={table.setPageSize}
+              exportRows={table.filtered}
+              exportFileName={`policies-${new Date().toISOString().slice(0, 10)}`}
+              serverEntity="policies"
+              serverParams={{ search: table.query }}
+              exportColumns={[
+                { key: "policyNumber", label: "Αρ. Συμβ." },
+                { key: "policyType", label: "Κλάδος" },
+                { key: "customerDisplay", label: "Πελάτης" },
+                { key: "insuranceCompanyName", label: "Εταιρία" },
+                { key: "producerName", label: "Συνεργάτης" },
+                { key: "startDate", label: "Έναρξη" },
+                { key: "endDate", label: "Λήξη" },
+                { key: "premium", label: "Ασφάλιστρο" },
+                { key: "currency", label: "Νόμισμα" },
+                { key: "status", label: "Κατάσταση" }
+              ]}
+            />
+          </Box>
           <TableContainer>
             <Table>
               <TableHead>
@@ -202,7 +287,12 @@ export function PoliciesPage() {
                   const daysToEnd = Math.ceil((new Date(p.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
                   const expiringSoon = daysToEnd > 0 && daysToEnd <= 30 && p.status === "Active";
                   return (
-                    <TableRow key={p.id} hover>
+                    <TableRow key={p.id} hover sx={{ cursor: "pointer" }}
+                      data-tour="policies-row"
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).closest("button, a, .MuiIconButton-root")) return;
+                        setDetailId(p.id);
+                      }}>
                       <TableCell><Chip label={p.policyNumber} variant="outlined" size="small" /></TableCell>
                       <TableCell>{t(`policies.types.${p.policyType}`)}</TableCell>
                       {!isCustomer && <TableCell><Typography fontWeight={600}>{p.customerDisplay}</Typography></TableCell>}
@@ -218,7 +308,7 @@ export function PoliciesPage() {
                       <TableCell align="right">
                         <Typography fontWeight={700}>{p.premium.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {p.currency}</Typography>
                       </TableCell>
-                      <TableCell><Chip label={t(`policies.statuses.${p.status}`)} color={STATUS_COLOR[p.status]} size="small" /></TableCell>
+                      <TableCell><Chip data-tour="policies-status" label={t(`policies.statuses.${p.status}`)} color={STATUS_COLOR[p.status]} size="small" /></TableCell>
                       {canEdit && (
                         <TableCell align="right">
                           <Stack direction="row" spacing={0.5} justifyContent="flex-end">
@@ -242,6 +332,13 @@ export function PoliciesPage() {
                             >
                               <CancelIcon fontSize="small" />
                             </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => deleteMutation.mutate(p.id)}
+                              title="Διαγραφή"
+                              color="error">
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
                           </Stack>
                         </TableCell>
                       )}
@@ -258,6 +355,9 @@ export function PoliciesPage() {
               </TableBody>
             </Table>
           </TableContainer>
+          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} />
+          </Box>
         </Card>
       )}
 
@@ -280,8 +380,36 @@ export function PoliciesPage() {
             onClose={() => setRenewing(null)}
             onSaved={() => { void qc.invalidateQueries({ queryKey: ["policies"] }); setRenewing(null); }}
           />
+          <PolicyDetailDrawer
+            policyId={detailId}
+            open={!!detailId}
+            onClose={() => setDetailId(null)}
+          />
         </>
       )}
+
+      <Dialog open={!!blockers} onClose={() => setBlockers(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Δεν είναι δυνατή η διαγραφή</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Το συμβόλαιο έχει εξαρτημένες εγγραφές. Διαγράψτε τις παρακάτω πρώτα,
+            με τη σειρά που εμφανίζονται, και μετά επαναλάβετε τη διαγραφή.
+          </Alert>
+          <Stack spacing={1.5}>
+            {(blockers ?? []).map((b, i) => (
+              <Card variant="outlined" key={b.kind} sx={{ p: 2 }}>
+                <Typography fontWeight={800}>{i + 1}. {b.message}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Πλήθος: {b.count} · κατηγορία: <code>{b.kind}</code>
+                </Typography>
+              </Card>
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBlockers(null)} variant="contained">Κατάλαβα</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

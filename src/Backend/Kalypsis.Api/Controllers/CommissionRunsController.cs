@@ -71,20 +71,7 @@ public class CommissionRunsController : ControllerBase
     }
 }
 
-[ApiController]
-[Route("api/commission-rules")]
-[Authorize(Policy = "AgencyAdmin")]
-[RequiresPackage(Kalypsis.Domain.Enums.PackageCode.BackOffice)]
-public class CommissionRulesController : ControllerBase
-{
-    private readonly IMediator _m; public CommissionRulesController(IMediator m) => _m = m;
-    [HttpGet] [RequirePermission("commissions.read")] public async Task<ActionResult<IReadOnlyList<CommissionRuleDto>>> List(CancellationToken ct)
-        => Ok(await _m.Send(new ListCommissionRulesQuery(), ct));
-    [HttpPost] [RequirePermission("commissions.run")] public async Task<ActionResult<CommissionRuleDto>> Create([FromBody] CommissionRuleBody body, CancellationToken ct)
-        => Ok(await _m.Send(new CreateCommissionRuleCommand(body), ct));
-    [HttpDelete("{id:guid}")] [RequirePermission("commissions.run")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
-    { await _m.Send(new DeleteCommissionRuleCommand(id), ct); return NoContent(); }
-}
+// CommissionRulesController moved to CommissionRulesController.cs (dedicated CRUD).
 
 [ApiController]
 [Route("api/company-bridges")]

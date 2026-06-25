@@ -3,6 +3,7 @@ import {
   AppBar,
   Box,
   Chip,
+  Collapse,
   Divider,
   Drawer,
   IconButton,
@@ -12,6 +13,7 @@ import {
   ListItemText,
   Stack,
   Toolbar,
+  Tooltip,
   Typography,
   Avatar,
   useMediaQuery,
@@ -20,6 +22,9 @@ import {
 import MenuIcon from "@mui/icons-material/Menu";
 import LogoutIcon from "@mui/icons-material/Logout";
 import CloseIcon from "@mui/icons-material/Close";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import FolderIcon from "@mui/icons-material/Folder";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
@@ -33,6 +38,8 @@ import { ImpersonationBanner } from "./ImpersonationBanner";
 import { LanguageToggle } from "./LanguageToggle";
 import { NotificationBell } from "./NotificationBell";
 import { KalypsisLogo } from "./KalypsisLogo";
+import { KalypsisOnboarding } from "./KalypsisOnboarding";
+import { PageTourMount } from "./PageTour";
 
 export interface NavItem {
   to: string;
@@ -55,6 +62,15 @@ export interface NavItem {
   workspaces?: import("../auth/PackagesContext").PackageCode[];
   /** @deprecated since 8.7 — use `workspaces` instead. Kept for back-compat. */
   foundational?: boolean;
+  /**
+   * Phase 14: group items into a collapsible dropdown in the sidebar.
+   * Ungrouped items render at the top (everyday work — Dashboard, Customers, Policies).
+   * Grouped items go under a folder header that toggles open/closed; defaults closed.
+   * Group open state persists in localStorage so each user's preference sticks.
+   */
+  group?: string;
+  /** Optional icon next to the group header in the sidebar. */
+  groupIcon?: ReactNode;
 }
 
 interface AppLayoutProps {
@@ -62,7 +78,8 @@ interface AppLayoutProps {
   children: ReactNode;
 }
 
-const DRAWER_WIDTH = 260;
+const DRAWER_WIDTH = 360;
+const DRAWER_RAIL_WIDTH = 64;
 
 export function AppLayout({ navItems, children }: AppLayoutProps) {
   const { t } = useTranslation();
@@ -71,11 +88,30 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const [open, setOpen] = useState(!isMobile);
+  // Desktop open/closed persists per user; mobile is always controlled by hamburger.
+  const [open, setOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("nav.sidebarOpen") !== "false";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined" || isMobile) return;
+    localStorage.setItem("nav.sidebarOpen", String(open));
+  }, [open, isMobile]);
 
   const { tenantId: impersonatedTenantId } = useImpersonation();
   const { has: hasPackage } = usePackages();
   const { workspace, enter: enterWorkspace, exitToHub } = useWorkspace();
+
+  // Per-user persisted open/closed state for sidebar groups (default closed).
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {};
+    try { return JSON.parse(localStorage.getItem("nav.openGroups") ?? "{}"); } catch { return {}; }
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("nav.openGroups", JSON.stringify(openGroups));
+  }, [openGroups]);
+  const toggleGroup = (g: string) => setOpenGroups(s => ({ ...s, [g]: !s[g] }));
   // Whether this user gets the workspace-switcher UI at all. Only agency-side roles see it;
   // platform staff (not impersonating) and customers/producers use the linear sidebar.
   const useWorkspaceUi = user?.role === "AgencyAdmin" || user?.role === "AgencyUser" || !!impersonatedTenantId;
@@ -92,10 +128,8 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
   useEffect(() => () => { if (logoQuery.data) URL.revokeObjectURL(logoQuery.data); }, [logoQuery.data]);
   const tenantLogoUrl = logoQuery.data ?? null;
 
-  // Snap drawer state when crossing breakpoint and auto-close on mobile navigation.
-  useEffect(() => {
-    setOpen(!isMobile);
-  }, [isMobile]);
+  // On mobile, auto-close the temporary drawer after navigating. On desktop, keep
+  // whatever the user chose (open or rail) — never force-close on route changes.
   useEffect(() => {
     if (isMobile) setOpen(false);
   }, [location.pathname, isMobile]);
@@ -129,85 +163,168 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
         )}
       </Toolbar>
       <Divider />
-      <List sx={{ flex: 1, py: 1, overflowY: "auto" }}>
-        {navItems.filter(item => {
-          // 1. License gating: drop items whose package isn't enabled for the tenant.
-          if (item.package && !hasPackage(item.package)) return false;
-
-          // 2. Workspace scoping: only applies to agency-side UI inside a workspace.
-          if (useWorkspaceUi && workspace) {
-            // Items with an explicit workspaces list: show only when the current
-            // workspace is in it.
-            if (item.workspaces && item.workspaces.length > 0)
-              return item.workspaces.includes(workspace);
-
-            // Items tagged to a specific package: show in that workspace.
-            if (item.package) return item.package === workspace;
-
-            // Items with no workspace metadata are global (Profile, Notifications) — always show.
+      <List sx={{ flex: 1, py: 1, overflowY: "auto" }} component="nav">
+        {(() => {
+          const visible = navItems.filter(item => {
+            if (item.package && !hasPackage(item.package)) return false;
+            if (useWorkspaceUi && workspace) {
+              if (item.workspaces && item.workspaces.length > 0)
+                return item.workspaces.includes(workspace);
+              if (item.package) return item.package === workspace;
+              return true;
+            }
             return true;
+          });
+
+          // Split: the Dashboard ("/") link is pinned at the very top,
+          // remaining top-level items render below it, grouped items after.
+          const dashboardItem = visible.find(i => i.to === "/" && !i.group);
+          const otherTopLevel = visible.filter(i => !i.group && i.to !== "/");
+          const grouped: Record<string, { items: NavItem[]; icon?: ReactNode }> = {};
+          const groupOrder: string[] = [];
+          for (const item of visible) {
+            if (!item.group) continue;
+            if (!grouped[item.group]) { grouped[item.group] = { items: [], icon: item.groupIcon }; groupOrder.push(item.group); }
+            if (item.groupIcon && !grouped[item.group].icon) grouped[item.group].icon = item.groupIcon;
+            grouped[item.group].items.push(item);
           }
 
-          return true;
-        }).map((item) => {
-          const route = `/app${item.to === "/" ? "" : item.to}`;
-          const selected =
-            item.to === "/"
-              ? location.pathname === "/app"
-              : location.pathname.startsWith(route);
-          const target = item.comingSoon ? "/app/coming-soon?key=" + encodeURIComponent(item.labelKey) : route;
+          const renderItem = (item: NavItem, indented = false) => {
+            const route = `/app${item.to === "/" ? "" : item.to}`;
+            const selected = item.to === "/" ? location.pathname === "/app" : location.pathname.startsWith(route);
+            const target = item.comingSoon ? "/app/coming-soon?key=" + encodeURIComponent(item.labelKey) : route;
+            // Tour anchor — derive from the route so KalypsisOnboarding selectors stay stable.
+            const tourKey = item.to === "/" ? "dashboard"
+              : item.to.replace(/^\//, "").replace(/\//g, "-");
+            const collapsed = !isMobile && !open;
+            const button = (
+              <ListItemButton
+                key={item.to + item.labelKey}
+                component={RouterLink}
+                to={target}
+                selected={selected}
+                data-tour={`sidebar-${tourKey}`}
+                sx={{
+                  mx: collapsed ? 0.5 : 1,
+                  mb: 0.4,
+                  pl: collapsed ? 1.2 : (indented ? 3 : 2),
+                  borderRadius: 1.5,
+                  justifyContent: collapsed ? "center" : "flex-start",
+                  opacity: item.comingSoon ? 0.7 : 1
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: collapsed ? 0 : 34, justifyContent: "center" }}>{item.icon}</ListItemIcon>
+                {!collapsed && (
+                  <ListItemText
+                    primary={t(item.labelKey)}
+                    primaryTypographyProps={{ fontWeight: 500, noWrap: true, fontSize: indented ? 13.5 : 14 }}
+                  />
+                )}
+                {!collapsed && item.comingSoon && (
+                  <Chip label={t("nav.comingSoonChip")} size="small"
+                    sx={{ height: 18, fontSize: 10, fontWeight: 700,
+                      bgcolor: "rgba(11,37,69,0.08)", color: "text.secondary", ml: 0.5 }} />
+                )}
+              </ListItemButton>
+            );
+            return collapsed
+              ? <Tooltip key={item.to + item.labelKey} title={t(item.labelKey)} placement="right" arrow>{button}</Tooltip>
+              : button;
+          };
 
           return (
-            <ListItemButton
-              key={item.to + item.labelKey}
-              component={RouterLink}
-              to={target}
-              selected={selected}
-              sx={{
-                mx: 1,
-                mb: 0.5,
-                borderRadius: 1.5,
-                opacity: item.comingSoon ? 0.7 : 1
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
-              <ListItemText
-                primary={t(item.labelKey)}
-                primaryTypographyProps={{ fontWeight: 500, noWrap: true }}
-              />
-              {item.comingSoon && (
-                <Chip
-                  label={t("nav.comingSoonChip")}
-                  size="small"
-                  sx={{
-                    height: 18,
-                    fontSize: 10,
-                    fontWeight: 700,
-                    bgcolor: "rgba(11,37,69,0.08)",
-                    color: "text.secondary",
-                    ml: 0.5
-                  }}
-                />
+            <>
+              {dashboardItem && (
+                <>
+                  {renderItem(dashboardItem)}
+                  <Divider sx={{ my: 1, mx: 2 }} />
+                </>
               )}
-            </ListItemButton>
+              {otherTopLevel.map(item => renderItem(item))}
+              {groupOrder.length > 0 && otherTopLevel.length > 0 && <Divider sx={{ my: 1, mx: 2 }} />}
+              {groupOrder.map(groupKey => {
+                const grp = grouped[groupKey];
+                const isOpen = !!openGroups[groupKey];
+                const collapsed = !isMobile && !open;
+                // Highlight group if any child is the active route — and auto-open it.
+                const containsActive = grp.items.some(i => {
+                  const r = `/app${i.to === "/" ? "" : i.to}`;
+                  return location.pathname === r || location.pathname.startsWith(r + "/");
+                });
+                const effectiveOpen = isOpen || containsActive;
+
+                // In rail (collapsed) mode, render each grouped item as a standalone icon
+                // with tooltip — folder structure makes no sense when the sidebar is 64px wide.
+                if (collapsed) {
+                  return (
+                    <Box key={groupKey}>
+                      {grp.items.map(item => renderItem(item))}
+                    </Box>
+                  );
+                }
+
+                const header = (
+                  <ListItemButton onClick={() => toggleGroup(groupKey)}
+                    sx={{ mx: 1, mb: 0.4, borderRadius: 1.5,
+                      bgcolor: containsActive ? "rgba(11,37,69,0.04)" : "transparent" }}>
+                    <ListItemIcon sx={{ minWidth: 34, color: containsActive ? "primary.main" : "text.secondary" }}>
+                      {grp.icon ?? <FolderIcon fontSize="small" />}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={t(`nav.group.${groupKey}`, groupKey)}
+                      primaryTypographyProps={{
+                        fontWeight: 700,
+                        fontSize: 12.5,
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                        color: containsActive ? "primary.main" : "text.secondary",
+                        noWrap: true
+                      }}
+                    />
+                    <Chip label={grp.items.length} size="small"
+                      sx={{ height: 18, fontSize: 10, fontWeight: 700, mr: 0.5,
+                        bgcolor: "rgba(11,37,69,0.06)", color: "text.secondary" }} />
+                    {effectiveOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                  </ListItemButton>
+                );
+                return (
+                  <Box key={groupKey}>
+                    {header}
+                    <Collapse in={effectiveOpen} timeout="auto" unmountOnExit>
+                      <List disablePadding>
+                        {grp.items.map(item => renderItem(item, true))}
+                      </List>
+                    </Collapse>
+                  </Box>
+                );
+              })}
+            </>
           );
-        })}
+        })()}
       </List>
       <Divider />
-      <Box sx={{ p: 2 }}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36, fontSize: 14 }}>
-            {initials}
-          </Avatar>
-          <Box sx={{ overflow: "hidden", minWidth: 0 }}>
-            <Typography variant="body2" fontWeight={600} noWrap>
-              {user?.firstName} {user?.lastName}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" noWrap display="block">
-              {user ? t(`roles.${user.role}`) : ""}
-            </Typography>
-          </Box>
-        </Stack>
+      <Box sx={{ p: !isMobile && !open ? 1 : 2 }}>
+        {!isMobile && !open ? (
+          <Tooltip title={`${user?.firstName ?? ""} ${user?.lastName ?? ""}`} placement="right" arrow>
+            <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36, fontSize: 14, mx: "auto" }}>
+              {initials}
+            </Avatar>
+          </Tooltip>
+        ) : (
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36, fontSize: 14 }}>
+              {initials}
+            </Avatar>
+            <Box sx={{ overflow: "hidden", minWidth: 0 }}>
+              <Typography variant="body2" fontWeight={600} noWrap>
+                {user?.firstName} {user?.lastName}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" noWrap display="block">
+                {user ? t(`roles.${user.role}`) : ""}
+              </Typography>
+            </Box>
+          </Stack>
+        )}
       </Box>
     </Box>
   );
@@ -245,8 +362,8 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           </Stack>
 
           {/* Workspace switcher (agency-side roles only) */}
-          {useWorkspaceUi && (
-            <Box sx={{
+          {false && useWorkspaceUi && (
+            <Box data-tour="topbar-workspace-pills" sx={{
               flex: 1,
               display: { xs: "none", md: "flex" },
               justifyContent: "center",
@@ -273,27 +390,31 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           {!useWorkspaceUi && <Box sx={{ flex: 1 }} />}
 
           <Stack direction="row" spacing={{ xs: 0.5, md: 1.5 }} alignItems="center">
-            <NotificationBell />
-            <Box sx={{ display: { xs: "none", sm: "block" } }}>
+            <Box data-tour="topbar-bell"><NotificationBell /></Box>
+            <Box data-tour="topbar-language" sx={{ display: { xs: "none", sm: "block" } }}>
               <LanguageToggle />
             </Box>
-            <IconButton onClick={handleSignOut} title={t("auth.logout")}>
+            <IconButton data-tour="topbar-logout" onClick={handleSignOut} title={t("auth.logout")}>
               <LogoutIcon />
             </IconButton>
           </Stack>
         </Toolbar>
       </AppBar>
 
+      {/* Desktop: persistent drawer that collapses to an icon rail. Mobile: full overlay drawer. */}
       <Drawer
-        variant={isMobile ? "temporary" : "persistent"}
-        open={open}
+        variant={isMobile ? "temporary" : "permanent"}
+        open={isMobile ? open : true}
         onClose={() => setOpen(false)}
         ModalProps={{ keepMounted: true }}
         sx={{
-          width: !isMobile && open ? DRAWER_WIDTH : 0,
+          width: isMobile ? 0 : (open ? DRAWER_WIDTH : DRAWER_RAIL_WIDTH),
           flexShrink: 0,
+          transition: (theme) => theme.transitions.create("width", { duration: 200 }),
           "& .MuiDrawer-paper": {
-            width: DRAWER_WIDTH,
+            width: isMobile ? DRAWER_WIDTH : (open ? DRAWER_WIDTH : DRAWER_RAIL_WIDTH),
+            overflowX: "hidden",
+            transition: (theme) => theme.transitions.create("width", { duration: 200 }),
             boxSizing: "border-box",
             borderRight: "1px solid",
             borderColor: "divider"
@@ -316,6 +437,8 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
         <ImpersonationBanner />
         {children}
       </Box>
+      <KalypsisOnboarding />
+      <PageTourMount />
     </Box>
   );
 }

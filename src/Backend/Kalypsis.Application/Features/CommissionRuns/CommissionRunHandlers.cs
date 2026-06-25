@@ -99,10 +99,21 @@ public class GenerateCommissionRunCommandHandler : IRequestHandler<GenerateCommi
         var policies = await policiesQ.ToListAsync(ct);
 
         // All commission rules active during this month, with priority: most specific wins
-        // (producer × type × company) → (producer × type) → (producer × company) → (producer) → (any).
+        // (producer ID > tier > company > type). The tier dimension lets the agency
+        // declare one rule per (Α/Β/Γ/Δ/Ε) bucket and have every producer in that
+        // bucket inherit it automatically.
         var rules = await _db.CommissionRules
             .Where(r => (r.EffectiveTo == null || r.EffectiveTo >= firstDay) && r.EffectiveFrom <= lastDay)
             .ToListAsync(ct);
+
+        // Snapshot every producer's tier once so we don't hit the DB per-policy.
+        var producerIds = policies.Where(p => p.ProducerId.HasValue)
+            .Select(p => p.ProducerId!.Value).Distinct().ToList();
+        var tierByProducer = producerIds.Count == 0
+            ? new Dictionary<Guid, ProducerTier>()
+            : await _db.Producers.IgnoreQueryFilters()
+                .Where(x => producerIds.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id, x => x.Tier, ct);
 
         // 9-level over-commission rules active this month.
         var overRules = await _db.OverCommissionRules
@@ -111,10 +122,12 @@ public class GenerateCommissionRunCommandHandler : IRequestHandler<GenerateCommi
                         && o.EffectiveFrom <= lastDay)
             .ToListAsync(ct);
 
-        decimal MatchScore(CommissionRule r, Policy p)
+        decimal MatchScore(CommissionRule r, Policy p, ProducerTier policyTier)
         {
             decimal s = 0;
-            if (r.ProducerId == p.ProducerId && r.ProducerId.HasValue) s += 4;
+            if (r.ProducerId == p.ProducerId && r.ProducerId.HasValue) s += 16;
+            if (r.ProducerTier.HasValue && r.ProducerTier == policyTier) s += 8;
+            if (r.VehicleUseCategory.HasValue && r.VehicleUseCategory == p.VehicleUseCategory) s += 4;
             if (r.InsuranceCompanyId == p.InsuranceCompanyId && r.InsuranceCompanyId.HasValue) s += 2;
             if (r.PolicyType == p.PolicyType && r.PolicyType.HasValue) s += 1;
             return s;
@@ -143,18 +156,25 @@ public class GenerateCommissionRunCommandHandler : IRequestHandler<GenerateCommi
 
         foreach (var p in policies)
         {
+            var policyTier = p.ProducerId.HasValue && tierByProducer.TryGetValue(p.ProducerId.Value, out var t)
+                ? t : ProducerTier.None;
             var match = rules
                 .Where(r =>
-                    (!r.ProducerId.HasValue || r.ProducerId == p.ProducerId) &&
+                    (!r.ProducerId.HasValue         || r.ProducerId == p.ProducerId) &&
+                    (!r.ProducerTier.HasValue       || r.ProducerTier == policyTier) &&
+                    (!r.VehicleUseCategory.HasValue || r.VehicleUseCategory == p.VehicleUseCategory) &&
                     (!r.InsuranceCompanyId.HasValue || r.InsuranceCompanyId == p.InsuranceCompanyId) &&
-                    (!r.PolicyType.HasValue || r.PolicyType == p.PolicyType))
-                .OrderByDescending(r => MatchScore(r, p))
+                    (!r.PolicyType.HasValue         || r.PolicyType == p.PolicyType))
+                .OrderByDescending(r => MatchScore(r, p, policyTier))
                 .FirstOrDefault();
 
-            // Default to 10% if no rule applies — gives the agency a starting point they can override.
-            var ratePercent = match?.CommissionType == CommissionType.Percentage ? match.Value
-                            : match?.CommissionType == CommissionType.FixedAmount ? 0m
-                            : 10m;
+            // Prefer the new ProducerPercent column. Fall back to the legacy single-
+            // value column for backwards compatibility, then 10% as a starting point.
+            var ratePercent =
+                  match?.ProducerPercent.HasValue == true                 ? match.ProducerPercent!.Value
+                : match?.CommissionType == CommissionType.Percentage      ? match.Value
+                : match?.CommissionType == CommissionType.FixedAmount     ? 0m
+                : 10m;
             var fixedAmount = match?.CommissionType == CommissionType.FixedAmount ? match.Value : 0m;
 
             var commission = fixedAmount > 0 ? fixedAmount : Math.Round(p.Premium * (ratePercent / 100m), 2);

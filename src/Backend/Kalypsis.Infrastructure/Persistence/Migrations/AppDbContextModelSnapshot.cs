@@ -1818,6 +1818,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<decimal?>("AgencyPercent")
+                        .HasColumnType("decimal(65,30)");
+
                     b.Property<int>("CommissionType")
                         .HasColumnType("int");
 
@@ -1842,6 +1845,12 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ProducerId")
                         .HasColumnType("char(36)");
 
+                    b.Property<decimal?>("ProducerPercent")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<int?>("ProducerTier")
+                        .HasColumnType("int");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("char(36)");
 
@@ -1851,6 +1860,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("Value")
                         .HasPrecision(10, 4)
                         .HasColumnType("decimal(10,4)");
+
+                    b.Property<int?>("VehicleUseCategory")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -2293,6 +2305,73 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "InsuranceCompanyId");
 
                     b.ToTable("company_bridges", (string)null);
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.CompanyBridgeRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("BridgeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<string>("ResultJson")
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("RowsCreated")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RowsFailed")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RowsSkipped")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RowsTotal")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SourceFile")
+                        .HasMaxLength(400)
+                        .HasColumnType("varchar(400)");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("TriggeredByUserId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BridgeId");
+
+                    b.HasIndex("TenantId", "BridgeId", "StartedAt");
+
+                    b.ToTable("CompanyBridgeRuns");
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.ConsentRecord", b =>
@@ -3006,6 +3085,66 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "CustomerId");
 
                     b.ToTable("customer_contacts", (string)null);
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.DefaultValueRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("CoverCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("InsuranceCompanyId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("PackageCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<int?>("PolicyType")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ValuesJson")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InsuranceCompanyId");
+
+                    b.HasIndex("TenantId", "IsActive", "Priority");
+
+                    b.ToTable("DefaultValueRules");
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.DeliveryRecord", b =>
@@ -5952,6 +6091,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<int?>("VehicleUseCategory")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedByUserId");
@@ -6323,6 +6465,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("char(36)");
+
+                    b.Property<int>("Tier")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
@@ -9060,6 +9205,17 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Navigation("InsuranceCompany");
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.CompanyBridgeRun", b =>
+                {
+                    b.HasOne("Kalypsis.Domain.Entities.CompanyBridge", "Bridge")
+                        .WithMany()
+                        .HasForeignKey("BridgeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Bridge");
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.ConsentRecord", b =>
                 {
                     b.HasOne("Kalypsis.Domain.Entities.Customer", "Customer")
@@ -9174,6 +9330,16 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.DefaultValueRule", b =>
+                {
+                    b.HasOne("Kalypsis.Domain.Entities.InsuranceCompany", "InsuranceCompany")
+                        .WithMany()
+                        .HasForeignKey("InsuranceCompanyId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("InsuranceCompany");
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.DeliveryRecord", b =>

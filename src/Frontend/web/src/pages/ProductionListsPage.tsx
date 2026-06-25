@@ -1,0 +1,252 @@
+import { useState } from "react";
+import {
+  Alert, Box, Button, Card, Chip, CircularProgress, MenuItem,
+  Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+} from "@mui/material";
+import StackedBarChartIcon from "@mui/icons-material/StackedBarChart";
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
+import DownloadIcon from "@mui/icons-material/Download";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import TableChartIcon from "@mui/icons-material/TableChart";
+import GridOnIcon from "@mui/icons-material/GridOn";
+import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { api } from "../api/client";
+import { HelpHint } from "../components/HelpHint";
+
+interface Carrier { id: string; name: string; }
+interface Producer { id: string; name: string; }
+interface Row {
+  policyId: string; policyNumber: string;
+  startDate: string; endDate: string;
+  customerName: string; insuranceCompany: string; producer: string | null;
+  policyType: string; status: string;
+  gross: number; net: number; vat: number;
+  partnerCommissionPercent: number; partnerCommission: number;
+  agencyCommissionPercent: number; agencyCommission: number;
+}
+interface GroupTotal { key: string; count: number; gross: number; net: number; vat: number; partnerCommission: number; agencyCommission: number; }
+interface Result {
+  count: number;
+  rows: Row[];
+  groups: GroupTotal[];
+  grand: GroupTotal;
+}
+
+const TYPES = ["Auto", "Home", "Health", "Life", "Business", "Travel", "Other"];
+const STATUSES = ["Draft", "Active", "Expired", "Cancelled", "Renewed", "PendingRenewal"];
+
+export function ProductionListsPage() {
+  const { t } = useTranslation();
+  const today = new Date();
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+  const todayStr = today.toISOString().slice(0, 10);
+
+  const [f, setF] = useState({
+    from: monthStart, to: todayStr,
+    insuranceCompanyId: "", producerId: "",
+    policyType: "", status: "", groupBy: "carrier"
+  });
+
+  const carriers = useQuery({
+    queryKey: ["carriers-prod-list"],
+    queryFn: async () => (await api.get<Carrier[]>("/insurance-companies")).data
+  });
+  const producers = useQuery({
+    queryKey: ["producers-prod-list"],
+    queryFn: async () => (await api.get<Producer[]>("/producers")).data
+  });
+
+  const params = {
+    from: f.from || undefined,
+    to: f.to || undefined,
+    insuranceCompanyId: f.insuranceCompanyId || undefined,
+    producerId: f.producerId || undefined,
+    policyType: f.policyType || undefined,
+    status: f.status || undefined,
+    groupBy: f.groupBy || undefined
+  };
+
+  const q = useQuery({
+    queryKey: ["production-list", params],
+    queryFn: async () => (await api.get<Result>("/production-lists", { params })).data
+  });
+
+  async function downloadExport(fmt: "csv" | "xlsx" | "pdf") {
+    const res = await api.get("/production-lists/export", {
+      params: { ...params, format: fmt },
+      responseType: "blob"
+    });
+    const mime = fmt === "csv"  ? "text/csv"
+              : fmt === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              : "application/pdf";
+    const blob = new Blob([res.data], { type: mime });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    const ts   = new Date().toISOString().slice(0, 10);
+    a.href = url; a.download = `production-${ts}.${fmt}`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  return (
+    <Box>
+      <Stack direction="row" alignItems="center" spacing={2} mb={3} flexWrap="wrap" gap={2}>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <StackedBarChartIcon sx={{ fontSize: 36 }} color="primary" />
+          <Box>
+            <Stack direction="row" alignItems="center" spacing={0.5}>
+              <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("productionList.title")}</Typography>
+              <HelpHint id="page.productionList" />
+            </Stack>
+            <Typography color="text.secondary">{t("productionList.subtitle")}</Typography>
+          </Box>
+        </Stack>
+        <Box sx={{ flex: 1 }} />
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" startIcon={<TableChartIcon />} onClick={() => downloadExport("csv")}>CSV</Button>
+          <Button variant="outlined" startIcon={<GridOnIcon />} onClick={() => downloadExport("xlsx")}>Excel</Button>
+          <Button variant="contained" startIcon={<PictureAsPdfIcon />} onClick={() => downloadExport("pdf")}>PDF</Button>
+        </Stack>
+      </Stack>
+
+      <Card sx={{ p: 2.5, mb: 3 }}>
+        <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+          <FilterAltIcon color="primary" />
+          <Typography fontWeight={700}>{t("productionList.filters")}</Typography>
+        </Stack>
+        <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" } }}>
+          <TextField type="date" size="small" InputLabelProps={{ shrink: true }} label={t("productionList.from")}
+            value={f.from} onChange={e => setF({ ...f, from: e.target.value })} />
+          <TextField type="date" size="small" InputLabelProps={{ shrink: true }} label={t("productionList.to")}
+            value={f.to} onChange={e => setF({ ...f, to: e.target.value })} />
+          <TextField select size="small" label={t("productionList.carrier")} value={f.insuranceCompanyId}
+            onChange={e => setF({ ...f, insuranceCompanyId: e.target.value })}>
+            <MenuItem value="">{t("common.all")}</MenuItem>
+            {(carriers.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label={t("productionList.producer")} value={f.producerId}
+            onChange={e => setF({ ...f, producerId: e.target.value })}>
+            <MenuItem value="">{t("common.all")}</MenuItem>
+            {(producers.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label={t("productionList.type")} value={f.policyType}
+            onChange={e => setF({ ...f, policyType: e.target.value })}>
+            <MenuItem value="">{t("common.all")}</MenuItem>
+            {TYPES.map(tp => <MenuItem key={tp} value={tp}>{tp}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label={t("productionList.status")} value={f.status}
+            onChange={e => setF({ ...f, status: e.target.value })}>
+            <MenuItem value="">{t("common.all")}</MenuItem>
+            {STATUSES.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label={t("productionList.groupBy")} value={f.groupBy}
+            onChange={e => setF({ ...f, groupBy: e.target.value })}>
+            <MenuItem value="">{t("productionList.noGrouping")}</MenuItem>
+            <MenuItem value="carrier">{t("productionList.byCarrier")}</MenuItem>
+            <MenuItem value="producer">{t("productionList.byProducer")}</MenuItem>
+            <MenuItem value="type">{t("productionList.byType")}</MenuItem>
+            <MenuItem value="month">{t("productionList.byMonth")}</MenuItem>
+          </TextField>
+        </Box>
+      </Card>
+
+      {q.isLoading ? <CircularProgress /> : !q.data ? null : (
+        <>
+          {/* Grand totals strip */}
+          <Card sx={{ p: 2.5, mb: 2, bgcolor: "rgba(11,37,69,0.04)" }}>
+            <Stack direction="row" spacing={3} flexWrap="wrap">
+              <Kpi label={t("productionList.kpi.policies")} value={q.data.grand.count} />
+              <Kpi label={t("productionList.kpi.gross")} value={`${q.data.grand.gross.toFixed(2)} €`} />
+              <Kpi label={t("productionList.kpi.net")} value={`${q.data.grand.net.toFixed(2)} €`} />
+              <Kpi label={t("productionList.kpi.vat")} value={`${q.data.grand.vat.toFixed(2)} €`} />
+              <Kpi label={t("productionList.kpi.partnerComm")} value={`${q.data.grand.partnerCommission.toFixed(2)} €`} color="warning.main" />
+              <Kpi label={t("productionList.kpi.agencyComm")} value={`${q.data.grand.agencyCommission.toFixed(2)} €`} color="success.main" />
+            </Stack>
+          </Card>
+
+          {/* Group totals (if grouping enabled) */}
+          {q.data.groups.length > 0 && (
+            <Card sx={{ p: 2, mb: 2 }} variant="outlined">
+              <Typography fontWeight={700} mb={1}>{t("productionList.groupTotals")}</Typography>
+              <Table size="small">
+                <TableHead><TableRow>
+                  <TableCell>{t("productionList.group")}</TableCell>
+                  <TableCell align="right">{t("productionList.count")}</TableCell>
+                  <TableCell align="right">{t("productionList.kpi.gross")}</TableCell>
+                  <TableCell align="right">{t("productionList.kpi.net")}</TableCell>
+                  <TableCell align="right">{t("productionList.kpi.partnerComm")}</TableCell>
+                  <TableCell align="right">{t("productionList.kpi.agencyComm")}</TableCell>
+                </TableRow></TableHead>
+                <TableBody>
+                  {q.data.groups.map(g => (
+                    <TableRow key={g.key} hover>
+                      <TableCell sx={{ fontWeight: 600 }}>{g.key}</TableCell>
+                      <TableCell align="right">{g.count}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>{g.gross.toFixed(2)} €</TableCell>
+                      <TableCell align="right">{g.net.toFixed(2)} €</TableCell>
+                      <TableCell align="right" sx={{ color: "warning.main" }}>{g.partnerCommission.toFixed(2)} €</TableCell>
+                      <TableCell align="right" sx={{ color: "success.main", fontWeight: 700 }}>{g.agencyCommission.toFixed(2)} €</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          )}
+
+          {/* Detailed rows */}
+          <Card variant="outlined" sx={{ overflowX: "auto" }}>
+            <Table size="small">
+              <TableHead><TableRow>
+                <TableCell>{t("productionList.col.policy")}</TableCell>
+                <TableCell>{t("productionList.col.start")}</TableCell>
+                <TableCell>{t("productionList.col.customer")}</TableCell>
+                <TableCell>{t("productionList.col.carrier")}</TableCell>
+                <TableCell>{t("productionList.col.producer")}</TableCell>
+                <TableCell>{t("productionList.col.type")}</TableCell>
+                <TableCell align="right">{t("productionList.col.gross")}</TableCell>
+                <TableCell align="right">{t("productionList.col.net")}</TableCell>
+                <TableCell align="right">{t("productionList.col.partnerPct")}</TableCell>
+                <TableCell align="right">{t("productionList.col.partner")}</TableCell>
+                <TableCell align="right">{t("productionList.col.agency")}</TableCell>
+              </TableRow></TableHead>
+              <TableBody>
+                {q.data.rows.length === 0 && (
+                  <TableRow><TableCell colSpan={11} align="center" sx={{ py: 4, color: "text.secondary" }}>{t("productionList.empty")}</TableCell></TableRow>
+                )}
+                {q.data.rows.map(r => (
+                  <TableRow key={r.policyId} hover>
+                    <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.policyNumber}</TableCell>
+                    <TableCell sx={{ fontSize: 12 }}>{r.startDate}</TableCell>
+                    <TableCell>{r.customerName}</TableCell>
+                    <TableCell>{r.insuranceCompany}</TableCell>
+                    <TableCell>{r.producer ?? "—"}</TableCell>
+                    <TableCell><Chip size="small" variant="outlined" label={r.policyType} /></TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>{r.gross.toFixed(2)}</TableCell>
+                    <TableCell align="right">{r.net.toFixed(2)}</TableCell>
+                    <TableCell align="right" sx={{ color: "text.secondary" }}>{r.partnerCommissionPercent.toFixed(1)}%</TableCell>
+                    <TableCell align="right" sx={{ color: "warning.main" }}>{r.partnerCommission.toFixed(2)}</TableCell>
+                    <TableCell align="right" sx={{ color: "success.main", fontWeight: 700 }}>{r.agencyCommission.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+
+          <Alert severity="info" icon={<DownloadIcon />} sx={{ mt: 2 }}>
+            {t("productionList.note")}
+          </Alert>
+        </>
+      )}
+    </Box>
+  );
+}
+
+function Kpi({ label, value, color }: { label: string; value: React.ReactNode; color?: string }) {
+  return (
+    <Box>
+      <Typography variant="caption" color="text.secondary">{label}</Typography>
+      <Typography variant="h6" fontWeight={800} sx={{ color: color ?? "text.primary" }}>{value}</Typography>
+    </Box>
+  );
+}

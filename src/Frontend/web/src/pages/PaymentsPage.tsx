@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import {
-  Alert, Box, Button, Card, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -29,6 +29,12 @@ export function PaymentsPage() {
   const [err, setErr] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
+  const [search, setSearch] = useState("");
+  const [methodFilter, setMethodFilter] = useState<Method | "">("");
+  const [benFilter, setBenFilter] = useState<BType | "">("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate,   setToDate]   = useState("");
+
   const q = useQuery({ queryKey: ["payments"], queryFn: async () => (await api.get<PaymentDto[]>("/payments")).data });
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/payments/${id}`),
@@ -36,8 +42,23 @@ export function PaymentsPage() {
     onError: e => setErr(extractErrorMessage(e))
   });
 
-  const total = (q.data ?? []).reduce((s, p) => s + p.amount, 0);
-  const netted = (q.data ?? []).reduce((s, p) => s + p.commissionsNetted, 0);
+  const rawRows = q.data ?? [];
+  const filteredRows = rawRows.filter(p => {
+    if (methodFilter && p.method !== methodFilter) return false;
+    if (benFilter && p.beneficiaryType !== benFilter) return false;
+    if (fromDate && p.paidOn < fromDate) return false;
+    if (toDate   && p.paidOn > toDate)   return false;
+    if (search) {
+      const s = search.toLowerCase();
+      const hay = `${p.number} ${p.beneficiaryInsuranceCompanyName ?? ""} ${p.beneficiaryProducerName ?? ""} ${p.beneficiaryName ?? ""} ${p.notes ?? ""}`.toLowerCase();
+      if (!hay.includes(s)) return false;
+    }
+    return true;
+  });
+
+  const total  = filteredRows.reduce((s, p) => s + p.amount, 0);
+  const netted = filteredRows.reduce((s, p) => s + p.commissionsNetted, 0);
+  const cashOutTotal = filteredRows.reduce((s, p) => s + (p.amount - p.commissionsNetted), 0);
 
   return (
     <Box>
@@ -46,13 +67,42 @@ export function PaymentsPage() {
           <Typography color="text.secondary">{t("payments.subtitle")}</Typography></Box>
         <Stack direction="row" spacing={2} alignItems="center">
           <Box sx={{ textAlign: "right" }}>
-            <Typography variant="caption" color="text.secondary">{t("payments.totalsLabel")}</Typography>
-            <Typography variant="body1" fontWeight={800}>{total.toFixed(2)} € · {t("payments.netted")} {netted.toFixed(2)} €</Typography>
+            <Typography variant="caption" color="text.secondary">Σύνολο · Συμψηφισμός · Καθαρή εκροή</Typography>
+            <Typography variant="body1" fontWeight={800}>
+              {total.toFixed(2)} € · −{netted.toFixed(2)} € · {cashOutTotal.toFixed(2)} €
+            </Typography>
           </Box>
           <ExportButton href="/api/exports/payments.csv" />
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("payments.create")}</Button>
         </Stack>
       </Stack>
+
+      <Card sx={{ p: 2, mb: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
+          <TextField size="small" placeholder="Αριθμός, δικαιούχος, σημείωση…"
+            value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
+          <TextField select size="small" label="Δικαιούχος"
+            value={benFilter} onChange={(e) => setBenFilter(e.target.value as BType | "")}
+            sx={{ minWidth: 180 }}>
+            <MenuItem value="">Όλοι</MenuItem>
+            {BENEFICIARIES.map(b => <MenuItem key={b} value={b}>{t(`payments.benType.${b}`)}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label="Μέθοδος"
+            value={methodFilter} onChange={(e) => setMethodFilter(e.target.value as Method | "")}
+            sx={{ minWidth: 160 }}>
+            <MenuItem value="">Όλες</MenuItem>
+            {METHODS.map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`)}</MenuItem>)}
+          </TextField>
+          <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
+            value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
+            value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          <Button size="small" onClick={() => {
+            setSearch(""); setMethodFilter(""); setBenFilter(""); setFromDate(""); setToDate("");
+          }}>Καθαρισμός</Button>
+        </Stack>
+      </Card>
+
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
@@ -61,20 +111,30 @@ export function PaymentsPage() {
               <TableCell>{t("payments.number")}</TableCell>
               <TableCell>{t("payments.date")}</TableCell>
               <TableCell>{t("payments.beneficiary")}</TableCell>
+              <TableCell>Κατάσταση</TableCell>
               <TableCell>{t("payments.method")}</TableCell>
               <TableCell align="right">{t("payments.amount")}</TableCell>
               <TableCell align="right">{t("payments.netted")}</TableCell>
               <TableCell align="right" />
             </TableRow></TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
-                <TableRow><TableCell colSpan={7} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("payments.empty")}</TableCell></TableRow>
+              {filteredRows.length === 0 && (
+                <TableRow><TableCell colSpan={8} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("payments.empty")}</TableCell></TableRow>
               )}
-              {(q.data ?? []).map(p => (
+              {filteredRows.map(p => {
+                const cashOut = p.amount - p.commissionsNetted;
+                const fullyNetted = p.amount > 0 && p.commissionsNetted >= p.amount;
+                return (
                 <TableRow key={p.id} hover>
                   <TableCell><Typography fontWeight={700} sx={{ fontFamily: "monospace" }}>{p.number}</Typography></TableCell>
                   <TableCell>{p.paidOn}</TableCell>
                   <TableCell>{p.beneficiaryInsuranceCompanyName ?? p.beneficiaryProducerName ?? p.beneficiaryName ?? "—"} <Typography variant="caption" color="text.secondary"> · {t(`payments.benType.${p.beneficiaryType}`)}</Typography></TableCell>
+                  <TableCell>
+                    <Chip size="small"
+                      color={fullyNetted ? "success" : cashOut === 0 ? "info" : "warning"}
+                      label={fullyNetted ? "Πλήρης συμψηφισμός" : cashOut === 0 ? "Συμψηφισμένο" : "Εκκρεμεί καταβολή"}
+                      sx={{ fontWeight: 700 }} />
+                  </TableCell>
                   <TableCell>{t(`paymentMethod.${p.method}`)}</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700 }}>{p.amount.toFixed(2)} {p.currency}</TableCell>
                   <TableCell align="right" sx={{ color: "text.secondary" }}>{p.commissionsNetted.toFixed(2)}</TableCell>
@@ -84,7 +144,8 @@ export function PaymentsPage() {
                     </IconButton>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </Card>

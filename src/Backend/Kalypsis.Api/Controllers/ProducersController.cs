@@ -17,6 +17,10 @@ public class ProducersController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<ProducerDto>>> List(CancellationToken cancellationToken)
         => Ok(await _mediator.Send(new ListProducersQuery(), cancellationToken));
 
+    [HttpGet("{id:guid}/detail")]
+    public async Task<ActionResult<ProducerDetailDto>> Detail(Guid id, CancellationToken ct)
+        => Ok(await _mediator.Send(new GetProducerDetailQuery(id), ct));
+
     [HttpPost]
     public async Task<ActionResult<ProducerDto>> Create([FromBody] CreateProducerBody body, CancellationToken cancellationToken)
     {

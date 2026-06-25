@@ -28,6 +28,16 @@ public class PoliciesController : ControllerBase
     public async Task<ActionResult<PolicyDto>> Get(Guid id, CancellationToken cancellationToken)
         => Ok(await _mediator.Send(new GetPolicyQuery(id), cancellationToken));
 
+    [HttpGet("{id:guid}/detail")]
+    public async Task<ActionResult<PolicyDetailDto>> Detail(Guid id, CancellationToken ct)
+        => Ok(await _mediator.Send(new GetPolicyDetailQuery(id), ct));
+
+    [HttpPut("{id:guid}/extended")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<PolicyDetailDto>> UpdateExtended(
+        Guid id, [FromBody] UpdatePolicyExtendedBody body, CancellationToken ct)
+        => Ok(await _mediator.Send(new UpdatePolicyExtendedCommand(id, body), ct));
+
     [HttpPost]
     [Authorize(Policy = "AgencyStaff")]
     public async Task<ActionResult<PolicyDto>> Create(
@@ -54,6 +64,15 @@ public class PoliciesController : ControllerBase
     public async Task<ActionResult<PolicyDto>> Renew(
         Guid id, [FromBody] RenewPolicyBody body, CancellationToken cancellationToken)
         => Ok(await _mediator.Send(new RenewPolicyCommand(id, body), cancellationToken));
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<DeletePolicyResultDto>> Delete(Guid id, CancellationToken ct)
+        => Ok(await _mediator.Send(new DeletePolicyCommand(id), ct));
+
+    [HttpGet("{id:guid}/payment-summary")]
+    public async Task<ActionResult<PolicyPaymentSummaryDto>> PaymentSummary(Guid id, CancellationToken ct)
+        => Ok(await _mediator.Send(new GetPolicyPaymentSummaryQuery(id), ct));
 }
 
 [ApiController]

@@ -31,10 +31,29 @@ export function CreditNotesPage() {
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
+  const [search, setSearch] = useState("");
+  const [kindFilter, setKindFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
   const q = useQuery({
     queryKey: ["credit-notes"],
     queryFn: async () => (await api.get<CreditNoteDto[]>("/credit-notes")).data
   });
+
+  const filtered = (q.data ?? []).filter(c => {
+    if (kindFilter   && String(c.kind)  !== kindFilter)   return false;
+    if (statusFilter && c.status        !== statusFilter) return false;
+    if (fromDate && c.issuedAt < fromDate) return false;
+    if (toDate   && c.issuedAt > toDate)   return false;
+    if (search) {
+      const s = search.toLowerCase();
+      if (!`${c.creditNoteNumber} ${c.description} ${c.relatedDocumentRef ?? ""}`.toLowerCase().includes(s)) return false;
+    }
+    return true;
+  });
+  const total = filtered.reduce((s, c) => s + c.amount, 0);
 
   return (
     <Box>
@@ -58,6 +77,38 @@ export function CreditNotesPage() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 
+      <Card sx={{ p: 2, mb: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap alignItems={{ md: "center" }}>
+          <TextField size="small" placeholder="Αριθμός, περιγραφή, σχετικό έγγραφο…"
+            value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
+          <TextField select size="small" label="Είδος"
+            value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} sx={{ minWidth: 200 }}>
+            <MenuItem value="">Όλα</MenuItem>
+            {Object.entries(KIND_LABELS).map(([k, label]) =>
+              <MenuItem key={k} value={k}>{label}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label="Κατάσταση"
+            value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 160 }}>
+            <MenuItem value="">Όλες</MenuItem>
+            <MenuItem value="Issued">Εκδόθηκε</MenuItem>
+            <MenuItem value="Applied">Εφαρμόστηκε</MenuItem>
+            <MenuItem value="Cancelled">Ακυρώθηκε</MenuItem>
+          </TextField>
+          <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
+            value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
+            value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          <Box sx={{ flex: 1 }} />
+          <Box sx={{ textAlign: "right" }}>
+            <Typography variant="caption" color="text.secondary">Σύνολο φιλτραρισμένα</Typography>
+            <Typography fontWeight={800}>{total.toFixed(2)} €</Typography>
+          </Box>
+          <Button size="small" onClick={() => {
+            setSearch(""); setKindFilter(""); setStatusFilter(""); setFromDate(""); setToDate("");
+          }}>Καθαρισμός</Button>
+        </Stack>
+      </Card>
+
       {q.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
       ) : (
@@ -75,12 +126,12 @@ export function CreditNotesPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
+              {filtered.length === 0 && (
                 <TableRow><TableCell colSpan={7} align="center" sx={{ color: "text.secondary", py: 4 }}>
                   Δεν υπάρχουν πιστωτικά σημειώματα.
                 </TableCell></TableRow>
               )}
-              {(q.data ?? []).map(n => (
+              {filtered.map(n => (
                 <TableRow key={n.id} hover>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{n.creditNoteNumber}</TableCell>
                   <TableCell>{KIND_LABELS[n.kind] ?? "—"}</TableCell>

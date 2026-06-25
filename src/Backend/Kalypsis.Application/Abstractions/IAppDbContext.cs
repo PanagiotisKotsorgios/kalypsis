@@ -179,5 +179,9 @@ public interface IAppDbContext
     DbSet<SapBridgeMapping> SapBridgeMappings { get; }
     DbSet<PeriodLock> PeriodLocks { get; }
 
+    // Phase 14 — default-value rules + carrier bridge import runs
+    DbSet<DefaultValueRule> DefaultValueRules { get; }
+    DbSet<CompanyBridgeRun> CompanyBridgeRuns { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
