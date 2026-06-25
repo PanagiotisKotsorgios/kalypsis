@@ -1,4 +1,5 @@
 using Kalypsis.Application.Abstractions;
+using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -30,14 +31,37 @@ public class GetPublicStatsQueryHandler : IRequestHandler<GetPublicStatsQuery, P
     }
 }
 
-public record NewsletterSubscribeCommand(string Email) : IRequest<Unit>;
+public record NewsletterSubscribeCommand(string Email, string? Source = null) : IRequest<Unit>;
 
 public class NewsletterSubscribeCommandHandler : IRequestHandler<NewsletterSubscribeCommand, Unit>
 {
-    public Task<Unit> Handle(NewsletterSubscribeCommand request, CancellationToken cancellationToken)
+    private readonly IAppDbContext _db;
+    public NewsletterSubscribeCommandHandler(IAppDbContext db) => _db = db;
+
+    public async Task<Unit> Handle(NewsletterSubscribeCommand r, CancellationToken ct)
     {
-        // No-op for now; in production this would push to Brevo / Mailchimp.
-        // Returning success is intentional so the UX stays clean.
-        return Task.FromResult(Unit.Value);
+        var email = r.Email.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+            return Unit.Value; // silently ignore garbage — the UI already validates.
+
+        var existing = await _db.NewsletterSubscribers.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Email == email, ct);
+        if (existing is null)
+        {
+            _db.NewsletterSubscribers.Add(new NewsletterSubscriber
+            {
+                Email = email,
+                Source = r.Source ?? "landing"
+            });
+            await _db.SaveChangesAsync(ct);
+        }
+        else if (existing.UnsubscribedAt.HasValue)
+        {
+            // Re-subscribe — clear the unsubscribed flag.
+            existing.UnsubscribedAt = null;
+            await _db.SaveChangesAsync(ct);
+        }
+        return Unit.Value;
     }
 }
+

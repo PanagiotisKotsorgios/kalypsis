@@ -1,12 +1,7 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Box,
-  ClickAwayListener,
-  Fade,
-  Paper,
-  Popper,
-  Stack
+  Box, ClickAwayListener, Fade, Paper, Popper, Stack, Typography
 } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import CheckIcon from "@mui/icons-material/Check";
@@ -26,13 +21,19 @@ const LANGS: Lang[] = [
   { code: "en", short: "EN", label: "English",  flag: <AmericanFlag size={18} /> }
 ];
 
+// Brand palette — mirrors LandingPage / LegalShell.
+const NAVY = "#0b2545";
+const NAVY_SOFT = "#3d4f6b";
+const ACCENT = "#1f7bb3";
+const RULE = "#e5e9ef";
+
 /**
- * Editorial-style language picker. The trigger pill shows the current
- * flag + short code; clicking opens a Popper-anchored dropdown that lists
- * each language with its native name + short code + a gold check on the
- * active one. Uses MUI's Popper + ClickAwayListener so it works correctly
- * even when the trigger is mounted inside a portal (e.g. the public mobile
- * drawer).
+ * Restrained navy/white language picker matching the redesigned pre-login
+ * theme. The trigger is a compact pill (flag + short code + chevron); the
+ * dropdown is a clean white card with hairline borders and an accent check.
+ *
+ * Uses MUI's Popper + ClickAwayListener so it survives being mounted inside
+ * portals (e.g. the public mobile drawer).
  */
 export function LanguageToggle() {
   const { i18n } = useTranslation();
@@ -56,29 +57,29 @@ export function LanguageToggle() {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={`Language: ${currentLang.label}`}
+        aria-label={`Γλώσσα: ${currentLang.label}`}
         sx={{
           display: "inline-flex",
           alignItems: "center",
-          gap: 1.25,
-          px: 1.5,
-          py: 0.875,
-          background: "transparent",
-          border: "1px solid rgba(11,37,69,0.22)",
-          color: "#0b2545",
+          gap: 1,
+          px: 1.5, py: 0.85,
+          borderRadius: 999,
+          background: "#ffffff",
+          border: `1px solid ${RULE}`,
+          color: NAVY,
           cursor: "pointer",
-          fontFamily: "var(--sans, system-ui)",
+          fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif',
           fontSize: 13,
-          fontWeight: 600,
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          transition: "border-color 240ms cubic-bezier(0.16,1,0.3,1), background 240ms cubic-bezier(0.16,1,0.3,1)",
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          transition: "border-color 220ms ease, background 220ms ease, box-shadow 220ms ease",
           "&:hover": {
-            borderColor: "#0b2545",
-            background: "rgba(11,37,69,0.05)"
+            borderColor: NAVY,
+            background: "rgba(11,37,69,0.04)",
+            boxShadow: "0 1px 6px rgba(11,37,69,0.06)"
           },
           "&:focus-visible": {
-            outline: "2px solid rgba(176,138,62,0.6)",
+            outline: `2px solid ${ACCENT}`,
             outlineOffset: 2
           }
         }}
@@ -88,8 +89,8 @@ export function LanguageToggle() {
         <KeyboardArrowDownIcon
           sx={{
             fontSize: 16,
-            ml: 0.25,
-            transition: "transform 320ms cubic-bezier(0.16,1,0.3,1)",
+            ml: 0.15,
+            transition: "transform 280ms cubic-bezier(0.22,1,0.36,1)",
             transform: open ? "rotate(180deg)" : "rotate(0)"
           }}
         />
@@ -108,20 +109,20 @@ export function LanguageToggle() {
         ]}
       >
         {({ TransitionProps }) => (
-          <Fade {...TransitionProps} timeout={220}>
+          <Fade {...TransitionProps} timeout={200}>
             <Paper
               elevation={0}
               sx={{
                 minWidth: 220,
-                background: "#fcf8f1",
-                border: "1px solid #d6c6ab",
-                borderRadius: 0,
-                boxShadow: "0 18px 48px -16px rgba(11,37,69,0.32)",
+                background: "#ffffff",
+                border: `1px solid ${RULE}`,
+                borderRadius: 2,
+                boxShadow: "0 18px 40px rgba(11,37,69,0.12), 0 2px 8px rgba(11,37,69,0.04)",
                 overflow: "hidden"
               }}
             >
               <ClickAwayListener onClickAway={() => setOpen(false)}>
-                <Stack role="listbox" aria-label="Select language" sx={{ py: 0.5 }}>
+                <Stack role="listbox" aria-label="Επιλέξτε γλώσσα" sx={{ py: 0.5 }}>
                   {LANGS.map((lang) => {
                     const selected = lang.code === current;
                     return (
@@ -135,48 +136,43 @@ export function LanguageToggle() {
                           gridTemplateColumns: "26px 1fr auto",
                           alignItems: "center",
                           gap: 1.5,
-                          px: 2,
-                          py: 1.5,
+                          px: 2, py: 1.25,
                           cursor: "pointer",
-                          color: "#0b2545",
-                          fontFamily: "var(--sans, system-ui)",
-                          transition: "background 200ms ease",
-                          "&:hover": { background: "rgba(176,138,62,0.08)" }
+                          color: NAVY,
+                          fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif',
+                          transition: "background 180ms ease",
+                          bgcolor: selected ? "rgba(31,123,179,0.06)" : "transparent",
+                          "&:hover": { background: "rgba(31,123,179,0.08)" }
                         }}
                       >
                         <Box sx={{ display: "inline-flex" }}>{lang.flag}</Box>
-                        <Box sx={{ display: "flex", flexDirection: "column", lineHeight: 1.15 }}>
-                          <Box
-                            sx={{
-                              fontFamily: "var(--display, Georgia, serif)",
-                              fontStyle: "italic",
-                              fontSize: 17,
-                              color: selected ? "#0b2545" : "#1f3a64"
-                            }}
-                          >
+                        <Box sx={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
+                          <Typography sx={{
+                            fontSize: 15, fontWeight: 700,
+                            color: selected ? NAVY : NAVY_SOFT,
+                            letterSpacing: "-0.005em"
+                          }}>
                             {lang.label}
-                          </Box>
-                          <Box
-                            sx={{
-                              fontSize: 10,
-                              letterSpacing: "0.16em",
-                              color: "rgba(11,37,69,0.55)",
-                              mt: 0.25
-                            }}
-                          >
+                          </Typography>
+                          <Typography sx={{
+                            fontSize: 10.5,
+                            letterSpacing: "0.18em",
+                            color: NAVY_SOFT,
+                            mt: 0.15,
+                            fontWeight: 600
+                          }}>
                             {lang.short}
-                          </Box>
+                          </Typography>
                         </Box>
                         <Box
                           sx={{
-                            width: 18,
-                            height: 18,
+                            width: 20, height: 20,
                             display: "inline-flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            color: "#b08a3e",
+                            color: ACCENT,
                             opacity: selected ? 1 : 0,
-                            transition: "opacity 240ms ease"
+                            transition: "opacity 220ms ease"
                           }}
                         >
                           <CheckIcon sx={{ fontSize: 18 }} />

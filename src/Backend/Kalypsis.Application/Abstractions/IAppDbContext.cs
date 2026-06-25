@@ -18,6 +18,8 @@ public interface IAppDbContext
     DbSet<CommissionTransaction> CommissionTransactions { get; }
     DbSet<AgencyTask> AgencyTasks { get; }
     DbSet<Notification> Notifications { get; }
+    DbSet<NewsletterSubscriber> NewsletterSubscribers { get; }
+    DbSet<NewsletterCampaign> NewsletterCampaigns { get; }
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<PasswordResetToken> PasswordResetTokens { get; }
     DbSet<PlatformSetting> PlatformSettings { get; }

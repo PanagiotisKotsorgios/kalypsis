@@ -619,6 +619,38 @@
     "months": "months"
   },
   "landing": {
+    "v2": {
+      "heroWelcome": "Welcome.",
+      "heroAction": "Sign in or get started today.",
+      "heroSub": "A single environment for every insurance agency — carrier bridges, production, cash, digital client portal. All connected.",
+      "ctaLogin": "SIGN IN",
+      "ctaRegister": "REGISTER – CREATE AN ACCOUNT",
+      "featuresEyebrow": "What we offer",
+      "featuresHeadline": "BackOffice · CRM · FrontOffice · Intelligence · Integrations.",
+      "featuresSub": "One unified platform — from contract management and cash, to client marketing, quote generation, analytics, and bridges to insurers and banks.",
+      "feat": {
+        "bridgesT": "Carrier Bridges",
+        "bridgesB": "Automatic policy import from every insurer, with detection of cancellations, renewals and endorsements.",
+        "prodT": "Production Lists",
+        "prodB": "Filters by carrier, producer, branch. Export to Excel and PDF with automatic subtotals.",
+        "networkT": "Producer Network",
+        "networkB": "A/B/C/D/E tiering with different commissions per tier — fully parametric.",
+        "cashT": "Cash Position",
+        "cashB": "Receipts and payments in real time, with commission netting.",
+        "accessT": "Access Control",
+        "accessB": "Per-user, per-role, per-branch permissions. Full access audit log.",
+        "portalT": "Client & Producer Portal",
+        "portalB": "Mobile app for clients and a web portal for producers, wired into the back-office."
+      },
+      "newsEyebrow": "Newsletter",
+      "newsTitle": "Stay in the loop.",
+      "newsBody": "New features, guides and platform announcements. No spam. Unsubscribe in one click.",
+      "newsPlaceholder": "email@example.com",
+      "newsSubmit": "Subscribe",
+      "newsInvalid": "Please enter a valid email.",
+      "newsError": "Something went wrong. Please try again.",
+      "newsSuccess": "Thank you! You'll be the first to hear our updates."
+    },
     "eyebrow": "ISSUE N°01 · ATHENS",
     "editorial": {
       "headlineA": "Your agency,",

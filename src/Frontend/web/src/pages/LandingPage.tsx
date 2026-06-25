@@ -1,694 +1,360 @@
-import { useEffect, useRef, useState } from "react";
-import { Box, Container, Stack } from "@mui/material";
-import { useTranslation } from "react-i18next";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Alert, Box, Button, CircularProgress, Container, Stack, TextField, Typography } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import ArrowOutwardIcon from "@mui/icons-material/ArrowOutward";
+import { useTranslation } from "react-i18next";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-// Sidebar-matched outlined icons for the feature grid (bigger, single tone).
-import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
+import CloudSyncOutlinedIcon from "@mui/icons-material/CloudSyncOutlined";
+import LeaderboardOutlinedIcon from "@mui/icons-material/LeaderboardOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
-import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
-import PhoneIphoneOutlinedIcon from "@mui/icons-material/PhoneIphoneOutlined";
-import ExtensionOutlinedIcon from "@mui/icons-material/ExtensionOutlined";
-import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
-import QuestionAnswerRoundedIcon from "@mui/icons-material/QuestionAnswerRounded";
-import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
-import { PublicShell } from "../components/PublicShell";
-import { EdReveal } from "../components/EdReveal";
-import { DashboardShowcase } from "../components/DashboardShowcase";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import SmartphoneOutlinedIcon from "@mui/icons-material/SmartphoneOutlined";
+import { PublicFooter } from "../components/PublicFooter";
+import { AccessibilityWidget } from "../components/AccessibilityWidget";
+import { PageEnter } from "../components/PageEnter";
+import { LanguageToggle } from "../components/LanguageToggle";
 import { api } from "../api/client";
 
-const HERO_IMAGE =
-  "https://media.canadianunderwriter.ca/uploads/2024/07/iStock-1479275024-modified-78c42d3a-3ec3-44d2-98a4-882c8c742d8e.jpg";
-const FOR_AGENCIES_IMAGE =
-  "https://img.magnific.com/premium-photo/businessman-holding-different-icons-dark-background-closeup-insurance-concept_495423-31062.jpg";
-const FOR_AGENTS_IMAGE =
-  "https://img.freepik.com/premium-vector/insurance-services-concept-with-magnifier-hand-magnifying-glass-virtual-screen_127544-770.jpg";
+// Restrained brand palette — navy for type, single accent blue, soft borders.
+// White page background — no gradient washes, no neon glows.
+const NAVY = "#0b2545";        // primary text / logotype
+const NAVY_SOFT = "#3d4f6b";   // secondary text
+const ACCENT = "#1f7bb3";      // single accent — links + primary CTA
+const RULE = "#e5e9ef";        // hairline borders
+const SURFACE = "#fafbfc";     // ultra-light card surface
+
+// Feature list keys — labels resolved at render-time via t() so they respect
+// the current language.
+const FEATURE_KEYS: { icon: typeof HubOutlinedIcon; t: string; b: string }[] = [
+  { icon: HubOutlinedIcon,         t: "landing.v2.feat.bridgesT", b: "landing.v2.feat.bridgesB" },
+  { icon: LeaderboardOutlinedIcon, t: "landing.v2.feat.prodT",    b: "landing.v2.feat.prodB" },
+  { icon: GroupsOutlinedIcon,      t: "landing.v2.feat.networkT", b: "landing.v2.feat.networkB" },
+  { icon: CloudSyncOutlinedIcon,   t: "landing.v2.feat.cashT",    b: "landing.v2.feat.cashB" },
+  { icon: LockOutlinedIcon,        t: "landing.v2.feat.accessT",  b: "landing.v2.feat.accessB" },
+  { icon: SmartphoneOutlinedIcon,  t: "landing.v2.feat.portalT",  b: "landing.v2.feat.portalB" }
+];
 
 export function LandingPage() {
   return (
-    <PublicShell overlayHero>
-      <Hero />
-      <TrustMarquee />
-      <Manifesto />
-      <Features />
-      <ForAgencies />
-      <DashboardShowcase />
-      <ForAgents />
-      <FaqTeaser />
-    </PublicShell>
+    <Box sx={{
+      minHeight: "100vh",
+      bgcolor: "#ffffff",
+      color: NAVY,
+      fontFamily: '"Inter", "Segoe UI", system-ui, -apple-system, sans-serif',
+      display: "flex", flexDirection: "column"
+    }}>
+      {/* Tiny top bar — language picker, perched on the white page. */}
+      <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 }, pt: { xs: 2, md: 2.5 } }}>
+        <Stack direction="row" justifyContent="flex-end">
+          <LanguageToggle />
+        </Stack>
+      </Container>
+
+      <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 }, py: { xs: 2, md: 3 }, flex: 1 }}>
+        <PageEnter stagger={700}>
+          <BigLogo />
+          <Hero />
+          <FeatureGrid />
+          <NewsletterCard />
+        </PageEnter>
+      </Container>
+      <PublicFooter />
+      <AccessibilityWidget />
+    </Box>
   );
 }
 
-/* =============================================================
-   01 — HERO with editorial portrait
-   ============================================================= */
+/* ============================================================================
+   Big centered logo — the visual anchor of the page. No effects, no halo.
+   ============================================================================ */
+function BigLogo() {
+  return (
+    <Box sx={{
+      display: "flex", justifyContent: "center",
+      pt: { xs: 2, md: 4 }, pb: { xs: 2, md: 3 }
+    }}>
+      <Box component="img"
+        src="/kalypsis-logo.jpg"
+        alt="Kalypsis"
+        sx={{
+          width: "100%",
+          maxWidth: { xs: 320, sm: 520, md: 720 },
+          height: "auto",
+          // Imperceptibly trim the white edges of the jpg so it sits flush
+          // against the white page.
+          mixBlendMode: "multiply"
+        }} />
+    </Box>
+  );
+}
+
+/* ============================================================================
+   Hero — short, restrained. One primary CTA, one secondary.
+   ============================================================================ */
 function Hero() {
   const { t } = useTranslation();
   return (
     <Box sx={{
-      position: "relative",
-      overflow: "hidden",
-      borderBottom: "1px solid rgba(245,237,225,0.18)",
-      // The portrait now spans the full width as the hero backdrop.
-      backgroundImage:
-        // Top-to-bottom ink veil so type stays legible no matter the source crop
-        `linear-gradient(180deg, rgba(11,37,69,0.78) 0%, rgba(11,37,69,0.62) 45%, rgba(11,37,69,0.86) 100%),` +
-        // Plus a left-side darker gradient so the editorial copy block reads cleanly
-        `linear-gradient(90deg, rgba(11,37,69,0.55) 0%, rgba(11,37,69,0) 60%),` +
-        `url(${HERO_IMAGE})`,
-      backgroundSize: "cover, cover, cover",
-      backgroundPosition: "center, center, center",
-      color: "var(--paper)"
+      textAlign: "center",
+      maxWidth: 760, mx: "auto",
+      pb: { xs: 6, md: 10 }
     }}>
-      {/* Grain on top of the image for tactile feel */}
-      <Box className="editorial-grain" sx={{ position: "absolute", inset: 0, opacity: 0.35 }} />
+      <Typography component="h1" sx={{
+        fontSize: { xs: 32, sm: 40, md: 52 }, fontWeight: 700,
+        lineHeight: 1.12, letterSpacing: "-0.02em",
+        color: NAVY, mb: 2
+      }}>
+        {t("landing.v2.heroWelcome")}{" "}{t("landing.v2.heroAction")}
+      </Typography>
 
-      <Container
-        maxWidth="xl"
-        sx={{
-          position: "relative",
-          zIndex: 1,
-          pt: { xs: 7, md: 11 },
-          pb: { xs: 7, md: 11 }
-        }}
-      >
-        {/* Wide editorial headline — much wider, much less vertical */}
-        <EdReveal delay={120}>
-          <Box
-            className="display"
-            sx={{
-              fontSize: { xs: 44, sm: 64, md: 84, lg: 102, xl: 116 },
-              color: "var(--paper)",
-              lineHeight: 0.98,
-              letterSpacing: "-0.035em",
-              maxWidth: { xs: "100%", md: "1180px" },
-              mb: { xs: 4, md: 6 }
-            }}
-          >
-            {t("landing.editorial.headlineA")}{" "}
-            <span
-              className="display-italic"
-              style={{ color: "var(--gold)" }}
-            >
-              {t("landing.editorial.headlineB")}
-            </span>{" "}
-            {t("landing.editorial.headlineC")}
-          </Box>
-        </EdReveal>
+      <Typography sx={{
+        fontSize: { xs: 16, md: 18 }, lineHeight: 1.6,
+        color: NAVY_SOFT, mb: 5, maxWidth: 620, mx: "auto"
+      }}>
+        {t("landing.v2.heroSub")}
+      </Typography>
 
-        {/* Lead + CTAs row */}
-        <EdReveal delay={220}>
-          <Box sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "1.5fr 1fr" },
-            gap: { xs: 4, md: 8 },
-            alignItems: "start",
-            mb: { xs: 5, md: 7 }
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="center" alignItems="center">
+        <Button component={RouterLink} to="/login"
+          variant="contained" disableElevation size="large" endIcon={<ArrowForwardIcon sx={{ fontSize: 22 }} />}
+          sx={{
+            borderRadius: 2.5, px: 6, py: 2.2,
+            fontSize: { xs: 17, md: 19 }, fontWeight: 700, letterSpacing: "0.04em",
+            textTransform: "none",
+            minWidth: { sm: 240 },
+            bgcolor: NAVY, color: "#fff",
+            "&:hover": { bgcolor: NAVY_SOFT }
           }}>
-            <Box
-              sx={{
-                fontSize: { xs: 17, md: 19 },
-                lineHeight: 1.65,
-                color: "rgba(245,237,225,0.88)",
-                maxWidth: 720
-              }}
-            >
-              {t("landing.lead")}
-            </Box>
-
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ justifyContent: { md: "flex-end" } }}>
-              <RouterLink
-                to="/register"
-                className="ink-button"
-                style={{
-                  fontSize: 16,
-                  padding: "18px 32px",
-                  background: "var(--paper)",
-                  color: "var(--ink)",
-                  borderColor: "var(--paper)"
-                }}
-              >
-                <span>{t("landing.ctaPrimary")}</span>
-                <ArrowOutwardIcon sx={{ fontSize: 20 }} />
-              </RouterLink>
-              <RouterLink
-                to="/login"
-                className="ghost-button"
-                style={{
-                  fontSize: 16,
-                  padding: "17px 30px",
-                  color: "var(--paper)",
-                  borderColor: "rgba(245,237,225,0.6)"
-                }}
-              >
-                <span>{t("landing.ctaSecondary")}</span>
-              </RouterLink>
-            </Stack>
-          </Box>
-        </EdReveal>
-
-      </Container>
+          {t("landing.v2.ctaLogin")}
+        </Button>
+        <Button component={RouterLink} to="/register"
+          variant="outlined" size="large" endIcon={<ArrowForwardIcon sx={{ fontSize: 22 }} />}
+          sx={{
+            borderRadius: 2.5, px: 6, py: 2.2,
+            fontSize: { xs: 17, md: 19 }, fontWeight: 700, letterSpacing: "0.04em",
+            textTransform: "none",
+            minWidth: { sm: 240 },
+            color: NAVY,
+            borderColor: NAVY, borderWidth: 2,
+            "&:hover": {
+              borderWidth: 2, borderColor: NAVY,
+              bgcolor: "rgba(11,37,69,0.04)"
+            }
+          }}>
+          {t("landing.v2.ctaRegister")}
+        </Button>
+      </Stack>
     </Box>
   );
 }
 
-/* =============================================================
-   02 — TRUST MARQUEE
-   ============================================================= */
-interface PartnerDto { id: string; name: string; logoUrl: string | null; url: string | null; displayOrder: number; isActive: boolean }
-function TrustMarquee() {
-  const { t } = useTranslation();
-  // Sourced from /api/public/partners — the superadmin curates the list in
-  // /app/platform/partners. We hide the strip entirely when empty so the
-  // page doesn't show a placeholder before the platform has any.
-  const q = useQuery({
-    queryKey: ["public-partners"],
-    queryFn: async () => (await api.get<PartnerDto[]>("/public/partners")).data,
-    staleTime: 10 * 60 * 1000
-  });
-  const carriers = (q.data ?? []).map(p => p.name).filter(Boolean);
-  if (carriers.length === 0) return null;
-  const stream = [...carriers, ...carriers];
-  return (
-    <Box sx={{ borderBottom: "1px solid var(--rule)", py: 4 }}>
-      <Container maxWidth="lg">
-        <Stack direction={{ xs: "column", md: "row" }} spacing={3} alignItems="center">
-          <Box className="eyebrow" sx={{ whiteSpace: "nowrap" }}>{t("landing.trustedBy")}</Box>
-          <Box className="trust-marquee" sx={{ flex: 1, width: "100%" }}>
-            <Box className="track">
-              {stream.map((name, i) => (
-                <Box key={i} sx={{
-                  fontFamily: "var(--display)",
-                  fontStyle: "italic",
-                  fontVariationSettings: "'opsz' 144, 'SOFT' 60",
-                  fontSize: { xs: 22, md: 28 },
-                  color: "var(--ink-muted)",
-                  letterSpacing: "-0.01em",
-                  whiteSpace: "nowrap"
-                }}>
-                  {name}
-                </Box>
-              ))}
-            </Box>
-          </Box>
-        </Stack>
-      </Container>
-    </Box>
-  );
-}
-
-/* =============================================================
-   03 — MANIFESTO with drop cap
-   ============================================================= */
-function Manifesto() {
+/* ============================================================================
+   Feature grid — quiet cards, single accent icon, thin border, no shadows.
+   Cards still fade up on scroll for a touch of life.
+   ============================================================================ */
+function FeatureGrid() {
   const { t } = useTranslation();
   return (
-    <Box sx={{ py: { xs: 10, md: 18 }, borderBottom: "1px solid var(--rule)" }}>
-      <Container maxWidth="md">
-        <EdReveal delay={120}>
-          <Box className="display" sx={{
-            fontSize: { xs: 36, md: 56 },
-            mb: 5,
-            maxWidth: 720,
-            color: "var(--ink)"
-          }}>
-            {t("landing.manifesto.title")}
-          </Box>
-        </EdReveal>
-
-        <EdReveal delay={220}>
-          <Box className="drop-cap" sx={{
-            fontSize: 19,
-            lineHeight: 1.75,
-            color: "var(--ink-soft)",
-            maxWidth: 720
-          }}>
-            {t("landing.manifesto.body")}
-          </Box>
-        </EdReveal>
-      </Container>
-    </Box>
-  );
-}
-
-/* =============================================================
-   04 — FEATURES
-   ============================================================= */
-function Features() {
-  const { t } = useTranslation();
-  const features = [
-    { key: "policies",     glyph: "I",   icon: <DescriptionOutlinedIcon /> },
-    { key: "renewals",     glyph: "II",  icon: <NotificationsNoneOutlinedIcon /> },
-    { key: "portal",       glyph: "III", icon: <GroupsOutlinedIcon /> },
-    { key: "commissions",  glyph: "IV",  icon: <TrendingUpOutlinedIcon /> },
-    { key: "mobile",       glyph: "V",   icon: <PhoneIphoneOutlinedIcon /> },
-    { key: "integrations", glyph: "VI",  icon: <ExtensionOutlinedIcon /> }
-  ];
-  return (
-    <Box id="features" sx={{ py: { xs: 10, md: 18 }, borderBottom: "1px solid var(--rule)" }}>
-      <Container maxWidth="lg">
-        <EdReveal>
-          <Box sx={{ mb: 6, maxWidth: 880 }}>
-            <Box className="display" sx={{
-              fontSize: { xs: 36, md: 56 },
-              color: "var(--ink)"
-            }}>
-              {t("landing.features.title")}
-            </Box>
-            <Box sx={{ mt: 3, maxWidth: 640, color: "var(--ink-soft)", fontSize: 17, lineHeight: 1.65 }}>
-              {t("landing.features.lead")}
-            </Box>
-          </Box>
-        </EdReveal>
-
-        <Box sx={{
-          display: "grid",
-          gap: 0,
-          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
-          mt: 8,
-          borderTop: "1px solid var(--rule)",
-          borderLeft: { sm: "1px solid var(--rule)" }
+    <Box sx={{ pb: { xs: 4, md: 6 }, borderTop: `1px solid ${RULE}`, pt: { xs: 5, md: 7 } }}>
+      <Box sx={{ textAlign: "center", mb: { xs: 4, md: 6 } }}>
+        <Typography sx={{
+          fontSize: 12, letterSpacing: "0.22em", textTransform: "uppercase",
+          color: NAVY_SOFT, fontWeight: 600, mb: 1.5
         }}>
-          {features.map((f, i) => (
-            <EdReveal key={f.key} delay={i * 90}>
-              <Box className="paper-card" sx={{
-                position: "relative",
-                p: { xs: 4, md: 5 },
-                height: "100%",
-                border: "none",
-                borderRight: "1px solid var(--rule)",
-                borderBottom: "1px solid var(--rule)",
-                background: "transparent",
-                transition: "background-color 420ms var(--ease-editorial), transform 420ms var(--ease-editorial), box-shadow 420ms var(--ease-editorial)",
-                cursor: "default",
-                "&::after": {
-                  content: '""',
-                  position: "absolute",
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: "3px",
-                  bgcolor: "var(--ink)",
-                  transformOrigin: "left",
-                  transform: "scaleX(0)",
-                  transition: "transform 540ms var(--ease-editorial)"
-                },
-                "&:hover": {
-                  bgcolor: "var(--ink)",
-                  color: "var(--paper)",
-                  transform: "translateY(-2px)",
-                  boxShadow: "0 24px 60px -28px rgba(11,37,69,0.55)",
-                  "& .feature-icon": {
-                    bgcolor: "var(--gold)",
-                    borderColor: "var(--gold)",
-                    color: "var(--ink)",
-                    transform: "rotate(-3deg) scale(1.06)"
-                  },
-                  "& .feature-title": { color: "var(--paper)" },
-                  "& .feature-body":  { color: "rgba(245,237,225,0.82)" },
-                  "&::after": { transform: "scaleX(1)" }
-                }
-              }}>
-                <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 4 }}>
-                  <Box className="feature-icon" sx={{
-                    width: 56,
-                    height: 56,
-                    border: "1.5px solid var(--ink)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "var(--ink)",
-                    bgcolor: "var(--bone)",
-                    transition: "background 420ms var(--ease-editorial), color 420ms var(--ease-editorial), border-color 420ms var(--ease-editorial), transform 420ms var(--ease-editorial)",
-                    "& svg": { fontSize: 30 }
-                  }}>
-                    {f.icon}
-                  </Box>
-                </Stack>
-                <Box className="display feature-title" sx={{
-                  fontSize: { xs: 28, md: 32 },
-                  color: "var(--ink)",
-                  mb: 2,
-                  lineHeight: 1.05,
-                  transition: "color 420ms var(--ease-editorial)"
-                }}>
-                  {t(`landing.features.${f.key}.title`)}
-                </Box>
-                <Box className="feature-body" sx={{
-                  color: "var(--ink-soft)",
-                  fontSize: 16,
-                  lineHeight: 1.7,
-                  transition: "color 420ms var(--ease-editorial)"
-                }}>
-                  {t(`landing.features.${f.key}.body`)}
-                </Box>
-              </Box>
-            </EdReveal>
-          ))}
-        </Box>
-      </Container>
-    </Box>
-  );
-}
-
-/* =============================================================
-   05 — FOR AGENCIES — asymmetric, marginalia
-   ============================================================= */
-function ForAgencies() {
-  const { t } = useTranslation();
-  const points = ["forAgencies.point1","forAgencies.point2","forAgencies.point3","forAgencies.point4","forAgencies.point5"];
-  return (
-    <Box id="for-agencies" sx={{
-      position: "relative",
-      py: { xs: 8, md: 12 },
-      borderBottom: "1px solid rgba(245,237,225,0.18)",
-      backgroundImage:
-        `linear-gradient(180deg, rgba(6,20,38,0.96) 0%, rgba(6,20,38,0.88) 50%, rgba(6,20,38,0.96) 100%),` +
-        `linear-gradient(90deg, rgba(6,20,38,0.8) 0%, rgba(6,20,38,0.2) 70%),` +
-        `url(${FOR_AGENCIES_IMAGE})`,
-      backgroundSize: "cover, cover, cover",
-      backgroundPosition: "center",
-      backgroundAttachment: { xs: "scroll", md: "fixed" },
-      color: "var(--paper)",
-      overflow: "hidden"
-    }}>
-      <Box className="editorial-grain" sx={{ position: "absolute", inset: 0, opacity: 0.4, pointerEvents: "none" }} />
-
-      <Container maxWidth="xl" sx={{ position: "relative" }}>
-        <Box sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "6fr 6fr" },
-          gap: { xs: 4, md: 8 },
-          alignItems: "end",
-          mb: { xs: 5, md: 7 }
+          {t("landing.v2.featuresEyebrow")}
+        </Typography>
+        <Typography sx={{
+          fontSize: { xs: 22, md: 28 }, fontWeight: 700,
+          color: NAVY, letterSpacing: "-0.01em", mb: 1.5
         }}>
-          <EdReveal delay={100}>
-            <Box className="display" sx={{
-              fontSize: { xs: 38, md: 64 },
-              lineHeight: 1.02,
-              color: "var(--paper)"
-            }}>
-              <span>{t("landing.editorial.agencyA")}</span>{" "}
-              <span className="display-italic" style={{ color: "var(--gold)" }}>
-                {t("landing.editorial.agencyB")}
-              </span>
-            </Box>
-          </EdReveal>
-
-          <EdReveal delay={200}>
-            <Box sx={{
-              fontSize: { xs: 17, md: 19 },
-              lineHeight: 1.6,
-              color: "rgba(245,237,225,0.88)",
-              maxWidth: 620
-            }}>
-              {t("landing.forAgencies.lead")}
-            </Box>
-          </EdReveal>
-        </Box>
-
-        <EdReveal delay={260}>
-          <Box sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(5, 1fr)" },
-            borderTop: "1px solid rgba(245,237,225,0.28)",
-            borderBottom: "1px solid rgba(245,237,225,0.28)"
-          }}>
-            {points.map((p, i) => (
-              <Box key={p} sx={{
-                p: { xs: 3, md: 3.5 },
-                borderRight: { md: i < points.length - 1 ? "1px solid rgba(245,237,225,0.18)" : "none" },
-                borderBottom: { xs: i < points.length - 1 ? "1px solid rgba(245,237,225,0.18)" : "none", md: "none" }
-              }}>
-                <Box sx={{ fontSize: 15, lineHeight: 1.5, color: "rgba(245,237,225,0.92)" }}>
-                  {t(`landing.${p}`)}
-                </Box>
-              </Box>
-            ))}
-          </Box>
-        </EdReveal>
-
-        <EdReveal delay={340}>
-          <Box sx={{ mt: { xs: 5, md: 6 }, display: "flex", justifyContent: { xs: "flex-start", md: "flex-end" } }}>
-            <RouterLink
-              to="/register"
-              className="ink-button"
-              style={{
-                fontSize: 16,
-                padding: "18px 36px",
-                backgroundColor: "var(--gold)",
-                color: "var(--ink)",
-                borderColor: "var(--gold)"
-              }}
-            >
-              <span>{t("landing.forAgencies.cta")}</span>
-              <ArrowOutwardIcon sx={{ fontSize: 20 }} />
-            </RouterLink>
-          </Box>
-        </EdReveal>
-      </Container>
-    </Box>
-  );
-}
-
-/* =============================================================
-   07 — DASHBOARD SHOWCASE (DashboardShowcase component handles this)
-   08 — FOR AGENTS, mirrored asymmetric
-   ============================================================= */
-function ForAgents() {
-  const { t } = useTranslation();
-  const licenses = [
-    "landing.forAgents.licenses.agent",
-    "landing.forAgents.licenses.coordinator",
-    "landing.forAgents.licenses.consultant",
-    "landing.forAgents.licenses.broker"
-  ];
-  return (
-    <Box id="for-agents" sx={{
-      position: "relative",
-      py: { xs: 8, md: 12 },
-      borderBottom: "1px solid rgba(245,237,225,0.18)",
-      backgroundImage:
-        `linear-gradient(180deg, rgba(6,20,38,0.96) 0%, rgba(6,20,38,0.88) 50%, rgba(6,20,38,0.96) 100%),` +
-        `linear-gradient(270deg, rgba(6,20,38,0.8) 0%, rgba(6,20,38,0.2) 70%),` +
-        `url(${FOR_AGENTS_IMAGE})`,
-      backgroundSize: "cover, cover, cover",
-      backgroundPosition: "center",
-      backgroundAttachment: { xs: "scroll", md: "fixed" },
-      color: "var(--paper)",
-      overflow: "hidden"
-    }}>
-      <Box className="editorial-grain" sx={{ position: "absolute", inset: 0, opacity: 0.4, pointerEvents: "none" }} />
-
-      <Container maxWidth="xl" sx={{ position: "relative" }}>
-        <Box sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "6fr 6fr" },
-          gap: { xs: 4, md: 8 },
-          alignItems: "end",
-          mb: { xs: 5, md: 7 }
+          {t("landing.v2.featuresHeadline")}
+        </Typography>
+        <Typography sx={{
+          fontSize: { xs: 14.5, md: 15.5 }, lineHeight: 1.6,
+          color: NAVY_SOFT, maxWidth: 720, mx: "auto"
         }}>
-          <EdReveal delay={100}>
-            <Box className="display" sx={{
-              fontSize: { xs: 36, md: 60 },
-              lineHeight: 1.02,
-              color: "var(--paper)"
-            }}>
-              {t("landing.forAgents.title")}
-            </Box>
-          </EdReveal>
+          {t("landing.v2.featuresSub")}
+        </Typography>
+      </Box>
 
-          <EdReveal delay={200}>
-            <Box sx={{
-              fontSize: { xs: 17, md: 19 },
-              lineHeight: 1.6,
-              color: "rgba(245,237,225,0.88)",
-              maxWidth: 620
-            }}>
-              {t("landing.forAgents.lead")}
-            </Box>
-          </EdReveal>
-        </Box>
-
-        <EdReveal delay={260}>
-          <Box className="eyebrow" sx={{ color: "rgba(245,237,225,0.7)", mb: 2 }}>
-            {t("landing.forAgents.licensesTitle")}
-          </Box>
-          <Box sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
-            borderTop: "1px solid rgba(245,237,225,0.28)",
-            borderBottom: "1px solid rgba(245,237,225,0.28)"
-          }}>
-            {licenses.map((lk, i) => (
-              <Box key={lk} sx={{
-                p: { xs: 3, md: 3.5 },
-                borderRight: { md: i < licenses.length - 1 ? "1px solid rgba(245,237,225,0.18)" : "none" },
-                borderBottom: { xs: i < licenses.length - 1 ? "1px solid rgba(245,237,225,0.18)" : "none", md: "none" },
-                display: "flex",
-                flexDirection: "column",
-                gap: 1.25
-              }}>
-                <Box sx={{
-                  fontFamily: "var(--display)",
-                  fontStyle: "italic",
-                  fontSize: { xs: 18, md: 20 },
-                  lineHeight: 1.25,
-                  color: "var(--paper)"
-                }}>
-                  {t(lk)}
-                </Box>
-              </Box>
-            ))}
-          </Box>
-        </EdReveal>
-
-        <EdReveal delay={340}>
-          <Box sx={{ mt: { xs: 5, md: 6 }, display: "flex", justifyContent: { xs: "flex-start", md: "flex-end" } }}>
-            <RouterLink
-              to="/register"
-              className="ink-button"
-              style={{
-                fontSize: 16,
-                padding: "18px 36px",
-                backgroundColor: "var(--gold)",
-                color: "var(--ink)",
-                borderColor: "var(--gold)"
-              }}
-            >
-              <span>{t("landing.forAgents.cta")}</span>
-              <ArrowOutwardIcon sx={{ fontSize: 20 }} />
-            </RouterLink>
-          </Box>
-        </EdReveal>
-      </Container>
+      <Box sx={{
+        display: "grid", gap: 0,
+        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1fr 1fr 1fr" },
+        border: `1px solid ${RULE}`,
+        borderRadius: 3,
+        overflow: "hidden",
+        bgcolor: SURFACE
+      }}>
+        {FEATURE_KEYS.map((f, i) => (
+          <FeatureCell key={f.t} index={i} icon={f.icon}
+            title={t(f.t)} body={t(f.b)} />
+        ))}
+      </Box>
     </Box>
   );
 }
 
-/* =============================================================
-   09 — FAQ TEASER
-   ============================================================= */
-function FaqTeaser() {
-  const { t } = useTranslation();
-  const items = ["q1", "q2", "q3"];
-  const [open, setOpen] = useState(0);
-  const rootRef = useRef<HTMLDivElement>(null);
-
+function FeatureCell({ icon: Icon, title, body, index }: {
+  icon: typeof HubOutlinedIcon; title: string; body: string; index: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
   useEffect(() => {
-    const node = rootRef.current;
-    if (!node) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          let i = 0;
-          const id = setInterval(() => {
-            i++;
-            if (i >= items.length) { clearInterval(id); return; }
-            setOpen(i);
-          }, 2200);
-          obs.disconnect();
-        }
-      }, { threshold: 0.2 }
-    );
-    obs.observe(node);
-    return () => obs.disconnect();
-  }, [items.length]);
-
-  const icons = [HelpOutlineRoundedIcon, QuestionAnswerRoundedIcon, LightbulbOutlinedIcon];
-
+    if (!ref.current) return;
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && setVisible(true),
+      { threshold: 0.15 });
+    io.observe(ref.current);
+    return () => io.disconnect();
+  }, []);
+  // Build a thin internal grid: bottom border on every row except the last
+  // visible-row of the grid, right border between columns. We just apply a
+  // 1px wash of RULE on the right/bottom of each cell and rely on the wrapper
+  // to clip the outer edges.
   return (
-    <Box id="faq" sx={{ py: { xs: 10, md: 18 }, borderBottom: "1px solid var(--rule)", bgcolor: "var(--paper-deep)" }} ref={rootRef}>
-      <Container maxWidth="lg">
-        <EdReveal>
-          <Box sx={{ mb: 7 }}>
-            <Box className="display" sx={{ fontSize: { xs: 44, md: 72 }, color: "var(--ink)" }}>
-              {t("landing.faq.title")}
-            </Box>
-          </Box>
-        </EdReveal>
-
-        <Box sx={{ borderTop: "1px solid var(--ink)", mb: 6 }}>
-          {items.map((q, i) => {
-            const active = open === i;
-            const Icon = icons[i % icons.length];
-            return (
-              <EdReveal key={q} delay={i * 100}>
-                <Box
-                  onClick={() => setOpen(i)}
-                  sx={{
-                    cursor: "pointer",
-                    display: "grid",
-                    gridTemplateColumns: { xs: "72px 1fr", md: "120px 1fr" },
-                    gap: { xs: 3, md: 5 },
-                    alignItems: "start",
-                    py: { xs: 4, md: 6 },
-                    borderBottom: "1px solid var(--rule)",
-                    transition: "background 500ms var(--ease-editorial)",
-                    bgcolor: active ? "var(--bone)" : "transparent",
-                    "&:hover": { bgcolor: "var(--bone)" }
-                  }}>
-                  <Box sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: active ? "var(--gold)" : "var(--ink-muted)",
-                    transition: "color 600ms var(--ease-editorial), transform 600ms var(--ease-editorial)",
-                    transform: active ? "scale(1.08)" : "scale(1)",
-                    "& svg": {
-                      fontSize: { xs: 56, md: 96 },
-                      animation: active ? "faqFloat 3.4s ease-in-out infinite" : "none",
-                      filter: active ? "drop-shadow(0 6px 24px rgba(214,168,80,0.35))" : "none"
-                    },
-                    "@keyframes faqFloat": {
-                      "0%, 100%": { transform: "translateY(0px) rotate(0deg)" },
-                      "50%": { transform: "translateY(-8px) rotate(-3deg)" }
-                    }
-                  }}>
-                    <Icon />
-                  </Box>
-                  <Box>
-                    <Box className="display" sx={{
-                      fontSize: { xs: 28, md: 44 },
-                      color: "var(--ink)",
-                      lineHeight: 1.1,
-                      mb: active ? 3 : 0,
-                      transition: "margin 500ms var(--ease-editorial)"
-                    }}>
-                      {t(`landing.faq.${q}.q`)}
-                    </Box>
-                    <Box sx={{
-                      maxHeight: active ? 320 : 0,
-                      opacity: active ? 1 : 0,
-                      overflow: "hidden",
-                      transition: "max-height 600ms var(--ease-editorial), opacity 600ms var(--ease-editorial)",
-                      color: "var(--ink-soft)",
-                      lineHeight: 1.7,
-                      fontSize: { xs: 17, md: 20 },
-                      maxWidth: 820
-                    }}>
-                      {t(`landing.faq.${q}.a`)}
-                    </Box>
-                  </Box>
-                </Box>
-              </EdReveal>
-            );
-          })}
-        </Box>
-
-        <EdReveal delay={250}>
-          <Box sx={{ display: "flex", justifyContent: "center" }}>
-            <RouterLink to="/faq" className="ink-button">
-              <span>{t("landing.faq.cta")}</span>
-              <ArrowForwardIcon sx={{ fontSize: 18 }} />
-            </RouterLink>
-          </Box>
-        </EdReveal>
-      </Container>
+    <Box ref={ref} sx={{
+      p: { xs: 3, md: 3.5 },
+      bgcolor: "#fff",
+      borderRight: { sm: `1px solid ${RULE}` },
+      borderBottom: `1px solid ${RULE}`,
+      // Strip the right border on the last column to avoid a double line
+      // against the wrapper border.
+      "&:nth-of-type(2n)": { sm: { borderRight: 0 } },
+      "&:nth-of-type(3n)": { md: { borderRight: 0 } },
+      transform: visible ? "translateY(0)" : "translateY(12px)",
+      opacity: visible ? 1 : 0,
+      transition: `transform 600ms cubic-bezier(0.16, 1, 0.3, 1) ${index * 60}ms, opacity 600ms ease ${index * 60}ms`
+    }}>
+      <Box sx={{ color: ACCENT, mb: 2 }}>
+        <Icon sx={{ fontSize: 26 }} />
+      </Box>
+      <Typography sx={{
+        fontSize: 16, fontWeight: 700, color: NAVY, mb: 0.75, letterSpacing: "-0.005em"
+      }}>
+        {title}
+      </Typography>
+      <Typography sx={{
+        fontSize: 14, lineHeight: 1.6, color: NAVY_SOFT
+      }}>
+        {body}
+      </Typography>
     </Box>
   );
 }
 
+/* ============================================================================
+   Newsletter card — restrained, lives above the footer. POSTs to
+   /api/public/newsletter so the platform admin can broadcast later.
+   ============================================================================ */
+function NewsletterCard() {
+  const { t } = useTranslation();
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "ok" | "err">("idle");
+  const [errMsg, setErrMsg] = useState<string | null>(null);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      setStatus("err");
+      setErrMsg(t("landing.v2.newsInvalid"));
+      return;
+    }
+    setStatus("loading"); setErrMsg(null);
+    try {
+      await api.post("/public/newsletter", { email: email.trim() });
+      setStatus("ok"); setEmail("");
+    } catch (err: any) {
+      setStatus("err");
+      setErrMsg(err?.response?.data?.detail ?? t("landing.v2.newsError"));
+    }
+  };
+
+  return (
+    <Box sx={{ pt: { xs: 5, md: 7 }, pb: { xs: 4, md: 6 } }}>
+      <Box sx={{
+        borderRadius: 3,
+        p: { xs: 3.5, md: 5 },
+        display: "grid",
+        gap: { xs: 3, md: 4 },
+        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+        alignItems: "center",
+        // Dark navy block — stands out against the white page without using a
+        // gradient. Soft outer shadow for depth.
+        bgcolor: NAVY,
+        color: "#ffffff",
+        boxShadow: "0 18px 50px rgba(11,37,69,0.18)"
+      }}>
+        <Box>
+          <Typography sx={{
+            fontSize: 11, letterSpacing: "0.22em", textTransform: "uppercase",
+            color: "#6fd2ff", fontWeight: 600, mb: 1
+          }}>
+            {t("landing.v2.newsEyebrow")}
+          </Typography>
+          <Typography sx={{
+            fontSize: { xs: 22, md: 26 }, fontWeight: 700, lineHeight: 1.25,
+            color: "#ffffff", letterSpacing: "-0.01em", mb: 1
+          }}>
+            {t("landing.v2.newsTitle")}
+          </Typography>
+          <Typography sx={{ fontSize: 14.5, lineHeight: 1.6, color: "rgba(255,255,255,0.72)" }}>
+            {t("landing.v2.newsBody")}
+          </Typography>
+        </Box>
+
+        <Box component="form" onSubmit={submit}
+          sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+            <TextField
+              fullWidth size="medium" type="email" placeholder={t("landing.v2.newsPlaceholder")}
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); if (status !== "idle") setStatus("idle"); }}
+              disabled={status === "loading"}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                  bgcolor: "rgba(255,255,255,0.06)",
+                  color: "#ffffff",
+                  "& fieldset": { borderColor: "rgba(255,255,255,0.22)" },
+                  "&:hover fieldset": { borderColor: "rgba(255,255,255,0.45)" },
+                  "&.Mui-focused fieldset": { borderColor: "#6fd2ff", borderWidth: 2 }
+                },
+                "& .MuiInputBase-input::placeholder": { color: "rgba(255,255,255,0.5)", opacity: 1 }
+              }}
+            />
+            <Button type="submit" disableElevation variant="contained" size="large"
+              disabled={status === "loading"}
+              sx={{
+                borderRadius: 2, px: 3, py: 1.6,
+                fontWeight: 700, fontSize: 15, textTransform: "none",
+                bgcolor: "#ffffff", color: NAVY, whiteSpace: "nowrap",
+                "&:hover": { bgcolor: "rgba(255,255,255,0.92)" }
+              }}>
+              {status === "loading" ? <CircularProgress size={20} color="inherit" /> : t("landing.v2.newsSubmit")}
+            </Button>
+          </Stack>
+          {status === "ok" && (
+            <Alert severity="success" icon={<CheckCircleIcon fontSize="small" />}
+              sx={{
+                borderRadius: 2,
+                bgcolor: "rgba(76,175,80,0.18)", color: "#caf3cb",
+                "& .MuiAlert-icon": { color: "#9ce29f" }
+              }}>
+              {t("landing.v2.newsSuccess")}
+            </Alert>
+          )}
+          {status === "err" && errMsg && (
+            <Alert severity="error" onClose={() => setStatus("idle")}
+              sx={{
+                borderRadius: 2,
+                bgcolor: "rgba(244,67,54,0.18)", color: "#ffd0cd",
+                "& .MuiAlert-icon": { color: "#f7a5a0" }
+              }}>
+              {errMsg}
+            </Alert>
+          )}
+        </Box>
+      </Box>
+    </Box>
+  );
+}

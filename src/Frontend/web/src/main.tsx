@@ -8,6 +8,7 @@ import { I18nextProvider } from "react-i18next";
 import App from "./App";
 import { theme } from "./theme";
 import "./styles/editorial.css";
+import "./styles/a11y.css";
 import { i18n } from "./i18n";
 import { AuthProvider } from "./auth/AuthContext";
 import { PackagesProvider } from "./auth/PackagesContext";

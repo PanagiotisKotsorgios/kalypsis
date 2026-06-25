@@ -1,0 +1,89 @@
+# =============================================================================
+# Kalypsis — production docker-compose for Coolify v4.x and any other Docker
+# Compose host. Three services: MySQL, the .NET API, and the nginx-served SPA.
+#
+# In Coolify:
+#   1. New Resource → Applications → Docker Compose Empty (or Private Repo)
+#   2. Paste/point at this file. Coolify will detect the three services and
+#      create one application per service automatically.
+#   3. Set the secrets in the UI (DB_PASSWORD, JWT_SECRET, etc.). Defaults
+#      below are placeholders; you MUST override them in production.
+#   4. Expose only the `web` service publicly (Coolify proxy). `api` and
+#      `mysql` stay on the internal docker network.
+# =============================================================================
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE:      ${DB_NAME:-kalypsis}
+      MYSQL_USER:          ${DB_USER:-kalypsis}
+      MYSQL_PASSWORD:      ${DB_PASSWORD:-changeMeInCoolify}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-changeMeInCoolify_root}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  api:
+    build:
+      context: ./src/Backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      # Connection string is built from the same env vars used by the mysql
+      # service so a single secret change updates everything.
+      ConnectionStrings__Default: "Server=mysql;Port=3306;Database=${DB_NAME:-kalypsis};User=${DB_USER:-kalypsis};Password=${DB_PASSWORD:-changeMeInCoolify};TreatTinyAsBoolean=true;CharSet=utf8mb4;"
+      Jwt__Issuer:   ${JWT_ISSUER:-kalypsis}
+      Jwt__Audience: ${JWT_AUDIENCE:-kalypsis-clients}
+      # A 64-char random secret. Generate with `openssl rand -base64 48`.
+      Jwt__Secret:   ${JWT_SECRET:-REPLACE-WITH-AT-LEAST-32-CHAR-SECRET-FROM-COOLIFY-UI}
+      Jwt__AccessTokenMinutes: "60"
+      Jwt__RefreshTokenDays:   "30"
+      # The public URL the SPA is served from. Used for CORS + email links.
+      Cors__FrontendOrigin: ${PUBLIC_ORIGIN:-http://localhost}
+      Storage__LocalRoot: /data/uploads
+      # Optional Brevo (Sendinblue) email integration. Leave empty to disable.
+      Brevo__ApiKey:       ${BREVO_API_KEY:-}
+      Brevo__SenderEmail:  ${BREVO_SENDER_EMAIL:-no-reply@kalypsis.gr}
+      Brevo__SenderName:   ${BREVO_SENDER_NAME:-Kalypsis}
+    volumes:
+      - uploads_data:/data/uploads
+    # Don't publish 8080 to the host — nginx in the `web` service proxies
+    # `/api` over the internal docker network. Comment this in only for
+    # debugging.
+    # ports:
+    #   - "8080:8080"
+
+  web:
+    build:
+      context: ./src/Frontend/web
+      dockerfile: Dockerfile
+      # Bake the API base path into the bundle. With the nginx proxy the
+      # browser keeps using /api so we don't need a public API hostname.
+      args:
+        VITE_API_BASE_URL: /api
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      # Coolify maps this to your public domain (set HTTPS in the UI).
+      - "${WEB_PORT:-80}:80"
+
+volumes:
+  mysql_data:
+  uploads_data:

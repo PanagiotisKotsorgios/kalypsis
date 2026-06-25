@@ -1,0 +1,141 @@
+/* ============================================================================
+   Accessibility preferences — applied via data-attrs on <html> by the
+   AccessibilityWidget component. Aligns with EAA / EN 301 549 / WCAG 2.1 AA.
+
+   IMPORTANT: MUI components are styled mostly with pixel values (sx prop),
+   not rem, so scaling `html { font-size }` alone does almost nothing on
+   real pages. We therefore use CSS `zoom` on the body — it scales the whole
+   document (text + spacing + images) regardless of the unit MUI emitted.
+   Firefox 126+ (April 2024) supports zoom; older browsers degrade gracefully.
+   ============================================================================ */
+
+:root {
+  --a11y-font-scale: 1;
+}
+
+/* ---- Font / page scale ---------------------------------------------------
+   `zoom` on body re-renders everything inside body at the chosen ratio. The
+   floating widget itself sits inside body so it scales too — which is
+   correct: a low-vision user needs the controls bigger as well.
+   Keep the html-level font-size too for the rare rem-based child to inherit. */
+html { font-size: calc(16px * var(--a11y-font-scale)); }
+body { zoom: var(--a11y-font-scale); }
+
+/* ---- Underline links -----------------------------------------------------
+   Target every anchor and every text inside it. Excludes MUI Buttons (which
+   are technically anchors when component="a"/Link) — those are visually
+   chunky enough already and an underline looks broken on them.            */
+html[data-a11y-underline-links="1"] a,
+html[data-a11y-underline-links="1"] a * {
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+}
+html[data-a11y-underline-links="1"] a.MuiButton-root,
+html[data-a11y-underline-links="1"] a.MuiButtonBase-root,
+html[data-a11y-underline-links="1"] a.MuiIconButton-root {
+  text-decoration: none !important;
+}
+
+/* ---- Reduce motion -------------------------------------------------------
+   Honors WCAG 2.3.3 — disables nearly all animation / transitions.        */
+html[data-a11y-reduce-motion="1"] *,
+html[data-a11y-reduce-motion="1"] *::before,
+html[data-a11y-reduce-motion="1"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  animation-delay: 0ms !important;
+  transition-duration: 0.001ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ---- High contrast -------------------------------------------------------
+   Brute-force black/white override. Tears down every background, shadow and
+   inline color so the page degrades to a WCAG 1.4.6 AAA-grade 7:1 ratio.   */
+html[data-a11y-contrast="1"],
+html[data-a11y-contrast="1"] body,
+html[data-a11y-contrast="1"] *:not(svg):not(svg *) {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #000000 !important;
+  border-color: #000000 !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  -webkit-text-fill-color: #000000 !important;
+}
+html[data-a11y-contrast="1"] a,
+html[data-a11y-contrast="1"] a * {
+  color: #0000a0 !important;
+  -webkit-text-fill-color: #0000a0 !important;
+  text-decoration: underline !important;
+}
+html[data-a11y-contrast="1"] button,
+html[data-a11y-contrast="1"] .MuiButton-contained,
+html[data-a11y-contrast="1"] .MuiButton-contained * {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border: 2px solid #000000 !important;
+}
+html[data-a11y-contrast="1"] .MuiButton-outlined,
+html[data-a11y-contrast="1"] .MuiButton-outlined *,
+html[data-a11y-contrast="1"] .MuiButton-text,
+html[data-a11y-contrast="1"] .MuiButton-text * {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  border: 2px solid #000000 !important;
+}
+html[data-a11y-contrast="1"] input,
+html[data-a11y-contrast="1"] textarea,
+html[data-a11y-contrast="1"] select {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+}
+html[data-a11y-contrast="1"] img {
+  filter: grayscale(100%) contrast(110%) !important;
+}
+
+/* ---- Dyslexia-friendly font ----------------------------------------------
+   Atkinson Hyperlegible is open-source and designed for low-vision and
+   dyslexic readers. We don't bundle it — we reference it and fall back to
+   wider system options.                                                    */
+html[data-a11y-dyslexia="1"],
+html[data-a11y-dyslexia="1"] body,
+html[data-a11y-dyslexia="1"] *,
+html[data-a11y-dyslexia="1"] *::before,
+html[data-a11y-dyslexia="1"] *::after {
+  font-family: "Atkinson Hyperlegible", "OpenDyslexic", "Verdana",
+               "Trebuchet MS", system-ui, -apple-system, sans-serif !important;
+  letter-spacing: 0.01em !important;
+  word-spacing: 0.06em !important;
+  line-height: 1.7 !important;
+}
+
+/* ---- Big cursor ----------------------------------------------------------
+   Inlined SVG cursor at 32×32 (default is ~12×12). Pure white fill with a
+   thick black outline so it's visible on every background.                 */
+html[data-a11y-big-cursor="1"],
+html[data-a11y-big-cursor="1"] * {
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><path d='M5 3 L5 24 L11 19 L14 28 L18 26 L15 17 L23 17 Z' fill='%23ffffff' stroke='%23000000' stroke-width='2' stroke-linejoin='round'/></svg>") 5 3, auto !important;
+}
+html[data-a11y-big-cursor="1"] a,
+html[data-a11y-big-cursor="1"] button,
+html[data-a11y-big-cursor="1"] [role="button"],
+html[data-a11y-big-cursor="1"] input,
+html[data-a11y-big-cursor="1"] select,
+html[data-a11y-big-cursor="1"] textarea,
+html[data-a11y-big-cursor="1"] [tabindex]:not([tabindex="-1"]) {
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><path d='M5 3 L5 24 L11 19 L14 28 L18 26 L15 17 L23 17 Z' fill='%231f7bb3' stroke='%23000000' stroke-width='2' stroke-linejoin='round'/></svg>") 5 3, pointer !important;
+}
+
+/* ---- Visible focus rings -------------------------------------------------
+   WCAG 2.4.7 — focus must always be visible.                              */
+html[data-a11y-focus="1"] *:focus,
+html[data-a11y-focus="1"] *:focus-visible {
+  outline: 3px solid #ffd400 !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(255, 212, 0, 0.35) !important;
+}

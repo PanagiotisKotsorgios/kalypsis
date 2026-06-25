@@ -19,7 +19,9 @@ import { useAuth } from "../auth/AuthContext";
 import { KalypsisLogo } from "../components/KalypsisLogo";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { PasswordField } from "../components/PasswordField";
+import { PageEnter } from "../components/PageEnter";
 import { extractErrorMessage } from "../api/client";
+import { authFieldSx, authButtonSx, authLabelSx } from "./authShared";
 
 export function LoginPage() {
   const { t } = useTranslation();
@@ -46,6 +48,7 @@ export function LoginPage() {
   };
 
   return (
+    <PageEnter stagger={400}>
     <Box
       sx={{
         minHeight: "100vh",
@@ -98,67 +101,74 @@ export function LoginPage() {
         </Stack>
 
         <Box sx={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <Container maxWidth="xs" disableGutters>
+          <Container maxWidth="sm" disableGutters>
             {/* Mobile-only mini logo */}
             <Box sx={{ display: { xs: "flex", md: "none" }, justifyContent: "center", mb: 3 }}>
               <KalypsisLogo size={80} />
             </Box>
 
-            <Stack spacing={1} mb={3.5}>
-              <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: -0.5 }}>
+            {/* Bigger, deeper-toned form. Inputs sit on white with a navy
+                hairline border that thickens on hover/focus so the form
+                feels grounded against the off-white panel background.    */}
+            <Stack spacing={1.25} mb={4.5}>
+              <Typography sx={{
+                fontSize: { xs: 30, md: 38 }, fontWeight: 800,
+                letterSpacing: "-0.02em", lineHeight: 1.1, color: "#0b2545"
+              }}>
                 {t("auth.loginTitle")}
               </Typography>
-              <Typography color="text.secondary">
+              <Typography sx={{ fontSize: { xs: 16, md: 17 }, color: "rgba(11,37,69,0.7)" }}>
                 {t("auth.loginSubtitle")}
               </Typography>
             </Stack>
 
             {error && (
-              <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+              <Alert severity="error" sx={{ mb: 3, borderRadius: 2, fontSize: 15 }} onClose={() => setError(null)}>
                 {error}
               </Alert>
             )}
 
             <form onSubmit={handleSubmit} noValidate>
-              <Stack spacing={2.5}>
+              <Stack spacing={3}>
                 <TextField
                   label={t("auth.email")}
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  autoFocus
-                  required
-                  fullWidth
+                  autoFocus required fullWidth
                   autoComplete="email"
                   disabled={submitting}
+                  InputLabelProps={{ sx: authLabelSx }}
+                  sx={authFieldSx}
                 />
                 <PasswordField
                   label={t("auth.password")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required
-                  fullWidth
+                  required fullWidth
                   autoComplete="current-password"
                   disabled={submitting}
+                  InputLabelProps={{ sx: authLabelSx }}
+                  sx={authFieldSx}
                 />
 
                 <Stack
                   direction="row"
                   justifyContent="space-between"
                   alignItems="center"
-                  sx={{ mt: -1 }}
+                  sx={{ mt: -0.5 }}
                 >
                   <FormControlLabel
                     control={
                       <Checkbox
                         checked={rememberMe}
                         onChange={(e) => setRememberMe(e.target.checked)}
-                        size="small"
                         disabled={submitting}
+                        sx={{ color: "rgba(11,37,69,0.55)" }}
                       />
                     }
                     label={
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      <Typography sx={{ fontSize: 15, fontWeight: 600, color: "#0b2545" }}>
                         {t("auth.rememberMe")}
                       </Typography>
                     }
@@ -167,7 +177,10 @@ export function LoginPage() {
                   <Link
                     component={RouterLink}
                     to="/forgot-password"
-                    sx={{ fontSize: 14, fontWeight: 600 }}
+                    sx={{ fontSize: 15, fontWeight: 700, color: "#1f7bb3",
+                      textDecoration: "none",
+                      "&:hover": { textDecoration: "underline" }
+                    }}
                   >
                     {t("login.forgot")}
                   </Link>
@@ -178,19 +191,25 @@ export function LoginPage() {
                   variant="contained"
                   size="large"
                   fullWidth
+                  disableElevation
                   disabled={submitting}
-                  startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
-                  sx={{ py: 1.5, fontWeight: 700, fontSize: 16 }}
+                  startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : null}
+                  sx={{ ...authButtonSx, mt: 0.5 }}
                 >
                   {submitting ? t("auth.signingIn") : t("auth.signIn")}
                 </Button>
               </Stack>
             </form>
 
-            <Box sx={{ mt: 4, textAlign: "center" }}>
-              <Typography variant="body2" color="text.secondary">
+            <Box sx={{ mt: 4.5, textAlign: "center" }}>
+              <Typography sx={{ fontSize: 15, color: "rgba(11,37,69,0.7)" }}>
                 {t("login.noAccountQ")}{" "}
-                <Link component={RouterLink} to="/register" sx={{ fontWeight: 600 }}>
+                <Link component={RouterLink} to="/register"
+                  sx={{ fontWeight: 800, fontSize: 15, color: "#0b2545",
+                    textDecoration: "underline", textDecorationColor: "rgba(11,37,69,0.35)",
+                    textUnderlineOffset: "3px",
+                    "&:hover": { textDecorationColor: "#0b2545" }
+                  }}>
                   {t("login.registerHere")}
                 </Link>
               </Typography>
@@ -199,5 +218,6 @@ export function LoginPage() {
         </Box>
       </Box>
     </Box>
+    </PageEnter>
   );
 }

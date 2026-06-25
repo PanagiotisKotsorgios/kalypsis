@@ -78,7 +78,7 @@ interface AppLayoutProps {
   children: ReactNode;
 }
 
-const DRAWER_WIDTH = 360;
+const DRAWER_WIDTH = 408;
 const DRAWER_RAIL_WIDTH = 64;
 
 export function AppLayout({ navItems, children }: AppLayoutProps) {
@@ -217,7 +217,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                 {!collapsed && (
                   <ListItemText
                     primary={t(item.labelKey)}
-                    primaryTypographyProps={{ fontWeight: 500, noWrap: true, fontSize: indented ? 13.5 : 14 }}
+                    primaryTypographyProps={{ fontWeight: 500, noWrap: true, fontSize: indented ? 15 : 15.5 }}
                   />
                 )}
                 {!collapsed && item.comingSoon && (
@@ -274,8 +274,8 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                       primary={t(`nav.group.${groupKey}`, groupKey)}
                       primaryTypographyProps={{
                         fontWeight: 700,
-                        fontSize: 12.5,
-                        letterSpacing: "0.04em",
+                        fontSize: 13.5,
+                        letterSpacing: "0.05em",
                         textTransform: "uppercase",
                         color: containsActive ? "primary.main" : "text.secondary",
                         noWrap: true

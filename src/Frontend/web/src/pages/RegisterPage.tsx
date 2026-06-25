@@ -18,6 +18,8 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { KalypsisLogo } from "../components/KalypsisLogo";
 import { LanguageToggle } from "../components/LanguageToggle";
+import { PageEnter } from "../components/PageEnter";
+import { authFieldSx, authButtonSx, authLabelSx } from "./authShared";
 
 type RegisterForm = {
   firstName: string;
@@ -84,6 +86,7 @@ export function RegisterPage() {
   };
 
   return (
+    <PageEnter stagger={400}>
     <Box
       sx={{
         minHeight: "100vh",
@@ -179,90 +182,93 @@ export function RegisterPage() {
               </Box>
             ) : (
               <>
-                <Stack spacing={1} mb={3.5}>
-                  <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: -0.5 }}>
+                <Stack spacing={1.25} mb={4.5}>
+                  <Typography sx={{
+                    fontSize: { xs: 30, md: 38 }, fontWeight: 800,
+                    letterSpacing: "-0.02em", lineHeight: 1.1, color: "#0b2545"
+                  }}>
                     {t("register.formTitle")}
                   </Typography>
-                  <Typography color="text.secondary">
+                  <Typography sx={{ fontSize: { xs: 16, md: 17 }, color: "rgba(11,37,69,0.7)" }}>
                     {t("register.formLead")}
                   </Typography>
                 </Stack>
 
                 {error && (
-                  <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+                  <Alert severity="error" sx={{ mb: 3, borderRadius: 2, fontSize: 15 }} onClose={() => setError(null)}>
                     {error}
                   </Alert>
                 )}
 
                 <form onSubmit={handleSubmit} noValidate>
-                  <Stack spacing={2.5}>
-                    <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5 }}>
+                  <Stack spacing={3}>
+                    <Typography sx={{
+                      fontSize: 12, letterSpacing: "0.22em", textTransform: "uppercase",
+                      color: "rgba(11,37,69,0.7)", fontWeight: 700
+                    }}>
                       {t("register.sections.personal")}
                     </Typography>
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2.5}>
                       <TextField
                         label={t("register.firstName")}
                         value={form.firstName}
                         onChange={(e) => set("firstName", e.target.value)}
-                        fullWidth
-                        required
-                        disabled={submitting}
+                        fullWidth required disabled={submitting}
+                        InputLabelProps={{ sx: authLabelSx }} sx={authFieldSx}
                       />
                       <TextField
                         label={t("register.lastName")}
                         value={form.lastName}
                         onChange={(e) => set("lastName", e.target.value)}
-                        fullWidth
-                        required
-                        disabled={submitting}
+                        fullWidth required disabled={submitting}
+                        InputLabelProps={{ sx: authLabelSx }} sx={authFieldSx}
                       />
                     </Stack>
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2.5}>
                       <TextField
                         label={t("register.email")}
                         type="email"
                         value={form.email}
                         onChange={(e) => set("email", e.target.value)}
-                        fullWidth
-                        required
-                        autoComplete="email"
-                        disabled={submitting}
+                        fullWidth required autoComplete="email" disabled={submitting}
+                        InputLabelProps={{ sx: authLabelSx }} sx={authFieldSx}
                       />
                       <TextField
                         label={t("register.phone")}
                         value={form.phone}
                         onChange={(e) => set("phone", e.target.value)}
-                        fullWidth
-                        required
-                        autoComplete="tel"
-                        disabled={submitting}
+                        fullWidth required autoComplete="tel" disabled={submitting}
+                        InputLabelProps={{ sx: authLabelSx }} sx={authFieldSx}
                       />
                     </Stack>
                     <TextField
                       label={t("register.city")}
                       value={form.city}
                       onChange={(e) => set("city", e.target.value)}
-                      fullWidth
-                      disabled={submitting}
+                      fullWidth disabled={submitting}
+                      InputLabelProps={{ sx: authLabelSx }} sx={authFieldSx}
                     />
 
-                    <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5, mt: 1 }}>
+                    <Typography sx={{
+                      fontSize: 12, letterSpacing: "0.22em", textTransform: "uppercase",
+                      color: "rgba(11,37,69,0.7)", fontWeight: 700, mt: 1
+                    }}>
                       {t("register.sections.professional")}
                     </Typography>
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2.5}>
                       <TextField
                         label={t("register.organizationName")}
                         value={form.organizationName}
                         onChange={(e) => set("organizationName", e.target.value)}
-                        fullWidth
-                        disabled={submitting}
+                        fullWidth disabled={submitting}
+                        InputLabelProps={{ sx: authLabelSx }} sx={authFieldSx}
                       />
                       <TextField
                         label={t("register.vat")}
                         value={form.vatNumber}
                         onChange={(e) => set("vatNumber", e.target.value.replace(/\D/g, "").slice(0, 9))}
-                        fullWidth
-                        disabled={submitting}
+                        fullWidth disabled={submitting}
+                        InputLabelProps={{ sx: authLabelSx }} sx={authFieldSx}
                       />
                     </Stack>
                     <TextField
@@ -270,21 +276,24 @@ export function RegisterPage() {
                       helperText={t("register.licenseNumberHelp")}
                       value={form.licenseNumber}
                       onChange={(e) => set("licenseNumber", e.target.value)}
-                      fullWidth
-                      disabled={submitting}
+                      fullWidth disabled={submitting}
+                      InputLabelProps={{ sx: authLabelSx }}
+                      FormHelperTextProps={{ sx: { fontSize: 13.5 } }}
+                      sx={authFieldSx}
                     />
 
-                    <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5, mt: 1 }}>
+                    <Typography sx={{
+                      fontSize: 12, letterSpacing: "0.22em", textTransform: "uppercase",
+                      color: "rgba(11,37,69,0.7)", fontWeight: 700, mt: 1
+                    }}>
                       {t("register.sections.message")}
                     </Typography>
                     <TextField
                       label={t("register.message")}
                       value={form.message}
                       onChange={(e) => set("message", e.target.value)}
-                      fullWidth
-                      multiline
-                      rows={3}
-                      disabled={submitting}
+                      fullWidth multiline rows={3} disabled={submitting}
+                      InputLabelProps={{ sx: authLabelSx }} sx={authFieldSx}
                     />
 
                     <FormControlLabel
@@ -292,13 +301,12 @@ export function RegisterPage() {
                         <Checkbox
                           checked={form.agreedTerms}
                           onChange={(e) => set("agreedTerms", e.target.checked)}
-                          size="small"
                           disabled={submitting}
-                          sx={{ alignSelf: "flex-start", mt: -0.5 }}
+                          sx={{ alignSelf: "flex-start", mt: -0.5, color: "rgba(11,37,69,0.55)" }}
                         />
                       }
                       label={
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography sx={{ fontSize: 15, color: "rgba(11,37,69,0.78)", lineHeight: 1.55 }}>
                           {t("register.terms")}
                         </Typography>
                       }
@@ -310,9 +318,10 @@ export function RegisterPage() {
                       variant="contained"
                       size="large"
                       fullWidth
+                      disableElevation
                       disabled={submitting}
-                      startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
-                      sx={{ py: 1.5, fontWeight: 700, fontSize: 16 }}
+                      startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : null}
+                      sx={{ ...authButtonSx, mt: 0.5 }}
                     >
                       {submitting ? t("register.submitting") : t("register.submit")}
                     </Button>
@@ -333,5 +342,6 @@ export function RegisterPage() {
         </Box>
       </Box>
     </Box>
+    </PageEnter>
   );
 }

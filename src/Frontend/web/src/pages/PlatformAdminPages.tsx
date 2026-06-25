@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress,
-  IconButton, LinearProgress, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow,
+  IconButton, LinearProgress, Stack, Table, TableBody, TableCell, TableHead, TableRow,
   TextField, Typography
 } from "@mui/material";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
@@ -22,7 +22,8 @@ import SendIcon from "@mui/icons-material/Send";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import DeleteIcon from "@mui/icons-material/DeleteOutline";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
@@ -136,46 +137,179 @@ export function PlatformBillingPage() {
   );
 }
 
-/* ===================== Broadcast ===================== */
+/* ===================== Broadcast / Newsletter ===================== */
+interface Subscriber { id: string; email: string; source: string | null; createdAt: string; unsubscribedAt: string | null; }
+interface Campaign { id: string; subject: string; status: string; recipients: number; sent: number; failed: number; sentAt: string | null; createdAt: string; }
+
 export function BroadcastPage() {
-  const { t } = useTranslation();
-  const [audience, setAudience] = useState("all");
+  const qc = useQueryClient();
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [sent, setSent] = useState<string | null>(null);
-  const tenants = useQuery({ queryKey: ["tenants-for-broadcast"],
-    queryFn: async () => (await api.get<any[]>("/tenants")).data });
-  const recipientCount = tenants.data?.length ?? 0;
-  const send = useMutation({
-    mutationFn: async () => {
-      // Endpoint not yet built — log to console as preview. Backend wire-up next.
-      console.log("BROADCAST", { audience, subject, body });
-      await new Promise(r => setTimeout(r, 600));
-      return { delivered: recipientCount };
-    },
-    onSuccess: r => setSent(t("plat.broadcast.queued", { count: r.delivered }))
+  const [err, setErr] = useState<string | null>(null);
+
+  const subs = useQuery({
+    queryKey: ["newsletter-subscribers"],
+    queryFn: async () => (await api.get<Subscriber[]>("/platform/newsletter/subscribers")).data
   });
+  const campaigns = useQuery({
+    queryKey: ["newsletter-campaigns"],
+    queryFn: async () => (await api.get<Campaign[]>("/platform/newsletter/campaigns")).data
+  });
+
+  const active   = (subs.data ?? []).filter(s => !s.unsubscribedAt);
+  const unsubbed = (subs.data ?? []).filter(s =>  s.unsubscribedAt);
+
+  const deleteSub = useMutation({
+    mutationFn: async (id: string) => api.delete(`/platform/newsletter/subscribers/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["newsletter-subscribers"] }),
+    onError: (e: any) => setErr(e?.response?.data?.detail ?? "Σφάλμα διαγραφής")
+  });
+
+  const send = useMutation({
+    mutationFn: async () => (await api.post<Campaign>("/platform/newsletter/campaigns/send", {
+      subject: subject.trim(), htmlBody: body, textBody: null
+    })).data,
+    onSuccess: (c) => {
+      setSent(`Η αποστολή ολοκληρώθηκε: ${c.sent}/${c.recipients} επιτυχείς, ${c.failed} αποτυχίες.`);
+      setSubject(""); setBody("");
+      void qc.invalidateQueries({ queryKey: ["newsletter-campaigns"] });
+    },
+    onError: (e: any) => setErr(e?.response?.data?.detail ?? "Αποτυχία αποστολής")
+  });
+
   return (
-    <PageShell icon={<CampaignIcon sx={{ fontSize: 36 }} color="primary" />} titleKey="plat.broadcast.title" subtitleKey="plat.broadcast.subtitle" helpId="page.platBroadcast">
+    <PageShell icon={<CampaignIcon sx={{ fontSize: 36 }} color="primary" />}
+      titleKey="plat.broadcast.title" subtitleKey="plat.broadcast.subtitle" helpId="page.platBroadcast">
       {sent && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSent(null)}>{sent}</Alert>}
+      {err  && <Alert severity="error"   sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+
+      {/* KPI strip */}
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 3 }}>
+        <Card variant="outlined" sx={{ p: 2, flex: 1 }}>
+          <Typography variant="caption" color="text.secondary">Ενεργοί συνδρομητές</Typography>
+          <Typography variant="h5" fontWeight={800} color="primary.main">{active.length}</Typography>
+        </Card>
+        <Card variant="outlined" sx={{ p: 2, flex: 1 }}>
+          <Typography variant="caption" color="text.secondary">Έχουν αποχωρήσει</Typography>
+          <Typography variant="h5" fontWeight={800}>{unsubbed.length}</Typography>
+        </Card>
+        <Card variant="outlined" sx={{ p: 2, flex: 1 }}>
+          <Typography variant="caption" color="text.secondary">Καμπάνιες</Typography>
+          <Typography variant="h5" fontWeight={800}>{campaigns.data?.length ?? 0}</Typography>
+        </Card>
+      </Stack>
+
+      {/* Compose */}
       <Card sx={{ p: 3, mb: 3 }}>
-        <Stack spacing={2}>
-          <TextField select label={t("plat.broadcast.audience")} value={audience} onChange={e => setAudience(e.target.value)} fullWidth>
-            <MenuItem value="all">{t("plat.broadcast.audAll", { count: recipientCount })}</MenuItem>
-            <MenuItem value="trial">{t("plat.broadcast.audTrial")}</MenuItem>
-            <MenuItem value="active">{t("plat.broadcast.audActive")}</MenuItem>
-            <MenuItem value="inactive">{t("plat.broadcast.audInactive")}</MenuItem>
-          </TextField>
-          <TextField required label={t("plat.broadcast.subject")} value={subject} onChange={e => setSubject(e.target.value)} fullWidth />
-          <TextField required label={t("plat.broadcast.body")} value={body} onChange={e => setBody(e.target.value)} fullWidth multiline rows={10} />
+        <Typography variant="overline" color="text.secondary">Νέα καμπάνια</Typography>
+        <Stack spacing={2} mt={1}>
+          <TextField required label="Θέμα" value={subject}
+            onChange={e => setSubject(e.target.value)} fullWidth />
+          <TextField required label="Περιεχόμενο (HTML επιτρέπεται)" value={body}
+            onChange={e => setBody(e.target.value)} fullWidth multiline rows={10}
+            helperText={`Θα σταλεί σε ${active.length} ενεργούς συνδρομητές.`} />
           <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="caption" color="text.secondary">{t("plat.broadcast.deliveryNote")}</Typography>
-            <Button variant="contained" startIcon={<SendIcon />} disabled={send.isPending || !subject.trim() || !body.trim()}
-              onClick={() => send.mutate()}>
-              {send.isPending ? <CircularProgress size={18} /> : t("plat.broadcast.send")}
+            <Typography variant="caption" color="text.secondary">
+              Στέλνεται μέσω του server email provider (Brevo). Οι αποχωρήσαντες παραλείπονται αυτόματα.
+            </Typography>
+            <Button variant="contained" startIcon={<SendIcon />}
+              disabled={send.isPending || !subject.trim() || !body.trim() || active.length === 0}
+              onClick={() => {
+                if (confirm(`Αποστολή σε ${active.length} συνδρομητές;`)) send.mutate();
+              }}>
+              {send.isPending ? <CircularProgress size={18} /> : "Αποστολή σε όλους"}
             </Button>
           </Stack>
         </Stack>
+      </Card>
+
+      {/* Subscribers */}
+      <Card sx={{ mb: 3 }}>
+        <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+          <Typography fontWeight={700}>Συνδρομητές</Typography>
+        </Box>
+        {subs.isLoading ? (
+          <Box sx={{ p: 3, display: "flex", justifyContent: "center" }}><CircularProgress /></Box>
+        ) : (
+          <Table size="small">
+            <TableHead><TableRow>
+              <TableCell>Email</TableCell>
+              <TableCell>Προέλευση</TableCell>
+              <TableCell>Εγγραφή</TableCell>
+              <TableCell>Κατάσταση</TableCell>
+              <TableCell align="right" />
+            </TableRow></TableHead>
+            <TableBody>
+              {(subs.data ?? []).length === 0 && (
+                <TableRow><TableCell colSpan={5} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                  Δεν υπάρχουν συνδρομητές ακόμη.
+                </TableCell></TableRow>
+              )}
+              {(subs.data ?? []).map(s => (
+                <TableRow key={s.id} hover>
+                  <TableCell sx={{ fontFamily: "monospace" }}>{s.email}</TableCell>
+                  <TableCell>{s.source ?? "—"}</TableCell>
+                  <TableCell>{new Date(s.createdAt).toLocaleString("el-GR")}</TableCell>
+                  <TableCell>
+                    {s.unsubscribedAt
+                      ? <Chip size="small" label="Έχει αποχωρήσει" />
+                      : <Chip size="small" color="success" label="Ενεργός" />}
+                  </TableCell>
+                  <TableCell align="right">
+                    <IconButton size="small" color="error"
+                      onClick={() => { if (confirm(`Διαγραφή ${s.email};`)) deleteSub.mutate(s.id); }}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </Card>
+
+      {/* Campaign history */}
+      <Card>
+        <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+          <Typography fontWeight={700}>Ιστορικό καμπανιών</Typography>
+        </Box>
+        {campaigns.isLoading ? (
+          <Box sx={{ p: 3, display: "flex", justifyContent: "center" }}><CircularProgress /></Box>
+        ) : (
+          <Table size="small">
+            <TableHead><TableRow>
+              <TableCell>Θέμα</TableCell>
+              <TableCell>Παραλήπτες</TableCell>
+              <TableCell>Επιτυχείς</TableCell>
+              <TableCell>Αποτυχίες</TableCell>
+              <TableCell>Κατάσταση</TableCell>
+              <TableCell>Στάλθηκε</TableCell>
+            </TableRow></TableHead>
+            <TableBody>
+              {(campaigns.data ?? []).length === 0 && (
+                <TableRow><TableCell colSpan={6} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                  Δεν έχει σταλεί ακόμη καμπάνια.
+                </TableCell></TableRow>
+              )}
+              {(campaigns.data ?? []).map(c => (
+                <TableRow key={c.id} hover>
+                  <TableCell>{c.subject}</TableCell>
+                  <TableCell align="right">{c.recipients}</TableCell>
+                  <TableCell align="right" sx={{ color: "success.main" }}>{c.sent}</TableCell>
+                  <TableCell align="right" sx={{ color: c.failed > 0 ? "error.main" : undefined }}>{c.failed}</TableCell>
+                  <TableCell>
+                    <Chip size="small" label={c.status}
+                      color={c.status === "Sent" ? "success" : c.status === "Failed" ? "error" : "warning"} />
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 12 }}>
+                    {c.sentAt ? new Date(c.sentAt).toLocaleString("el-GR") : "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </Card>
     </PageShell>
   );

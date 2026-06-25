@@ -8,9 +8,15 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
+import {
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip as RTooltip, CartesianGrid,
+  PieChart, Pie, Cell, BarChart, Bar, LineChart, Line
+} from "recharts";
 import { useAuth } from "../auth/AuthContext";
 import { usePackages, type PackageCode } from "../auth/PackagesContext";
 import { useWorkspace, WORKSPACE_DEFAULT_ROUTE } from "../auth/WorkspaceContext";
+import { api } from "../api/client";
 
 interface PackageMeta {
   code: PackageCode;
@@ -29,9 +35,37 @@ const PACKAGES: PackageMeta[] = [
 // Kept for type safety — re-enable these by moving them into PACKAGES above.
 void RequestQuoteIcon; void InsightsIcon; void HubIcon;
 
-// One palette across all five. Dark navy border + gold accent only.
+// Restrained palette — navy as primary, cyan as the single accent
+// (matches the redesigned landing page). No gold/brown.
 const INK = "#0b2545";
-const GOLD = "#b08a3e";
+const INK_SOFT = "#3d4f6b";
+const ACCENT = "#1f7bb3";
+
+interface DashKpis {
+  customers: number;
+  activePolicies: number;
+  expiringSoon: number;
+  monthlyPremium: number;
+  openClaims: number;
+  openRequests: number;
+}
+interface DashSeries { label: string; value: number }
+interface CarrierShare { carrier: string; policies: number; premium: number }
+interface AgencyReport {
+  kpis: DashKpis;
+  policiesByType: DashSeries[];
+  policiesByStatus: DashSeries[];
+  claimsByStatus: DashSeries[];
+  monthlyPremium: DashSeries[];
+  topCarriers: CarrierShare[];
+}
+
+// Palette for the categorical charts — soft, restrained, navy/cyan biased.
+const CHART_PALETTE = ["#1f7bb3", "#0b2545", "#6fd2ff", "#3d4f6b", "#a7c1d9", "#6b8aa9"];
+const STATUS_PALETTE: Record<string, string> = {
+  Active: "#16a34a", PendingRenewal: "#d97706", Expired: "#a3a3a3",
+  Cancelled: "#dc2626", Renewed: "#1f7bb3", Draft: "#94a3b8"
+};
 
 export function WorkspaceHubPage() {
   const { t } = useTranslation();
@@ -53,26 +87,27 @@ export function WorkspaceHubPage() {
 
   return (
     <Box>
-      {/* Greeting */}
-      <Box sx={{ mb: { xs: 4, md: 6 } }}>
+      {/* Greeting — restrained navy, no gold accent */}
+      <Box sx={{ mb: { xs: 3, md: 4 } }}>
         <Typography sx={{
-          fontFamily: "Georgia, 'Times New Roman', serif",
           fontSize: { xs: 30, md: 40 },
           color: INK,
           lineHeight: 1.1,
-          fontWeight: 600,
-          letterSpacing: "-0.01em"
+          fontWeight: 700,
+          letterSpacing: "-0.02em"
         }}>
           {greeting},{" "}
-          <Box component="span" sx={{ color: GOLD, fontStyle: "italic" }}>
+          <Box component="span" sx={{ color: ACCENT }}>
             {user?.firstName ?? ""}
           </Box>
           .
         </Typography>
-        <Typography sx={{ mt: 1.5, color: "text.secondary", fontSize: { xs: 15, md: 16.5 }, maxWidth: 720, lineHeight: 1.55 }}>
+        <Typography sx={{ mt: 1.5, color: INK_SOFT, fontSize: { xs: 15, md: 16.5 }, maxWidth: 720, lineHeight: 1.55 }}>
           {t("ws.hub.lead")}
         </Typography>
       </Box>
+
+      <DashboardSummary />
 
       {/* Grid */}
       <Box sx={{
@@ -97,16 +132,16 @@ export function WorkspaceHubPage() {
                 "&:hover": enabled ? {
                   transform: "translateY(-3px)",
                   borderColor: INK,
-                  boxShadow: `0 12px 24px -12px ${INK}30, 0 2px 0 0 ${GOLD}`
+                  boxShadow: `0 12px 24px -12px ${INK}30, 0 2px 0 0 ${ACCENT}`
                 } : {},
                 "&:active": enabled ? { transform: "translateY(-1px)", transition: "transform 80ms ease" } : {},
-                // Subtle gold underline that grows in on hover
+                // Cyan accent line that grows in on hover (was gold).
                 "&::after": enabled ? {
                   content: '""',
                   position: "absolute",
                   left: 0, right: 0, bottom: 0,
                   height: 2,
-                  background: GOLD,
+                  background: ACCENT,
                   transform: "scaleX(0)",
                   transformOrigin: "left",
                   transition: "transform 360ms cubic-bezier(.22,.61,.36,1)"
@@ -140,8 +175,8 @@ export function WorkspaceHubPage() {
                     <Box sx={{
                       px: 1, py: 0.5,
                       border: "1px solid",
-                      borderColor: enabled ? GOLD : "divider",
-                      color: enabled ? GOLD : "text.disabled",
+                      borderColor: enabled ? ACCENT : "divider",
+                      color: enabled ? ACCENT : "text.disabled",
                       fontFamily: "monospace",
                       fontSize: 11,
                       fontWeight: 700,
@@ -199,6 +234,203 @@ export function WorkspaceHubPage() {
           {t("ws.hub.footnote")}
         </Typography>
       </Box>
+    </Box>
+  );
+}
+
+/* ============================================================================
+   Compact dashboard summary — sits between the greeting and the workspace
+   cards. Four KPI tiles + one tiny monthly-premium area chart so the user
+   has a glance at how the agency is doing without leaving the hub.
+   ============================================================================ */
+function DashboardSummary() {
+  const moneyFmt = new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+  const intFmt   = new Intl.NumberFormat("el-GR");
+  const q = useQuery({
+    queryKey: ["agency-report-hub"],
+    queryFn: async () => (await api.get<AgencyReport>("/reports/agency")).data,
+    staleTime: 60_000
+  });
+
+  if (q.isLoading) return null; // silent — hub already has plenty above the fold
+  if (!q.data)     return null;
+  const k = q.data.kpis;
+  const series = q.data.monthlyPremium.slice(-6);
+  const statuses = q.data.policiesByStatus ?? [];
+  const carriers = (q.data.topCarriers ?? []).slice(0, 5);
+  const claims   = q.data.claimsByStatus ?? [];
+  const types    = q.data.policiesByType ?? [];
+
+  return (
+    <Box sx={{ mb: { xs: 4, md: 5 } }}>
+      {/* KPI row + monthly chart */}
+      <Box sx={{
+        display: "grid",
+        gap: 1.5,
+        gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr) 1.5fr" }
+      }}>
+        <Tile label="Πελάτες"           value={intFmt.format(k.customers)} />
+        <Tile label="Ενεργά συμβόλαια"  value={intFmt.format(k.activePolicies)} />
+        <Tile label="Λήγουν σύντομα"    value={intFmt.format(k.expiringSoon)} accent="warning" />
+        <Tile label="Ασφάλιστρα μήνα"   value={moneyFmt.format(k.monthlyPremium)} />
+        <MiniChartCard title="Παραγωγή 6 μηνών"
+          rightLabel={moneyFmt.format(series.reduce((s, p) => s + p.value, 0))}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={series} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
+              <defs>
+                <linearGradient id="hubArea" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%"   stopColor={ACCENT} stopOpacity={0.32} />
+                  <stop offset="100%" stopColor={ACCENT} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="#eef1f5" vertical={false} />
+              <XAxis dataKey="label" hide />
+              <YAxis hide />
+              <RTooltip
+                contentStyle={{ borderRadius: 8, border: `1px solid #e5e9ef`, fontSize: 12 }}
+                formatter={(v: any) => moneyFmt.format(Number(v) || 0)} />
+              <Area type="monotone" dataKey="value" stroke={ACCENT} strokeWidth={2}
+                fill="url(#hubArea)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </MiniChartCard>
+      </Box>
+
+      {/* Second row — three small charts side-by-side. Each ~140 px tall. */}
+      <Box sx={{
+        mt: 1.5,
+        display: "grid", gap: 1.5,
+        gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }
+      }}>
+        {/* Donut — policies by status */}
+        <MiniChartCard title="Συμβόλαια ανά κατάσταση"
+          rightLabel={`${intFmt.format(statuses.reduce((s, x) => s + x.value, 0))}`} height={150}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={statuses} dataKey="value" nameKey="label"
+                cx="35%" cy="50%" innerRadius={28} outerRadius={50}
+                paddingAngle={2} strokeWidth={0}>
+                {statuses.map((s, i) =>
+                  <Cell key={s.label} fill={STATUS_PALETTE[s.label] ?? CHART_PALETTE[i % CHART_PALETTE.length]} />
+                )}
+              </Pie>
+              <RTooltip
+                contentStyle={{ borderRadius: 8, border: "1px solid #e5e9ef", fontSize: 12 }}
+                formatter={(v: any, n: any) => [intFmt.format(Number(v) || 0), n]} />
+            </PieChart>
+          </ResponsiveContainer>
+          <DonutLegend items={statuses} colorOf={(label, i) =>
+            STATUS_PALETTE[label] ?? CHART_PALETTE[i % CHART_PALETTE.length]} />
+        </MiniChartCard>
+
+        {/* Horizontal-ish bar — top 5 carriers by premium */}
+        <MiniChartCard title="Κορυφαίες εταιρίες"
+          rightLabel={carriers.length > 0 ? carriers[0].carrier : "—"} height={150}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={carriers} margin={{ top: 5, right: 8, bottom: 0, left: 0 }}>
+              <CartesianGrid stroke="#eef1f5" vertical={false} />
+              <XAxis dataKey="carrier" tick={{ fontSize: 10, fill: INK_SOFT }}
+                tickLine={false} interval={0} />
+              <YAxis hide />
+              <RTooltip
+                contentStyle={{ borderRadius: 8, border: "1px solid #e5e9ef", fontSize: 12 }}
+                formatter={(v: any) => moneyFmt.format(Number(v) || 0)} />
+              <Bar dataKey="premium" radius={[4, 4, 0, 0]}>
+                {carriers.map((_, i) => <Cell key={i} fill={CHART_PALETTE[i % CHART_PALETTE.length]} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </MiniChartCard>
+
+        {/* Small line — claims by status (or policies-by-type fallback) */}
+        <MiniChartCard
+          title={claims.length > 0 ? "Ζημίες ανά κατάσταση" : "Κατανομή κλάδων"}
+          rightLabel={`${intFmt.format((claims.length > 0 ? claims : types).reduce((s, x) => s + x.value, 0))}`}
+          height={150}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={claims.length > 0 ? claims : types} margin={{ top: 5, right: 8, bottom: 0, left: 0 }}>
+              <CartesianGrid stroke="#eef1f5" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: INK_SOFT }} tickLine={false} interval={0} />
+              <YAxis hide />
+              <RTooltip
+                contentStyle={{ borderRadius: 8, border: "1px solid #e5e9ef", fontSize: 12 }}
+                formatter={(v: any) => intFmt.format(Number(v) || 0)} />
+              <Line type="monotone" dataKey="value" stroke={ACCENT} strokeWidth={2.5}
+                dot={{ r: 3, fill: ACCENT }} activeDot={{ r: 5 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </MiniChartCard>
+      </Box>
+    </Box>
+  );
+}
+
+function MiniChartCard({ title, rightLabel, children, height = 76 }: {
+  title: string; rightLabel?: string; children: React.ReactNode; height?: number;
+}) {
+  return (
+    <Box sx={{
+      border: "1px solid", borderColor: "divider",
+      borderRadius: 2, p: 1.5, bgcolor: "#fff"
+    }}>
+      <Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={{ px: 0.5, mb: 0.5 }}>
+        <Typography sx={{
+          fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase",
+          color: INK_SOFT, fontWeight: 700
+        }}>
+          {title}
+        </Typography>
+        {rightLabel && (
+          <Typography sx={{ fontSize: 12, color: ACCENT, fontWeight: 700, maxWidth: "55%",
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {rightLabel}
+          </Typography>
+        )}
+      </Stack>
+      <Box sx={{ height }}>
+        {children}
+      </Box>
+    </Box>
+  );
+}
+
+function DonutLegend({ items, colorOf }: {
+  items: DashSeries[]; colorOf: (label: string, i: number) => string;
+}) {
+  return (
+    <Stack spacing={0.4} sx={{
+      position: "relative", mt: -7.5, ml: "65%", maxHeight: 75, overflow: "hidden"
+    }}>
+      {items.slice(0, 4).map((s, i) => (
+        <Stack key={s.label} direction="row" spacing={0.75} alignItems="center">
+          <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: colorOf(s.label, i) }} />
+          <Typography sx={{ fontSize: 10.5, color: "#3d4f6b", fontWeight: 600, lineHeight: 1 }}>
+            {s.label}
+          </Typography>
+        </Stack>
+      ))}
+    </Stack>
+  );
+}
+
+function Tile({ label, value, accent }: { label: string; value: string; accent?: "warning" }) {
+  return (
+    <Box sx={{
+      border: "1px solid", borderColor: "divider",
+      borderRadius: 2, p: 1.75, bgcolor: "#fff"
+    }}>
+      <Typography sx={{
+        fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase",
+        color: INK_SOFT, fontWeight: 700, mb: 0.5
+      }}>
+        {label}
+      </Typography>
+      <Typography sx={{
+        fontSize: { xs: 22, md: 26 }, fontWeight: 800, color: accent === "warning" ? "#a05a00" : INK,
+        letterSpacing: "-0.01em", lineHeight: 1.1
+      }}>
+        {value}
+      </Typography>
     </Box>
   );
 }

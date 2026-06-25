@@ -199,6 +199,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
           <Tab label={`${t("policyDetail.tab.endorsements")} (${p?.endorsementCount ?? 0})`} />
           <Tab label={`${t("policyDetail.tab.claims")} (${p?.claimCount ?? 0})`} />
           <Tab label={`${t("policyDetail.tab.receipts")} (${p?.receiptCount ?? 0})`} />
+          <Tab label={`PDF Συμβολαίου (${p?.documentCount ?? 0})`} />
         </Tabs>
 
         {/* Scrollable content */}
@@ -340,6 +341,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                   ]}
                   emptyKey="policyDetail.noReceipts" />
               )}
+              {tab === 8 && <PolicyContractPdf policyId={p.id} />}
             </>
           )}
         </Box>
@@ -398,5 +400,193 @@ function SimpleList({ rows, cols, emptyKey }: {
         ))}
       </TableBody>
     </Table>
+  );
+}
+
+/* ============================================================================
+   Contract PDF — list, in-browser preview, print, upload (new/replace), delete.
+   Backend already exposes:
+     GET    /api/documents?policyId=...
+     POST   /api/documents/upload   (multipart)
+     GET    /api/documents/{id}/download
+     DELETE /api/documents/{id}
+   ============================================================================ */
+interface PolicyDoc {
+  id: string; policyId: string; documentType: string;
+  fileName: string; mimeType: string; sizeBytes: number;
+  createdAt: string;
+}
+
+function PolicyContractPdf({ policyId }: { policyId: string }) {
+  const qc = useQueryClient();
+  const [err, setErr] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewName, setPreviewName] = useState<string | null>(null);
+
+  // Cleanup blob URLs when the component unmounts.
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
+
+  const docsQ = useQuery({
+    queryKey: ["policy-documents", policyId],
+    queryFn: async () => (await api.get<PolicyDoc[]>("/documents", { params: { policyId } })).data
+  });
+
+  const upload = useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append("policyId", policyId);
+      // 1 = Contract (matches DocumentType enum). Anything PDF-ish lands here.
+      fd.append("type", "Contract");
+      fd.append("file", file);
+      return (await api.post<PolicyDoc>("/documents/upload", fd, {
+        headers: { "Content-Type": "multipart/form-data" }
+      })).data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["policy-documents", policyId] });
+      void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] });
+    },
+    onError: (e) => setErr(extractErrorMessage(e))
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => api.delete(`/documents/${id}`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["policy-documents", policyId] });
+      void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] });
+      if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); setPreviewName(null); }
+    },
+    onError: (e) => setErr(extractErrorMessage(e))
+  });
+
+  // Authenticated blob download — returns a fresh object URL the caller owns.
+  async function fetchBlobUrl(docId: string): Promise<string> {
+    const res = await api.get(`/documents/${docId}/download`, { responseType: "blob" });
+    return URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
+  }
+
+  const preview = async (d: PolicyDoc) => {
+    try {
+      const url = await fetchBlobUrl(d.id);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(url); setPreviewName(d.fileName); setErr(null);
+    } catch (e) { setErr(extractErrorMessage(e)); }
+  };
+
+  const download = async (d: PolicyDoc) => {
+    try {
+      const url = await fetchBlobUrl(d.id);
+      const a = document.createElement("a");
+      a.href = url; a.download = d.fileName;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) { setErr(extractErrorMessage(e)); }
+  };
+
+  const print = async (d: PolicyDoc) => {
+    try {
+      const url = await fetchBlobUrl(d.id);
+      const w = window.open(url, "_blank");
+      if (!w) { setErr("Ο φυλλομετρητής μπλόκαρε το άνοιγμα — επιτρέψτε pop-ups."); return; }
+      w.addEventListener("load", () => { try { w.print(); } catch { /* user dismissed */ } });
+    } catch (e) { setErr(extractErrorMessage(e)); }
+  };
+
+  const onPick = (file?: File | null) => {
+    if (!file) return;
+    if (file.size > 50 * 1024 * 1024) { setErr("Το αρχείο είναι μεγαλύτερο από 50MB."); return; }
+    upload.mutate(file);
+  };
+
+  const docs = docsQ.data ?? [];
+
+  return (
+    <Stack spacing={2}>
+      {err && <Alert severity="error" onClose={() => setErr(null)}>{err}</Alert>}
+
+      {/* Upload bar */}
+      <Box sx={{
+        p: 2, border: "1px dashed", borderColor: "divider", borderRadius: 2,
+        display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap"
+      }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography fontWeight={700} sx={{ fontSize: 14 }}>
+            {docs.length > 0 ? "Αντικατάσταση ή προσθήκη νέου αρχείου" : "Προσθέστε το PDF του συμβολαίου"}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Δεκτά: PDF και εικόνες · έως 50MB · αποθηκεύεται κρυπτογραφημένα.
+          </Typography>
+        </Box>
+        <Button component="label" variant="contained" disabled={upload.isPending}>
+          {upload.isPending ? <CircularProgress size={18} /> : "Επιλογή αρχείου"}
+          <input hidden type="file" accept="application/pdf,image/*"
+            onChange={(e) => onPick(e.target.files?.[0])} />
+        </Button>
+      </Box>
+
+      {/* List of attached docs */}
+      {docsQ.isLoading ? <CircularProgress /> : (
+        <Stack spacing={1}>
+          {docs.length === 0 && (
+            <Typography color="text.secondary" sx={{ py: 3, textAlign: "center" }}>
+              Δεν υπάρχει συνημμένο PDF συμβολαίου ακόμα.
+            </Typography>
+          )}
+          {docs.map(d => (
+            <Box key={d.id} sx={{
+              p: 1.5, border: "1px solid", borderColor: "divider", borderRadius: 2,
+              display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap"
+            }}>
+              <Box sx={{
+                width: 36, height: 44, borderRadius: 0.75,
+                bgcolor: "error.main", color: "#fff",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontWeight: 800, fontSize: 11, letterSpacing: "0.1em"
+              }}>
+                PDF
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography fontWeight={700} sx={{ fontSize: 14,
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {d.fileName}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {d.documentType} · {(d.sizeBytes / 1024).toFixed(0)} KB ·
+                  {d.createdAt ? ` ${new Date(d.createdAt).toLocaleDateString("el-GR")}` : ""}
+                </Typography>
+              </Box>
+              <Stack direction="row" spacing={0.5}>
+                <Button size="small" onClick={() => preview(d)}>Προβολή</Button>
+                <Button size="small" onClick={() => print(d)}>Εκτύπωση</Button>
+                <Button size="small" onClick={() => download(d)}>Λήψη</Button>
+                <Button size="small" color="error"
+                  onClick={() => { if (confirm("Διαγραφή του αρχείου;")) del.mutate(d.id); }}>
+                  Διαγραφή
+                </Button>
+              </Stack>
+            </Box>
+          ))}
+        </Stack>
+      )}
+
+      {/* In-browser PDF preview */}
+      {previewUrl && (
+        <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, overflow: "hidden" }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between"
+            sx={{ p: 1, borderBottom: "1px solid", borderColor: "divider", bgcolor: "grey.50" }}>
+            <Typography sx={{ fontSize: 13, fontWeight: 700, color: "text.primary",
+              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {previewName}
+            </Typography>
+            <IconButton size="small"
+              onClick={() => { if (previewUrl) URL.revokeObjectURL(previewUrl); setPreviewUrl(null); setPreviewName(null); }}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+          <Box component="iframe" src={previewUrl} title="PDF preview"
+            sx={{ width: "100%", height: 520, border: 0, display: "block" }} />
+        </Box>
+      )}
+    </Stack>
   );
 }

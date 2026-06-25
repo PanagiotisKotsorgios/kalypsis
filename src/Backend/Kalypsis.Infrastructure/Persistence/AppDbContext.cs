@@ -31,6 +31,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<CommissionTransaction> CommissionTransactions => Set<CommissionTransaction>();
     public DbSet<AgencyTask> AgencyTasks => Set<AgencyTask>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<NewsletterSubscriber> NewsletterSubscribers => Set<NewsletterSubscriber>();
+    public DbSet<NewsletterCampaign> NewsletterCampaigns => Set<NewsletterCampaign>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<PlatformSetting> PlatformSettings => Set<PlatformSetting>();
