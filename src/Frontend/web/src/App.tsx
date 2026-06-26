@@ -243,10 +243,11 @@ const navByRole: Record<Role, NavItem[]> = {
 
     // BackOffice → ΠΡΟΜΗΘΕΙΕΣ — items moved to παραγωγή/παραμετροποίηση where they belong.
     // Εκκαθαρίσεις & Υπερπρομήθειες are tied to contracts/producers → ΠΑΡΑΓΩΓΗ.
+    // Μαζική επεξεργασία προμηθειών (Bulk Commissions) lives in ΠΑΡΑΜΕΤΡΟΠΟΙΗΣΗ
+    // below — listing it here too created a duplicate React key (item.to+labelKey),
+    // which is what caused the icon-stuck-outside-dropdown glitch on re-toggle.
     { to: "/commission-runs",  labelKey: "nav.commissionRuns",  icon: <CalculateIcon />,         package: "BackOffice", group: "production" },
     { to: "/over-commissions", labelKey: "nav.overCommissions", icon: <StackedLineChartIcon />,  package: "BackOffice", group: "production" },
-    // Μαζική επεξεργασία προμηθειών είναι ρύθμιση/παραμετροποίηση, όχι ημερήσια παραγωγή.
-    { to: "/bulk-commissions", labelKey: "nav.bulkCommissions", icon: <TuneIcon />,              package: "BackOffice", group: "params" },
 
     // BackOffice → ΛΟΓΙΣΤΙΚΗ
     { to: "/gl", labelKey: "nav.gl", icon: <AccountBalanceOutlinedIcon />, package: "BackOffice", group: "accounting" },

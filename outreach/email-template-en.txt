@@ -1,0 +1,76 @@
+==============================================================================
+KALYPSIS — Outreach email to insurance carriers
+Language: English (fallback — use for multinational HQ partnership desks
+                  e.g. Generali / NN / Allianz EU-level integration teams)
+==============================================================================
+
+Before sending:
+  1. Fill <Your Name> and <Your Role> in the signature.
+  2. If you have a registered company, add a "VAT: ..." line.
+  3. Recipient: prefer partnerships@ or broker(s)@ over info@.
+  4. Set reply-to: info@kalypsis.gr if sending from a personal mailbox.
+
+==============================================================================
+SUBJECT
+==============================================================================
+Kalypsis partnership — carrier bridge & parametric data access
+
+==============================================================================
+BODY
+==============================================================================
+Dear Partnerships team,
+
+I am writing from Kalypsis (www.mykalypsis.gr), a new Greek-market
+SaaS platform for insurance brokerage agencies that I am developing.
+It will be offered to brokers across Greece for policy management,
+commissions, cash, production, issuance and reporting.
+
+So that agencies on Kalypsis can operate cleanly with policies
+written through your company, I would like to open a discussion on:
+
+1. CARRIER BRIDGE (data integration)
+   Agencies today receive periodic files (commonly Excel/CSV) with
+   production, cancellations, renewals and endorsements. I want
+   Kalypsis to ingest these — ideally programmatically (REST / SFTP /
+   webhook). Specifically:
+     a) Do you operate a broker portal API, SFTP feed or webhook
+        channel for authorised partner systems? If so, what is the
+        onboarding process for a software vendor like Kalypsis acting
+        on behalf of agency-customers?
+     b) If no programmatic interface exists, is there a documented
+        file schema (column mapping, internal codes for lines/agents)
+        that the periodic reports follow?
+     c) Public or NDA-gated documentation we may receive?
+
+2. PARAMETRIC FILES
+   For correct premium / commission / discount calculation in-agency,
+   I need access to your current parametric data (lines of business,
+   coverages, bonus/malus, vehicle-class tariff tables, producer
+   commission tables). I would like to know:
+     a) Do you license parametric data to authorised partner ISVs?
+     b) What legal framework (NDA, partner agreement) is required?
+
+3. LEGAL
+   I am happy to sign an NDA, a Data Processing Agreement (GDPR
+   Art. 28), and any third-party-vendor agreement you require.
+   I can confirm that:
+     • Every agency's policy data is strictly isolated in its own
+       tenant — no cross-tenant exposure ever.
+     • Parametric files are stored encrypted and distributed only to
+       tenants that hold a valid agreement with you.
+     • On termination, I delete the parametric data from production
+       and backups per your retention policy.
+
+I would value a 30-minute call with the relevant Broker Relations,
+IT Integrations or Legal contact to discuss next steps.
+
+Contact:
+  Email:    info@kalypsis.gr
+  Phone:    +30 2631028971
+  Web:      https://www.mykalypsis.gr
+
+Thank you for your time.
+
+Best regards,
+<Your Name>
+Founder, Kalypsis

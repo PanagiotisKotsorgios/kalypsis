@@ -1,0 +1,150 @@
+==============================================================================
+GREEK INSURANCE COMPANIES — Outreach checklist for Kalypsis
+==============================================================================
+
+IMPORTANT CAVEAT
+----------------
+The Greek insurance market consolidated heavily in recent years:
+  • ATE Insurance       → absorbed by ERGO Hellas
+  • AXA Greece          → absorbed by Generali Hellas
+  • Eurolife ERB        → renamed to Eurolife FFH
+  • ING Greece          → renamed to NN Hellas
+  • Imperio (life)      → various reshuffles
+Treat this list as a STARTING CHECKLIST, not a canonical registry.
+
+Before mail-merging:
+  1. Pull the current member list from EAEE (Ένωση Ασφαλιστικών Εταιριών
+     Ελλάδος) at https://www.eaee.gr — it's the authoritative directory.
+  2. For each name below, verify the company still trades under that name
+     in Greece and find the right partnerships address (see "addressing"
+     section at the bottom).
+  3. Dedupe — many entries below are the same legal entity rebranded.
+
+==============================================================================
+A. COMPOSITE / NON-LIFE / LIFE (general market)
+==============================================================================
+
+ 1. Εθνική Ασφαλιστική (Ethniki Insurance)
+    Website: ethnikiasfalistiki.gr
+
+ 2. ERGO Ασφαλιστική (ERGO Hellas — absorbed ATE Insurance)
+    Website: ergohellas.gr
+
+ 3. Interamerican Ελληνική Ασφαλιστική
+    Website: interamerican.gr
+
+ 4. Allianz Ελλάς
+    Website: allianz.gr
+
+ 5. Generali Hellas (absorbed AXA Greece)
+    Website: generali.gr ====================================== WEAREHERE ----------------------
+
+ 6. NN Hellas (ex-ING Life)
+    Website: nnhellas.gr
+
+ 7. Eurolife FFH (ex-Eurolife ERB)
+    Website: eurolife.gr
+
+ 8. Groupama Φοίνιξ
+    Website: groupama.gr
+
+ 9. Υδρόγειος Ασφαλιστική (Ydrogios)
+    Website: ydrogios.gr
+
+10. Ευρωπαϊκή Πίστη / European Reliance
+    Website: europisti.gr
+
+11. Interasco
+    Website: interasco.gr
+
+12. Μινέττα Ασφαλιστική (Minetta)
+    Website: minetta.gr
+
+13. Δύναμις Ασφαλιστική (Dynamis)
+    Website: dynamisinsurance.gr
+
+14. Hellas Direct (digital-first non-life)
+    Website: hellasdirect.gr
+
+15. Anytime (digital, Interamerican brand)
+    Website: anytime.gr
+
+16. Imperial Claims / Imperial Insurance
+    Website: verify locally — uncertain current status
+
+17. Mentor Ασφαλιστική
+    Website: verify locally — uncertain current status
+
+==============================================================================
+B. SPECIALISED / BANCASSURANCE / LEGAL EXPENSE / CREDIT
+==============================================================================
+
+18. ARAG Hellas (legal expenses)
+    Website: arag.gr
+
+19. DAS Hellas (legal expenses)
+    Website: verify locally
+
+20. BNP Paribas Cardif (bancassurance, life + creditor)
+    Website: cardif.gr
+
+21. Crédit Agricole Life
+    Website: verify locally
+
+22. Atradius Hellas (credit insurance)
+    Website: atradius.com/gr
+
+23. Coface Hellas (credit insurance)
+    Website: coface.com/gr/el
+
+24. Euler Hermes / Allianz Trade Hellas (credit insurance)
+    Website: alliancetrade.com
+
+25. Mapfre Asistencia (assistance / specialty — verify Greek branch)
+    Website: mapfre.com
+
+26. CHUBB European Group (commercial lines branch)
+    Website: chubb.com/gr-en
+
+==============================================================================
+C. LLOYD'S / SYNDICATES (broker-distributed, not single email targets)
+==============================================================================
+
+Lloyd's coverholders operating in Greece work through the Lloyd's General
+Representative office in Athens for regulatory matters, then through
+individual syndicates via brokers. There isn't a single email target —
+skip until you have an established broker relationship channeling the
+introductions.
+
+==============================================================================
+ADDRESSING — which inbox to use
+==============================================================================
+
+For each carrier, three address types typically exist:
+
+  info@<carrier>          → general inbox, gets dropped to assistants.
+                            AVOID for partnership initiation.
+
+  broker(s)@<carrier>     → broker-relations desk. USUALLY THE RIGHT ONE.
+  synergates@<carrier>      Try this first.
+  agents@<carrier>
+
+  partnerships@<carrier>  → for the API / integration angle.
+  it@<carrier>              Try this second.
+
+Recommended pattern:
+  • Send TO  : partnerships@ or broker(s)@
+  • CC       : the alternate one of the above
+  • Skip     : info@
+
+==============================================================================
+SIGNATURE BLOCK — checklist before sending
+==============================================================================
+
+  [ ] Replaced <Όνομα Επώνυμο> / <Your Name>
+  [ ] Added your role (e.g. "Founder, Kalypsis")
+  [ ] Phone is 2631028971 (already in template)
+  [ ] If Kalypsis is registered as a legal entity, add "ΑΦΜ: ..." line
+  [ ] Reply-to header set to info@kalypsis.gr
+
+==============================================================================
