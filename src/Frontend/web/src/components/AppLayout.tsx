@@ -80,6 +80,7 @@ interface AppLayoutProps {
 
 const DRAWER_WIDTH = 408;
 const DRAWER_RAIL_WIDTH = 64;
+const MOBILE_DRAWER_WIDTH = "min(88vw, 360px)";
 
 export function AppLayout({ navItems, children }: AppLayoutProps) {
   const { t } = useTranslation();
@@ -143,7 +144,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
 
   const drawerContent = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <Toolbar sx={{ px: 2, justifyContent: "space-between", gap: 1 }}>
+      <Toolbar sx={{ px: 2, minHeight: 64, justifyContent: "space-between", gap: 1 }}>
         {tenantLogoUrl ? (
           <Stack direction="row" spacing={1.2} alignItems="center" sx={{ minWidth: 0 }}>
             <Box
@@ -157,13 +158,13 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           <KalypsisLogo size={32} />
         )}
         {isMobile && (
-          <IconButton size="small" onClick={() => setOpen(false)}>
+          <IconButton size="medium" aria-label={t("common.close")} onClick={() => setOpen(false)} sx={{ minWidth: 44, minHeight: 44 }}>
             <CloseIcon />
           </IconButton>
         )}
       </Toolbar>
       <Divider />
-      <List sx={{ flex: 1, py: 1, overflowY: "auto" }} component="nav">
+      <List id="app-sidebar-navigation" sx={{ flex: 1, py: 1, overflowY: "auto", overscrollBehavior: "contain", pb: "max(8px, env(safe-area-inset-bottom))" }} component="nav">
         {(() => {
           const visible = navItems.filter(item => {
             if (item.package && !hasPackage(item.package)) return false;
@@ -209,6 +210,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                   mb: 0.4,
                   pl: collapsed ? 1.2 : (indented ? 3 : 2),
                   borderRadius: 1.5,
+                  minHeight: isMobile ? 48 : undefined,
                   justifyContent: collapsed ? "center" : "flex-start",
                   opacity: item.comingSoon ? 0.7 : 1
                 }}
@@ -303,7 +305,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
         })()}
       </List>
       <Divider />
-      <Box sx={{ p: !isMobile && !open ? 1 : 2 }}>
+      <Box sx={{ p: !isMobile && !open ? 1 : 2, pb: isMobile ? "max(16px, env(safe-area-inset-bottom))" : undefined }}>
         {!isMobile && !open ? (
           <Tooltip title={`${user?.firstName ?? ""} ${user?.lastName ?? ""}`} placement="right" arrow>
             <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36, fontSize: 14, mx: "auto" }}>
@@ -330,7 +332,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
   );
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
+    <Box data-app-shell sx={{ display: "flex", minHeight: "100dvh", minWidth: 0, overflowX: "hidden", bgcolor: "background.default" }}>
       <AppBar
         position="fixed"
         sx={{
@@ -340,11 +342,11 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
         }}
         elevation={0}
       >
-        <Toolbar sx={{ borderBottom: "1px solid", borderColor: "divider", gap: 1 }}>
-          <IconButton edge="start" onClick={() => setOpen((v) => !v)} sx={{ mr: 1 }}>
+        <Toolbar sx={{ minHeight: 64, pt: "env(safe-area-inset-top)", px: { xs: 1, sm: 2 }, borderBottom: "1px solid", borderColor: "divider", gap: { xs: 0.25, sm: 1 } }}>
+          <IconButton edge="start" aria-label={open && isMobile ? t("common.close") : t("nav.menu")} aria-controls="app-sidebar-navigation" aria-expanded={isMobile ? open : undefined} onClick={() => setOpen((v) => !v)} sx={{ mr: { xs: 0.25, sm: 1 }, minWidth: 44, minHeight: 44 }}>
             <MenuIcon />
           </IconButton>
-          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ minWidth: 0 }}>
+          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
             {tenantLogoUrl && (
               <Box
                 component="img"
@@ -389,19 +391,21 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           )}
           {!useWorkspaceUi && <Box sx={{ flex: 1 }} />}
 
-          <Stack direction="row" spacing={{ xs: 0.5, md: 1.5 }} alignItems="center">
+          <Stack direction="row" spacing={{ xs: 0.25, md: 1.5 }} alignItems="center" flexShrink={0}>
             <Box data-tour="topbar-bell"><NotificationBell /></Box>
             <Box data-tour="topbar-language" sx={{ display: { xs: "none", sm: "block" } }}>
               <LanguageToggle />
             </Box>
-            <IconButton data-tour="topbar-logout" onClick={handleSignOut} title={t("auth.logout")}>
+            <IconButton data-tour="topbar-logout" aria-label={t("auth.logout")} onClick={handleSignOut} title={t("auth.logout")} sx={{ minWidth: 44, minHeight: 44 }}>
               <LogoutIcon />
             </IconButton>
           </Stack>
         </Toolbar>
       </AppBar>
 
-      {/* Desktop: persistent drawer that collapses to an icon rail. Mobile: full overlay drawer. */}
+      {/* Desktop: persistent drawer that collapses to an icon rail. On mobile it
+          is a focused navigation sheet with a backdrop, so page content cannot
+          be accidentally tapped while the menu is open. */}
       <Drawer
         variant={isMobile ? "temporary" : "permanent"}
         open={isMobile ? open : true}
@@ -412,13 +416,20 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           flexShrink: 0,
           transition: (theme) => theme.transitions.create("width", { duration: 200 }),
           "& .MuiDrawer-paper": {
-            width: isMobile ? DRAWER_WIDTH : (open ? DRAWER_WIDTH : DRAWER_RAIL_WIDTH),
+            width: isMobile ? MOBILE_DRAWER_WIDTH : (open ? DRAWER_WIDTH : DRAWER_RAIL_WIDTH),
+            maxWidth: isMobile ? "calc(100vw - 20px)" : undefined,
             overflowX: "hidden",
             transition: (theme) => theme.transitions.create("width", { duration: 200 }),
             boxSizing: "border-box",
             borderRight: "1px solid",
-            borderColor: "divider"
-          }
+            borderColor: "divider",
+            borderRadius: isMobile ? "0 18px 18px 0" : 0,
+            boxShadow: isMobile ? "0 18px 52px rgba(11,37,69,0.26)" : undefined
+          },
+          "& .MuiBackdrop-root": isMobile ? {
+            backgroundColor: "rgba(7,29,54,0.48)",
+            backdropFilter: "blur(3px)"
+          } : undefined
         }}
       >
         {drawerContent}
@@ -426,12 +437,16 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
 
       <Box
         component="main"
+        data-app-main
         sx={{
           flexGrow: 1,
-          p: { xs: 2, md: 4 },
+          width: "100%",
+          p: { xs: 1.5, sm: 2, md: 4 },
+          pb: { xs: "calc(24px + env(safe-area-inset-bottom))", md: 4 },
           mt: 8,
           minWidth: 0,      // keep wide content from forcing horizontal scroll
-          maxWidth: "100%"
+          maxWidth: "100%",
+          overflowX: "clip"
         }}
       >
         <ImpersonationBanner />

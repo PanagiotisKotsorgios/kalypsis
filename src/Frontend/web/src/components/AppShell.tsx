@@ -40,14 +40,15 @@ export function AppShell({
 
   if (showHubFullscreen) {
     return (
-      <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", bgcolor: "background.default" }}>
+      <Box data-app-shell sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column", overflowX: "hidden", bgcolor: "background.default" }}>
         {/* Minimal top bar — same look as the dashboard chrome, no sidebar */}
         <Box sx={{
           bgcolor: "background.paper",
           borderBottom: "1px solid",
           borderColor: "divider",
-          px: { xs: 2, md: 4 },
-          py: 1.5
+          px: { xs: 1.5, md: 4 },
+          pt: "max(12px, env(safe-area-inset-top))",
+          pb: 1.5
         }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Typography sx={{
@@ -75,8 +76,9 @@ export function AppShell({
         {/* Hub body — fills the rest of the viewport */}
         <Box sx={{
           flex: 1,
-          px: { xs: 2, md: 6 },
-          py: { xs: 4, md: 7 },
+          px: { xs: 1.5, md: 6 },
+          py: { xs: 3, md: 7 },
+          pb: { xs: "calc(24px + env(safe-area-inset-bottom))", md: 7 },
           maxWidth: 1200,
           width: "100%",
           mx: "auto"

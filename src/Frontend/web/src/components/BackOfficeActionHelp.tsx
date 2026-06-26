@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useState } from "react";
-import { Box, Portal } from "@mui/material";
+import { Box, Portal, useMediaQuery, useTheme } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { HelpHint } from "./HelpHint";
 
@@ -32,6 +32,8 @@ const interactiveSelector = [
  */
 export function BackOfficeActionHelp() {
   const { i18n } = useTranslation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [targets, setTargets] = useState<HelpTarget[]>([]);
   const isGreek = i18n.language.toLowerCase().startsWith("el");
 
@@ -62,6 +64,11 @@ export function BackOfficeActionHelp() {
   }, []);
 
   useLayoutEffect(() => {
+    if (isMobile) {
+      setTargets([]);
+      return;
+    }
+
     let frame = 0;
     const schedule = () => {
       cancelAnimationFrame(frame);
@@ -85,7 +92,12 @@ export function BackOfficeActionHelp() {
       window.removeEventListener("resize", schedule);
       window.removeEventListener("scroll", schedule, true);
     };
-  }, [refresh]);
+  }, [isMobile, refresh]);
+
+  // The desktop overlay makes every field discoverable, but on a phone it
+  // competes with the field itself. The existing inline help controls remain
+  // available while the dense floating layer is intentionally suppressed.
+  if (isMobile) return null;
 
   return (
     <Portal>
