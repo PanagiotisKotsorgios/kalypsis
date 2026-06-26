@@ -36,7 +36,6 @@ import LinkIcon from "@mui/icons-material/Link";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
 import LeaderboardIcon from "@mui/icons-material/Leaderboard";
-import CalculateIcon from "@mui/icons-material/Calculate";
 import ImageIcon from "@mui/icons-material/Image";
 import EngineeringIcon from "@mui/icons-material/Engineering";
 
@@ -168,17 +167,12 @@ import GroupsIcon from "@mui/icons-material/Groups";
 // ΖΗΜΙΕΣ ΚΑΙ ΔΙΑΚΑΝΟΝΙΣΜΟΙ group icons (Build/Savings/PaymentsOutlined/HandshakeOutlined)
 // were removed from the sidebar; their imports are no longer needed.
 import RuleIcon from "@mui/icons-material/Rule";
-import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlined";
-import LocalAtmIcon from "@mui/icons-material/LocalAtm";
-import SavingsOutlinedIcon from "@mui/icons-material/SavingsOutlined";
-import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
 import RestoreIcon from "@mui/icons-material/Restore";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import StackedLineChartIcon from "@mui/icons-material/StackedLineChart";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import GavelOutlinedIcon from "@mui/icons-material/GavelOutlined";
 import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
-import ImportExportIcon from "@mui/icons-material/ImportExport";
 import MovingIcon from "@mui/icons-material/Moving";
 import CakeIcon from "@mui/icons-material/Cake";
 import PhoneCallbackIcon from "@mui/icons-material/PhoneCallback";
@@ -234,26 +228,15 @@ const navByRole: Record<Role, NavItem[]> = {
     // BackOffice → ΟΙΚΟΝΟΜΙΚΑ
     { to: "/receipts", labelKey: "nav.receipts", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
     { to: "/payments", labelKey: "nav.payments", icon: <RequestQuoteIcon />, package: "BackOffice", group: "financials" },
-    { to: "/cash", labelKey: "nav.cash", icon: <LocalAtmIcon />, package: "BackOffice", group: "financials" },
-    { to: "/advance-payments", labelKey: "nav.advance", icon: <SavingsOutlinedIcon />, package: "BackOffice", group: "financials" },
-    { to: "/reconciliation", labelKey: "nav.reconciliation", icon: <CompareArrowsIcon />, package: "BackOffice", group: "financials" },
     { to: "/financial-movements", labelKey: "nav.financials", icon: <AttachMoneyIcon />, package: "BackOffice", group: "financials" },
     { to: "/securities", labelKey: "nav.securities", icon: <RestoreIcon />, package: "BackOffice", group: "financials" },
     { to: "/credit-notes", labelKey: "nav.creditNotes", icon: <ReceiptLongOutlinedIcon />, package: "BackOffice", group: "financials" },
 
-    // BackOffice → ΠΡΟΜΗΘΕΙΕΣ — items moved to παραγωγή/παραμετροποίηση where they belong.
-    // Εκκαθαρίσεις & Υπερπρομήθειες are tied to contracts/producers → ΠΑΡΑΓΩΓΗ.
-    // Μαζική επεξεργασία προμηθειών (Bulk Commissions) lives in ΠΑΡΑΜΕΤΡΟΠΟΙΗΣΗ
-    // below — listing it here too created a duplicate React key (item.to+labelKey),
-    // which is what caused the icon-stuck-outside-dropdown glitch on re-toggle.
-    { to: "/commission-runs",  labelKey: "nav.commissionRuns",  icon: <CalculateIcon />,         package: "BackOffice", group: "production" },
+    // BackOffice → ΠΡΟΜΗΘΕΙΕΣ — the commission settlement entry point is in
+    // Production Lists, keeping production reporting and monthly settlement together.
     { to: "/over-commissions", labelKey: "nav.overCommissions", icon: <StackedLineChartIcon />,  package: "BackOffice", group: "production" },
 
-    // BackOffice → ΛΟΓΙΣΤΙΚΗ
-    { to: "/gl", labelKey: "nav.gl", icon: <AccountBalanceOutlinedIcon />, package: "BackOffice", group: "accounting" },
-    { to: "/accounting", labelKey: "nav.accounting", icon: <CalculateIcon />, package: "BackOffice", group: "accounting" },
-    { to: "/kepyo", labelKey: "nav.kepyo", icon: <GavelIcon />, package: "BackOffice", group: "accounting" },
-    { to: "/magnetic-import", labelKey: "nav.magneticImport", icon: <ImportExportIcon />, package: "BackOffice", group: "accounting" },
+    // Accounting and cash-control routes remain available from the Financial hub.
 
     // BackOffice → ΖΗΜΙΕΣ ΚΑΙ ΔΙΑΚΑΝΟΝΙΣΜΟΙ — temporarily disabled (per user request).
     // Routes below still resolve so we don't crash existing deep-links, but the

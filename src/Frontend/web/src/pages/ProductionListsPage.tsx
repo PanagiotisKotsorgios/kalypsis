@@ -9,8 +9,10 @@ import DownloadIcon from "@mui/icons-material/Download";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import TableChartIcon from "@mui/icons-material/TableChart";
 import GridOnIcon from "@mui/icons-material/GridOn";
+import CalculateIcon from "@mui/icons-material/Calculate";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { Link as RouterLink } from "react-router-dom";
 import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 
@@ -104,11 +106,18 @@ export function ProductionListsPage() {
         </Stack>
         <Box sx={{ flex: 1 }} />
         <Stack direction="row" spacing={1}>
+          <Button component={RouterLink} to="/app/commission-runs" variant="outlined" color="secondary" startIcon={<CalculateIcon />}>
+            Εκκαθαρίσεις προμηθειών
+          </Button>
           <Button variant="outlined" startIcon={<TableChartIcon />} onClick={() => downloadExport("csv")}>CSV</Button>
           <Button variant="outlined" startIcon={<GridOnIcon />} onClick={() => downloadExport("xlsx")}>Excel</Button>
           <Button variant="contained" startIcon={<PictureAsPdfIcon />} onClick={() => downloadExport("pdf")}>PDF</Button>
         </Stack>
       </Stack>
+
+      <Alert severity="info" sx={{ mb: 3 }}>
+        Οι λίστες παραγωγής είναι αναφορά και εξαγωγή του χαρτοφυλακίου. Από το «Εκκαθαρίσεις προμηθειών» δημιουργείτε, ελέγχετε και οριστικοποιείτε τις μηνιαίες εκκαθαρίσεις συνεργατών.
+      </Alert>
 
       <Card sx={{ p: 2.5, mb: 3 }}>
         <Stack direction="row" alignItems="center" spacing={1} mb={2}>

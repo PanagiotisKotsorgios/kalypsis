@@ -33,6 +33,7 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
 import { ExportButton } from "../components/ExportButton";
@@ -88,6 +89,7 @@ const STATUS_COLOR: Record<PolicyStatus, "default" | "success" | "warning" | "in
 
 export function PoliciesPage() {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const isCustomer = user?.role === "Customer";
   const canEdit = user?.role === "AgencyAdmin" || user?.role === "AgencyUser";
@@ -147,6 +149,11 @@ export function PoliciesPage() {
   });
 
   const rawRows = policiesQuery.data ?? [];
+  const documentPolicyId = searchParams.get("documentPolicyId");
+  useEffect(() => {
+    if (documentPolicyId && rawRows.some(policy => policy.id === documentPolicyId))
+      setDetailId(documentPolicyId);
+  }, [documentPolicyId, rawRows]);
   const allRows = useMemo(() => rawRows.filter(p => {
     if (carrierFilter  && p.insuranceCompanyId !== carrierFilter) return false;
     if (producerFilter && p.producerId         !== producerFilter) return false;

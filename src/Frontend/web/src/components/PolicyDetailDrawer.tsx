@@ -186,6 +186,15 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                   <Typography fontWeight={700}>{p.totalCommissions.toFixed(2)}</Typography>
                 </Box>
               </Stack>
+              {p.documentCount === 0 && (
+                <Alert severity="warning" sx={{ mt: 2, fontWeight: 700 }} action={
+                  <Button color="inherit" size="small" onClick={() => setTab(8)}>
+                    Ανέβασμα αρχείου
+                  </Button>
+                }>
+                  Δεν υπάρχει συνημμένο αρχείο συμβολαίου. Ανεβάστε το PDF ή το σχετικό έγγραφο για να παραμείνει μαζί με την καρτέλα του.
+                </Alert>
+              )}
             </>
           ) : null}
         </Box>

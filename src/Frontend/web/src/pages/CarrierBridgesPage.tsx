@@ -18,6 +18,7 @@ import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import AddIcon from "@mui/icons-material/Add";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { NumberedPager } from "../components/TableToolbar";
@@ -88,7 +89,10 @@ export function CarrierBridgesPage() {
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [revealedIndex, setRevealedIndex] = useState(0);
   const [err, setErr] = useState<string | null>(null);
-  const [committed, setCommitted] = useState<{ created: number; skipped: number; failed: number } | null>(null);
+  const [committed, setCommitted] = useState<{
+    created: number; skipped: number; failed: number;
+    lifecycles: number; financialMovements: number; documentWarnings: number;
+  } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [detailRow, setDetailRow] = useState<ImportRow | null>(null);
@@ -117,15 +121,29 @@ export function CarrierBridgesPage() {
   const PAGE_SIZE = 25;
 
   const commit = useMutation({
-    mutationFn: async () => (await api.post<{ rowsCreated: number; rowsSkipped: number; rowsFailed: number }>("/carrier-bridges/commit", {
+    mutationFn: async () => (await api.post<{
+      rowsCreated: number; rowsSkipped: number; rowsFailed: number;
+      lifecycleRowsApplied: number; financialMovementsCreated: number; documentWarnings: number;
+    }>("/carrier-bridges/commit", {
       insuranceCompanyId: selected!.insuranceCompanyId,
       sourceFile: fileName ?? "import.xlsx",
       rows: preview!.rows
     })).data,
     onSuccess: r => {
-      setCommitted({ created: r.rowsCreated, skipped: r.rowsSkipped, failed: r.rowsFailed });
+      setCommitted({
+        created: r.rowsCreated,
+        skipped: r.rowsSkipped,
+        failed: r.rowsFailed,
+        lifecycles: r.lifecycleRowsApplied,
+        financialMovements: r.financialMovementsCreated,
+        documentWarnings: r.documentWarnings
+      });
       qc.invalidateQueries({ queryKey: ["policies"] });
       qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["financial-movements"] });
+      qc.invalidateQueries({ queryKey: ["financial-summary"] });
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+      qc.invalidateQueries({ queryKey: ["notifications-unread-count"] });
     },
     onError: e => setErr(extractErrorMessage(e))
   });
@@ -304,9 +322,22 @@ export function CarrierBridgesPage() {
               </Box>
             )}
             {committed && (
-              <Alert severity="success" sx={{ mt: 2 }}>
-                {t("carrierBridges.committed", { created: committed.created, skipped: committed.skipped, failed: committed.failed })}
-              </Alert>
+              <Stack spacing={1} sx={{ mt: 2 }}>
+                <Alert severity="success">
+                  {t("carrierBridges.committed", { created: committed.created, skipped: committed.skipped, failed: committed.failed })}
+                  {committed.lifecycles > 0 && ` · ${committed.lifecycles} πρόσθετες πράξεις/ακυρώσεις συνδέθηκαν αυτόματα.`}
+                  {committed.financialMovements > 0 && ` · Δημιουργήθηκαν ${committed.financialMovements} οικονομικές κινήσεις.`}
+                </Alert>
+                {committed.documentWarnings > 0 && (
+                  <Alert severity="warning" action={
+                    <Button component={RouterLink} to="/app/policies" color="inherit" size="small">
+                      Άνοιγμα συμβολαίων
+                    </Button>
+                  }>
+                    {committed.documentWarnings} συμβόλαια ή κινήσεις από τη γέφυρα δεν έχουν συνημμένο αρχείο. Ανεβάστε το PDF ή το σχετικό έγγραφο στην καρτέλα του συμβολαίου.
+                  </Alert>
+                )}
+              </Stack>
             )}
           </Card>
 

@@ -189,6 +189,7 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         if (lastRow is null) return rows;
 
         var lastRowNum = lastRow.RowNumber();
+        var lastColumnNum = Math.Max(12, ws.LastColumnUsed()?.ColumnNumber() ?? 12);
         var carrierName = ws.Cell(2, 1).GetString().Trim();
         var partnerCodeFromHeader = ws.Cell(2, 2).GetString().Trim();
 
@@ -196,8 +197,11 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         {
             var notes = new List<BridgeImportNote>();
             var raw = new Dictionary<string, string>();
-            for (int col = 1; col <= 12; col++)
-                raw[$"col{col}"] = ws.Cell(rn, col).GetString();
+            for (int col = 1; col <= lastColumnNum; col++)
+            {
+                var header = ws.Cell(1, col).GetString().Trim();
+                raw[string.IsNullOrWhiteSpace(header) ? $"col{col}" : header] = ws.Cell(rn, col).GetString();
+            }
 
             string? customerName = ws.Cell(rn, 3).GetString().Trim();
             string? policyNumber = ws.Cell(rn, 4).GetString().Trim();
@@ -300,14 +304,17 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
     /// link renewals/endorsements to prior policies, and flag missing parameterization.</summary>
     private async Task ApplyDiffsAsync(List<BridgeImportRow> rows, Guid carrierId, CancellationToken ct)
     {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        static bool IsLifecycle(string rowType) => rowType is "Cancellation" or "Endorsement" or "GreenCard";
+
         var policyNumbers = rows.Where(r => !string.IsNullOrEmpty(r.PolicyNumber))
             .Select(r => r.PolicyNumber!).Distinct().ToList();
-        var existing = policyNumbers.Count == 0
-            ? new HashSet<string>()
+        var existingByNumber = policyNumbers.Count == 0
+            ? new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase)
             : (await _db.Policies.IgnoreQueryFilters()
-                .Where(p => p.InsuranceCompanyId == carrierId && policyNumbers.Contains(p.PolicyNumber) && p.DeletedAt == null)
-                .Select(p => p.PolicyNumber).ToListAsync(ct))
-                .ToHashSet();
+                .Where(p => p.TenantId == tenantId && p.InsuranceCompanyId == carrierId && policyNumbers.Contains(p.PolicyNumber) && p.DeletedAt == null)
+                .Select(p => new { p.Id, p.PolicyNumber }).ToListAsync(ct))
+                .ToDictionary(p => p.PolicyNumber, p => p.Id, StringComparer.OrdinalIgnoreCase);
 
         // In-file duplicates: when ERGO emits two lines for the same policy number
         // (endorsement / pro-rata), keep the first one importable and flag the rest.
@@ -336,20 +343,20 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
 
         var rawExisting = await (from p in _db.Policies.IgnoreQueryFilters()
                                  join c in _db.Customers.IgnoreQueryFilters() on p.CustomerId equals c.Id
-                                 where p.InsuranceCompanyId == carrierId && p.DeletedAt == null
+                                 where p.TenantId == tenantId && p.InsuranceCompanyId == carrierId && p.DeletedAt == null
                                  select new {
-                                     p.Id, p.PolicyNumber, p.EndDate,
+                                     p.Id, p.PolicyNumber, p.StartDate, p.EndDate,
                                      CompanyName = c.CompanyName, FirstName = c.FirstName, LastName = c.LastName
                                  }).ToListAsync(ct);
 
         var existingByName = rawExisting
             .Select(x => new {
                 Key = NormName(x.CompanyName ?? $"{x.FirstName} {x.LastName}"),
-                x.Id, x.PolicyNumber, x.EndDate
+                x.Id, x.PolicyNumber, x.StartDate, x.EndDate
             })
             .Where(x => nameSet.Contains(x.Key))
             .GroupBy(x => x.Key)
-            .ToDictionary(g => g.Key, g => g.Select(x => (x.Id, x.PolicyNumber, x.EndDate)).ToList());
+            .ToDictionary(g => g.Key, g => g.Select(x => (x.Id, x.PolicyNumber, x.StartDate, x.EndDate)).ToList());
 
         // Cross-row scan: for a given customer (name-normalized) find consecutive periods
         // from the file and flag any gap.
@@ -364,12 +371,22 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             Guid? linkedId = null;
             string? linkedNumber = null;
 
-            if (!string.IsNullOrEmpty(r.PolicyNumber) && existing.Contains(r.PolicyNumber))
+            if (!string.IsNullOrEmpty(r.PolicyNumber) && existingByNumber.TryGetValue(r.PolicyNumber, out var existingPolicyId))
             {
-                status = "Duplicate";
-                r.Notes.Add(new BridgeImportNote("Συμβόλαιο", "warn", "Υπάρχει ήδη συμβόλαιο με αυτόν τον αριθμό — θα παραλειφθεί"));
+                if (IsLifecycle(rowType))
+                {
+                    linkedId = existingPolicyId;
+                    linkedNumber = r.PolicyNumber;
+                    r.Notes.Add(new BridgeImportNote("Συμβόλαιο", "info",
+                        "Θα συνδεθεί αυτόματα με το υπάρχον συμβόλαιο ως κίνηση κύκλου ζωής."));
+                }
+                else
+                {
+                    status = "Duplicate";
+                    r.Notes.Add(new BridgeImportNote("Συμβόλαιο", "warn", "Υπάρχει ήδη συμβόλαιο με αυτόν τον αριθμό — θα παραλειφθεί"));
+                }
             }
-            else if (!string.IsNullOrEmpty(r.PolicyNumber) && inFileDups.Contains($"{r.Index}|{r.PolicyNumber}"))
+            else if (!string.IsNullOrEmpty(r.PolicyNumber) && inFileDups.Contains($"{r.Index}|{r.PolicyNumber}") && !IsLifecycle(rowType))
             {
                 status = "Duplicate";
                 r.Notes.Add(new BridgeImportNote("Συμβόλαιο", "warn",
@@ -383,6 +400,31 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             // they're never wholly new contracts the agency has never seen) and flag for
             // manual linking in the UI.
             var nameKey = !string.IsNullOrEmpty(r.CustomerName) ? NormName(r.CustomerName!) : "";
+            if (IsLifecycle(rowType) && !linkedId.HasValue && !string.IsNullOrEmpty(nameKey)
+                && r.StartDate.HasValue && existingByName.TryGetValue(nameKey, out var activePolicies))
+            {
+                var coveredPolicies = activePolicies
+                    .Where(p => r.StartDate!.Value >= p.StartDate && r.StartDate.Value <= p.EndDate)
+                    .OrderByDescending(p => p.EndDate)
+                    .ToList();
+                if (coveredPolicies.Count == 1)
+                {
+                    linkedId = coveredPolicies[0].Id;
+                    linkedNumber = coveredPolicies[0].PolicyNumber;
+                    r.Notes.Add(new BridgeImportNote("Συμβόλαιο", "info",
+                        $"Θα συνδεθεί αυτόματα με το ενεργό συμβόλαιο {linkedNumber}."));
+                }
+            }
+
+            var parentAppearsEarlierInFile = !string.IsNullOrEmpty(r.PolicyNumber)
+                && rows.Any(x => x.Index < r.Index && x.PolicyNumber == r.PolicyNumber && !IsLifecycle(x.RowType));
+            if (IsLifecycle(rowType) && !linkedId.HasValue && !parentAppearsEarlierInFile)
+            {
+                status = "Error";
+                r.Notes.Add(new BridgeImportNote("Συμβόλαιο", "error",
+                    "Δεν βρέθηκε ασφαλές συμβόλαιο-στόχος για την αυτόματη σύνδεση της κίνησης."));
+            }
+
             if (!string.IsNullOrEmpty(nameKey) && r.StartDate.HasValue && rowType == "New"
                 && existingByName.TryGetValue(nameKey, out var prior))
             {
@@ -516,7 +558,14 @@ public record CommitBridgeImportCommand(
     Guid InsuranceCompanyId, string SourceFile,
     IReadOnlyList<BridgeImportRow> Rows) : IRequest<CompanyBridgeRunSummary>;
 
-public record CompanyBridgeRunSummary(Guid RunId, int RowsCreated, int RowsSkipped, int RowsFailed);
+public record CompanyBridgeRunSummary(
+    Guid RunId,
+    int RowsCreated,
+    int RowsSkipped,
+    int RowsFailed,
+    int LifecycleRowsApplied,
+    int FinancialMovementsCreated,
+    int DocumentWarnings);
 
 public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportCommand, CompanyBridgeRunSummary>
 {
@@ -589,6 +638,127 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
             if (!string.IsNullOrEmpty(k)) customerCache[k] = c;
         }
 
+        var policiesByNumber = (await _db.Policies.IgnoreQueryFilters()
+                .Where(p => p.TenantId == tenantId && p.InsuranceCompanyId == carrier.Id && p.DeletedAt == null)
+                .ToListAsync(ct))
+            .GroupBy(p => p.PolicyNumber, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        var policiesById = policiesByNumber.Values.ToDictionary(p => p.Id);
+        var affectedPolicies = new Dictionary<Guid, Policy>();
+        var lifecycleRowsApplied = 0;
+        var financialMovementsCreated = 0;
+
+        var knownEndorsementReferences = (await _db.PolicyEndorsements.IgnoreQueryFilters()
+                .Where(e => e.TenantId == tenantId && e.DeletedAt == null && e.CarrierReference != null)
+                .Select(e => e.CarrierReference!)
+                .ToListAsync(ct))
+            .ToHashSet(StringComparer.Ordinal);
+        var knownCancellationReferences = (await _db.PolicyCancellations.IgnoreQueryFilters()
+                .Where(c => c.TenantId == tenantId && c.DeletedAt == null && c.CarrierReference != null)
+                .Select(c => c.CarrierReference!)
+                .ToListAsync(ct))
+            .ToHashSet(StringComparer.Ordinal);
+
+        static bool IsLifecycle(string rowType) => rowType is "Cancellation" or "Endorsement" or "GreenCard";
+        static DateOnly AccountingDate(BridgeImportRow row) =>
+            row.IssueDate ?? row.StartDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        static string Marker(string bridgeReference, FinancialMovementKind kind) =>
+            $"[bridge:{bridgeReference}:{kind}]";
+
+        var knownFinancialMarkers = (await _db.FinancialMovements.IgnoreQueryFilters()
+                .Where(m => m.TenantId == tenantId && m.DeletedAt == null
+                    && m.Description != null && m.Description.StartsWith("[bridge:"))
+                .Select(m => m.Description!)
+                .ToListAsync(ct))
+            .Select(description => description[..(description.IndexOf(']') + 1)])
+            .ToHashSet(StringComparer.Ordinal);
+        var knownReceiptMarkers = (await _db.Receipts.IgnoreQueryFilters()
+                .Where(receipt => receipt.TenantId == tenantId && receipt.DeletedAt == null
+                    && receipt.Notes != null && receipt.Notes.StartsWith("[bridge:"))
+                .Select(receipt => receipt.Notes!)
+                .ToListAsync(ct))
+            .Select(notes => notes[..(notes.IndexOf(']') + 1)])
+            .ToHashSet(StringComparer.Ordinal);
+
+        void AddFinancialMovement(
+            Policy policy,
+            BridgeImportRow row,
+            string bridgeReference,
+            FinancialMovementKind kind,
+            decimal amount,
+            string description,
+            Guid? receiptId = null)
+        {
+            if (amount == 0m) return;
+            var marker = Marker(bridgeReference, kind);
+            if (!knownFinancialMarkers.Add(marker)) return;
+
+            _db.FinancialMovements.Add(new FinancialMovement
+            {
+                Id = Guid.NewGuid(),
+                MovementDate = AccountingDate(row),
+                Kind = kind,
+                Amount = amount,
+                Currency = policy.Currency,
+                PolicyId = policy.Id,
+                CustomerId = policy.CustomerId,
+                ProducerId = policy.ProducerId,
+                InsuranceCompanyId = policy.InsuranceCompanyId,
+                ReceiptId = receiptId,
+                Description = $"{marker} {description}"
+            });
+            financialMovementsCreated++;
+        }
+
+        void PostBridgeFinancials(Policy policy, BridgeImportRow row, string bridgeReference, bool isCancellation)
+        {
+            var gross = row.GrossPremium ?? 0m;
+            var agencyCommission = row.AgencyCommission ?? 0m;
+            if (isCancellation)
+            {
+                AddFinancialMovement(policy, row, bridgeReference, FinancialMovementKind.Adjustment,
+                    -Math.Abs(gross), $"Cancellation from bridge for policy {policy.PolicyNumber}");
+                AddFinancialMovement(policy, row, bridgeReference, FinancialMovementKind.CommissionEarned,
+                    -Math.Abs(agencyCommission), $"Commission reversal from bridge cancellation {policy.PolicyNumber}");
+                return;
+            }
+
+            if (gross > 0m)
+                AddFinancialMovement(policy, row, bridgeReference, FinancialMovementKind.CustomerCharge,
+                    gross, $"Bridge premium charge for policy {policy.PolicyNumber}");
+            if (agencyCommission != 0m)
+                AddFinancialMovement(policy, row, bridgeReference, FinancialMovementKind.CommissionEarned,
+                    agencyCommission, $"Bridge agency commission for policy {policy.PolicyNumber}");
+
+            var paymentSignal = string.Join(" ", row.Raw.Select(x => $"{x.Key} {x.Value}")).ToUpperInvariant();
+            var isExplicitlyPaid = paymentSignal.Contains("PAID") || paymentSignal.Contains("SETTLED")
+                || paymentSignal.Contains("ΕΞΟΦΛ") || paymentSignal.Contains("ΠΛΗΡΩ");
+            if (!isExplicitlyPaid || gross <= 0m) return;
+
+            var receiptMarker = Marker(bridgeReference, FinancialMovementKind.CustomerCredit);
+            Guid? receiptId = null;
+            if (knownReceiptMarkers.Add(receiptMarker))
+            {
+                var receipt = new Receipt
+                {
+                    Id = Guid.NewGuid(),
+                    Number = $"BRG-{bridgeReference[^8..]}",
+                    ReceivedOn = AccountingDate(row),
+                    CustomerId = policy.CustomerId,
+                    PolicyId = policy.Id,
+                    Method = PaymentMethod.Other,
+                    Amount = gross,
+                    Currency = policy.Currency,
+                    Notes = $"{receiptMarker} Paid according to bridge source.",
+                    RecordedByUserId = _current.UserId
+                };
+                _db.Receipts.Add(receipt);
+                receiptId = receipt.Id;
+            }
+            AddFinancialMovement(policy, row, bridgeReference, FinancialMovementKind.CustomerCredit,
+                gross, $"Bridge payment for policy {policy.PolicyNumber}", receiptId);
+        }
+
         foreach (var row in r.Rows)
         {
             try
@@ -611,6 +781,120 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                 {
                     run.RowsSkipped++;
                     log.AppendLine($"row {row.Index}: skipped (missing policy number or customer name)");
+                    continue;
+                }
+
+                var bridgeReference = BuildBridgeReference(carrier.Id, row);
+                if (IsLifecycle(row.RowType))
+                {
+                    Policy? parentPolicy = null;
+                    if (row.LinkedPolicyId.HasValue && policiesById.TryGetValue(row.LinkedPolicyId.Value, out var linkedPolicy))
+                        parentPolicy = linkedPolicy;
+                    else if (policiesByNumber.TryGetValue(row.PolicyNumber!, out var sameNumberPolicy))
+                        parentPolicy = sameNumberPolicy;
+
+                    if (parentPolicy is null)
+                    {
+                        run.RowsSkipped++;
+                        log.AppendLine($"row {row.Index}: skipped (no parent policy for {row.RowType})");
+                        continue;
+                    }
+
+                    if (row.RowType == "Cancellation")
+                    {
+                        if (!knownCancellationReferences.Add(bridgeReference))
+                        {
+                            run.RowsSkipped++;
+                            log.AppendLine($"row {row.Index}: skipped (cancellation already imported)");
+                            continue;
+                        }
+
+                        var accountingDate = AccountingDate(row);
+                        var refund = Math.Abs(row.GrossPremium ?? 0m);
+                        var cancellation = new PolicyCancellation
+                        {
+                            Id = Guid.NewGuid(),
+                            PolicyId = parentPolicy.Id,
+                            CancellationNumber = $"AK-{accountingDate.Year}-BRG-{bridgeReference[^8..]}",
+                            Status = PolicyCancellationStatus.Effective,
+                            ReasonText = "Automatic carrier bridge cancellation.",
+                            RequestedAt = accountingDate,
+                            EffectiveFrom = row.StartDate ?? accountingDate,
+                            RefundMethod = "Custom",
+                            RefundAmount = refund,
+                            CommissionClawback = row.AgencyCommission.HasValue ? Math.Abs(row.AgencyCommission.Value) : null,
+                            Currency = parentPolicy.Currency,
+                            CarrierReference = bridgeReference,
+                            Notes = "Imported automatically from carrier bridge.",
+                            CreatedByUserId = _current.UserId,
+                            ApprovedByUserId = _current.UserId,
+                            ApprovedAt = DateTime.UtcNow
+                        };
+                        _db.PolicyCancellations.Add(cancellation);
+                        parentPolicy.Status = PolicyStatus.Cancelled;
+
+                        if (refund > 0m)
+                        {
+                            var creditNote = new CreditNote
+                            {
+                                Id = Guid.NewGuid(),
+                                CreditNoteNumber = $"PI-{accountingDate.Year}-BRG-{bridgeReference[^8..]}",
+                                Kind = CreditNoteKind.CancellationRefund,
+                                Status = CreditNoteStatus.Issued,
+                                IssuedAt = accountingDate,
+                                CustomerId = parentPolicy.CustomerId,
+                                PolicyId = parentPolicy.Id,
+                                Amount = refund,
+                                Currency = parentPolicy.Currency,
+                                Description = $"Carrier bridge cancellation refund {cancellation.CancellationNumber}",
+                                RelatedDocumentRef = cancellation.CancellationNumber,
+                                CreatedByUserId = _current.UserId
+                            };
+                            _db.CreditNotes.Add(creditNote);
+                            cancellation.CreditNoteId = creditNote.Id;
+                        }
+                        PostBridgeFinancials(parentPolicy, row, bridgeReference, isCancellation: true);
+                    }
+                    else
+                    {
+                        if (!knownEndorsementReferences.Add(bridgeReference))
+                        {
+                            run.RowsSkipped++;
+                            log.AppendLine($"row {row.Index}: skipped ({row.RowType} already imported)");
+                            continue;
+                        }
+
+                        var issuedAt = AccountingDate(row);
+                        var premiumDelta = row.GrossPremium ?? 0m;
+                        _db.PolicyEndorsements.Add(new PolicyEndorsement
+                        {
+                            Id = Guid.NewGuid(),
+                            PolicyId = parentPolicy.Id,
+                            EndorsementNumber = $"PP-{issuedAt.Year}-BRG-{bridgeReference[^8..]}",
+                            Type = row.RowType == "GreenCard" ? EndorsementType.AddCoverage : EndorsementType.PremiumAdjustment,
+                            Status = EndorsementStatus.Issued,
+                            IssuedAt = issuedAt,
+                            EffectiveFrom = row.StartDate ?? issuedAt,
+                            EffectiveTo = row.EndDate,
+                            Description = row.RowType == "GreenCard"
+                                ? "Green card imported from carrier bridge"
+                                : "Endorsement imported from carrier bridge",
+                            CarrierReference = bridgeReference,
+                            PremiumDelta = premiumDelta,
+                            CommissionDelta = row.AgencyCommission ?? 0m,
+                            Currency = parentPolicy.Currency,
+                            ChangesJson = JsonSerializer.Serialize(new { source = "carrier-bridge", rowType = row.RowType, row.Index }),
+                            Notes = "Imported automatically from carrier bridge.",
+                            CreatedByUserId = _current.UserId
+                        });
+                        parentPolicy.Premium = Math.Max(0m, parentPolicy.Premium + premiumDelta);
+                        PostBridgeFinancials(parentPolicy, row, bridgeReference, isCancellation: false);
+                    }
+
+                    affectedPolicies[parentPolicy.Id] = parentPolicy;
+                    run.RowsCreated++;
+                    lifecycleRowsApplied++;
+                    log.AppendLine($"row {row.Index}: {row.RowType} attached to {parentPolicy.PolicyNumber}");
                     continue;
                 }
 
@@ -676,7 +960,7 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                     _              => PolicyStatus.Active
                 };
 
-                _db.Policies.Add(new Policy
+                var policy = new Policy
                 {
                     Id = Guid.NewGuid(),
                     PolicyNumber = row.PolicyNumber!,
@@ -694,11 +978,17 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                         ? System.Text.Json.JsonSerializer.Serialize(new {
                             plate = row.PlateNumber,
                             proposal = row.ProposalNumber,
-                            importedFrom = "ERGO-xlsx"
+                            importedFrom = "ERGO-xlsx",
+                            bridgeReference
                           })
                         : null,
                     CreatedByUserId = _current.UserId
-                });
+                };
+                _db.Policies.Add(policy);
+                policiesByNumber[policy.PolicyNumber] = policy;
+                policiesById[policy.Id] = policy;
+                affectedPolicies[policy.Id] = policy;
+                PostBridgeFinancials(policy, row, bridgeReference, isCancellation: false);
                 run.RowsCreated++;
                 log.AppendLine($"row {row.Index}: {row.PolicyNumber} created as {row.RowType}"
                     + (row.LinkedPolicyId.HasValue ? $" linked to {row.LinkedPolicyNumber}" : ""));
@@ -707,6 +997,53 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
             {
                 run.RowsFailed++;
                 log.AppendLine($"row {row.Index}: ERROR {ex.Message}");
+            }
+        }
+
+        var affectedPolicyIds = affectedPolicies.Keys.ToList();
+        var policiesWithDocuments = affectedPolicyIds.Count == 0
+            ? new HashSet<Guid>()
+            : (await _db.PolicyDocuments.IgnoreQueryFilters()
+                .Where(d => d.TenantId == tenantId && d.DeletedAt == null && affectedPolicyIds.Contains(d.PolicyId))
+                .Select(d => d.PolicyId)
+                .Distinct()
+                .ToListAsync(ct)).ToHashSet();
+        var policiesNeedingDocuments = affectedPolicies.Values
+            .Where(policy => !policiesWithDocuments.Contains(policy.Id))
+            .ToList();
+        var notificationRecipients = await _db.Users.IgnoreQueryFilters()
+            .Where(user => user.TenantId == tenantId && user.DeletedAt == null && user.IsActive
+                && (user.Role == Role.AgencyAdmin || user.Role == Role.AgencyUser))
+            .Select(user => user.Id)
+            .ToListAsync(ct);
+        var warningLinks = policiesNeedingDocuments
+            .Select(policy => $"/app/policies?documentPolicyId={policy.Id}")
+            .ToList();
+        var existingWarnings = warningLinks.Count == 0
+            ? new HashSet<string>()
+            : (await _db.Notifications.IgnoreQueryFilters()
+                .Where(notification => notification.TenantId == tenantId
+                    && notification.Category == "document-required"
+                    && notification.Link != null
+                    && warningLinks.Contains(notification.Link))
+                .Select(notification => $"{notification.UserId}|{notification.Link}")
+                .ToListAsync(ct)).ToHashSet();
+
+        foreach (var policy in policiesNeedingDocuments)
+        {
+            var link = $"/app/policies?documentPolicyId={policy.Id}";
+            foreach (var userId in notificationRecipients)
+            {
+                if (!existingWarnings.Add($"{userId}|{link}")) continue;
+                _db.Notifications.Add(new Notification
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    Title = "Policy document required",
+                    Body = $"Policy {policy.PolicyNumber} or one of its lifecycle movements came from a carrier bridge without an attached file. Upload the policy PDF or the relevant document in the policy card.",
+                    Category = "document-required",
+                    Link = link
+                });
             }
         }
 
@@ -719,6 +1056,29 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
         bridge.LastSyncStatus = run.Status;
 
         await _db.SaveChangesAsync(ct);
-        return new CompanyBridgeRunSummary(run.Id, run.RowsCreated, run.RowsSkipped, run.RowsFailed);
+        return new CompanyBridgeRunSummary(
+            run.Id,
+            run.RowsCreated,
+            run.RowsSkipped,
+            run.RowsFailed,
+            lifecycleRowsApplied,
+            financialMovementsCreated,
+            policiesNeedingDocuments.Count);
+    }
+
+    private static string BuildBridgeReference(Guid carrierId, BridgeImportRow row)
+    {
+        var payload = string.Join("|", new[]
+        {
+            carrierId.ToString("N"), row.PolicyNumber, row.RowType,
+            row.IssueDate?.ToString("yyyy-MM-dd"), row.StartDate?.ToString("yyyy-MM-dd"), row.EndDate?.ToString("yyyy-MM-dd"),
+            row.GrossPremium?.ToString("0.00", CultureInfo.InvariantCulture),
+            row.NetPremium?.ToString("0.00", CultureInfo.InvariantCulture),
+            row.PartnerCommission?.ToString("0.00", CultureInfo.InvariantCulture),
+            row.AgencyCommission?.ToString("0.00", CultureInfo.InvariantCulture),
+            row.ProposalNumber, row.PlateNumber
+        });
+        var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(payload));
+        return $"BRG-{Convert.ToHexString(bytes)[..16]}";
     }
 }

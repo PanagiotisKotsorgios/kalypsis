@@ -13,6 +13,7 @@ import DoneAllIcon from "@mui/icons-material/DoneAll";
 import MarkEmailReadIcon from "@mui/icons-material/MarkEmailRead";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { Link as RouterLink } from "react-router-dom";
 import { api } from "../api/client";
 
 interface NotificationDto {
@@ -102,11 +103,18 @@ export function NotificationsPage() {
                   <Typography sx={{ fontWeight: n.isRead ? 500 : 800, mb: 0.5 }}>{n.title}</Typography>
                   <Typography color="text.secondary" sx={{ whiteSpace: "pre-wrap" }}>{n.body}</Typography>
                 </Box>
-                {!n.isRead && (
-                  <IconButton onClick={() => markRead.mutate(n.id)} title={t("notifications.markRead")}>
-                    <MarkEmailReadIcon />
-                  </IconButton>
-                )}
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  {n.link && (
+                    <Button component={RouterLink} to={n.link} size="small" onClick={() => !n.isRead && markRead.mutate(n.id)}>
+                      Άνοιγμα
+                    </Button>
+                  )}
+                  {!n.isRead && (
+                    <IconButton onClick={() => markRead.mutate(n.id)} title={t("notifications.markRead")}>
+                      <MarkEmailReadIcon />
+                    </IconButton>
+                  )}
+                </Stack>
               </CardContent>
             </Card>
           ))}

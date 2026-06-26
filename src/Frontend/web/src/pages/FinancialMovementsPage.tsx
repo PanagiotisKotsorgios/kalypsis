@@ -1,16 +1,34 @@
 import { useMemo, useState } from "react";
 import {
-  Box, Card, CardContent, Chip, CircularProgress, MenuItem, Stack, Table, TableBody, TableCell,
+  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, MenuItem, Stack, Table, TableBody, TableCell,
   TableHead, TableRow, TextField, Typography
 } from "@mui/material";
+import LocalAtmIcon from "@mui/icons-material/LocalAtm";
+import SavingsOutlinedIcon from "@mui/icons-material/SavingsOutlined";
+import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
+import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlined";
+import CalculateIcon from "@mui/icons-material/Calculate";
+import GavelIcon from "@mui/icons-material/Gavel";
+import ImportExportIcon from "@mui/icons-material/ImportExport";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { Link as RouterLink } from "react-router-dom";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { api } from "../api/client";
 import { ExportButton } from "../components/ExportButton";
 
 const KINDS = ["CustomerCharge","CustomerCredit","PartnerCharge","PartnerCredit","CompanyCharge","CompanyCredit","CommissionEarned","OverCommissionEarned","Adjustment"] as const;
 type Kind = typeof KINDS[number];
+
+const FINANCIAL_TOOLS = [
+  { to: "/app/cash", label: "Ταμείο", detail: "Υπόλοιπα και κινήσεις ταμείου", icon: <LocalAtmIcon /> },
+  { to: "/app/advance-payments", label: "Προκαταβολές", detail: "Προκαταβολές πελατών και συμψηφισμοί", icon: <SavingsOutlinedIcon /> },
+  { to: "/app/reconciliation", label: "Συμφωνία κινήσεων", detail: "Έλεγχος εισπράξεων και εκκρεμοτήτων", icon: <CompareArrowsIcon /> },
+  { to: "/app/gl", label: "Γενική λογιστική", detail: "Λογαριασμοί, εγγραφές και ισοζύγιο", icon: <AccountBalanceOutlinedIcon /> },
+  { to: "/app/accounting", label: "Εξαγωγές λογιστικής", detail: "Αρχεία και παραδόσεις προς λογιστήριο", icon: <CalculateIcon /> },
+  { to: "/app/kepyo", label: "ΚΕΠΥΟ", detail: "Δηλώσεις και αναφορές", icon: <GavelIcon /> },
+  { to: "/app/magnetic-import", label: "Μαγνητικά αρχεία", detail: "Εισαγωγή και διαχείριση αρχείων", icon: <ImportExportIcon /> }
+];
 
 interface MovementDto {
   id: string; movementDate: string; kind: Kind; amount: number; currency: string;
@@ -64,6 +82,30 @@ export function FinancialMovementsPage() {
           <ExportButton href={`/api/exports/financial-movements.csv?year=${year}`} />
         </Stack>
       </Stack>
+
+      <Alert severity="info" sx={{ mb: 2 }}>
+        Οι γέφυρες εταιρειών ενημερώνουν αυτόματα τις χρεώσεις και τις προμήθειες. Όταν η πηγή δηλώνει ρητά ότι ένα συμβόλαιο εξοφλήθηκε, δημιουργείται και είσπραξη σε πραγματικό χρόνο.
+      </Alert>
+
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography fontWeight={800} mb={0.5}>Κέντρο οικονομικών και λογιστικής</Typography>
+          <Typography variant="body2" color="text.secondary" mb={2}>
+            Οι δευτερεύουσες οικονομικές και λογιστικές εργασίες συγκεντρώθηκαν εδώ. Οι σελίδες και τα δεδομένα τους παραμένουν ακριβώς τα ίδια.
+          </Typography>
+          <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" } }}>
+            {FINANCIAL_TOOLS.map(tool => (
+              <Button key={tool.to} component={RouterLink} to={tool.to} variant="outlined" color="inherit"
+                startIcon={tool.icon} sx={{ justifyContent: "flex-start", alignItems: "flex-start", minHeight: 74, px: 1.5, textAlign: "left" }}>
+                <Box>
+                  <Typography component="span" display="block" fontWeight={800}>{tool.label}</Typography>
+                  <Typography component="span" display="block" variant="caption" color="text.secondary" sx={{ whiteSpace: "normal" }}>{tool.detail}</Typography>
+                </Box>
+              </Button>
+            ))}
+          </Box>
+        </CardContent>
+      </Card>
 
       <Stack direction={{ xs: "column", md: "row" }} spacing={2} mb={3}>
         <Card sx={{ flex: 1 }}><CardContent>
