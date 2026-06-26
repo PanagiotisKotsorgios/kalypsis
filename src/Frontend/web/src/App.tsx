@@ -134,7 +134,6 @@ import { CommissionRulesPage } from "./pages/CommissionRulesPage";
 import { ReferenceCatalogsPage } from "./pages/ReferenceCatalogsPage";
 import { ParametricFilesPage } from "./pages/ParametricFilesPage";
 import { PlatformParametricFilesPage } from "./pages/PlatformParametricFilesPage";
-import { GroupPoliciesPage } from "./pages/GroupPoliciesPage";
 import { GaragesPage } from "./pages/GaragesPage";
 import { ClaimProvisionsPage } from "./pages/ClaimProvisionsPage";
 import { ClaimIndemnitiesPage } from "./pages/ClaimIndemnitiesPage";
@@ -162,7 +161,6 @@ import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import TuneIcon from "@mui/icons-material/Tune";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import DesignServicesIcon from "@mui/icons-material/DesignServices";
-import GroupsIcon from "@mui/icons-material/Groups";
 // ΖΗΜΙΕΣ ΚΑΙ ΔΙΑΚΑΝΟΝΙΣΜΟΙ group icons (Build/Savings/PaymentsOutlined/HandshakeOutlined)
 // were removed from the sidebar; their imports are no longer needed.
 import RuleIcon from "@mui/icons-material/Rule";
@@ -218,7 +216,6 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice", group: "production" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice", group: "production" },
     { to: "/producers", labelKey: "nav.producers", icon: <HandshakeIcon />, package: "BackOffice", group: "production" },
-    { to: "/group-policies", labelKey: "nav.groupPolicies", icon: <GroupsIcon />, package: "BackOffice", group: "production" },
     { to: "/endorsements", labelKey: "nav.endorsements", icon: <EditNoteIcon />, package: "BackOffice", group: "production" },
     { to: "/cancellations", labelKey: "nav.cancellations", icon: <CancelPresentationIcon />, package: "BackOffice", group: "production" },
 
@@ -525,7 +522,7 @@ export default function App() {
                   <Route path="plafond" element={<PlafondPage />} />
                   <Route path="risk-profiles" element={<RiskProfilesPage />} />
                   <Route path="agency-offices" element={<AgencyOfficesPage />} />
-                  <Route path="group-policies" element={<GroupPoliciesPage />} />
+                  <Route path="group-policies" element={<Navigate to="/app/policies?view=group" replace />} />
                   <Route path="garages" element={<GaragesPage />} />
                   <Route path="claim-provisions" element={<ClaimProvisionsPage />} />
                   <Route path="indemnities" element={<ClaimIndemnitiesPage />} />

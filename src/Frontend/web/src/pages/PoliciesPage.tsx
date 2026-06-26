@@ -32,6 +32,7 @@ import AutorenewIcon from "@mui/icons-material/Autorenew";
 import CancelIcon from "@mui/icons-material/Cancel";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
+import GroupsIcon from "@mui/icons-material/Groups";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
@@ -42,6 +43,7 @@ import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
 import { useTableState } from "../components/useTableState";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 import { PolicyDeliveryPage } from "./PolicyDeliveryPage";
+import { GroupPoliciesPage } from "./GroupPoliciesPage";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal";
@@ -95,11 +97,12 @@ export function PoliciesPage() {
   const { user } = useAuth();
   const isCustomer = user?.role === "Customer";
   const canEdit = user?.role === "AgencyAdmin" || user?.role === "AgencyUser";
-  const activeView: "policies" | "delivery" = canEdit && searchParams.get("view") === "delivery" ? "delivery" : "policies";
+  const requestedView = searchParams.get("view");
+  const activeView: "policies" | "delivery" | "group" = canEdit && (requestedView === "delivery" || requestedView === "group") ? requestedView : "policies";
 
-  const setActiveView = (view: "policies" | "delivery") => {
+  const setActiveView = (view: "policies" | "delivery" | "group") => {
     const next = new URLSearchParams(searchParams);
-    if (view === "delivery") next.set("view", "delivery");
+    if (view === "delivery" || view === "group") next.set("view", view);
     else next.delete("view");
     setSearchParams(next);
   };
@@ -222,12 +225,21 @@ export function PoliciesPage() {
             >
               {t("delivery.title")}
             </Button>
+            <Button
+              startIcon={<GroupsIcon />}
+              variant={activeView === "group" ? "contained" : "outlined"}
+              onClick={() => setActiveView("group")}
+            >
+              {t("groupPolicies.title")}
+            </Button>
           </Stack>
         </Card>
       )}
 
       {activeView === "delivery" ? (
         <PolicyDeliveryPage embedded />
+      ) : activeView === "group" ? (
+        <GroupPoliciesPage embedded />
       ) : (
         <>
       {!isCustomer && (
