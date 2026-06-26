@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  Divider, IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow,
-  TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography
+  Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
+  Divider, FormControlLabel, IconButton, InputAdornment, MenuItem, Stack, Table, TableBody,
+  TableCell, TableHead, TableRow, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography
 } from "@mui/material";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import AutorenewIcon from "@mui/icons-material/Autorenew";
 import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
 import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import ReceiptOutlinedIcon from "@mui/icons-material/ReceiptOutlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -229,6 +233,21 @@ export function PlatformRegistrationsPage() {
   );
 }
 
+/** Generates a memorable, copy-friendly temporary password — three groups
+ *  separated by dashes (e.g. "Klp7-Wave-93Qx"). Long enough to satisfy the
+ *  backend's 8-char minimum, short enough to read out over the phone. */
+function suggestPassword(): string {
+  const consonants = "BCDFGHJKLMNPQRSTVWXZ";
+  const vowels = "AEIOU";
+  const digits = "23456789";
+  const pick = (s: string) => s[Math.floor(Math.random() * s.length)];
+  const syllable = () => pick(consonants) + pick(vowels).toLowerCase() + pick(consonants).toLowerCase();
+  const first  = "Klp" + pick(digits);
+  const second = syllable().charAt(0).toUpperCase() + syllable().substring(1);
+  const third  = pick(digits) + pick(digits) + pick(consonants).toLowerCase() + pick(vowels).toLowerCase();
+  return `${first}-${second}-${third}`;
+}
+
 function StatCard({ label, value, color }: {
   label: string; value: number;
   color: "default" | "info" | "warning" | "success" | "error";
@@ -253,6 +272,15 @@ function StatCard({ label, value, color }: {
   );
 }
 
+interface ApproveResult {
+  request: RegistrationDetail;
+  tenantId: string;
+  tenantCode: string;
+  userId: string;
+  emailSent: boolean;
+  emailError: string | null;
+}
+
 function DetailDialog({ id, onClose, onAfterSave }: {
   id: string | null;
   onClose: () => void;
@@ -263,6 +291,14 @@ function DetailDialog({ id, onClose, onAfterSave }: {
   const [status, setStatus] = useState<RegistrationStatus>("New");
   const [notes, setNotes] = useState("");
   const [err, setErr] = useState<string | null>(null);
+
+  // Approval-only state — kept in this dialog so it resets when the
+  // selected request changes.
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [sendWelcomeEmail, setSendWelcomeEmail] = useState(true);
+  const [approveResult, setApproveResult] = useState<ApproveResult | null>(null);
 
   const detail = useQuery({
     queryKey: ["registration-requests", "detail", id],
@@ -278,8 +314,40 @@ function DetailDialog({ id, onClose, onAfterSave }: {
       setStatus("New");
       setNotes("");
     }
+    setPassword("");
+    setConfirmPassword("");
+    setShowPassword(false);
+    setSendWelcomeEmail(true);
+    setApproveResult(null);
     setErr(null);
   }, [detail.data]);
+
+  // When the admin flips status to Approved, drop in a strong default so the
+  // common case is one click; they can override or regenerate before saving.
+  useEffect(() => {
+    if (status === "Approved" && !password && detail.data && detail.data.status !== "Approved") {
+      const sugg = suggestPassword();
+      setPassword(sugg);
+      setConfirmPassword(sugg);
+    }
+  }, [status, detail.data, password]);
+
+  const alreadyApproved = detail.data?.status === "Approved";
+  const isApproving = status === "Approved" && !alreadyApproved;
+
+  const passwordValid = password.length >= 8 && password === confirmPassword;
+
+  const approve = useMutation({
+    mutationFn: async () => (await api.post<ApproveResult>(
+      `/platform/registration-requests/${id}/approve`,
+      { password, sendWelcomeEmail }
+    )).data,
+    onSuccess: (data) => {
+      setApproveResult(data);
+      onAfterSave();
+    },
+    onError: (e) => setErr(extractErrorMessage(e))
+  });
 
   const save = useMutation({
     mutationFn: async () => (await api.patch(
@@ -289,6 +357,19 @@ function DetailDialog({ id, onClose, onAfterSave }: {
     onSuccess: () => { onAfterSave(); onClose(); },
     onError: (e) => setErr(extractErrorMessage(e))
   });
+
+  const handleSave = () => {
+    setErr(null);
+    if (isApproving) {
+      if (!passwordValid) {
+        setErr(t("registrations.approve.errors.password"));
+        return;
+      }
+      approve.mutate();
+    } else {
+      save.mutate();
+    }
+  };
 
   const fmt = (s: string | null) => s
     ? new Intl.DateTimeFormat(i18n.language || "el-GR", {
@@ -362,16 +443,129 @@ function DetailDialog({ id, onClose, onAfterSave }: {
                   select size="small" label={t("common.status")}
                   value={status} onChange={(e) => setStatus(e.target.value as RegistrationStatus)}
                   sx={{ maxWidth: 280 }}
+                  disabled={alreadyApproved}
+                  helperText={alreadyApproved ? t("registrations.approve.alreadyApproved") : undefined}
                 >
                   {(["New","Reviewing","Approved","Rejected"] as RegistrationStatus[]).map(s => (
                     <MenuItem key={s} value={s}>{t(`registrations.status.${s}`)}</MenuItem>
                   ))}
                 </TextField>
+
+                {isApproving && (
+                  <Box sx={{
+                    border: "1px solid", borderColor: "rgba(34,140,87,0.32)",
+                    bgcolor: "rgba(34,140,87,0.06)",
+                    borderRadius: 2, p: 2.5
+                  }}>
+                    <Stack direction="row" alignItems="center" spacing={1} mb={1.5}>
+                      <CheckCircleOutlineIcon sx={{ color: "success.main", fontSize: 22 }} />
+                      <Typography fontWeight={700}>{t("registrations.approve.title")}</Typography>
+                    </Stack>
+                    <Typography fontSize={13.5} color="text.secondary" mb={2}>
+                      {t("registrations.approve.lead")}
+                    </Typography>
+                    <Stack spacing={2}>
+                      <TextField
+                        label={t("registrations.approve.password")}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        type={showPassword ? "text" : "password"}
+                        fullWidth
+                        autoComplete="new-password"
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <Tooltip title={t("registrations.approve.regenerate")}>
+                                <IconButton size="small" onClick={() => {
+                                  const s = suggestPassword();
+                                  setPassword(s); setConfirmPassword(s);
+                                }}>
+                                  <AutorenewIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title={t("registrations.approve.copy")}>
+                                <IconButton size="small" onClick={() => {
+                                  if (password) void navigator.clipboard.writeText(password);
+                                }}>
+                                  <ContentCopyIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <IconButton size="small" onClick={() => setShowPassword(s => !s)}>
+                                {showPassword
+                                  ? <VisibilityOffOutlinedIcon fontSize="small" />
+                                  : <VisibilityOutlinedIcon fontSize="small" />}
+                              </IconButton>
+                            </InputAdornment>
+                          )
+                        }}
+                        helperText={t("registrations.approve.passwordHelp")}
+                      />
+                      <TextField
+                        label={t("registrations.approve.confirmPassword")}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        type={showPassword ? "text" : "password"}
+                        fullWidth
+                        autoComplete="new-password"
+                        error={confirmPassword.length > 0 && confirmPassword !== password}
+                        helperText={
+                          confirmPassword.length > 0 && confirmPassword !== password
+                            ? t("registrations.approve.errors.mismatch")
+                            : undefined
+                        }
+                      />
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={sendWelcomeEmail}
+                            onChange={(e) => setSendWelcomeEmail(e.target.checked)}
+                          />
+                        }
+                        label={
+                          <Box>
+                            <Typography fontSize={14} fontWeight={600}>
+                              {t("registrations.approve.sendWelcomeEmail")}
+                            </Typography>
+                            <Typography fontSize={12.5} color="text.secondary">
+                              {t("registrations.approve.sendWelcomeEmailHelp")}
+                            </Typography>
+                          </Box>
+                        }
+                        sx={{ alignItems: "flex-start", ".MuiCheckbox-root": { mt: -0.5 } }}
+                      />
+                    </Stack>
+                  </Box>
+                )}
+
+                {approveResult && (
+                  <Alert
+                    severity={approveResult.emailError ? "warning" : "success"}
+                    icon={<CheckCircleOutlineIcon fontSize="inherit" />}
+                  >
+                    <Typography fontWeight={700} mb={0.5}>
+                      {t("registrations.approve.success.title", {
+                        name: detail.data ? `${detail.data.firstName} ${detail.data.lastName}` : ""
+                      })}
+                    </Typography>
+                    <Typography fontSize={13.5} mb={0.5}>
+                      {t("registrations.approve.success.tenant")}: <strong>{approveResult.tenantCode}</strong>
+                    </Typography>
+                    <Typography fontSize={13.5}>
+                      {approveResult.emailSent
+                        ? t("registrations.approve.success.emailSent")
+                        : approveResult.emailError
+                          ? t("registrations.approve.success.emailFailed", { error: approveResult.emailError })
+                          : t("registrations.approve.success.emailSkipped")}
+                    </Typography>
+                  </Alert>
+                )}
+
                 <TextField
                   label={t("registrations.detail.reviewNotes")}
                   value={notes} onChange={(e) => setNotes(e.target.value)}
                   multiline minRows={3} fullWidth
                   helperText={t("registrations.detail.reviewNotesHelp")}
+                  disabled={isApproving}
                 />
               </Stack>
             </Box>
@@ -379,10 +573,22 @@ function DetailDialog({ id, onClose, onAfterSave }: {
         ) : null}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t("common.close")}</Button>
-        <Button variant="contained" disabled={!detail.data || save.isPending} onClick={() => save.mutate()}>
-          {save.isPending ? <CircularProgress size={18} /> : t("common.save")}
-        </Button>
+        <Button onClick={onClose}>{approveResult ? t("common.close") : t("common.cancel")}</Button>
+        {!approveResult && (
+          <Button
+            variant="contained"
+            color={isApproving ? "success" : "primary"}
+            disabled={!detail.data || save.isPending || approve.isPending ||
+              (isApproving && !passwordValid)}
+            onClick={handleSave}
+          >
+            {(save.isPending || approve.isPending)
+              ? <CircularProgress size={18} />
+              : isApproving
+                ? t("registrations.approve.submit")
+                : t("common.save")}
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

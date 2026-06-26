@@ -1,7 +1,10 @@
+using System.Net;
+using System.Text;
 using FluentValidation;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Domain.Entities;
+using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -264,4 +267,237 @@ internal static class RegistrationRequestMapper
         r.ReferenceCode, r.Status.ToString(), r.ReviewNotes, r.ReviewedAt,
         r.IpAddress, r.CreatedAt
     );
+}
+
+/* ========================================================================
+ * Superadmin — approve a request and provision the agency.
+ *
+ * This is the heavy operation: it creates a Tenant + AgencyAdmin User from
+ * the application data, hashes the password the superadmin chose, marks
+ * the request as Approved, and optionally fires a welcome email through
+ * IEmailSender so the new admin gets their credentials.
+ * ====================================================================== */
+
+public record ApproveRegistrationRequestResult(
+    RegistrationRequestDto Request,
+    Guid TenantId,
+    string TenantCode,
+    Guid UserId,
+    bool EmailSent,
+    string? EmailError
+);
+
+public record ApproveRegistrationRequestCommand(
+    Guid Id,
+    string Password,
+    bool SendWelcomeEmail
+) : IRequest<ApproveRegistrationRequestResult>;
+
+public class ApproveRegistrationRequestCommandValidator : AbstractValidator<ApproveRegistrationRequestCommand>
+{
+    public ApproveRegistrationRequestCommandValidator()
+    {
+        RuleFor(x => x.Password).NotEmpty().MinimumLength(8).MaximumLength(128);
+    }
+}
+
+public class ApproveRegistrationRequestCommandHandler
+    : IRequestHandler<ApproveRegistrationRequestCommand, ApproveRegistrationRequestResult>
+{
+    private readonly IAppDbContext _db;
+    private readonly IPasswordHasher _hasher;
+    private readonly IEmailSender _email;
+    private readonly ICurrentUser _currentUser;
+
+    public ApproveRegistrationRequestCommandHandler(
+        IAppDbContext db, IPasswordHasher hasher, IEmailSender email, ICurrentUser currentUser)
+    {
+        _db = db;
+        _hasher = hasher;
+        _email = email;
+        _currentUser = currentUser;
+    }
+
+    public async Task<ApproveRegistrationRequestResult> Handle(
+        ApproveRegistrationRequestCommand r, CancellationToken ct)
+    {
+        var rec = await _db.RegistrationRequests
+            .FirstOrDefaultAsync(x => x.Id == r.Id && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("RegistrationRequest");
+
+        if (rec.Status == RegistrationRequestStatus.Approved)
+            throw new AppException("registration_already_approved",
+                "Η αίτηση έχει ήδη εγκριθεί.", 409,
+                title: "Ήδη εγκεκριμένη αίτηση",
+                why: "Αυτή η αίτηση εγγραφής έχει ήδη μετατραπεί σε ενεργό γραφείο. Δεν μπορούμε να την επεξεργαστούμε ξανά.",
+                fix: "Δείτε το γραφείο στη λίστα Tenants ή απορρίψτε την αίτηση αν δεν είναι πλέον σχετική.",
+                fixLink: "/app/tenants");
+
+        var email = rec.Email.Trim().ToLowerInvariant();
+        var emailTaken = await _db.Users.IgnoreQueryFilters()
+            .AnyAsync(u => u.Email == email && u.DeletedAt == null, ct);
+        if (emailTaken)
+            throw new AppException("admin_email_taken",
+                $"Το email '{email}' χρησιμοποιείται ήδη.", 409,
+                title: "Email σε χρήση",
+                why: $"Ένας χρήστης με email {email} υπάρχει ήδη στην πλατφόρμα. Δεν μπορούμε να δημιουργήσουμε νέο λογαριασμό με το ίδιο email.",
+                fix: "Ζητήστε από τον αιτούντα ένα διαφορετικό email, ή απορρίψτε την αίτηση.",
+                fixLink: "/app/all-users");
+
+        // Tenant code — derived from organization name (or last name fallback),
+        // ascii-fied to A–Z0–9, uppercased. Suffix with -2, -3, … on collision.
+        var seed = !string.IsNullOrWhiteSpace(rec.OrganizationName) ? rec.OrganizationName! : rec.LastName;
+        var code = await BuildUniqueTenantCodeAsync(seed, ct);
+
+        var tenant = new Tenant
+        {
+            Id = Guid.NewGuid(),
+            Name = string.IsNullOrWhiteSpace(rec.OrganizationName)
+                ? $"{rec.FirstName} {rec.LastName}".Trim()
+                : rec.OrganizationName!.Trim(),
+            Code = code,
+            IsActive = true,
+            SubscriptionPlan = SubscriptionPlan.Trial,
+            ContactEmail = email,
+            ContactPhone = rec.Phone,
+            VatNumber = rec.VatNumber
+        };
+        _db.Tenants.Add(tenant);
+
+        var admin = new User
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenant.Id,
+            Email = email,
+            PasswordHash = _hasher.Hash(r.Password),
+            FirstName = rec.FirstName.Trim(),
+            LastName = rec.LastName.Trim(),
+            Phone = rec.Phone,
+            Role = Role.AgencyAdmin,
+            IsActive = true,
+            PreferredLanguage = "el"
+        };
+        _db.Users.Add(admin);
+
+        rec.Status = RegistrationRequestStatus.Approved;
+        rec.ReviewedAt = DateTime.UtcNow;
+        rec.ReviewedByUserId = _currentUser.UserId;
+        // Stamp the provisioning result in ReviewNotes so it's traceable
+        // without adding new columns to the registration request table.
+        var stamp = $"Provisioned: tenant={tenant.Code} ({tenant.Id}), user={admin.Id}";
+        rec.ReviewNotes = string.IsNullOrWhiteSpace(rec.ReviewNotes)
+            ? stamp
+            : $"{rec.ReviewNotes}\n{stamp}";
+
+        await _db.SaveChangesAsync(ct);
+
+        // Welcome email is fire-and-forget for the request — if Brevo is down
+        // we still want the user provisioned. We surface any error to the UI
+        // so the superadmin can resend manually instead of failing the whole
+        // approve action.
+        bool emailSent = false;
+        string? emailError = null;
+        if (r.SendWelcomeEmail)
+        {
+            try
+            {
+                var msg = BuildWelcomeEmail(rec, tenant, r.Password);
+                var result = await _email.SendAsync(msg, ct);
+                emailSent = result.Success;
+                if (!result.Success) emailError = result.ErrorMessage;
+            }
+            catch (Exception ex)
+            {
+                emailError = ex.Message;
+            }
+        }
+
+        return new ApproveRegistrationRequestResult(
+            RegistrationRequestMapper.Map(rec),
+            tenant.Id, tenant.Code, admin.Id, emailSent, emailError);
+    }
+
+    private async Task<string> BuildUniqueTenantCodeAsync(string seed, CancellationToken ct)
+    {
+        var ascii = new StringBuilder();
+        foreach (var ch in (seed ?? string.Empty).ToUpperInvariant())
+        {
+            if (ch is >= 'A' and <= 'Z' or >= '0' and <= '9') ascii.Append(ch);
+        }
+        var baseCode = ascii.Length == 0 ? "AGENCY" : ascii.ToString();
+        if (baseCode.Length > 20) baseCode = baseCode[..20];
+
+        var candidate = baseCode;
+        var suffix = 2;
+        while (await _db.Tenants.IgnoreQueryFilters().AnyAsync(t => t.Code == candidate, ct))
+        {
+            candidate = $"{baseCode}-{suffix++}";
+            if (suffix > 999) throw new InvalidOperationException("Failed to derive a unique tenant code.");
+        }
+        return candidate;
+    }
+
+    private static EmailMessage BuildWelcomeEmail(RegistrationRequest rec, Tenant tenant, string password)
+    {
+        var displayName = $"{rec.FirstName} {rec.LastName}".Trim();
+        var encEmail    = WebUtility.HtmlEncode(rec.Email);
+        var encPassword = WebUtility.HtmlEncode(password);
+        var encTenant   = WebUtility.HtmlEncode(tenant.Name);
+        var encCode     = WebUtility.HtmlEncode(tenant.Code);
+        var encName     = WebUtility.HtmlEncode(displayName);
+
+        var html = $@"<!doctype html>
+<html lang=""el"">
+<head><meta charset=""utf-8""></head>
+<body style=""font-family:Inter,Segoe UI,Arial,sans-serif;background:#fafbfc;margin:0;padding:32px;color:#0b2545;"">
+  <table role=""presentation"" cellpadding=""0"" cellspacing=""0"" style=""max-width:560px;margin:0 auto;background:#fff;border:1px solid #e5e9ef;border-radius:12px;overflow:hidden"">
+    <tr><td style=""padding:32px 32px 8px"">
+      <h1 style=""font-size:24px;font-weight:800;margin:0 0 12px;letter-spacing:-0.01em"">Καλώς ήρθατε στην Kalypsis</h1>
+      <p style=""font-size:15px;line-height:1.6;color:#3d4f6b;margin:0 0 16px"">
+        {encName}, ο λογαριασμός σας για το γραφείο <strong>{encTenant}</strong> έχει ενεργοποιηθεί.
+      </p>
+    </td></tr>
+    <tr><td style=""padding:0 32px 16px"">
+      <div style=""background:#fafbfc;border:1px solid #e5e9ef;border-radius:8px;padding:20px"">
+        <p style=""font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#3d4f6b;margin:0 0 12px"">Στοιχεία πρόσβασης</p>
+        <p style=""margin:6px 0;font-size:14px""><strong>Email:</strong> <span style=""font-family:Consolas,monospace"">{encEmail}</span></p>
+        <p style=""margin:6px 0;font-size:14px""><strong>Προσωρινός κωδικός:</strong> <span style=""font-family:Consolas,monospace"">{encPassword}</span></p>
+        <p style=""margin:6px 0;font-size:14px""><strong>Κωδικός γραφείου:</strong> <span style=""font-family:Consolas,monospace"">{encCode}</span></p>
+      </div>
+    </td></tr>
+    <tr><td style=""padding:8px 32px 24px"">
+      <p style=""font-size:14px;line-height:1.6;color:#3d4f6b;margin:0 0 16px"">
+        Συνδεθείτε στη <a href=""https://www.mykalypsis.gr/login"" style=""color:#1f7bb3;font-weight:600;text-decoration:none"">www.mykalypsis.gr</a> με τα παραπάνω στοιχεία. Συστήνουμε να αλλάξετε τον κωδικό σας από το προφίλ σας μόλις συνδεθείτε.
+      </p>
+      <p style=""font-size:13px;line-height:1.6;color:#3d4f6b;margin:0"">
+        Αν έχετε ερωτήσεις, απαντήστε σε αυτό το email ή καλέστε μας στο 2631028971.
+      </p>
+    </td></tr>
+    <tr><td style=""padding:16px 32px;border-top:1px solid #e5e9ef;font-size:12px;color:#3d4f6b"">
+      © {DateTime.UtcNow.Year} Kalypsis — η ελληνική πλατφόρμα ασφαλιστικού γραφείου.
+    </td></tr>
+  </table>
+</body>
+</html>";
+
+        var text = $@"Καλώς ήρθατε στην Kalypsis
+
+{displayName}, ο λογαριασμός σας για το γραφείο {tenant.Name} έχει ενεργοποιηθεί.
+
+Στοιχεία πρόσβασης
+  Email: {rec.Email}
+  Προσωρινός κωδικός: {password}
+  Κωδικός γραφείου: {tenant.Code}
+
+Συνδεθείτε στη https://www.mykalypsis.gr/login με τα παραπάνω στοιχεία. Συστήνουμε να αλλάξετε τον κωδικό σας μόλις συνδεθείτε.
+
+Ερωτήσεις: απαντήστε σε αυτό το email ή καλέστε μας στο 2631028971.";
+
+        return new EmailMessage(
+            ToEmail:  rec.Email,
+            ToName:   displayName,
+            Subject:  "Καλώς ήρθατε στην Kalypsis — τα στοιχεία πρόσβασής σας",
+            HtmlBody: html,
+            TextBody: text);
+    }
 }

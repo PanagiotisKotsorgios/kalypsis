@@ -1390,6 +1390,30 @@
       "reviewSection": "Review",
       "reviewNotes": "Review notes",
       "reviewNotesHelp": "Internal notes only. Not sent to the applicant."
+    },
+    "approve": {
+      "title": "Approve & create account",
+      "lead": "Set a temporary password for the new user. Approving will create a tenant and an AgencyAdmin user with these credentials and send a welcome email.",
+      "password": "Temporary password",
+      "passwordHelp": "At least 8 characters. The user can change it after first login.",
+      "confirmPassword": "Confirm password",
+      "regenerate": "Regenerate",
+      "copy": "Copy",
+      "sendWelcomeEmail": "Send welcome email",
+      "sendWelcomeEmailHelp": "The email contains the sign-in email, temporary password, and tenant code.",
+      "submit": "Approve & create",
+      "alreadyApproved": "This request has already been approved.",
+      "errors": {
+        "password": "Password must be at least 8 characters and match the confirmation.",
+        "mismatch": "Passwords do not match."
+      },
+      "success": {
+        "title": "Account created for {{name}}.",
+        "tenant": "Tenant code",
+        "emailSent": "Welcome email with the credentials has been sent.",
+        "emailFailed": "Account was created but the welcome email failed: {{error}}. Send the credentials manually.",
+        "emailSkipped": "No email was sent. Share the credentials with the user manually."
+      }
     }
   },
   "ws": {
