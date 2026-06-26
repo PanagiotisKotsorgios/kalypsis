@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { AppLayout, type NavItem } from "./AppLayout";
+import { BackOfficeActionHelp } from "./BackOfficeActionHelp";
 import { LanguageToggle } from "./LanguageToggle";
 import { useAuth } from "../auth/AuthContext";
 import { useWorkspace } from "../auth/WorkspaceContext";
@@ -79,8 +80,9 @@ export function AppShell({
           maxWidth: 1200,
           width: "100%",
           mx: "auto"
-        }}>
+        }} data-backoffice-help-root>
           {children}
+          <BackOfficeActionHelp />
         </Box>
 
         {/* User identity footer */}
@@ -101,5 +103,14 @@ export function AppShell({
     );
   }
 
-  return <AppLayout navItems={navItems}>{children}</AppLayout>;
+  return (
+    <AppLayout navItems={navItems}>
+      {isAgencyRole ? (
+        <Box data-backoffice-help-root>
+          {children}
+          <BackOfficeActionHelp />
+        </Box>
+      ) : children}
+    </AppLayout>
+  );
 }

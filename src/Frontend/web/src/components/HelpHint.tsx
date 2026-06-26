@@ -59,6 +59,7 @@ export function HelpHint({ id, title, body, size = "small", sx }: HelpHintProps)
   return (
     <>
       <IconButton
+        data-help-hint
         size={size}
         onClick={toggle}
         onMouseEnter={(e) => setAnchorEl(e.currentTarget)}
@@ -76,13 +77,19 @@ export function HelpHint({ id, title, body, size = "small", sx }: HelpHintProps)
         }}
         aria-label="Βοήθεια"
         sx={{
-          color: "text.disabled",
-          p: size === "small" ? 0.25 : 0.5,
-          "&:hover": { color: "primary.main", bgcolor: "transparent" },
+          color: "#0b2545",
+          bgcolor: "#e6eff8",
+          border: "1.5px solid rgba(11,37,69,0.42)",
+          p: size === "small" ? 0.4 : 0.55,
+          "&:hover, &:focus-visible": {
+            color: "#ffffff",
+            bgcolor: "#0b2545",
+            borderColor: "#0b2545"
+          },
           ...sx
         }}
       >
-        <HelpOutlineIcon sx={{ fontSize: size === "small" ? 15 : 18 }} />
+        <HelpOutlineIcon sx={{ fontSize: size === "small" ? 22 : 26 }} />
       </IconButton>
 
       <Popper
@@ -99,12 +106,12 @@ export function HelpHint({ id, title, body, size = "small", sx }: HelpHintProps)
               data-help-popover
               onMouseLeave={() => setAnchorEl(null)}
               sx={{
-                bgcolor: "background.paper",
-                border: "1.5px solid",
-                borderColor: "#0b2545",
-                boxShadow: "0 10px 24px -8px rgba(11,37,69,0.18)",
-                p: 2,
-                maxWidth: 320,
+                bgcolor: "#071d36",
+                color: "#ffffff",
+                border: "2px solid #0b2545",
+                boxShadow: "0 18px 40px -10px rgba(2, 17, 34, 0.58)",
+                p: 2.5,
+                maxWidth: 390,
                 position: "relative",
                 "&::after": {
                   content: '""',
@@ -112,9 +119,9 @@ export function HelpHint({ id, title, body, size = "small", sx }: HelpHintProps)
                   bottom: -8,
                   left: 16,
                   width: 14, height: 14,
-                  bgcolor: "background.paper",
-                  borderRight: "1.5px solid #0b2545",
-                  borderBottom: "1.5px solid #0b2545",
+                  bgcolor: "#071d36",
+                  borderRight: "2px solid #0b2545",
+                  borderBottom: "2px solid #0b2545",
                   transform: "rotate(45deg)"
                 }
               }}
@@ -123,10 +130,9 @@ export function HelpHint({ id, title, body, size = "small", sx }: HelpHintProps)
                 <Stack spacing={0.5}>
                   {resolvedTitle && (
                     <Typography sx={{
-                      fontFamily: "Georgia, serif",
                       fontWeight: 700,
-                      fontSize: 14,
-                      color: "#0b2545",
+                      fontSize: 16,
+                      color: "#ffffff",
                       lineHeight: 1.2
                     }}>
                       {resolvedTitle}
@@ -134,9 +140,9 @@ export function HelpHint({ id, title, body, size = "small", sx }: HelpHintProps)
                   )}
                   {resolvedBody && (
                     <Typography sx={{
-                      fontSize: 13,
-                      color: "text.secondary",
-                      lineHeight: 1.55
+                      fontSize: 14,
+                      color: "#e5edf6",
+                      lineHeight: 1.6
                     }}>
                       {resolvedBody}
                     </Typography>
