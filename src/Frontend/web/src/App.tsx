@@ -108,6 +108,7 @@ import { ProductionGoalsPage } from "./pages/ProductionGoalsPage";
 import { ProductionStatsPage } from "./pages/ProductionStatsPage";
 import { TenantDetailPage } from "./pages/TenantDetailPage";
 import { PlatformPartnersPage } from "./pages/PlatformPartnersPage";
+import { PlatformRegistrationsPage } from "./pages/PlatformRegistrationsPage";
 import { CommissionRunsPage } from "./pages/CommissionRunsPage";
 import { CompanyBridgesPage } from "./pages/CompanyBridgesPage";
 import { QuoteBuilderPage } from "./pages/QuoteBuilderPage";
@@ -341,6 +342,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
     { to: "/tenants", labelKey: "nav.tenants", icon: <BusinessIcon /> },
     { to: "/all-users", labelKey: "nav.allUsers", icon: <GroupIcon /> },
+    { to: "/platform/registrations", labelKey: "nav.registrations", icon: <AssignmentIcon /> },
     { to: "/audit", labelKey: "nav.audit", icon: <GavelIcon /> },
     { to: "/settings", labelKey: "nav.settings", icon: <SettingsIcon /> },
     // Coming-soon platform-wide operations
@@ -490,6 +492,7 @@ export default function App() {
                   <Route path="agency-settings" element={<AgencySettingsPage />} />
                   <Route path="coming-soon" element={<ComingSoonPage />} />
                   <Route path="platform/partners" element={<PlatformPartnersPage />} />
+                  <Route path="platform/registrations" element={<PlatformRegistrationsPage />} />
                   <Route path="platform/showcase-images" element={<ShowcaseImagesPage />} />
                   <Route path="platform/economics" element={<PlatformEconomicsPage />} />
                   <Route path="platform/email-templates" element={<PlatformEmailTemplatesPage />} />

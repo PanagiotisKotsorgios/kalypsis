@@ -34,6 +34,7 @@
     "requests": "Requests",
     "audit": "Audit Log",
     "allUsers": "All Users",
+    "registrations": "Registration Requests",
     "agencySettings": "Agency Settings",
     "contracts": "Contracts",
     "comingSoonChip": "Soon",
@@ -630,7 +631,7 @@
       "featuresSub": "One unified platform — from contract management and cash, to client marketing, quote generation, analytics, and bridges to insurers and banks.",
       "feat": {
         "bridgesT": "Carrier Bridges",
-        "bridgesB": "Automatic policy import from every insurer, with detection of cancellations, renewals and endorsements.",
+        "bridgesB": "Automatic policy import from every insurer in your agency's portfolio, with smart detection of cancellations, renewals and endorsements. Excel and CSV batches are de-duplicated, mapped to existing customers and producers, and pushed straight into your commissions ledger, cash tables and production KPIs — no manual data entry, from day one.",
         "prodT": "Production Lists",
         "prodB": "Filters by carrier, producer, branch. Export to Excel and PDF with automatic subtotals.",
         "networkT": "Producer Network",
@@ -1344,7 +1345,8 @@
       "email": "Email is not valid.",
       "phone": "Please enter a contact phone.",
       "license": "Please enter the licence registration number.",
-      "terms": "You must accept the terms to continue."
+      "terms": "You must accept the terms to continue.",
+      "submit": "Submission failed. Please try again."
     },
     "terms": "I confirm the above is accurate and accept the Kalypsis Privacy Policy and Terms of Service. I consent to the Kalypsis team contacting me to verify these details.",
     "prev": "Back",
@@ -1355,6 +1357,39 @@
       "body": "Our team will contact you within one business day to verify your details and activate your account.",
       "refCode": "REFERENCE CODE",
       "backHome": "Back home"
+    }
+  },
+  "registrations": {
+    "title": "Registration Requests",
+    "subtitle": "Every submission from the public /register form, with full contact details and review status.",
+    "searchPlaceholder": "Search name, email, VAT, agency or reference…",
+    "empty": "No requests match the current filters.",
+    "filter": {
+      "all": "All"
+    },
+    "stats": {
+      "total": "Total"
+    },
+    "status": {
+      "New": "New",
+      "Reviewing": "Reviewing",
+      "Approved": "Approved",
+      "Rejected": "Rejected"
+    },
+    "col": {
+      "ref": "Reference",
+      "name": "Name",
+      "contact": "Contact",
+      "organization": "Agency / Company",
+      "submitted": "Submitted"
+    },
+    "detail": {
+      "title": "Application details",
+      "submittedAt": "Submitted",
+      "reviewedAt": "Reviewed",
+      "reviewSection": "Review",
+      "reviewNotes": "Review notes",
+      "reviewNotesHelp": "Internal notes only. Not sent to the applicant."
     }
   },
   "ws": {

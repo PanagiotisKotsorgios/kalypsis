@@ -188,6 +188,9 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<DefaultValueRule> DefaultValueRules => Set<DefaultValueRule>();
     public DbSet<CompanyBridgeRun> CompanyBridgeRuns => Set<CompanyBridgeRun>();
 
+    // Public signup queue
+    public DbSet<RegistrationRequest> RegistrationRequests => Set<RegistrationRequest>();
+
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
 
     // PlatformAdmin / PlatformEmployee normally bypass the tenant filter, but

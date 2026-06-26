@@ -185,5 +185,8 @@ public interface IAppDbContext
     DbSet<DefaultValueRule> DefaultValueRules { get; }
     DbSet<CompanyBridgeRun> CompanyBridgeRuns { get; }
 
+    // Public signup queue — reviewed by the platform superadmin
+    DbSet<RegistrationRequest> RegistrationRequests { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

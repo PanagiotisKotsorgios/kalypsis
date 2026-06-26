@@ -20,6 +20,7 @@ import { KalypsisLogo } from "../components/KalypsisLogo";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { PageEnter } from "../components/PageEnter";
 import { authFieldSx, authButtonSx, authLabelSx } from "./authShared";
+import { api, extractErrorMessage } from "../api/client";
 
 type RegisterForm = {
   firstName: string;
@@ -58,7 +59,7 @@ export function RegisterPage() {
   const set = <K extends keyof RegisterForm>(k: K, v: RegisterForm[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!form.firstName.trim() || !form.lastName.trim()) {
       setError(t("register.errors.name"));
@@ -78,11 +79,24 @@ export function RegisterPage() {
     }
     setError(null);
     setSubmitting(true);
-    setTimeout(() => {
+    try {
+      const { data } = await api.post<{ referenceCode: string }>("/public/register", {
+        firstName:        form.firstName.trim(),
+        lastName:         form.lastName.trim(),
+        email:            form.email.trim(),
+        phone:            form.phone.trim(),
+        organizationName: form.organizationName.trim() || null,
+        vatNumber:        form.vatNumber.trim() || null,
+        licenseNumber:    form.licenseNumber.trim() || null,
+        city:             form.city.trim() || null,
+        message:          form.message.trim() || null
+      });
+      setSubmitted({ ref: data.referenceCode });
+    } catch (err) {
+      setError(extractErrorMessage(err, t("register.errors.submit")));
+    } finally {
       setSubmitting(false);
-      const ref = `KLP-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-      setSubmitted({ ref });
-    }, 700);
+    }
   };
 
   return (
