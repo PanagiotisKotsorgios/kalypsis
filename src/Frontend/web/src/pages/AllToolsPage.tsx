@@ -26,7 +26,7 @@ const TOOLS: Tool[] = [
   { to: "/cancellations", labelKey: "nav.cancellations", descKey: "tools.cancellations", category: "operations", pkg: "BackOffice" },
   { to: "/credit-notes", labelKey: "nav.creditNotes", descKey: "tools.creditNotes", category: "operations", pkg: "BackOffice" },
   { to: "/group-policies", labelKey: "nav.groupPolicies", descKey: "tools.groupPolicies", category: "operations", pkg: "BackOffice" },
-  { to: "/policy-delivery", labelKey: "nav.policyDelivery", descKey: "tools.policyDelivery", category: "operations", pkg: "BackOffice" },
+  { to: "/policies?view=delivery", labelKey: "nav.policyDelivery", descKey: "tools.policyDelivery", category: "operations", pkg: "BackOffice" },
   { to: "/lookups", labelKey: "nav.lookups", descKey: "tools.lookups", category: "operations", pkg: "BackOffice" },
   { to: "/parametric-files", labelKey: "nav.parametricFiles", descKey: "tools.parametricFiles", category: "operations", pkg: "BackOffice" },
   { to: "/vehicle-models", labelKey: "nav.vehicleModels", descKey: "tools.vehicleModels", category: "operations", pkg: "BackOffice" },

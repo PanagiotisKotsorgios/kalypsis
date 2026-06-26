@@ -146,7 +146,6 @@ import { DocumentDesignerPage } from "./pages/DocumentDesignerPage";
 import { FriendlySettlementsPage } from "./pages/FriendlySettlementsPage";
 import { CustomerMergePage } from "./pages/CustomerMergePage";
 import { PersistencyPage } from "./pages/PersistencyPage";
-import { PolicyDeliveryPage } from "./pages/PolicyDeliveryPage";
 import { CallerIdPage } from "./pages/CallerIdPage";
 import { UsaeSubmissionsPage } from "./pages/UsaeSubmissionsPage";
 import { IntegrationSettingsPage } from "./pages/IntegrationSettingsPage";
@@ -173,7 +172,6 @@ import StackedLineChartIcon from "@mui/icons-material/StackedLineChart";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import GavelOutlinedIcon from "@mui/icons-material/GavelOutlined";
 import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
-import MovingIcon from "@mui/icons-material/Moving";
 import CakeIcon from "@mui/icons-material/Cake";
 import PhoneCallbackIcon from "@mui/icons-material/PhoneCallback";
 import MergeIcon from "@mui/icons-material/Merge";
@@ -223,7 +221,6 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/group-policies", labelKey: "nav.groupPolicies", icon: <GroupsIcon />, package: "BackOffice", group: "production" },
     { to: "/endorsements", labelKey: "nav.endorsements", icon: <EditNoteIcon />, package: "BackOffice", group: "production" },
     { to: "/cancellations", labelKey: "nav.cancellations", icon: <CancelPresentationIcon />, package: "BackOffice", group: "production" },
-    { to: "/policy-delivery", labelKey: "nav.policyDelivery", icon: <MovingIcon />, package: "BackOffice", group: "production" },
 
     // BackOffice → ΟΙΚΟΝΟΜΙΚΑ
     { to: "/receipts", labelKey: "nav.receipts", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
@@ -540,7 +537,7 @@ export default function App() {
                   <Route path="friendly-settlements" element={<FriendlySettlementsPage />} />
                   <Route path="customer-merge" element={<CustomerMergePage />} />
                   <Route path="persistency" element={<PersistencyPage />} />
-                  <Route path="policy-delivery" element={<PolicyDeliveryPage />} />
+                  <Route path="policy-delivery" element={<Navigate to="/app/policies?view=delivery" replace />} />
                   <Route path="caller-id" element={<CallerIdPage />} />
                   <Route path="usae" element={<UsaeSubmissionsPage />} />
                   <Route path="all-tools" element={<AllToolsPage />} />

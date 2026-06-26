@@ -79,8 +79,15 @@ export function HelpHint({ id, title, body, size = "small", sx }: HelpHintProps)
         sx={{
           color: "#0b2545",
           bgcolor: "#e6eff8",
-          border: "1.5px solid rgba(11,37,69,0.42)",
-          p: size === "small" ? 0.32 : 0.42,
+          border: "1px solid rgba(11,37,69,0.46)",
+          width: size === "small" ? 18 : 20,
+          height: size === "small" ? 18 : 20,
+          minWidth: size === "small" ? 18 : 20,
+          p: 0,
+          flexShrink: 0,
+          verticalAlign: "middle",
+          position: "static",
+          zIndex: "auto",
           "&:hover, &:focus-visible": {
             color: "#ffffff",
             bgcolor: "#0b2545",
@@ -89,7 +96,7 @@ export function HelpHint({ id, title, body, size = "small", sx }: HelpHintProps)
           ...sx
         }}
       >
-        <HelpOutlineIcon sx={{ fontSize: size === "small" ? 19 : 22 }} />
+        <HelpOutlineIcon sx={{ fontSize: size === "small" ? 13.5 : 15.5 }} />
       </IconButton>
 
       <Popper

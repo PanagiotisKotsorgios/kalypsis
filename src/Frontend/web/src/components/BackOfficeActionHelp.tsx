@@ -1,71 +1,71 @@
-import { useCallback, useLayoutEffect, useState } from "react";
-import { Box, Portal, useMediaQuery, useTheme } from "@mui/material";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useMediaQuery, useTheme } from "@mui/material";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { HelpHint } from "./HelpHint";
 
-interface HelpTarget {
-  element: HTMLElement;
+interface HelpDecoration {
+  anchor: HTMLElement;
+  host: HTMLElement;
   label: string;
-  kind: "field" | "action";
-  left: number;
-  top: number;
 }
 
-const interactiveSelector = [
-  "input:not([type='hidden'])",
+const fieldSelector = [
+  "input:not([type='hidden']):not([type='checkbox']):not([type='radio']):not([type='button']):not([type='submit']):not([type='reset'])",
   "textarea",
   "select",
-  "button",
-  "[role='button']",
-  "[role='checkbox']",
-  "[role='radio']",
-  "[role='switch']",
-  "[role='combobox']",
-  "[contenteditable='true']"
+  "[role='combobox']"
 ].join(",");
 
+let hostCounter = 0;
+
 /**
- * Adds a visible contextual question-mark control to every usable field and
- * action in the agency BackOffice, including dialogs rendered through portals.
- * The copy is generated from the control's accessible label, so new screens
- * and dynamically opened forms inherit the same guidance automatically.
+ * Adds contextual help to real form fields only. Earlier this was a fixed
+ * overlay positioned from viewport coordinates; that made the icons float over
+ * the top bar, dialogs and pagination. The decorator is now static DOM inside
+ * each field container, so it scrolls with the page and stays below modals.
  */
 export function BackOfficeActionHelp() {
   const { i18n } = useTranslation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const [targets, setTargets] = useState<HelpTarget[]>([]);
+  const hostsRef = useRef<Map<HTMLElement, HTMLElement>>(new Map());
+  const [decorations, setDecorations] = useState<HelpDecoration[]>([]);
   const isGreek = i18n.language.toLowerCase().startsWith("el");
 
   const refresh = useCallback(() => {
-    const next: HelpTarget[] = [];
+    const next: HelpDecoration[] = [];
     const seen = new Set<HTMLElement>();
 
-    document.querySelectorAll<HTMLElement>(interactiveSelector).forEach((candidate) => {
-      if (!belongsToBackOffice(candidate) || !isVisible(candidate)) return;
+    document.querySelectorAll<HTMLElement>(fieldSelector).forEach((candidate) => {
+      if (!belongsToBackOffice(candidate) || isExcludedControl(candidate) || !isVisible(candidate)) return;
 
       const anchor = resolveAnchor(candidate);
-      if (seen.has(anchor) || !isVisible(anchor)) return;
+      if (seen.has(anchor) || isExcludedContainer(anchor) || !isVisible(anchor)) return;
 
       const rect = anchor.getBoundingClientRect();
-      if (rect.width < 12 || rect.height < 12) return;
+      if (rect.width < 24 || rect.height < 16) return;
 
+      const label = getControlLabel(candidate, anchor);
+      const host = ensureHost(anchor, hostsRef.current);
       seen.add(anchor);
-      next.push({
-        element: anchor,
-        label: getControlLabel(candidate, anchor),
-        kind: isAction(candidate, anchor) ? "action" : "field",
-        left: Math.min(window.innerWidth - 30, Math.max(4, rect.right - 10)),
-        top: Math.max(4, rect.top - 10)
-      });
+      next.push({ anchor, host, label });
     });
 
-    setTargets((previous) => sameTargets(previous, next) ? previous : next);
+    for (const [anchor, host] of hostsRef.current) {
+      if (!seen.has(anchor) || !document.body.contains(anchor)) {
+        host.remove();
+        hostsRef.current.delete(anchor);
+      }
+    }
+
+    setDecorations((previous) => sameDecorations(previous, next) ? previous : next);
   }, []);
 
   useLayoutEffect(() => {
     if (isMobile) {
-      setTargets([]);
+      removeAllHosts(hostsRef.current);
+      setDecorations([]);
       return;
     }
 
@@ -84,45 +84,72 @@ export function BackOfficeActionHelp() {
       attributeFilter: ["aria-hidden", "disabled", "style", "class"]
     });
     window.addEventListener("resize", schedule);
-    window.addEventListener("scroll", schedule, true);
 
     return () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
       window.removeEventListener("resize", schedule);
-      window.removeEventListener("scroll", schedule, true);
+      removeAllHosts(hostsRef.current);
     };
   }, [isMobile, refresh]);
 
-  // The desktop overlay makes every field discoverable, but on a phone it
-  // competes with the field itself. The existing inline help controls remain
-  // available while the dense floating layer is intentionally suppressed.
   if (isMobile) return null;
 
   return (
-    <Portal>
-      <Box data-action-help-overlay sx={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: (theme) => theme.zIndex.modal + 2 }}>
-        {targets.map((target) => (
-          <Box
-            key={targetKey(target)}
-            data-action-help
-            sx={{ position: "fixed", left: target.left, top: target.top, pointerEvents: "auto", lineHeight: 0 }}
-          >
-            <HelpHint
-              size="medium"
-              title={target.label}
-              body={buildHelpBody(target.label, target.kind, isGreek)}
-            />
-          </Box>
-        ))}
-      </Box>
-    </Portal>
+    <>
+      {decorations.map((decoration) =>
+        createPortal(
+          <HelpHint
+            size="small"
+            title={decoration.label}
+            body={buildHelpBody(decoration.label, isGreek)}
+            sx={{ position: "static", zIndex: "auto" }}
+          />,
+          decoration.host,
+          decorationKey(decoration)
+        )
+      )}
+    </>
   );
 }
 
 function belongsToBackOffice(element: HTMLElement) {
-  return Boolean(element.closest("[data-backoffice-help-root], .MuiDialog-root"))
-    && !element.closest("[data-action-help-overlay], [data-help-popover], [data-help-hint], [data-action-help-exempt]");
+  return Boolean(element.closest("[data-backoffice-help-root], .MuiDialog-root, .MuiDrawer-root"))
+    && !element.closest("[data-action-help-host], [data-help-popover], [data-help-hint], [data-action-help-exempt]");
+}
+
+function isExcludedControl(element: HTMLElement) {
+  const inputType = element instanceof HTMLInputElement ? element.type.toLowerCase() : "";
+  if (["checkbox", "radio", "button", "submit", "reset", "hidden"].includes(inputType)) return true;
+
+  return Boolean(element.closest([
+    "[data-action-help-exempt]",
+    "[data-action-help-host]",
+    "[data-help-popover]",
+    "[data-help-hint]",
+    ".MuiTablePagination-root",
+    ".MuiPagination-root",
+    ".MuiDialogActions-root",
+    ".MuiMenu-root",
+    ".MuiAutocomplete-popper",
+    ".MuiSnackbar-root",
+    "nav",
+    "header"
+  ].join(",")));
+}
+
+function isExcludedContainer(element: HTMLElement) {
+  return Boolean(element.closest([
+    "[data-action-help-exempt]",
+    "[data-action-help-host]",
+    ".MuiTablePagination-root",
+    ".MuiPagination-root",
+    ".MuiDialogActions-root",
+    ".MuiMenu-root",
+    ".MuiAutocomplete-popper",
+    "nav",
+    "header"
+  ].join(",")));
 }
 
 function isVisible(element: HTMLElement) {
@@ -138,15 +165,42 @@ function isVisible(element: HTMLElement) {
 }
 
 function resolveAnchor(element: HTMLElement) {
-  if (element.matches("input, textarea, select, [role='combobox']")) {
-    return element.closest<HTMLElement>(".MuiFormControlLabel-root, .MuiTextField-root, .MuiFormControl-root") ?? element;
-  }
-
-  return element.closest<HTMLElement>(".MuiFormControlLabel-root, .MuiButtonBase-root") ?? element;
+  return element.closest<HTMLElement>(".MuiTextField-root, .MuiFormControl-root")
+    ?? element.closest<HTMLElement>(".MuiInputBase-root")
+    ?? element;
 }
 
-function isAction(element: HTMLElement, anchor: HTMLElement) {
-  return element.matches("button, [role='button']") || anchor.matches("button, [role='button'], .MuiButtonBase-root");
+function ensureHost(anchor: HTMLElement, hosts: Map<HTMLElement, HTMLElement>) {
+  const existing = hosts.get(anchor);
+  if (existing?.isConnected) return existing;
+
+  const host = document.createElement("span");
+  host.dataset.actionHelpHost = "true";
+  host.dataset.actionHelpId = String(++hostCounter);
+  host.style.display = "inline-flex";
+  host.style.alignItems = "center";
+  host.style.alignSelf = "flex-start";
+  host.style.flex = "0 0 auto";
+  host.style.lineHeight = "0";
+  host.style.marginTop = "3px";
+  host.style.marginLeft = "4px";
+  host.style.pointerEvents = "auto";
+  host.style.position = "static";
+  host.style.zIndex = "auto";
+
+  if (anchor.matches(".MuiTextField-root, .MuiFormControl-root")) {
+    anchor.appendChild(host);
+  } else {
+    anchor.insertAdjacentElement("afterend", host);
+  }
+
+  hosts.set(anchor, host);
+  return host;
+}
+
+function removeAllHosts(hosts: Map<HTMLElement, HTMLElement>) {
+  for (const host of hosts.values()) host.remove();
+  hosts.clear();
 }
 
 function getControlLabel(element: HTMLElement, anchor: HTMLElement) {
@@ -176,33 +230,27 @@ function labelFromFor(element: HTMLElement) {
 
 function cleanText(value: string | null | undefined) {
   const text = value?.replace(/\s+/g, " ").trim();
-  return text || undefined;
+  if (!text) return undefined;
+  return text.length > 80 ? `${text.slice(0, 77)}…` : text;
 }
 
-function buildHelpBody(label: string, kind: HelpTarget["kind"], greek: boolean) {
+function buildHelpBody(label: string, greek: boolean) {
   if (greek) {
-    return kind === "action"
-      ? `Πατήστε για «${label}». Ελέγξτε τα στοιχεία της φόρμας πριν συνεχίσετε.`
-      : `Συμπληρώστε ή επιλέξτε την τιμή για «${label}». Όπου υπάρχει Αποθήκευση ή Δημιουργία, η αλλαγή εφαρμόζεται αφού την πατήσετε.`;
+    return `Συμπληρώστε ή επιλέξτε την τιμή για «${label}». Αν υπάρχει Αποθήκευση ή Δημιουργία, η αλλαγή εφαρμόζεται αφού πατήσετε το αντίστοιχο κουμπί.`;
   }
 
-  return kind === "action"
-    ? `Select this action to ${label}. Review the form details before continuing.`
-    : `Enter or select the value for ${label}. Where Save or Create is available, the change is applied after you select it.`;
+  return `Enter or select the value for ${label}. Where Save or Create is available, the change is applied after you select it.`;
 }
 
-function targetKey(target: HelpTarget) {
-  const id = target.element.id || target.element.getAttribute("data-testid") || target.label;
-  return `${id}-${target.left}-${target.top}`;
+function decorationKey(decoration: HelpDecoration) {
+  return decoration.host.dataset.actionHelpId ?? decoration.label;
 }
 
-function sameTargets(previous: HelpTarget[], next: HelpTarget[]) {
+function sameDecorations(previous: HelpDecoration[], next: HelpDecoration[]) {
   return previous.length === next.length && previous.every((item, index) => {
     const candidate = next[index];
-    return item.element === candidate.element
-      && item.left === candidate.left
-      && item.top === candidate.top
-      && item.label === candidate.label
-      && item.kind === candidate.kind;
+    return item.anchor === candidate.anchor
+      && item.host === candidate.host
+      && item.label === candidate.label;
   });
 }

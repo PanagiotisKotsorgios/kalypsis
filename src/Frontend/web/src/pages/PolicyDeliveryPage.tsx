@@ -17,7 +17,11 @@ interface DeliveryRow {
 
 const METHODS = ["Hand", "Post", "Email", "Courier"];
 
-export function PolicyDeliveryPage() {
+interface PolicyDeliveryPageProps {
+  embedded?: boolean;
+}
+
+export function PolicyDeliveryPage({ embedded = false }: PolicyDeliveryPageProps = {}) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -37,23 +41,40 @@ export function PolicyDeliveryPage() {
     else setSelected(new Set((q.data ?? []).map(r => r.policyId)));
   };
 
+  const markButton = (
+    <Button variant="contained" size="large" disabled={selected.size === 0} onClick={() => setMarkOpen(true)}>
+      {t("delivery.markSelected", { count: selected.size })}
+    </Button>
+  );
+
   return (
     <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-        <Stack direction="row" alignItems="center" spacing={2}>
-          <LocalShippingIcon sx={{ fontSize: 36 }} color="primary" />
+      {embedded ? (
+        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }} mb={2} gap={1.5}>
           <Box>
             <Stack direction="row" alignItems="center" spacing={0.5}>
-              <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("delivery.title")}</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>{t("delivery.title")}</Typography>
               <HelpHint id="page.delivery" />
             </Stack>
-            <Typography color="text.secondary">{t("delivery.subtitle")}</Typography>
+            <Typography variant="body2" color="text.secondary">{t("delivery.subtitle")}</Typography>
           </Box>
+          {markButton}
         </Stack>
-        <Button variant="contained" size="large" disabled={selected.size === 0} onClick={() => setMarkOpen(true)}>
-          {t("delivery.markSelected", { count: selected.size })}
-        </Button>
-      </Stack>
+      ) : (
+        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <LocalShippingIcon sx={{ fontSize: 36 }} color="primary" />
+            <Box>
+              <Stack direction="row" alignItems="center" spacing={0.5}>
+                <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("delivery.title")}</Typography>
+                <HelpHint id="page.delivery" />
+              </Stack>
+              <Typography color="text.secondary">{t("delivery.subtitle")}</Typography>
+            </Box>
+          </Stack>
+          {markButton}
+        </Stack>
+      )}
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       {q.isLoading ? <CircularProgress /> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>

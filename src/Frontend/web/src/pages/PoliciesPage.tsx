@@ -31,6 +31,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
 import CancelIcon from "@mui/icons-material/Cancel";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
+import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
@@ -40,6 +41,7 @@ import { ExportButton } from "../components/ExportButton";
 import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
 import { useTableState } from "../components/useTableState";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
+import { PolicyDeliveryPage } from "./PolicyDeliveryPage";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal";
@@ -89,10 +91,18 @@ const STATUS_COLOR: Record<PolicyStatus, "default" | "success" | "warning" | "in
 
 export function PoliciesPage() {
   const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const isCustomer = user?.role === "Customer";
   const canEdit = user?.role === "AgencyAdmin" || user?.role === "AgencyUser";
+  const activeView: "policies" | "delivery" = canEdit && searchParams.get("view") === "delivery" ? "delivery" : "policies";
+
+  const setActiveView = (view: "policies" | "delivery") => {
+    const next = new URLSearchParams(searchParams);
+    if (view === "delivery") next.set("view", "delivery");
+    else next.delete("view");
+    setSearchParams(next);
+  };
 
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
@@ -187,8 +197,8 @@ export function PoliciesPage() {
           </Typography>
         </Box>
         <Stack direction="row" spacing={1}>
-          {canEdit && <ExportButton href="/api/exports/policies.csv" />}
-          {canEdit && (
+          {canEdit && activeView === "policies" && <ExportButton href="/api/exports/policies.csv" />}
+          {canEdit && activeView === "policies" && (
             <Button data-tour="policies-new" startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateOpen(true); }}>
               {t("policies.create")}
             </Button>
@@ -196,6 +206,30 @@ export function PoliciesPage() {
         </Stack>
       </Stack>
 
+      {canEdit && (
+        <Card variant="outlined" sx={{ p: 1, mb: 2 }}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <Button
+              variant={activeView === "policies" ? "contained" : "outlined"}
+              onClick={() => setActiveView("policies")}
+            >
+              {t("nav.contracts")}
+            </Button>
+            <Button
+              startIcon={<LocalShippingIcon />}
+              variant={activeView === "delivery" ? "contained" : "outlined"}
+              onClick={() => setActiveView("delivery")}
+            >
+              {t("delivery.title")}
+            </Button>
+          </Stack>
+        </Card>
+      )}
+
+      {activeView === "delivery" ? (
+        <PolicyDeliveryPage embedded />
+      ) : (
+        <>
       {!isCustomer && (
         <Card sx={{ p: 2, mb: 2 }} data-tour="policies-search">
           <Stack spacing={2}>
@@ -417,6 +451,8 @@ export function PoliciesPage() {
           <Button onClick={() => setBlockers(null)} variant="contained">Κατάλαβα</Button>
         </DialogActions>
       </Dialog>
+        </>
+      )}
     </Box>
   );
 }
