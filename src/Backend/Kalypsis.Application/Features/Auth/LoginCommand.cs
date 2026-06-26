@@ -2,12 +2,18 @@ using FluentValidation;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.Users;
+using Kalypsis.Domain.Entities;
+using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kalypsis.Application.Features.Auth;
 
-public record LoginCommand(string Email, string Password) : IRequest<LoginResponse>;
+public record LoginCommand(
+    string Email,
+    string Password,
+    string? IpAddress = null,
+    string? UserAgent = null) : IRequest<LoginResponse>;
 
 public class LoginCommandValidator : AbstractValidator<LoginCommand>
 {
@@ -49,6 +55,8 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
 
         if (user.LockedUntil is not null && user.LockedUntil > _clock.UtcNow)
         {
+            AddAuthenticationAudit(user, "LoginBlocked", request);
+            await _db.SaveChangesAsync(cancellationToken);
             var minutes = (int)Math.Ceiling((user.LockedUntil.Value - _clock.UtcNow).TotalMinutes);
             throw AppException.Unauthorized($"Ο λογαριασμός είναι κλειδωμένος. Δοκιμάστε ξανά σε {minutes} λεπτά.");
         }
@@ -61,6 +69,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
                 user.LockedUntil = _clock.UtcNow.AddMinutes(30);
                 user.FailedLoginAttempts = 0;
             }
+            AddAuthenticationAudit(user, "LoginFailed", request);
             await _db.SaveChangesAsync(cancellationToken);
             throw AppException.Unauthorized("Λανθασμένο email ή κωδικός.");
         }
@@ -87,6 +96,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
         });
 
         user.LastLoginAt = _clock.UtcNow;
+        AddAuthenticationAudit(user, "Login", request);
         await _db.SaveChangesAsync(cancellationToken);
 
         var dto = new AuthenticatedUserDto(
@@ -108,5 +118,35 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
             tokens.RefreshToken,
             tokens.RefreshTokenExpiresAt,
             dto);
+    }
+
+    private void AddAuthenticationAudit(User user, string action, LoginCommand request)
+    {
+        if (user.Role is not (Role.AgencyAdmin or Role.AgencyUser or Role.PlatformAdmin or Role.PlatformEmployee))
+            return;
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            CreatedAt = _clock.UtcNow,
+            TenantId = user.TenantId == Guid.Empty ? null : user.TenantId,
+            UserId = user.Id,
+            EntityName = "Authentication",
+            EntityId = user.Id.ToString("N"),
+            Action = action,
+            Category = "Authentication",
+            PagePath = "/login",
+            Target = "Σύνδεση BackOffice",
+            Metadata = "{\"source\":\"web\"}",
+            IpAddress = Trim(request.IpAddress, 64),
+            UserAgent = Trim(request.UserAgent, 512)
+        });
+    }
+
+    private static string? Trim(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var trimmed = value.Trim();
+        return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength];
     }
 }

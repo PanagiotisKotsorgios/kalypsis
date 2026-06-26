@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import { AppLayout, type NavItem } from "./AppLayout";
 import { BackOfficeActionHelp } from "./BackOfficeActionHelp";
+import { EmployeeActivityTracker } from "./EmployeeActivityTracker";
 import { LanguageToggle } from "./LanguageToggle";
 import { useAuth } from "../auth/AuthContext";
 import { useWorkspace } from "../auth/WorkspaceContext";
@@ -34,6 +35,7 @@ export function AppShell({
   const { t } = useTranslation();
 
   const isAgencyRole = role === "AgencyAdmin" || role === "AgencyUser";
+  const shouldTrackEmployeeActivity = isAgencyRole || role === "PlatformAdmin" || role === "PlatformEmployee";
   // Treat both `/app` and `/app/` as the hub URL — anything deeper is a real workspace page.
   const onHubUrl = location.pathname === "/app" || location.pathname === "/app/";
   const showHubFullscreen = isAgencyRole && !workspace && onHubUrl;
@@ -41,6 +43,7 @@ export function AppShell({
   if (showHubFullscreen) {
     return (
       <Box data-app-shell sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column", overflowX: "hidden", bgcolor: "background.default" }}>
+        {shouldTrackEmployeeActivity && <EmployeeActivityTracker />}
         {/* Minimal top bar — same look as the dashboard chrome, no sidebar */}
         <Box sx={{
           bgcolor: "background.paper",
@@ -107,6 +110,7 @@ export function AppShell({
 
   return (
     <AppLayout navItems={navItems}>
+      {shouldTrackEmployeeActivity && <EmployeeActivityTracker />}
       {isAgencyRole ? (
         <Box data-backoffice-help-root>
           {children}

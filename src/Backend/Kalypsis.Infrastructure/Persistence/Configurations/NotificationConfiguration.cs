@@ -29,6 +29,10 @@ public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         b.Property(x => x.EntityName).HasMaxLength(128).IsRequired();
         b.Property(x => x.EntityId).HasMaxLength(64).IsRequired();
         b.Property(x => x.Action).HasMaxLength(64).IsRequired();
+        b.Property(x => x.Category).HasMaxLength(48);
+        b.Property(x => x.PagePath).HasMaxLength(512);
+        b.Property(x => x.Target).HasMaxLength(256);
+        b.Property(x => x.Metadata).HasColumnType("text");
         b.Property(x => x.OldValues).HasColumnType("text");
         b.Property(x => x.NewValues).HasColumnType("text");
         b.Property(x => x.IpAddress).HasMaxLength(64);
@@ -36,5 +40,7 @@ public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
 
         b.HasIndex(x => new { x.TenantId, x.EntityName, x.EntityId });
         b.HasIndex(x => new { x.TenantId, x.CreatedAt });
+        b.HasIndex(x => new { x.TenantId, x.UserId, x.CreatedAt });
+        b.HasIndex(x => new { x.TenantId, x.Category, x.CreatedAt });
     }
 }

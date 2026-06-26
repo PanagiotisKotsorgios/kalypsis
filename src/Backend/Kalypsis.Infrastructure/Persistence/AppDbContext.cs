@@ -256,6 +256,20 @@ public class AppDbContext : DbContext, IAppDbContext
             if (entry.Entity is PasswordResetToken) continue;
             if (entry.State is not (EntityState.Added or EntityState.Modified or EntityState.Deleted)) continue;
 
+            // Authentication handlers add explicit, correctly attributed login
+            // events. Do not add a second anonymous User update just because
+            // LastLoginAt, lockout state or the failed-attempt counter changed.
+            if (entry.Entity is User && userId is null && entry.State == EntityState.Modified)
+            {
+                var changedNames = entry.Properties
+                    .Where(p => p.IsModified)
+                    .Select(p => p.Metadata.Name)
+                    .ToHashSet(StringComparer.Ordinal);
+                if (changedNames.Count > 0 && changedNames.All(name => name is nameof(User.LastLoginAt)
+                    or nameof(User.FailedLoginAttempts) or nameof(User.LockedUntil) or nameof(BaseEntity.UpdatedAt)))
+                    continue;
+            }
+
             var clrType = entry.Entity.GetType();
             var idProp = clrType.GetProperty("Id");
             var idValue = idProp?.GetValue(entry.Entity)?.ToString() ?? string.Empty;
@@ -299,6 +313,7 @@ public class AppDbContext : DbContext, IAppDbContext
                 EntityName = clrType.Name,
                 EntityId = idValue,
                 Action = action,
+                Category = "Data",
                 OldValues = oldValuesJson,
                 NewValues = newValuesJson
             });

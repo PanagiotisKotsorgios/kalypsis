@@ -256,6 +256,7 @@ const navByRole: Record<Role, NavItem[]> = {
 
     // BackOffice → ΔΙΟΙΚΗΣΗ
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
+    { to: "/audit", labelKey: "nav.audit", icon: <GavelIcon />, package: "BackOffice", group: "admin" },
     { to: "/customer-merge", labelKey: "nav.merge", icon: <MergeIcon />, package: "BackOffice", group: "admin" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "BackOffice", group: "admin" },
 

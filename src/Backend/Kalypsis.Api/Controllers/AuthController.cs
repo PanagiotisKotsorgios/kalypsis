@@ -18,7 +18,11 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new LoginCommand(request.Email, request.Password), cancellationToken);
+        var result = await _mediator.Send(new LoginCommand(
+            request.Email,
+            request.Password,
+            HttpContext.Connection.RemoteIpAddress?.ToString(),
+            Request.Headers.UserAgent.ToString()), cancellationToken);
         return Ok(result);
     }
 
