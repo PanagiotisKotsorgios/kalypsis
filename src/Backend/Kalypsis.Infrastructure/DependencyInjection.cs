@@ -4,6 +4,7 @@ using Kalypsis.Infrastructure.Billing;
 using Kalypsis.Infrastructure.Carriers;
 using Kalypsis.Infrastructure.Commissions;
 using Kalypsis.Infrastructure.Integrations;
+using Kalypsis.Infrastructure.Pdf;
 using Kalypsis.Infrastructure.Persistence;
 using Kalypsis.Infrastructure.Reports;
 using Kalypsis.Infrastructure.Scheduling;
@@ -42,6 +43,7 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
+        services.AddSingleton<IInvoicePdfRenderer, InvoicePdfRenderer>();
 
         services.AddHttpClient("brevo");
         services.AddScoped<IEmailSender, BrevoEmailSender>();

@@ -191,6 +191,10 @@ public class AppDbContext : DbContext, IAppDbContext
     // Public signup queue
     public DbSet<RegistrationRequest> RegistrationRequests => Set<RegistrationRequest>();
 
+    // Phase 15 — invoicing
+    public DbSet<TenantInvoice> TenantInvoices => Set<TenantInvoice>();
+    public DbSet<TenantInvoiceLine> TenantInvoiceLines => Set<TenantInvoiceLine>();
+
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
 
     // PlatformAdmin / PlatformEmployee normally bypass the tenant filter, but

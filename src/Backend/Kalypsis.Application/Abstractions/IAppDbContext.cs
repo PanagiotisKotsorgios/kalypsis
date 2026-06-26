@@ -188,5 +188,9 @@ public interface IAppDbContext
     // Public signup queue — reviewed by the platform superadmin
     DbSet<RegistrationRequest> RegistrationRequests { get; }
 
+    // Phase 15 — Per-tenant invoicing (lines derived from TenantPackageGrants)
+    DbSet<TenantInvoice> TenantInvoices { get; }
+    DbSet<TenantInvoiceLine> TenantInvoiceLines { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

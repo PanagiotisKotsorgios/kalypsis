@@ -19,4 +19,13 @@ public class TenantPackageGrant : BaseEntity
     public Guid? EnabledByUserId { get; set; }
 
     public string? Notes { get; set; }
+
+    /// <summary>
+    /// Bespoke monthly price the superadmin negotiated with this tenant for
+    /// this package, in <see cref="Currency"/>. Null until the superadmin
+    /// records a price — invoice generation skips lines with null prices
+    /// (caller treats the grant as "trial / not yet priced").
+    /// </summary>
+    public decimal? MonthlyPrice { get; set; }
+    public string Currency { get; set; } = "EUR";
 }

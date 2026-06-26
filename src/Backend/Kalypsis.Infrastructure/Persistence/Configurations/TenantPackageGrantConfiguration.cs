@@ -14,5 +14,7 @@ public class TenantPackageGrantConfiguration : IEntityTypeConfiguration<TenantPa
             .HasFilter("`DeletedAt` IS NULL");
         b.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
         b.Property(x => x.Notes).HasMaxLength(500);
+        b.Property(x => x.MonthlyPrice).HasColumnType("decimal(12,2)");
+        b.Property(x => x.Currency).HasMaxLength(3).IsRequired();
     }
 }

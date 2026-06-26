@@ -35,6 +35,7 @@
     "audit": "Audit Log",
     "allUsers": "All Users",
     "registrations": "Registration Requests",
+    "invoices": "Invoices",
     "agencySettings": "Agency Settings",
     "contracts": "Contracts",
     "comingSoonChip": "Soon",
@@ -1414,6 +1415,57 @@
         "emailFailed": "Account was created but the welcome email failed: {{error}}. Send the credentials manually.",
         "emailSkipped": "No email was sent. Share the credentials with the user manually."
       }
+    }
+  },
+  "billing": {
+    "title": "Tenant billing",
+    "subtitle": "Set a price per package for each tenant. Numbers stream live from active grants.",
+    "kpi": { "mrr": "MRR", "arr": "ARR", "tenants": "Billed tenants", "arpa": "Avg monthly / tenant" },
+    "byPackage": "Revenue by package",
+    "tenants": "tenants",
+    "priced": "priced",
+    "openInvoices": "Invoices",
+    "col": { "tenant": "Tenant", "total": "Monthly total" },
+    "empty": "No tenants on the platform yet.",
+    "errors": { "invalidPrice": "Price must be a non-negative number." }
+  },
+  "invoices": {
+    "title": "Invoices",
+    "subtitle": "View, generate and email monthly invoices to tenants.",
+    "generate": "Generate month",
+    "openBilling": "Billing",
+    "empty": "No invoices match the current filters.",
+    "filter": { "year": "Year", "month": "Month" },
+    "col": { "number": "Number", "tenant": "Tenant", "period": "Period", "due": "Due", "total": "Total" },
+    "status": {
+      "Draft": "Draft", "Issued": "Issued", "Sent": "Sent",
+      "Paid": "Paid", "Overdue": "Overdue", "Cancelled": "Cancelled"
+    },
+    "actions": { "view": "View", "downloadPdf": "Download PDF" },
+    "generateDialog": {
+      "title": "Generate month",
+      "lead": "Creates one invoice per tenant with priced active packages for the selected period. Tenants without priced packages are skipped.",
+      "vatRate": "VAT rate",
+      "vatRateHelp": "E.g. 24 for 24% VAT. Use 0 for no VAT.",
+      "done": "Done.",
+      "created": "Created: {{count}} invoices",
+      "skippedExisting": "Skipped (already issued): {{count}}",
+      "skippedUnpriced": "Skipped (no priced packages): {{count}}"
+    },
+    "lineCol": { "description": "Description", "qty": "Qty", "unit": "Unit price", "total": "Total" },
+    "detail": {
+      "title": "Invoice details",
+      "subtotal": "Subtotal",
+      "vat": "VAT {{rate}}%",
+      "total": "Total",
+      "send": "Send via email",
+      "overrideEmail": "Override recipient email",
+      "overrideEmailPlaceholder": "e.g. accounting@agency.gr — leave empty to use the tenant's email",
+      "sendEmail": "Send",
+      "emailSent": "Email sent to {{to}}.",
+      "emailFailed": "Send failed: {{error}}",
+      "statusActions": "Status",
+      "confirmDelete": "Delete this invoice? This cannot be undone."
     }
   },
   "ws": {

@@ -109,6 +109,8 @@ import { ProductionStatsPage } from "./pages/ProductionStatsPage";
 import { TenantDetailPage } from "./pages/TenantDetailPage";
 import { PlatformPartnersPage } from "./pages/PlatformPartnersPage";
 import { PlatformRegistrationsPage } from "./pages/PlatformRegistrationsPage";
+import { PlatformBillingConfigPage } from "./pages/PlatformBillingConfigPage";
+import { PlatformInvoicesPage } from "./pages/PlatformInvoicesPage";
 import { CommissionRunsPage } from "./pages/CommissionRunsPage";
 import { CompanyBridgesPage } from "./pages/CompanyBridgesPage";
 import { QuoteBuilderPage } from "./pages/QuoteBuilderPage";
@@ -195,7 +197,7 @@ import { BridgeImportPage } from "./pages/BridgeImportPage";
 import { CarrierBridgesPage } from "./pages/CarrierBridgesPage";
 import { ProductionListsPage } from "./pages/ProductionListsPage";
 import {
-  SubscriptionPlansPage, PlatformBillingPage, BroadcastPage, PlatformTranslationsPage,
+  SubscriptionPlansPage, BroadcastPage, PlatformTranslationsPage,
   PlatformBrandingPage, PlatformApiKeysPage, PlatformIntegrationsPage, PlatformBackupsPage,
   PlatformStoragePage, PlatformJobsPage, PlatformStatusPage, PlatformCompliancePage, PlatformSupportPage
 } from "./pages/PlatformAdminPages";
@@ -352,6 +354,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/platform/parametric-files", labelKey: "nav.broadcastParametric", icon: <InventoryIcon /> },
     { to: "/platform/plans", labelKey: "nav.subscriptionPlans", icon: <CreditCardIcon /> },
     { to: "/platform/billing", labelKey: "nav.billing", icon: <PaymentsIcon /> },
+    { to: "/platform/invoices", labelKey: "nav.invoices", icon: <ReceiptLongIcon /> },
     { to: "/platform/email-templates", labelKey: "nav.emailTemplates", icon: <EmailIcon /> },
     { to: "/platform/broadcast", labelKey: "nav.broadcast", icon: <CampaignIcon /> },
     { to: "/platform/i18n", labelKey: "nav.translations", icon: <TranslateIcon /> },
@@ -561,7 +564,8 @@ export default function App() {
                   <Route path="carrier-bridges" element={<CarrierBridgesPage />} />
                   <Route path="production-lists" element={<ProductionListsPage />} />
                   <Route path="platform/plans" element={<SubscriptionPlansPage />} />
-                  <Route path="platform/billing" element={<PlatformBillingPage />} />
+                  <Route path="platform/billing" element={<PlatformBillingConfigPage />} />
+                  <Route path="platform/invoices" element={<PlatformInvoicesPage />} />
                   <Route path="platform/broadcast" element={<BroadcastPage />} />
                   <Route path="platform/i18n" element={<PlatformTranslationsPage />} />
                   <Route path="platform/branding" element={<PlatformBrandingPage />} />
