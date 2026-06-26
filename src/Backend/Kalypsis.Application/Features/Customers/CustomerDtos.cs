@@ -22,14 +22,15 @@ public record CreateCustomerRequest(
     string? LastName,
     string? CompanyName,
     string? VatNumber,
-    string Email,
+    string? Email,
     string? Phone,
     string? Address,
     string? City,
     string? PostalCode,
     DateOnly? BirthDate,
     string? Notes,
-    bool CreatePortalAccount);
+    bool CreatePortalAccount,
+    string? Occupation = null);
 
 public record CreateCustomerResponse(
     CustomerDto Customer,

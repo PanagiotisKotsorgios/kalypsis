@@ -6,7 +6,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Kalypsis.Application.Features.Customers;
 
-public record ListCustomersQuery(string? Search) : IRequest<IReadOnlyList<CustomerDto>>;
+public record ListCustomersQuery(
+    string? Search,
+    string? Occupation = null,
+    string? NeedKind = null,
+    bool? OnlyUninsuredNeeds = null) : IRequest<IReadOnlyList<CustomerDto>>;
 
 public class ListCustomersQueryHandler : IRequestHandler<ListCustomersQuery, IReadOnlyList<CustomerDto>>
 {
@@ -51,6 +55,22 @@ public class ListCustomersQueryHandler : IRequestHandler<ListCustomersQuery, IRe
                 EF.Functions.Like(c.Phone ?? "", s) ||
                 EF.Functions.Like(c.VatNumber ?? "", s) ||
                 EF.Functions.Like(c.CustomerNumber, s));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Occupation))
+        {
+            var occupation = $"%{request.Occupation.Trim()}%";
+            q = q.Where(c => EF.Functions.Like(c.Occupation ?? "", occupation)
+                || EF.Functions.Like(c.Employer ?? "", occupation));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.NeedKind))
+        {
+            var matchingNeedCustomers = _db.CustomerInsuranceNeeds.IgnoreQueryFilters()
+                .Where(n => n.TenantId == tenantId && n.DeletedAt == null && n.Kind == request.NeedKind && n.HasAsset);
+            if (request.OnlyUninsuredNeeds == true)
+                matchingNeedCustomers = matchingNeedCustomers.Where(n => !n.IsInsured);
+            q = q.Where(c => matchingNeedCustomers.Select(n => n.CustomerId).Contains(c.Id));
         }
 
         return await q

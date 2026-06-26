@@ -16,8 +16,13 @@ public class CustomersController : ControllerBase
     // GET is open to any authed user — the handler scopes Customer and Producer
     // roles to their own slice; AgencyStaff sees the full tenant.
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<CustomerDto>>> List([FromQuery] string? search, CancellationToken cancellationToken)
-        => Ok(await _mediator.Send(new ListCustomersQuery(search), cancellationToken));
+    public async Task<ActionResult<IReadOnlyList<CustomerDto>>> List(
+        [FromQuery] string? search,
+        [FromQuery] string? occupation,
+        [FromQuery] string? needKind,
+        [FromQuery] bool? onlyUninsuredNeeds,
+        CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(new ListCustomersQuery(search, occupation, needKind, onlyUninsuredNeeds), cancellationToken));
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<CustomerDto>> Get(Guid id, CancellationToken ct)

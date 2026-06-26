@@ -36,6 +36,7 @@ import { useTableState } from "../components/useTableState";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 
 type CustomerType = "Individual" | "Company";
+const NEED_KINDS = ["Home", "Vehicle", "Health", "Life", "Business", "Travel", "Pet", "Liability", "Cyber", "Other"] as const;
 
 interface CustomerDto {
   id: string;
@@ -58,11 +59,12 @@ interface CreateBody {
   lastName?: string;
   companyName?: string;
   vatNumber?: string;
-  email: string;
+  email?: string;
   phone?: string;
   address?: string;
   city?: string;
   postalCode?: string;
+  occupation?: string;
   notes?: string;
   createPortalAccount: boolean;
 }
@@ -77,14 +79,22 @@ export function CustomersPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const [occupationFilter, setOccupationFilter] = useState("");
+  const [needKind, setNeedKind] = useState("");
+  const [onlyUninsuredNeeds, setOnlyUninsuredNeeds] = useState(false);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdCreds, setCreatedCreds] = useState<{ email: string; password: string } | null>(null);
 
   const customersQuery = useQuery({
-    queryKey: ["customers", search],
+    queryKey: ["customers", search, occupationFilter, needKind, onlyUninsuredNeeds],
     queryFn: async () =>
-      (await api.get<CustomerDto[]>("/customers", { params: search ? { search } : {} })).data
+      (await api.get<CustomerDto[]>("/customers", { params: {
+        search: search || undefined,
+        occupation: occupationFilter || undefined,
+        needKind: needKind || undefined,
+        onlyUninsuredNeeds: needKind && onlyUninsuredNeeds ? true : undefined
+      } })).data
   });
 
   const createMutation = useMutation({
@@ -123,19 +133,33 @@ export function CustomersPage() {
       </Stack>
 
       <Card sx={{ mb: 2, p: 2 }} data-tour="customers-search">
-        <TextField
-          fullWidth
-          placeholder={t("customers.searchPlaceholder")}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon color="action" />
-              </InputAdornment>
-            )
-          }}
-        />
+        <Stack spacing={1.5}>
+          <TextField
+            fullWidth
+            placeholder={t("customers.searchPlaceholder")}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon color="action" />
+                </InputAdornment>
+              )
+            }}
+          />
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }}>
+            <TextField size="small" label="Επάγγελμα / κλάδος" value={occupationFilter}
+              onChange={(e) => setOccupationFilter(e.target.value)} sx={{ minWidth: { md: 250 } }}
+              placeholder="π.χ. εστίαση" />
+            <TextField select size="small" label="Ανάγκη / περιουσία" value={needKind}
+              onChange={(e) => setNeedKind(e.target.value)} sx={{ minWidth: { md: 210 } }}>
+              <MenuItem value="">Όλες</MenuItem>
+              {NEED_KINDS.map(kind => <MenuItem key={kind} value={kind}>{kind}</MenuItem>)}
+            </TextField>
+            <FormControlLabel control={<Switch checked={onlyUninsuredNeeds} disabled={!needKind}
+              onChange={(e) => setOnlyUninsuredNeeds(e.target.checked)} />} label="Μόνο χωρίς ενεργή κάλυψη" />
+          </Stack>
+        </Stack>
       </Card>
 
       {error && (
@@ -281,6 +305,7 @@ function CreateCustomerDialog({
     address: "",
     city: "",
     postalCode: "",
+    occupation: "",
     notes: "",
     createPortalAccount: true
   });
@@ -352,12 +377,20 @@ function CreateCustomerDialog({
           )}
 
           <TextField
+            label={form.type === "Company" ? "Κλάδος / δραστηριότητα" : "Επάγγελμα"}
+            value={form.occupation}
+            onChange={(e) => setForm({ ...form, occupation: e.target.value })}
+            fullWidth
+            placeholder={form.type === "Company" ? "π.χ. Εστίαση, ξενοδοχείο, εμπόριο" : "π.χ. Ελεύθερος επαγγελματίας"}
+          />
+
+          <TextField
             label={t("customers.email")}
             type="email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             fullWidth
-            required
+            required={form.createPortalAccount}
           />
           <TextField
             label={t("customers.phone")}

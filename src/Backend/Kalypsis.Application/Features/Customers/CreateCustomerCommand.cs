@@ -15,7 +15,8 @@ public class CreateCustomerCommandValidator : AbstractValidator<CreateCustomerCo
 {
     public CreateCustomerCommandValidator()
     {
-        RuleFor(x => x.Request.Email).NotEmpty().EmailAddress();
+        When(x => x.Request.CreatePortalAccount, () => RuleFor(x => x.Request.Email).NotEmpty().EmailAddress());
+        When(x => !string.IsNullOrWhiteSpace(x.Request.Email), () => RuleFor(x => x.Request.Email).EmailAddress());
         When(x => x.Request.Type == CustomerType.Individual, () =>
         {
             RuleFor(x => x.Request.FirstName).NotEmpty().MaximumLength(100);
@@ -48,11 +49,11 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             ?? throw AppException.Forbidden();
 
         var r = request.Request;
-        var email = r.Email.Trim().ToLowerInvariant();
+        var email = string.IsNullOrWhiteSpace(r.Email) ? null : r.Email.Trim().ToLowerInvariant();
 
         if (r.CreatePortalAccount)
         {
-            var emailExists = await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Email == email, cancellationToken);
+            var emailExists = await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Email == email!, cancellationToken);
             if (emailExists) throw new AppException("email_taken",
                 $"Υπάρχει ήδη λογαριασμός με email '{email}'.", 409,
                 title: "Email σε χρήση",
@@ -84,6 +85,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             City = r.City?.Trim(),
             PostalCode = r.PostalCode?.Trim(),
             BirthDate = r.BirthDate,
+            Occupation = r.Occupation?.Trim(),
             Notes = r.Notes?.Trim()
         };
         _db.Customers.Add(customer);
@@ -96,7 +98,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             {
                 Id = Guid.NewGuid(),
                 TenantId = tenantId,
-                Email = email,
+                Email = email!,
                 PasswordHash = _hasher.Hash(tempPassword),
                 FirstName = r.Type == CustomerType.Individual ? (r.FirstName ?? "Πελάτης") : "Επικοινωνία",
                 LastName = r.Type == CustomerType.Individual ? (r.LastName ?? "") : (r.CompanyName ?? ""),

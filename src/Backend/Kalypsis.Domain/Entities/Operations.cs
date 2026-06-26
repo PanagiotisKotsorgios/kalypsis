@@ -8,12 +8,20 @@ public class MarketingCampaign : TenantEntity
     public string Name { get; set; } = string.Empty;
     public string Subject { get; set; } = string.Empty;
     public string BodyHtml { get; set; } = string.Empty;
+    public string? SmsBody { get; set; }
+    public string? ViberBody { get; set; }
+    /// <summary>JSON array of Email, Sms and/or Viber.</summary>
+    public string ChannelsJson { get; set; } = "[\"Email\"]";
 
     public string? SegmentKey { get; set; }
+    public string? OccupationFilter { get; set; }
+    public string? NeedKindFilter { get; set; }
+    public bool OnlyUninsuredNeeds { get; set; }
     public CampaignStatus Status { get; set; } = CampaignStatus.Draft;
 
     public int Recipients { get; set; }
     public int Sent { get; set; }
+    public int Failed { get; set; }
     public DateTime? SentAt { get; set; }
     public DateTime? ScheduledFor { get; set; }
 }

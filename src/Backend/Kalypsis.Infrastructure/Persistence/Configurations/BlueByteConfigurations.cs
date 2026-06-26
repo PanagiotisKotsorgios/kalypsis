@@ -204,7 +204,12 @@ public class MarketingCampaignConfiguration : IEntityTypeConfiguration<Marketing
         b.Property(x => x.Name).HasMaxLength(200).IsRequired();
         b.Property(x => x.Subject).HasMaxLength(300).IsRequired();
         b.Property(x => x.BodyHtml).HasColumnType("longtext");
+        b.Property(x => x.SmsBody).HasMaxLength(1600);
+        b.Property(x => x.ViberBody).HasMaxLength(4000);
+        b.Property(x => x.ChannelsJson).HasMaxLength(200).IsRequired();
         b.Property(x => x.SegmentKey).HasMaxLength(80);
+        b.Property(x => x.OccupationFilter).HasMaxLength(120);
+        b.Property(x => x.NeedKindFilter).HasMaxLength(40);
         b.Property(x => x.Status).HasConversion<int>();
         b.HasIndex(x => new { x.TenantId, x.Status });
     }

@@ -22,6 +22,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<CustomerRelationship> CustomerRelationships => Set<CustomerRelationship>();
+    public DbSet<CustomerInsuranceNeed> CustomerInsuranceNeeds => Set<CustomerInsuranceNeed>();
     public DbSet<Producer> Producers => Set<Producer>();
     public DbSet<InsuranceCompany> InsuranceCompanies => Set<InsuranceCompany>();
     public DbSet<Policy> Policies => Set<Policy>();

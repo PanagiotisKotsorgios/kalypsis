@@ -29,7 +29,7 @@ public static class PermissionCatalog
         "financials.read",
         "commissions.read", "commissions.run",
         "overcommissions.read", "overcommissions.write",
-        "marketing.read", "marketing.send",
+        "marketing.read", "marketing.write", "marketing.send",
         "delivery.read", "delivery.write",
         "production.read",
         "goals.read", "goals.write",

@@ -160,11 +160,11 @@ public class BankConnectionsController : ControllerBase
 public class MarketingCampaignsController : ControllerBase
 {
     private readonly IMediator _m; public MarketingCampaignsController(IMediator m) => _m = m;
-    [HttpGet] public async Task<ActionResult<IReadOnlyList<MarketingCampaignDto>>> List(CancellationToken ct) => Ok(await _m.Send(new ListMarketingCampaignsQuery(), ct));
-    [HttpPost] public async Task<ActionResult<MarketingCampaignDto>> Create([FromBody] MarketingCampaignBody body, CancellationToken ct) => Ok(await _m.Send(new CreateMarketingCampaignCommand(body), ct));
-    [HttpPut("{id:guid}")] public async Task<ActionResult<MarketingCampaignDto>> Update(Guid id, [FromBody] MarketingCampaignBody body, CancellationToken ct) => Ok(await _m.Send(new UpdateMarketingCampaignCommand(id, body), ct));
-    [HttpPost("{id:guid}/send")] public async Task<ActionResult<MarketingCampaignDto>> Send(Guid id, CancellationToken ct) => Ok(await _m.Send(new SendMarketingCampaignCommand(id), ct));
-    [HttpDelete("{id:guid}")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteMarketingCampaignCommand(id), ct); return NoContent(); }
+    [HttpGet] [RequirePermission("marketing.read")] public async Task<ActionResult<IReadOnlyList<MarketingCampaignDto>>> List(CancellationToken ct) => Ok(await _m.Send(new ListMarketingCampaignsQuery(), ct));
+    [HttpPost] [RequirePermission("marketing.write")] public async Task<ActionResult<MarketingCampaignDto>> Create([FromBody] MarketingCampaignBody body, CancellationToken ct) => Ok(await _m.Send(new CreateMarketingCampaignCommand(body), ct));
+    [HttpPut("{id:guid}")] [RequirePermission("marketing.write")] public async Task<ActionResult<MarketingCampaignDto>> Update(Guid id, [FromBody] MarketingCampaignBody body, CancellationToken ct) => Ok(await _m.Send(new UpdateMarketingCampaignCommand(id, body), ct));
+    [HttpPost("{id:guid}/send")] [RequirePermission("marketing.send")] public async Task<ActionResult<MarketingCampaignDto>> Send(Guid id, CancellationToken ct) => Ok(await _m.Send(new SendMarketingCampaignCommand(id), ct));
+    [HttpDelete("{id:guid}")] [RequirePermission("marketing.write")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteMarketingCampaignCommand(id), ct); return NoContent(); }
 }
 
 [ApiController]

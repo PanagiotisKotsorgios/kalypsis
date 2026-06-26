@@ -8,6 +8,7 @@ public enum ConsentType
 {
     EmailMarketing = 1,
     SmsMarketing = 2,
+    ViberMarketing = 6,
     PhoneMarketing = 3,
     AutomatedDecisionMaking = 4,
     DataSharingPartners = 5
