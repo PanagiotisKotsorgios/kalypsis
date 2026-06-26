@@ -31,8 +31,33 @@ const GROUPS: { key: string; codes: string[] }[] = [
   { key: "commissions", codes: ["commissions.read","commissions.run","overcommissions.read","overcommissions.write"] },
   { key: "marketing", codes: ["marketing.read","marketing.send","delivery.read","delivery.write"] },
   { key: "production", codes: ["production.read","goals.read","goals.write"] },
-  { key: "bridges", codes: ["bridges.read","bridges.sync","exports.run"] }
+  { key: "bridges", codes: ["bridges.read","bridges.sync","exports.run"] },
+  // ΠΑΡΑΜΕΤΡΟΠΟΙΗΣΗ — admin grants these to employees so they can configure
+  // the agency. `params.read` is the master view-only switch; the individual
+  // .write/.run flags are per-area so the admin can decide what an
+  // employee may actually change. No delete flags here on purpose — deleting
+  // an insurance company / commission rule stays AgencyAdmin-only.
+  { key: "params", codes: [
+    "params.read",
+    "lookups.write",
+    "insuranceCompanies.write",
+    "commissionRules.write",
+    "bulkCommissions.run",
+    "defaultValueRules.write",
+    "parametricFiles.write",
+    "documentDesigner.write",
+    "configHub.write"
+  ] }
 ];
+
+/** Friendly Greek/English label per code. Falls back to the raw code if a
+ *  translation is missing, so a future code added without a label still
+ *  renders (instead of disappearing). */
+function labelForCode(code: string, t: (k: string, fallback?: string) => string) {
+  // i18n looks up permissions.code.X — fall back to the raw code so unknown
+  // permissions still surface (better than blank labels).
+  return t(`permissions.code.${code}`, code);
+}
 
 export function UserPermissionsDialog({ userId, onClose }: { userId: string | null; onClose: () => void }) {
   const { t } = useTranslation();
@@ -187,7 +212,7 @@ export function UserPermissionsDialog({ userId, onClose }: { userId: string | nu
                       {g.codes.map(c => (
                         <FormControlLabel key={c} control={
                           <Checkbox size="small" checked={selected.has(c)} onChange={() => toggle(c)} />
-                        } label={<Typography variant="body2" sx={{ fontFamily: "monospace" }}>{c}</Typography>} />
+                        } label={<Typography variant="body2">{labelForCode(c, t as any)}</Typography>} />
                       ))}
                     </Box>
                   </Box>
@@ -256,11 +281,10 @@ export function UserPermissionsDialog({ userId, onClose }: { userId: string | nu
                       </Typography>
                       <Stack direction="row" spacing={0.75} flexWrap="wrap" gap={0.75} mt={0.5}>
                         {enabled.map(c =>
-                          <Chip key={c} size="small" color="success" label={c}
-                            sx={{ fontFamily: "monospace" }} />)}
+                          <Chip key={c} size="small" color="success" label={labelForCode(c, t as any)} />)}
                         {blocked.map(c =>
-                          <Chip key={c} size="small" variant="outlined" label={c}
-                            sx={{ fontFamily: "monospace", color: "text.disabled" }} />)}
+                          <Chip key={c} size="small" variant="outlined" label={labelForCode(c, t as any)}
+                            sx={{ color: "text.disabled" }} />)}
                       </Stack>
                     </Box>
                   );
