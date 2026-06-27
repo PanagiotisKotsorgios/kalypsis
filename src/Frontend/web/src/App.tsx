@@ -133,6 +133,7 @@ import { CommissionRulesPage } from "./pages/CommissionRulesPage";
 import { ReferenceCatalogsPage } from "./pages/ReferenceCatalogsPage";
 import { ParametricFilesPage } from "./pages/ParametricFilesPage";
 import { PlatformParametricFilesPage } from "./pages/PlatformParametricFilesPage";
+import { PlatformCompanyParametersPage } from "./pages/PlatformCompanyParametersPage";
 import { GaragesPage } from "./pages/GaragesPage";
 import { ClaimProvisionsPage } from "./pages/ClaimProvisionsPage";
 import { ClaimIndemnitiesPage } from "./pages/ClaimIndemnitiesPage";
@@ -326,6 +327,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/platform/showcase-images", labelKey: "nav.showcaseImages", icon: <ImageIcon /> },
     { to: "/platform/maintenance", labelKey: "nav.maintenance", icon: <EngineeringIcon /> },
     { to: "/platform/parametric-files", labelKey: "nav.broadcastParametric", icon: <InventoryIcon /> },
+    { to: "/platform/company-parameters", labelKey: "nav.companyParameters", icon: <TuneOutlinedIcon /> },
     { to: "/platform/plans", labelKey: "nav.subscriptionPlans", icon: <CreditCardIcon /> },
     { to: "/platform/billing", labelKey: "nav.billing", icon: <PaymentsIcon /> },
     { to: "/platform/invoices", labelKey: "nav.invoices", icon: <ReceiptLongIcon /> },
@@ -509,6 +511,7 @@ export default function App() {
                   <Route path="lookups" element={<ReferenceCatalogsPage />} />
                   <Route path="parametric-files" element={<ParametricFilesPage />} />
                   <Route path="platform/parametric-files" element={<PlatformParametricFilesPage />} />
+                  <Route path="platform/company-parameters" element={<PlatformCompanyParametersPage />} />
                   <Route path="quote-builder" element={<QuoteBuilderPage />} />
                   <Route path="workflows" element={<WorkflowRulesPage />} />
                   <Route path="churn" element={<ChurnDashboardPage />} />

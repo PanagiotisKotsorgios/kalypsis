@@ -22,6 +22,11 @@ public class CommissionRulesController : ControllerBase
     public async Task<ActionResult<CommissionRuleDto>> Create([FromBody] CommissionRuleBody body, CancellationToken ct)
         => Ok(await _mediator.Send(new CreateCommissionRuleCommand(body), ct));
 
+    [HttpPost("batch")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<CommissionRuleBatchResult>> UpsertBatch([FromBody] CommissionRuleBatchBody body, CancellationToken ct)
+        => Ok(await _mediator.Send(new UpsertCommissionRuleBatchCommand(body), ct));
+
     [HttpPut("{id:guid}")]
     [Authorize(Policy = "AgencyAdmin")]
     public async Task<ActionResult<CommissionRuleDto>> Update(Guid id, [FromBody] CommissionRuleBody body, CancellationToken ct)

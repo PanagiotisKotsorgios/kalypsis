@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
+  Alert, Autocomplete, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
   DialogTitle, IconButton, MenuItem, Stack, Table, TableBody,
   TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
@@ -50,6 +50,16 @@ const USE_TYPES: VehicleUse[] = ["EIX","EDX","FIX","FDX","LIX","LDX","Motorcycle
 
 interface CompanyLite { id: string; name: string; }
 interface ProducerLite { id: string; name: string; tier?: ProducerTier; }
+type ParameterKind = "Branch" | "Coverage" | "Use" | "Package" | "BridgeCode" | "Field" | "Other";
+interface CompanyParameterItem {
+  id: string;
+  kind: ParameterKind;
+  code: string;
+  name: string;
+  policyType: PolicyType | null;
+  vehicleUseCategory: VehicleUse | null;
+  parentCode: string | null;
+}
 
 const TIER_LABEL: Record<ProducerTier, string> = {
   A: "Κατ. Α", B: "Κατ. Β", C: "Κατ. Γ", D: "Κατ. Δ", E: "Κατ. Ε", None: "—"
@@ -357,9 +367,9 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
   const [form, setForm] = useState({
     scope: "tier" as "tier" | "producer" | "all",
     insuranceCompanyId: "",
-    policyType: "" as PolicyType | "",
-    vehicleUseCategory: "None" as VehicleUse,
-    coverCode: "",
+    policyTypes: [] as PolicyType[],
+    vehicleUseCategories: [] as VehicleUse[],
+    coverCodes: [] as string[],
     producerId: "",
     producerTier: "None" as ProducerTier,
     agencyPercent: 0,
@@ -367,16 +377,58 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
     effectiveFrom: today,
     effectiveTo: ""
   });
+  const [manualCode, setManualCode] = useState("");
   const [err, setErr] = useState<string | null>(null);
+
+  const parameters = useQuery({
+    queryKey: ["company-parameters-for-commissions", form.insuranceCompanyId],
+    queryFn: async () => (await api.get<CompanyParameterItem[]>("/company-parameters", {
+      params: form.insuranceCompanyId ? { insuranceCompanyId: form.insuranceCompanyId } : {}
+    })).data,
+    enabled: open
+  });
+
+  const branchOptions = useMemo(() => {
+    const fromParams = (parameters.data ?? [])
+      .filter(p => p.kind === "Branch" && p.policyType)
+      .map(p => p.policyType!)
+      .filter((p, i, arr) => arr.indexOf(p) === i);
+    return fromParams.length > 0 ? fromParams : POLICY_TYPES;
+  }, [parameters.data]);
+
+  const useOptions = useMemo(() => {
+    const fromParams = (parameters.data ?? [])
+      .filter(p => p.kind === "Use" && p.vehicleUseCategory && p.vehicleUseCategory !== "None")
+      .map(p => p.vehicleUseCategory!)
+      .filter((p, i, arr) => arr.indexOf(p) === i);
+    return fromParams.length > 0 ? fromParams : USE_TYPES;
+  }, [parameters.data]);
+
+  const codeOptions = useMemo(() => {
+    const selectedBranches = form.policyTypes;
+    const fromParams = (parameters.data ?? [])
+      .filter(p => (p.kind === "Coverage" || p.kind === "Package") && p.code)
+      .filter(p => selectedBranches.length === 0 || !p.policyType || selectedBranches.includes(p.policyType))
+      .map(p => ({
+        code: p.code,
+        label: `${p.name} (${p.code})`,
+        kind: p.kind,
+        policyType: p.policyType
+      }));
+    const byCode = new Map<string, typeof fromParams[number]>();
+    for (const item of fromParams) byCode.set(item.code, item);
+    for (const code of form.coverCodes) if (!byCode.has(code)) byCode.set(code, { code, label: code, kind: "Coverage", policyType: null });
+    return Array.from(byCode.values());
+  }, [parameters.data, form.policyTypes, form.coverCodes]);
 
   useEffect(() => {
     if (rule) {
       setForm({
         scope: rule.producerId ? "producer" : (rule.producerTier && rule.producerTier !== "None") ? "tier" : "all",
         insuranceCompanyId: rule.insuranceCompanyId ?? "",
-        policyType: (rule.policyType ?? "") as PolicyType | "",
-        vehicleUseCategory: rule.vehicleUseCategory ?? "None",
-        coverCode: rule.coverCode ?? "",
+        policyTypes: rule.policyType ? [rule.policyType] : [],
+        vehicleUseCategories: rule.vehicleUseCategory && rule.vehicleUseCategory !== "None" ? [rule.vehicleUseCategory] : [],
+        coverCodes: rule.coverCode ? [rule.coverCode] : [],
         producerId: rule.producerId ?? "",
         producerTier: rule.producerTier ?? "None",
         agencyPercent: rule.agencyPercent ?? 0,
@@ -386,89 +438,171 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
       });
     } else if (open) {
       setForm({
-        scope: "tier", insuranceCompanyId: "", policyType: "", vehicleUseCategory: "None", coverCode: "",
-        producerId: "", producerTier: "None",
-        agencyPercent: 0, producerPercent: 15,
-        effectiveFrom: today, effectiveTo: ""
+        scope: "tier",
+        insuranceCompanyId: "",
+        policyTypes: [],
+        vehicleUseCategories: [],
+        coverCodes: [],
+        producerId: "",
+        producerTier: "None",
+        agencyPercent: 0,
+        producerPercent: 15,
+        effectiveFrom: today,
+        effectiveTo: ""
       });
+      setManualCode("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rule, open]);
 
+  const combos = useMemo(() => {
+    const policies = form.policyTypes.length > 0 ? form.policyTypes : [null];
+    const covers = form.coverCodes.length > 0 ? form.coverCodes : [null];
+    return policies.reduce((sum, p) => {
+      const uses = p === "Auto" && form.vehicleUseCategories.length > 0 ? form.vehicleUseCategories : [null];
+      return sum + uses.length * covers.length;
+    }, 0);
+  }, [form.policyTypes, form.vehicleUseCategories, form.coverCodes]);
+
+  const addManualCode = () => {
+    const code = manualCode.trim().toUpperCase();
+    if (!code || form.coverCodes.includes(code)) return;
+    setForm({ ...form, coverCodes: [...form.coverCodes, code] });
+    setManualCode("");
+  };
+
   const save = useMutation({
     mutationFn: async () => {
-      const body = {
-        producerId:        form.scope === "producer" ? (form.producerId || null) : null,
-        producerTier:      form.scope === "tier" && form.producerTier !== "None" ? form.producerTier : null,
+      const singleBody = {
+        producerId: form.scope === "producer" ? (form.producerId || null) : null,
+        producerTier: form.scope === "tier" && form.producerTier !== "None" ? form.producerTier : null,
         insuranceCompanyId: form.insuranceCompanyId || null,
-        policyType:        form.policyType || null,
-        vehicleUseCategory: form.vehicleUseCategory !== "None" ? form.vehicleUseCategory : null,
-        coverCode:         form.coverCode.trim().toUpperCase() || null,
-        agencyPercent:     Number.isFinite(form.agencyPercent) ? Number(form.agencyPercent) : null,
-        producerPercent:   Number.isFinite(form.producerPercent) ? Number(form.producerPercent) : null,
-        effectiveFrom:     form.effectiveFrom,
-        effectiveTo:       form.effectiveTo || null
+        policyType: form.policyTypes[0] || null,
+        vehicleUseCategory: form.vehicleUseCategories[0] || null,
+        coverCode: form.coverCodes[0] || null,
+        agencyPercent: Number.isFinite(form.agencyPercent) ? Number(form.agencyPercent) : null,
+        producerPercent: Number.isFinite(form.producerPercent) ? Number(form.producerPercent) : null,
+        effectiveFrom: form.effectiveFrom,
+        effectiveTo: form.effectiveTo || null
       };
-      if (editing) return (await api.put<CommissionRuleDto>(`/commission-rules/${rule!.id}`, body)).data;
-      return (await api.post<CommissionRuleDto>("/commission-rules", body)).data;
+
+      if (editing && combos <= 1) {
+        return (await api.put<CommissionRuleDto>(`/commission-rules/${rule!.id}`, singleBody)).data;
+      }
+
+      return (await api.post("/commission-rules/batch", {
+        producerId: singleBody.producerId,
+        producerTier: singleBody.producerTier,
+        insuranceCompanyId: singleBody.insuranceCompanyId,
+        policyTypes: form.policyTypes,
+        vehicleUseCategories: form.vehicleUseCategories,
+        coverCodes: form.coverCodes,
+        agencyPercent: singleBody.agencyPercent,
+        producerPercent: singleBody.producerPercent,
+        effectiveFrom: form.effectiveFrom,
+        effectiveTo: form.effectiveTo || null,
+        replaceExisting: true
+      })).data;
     },
     onSuccess: onSaved,
     onError: (e) => setErr(extractErrorMessage(e))
   });
 
+  const saveLabel = editing && combos <= 1
+    ? "Αποθήκευση"
+    : `Αποθήκευση ${combos} κανόν${combos === 1 ? "α" : "ων"}`;
+
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-      <DialogTitle>{editing ? "Επεξεργασία κανόνα" : "Νέος κανόνας προμήθειας"}</DialogTitle>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
+      <DialogTitle>{editing ? "Επεξεργασία κανόνα προμήθειας" : "Γρήγορη παραμετροποίηση προμηθειών"}</DialogTitle>
       <DialogContent>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Alert severity="info" sx={{ mb: 2 }}>
-          Αν αφήσετε ένα πεδίο κενό, ο κανόνας ισχύει για όλες τις τιμές. Όταν ταιριάζουν πολλοί κανόνες,
-          ο πιο εξειδικευμένος υπερισχύει. Η <strong>προμήθεια έδρας</strong> από γέφυρες δεν αντικαθίσταται —
-          ο κανόνας προ-υπολογίζει μόνο την προμήθεια συνεργάτη όπου δεν υπάρχει override.
+          Βάζετε μία φορά την προμήθεια έδρας και συνεργάτη και επιλέγετε πολλούς κλάδους, χρήσεις,
+          καλύψεις ή πακέτα. Η αποθήκευση δημιουργεί/ενημερώνει όλους τους αντίστοιχους κανόνες χωρίς διπλές εγγραφές.
         </Alert>
+        {editing && combos > 1 && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Επιλέξατε πολλαπλούς συνδυασμούς ενώ επεξεργάζεστε υπάρχοντα κανόνα. Θα γίνει μαζική ενημέρωση/δημιουργία,
+            όχι διαγραφή παλιών συνδυασμών που δεν επιλέχθηκαν.
+          </Alert>
+        )}
+
         <Stack spacing={2.5} mt={1}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label="Ασφαλιστική εταιρία" value={form.insuranceCompanyId}
-              onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value })} fullWidth>
-              <MenuItem value="">— Όλες οι εταιρίες —</MenuItem>
-              {companies.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-            </TextField>
-            <TextField select label="Κλάδος" value={form.policyType}
-              onChange={e => setForm({ ...form, policyType: e.target.value as PolicyType | "" })} fullWidth>
-              <MenuItem value="">— Όλοι οι κλάδοι —</MenuItem>
-              {POLICY_TYPES.map(p => <MenuItem key={p} value={p}>{TYPE_LABEL[p]}</MenuItem>)}
-            </TextField>
+          <TextField select label="Ασφαλιστική εταιρία" value={form.insuranceCompanyId}
+            onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value, coverCodes: [] })} fullWidth>
+            <MenuItem value="">— Όλες οι εταιρίες —</MenuItem>
+            {companies.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+          </TextField>
+
+          <Autocomplete
+            multiple
+            options={branchOptions}
+            value={form.policyTypes}
+            onChange={(_, value) => setForm({ ...form, policyTypes: value, vehicleUseCategories: value.includes("Auto") ? form.vehicleUseCategories : [] })}
+            getOptionLabel={(value) => TYPE_LABEL[value]}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => <Chip label={TYPE_LABEL[option]} {...getTagProps({ index })} key={option} />)
+            }
+            renderInput={(params) => (
+              <TextField {...params} label="Κλάδοι" helperText="Κενό σημαίνει όλοι οι κλάδοι. Επιλέξτε πολλούς για ίδια προμήθεια." />
+            )}
+          />
+
+          <Autocomplete
+            multiple
+            options={useOptions}
+            value={form.vehicleUseCategories}
+            disabled={form.policyTypes.length > 0 && !form.policyTypes.includes("Auto")}
+            onChange={(_, value) => setForm({ ...form, vehicleUseCategories: value })}
+            getOptionLabel={(value) => USE_LABEL[value]}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => <Chip label={option} {...getTagProps({ index })} key={option} />)
+            }
+            renderInput={(params) => (
+              <TextField {...params} label="Χρήσεις οχήματος" helperText="Κενό σημαίνει όλες οι χρήσεις. Ενεργό όταν ο κλάδος περιέχει Αυτοκίνητο." />
+            )}
+          />
+
+          <Autocomplete
+            multiple
+            options={codeOptions}
+            value={codeOptions.filter(o => form.coverCodes.includes(o.code))}
+            onChange={(_, value) => setForm({ ...form, coverCodes: value.map(v => v.code) })}
+            getOptionLabel={(option) => option.label}
+            isOptionEqualToValue={(a, b) => a.code === b.code}
+            groupBy={(option) => option.kind === "Package" ? "Πακέτα" : "Καλύψεις"}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => <Chip label={option.code} {...getTagProps({ index })} key={option.code} />)
+            }
+            renderInput={(params) => (
+              <TextField {...params} label="Καλύψεις / πακέτα" helperText="Κενό σημαίνει όλες οι καλύψεις και πακέτα." />
+            )}
+          />
+
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <TextField label="Χειροκίνητος κωδικός κάλυψης/πακέτου" value={manualCode}
+              onChange={(e) => setManualCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addManualCode(); } }}
+              fullWidth placeholder="π.χ. MTPL, HOME_PLUS" />
+            <Button variant="outlined" onClick={addManualCode}>Προσθήκη</Button>
           </Stack>
 
-          <TextField select label="Χρήση οχήματος (μόνο για κλάδο Αυτοκίνητο)"
-            value={form.vehicleUseCategory}
-            onChange={e => setForm({ ...form, vehicleUseCategory: e.target.value as VehicleUse })}
-            fullWidth
-            disabled={form.policyType !== "" && form.policyType !== "Auto"}
-            helperText="Διαφορετική προμήθεια ανά χρήση (ΕΙΧ, ΦΔΧ, ταξί κλπ.). Αφήστε «—» για όλες τις χρήσεις.">
-            <MenuItem value="None">— Όλες οι χρήσεις —</MenuItem>
-            {USE_TYPES.map(u => <MenuItem key={u} value={u}>{USE_LABEL[u]}</MenuItem>)}
-          </TextField>
-
-          <TextField select label="Στόχος" value={form.scope}
+          <TextField select label="Στόχος προμήθειας" value={form.scope}
             onChange={e => setForm({ ...form, scope: e.target.value as "tier" | "producer" | "all" })} fullWidth>
-            <MenuItem value="tier">Όλοι οι συνεργάτες μιας κατηγορίας (Α/Β/Γ/Δ/Ε)</MenuItem>
+            <MenuItem value="tier">Κατηγορία συνεργατών (Α/Β/Γ/Δ/Ε)</MenuItem>
             <MenuItem value="producer">Συγκεκριμένος συνεργάτης</MenuItem>
-            <MenuItem value="all">Όλοι οι συνεργάτες (καθολικός κανόνας)</MenuItem>
+            <MenuItem value="all">Όλοι οι συνεργάτες</MenuItem>
           </TextField>
-          <TextField label="Κάλυψη / πακέτο" value={form.coverCode}
-            onChange={e => setForm({ ...form, coverCode: e.target.value.toUpperCase() })}
-            fullWidth
-            placeholder="π.χ. MTPL, BASIC, EXTRA"
-            helperText="Κενό σημαίνει ότι ο κανόνας ισχύει για όλες τις καλύψεις της εταιρείας/κλάδου." />
 
           {form.scope === "tier" && (
             <TextField select label="Κατηγορία συνεργάτη" value={form.producerTier}
               onChange={e => setForm({ ...form, producerTier: e.target.value as ProducerTier })} fullWidth>
-              <MenuItem value="None">— Καμία —</MenuItem>
+              <MenuItem value="None">— Επιλέξτε κατηγορία —</MenuItem>
               {(["A","B","C","D","E"] as const).map(t => <MenuItem key={t} value={t}>{TIER_LABEL[t]}</MenuItem>)}
             </TextField>
           )}
+
           {form.scope === "producer" && (
             <TextField select label="Συνεργάτης" value={form.producerId}
               onChange={e => setForm({ ...form, producerId: e.target.value })} fullWidth>
@@ -481,11 +615,11 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
             <TextField type="number" label="Προμήθεια έδρας %" value={form.agencyPercent}
               onChange={e => setForm({ ...form, agencyPercent: Number(e.target.value) })}
               inputProps={{ step: 0.1, min: 0, max: 100 }} fullWidth
-              helperText="Πληροφοριακό — για bridge-imports δεν υπερισχύει." />
+              helperText="Σύγκριση/έλεγχος με γέφυρες. Η γέφυρα παραμένει source of truth." />
             <TextField type="number" label="Προμήθεια συνεργάτη %" value={form.producerPercent}
               onChange={e => setForm({ ...form, producerPercent: Number(e.target.value) })}
               inputProps={{ step: 0.1, min: 0, max: 100 }} fullWidth required
-              helperText="Χρησιμοποιείται αυτόματα στις Λίστες Παραγωγής & Εκκαθαρίσεις." />
+              helperText="Χρησιμοποιείται αυτόματα σε παραγωγή και εκκαθαρίσεις." />
           </Stack>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -494,6 +628,13 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
             <TextField type="date" label="Ισχύει έως (προαιρετικό)" InputLabelProps={{ shrink: true }} value={form.effectiveTo}
               onChange={e => setForm({ ...form, effectiveTo: e.target.value })} fullWidth />
           </Stack>
+
+          <Card variant="outlined" sx={{ p: 2, bgcolor: "rgba(11,37,69,0.03)" }}>
+            <Typography fontWeight={700}>Προεπισκόπηση</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Θα αποθηκευτούν {combos} συνδυασμοί. Υπάρχοντες ίδιοι συνδυασμοί ενημερώνονται αυτόματα.
+            </Typography>
+          </Card>
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -503,7 +644,7 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
             || (!form.agencyPercent && !form.producerPercent)
             || (form.scope === "producer" && !form.producerId)
             || (form.scope === "tier" && form.producerTier === "None")}>
-          {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
+          {save.isPending ? <CircularProgress size={18} /> : saveLabel}
         </Button>
       </DialogActions>
     </Dialog>

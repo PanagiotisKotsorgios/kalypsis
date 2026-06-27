@@ -120,6 +120,7 @@
       "automation": "Reports & Automation"
     },
     "broadcastParametric": "Carrier Parametric Files",
+    "companyParameters": "Carrier Parameters",
     "coverNotes": "Cover Notes",
     "branchDesigner": "Branch Designer",
     "deliveryTracking": "Contract Delivery",

@@ -96,7 +96,7 @@ public class InsuranceCompaniesController : ControllerBase
         Guid Id, string Name, string Code, string? Country, string? Website, bool IsActive,
         Guid? TenantId, bool IsGlobal,
         Guid? TenantCopyId, bool IsImportedToTenant,
-        Guid? BridgeId, bool BridgeLinked, int CommissionDefaultCount,
+        Guid? BridgeId, bool BridgeLinked, int CommissionDefaultCount, int ParameterItemCount,
         string? AgentCode, string? ContactName, string? ContactEmail, string? ContactPhone,
         string? AfmVat, string? Notes);
 
@@ -139,8 +139,18 @@ public class InsuranceCompaniesController : ControllerBase
                 .GroupBy(r => r.InsuranceCompanyId!.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Count(), ct)
             : new Dictionary<Guid, int>();
+        var companyCodes = rows.Select(c => c.Code).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var parameterCounts = companyCodes.Count > 0
+            ? (await _db.CompanyParameterItems.IgnoreQueryFilters()
+                .Include(p => p.InsuranceCompany)
+                .Where(p => p.DeletedAt == null && p.IsActive && companyCodes.Contains(p.InsuranceCompany.Code))
+                .Select(p => new { p.InsuranceCompany.Code, p.Id })
+                .ToListAsync(ct))
+                .GroupBy(p => p.Code, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-        return Ok(rows.Select(c => ToDto(c, tenantByCode, bridges, ruleCounts)).ToList());
+        return Ok(rows.Select(c => ToDto(c, tenantByCode, bridges, ruleCounts, parameterCounts)).ToList());
     }
 
     [HttpPost]
@@ -185,7 +195,7 @@ public class InsuranceCompaniesController : ControllerBase
         var ruleCount = await _db.CommissionRules.IgnoreQueryFilters()
             .CountAsync(r => r.TenantId == tenantId && r.DeletedAt == null && r.InsuranceCompanyId == c.Id, ct);
         return Ok(new InsuranceCompanyExtendedDto(c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
-            c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount,
+            c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(c.Code, ct),
             c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes));
     }
 
@@ -221,7 +231,7 @@ public class InsuranceCompaniesController : ControllerBase
         var ruleCount = await _db.CommissionRules.IgnoreQueryFilters()
             .CountAsync(r => r.TenantId == c.TenantId && r.DeletedAt == null && r.InsuranceCompanyId == c.Id, ct);
         return Ok(new InsuranceCompanyExtendedDto(c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
-            c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount,
+            c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(c.Code, ct),
             c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes));
     }
 
@@ -242,7 +252,7 @@ public class InsuranceCompaniesController : ControllerBase
         var ruleCount = await _db.CommissionRules.IgnoreQueryFilters()
             .CountAsync(r => r.TenantId == tenantId && r.DeletedAt == null && r.InsuranceCompanyId == tenantCompany.Id, ct);
         return Ok(new InsuranceCompanyExtendedDto(tenantCompany.Id, tenantCompany.Name, tenantCompany.Code, tenantCompany.Country, tenantCompany.Website, tenantCompany.IsActive,
-            tenantCompany.TenantId, false, tenantCompany.Id, true, bridge?.Id, bridge != null, ruleCount,
+            tenantCompany.TenantId, false, tenantCompany.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(tenantCompany.Code, ct),
             tenantCompany.AgentCode, tenantCompany.ContactName, tenantCompany.ContactEmail, tenantCompany.ContactPhone, tenantCompany.AfmVat, tenantCompany.Notes));
     }
 
@@ -306,19 +316,26 @@ public class InsuranceCompaniesController : ControllerBase
         Kalypsis.Domain.Entities.InsuranceCompany c,
         IReadOnlyDictionary<string, Kalypsis.Domain.Entities.InsuranceCompany> tenantByCode,
         IReadOnlyDictionary<Guid, Kalypsis.Domain.Entities.CompanyBridge> bridges,
-        IReadOnlyDictionary<Guid, int> ruleCounts)
+        IReadOnlyDictionary<Guid, int> ruleCounts,
+        IReadOnlyDictionary<string, int> parameterCounts)
     {
         var tenantCopy = c.TenantId == null && tenantByCode.TryGetValue(c.Code, out var copy) ? copy : c.TenantId != null ? c : null;
         var bridgeCompanyId = tenantCopy?.Id ?? c.Id;
         bridges.TryGetValue(bridgeCompanyId, out var bridge);
         ruleCounts.TryGetValue(bridgeCompanyId, out var ruleCount);
+        parameterCounts.TryGetValue(c.Code, out var parameterCount);
         return new InsuranceCompanyExtendedDto(
             c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
             c.TenantId, c.TenantId == null,
             tenantCopy?.Id, tenantCopy != null,
-            bridge?.Id, bridge != null, ruleCount,
+            bridge?.Id, bridge != null, ruleCount, parameterCount,
             c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes);
     }
+
+    private async Task<int> CountParameterItemsAsync(string companyCode, CancellationToken ct) =>
+        await _db.CompanyParameterItems.IgnoreQueryFilters()
+            .Include(p => p.InsuranceCompany)
+            .CountAsync(p => p.DeletedAt == null && p.IsActive && p.InsuranceCompany.Code == companyCode, ct);
 
     private async Task<Kalypsis.Domain.Entities.InsuranceCompany> InstallDefaultCompanyAsync(
         Guid tenantId,
@@ -391,6 +408,16 @@ public class InsuranceCompaniesController : ControllerBase
     private async Task<int> SeedZeroCommissionDefaultsAsync(Guid tenantId, Guid companyId, CancellationToken ct)
     {
         var today = DateOnly.FromDateTime(_clock.UtcNow);
+        var companyCode = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(c => c.Id == companyId && c.DeletedAt == null)
+            .Select(c => c.Code)
+            .FirstOrDefaultAsync(ct);
+        var companyParams = string.IsNullOrWhiteSpace(companyCode)
+            ? new List<Kalypsis.Domain.Entities.CompanyParameterItem>()
+            : await _db.CompanyParameterItems.IgnoreQueryFilters()
+                .Include(p => p.InsuranceCompany)
+                .Where(p => p.DeletedAt == null && p.IsActive && p.InsuranceCompany.Code == companyCode)
+                .ToListAsync(ct);
         var existing = await _db.CommissionRules.IgnoreQueryFilters()
             .Where(r => r.TenantId == tenantId && r.DeletedAt == null && r.InsuranceCompanyId == companyId)
             .Select(r => new { r.PolicyType, r.VehicleUseCategory, r.ProducerTier, r.ProducerId, r.CoverCode })
@@ -401,18 +428,36 @@ public class InsuranceCompaniesController : ControllerBase
         {
             ProducerTier.A, ProducerTier.B, ProducerTier.C, ProducerTier.D, ProducerTier.E
         };
-        var autoUses = Enum.GetValues<VehicleUseCategory>().Where(x => x != VehicleUseCategory.None).ToList();
+        var branchTypes = companyParams
+            .Where(p => p.Kind == CompanyParameterItemKind.Branch && p.PolicyType.HasValue)
+            .Select(p => p.PolicyType!.Value)
+            .Distinct()
+            .ToList();
+        if (branchTypes.Count == 0)
+            branchTypes = Enum.GetValues<PolicyType>().ToList();
+        var autoUses = companyParams
+            .Where(p => p.Kind == CompanyParameterItemKind.Use && p.VehicleUseCategory.HasValue && p.VehicleUseCategory != VehicleUseCategory.None)
+            .Select(p => p.VehicleUseCategory!.Value)
+            .Distinct()
+            .ToList();
+        if (autoUses.Count == 0)
+            autoUses = Enum.GetValues<VehicleUseCategory>().Where(x => x != VehicleUseCategory.None).ToList();
+        var coverages = companyParams
+            .Where(p => p.Kind == CompanyParameterItemKind.Coverage && p.PolicyType.HasValue && !string.IsNullOrWhiteSpace(p.Code))
+            .Select(p => new { PolicyType = p.PolicyType!.Value, CoverCode = p.Code })
+            .Distinct()
+            .ToList();
 
-        bool Exists(PolicyType policyType, VehicleUseCategory? vehicleUse, ProducerTier tier) =>
+        bool Exists(PolicyType policyType, VehicleUseCategory? vehicleUse, ProducerTier tier, string? coverCode) =>
             existing.Any(r => r.ProducerId == null
-                && r.CoverCode == null
+                && r.CoverCode == coverCode
                 && r.PolicyType == policyType
                 && r.VehicleUseCategory == vehicleUse
                 && r.ProducerTier == tier);
 
-        void Add(PolicyType policyType, VehicleUseCategory? vehicleUse, ProducerTier tier)
+        void Add(PolicyType policyType, VehicleUseCategory? vehicleUse, ProducerTier tier, string? coverCode = null)
         {
-            if (Exists(policyType, vehicleUse, tier)) return;
+            if (Exists(policyType, vehicleUse, tier, coverCode)) return;
             _db.CommissionRules.Add(new Kalypsis.Domain.Entities.CommissionRule
             {
                 Id = Guid.NewGuid(),
@@ -421,6 +466,7 @@ public class InsuranceCompaniesController : ControllerBase
                 PolicyType = policyType,
                 VehicleUseCategory = vehicleUse,
                 ProducerTier = tier,
+                CoverCode = coverCode,
                 AgencyPercent = 0m,
                 ProducerPercent = 0m,
                 Value = 0m,
@@ -433,9 +479,12 @@ public class InsuranceCompaniesController : ControllerBase
 
         foreach (var tier in tiers)
         {
-            foreach (var use in autoUses) Add(PolicyType.Auto, use, tier);
-            foreach (var policyType in Enum.GetValues<PolicyType>().Where(x => x != PolicyType.Auto))
+            if (branchTypes.Contains(PolicyType.Auto))
+                foreach (var use in autoUses) Add(PolicyType.Auto, use, tier);
+            foreach (var policyType in branchTypes.Where(x => x != PolicyType.Auto))
                 Add(policyType, null, tier);
+            foreach (var coverage in coverages)
+                Add(coverage.PolicyType, null, tier, coverage.CoverCode);
         }
 
         return created;

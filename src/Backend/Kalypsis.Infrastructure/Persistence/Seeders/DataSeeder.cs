@@ -21,6 +21,9 @@ public static class DataSeeder
         await db.Database.MigrateAsync(cancellationToken);
 
         await SeedInsuranceCompaniesAsync(db, logger, cancellationToken);
+        var parameterItemsCreated = await CompanyParameterDefaults.SeedMissingAsync(db, null, cancellationToken);
+        if (parameterItemsCreated > 0)
+            logger.LogInformation("Seeded {Count} global carrier parameter items.", parameterItemsCreated);
 
         var seedEmail = (config["Seed:PlatformAdminEmail"] ?? "superadmin@kalypsis.gr").ToLowerInvariant();
         var seedPassword = config["Seed:PlatformAdminPassword"] ?? "Kalypsis@2026!";

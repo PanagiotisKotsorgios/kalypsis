@@ -26,6 +26,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<CustomerInsuranceNeed> CustomerInsuranceNeeds => Set<CustomerInsuranceNeed>();
     public DbSet<Producer> Producers => Set<Producer>();
     public DbSet<InsuranceCompany> InsuranceCompanies => Set<InsuranceCompany>();
+    public DbSet<CompanyParameterItem> CompanyParameterItems => Set<CompanyParameterItem>();
     public DbSet<Policy> Policies => Set<Policy>();
     public DbSet<PolicyDocument> PolicyDocuments => Set<PolicyDocument>();
     public DbSet<Claim> Claims => Set<Claim>();

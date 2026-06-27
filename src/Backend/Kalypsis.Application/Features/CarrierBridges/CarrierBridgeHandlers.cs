@@ -338,6 +338,26 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 && (x.EffectiveTo == null || x.EffectiveTo >= today)
                 && (!x.InsuranceCompanyId.HasValue || x.InsuranceCompanyId == carrierId))
             .ToListAsync(ct);
+        var carrierCode = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(c => c.Id == carrierId && c.DeletedAt == null)
+            .Select(c => c.Code)
+            .FirstOrDefaultAsync(ct);
+        var companyParams = string.IsNullOrWhiteSpace(carrierCode)
+            ? new List<CompanyParameterItem>()
+            : await _db.CompanyParameterItems.IgnoreQueryFilters()
+                .Include(p => p.InsuranceCompany)
+                .Where(p => p.DeletedAt == null && p.IsActive && p.InsuranceCompany.Code == carrierCode
+                    && (!p.EffectiveFrom.HasValue || p.EffectiveFrom <= today)
+                    && (!p.EffectiveTo.HasValue || p.EffectiveTo >= today))
+                .ToListAsync(ct);
+        var configuredBranches = companyParams
+            .Where(p => p.Kind == CompanyParameterItemKind.Branch && p.PolicyType.HasValue)
+            .Select(p => p.PolicyType!.Value)
+            .ToHashSet();
+        var bridgeMappings = companyParams
+            .Where(p => p.Kind == CompanyParameterItemKind.BridgeCode
+                && string.Equals(p.BridgeSystem, "ERGO", StringComparison.OrdinalIgnoreCase))
+            .ToList();
         var producerRows = await _db.Producers.IgnoreQueryFilters()
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null)
             .ToListAsync(ct);
@@ -489,6 +509,42 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                         $"Δεν υπάρχει συνεργάτης «{r.PartnerCode}» — θα δημιουργηθεί αυτόματα στην εισαγωγή"));
             }
 
+            var rowPolicyType = !string.IsNullOrEmpty(r.PlateNumber) ? PolicyType.Auto : PolicyType.Other;
+            if (companyParams.Count == 0)
+            {
+                r.Notes.Add(new BridgeImportNote("Παραμετρικά εταιρείας", "warn",
+                    "Δεν υπάρχουν κεντρικά παραμετρικά Kalypsis για αυτή την εταιρεία. Η γέφυρα θα εισαχθεί, αλλά λείπει αυτόματη αντιστοίχιση κλάδων/καλύψεων/χρήσεων."));
+                if (status == "Ready") status = "WarnDiff";
+            }
+            else
+            {
+                if (configuredBranches.Count > 0 && !configuredBranches.Contains(rowPolicyType))
+                {
+                    r.Notes.Add(new BridgeImportNote("Κλάδος", "warn",
+                        $"Ο κλάδος {rowPolicyType} δεν είναι ενεργός στα κεντρικά παραμετρικά της εταιρείας."));
+                    if (status == "Ready") status = "WarnDiff";
+                }
+
+                if (bridgeMappings.Count > 0 && !bridgeMappings.Any(m =>
+                        string.Equals(m.BridgeCode, r.RowType, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(m.Code, $"ERGO_{r.RowType}", StringComparison.OrdinalIgnoreCase)))
+                {
+                    r.Notes.Add(new BridgeImportNote("Mapping γέφυρας", "warn",
+                        $"Δεν υπάρχει ενεργό mapping ERGO για τύπο κίνησης {r.RowType}. Ελέγξτε την κεντρική παραμετροποίηση εταιρείας."));
+                    if (status == "Ready") status = "WarnDiff";
+                }
+
+                if (r.RowType == "GreenCard" && !companyParams.Any(p =>
+                        p.Kind == CompanyParameterItemKind.Coverage &&
+                        (string.Equals(p.Code, "GREEN_CARD", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(p.BridgeCode, r.RowType, StringComparison.OrdinalIgnoreCase))))
+                {
+                    r.Notes.Add(new BridgeImportNote("Κάλυψη", "warn",
+                        "Η Πράσινη Κάρτα ήρθε από γέφυρα αλλά δεν βρέθηκε αντίστοιχη κάλυψη GREEN_CARD στα κεντρικά παραμετρικά."));
+                    if (status == "Ready") status = "WarnDiff";
+                }
+            }
+
             // Diff against parameterization (default value rules) — but never auto-apply.
             // Find the most-specific matching rule and compare premium / currency / etc.
             var matching = rules
@@ -524,7 +580,6 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 catch { /* ignore malformed rule */ }
             }
 
-            var rowPolicyType = !string.IsNullOrEmpty(r.PlateNumber) ? PolicyType.Auto : PolicyType.Other;
             Producer? matchedProducer = null;
             if (!string.IsNullOrEmpty(r.PartnerCode)) producerByCode.TryGetValue(r.PartnerCode, out matchedProducer);
             var producerId = matchedProducer?.Id;

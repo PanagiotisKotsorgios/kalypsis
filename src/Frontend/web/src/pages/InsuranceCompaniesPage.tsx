@@ -25,6 +25,7 @@ interface CompanyDto {
   bridgeId: string | null;
   bridgeLinked: boolean;
   commissionDefaultCount: number;
+  parameterItemCount: number;
   agentCode: string | null;
   contactName: string | null;
   contactEmail: string | null;
@@ -185,6 +186,7 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onImport, importingId 
             <TableCell>Επικοινωνία</TableCell>
             <TableCell>Κατάσταση</TableCell>
             <TableCell>Γέφυρα</TableCell>
+            <TableCell align="right">Παραμετρικά</TableCell>
             <TableCell align="right">Κανόνες</TableCell>
             <TableCell align="right" />
           </TableRow>
@@ -214,6 +216,9 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onImport, importingId 
                   variant={r.bridgeLinked ? "filled" : "outlined"}
                   label={r.bridgeLinked ? "Συνδεδεμένη" : "Χωρίς γέφυρα"}
                 />
+              </TableCell>
+              <TableCell align="right">
+                <Chip size="small" color={r.parameterItemCount > 0 ? "success" : "warning"} variant="outlined" label={r.parameterItemCount} />
               </TableCell>
               <TableCell align="right" sx={{ fontWeight: 700 }}>{r.commissionDefaultCount}</TableCell>
               <TableCell align="right">
