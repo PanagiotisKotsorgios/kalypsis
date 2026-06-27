@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow,
-  TextField, Typography
+  DialogTitle, FormControlLabel, IconButton, MenuItem, Stack, Switch, Table, TableBody,
+  TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -77,6 +77,17 @@ function describeScope(r: CommissionRuleDto): string {
   return parts.join(" · ");
 }
 
+function isSeededZeroRule(r: CommissionRuleDto): boolean {
+  return !!r.insuranceCompanyId
+    && !r.producerId
+    && !!r.producerTier
+    && r.producerTier !== "None"
+    && !r.coverCode
+    && r.effectiveTo === null
+    && (r.agencyPercent ?? 0) === 0
+    && (r.producerPercent ?? r.legacyValue ?? 0) === 0;
+}
+
 export function CommissionRulesPage() {
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);
@@ -93,6 +104,7 @@ export function CommissionRulesPage() {
   const [typeFilter, setTypeFilter]       = useState<PolicyType | "">("");
   const [useFilter,  setUseFilter]        = useState<VehicleUse  | "">("");
   const [coverFilter, setCoverFilter]     = useState("");
+  const [showSeededZeroRules, setShowSeededZeroRules] = useState(false);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 25;
 
@@ -127,7 +139,12 @@ export function CommissionRulesPage() {
   });
 
   const rawRows = q.data ?? [];
-  const filtered = useMemo(() => rawRows.filter(r => {
+  const seededZeroCount = useMemo(() => rawRows.filter(isSeededZeroRule).length, [rawRows]);
+  const visibleRows = useMemo(
+    () => showSeededZeroRules ? rawRows : rawRows.filter(r => !isSeededZeroRule(r)),
+    [rawRows, showSeededZeroRules]
+  );
+  const filtered = useMemo(() => visibleRows.filter(r => {
     if (carrierFilter && r.insuranceCompanyId !== carrierFilter) return false;
     if (tierFilter && r.producerTier !== tierFilter) return false;
     if (typeFilter && r.policyType !== typeFilter) return false;
@@ -139,7 +156,7 @@ export function CommissionRulesPage() {
       if (!hay.includes(s)) return false;
     }
     return true;
-  }), [rawRows, carrierFilter, tierFilter, typeFilter, useFilter, coverFilter, search]);
+  }), [visibleRows, carrierFilter, tierFilter, typeFilter, useFilter, coverFilter, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   useEffect(() => { if (page > totalPages) setPage(1); }, [totalPages, page]);
@@ -224,9 +241,20 @@ export function CommissionRulesPage() {
           <TextField size="small" label="Κάλυψη" value={coverFilter}
             onChange={(e) => setCoverFilter(e.target.value.toUpperCase())}
             sx={{ minWidth: 150 }} placeholder="MTPL" />
+          {seededZeroCount > 0 && (
+            <FormControlLabel
+              sx={{ ml: 0 }}
+              control={<Switch size="small" checked={showSeededZeroRules}
+                onChange={(e) => setShowSeededZeroRules(e.target.checked)} />}
+              label={`Εμφάνιση μηδενικών (${seededZeroCount})`}
+            />
+          )}
           <Button size="small" onClick={() => {
             setSearch(""); setCarrierFilter(""); setTierFilter(""); setTypeFilter(""); setUseFilter(""); setCoverFilter("");
           }}>Καθαρισμός</Button>
+          {seededZeroCount > 0 && !showSeededZeroRules && (
+            <Chip size="small" variant="outlined" label={`${seededZeroCount} μηδενικοί κανόνες κρυφοί`} />
+          )}
         </Stack>
       </Card>
 
@@ -249,7 +277,9 @@ export function CommissionRulesPage() {
             <TableBody>
               {filtered.length === 0 && (
                 <TableRow><TableCell colSpan={9} align="center" sx={{ color: "text.secondary", py: 4 }}>
-                  Δεν έχουν οριστεί κανόνες — δημιουργήστε τον πρώτο για να αρχίσει η αυτόματη ανάθεση προμηθειών.
+                  {seededZeroCount > 0 && !showSeededZeroRules
+                    ? "Δεν υπάρχουν ενεργοί/χειροκίνητοι κανόνες στα φίλτρα. Οι μηδενικοί κανόνες ασφαλείας είναι κρυφοί."
+                    : "Δεν έχουν οριστεί κανόνες — δημιουργήστε τον πρώτο για να αρχίσει η αυτόματη ανάθεση προμηθειών."}
                 </TableCell></TableRow>
               )}
               {paged.map(r => (
