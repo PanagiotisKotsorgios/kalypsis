@@ -74,7 +74,7 @@ public class MarkReadCommandHandler : IRequestHandler<MarkReadCommand, Unit>
     {
         var userId = _current.UserId ?? throw AppException.Unauthorized();
         var n = await _db.Notifications.IgnoreQueryFilters()
-            .FirstOrDefaultAsync(x => x.Id == request.Id && x.UserId == userId, ct)
+            .FirstOrDefaultAsync(x => x.Id == request.Id && x.UserId == userId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Notification");
 
         if (!n.IsRead)
@@ -84,6 +84,60 @@ public class MarkReadCommandHandler : IRequestHandler<MarkReadCommand, Unit>
             await _db.SaveChangesAsync(ct);
         }
         return Unit.Value;
+    }
+}
+
+public record DeleteNotificationCommand(Guid Id) : IRequest<Unit>;
+
+public class DeleteNotificationCommandHandler : IRequestHandler<DeleteNotificationCommand, Unit>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    private readonly IDateTimeProvider _clock;
+
+    public DeleteNotificationCommandHandler(IAppDbContext db, ICurrentUser current, IDateTimeProvider clock)
+    {
+        _db = db;
+        _current = current;
+        _clock = clock;
+    }
+
+    public async Task<Unit> Handle(DeleteNotificationCommand request, CancellationToken ct)
+    {
+        var userId = _current.UserId ?? throw AppException.Unauthorized();
+        var n = await _db.Notifications.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == request.Id && x.UserId == userId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Notification");
+
+        n.DeletedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Unit.Value;
+    }
+}
+
+public record DeleteReadNotificationsCommand() : IRequest<DeletedNotificationsDto>;
+
+public class DeleteReadNotificationsCommandHandler : IRequestHandler<DeleteReadNotificationsCommand, DeletedNotificationsDto>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    private readonly IDateTimeProvider _clock;
+
+    public DeleteReadNotificationsCommandHandler(IAppDbContext db, ICurrentUser current, IDateTimeProvider clock)
+    {
+        _db = db;
+        _current = current;
+        _clock = clock;
+    }
+
+    public async Task<DeletedNotificationsDto> Handle(DeleteReadNotificationsCommand request, CancellationToken ct)
+    {
+        var userId = _current.UserId ?? throw AppException.Unauthorized();
+        var now = _clock.UtcNow;
+        var count = await _db.Notifications.IgnoreQueryFilters()
+            .Where(n => n.UserId == userId && n.IsRead && n.DeletedAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(n => n.DeletedAt, now), ct);
+        return new DeletedNotificationsDto(count);
     }
 }
 

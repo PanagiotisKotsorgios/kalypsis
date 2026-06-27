@@ -11,3 +11,5 @@ public record NotificationDto(
     DateTime CreatedAt);
 
 public record UnreadCountDto(int Count);
+
+public record DeletedNotificationsDto(int Count);
