@@ -12,6 +12,7 @@ public class CommissionRuleConfiguration : IEntityTypeConfiguration<CommissionRu
         b.HasKey(x => x.Id);
         b.Property(x => x.CommissionType).HasConversion<int>();
         b.Property(x => x.PolicyType).HasConversion<int?>();
+        b.Property(x => x.CoverCode).HasMaxLength(80);
         b.Property(x => x.Value).HasPrecision(10, 4);
 
         b.HasOne(x => x.Producer).WithMany(p => p.CommissionRules).HasForeignKey(x => x.ProducerId).OnDelete(DeleteBehavior.Cascade);

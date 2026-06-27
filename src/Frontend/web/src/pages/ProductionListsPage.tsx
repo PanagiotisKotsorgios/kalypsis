@@ -22,10 +22,12 @@ interface Row {
   policyId: string; policyNumber: string;
   startDate: string; endDate: string;
   customerName: string; insuranceCompany: string; producer: string | null;
-  policyType: string; status: string;
+  policyType: string; vehicleUseCategory: string | null; coverCode: string | null; status: string;
   gross: number; net: number; vat: number;
   partnerCommissionPercent: number; partnerCommission: number;
   agencyCommissionPercent: number; agencyCommission: number;
+  incomingAgencyCommissionPercent: number; incomingAgencyCommission: number;
+  commissionWarning: string | null;
 }
 interface GroupTotal { key: string; count: number; gross: number; net: number; vat: number; partnerCommission: number; agencyCommission: number; }
 interface Result {
@@ -37,6 +39,7 @@ interface Result {
 
 const TYPES = ["Auto", "Home", "Health", "Life", "Business", "Travel", "Other"];
 const STATUSES = ["Draft", "Active", "Expired", "Cancelled", "Renewed", "PendingRenewal"];
+const VEHICLE_USES = ["EIX", "EDX", "FIX", "FDX", "LIX", "LDX", "Motorcycle", "Agricultural", "Construction"];
 
 export function ProductionListsPage() {
   const { t } = useTranslation();
@@ -47,7 +50,7 @@ export function ProductionListsPage() {
   const [f, setF] = useState({
     from: monthStart, to: todayStr,
     insuranceCompanyId: "", producerId: "",
-    policyType: "", status: "", groupBy: "carrier"
+    policyType: "", vehicleUseCategory: "", coverCode: "", status: "", groupBy: "carrier"
   });
 
   const carriers = useQuery({
@@ -65,6 +68,8 @@ export function ProductionListsPage() {
     insuranceCompanyId: f.insuranceCompanyId || undefined,
     producerId: f.producerId || undefined,
     policyType: f.policyType || undefined,
+    vehicleUseCategory: f.vehicleUseCategory || undefined,
+    coverCode: f.coverCode.trim() || undefined,
     status: f.status || undefined,
     groupBy: f.groupBy || undefined
   };
@@ -144,6 +149,14 @@ export function ProductionListsPage() {
             <MenuItem value="">{t("common.all")}</MenuItem>
             {TYPES.map(tp => <MenuItem key={tp} value={tp}>{tp}</MenuItem>)}
           </TextField>
+          <TextField select size="small" label="Χρήση οχήματος" value={f.vehicleUseCategory}
+            onChange={e => setF({ ...f, vehicleUseCategory: e.target.value })}>
+            <MenuItem value="">{t("common.all")}</MenuItem>
+            {VEHICLE_USES.map(u => <MenuItem key={u} value={u}>{u}</MenuItem>)}
+          </TextField>
+          <TextField size="small" label="Κάλυψη" value={f.coverCode}
+            onChange={e => setF({ ...f, coverCode: e.target.value.toUpperCase() })}
+            placeholder="MTPL" />
           <TextField select size="small" label={t("productionList.status")} value={f.status}
             onChange={e => setF({ ...f, status: e.target.value })}>
             <MenuItem value="">{t("common.all")}</MenuItem>
@@ -213,15 +226,19 @@ export function ProductionListsPage() {
                 <TableCell>{t("productionList.col.carrier")}</TableCell>
                 <TableCell>{t("productionList.col.producer")}</TableCell>
                 <TableCell>{t("productionList.col.type")}</TableCell>
+                <TableCell>Χρήση</TableCell>
+                <TableCell>Κάλυψη</TableCell>
                 <TableCell align="right">{t("productionList.col.gross")}</TableCell>
                 <TableCell align="right">{t("productionList.col.net")}</TableCell>
+                <TableCell align="right">Προμ. γέφυρας/έδρας</TableCell>
                 <TableCell align="right">{t("productionList.col.partnerPct")}</TableCell>
                 <TableCell align="right">{t("productionList.col.partner")}</TableCell>
                 <TableCell align="right">{t("productionList.col.agency")}</TableCell>
+                <TableCell>Έλεγχος</TableCell>
               </TableRow></TableHead>
               <TableBody>
                 {q.data.rows.length === 0 && (
-                  <TableRow><TableCell colSpan={11} align="center" sx={{ py: 4, color: "text.secondary" }}>{t("productionList.empty")}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={15} align="center" sx={{ py: 4, color: "text.secondary" }}>{t("productionList.empty")}</TableCell></TableRow>
                 )}
                 {q.data.rows.map(r => (
                   <TableRow key={r.policyId} hover>
@@ -231,11 +248,21 @@ export function ProductionListsPage() {
                     <TableCell>{r.insuranceCompany}</TableCell>
                     <TableCell>{r.producer ?? "—"}</TableCell>
                     <TableCell><Chip size="small" variant="outlined" label={r.policyType} /></TableCell>
+                    <TableCell>{r.vehicleUseCategory ? <Chip size="small" label={r.vehicleUseCategory} /> : "—"}</TableCell>
+                    <TableCell>{r.coverCode ? <Chip size="small" variant="outlined" label={r.coverCode} /> : "—"}</TableCell>
                     <TableCell align="right" sx={{ fontWeight: 700 }}>{r.gross.toFixed(2)}</TableCell>
                     <TableCell align="right">{r.net.toFixed(2)}</TableCell>
+                    <TableCell align="right" sx={{ color: "info.main" }}>
+                      {r.incomingAgencyCommission.toFixed(2)} ({r.incomingAgencyCommissionPercent.toFixed(1)}%)
+                    </TableCell>
                     <TableCell align="right" sx={{ color: "text.secondary" }}>{r.partnerCommissionPercent.toFixed(1)}%</TableCell>
                     <TableCell align="right" sx={{ color: "warning.main" }}>{r.partnerCommission.toFixed(2)}</TableCell>
                     <TableCell align="right" sx={{ color: "success.main", fontWeight: 700 }}>{r.agencyCommission.toFixed(2)}</TableCell>
+                    <TableCell>
+                      {r.commissionWarning
+                        ? <Chip size="small" color="warning" label="Έλεγχος σύμβασης" title={r.commissionWarning} />
+                        : <Chip size="small" color="success" variant="outlined" label="OK" />}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

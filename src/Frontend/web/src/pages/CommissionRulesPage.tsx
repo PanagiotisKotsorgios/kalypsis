@@ -24,6 +24,7 @@ interface CommissionRuleDto {
   insuranceCompanyId: string | null; insuranceCompanyName: string | null;
   policyType: PolicyType | null;
   vehicleUseCategory: VehicleUse | null;
+  coverCode: string | null;
   agencyPercent: number | null;
   producerPercent: number | null;
   legacyValue: number | null;
@@ -64,6 +65,7 @@ function describeScope(r: CommissionRuleDto): string {
   const parts: string[] = [];
   parts.push(r.insuranceCompanyName ?? "όλες τις εταιρίες");
   parts.push(r.policyType ? TYPE_LABEL[r.policyType] : "όλους τους κλάδους");
+  if (r.coverCode) parts.push(`κάλυψη ${r.coverCode}`);
   if (r.vehicleUseCategory && r.vehicleUseCategory !== "None")
     parts.push(`χρήση ${r.vehicleUseCategory}`);
   if (r.producerName)        parts.push(`συνεργάτη «${r.producerName}»`);
@@ -75,6 +77,7 @@ function describeScope(r: CommissionRuleDto): string {
 export function CommissionRulesPage() {
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<CommissionRuleDto | null>(null);
 
@@ -84,6 +87,7 @@ export function CommissionRulesPage() {
   const [tierFilter, setTierFilter]       = useState<ProducerTier | "">("");
   const [typeFilter, setTypeFilter]       = useState<PolicyType | "">("");
   const [useFilter,  setUseFilter]        = useState<VehicleUse  | "">("");
+  const [coverFilter, setCoverFilter]     = useState("");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 25;
 
@@ -104,6 +108,18 @@ export function CommissionRulesPage() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["commission-rules"] }),
     onError: (e) => setErr(extractErrorMessage(e))
   });
+  const seedZero = useMutation({
+    mutationFn: async () => (await api.post<{ companiesProcessed: number; rulesCreated: number }>(
+      "/commission-rules/seed-zero-defaults",
+      { insuranceCompanyId: carrierFilter || null }
+    )).data,
+    onSuccess: (res) => {
+      setSuccess(`Δημιουργήθηκαν ${res.rulesCreated} μηδενικοί κανόνες για ${res.companiesProcessed} εταιρείες.`);
+      void qc.invalidateQueries({ queryKey: ["commission-rules"] });
+      void qc.invalidateQueries({ queryKey: ["insurance-companies"] });
+    },
+    onError: (e) => setErr(extractErrorMessage(e))
+  });
 
   const rawRows = q.data ?? [];
   const filtered = useMemo(() => rawRows.filter(r => {
@@ -111,13 +127,14 @@ export function CommissionRulesPage() {
     if (tierFilter && r.producerTier !== tierFilter) return false;
     if (typeFilter && r.policyType !== typeFilter) return false;
     if (useFilter && r.vehicleUseCategory !== useFilter) return false;
+    if (coverFilter && !(r.coverCode ?? "").toLowerCase().includes(coverFilter.trim().toLowerCase())) return false;
     if (search) {
       const s = search.toLowerCase();
-      const hay = `${r.producerName ?? ""} ${r.insuranceCompanyName ?? ""} ${r.policyType ?? ""} ${r.producerTier ?? ""} ${r.vehicleUseCategory ?? ""}`.toLowerCase();
+      const hay = `${r.producerName ?? ""} ${r.insuranceCompanyName ?? ""} ${r.policyType ?? ""} ${r.producerTier ?? ""} ${r.vehicleUseCategory ?? ""} ${r.coverCode ?? ""}`.toLowerCase();
       if (!hay.includes(s)) return false;
     }
     return true;
-  }), [rawRows, carrierFilter, tierFilter, typeFilter, useFilter, search]);
+  }), [rawRows, carrierFilter, tierFilter, typeFilter, useFilter, coverFilter, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   useEffect(() => { if (page > totalPages) setPage(1); }, [totalPages, page]);
@@ -139,12 +156,23 @@ export function CommissionRulesPage() {
             </Typography>
           </Box>
         </Stack>
-        <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <Button
+            variant="outlined"
+            size="large"
+            onClick={() => seedZero.mutate()}
+            disabled={seedZero.isPending}
+          >
+            {seedZero.isPending ? <CircularProgress size={18} /> : "Μηδενικοί κανόνες"}
+          </Button>
+          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>
           Νέος κανόνας
-        </Button>
+          </Button>
+        </Stack>
       </Stack>
 
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}
 
       <Card sx={{ p: 2, mb: 2 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
@@ -170,8 +198,11 @@ export function CommissionRulesPage() {
             <MenuItem value="">Όλες</MenuItem>
             {USE_TYPES.map(u => <MenuItem key={u} value={u}>{USE_LABEL[u]}</MenuItem>)}
           </TextField>
+          <TextField size="small" label="Κάλυψη" value={coverFilter}
+            onChange={(e) => setCoverFilter(e.target.value.toUpperCase())}
+            sx={{ minWidth: 150 }} placeholder="MTPL" />
           <Button size="small" onClick={() => {
-            setSearch(""); setCarrierFilter(""); setTierFilter(""); setTypeFilter(""); setUseFilter("");
+            setSearch(""); setCarrierFilter(""); setTierFilter(""); setTypeFilter(""); setUseFilter(""); setCoverFilter("");
           }}>Καθαρισμός</Button>
         </Stack>
       </Card>
@@ -189,11 +220,12 @@ export function CommissionRulesPage() {
               <TableCell align="right">Προμ. Έδρας %</TableCell>
               <TableCell align="right">Προμ. Συνεργάτη %</TableCell>
               <TableCell>Ισχύς</TableCell>
+              <TableCell>Κάλυψη</TableCell>
               <TableCell align="right" />
             </TableRow></TableHead>
             <TableBody>
               {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={8} align="center" sx={{ color: "text.secondary", py: 4 }}>
+                <TableRow><TableCell colSpan={9} align="center" sx={{ color: "text.secondary", py: 4 }}>
                   Δεν έχουν οριστεί κανόνες — δημιουργήστε τον πρώτο για να αρχίσει η αυτόματη ανάθεση προμηθειών.
                 </TableCell></TableRow>
               )}
@@ -223,6 +255,11 @@ export function CommissionRulesPage() {
                   </TableCell>
                   <TableCell sx={{ fontSize: 12 }}>
                     {r.effectiveFrom}{r.effectiveTo ? ` → ${r.effectiveTo}` : " → ∞"}
+                  </TableCell>
+                  <TableCell>
+                    {r.coverCode
+                      ? <Chip size="small" label={r.coverCode} sx={{ fontWeight: 700 }} />
+                      : <Chip size="small" label="Όλες" variant="outlined" />}
                   </TableCell>
                   <TableCell align="right">
                     <IconButton size="small" onClick={() => setEditing(r)}><EditIcon fontSize="small" /></IconButton>
@@ -264,6 +301,7 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
     insuranceCompanyId: "",
     policyType: "" as PolicyType | "",
     vehicleUseCategory: "None" as VehicleUse,
+    coverCode: "",
     producerId: "",
     producerTier: "None" as ProducerTier,
     agencyPercent: 0,
@@ -280,6 +318,7 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         insuranceCompanyId: rule.insuranceCompanyId ?? "",
         policyType: (rule.policyType ?? "") as PolicyType | "",
         vehicleUseCategory: rule.vehicleUseCategory ?? "None",
+        coverCode: rule.coverCode ?? "",
         producerId: rule.producerId ?? "",
         producerTier: rule.producerTier ?? "None",
         agencyPercent: rule.agencyPercent ?? 0,
@@ -289,7 +328,7 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
       });
     } else if (open) {
       setForm({
-        scope: "tier", insuranceCompanyId: "", policyType: "", vehicleUseCategory: "None",
+        scope: "tier", insuranceCompanyId: "", policyType: "", vehicleUseCategory: "None", coverCode: "",
         producerId: "", producerTier: "None",
         agencyPercent: 0, producerPercent: 15,
         effectiveFrom: today, effectiveTo: ""
@@ -306,6 +345,7 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         insuranceCompanyId: form.insuranceCompanyId || null,
         policyType:        form.policyType || null,
         vehicleUseCategory: form.vehicleUseCategory !== "None" ? form.vehicleUseCategory : null,
+        coverCode:         form.coverCode.trim().toUpperCase() || null,
         agencyPercent:     Number.isFinite(form.agencyPercent) ? Number(form.agencyPercent) : null,
         producerPercent:   Number.isFinite(form.producerPercent) ? Number(form.producerPercent) : null,
         effectiveFrom:     form.effectiveFrom,
@@ -358,6 +398,12 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
             <MenuItem value="producer">Συγκεκριμένος συνεργάτης</MenuItem>
             <MenuItem value="all">Όλοι οι συνεργάτες (καθολικός κανόνας)</MenuItem>
           </TextField>
+          <TextField label="Κάλυψη / πακέτο" value={form.coverCode}
+            onChange={e => setForm({ ...form, coverCode: e.target.value.toUpperCase() })}
+            fullWidth
+            placeholder="π.χ. MTPL, BASIC, EXTRA"
+            helperText="Κενό σημαίνει ότι ο κανόνας ισχύει για όλες τις καλύψεις της εταιρείας/κλάδου." />
+
           {form.scope === "tier" && (
             <TextField select label="Κατηγορία συνεργάτη" value={form.producerTier}
               onChange={e => setForm({ ...form, producerTier: e.target.value as ProducerTier })} fullWidth>

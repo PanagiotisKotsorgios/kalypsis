@@ -20,6 +20,11 @@ interface CompanyDto {
   isActive: boolean;
   tenantId: string | null;
   isGlobal: boolean;
+  tenantCopyId: string | null;
+  isImportedToTenant: boolean;
+  bridgeId: string | null;
+  bridgeLinked: boolean;
+  commissionDefaultCount: number;
   agentCode: string | null;
   contactName: string | null;
   contactEmail: string | null;
@@ -32,11 +37,21 @@ interface UpsertBody {
   name: string; code: string; country: string | null; website: string | null; isActive: boolean;
   agentCode: string | null; contactName: string | null; contactEmail: string | null;
   contactPhone: string | null; afmVat: string | null; notes: string | null;
+  createBridge: boolean; bridgeName: string | null; bridgeAutoSync: boolean; bridgeConfigJson: string | null;
+  installZeroCommissionDefaults: boolean;
+}
+
+interface ImportDefaultsResult {
+  imported: number;
+  alreadyImported: number;
+  bridgesCreated: number;
+  commissionRulesCreated: number;
 }
 
 export function InsuranceCompaniesPage() {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<CompanyDto | null>(null);
 
@@ -48,6 +63,26 @@ export function InsuranceCompaniesPage() {
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/insurance-companies/${id}`),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["insurance-companies"] }),
+    onError: (e) => setError(extractErrorMessage(e))
+  });
+
+  const importAll = useMutation({
+    mutationFn: async () => (await api.post<ImportDefaultsResult>("/insurance-companies/import-defaults", {})).data,
+    onSuccess: (res) => {
+      setSuccess(`Εισαγωγή ολοκληρώθηκε: ${res.imported} νέες, ${res.alreadyImported} ήδη υπήρχαν, ${res.bridgesCreated} γέφυρες, ${res.commissionRulesCreated} μηδενικοί κανόνες προμήθειας.`);
+      void qc.invalidateQueries({ queryKey: ["insurance-companies"] });
+      void qc.invalidateQueries({ queryKey: ["commission-rules"] });
+    },
+    onError: (e) => setError(extractErrorMessage(e))
+  });
+
+  const importOne = useMutation({
+    mutationFn: async (id: string) => (await api.post<CompanyDto>(`/insurance-companies/${id}/import-default`, {})).data,
+    onSuccess: (company) => {
+      setSuccess(`Η ${company.name} προστέθηκε στο γραφείο με γέφυρα και μηδενικούς κανόνες προμήθειας.`);
+      void qc.invalidateQueries({ queryKey: ["insurance-companies"] });
+      void qc.invalidateQueries({ queryKey: ["commission-rules"] });
+    },
     onError: (e) => setError(extractErrorMessage(e))
   });
 
@@ -66,12 +101,21 @@ export function InsuranceCompaniesPage() {
             </Typography>
           </Box>
         </Stack>
-        <Button size="large" variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <Button size="large" variant="outlined" onClick={() => importAll.mutate()} disabled={importAll.isPending || globalRows.length === 0}>
+            {importAll.isPending ? <CircularProgress size={18} /> : "Εισαγωγή όλων στο γραφείο"}
+          </Button>
+          <Button size="large" variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
           Νέα ασφαλιστική
-        </Button>
+          </Button>
+        </Stack>
       </Stack>
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}
+      <Alert severity="info" sx={{ mb: 2 }}>
+        Οι προεπιλεγμένες εταιρείες Kalypsis μπορούν να εισαχθούν στο γραφείο. Η εισαγωγή δημιουργεί εταιρεία γραφείου, placeholder γέφυρας και μηδενικούς κανόνες προμήθειας ώστε να μη γίνει λάθος πληρωμή πριν συμπληρωθούν οι πραγματικές συμβάσεις.
+      </Alert>
 
       {q.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
@@ -109,7 +153,7 @@ export function InsuranceCompaniesPage() {
                 Διαχειρίζεται από την Kalypsis · κοινός σε όλα τα γραφεία
               </Typography>
             </Box>
-            <CompanyTable rows={globalRows} readonly />
+            <CompanyTable rows={globalRows} readonly onImport={(id) => importOne.mutate(id)} importingId={importOne.variables} />
           </Card>
         </Stack>
       )}
@@ -122,11 +166,13 @@ export function InsuranceCompaniesPage() {
   );
 }
 
-function CompanyTable({ rows, onEdit, onDelete, readonly }: {
+function CompanyTable({ rows, onEdit, onDelete, readonly, onImport, importingId }: {
   rows: CompanyDto[];
   onEdit?: (c: CompanyDto) => void;
   onDelete?: (id: string) => void;
   readonly?: boolean;
+  onImport?: (id: string) => void;
+  importingId?: string;
 }) {
   return (
     <Box sx={{ overflowX: "auto" }}>
@@ -138,7 +184,9 @@ function CompanyTable({ rows, onEdit, onDelete, readonly }: {
             <TableCell>Κωδικός συνεργασίας</TableCell>
             <TableCell>Επικοινωνία</TableCell>
             <TableCell>Κατάσταση</TableCell>
-            {!readonly && <TableCell align="right" />}
+            <TableCell>Γέφυρα</TableCell>
+            <TableCell align="right">Κανόνες</TableCell>
+            <TableCell align="right" />
           </TableRow>
         </TableHead>
         <TableBody>
@@ -159,14 +207,38 @@ function CompanyTable({ rows, onEdit, onDelete, readonly }: {
               <TableCell>
                 <Chip size="small" color={r.isActive ? "success" : "default"} label={r.isActive ? "Ενεργή" : "Ανενεργή"} />
               </TableCell>
-              {!readonly && (
-                <TableCell align="right">
-                  <IconButton size="small" onClick={() => onEdit?.(r)}><EditIcon fontSize="small" /></IconButton>
-                  <IconButton size="small" color="error" onClick={() => onDelete?.(r.id)}>
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </TableCell>
-              )}
+              <TableCell>
+                <Chip
+                  size="small"
+                  color={r.bridgeLinked ? "primary" : "warning"}
+                  variant={r.bridgeLinked ? "filled" : "outlined"}
+                  label={r.bridgeLinked ? "Συνδεδεμένη" : "Χωρίς γέφυρα"}
+                />
+              </TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>{r.commissionDefaultCount}</TableCell>
+              <TableCell align="right">
+                {readonly ? (
+                  r.isImportedToTenant ? (
+                    <Chip size="small" color="success" label="Στο γραφείο" />
+                  ) : (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => onImport?.(r.id)}
+                      disabled={importingId === r.id}
+                    >
+                      {importingId === r.id ? <CircularProgress size={16} /> : "Εισαγωγή"}
+                    </Button>
+                  )
+                ) : (
+                  <>
+                    <IconButton size="small" onClick={() => onEdit?.(r)}><EditIcon fontSize="small" /></IconButton>
+                    <IconButton size="small" color="error" onClick={() => onDelete?.(r.id)}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </>
+                )}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -181,7 +253,12 @@ function CompanyDialog({ open, onClose, item, onSaved }: {
   const [form, setForm] = useState<UpsertBody>({
     name: "", code: "", country: "Ελλάδα", website: null, isActive: true,
     agentCode: null, contactName: null, contactEmail: null, contactPhone: null,
-    afmVat: null, notes: null
+    afmVat: null, notes: null,
+    createBridge: true,
+    bridgeName: null,
+    bridgeAutoSync: false,
+    bridgeConfigJson: "{\"mode\":\"manual\",\"status\":\"pending-configuration\"}",
+    installZeroCommissionDefaults: true
   });
   const [err, setErr] = useState<string | null>(null);
 
@@ -190,13 +267,23 @@ function CompanyDialog({ open, onClose, item, onSaved }: {
       setForm({
         name: item.name, code: item.code, country: item.country, website: item.website, isActive: item.isActive,
         agentCode: item.agentCode, contactName: item.contactName, contactEmail: item.contactEmail,
-        contactPhone: item.contactPhone, afmVat: item.afmVat, notes: item.notes
+        contactPhone: item.contactPhone, afmVat: item.afmVat, notes: item.notes,
+        createBridge: true,
+        bridgeName: item.bridgeLinked ? null : `${item.name} bridge`,
+        bridgeAutoSync: false,
+        bridgeConfigJson: item.bridgeLinked ? null : "{\"mode\":\"manual\",\"status\":\"pending-configuration\"}",
+        installZeroCommissionDefaults: item.commissionDefaultCount === 0
       });
     } else if (open) {
       setForm({
         name: "", code: "", country: "Ελλάδα", website: null, isActive: true,
         agentCode: null, contactName: null, contactEmail: null, contactPhone: null,
-        afmVat: null, notes: null
+        afmVat: null, notes: null,
+        createBridge: true,
+        bridgeName: null,
+        bridgeAutoSync: false,
+        bridgeConfigJson: "{\"mode\":\"manual\",\"status\":\"pending-configuration\"}",
+        installZeroCommissionDefaults: true
       });
     }
   }, [item, open]);
@@ -204,6 +291,8 @@ function CompanyDialog({ open, onClose, item, onSaved }: {
   const save = useMutation({
     mutationFn: async () => {
       const body = { ...form,
+        name: form.name.trim(),
+        code: form.code.trim().toUpperCase(),
         country: form.country?.trim() || null,
         website: form.website?.trim() || null,
         agentCode: form.agentCode?.trim() || null,
@@ -211,7 +300,9 @@ function CompanyDialog({ open, onClose, item, onSaved }: {
         contactEmail: form.contactEmail?.trim() || null,
         contactPhone: form.contactPhone?.trim() || null,
         afmVat: form.afmVat?.trim() || null,
-        notes: form.notes?.trim() || null
+        notes: form.notes?.trim() || null,
+        bridgeName: form.createBridge ? (form.bridgeName?.trim() || null) : null,
+        bridgeConfigJson: form.createBridge ? (form.bridgeConfigJson?.trim() || null) : null
       };
       if (item) return (await api.put(`/insurance-companies/${item.id}`, body)).data;
       return (await api.post(`/insurance-companies`, body)).data;
@@ -221,7 +312,7 @@ function CompanyDialog({ open, onClose, item, onSaved }: {
   });
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
       <DialogTitle sx={{ fontWeight: 800 }}>{item ? "Επεξεργασία ασφαλιστικής" : "Νέα ασφαλιστική εταιρεία"}</DialogTitle>
       <DialogContent>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
@@ -257,6 +348,30 @@ function CompanyDialog({ open, onClose, item, onSaved }: {
           </Stack>
           <TextField label="Σημειώσεις" multiline minRows={2} fullWidth value={form.notes ?? ""}
             onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          <Alert severity="info">
+            Η γέφυρα και οι μηδενικοί κανόνες προμηθειών δημιουργούνται από εδώ ώστε η εταιρεία να μη μείνει μισο-παραμετροποιημένη.
+          </Alert>
+          <FormControlLabel control={<Switch checked={form.createBridge}
+            onChange={(e) => setForm({ ...form, createBridge: e.target.checked })} />}
+            label="Δημιουργία / σύνδεση γέφυρας" />
+          {form.createBridge && (
+            <Stack spacing={2}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField label="Όνομα γέφυρας" fullWidth value={form.bridgeName ?? ""}
+                  onChange={(e) => setForm({ ...form, bridgeName: e.target.value })}
+                  placeholder="Αφήστε κενό για αυτόματο όνομα" />
+                <FormControlLabel control={<Switch checked={form.bridgeAutoSync}
+                  onChange={(e) => setForm({ ...form, bridgeAutoSync: e.target.checked })} />}
+                  label="Αυτόματος συγχρονισμός" />
+              </Stack>
+              <TextField label="Ρυθμίσεις γέφυρας (JSON)" multiline minRows={2} fullWidth value={form.bridgeConfigJson ?? ""}
+                onChange={(e) => setForm({ ...form, bridgeConfigJson: e.target.value })}
+                helperText="Προτείνεται να μείνει το ασφαλές placeholder μέχρι να δοθούν τα πραγματικά στοιχεία σύνδεσης." />
+            </Stack>
+          )}
+          <FormControlLabel control={<Switch checked={form.installZeroCommissionDefaults}
+            onChange={(e) => setForm({ ...form, installZeroCommissionDefaults: e.target.checked })} />}
+            label="Δημιουργία μηδενικών κανόνων προμηθειών για όλους τους κλάδους/χρήσεις" />
           <FormControlLabel control={<Switch checked={form.isActive}
             onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />}
             label={form.isActive ? "Ενεργή" : "Ανενεργή"} />

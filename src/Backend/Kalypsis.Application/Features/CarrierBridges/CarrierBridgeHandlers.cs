@@ -331,6 +331,17 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         var rules = await _db.DefaultValueRules
             .Where(x => x.IsActive && (x.InsuranceCompanyId == null || x.InsuranceCompanyId == carrierId))
             .ToListAsync(ct);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var commissionRules = await _db.CommissionRules.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null
+                && x.EffectiveFrom <= today
+                && (x.EffectiveTo == null || x.EffectiveTo >= today)
+                && (!x.InsuranceCompanyId.HasValue || x.InsuranceCompanyId == carrierId))
+            .ToListAsync(ct);
+        var producerRows = await _db.Producers.IgnoreQueryFilters()
+            .Where(p => p.TenantId == tenantId && p.DeletedAt == null)
+            .ToListAsync(ct);
+        var producerByCode = producerRows.ToDictionary(p => p.Code, StringComparer.OrdinalIgnoreCase);
 
         // For renewal-linking: ERGO has no AFM, so we match by normalized customer
         // name within the same carrier. We pull every policy for this carrier that
@@ -511,6 +522,51 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                     }
                 }
                 catch { /* ignore malformed rule */ }
+            }
+
+            var rowPolicyType = !string.IsNullOrEmpty(r.PlateNumber) ? PolicyType.Auto : PolicyType.Other;
+            Producer? matchedProducer = null;
+            if (!string.IsNullOrEmpty(r.PartnerCode)) producerByCode.TryGetValue(r.PartnerCode, out matchedProducer);
+            var producerId = matchedProducer?.Id;
+            var producerTier = matchedProducer?.Tier ?? ProducerTier.None;
+            var commissionRule = commissionRules
+                .Where(rule =>
+                    (!rule.ProducerId.HasValue         || rule.ProducerId == producerId) &&
+                    (!rule.ProducerTier.HasValue       || rule.ProducerTier == producerTier) &&
+                    (!rule.InsuranceCompanyId.HasValue || rule.InsuranceCompanyId == carrierId) &&
+                    (!rule.PolicyType.HasValue         || rule.PolicyType == rowPolicyType) &&
+                    rule.CoverCode == null &&
+                    !rule.VehicleUseCategory.HasValue)
+                .OrderByDescending(rule =>
+                    (rule.ProducerId.HasValue ? 32 : 0) +
+                    (rule.ProducerTier.HasValue ? 16 : 0) +
+                    (rule.InsuranceCompanyId.HasValue ? 2 : 0) +
+                    (rule.PolicyType.HasValue ? 1 : 0))
+                .FirstOrDefault();
+
+            if (commissionRule is not null && r.GrossPremium.HasValue && r.GrossPremium.Value != 0m)
+            {
+                if (commissionRule.AgencyPercent.HasValue && r.AgencyCommission.HasValue)
+                {
+                    var bridgeAgencyPct = Math.Round(r.AgencyCommission.Value / r.GrossPremium.Value * 100m, 2);
+                    if (Math.Abs(bridgeAgencyPct - commissionRule.AgencyPercent.Value) > 0.5m)
+                    {
+                        r.Notes.Add(new BridgeImportNote("Προμήθεια γραφείου", "warn",
+                            $"Η γέφυρα δίνει {bridgeAgencyPct:0.##}% ενώ η παραμετροποίηση έχει {commissionRule.AgencyPercent.Value:0.##}%. Δεν αλλάζει η γέφυρα· ελέγξτε τη σύμβαση/παραμετροποίηση."));
+                        if (status == "Ready") status = "WarnDiff";
+                    }
+                }
+
+                if (commissionRule.ProducerPercent.HasValue && r.PartnerCommission.HasValue)
+                {
+                    var expectedProducerAmount = Math.Round(Math.Abs(r.GrossPremium.Value) * commissionRule.ProducerPercent.Value / 100m, 2);
+                    if (Math.Abs(Math.Abs(r.PartnerCommission.Value) - expectedProducerAmount) > 0.50m)
+                    {
+                        r.Notes.Add(new BridgeImportNote("Προμήθεια συνεργάτη", "warn",
+                            $"Με βάση την παραμετροποίηση ο συνεργάτης πρέπει να πάρει {expectedProducerAmount:0.00}€. Η γέφυρα δείχνει {Math.Abs(r.PartnerCommission.Value):0.00}€. Ελέγξτε τη σύμβαση ή επικοινωνήστε για επίλυση."));
+                        if (status == "Ready") status = "WarnDiff";
+                    }
+                }
             }
 
             if (status != r.Status || rowType != r.RowType || linkedId != r.LinkedPolicyId)

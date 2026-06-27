@@ -125,8 +125,10 @@ public class GenerateCommissionRunCommandHandler : IRequestHandler<GenerateCommi
         decimal MatchScore(CommissionRule r, Policy p, ProducerTier policyTier)
         {
             decimal s = 0;
+            var coverCode = ExtractCoverCode(p.SpecsJson);
             if (r.ProducerId == p.ProducerId && r.ProducerId.HasValue) s += 16;
             if (r.ProducerTier.HasValue && r.ProducerTier == policyTier) s += 8;
+            if (r.CoverCode != null && string.Equals(r.CoverCode, coverCode, StringComparison.OrdinalIgnoreCase)) s += 6;
             if (r.VehicleUseCategory.HasValue && r.VehicleUseCategory == p.VehicleUseCategory) s += 4;
             if (r.InsuranceCompanyId == p.InsuranceCompanyId && r.InsuranceCompanyId.HasValue) s += 2;
             if (r.PolicyType == p.PolicyType && r.PolicyType.HasValue) s += 1;
@@ -158,10 +160,12 @@ public class GenerateCommissionRunCommandHandler : IRequestHandler<GenerateCommi
         {
             var policyTier = p.ProducerId.HasValue && tierByProducer.TryGetValue(p.ProducerId.Value, out var t)
                 ? t : ProducerTier.None;
+            var coverCode = ExtractCoverCode(p.SpecsJson);
             var match = rules
                 .Where(r =>
                     (!r.ProducerId.HasValue         || r.ProducerId == p.ProducerId) &&
                     (!r.ProducerTier.HasValue       || r.ProducerTier == policyTier) &&
+                    (r.CoverCode == null            || string.Equals(r.CoverCode, coverCode, StringComparison.OrdinalIgnoreCase)) &&
                     (!r.VehicleUseCategory.HasValue || r.VehicleUseCategory == p.VehicleUseCategory) &&
                     (!r.InsuranceCompanyId.HasValue || r.InsuranceCompanyId == p.InsuranceCompanyId) &&
                     (!r.PolicyType.HasValue         || r.PolicyType == p.PolicyType))
@@ -258,6 +262,25 @@ public class GenerateCommissionRunCommandHandler : IRequestHandler<GenerateCommi
             .Include(x => x.FilterProducer)
             .FirstAsync(x => x.Id == run.Id, ct);
         return ListCommissionRunsQueryHandler.Map(saved);
+    }
+
+    private static string? ExtractCoverCode(string? specsJson)
+    {
+        if (string.IsNullOrWhiteSpace(specsJson)) return null;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(specsJson);
+            foreach (var key in new[] { "coverCode", "coverageCode", "coverage", "cover" })
+            {
+                if (doc.RootElement.TryGetProperty(key, out var prop) && prop.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    var value = prop.GetString()?.Trim().ToUpperInvariant();
+                    return string.IsNullOrWhiteSpace(value) ? null : value;
+                }
+            }
+        }
+        catch { /* ignore malformed specs */ }
+        return null;
     }
 }
 

@@ -237,12 +237,12 @@ const navByRole: Record<Role, NavItem[]> = {
     // sidebar entries are gone. Restore these lines to re-enable the group.
 
     // BackOffice → ΠΑΡΑΜΕΤΡΟΠΟΙΗΣΗ — order requested by the agency:
-    // Εταιρείες → Κλάδοι/Πακέτα/Καλύψεις (lookups) → Κανόνες Προμηθειών → Μαζική → Κανόνες Προεπιλεγμένων Τιμών.
+    // Εταιρείες → Κανόνες Προεπιλεγμένων Τιμών → Κλάδοι/Πακέτα/Καλύψεις → Κανόνες Προμηθειών → Μαζική.
     { to: "/insurance-companies", labelKey: "nav.insuranceCompanies", icon: <BusinessIcon />,           package: "BackOffice", group: "params" },
+    { to: "/default-value-rules", labelKey: "nav.dvr",                icon: <RuleIcon />,               package: "BackOffice", group: "params" },
     { to: "/lookups",             labelKey: "nav.lookups",            icon: <MenuBookIcon />,           package: "BackOffice", group: "params" },
     { to: "/commission-rules",    labelKey: "nav.commissionRules",    icon: <StackedLineChartIcon />,   package: "BackOffice", group: "params" },
     { to: "/bulk-commissions",    labelKey: "nav.bulkCommissions",    icon: <TuneIcon />,               package: "BackOffice", group: "params" },
-    { to: "/default-value-rules", labelKey: "nav.dvr",                icon: <RuleIcon />,               package: "BackOffice", group: "params" },
     // — secondary configuration tools below the four primary items —
     { to: "/parametric-files",    labelKey: "nav.parametricFiles",    icon: <InventoryIcon />,      package: "BackOffice", group: "params" },
     { to: "/document-designer",   labelKey: "nav.docDesigner",        icon: <DesignServicesIcon />, package: "BackOffice", group: "params" },

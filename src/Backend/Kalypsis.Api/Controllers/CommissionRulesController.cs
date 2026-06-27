@@ -34,4 +34,11 @@ public class CommissionRulesController : ControllerBase
         await _mediator.Send(new DeleteCommissionRuleCommand(id), ct);
         return NoContent();
     }
+
+    public record SeedZeroDefaultsBody(Guid? InsuranceCompanyId);
+
+    [HttpPost("seed-zero-defaults")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<SeedZeroCommissionRulesResult>> SeedZeroDefaults([FromBody] SeedZeroDefaultsBody body, CancellationToken ct)
+        => Ok(await _mediator.Send(new SeedZeroCommissionRulesCommand(body.InsuranceCompanyId), ct));
 }

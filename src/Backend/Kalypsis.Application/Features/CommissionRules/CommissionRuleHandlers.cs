@@ -21,6 +21,7 @@ public record CommissionRuleDto(
     ProducerTier? ProducerTier,
     Guid? InsuranceCompanyId, string? InsuranceCompanyName,
     PolicyType? PolicyType,
+    string? CoverCode,
     VehicleUseCategory? VehicleUseCategory,
     decimal? AgencyPercent,
     decimal? ProducerPercent,
@@ -33,6 +34,7 @@ public record CommissionRuleBody(
     ProducerTier? ProducerTier,
     Guid? InsuranceCompanyId,
     PolicyType? PolicyType,
+    string? CoverCode,
     VehicleUseCategory? VehicleUseCategory,
     decimal? AgencyPercent,
     decimal? ProducerPercent,
@@ -69,7 +71,7 @@ public class ListCommissionRulesHandler : IRequestHandler<ListCommissionRulesQue
             r.Id, r.ProducerId, r.Producer?.Name,
             r.ProducerTier,
             r.InsuranceCompanyId, r.InsuranceCompany?.Name,
-            r.PolicyType, r.VehicleUseCategory,
+            r.PolicyType, r.CoverCode, r.VehicleUseCategory,
             r.AgencyPercent, r.ProducerPercent,
             r.AgencyPercent.HasValue || r.ProducerPercent.HasValue ? null : r.Value,
             r.EffectiveFrom, r.EffectiveTo)).ToList();
@@ -89,6 +91,7 @@ public class CommissionRuleBodyValidator : AbstractValidator<CommissionRuleBody>
             .WithMessage("Πρέπει να ορίσετε τουλάχιστον μία από τις δύο προμήθειες (έδρα ή συνεργάτη).");
         RuleFor(x => x.AgencyPercent).InclusiveBetween(0m, 100m).When(x => x.AgencyPercent.HasValue);
         RuleFor(x => x.ProducerPercent).InclusiveBetween(0m, 100m).When(x => x.ProducerPercent.HasValue);
+        RuleFor(x => x.CoverCode).MaximumLength(80);
         RuleFor(x => x).Must(b => !(b.ProducerId.HasValue && b.ProducerTier.HasValue))
             .WithMessage("Επιλέξτε είτε συγκεκριμένο συνεργάτη είτε κατηγορία, όχι και τα δύο.");
         RuleFor(x => x.EffectiveTo).GreaterThanOrEqualTo(x => x.EffectiveFrom)
@@ -114,6 +117,7 @@ public class CreateCommissionRuleHandler : IRequestHandler<CreateCommissionRuleC
             ProducerTier = c.Body.ProducerTier,
             InsuranceCompanyId = c.Body.InsuranceCompanyId,
             PolicyType = c.Body.PolicyType,
+            CoverCode = CommissionRuleInput.CleanCode(c.Body.CoverCode),
             VehicleUseCategory = c.Body.VehicleUseCategory,
             AgencyPercent = c.Body.AgencyPercent,
             ProducerPercent = c.Body.ProducerPercent,
@@ -138,7 +142,7 @@ public class CreateCommissionRuleHandler : IRequestHandler<CreateCommissionRuleC
             r.Id, r.ProducerId, r.Producer?.Name,
             r.ProducerTier,
             r.InsuranceCompanyId, r.InsuranceCompany?.Name,
-            r.PolicyType, r.VehicleUseCategory,
+            r.PolicyType, r.CoverCode, r.VehicleUseCategory,
             r.AgencyPercent, r.ProducerPercent,
             r.AgencyPercent.HasValue || r.ProducerPercent.HasValue ? null : r.Value,
             r.EffectiveFrom, r.EffectiveTo);
@@ -164,6 +168,7 @@ public class UpdateCommissionRuleHandler : IRequestHandler<UpdateCommissionRuleC
         r.ProducerTier = c.Body.ProducerTier;
         r.InsuranceCompanyId = c.Body.InsuranceCompanyId;
         r.PolicyType = c.Body.PolicyType;
+        r.CoverCode = CommissionRuleInput.CleanCode(c.Body.CoverCode);
         r.VehicleUseCategory = c.Body.VehicleUseCategory;
         r.AgencyPercent = c.Body.AgencyPercent;
         r.ProducerPercent = c.Body.ProducerPercent;
@@ -180,10 +185,19 @@ public class UpdateCommissionRuleHandler : IRequestHandler<UpdateCommissionRuleC
             reloaded.Id, reloaded.ProducerId, reloaded.Producer?.Name,
             reloaded.ProducerTier,
             reloaded.InsuranceCompanyId, reloaded.InsuranceCompany?.Name,
-            reloaded.PolicyType, reloaded.VehicleUseCategory,
+            reloaded.PolicyType, reloaded.CoverCode, reloaded.VehicleUseCategory,
             reloaded.AgencyPercent, reloaded.ProducerPercent,
             reloaded.AgencyPercent.HasValue || reloaded.ProducerPercent.HasValue ? null : reloaded.Value,
             reloaded.EffectiveFrom, reloaded.EffectiveTo);
+    }
+}
+
+internal static class CommissionRuleInput
+{
+    public static string? CleanCode(string? value)
+    {
+        var cleaned = value?.Trim().ToUpperInvariant();
+        return string.IsNullOrWhiteSpace(cleaned) ? null : cleaned;
     }
 }
 
@@ -205,5 +219,83 @@ public class DeleteCommissionRuleHandler : IRequestHandler<DeleteCommissionRuleC
         r.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
         return Unit.Value;
+    }
+}
+
+/* ========= Safe default matrix ========= */
+
+public record SeedZeroCommissionRulesCommand(Guid? InsuranceCompanyId) : IRequest<SeedZeroCommissionRulesResult>;
+public record SeedZeroCommissionRulesResult(int CompaniesProcessed, int RulesCreated);
+
+public class SeedZeroCommissionRulesHandler : IRequestHandler<SeedZeroCommissionRulesCommand, SeedZeroCommissionRulesResult>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public SeedZeroCommissionRulesHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
+
+    public async Task<SeedZeroCommissionRulesResult> Handle(SeedZeroCommissionRulesCommand r, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var companiesQuery = _db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(c => c.TenantId == tenantId && c.DeletedAt == null && c.IsActive);
+        if (r.InsuranceCompanyId.HasValue) companiesQuery = companiesQuery.Where(c => c.Id == r.InsuranceCompanyId.Value);
+        var companyIds = await companiesQuery.Select(c => c.Id).ToListAsync(ct);
+        if (r.InsuranceCompanyId.HasValue && companyIds.Count == 0)
+            throw AppException.NotFound("Ασφαλιστική εταιρεία");
+
+        var created = 0;
+        foreach (var companyId in companyIds)
+            created += await SeedCompanyAsync(_db, tenantId, companyId, ct);
+        await _db.SaveChangesAsync(ct);
+        return new SeedZeroCommissionRulesResult(companyIds.Count, created);
+    }
+
+    private static async Task<int> SeedCompanyAsync(IAppDbContext db, Guid tenantId, Guid companyId, CancellationToken ct)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var existing = await db.CommissionRules.IgnoreQueryFilters()
+            .Where(rule => rule.TenantId == tenantId && rule.DeletedAt == null && rule.InsuranceCompanyId == companyId)
+            .Select(rule => new { rule.PolicyType, rule.VehicleUseCategory, rule.ProducerTier, rule.ProducerId, rule.CoverCode })
+            .ToListAsync(ct);
+
+        var tiers = new[] { ProducerTier.A, ProducerTier.B, ProducerTier.C, ProducerTier.D, ProducerTier.E };
+        var autoUses = Enum.GetValues<VehicleUseCategory>().Where(use => use != VehicleUseCategory.None).ToList();
+        var created = 0;
+
+        bool Exists(PolicyType policyType, VehicleUseCategory? vehicleUse, ProducerTier tier) =>
+            existing.Any(rule => rule.ProducerId == null
+                && rule.CoverCode == null
+                && rule.PolicyType == policyType
+                && rule.VehicleUseCategory == vehicleUse
+                && rule.ProducerTier == tier);
+
+        void Add(PolicyType policyType, VehicleUseCategory? vehicleUse, ProducerTier tier)
+        {
+            if (Exists(policyType, vehicleUse, tier)) return;
+            db.CommissionRules.Add(new CommissionRule
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                InsuranceCompanyId = companyId,
+                PolicyType = policyType,
+                VehicleUseCategory = vehicleUse,
+                ProducerTier = tier,
+                AgencyPercent = 0m,
+                ProducerPercent = 0m,
+                Value = 0m,
+                CommissionType = CommissionType.Percentage,
+                EffectiveFrom = today,
+                CreatedAt = DateTime.UtcNow
+            });
+            created++;
+        }
+
+        foreach (var tier in tiers)
+        {
+            foreach (var use in autoUses) Add(PolicyType.Auto, use, tier);
+            foreach (var policyType in Enum.GetValues<PolicyType>().Where(type => type != PolicyType.Auto))
+                Add(policyType, null, tier);
+        }
+        return created;
     }
 }

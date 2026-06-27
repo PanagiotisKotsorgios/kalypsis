@@ -24,15 +24,19 @@ public record ProductionFilters(
     DateOnly? From, DateOnly? To,
     Guid? InsuranceCompanyId, Guid? ProducerId,
     PolicyType? PolicyType, PolicyStatus? Status,
+    VehicleUseCategory? VehicleUseCategory, string? CoverCode,
     string? GroupBy);   // "carrier" | "producer" | "type" | "month" | null
 
 public record ProductionRowDto(
     Guid PolicyId, string PolicyNumber,
     DateOnly StartDate, DateOnly EndDate,
     string CustomerName, string InsuranceCompany, string? Producer, string PolicyType, string Status,
+    VehicleUseCategory? VehicleUseCategory, string? CoverCode,
     decimal Gross, decimal Net, decimal Vat,
     decimal PartnerCommissionPercent, decimal PartnerCommission,
-    decimal AgencyCommissionPercent, decimal AgencyCommission);
+    decimal AgencyCommissionPercent, decimal AgencyCommission,
+    decimal IncomingAgencyCommissionPercent, decimal IncomingAgencyCommission,
+    string? CommissionWarning);
 
 public record ProductionGroupTotalDto(
     string Key, int Count,
@@ -106,8 +110,12 @@ public static class ProductionListBuilder
         if (f.ProducerId.HasValue)         query = query.Where(p => p.ProducerId == f.ProducerId);
         if (f.PolicyType.HasValue)         query = query.Where(p => p.PolicyType == f.PolicyType);
         if (f.Status.HasValue)             query = query.Where(p => p.Status == f.Status);
+        if (f.VehicleUseCategory.HasValue) query = query.Where(p => p.VehicleUseCategory == f.VehicleUseCategory);
 
         var policies = await query.OrderByDescending(p => p.StartDate).Take(5000).ToListAsync(ct);
+        var requestedCover = CleanCode(f.CoverCode);
+        if (requestedCover is not null)
+            policies = policies.Where(p => string.Equals(ExtractCoverCode(p.SpecsJson), requestedCover, StringComparison.OrdinalIgnoreCase)).ToList();
 
         // Pull active commission rules so partner commission % can be read from
         // parameterization (NOT the bridge). Most-specific rule wins.
@@ -127,26 +135,45 @@ public static class ProductionListBuilder
                 .Where(x => producerTiers.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, x => x.Tier, ct);
 
-        decimal LookupPartnerPct(Policy p)
-        {
-            if (p.SpecialCommissionPercent.HasValue) return p.SpecialCommissionPercent.Value;
+        var policyIds = policies.Select(p => p.Id).ToList();
+        var bridgeAgencyCommissionByPolicy = policyIds.Count == 0
+            ? new Dictionary<Guid, decimal>()
+            : await _db.FinancialMovements.IgnoreQueryFilters()
+                .Where(m => m.TenantId == tenantId
+                    && m.DeletedAt == null
+                    && m.PolicyId.HasValue
+                    && policyIds.Contains(m.PolicyId.Value)
+                    && m.Kind == FinancialMovementKind.CommissionEarned
+                    && m.Description != null
+                    && m.Description.StartsWith("[bridge:"))
+                .GroupBy(m => m.PolicyId!.Value)
+                .ToDictionaryAsync(g => g.Key, g => g.Sum(x => x.Amount), ct);
 
+        CommissionRule? LookupRule(Policy p, string? coverCode)
+        {
             var tier = p.ProducerId.HasValue && tierByProducer.TryGetValue(p.ProducerId.Value, out var t)
                 ? t : ProducerTier.None;
 
-            var match = rules
+            return rules
                 .Where(r => (!r.ProducerId.HasValue           || r.ProducerId == p.ProducerId)
                          && (!r.ProducerTier.HasValue         || r.ProducerTier == tier)
                          && (!r.InsuranceCompanyId.HasValue   || r.InsuranceCompanyId == p.InsuranceCompanyId)
                          && (!r.PolicyType.HasValue           || r.PolicyType == p.PolicyType)
+                         && (r.CoverCode == null              || string.Equals(r.CoverCode, coverCode, StringComparison.OrdinalIgnoreCase))
                          && (!r.VehicleUseCategory.HasValue   || r.VehicleUseCategory == p.VehicleUseCategory))
                 .OrderByDescending(r =>
-                    (r.ProducerId.HasValue ? 16 : 0) +
-                    (r.ProducerTier.HasValue ? 8 : 0) +
+                    (r.ProducerId.HasValue ? 32 : 0) +
+                    (r.ProducerTier.HasValue ? 16 : 0) +
+                    (r.CoverCode != null ? 8 : 0) +
                     (r.VehicleUseCategory.HasValue ? 4 : 0) +
                     (r.InsuranceCompanyId.HasValue ? 2 : 0) +
                     (r.PolicyType.HasValue ? 1 : 0))
                 .FirstOrDefault();
+        }
+
+        decimal LookupPartnerPct(Policy p, CommissionRule? match)
+        {
+            if (p.SpecialCommissionPercent.HasValue) return p.SpecialCommissionPercent.Value;
             if (match is null) return 0m;
             // Prefer the new ProducerPercent column when populated; fall back to the
             // legacy single-value field so older rules still work end-to-end.
@@ -156,15 +183,27 @@ public static class ProductionListBuilder
 
         return policies.Select(p =>
         {
-            var partnerPct = LookupPartnerPct(p);
+            var coverCode = ExtractCoverCode(p.SpecsJson);
+            var match = LookupRule(p, coverCode);
+            var partnerPct = LookupPartnerPct(p, match);
             var net = p.PremiumIncludesVat ? Math.Round(p.Premium / 1.24m, 2) : p.Premium;
             var vat = p.Premium - net;
             var partnerComm = Math.Round(p.Premium * partnerPct / 100m, 2);
-            // Agency keeps the residual (assume incoming commission is 20% by default unless override).
-            var incomingPct = 20m;
-            var incomingComm = Math.Round(p.Premium * incomingPct / 100m, 2);
+            var hasBridgeAgencyCommission = bridgeAgencyCommissionByPolicy.TryGetValue(p.Id, out var bridgeAgencyCommission);
+            var incomingPct = hasBridgeAgencyCommission
+                ? p.Premium > 0 ? Math.Round(bridgeAgencyCommission / p.Premium * 100m, 2) : 0m
+                : match?.AgencyPercent ?? 20m;
+            var incomingComm = hasBridgeAgencyCommission
+                ? bridgeAgencyCommission
+                : Math.Round(p.Premium * incomingPct / 100m, 2);
             var agencyComm = incomingComm - partnerComm;
             var agencyPct = p.Premium > 0 ? Math.Round(agencyComm / p.Premium * 100m, 2) : 0m;
+            string? warning = null;
+            if (hasBridgeAgencyCommission && match?.AgencyPercent.HasValue == true
+                && Math.Abs(incomingPct - match.AgencyPercent.Value) > 0.5m)
+                warning = $"Η γέφυρα δίνει προμήθεια γραφείου {incomingPct:0.##}% ενώ η παραμετροποίηση έχει {match.AgencyPercent.Value:0.##}%. Ισχύει η γέφυρα.";
+            if (agencyComm < 0)
+                warning = "Η προμήθεια συνεργάτη είναι μεγαλύτερη από την προμήθεια γραφείου. Ελέγξτε τη σύμβαση ή επικοινωνήστε για να επιλυθεί η διαφορά.";
 
             return new ProductionRowDto(
                 p.Id, p.PolicyNumber,
@@ -177,10 +216,36 @@ public static class ProductionListBuilder
                 p.Producer?.Name,
                 p.PolicyType.ToString(),
                 p.Status.ToString(),
+                p.VehicleUseCategory,
+                coverCode,
                 p.Premium, net, vat,
                 partnerPct, partnerComm,
-                agencyPct, agencyComm);
+                agencyPct, agencyComm,
+                incomingPct, incomingComm,
+                warning);
         }).ToList();
+    }
+
+    private static string? CleanCode(string? value)
+    {
+        var cleaned = value?.Trim().ToUpperInvariant();
+        return string.IsNullOrWhiteSpace(cleaned) ? null : cleaned;
+    }
+
+    private static string? ExtractCoverCode(string? specsJson)
+    {
+        if (string.IsNullOrWhiteSpace(specsJson)) return null;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(specsJson);
+            foreach (var key in new[] { "coverCode", "coverageCode", "coverage", "cover" })
+            {
+                if (doc.RootElement.TryGetProperty(key, out var prop) && prop.ValueKind == System.Text.Json.JsonValueKind.String)
+                    return CleanCode(prop.GetString());
+            }
+        }
+        catch { /* malformed specs are ignored for reporting filters */ }
+        return null;
     }
 }
 

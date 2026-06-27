@@ -21,6 +21,12 @@ public class CommissionRule : TenantEntity
     public PolicyType? PolicyType { get; set; }
 
     /// <summary>
+    /// Optional coverage code, aligned with DefaultValueRule.CoverCode and carrier
+    /// parametric files. Null means any coverage under the selected scope.
+    /// </summary>
+    public string? CoverCode { get; set; }
+
+    /// <summary>
     /// Optional further scope-narrowing for motor policies — e.g. an ΕΙΧ rule
     /// can pay a different producer percentage than a ΦΔΧ rule under the same
     /// (carrier × policyType) pair. Null = any use category.
