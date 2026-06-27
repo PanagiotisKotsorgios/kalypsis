@@ -8,6 +8,7 @@ import { AppLayout, type NavItem } from "./AppLayout";
 import { BackOfficeActionHelp } from "./BackOfficeActionHelp";
 import { EmployeeActivityTracker } from "./EmployeeActivityTracker";
 import { LanguageToggle } from "./LanguageToggle";
+import { SessionCountdown } from "./SessionCountdown";
 import { useAuth } from "../auth/AuthContext";
 import { useWorkspace } from "../auth/WorkspaceContext";
 import type { Role } from "../auth/AuthContext";
@@ -64,6 +65,7 @@ export function AppShell({
               Kalypsis
             </Typography>
             <Stack direction="row" alignItems="center" spacing={1}>
+              <SessionCountdown />
               <LanguageToggle />
               <IconButton
                 onClick={() => { signOut(); navigate("/", { replace: true }); }}

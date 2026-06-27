@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { LanguageToggle } from "../components/LanguageToggle";
+import { SessionCountdown } from "../components/SessionCountdown";
 
 /**
  * Phase 8.6 — Launch-gate page shown to agency-side roles while the
@@ -46,6 +47,7 @@ export function UnderMaintenancePage({ title, message }: { title?: string | null
             Kalypsis
           </Typography>
           <Stack direction="row" alignItems="center" spacing={1}>
+            <SessionCountdown />
             <LanguageToggle />
             <IconButton onClick={handleSignOut} title={t("auth.logout")} size="small">
               <LogoutIcon fontSize="small" />

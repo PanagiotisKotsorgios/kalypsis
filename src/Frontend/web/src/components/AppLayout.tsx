@@ -37,6 +37,7 @@ import { useImpersonation } from "../impersonation/ImpersonationContext";
 import { ImpersonationBanner } from "./ImpersonationBanner";
 import { LanguageToggle } from "./LanguageToggle";
 import { NotificationBell } from "./NotificationBell";
+import { SessionCountdown } from "./SessionCountdown";
 import { KalypsisLogo } from "./KalypsisLogo";
 import { KalypsisOnboarding } from "./KalypsisOnboarding";
 import { PageTourMount } from "./PageTour";
@@ -392,6 +393,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           {!useWorkspaceUi && <Box sx={{ flex: 1 }} />}
 
           <Stack direction="row" spacing={{ xs: 0.25, md: 1.5 }} alignItems="center" flexShrink={0}>
+            <SessionCountdown />
             <Box data-tour="topbar-bell"><NotificationBell /></Box>
             <Box data-tour="topbar-language" sx={{ display: { xs: "none", sm: "block" } }}>
               <LanguageToggle />
