@@ -14,6 +14,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { NumberedPager } from "../components/TableToolbar";
 import { BulkCommissionsPage } from "./BulkCommissionsPage";
+import { DefaultValueRulesPage } from "./DefaultValueRulesPage";
 
 type ProducerTier = "None" | "A" | "B" | "C" | "D" | "E";
 type PolicyType   = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
@@ -82,6 +83,7 @@ export function CommissionRulesPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [defaultsOpen, setDefaultsOpen] = useState(false);
   const [editing, setEditing] = useState<CommissionRuleDto | null>(null);
 
   // Filters
@@ -161,6 +163,13 @@ export function CommissionRulesPage() {
         </Stack>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
           <Button
+            variant="outlined"
+            size="large"
+            onClick={() => setDefaultsOpen(true)}
+          >
+            Προεπιλογές συμβολαίων
+          </Button>
+          <Button
             startIcon={<TuneIcon />}
             variant="outlined"
             size="large"
@@ -185,7 +194,7 @@ export function CommissionRulesPage() {
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}
       <Alert severity="info" sx={{ mb: 2 }}>
-        Η παραμετροποίηση και η μαζική επεξεργασία προμηθειών είναι πλέον στο ίδιο σημείο. Για μεμονωμένες αλλαγές ανοίξτε/επεξεργαστείτε κανόνα· για αλλαγές σε πολλά συμβόλαια πατήστε «Μαζική επεξεργασία».
+        Η παραμετροποίηση είναι πλέον σε ένα σημείο. Οι κανόνες προμηθειών αφορούν πληρωμές γραφείου/συνεργατών. Οι «Προεπιλογές συμβολαίων» αφορούν μόνο αυτόματη συμπλήρωση πεδίων όταν καταχωρείται χειροκίνητα νέο συμβόλαιο.
       </Alert>
 
       <Card sx={{ p: 2, mb: 2 }}>
@@ -299,6 +308,16 @@ export function CommissionRulesPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setBulkOpen(false)}>Κλείσιμο</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={defaultsOpen} onClose={() => setDefaultsOpen(false)} fullWidth maxWidth="xl">
+        <DialogTitle sx={{ fontWeight: 800 }}>Προεπιλογές συμβολαίων</DialogTitle>
+        <DialogContent dividers sx={{ bgcolor: "background.default", p: { xs: 1.5, md: 3 } }}>
+          <DefaultValueRulesPage embedded />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDefaultsOpen(false)}>Κλείσιμο</Button>
         </DialogActions>
       </Dialog>
 

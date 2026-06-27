@@ -21,7 +21,7 @@ interface RuleDto {
 
 const TYPES = ["Auto", "Home", "Health", "Life", "Business", "Travel", "Other"];
 
-export function DefaultValueRulesPage() {
+export function DefaultValueRulesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [open, setOpen] = useState<any | null>(null);
@@ -36,6 +36,7 @@ export function DefaultValueRulesPage() {
 
   return (
     <Box>
+      {!embedded && (
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Stack direction="row" alignItems="center" spacing={2}>
           <RuleIcon sx={{ fontSize: 36 }} color="primary" />
@@ -49,8 +50,14 @@ export function DefaultValueRulesPage() {
         </Stack>
         <Button variant="contained" startIcon={<AddIcon />} size="large" onClick={() => setOpen({})}>{t("dvr.create")}</Button>
       </Stack>
+      )}
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       <Alert severity="info" sx={{ mb: 2 }}>{t("dvr.howItWorks")}</Alert>
+      {embedded && (
+        <Stack direction="row" justifyContent="flex-end" mb={2}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen({})}>{t("dvr.create")}</Button>
+        </Stack>
+      )}
       {q.isLoading ? <CircularProgress /> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">

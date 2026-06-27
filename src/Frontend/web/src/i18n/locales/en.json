@@ -100,7 +100,7 @@
     "infoCenter": "Info Center",
     "vehicleModels": "Vehicle Catalog",
     "allTools": "All Tools",
-    "dvr": "Default Value Rules",
+    "dvr": "Policy Defaults",
     "bridgeImport": "Bridge Import",
     "carrierBridges": "Carrier Bridges",
     "productionLists": "Production Reports",
@@ -2989,14 +2989,14 @@
     "note": "Partner commission is read from parameterization (CommissionRule), not the bridge. xlsx data from carriers never overrides it."
   },
   "dvr": {
-    "title": "Default Value Rules",
+    "title": "Policy Defaults",
     "subtitle": "When entering policies manually, fields are pre-filled based on conditions (carrier × type × cover × package).",
-    "howItWorks": "More specific rules win. e.g. a rule for \"ETHNIKI + Auto + MTPL\" applies before the generic \"MTPL for all carriers\".",
-    "create": "New rule", "edit": "Edit rule",
+    "howItWorks": "This is not a second commission setup. It only provides helper defaults for manually created policies. The most specific match wins.",
+    "create": "New default", "edit": "Edit default",
     "name": "Name", "carrier": "Carrier", "policyType": "Type", "cover": "Cover", "package": "Package",
-    "values": "Default values (JSON)",
-    "valuesHelp": "Valid JSON. e.g. {\"Currency\":\"EUR\",\"PaymentFrequency\":\"Annual\",\"SpecialCommissionPercent\":15}",
-    "priority": "Priority", "any": "Any", "empty": "No rules defined yet."
+    "values": "Prefill values (JSON)",
+    "valuesHelp": "Valid JSON for policy fields. e.g. {\"Currency\":\"EUR\",\"PaymentFrequency\":\"Annual\"}",
+    "priority": "Priority", "any": "Any", "empty": "No policy defaults defined yet."
   },
   "bridge": {
     "title": "Bridge Import",

@@ -180,7 +180,6 @@ import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import { AllToolsPage } from "./pages/AllToolsPage";
-import { DefaultValueRulesPage } from "./pages/DefaultValueRulesPage";
 import { BridgeImportPage } from "./pages/BridgeImportPage";
 import { CarrierBridgesPage } from "./pages/CarrierBridgesPage";
 import { ProductionListsPage } from "./pages/ProductionListsPage";
@@ -234,10 +233,9 @@ const navByRole: Record<Role, NavItem[]> = {
     // Routes below still resolve so we don't crash existing deep-links, but the
     // sidebar entries are gone. Restore these lines to re-enable the group.
 
-    // BackOffice → ΠΑΡΑΜΕΤΡΟΠΟΙΗΣΗ — order requested by the agency:
-    // Εταιρείες → Κανόνες Προεπιλεγμένων Τιμών → Κλάδοι/Πακέτα/Καλύψεις → Κανόνες Προμηθειών → Μαζική.
+    // BackOffice → ΠΑΡΑΜΕΤΡΟΠΟΙΗΣΗ — fewer sidebar entries:
+    // Εταιρείες → Κλάδοι/Πακέτα/Καλύψεις → ενιαία παραμετροποίηση προμηθειών/προεπιλογών.
     { to: "/insurance-companies", labelKey: "nav.insuranceCompanies", icon: <BusinessIcon />,           package: "BackOffice", group: "params" },
-    { to: "/default-value-rules", labelKey: "nav.dvr",                icon: <RuleIcon />,               package: "BackOffice", group: "params" },
     { to: "/lookups",             labelKey: "nav.lookups",            icon: <MenuBookIcon />,           package: "BackOffice", group: "params" },
     { to: "/commission-rules",    labelKey: "nav.commissionRules",    icon: <StackedLineChartIcon />,   package: "BackOffice", group: "params" },
     // — secondary configuration tools below the four primary items —
@@ -535,7 +533,7 @@ export default function App() {
                   <Route path="caller-id" element={<CallerIdPage />} />
                   <Route path="usae" element={<UsaeSubmissionsPage />} />
                   <Route path="all-tools" element={<AllToolsPage />} />
-                  <Route path="default-value-rules" element={<DefaultValueRulesPage />} />
+                  <Route path="default-value-rules" element={<Navigate to="/app/commission-rules" replace />} />
                   <Route path="bridge-import" element={<BridgeImportPage />} />
                   <Route path="carrier-bridges" element={<CarrierBridgesPage />} />
                   <Route path="production-lists" element={<ProductionListsPage />} />
