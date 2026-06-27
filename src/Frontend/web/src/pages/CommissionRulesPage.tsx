@@ -77,14 +77,8 @@ function describeScope(r: CommissionRuleDto): string {
   return parts.join(" · ");
 }
 
-function isSeededZeroRule(r: CommissionRuleDto): boolean {
-  return !!r.insuranceCompanyId
-    && !r.producerId
-    && !!r.producerTier
-    && r.producerTier !== "None"
-    && !r.coverCode
-    && r.effectiveTo === null
-    && (r.agencyPercent ?? 0) === 0
+function isZeroCommissionRule(r: CommissionRuleDto): boolean {
+  return (r.agencyPercent ?? 0) === 0
     && (r.producerPercent ?? r.legacyValue ?? 0) === 0;
 }
 
@@ -139,9 +133,9 @@ export function CommissionRulesPage() {
   });
 
   const rawRows = q.data ?? [];
-  const seededZeroCount = useMemo(() => rawRows.filter(isSeededZeroRule).length, [rawRows]);
+  const seededZeroCount = useMemo(() => rawRows.filter(isZeroCommissionRule).length, [rawRows]);
   const visibleRows = useMemo(
-    () => showSeededZeroRules ? rawRows : rawRows.filter(r => !isSeededZeroRule(r)),
+    () => showSeededZeroRules ? rawRows : rawRows.filter(r => !isZeroCommissionRule(r)),
     [rawRows, showSeededZeroRules]
   );
   const filtered = useMemo(() => visibleRows.filter(r => {
