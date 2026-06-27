@@ -16,6 +16,7 @@ import { api } from "../api/client";
 import {
   NOTIFICATION_SEVERITY_COLOR,
   NOTIFICATION_SEVERITY_TINT,
+  notificationActionTarget,
   notificationCategoryLabel,
   notificationSearchText,
   notificationSeverity
@@ -173,14 +174,15 @@ export function NotificationBell() {
                     justifyContent="space-between"
                     sx={{
                       p: 2,
-                      background: "linear-gradient(135deg, #0b2545 0%, #123b66 100%)"
+                      bgcolor: "#fff",
+                      borderBottom: "1px solid #e5e9ef"
                     }}
                   >
                     <Box>
-                      <Typography sx={{ fontSize: 16, fontWeight: 850, color: "#fff" }}>
+                      <Typography sx={{ fontSize: 16, fontWeight: 850, color: "#0b2545" }}>
                         {t("notifications.title")}
                       </Typography>
-                      <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.76)" }}>
+                      <Typography sx={{ fontSize: 12, color: "#456079" }}>
                         {count > 0 ? t("notifications.subtitle", { count }) : "Όλα ενημερωμένα"}
                       </Typography>
                     </Box>
@@ -194,10 +196,7 @@ export function NotificationBell() {
                         sx={{
                           fontSize: 12.5,
                           fontWeight: 800,
-                          color: "#fff",
-                          borderColor: "rgba(255,255,255,0.36)",
-                          "&:hover": { borderColor: "#fff", bgcolor: "rgba(255,255,255,0.10)" },
-                          "&.Mui-disabled": { color: "rgba(255,255,255,0.55)", borderColor: "rgba(255,255,255,0.20)" }
+                          borderColor: "#d9e1ea"
                         }}
                       >
                         {t("notifications.markAll")}
@@ -276,6 +275,7 @@ export function NotificationBell() {
                       const sev = notificationSeverity(n.category);
                       const isExpanded = expandedId === n.id;
                       const sevColor = NOTIFICATION_SEVERITY_COLOR[sev];
+                      const target = notificationActionTarget(n.link);
                       return (
                         <Box
                           key={n.id}
@@ -353,13 +353,13 @@ export function NotificationBell() {
                                 {n.body}
                               </Typography>
 
-                              {isExpanded && n.link && (
+                              {isExpanded && target && (
                                 <Button
                                   size="small"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setOpen(false);
-                                    navigate(n.link!);
+                                    navigate(target);
                                   }}
                                   sx={{ mt: 1, fontSize: 12.5, fontWeight: 800, p: 0 }}
                                 >

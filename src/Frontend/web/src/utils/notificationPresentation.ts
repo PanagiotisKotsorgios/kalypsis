@@ -69,3 +69,21 @@ export function notificationSearchText(n: {
 }) {
   return `${n.title} ${n.body} ${n.category ?? ""} ${notificationCategoryLabel(n.category)}`.toLowerCase();
 }
+
+export function notificationActionTarget(link: string | null | undefined): string | null {
+  const raw = (link ?? "").trim();
+  if (!raw) return null;
+
+  const [pathAndQuery, hash] = raw.split("#", 2);
+  const path = pathAndQuery.split("?", 1)[0];
+
+  const policyMatch = path.match(/^\/app\/policies\/([^/?#]+)$/i) ?? path.match(/^\/policies\/([^/?#]+)$/i);
+  if (policyMatch) {
+    const id = encodeURIComponent(policyMatch[1]);
+    return `/app/policies?documentPolicyId=${id}${hash ? `#${hash}` : ""}`;
+  }
+
+  if (raw.startsWith("/app/")) return raw;
+  if (raw.startsWith("/")) return `/app${raw}`;
+  return raw;
+}

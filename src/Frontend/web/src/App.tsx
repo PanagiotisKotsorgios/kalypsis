@@ -150,6 +150,7 @@ import { UsaeSubmissionsPage } from "./pages/UsaeSubmissionsPage";
 import { IntegrationSettingsPage } from "./pages/IntegrationSettingsPage";
 import { NamedReportsPage } from "./pages/NamedReportsPage";
 import { ConfigHubPage } from "./pages/ConfigHubPage";
+import { RecycleBinPage } from "./pages/RecycleBinPage";
 import { AdvancePaymentsPage, ReconciliationPage, TachyPaymentsPage, InfoCenterPage, VehicleModelsPage } from "./pages/Phase13Pages";
 import VpnKeyIcon from "@mui/icons-material/VpnKey";
 import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
@@ -164,6 +165,7 @@ import DesignServicesIcon from "@mui/icons-material/DesignServices";
 // were removed from the sidebar; their imports are no longer needed.
 import RuleIcon from "@mui/icons-material/Rule";
 import RestoreIcon from "@mui/icons-material/Restore";
+import RestoreFromTrashIcon from "@mui/icons-material/RestoreFromTrash";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import StackedLineChartIcon from "@mui/icons-material/StackedLineChart";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
@@ -247,6 +249,7 @@ const navByRole: Record<Role, NavItem[]> = {
     // BackOffice → ΔΙΟΙΚΗΣΗ
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
     { to: "/audit", labelKey: "nav.audit", icon: <GavelIcon />, package: "BackOffice", group: "admin" },
+    { to: "/recycle-bin", labelKey: "nav.recycleBin", icon: <RestoreFromTrashIcon />, package: "BackOffice", group: "admin" },
     { to: "/customer-merge", labelKey: "nav.merge", icon: <MergeIcon />, package: "BackOffice", group: "admin" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "BackOffice", group: "admin" },
 
@@ -463,6 +466,7 @@ export default function App() {
                   <Route path="settings" element={<AdminSettingsPage />} />
                   <Route path="requests" element={<RequestsPage />} />
                   <Route path="audit" element={<AuditLogsPage />} />
+                  <Route path="recycle-bin" element={<RecycleBinPage />} />
                   <Route path="tasks" element={<TasksPage />} />
                   <Route path="producers" element={<ProducersPage />} />
                   <Route path="claims" element={<ClaimsPage />} />

@@ -30,6 +30,7 @@ import { api, extractErrorMessage } from "../api/client";
 import {
   NOTIFICATION_SEVERITY_COLOR,
   NOTIFICATION_SEVERITY_TINT,
+  notificationActionTarget,
   notificationCategoryLabel,
   notificationSearchText,
   notificationSeverity
@@ -180,9 +181,9 @@ export function NotificationsPage() {
           mb: 2.5,
           overflow: "hidden",
           border: `1px solid ${BORDER}`,
-          background: "linear-gradient(135deg, #0b2545 0%, #123b66 58%, #1d4e89 100%)",
-          color: "#fff",
-          boxShadow: "0 18px 46px rgba(11,37,69,0.16)"
+          bgcolor: "background.paper",
+          color: NAVY,
+          boxShadow: "0 10px 30px rgba(11,37,69,0.06)"
         }}
       >
         <CardContent sx={{ p: { xs: 2.25, md: 3 } }}>
@@ -195,8 +196,9 @@ export function NotificationsPage() {
                   borderRadius: 2.5,
                   display: "grid",
                   placeItems: "center",
-                  bgcolor: "rgba(255,255,255,0.12)",
-                  border: "1px solid rgba(255,255,255,0.18)"
+                  bgcolor: "rgba(30,167,225,0.10)",
+                  color: "secondary.main",
+                  border: "1px solid rgba(30,167,225,0.22)"
                 }}
               >
                 <NotificationsIcon />
@@ -205,7 +207,7 @@ export function NotificationsPage() {
                 <Typography variant="h4" sx={{ fontWeight: 850, letterSpacing: -0.4 }}>
                   {t("notifications.title")}
                 </Typography>
-                <Typography sx={{ color: "rgba(255,255,255,0.76)" }}>
+                <Typography color="text.secondary">
                   {unreadCount > 0 ? t("notifications.subtitle", { count: unreadCount }) : "Όλες οι ειδοποιήσεις είναι ενημερωμένες."}
                 </Typography>
               </Box>
@@ -217,13 +219,7 @@ export function NotificationsPage() {
                 variant="outlined"
                 onClick={() => markAll.mutate()}
                 disabled={unreadCount === 0 || markAll.isPending}
-                sx={{
-                  color: "#fff",
-                  borderColor: "rgba(255,255,255,0.38)",
-                  fontWeight: 800,
-                  "&:hover": { borderColor: "#fff", bgcolor: "rgba(255,255,255,0.10)" },
-                  "&.Mui-disabled": { color: "rgba(255,255,255,0.50)", borderColor: "rgba(255,255,255,0.16)" }
-                }}
+                sx={{ fontWeight: 800 }}
               >
                 {t("notifications.markAll")}
               </Button>
@@ -234,13 +230,7 @@ export function NotificationsPage() {
                   if (window.confirm("Να διαγραφούν όλες οι αναγνωσμένες ειδοποιήσεις;")) deleteRead.mutate();
                 }}
                 disabled={readCount === 0 || deleteRead.isPending}
-                sx={{
-                  color: "#fff",
-                  borderColor: "rgba(255,255,255,0.38)",
-                  fontWeight: 800,
-                  "&:hover": { borderColor: "#fff", bgcolor: "rgba(255,255,255,0.10)" },
-                  "&.Mui-disabled": { color: "rgba(255,255,255,0.50)", borderColor: "rgba(255,255,255,0.16)" }
-                }}
+                sx={{ fontWeight: 800 }}
               >
                 Διαγραφή αναγνωσμένων
               </Button>
@@ -248,9 +238,9 @@ export function NotificationsPage() {
           </Stack>
 
           <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 2.25 }}>
-            <Chip label={`Σύνολο · ${rows.length}`} sx={{ bgcolor: "rgba(255,255,255,0.14)", color: "#fff", fontWeight: 800 }} />
-            <Chip label={`Μη αναγνωσμένες · ${unreadCount}`} sx={{ bgcolor: "rgba(255,255,255,0.14)", color: "#fff", fontWeight: 800 }} />
-            <Chip label={`Αναγνωσμένες · ${readCount}`} sx={{ bgcolor: "rgba(255,255,255,0.14)", color: "#fff", fontWeight: 800 }} />
+            <Chip label={`Σύνολο · ${rows.length}`} sx={{ bgcolor: "rgba(11,37,69,0.06)", color: NAVY, fontWeight: 800 }} />
+            <Chip label={`Μη αναγνωσμένες · ${unreadCount}`} sx={{ bgcolor: "rgba(30,167,225,0.10)", color: NAVY, fontWeight: 800 }} />
+            <Chip label={`Αναγνωσμένες · ${readCount}`} sx={{ bgcolor: "rgba(11,37,69,0.04)", color: TEXT_MUTED, fontWeight: 800 }} />
           </Stack>
         </CardContent>
       </Card>
@@ -396,6 +386,7 @@ export function NotificationsPage() {
           {pageRows.map((n) => {
             const sev = notificationSeverity(n.category);
             const color = NOTIFICATION_SEVERITY_COLOR[sev];
+            const target = notificationActionTarget(n.link);
             return (
               <Card
                 key={n.id}
@@ -449,10 +440,10 @@ export function NotificationsPage() {
                     </Box>
 
                     <Stack direction={{ xs: "row", md: "column" }} spacing={0.75} alignItems={{ xs: "center", md: "flex-end" }} justifyContent="flex-start">
-                      {n.link && (
+                      {target && (
                         <Button
                           component={RouterLink}
-                          to={n.link}
+                          to={target}
                           size="small"
                           variant="contained"
                           startIcon={<OpenInNewIcon />}
