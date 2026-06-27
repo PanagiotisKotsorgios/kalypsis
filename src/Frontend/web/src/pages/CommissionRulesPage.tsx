@@ -8,10 +8,12 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import RuleIcon from "@mui/icons-material/Rule";
+import TuneIcon from "@mui/icons-material/Tune";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { NumberedPager } from "../components/TableToolbar";
+import { BulkCommissionsPage } from "./BulkCommissionsPage";
 
 type ProducerTier = "None" | "A" | "B" | "C" | "D" | "E";
 type PolicyType   = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
@@ -79,6 +81,7 @@ export function CommissionRulesPage() {
   const [err, setErr] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [editing, setEditing] = useState<CommissionRuleDto | null>(null);
 
   // Filters
@@ -147,16 +150,24 @@ export function CommissionRulesPage() {
           <RuleIcon sx={{ fontSize: 36 }} color="primary" />
           <Box>
             <Stack direction="row" alignItems="center" spacing={0.5}>
-              <Typography variant="h4" sx={{ fontWeight: 800 }}>Κανόνες προμηθειών</Typography>
+              <Typography variant="h4" sx={{ fontWeight: 800 }}>Παραμετροποίηση προμηθειών</Typography>
               <HelpHint title="Πώς λειτουργούν οι κανόνες"
                 body="Ορίστε μία προμήθεια ανά συνδυασμό (εταιρία × κλάδος × κατηγορία συνεργάτη). Αν αφήσετε κάποιο πεδίο κενό, ο κανόνας ισχύει για όλες τις τιμές αυτής της διάστασης. Όταν δύο κανόνες ταιριάζουν, υπερισχύει ο πιο συγκεκριμένος. Η προμήθεια έδρας που έρχεται από γέφυρα δεν αλλάζει — μόνο η προμήθεια συνεργάτη προ-υπολογίζεται από εδώ." />
             </Stack>
             <Typography color="text.secondary">
-              Παραμετροποίηση προμηθειών έδρας/συνεργάτη ανά εταιρία, κλάδο και κατηγορία (Α-Ε).
+              Ενιαία οθόνη για προμήθειες γραφείου και συνεργατών: κανόνες ένας-ένας, μηδενική αρχικοποίηση και μαζική επεξεργασία συμβολαίων.
             </Typography>
           </Box>
         </Stack>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <Button
+            startIcon={<TuneIcon />}
+            variant="outlined"
+            size="large"
+            onClick={() => setBulkOpen(true)}
+          >
+            Μαζική επεξεργασία
+          </Button>
           <Button
             variant="outlined"
             size="large"
@@ -166,13 +177,16 @@ export function CommissionRulesPage() {
             {seedZero.isPending ? <CircularProgress size={18} /> : "Μηδενικοί κανόνες"}
           </Button>
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>
-          Νέος κανόνας
+          Νέος κανόνας γραφείου/συνεργάτη
           </Button>
         </Stack>
       </Stack>
 
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}
+      <Alert severity="info" sx={{ mb: 2 }}>
+        Η παραμετροποίηση και η μαζική επεξεργασία προμηθειών είναι πλέον στο ίδιο σημείο. Για μεμονωμένες αλλαγές ανοίξτε/επεξεργαστείτε κανόνα· για αλλαγές σε πολλά συμβόλαια πατήστε «Μαζική επεξεργασία».
+      </Alert>
 
       <Card sx={{ p: 2, mb: 2 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
@@ -254,7 +268,7 @@ export function CommissionRulesPage() {
                       : r.legacyValue !== null ? `${r.legacyValue.toFixed(2)}% (legacy)` : "—"}
                   </TableCell>
                   <TableCell sx={{ fontSize: 12 }}>
-                    {r.effectiveFrom}{r.effectiveTo ? ` → ${r.effectiveTo}` : " → ∞"}
+                    {r.effectiveTo ? `${r.effectiveFrom} έως ${r.effectiveTo}` : `Από ${r.effectiveFrom}`}
                   </TableCell>
                   <TableCell>
                     {r.coverCode
@@ -277,6 +291,16 @@ export function CommissionRulesPage() {
           </Box>
         </Card>
       )}
+
+      <Dialog open={bulkOpen} onClose={() => setBulkOpen(false)} fullWidth maxWidth="xl">
+        <DialogTitle sx={{ fontWeight: 800 }}>Μαζική επεξεργασία προμηθειών</DialogTitle>
+        <DialogContent dividers sx={{ bgcolor: "background.default", p: { xs: 1.5, md: 3 } }}>
+          <BulkCommissionsPage embedded />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkOpen(false)}>Κλείσιμο</Button>
+        </DialogActions>
+      </Dialog>
 
       <RuleDialog open={createOpen || !!editing} rule={editing}
         companies={companies.data ?? []} producers={producers.data ?? []}

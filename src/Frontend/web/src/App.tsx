@@ -129,7 +129,6 @@ import { InsuranceCompaniesPage } from "./pages/InsuranceCompaniesPage";
 import { EndorsementsPage } from "./pages/EndorsementsPage";
 import { PolicyCancellationsPage } from "./pages/PolicyCancellationsPage";
 import { CreditNotesPage } from "./pages/CreditNotesPage";
-import { BulkCommissionsPage } from "./pages/BulkCommissionsPage";
 import { CommissionRulesPage } from "./pages/CommissionRulesPage";
 import { ReferenceCatalogsPage } from "./pages/ReferenceCatalogsPage";
 import { ParametricFilesPage } from "./pages/ParametricFilesPage";
@@ -158,7 +157,6 @@ import AppsIcon from "@mui/icons-material/Apps";
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
-import TuneIcon from "@mui/icons-material/Tune";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import DesignServicesIcon from "@mui/icons-material/DesignServices";
 // ΖΗΜΙΕΣ ΚΑΙ ΔΙΑΚΑΝΟΝΙΣΜΟΙ group icons (Build/Savings/PaymentsOutlined/HandshakeOutlined)
@@ -242,7 +240,6 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/default-value-rules", labelKey: "nav.dvr",                icon: <RuleIcon />,               package: "BackOffice", group: "params" },
     { to: "/lookups",             labelKey: "nav.lookups",            icon: <MenuBookIcon />,           package: "BackOffice", group: "params" },
     { to: "/commission-rules",    labelKey: "nav.commissionRules",    icon: <StackedLineChartIcon />,   package: "BackOffice", group: "params" },
-    { to: "/bulk-commissions",    labelKey: "nav.bulkCommissions",    icon: <TuneIcon />,               package: "BackOffice", group: "params" },
     // — secondary configuration tools below the four primary items —
     { to: "/parametric-files",    labelKey: "nav.parametricFiles",    icon: <InventoryIcon />,      package: "BackOffice", group: "params" },
     { to: "/document-designer",   labelKey: "nav.docDesigner",        icon: <DesignServicesIcon />, package: "BackOffice", group: "params" },
@@ -509,7 +506,7 @@ export default function App() {
                   <Route path="endorsements" element={<EndorsementsPage />} />
                   <Route path="cancellations" element={<PolicyCancellationsPage />} />
                   <Route path="credit-notes" element={<CreditNotesPage />} />
-                  <Route path="bulk-commissions" element={<BulkCommissionsPage />} />
+                  <Route path="bulk-commissions" element={<Navigate to="/app/commission-rules" replace />} />
                   <Route path="commission-rules" element={<CommissionRulesPage />} />
                   <Route path="lookups" element={<ReferenceCatalogsPage />} />
                   <Route path="parametric-files" element={<ParametricFilesPage />} />

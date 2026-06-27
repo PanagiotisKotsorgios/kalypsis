@@ -30,7 +30,7 @@ interface PreviewResponse {
   affectedCount: number; totalDelta: number; sample: PreviewRow[];
 }
 
-export function BulkCommissionsPage() {
+export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [filter, setFilter] = useState({
     insuranceCompanyId: "", producerId: "", policyType: "",
     startDateFrom: "", startDateTo: ""
@@ -85,6 +85,7 @@ export function BulkCommissionsPage() {
 
   return (
     <Box>
+      {!embedded && (
       <Stack direction="row" alignItems="center" spacing={2} mb={3}>
         <TuneIcon sx={{ fontSize: 36 }} color="primary" />
         <Box>
@@ -98,6 +99,7 @@ export function BulkCommissionsPage() {
           </Typography>
         </Box>
       </Stack>
+      )}
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}

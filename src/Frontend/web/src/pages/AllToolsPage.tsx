@@ -42,7 +42,7 @@ const TOOLS: Tool[] = [
 
   // Commissions
   { to: "/commission-runs", labelKey: "nav.commissionRuns", descKey: "tools.commissionRuns", category: "commissions", pkg: "BackOffice" },
-  { to: "/bulk-commissions", labelKey: "nav.bulkCommissions", descKey: "tools.bulkCommissions", category: "commissions", pkg: "BackOffice" },
+  { to: "/commission-rules", labelKey: "nav.commissionRules", descKey: "tools.bulkCommissions", category: "commissions", pkg: "BackOffice" },
   { to: "/over-commissions", labelKey: "nav.overCommissions", descKey: "tools.overCommissions", category: "commissions", pkg: "BackOffice" },
 
   // Cash & receivables
