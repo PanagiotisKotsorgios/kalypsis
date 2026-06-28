@@ -151,6 +151,8 @@ import { IntegrationSettingsPage } from "./pages/IntegrationSettingsPage";
 import { NamedReportsPage } from "./pages/NamedReportsPage";
 import { ConfigHubPage } from "./pages/ConfigHubPage";
 import { RecycleBinPage } from "./pages/RecycleBinPage";
+import { PremiumGate } from "./components/PremiumGate";
+import { UpgradePlanDialogHost } from "./components/UpgradePlanDialog";
 import { AdvancePaymentsPage, ReconciliationPage, TachyPaymentsPage, InfoCenterPage, VehicleModelsPage } from "./pages/Phase13Pages";
 import VpnKeyIcon from "@mui/icons-material/VpnKey";
 import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
@@ -249,7 +251,7 @@ const navByRole: Record<Role, NavItem[]> = {
     // BackOffice → ΔΙΟΙΚΗΣΗ
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
     { to: "/audit", labelKey: "nav.audit", icon: <GavelIcon />, package: "BackOffice", group: "admin" },
-    { to: "/recycle-bin", labelKey: "nav.recycleBin", icon: <RestoreFromTrashIcon />, package: "BackOffice", group: "admin" },
+    { to: "/recycle-bin", labelKey: "nav.recycleBin", icon: <RestoreFromTrashIcon />, package: "BackOffice", group: "admin", premium: "recycle-bin" },
     { to: "/customer-merge", labelKey: "nav.merge", icon: <MergeIcon />, package: "BackOffice", group: "admin" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "BackOffice", group: "admin" },
 
@@ -418,6 +420,7 @@ export default function App() {
     <>
       <ScrollToTop />
       <UserImpersonationBanner />
+      <UpgradePlanDialogHost />
       <Routes>
         <Route path="/" element={user ? <Navigate to="/app" replace /> : <LandingPage />} />
         <Route path="/login" element={user ? <Navigate to="/app" replace /> : <LoginPage />} />
@@ -466,7 +469,7 @@ export default function App() {
                   <Route path="settings" element={<AdminSettingsPage />} />
                   <Route path="requests" element={<RequestsPage />} />
                   <Route path="audit" element={<AuditLogsPage />} />
-                  <Route path="recycle-bin" element={<RecycleBinPage />} />
+                  <Route path="recycle-bin" element={<PremiumGate code="recycle-bin"><RecycleBinPage /></PremiumGate>} />
                   <Route path="tasks" element={<TasksPage />} />
                   <Route path="producers" element={<ProducersPage />} />
                   <Route path="claims" element={<ClaimsPage />} />

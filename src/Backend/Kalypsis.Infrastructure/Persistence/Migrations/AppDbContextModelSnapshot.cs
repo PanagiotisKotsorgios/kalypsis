@@ -8700,6 +8700,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<int>("Package")
                         .HasColumnType("int");
 
+                    b.Property<string>("PremiumFeaturesJson")
+                        .HasColumnType("longtext");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("char(36)");
 

@@ -31,6 +31,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthContext";
 import { usePackages, type PackageCode } from "../auth/PackagesContext";
+import { usePremium } from "../auth/PremiumContext";
+import { PremiumCrown } from "./PremiumCrown";
 import { useWorkspace } from "../auth/WorkspaceContext";
 import { api } from "../api/client";
 import { useImpersonation } from "../impersonation/ImpersonationContext";
@@ -48,6 +50,12 @@ export interface NavItem {
   icon: ReactNode;
   /** Show a "Coming soon" chip and route to ComingSoonPage. */
   comingSoon?: boolean;
+  /**
+   * Premium feature code. When set and the tenant hasn't unlocked it,
+   * the item gets a gold crown badge and clicking opens the upgrade dialog
+   * instead of navigating. Server-side endpoints enforce the same gate.
+   */
+  premium?: import("../auth/PremiumContext").PremiumFeatureCode;
   /**
    * Phase 5: license gating — this nav item only appears if the tenant has
    * this package enabled in their subscription. Omit for items every tenant
@@ -102,6 +110,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
 
   const { tenantId: impersonatedTenantId } = useImpersonation();
   const { has: hasPackage } = usePackages();
+  const premium = usePremium();
   const { workspace, enter: enterWorkspace, exitToHub } = useWorkspace();
 
   // Per-user persisted open/closed state for sidebar groups (default closed).
@@ -199,12 +208,14 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
             const tourKey = item.to === "/" ? "dashboard"
               : item.to.replace(/^\//, "").replace(/\//g, "-");
             const collapsed = !isMobile && !open;
+            const premiumLocked = !!item.premium && !premium.has(item.premium);
             const button = (
               <ListItemButton
                 key={item.to + item.labelKey}
-                component={RouterLink}
-                to={target}
-                selected={selected}
+                {...(premiumLocked
+                  ? { onClick: (e: React.MouseEvent) => { e.preventDefault(); premium.promptUpgrade(item.premium!); } }
+                  : { component: RouterLink, to: target })}
+                selected={selected && !premiumLocked}
                 data-tour={`sidebar-${tourKey}`}
                 sx={{
                   mx: collapsed ? 0.5 : 1,
@@ -223,6 +234,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                     primaryTypographyProps={{ fontWeight: 500, noWrap: true, fontSize: indented ? 15 : 15.5 }}
                   />
                 )}
+                {!collapsed && premiumLocked && <PremiumCrown />}
                 {!collapsed && item.comingSoon && (
                   <Chip label={t("nav.comingSoonChip")} size="small"
                     sx={{ height: 18, fontSize: 10, fontWeight: 700,
@@ -231,7 +243,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
               </ListItemButton>
             );
             return collapsed
-              ? <Tooltip key={item.to + item.labelKey} title={t(item.labelKey)} placement="right" arrow>{button}</Tooltip>
+              ? <Tooltip key={item.to + item.labelKey} title={premiumLocked ? `${t(item.labelKey)} · Premium` : t(item.labelKey)} placement="right" arrow>{button}</Tooltip>
               : button;
           };
 

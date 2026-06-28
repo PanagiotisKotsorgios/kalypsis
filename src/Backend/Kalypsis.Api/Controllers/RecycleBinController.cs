@@ -1,5 +1,6 @@
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
+using Kalypsis.Application.Features.Premium;
 using Kalypsis.Domain.Common;
 using Kalypsis.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -136,6 +137,7 @@ public class RecycleBinController : ControllerBase
         CancellationToken ct = default)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        await EnsurePremiumAsync(tenantId, PremiumFeatureCodes.RecycleBin, ct);
         var now = _clock.UtcNow;
         var cutoff = now.AddDays(-RetentionDays);
         page = Math.Max(1, page);
@@ -168,6 +170,7 @@ public class RecycleBinController : ControllerBase
     public async Task<ActionResult<RestoreResultDto>> Restore(string category, Guid id, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        await EnsurePremiumAsync(tenantId, PremiumFeatureCodes.RecycleBin, ct);
         var cat = Categories.FirstOrDefault(c => string.Equals(c.Key, category, StringComparison.OrdinalIgnoreCase))
             ?? throw AppException.NotFound("Κατηγορία κάδου");
 
@@ -190,6 +193,23 @@ public class RecycleBinController : ControllerBase
         var s = value?.Trim();
         if (string.IsNullOrWhiteSpace(s)) return "—";
         return s.Length <= 90 ? s : s[..90] + "…";
+    }
+
+    private async Task EnsurePremiumAsync(Guid tenantId, string code, CancellationToken ct)
+    {
+        var rows = await _db.TenantPackageGrants
+            .Where(g => g.TenantId == tenantId && g.DeletedAt == null && g.PremiumFeaturesJson != null)
+            .Select(g => g.PremiumFeaturesJson!)
+            .ToListAsync(ct);
+        foreach (var json in rows)
+            foreach (var c in PremiumFeatureJson.TryParseCodes(json))
+                if (string.Equals(c, code, StringComparison.OrdinalIgnoreCase)) return;
+        throw new AppException(
+            "premium_required",
+            "Αυτή η δυνατότητα απαιτεί αναβάθμιση πλάνου.",
+            402,
+            title: "Premium δυνατότητα",
+            why: $"Το {code} είναι premium feature. Επικοινωνήστε με το Kalypsis για ενεργοποίηση.");
     }
 
     private interface IRecycleCategory

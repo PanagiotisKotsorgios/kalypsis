@@ -13,6 +13,7 @@ import "./styles/app-mobile.css";
 import { i18n } from "./i18n";
 import { AuthProvider } from "./auth/AuthContext";
 import { PackagesProvider } from "./auth/PackagesContext";
+import { PremiumProvider } from "./auth/PremiumContext";
 import { WorkspaceProvider } from "./auth/WorkspaceContext";
 import { MaintenanceProvider } from "./auth/MaintenanceContext";
 import { ImpersonationProvider } from "./impersonation/ImpersonationContext";
@@ -32,13 +33,15 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <MaintenanceProvider>
             <AuthProvider>
               <PackagesProvider>
-                <WorkspaceProvider>
-                  <ImpersonationProvider>
-                    <BrowserRouter>
-                      <App />
-                    </BrowserRouter>
-                  </ImpersonationProvider>
-                </WorkspaceProvider>
+                <PremiumProvider>
+                  <WorkspaceProvider>
+                    <ImpersonationProvider>
+                      <BrowserRouter>
+                        <App />
+                      </BrowserRouter>
+                    </ImpersonationProvider>
+                  </WorkspaceProvider>
+                </PremiumProvider>
               </PackagesProvider>
             </AuthProvider>
           </MaintenanceProvider>

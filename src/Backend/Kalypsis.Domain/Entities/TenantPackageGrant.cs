@@ -28,4 +28,12 @@ public class TenantPackageGrant : BaseEntity
     /// </summary>
     public decimal? MonthlyPrice { get; set; }
     public string Currency { get; set; } = "EUR";
+
+    /// <summary>
+    /// JSON array of premium feature codes unlocked WITHIN this package for the
+    /// tenant — e.g. ["recycle-bin","advanced-exports"]. Premium features sit
+    /// above the package's baseline functionality and let small offices upgrade
+    /// piecemeal without buying a whole separate package. Null = no premiums.
+    /// </summary>
+    public string? PremiumFeaturesJson { get; set; }
 }
