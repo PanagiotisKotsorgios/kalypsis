@@ -59,6 +59,7 @@ const STORAGE_KEY = "kalypsis_auth";
 const PERSISTENCE_KEY = "kalypsis_auth_persist"; // "local" | "session"
 const IMPERSONATION_BACKUP_KEY = "kalypsis_auth_impersonation_backup";
 const IMPERSONATION_INFO_KEY = "kalypsis_auth_impersonation_info";
+const SESSION_DEADLINE_PREFIX = "kalypsis.session.deadline.";
 
 interface ImpersonationInfo {
   originalUserEmail: string;
@@ -146,6 +147,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Always nuke both stores first so we never leak across modes.
       sessionStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(STORAGE_KEY);
+      // Drop any stale inactivity-countdown deadline for this user so a previously
+      // expired session can't auto-logout a freshly authenticated tab on mount.
+      localStorage.removeItem(`${SESSION_DEADLINE_PREFIX}${payload.user.userId}`);
 
       localStorage.setItem(PERSISTENCE_KEY, rememberMe ? "local" : "session");
       (rememberMe ? localStorage : sessionStorage).setItem(STORAGE_KEY, JSON.stringify(stored));
