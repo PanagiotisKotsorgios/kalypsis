@@ -35,7 +35,10 @@ export function SessionCountdown() {
   const expireSession = useCallback(() => {
     if (expiredRef.current) return;
     expiredRef.current = true;
-    if (storageKey) localStorage.setItem(storageKey, String(Date.now()));
+    // Drop the deadline so the next successful login (same user, same browser)
+    // doesn't see a stale past timestamp and immediately log out again. Other
+    // tabs notice the removal via the storage event below.
+    if (storageKey) localStorage.removeItem(storageKey);
     signOut();
     navigate("/", { replace: true });
   }, [navigate, signOut, storageKey]);
@@ -97,7 +100,12 @@ export function SessionCountdown() {
       if (document.visibilityState === "visible") refreshDeadline(false);
     };
     const onStorage = (event: StorageEvent) => {
-      if (event.key !== storageKey || !event.newValue) return;
+      if (event.key !== storageKey) return;
+      // Another tab removed the deadline → it expired the session there. Mirror it here.
+      if (event.newValue === null) {
+        expireSession();
+        return;
+      }
       const next = Number(event.newValue) - Date.now();
       setRemainingMs(Math.max(0, next));
       if (next <= 0) expireSession();

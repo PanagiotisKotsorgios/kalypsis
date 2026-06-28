@@ -101,6 +101,18 @@ function clearStored() {
   sessionStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(PERSISTENCE_KEY);
+  clearAllSessionDeadlines();
+}
+
+function clearSessionDeadline(userId: string) {
+  localStorage.removeItem(`${SESSION_DEADLINE_PREFIX}${userId}`);
+}
+
+function clearAllSessionDeadlines() {
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith(SESSION_DEADLINE_PREFIX)) localStorage.removeItem(key);
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -149,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(STORAGE_KEY);
       // Drop any stale inactivity-countdown deadline for this user so a previously
       // expired session can't auto-logout a freshly authenticated tab on mount.
-      localStorage.removeItem(`${SESSION_DEADLINE_PREFIX}${payload.user.userId}`);
+      clearSessionDeadline(payload.user.userId);
 
       localStorage.setItem(PERSISTENCE_KEY, rememberMe ? "local" : "session");
       (rememberMe ? localStorage : sessionStorage).setItem(STORAGE_KEY, JSON.stringify(stored));
@@ -222,6 +234,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     sessionStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(STORAGE_KEY);
+    // Same fix as signIn: drop any stale inactivity deadline for the impersonated
+    // user so SessionCountdown doesn't see a past timestamp and immediately log out.
+    clearSessionDeadline(synthetic.userId);
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(newStored));
     setAuthToken(imp.accessToken);
     setAccessToken(imp.accessToken);
@@ -241,6 +256,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Restore to whichever store the original used (best guess: localStorage if rememberMe was on)
     const mode = getStorageMode();
     (mode === "local" ? localStorage : sessionStorage).setItem(STORAGE_KEY, backup);
+    // Drop any stale deadline for the restored admin user too — impersonation may
+    // have outlasted the admin's original 30-minute countdown.
+    clearSessionDeadline(stored.user.userId);
     setAuthToken(stored.accessToken);
     setAccessToken(stored.accessToken);
     setUser(stored.user);
