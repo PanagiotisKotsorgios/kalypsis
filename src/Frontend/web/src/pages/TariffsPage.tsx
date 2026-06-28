@@ -10,6 +10,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { DataExportButton } from "../components/DataExportButton";
 
 const POLICY_TYPES = ["Auto","Home","Health","Life","Business","Travel","Other"] as const;
 type PolicyType = typeof POLICY_TYPES[number];
@@ -41,9 +42,12 @@ export function TariffsPage() {
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Box><Stack direction="row" alignItems="center" spacing={0.5}><Typography variant="h4" sx={{ fontWeight: 800 }}>{t("tariffs.title")}</Typography><HelpHint id="page.tariffs" /></Stack>
           <Typography color="text.secondary">{t("tariffs.subtitle")}</Typography></Box>
-        <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>
-          {t("tariffs.create")}
-        </Button>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <DataExportButton entity="tariffs" />
+          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>
+            {t("tariffs.create")}
+          </Button>
+        </Stack>
       </Stack>
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
       {q.isLoading ? (

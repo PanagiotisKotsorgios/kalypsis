@@ -1,6 +1,5 @@
 using System.Globalization;
-using System.Text;
-using ClosedXML.Excel;
+using Kalypsis.Application.Common.Exports;
 using Kalypsis.Application.Features.Claims;
 using Kalypsis.Application.Features.Customers;
 using Kalypsis.Application.Features.Policies;
@@ -8,9 +7,6 @@ using Kalypsis.Application.Features.Producers;
 using Kalypsis.Application.Features.ProductionLists;
 using Kalypsis.Domain.Enums;
 using MediatR;
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
 
 namespace Kalypsis.Application.Features.ParagogiExports;
 
@@ -54,16 +50,14 @@ public class ExportParagogiHandler : IRequestHandler<ExportParagogiQuery, Export
 
         return fmt switch
         {
-            "csv"  => new ExportResult(BuildCsv(sheet), "text/csv", $"{name}.csv"),
-            "xlsx" => new ExportResult(BuildXlsx(sheet), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{name}.xlsx"),
-            "pdf"  => new ExportResult(BuildPdf(sheet), "application/pdf", $"{name}.pdf"),
+            "csv"  => new ExportResult(ExportFormatter.BuildCsv(sheet), "text/csv", $"{name}.csv"),
+            "xlsx" => new ExportResult(ExportFormatter.BuildXlsx(sheet), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{name}.xlsx"),
+            "pdf"  => new ExportResult(ExportFormatter.BuildPdf(sheet), "application/pdf", $"{name}.pdf"),
             _ => throw new ArgumentException("Unsupported format: " + q.Format)
         };
     }
 
     // ---- per-entity row builders ------------------------------------------------
-
-    private record Sheet(string Title, IReadOnlyList<string> Headers, IReadOnlyList<IReadOnlyList<string>> Rows);
 
     private async Task<Sheet> BuildCustomersAsync(ExportParagogiQuery q, CancellationToken ct)
     {
@@ -162,92 +156,4 @@ public class ExportParagogiHandler : IRequestHandler<ExportParagogiQuery, Export
             }).ToList());
     }
 
-    // ---- formatters -------------------------------------------------------------
-
-    private static byte[] BuildCsv(Sheet sheet)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine(string.Join(",", sheet.Headers.Select(Quote)));
-        foreach (var r in sheet.Rows)
-            sb.AppendLine(string.Join(",", r.Select(Quote)));
-        return new UTF8Encoding(true).GetBytes(sb.ToString());
-
-        static string Quote(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
-    }
-
-    private static byte[] BuildXlsx(Sheet sheet)
-    {
-        using var wb = new XLWorkbook();
-        var ws = wb.Worksheets.Add(sheet.Title);
-
-        ws.Cell(1, 1).Value = $"Kalypsis — {sheet.Title}";
-        ws.Cell(1, 1).Style.Font.Bold = true;
-        ws.Cell(1, 1).Style.Font.FontSize = 14;
-        ws.Range(1, 1, 1, sheet.Headers.Count).Merge();
-
-        ws.Cell(2, 1).Value = $"Εξαγωγή: {DateTime.UtcNow:dd/MM/yyyy HH:mm} UTC · {sheet.Rows.Count} γραμμές";
-        ws.Cell(2, 1).Style.Font.Italic = true;
-        ws.Range(2, 1, 2, sheet.Headers.Count).Merge();
-
-        for (int i = 0; i < sheet.Headers.Count; i++)
-        {
-            var c = ws.Cell(4, i + 1);
-            c.Value = sheet.Headers[i];
-            c.Style.Font.Bold = true;
-            c.Style.Fill.BackgroundColor = XLColor.FromHtml("#0b2545");
-            c.Style.Font.FontColor = XLColor.White;
-        }
-
-        for (int rIdx = 0; rIdx < sheet.Rows.Count; rIdx++)
-        {
-            for (int cIdx = 0; cIdx < sheet.Rows[rIdx].Count; cIdx++)
-                ws.Cell(5 + rIdx, cIdx + 1).Value = sheet.Rows[rIdx][cIdx];
-        }
-        ws.Columns().AdjustToContents();
-
-        using var ms = new MemoryStream();
-        wb.SaveAs(ms);
-        return ms.ToArray();
-    }
-
-    private static byte[] BuildPdf(Sheet sheet)
-    {
-        QuestPDF.Settings.License = LicenseType.Community;
-        var doc = QuestPDF.Fluent.Document.Create(d =>
-        {
-            d.Page(p =>
-            {
-                p.Size(PageSizes.A4.Landscape());
-                p.Margin(1.2f, QuestPDF.Infrastructure.Unit.Centimetre);
-                p.DefaultTextStyle(s => s.FontSize(9));
-
-                p.Header().Column(col =>
-                {
-                    col.Item().Text($"Kalypsis — {sheet.Title}").FontSize(16).Bold();
-                    col.Item().Text($"Εξαγωγή: {DateTime.UtcNow:dd/MM/yyyy HH:mm} UTC · {sheet.Rows.Count} γραμμές").FontSize(9).Italic();
-                });
-
-                p.Content().Table(t =>
-                {
-                    t.ColumnsDefinition(c =>
-                    {
-                        for (int i = 0; i < sheet.Headers.Count; i++)
-                            c.RelativeColumn();
-                    });
-                    t.Header(h =>
-                    {
-                        foreach (var head in sheet.Headers)
-                            h.Cell().Background("#0b2545").Padding(4)
-                                .Text(head).FontColor(Colors.White).Bold();
-                    });
-                    foreach (var row in sheet.Rows)
-                        foreach (var cell in row)
-                            t.Cell().BorderBottom(0.5f).BorderColor("#dadada").Padding(3).Text(cell ?? "");
-                });
-
-                p.Footer().AlignRight().Text(t => { t.Span("Σελ. "); t.CurrentPageNumber(); t.Span(" / "); t.TotalPages(); });
-            });
-        });
-        return doc.GeneratePdf();
-    }
 }

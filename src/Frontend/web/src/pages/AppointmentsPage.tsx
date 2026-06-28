@@ -11,6 +11,7 @@ import EventIcon from "@mui/icons-material/Event";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { DataExportButton } from "../components/DataExportButton";
 
 type Status = "Scheduled" | "Done" | "Cancelled";
 interface AppointmentDto {
@@ -56,9 +57,12 @@ export function AppointmentsPage() {
           </Stack>
           <Typography color="text.secondary">{t("appointments.subtitle")}</Typography>
         </Box>
-        <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>
-          {t("appointments.create")}
-        </Button>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <DataExportButton entity="appointments" />
+          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>
+            {t("appointments.create")}
+          </Button>
+        </Stack>
       </Stack>
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}

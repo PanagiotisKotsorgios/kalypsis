@@ -10,6 +10,7 @@ import BusinessIcon from "@mui/icons-material/Business";
 import PublicIcon from "@mui/icons-material/Public";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { DataExportButton } from "../components/DataExportButton";
 
 interface CompanyDto {
   id: string;
@@ -102,7 +103,8 @@ export function InsuranceCompaniesPage() {
             </Typography>
           </Box>
         </Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+          <DataExportButton entity="insurance-companies" />
           <Button size="large" variant="outlined" onClick={() => importAll.mutate()} disabled={importAll.isPending || globalRows.length === 0}>
             {importAll.isPending ? <CircularProgress size={18} /> : "Εισαγωγή όλων στο γραφείο"}
           </Button>

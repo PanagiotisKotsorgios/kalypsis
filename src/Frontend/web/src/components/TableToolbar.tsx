@@ -84,8 +84,13 @@ export function TableToolbar<T>({
   exportRows: T[];
   exportFileName: string;
   exportColumns: { key: keyof T | string; label: string; map?: (r: T) => any }[];
-  /** When set, CSV/Excel/PDF buttons hit /api/paragogi-exports/{entity} with the same search & filters. */
-  serverEntity?: "customers" | "policies" | "claims" | "producers";
+  /** When set, CSV/Excel/PDF buttons hit /api/data-exports/{entity} with the same search & filters.
+   *  Backed by UniversalExportHandler — supports the agency-wide entity catalogue, not just paragogi. */
+  serverEntity?:
+    | "customers" | "policies" | "claims" | "producers"
+    | "insurance-companies" | "commission-rules" | "branches" | "tariffs"
+    | "tasks" | "receipts" | "payments" | "appointments"
+    | "cover-notes" | "email-templates" | "notifications";
   serverParams?: Record<string, string | number | undefined | null>;
   rightSlot?: React.ReactNode;
 }) {
@@ -122,7 +127,7 @@ export function TableToolbar<T>({
     for (const [k, v] of Object.entries(serverParams ?? {})) {
       if (v !== null && v !== undefined && v !== "") params[k] = String(v);
     }
-    const res = await api.get(`/paragogi-exports/${serverEntity}`, { params, responseType: "blob" });
+    const res = await api.get(`/data-exports/${serverEntity}`, { params, responseType: "blob" });
     const mime = format === "csv" ? "text/csv"
               : format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               : "application/pdf";

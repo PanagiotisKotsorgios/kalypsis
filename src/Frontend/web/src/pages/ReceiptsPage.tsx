@@ -9,7 +9,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
-import { ExportButton } from "../components/ExportButton";
+import { DataExportButton } from "../components/DataExportButton";
 import { useTableState } from "../components/useTableState";
 import { NumberedPager } from "../components/TableToolbar";
 
@@ -108,7 +108,7 @@ export function ReceiptsPage() {
             <Typography variant="caption" color="text.secondary">{t("receipts.totalShown")}</Typography>
             <Typography variant="h5" fontWeight={800}>{total.toFixed(2)} €</Typography>
           </Box>
-          <ExportButton href="/api/exports/receipts.csv" />
+          <DataExportButton entity="receipts" search={search} />
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("receipts.create")}</Button>
         </Stack>
       </Stack>

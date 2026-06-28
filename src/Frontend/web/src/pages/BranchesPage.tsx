@@ -9,6 +9,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { DataExportButton } from "../components/DataExportButton";
 
 interface BranchDto { id: string; code: string; name: string; description: string | null; fieldsJson: string | null; coveragesJson: string | null; isActive: boolean; }
 
@@ -31,7 +32,10 @@ export function BranchesPage() {
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Box><Typography variant="h4" sx={{ fontWeight: 800 }}>{t("branches.title")}</Typography>
           <Typography color="text.secondary">{t("branches.subtitle")}</Typography></Box>
-        <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("branches.create")}</Button>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <DataExportButton entity="branches" />
+          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("branches.create")}</Button>
+        </Stack>
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (

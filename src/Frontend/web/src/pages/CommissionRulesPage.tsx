@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { NumberedPager } from "../components/TableToolbar";
+import { DataExportButton } from "../components/DataExportButton";
 import { BulkCommissionsPage } from "./BulkCommissionsPage";
 import { DefaultValueRulesPage } from "./DefaultValueRulesPage";
 
@@ -208,6 +209,7 @@ export function CommissionRulesPage() {
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>
           Νέος κανόνας γραφείου/συνεργάτη
           </Button>
+          <DataExportButton entity="commission-rules" />
         </Stack>
       </Stack>
 

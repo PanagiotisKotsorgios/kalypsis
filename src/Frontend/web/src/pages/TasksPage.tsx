@@ -12,6 +12,7 @@ import FlagIcon from "@mui/icons-material/Flag";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { DataExportButton } from "../components/DataExportButton";
 
 type TaskStatus = "Open" | "InProgress" | "Completed" | "Cancelled";
 type TaskPriority = "Low" | "Normal" | "High" | "Urgent";
@@ -73,9 +74,12 @@ export function TasksPage() {
           </Stack>
           <Typography color="text.secondary">{t("tasks.subtitle")}</Typography>
         </Box>
-        <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateOpen(true); }}>
-          {t("tasks.create")}
-        </Button>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <DataExportButton entity="tasks" />
+          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateOpen(true); }}>
+            {t("tasks.create")}
+          </Button>
+        </Stack>
       </Stack>
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
