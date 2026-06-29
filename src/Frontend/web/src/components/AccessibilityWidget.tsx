@@ -123,12 +123,6 @@ export function AccessibilityWidget() {
         <Stack direction="row" alignItems="center" justifyContent="space-between"
           sx={{ p: 2.5, borderBottom: "1px solid #e5e9ef" }}>
           <Box>
-            <Typography sx={{
-              fontSize: 11, letterSpacing: "0.22em", textTransform: "uppercase",
-              color: "#1f7bb3", fontWeight: 600, mb: 0.25
-            }}>
-              EAA · WCAG 2.1 AA
-            </Typography>
             <Typography sx={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.01em" }}>
               Επιλογές προσβασιμότητας
             </Typography>
@@ -208,13 +202,6 @@ export function AccessibilityWidget() {
             </Stack>
           </Box>
 
-          {/* EU compliance line */}
-          <Typography sx={{
-            mt: 3, fontSize: 11, lineHeight: 1.6, color: "#6b7a91", letterSpacing: "0.02em"
-          }}>
-            Συμμόρφωση με την Οδηγία (ΕΕ) 2019/882 (European Accessibility Act),
-            το πρότυπο EN 301 549 και τις οδηγίες WCAG 2.1 σε επίπεδο AA.
-          </Typography>
         </Box>
       </Drawer>
     </>

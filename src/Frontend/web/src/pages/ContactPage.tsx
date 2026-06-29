@@ -22,7 +22,6 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
-import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { PublicFooter } from "../components/PublicFooter";
@@ -169,17 +168,6 @@ export function ContactPage() {
         <PageEnter stagger={500}>
           {/* Hero — same restraint as the landing page */}
           <Box sx={{ textAlign: "center", maxWidth: 640, mx: "auto", mb: { xs: 4, md: 6 } }}>
-            <Box sx={{
-              display: "inline-flex", alignItems: "center", gap: 1,
-              px: 2, py: 0.75, mb: 2.5,
-              borderRadius: 999,
-              bgcolor: "rgba(30,167,225,0.08)",
-              color: ACCENT,
-              fontSize: 13, fontWeight: 700, letterSpacing: "0.02em"
-            }}>
-              <ChatBubbleOutlineIcon sx={{ fontSize: 16 }} />
-              Επικοινωνία / Αναφορά Προβλήματος
-            </Box>
             <Typography component="h1" sx={{
               fontSize: { xs: 30, sm: 36, md: 44 },
               fontWeight: 700, lineHeight: 1.15,
