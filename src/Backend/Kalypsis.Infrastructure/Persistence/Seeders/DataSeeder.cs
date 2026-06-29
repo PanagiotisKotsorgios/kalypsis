@@ -20,14 +20,19 @@ public static class DataSeeder
 
         await db.Database.MigrateAsync(cancellationToken);
 
-        await SeedInsuranceCompaniesAsync(db, logger, cancellationToken);
+        // Wrap each seeder in try/catch so one failure doesn't block the API
+        // from booting — the operator needs a running container in order to log
+        // in and fix anything via the admin UI.
+        try { await SeedInsuranceCompaniesAsync(db, logger, cancellationToken); }
+        catch (Exception ex) { logger.LogError(ex, "SeedInsuranceCompaniesAsync failed — continuing boot."); }
 
         // Carrier parametrics intentionally start BLANK for every company except
         // Grand Cover (IW), which we seed line-by-line from the embedded IW dump
         // resource. Other carriers wait for the superadmin to enter their real
         // branch / use / cover / package data — dropdowns are empty until then so
         // an agency can't pick a setup that doesn't actually exist at the carrier.
-        await GrandCoverSeeder.SeedAsync(db, logger, cancellationToken);
+        try { await GrandCoverSeeder.SeedAsync(db, logger, cancellationToken); }
+        catch (Exception ex) { logger.LogError(ex, "GrandCoverSeeder failed — continuing boot without IW seed."); }
 
         var seedEmail = (config["Seed:PlatformAdminEmail"] ?? "superadmin@kalypsis.gr").ToLowerInvariant();
         var seedPassword = config["Seed:PlatformAdminPassword"] ?? "Kalypsis@2026!";

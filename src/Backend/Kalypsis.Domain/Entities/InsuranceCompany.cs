@@ -30,10 +30,11 @@ public class InsuranceCompany : BaseEntity
     /// broker (e.g. Grand Cover/IW redistributing many sub-carriers), set
     /// ParentCompanyId to the broker's id. Each sub-carrier has its own
     /// parametrics (packages/coverages/uses); the broker carries the
-    /// shared branch/use taxonomy.
+    /// shared branch/use taxonomy. NO navigation property on purpose —
+    /// EF would expect a relationship config in the snapshot and the
+    /// runtime "pending model changes" check would refuse to migrate.
     /// </summary>
     public Guid? ParentCompanyId { get; set; }
-    public InsuranceCompany? ParentCompany { get; set; }
 
     /// <summary>True for entries that act as a broker container — flips
     /// the frontend to render a sub-carrier picker instead of treating
