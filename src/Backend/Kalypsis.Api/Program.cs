@@ -27,35 +27,36 @@ builder.Services.AddScoped<Kalypsis.Application.Features.Phase13.IDiasClient, Ka
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
           ?? throw new InvalidOperationException("Jwt configuration section is missing.");
 
-// Production-only secret sanity checks. Refuse to boot if any of the critical
-// secrets are missing or look like placeholders — better a noisy crash on
-// deploy than a quiet "secured" with default values.
+// Production-only secret sanity checks.
+//   - HARD refuse only on JWT secret (token forgery boundary). Without a real
+//     secret, every signed token in the system is suspect.
+//   - DB connection: refuse only if missing entirely — if it's set but oddly
+//     formatted (Coolify-managed MySQL strings vary), we trust the operator
+//     and let it fail loudly at first DB call instead of preventing boot.
+//   - CORS / Brevo: WARN loudly to stderr but never block boot. A misconfigured
+//     CORS origin means the SPA can't talk to the API, but the operator needs
+//     a running container in order to FIX the env var in Coolify.
 if (!builder.Environment.IsDevelopment())
 {
-    // 1) JWT signing key — at least 48 chars (~ 256 bits) and not a placeholder.
     if (string.IsNullOrWhiteSpace(jwt.Secret) || jwt.Secret.Length < 48)
         throw new InvalidOperationException(
-            "Jwt:Secret must be at least 48 chars in production. Generate from a CSPRNG (e.g. openssl rand -base64 48).");
+            "Jwt:Secret must be at least 48 chars in production. Generate from a CSPRNG (e.g. openssl rand -base64 48). See SECURITY.md.");
     if (LooksLikePlaceholder(jwt.Secret))
         throw new InvalidOperationException("Jwt:Secret looks like a placeholder — refuse to start. See SECURITY.md.");
 
-    // 2) Database connection string — must include a non-empty password.
     var conn = builder.Configuration.GetConnectionString("Default") ?? string.Empty;
     if (string.IsNullOrWhiteSpace(conn))
         throw new InvalidOperationException("ConnectionStrings:Default is required in production.");
     if (!HasNonEmptyPassword(conn))
-        throw new InvalidOperationException(
-            "ConnectionStrings:Default must include a non-empty Password= value. See SECURITY.md.");
+        Console.Error.WriteLine("[BOOT] WARNING: ConnectionStrings:Default does not appear to include a password. If your DB allows passwordless auth on the docker network this is fine, otherwise set one and redeploy.");
 
-    // 3) Frontend origin — must be the real HTTPS host, not the dev fallback.
     var origins = builder.Configuration["Cors:FrontendOrigin"] ?? string.Empty;
-    if (string.IsNullOrWhiteSpace(origins)
-        || origins.Contains("localhost", StringComparison.OrdinalIgnoreCase)
-        || origins.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !origins.Contains("https://", StringComparison.OrdinalIgnoreCase))
-        throw new InvalidOperationException("Cors:FrontendOrigin must be an https:// origin in production.");
+    if (string.IsNullOrWhiteSpace(origins))
+        Console.Error.WriteLine("[BOOT] WARNING: Cors:FrontendOrigin unset — the SPA will get CORS errors. Set Cors__FrontendOrigin to your https origin in Coolify.");
+    else if (origins.Contains("localhost", StringComparison.OrdinalIgnoreCase)
+             || (origins.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !origins.Contains("https://", StringComparison.OrdinalIgnoreCase)))
+        Console.Error.WriteLine($"[BOOT] WARNING: Cors:FrontendOrigin '{origins}' is not an https:// origin. The SPA will fail mixed-content checks.");
 
-    // 4) Brevo — warn loudly but don't refuse to boot. The platform can still run
-    //    without outbound email; password resets and contact form just won't send.
     var brevoKey = builder.Configuration["Brevo:ApiKey"];
     if (string.IsNullOrWhiteSpace(brevoKey))
         Console.Error.WriteLine("[BOOT] WARNING: Brevo:ApiKey unset — password reset / contact form will not send email.");

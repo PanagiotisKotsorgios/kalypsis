@@ -15,7 +15,9 @@ import { api, extractErrorMessage } from "../api/client";
 import { CredentialsDialog } from "./TenantsPage";
 import { ProducerDetailDrawer } from "../components/ProducerDetailDrawer";
 import { ProducerCustomersDialog } from "../components/ProducerCustomersDialog";
+import { ReassignProducerDialog } from "../components/ReassignProducerDialog";
 import PeopleIcon from "@mui/icons-material/People";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { useTableState } from "../components/useTableState";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 
@@ -46,6 +48,7 @@ export function ProducersPage() {
   const [editing, setEditing] = useState<ProducerDto | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [customersFor, setCustomersFor] = useState<ProducerDto | null>(null);
+  const [reassignFor, setReassignFor] = useState<ProducerDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [issuedCreds, setIssuedCreds] = useState<{ email: string; password: string } | null>(null);
 
@@ -192,6 +195,10 @@ export function ProducersPage() {
                           onClick={(e) => { e.stopPropagation(); setCustomersFor(p); }}>
                           <PeopleIcon fontSize="small" />
                         </IconButton>
+                        <IconButton size="small" title="Μετακίνηση σε άλλον συνεργάτη"
+                          onClick={(e) => { e.stopPropagation(); setReassignFor(p); }}>
+                          <SwapHorizIcon fontSize="small" />
+                        </IconButton>
                         <IconButton size="small" title={t("producers.issuePortal")}
                           disabled={!p.email || p.status !== "Active" || issuePortal.isPending}
                           onClick={() => issuePortal.mutate(p.id)}>
@@ -248,6 +255,12 @@ export function ProducersPage() {
         onClose={() => setCustomersFor(null)}
         producerId={customersFor?.id ?? null}
         producerName={customersFor?.name}
+      />
+
+      <ReassignProducerDialog
+        open={!!reassignFor}
+        onClose={() => setReassignFor(null)}
+        fromProducer={reassignFor}
       />
     </Box>
   );

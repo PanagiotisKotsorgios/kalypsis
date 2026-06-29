@@ -49,4 +49,20 @@ public class ProducersController : ControllerBase
     public async Task<ActionResult<CreateProducerPortalAccountResponse>> CreatePortalAccount(
         Guid id, CancellationToken cancellationToken)
         => Ok(await _mediator.Send(new CreateProducerPortalAccountCommand(id), cancellationToken));
+
+    // === Reassignment === Preview shows the totals about to move.
+    [HttpGet("{id:guid}/reassign-preview")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<ReassignProducerPreviewDto>> ReassignPreview(
+        Guid id, [FromQuery] Guid toId, CancellationToken ct)
+        => Ok(await _mediator.Send(new ReassignProducerPreviewQuery(id, toId), ct));
+
+    public record ReassignBody(Guid ToProducerId, string? Reason);
+
+    // Execute: moves policies + pending commissions; settled history stays put.
+    [HttpPost("{id:guid}/reassign")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<ReassignProducerResultDto>> Reassign(
+        Guid id, [FromBody] ReassignBody body, CancellationToken ct)
+        => Ok(await _mediator.Send(new ReassignProducerCommand(id, body.ToProducerId, body.Reason), ct));
 }
