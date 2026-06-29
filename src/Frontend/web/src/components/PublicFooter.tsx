@@ -29,6 +29,7 @@ export function PublicFooter() {
           </Typography>
 
           <Stack direction="row" spacing={3} sx={{ flexWrap: "wrap" }}>
+            <FooterLink to="/contact" label="Επικοινωνία / Αναφορά Προβλήματος" emphasized />
             <FooterLink to="/terms"   label="Όροι Χρήσης" />
             <FooterLink to="/privacy" label="Απόρρητο" />
             <FooterLink to="/cookies" label="Cookies" />
@@ -39,11 +40,14 @@ export function PublicFooter() {
   );
 }
 
-function FooterLink({ to, label }: { to: string; label: string }) {
+function FooterLink({ to, label, emphasized }: { to: string; label: string; emphasized?: boolean }) {
   return (
     <Box component={RouterLink} to={to}
       sx={{
-        color: NAVY_SOFT, fontSize: 13, textDecoration: "none",
+        color: emphasized ? NAVY : NAVY_SOFT,
+        fontSize: 13,
+        fontWeight: emphasized ? 700 : 400,
+        textDecoration: "none",
         transition: "color 180ms ease",
         "&:hover": { color: NAVY, textDecoration: "underline" }
       }}>

@@ -12,6 +12,7 @@ import LeaderboardOutlinedIcon from "@mui/icons-material/LeaderboardOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import SmartphoneOutlinedIcon from "@mui/icons-material/SmartphoneOutlined";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import { PublicFooter } from "../components/PublicFooter";
 import { AccessibilityWidget } from "../components/AccessibilityWidget";
 import { PageEnter } from "../components/PageEnter";
@@ -72,9 +73,36 @@ export function LandingPage() {
               info@kalypsis.gr
             </Box>
           </Stack>
-          <Box sx={{ ml: "auto" }}>
+          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ ml: "auto" }}>
+            <Button
+              component={RouterLink}
+              to="/contact"
+              size="small"
+              variant="outlined"
+              startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 17 }} />}
+              sx={{
+                borderRadius: 999,
+                px: { xs: 1.5, sm: 2 },
+                py: 0.6,
+                fontSize: 13,
+                fontWeight: 700,
+                letterSpacing: "0.01em",
+                textTransform: "none",
+                color: NAVY,
+                borderColor: "rgba(11,37,69,0.22)",
+                "& .MuiButton-startIcon": { mr: { xs: 0, sm: 0.75 } },
+                "&:hover": { borderColor: NAVY, bgcolor: "rgba(11,37,69,0.04)" }
+              }}
+            >
+              <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                Επικοινωνία / Αναφορά Προβλήματος
+              </Box>
+              <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+                Επικοινωνία
+              </Box>
+            </Button>
             <LanguageToggle />
-          </Box>
+          </Stack>
         </Stack>
       </Container>
 
