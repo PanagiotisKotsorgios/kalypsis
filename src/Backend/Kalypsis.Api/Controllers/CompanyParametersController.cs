@@ -186,6 +186,66 @@ public class CompanyParametersController : ControllerBase
         return NoContent();
     }
 
+    // ===== AgencyAdmin-accessible mirrors =====
+    // Catalogue rows are shared across tenants (κάλυψη/χρήση/πακέτο taxonomies
+    // are carrier-wide), so we let an AgencyAdmin add / edit / delete entries
+    // the same way the PlatformAdmin can — every other γραφειο sees them too.
+    // Source defaults to "AgencyAdmin" so the platform side can tell who added what.
+
+    [Authorize(Policy = "AgencyAdmin")]
+    [HttpPost("company-parameters")]
+    public async Task<ActionResult<CompanyParameterItemDto>> CreateAsAgency(
+        [FromBody] CompanyParameterItemBody body,
+        CancellationToken ct)
+    {
+        await ValidateBodyAsync(body, null, ct);
+        var item = new CompanyParameterItem { Id = Guid.NewGuid(), CreatedAt = _clock.UtcNow };
+        Apply(body, item);
+        if (string.IsNullOrWhiteSpace(body.Source)) item.Source = "AgencyAdmin";
+        _db.CompanyParameterItems.Add(item);
+        await _db.SaveChangesAsync(ct);
+
+        var saved = await _db.CompanyParameterItems.IgnoreQueryFilters()
+            .Include(x => x.InsuranceCompany)
+            .FirstAsync(x => x.Id == item.Id, ct);
+        return Ok(Map(saved));
+    }
+
+    [Authorize(Policy = "AgencyAdmin")]
+    [HttpPut("company-parameters/{id:guid}")]
+    public async Task<ActionResult<CompanyParameterItemDto>> UpdateAsAgency(
+        Guid id,
+        [FromBody] CompanyParameterItemBody body,
+        CancellationToken ct)
+    {
+        var item = await _db.CompanyParameterItems.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Παραμετρικό εταιρείας");
+
+        await ValidateBodyAsync(body, id, ct);
+        Apply(body, item);
+        item.UpdatedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        var saved = await _db.CompanyParameterItems.IgnoreQueryFilters()
+            .Include(x => x.InsuranceCompany)
+            .FirstAsync(x => x.Id == id, ct);
+        return Ok(Map(saved));
+    }
+
+    [Authorize(Policy = "AgencyAdmin")]
+    [HttpDelete("company-parameters/{id:guid}")]
+    public async Task<IActionResult> DeleteAsAgency(Guid id, CancellationToken ct)
+    {
+        var item = await _db.CompanyParameterItems.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Παραμετρικό εταιρείας");
+        item.DeletedAt = _clock.UtcNow;
+        item.IsActive = false;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     [Authorize(Policy = "PlatformAdmin")]
     [HttpPost("platform/company-parameters/seed-defaults")]
     public async Task<ActionResult<SeedCompanyParametersResult>> SeedDefaults(

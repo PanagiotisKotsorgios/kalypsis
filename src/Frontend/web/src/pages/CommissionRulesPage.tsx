@@ -16,6 +16,8 @@ import { NumberedPager } from "../components/TableToolbar";
 import { DataExportButton } from "../components/DataExportButton";
 import { BulkCommissionsPage } from "./BulkCommissionsPage";
 import { DefaultValueRulesPage } from "./DefaultValueRulesPage";
+import { CompanyCatalogueDialog } from "../components/CompanyCatalogueDialog";
+import SettingsIcon from "@mui/icons-material/Settings";
 
 type ProducerTier = "None" | "A" | "B" | "C" | "D" | "E";
 type PolicyType   = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
@@ -380,6 +382,7 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
     effectiveTo: ""
   });
   const [manualCode, setManualCode] = useState("");
+  const [catalogueOpen, setCatalogueOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const parameters = useQuery({
@@ -531,11 +534,31 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         )}
 
         <Stack spacing={2.5} mt={1}>
-          <TextField select label="Ασφαλιστική εταιρία" value={form.insuranceCompanyId}
-            onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value, coverCodes: [] })} fullWidth>
-            <MenuItem value="">— Όλες οι εταιρίες —</MenuItem>
-            {companies.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-          </TextField>
+          <Stack direction="row" spacing={1} alignItems="flex-start">
+            <TextField select label="Ασφαλιστική εταιρία" value={form.insuranceCompanyId}
+              onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value, coverCodes: [] })} fullWidth>
+              <MenuItem value="">— Όλες οι εταιρίες —</MenuItem>
+              {companies.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+            </TextField>
+            <Button
+              variant="outlined"
+              size="medium"
+              startIcon={<SettingsIcon />}
+              disabled={!form.insuranceCompanyId}
+              onClick={() => setCatalogueOpen(true)}
+              sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+              title="Επεξεργασία καλύψεων / πακέτων / χρήσεων αυτής της εταιρίας"
+            >
+              Παραμετρικά
+            </Button>
+          </Stack>
+
+          <CompanyCatalogueDialog
+            open={catalogueOpen}
+            onClose={() => setCatalogueOpen(false)}
+            insuranceCompanyId={form.insuranceCompanyId || null}
+            insuranceCompanyName={companies.find(c => c.id === form.insuranceCompanyId)?.name}
+          />
 
           <Autocomplete
             multiple
