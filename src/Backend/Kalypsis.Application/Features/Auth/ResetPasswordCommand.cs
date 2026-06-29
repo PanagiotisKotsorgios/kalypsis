@@ -65,15 +65,23 @@ public class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordCommand,
                 fix: "Ζητήστε νέο σύνδεσμο ανάκτησης — θα φτάσει στο email σας μέσα σε λίγα λεπτά.",
                 fixLink: "/forgot-password");
 
+        var now = _clock.UtcNow;
         record.User.PasswordHash = _hasher.Hash(request.NewPassword);
-        record.UsedAt = _clock.UtcNow;
+        record.User.FailedLoginAttempts = 0;
+        record.User.LockedUntil = null;
+        record.UsedAt = now;
 
         // Revoke any other active reset tokens for the same user.
         var others = await _db.PasswordResetTokens
             .IgnoreQueryFilters()
             .Where(t => t.UserId == record.UserId && t.UsedAt == null && t.Id != record.Id)
             .ToListAsync(cancellationToken);
-        foreach (var t in others) t.UsedAt = _clock.UtcNow;
+        foreach (var t in others) t.UsedAt = now;
+
+        // A password reset means the credential may have been compromised.
+        // Kill every active refresh token so any stolen session is dead too.
+        await RefreshTokenRevoker.RevokeAllForUserAsync(
+            _db, record.UserId, now, "password_reset_revoke_all", cancellationToken);
 
         await _db.SaveChangesAsync(cancellationToken);
         return new ResetPasswordResponse(true);

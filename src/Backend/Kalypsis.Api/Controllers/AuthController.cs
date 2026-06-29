@@ -49,7 +49,27 @@ public class AuthController : ControllerBase
 
     [HttpPost("logout")]
     [Authorize]
-    public IActionResult Logout() => Ok(new { ok = true });
+    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest? body, CancellationToken ct)
+    {
+        // Best-effort: revoke the presented refresh token so it can't be reused.
+        // The access token can't be invalidated client-side (it's stateless JWT)
+        // but it will expire quickly and any refresh attempt is now dead.
+        Guid? userId = null;
+        if (Guid.TryParse(User.FindFirst("sub")?.Value, out var u)) userId = u;
+        await _mediator.Send(new LogoutCommand(body?.RefreshToken, userId), ct);
+        return Ok(new { ok = true });
+    }
+
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    [EnableRateLimiting("login")]
+    public async Task<ActionResult<LoginResponse>> Refresh(
+        [FromBody] RefreshTokenRequest request,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(new RefreshTokenCommand(request.RefreshToken), ct);
+        return Ok(result);
+    }
 
     [HttpPost("forgot-password")]
     [AllowAnonymous]

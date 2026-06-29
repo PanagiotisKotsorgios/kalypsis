@@ -1,5 +1,6 @@
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
+using Kalypsis.Application.Features.Auth;
 using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -28,6 +29,36 @@ public class UpdateEmployeeHandler : IRequestHandler<UpdateEmployeeCommand, User
         if (u.Role != Role.AgencyAdmin && u.Role != Role.AgencyUser)
             throw AppException.Forbidden();
 
+        var isSelf = u.Id == _current.UserId;
+        // Privilege-escalation / self-lockout guards: don't let an admin
+        // demote, deactivate, or rename their OWN role through this endpoint.
+        // They must do it through a different admin.
+        if (isSelf && c.Body.Role != u.Role)
+            throw new AppException("self_role_change_forbidden",
+                "Δεν μπορείτε να αλλάξετε τον δικό σας ρόλο.", 400,
+                title: "Μη επιτρεπτή ενέργεια",
+                why: "Για να αποφεύγεται το lock-out του τελευταίου admin, η αλλαγή ρόλου γίνεται από διαφορετικό Διαχειριστή.");
+        if (isSelf && !c.Body.IsActive)
+            throw new AppException("self_deactivate_forbidden",
+                "Δεν μπορείτε να απενεργοποιήσετε τον δικό σας λογαριασμό.", 400);
+
+        // If we're DEMOTING an AgencyAdmin to AgencyUser, ensure another admin
+        // exists — otherwise the tenant ends up with no administrator.
+        if (u.Role == Role.AgencyAdmin
+            && c.Body.Role == Role.AgencyUser)
+        {
+            var otherAdmins = await _db.Users.IgnoreQueryFilters()
+                .CountAsync(x => x.TenantId == tenantId && x.DeletedAt == null
+                              && x.IsActive
+                              && x.Role == Role.AgencyAdmin && x.Id != u.Id, ct);
+            if (otherAdmins == 0)
+                throw new AppException("last_admin_demote_forbidden",
+                    "Δεν μπορείτε να υποβιβάσετε τον μοναδικό Διαχειριστή.", 400,
+                    title: "Δεν επιτρέπεται",
+                    why: "Πρέπει να παραμένει τουλάχιστον ένας ενεργός Διαχειριστής Γραφείου.",
+                    fix: "Προβιβάστε άλλον χρήστη σε Διαχειριστή πρώτα.");
+        }
+
         u.FirstName = c.Body.FirstName.Trim();
         u.LastName  = c.Body.LastName.Trim();
         u.Phone     = string.IsNullOrWhiteSpace(c.Body.Phone) ? null : c.Body.Phone.Trim();
@@ -36,6 +67,15 @@ public class UpdateEmployeeHandler : IRequestHandler<UpdateEmployeeCommand, User
             u.Role = c.Body.Role;
         u.IsActive  = c.Body.IsActive;
         u.UpdatedAt = DateTime.UtcNow;
+
+        // Role / activation change invalidates open sessions so the change takes
+        // effect on the affected user's next request rather than at access-token
+        // expiry. (Self-changes are already blocked above.)
+        if (!isSelf)
+        {
+            await RefreshTokenRevoker.RevokeAllForUserAsync(
+                _db, u.Id, DateTime.UtcNow, "employee_role_or_status_changed", ct);
+        }
 
         await _db.SaveChangesAsync(ct);
         return new UserDto(u.Id, u.Email, u.FirstName, u.LastName, u.Phone,
@@ -83,8 +123,12 @@ public class DeleteEmployeeHandler : IRequestHandler<DeleteEmployeeCommand, Unit
                     fix: "Δημιουργήστε ή προβιβάστε άλλον χρήστη σε Διαχειριστή πρώτα.");
         }
 
-        u.DeletedAt = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+        u.DeletedAt = now;
         u.IsActive  = false;
+        // Kill open sessions so the soft-deleted user can't keep using the app
+        // until their current access token happens to expire.
+        await RefreshTokenRevoker.RevokeAllForUserAsync(_db, u.Id, now, "employee_deleted", ct);
         await _db.SaveChangesAsync(ct);
         return Unit.Value;
     }

@@ -27,6 +27,19 @@ builder.Services.AddScoped<Kalypsis.Application.Features.Phase13.IDiasClient, Ka
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
           ?? throw new InvalidOperationException("Jwt configuration section is missing.");
 
+// Refuse to start with a weak JWT signing key. 256 bits (32 bytes) is the
+// minimum for HS256; we require 48 bytes in production for a margin.
+if (!builder.Environment.IsDevelopment())
+{
+    if (string.IsNullOrWhiteSpace(jwt.Secret) || jwt.Secret.Length < 48)
+        throw new InvalidOperationException(
+            "Jwt:Secret must be at least 48 chars in production. Set it from a cryptographically random source.");
+    if (jwt.Secret.Equals("change-me", StringComparison.OrdinalIgnoreCase)
+        || jwt.Secret.Contains("dev", StringComparison.OrdinalIgnoreCase)
+        || jwt.Secret.Contains("test", StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("Jwt:Secret looks like a placeholder — refuse to start.");
+}
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -88,6 +101,18 @@ builder.Services.AddSingleton<IpBlockService>();
 builder.Services.AddControllers().AddJsonOptions(opt =>
 {
     opt.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    // Reject unknown JSON properties. Stops mass-assignment attacks where the
+    // attacker tacks on fields like {"role":"PlatformAdmin","isActive":true,...}
+    // hoping the model binder will quietly set them. Now they 400 instead.
+    opt.JsonSerializerOptions.UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow;
+});
+
+// Hard cap on request body size — 8 MB. Uploads that exceed this get a 413 at
+// the Kestrel level before any controller code runs. File-upload endpoints
+// that legitimately need more can opt out per-action with [RequestSizeLimit].
+builder.Services.Configure<Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerOptions>(o =>
+{
+    o.Limits.MaxRequestBodySize = 8 * 1024 * 1024;
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

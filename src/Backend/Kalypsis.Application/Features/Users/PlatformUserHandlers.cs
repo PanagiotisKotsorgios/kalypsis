@@ -1,6 +1,7 @@
 using FluentValidation;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
+using Kalypsis.Application.Features.Auth;
 using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -94,7 +95,12 @@ public class UpdatePlatformUserCommandValidator : AbstractValidator<UpdatePlatfo
 public class UpdatePlatformUserCommandHandler : IRequestHandler<UpdatePlatformUserCommand, PlatformUserDto>
 {
     private readonly IAppDbContext _db;
-    public UpdatePlatformUserCommandHandler(IAppDbContext db) => _db = db;
+    private readonly ICurrentUser _current;
+    public UpdatePlatformUserCommandHandler(IAppDbContext db, ICurrentUser current)
+    {
+        _db = db;
+        _current = current;
+    }
 
     public async Task<PlatformUserDto> Handle(UpdatePlatformUserCommand request, CancellationToken ct)
     {
@@ -102,11 +108,44 @@ public class UpdatePlatformUserCommandHandler : IRequestHandler<UpdatePlatformUs
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Χρήστης");
 
+        var isSelf = u.Id == _current.UserId;
+        // PlatformAdmin can't downgrade themselves or deactivate self — same
+        // self-lockout guard as the agency flow. They'd lock the system out of
+        // its own platform admin.
+        if (isSelf && request.Body.Role != u.Role)
+            throw new AppException("self_role_change_forbidden",
+                "Δεν μπορείτε να αλλάξετε τον δικό σας ρόλο.", 400);
+        if (isSelf && !request.Body.IsActive)
+            throw new AppException("self_deactivate_forbidden",
+                "Δεν μπορείτε να απενεργοποιήσετε τον λογαριασμό σας.", 400);
+
+        // If we're moving the LAST PlatformAdmin out of that role, refuse.
+        if (u.Role == Role.PlatformAdmin && request.Body.Role != Role.PlatformAdmin)
+        {
+            var otherAdmins = await _db.Users.IgnoreQueryFilters()
+                .CountAsync(x => x.DeletedAt == null && x.IsActive
+                              && x.Role == Role.PlatformAdmin && x.Id != u.Id, ct);
+            if (otherAdmins == 0)
+                throw new AppException("last_platform_admin_forbidden",
+                    "Δεν μπορείτε να αφαιρέσετε τον μοναδικό PlatformAdmin.", 400);
+        }
+
+        var roleOrStatusChanged = u.Role != request.Body.Role || u.IsActive != request.Body.IsActive;
+
         u.FirstName = request.Body.FirstName.Trim();
         u.LastName = request.Body.LastName.Trim();
         u.Phone = request.Body.Phone?.Trim();
         u.Role = request.Body.Role;
         u.IsActive = request.Body.IsActive;
+
+        // Role / activation change → invalidate the user's sessions so the
+        // change takes effect immediately (without waiting for access token expiry).
+        if (roleOrStatusChanged && !isSelf)
+        {
+            await RefreshTokenRevoker.RevokeAllForUserAsync(
+                _db, u.Id, DateTime.UtcNow, "platform_user_role_or_status_changed", ct);
+        }
+
         await _db.SaveChangesAsync(ct);
 
         var tenantName = await _db.Tenants.IgnoreQueryFilters()
@@ -140,8 +179,10 @@ public class DeletePlatformUserCommandHandler : IRequestHandler<DeletePlatformUs
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Χρήστης");
 
-        u.DeletedAt = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+        u.DeletedAt = now;
         u.IsActive = false;
+        await RefreshTokenRevoker.RevokeAllForUserAsync(_db, u.Id, now, "platform_user_deleted", ct);
         await _db.SaveChangesAsync(ct);
         return Unit.Value;
     }
@@ -174,14 +215,22 @@ public class BulkUserActionCommandHandler : IRequestHandler<BulkUserActionComman
             .ToListAsync(ct);
 
         var affected = 0;
+        var now = DateTime.UtcNow;
         foreach (var u in users)
         {
             if (u.Id == _current.UserId) continue;
             switch (request.Action)
             {
-                case BulkUserAction.Activate:   u.IsActive = true; affected++; break;
-                case BulkUserAction.Deactivate: u.IsActive = false; affected++; break;
-                case BulkUserAction.Delete:     u.DeletedAt = DateTime.UtcNow; u.IsActive = false; affected++; break;
+                case BulkUserAction.Activate:
+                    u.IsActive = true; affected++; break;
+                case BulkUserAction.Deactivate:
+                    u.IsActive = false; affected++;
+                    await RefreshTokenRevoker.RevokeAllForUserAsync(_db, u.Id, now, "bulk_deactivate", ct);
+                    break;
+                case BulkUserAction.Delete:
+                    u.DeletedAt = now; u.IsActive = false; affected++;
+                    await RefreshTokenRevoker.RevokeAllForUserAsync(_db, u.Id, now, "bulk_delete", ct);
+                    break;
             }
         }
         await _db.SaveChangesAsync(ct);

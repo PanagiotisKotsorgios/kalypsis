@@ -175,6 +175,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(() => {
+    // Best-effort: tell the server to revoke our refresh token so the
+    // session can't be resumed even if the access token is still valid.
+    // Fire-and-forget — we don't gate the UI logout on the network call.
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const stored = JSON.parse(raw) as StoredAuth;
+        if (stored.refreshToken) {
+          void api.post("/auth/logout", { refreshToken: stored.refreshToken }).catch(() => {});
+        }
+      }
+    } catch { /* ignore */ }
+
     // If we're impersonating, end it gracefully so the admin returns to their own session.
     if (sessionStorage.getItem(IMPERSONATION_BACKUP_KEY)) {
       sessionStorage.removeItem(IMPERSONATION_BACKUP_KEY);
