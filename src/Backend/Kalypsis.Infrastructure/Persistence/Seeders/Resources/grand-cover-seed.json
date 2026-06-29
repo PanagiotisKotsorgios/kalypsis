@@ -7,19 +7,19 @@
       "name": "ΔΕΥΤΕΡΟΣ ΑΛΛΗΛΑΣΦΑΛΙΣΤΙΚΟΣ ΣΥΝΕΤΑΙΡΙΣΜΟΣ",
       "packages": [
         {
-          "package_id": "83.0",
+          "package_id": 83,
           "name": "ΦΔΧ-ΔΑΣ ΒΑΣΙΚΟ"
         },
         {
-          "package_id": "84.0",
+          "package_id": 84,
           "name": "ΦΔΧ-ΔΑΣ-ΝΟΜΙΚΗ ARAG"
         },
         {
-          "package_id": "85.0",
+          "package_id": 85,
           "name": "ΦΔΧ-ΔΑΣ-ΠΡΟΑΙΡΕΤΙΚΕΣ"
         },
         {
-          "package_id": "113.0",
+          "package_id": 113,
           "name": "ΦΔΧ-ΔΑΣ-ΟΒΒΟ INTERAMERICAN"
         }
       ]
@@ -29,66 +29,24 @@
       "name": "GROUPAMA ΑΣΦΑΛΙΣΤΙΚΗ",
       "packages": [
         {
-          "package_id": "86.0",
+          "package_id": 86,
           "name": "ECO ΓΕΝΙΚΟ ΠΑΚΕΤΟ"
         },
         {
-          "package_id": "340.0",
+          "package_id": 340,
           "name": "GROUPAMA ΖΩΗΣ [ΓΕΝΙΚΟ]"
         },
         {
-          "package_id": "387.0",
+          "package_id": 387,
           "name": "GROUPAMA HOME A"
         },
         {
-          "package_id": "404.0",
+          "package_id": 404,
           "name": "GROUPAMA BUSINESS A"
         },
         {
-          "package_id": "427.0",
+          "package_id": 427,
           "name": "GPM ΑΕ ΕΠΑΓΓΕΛΜΑΤΙΑ"
-        }
-      ]
-    },
-    {
-      "id": 7,
-      "name": "GENERALI",
-      "packages": [
-        {
-          "package_id": "87.0",
-          "name": "SPEED-2"
-        },
-        {
-          "package_id": "90.0",
-          "name": "SPEED"
-        },
-        {
-          "package_id": "341.0",
-          "name": "ΖΩΗΣ [ΓΕΝΙΚΟ]"
-        },
-        {
-          "package_id": "344.0",
-          "name": "ΓΕΝΙΚΗ ΑΣΤΙΚΗ ΕΥΘΥΝΗ"
-        },
-        {
-          "package_id": "345.0",
-          "name": "ΠΥΡΟΣ"
-        },
-        {
-          "package_id": "346.0",
-          "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ"
-        },
-        {
-          "package_id": "347.0",
-          "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ"
-        },
-        {
-          "package_id": "351.0",
-          "name": "ΕΠΑΓΓΕΛΜΑΤΙΚΗ ΑΣΤΙΚΗ ΕΥΘΥΝΗ"
-        },
-        {
-          "package_id": "355.0",
-          "name": "ΣΚΑΦΗ ΑΝΑΨΥΧΗΣ"
         }
       ]
     },
@@ -97,52 +55,94 @@
       "name": "ALLIANZ ΕΥΡΩΠΑΪΚΗ ΠΙΣΤΗ",
       "packages": [
         {
-          "package_id": "439.0",
+          "package_id": 439,
           "name": "AUTO Πλήρους Προμήθειας"
         },
         {
-          "package_id": "440.0",
+          "package_id": 440,
           "name": "AUTO V.I.P. 2"
         },
         {
-          "package_id": "441.0",
+          "package_id": 441,
           "name": "AUTO Μειωμένης Προμήθειας 1"
         },
         {
-          "package_id": "442.0",
+          "package_id": 442,
           "name": "ΚΠΚ ΑΤΥΧΗΜΑΤΩΝ"
         },
         {
-          "package_id": "443.0",
+          "package_id": 443,
           "name": "ΕΝΟΙΚΙΑΖΟΜΕΝΑ"
         },
         {
-          "package_id": "444.0",
+          "package_id": 444,
           "name": "AUTO Μειωμένης Προμήθειας 2"
         },
         {
-          "package_id": "447.0",
+          "package_id": 447,
           "name": "ΠΥΡΟΣ ΠΕΡΙΟΥΣΙΑΣ"
         },
         {
-          "package_id": "448.0",
+          "package_id": 448,
           "name": "MY SMART HOUSE"
         },
         {
-          "package_id": "460.0",
+          "package_id": 460,
           "name": "Allianz My Motor Immobile (ακινησία)"
         },
         {
-          "package_id": "488.0",
+          "package_id": 488,
           "name": "ΛΕΩΦΟΡΕΙΑ"
         },
         {
-          "package_id": "495.0",
+          "package_id": 495,
           "name": "ΑΕ ΕΠΑΓΓΕΛΜΑΤΙΩΝ"
         },
         {
-          "package_id": "502.0",
+          "package_id": 502,
           "name": "ΣΚΑΦΗ Yacht"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "GENERALI",
+      "packages": [
+        {
+          "package_id": 87,
+          "name": "SPEED-2"
+        },
+        {
+          "package_id": 90,
+          "name": "SPEED"
+        },
+        {
+          "package_id": 341,
+          "name": "ΖΩΗΣ [ΓΕΝΙΚΟ]"
+        },
+        {
+          "package_id": 344,
+          "name": "ΓΕΝΙΚΗ ΑΣΤΙΚΗ ΕΥΘΥΝΗ"
+        },
+        {
+          "package_id": 345,
+          "name": "ΠΥΡΟΣ"
+        },
+        {
+          "package_id": 346,
+          "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ"
+        },
+        {
+          "package_id": 347,
+          "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ"
+        },
+        {
+          "package_id": 351,
+          "name": "ΕΠΑΓΓΕΛΜΑΤΙΚΗ ΑΣΤΙΚΗ ΕΥΘΥΝΗ"
+        },
+        {
+          "package_id": 355,
+          "name": "ΣΚΑΦΗ ΑΝΑΨΥΧΗΣ"
         }
       ]
     },
@@ -151,15 +151,15 @@
       "name": "AIG ΕΛΛΑΣ",
       "packages": [
         {
-          "package_id": "89.0",
+          "package_id": 89,
           "name": "Βασικό Πακέτο"
         },
         {
-          "package_id": "114.0",
+          "package_id": 114,
           "name": "ΠΥΡΟΣ-ΚΛΟΠΗ"
         },
         {
-          "package_id": "430.0",
+          "package_id": 430,
           "name": "ΠΥΡΟΣ ΠΕΡΙΟΥΣΙΑΣ"
         }
       ]
@@ -169,15 +169,15 @@
       "name": "ΣΥΝΕΤΑΙΡΙΣΤΙΚΗ",
       "packages": [
         {
-          "package_id": "80.0",
+          "package_id": 80,
           "name": "Από μετατροπή 80"
         },
         {
-          "package_id": "91.0",
+          "package_id": 91,
           "name": "ΟΙΚΟΝΟΜΙΚΟ-1"
         },
         {
-          "package_id": "92.0",
+          "package_id": 92,
           "name": "ΟΙΚΟΝΟΜΙΚΟ-1-ΦΙΧ-ΑΓΡΟΤΙΚΟ"
         }
       ]
@@ -187,19 +187,19 @@
       "name": "QEL",
       "packages": [
         {
-          "package_id": "290.0",
+          "package_id": 290,
           "name": "Q ΠΑΚΕΤΟ"
         },
         {
-          "package_id": "301.0",
+          "package_id": 301,
           "name": "Q-ΛΕΩΦΟΡΕΙΑ"
         },
         {
-          "package_id": "312.0",
+          "package_id": 312,
           "name": "Q-ΦΔΧ"
         },
         {
-          "package_id": "332.0",
+          "package_id": 332,
           "name": "Q-ΤΑΞΙ"
         }
       ]
@@ -209,15 +209,15 @@
       "name": "HELLAS DIRECT",
       "packages": [
         {
-          "package_id": "330.0",
+          "package_id": 330,
           "name": "All Star"
         },
         {
-          "package_id": "331.0",
+          "package_id": 331,
           "name": "Essential (μειωμένης προμήθειας)"
         },
         {
-          "package_id": "445.0",
+          "package_id": 445,
           "name": "HD Περιουσίας"
         }
       ]
@@ -227,83 +227,83 @@
       "name": "ΔΥΝΑΜΙΣ",
       "packages": [
         {
-          "package_id": "110.0",
+          "package_id": 110,
           "name": "Από μετατροπή 110"
         },
         {
-          "package_id": "112.0",
+          "package_id": 112,
           "name": "MyDynamis ΤΑΞΙ"
         },
         {
-          "package_id": "116.0",
+          "package_id": 116,
           "name": "My Dynamis Plus Πυρός-Κλοπή ΕΙΧ"
         },
         {
-          "package_id": "147.0",
+          "package_id": 147,
           "name": "My Dynamis Plus ΕΙΧ"
         },
         {
-          "package_id": "148.0",
+          "package_id": 148,
           "name": "My Dynamis Plus Πυρός-Κλοπή ΦΙΧ"
         },
         {
-          "package_id": "149.0",
+          "package_id": 149,
           "name": "My Dynamis Plus ΦΙΧ"
         },
         {
-          "package_id": "150.0",
+          "package_id": 150,
           "name": "My Dynamis Plus ΦΙΧ ΑΓΡ"
         },
         {
-          "package_id": "151.0",
+          "package_id": 151,
           "name": "My Dynamis ΜΟΤΟΠΟΔΗΛΑΤΑ"
         },
         {
-          "package_id": "152.0",
+          "package_id": 152,
           "name": "My Dynamis ΜΟΤΟ"
         },
         {
-          "package_id": "174.0",
+          "package_id": 174,
           "name": "My Dynamis ΕΛΚΥΣΤΗΡΕΣ"
         },
         {
-          "package_id": "259.0",
+          "package_id": 259,
           "name": "My Dynamis Plus ΦΔΧ"
         },
         {
-          "package_id": "291.0",
+          "package_id": 291,
           "name": "My Dynamis Plus ΕΝΟΙΚ"
         },
         {
-          "package_id": "343.0",
+          "package_id": 343,
           "name": "My Dynamis ΦΔΧ Εκπτωτικό"
         },
         {
-          "package_id": "362.0",
+          "package_id": 362,
           "name": "Dynamis Κατοικία"
         },
         {
-          "package_id": "363.0",
+          "package_id": 363,
           "name": "Dynamis Sail"
         },
         {
-          "package_id": "366.0",
+          "package_id": 366,
           "name": "Δύναμις Αστική Ευθύνη"
         },
         {
-          "package_id": "376.0",
+          "package_id": 376,
           "name": "Δύναμις Προσωπικό Ατύχημα"
         },
         {
-          "package_id": "403.0",
+          "package_id": 403,
           "name": "Dynamis Επιχείρηση"
         },
         {
-          "package_id": "452.0",
+          "package_id": 452,
           "name": "Δύναμις ΑΕ Διαμεσολαβούντων"
         },
         {
-          "package_id": "490.0",
+          "package_id": 490,
           "name": "My Dynamis HISTORY"
         }
       ]
@@ -313,7 +313,7 @@
       "name": "EUROPASSISTANCE",
       "packages": [
         {
-          "package_id": "115.0",
+          "package_id": 115,
           "name": "RSA PLUS"
         }
       ]
@@ -323,79 +323,79 @@
       "name": "APEIRON INSURANCE PROJECT",
       "packages": [
         {
-          "package_id": "118.0",
+          "package_id": 118,
           "name": "AUTO SIMPLE"
         },
         {
-          "package_id": "119.0",
+          "package_id": 119,
           "name": "AUTO VALUE"
         },
         {
-          "package_id": "120.0",
+          "package_id": 120,
           "name": "AUTO FULL"
         },
         {
-          "package_id": "121.0",
+          "package_id": 121,
           "name": "TRUCK SIMPLE"
         },
         {
-          "package_id": "122.0",
+          "package_id": 122,
           "name": "TRUCK VALUE"
         },
         {
-          "package_id": "123.0",
+          "package_id": 123,
           "name": "AGRO SIMPLE"
         },
         {
-          "package_id": "124.0",
+          "package_id": 124,
           "name": "AGRO VALUE"
         },
         {
-          "package_id": "125.0",
+          "package_id": 125,
           "name": "MOTO SIMPLE"
         },
         {
-          "package_id": "127.0",
+          "package_id": 127,
           "name": "MOTO VALUE"
         },
         {
-          "package_id": "128.0",
+          "package_id": 128,
           "name": "TAXI SIMPLE"
         },
         {
-          "package_id": "129.0",
+          "package_id": 129,
           "name": "TAXI VALUE"
         },
         {
-          "package_id": "130.0",
+          "package_id": 130,
           "name": "TRACKTOR"
         },
         {
-          "package_id": "255.0",
+          "package_id": 255,
           "name": "AUTORENT ΕΝΟΙΚ"
         },
         {
-          "package_id": "257.0",
+          "package_id": 257,
           "name": "TRUCK FULL"
         },
         {
-          "package_id": "258.0",
+          "package_id": 258,
           "name": "AGRO VALUE"
         },
         {
-          "package_id": "354.0",
+          "package_id": 354,
           "name": "MOTORENT ΕΝΟΙΚ"
         },
         {
-          "package_id": "416.0",
+          "package_id": 416,
           "name": "ΜΗΧΑΝΗΜΑΤΑ ΕΡΓΟΥ"
         },
         {
-          "package_id": "453.0",
+          "package_id": 453,
           "name": "LORRY (ΦΔΧ)"
         },
         {
-          "package_id": "505.0",
+          "package_id": 505,
           "name": "ΙΣΤΟΡΙΚΑ ΟΧΗΜΑΤΑ"
         }
       ]
@@ -405,107 +405,107 @@
       "name": "MINETTA",
       "packages": [
         {
-          "package_id": "171.0",
+          "package_id": 171,
           "name": "MINETTA [ΧΩΡΙΣ ΠΑΚΕΤΟ]"
         },
         {
-          "package_id": "172.0",
+          "package_id": 172,
           "name": "MINETTA-ΒΑΣΙΚΟ-ΕΙΧ"
         },
         {
-          "package_id": "173.0",
+          "package_id": 173,
           "name": "MINETTA-ΠΥΡΟΣ-ΕΙΧ"
         },
         {
-          "package_id": "182.0",
+          "package_id": 182,
           "name": "MINETTA-ΠΛΗΡΕΣ-ΕΙΧ"
         },
         {
-          "package_id": "183.0",
+          "package_id": 183,
           "name": "MINETTA-ΒΑΣΙΚΟ-ΦΔΧ"
         },
         {
-          "package_id": "184.0",
+          "package_id": 184,
           "name": "MINETTA-ΠΥΡΟΣ-ΦΔΧ"
         },
         {
-          "package_id": "185.0",
+          "package_id": 185,
           "name": "MINETTA-ΠΛΗΡΕΣ-ΦΔΧ"
         },
         {
-          "package_id": "186.0",
+          "package_id": 186,
           "name": "MINETTA-ΒΑΣΙΚΟ-ΤΑΞΙ"
         },
         {
-          "package_id": "187.0",
+          "package_id": 187,
           "name": "MINETTA-ΠΥΡΟΣ-ΤΑΞΙ"
         },
         {
-          "package_id": "188.0",
+          "package_id": 188,
           "name": "MINETTA-ΠΛΗΡΕΣ-ΤΑΞΙ"
         },
         {
-          "package_id": "189.0",
+          "package_id": 189,
           "name": "MINETTA-ΒΑΣΙΚΟ-ΕΝΟΙΚ"
         },
         {
-          "package_id": "190.0",
+          "package_id": 190,
           "name": "MINETTA-ΠΥΡΟΣ-ΕΝΟΙΚ"
         },
         {
-          "package_id": "191.0",
+          "package_id": 191,
           "name": "MINETTA-ΠΛΗΡΕΣ-ΕΝΟΙΚ"
         },
         {
-          "package_id": "192.0",
+          "package_id": 192,
           "name": "MINETTA-ΒΑΣΙΚΟ-Μ/Ε"
         },
         {
-          "package_id": "193.0",
+          "package_id": 193,
           "name": "MINETTA-ΠΥΡΟΣ-Μ/Ε"
         },
         {
-          "package_id": "194.0",
+          "package_id": 194,
           "name": "MINETTA-ΠΛΗΡΕΣ-Μ/Ε"
         },
         {
-          "package_id": "195.0",
+          "package_id": 195,
           "name": "MINETTA-ΒΑΣΙΚΟ-ΛΕΩΦ"
         },
         {
-          "package_id": "196.0",
+          "package_id": 196,
           "name": "MINETTA-ΠΥΡΟΣ-ΛΕΩΦ"
         },
         {
-          "package_id": "197.0",
+          "package_id": 197,
           "name": "MINETTA-ΠΛΗΡΕΣ-ΛΕΩΦ"
         },
         {
-          "package_id": "251.0",
+          "package_id": 251,
           "name": "Minetta Κατοικία"
         },
         {
-          "package_id": "342.0",
+          "package_id": 342,
           "name": "MINETTA ΖΩΗΣ-ΥΓΕΙΑΣ [ΓΕΝΙΚΟ]"
         },
         {
-          "package_id": "409.0",
+          "package_id": 409,
           "name": "Minetta Επιχείρηση"
         },
         {
-          "package_id": "410.0",
+          "package_id": 410,
           "name": "Minetta Τουριστικών Μονάδων"
         },
         {
-          "package_id": "429.0",
+          "package_id": 429,
           "name": "MINETTA-ΣΚΑΦΟΣ"
         },
         {
-          "package_id": "435.0",
+          "package_id": 435,
           "name": "MINETTA-ΑΣΤ ΕΥΘ ΕΠΑΓΓΕΛ"
         },
         {
-          "package_id": "446.0",
+          "package_id": 446,
           "name": "MINETTA ΓΕΝΙΚΗ ΑΣΤΙΚΗ ΕΥΘΥΝΗ"
         }
       ]
@@ -515,11 +515,11 @@
       "name": "INTERLIFE",
       "packages": [
         {
-          "package_id": "497.0",
+          "package_id": 497,
           "name": "Interlife Κατοικία"
         },
         {
-          "package_id": "498.0",
+          "package_id": 498,
           "name": "Interlife Επιχείρηση"
         }
       ]
@@ -529,127 +529,127 @@
       "name": "EUROINS",
       "packages": [
         {
-          "package_id": "198.0",
+          "package_id": 198,
           "name": "BASIC INS EIX"
         },
         {
-          "package_id": "199.0",
+          "package_id": 199,
           "name": "SIMPLE INS ΕΙΧ"
         },
         {
-          "package_id": "200.0",
+          "package_id": 200,
           "name": "EXTRA INS ΕΙΧ"
         },
         {
-          "package_id": "201.0",
+          "package_id": 201,
           "name": "TOTAL INS EIX"
         },
         {
-          "package_id": "202.0",
+          "package_id": 202,
           "name": "BASIC INS ΦΙΧ"
         },
         {
-          "package_id": "203.0",
+          "package_id": 203,
           "name": "SIMPLE INS ΦΙΧ"
         },
         {
-          "package_id": "204.0",
+          "package_id": 204,
           "name": "EXTRA INS ΦΙΧ"
         },
         {
-          "package_id": "205.0",
+          "package_id": 205,
           "name": "TOTAL INS ΦΙΧ"
         },
         {
-          "package_id": "206.0",
+          "package_id": 206,
           "name": "BASIC INS ΦΙΧ ΑΓΡ"
         },
         {
-          "package_id": "207.0",
+          "package_id": 207,
           "name": "SIMPLE INS ΦΙΧ ΑΓΡ"
         },
         {
-          "package_id": "208.0",
+          "package_id": 208,
           "name": "EXTRA INS ΦΙΧ ΑΓΡ"
         },
         {
-          "package_id": "209.0",
+          "package_id": 209,
           "name": "BASIC INS ΦΔΧ"
         },
         {
-          "package_id": "210.0",
+          "package_id": 210,
           "name": "SIMPLE INS ΦΔΧ"
         },
         {
-          "package_id": "211.0",
+          "package_id": 211,
           "name": "EXTRA INS ΦΔΧ"
         },
         {
-          "package_id": "212.0",
+          "package_id": 212,
           "name": "BASIC INS ΕΝΟΙΚ"
         },
         {
-          "package_id": "213.0",
+          "package_id": 213,
           "name": "SIMPLE INS ΕΝΟΙΚ"
         },
         {
-          "package_id": "214.0",
+          "package_id": 214,
           "name": "EXTRA INS ΕΝΟΙΚ"
         },
         {
-          "package_id": "215.0",
+          "package_id": 215,
           "name": "TOTAL INS ΕΝΟΙΚ"
         },
         {
-          "package_id": "216.0",
+          "package_id": 216,
           "name": "BASIC INS MOTO"
         },
         {
-          "package_id": "217.0",
+          "package_id": 217,
           "name": "SIMPLE INS MOTO"
         },
         {
-          "package_id": "218.0",
+          "package_id": 218,
           "name": "BASIC INS ΛΕΩΦ"
         },
         {
-          "package_id": "219.0",
+          "package_id": 219,
           "name": "SIMPLE INS ΛΕΩΦ"
         },
         {
-          "package_id": "220.0",
+          "package_id": 220,
           "name": "BASIC INS M/E"
         },
         {
-          "package_id": "221.0",
+          "package_id": 221,
           "name": "SIMPLE INS M/E"
         },
         {
-          "package_id": "222.0",
+          "package_id": 222,
           "name": "BASIC INS ΤΡΑΚΤΕΡ"
         },
         {
-          "package_id": "223.0",
+          "package_id": 223,
           "name": "BASIC INS ΤΑΞΙ"
         },
         {
-          "package_id": "507.0",
+          "package_id": 507,
           "name": "EUROINS-GRAND ΒΑΣΙΚΟ"
         },
         {
-          "package_id": "508.0",
+          "package_id": 508,
           "name": "EUROINS-GRAND ΤΑΞΙ"
         },
         {
-          "package_id": "509.0",
+          "package_id": 509,
           "name": "EUROINS-GRAND ΦΔΧ"
         },
         {
-          "package_id": "510.0",
+          "package_id": 510,
           "name": "EUROINS-GRAND ΛΕΩΦ"
         },
         {
-          "package_id": "511.0",
+          "package_id": 511,
           "name": "EUROINS-GRAND ΕΝΟΙΚ"
         }
       ]
@@ -659,35 +659,35 @@
       "name": "GASAN MAMO",
       "packages": [
         {
-          "package_id": "224.0",
+          "package_id": 224,
           "name": "BASIC"
         },
         {
-          "package_id": "226.0",
+          "package_id": 226,
           "name": "FULL"
         },
         {
-          "package_id": "227.0",
+          "package_id": 227,
           "name": "PLUS"
         },
         {
-          "package_id": "229.0",
+          "package_id": 229,
           "name": "MOTO"
         },
         {
-          "package_id": "230.0",
+          "package_id": 230,
           "name": "TRUCK"
         },
         {
-          "package_id": "231.0",
+          "package_id": 231,
           "name": "TRUCK PLUS"
         },
         {
-          "package_id": "232.0",
+          "package_id": 232,
           "name": "TRACTOR"
         },
         {
-          "package_id": "300.0",
+          "package_id": 300,
           "name": "ELPA LORRY BASIC"
         }
       ]
@@ -697,15 +697,15 @@
       "name": "EXTRA ASSISTANCE",
       "packages": [
         {
-          "package_id": "253.0",
+          "package_id": 253,
           "name": "ΟΔΙΚΗ ΒΟΗΘΕΙΑ"
         },
         {
-          "package_id": "329.0",
+          "package_id": 329,
           "name": "ΟΔΙΚΗ (ΔΟΚ)"
         },
         {
-          "package_id": "420.0",
+          "package_id": 420,
           "name": "ΟΒΒΟ"
         }
       ]
@@ -715,39 +715,39 @@
       "name": "ΥΔΡΟΓΕΙΟΣ",
       "packages": [
         {
-          "package_id": "358.0",
+          "package_id": 358,
           "name": "BASIC-ΟΧΗΜΑΤΑ"
         },
         {
-          "package_id": "359.0",
+          "package_id": 359,
           "name": "BASIC-ΦΔΧ"
         },
         {
-          "package_id": "360.0",
+          "package_id": 360,
           "name": "BASIC-ΤΑΞΙ"
         },
         {
-          "package_id": "361.0",
+          "package_id": 361,
           "name": "BASIC-ΕΝΟΙΚΙΑΖΟΜΕΝΑ"
         },
         {
-          "package_id": "419.0",
+          "package_id": 419,
           "name": "BASIC-ΛΕΩΦΟΡΕΙΑ"
         },
         {
-          "package_id": "428.0",
+          "package_id": 428,
           "name": "ΥΔΡΟΓ-ΣΚΑΦΟΣ"
         },
         {
-          "package_id": "481.0",
+          "package_id": 481,
           "name": "ΚΑΤΟΙΚΙΑ"
         },
         {
-          "package_id": "482.0",
+          "package_id": 482,
           "name": "ΕΠΙΧΕΙΡΗΣΗ"
         },
         {
-          "package_id": "483.0",
+          "package_id": 483,
           "name": "ΦΩΤΟΒΟΛΤΑΪΚΑ"
         }
       ]
@@ -757,35 +757,35 @@
       "name": "DALLBOGG",
       "packages": [
         {
-          "package_id": "292.0",
+          "package_id": 292,
           "name": "ECONOMY"
         },
         {
-          "package_id": "293.0",
+          "package_id": 293,
           "name": "ECONOMY (TAXI)"
         },
         {
-          "package_id": "294.0",
+          "package_id": 294,
           "name": "BASIC"
         },
         {
-          "package_id": "295.0",
+          "package_id": 295,
           "name": "BASIC (TAXI)"
         },
         {
-          "package_id": "310.0",
+          "package_id": 310,
           "name": "ECONOMY 2"
         },
         {
-          "package_id": "327.0",
+          "package_id": 327,
           "name": "ECONOMY PLUS (EC+2)"
         },
         {
-          "package_id": "328.0",
+          "package_id": 328,
           "name": "SIMPLE TAXI (TAX-2)"
         },
         {
-          "package_id": "459.0",
+          "package_id": 459,
           "name": "SIMPLE (Μειωμένης Προμήθειας)"
         }
       ]
@@ -795,47 +795,47 @@
       "name": "ACCELERANT",
       "packages": [
         {
-          "package_id": "269.0",
+          "package_id": 269,
           "name": "AUTO [ΒΑΣ ΤΙΜΟΛ]"
         },
         {
-          "package_id": "271.0",
+          "package_id": 271,
           "name": "AUTO -1%"
         },
         {
-          "package_id": "272.0",
+          "package_id": 272,
           "name": "AUTO -2%"
         },
         {
-          "package_id": "273.0",
+          "package_id": 273,
           "name": "AUTO -3%"
         },
         {
-          "package_id": "274.0",
+          "package_id": 274,
           "name": "AUTO -4%"
         },
         {
-          "package_id": "275.0",
+          "package_id": 275,
           "name": "AUTO -5%"
         },
         {
-          "package_id": "276.0",
+          "package_id": 276,
           "name": "AUTO -6%"
         },
         {
-          "package_id": "277.0",
+          "package_id": 277,
           "name": "AUTO -7%"
         },
         {
-          "package_id": "279.0",
+          "package_id": 279,
           "name": "AUTO -8%"
         },
         {
-          "package_id": "280.0",
+          "package_id": 280,
           "name": "AUTO -9%"
         },
         {
-          "package_id": "281.0",
+          "package_id": 281,
           "name": "AUTO -10%"
         }
       ]
@@ -845,31 +845,31 @@
       "name": "LEVINS [1159]",
       "packages": [
         {
-          "package_id": "283.0",
+          "package_id": 283,
           "name": "AUTO STEP"
         },
         {
-          "package_id": "284.0",
+          "package_id": 284,
           "name": "AUTO"
         },
         {
-          "package_id": "308.0",
+          "package_id": 308,
           "name": "AUTO STEP 2"
         },
         {
-          "package_id": "309.0",
+          "package_id": 309,
           "name": "AUTO STEP 3"
         },
         {
-          "package_id": "348.0",
+          "package_id": 348,
           "name": "AUTO STEP G1"
         },
         {
-          "package_id": "349.0",
+          "package_id": 349,
           "name": "AUTO STEP G2"
         },
         {
-          "package_id": "350.0",
+          "package_id": 350,
           "name": "AUTO STEP G3"
         }
       ]
@@ -879,15 +879,15 @@
       "name": "INTERASCO",
       "packages": [
         {
-          "package_id": "307.0",
+          "package_id": 307,
           "name": "ΓΕΝΙΚΟ AUTO"
         },
         {
-          "package_id": "413.0",
+          "package_id": 413,
           "name": "Interasco Κατοικία"
         },
         {
-          "package_id": "414.0",
+          "package_id": 414,
           "name": "Interasco Επιχείρηση"
         }
       ]
@@ -897,19 +897,19 @@
       "name": "ΛΕΩΝ ΣΥΝ.ΠΕ",
       "packages": [
         {
-          "package_id": "304.0",
+          "package_id": 304,
           "name": "ΕΛΛΗΝΙΚΟΣ ΔΧ"
         },
         {
-          "package_id": "305.0",
+          "package_id": 305,
           "name": "ΕΛΛΗΝΙΚΟΣ Α.Ε ΦΔΧ"
         },
         {
-          "package_id": "306.0",
+          "package_id": 306,
           "name": "ΕΛΛΗΝΙΚΟΣ Α.Ε ΛΔΧ"
         },
         {
-          "package_id": "456.0",
+          "package_id": 456,
           "name": "ΟΔΙΚΟΥ ΜΕΤΑΦΟΡΕΑ"
         }
       ]
@@ -919,7 +919,7 @@
       "name": "LEVINS [APL]",
       "packages": [
         {
-          "package_id": "303.0",
+          "package_id": 303,
           "name": "LEVINS AUTO 2"
         }
       ]
@@ -929,11 +929,11 @@
       "name": "ΕΘΝΙΚΗ ΑΣΦΑΛΙΣΤΙΚΗ",
       "packages": [
         {
-          "package_id": "352.0",
+          "package_id": 352,
           "name": "ΕΘΝ-ΕΝΟΙΚΑΖΟΜΕΝΑ"
         },
         {
-          "package_id": "356.0",
+          "package_id": 356,
           "name": "ΕΘΝ-Protect"
         }
       ]
@@ -943,23 +943,23 @@
       "name": "ERGO [IT]",
       "packages": [
         {
-          "package_id": "377.0",
+          "package_id": 377,
           "name": "ERGO ΕΙΧ ΒΑΣΙΚΟ"
         },
         {
-          "package_id": "378.0",
+          "package_id": 378,
           "name": "ERGO ΕΙΧ [-01]"
         },
         {
-          "package_id": "379.0",
+          "package_id": 379,
           "name": "ERGO ΕΙΧ [-02]"
         },
         {
-          "package_id": "380.0",
+          "package_id": 380,
           "name": "ERGO ΕΙΧ [-03]"
         },
         {
-          "package_id": "438.0",
+          "package_id": 438,
           "name": "ERGO Solar Panel"
         }
       ]
@@ -969,63 +969,63 @@
       "name": "YELLOW [WAKAM]",
       "packages": [
         {
-          "package_id": "81.0",
+          "package_id": 81,
           "name": "ΑΕ ΔΙΑΜΕΣΟΛΑΒΗΤΗ"
         },
         {
-          "package_id": "313.0",
+          "package_id": 313,
           "name": "Advanced [ΕΙΧ-ΜΟΤΟ-ΦΙΧ-ΑΓΡΟΤ]"
         },
         {
-          "package_id": "314.0",
+          "package_id": 314,
           "name": "Full [ΕΙΧ-ΜΟΤΟ-ΦΙΧ-ΑΓΡΟΤ]"
         },
         {
-          "package_id": "315.0",
+          "package_id": 315,
           "name": "Standard [ΕΙΧ-ΜΟΤΟ-ΦΙΧ-ΑΓΡΟΤ]"
         },
         {
-          "package_id": "316.0",
+          "package_id": 316,
           "name": "Value [ΕΙΧ-ΜΟΤΟ-ΦΙΧ-ΑΓΡΟΤ]"
         },
         {
-          "package_id": "317.0",
+          "package_id": 317,
           "name": "Advanced [ΤΑΞΙ]"
         },
         {
-          "package_id": "318.0",
+          "package_id": 318,
           "name": "Standard [ΤΑΞΙ]"
         },
         {
-          "package_id": "319.0",
+          "package_id": 319,
           "name": "Value [ΤΑΞΙ]"
         },
         {
-          "package_id": "320.0",
+          "package_id": 320,
           "name": "Advanced [ΕΝΟΙΚΙΑΖΟΜΕΝΑ]"
         },
         {
-          "package_id": "321.0",
+          "package_id": 321,
           "name": "Full [ΕΝΟΙΚΙΑΖΟΜΕΝΑ]"
         },
         {
-          "package_id": "322.0",
+          "package_id": 322,
           "name": "Standard [ΕΝΟΙΚΙΑΖΟΜΕΝΑ]"
         },
         {
-          "package_id": "323.0",
+          "package_id": 323,
           "name": "Value [ΕΝΟΙΚΙΑΖΟΜΕΝΑ]"
         },
         {
-          "package_id": "324.0",
+          "package_id": 324,
           "name": "Advanced [ΦΔΧ]"
         },
         {
-          "package_id": "325.0",
+          "package_id": 325,
           "name": "Standard [ΦΔΧ]"
         },
         {
-          "package_id": "326.0",
+          "package_id": 326,
           "name": "Value [ΦΔΧ]"
         }
       ]
@@ -1035,23 +1035,23 @@
       "name": "WAKAM [IB]",
       "packages": [
         {
-          "package_id": "333.0",
+          "package_id": 333,
           "name": "W-SIMPLE"
         },
         {
-          "package_id": "335.0",
+          "package_id": 335,
           "name": "W-ΛΕΩΦ-SIMPLE"
         },
         {
-          "package_id": "336.0",
+          "package_id": 336,
           "name": "W-ΦΔΧ-SIMPLE"
         },
         {
-          "package_id": "337.0",
+          "package_id": 337,
           "name": "W-ΤΑΞΙ-SIMPLE"
         },
         {
-          "package_id": "339.0",
+          "package_id": 339,
           "name": "W-ΕΝΟΙΚΙΑΖΟΜΕΝΑ-SIMPLE"
         }
       ]
@@ -1061,27 +1061,27 @@
       "name": "QEL [IB]",
       "packages": [
         {
-          "package_id": "338.0",
+          "package_id": 338,
           "name": "Q-SIMPLE"
         },
         {
-          "package_id": "353.0",
+          "package_id": 353,
           "name": "Q-SIMPLE ΦΔΧ"
         },
         {
-          "package_id": "357.0",
+          "package_id": 357,
           "name": "Q IB-ΛΕΩΦΟΡΕΙΑ"
         },
         {
-          "package_id": "431.0",
+          "package_id": 431,
           "name": "Q-TAXI"
         },
         {
-          "package_id": "455.0",
+          "package_id": 455,
           "name": "HISTORY"
         },
         {
-          "package_id": "468.0",
+          "package_id": 468,
           "name": "Φυσικά Φαινόμενα-ΛΕΩΦΟΡΕΙΑ"
         }
       ]
@@ -1091,7 +1091,7 @@
       "name": "ACCREDITED [IND]",
       "packages": [
         {
-          "package_id": "365.0",
+          "package_id": 365,
           "name": "ACC[IND]-ΒΑΣΙΚΟ"
         }
       ]
@@ -1101,15 +1101,15 @@
       "name": "EUROLIFE [APL]",
       "packages": [
         {
-          "package_id": "367.0",
+          "package_id": 367,
           "name": "SafeDrive Standard"
         },
         {
-          "package_id": "368.0",
+          "package_id": 368,
           "name": "SafeDrive Plus"
         },
         {
-          "package_id": "469.0",
+          "package_id": 469,
           "name": "My Happy Pet Plus"
         }
       ]
@@ -1119,19 +1119,19 @@
       "name": "ALLIANZ ΕΥΡΩΠΑΪΚΗ ΠΙΣΤΗ [APL]",
       "packages": [
         {
-          "package_id": "375.0",
+          "package_id": 375,
           "name": "Allianz Ευρ Πίστη-Auto"
         },
         {
-          "package_id": "432.0",
+          "package_id": 432,
           "name": "Allianz Ευρ Πίστη-Rent"
         },
         {
-          "package_id": "436.0",
+          "package_id": 436,
           "name": "Allianz Ευρ Πίστη-Auto Μειωμ Προμ 1"
         },
         {
-          "package_id": "437.0",
+          "package_id": 437,
           "name": "Allianz Ευρ Πίστη-Auto Μειωμ Προμ 2"
         }
       ]
@@ -1141,35 +1141,35 @@
       "name": "ΑΤΛΑΝΤΙΚΗ ΕΝΩΣΗ",
       "packages": [
         {
-          "package_id": "411.0",
+          "package_id": 411,
           "name": "Ατλαντική Κατοικία"
         },
         {
-          "package_id": "412.0",
+          "package_id": 412,
           "name": "Ατλαντική Επιχείρηση"
         },
         {
-          "package_id": "415.0",
+          "package_id": 415,
           "name": "Ατλαντική Fire Eco"
         },
         {
-          "package_id": "417.0",
+          "package_id": 417,
           "name": "Ατλαντική Auto"
         },
         {
-          "package_id": "418.0",
+          "package_id": 418,
           "name": "Ατλαντική ΦΔΧ"
         },
         {
-          "package_id": "433.0",
+          "package_id": 433,
           "name": "Ατλαντική Αστική Ευθύνη Επαγγελματία"
         },
         {
-          "package_id": "434.0",
+          "package_id": 434,
           "name": "Ατλαντική Προσωπικό Ατύχημα"
         },
         {
-          "package_id": "496.0",
+          "package_id": 496,
           "name": "ΟΜΑΔΙΚΟ ΥΓΕΙΑΣ"
         }
       ]
@@ -1179,19 +1179,19 @@
       "name": "LEVINS [5039]",
       "packages": [
         {
-          "package_id": "370.0",
+          "package_id": 370,
           "name": "AUTO STEP G1"
         },
         {
-          "package_id": "371.0",
+          "package_id": 371,
           "name": "AUTO STEP G2"
         },
         {
-          "package_id": "372.0",
+          "package_id": 372,
           "name": "AUTO STEP G3"
         },
         {
-          "package_id": "373.0",
+          "package_id": 373,
           "name": "AUTO [ΕΙΔΙΚΟ]"
         }
       ]
@@ -1201,27 +1201,27 @@
       "name": "INTERAMERICAN [BE]",
       "packages": [
         {
-          "package_id": "421.0",
+          "package_id": 421,
           "name": "CLASSIC-EXTRA-TOTAL-BASIC"
         },
         {
-          "package_id": "422.0",
+          "package_id": 422,
           "name": "CLASSIC B-EXTRA B"
         },
         {
-          "package_id": "423.0",
+          "package_id": 423,
           "name": "RENTAL (CLASSIC-EXTRA)"
         },
         {
-          "package_id": "424.0",
+          "package_id": 424,
           "name": "BUS"
         },
         {
-          "package_id": "425.0",
+          "package_id": 425,
           "name": "AUTO DRIVING SCHOOL"
         },
         {
-          "package_id": "426.0",
+          "package_id": 426,
           "name": "ΦΔΧ (CLASSIC-EXTRA)"
         }
       ]
@@ -1231,71 +1231,71 @@
       "name": "INTERLIFE [DA]",
       "packages": [
         {
-          "package_id": "162.0",
+          "package_id": 162,
           "name": "INTERLIFE-ΒΑΣΙΚΟ-ΕΙΧ"
         },
         {
-          "package_id": "163.0",
+          "package_id": 163,
           "name": "INTERLIFE-ΒΑΣΙΚΟ-ΦΔΧ"
         },
         {
-          "package_id": "164.0",
+          "package_id": 164,
           "name": "INTERLIFE-ΒΑΣΙΚΟ-ΤΑΞΙ"
         },
         {
-          "package_id": "165.0",
+          "package_id": 165,
           "name": "INTERLIFE-ΒΑΣΙΚΟ-ΕΝΟΙΚ"
         },
         {
-          "package_id": "166.0",
+          "package_id": 166,
           "name": "INTERLIFE-30-ΕΙΧ"
         },
         {
-          "package_id": "167.0",
+          "package_id": 167,
           "name": "INTERLIFE-30-ΦΔΧ"
         },
         {
-          "package_id": "168.0",
+          "package_id": 168,
           "name": "INTERLIFE-30-ΤΑΞΙ"
         },
         {
-          "package_id": "170.0",
+          "package_id": 170,
           "name": "INTERLIFE-25-ΕΝΟΙΚ"
         },
         {
-          "package_id": "175.0",
+          "package_id": 175,
           "name": "INTERLIFE-10-ΕΙΧ"
         },
         {
-          "package_id": "177.0",
+          "package_id": 177,
           "name": "INTERLIFE-20-ΕΙΧ"
         },
         {
-          "package_id": "178.0",
+          "package_id": 178,
           "name": "INTERLIFE-20-ΦΔΧ"
         },
         {
-          "package_id": "179.0",
+          "package_id": 179,
           "name": "INTERLIFE-10-ΤΑΞΙ"
         },
         {
-          "package_id": "180.0",
+          "package_id": 180,
           "name": "INTERLIFE-20-ΤΑΞΙ"
         },
         {
-          "package_id": "181.0",
+          "package_id": 181,
           "name": "INTERLIFE-10-ΦΔΧ"
         },
         {
-          "package_id": "302.0",
+          "package_id": 302,
           "name": "INTERLIFE-ΒΑΣΙΚΟ-ΛΕΩΦΟΡΕΙΑ"
         },
         {
-          "package_id": "405.0",
+          "package_id": 405,
           "name": "Interlife Κατοικία"
         },
         {
-          "package_id": "406.0",
+          "package_id": 406,
           "name": "Interlife Επιχείρηση"
         }
       ]
@@ -1305,15 +1305,15 @@
       "name": "ACCREDITED [IT]",
       "packages": [
         {
-          "package_id": "398.0",
+          "package_id": 398,
           "name": "ACCRED[IT]-ΒΑΣΙΚΟ"
         },
         {
-          "package_id": "402.0",
+          "package_id": 402,
           "name": "ACCRED[IT]-TAXI"
         },
         {
-          "package_id": "454.0",
+          "package_id": 454,
           "name": "ACCRED[IT]-ΦΔΧ"
         }
       ]
@@ -1323,15 +1323,15 @@
       "name": "ΥΔΡΟΓΕΙΟΣ [IT]",
       "packages": [
         {
-          "package_id": "390.0",
+          "package_id": 390,
           "name": "ΕΙΧ-ΜΟΤΟ-ΦΙΧ-ΜΕ"
         },
         {
-          "package_id": "391.0",
+          "package_id": 391,
           "name": "ΕΝΟΙΚΑΖΟΜΕΝΑ"
         },
         {
-          "package_id": "392.0",
+          "package_id": 392,
           "name": "ΦΔΧ TIR"
         }
       ]
@@ -1341,27 +1341,27 @@
       "name": "ΙΝΤΕΡΣΑΛΟΝΙΚΑ [IT]",
       "packages": [
         {
-          "package_id": "381.0",
+          "package_id": 381,
           "name": "ΕΙΧ-ΜΟΤΟ-ΦΙΧ-ΜΕ"
         },
         {
-          "package_id": "382.0",
+          "package_id": 382,
           "name": "ΦΔΧ"
         },
         {
-          "package_id": "385.0",
+          "package_id": 385,
           "name": "ΕΝΟΙΚ ΕΙΧ"
         },
         {
-          "package_id": "386.0",
+          "package_id": 386,
           "name": "ΕΝΟΙΚ ΜΟΤΟ"
         },
         {
-          "package_id": "407.0",
+          "package_id": 407,
           "name": "Ιντερσαλόνικα Κατοικία"
         },
         {
-          "package_id": "408.0",
+          "package_id": 408,
           "name": "Ιντερσαλόνικα Επιχείρηση"
         }
       ]
@@ -1371,7 +1371,7 @@
       "name": "ΙΝΤΕΡΣΑΛΟΝΙΚΑ ΖΩΗΣ [IT]",
       "packages": [
         {
-          "package_id": "397.0",
+          "package_id": 397,
           "name": "IS ΑΛΛΟΔΑΠΩΝ"
         }
       ]
@@ -1381,15 +1381,15 @@
       "name": "ΥΔΡΟΓΕΙΟΣ [107442]",
       "packages": [
         {
-          "package_id": "449.0",
+          "package_id": 449,
           "name": "Ε.Ι.Χ. ΟΤΑ"
         },
         {
-          "package_id": "450.0",
+          "package_id": 450,
           "name": "Φ.Ι.Χ. ΟΤΑ"
         },
         {
-          "package_id": "451.0",
+          "package_id": 451,
           "name": "Μ.Ε. ΟΤΑ"
         }
       ]
@@ -1399,19 +1399,19 @@
       "name": "ΕΘΝΙΚΗ [ΚΥ]",
       "packages": [
         {
-          "package_id": "484.0",
+          "package_id": 484,
           "name": "AUTO PROTECT+ FULL"
         },
         {
-          "package_id": "485.0",
+          "package_id": 485,
           "name": "ΛΕΩΦΟΡΕΙΑ"
         },
         {
-          "package_id": "486.0",
+          "package_id": 486,
           "name": "ΦΔΧ"
         },
         {
-          "package_id": "487.0",
+          "package_id": 487,
           "name": "ΕΝΟΙΚΙΑΖΟΜΕΝΑ"
         }
       ]
@@ -1421,15 +1421,15 @@
       "name": "ΛΕΩΝ (ΔΙΑΦΟΡΑ)",
       "packages": [
         {
-          "package_id": "457.0",
+          "package_id": 457,
           "name": "GRAND HELVETIA"
         },
         {
-          "package_id": "458.0",
+          "package_id": 458,
           "name": "GRAND TAXI"
         },
         {
-          "package_id": "506.0",
+          "package_id": 506,
           "name": "ΕΓΓΥΗΣΗ [ZAD]"
         }
       ]
@@ -1439,55 +1439,55 @@
       "name": "ERGO [DA]",
       "packages": [
         {
-          "package_id": "461.0",
+          "package_id": 461,
           "name": "ERGO My Auto Advanced"
         },
         {
-          "package_id": "462.0",
+          "package_id": 462,
           "name": "ERGO My Auto Advanced Plus"
         },
         {
-          "package_id": "463.0",
+          "package_id": 463,
           "name": "ERGO My Auto Simple"
         },
         {
-          "package_id": "464.0",
+          "package_id": 464,
           "name": "ERGO My Auto Simple Plus"
         },
         {
-          "package_id": "465.0",
+          "package_id": 465,
           "name": "ERGO My Auto Superior Plus"
         },
         {
-          "package_id": "466.0",
+          "package_id": 466,
           "name": "ERGO My Auto Total"
         },
         {
-          "package_id": "467.0",
+          "package_id": 467,
           "name": "ERGO My Auto Total Plus"
         },
         {
-          "package_id": "470.0",
+          "package_id": 470,
           "name": "My Business"
         },
         {
-          "package_id": "471.0",
+          "package_id": 471,
           "name": "Domus AirBnB"
         },
         {
-          "package_id": "472.0",
+          "package_id": 472,
           "name": "ERGO My Travel"
         },
         {
-          "package_id": "473.0",
+          "package_id": 473,
           "name": "ΑΣΤΙΚΗ ΕΥΘΥΝΗ ΕΛΕΥΘΕΡΟ"
         },
         {
-          "package_id": "489.0",
+          "package_id": 489,
           "name": "ERGO Κατοικία/Κατάστημα"
         },
         {
-          "package_id": "494.0",
+          "package_id": 494,
           "name": "ERGO My Auto Basic"
         }
       ]
@@ -1497,23 +1497,23 @@
       "name": "ALLIANZ [IB]",
       "packages": [
         {
-          "package_id": "475.0",
+          "package_id": 475,
           "name": "MY MOTOR FLEXI IB"
         },
         {
-          "package_id": "476.0",
+          "package_id": 476,
           "name": "BASIC 200 ΙΒ"
         },
         {
-          "package_id": "477.0",
+          "package_id": 477,
           "name": "ΤΑΞΙ / Ε.Δ.Χ. IB"
         },
         {
-          "package_id": "478.0",
+          "package_id": 478,
           "name": "ΦΟΡΤΗΓΩΝ ΔΗΜΟΣΙΑΣ ΧΡΗΣΗΣ ΙΒ"
         },
         {
-          "package_id": "480.0",
+          "package_id": 480,
           "name": "ΛΕΩΦΟΡΕΙΟ IB"
         }
       ]
@@ -1523,11 +1523,11 @@
       "name": "INTERAMERICAN [IT]",
       "packages": [
         {
-          "package_id": "491.0",
+          "package_id": 491,
           "name": "Insurance Taxi"
         },
         {
-          "package_id": "492.0",
+          "package_id": 492,
           "name": "Insurance Auto"
         }
       ]
@@ -1537,19 +1537,19 @@
       "name": "ΕΘΝΙΚΗ [DA]",
       "packages": [
         {
-          "package_id": "499.0",
+          "package_id": 499,
           "name": "ΕΘΝΙΚΗ ΒΑΣΙΚΟ ΟΧΗΜΑΤΩΝ"
         },
         {
-          "package_id": "500.0",
+          "package_id": 500,
           "name": "ΕΘΝΙΚΗ - ΦΔΧ"
         },
         {
-          "package_id": "501.0",
+          "package_id": 501,
           "name": "ΕΘΝΙΚΗ - ΤΑΞΙ"
         },
         {
-          "package_id": "503.0",
+          "package_id": 503,
           "name": "ΠΥΡΟΣ ΕΘΝΙΚΗ ΚΑΤΟΙΚΙΑ"
         }
       ]
@@ -1559,7 +1559,7 @@
       "name": "EXTRA [MULTI]",
       "packages": [
         {
-          "package_id": "512.0",
+          "package_id": 512,
           "name": "EUROINS-MULTI-EXTRA"
         }
       ]
@@ -1569,11 +1569,11 @@
       "name": "ΛΕΩΝ [MULTI]",
       "packages": [
         {
-          "package_id": "514.0",
+          "package_id": 514,
           "name": "EUROINS-MULTI-HELVETIA"
         },
         {
-          "package_id": "515.0",
+          "package_id": 515,
           "name": "EUROINS-MULTI-ΕΛΛΗΝΙΚΟΣ"
         }
       ]
@@ -1583,7 +1583,7 @@
       "name": "ARAG [MULTI]",
       "packages": [
         {
-          "package_id": "516.0",
+          "package_id": 516,
           "name": "EUROINS-MULTI-ARAG"
         }
       ]
@@ -1971,6 +1971,1464 @@
       "code": "480.0",
       "name": "ΜΕ/ΑΡΠ",
       "label": "480 ΜΕ/ΑΡΠ"
+    },
+    {
+      "id": 51,
+      "code": "490.0",
+      "name": "ΜΕ/ΕΚΣΚ",
+      "label": "490 ΜΕ/ΕΚΣΚ"
+    },
+    {
+      "id": 52,
+      "code": "500.0",
+      "name": "ΦΙΧ ΑΝ. ΑΡΙΘ.",
+      "label": "500 ΦΙΧ ΑΝ. ΑΡΙΘ."
+    },
+    {
+      "id": 53,
+      "code": "510.0",
+      "name": "ΦΙΧ ΕΠΙΚ ΟΔΙΚΗ ΒΟΗΘΕΙΑ",
+      "label": "510 ΦΙΧ ΕΠΙΚ ΟΔΙΚΗ ΒΟΗΘΕΙΑ"
+    },
+    {
+      "id": 54,
+      "code": "520.0",
+      "name": "ΜΕ/ΠΡΟΩΘ",
+      "label": "520 ΜΕ/ΠΡΟΩΘ"
+    },
+    {
+      "id": 55,
+      "code": "530.0",
+      "name": "ΜΕ/ΕΞ ΤΕΥΤ",
+      "label": "530 ΜΕ/ΕΞ ΤΕΥΤ"
+    },
+    {
+      "id": 56,
+      "code": "540.0",
+      "name": "ΜΕ/ΓΕΩΤΡ",
+      "label": "540 ΜΕ/ΓΕΩΤΡ"
+    },
+    {
+      "id": 57,
+      "code": "550.0",
+      "name": "ΤΡΑΚΤΕΡ/ΜΕ",
+      "label": "550 ΤΡΑΚΤΕΡ/ΜΕ"
+    },
+    {
+      "id": 58,
+      "code": "560.0",
+      "name": "ΒΑΜΒΑΚ/ΚΕΣ",
+      "label": "560 ΒΑΜΒΑΚ/ΚΕΣ"
+    },
+    {
+      "id": 59,
+      "code": "570.0",
+      "name": "ΑΓΡ.ΠΟΛ.ΧΡ",
+      "label": "570 ΑΓΡ.ΠΟΛ.ΧΡ"
+    },
+    {
+      "id": 60,
+      "code": "600.0",
+      "name": "ΕΠΙΒΑΤΙΚΟ ΔΧ",
+      "label": "600 ΕΠΙΒΑΤΙΚΟ ΔΧ"
+    },
+    {
+      "id": 61,
+      "code": "650.0",
+      "name": "ΤΑΧΙ",
+      "label": "650 ΤΑΧΙ"
+    },
+    {
+      "id": 62,
+      "code": "700.0",
+      "name": "ΦΔΧ",
+      "label": "700 ΦΔΧ"
+    },
+    {
+      "id": 63,
+      "code": "701.0",
+      "name": "ΦΔΧ ΔΟΚΙΜΗ",
+      "label": "701 ΦΔΧ ΔΟΚΙΜΗ"
+    },
+    {
+      "id": 64,
+      "code": "702.0",
+      "name": "ΦΔΧ ΡΥΜ 2Τ",
+      "label": "702 ΦΔΧ ΡΥΜ 2Τ"
+    },
+    {
+      "id": 65,
+      "code": "703.0",
+      "name": "ΦΔΧ ΡΥΜ 4Τ",
+      "label": "703 ΦΔΧ ΡΥΜ 4Τ"
+    },
+    {
+      "id": 66,
+      "code": "704.0",
+      "name": "ΦΔΧ ΡΥΜ.6Τ",
+      "label": "704 ΦΔΧ ΡΥΜ.6Τ"
+    },
+    {
+      "id": 67,
+      "code": "710.0",
+      "name": "ΦΟΡΤΟΤΑΞΙ",
+      "label": "710 ΦΟΡΤΟΤΑΞΙ"
+    },
+    {
+      "id": 68,
+      "code": "720.0",
+      "name": "ΦΟ ΕΠΙΒ",
+      "label": "720 ΦΟ ΕΠΙΒ"
+    },
+    {
+      "id": 69,
+      "code": "730.0",
+      "name": "ΦΔΧ ΨΥΓ",
+      "label": "730 ΦΔΧ ΨΥΓ"
+    },
+    {
+      "id": 70,
+      "code": "740.0",
+      "name": "ΦΔΧ ΥΔΡ",
+      "label": "740 ΦΔΧ ΥΔΡ"
+    },
+    {
+      "id": 71,
+      "code": "750.0",
+      "name": "ΦΔΧ ΥΓΡ.Κ",
+      "label": "750 ΦΔΧ ΥΓΡ.Κ"
+    },
+    {
+      "id": 72,
+      "code": "760.0",
+      "name": "ΦΔΧ Σ.Ο.",
+      "label": "760 ΦΔΧ Σ.Ο."
+    },
+    {
+      "id": 73,
+      "code": "770.0",
+      "name": "ΦΔΧ ΤΙR",
+      "label": "770 ΦΔΧ ΤΙR"
+    },
+    {
+      "id": 74,
+      "code": "780.0",
+      "name": "ΦΔΧ ΓΕΡ",
+      "label": "780 ΦΔΧ ΓΕΡ"
+    },
+    {
+      "id": 75,
+      "code": "790.0",
+      "name": "ΦΔΧ ΑΠΟΡΙΜ",
+      "label": "790 ΦΔΧ ΑΠΟΡΙΜ"
+    },
+    {
+      "id": 76,
+      "code": "800.0",
+      "name": "ΛΕ ΑΣΤ",
+      "label": "800 ΛΕ ΑΣΤ"
+    },
+    {
+      "id": 77,
+      "code": "810.0",
+      "name": "ΛΕ ΥΠΕΡ.",
+      "label": "810 ΛΕ ΥΠΕΡ."
+    },
+    {
+      "id": 78,
+      "code": "820.0",
+      "name": "ΛΕ ΤΟΥΡ",
+      "label": "820 ΛΕ ΤΟΥΡ"
+    },
+    {
+      "id": 79,
+      "code": "830.0",
+      "name": "ΕΙΧ ΜΟΤ ΕΝΟΙΚ",
+      "label": "830 ΕΙΧ ΜΟΤ ΕΝΟΙΚ"
+    },
+    {
+      "id": 80,
+      "code": "840.0",
+      "name": "ΕΔΧ ΜΟΤ",
+      "label": "840 ΕΔΧ ΜΟΤ"
+    },
+    {
+      "id": 81,
+      "code": "850.0",
+      "name": "ΦΙΧ ΜΟΤ ΤΡΙΚ",
+      "label": "850 ΦΙΧ ΜΟΤ ΤΡΙΚ"
+    },
+    {
+      "id": 82,
+      "code": "860.0",
+      "name": "ΦΔΧ ΜΟΤ ΤΡΙΚ",
+      "label": "860 ΦΔΧ ΜΟΤ ΤΡΙΚ"
+    },
+    {
+      "id": 83,
+      "code": "870.0",
+      "name": "ΠΟΔΗΛ ΕΝΟΙΚ",
+      "label": "870 ΠΟΔΗΛ ΕΝΟΙΚ"
+    },
+    {
+      "id": 84,
+      "code": "900.0",
+      "name": "ΕΙΧ ΜΟΤ/ΤΑ",
+      "label": "900 ΕΙΧ ΜΟΤ/ΤΑ"
+    },
+    {
+      "id": 85,
+      "code": "920.0",
+      "name": "ΦΙΧ ΜΟΤ/ΤΑ",
+      "label": "920 ΦΙΧ ΜΟΤ/ΤΑ"
+    },
+    {
+      "id": 86,
+      "code": "930.0",
+      "name": "ΕΙΧ ΜΟΤ",
+      "label": "930 ΕΙΧ ΜΟΤ"
+    },
+    {
+      "id": 87,
+      "code": "940.0",
+      "name": "ΦΔΧ ΜΟΤ/ΤΑ",
+      "label": "940 ΦΔΧ ΜΟΤ/ΤΑ"
+    },
+    {
+      "id": 88,
+      "code": "950.0",
+      "name": "ΠΟΔΗΛΑΤΟ",
+      "label": "950 ΠΟΔΗΛΑΤΟ"
+    },
+    {
+      "id": 89,
+      "code": "960.0",
+      "name": "ΜΟΤΟΣΚ.",
+      "label": "960 ΜΟΤΟΣΚ."
+    },
+    {
+      "id": 90,
+      "code": "970.0",
+      "name": "ΕΙΧ ΜΟΤ/ΤΑ ΕΝ",
+      "label": "970 ΕΙΧ ΜΟΤ/ΤΑ ΕΝ"
+    },
+    {
+      "id": 91,
+      "code": "980.0",
+      "name": "ΕΙΧ ΜΟΤ/ΤΑ Σ.Ο.",
+      "label": "980 ΕΙΧ ΜΟΤ/ΤΑ Σ.Ο."
+    },
+    {
+      "id": 92,
+      "code": "5.0",
+      "name": "ΕΙΧ + ΤΡΟΧΟΣΠ",
+      "label": "005 ΕΙΧ + ΤΡΟΧΟΣΠ"
+    },
+    {
+      "id": 93,
+      "code": "6.0",
+      "name": "ΕΙΧ + ΛΕΜΒΟΣ",
+      "label": "006 ΕΙΧ + ΛΕΜΒΟΣ"
+    },
+    {
+      "id": 96,
+      "code": "321.0",
+      "name": "ΦΙΧ ΑΓΡΟΤ ΔΟΚ",
+      "label": "321 ΦΙΧ ΑΓΡΟΤ ΔΟΚ"
+    },
+    {
+      "id": 97,
+      "code": "403.0",
+      "name": "ΜΕ/Γ.ΕΛΚ Ρ4",
+      "label": "403 ΜΕ/Γ.ΕΛΚ Ρ4"
+    },
+    {
+      "id": 98,
+      "code": "551.0",
+      "name": "ΤΡΑΚΤΕΡ / ΜΕ ΡΥΜ",
+      "label": "551 ΤΡΑΚΤΕΡ / ΜΕ ΡΥΜ"
+    },
+    {
+      "id": 99,
+      "code": "705.0",
+      "name": "ΦΔΧ ΕΠΙΚ",
+      "label": "705 ΦΔΧ ΕΠΙΚ"
+    },
+    {
+      "id": 100,
+      "code": "772.0",
+      "name": "ΦΔΧ ΤΙR Ρ2Τ",
+      "label": "772 ΦΔΧ ΤΙR Ρ2Τ"
+    },
+    {
+      "id": 101,
+      "code": "773.0",
+      "name": "ΦΔΧ TIR Ρ4Τ",
+      "label": "773 ΦΔΧ TIR Ρ4Τ"
+    },
+    {
+      "id": 102,
+      "code": "775.0",
+      "name": "ΦΔΧ TIR ΕΠΙΚ",
+      "label": "775 ΦΔΧ TIR ΕΠΙΚ"
+    },
+    {
+      "id": 103,
+      "code": "809.0",
+      "name": "ΛΕ ΑΣΤ ΕΚΠ",
+      "label": "809 ΛΕ ΑΣΤ ΕΚΠ"
+    },
+    {
+      "id": 104,
+      "code": "910.0",
+      "name": "ΕΔΧ ΜΟΤ/ΤΑ",
+      "label": "910 ΕΔΧ ΜΟΤ/ΤΑ"
+    },
+    {
+      "id": 105,
+      "code": "961.0",
+      "name": "ΜΟΤΟΣΚ + Ρ2",
+      "label": "961 ΜΟΤΟΣΚ + Ρ2"
+    },
+    {
+      "id": 179,
+      "code": "799.0",
+      "name": "ΡΥΜ. ΙΔΙΟΚ. ΕΠΙΚΑΘ",
+      "label": "799 ΡΥΜ. ΙΔΙΟΚ. ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 190,
+      "code": "792.0",
+      "name": "ΦΔΧ ΑΠΟΡ ΡΥΜ 2Τ",
+      "label": "792 ΦΔΧ ΑΠΟΡ ΡΥΜ 2Τ"
+    },
+    {
+      "id": 191,
+      "code": "793.0",
+      "name": "ΦΔΧ ΑΠΟΡ ΡΥΜ 4Τ",
+      "label": "793 ΦΔΧ ΑΠΟΡ ΡΥΜ 4Τ"
+    },
+    {
+      "id": 192,
+      "code": "794.0",
+      "name": "ΦΔΧ ΑΠΟΡ ΡΥΜ 6Τ",
+      "label": "794 ΦΔΧ ΑΠΟΡ ΡΥΜ 6Τ"
+    },
+    {
+      "id": 193,
+      "code": "630.0",
+      "name": "ΦΔΧ ΑΥΤ ΕΣΩΤ",
+      "label": "630 ΦΔΧ ΑΥΤ ΕΣΩΤ"
+    },
+    {
+      "id": 194,
+      "code": "632.0",
+      "name": "ΦΔΧ ΑΥΤ ΕΣΩΤ ΡΥΜ 2Τ",
+      "label": "632 ΦΔΧ ΑΥΤ ΕΣΩΤ ΡΥΜ 2Τ"
+    },
+    {
+      "id": 195,
+      "code": "633.0",
+      "name": "ΦΔΧ ΑΥΤ ΕΣΩΤ ΡΥΜ 4Τ",
+      "label": "633 ΦΔΧ ΑΥΤ ΕΣΩΤ ΡΥΜ 4Τ"
+    },
+    {
+      "id": 196,
+      "code": "634.0",
+      "name": "ΦΔΧ ΑΥΤ ΕΣΩΤ ΡΥΜ 6Τ",
+      "label": "634 ΦΔΧ ΑΥΤ ΕΣΩΤ ΡΥΜ 6Τ"
+    },
+    {
+      "id": 197,
+      "code": "699.0",
+      "name": "ΦΔΧ ΑΥΤ ΕΣΩΤ ΕΠΙΚΑΘ",
+      "label": "699 ΦΔΧ ΑΥΤ ΕΣΩΤ ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 202,
+      "code": "130.0",
+      "name": "ΦΔΧ ΑΥΤ TIR",
+      "label": "130 ΦΔΧ ΑΥΤ TIR"
+    },
+    {
+      "id": 203,
+      "code": "132.0",
+      "name": "ΦΔΧ ΑΥΤ TIR Ρ2Τ",
+      "label": "132 ΦΔΧ ΑΥΤ TIR Ρ2Τ"
+    },
+    {
+      "id": 204,
+      "code": "133.0",
+      "name": "ΦΔΧ ΑΥΤ TIR Ρ4Τ",
+      "label": "133 ΦΔΧ ΑΥΤ TIR Ρ4Τ"
+    },
+    {
+      "id": 205,
+      "code": "134.0",
+      "name": "ΦΔΧ ΑΥΤ TIR Ρ6Τ",
+      "label": "134 ΦΔΧ ΑΥΤ TIR Ρ6Τ"
+    },
+    {
+      "id": 206,
+      "code": "139.0",
+      "name": "ΦΔΧ ΑΥΤ TIR ΕΠΙΚΑΘ",
+      "label": "139 ΦΔΧ ΑΥΤ TIR ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 207,
+      "code": "782.0",
+      "name": "ΦΔΧ ΓΕΡ Ρ2Τ",
+      "label": "782 ΦΔΧ ΓΕΡ Ρ2Τ"
+    },
+    {
+      "id": 208,
+      "code": "783.0",
+      "name": "ΦΔΧ ΓΕΡ Ρ4Τ",
+      "label": "783 ΦΔΧ ΓΕΡ Ρ4Τ"
+    },
+    {
+      "id": 209,
+      "code": "784.0",
+      "name": "ΦΔΧ ΓΕΡ Ρ6Τ",
+      "label": "784 ΦΔΧ ΓΕΡ Ρ6Τ"
+    },
+    {
+      "id": 210,
+      "code": "799.0",
+      "name": "ΦΔΧ ΓΕΡ ΕΠΙΚΑΘ",
+      "label": "799 ΦΔΧ ΓΕΡ ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 211,
+      "code": "180.0",
+      "name": "ΦΔΧ ΓΕΡ TIR",
+      "label": "180 ΦΔΧ ΓΕΡ TIR"
+    },
+    {
+      "id": 212,
+      "code": "182.0",
+      "name": "ΦΔΧ ΓΕΡ TIR Ρ2Τ",
+      "label": "182 ΦΔΧ ΓΕΡ TIR Ρ2Τ"
+    },
+    {
+      "id": 213,
+      "code": "183.0",
+      "name": "ΦΔΧ ΓΕΡ TIR Ρ4Τ",
+      "label": "183 ΦΔΧ ΓΕΡ TIR Ρ4Τ"
+    },
+    {
+      "id": 214,
+      "code": "184.0",
+      "name": "ΦΔΧ ΓΕΡ TIR Ρ6Τ",
+      "label": "184 ΦΔΧ ΓΕΡ TIR Ρ6Τ"
+    },
+    {
+      "id": 215,
+      "code": "189.0",
+      "name": "ΦΔΧ ΓΕΡ TIR ΕΠΙΚΑΘ",
+      "label": "189 ΦΔΧ ΓΕΡ TIR ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 216,
+      "code": "620.0",
+      "name": "ΦΔΧ ΕΙΔ ΜΤΦ",
+      "label": "620 ΦΔΧ ΕΙΔ ΜΤΦ"
+    },
+    {
+      "id": 217,
+      "code": "622.0",
+      "name": "ΦΔΧ ΕΙΔ ΜΤΦ Ρ2Τ",
+      "label": "622 ΦΔΧ ΕΙΔ ΜΤΦ Ρ2Τ"
+    },
+    {
+      "id": 218,
+      "code": "623.0",
+      "name": "ΦΔΧ ΕΙΔ ΜΤΦ Ρ4Τ",
+      "label": "623 ΦΔΧ ΕΙΔ ΜΤΦ Ρ4Τ"
+    },
+    {
+      "id": 219,
+      "code": "624.0",
+      "name": "ΦΔΧ ΕΙΔ ΜΤΦ Ρ6Τ",
+      "label": "624 ΦΔΧ ΕΙΔ ΜΤΦ Ρ6Τ"
+    },
+    {
+      "id": 220,
+      "code": "629.0",
+      "name": "ΦΔΧ ΕΙΔ ΜΤΦ ΕΠΙΚΑΘ",
+      "label": "629 ΦΔΧ ΕΙΔ ΜΤΦ ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 221,
+      "code": "680.0",
+      "name": "ΦΔΧ ΕΙΔ ΜΤΦ TIR",
+      "label": "680 ΦΔΧ ΕΙΔ ΜΤΦ TIR"
+    },
+    {
+      "id": 222,
+      "code": "682.0",
+      "name": "ΦΔΧ ΕΙΔ ΜΤΦ TIR Ρ2Τ",
+      "label": "682 ΦΔΧ ΕΙΔ ΜΤΦ TIR Ρ2Τ"
+    },
+    {
+      "id": 223,
+      "code": "683.0",
+      "name": "ΦΔΧ ΕΙΔ ΜΤΦ TIR Ρ4Τ",
+      "label": "683 ΦΔΧ ΕΙΔ ΜΤΦ TIR Ρ4Τ"
+    },
+    {
+      "id": 224,
+      "code": "684.0",
+      "name": "ΦΔΧ ΕΙΔ ΜΤΦ TIR Ρ6Τ",
+      "label": "684 ΦΔΧ ΕΙΔ ΜΤΦ TIR Ρ6Τ"
+    },
+    {
+      "id": 225,
+      "code": "689.0",
+      "name": "ΦΔΧ ΕΙΔ ΜΤΦ TIR ΕΠΙΚΑΘ",
+      "label": "689 ΦΔΧ ΕΙΔ ΜΤΦ TIR ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 226,
+      "code": "640.0",
+      "name": "ΦΔΧ ΖΩΝΤΩΝ ΖΩΩΝ",
+      "label": "640 ΦΔΧ ΖΩΝΤΩΝ ΖΩΩΝ"
+    },
+    {
+      "id": 227,
+      "code": "642.0",
+      "name": "ΦΔΧ ΖΩΝΤΩΝ ΖΩΩΝ Ρ2Τ",
+      "label": "642 ΦΔΧ ΖΩΝΤΩΝ ΖΩΩΝ Ρ2Τ"
+    },
+    {
+      "id": 228,
+      "code": "643.0",
+      "name": "ΦΔΧ ΖΩΝΤΩΝ ΖΩΩΝ Ρ4Τ",
+      "label": "643 ΦΔΧ ΖΩΝΤΩΝ ΖΩΩΝ Ρ4Τ"
+    },
+    {
+      "id": 229,
+      "code": "644.0",
+      "name": "ΦΔΧ ΖΩΝΤΩΝ ΖΩΩΝ Ρ6Τ",
+      "label": "644 ΦΔΧ ΖΩΝΤΩΝ ΖΩΩΝ Ρ6Τ"
+    },
+    {
+      "id": 230,
+      "code": "649.0",
+      "name": "ΦΔΧ ΖΩΝΤΩΝ ΖΩΩΝ ΕΠΙΚΑΘ",
+      "label": "649 ΦΔΧ ΖΩΝΤΩΝ ΖΩΩΝ ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 231,
+      "code": "140.0",
+      "name": "ΦΔΧ ΖΩΝ ΖΩΩΝ TIR",
+      "label": "140 ΦΔΧ ΖΩΝ ΖΩΩΝ TIR"
+    },
+    {
+      "id": 232,
+      "code": "142.0",
+      "name": "ΦΔΧ ΖΩΝ ΖΩΩΝ TIR Ρ2Τ",
+      "label": "142 ΦΔΧ ΖΩΝ ΖΩΩΝ TIR Ρ2Τ"
+    },
+    {
+      "id": 233,
+      "code": "143.0",
+      "name": "ΦΔΧ ΖΩΝ ΖΩΩΝ TIR Ρ4Τ",
+      "label": "143 ΦΔΧ ΖΩΝ ΖΩΩΝ TIR Ρ4Τ"
+    },
+    {
+      "id": 234,
+      "code": "144.0",
+      "name": "ΦΔΧ ΖΩΝ ΖΩΩΝ TIR Ρ6Τ",
+      "label": "144 ΦΔΧ ΖΩΝ ΖΩΩΝ TIR Ρ6Τ"
+    },
+    {
+      "id": 235,
+      "code": "149.0",
+      "name": "ΦΔΧ ΖΩΝ ΖΩΩΝ TIR ΕΠΙΚΑΘ",
+      "label": "149 ΦΔΧ ΖΩΝ ΖΩΩΝ TIR ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 236,
+      "code": "709.0",
+      "name": "ΦΔΧ ΡΥΜ ΕΠΙΚΑΘ",
+      "label": "709 ΦΔΧ ΡΥΜ ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 237,
+      "code": "774.0",
+      "name": "ΦΔΧ TIR Ρ6Τ",
+      "label": "774 ΦΔΧ TIR Ρ6Τ"
+    },
+    {
+      "id": 238,
+      "code": "779.0",
+      "name": "ΦΔΧ TIR ΕΠΙΚΑΘ",
+      "label": "779 ΦΔΧ TIR ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 239,
+      "code": "512.0",
+      "name": "ΦΙΧ ΟΒ Ρ2Τ",
+      "label": "512 ΦΙΧ ΟΒ Ρ2Τ"
+    },
+    {
+      "id": 240,
+      "code": "513.0",
+      "name": "ΦΙΧ ΟΒ Ρ4Τ",
+      "label": "513 ΦΙΧ ΟΒ Ρ4Τ"
+    },
+    {
+      "id": 241,
+      "code": "514.0",
+      "name": "ΦΙΧ ΟΒ Ρ6Τ",
+      "label": "514 ΦΙΧ ΟΒ Ρ6Τ"
+    },
+    {
+      "id": 242,
+      "code": "519.0",
+      "name": "ΦΙΧ ΟΒ ΕΠΙΚΑΘ",
+      "label": "519 ΦΙΧ ΟΒ ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 243,
+      "code": "690.0",
+      "name": "ΦΔΧ ΡΟΥΧΩΝ",
+      "label": "690 ΦΔΧ ΡΟΥΧΩΝ"
+    },
+    {
+      "id": 244,
+      "code": "692.0",
+      "name": "ΦΔΧ ΡΟΥΧΩΝ Ρ2Τ",
+      "label": "692 ΦΔΧ ΡΟΥΧΩΝ Ρ2Τ"
+    },
+    {
+      "id": 245,
+      "code": "693.0",
+      "name": "ΦΔΧ ΡΟΥΧΩΝ Ρ4Τ",
+      "label": "693 ΦΔΧ ΡΟΥΧΩΝ Ρ4Τ"
+    },
+    {
+      "id": 246,
+      "code": "694.0",
+      "name": "ΦΔΧ ΡΟΥΧΩΝ Ρ6Τ",
+      "label": "694 ΦΔΧ ΡΟΥΧΩΝ Ρ6Τ"
+    },
+    {
+      "id": 247,
+      "code": "190.0",
+      "name": "ΦΔΧ ΡΟΥΧΩΝ TIR",
+      "label": "190 ΦΔΧ ΡΟΥΧΩΝ TIR"
+    },
+    {
+      "id": 248,
+      "code": "192.0",
+      "name": "ΦΔΧ ΡΟΥΧΩΝ TIR Ρ2Τ",
+      "label": "192 ΦΔΧ ΡΟΥΧΩΝ TIR Ρ2Τ"
+    },
+    {
+      "id": 249,
+      "code": "193.0",
+      "name": "ΦΔΧ ΡΟΥΧΩΝ TIR Ρ4Τ",
+      "label": "193 ΦΔΧ ΡΟΥΧΩΝ TIR Ρ4Τ"
+    },
+    {
+      "id": 250,
+      "code": "194.0",
+      "name": "ΦΔΧ ΡΟΥΧΩΝ TIR Ρ6Τ",
+      "label": "194 ΦΔΧ ΡΟΥΧΩΝ TIR Ρ6Τ"
+    },
+    {
+      "id": 251,
+      "code": "199.0",
+      "name": "ΦΔΧ ΡΟΥΧΩΝ TIR ΕΠΙΚΑΘ",
+      "label": "199 ΦΔΧ ΡΟΥΧΩΝ TIR ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 252,
+      "code": "762.0",
+      "name": "ΦΔΧ ΣΟ Ρ2Τ",
+      "label": "762 ΦΔΧ ΣΟ Ρ2Τ"
+    },
+    {
+      "id": 253,
+      "code": "763.0",
+      "name": "ΦΔΧ ΣΟ Ρ4Τ",
+      "label": "763 ΦΔΧ ΣΟ Ρ4Τ"
+    },
+    {
+      "id": 254,
+      "code": "764.0",
+      "name": "ΦΔΧ ΣΟ Ρ6Τ",
+      "label": "764 ΦΔΧ ΣΟ Ρ6Τ"
+    },
+    {
+      "id": 255,
+      "code": "769.0",
+      "name": "ΦΔΧ ΣΟ ΕΠΙΚΑΘ",
+      "label": "769 ΦΔΧ ΣΟ ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 256,
+      "code": "670.0",
+      "name": "ΦΔΧ ΤΣΙΜ",
+      "label": "670 ΦΔΧ ΤΣΙΜ"
+    },
+    {
+      "id": 257,
+      "code": "672.0",
+      "name": "ΦΔΧ ΤΣΙΜ Ρ2Τ",
+      "label": "672 ΦΔΧ ΤΣΙΜ Ρ2Τ"
+    },
+    {
+      "id": 258,
+      "code": "673.0",
+      "name": "ΦΔΧ ΤΣΙΜ Ρ4Τ",
+      "label": "673 ΦΔΧ ΤΣΙΜ Ρ4Τ"
+    },
+    {
+      "id": 259,
+      "code": "674.0",
+      "name": "ΦΔΧ ΤΣΙΜ Ρ6Τ",
+      "label": "674 ΦΔΧ ΤΣΙΜ Ρ6Τ"
+    },
+    {
+      "id": 260,
+      "code": "679.0",
+      "name": "ΦΔΧ ΤΣΙΜ ΕΠΙΚΑΘ",
+      "label": "679 ΦΔΧ ΤΣΙΜ ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 261,
+      "code": "170.0",
+      "name": "ΦΔΧ ΤΣΙΜ TIR",
+      "label": "170 ΦΔΧ ΤΣΙΜ TIR"
+    },
+    {
+      "id": 262,
+      "code": "172.0",
+      "name": "ΦΔΧ ΤΣΙΜ TIR Ρ2Τ",
+      "label": "172 ΦΔΧ ΤΣΙΜ TIR Ρ2Τ"
+    },
+    {
+      "id": 263,
+      "code": "173.0",
+      "name": "ΦΔΧ ΤΣΙΜ TIR Ρ4Τ",
+      "label": "173 ΦΔΧ ΤΣΙΜ TIR Ρ4Τ"
+    },
+    {
+      "id": 264,
+      "code": "174.0",
+      "name": "ΦΔΧ ΤΣΙΜ TIR Ρ6Τ",
+      "label": "174 ΦΔΧ ΤΣΙΜ TIR Ρ6Τ"
+    },
+    {
+      "id": 265,
+      "code": "179.0",
+      "name": "ΦΔΧ ΤΣΙΜ TIR ΕΠΙΚΑΘ",
+      "label": "179 ΦΔΧ ΤΣΙΜ TIR ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 266,
+      "code": "752.0",
+      "name": "ΦΔΧ ΥΓΡ.Κ Ρ2Τ",
+      "label": "752 ΦΔΧ ΥΓΡ.Κ Ρ2Τ"
+    },
+    {
+      "id": 267,
+      "code": "753.0",
+      "name": "ΦΔΧ ΥΓΡ.Κ Ρ4Τ",
+      "label": "753 ΦΔΧ ΥΓΡ.Κ Ρ4Τ"
+    },
+    {
+      "id": 268,
+      "code": "754.0",
+      "name": "ΦΔΧ ΥΓΡ.Κ Ρ6Τ",
+      "label": "754 ΦΔΧ ΥΓΡ.Κ Ρ6Τ"
+    },
+    {
+      "id": 269,
+      "code": "759.0",
+      "name": "ΦΔΧ ΥΓΡ.Κ ΕΠΙΚΑΘ",
+      "label": "759 ΦΔΧ ΥΓΡ.Κ ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 270,
+      "code": "150.0",
+      "name": "ΦΔΧ ΥΓΡ.Κ TIR",
+      "label": "150 ΦΔΧ ΥΓΡ.Κ TIR"
+    },
+    {
+      "id": 271,
+      "code": "152.0",
+      "name": "ΦΔΧ ΥΓΡ.Κ TIR Ρ2Τ",
+      "label": "152 ΦΔΧ ΥΓΡ.Κ TIR Ρ2Τ"
+    },
+    {
+      "id": 272,
+      "code": "153.0",
+      "name": "ΦΔΧ ΥΓΡ.Κ TIR Ρ4Τ",
+      "label": "153 ΦΔΧ ΥΓΡ.Κ TIR Ρ4Τ"
+    },
+    {
+      "id": 273,
+      "code": "154.0",
+      "name": "ΦΔΧ ΥΓΡ.Κ TIR Ρ6Τ",
+      "label": "154 ΦΔΧ ΥΓΡ.Κ TIR Ρ6Τ"
+    },
+    {
+      "id": 274,
+      "code": "159.0",
+      "name": "ΦΔΧ ΥΓΡ.Κ TIR ΕΠΙΚΑΘ",
+      "label": "159 ΦΔΧ ΥΓΡ.Κ TIR ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 275,
+      "code": "742.0",
+      "name": "ΦΔΧ ΥΔΡ Ρ2Τ",
+      "label": "742 ΦΔΧ ΥΔΡ Ρ2Τ"
+    },
+    {
+      "id": 276,
+      "code": "743.0",
+      "name": "ΦΔΧ ΥΔΡ Ρ4Τ",
+      "label": "743 ΦΔΧ ΥΔΡ Ρ4Τ"
+    },
+    {
+      "id": 277,
+      "code": "744.0",
+      "name": "ΦΔΧ ΥΔΡ Ρ6Τ",
+      "label": "744 ΦΔΧ ΥΔΡ Ρ6Τ"
+    },
+    {
+      "id": 278,
+      "code": "749.0",
+      "name": "ΦΔΧ ΥΔΡ ΕΠΙΚΑΘ",
+      "label": "749 ΦΔΧ ΥΔΡ ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 279,
+      "code": "660.0",
+      "name": "ΦΔΧ ΧΗΜ",
+      "label": "660 ΦΔΧ ΧΗΜ"
+    },
+    {
+      "id": 280,
+      "code": "662.0",
+      "name": "ΦΔΧ ΧΗΜ Ρ2Τ",
+      "label": "662 ΦΔΧ ΧΗΜ Ρ2Τ"
+    },
+    {
+      "id": 281,
+      "code": "663.0",
+      "name": "ΦΔΧ ΧΗΜ Ρ4Τ",
+      "label": "663 ΦΔΧ ΧΗΜ Ρ4Τ"
+    },
+    {
+      "id": 282,
+      "code": "664.0",
+      "name": "ΦΔΧ ΧΗΜ Ρ6Τ",
+      "label": "664 ΦΔΧ ΧΗΜ Ρ6Τ"
+    },
+    {
+      "id": 283,
+      "code": "669.0",
+      "name": "ΦΔΧ ΧΗΜ ΕΠΙΚΑΘ",
+      "label": "669 ΦΔΧ ΧΗΜ ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 284,
+      "code": "160.0",
+      "name": "ΦΔΧ ΧΗΜ TIR",
+      "label": "160 ΦΔΧ ΧΗΜ TIR"
+    },
+    {
+      "id": 285,
+      "code": "162.0",
+      "name": "ΦΔΧ ΧΗΜ TIR Ρ2Τ",
+      "label": "162 ΦΔΧ ΧΗΜ TIR Ρ2Τ"
+    },
+    {
+      "id": 286,
+      "code": "163.0",
+      "name": "ΦΔΧ ΧΗΜ TIR Ρ4Τ",
+      "label": "163 ΦΔΧ ΧΗΜ TIR Ρ4Τ"
+    },
+    {
+      "id": 287,
+      "code": "164.0",
+      "name": "ΦΔΧ ΧΗΜ TIR Ρ6Τ",
+      "label": "164 ΦΔΧ ΧΗΜ TIR Ρ6Τ"
+    },
+    {
+      "id": 288,
+      "code": "169.0",
+      "name": "ΦΔΧ ΧΗΜ TIR ΕΠΙΚΑΘ",
+      "label": "169 ΦΔΧ ΧΗΜ TIR ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 289,
+      "code": "732.0",
+      "name": "ΦΔΧ ΨΥΓ Ρ2Τ",
+      "label": "732 ΦΔΧ ΨΥΓ Ρ2Τ"
+    },
+    {
+      "id": 290,
+      "code": "733.0",
+      "name": "ΦΔΧ ΨΥΓ Ρ4Τ",
+      "label": "733 ΦΔΧ ΨΥΓ Ρ4Τ"
+    },
+    {
+      "id": 291,
+      "code": "734.0",
+      "name": "ΦΔΧ ΨΥΓ Ρ6Τ",
+      "label": "734 ΦΔΧ ΨΥΓ Ρ6Τ"
+    },
+    {
+      "id": 292,
+      "code": "739.0",
+      "name": "ΦΔΧ ΨΥΓ ΕΠΙΚΑΘ",
+      "label": "739 ΦΔΧ ΨΥΓ ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 293,
+      "code": "610.0",
+      "name": "ΦΔΧ ΨΥΓ TIR",
+      "label": "610 ΦΔΧ ΨΥΓ TIR"
+    },
+    {
+      "id": 294,
+      "code": "612.0",
+      "name": "ΦΔΧ ΨΥΓ TIR Ρ2Τ",
+      "label": "612 ΦΔΧ ΨΥΓ TIR Ρ2Τ"
+    },
+    {
+      "id": 295,
+      "code": "613.0",
+      "name": "ΦΔΧ ΨΥΓ TIR Ρ4Τ",
+      "label": "613 ΦΔΧ ΨΥΓ TIR Ρ4Τ"
+    },
+    {
+      "id": 296,
+      "code": "614.0",
+      "name": "ΦΔΧ ΨΥΓ TIR Ρ6Τ",
+      "label": "614 ΦΔΧ ΨΥΓ TIR Ρ6Τ"
+    },
+    {
+      "id": 297,
+      "code": "619.0",
+      "name": "ΦΔΧ ΨΥΓ TIR ΕΠΙΚΑΘ",
+      "label": "619 ΦΔΧ ΨΥΓ TIR ΕΠΙΚΑΘ"
+    },
+    {
+      "id": 305,
+      "code": "71.0",
+      "name": "ΕΙΧ ΕΝΟΙΚ >9Θ",
+      "label": "071 ΕΙΧ ΕΝΟΙΚ >9Θ"
+    },
+    {
+      "id": 306,
+      "code": "72.0",
+      "name": "ΕΙΧ ΕΝΟΙΚ ΧΡΗΜ",
+      "label": "072 ΕΙΧ ΕΝΟΙΚ ΧΡΗΜ"
+    },
+    {
+      "id": 314,
+      "code": "101.0",
+      "name": "ΛΕΩΦ ΣΟ",
+      "label": "101 ΛΕΩΦ ΣΟ"
+    },
+    {
+      "id": 315,
+      "code": "904.0",
+      "name": "ΜΟΤΟ ΙΧ 4ΤΡΟΧΟΙ",
+      "label": "904 ΜΟΤΟ ΙΧ 4ΤΡΟΧΟΙ"
+    },
+    {
+      "id": 316,
+      "code": "902.0",
+      "name": "ΜΟΤΟ ΙΧ 3ΤΡΟΧΟΙ",
+      "label": "902 ΜΟΤΟ ΙΧ 3ΤΡΟΧΟΙ"
+    },
+    {
+      "id": 317,
+      "code": "901.0",
+      "name": "ΜΟΤΟ ΔΟΚ",
+      "label": "901 ΜΟΤΟ ΔΟΚ"
+    },
+    {
+      "id": 319,
+      "code": "104.0",
+      "name": "ΕΙΧ ΑΥΤ ΡΥΜ",
+      "label": "104 ΕΙΧ ΑΥΤ ΡΥΜ"
+    },
+    {
+      "id": 320,
+      "code": "102.0",
+      "name": "ΕΙΧ ΑΥΤ ΡΥΜ 2Τ",
+      "label": "102 ΕΙΧ ΑΥΤ ΡΥΜ 2Τ"
+    },
+    {
+      "id": 321,
+      "code": "295.0",
+      "name": "ΕΙΧ ΑΥΤ ΡΥΜ 4Τ",
+      "label": "295 ΕΙΧ ΑΥΤ ΡΥΜ 4Τ"
+    },
+    {
+      "id": 323,
+      "code": "92.0",
+      "name": "ΕΙΧ >7Θ Ρ2",
+      "label": "092 ΕΙΧ >7Θ Ρ2"
+    },
+    {
+      "id": 324,
+      "code": "81.0",
+      "name": "ΕΙΧ ΕΝ ΟΔΗΓ",
+      "label": "081 ΕΙΧ ΕΝ ΟΔΗΓ"
+    },
+    {
+      "id": 325,
+      "code": "999.0",
+      "name": "ΕΙΧ ΕΝΟΙΚ BEV ΗΛΕΚ ΟΔΗΓ",
+      "label": "999 ΕΙΧ ΕΝΟΙΚ BEV ΗΛΕΚ ΟΔΗΓ"
+    },
+    {
+      "id": 326,
+      "code": "106.0",
+      "name": "ΜΟΤΟ ΙΧ BEV ΗΛΕΚΤΡΙΚΟ",
+      "label": "106 ΜΟΤΟ ΙΧ BEV ΗΛΕΚΤΡΙΚΟ"
+    },
+    {
+      "id": 327,
+      "code": "4.0",
+      "name": "ΕΙΧ Ρ6",
+      "label": "004 ΕΙΧ Ρ6"
+    },
+    {
+      "id": 328,
+      "code": "9.0",
+      "name": "ΕΙΧ ΑΔΑΣΜΟΛ",
+      "label": "009 ΕΙΧ ΑΔΑΣΜΟΛ"
+    },
+    {
+      "id": 329,
+      "code": "10.0",
+      "name": "ΕΙΧ ΑΔΑΣΜΟΛ Ρ2",
+      "label": "010 ΕΙΧ ΑΔΑΣΜΟΛ Ρ2"
+    },
+    {
+      "id": 330,
+      "code": "18.0",
+      "name": "ΙΧ ΛΕΩΦ ΣΧΟΛ 20Θ",
+      "label": "018 ΙΧ ΛΕΩΦ ΣΧΟΛ 20Θ"
+    },
+    {
+      "id": 331,
+      "code": "19.0",
+      "name": "ΙΧ ΛΕΩΦ ΣΧΟΛ >20Θ",
+      "label": "019 ΙΧ ΛΕΩΦ ΣΧΟΛ >20Θ"
+    },
+    {
+      "id": 332,
+      "code": "41.0",
+      "name": "ΛΕ ΕΒΕ 20Θ",
+      "label": "041 ΛΕ ΕΒΕ 20Θ"
+    },
+    {
+      "id": 333,
+      "code": "42.0",
+      "name": "ΛΕ ΕΒΕ >20Θ",
+      "label": "042 ΛΕ ΕΒΕ >20Θ"
+    },
+    {
+      "id": 334,
+      "code": "43.0",
+      "name": "ΛΕ ΕΒΕ 20Θ Ρ4",
+      "label": "043 ΛΕ ΕΒΕ 20Θ Ρ4"
+    },
+    {
+      "id": 335,
+      "code": "44.0",
+      "name": "ΛΕ ΣΟ",
+      "label": "044 ΛΕ ΣΟ"
+    },
+    {
+      "id": 336,
+      "code": "49.0",
+      "name": "ΛΕ ΑΔΑΣΜΟΛ",
+      "label": "049 ΛΕ ΑΔΑΣΜΟΛ"
+    },
+    {
+      "id": 337,
+      "code": "62.0",
+      "name": "ΕΙΧ ΝΕΚΡ Ρ2",
+      "label": "062 ΕΙΧ ΝΕΚΡ Ρ2"
+    },
+    {
+      "id": 338,
+      "code": "63.0",
+      "name": "ΕΙΧ ΝΕΚΡ Ρ4",
+      "label": "063 ΕΙΧ ΝΕΚΡ Ρ4"
+    },
+    {
+      "id": 339,
+      "code": "72.0",
+      "name": "ΕΙΧ ΕΝΟΙΚ Ρ2",
+      "label": "072 ΕΙΧ ΕΝΟΙΚ Ρ2"
+    },
+    {
+      "id": 340,
+      "code": "73.0",
+      "name": "ΕΙΧ ΕΝΟΙΚ Ρ4",
+      "label": "073 ΕΙΧ ΕΝΟΙΚ Ρ4"
+    },
+    {
+      "id": 341,
+      "code": "75.0",
+      "name": "ΕΙΧ ΔΣ",
+      "label": "075 ΕΙΧ ΔΣ"
+    },
+    {
+      "id": 342,
+      "code": "77.0",
+      "name": "ΛΕ ΕΝΟΙΚ",
+      "label": "077 ΛΕ ΕΝΟΙΚ"
+    },
+    {
+      "id": 343,
+      "code": "82.0",
+      "name": "ΕΙΧ ΣΟ Ρ2",
+      "label": "082 ΕΙΧ ΣΟ Ρ2"
+    },
+    {
+      "id": 344,
+      "code": "86.0",
+      "name": "ΕΙΧ ΞΕΝΕΣ ΠΙΝΑΚ",
+      "label": "086 ΕΙΧ ΞΕΝΕΣ ΠΙΝΑΚ"
+    },
+    {
+      "id": 345,
+      "code": "87.0",
+      "name": "ΕΙΧ >5Θ",
+      "label": "087 ΕΙΧ >5Θ"
+    },
+    {
+      "id": 346,
+      "code": "88.0",
+      "name": "ΕΙΧ >5Θ Ρ2",
+      "label": "088 ΕΙΧ >5Θ Ρ2"
+    },
+    {
+      "id": 347,
+      "code": "89.0",
+      "name": "ΕΙΧ >5Θ Ρ4",
+      "label": "089 ΕΙΧ >5Θ Ρ4"
+    },
+    {
+      "id": 348,
+      "code": "93.0",
+      "name": "ΕΙΧ >7Θ Ρ4",
+      "label": "093 ΕΙΧ >7Θ Ρ4"
+    },
+    {
+      "id": 349,
+      "code": "95.0",
+      "name": "ΕΙΧ ΤΡΟΧ 7Θ",
+      "label": "095 ΕΙΧ ΤΡΟΧ 7Θ"
+    },
+    {
+      "id": 350,
+      "code": "96.0",
+      "name": "ΕΙΧ ΛΕΜΒ 7Θ",
+      "label": "096 ΕΙΧ ΛΕΜΒ 7Θ"
+    },
+    {
+      "id": 351,
+      "code": "97.0",
+      "name": "ΕΙΧ ΑΔΑΣΜΟΛ 7Θ",
+      "label": "097 ΕΙΧ ΑΔΑΣΜΟΛ 7Θ"
+    },
+    {
+      "id": 352,
+      "code": "98.0",
+      "name": "ΕΙΧ 9Θ",
+      "label": "098 ΕΙΧ 9Θ"
+    },
+    {
+      "id": 353,
+      "code": "103.0",
+      "name": "ΕΙΧ ΑΥΤ ΡΥΜ 4Τ",
+      "label": "103 ΕΙΧ ΑΥΤ ΡΥΜ 4Τ"
+    },
+    {
+      "id": 355,
+      "code": "105.0",
+      "name": "ΑΥΤ ΡΥΜ ΙΧ Ρ2",
+      "label": "105 ΑΥΤ ΡΥΜ ΙΧ Ρ2"
+    },
+    {
+      "id": 356,
+      "code": "122.0",
+      "name": "ΦΙΧ ΑΥΤ ΑΣΦ Ρ2",
+      "label": "122 ΦΙΧ ΑΥΤ ΑΣΦ Ρ2"
+    },
+    {
+      "id": 357,
+      "code": "123.0",
+      "name": "ΦΙΧ ΑΥΤ ΑΣΦ Ρ4",
+      "label": "123 ΦΙΧ ΑΥΤ ΑΣΦ Ρ4"
+    },
+    {
+      "id": 358,
+      "code": "124.0",
+      "name": "ΦΙΧ ΑΥΤ ΑΣΦ Ρ6",
+      "label": "124 ΦΙΧ ΑΥΤ ΑΣΦ Ρ6"
+    },
+    {
+      "id": 359,
+      "code": "127.0",
+      "name": "ΦΙΧ ΑΥΤ ΑΣΦ Ρ8",
+      "label": "127 ΦΙΧ ΑΥΤ ΑΣΦ Ρ8"
+    },
+    {
+      "id": 360,
+      "code": "128.0",
+      "name": "ΦΙΧ ΑΥΤ ΑΣΦ",
+      "label": "128 ΦΙΧ ΑΥΤ ΑΣΦ"
+    },
+    {
+      "id": 361,
+      "code": "109.0",
+      "name": "ΕΙΧ ΙΣΤΟΡΙΚΑ ΟΧΗΜΑΤΑ",
+      "label": "109 ΕΙΧ ΙΣΤΟΡΙΚΑ ΟΧΗΜΑΤΑ"
+    },
+    {
+      "id": 362,
+      "code": "205.0",
+      "name": "ΕΙΧ BEV ΗΛΕΚΤΡΙΚΟ",
+      "label": "205 ΕΙΧ BEV ΗΛΕΚΤΡΙΚΟ"
+    },
+    {
+      "id": 363,
+      "code": "206.0",
+      "name": "ΦΙΧ >2Θ",
+      "label": "206 ΦΙΧ >2Θ"
+    },
+    {
+      "id": 364,
+      "code": "207.0",
+      "name": "ΦΙΧ ΑΣΘΕΝ",
+      "label": "207 ΦΙΧ ΑΣΘΕΝ"
+    },
+    {
+      "id": 365,
+      "code": "208.0",
+      "name": "ΦΙΧ ΚΑΝΤΙΝΑ",
+      "label": "208 ΦΙΧ ΚΑΝΤΙΝΑ"
+    },
+    {
+      "id": 366,
+      "code": "209.0",
+      "name": "ΦΙΧ ΝΕΚΡΟΦ",
+      "label": "209 ΦΙΧ ΝΕΚΡΟΦ"
+    },
+    {
+      "id": 367,
+      "code": "279.0",
+      "name": "ΦΙΧ ΕΝΟΙΚ",
+      "label": "279 ΦΙΧ ΕΝΟΙΚ"
+    },
+    {
+      "id": 368,
+      "code": "292.0",
+      "name": "ΦΙΧ ΨΥΓΕΙΟ Ρ2",
+      "label": "292 ΦΙΧ ΨΥΓΕΙΟ Ρ2"
+    },
+    {
+      "id": 369,
+      "code": "293.0",
+      "name": "ΦΙΧ ΨΥΓΕΙΟ Ρ4",
+      "label": "293 ΦΙΧ ΨΥΓΕΙΟ Ρ4"
+    },
+    {
+      "id": 370,
+      "code": "294.0",
+      "name": "ΦΙΧ ΟΔΙΚ ΒΟΗΘ",
+      "label": "294 ΦΙΧ ΟΔΙΚ ΒΟΗΘ"
+    },
+    {
+      "id": 371,
+      "code": "297.0",
+      "name": "ΦΙΧ ΑΔΑΣΜΟΛ",
+      "label": "297 ΦΙΧ ΑΔΑΣΜΟΛ"
+    },
+    {
+      "id": 372,
+      "code": "303.0",
+      "name": "ΦΙΧ ΥΓΡ ΚΑΥΣ Ρ4",
+      "label": "303 ΦΙΧ ΥΓΡ ΚΑΥΣ Ρ4"
+    },
+    {
+      "id": 373,
+      "code": "304.0",
+      "name": "ΦΙΧ ΥΓΡ ΚΑΥΣ Ρ6",
+      "label": "304 ΦΙΧ ΥΓΡ ΚΑΥΣ Ρ6"
+    },
+    {
+      "id": 374,
+      "code": "311.0",
+      "name": "ΦΙΧ ΕΚΠΑΙΔ Ρ2",
+      "label": "311 ΦΙΧ ΕΚΠΑΙΔ Ρ2"
+    },
+    {
+      "id": 375,
+      "code": "312.0",
+      "name": "ΦΙΧ ΕΚΠΑΙΔ Ρ4",
+      "label": "312 ΦΙΧ ΕΚΠΑΙΔ Ρ4"
+    },
+    {
+      "id": 376,
+      "code": "325.0",
+      "name": "ΦΙΧ ΑΓΡΟΤ ΣΙΛΟ",
+      "label": "325 ΦΙΧ ΑΓΡΟΤ ΣΙΛΟ"
+    },
+    {
+      "id": 377,
+      "code": "326.0",
+      "name": "ΦΙΧ ΑΓΡΟΤ ΣΙΛΟ Ρ4",
+      "label": "326 ΦΙΧ ΑΓΡΟΤ ΣΙΛΟ Ρ4"
+    },
+    {
+      "id": 378,
+      "code": "327.0",
+      "name": "ΦΙΧ ΑΓΡΟΤ ΣΙΛΟ Ρ6",
+      "label": "327 ΦΙΧ ΑΓΡΟΤ ΣΙΛΟ Ρ6"
+    },
+    {
+      "id": 379,
+      "code": "328.0",
+      "name": "ΦΙΧ ΑΓΡΟΤ 4Θ",
+      "label": "328 ΦΙΧ ΑΓΡΟΤ 4Θ"
+    },
+    {
+      "id": 380,
+      "code": "332.0",
+      "name": "ΦΙΧ ΓΕΡΑΝ Ρ2",
+      "label": "332 ΦΙΧ ΓΕΡΑΝ Ρ2"
+    },
+    {
+      "id": 381,
+      "code": "333.0",
+      "name": "ΦΙΧ ΓΕΡΑΝ Ρ4",
+      "label": "333 ΦΙΧ ΓΕΡΑΝ Ρ4"
+    },
+    {
+      "id": 382,
+      "code": "334.0",
+      "name": "ΦΙΧ ΓΕΡΑΝ Ρ6",
+      "label": "334 ΦΙΧ ΓΕΡΑΝ Ρ6"
+    },
+    {
+      "id": 383,
+      "code": "335.0",
+      "name": "ΦΙΧ ΓΕΡΑΝ ΠΛΑΤΦ",
+      "label": "335 ΦΙΧ ΓΕΡΑΝ ΠΛΑΤΦ"
+    },
+    {
+      "id": 384,
+      "code": "343.0",
+      "name": "ΦΙΧ ΜΠΕΤΟΝ Ρ4",
+      "label": "343 ΦΙΧ ΜΠΕΤΟΝ Ρ4"
+    },
+    {
+      "id": 385,
+      "code": "372.0",
+      "name": "ΑΥΤΟΚ ΤΡΟΧ Ρ2",
+      "label": "372 ΑΥΤΟΚ ΤΡΟΧ Ρ2"
+    },
+    {
+      "id": 386,
+      "code": "373.0",
+      "name": "ΑΥΤΟΚ ΤΡΟΧ Ρ4",
+      "label": "373 ΑΥΤΟΚ ΤΡΟΧ Ρ4"
+    },
+    {
+      "id": 387,
+      "code": "377.0",
+      "name": "ΑΥΤΟΚ ΤΡΟΧ ΕΝΟΙΚ",
+      "label": "377 ΑΥΤΟΚ ΤΡΟΧ ΕΝΟΙΚ"
+    },
+    {
+      "id": 388,
+      "code": "380.0",
+      "name": "ΦΙΧ ΝΕΚΡΟΦ",
+      "label": "380 ΦΙΧ ΝΕΚΡΟΦ"
+    },
+    {
+      "id": 389,
+      "code": "998.0",
+      "name": "ΕΙΧ MICRO",
+      "label": "998 ΕΙΧ MICRO"
+    },
+    {
+      "id": 390,
+      "code": "573.0",
+      "name": "ΑΓΡ.ΠΟΛ.ΧΡ Ρ2-Ρ8",
+      "label": "573 ΑΓΡ.ΠΟΛ.ΧΡ Ρ2-Ρ8"
+    },
+    {
+      "id": 392,
+      "code": "655.0",
+      "name": "TAXI ΑΝΩ 7 ΘΕΣΕΩΝ",
+      "label": "655 TAXI ΑΝΩ 7 ΘΕΣΕΩΝ"
+    },
+    {
+      "id": 393,
+      "code": "404.0",
+      "name": "ΜΕ/Γ.ΕΛΚ Ρ6",
+      "label": "404 ΜΕ/Γ.ΕΛΚ Ρ6"
+    },
+    {
+      "id": 394,
+      "code": "931.0",
+      "name": "ΜΟΤΟΠΟΔΗΛΑΤΟ ΣΟ",
+      "label": "931 ΜΟΤΟΠΟΔΗΛΑΤΟ ΣΟ"
+    },
+    {
+      "id": 395,
+      "code": "211.0",
+      "name": "ΦΙΧ + ΛΕΜΒΟΣ",
+      "label": "211 ΦΙΧ + ΛΕΜΒΟΣ"
+    },
+    {
+      "id": 396,
+      "code": "472.0",
+      "name": "ΘΕΡΙΖ/ΑΛΩΝΙΣ ΜΗΧ",
+      "label": "472 ΘΕΡΙΖ/ΑΛΩΝΙΣ ΜΗΧ"
+    },
+    {
+      "id": 398,
+      "code": "108.0",
+      "name": "ΤΑΧΙ BEV ΗΛΕΚΤΡΙΚΟ",
+      "label": "108 ΤΑΧΙ BEV ΗΛΕΚΤΡΙΚΟ"
+    },
+    {
+      "id": 399,
+      "code": "932.0",
+      "name": "ΜΟΤΟΠΟΔΗΛΑΤΟ ΙΧ BEV",
+      "label": "932 ΜΟΤΟΠΟΔΗΛΑΤΟ ΙΧ BEV"
+    },
+    {
+      "id": 400,
+      "code": "115.0",
+      "name": "VIP TRANSFER ΜΕ ΟΔΗΓΟ",
+      "label": "115 VIP TRANSFER ΜΕ ΟΔΗΓΟ"
+    },
+    {
+      "id": 401,
+      "code": "997.0",
+      "name": "ΑΥΤ ΡΥΜ ΛΕΜΒΟΣ",
+      "label": "997 ΑΥΤ ΡΥΜ ΛΕΜΒΟΣ"
     }
   ],
   "coverages": [

@@ -9,7 +9,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import RuleIcon from "@mui/icons-material/Rule";
 import TuneIcon from "@mui/icons-material/Tune";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { NumberedPager } from "../components/TableToolbar";
@@ -51,7 +51,13 @@ const USE_LABEL: Record<VehicleUse, string> = {
 };
 const USE_TYPES: VehicleUse[] = ["EIX","EDX","FIX","FDX","LIX","LDX","Motorcycle","Agricultural","Construction"];
 
-interface CompanyLite { id: string; name: string; }
+interface CompanyLite {
+  id: string;
+  name: string;
+  code?: string;
+  isBroker?: boolean;
+  parentCompanyId?: string | null;
+}
 interface ProducerLite { id: string; name: string; tier?: ProducerTier; }
 type ParameterKind = "Branch" | "Coverage" | "Use" | "Package" | "BridgeCode" | "Field" | "Other";
 interface CompanyParameterItem {
@@ -371,6 +377,7 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
   const [form, setForm] = useState({
     scope: "tier" as "tier" | "producer" | "all",
     insuranceCompanyId: "",
+    subCompanyIds: [] as string[],   // for broker cascade
     policyTypes: [] as PolicyType[],
     vehicleUseCategories: [] as VehicleUse[],
     coverCodes: [] as string[],
@@ -385,6 +392,7 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
   const [catalogueOpen, setCatalogueOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  // Primary carrier parametrics — broker or standalone carrier.
   const parameters = useQuery({
     queryKey: ["company-parameters-for-commissions", form.insuranceCompanyId],
     queryFn: async () => (await api.get<CompanyParameterItem[]>("/company-parameters", {
@@ -393,29 +401,47 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
     enabled: open
   });
 
+  // Subcompany parametrics, only when a broker is selected. Each subcompany's
+  // packages are merged into the dropdowns alongside the broker's branches/uses.
+  const subParametersQueries = useQueries({
+    queries: form.subCompanyIds.map((id) => ({
+      queryKey: ["company-parameters-for-commissions", id],
+      queryFn: async () => (await api.get<CompanyParameterItem[]>("/company-parameters", {
+        params: { insuranceCompanyId: id }
+      })).data,
+      enabled: open && form.subCompanyIds.length > 0
+    }))
+  });
+
+  const mergedParams = useMemo(() => {
+    const broker = parameters.data ?? [];
+    const subs = subParametersQueries.flatMap(q => q.data ?? []);
+    return [...broker, ...subs];
+  }, [parameters.data, subParametersQueries.map(q => q.data).join(",")]);
+
   // Dynamic-only: when a company IS selected, dropdowns show only what's been
   // parameterised for that carrier. Empty list = empty dropdown (the superadmin
   // hasn't entered the carrier's catalogue yet). When no company is selected,
   // fall back to the policy-type enum so an agency-wide rule can still be made.
   const branchOptions = useMemo(() => {
     if (!form.insuranceCompanyId) return POLICY_TYPES;
-    return (parameters.data ?? [])
+    return mergedParams
       .filter(p => p.kind === "Branch" && p.policyType)
       .map(p => p.policyType!)
       .filter((p, i, arr) => arr.indexOf(p) === i);
-  }, [parameters.data, form.insuranceCompanyId]);
+  }, [mergedParams, form.insuranceCompanyId]);
 
   const useOptions = useMemo(() => {
     if (!form.insuranceCompanyId) return USE_TYPES;
-    return (parameters.data ?? [])
+    return mergedParams
       .filter(p => p.kind === "Use" && p.vehicleUseCategory && p.vehicleUseCategory !== "None")
       .map(p => p.vehicleUseCategory!)
       .filter((p, i, arr) => arr.indexOf(p) === i);
-  }, [parameters.data, form.insuranceCompanyId]);
+  }, [mergedParams, form.insuranceCompanyId]);
 
   const codeOptions = useMemo(() => {
     const selectedBranches = form.policyTypes;
-    const fromParams = (parameters.data ?? [])
+    const fromParams = mergedParams
       .filter(p => (p.kind === "Coverage" || p.kind === "Package") && p.code)
       .filter(p => selectedBranches.length === 0 || !p.policyType || selectedBranches.includes(p.policyType))
       .map(p => ({
@@ -428,13 +454,14 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
     for (const item of fromParams) byCode.set(item.code, item);
     for (const code of form.coverCodes) if (!byCode.has(code)) byCode.set(code, { code, label: code, kind: "Coverage", policyType: null });
     return Array.from(byCode.values());
-  }, [parameters.data, form.policyTypes, form.coverCodes]);
+  }, [mergedParams, form.policyTypes, form.coverCodes]);
 
   useEffect(() => {
     if (rule) {
       setForm({
         scope: rule.producerId ? "producer" : (rule.producerTier && rule.producerTier !== "None") ? "tier" : "all",
         insuranceCompanyId: rule.insuranceCompanyId ?? "",
+        subCompanyIds: [],
         policyTypes: rule.policyType ? [rule.policyType] : [],
         vehicleUseCategories: rule.vehicleUseCategory && rule.vehicleUseCategory !== "None" ? [rule.vehicleUseCategory] : [],
         coverCodes: rule.coverCode ? [rule.coverCode] : [],
@@ -449,6 +476,7 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
       setForm({
         scope: "tier",
         insuranceCompanyId: "",
+        subCompanyIds: [],
         policyTypes: [],
         vehicleUseCategories: [],
         coverCodes: [],
@@ -542,7 +570,12 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
             <TextField select label="Ασφαλιστική εταιρία" value={form.insuranceCompanyId}
               onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value, coverCodes: [] })} fullWidth>
               <MenuItem value="">— Όλες οι εταιρίες —</MenuItem>
-              {companies.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+              {/* Hide subcompanies from the primary picker — they appear via the
+                  broker cascade below. Top-level carriers + brokers only. */}
+              {companies.filter(c => !c.parentCompanyId).map(c =>
+                <MenuItem key={c.id} value={c.id}>
+                  {c.name}{c.isBroker ? " · πρακτορείο" : ""}
+                </MenuItem>)}
             </TextField>
             <Button
               variant="outlined"
@@ -556,6 +589,37 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
               Παραμετρικά
             </Button>
           </Stack>
+
+          {/* Broker cascade: when a broker (πρακτορείο) is picked, let the user
+              choose one or many of its subcompanies. Each subcompany's own
+              catalogue then drives the κλάδοι/χρήσεις/καλύψεις dropdowns. */}
+          {(() => {
+            const selected = companies.find(c => c.id === form.insuranceCompanyId);
+            if (!selected?.isBroker) return null;
+            const subs = companies.filter(c => c.parentCompanyId === selected.id);
+            if (subs.length === 0) return (
+              <Alert severity="info" variant="outlined">
+                Δεν έχουν περαστεί ακόμη υποασφαλιστικές για το {selected.name}.
+              </Alert>
+            );
+            return (
+              <Autocomplete
+                multiple
+                options={subs}
+                value={subs.filter(s => (form as any).subCompanyIds?.includes(s.id))}
+                onChange={(_, value) => setForm({ ...(form as any), subCompanyIds: value.map(v => v.id) })}
+                getOptionLabel={(s) => s.name}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => <Chip label={option.name} {...getTagProps({ index })} key={option.id} />)
+                }
+                renderInput={(params) => (
+                  <TextField {...params} label="Υποασφαλιστικές πρακτορείου"
+                    helperText={`Επιλέξτε μία ή περισσότερες από τις ${subs.length} υποασφαλιστικές του ${selected.name}.`} />
+                )}
+              />
+            );
+          })()}
 
           <CompanyCatalogueDialog
             open={catalogueOpen}

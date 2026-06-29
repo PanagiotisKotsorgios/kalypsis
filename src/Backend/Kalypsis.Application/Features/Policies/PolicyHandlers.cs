@@ -375,7 +375,7 @@ public class ListInsuranceCompaniesQueryHandler : IRequestHandler<ListInsuranceC
             .IgnoreQueryFilters()
             .Where(c => c.DeletedAt == null)
             .OrderBy(c => c.Name)
-            .Select(c => new InsuranceCompanyDto(c.Id, c.Name, c.Code, c.Country, c.IsActive))
+            .Select(c => new InsuranceCompanyDto(c.Id, c.Name, c.Code, c.Country, c.IsActive, c.IsBroker, c.ParentCompanyId))
             .ToListAsync(ct);
     }
 }

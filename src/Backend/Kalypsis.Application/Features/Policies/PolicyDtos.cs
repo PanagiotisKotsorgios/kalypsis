@@ -47,4 +47,7 @@ public record RenewPolicyBody(
 
 public record CancelPolicyBody(string? Reason);
 
-public record InsuranceCompanyDto(Guid Id, string Name, string Code, string? Country, bool IsActive);
+public record InsuranceCompanyDto(
+    Guid Id, string Name, string Code, string? Country, bool IsActive,
+    bool IsBroker = false,
+    Guid? ParentCompanyId = null);
