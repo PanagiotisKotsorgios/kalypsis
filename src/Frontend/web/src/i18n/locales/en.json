@@ -2293,6 +2293,8 @@
       "inquiryTypes": {
         "sales": "Information & sales",
         "support": "Technical support",
+        "bug": "Report a bug",
+        "complaint": "Complaint",
         "agency": "I'm an insurance agency",
         "agent": "I'm an intermediary",
         "customer": "I'm an agency's customer",

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Alert, Box, Button, CircularProgress, Container, Dialog, DialogActions, DialogContent, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import { api, extractErrorMessage } from "../api/client";
 import ArrowOutwardIcon from "@mui/icons-material/ArrowOutward";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import PhoneIcon from "@mui/icons-material/Phone";
@@ -81,7 +82,7 @@ export function ContactPage() {
   const set = <K extends keyof ContactForm>(k: K, v: ContactForm[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!form.firstName.trim() || !form.lastName.trim()) return setError(t("contact.errors.name"));
     if (!/^\S+@\S+\.\S+$/.test(form.email)) return setError(t("contact.errors.email"));
@@ -90,11 +91,24 @@ export function ContactPage() {
     if (!form.consent) return setError(t("contact.errors.consent"));
     setError(null);
     setSubmitting(true);
-    setTimeout(() => {
+    try {
+      const res = await api.post<{ reference: string; delivered: boolean }>("/public/contact", {
+        inquiryType: form.inquiryType,
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim() || null,
+        agencyOrCity: form.agencyOrCity.trim() || null,
+        subject: form.subject.trim(),
+        message: form.message.trim(),
+        consent: form.consent
+      });
+      setSubmitted({ ref: res.data.reference });
+    } catch (err) {
+      setError(extractErrorMessage(err, t("contact.errors.network", "Σφάλμα δικτύου — δοκιμάστε ξανά.")));
+    } finally {
       setSubmitting(false);
-      const ref = `KLP-CT-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-      setSubmitted({ ref });
-    }, 700);
+    }
   };
 
   // Auto-redirect to home a few seconds after the success popup appears so the
@@ -192,7 +206,7 @@ export function ContactPage() {
                     onChange={(e) => set("inquiryType", e.target.value)}
                     sx={fieldSx}
                   >
-                    {["sales","support","agency","agent","customer","press","other"].map((v) => (
+                    {["sales","support","bug","complaint","agency","agent","customer","press","other"].map((v) => (
                       <MenuItem key={v} value={v}>{t(`contact.form.inquiryTypes.${v}`)}</MenuItem>
                     ))}
                   </TextField>
