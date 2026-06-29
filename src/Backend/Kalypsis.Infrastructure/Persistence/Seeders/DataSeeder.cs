@@ -21,9 +21,13 @@ public static class DataSeeder
         await db.Database.MigrateAsync(cancellationToken);
 
         await SeedInsuranceCompaniesAsync(db, logger, cancellationToken);
-        var parameterItemsCreated = await CompanyParameterDefaults.SeedMissingAsync(db, null, cancellationToken);
-        if (parameterItemsCreated > 0)
-            logger.LogInformation("Seeded {Count} global carrier parameter items.", parameterItemsCreated);
+
+        // Carrier parametrics intentionally start BLANK for every company except
+        // Grand Cover (IW), which we seed line-by-line from the embedded IW dump
+        // resource. Other carriers wait for the superadmin to enter their real
+        // branch / use / cover / package data — dropdowns are empty until then so
+        // an agency can't pick a setup that doesn't actually exist at the carrier.
+        await GrandCoverSeeder.SeedAsync(db, logger, cancellationToken);
 
         var seedEmail = (config["Seed:PlatformAdminEmail"] ?? "superadmin@kalypsis.gr").ToLowerInvariant();
         var seedPassword = config["Seed:PlatformAdminPassword"] ?? "Kalypsis@2026!";

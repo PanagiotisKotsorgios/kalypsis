@@ -1,0 +1,5824 @@
+{
+  "broker_code": "GRAND_COVER",
+  "broker_name": "Grand Cover (IW)",
+  "subcompanies": [
+    {
+      "id": 4,
+      "name": "ΔΕΥΤΕΡΟΣ ΑΛΛΗΛΑΣΦΑΛΙΣΤΙΚΟΣ ΣΥΝΕΤΑΙΡΙΣΜΟΣ",
+      "packages": [
+        {
+          "package_id": "83.0",
+          "name": "ΦΔΧ-ΔΑΣ ΒΑΣΙΚΟ"
+        },
+        {
+          "package_id": "84.0",
+          "name": "ΦΔΧ-ΔΑΣ-ΝΟΜΙΚΗ ARAG"
+        },
+        {
+          "package_id": "85.0",
+          "name": "ΦΔΧ-ΔΑΣ-ΠΡΟΑΙΡΕΤΙΚΕΣ"
+        },
+        {
+          "package_id": "113.0",
+          "name": "ΦΔΧ-ΔΑΣ-ΟΒΒΟ INTERAMERICAN"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "GROUPAMA ΑΣΦΑΛΙΣΤΙΚΗ",
+      "packages": [
+        {
+          "package_id": "86.0",
+          "name": "ECO ΓΕΝΙΚΟ ΠΑΚΕΤΟ"
+        },
+        {
+          "package_id": "340.0",
+          "name": "GROUPAMA ΖΩΗΣ [ΓΕΝΙΚΟ]"
+        },
+        {
+          "package_id": "387.0",
+          "name": "GROUPAMA HOME A"
+        },
+        {
+          "package_id": "404.0",
+          "name": "GROUPAMA BUSINESS A"
+        },
+        {
+          "package_id": "427.0",
+          "name": "GPM ΑΕ ΕΠΑΓΓΕΛΜΑΤΙΑ"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "GENERALI",
+      "packages": [
+        {
+          "package_id": "87.0",
+          "name": "SPEED-2"
+        },
+        {
+          "package_id": "90.0",
+          "name": "SPEED"
+        },
+        {
+          "package_id": "341.0",
+          "name": "ΖΩΗΣ [ΓΕΝΙΚΟ]"
+        },
+        {
+          "package_id": "344.0",
+          "name": "ΓΕΝΙΚΗ ΑΣΤΙΚΗ ΕΥΘΥΝΗ"
+        },
+        {
+          "package_id": "345.0",
+          "name": "ΠΥΡΟΣ"
+        },
+        {
+          "package_id": "346.0",
+          "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ"
+        },
+        {
+          "package_id": "347.0",
+          "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ"
+        },
+        {
+          "package_id": "351.0",
+          "name": "ΕΠΑΓΓΕΛΜΑΤΙΚΗ ΑΣΤΙΚΗ ΕΥΘΥΝΗ"
+        },
+        {
+          "package_id": "355.0",
+          "name": "ΣΚΑΦΗ ΑΝΑΨΥΧΗΣ"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "ALLIANZ ΕΥΡΩΠΑΪΚΗ ΠΙΣΤΗ",
+      "packages": [
+        {
+          "package_id": "439.0",
+          "name": "AUTO Πλήρους Προμήθειας"
+        },
+        {
+          "package_id": "440.0",
+          "name": "AUTO V.I.P. 2"
+        },
+        {
+          "package_id": "441.0",
+          "name": "AUTO Μειωμένης Προμήθειας 1"
+        },
+        {
+          "package_id": "442.0",
+          "name": "ΚΠΚ ΑΤΥΧΗΜΑΤΩΝ"
+        },
+        {
+          "package_id": "443.0",
+          "name": "ΕΝΟΙΚΙΑΖΟΜΕΝΑ"
+        },
+        {
+          "package_id": "444.0",
+          "name": "AUTO Μειωμένης Προμήθειας 2"
+        },
+        {
+          "package_id": "447.0",
+          "name": "ΠΥΡΟΣ ΠΕΡΙΟΥΣΙΑΣ"
+        },
+        {
+          "package_id": "448.0",
+          "name": "MY SMART HOUSE"
+        },
+        {
+          "package_id": "460.0",
+          "name": "Allianz My Motor Immobile (ακινησία)"
+        },
+        {
+          "package_id": "488.0",
+          "name": "ΛΕΩΦΟΡΕΙΑ"
+        },
+        {
+          "package_id": "495.0",
+          "name": "ΑΕ ΕΠΑΓΓΕΛΜΑΤΙΩΝ"
+        },
+        {
+          "package_id": "502.0",
+          "name": "ΣΚΑΦΗ Yacht"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "AIG ΕΛΛΑΣ",
+      "packages": [
+        {
+          "package_id": "89.0",
+          "name": "Βασικό Πακέτο"
+        },
+        {
+          "package_id": "114.0",
+          "name": "ΠΥΡΟΣ-ΚΛΟΠΗ"
+        },
+        {
+          "package_id": "430.0",
+          "name": "ΠΥΡΟΣ ΠΕΡΙΟΥΣΙΑΣ"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "ΣΥΝΕΤΑΙΡΙΣΤΙΚΗ",
+      "packages": [
+        {
+          "package_id": "80.0",
+          "name": "Από μετατροπή 80"
+        },
+        {
+          "package_id": "91.0",
+          "name": "ΟΙΚΟΝΟΜΙΚΟ-1"
+        },
+        {
+          "package_id": "92.0",
+          "name": "ΟΙΚΟΝΟΜΙΚΟ-1-ΦΙΧ-ΑΓΡΟΤΙΚΟ"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "QEL",
+      "packages": [
+        {
+          "package_id": "290.0",
+          "name": "Q ΠΑΚΕΤΟ"
+        },
+        {
+          "package_id": "301.0",
+          "name": "Q-ΛΕΩΦΟΡΕΙΑ"
+        },
+        {
+          "package_id": "312.0",
+          "name": "Q-ΦΔΧ"
+        },
+        {
+          "package_id": "332.0",
+          "name": "Q-ΤΑΞΙ"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "name": "HELLAS DIRECT",
+      "packages": [
+        {
+          "package_id": "330.0",
+          "name": "All Star"
+        },
+        {
+          "package_id": "331.0",
+          "name": "Essential (μειωμένης προμήθειας)"
+        },
+        {
+          "package_id": "445.0",
+          "name": "HD Περιουσίας"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "name": "ΔΥΝΑΜΙΣ",
+      "packages": [
+        {
+          "package_id": "110.0",
+          "name": "Από μετατροπή 110"
+        },
+        {
+          "package_id": "112.0",
+          "name": "MyDynamis ΤΑΞΙ"
+        },
+        {
+          "package_id": "116.0",
+          "name": "My Dynamis Plus Πυρός-Κλοπή ΕΙΧ"
+        },
+        {
+          "package_id": "147.0",
+          "name": "My Dynamis Plus ΕΙΧ"
+        },
+        {
+          "package_id": "148.0",
+          "name": "My Dynamis Plus Πυρός-Κλοπή ΦΙΧ"
+        },
+        {
+          "package_id": "149.0",
+          "name": "My Dynamis Plus ΦΙΧ"
+        },
+        {
+          "package_id": "150.0",
+          "name": "My Dynamis Plus ΦΙΧ ΑΓΡ"
+        },
+        {
+          "package_id": "151.0",
+          "name": "My Dynamis ΜΟΤΟΠΟΔΗΛΑΤΑ"
+        },
+        {
+          "package_id": "152.0",
+          "name": "My Dynamis ΜΟΤΟ"
+        },
+        {
+          "package_id": "174.0",
+          "name": "My Dynamis ΕΛΚΥΣΤΗΡΕΣ"
+        },
+        {
+          "package_id": "259.0",
+          "name": "My Dynamis Plus ΦΔΧ"
+        },
+        {
+          "package_id": "291.0",
+          "name": "My Dynamis Plus ΕΝΟΙΚ"
+        },
+        {
+          "package_id": "343.0",
+          "name": "My Dynamis ΦΔΧ Εκπτωτικό"
+        },
+        {
+          "package_id": "362.0",
+          "name": "Dynamis Κατοικία"
+        },
+        {
+          "package_id": "363.0",
+          "name": "Dynamis Sail"
+        },
+        {
+          "package_id": "366.0",
+          "name": "Δύναμις Αστική Ευθύνη"
+        },
+        {
+          "package_id": "376.0",
+          "name": "Δύναμις Προσωπικό Ατύχημα"
+        },
+        {
+          "package_id": "403.0",
+          "name": "Dynamis Επιχείρηση"
+        },
+        {
+          "package_id": "452.0",
+          "name": "Δύναμις ΑΕ Διαμεσολαβούντων"
+        },
+        {
+          "package_id": "490.0",
+          "name": "My Dynamis HISTORY"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "name": "EUROPASSISTANCE",
+      "packages": [
+        {
+          "package_id": "115.0",
+          "name": "RSA PLUS"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "name": "APEIRON INSURANCE PROJECT",
+      "packages": [
+        {
+          "package_id": "118.0",
+          "name": "AUTO SIMPLE"
+        },
+        {
+          "package_id": "119.0",
+          "name": "AUTO VALUE"
+        },
+        {
+          "package_id": "120.0",
+          "name": "AUTO FULL"
+        },
+        {
+          "package_id": "121.0",
+          "name": "TRUCK SIMPLE"
+        },
+        {
+          "package_id": "122.0",
+          "name": "TRUCK VALUE"
+        },
+        {
+          "package_id": "123.0",
+          "name": "AGRO SIMPLE"
+        },
+        {
+          "package_id": "124.0",
+          "name": "AGRO VALUE"
+        },
+        {
+          "package_id": "125.0",
+          "name": "MOTO SIMPLE"
+        },
+        {
+          "package_id": "127.0",
+          "name": "MOTO VALUE"
+        },
+        {
+          "package_id": "128.0",
+          "name": "TAXI SIMPLE"
+        },
+        {
+          "package_id": "129.0",
+          "name": "TAXI VALUE"
+        },
+        {
+          "package_id": "130.0",
+          "name": "TRACKTOR"
+        },
+        {
+          "package_id": "255.0",
+          "name": "AUTORENT ΕΝΟΙΚ"
+        },
+        {
+          "package_id": "257.0",
+          "name": "TRUCK FULL"
+        },
+        {
+          "package_id": "258.0",
+          "name": "AGRO VALUE"
+        },
+        {
+          "package_id": "354.0",
+          "name": "MOTORENT ΕΝΟΙΚ"
+        },
+        {
+          "package_id": "416.0",
+          "name": "ΜΗΧΑΝΗΜΑΤΑ ΕΡΓΟΥ"
+        },
+        {
+          "package_id": "453.0",
+          "name": "LORRY (ΦΔΧ)"
+        },
+        {
+          "package_id": "505.0",
+          "name": "ΙΣΤΟΡΙΚΑ ΟΧΗΜΑΤΑ"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "name": "MINETTA",
+      "packages": [
+        {
+          "package_id": "171.0",
+          "name": "MINETTA [ΧΩΡΙΣ ΠΑΚΕΤΟ]"
+        },
+        {
+          "package_id": "172.0",
+          "name": "MINETTA-ΒΑΣΙΚΟ-ΕΙΧ"
+        },
+        {
+          "package_id": "173.0",
+          "name": "MINETTA-ΠΥΡΟΣ-ΕΙΧ"
+        },
+        {
+          "package_id": "182.0",
+          "name": "MINETTA-ΠΛΗΡΕΣ-ΕΙΧ"
+        },
+        {
+          "package_id": "183.0",
+          "name": "MINETTA-ΒΑΣΙΚΟ-ΦΔΧ"
+        },
+        {
+          "package_id": "184.0",
+          "name": "MINETTA-ΠΥΡΟΣ-ΦΔΧ"
+        },
+        {
+          "package_id": "185.0",
+          "name": "MINETTA-ΠΛΗΡΕΣ-ΦΔΧ"
+        },
+        {
+          "package_id": "186.0",
+          "name": "MINETTA-ΒΑΣΙΚΟ-ΤΑΞΙ"
+        },
+        {
+          "package_id": "187.0",
+          "name": "MINETTA-ΠΥΡΟΣ-ΤΑΞΙ"
+        },
+        {
+          "package_id": "188.0",
+          "name": "MINETTA-ΠΛΗΡΕΣ-ΤΑΞΙ"
+        },
+        {
+          "package_id": "189.0",
+          "name": "MINETTA-ΒΑΣΙΚΟ-ΕΝΟΙΚ"
+        },
+        {
+          "package_id": "190.0",
+          "name": "MINETTA-ΠΥΡΟΣ-ΕΝΟΙΚ"
+        },
+        {
+          "package_id": "191.0",
+          "name": "MINETTA-ΠΛΗΡΕΣ-ΕΝΟΙΚ"
+        },
+        {
+          "package_id": "192.0",
+          "name": "MINETTA-ΒΑΣΙΚΟ-Μ/Ε"
+        },
+        {
+          "package_id": "193.0",
+          "name": "MINETTA-ΠΥΡΟΣ-Μ/Ε"
+        },
+        {
+          "package_id": "194.0",
+          "name": "MINETTA-ΠΛΗΡΕΣ-Μ/Ε"
+        },
+        {
+          "package_id": "195.0",
+          "name": "MINETTA-ΒΑΣΙΚΟ-ΛΕΩΦ"
+        },
+        {
+          "package_id": "196.0",
+          "name": "MINETTA-ΠΥΡΟΣ-ΛΕΩΦ"
+        },
+        {
+          "package_id": "197.0",
+          "name": "MINETTA-ΠΛΗΡΕΣ-ΛΕΩΦ"
+        },
+        {
+          "package_id": "251.0",
+          "name": "Minetta Κατοικία"
+        },
+        {
+          "package_id": "342.0",
+          "name": "MINETTA ΖΩΗΣ-ΥΓΕΙΑΣ [ΓΕΝΙΚΟ]"
+        },
+        {
+          "package_id": "409.0",
+          "name": "Minetta Επιχείρηση"
+        },
+        {
+          "package_id": "410.0",
+          "name": "Minetta Τουριστικών Μονάδων"
+        },
+        {
+          "package_id": "429.0",
+          "name": "MINETTA-ΣΚΑΦΟΣ"
+        },
+        {
+          "package_id": "435.0",
+          "name": "MINETTA-ΑΣΤ ΕΥΘ ΕΠΑΓΓΕΛ"
+        },
+        {
+          "package_id": "446.0",
+          "name": "MINETTA ΓΕΝΙΚΗ ΑΣΤΙΚΗ ΕΥΘΥΝΗ"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "name": "INTERLIFE",
+      "packages": [
+        {
+          "package_id": "497.0",
+          "name": "Interlife Κατοικία"
+        },
+        {
+          "package_id": "498.0",
+          "name": "Interlife Επιχείρηση"
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "name": "EUROINS",
+      "packages": [
+        {
+          "package_id": "198.0",
+          "name": "BASIC INS EIX"
+        },
+        {
+          "package_id": "199.0",
+          "name": "SIMPLE INS ΕΙΧ"
+        },
+        {
+          "package_id": "200.0",
+          "name": "EXTRA INS ΕΙΧ"
+        },
+        {
+          "package_id": "201.0",
+          "name": "TOTAL INS EIX"
+        },
+        {
+          "package_id": "202.0",
+          "name": "BASIC INS ΦΙΧ"
+        },
+        {
+          "package_id": "203.0",
+          "name": "SIMPLE INS ΦΙΧ"
+        },
+        {
+          "package_id": "204.0",
+          "name": "EXTRA INS ΦΙΧ"
+        },
+        {
+          "package_id": "205.0",
+          "name": "TOTAL INS ΦΙΧ"
+        },
+        {
+          "package_id": "206.0",
+          "name": "BASIC INS ΦΙΧ ΑΓΡ"
+        },
+        {
+          "package_id": "207.0",
+          "name": "SIMPLE INS ΦΙΧ ΑΓΡ"
+        },
+        {
+          "package_id": "208.0",
+          "name": "EXTRA INS ΦΙΧ ΑΓΡ"
+        },
+        {
+          "package_id": "209.0",
+          "name": "BASIC INS ΦΔΧ"
+        },
+        {
+          "package_id": "210.0",
+          "name": "SIMPLE INS ΦΔΧ"
+        },
+        {
+          "package_id": "211.0",
+          "name": "EXTRA INS ΦΔΧ"
+        },
+        {
+          "package_id": "212.0",
+          "name": "BASIC INS ΕΝΟΙΚ"
+        },
+        {
+          "package_id": "213.0",
+          "name": "SIMPLE INS ΕΝΟΙΚ"
+        },
+        {
+          "package_id": "214.0",
+          "name": "EXTRA INS ΕΝΟΙΚ"
+        },
+        {
+          "package_id": "215.0",
+          "name": "TOTAL INS ΕΝΟΙΚ"
+        },
+        {
+          "package_id": "216.0",
+          "name": "BASIC INS MOTO"
+        },
+        {
+          "package_id": "217.0",
+          "name": "SIMPLE INS MOTO"
+        },
+        {
+          "package_id": "218.0",
+          "name": "BASIC INS ΛΕΩΦ"
+        },
+        {
+          "package_id": "219.0",
+          "name": "SIMPLE INS ΛΕΩΦ"
+        },
+        {
+          "package_id": "220.0",
+          "name": "BASIC INS M/E"
+        },
+        {
+          "package_id": "221.0",
+          "name": "SIMPLE INS M/E"
+        },
+        {
+          "package_id": "222.0",
+          "name": "BASIC INS ΤΡΑΚΤΕΡ"
+        },
+        {
+          "package_id": "223.0",
+          "name": "BASIC INS ΤΑΞΙ"
+        },
+        {
+          "package_id": "507.0",
+          "name": "EUROINS-GRAND ΒΑΣΙΚΟ"
+        },
+        {
+          "package_id": "508.0",
+          "name": "EUROINS-GRAND ΤΑΞΙ"
+        },
+        {
+          "package_id": "509.0",
+          "name": "EUROINS-GRAND ΦΔΧ"
+        },
+        {
+          "package_id": "510.0",
+          "name": "EUROINS-GRAND ΛΕΩΦ"
+        },
+        {
+          "package_id": "511.0",
+          "name": "EUROINS-GRAND ΕΝΟΙΚ"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "name": "GASAN MAMO",
+      "packages": [
+        {
+          "package_id": "224.0",
+          "name": "BASIC"
+        },
+        {
+          "package_id": "226.0",
+          "name": "FULL"
+        },
+        {
+          "package_id": "227.0",
+          "name": "PLUS"
+        },
+        {
+          "package_id": "229.0",
+          "name": "MOTO"
+        },
+        {
+          "package_id": "230.0",
+          "name": "TRUCK"
+        },
+        {
+          "package_id": "231.0",
+          "name": "TRUCK PLUS"
+        },
+        {
+          "package_id": "232.0",
+          "name": "TRACTOR"
+        },
+        {
+          "package_id": "300.0",
+          "name": "ELPA LORRY BASIC"
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "name": "EXTRA ASSISTANCE",
+      "packages": [
+        {
+          "package_id": "253.0",
+          "name": "ΟΔΙΚΗ ΒΟΗΘΕΙΑ"
+        },
+        {
+          "package_id": "329.0",
+          "name": "ΟΔΙΚΗ (ΔΟΚ)"
+        },
+        {
+          "package_id": "420.0",
+          "name": "ΟΒΒΟ"
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "name": "ΥΔΡΟΓΕΙΟΣ",
+      "packages": [
+        {
+          "package_id": "358.0",
+          "name": "BASIC-ΟΧΗΜΑΤΑ"
+        },
+        {
+          "package_id": "359.0",
+          "name": "BASIC-ΦΔΧ"
+        },
+        {
+          "package_id": "360.0",
+          "name": "BASIC-ΤΑΞΙ"
+        },
+        {
+          "package_id": "361.0",
+          "name": "BASIC-ΕΝΟΙΚΙΑΖΟΜΕΝΑ"
+        },
+        {
+          "package_id": "419.0",
+          "name": "BASIC-ΛΕΩΦΟΡΕΙΑ"
+        },
+        {
+          "package_id": "428.0",
+          "name": "ΥΔΡΟΓ-ΣΚΑΦΟΣ"
+        },
+        {
+          "package_id": "481.0",
+          "name": "ΚΑΤΟΙΚΙΑ"
+        },
+        {
+          "package_id": "482.0",
+          "name": "ΕΠΙΧΕΙΡΗΣΗ"
+        },
+        {
+          "package_id": "483.0",
+          "name": "ΦΩΤΟΒΟΛΤΑΪΚΑ"
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "name": "DALLBOGG",
+      "packages": [
+        {
+          "package_id": "292.0",
+          "name": "ECONOMY"
+        },
+        {
+          "package_id": "293.0",
+          "name": "ECONOMY (TAXI)"
+        },
+        {
+          "package_id": "294.0",
+          "name": "BASIC"
+        },
+        {
+          "package_id": "295.0",
+          "name": "BASIC (TAXI)"
+        },
+        {
+          "package_id": "310.0",
+          "name": "ECONOMY 2"
+        },
+        {
+          "package_id": "327.0",
+          "name": "ECONOMY PLUS (EC+2)"
+        },
+        {
+          "package_id": "328.0",
+          "name": "SIMPLE TAXI (TAX-2)"
+        },
+        {
+          "package_id": "459.0",
+          "name": "SIMPLE (Μειωμένης Προμήθειας)"
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "name": "ACCELERANT",
+      "packages": [
+        {
+          "package_id": "269.0",
+          "name": "AUTO [ΒΑΣ ΤΙΜΟΛ]"
+        },
+        {
+          "package_id": "271.0",
+          "name": "AUTO -1%"
+        },
+        {
+          "package_id": "272.0",
+          "name": "AUTO -2%"
+        },
+        {
+          "package_id": "273.0",
+          "name": "AUTO -3%"
+        },
+        {
+          "package_id": "274.0",
+          "name": "AUTO -4%"
+        },
+        {
+          "package_id": "275.0",
+          "name": "AUTO -5%"
+        },
+        {
+          "package_id": "276.0",
+          "name": "AUTO -6%"
+        },
+        {
+          "package_id": "277.0",
+          "name": "AUTO -7%"
+        },
+        {
+          "package_id": "279.0",
+          "name": "AUTO -8%"
+        },
+        {
+          "package_id": "280.0",
+          "name": "AUTO -9%"
+        },
+        {
+          "package_id": "281.0",
+          "name": "AUTO -10%"
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "name": "LEVINS [1159]",
+      "packages": [
+        {
+          "package_id": "283.0",
+          "name": "AUTO STEP"
+        },
+        {
+          "package_id": "284.0",
+          "name": "AUTO"
+        },
+        {
+          "package_id": "308.0",
+          "name": "AUTO STEP 2"
+        },
+        {
+          "package_id": "309.0",
+          "name": "AUTO STEP 3"
+        },
+        {
+          "package_id": "348.0",
+          "name": "AUTO STEP G1"
+        },
+        {
+          "package_id": "349.0",
+          "name": "AUTO STEP G2"
+        },
+        {
+          "package_id": "350.0",
+          "name": "AUTO STEP G3"
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "name": "INTERASCO",
+      "packages": [
+        {
+          "package_id": "307.0",
+          "name": "ΓΕΝΙΚΟ AUTO"
+        },
+        {
+          "package_id": "413.0",
+          "name": "Interasco Κατοικία"
+        },
+        {
+          "package_id": "414.0",
+          "name": "Interasco Επιχείρηση"
+        }
+      ]
+    },
+    {
+      "id": 46,
+      "name": "ΛΕΩΝ ΣΥΝ.ΠΕ",
+      "packages": [
+        {
+          "package_id": "304.0",
+          "name": "ΕΛΛΗΝΙΚΟΣ ΔΧ"
+        },
+        {
+          "package_id": "305.0",
+          "name": "ΕΛΛΗΝΙΚΟΣ Α.Ε ΦΔΧ"
+        },
+        {
+          "package_id": "306.0",
+          "name": "ΕΛΛΗΝΙΚΟΣ Α.Ε ΛΔΧ"
+        },
+        {
+          "package_id": "456.0",
+          "name": "ΟΔΙΚΟΥ ΜΕΤΑΦΟΡΕΑ"
+        }
+      ]
+    },
+    {
+      "id": 47,
+      "name": "LEVINS [APL]",
+      "packages": [
+        {
+          "package_id": "303.0",
+          "name": "LEVINS AUTO 2"
+        }
+      ]
+    },
+    {
+      "id": 49,
+      "name": "ΕΘΝΙΚΗ ΑΣΦΑΛΙΣΤΙΚΗ",
+      "packages": [
+        {
+          "package_id": "352.0",
+          "name": "ΕΘΝ-ΕΝΟΙΚΑΖΟΜΕΝΑ"
+        },
+        {
+          "package_id": "356.0",
+          "name": "ΕΘΝ-Protect"
+        }
+      ]
+    },
+    {
+      "id": 50,
+      "name": "ERGO [IT]",
+      "packages": [
+        {
+          "package_id": "377.0",
+          "name": "ERGO ΕΙΧ ΒΑΣΙΚΟ"
+        },
+        {
+          "package_id": "378.0",
+          "name": "ERGO ΕΙΧ [-01]"
+        },
+        {
+          "package_id": "379.0",
+          "name": "ERGO ΕΙΧ [-02]"
+        },
+        {
+          "package_id": "380.0",
+          "name": "ERGO ΕΙΧ [-03]"
+        },
+        {
+          "package_id": "438.0",
+          "name": "ERGO Solar Panel"
+        }
+      ]
+    },
+    {
+      "id": 51,
+      "name": "YELLOW [WAKAM]",
+      "packages": [
+        {
+          "package_id": "81.0",
+          "name": "ΑΕ ΔΙΑΜΕΣΟΛΑΒΗΤΗ"
+        },
+        {
+          "package_id": "313.0",
+          "name": "Advanced [ΕΙΧ-ΜΟΤΟ-ΦΙΧ-ΑΓΡΟΤ]"
+        },
+        {
+          "package_id": "314.0",
+          "name": "Full [ΕΙΧ-ΜΟΤΟ-ΦΙΧ-ΑΓΡΟΤ]"
+        },
+        {
+          "package_id": "315.0",
+          "name": "Standard [ΕΙΧ-ΜΟΤΟ-ΦΙΧ-ΑΓΡΟΤ]"
+        },
+        {
+          "package_id": "316.0",
+          "name": "Value [ΕΙΧ-ΜΟΤΟ-ΦΙΧ-ΑΓΡΟΤ]"
+        },
+        {
+          "package_id": "317.0",
+          "name": "Advanced [ΤΑΞΙ]"
+        },
+        {
+          "package_id": "318.0",
+          "name": "Standard [ΤΑΞΙ]"
+        },
+        {
+          "package_id": "319.0",
+          "name": "Value [ΤΑΞΙ]"
+        },
+        {
+          "package_id": "320.0",
+          "name": "Advanced [ΕΝΟΙΚΙΑΖΟΜΕΝΑ]"
+        },
+        {
+          "package_id": "321.0",
+          "name": "Full [ΕΝΟΙΚΙΑΖΟΜΕΝΑ]"
+        },
+        {
+          "package_id": "322.0",
+          "name": "Standard [ΕΝΟΙΚΙΑΖΟΜΕΝΑ]"
+        },
+        {
+          "package_id": "323.0",
+          "name": "Value [ΕΝΟΙΚΙΑΖΟΜΕΝΑ]"
+        },
+        {
+          "package_id": "324.0",
+          "name": "Advanced [ΦΔΧ]"
+        },
+        {
+          "package_id": "325.0",
+          "name": "Standard [ΦΔΧ]"
+        },
+        {
+          "package_id": "326.0",
+          "name": "Value [ΦΔΧ]"
+        }
+      ]
+    },
+    {
+      "id": 53,
+      "name": "WAKAM [IB]",
+      "packages": [
+        {
+          "package_id": "333.0",
+          "name": "W-SIMPLE"
+        },
+        {
+          "package_id": "335.0",
+          "name": "W-ΛΕΩΦ-SIMPLE"
+        },
+        {
+          "package_id": "336.0",
+          "name": "W-ΦΔΧ-SIMPLE"
+        },
+        {
+          "package_id": "337.0",
+          "name": "W-ΤΑΞΙ-SIMPLE"
+        },
+        {
+          "package_id": "339.0",
+          "name": "W-ΕΝΟΙΚΙΑΖΟΜΕΝΑ-SIMPLE"
+        }
+      ]
+    },
+    {
+      "id": 54,
+      "name": "QEL [IB]",
+      "packages": [
+        {
+          "package_id": "338.0",
+          "name": "Q-SIMPLE"
+        },
+        {
+          "package_id": "353.0",
+          "name": "Q-SIMPLE ΦΔΧ"
+        },
+        {
+          "package_id": "357.0",
+          "name": "Q IB-ΛΕΩΦΟΡΕΙΑ"
+        },
+        {
+          "package_id": "431.0",
+          "name": "Q-TAXI"
+        },
+        {
+          "package_id": "455.0",
+          "name": "HISTORY"
+        },
+        {
+          "package_id": "468.0",
+          "name": "Φυσικά Φαινόμενα-ΛΕΩΦΟΡΕΙΑ"
+        }
+      ]
+    },
+    {
+      "id": 55,
+      "name": "ACCREDITED [IND]",
+      "packages": [
+        {
+          "package_id": "365.0",
+          "name": "ACC[IND]-ΒΑΣΙΚΟ"
+        }
+      ]
+    },
+    {
+      "id": 57,
+      "name": "EUROLIFE [APL]",
+      "packages": [
+        {
+          "package_id": "367.0",
+          "name": "SafeDrive Standard"
+        },
+        {
+          "package_id": "368.0",
+          "name": "SafeDrive Plus"
+        },
+        {
+          "package_id": "469.0",
+          "name": "My Happy Pet Plus"
+        }
+      ]
+    },
+    {
+      "id": 58,
+      "name": "ALLIANZ ΕΥΡΩΠΑΪΚΗ ΠΙΣΤΗ [APL]",
+      "packages": [
+        {
+          "package_id": "375.0",
+          "name": "Allianz Ευρ Πίστη-Auto"
+        },
+        {
+          "package_id": "432.0",
+          "name": "Allianz Ευρ Πίστη-Rent"
+        },
+        {
+          "package_id": "436.0",
+          "name": "Allianz Ευρ Πίστη-Auto Μειωμ Προμ 1"
+        },
+        {
+          "package_id": "437.0",
+          "name": "Allianz Ευρ Πίστη-Auto Μειωμ Προμ 2"
+        }
+      ]
+    },
+    {
+      "id": 59,
+      "name": "ΑΤΛΑΝΤΙΚΗ ΕΝΩΣΗ",
+      "packages": [
+        {
+          "package_id": "411.0",
+          "name": "Ατλαντική Κατοικία"
+        },
+        {
+          "package_id": "412.0",
+          "name": "Ατλαντική Επιχείρηση"
+        },
+        {
+          "package_id": "415.0",
+          "name": "Ατλαντική Fire Eco"
+        },
+        {
+          "package_id": "417.0",
+          "name": "Ατλαντική Auto"
+        },
+        {
+          "package_id": "418.0",
+          "name": "Ατλαντική ΦΔΧ"
+        },
+        {
+          "package_id": "433.0",
+          "name": "Ατλαντική Αστική Ευθύνη Επαγγελματία"
+        },
+        {
+          "package_id": "434.0",
+          "name": "Ατλαντική Προσωπικό Ατύχημα"
+        },
+        {
+          "package_id": "496.0",
+          "name": "ΟΜΑΔΙΚΟ ΥΓΕΙΑΣ"
+        }
+      ]
+    },
+    {
+      "id": 60,
+      "name": "LEVINS [5039]",
+      "packages": [
+        {
+          "package_id": "370.0",
+          "name": "AUTO STEP G1"
+        },
+        {
+          "package_id": "371.0",
+          "name": "AUTO STEP G2"
+        },
+        {
+          "package_id": "372.0",
+          "name": "AUTO STEP G3"
+        },
+        {
+          "package_id": "373.0",
+          "name": "AUTO [ΕΙΔΙΚΟ]"
+        }
+      ]
+    },
+    {
+      "id": 61,
+      "name": "INTERAMERICAN [BE]",
+      "packages": [
+        {
+          "package_id": "421.0",
+          "name": "CLASSIC-EXTRA-TOTAL-BASIC"
+        },
+        {
+          "package_id": "422.0",
+          "name": "CLASSIC B-EXTRA B"
+        },
+        {
+          "package_id": "423.0",
+          "name": "RENTAL (CLASSIC-EXTRA)"
+        },
+        {
+          "package_id": "424.0",
+          "name": "BUS"
+        },
+        {
+          "package_id": "425.0",
+          "name": "AUTO DRIVING SCHOOL"
+        },
+        {
+          "package_id": "426.0",
+          "name": "ΦΔΧ (CLASSIC-EXTRA)"
+        }
+      ]
+    },
+    {
+      "id": 62,
+      "name": "INTERLIFE [DA]",
+      "packages": [
+        {
+          "package_id": "162.0",
+          "name": "INTERLIFE-ΒΑΣΙΚΟ-ΕΙΧ"
+        },
+        {
+          "package_id": "163.0",
+          "name": "INTERLIFE-ΒΑΣΙΚΟ-ΦΔΧ"
+        },
+        {
+          "package_id": "164.0",
+          "name": "INTERLIFE-ΒΑΣΙΚΟ-ΤΑΞΙ"
+        },
+        {
+          "package_id": "165.0",
+          "name": "INTERLIFE-ΒΑΣΙΚΟ-ΕΝΟΙΚ"
+        },
+        {
+          "package_id": "166.0",
+          "name": "INTERLIFE-30-ΕΙΧ"
+        },
+        {
+          "package_id": "167.0",
+          "name": "INTERLIFE-30-ΦΔΧ"
+        },
+        {
+          "package_id": "168.0",
+          "name": "INTERLIFE-30-ΤΑΞΙ"
+        },
+        {
+          "package_id": "170.0",
+          "name": "INTERLIFE-25-ΕΝΟΙΚ"
+        },
+        {
+          "package_id": "175.0",
+          "name": "INTERLIFE-10-ΕΙΧ"
+        },
+        {
+          "package_id": "177.0",
+          "name": "INTERLIFE-20-ΕΙΧ"
+        },
+        {
+          "package_id": "178.0",
+          "name": "INTERLIFE-20-ΦΔΧ"
+        },
+        {
+          "package_id": "179.0",
+          "name": "INTERLIFE-10-ΤΑΞΙ"
+        },
+        {
+          "package_id": "180.0",
+          "name": "INTERLIFE-20-ΤΑΞΙ"
+        },
+        {
+          "package_id": "181.0",
+          "name": "INTERLIFE-10-ΦΔΧ"
+        },
+        {
+          "package_id": "302.0",
+          "name": "INTERLIFE-ΒΑΣΙΚΟ-ΛΕΩΦΟΡΕΙΑ"
+        },
+        {
+          "package_id": "405.0",
+          "name": "Interlife Κατοικία"
+        },
+        {
+          "package_id": "406.0",
+          "name": "Interlife Επιχείρηση"
+        }
+      ]
+    },
+    {
+      "id": 63,
+      "name": "ACCREDITED [IT]",
+      "packages": [
+        {
+          "package_id": "398.0",
+          "name": "ACCRED[IT]-ΒΑΣΙΚΟ"
+        },
+        {
+          "package_id": "402.0",
+          "name": "ACCRED[IT]-TAXI"
+        },
+        {
+          "package_id": "454.0",
+          "name": "ACCRED[IT]-ΦΔΧ"
+        }
+      ]
+    },
+    {
+      "id": 64,
+      "name": "ΥΔΡΟΓΕΙΟΣ [IT]",
+      "packages": [
+        {
+          "package_id": "390.0",
+          "name": "ΕΙΧ-ΜΟΤΟ-ΦΙΧ-ΜΕ"
+        },
+        {
+          "package_id": "391.0",
+          "name": "ΕΝΟΙΚΑΖΟΜΕΝΑ"
+        },
+        {
+          "package_id": "392.0",
+          "name": "ΦΔΧ TIR"
+        }
+      ]
+    },
+    {
+      "id": 65,
+      "name": "ΙΝΤΕΡΣΑΛΟΝΙΚΑ [IT]",
+      "packages": [
+        {
+          "package_id": "381.0",
+          "name": "ΕΙΧ-ΜΟΤΟ-ΦΙΧ-ΜΕ"
+        },
+        {
+          "package_id": "382.0",
+          "name": "ΦΔΧ"
+        },
+        {
+          "package_id": "385.0",
+          "name": "ΕΝΟΙΚ ΕΙΧ"
+        },
+        {
+          "package_id": "386.0",
+          "name": "ΕΝΟΙΚ ΜΟΤΟ"
+        },
+        {
+          "package_id": "407.0",
+          "name": "Ιντερσαλόνικα Κατοικία"
+        },
+        {
+          "package_id": "408.0",
+          "name": "Ιντερσαλόνικα Επιχείρηση"
+        }
+      ]
+    },
+    {
+      "id": 66,
+      "name": "ΙΝΤΕΡΣΑΛΟΝΙΚΑ ΖΩΗΣ [IT]",
+      "packages": [
+        {
+          "package_id": "397.0",
+          "name": "IS ΑΛΛΟΔΑΠΩΝ"
+        }
+      ]
+    },
+    {
+      "id": 68,
+      "name": "ΥΔΡΟΓΕΙΟΣ [107442]",
+      "packages": [
+        {
+          "package_id": "449.0",
+          "name": "Ε.Ι.Χ. ΟΤΑ"
+        },
+        {
+          "package_id": "450.0",
+          "name": "Φ.Ι.Χ. ΟΤΑ"
+        },
+        {
+          "package_id": "451.0",
+          "name": "Μ.Ε. ΟΤΑ"
+        }
+      ]
+    },
+    {
+      "id": 69,
+      "name": "ΕΘΝΙΚΗ [ΚΥ]",
+      "packages": [
+        {
+          "package_id": "484.0",
+          "name": "AUTO PROTECT+ FULL"
+        },
+        {
+          "package_id": "485.0",
+          "name": "ΛΕΩΦΟΡΕΙΑ"
+        },
+        {
+          "package_id": "486.0",
+          "name": "ΦΔΧ"
+        },
+        {
+          "package_id": "487.0",
+          "name": "ΕΝΟΙΚΙΑΖΟΜΕΝΑ"
+        }
+      ]
+    },
+    {
+      "id": 70,
+      "name": "ΛΕΩΝ (ΔΙΑΦΟΡΑ)",
+      "packages": [
+        {
+          "package_id": "457.0",
+          "name": "GRAND HELVETIA"
+        },
+        {
+          "package_id": "458.0",
+          "name": "GRAND TAXI"
+        },
+        {
+          "package_id": "506.0",
+          "name": "ΕΓΓΥΗΣΗ [ZAD]"
+        }
+      ]
+    },
+    {
+      "id": 73,
+      "name": "ERGO [DA]",
+      "packages": [
+        {
+          "package_id": "461.0",
+          "name": "ERGO My Auto Advanced"
+        },
+        {
+          "package_id": "462.0",
+          "name": "ERGO My Auto Advanced Plus"
+        },
+        {
+          "package_id": "463.0",
+          "name": "ERGO My Auto Simple"
+        },
+        {
+          "package_id": "464.0",
+          "name": "ERGO My Auto Simple Plus"
+        },
+        {
+          "package_id": "465.0",
+          "name": "ERGO My Auto Superior Plus"
+        },
+        {
+          "package_id": "466.0",
+          "name": "ERGO My Auto Total"
+        },
+        {
+          "package_id": "467.0",
+          "name": "ERGO My Auto Total Plus"
+        },
+        {
+          "package_id": "470.0",
+          "name": "My Business"
+        },
+        {
+          "package_id": "471.0",
+          "name": "Domus AirBnB"
+        },
+        {
+          "package_id": "472.0",
+          "name": "ERGO My Travel"
+        },
+        {
+          "package_id": "473.0",
+          "name": "ΑΣΤΙΚΗ ΕΥΘΥΝΗ ΕΛΕΥΘΕΡΟ"
+        },
+        {
+          "package_id": "489.0",
+          "name": "ERGO Κατοικία/Κατάστημα"
+        },
+        {
+          "package_id": "494.0",
+          "name": "ERGO My Auto Basic"
+        }
+      ]
+    },
+    {
+      "id": 74,
+      "name": "ALLIANZ [IB]",
+      "packages": [
+        {
+          "package_id": "475.0",
+          "name": "MY MOTOR FLEXI IB"
+        },
+        {
+          "package_id": "476.0",
+          "name": "BASIC 200 ΙΒ"
+        },
+        {
+          "package_id": "477.0",
+          "name": "ΤΑΞΙ / Ε.Δ.Χ. IB"
+        },
+        {
+          "package_id": "478.0",
+          "name": "ΦΟΡΤΗΓΩΝ ΔΗΜΟΣΙΑΣ ΧΡΗΣΗΣ ΙΒ"
+        },
+        {
+          "package_id": "480.0",
+          "name": "ΛΕΩΦΟΡΕΙΟ IB"
+        }
+      ]
+    },
+    {
+      "id": 75,
+      "name": "INTERAMERICAN [IT]",
+      "packages": [
+        {
+          "package_id": "491.0",
+          "name": "Insurance Taxi"
+        },
+        {
+          "package_id": "492.0",
+          "name": "Insurance Auto"
+        }
+      ]
+    },
+    {
+      "id": 76,
+      "name": "ΕΘΝΙΚΗ [DA]",
+      "packages": [
+        {
+          "package_id": "499.0",
+          "name": "ΕΘΝΙΚΗ ΒΑΣΙΚΟ ΟΧΗΜΑΤΩΝ"
+        },
+        {
+          "package_id": "500.0",
+          "name": "ΕΘΝΙΚΗ - ΦΔΧ"
+        },
+        {
+          "package_id": "501.0",
+          "name": "ΕΘΝΙΚΗ - ΤΑΞΙ"
+        },
+        {
+          "package_id": "503.0",
+          "name": "ΠΥΡΟΣ ΕΘΝΙΚΗ ΚΑΤΟΙΚΙΑ"
+        }
+      ]
+    },
+    {
+      "id": 301,
+      "name": "EXTRA [MULTI]",
+      "packages": [
+        {
+          "package_id": "512.0",
+          "name": "EUROINS-MULTI-EXTRA"
+        }
+      ]
+    },
+    {
+      "id": 302,
+      "name": "ΛΕΩΝ [MULTI]",
+      "packages": [
+        {
+          "package_id": "514.0",
+          "name": "EUROINS-MULTI-HELVETIA"
+        },
+        {
+          "package_id": "515.0",
+          "name": "EUROINS-MULTI-ΕΛΛΗΝΙΚΟΣ"
+        }
+      ]
+    },
+    {
+      "id": 303,
+      "name": "ARAG [MULTI]",
+      "packages": [
+        {
+          "package_id": "516.0",
+          "name": "EUROINS-MULTI-ARAG"
+        }
+      ]
+    }
+  ],
+  "branches": [
+    {
+      "id": 0,
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "FBC00000"
+    },
+    {
+      "id": 3,
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "FBC00300"
+    },
+    {
+      "id": 4,
+      "name": "ΜΕΤΑΦΟΡΩΝ",
+      "fbc": "FBC00400"
+    },
+    {
+      "id": 10,
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "FBC01000"
+    },
+    {
+      "id": 12,
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "FBC00100"
+    },
+    {
+      "id": 14,
+      "name": "ΟΜΑΔΙΚΑ ΣΥΜΒΟΛΑΙΑ",
+      "fbc": "FBC01400"
+    },
+    {
+      "id": 15,
+      "name": "ΣΚΑΦΗ",
+      "fbc": "FBC01500"
+    },
+    {
+      "id": 17,
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "FBC01700"
+    },
+    {
+      "id": 18,
+      "name": "ΛΟΙΠΟΙ ΚΛΑΔΟΙ",
+      "fbc": "FBC01800"
+    },
+    {
+      "id": 19,
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "FBC00100"
+    },
+    {
+      "id": 22,
+      "name": "ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ",
+      "fbc": "FBC02200"
+    },
+    {
+      "id": 24,
+      "name": "ΤΕΧΝΙΚΩΝ ΑΣΦΑΛΙΣΕΩΝ",
+      "fbc": "FBC00240"
+    },
+    {
+      "id": 27,
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "FBC00100"
+    },
+    {
+      "id": 28,
+      "name": "ΠΙΣΤΩΣΕΩΝ-ΕΓΓΥΗΣΕΩΝ",
+      "fbc": "FBC02800"
+    },
+    {
+      "id": 98,
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "FBC09800"
+    },
+    {
+      "id": 99,
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "FBC09900"
+    }
+  ],
+  "uses": [
+    {
+      "id": 1,
+      "code": "0.0",
+      "name": "ΕΙΧ",
+      "label": "000 ΕΙΧ"
+    },
+    {
+      "id": 2,
+      "code": "1.0",
+      "name": "ΕΙΧ ΔΟΚ",
+      "label": "001 ΕΙΧ ΔΟΚ"
+    },
+    {
+      "id": 3,
+      "code": "2.0",
+      "name": "ΕΙΧ Ρ2",
+      "label": "002 ΕΙΧ Ρ2"
+    },
+    {
+      "id": 4,
+      "code": "3.0",
+      "name": "ΕΙΧ Ρ4",
+      "label": "003 ΕΙΧ Ρ4"
+    },
+    {
+      "id": 5,
+      "code": "17.0",
+      "name": "ΙΧ ΛΕΩΦ ΣΧΟΛ",
+      "label": "017 ΙΧ ΛΕΩΦ ΣΧΟΛ"
+    },
+    {
+      "id": 6,
+      "code": "20.0",
+      "name": "ΙΧ ΛΕΩΦ ΙΔΡ & ΝΑΩΝ",
+      "label": "020 ΙΧ ΛΕΩΦ ΙΔΡ & ΝΑΩΝ"
+    },
+    {
+      "id": 7,
+      "code": "30.0",
+      "name": "ΕΙΧ ΑΣΘΕΝΟΦΟΡΑ",
+      "label": "030 ΕΙΧ ΑΣΘΕΝΟΦΟΡΑ"
+    },
+    {
+      "id": 8,
+      "code": "40.0",
+      "name": "ΛΕ ΕΒΕ",
+      "label": "040 ΛΕ ΕΒΕ"
+    },
+    {
+      "id": 9,
+      "code": "50.0",
+      "name": "ΛΕ ΑΕΡ ΕΤΑΙΡΙΩΝ",
+      "label": "050 ΛΕ ΑΕΡ ΕΤΑΙΡΙΩΝ"
+    },
+    {
+      "id": 10,
+      "code": "60.0",
+      "name": "ΕΙΧ ΝΕΚΡ",
+      "label": "060 ΕΙΧ ΝΕΚΡ"
+    },
+    {
+      "id": 11,
+      "code": "70.0",
+      "name": "ΕΙΧ ΕΝΟΙΚ",
+      "label": "070 ΕΙΧ ΕΝΟΙΚ"
+    },
+    {
+      "id": 12,
+      "code": "80.0",
+      "name": "ΕΙΧ ΣΟ",
+      "label": "080 ΕΙΧ ΣΟ"
+    },
+    {
+      "id": 13,
+      "code": "83.0",
+      "name": "ΕΙΧ ΣΟ Ρ4",
+      "label": "083 ΕΙΧ ΣΟ Ρ4"
+    },
+    {
+      "id": 14,
+      "code": "90.0",
+      "name": "ΕΙΧ >7Θ",
+      "label": "090 ΕΙΧ >7Θ"
+    },
+    {
+      "id": 15,
+      "code": "100.0",
+      "name": "ΛΕ ΕΙΧ ΣΟ",
+      "label": "100 ΛΕ ΕΙΧ ΣΟ"
+    },
+    {
+      "id": 16,
+      "code": "200.0",
+      "name": "ΦΙΧ",
+      "label": "200 ΦΙΧ"
+    },
+    {
+      "id": 17,
+      "code": "201.0",
+      "name": "ΦΙΧ ΔΟΚ",
+      "label": "201 ΦΙΧ ΔΟΚ"
+    },
+    {
+      "id": 18,
+      "code": "202.0",
+      "name": "ΦΙΧ Ρ2",
+      "label": "202 ΦΙΧ Ρ2"
+    },
+    {
+      "id": 19,
+      "code": "203.0",
+      "name": "ΦΙΧ Ρ4",
+      "label": "203 ΦΙΧ Ρ4"
+    },
+    {
+      "id": 20,
+      "code": "204.0",
+      "name": "ΦΙΧ Ρ6",
+      "label": "204 ΦΙΧ Ρ6"
+    },
+    {
+      "id": 21,
+      "code": "210.0",
+      "name": "ΦΙΧ ΕΚΚΕΝ ΒΟΘ",
+      "label": "210 ΦΙΧ ΕΚΚΕΝ ΒΟΘ"
+    },
+    {
+      "id": 22,
+      "code": "220.0",
+      "name": "ΦΙΧ ΥΔΡΟΦ",
+      "label": "220 ΦΙΧ ΥΔΡΟΦ"
+    },
+    {
+      "id": 23,
+      "code": "230.0",
+      "name": "ΦΙΧ ΚΑΤΑΒΡ",
+      "label": "230 ΦΙΧ ΚΑΤΑΒΡ"
+    },
+    {
+      "id": 24,
+      "code": "240.0",
+      "name": "ΦΙΧ ΠΥΡΟΣΒ",
+      "label": "240 ΦΙΧ ΠΥΡΟΣΒ"
+    },
+    {
+      "id": 25,
+      "code": "250.0",
+      "name": "ΦΙΧ ΑΚΤΙΝΟΓ",
+      "label": "250 ΦΙΧ ΑΚΤΙΝΟΓ"
+    },
+    {
+      "id": 26,
+      "code": "260.0",
+      "name": "ΦΙΧ ΡΑΔΙΟΜΕΤ",
+      "label": "260 ΦΙΧ ΡΑΔΙΟΜΕΤ"
+    },
+    {
+      "id": 27,
+      "code": "270.0",
+      "name": "ΦΙΧ ΚΙΝΗΜΑΤ",
+      "label": "270 ΦΙΧ ΚΙΝΗΜΑΤ"
+    },
+    {
+      "id": 28,
+      "code": "280.0",
+      "name": "ΜΕ ΓΕΡ ΚΙΝ",
+      "label": "280 ΜΕ ΓΕΡ ΚΙΝ"
+    },
+    {
+      "id": 29,
+      "code": "290.0",
+      "name": "ΦΙΧ ΨΥΓΕΙΟ",
+      "label": "290 ΦΙΧ ΨΥΓΕΙΟ"
+    },
+    {
+      "id": 30,
+      "code": "300.0",
+      "name": "ΦΙΧ ΥΓΡ ΚΑΥΣ",
+      "label": "300 ΦΙΧ ΥΓΡ ΚΑΥΣ"
+    },
+    {
+      "id": 31,
+      "code": "310.0",
+      "name": "ΦΙΧ ΕΚΠΑΙΔ",
+      "label": "310 ΦΙΧ ΕΚΠΑΙΔ"
+    },
+    {
+      "id": 32,
+      "code": "320.0",
+      "name": "ΦΙΧ ΑΓΡΟΤ",
+      "label": "320 ΦΙΧ ΑΓΡΟΤ"
+    },
+    {
+      "id": 33,
+      "code": "322.0",
+      "name": "ΦΙΧ ΑΓΡΟΤ Ρ2",
+      "label": "322 ΦΙΧ ΑΓΡΟΤ Ρ2"
+    },
+    {
+      "id": 34,
+      "code": "323.0",
+      "name": "ΦΙΧ ΑΓΡΟΤ Ρ4",
+      "label": "323 ΦΙΧ ΑΓΡΟΤ Ρ4"
+    },
+    {
+      "id": 35,
+      "code": "324.0",
+      "name": "ΦΙΧ ΑΓΡΟΤ Ρ6",
+      "label": "324 ΦΙΧ ΑΓΡΟΤ Ρ6"
+    },
+    {
+      "id": 36,
+      "code": "330.0",
+      "name": "ΦΙΧ ΓΕΡΑΝ",
+      "label": "330 ΦΙΧ ΓΕΡΑΝ"
+    },
+    {
+      "id": 37,
+      "code": "340.0",
+      "name": "ΦΙΧ ΜΠΕΤΟΝ",
+      "label": "340 ΦΙΧ ΜΠΕΤΟΝ"
+    },
+    {
+      "id": 38,
+      "code": "350.0",
+      "name": "ΦΙΧ ΑΝΤΛΙΑ ΜΠΕΤΟΝ",
+      "label": "350 ΦΙΧ ΑΝΤΛΙΑ ΜΠΕΤΟΝ"
+    },
+    {
+      "id": 39,
+      "code": "360.0",
+      "name": "ΦΙΧ ΑΠΟΡΡΙΜ",
+      "label": "360 ΦΙΧ ΑΠΟΡΡΙΜ"
+    },
+    {
+      "id": 40,
+      "code": "370.0",
+      "name": "ΑΥΤΟΚ ΤΡΟΧ",
+      "label": "370 ΑΥΤΟΚ ΤΡΟΧ"
+    },
+    {
+      "id": 41,
+      "code": "400.0",
+      "name": "ΜΕ/Γ.ΕΛΚ.",
+      "label": "400 ΜΕ/Γ.ΕΛΚ."
+    },
+    {
+      "id": 42,
+      "code": "402.0",
+      "name": "ΜΕ/Γ.ΕΛΚ Ρ2",
+      "label": "402 ΜΕ/Γ.ΕΛΚ Ρ2"
+    },
+    {
+      "id": 43,
+      "code": "410.0",
+      "name": "ΜΕ/ΦΟΡΤ",
+      "label": "410 ΜΕ/ΦΟΡΤ"
+    },
+    {
+      "id": 44,
+      "code": "420.0",
+      "name": "ΜΕ/ΠΤΥΟΝ",
+      "label": "420 ΜΕ/ΠΤΥΟΝ"
+    },
+    {
+      "id": 45,
+      "code": "430.0",
+      "name": "ΜΕ/ΚΙΝ ΕΡΓ",
+      "label": "430 ΜΕ/ΚΙΝ ΕΡΓ"
+    },
+    {
+      "id": 46,
+      "code": "440.0",
+      "name": "ΜΕ/ΜΠΟΥΛ",
+      "label": "440 ΜΕ/ΜΠΟΥΛ"
+    },
+    {
+      "id": 47,
+      "code": "450.0",
+      "name": "ΜΕ/ΙΣΟΠ",
+      "label": "450 ΜΕ/ΙΣΟΠ"
+    },
+    {
+      "id": 48,
+      "code": "460.0",
+      "name": "ΜΕ/ΕΙΔ ΤΥΠ",
+      "label": "460 ΜΕ/ΕΙΔ ΤΥΠ"
+    },
+    {
+      "id": 49,
+      "code": "470.0",
+      "name": "ΘΕΡ/ΜΗΧ",
+      "label": "470 ΘΕΡ/ΜΗΧ"
+    },
+    {
+      "id": 50,
+      "code": "480.0",
+      "name": "ΜΕ/ΑΡΠ",
+      "label": "480 ΜΕ/ΑΡΠ"
+    }
+  ],
+  "coverages": [
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "FH1",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "G01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "G02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "G03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "G04",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "G05",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "G06",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "G07",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "G08",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "G09",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "G10",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "G11",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "G12",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "G13",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "G14",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "G15",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "G16",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "G17",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "L01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "L02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "L03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "L04",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "L05",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "L06",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "L07",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "L08",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "L09",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "L10",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "L13",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ04",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ05",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ06",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ07",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ08",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ09",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ10",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ11",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ12",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ13",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ14",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ15",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ16",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ17",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ18",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ19",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ20",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ21",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ22",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ23",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ24",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ25",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ26",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ27",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ28",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ29",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ30",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ31",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ32",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ33",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ34",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ35",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ36",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ37",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ38",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ39",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ40",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ41",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ42",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ43",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ44",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ45",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ46",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ47",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ48",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ49",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ50",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ51",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ52",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ53",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ54",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ55",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ56",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ57",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ58",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΖΩΗΣ-ΥΓΕΙΑΣ",
+      "fbc": "Ζ59",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν04",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν05",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν06",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν07",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν08",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν09",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν10",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν11",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν12",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν13",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν14",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν15",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν16",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν17",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν18",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν19",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν20",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΝΟΜΙΚΗ ΠΡΟΣΤΑΣΙΑ",
+      "fbc": "Ν21",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΜΕΤΑΦΟΡΩΝ",
+      "fbc": "Μ00",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΜΕΤΑΦΟΡΩΝ",
+      "fbc": "Μ01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΜΕΤΑΦΟΡΩΝ",
+      "fbc": "Μ02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΜΕΤΑΦΟΡΩΝ",
+      "fbc": "Μ03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΜΕΤΑΦΟΡΩΝ",
+      "fbc": "Μ04",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΜΕΤΑΦΟΡΩΝ",
+      "fbc": "Μ05",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΜΕΤΑΦΟΡΩΝ",
+      "fbc": "Μ06",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΜΕΤΑΦΟΡΩΝ",
+      "fbc": "Μ07",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΜΕΤΑΦΟΡΩΝ",
+      "fbc": "Μ08",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΜΕΤΑΦΟΡΩΝ",
+      "fbc": "Μ09",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΜΕΤΑΦΟΡΩΝ",
+      "fbc": "Μ10",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΜΕΤΑΦΟΡΩΝ",
+      "fbc": "Μ11",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΜΕΤΑΦΟΡΩΝ",
+      "fbc": "Μ12",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "GP1",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "L11",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "L12",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P04",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P05",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P06",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P07",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P08",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P09",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P10",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P11",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P12",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P13",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P14",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P15",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P16",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P17",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P18",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P19",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P20",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P21",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P22",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P23",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P24",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P25",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P26",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "P27",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΡΟΣΩΠΙΚΟ ΑΤΥΧΗΜΑ",
+      "fbc": "Α15",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "F03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α04",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α05",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α06",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α07",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α08",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α09",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α10",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α11",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α17",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α18",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α21",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α22",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α41",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α42",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α43",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α45",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α46",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α47",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α68",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α69",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α70",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α71",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α72",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α74",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α77",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α78",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Α80",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Β24",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Β25",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Β26",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Β49",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Β50",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Β51",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Β75",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Β77",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Β87",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Β88",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Γ02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Γ03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Γ10",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Γ11",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Γ12",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Γ13",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Γ14",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Γ15",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Γ16",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Γ17",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Γ18",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Γ51",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Γ52",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Γ53",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Γ54",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Γ55",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ",
+      "fbc": "Γ56",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΟΜΑΔΙΚΑ ΣΥΜΒΟΛΑΙΑ",
+      "fbc": "ΟΣ0",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΣΚΑΦΗ",
+      "fbc": "Σ01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΣΚΑΦΗ",
+      "fbc": "Σ02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΣΚΑΦΗ",
+      "fbc": "Σ03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π04",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π05",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π06",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π07",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π08",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π09",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π10",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π11",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π12",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π13",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π14",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π15",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π16",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π17",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π18",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π19",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π20",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π21",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π22",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π23",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π24",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π25",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π26",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π27",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π28",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π29",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π30",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π31",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π32",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π41",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π44",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π45",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π46",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π47",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π48",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π49",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π50",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π51",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π52",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π53",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π54",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π55",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π56",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π57",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π58",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π59",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π60",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π61",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π62",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π63",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π64",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π65",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π66",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π67",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π68",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π69",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π70",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π71",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π72",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π73",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π74",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π75",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π76",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π77",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π78",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π79",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π80",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π81",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π82",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π83",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π84",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π85",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π86",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π87",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π88",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π89",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π90",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π91",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π92",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π93",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π94",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π95",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π96",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π97",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π98",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "Π99",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΑ1",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΑ2",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΑ3",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΑ4",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΑ5",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΑ6",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΑ7",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΑ8",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΑ9",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΒ1",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΒ2",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΒ3",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΒ4",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΒ5",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΒ6",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΒ7",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΒ8",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΒ9",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΓ1",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΓ2",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΓ3",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΓ4",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΓ5",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΓ6",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΓ7",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΓ8",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΓ9",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΔ1",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΔ2",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΔ3",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΔ4",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΔ5",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΔ6",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΔ7",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΔ8",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΔ9",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΕ1",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΕ2",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΕ3",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΕ4",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΕ5",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΕ6",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΕ7",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΕ8",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΕ9",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΖ1",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΖ2",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΖ3",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΖ4",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΖ5",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΖ6",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΖ7",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΖ8",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΖ9",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΗ1",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΗ2",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΗ3",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΗ4",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΗ5",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΗ6",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΗ7",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΗ8",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΗ9",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΘ1",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΘ2",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΘ3",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΘ4",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΘ5",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΘ6",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΘ7",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΘ8",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΘ9",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΙ0",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΙ1",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΥΡΟΣ-ΠΕΡΙΟΥΣΙΑΣ",
+      "fbc": "ΠΙ2",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΛΟΙΠΟΙ ΚΛΑΔΟΙ",
+      "fbc": "Λ00",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΛΟΙΠΟΙ ΚΛΑΔΟΙ",
+      "fbc": "Λ01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΛΟΙΠΟΙ ΚΛΑΔΟΙ",
+      "fbc": "Λ02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΛΟΙΠΟΙ ΚΛΑΔΟΙ",
+      "fbc": "Λ03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΛΟΙΠΟΙ ΚΛΑΔΟΙ",
+      "fbc": "Λ04",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΛΟΙΠΟΙ ΚΛΑΔΟΙ",
+      "fbc": "Λ05",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΛΟΙΠΟΙ ΚΛΑΔΟΙ",
+      "fbc": "Λ06",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΛΟΙΠΟΙ ΚΛΑΔΟΙ",
+      "fbc": "Λ07",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΛΟΙΠΟΙ ΚΛΑΔΟΙ",
+      "fbc": "Λ08",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΛΟΙΠΟΙ ΚΛΑΔΟΙ",
+      "fbc": "Λ09",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΛΟΙΠΟΙ ΚΛΑΔΟΙ",
+      "fbc": "Λ10",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "F01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "F02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "F04",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "F05",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "F06",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "F07",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "F08",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α12",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α19",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α20",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α23",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α24",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α25",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α26",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α27",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α50",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α51",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α52",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α53",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α54",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α55",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α56",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α57",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α58",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α59",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α60",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α61",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α62",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α63",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α64",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α65",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α66",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α67",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α73",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α75",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α76",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α79",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α91",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α94",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α95",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α96",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α97",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α98",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Α99",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β21",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β22",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β23",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β27",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β28",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β29",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β30",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β31",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β32",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β33",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β34",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β35",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β36",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β61",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β62",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β63",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β64",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β65",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β66",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β67",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β68",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β69",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β70",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β71",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β72",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β73",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β74",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β76",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β78",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β79",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β80",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β81",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β82",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β83",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β84",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β85",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β86",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β89",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β90",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β91",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β92",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β93",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β94",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β95",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β96",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β97",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β98",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Β99",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Γ01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Γ04",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Γ05",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Γ06",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Γ07",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Γ08",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Γ09",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Γ31",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Γ32",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Γ33",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Γ34",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Γ35",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Γ36",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Γ37",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Γ38",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "AYTOKINHTΩΝ",
+      "fbc": "Γ39",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ",
+      "fbc": "R00",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ",
+      "fbc": "R01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ",
+      "fbc": "R02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ",
+      "fbc": "ΑΕ0",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ",
+      "fbc": "ΑΕ1",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ",
+      "fbc": "ΑΕ2",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ",
+      "fbc": "ΑΕ3",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ",
+      "fbc": "ΑΕ4",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ",
+      "fbc": "ΑΕ5",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ",
+      "fbc": "ΑΕ6",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ",
+      "fbc": "ΑΕ7",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ",
+      "fbc": "ΑΕ8",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ",
+      "fbc": "ΑΕ9",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ",
+      "fbc": "ΑΖ0",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ",
+      "fbc": "ΑΖ1",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΑΣΤΙΚΗΣ ΕΥΘΥΝΗΣ",
+      "fbc": "ΑΖ2",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΤΕΧΝΙΚΩΝ ΑΣΦΑΛΙΣΕΩΝ",
+      "fbc": "ΤΕ1",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΤΕΧΝΙΚΩΝ ΑΣΦΑΛΙΣΕΩΝ",
+      "fbc": "ΤΕ2",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C04",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C05",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C06",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C07",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C51",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C52",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C53",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C54",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C55",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C56",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C57",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C71",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C72",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C73",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C74",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C75",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C76",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "C77",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "V01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "V02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "V03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "V04",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "V05",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "V06",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "V07",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "V08",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "V09",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "V10",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Α13",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Α14",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Α16",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Α29",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Α30",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Α31",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Α48",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Α49",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β00",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β11",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β12",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β13",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β14",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β41",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β42",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β43",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β44",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β45",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β46",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β47",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β48",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β52",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β53",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β54",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β55",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β56",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Β57",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Ξ01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Ξ02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Ξ03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Ξ04",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Ξ05",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Ξ06",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Ξ07",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Ξ08",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Ξ09",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Ξ10",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Ξ11",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Ξ12",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Ξ13",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΒΟΗΘΕΙΑ (ΓΕΝΙΚΗ/ΟΔΙΚΗ/ΤΑΞΙΔΙΩΤΙΚΗ)",
+      "fbc": "Ξ14",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ00",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ04",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ05",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ06",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ07",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ08",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ09",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ10",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ11",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ12",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ13",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ14",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ15",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ16",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ17",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ18",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ19",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ20",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ21",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ22",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ23",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ24",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΚΑΤΑ ΠΑΝΤΟΣ ΚΙΝΔΥΝΟΥ",
+      "fbc": "Δ25",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D00",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D01",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D02",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D03",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D04",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D05",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D06",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D07",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D08",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D09",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D10",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D11",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D12",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D13",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D14",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D15",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D16",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D17",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D18",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D19",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D20",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D21",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΔΙΑΦΟΡΑ",
+      "fbc": "D22",
+      "branch_id": null,
+      "branch_name": null
+    },
+    {
+      "name": "ΠΙΣΤΩΣΕΩΝ-ΕΓΓΥΗΣΕΩΝ",
+      "fbc": "CR1",
+      "branch_id": null,
+      "branch_name": null
+    }
+  ]
+}

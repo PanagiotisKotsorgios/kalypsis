@@ -25,5 +25,20 @@ public class InsuranceCompany : BaseEntity
     public string? AfmVat { get; set; }
     public string? Notes { get; set; }
 
+    /// <summary>
+    /// Broker / πρακτορείο model: when this carrier distributes through a
+    /// broker (e.g. Grand Cover/IW redistributing many sub-carriers), set
+    /// ParentCompanyId to the broker's id. Each sub-carrier has its own
+    /// parametrics (packages/coverages/uses); the broker carries the
+    /// shared branch/use taxonomy.
+    /// </summary>
+    public Guid? ParentCompanyId { get; set; }
+    public InsuranceCompany? ParentCompany { get; set; }
+
+    /// <summary>True for entries that act as a broker container — flips
+    /// the frontend to render a sub-carrier picker instead of treating
+    /// the row as a direct carrier.</summary>
+    public bool IsBroker { get; set; }
+
     public ICollection<Policy> Policies { get; set; } = new List<Policy>();
 }

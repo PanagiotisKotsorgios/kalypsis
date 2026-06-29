@@ -4633,6 +4633,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<bool>("IsBroker")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -4641,6 +4644,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<string>("Notes")
                         .HasMaxLength(2000)
                         .HasColumnType("varchar(2000)");
+
+                    b.Property<Guid?>("ParentCompanyId")
+                        .HasColumnType("char(36)");
 
                     b.Property<Guid?>("TenantId")
                         .HasColumnType("char(36)");
@@ -4653,6 +4659,8 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasColumnType("varchar(255)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ParentCompanyId");
 
                     b.HasIndex("TenantId", "Code")
                         .IsUnique();

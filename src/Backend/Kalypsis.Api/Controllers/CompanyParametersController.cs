@@ -222,6 +222,8 @@ public class CompanyParametersController : ControllerBase
             .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Παραμετρικό εταιρείας");
 
+        EnsureAgencyCanModify(item);
+
         await ValidateBodyAsync(body, id, ct);
         Apply(body, item);
         item.UpdatedAt = _clock.UtcNow;
@@ -240,10 +242,36 @@ public class CompanyParametersController : ControllerBase
         var item = await _db.CompanyParameterItems.IgnoreQueryFilters()
             .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Παραμετρικό εταιρείας");
+
+        EnsureAgencyCanModify(item);
         item.DeletedAt = _clock.UtcNow;
         item.IsActive = false;
         await _db.SaveChangesAsync(ct);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Bridge-linked rows or those imported from a canonical source (IW dump,
+    /// ERGO bridge, BlueByte map) MUST NOT be agency-editable — they are the
+    /// contract between Kalypsis and the carrier. Only PlatformAdmin can touch
+    /// those, through the /platform/ endpoints. Agencies get a 403 with a
+    /// clear "ask the platform admin" message.
+    /// </summary>
+    private static void EnsureAgencyCanModify(CompanyParameterItem item)
+    {
+        var protectedBySource =
+            !string.IsNullOrEmpty(item.Source)
+            && (item.Source.StartsWith("GrandCover", StringComparison.OrdinalIgnoreCase)
+             || item.Source.StartsWith("Kalypsis defaults", StringComparison.OrdinalIgnoreCase)
+             || item.Source.StartsWith("Bridge", StringComparison.OrdinalIgnoreCase));
+        if (protectedBySource || !string.IsNullOrEmpty(item.BridgeSystem))
+        {
+            throw new AppException("parameter_bridge_locked",
+                "Αυτή η εγγραφή είναι συνδεδεμένη με γέφυρα και δεν τροποποιείται από το γραφείο.", 403,
+                title: "Κλειδωμένη παραμετροποίηση",
+                why: "Η εγγραφή προέρχεται από επίσημο dump ασφαλιστικής ή είναι μέρος ενεργής γέφυρας. Αλλαγή θα έσπαγε την αντιστοίχιση συμβολαίων.",
+                fix: "Ζητήστε από τον superadmin να κάνει την αλλαγή στο /platform/company-parameters.");
+        }
     }
 
     [Authorize(Policy = "PlatformAdmin")]

@@ -393,21 +393,25 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
     enabled: open
   });
 
+  // Dynamic-only: when a company IS selected, dropdowns show only what's been
+  // parameterised for that carrier. Empty list = empty dropdown (the superadmin
+  // hasn't entered the carrier's catalogue yet). When no company is selected,
+  // fall back to the policy-type enum so an agency-wide rule can still be made.
   const branchOptions = useMemo(() => {
-    const fromParams = (parameters.data ?? [])
+    if (!form.insuranceCompanyId) return POLICY_TYPES;
+    return (parameters.data ?? [])
       .filter(p => p.kind === "Branch" && p.policyType)
       .map(p => p.policyType!)
       .filter((p, i, arr) => arr.indexOf(p) === i);
-    return fromParams.length > 0 ? fromParams : POLICY_TYPES;
-  }, [parameters.data]);
+  }, [parameters.data, form.insuranceCompanyId]);
 
   const useOptions = useMemo(() => {
-    const fromParams = (parameters.data ?? [])
+    if (!form.insuranceCompanyId) return USE_TYPES;
+    return (parameters.data ?? [])
       .filter(p => p.kind === "Use" && p.vehicleUseCategory && p.vehicleUseCategory !== "None")
       .map(p => p.vehicleUseCategory!)
       .filter((p, i, arr) => arr.indexOf(p) === i);
-    return fromParams.length > 0 ? fromParams : USE_TYPES;
-  }, [parameters.data]);
+  }, [parameters.data, form.insuranceCompanyId]);
 
   const codeOptions = useMemo(() => {
     const selectedBranches = form.policyTypes;

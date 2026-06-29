@@ -28,6 +28,8 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import { Tooltip } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 
@@ -175,7 +177,14 @@ export function CompanyCatalogueDialog({
               </TableRow>
             </TableHead>
             <TableBody>
-              {rows.map(r => (
+              {rows.map(r => {
+                // Bridge-locked or canonical-source rows can't be touched by an
+                // agency admin — show a lock instead of edit/delete.
+                const locked = !!r.bridgeSystem
+                  || r.source?.startsWith("GrandCover")
+                  || r.source?.startsWith("Kalypsis defaults")
+                  || r.source?.startsWith("Bridge");
+                return (
                 <TableRow key={r.id} hover>
                   <TableCell><Typography sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.code}</Typography></TableCell>
                   <TableCell>{r.name}</TableCell>
@@ -185,11 +194,20 @@ export function CompanyCatalogueDialog({
                     {r.bridgeSystem ? `${r.bridgeSystem}/${r.bridgeCode ?? ""}` : "—"}
                   </TableCell>
                   <TableCell align="right">
-                    <IconButton size="small" onClick={() => setEditing(r)}><EditIcon fontSize="small" /></IconButton>
-                    <DeleteButton id={r.id} onDeleted={() => qc.invalidateQueries({ queryKey: ["company-parameters", insuranceCompanyId] })} />
+                    {locked ? (
+                      <Tooltip title={`Κλειδωμένο από: ${r.source}. Επεξεργασία μόνο από superadmin.`} arrow>
+                        <span><IconButton size="small" disabled><LockOutlinedIcon fontSize="small" /></IconButton></span>
+                      </Tooltip>
+                    ) : (
+                      <>
+                        <IconButton size="small" onClick={() => setEditing(r)}><EditIcon fontSize="small" /></IconButton>
+                        <DeleteButton id={r.id} onDeleted={() => qc.invalidateQueries({ queryKey: ["company-parameters", insuranceCompanyId] })} />
+                      </>
+                    )}
                   </TableCell>
                 </TableRow>
-              ))}
+              );
+              })}
             </TableBody>
           </Table>
         )}

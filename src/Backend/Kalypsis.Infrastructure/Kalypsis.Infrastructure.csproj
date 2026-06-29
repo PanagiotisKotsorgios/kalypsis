@@ -28,4 +28,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Persistence\Seeders\Resources\grand-cover-seed.json" />
+  </ItemGroup>
+
 </Project>
