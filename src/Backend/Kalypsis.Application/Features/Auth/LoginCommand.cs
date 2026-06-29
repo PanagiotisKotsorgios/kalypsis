@@ -39,6 +39,11 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
         _clock = clock;
     }
 
+    // A pre-computed BCrypt hash of a constant value. We run Verify against it
+    // when the user doesn't exist so the response time matches an existing-but-
+    // wrong-password attempt — kills the email-enumeration timing oracle.
+    private const string DummyHash = "$2a$12$8sZ4lW0r1Z3Y9c2Q9b1aOuPjGlPmDdJ7c2WdHk0aZ1xL5gQ.OABBy";
+
     public async Task<LoginResponse> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
         var email = request.Email.Trim().ToLowerInvariant();
@@ -50,6 +55,9 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
 
         if (user is null)
         {
+            // Burn the same CPU time a real verify would take so the attacker
+            // can't tell "no such email" from "wrong password" by timing.
+            _hasher.Verify(request.Password, DummyHash);
             throw AppException.Unauthorized("Λανθασμένο email ή κωδικός.");
         }
 

@@ -22,7 +22,11 @@ public record PublicContactBody(
     string? AgencyOrCity,
     string Subject,
     string Message,
-    bool Consent);
+    bool Consent,
+    // Honeypot: this field is rendered as a CSS-hidden input in the form. A real
+    // user never touches it; bots that auto-fill every field do. If it has any
+    // value we silently drop the message (return success so the bot doesn't retry).
+    string? Website = null);
 
 public record PublicContactResult(string Reference, bool Delivered);
 
@@ -42,6 +46,13 @@ public class SubmitPublicContactHandler : IRequestHandler<SubmitPublicContactCom
     public async Task<PublicContactResult> Handle(SubmitPublicContactCommand cmd, CancellationToken ct)
     {
         var b = cmd.Body;
+        // Honeypot — silently swallow bot submissions. Return a fake reference so
+        // the bot's automation reports success and moves on.
+        if (!string.IsNullOrWhiteSpace(b.Website))
+        {
+            return new PublicContactResult($"KLP-CT-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}", false);
+        }
+
         // Field guards — we already validate on the client, but never trust it.
         if (string.IsNullOrWhiteSpace(b.FirstName)) throw new AppException("contact_name", "Συμπληρώστε το όνομα.", 400);
         if (string.IsNullOrWhiteSpace(b.LastName)) throw new AppException("contact_name", "Συμπληρώστε το επώνυμο.", 400);

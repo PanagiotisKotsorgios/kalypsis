@@ -2,6 +2,7 @@ using Kalypsis.Application.Features.Public;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Kalypsis.Api.Controllers;
 
@@ -24,9 +25,10 @@ public class PublicController : ControllerBase
     public record NewsletterBody(string Email);
 
     [HttpPost("newsletter")]
+    [EnableRateLimiting("public-contact")]
     public async Task<IActionResult> Newsletter([FromBody] NewsletterBody body, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(body.Email) || !body.Email.Contains('@'))
+        if (string.IsNullOrWhiteSpace(body.Email) || !body.Email.Contains('@') || body.Email.Length > 200)
             return BadRequest(new { code = "validation", message = "Invalid email." });
         await _m.Send(new NewsletterSubscribeCommand(body.Email.Trim().ToLowerInvariant()), ct);
         return Ok();
@@ -45,6 +47,7 @@ public class PublicController : ControllerBase
     );
 
     [HttpPost("register")]
+    [EnableRateLimiting("register")]
     public async Task<ActionResult<RegistrationRequestDto>> Register(
         [FromBody] RegisterBody body, CancellationToken ct)
     {

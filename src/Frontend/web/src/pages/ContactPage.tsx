@@ -44,6 +44,8 @@ type ContactForm = {
   subject: string;
   message: string;
   consent: boolean;
+  // Honeypot — hidden from real users, only bots fill it in.
+  website: string;
 };
 
 const initialForm: ContactForm = {
@@ -55,7 +57,8 @@ const initialForm: ContactForm = {
   agencyOrCity: "",
   subject: "",
   message: "",
-  consent: false
+  consent: false,
+  website: ""
 };
 
 export function ContactPage() {
@@ -88,7 +91,8 @@ export function ContactPage() {
         agencyOrCity: form.agencyOrCity.trim() || null,
         subject: form.subject.trim(),
         message: form.message.trim(),
-        consent: form.consent
+        consent: form.consent,
+        website: form.website
       });
       setSubmitted({ ref: res.data.reference });
     } catch (err) {
@@ -210,6 +214,17 @@ export function ContactPage() {
             )}
 
             <form onSubmit={handleSubmit} noValidate>
+              {/* Honeypot: hidden from sight + tab order, off the screen. Only bots fill it. */}
+              <input
+                type="text"
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                value={form.website}
+                onChange={(e) => set("website", e.target.value)}
+                aria-hidden="true"
+                style={{ position: "absolute", left: "-10000px", top: "auto", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
+              />
               <Stack spacing={2.5}>
                 <TextField
                   select fullWidth

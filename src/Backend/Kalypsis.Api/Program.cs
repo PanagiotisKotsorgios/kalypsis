@@ -1,7 +1,9 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Kalypsis.Api.Middleware;
+using Kalypsis.Api.Defense;
 using Kalypsis.Application;
 using Kalypsis.Infrastructure;
 using Kalypsis.Infrastructure.Auth;
@@ -67,13 +69,21 @@ builder.Services.AddAuthorization(opt =>
     opt.AddPolicy("Producer", p => p.RequireClaim("role", nameof(Kalypsis.Domain.Enums.Role.Producer)));
 });
 
+// CORS — restrict origins to the configured frontend (comma-separated allowed).
+// AllowCredentials is required only if cookies were used; we use bearer tokens
+// via the Authorization header so we keep it off (also relaxes the spec rule
+// against AllowCredentials + wildcard origins / methods).
 builder.Services.AddCors(o => o.AddPolicy("frontend", p =>
-    p.WithOrigins(
-            builder.Configuration["Cors:FrontendOrigin"] ?? "http://localhost:5173"
-        )
-        .AllowAnyHeader()
-        .AllowAnyMethod()
-        .AllowCredentials()));
+{
+    var raw = builder.Configuration["Cors:FrontendOrigin"] ?? "http://localhost:5173";
+    var origins = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    p.WithOrigins(origins)
+        .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+        .WithHeaders("Content-Type", "Authorization", "X-Impersonate-Tenant", "Accept", "Accept-Language");
+}));
+
+// IP block list — sees rate-limit rejections and known-bad probe paths.
+builder.Services.AddSingleton<IpBlockService>();
 
 builder.Services.AddControllers().AddJsonOptions(opt =>
 {
@@ -82,36 +92,76 @@ builder.Services.AddControllers().AddJsonOptions(opt =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Auth endpoints get an aggressive sliding-window limiter so credential-stuffing
-// can't slip past account lockout (which is keyed per user).
+// Per-purpose rate limits. Each policy is keyed by IP so a burst from one bot
+// doesn't lock out everyone behind a NAT. Endpoints opt-in via [EnableRateLimiting].
+//
+// We also tap OnRejected to feed the IP block service: an IP that gets rate-limited
+// repeatedly accumulates violations and eventually gets temp-banned at the edge.
 builder.Services.AddRateLimiter(opt =>
 {
     opt.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    opt.AddPolicy("auth", httpContext =>
-        System.Threading.RateLimiting.RateLimitPartition.GetSlidingWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
-            factory: _ => new System.Threading.RateLimiting.SlidingWindowRateLimiterOptions
+
+    static string IpKey(HttpContext ctx) => ctx.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+    // 1) Login: 10 / minute / IP (per-user lockout handles slow brute-force on a single account).
+    opt.AddPolicy("login", ctx => RateLimitPartition.GetSlidingWindowLimiter(IpKey(ctx),
+        _ => new SlidingWindowRateLimiterOptions
+        {
+            PermitLimit = 10, Window = TimeSpan.FromMinutes(1), SegmentsPerWindow = 4, QueueLimit = 0
+        }));
+
+    // 2) Account creation: 5 / hour / IP. Brand-new registrations should be rare per IP.
+    opt.AddPolicy("register", ctx => RateLimitPartition.GetFixedWindowLimiter(IpKey(ctx),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
+
+    // 3) Forgot/reset password: 5 / 15-min / IP. Tight so the reset link can't be spammed.
+    opt.AddPolicy("password-reset", ctx => RateLimitPartition.GetFixedWindowLimiter(IpKey(ctx),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(15), QueueLimit = 0 }));
+
+    // 4) Public contact form: 5 / hour / IP.
+    opt.AddPolicy("public-contact", ctx => RateLimitPartition.GetFixedWindowLimiter(IpKey(ctx),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
+
+    // 5) Legacy "auth" alias — kept so existing [EnableRateLimiting("auth")] usages don't drop.
+    opt.AddPolicy("auth", ctx => RateLimitPartition.GetSlidingWindowLimiter(IpKey(ctx),
+        _ => new SlidingWindowRateLimiterOptions
+        {
+            PermitLimit = 20, Window = TimeSpan.FromMinutes(1), SegmentsPerWindow = 4, QueueLimit = 0
+        }));
+
+    // 6) Global IP-wide ceiling. Anything not covered by a specific policy still
+    // can't fire >300 req/min from a single IP — that's well above human use,
+    // well below a brute force.
+    opt.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
+        RateLimitPartition.GetSlidingWindowLimiter(IpKey(ctx),
+            _ => new SlidingWindowRateLimiterOptions
             {
-                PermitLimit = 20,
-                Window = TimeSpan.FromMinutes(1),
-                SegmentsPerWindow = 4,
-                QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0
+                PermitLimit = 300, Window = TimeSpan.FromMinutes(1), SegmentsPerWindow = 6, QueueLimit = 0
             }));
 
-    // Public contact form — 5 submissions per IP per hour. Blocks bots from spamming
-    // our inbox while still letting honest visitors retry if they misclick.
-    opt.AddPolicy("public-contact", httpContext =>
-        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
-            factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 5,
-                Window = TimeSpan.FromHours(1),
-                QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0
-            }));
+    opt.OnRejected = async (ctx, ct) =>
+    {
+        var ip = IpKey(ctx.HttpContext);
+        var blocks = ctx.HttpContext.RequestServices.GetRequiredService<IpBlockService>();
+        // weight=1 so it takes a sustained burst (≥12 rejections in 10 min) to earn a ban
+        blocks.RecordViolation(ip, "rate-limit", weight: 1);
+        ctx.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        ctx.HttpContext.Response.Headers.RetryAfter = "60";
+        await ctx.HttpContext.Response.WriteAsync(
+            "{\"code\":\"rate_limited\",\"message\":\"Πάρα πολλά αιτήματα. Δοκιμάστε ξανά σε λίγο.\"}", ct);
+    };
 });
+
+// HSTS / HTTPS redirect in non-dev.
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Services.AddHsts(o =>
+    {
+        o.Preload = true;
+        o.IncludeSubDomains = true;
+        o.MaxAge = TimeSpan.FromDays(365);
+    });
+}
 
 var app = builder.Build();
 
@@ -120,7 +170,19 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    app.UseHsts();
+}
 
+// Pipeline order matters. Cheapest checks first:
+//   1) Security headers — set early so they're present even on early-aborted responses.
+//   2) IP block + probe filter — drops banned IPs and obvious scanner traffic with no
+//      DB or controller work behind them.
+//   3) Exception middleware — turns any throw below into a clean JSON response.
+//   4) CORS, rate limiter, auth, controllers.
+app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseMiddleware<IpBlockMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseStaticFiles();
 app.UseCors("frontend");

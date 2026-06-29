@@ -8,7 +8,6 @@ namespace Kalypsis.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-[EnableRateLimiting("auth")]
 public class AuthController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -16,6 +15,7 @@ public class AuthController : ControllerBase
 
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting("login")]
     public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new LoginCommand(
@@ -32,6 +32,7 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("mobile/login")]
     [AllowAnonymous]
+    [EnableRateLimiting("login")]
     public async Task<ActionResult<LoginResponse>> MobileLogin([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new MobileLoginCommand(request.Email, request.Password), cancellationToken);
@@ -52,6 +53,7 @@ public class AuthController : ControllerBase
 
     [HttpPost("forgot-password")]
     [AllowAnonymous]
+    [EnableRateLimiting("password-reset")]
     public async Task<ActionResult<ForgotPasswordResponse>> ForgotPassword(
         [FromBody] ForgotPasswordRequest request,
         CancellationToken cancellationToken)
@@ -63,6 +65,7 @@ public class AuthController : ControllerBase
 
     [HttpPost("reset-password")]
     [AllowAnonymous]
+    [EnableRateLimiting("password-reset")]
     public async Task<ActionResult<ResetPasswordResponse>> ResetPassword(
         [FromBody] ResetPasswordRequest request,
         CancellationToken cancellationToken)
