@@ -86,6 +86,26 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
         user.FailedLoginAttempts = 0;
         user.LockedUntil = null;
 
+        // 2FA gate. If the user has TOTP enrolled, the password alone isn't enough:
+        // we issue a short-lived (5 min) "challenge token" instead of real session
+        // tokens. The client must POST /api/auth/2fa/login with the challenge +
+        // a valid TOTP code (or a recovery code) to receive the actual tokens.
+        if (user.TwoFactorEnabled && !string.IsNullOrEmpty(user.TotpSecret))
+        {
+            var challenge = _jwt.IssueTwoFactorChallenge(user);
+            AddAuthenticationAudit(user, "LoginRequires2FA", request);
+            await _db.SaveChangesAsync(cancellationToken);
+            return new LoginResponse(
+                AccessToken: string.Empty,
+                AccessTokenExpiresAt: _clock.UtcNow,
+                RefreshToken: string.Empty,
+                RefreshTokenExpiresAt: _clock.UtcNow,
+                User: new AuthenticatedUserDto(user.Id, null, null, user.Email, user.FirstName, user.LastName,
+                    user.Role, user.PreferredLanguage, Array.Empty<string>()),
+                RequiresTwoFactor: true,
+                ChallengeToken: challenge);
+        }
+
         var tenantInfo = user.TenantId == Guid.Empty
             ? null
             : await _db.Tenants

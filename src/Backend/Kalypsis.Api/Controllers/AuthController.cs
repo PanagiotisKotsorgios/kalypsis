@@ -93,4 +93,21 @@ public class AuthController : ControllerBase
         var result = await _mediator.Send(new ResetPasswordCommand(request.Token, request.NewPassword), cancellationToken);
         return Ok(result);
     }
+
+    // Second leg of the 2FA login flow. /auth/login returns a challenge token
+    // when 2FA is enabled; the client posts that + the TOTP / recovery code
+    // here to exchange it for real session tokens.
+    [HttpPost("2fa/login")]
+    [AllowAnonymous]
+    [EnableRateLimiting("login")]
+    public async Task<ActionResult<LoginResponse>> CompleteTwoFactorLogin(
+        [FromBody] CompleteTwoFactorLoginRequest request,
+        CancellationToken ct)
+    {
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var ua = Request.Headers.UserAgent.ToString();
+        var result = await _mediator.Send(
+            new CompleteTwoFactorLoginCommand(request.ChallengeToken, request.Code, ip, ua), ct);
+        return Ok(result);
+    }
 }

@@ -17,14 +17,17 @@ public record UploadAttachmentCommand(
 
 public class UploadAttachmentCommandHandler : IRequestHandler<UploadAttachmentCommand, ServiceRequestAttachmentDto>
 {
+    private const long MaxAttachmentBytes = 8 * 1024 * 1024; // 8 MB per file
     private readonly IAppDbContext _db;
     private readonly IFileStorage _storage;
+    private readonly IFileSafetyService _safety;
     private readonly ICurrentUser _current;
 
-    public UploadAttachmentCommandHandler(IAppDbContext db, IFileStorage storage, ICurrentUser current)
+    public UploadAttachmentCommandHandler(IAppDbContext db, IFileStorage storage, IFileSafetyService safety, ICurrentUser current)
     {
         _db = db;
         _storage = storage;
+        _safety = safety;
         _current = current;
     }
 
@@ -44,6 +47,17 @@ public class UploadAttachmentCommandHandler : IRequestHandler<UploadAttachmentCo
             if (customerId != sr.CustomerId) throw AppException.Forbidden();
         }
 
+        if (request.SizeBytes > MaxAttachmentBytes)
+            throw new AppException("file_too_large",
+                $"Το αρχείο ξεπερνά το όριο των {MaxAttachmentBytes / (1024 * 1024)} MB.", 400);
+
+        var safety = await _safety.InspectAsync(request.FileName, request.ContentType, request.Content, FileUploadKind.Document, ct);
+        if (!safety.Allowed)
+            throw new AppException(safety.RejectionCode ?? "file_rejected",
+                safety.RejectionMessage ?? "Το αρχείο απορρίφθηκε για λόγους ασφαλείας.", 400,
+                title: "Μη ασφαλές αρχείο",
+                why: "Η μεταφόρτωση ελέγχει το πραγματικό περιεχόμενο του αρχείου, όχι μόνο την επέκταση.");
+
         var key = $"requests/{tenantId}/{sr.Id}";
         var path = await _storage.UploadAsync(key, request.FileName, request.ContentType, request.Content, ct);
 
@@ -55,7 +69,8 @@ public class UploadAttachmentCommandHandler : IRequestHandler<UploadAttachmentCo
             Category = request.Category,
             FileName = Path.GetFileName(request.FileName),
             StoragePath = path,
-            MimeType = string.IsNullOrWhiteSpace(request.ContentType) ? "application/octet-stream" : request.ContentType,
+            MimeType = safety.DetectedContentType
+                ?? (string.IsNullOrWhiteSpace(request.ContentType) ? "application/octet-stream" : request.ContentType),
             SizeBytes = request.SizeBytes,
             UploadedByUserId = _current.UserId
         };

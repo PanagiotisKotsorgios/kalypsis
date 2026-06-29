@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { PasswordField } from "../components/PasswordField";
 import { resetTourForRole } from "../components/KalypsisOnboarding";
+import { TwoFactorSection } from "../components/TwoFactorSection";
 
 interface Profile {
   userId: string;
@@ -163,6 +164,8 @@ export function ProfilePage() {
             </Button>
           </CardContent>
         </Card>
+
+        <TwoFactorSection />
       </Stack>
     </Box>
   );

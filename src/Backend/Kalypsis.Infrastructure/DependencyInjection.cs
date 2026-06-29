@@ -43,6 +43,7 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
+        services.AddSingleton<IFileSafetyService, Kalypsis.Infrastructure.Storage.FileSafetyService>();
         services.AddSingleton<IInvoicePdfRenderer, InvoicePdfRenderer>();
 
         services.AddHttpClient("brevo");

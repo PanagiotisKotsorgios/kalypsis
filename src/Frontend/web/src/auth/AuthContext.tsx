@@ -35,13 +35,30 @@ interface LoginResponse {
   refreshToken: string;
   refreshTokenExpiresAt: string;
   user: AuthUser;
+  requiresTwoFactor?: boolean;
+  challengeToken?: string;
+}
+
+export class TwoFactorRequiredError extends Error {
+  challengeToken: string;
+  constructor(challengeToken: string) {
+    super("two_factor_required");
+    this.challengeToken = challengeToken;
+    this.name = "TwoFactorRequiredError";
+  }
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
   accessToken: string | null;
   loading: boolean;
+  /**
+   * Throws TwoFactorRequiredError when the account has 2FA enabled — the
+   * caller must catch it, render a code-entry step, then call completeTwoFactor.
+   */
   signIn: (email: string, password: string, rememberMe?: boolean) => Promise<AuthUser>;
+  /** Second leg of the 2FA login flow. */
+  completeTwoFactor: (challengeToken: string, code: string, rememberMe?: boolean) => Promise<AuthUser>;
   signOut: () => void;
   /** Phase 7 — log in as a specific user (PlatformAdmin only). Backs up the original session. */
   startUserImpersonation: (userId: string) => Promise<void>;
@@ -145,33 +162,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
+  const persistSession = useCallback((payload: LoginResponse, rememberMe: boolean): AuthUser => {
+    const stored: StoredAuth = {
+      accessToken: payload.accessToken,
+      refreshToken: payload.refreshToken,
+      user: payload.user,
+      accessTokenExpiresAt: payload.accessTokenExpiresAt
+    };
+    sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY);
+    clearSessionDeadline(payload.user.userId);
+    localStorage.setItem(PERSISTENCE_KEY, rememberMe ? "local" : "session");
+    (rememberMe ? localStorage : sessionStorage).setItem(STORAGE_KEY, JSON.stringify(stored));
+    setAuthToken(payload.accessToken);
+    setAccessToken(payload.accessToken);
+    setUser(payload.user);
+    return payload.user;
+  }, []);
+
   const signIn = useCallback(
     async (email: string, password: string, rememberMe: boolean = true) => {
       const res = await api.post<LoginResponse>("/auth/login", { email, password });
       const payload = res.data;
-      const stored: StoredAuth = {
-        accessToken: payload.accessToken,
-        refreshToken: payload.refreshToken,
-        user: payload.user,
-        accessTokenExpiresAt: payload.accessTokenExpiresAt
-      };
-
-      // Always nuke both stores first so we never leak across modes.
-      sessionStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(STORAGE_KEY);
-      // Drop any stale inactivity-countdown deadline for this user so a previously
-      // expired session can't auto-logout a freshly authenticated tab on mount.
-      clearSessionDeadline(payload.user.userId);
-
-      localStorage.setItem(PERSISTENCE_KEY, rememberMe ? "local" : "session");
-      (rememberMe ? localStorage : sessionStorage).setItem(STORAGE_KEY, JSON.stringify(stored));
-
-      setAuthToken(payload.accessToken);
-      setAccessToken(payload.accessToken);
-      setUser(payload.user);
-      return payload.user;
+      // 2FA gate: backend returns no real tokens, just a short-lived challenge.
+      // Throw a typed error so the LoginPage can render the code step.
+      if (payload.requiresTwoFactor && payload.challengeToken) {
+        throw new TwoFactorRequiredError(payload.challengeToken);
+      }
+      return persistSession(payload, rememberMe);
     },
-    []
+    [persistSession]
+  );
+
+  const completeTwoFactor = useCallback(
+    async (challengeToken: string, code: string, rememberMe: boolean = true) => {
+      const res = await api.post<LoginResponse>("/auth/2fa/login", { challengeToken, code });
+      return persistSession(res.data, rememberMe);
+    },
+    [persistSession]
   );
 
   const signOut = useCallback(() => {
@@ -286,8 +314,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })();
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, accessToken, loading, signIn, signOut, startUserImpersonation, endUserImpersonation, isImpersonatingUser, impersonatorEmail }),
-    [user, accessToken, loading, signIn, signOut, startUserImpersonation, endUserImpersonation, isImpersonatingUser, impersonatorEmail]
+    () => ({ user, accessToken, loading, signIn, completeTwoFactor, signOut, startUserImpersonation, endUserImpersonation, isImpersonatingUser, impersonatorEmail }),
+    [user, accessToken, loading, signIn, completeTwoFactor, signOut, startUserImpersonation, endUserImpersonation, isImpersonatingUser, impersonatorEmail]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -98,7 +98,12 @@ builder.Services.AddCors(o => o.AddPolicy("frontend", p =>
 // IP block list — sees rate-limit rejections and known-bad probe paths.
 builder.Services.AddSingleton<IpBlockService>();
 
-builder.Services.AddControllers().AddJsonOptions(opt =>
+builder.Services.AddControllers(mvc =>
+{
+    // Global request audit — writes an AuditLog row per state-changing or
+    // sensitive HTTP call. Reads/exports/auth-failures captured here.
+    mvc.Filters.Add<Kalypsis.Api.Middleware.RequestAuditFilter>();
+}).AddJsonOptions(opt =>
 {
     opt.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     // Reject unknown JSON properties. Stops mass-assignment attacks where the

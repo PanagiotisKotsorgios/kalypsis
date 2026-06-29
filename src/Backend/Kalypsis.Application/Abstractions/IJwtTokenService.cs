@@ -17,4 +17,17 @@ public interface IJwtTokenService
     /// </summary>
     string IssueImpersonationAccessToken(User targetUser, ImpersonatorIdentity impersonator, int minutes = 30);
     string HashRefreshToken(string refreshToken);
+
+    /// <summary>
+    /// Mints a one-purpose 5-minute "2FA challenge" token. Carries the user id
+    /// and a 2fa_pending=true claim. /auth/2fa/login is the only endpoint that
+    /// accepts this token type — it cannot be used as a real session token.
+    /// </summary>
+    string IssueTwoFactorChallenge(User user, int minutes = 5);
+
+    /// <summary>
+    /// Validates a 2FA challenge token's signature, lifetime, and 2fa_pending
+    /// claim. Returns the user id baked in the token, or null if invalid.
+    /// </summary>
+    Guid? ValidateTwoFactorChallenge(string challengeToken);
 }

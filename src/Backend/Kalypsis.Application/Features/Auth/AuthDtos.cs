@@ -22,4 +22,9 @@ public record LoginResponse(
     DateTime AccessTokenExpiresAt,
     string RefreshToken,
     DateTime RefreshTokenExpiresAt,
-    AuthenticatedUserDto User);
+    AuthenticatedUserDto User,
+    // When TwoFactorEnabled, the first login call returns RequiresTwoFactor=true,
+    // empty access/refresh tokens, and a short-lived ChallengeToken. The client
+    // then POSTs the TOTP code + challenge to /api/auth/2fa/login to get real tokens.
+    bool RequiresTwoFactor = false,
+    string? ChallengeToken = null);

@@ -15,7 +15,7 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useTranslation } from "react-i18next";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth, TwoFactorRequiredError } from "../auth/AuthContext";
 import { KalypsisLogo } from "../components/KalypsisLogo";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { PasswordField } from "../components/PasswordField";
@@ -25,13 +25,16 @@ import { authFieldSx, authButtonSx, authLabelSx } from "./authShared";
 
 export function LoginPage() {
   const { t } = useTranslation();
-  const { signIn } = useAuth();
+  const { signIn, completeTwoFactor } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // When the backend reports 2FA is required, switch into code-entry mode.
+  const [twoFactor, setTwoFactor] = useState<{ challengeToken: string } | null>(null);
+  const [code, setCode] = useState("");
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -41,7 +44,26 @@ export function LoginPage() {
       await signIn(email.trim(), password, rememberMe);
       navigate("/app", { replace: true });
     } catch (err) {
-      setError(extractErrorMessage(err, t("auth.errors.generic")));
+      if (err instanceof TwoFactorRequiredError) {
+        setTwoFactor({ challengeToken: err.challengeToken });
+      } else {
+        setError(extractErrorMessage(err, t("auth.errors.generic")));
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleTwoFactorSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!twoFactor) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      await completeTwoFactor(twoFactor.challengeToken, code.trim(), rememberMe);
+      navigate("/app", { replace: true });
+    } catch (err) {
+      setError(extractErrorMessage(err, "Λανθασμένος κωδικός 2FA."));
     } finally {
       setSubmitting(false);
     }
@@ -128,6 +150,46 @@ export function LoginPage() {
               </Alert>
             )}
 
+            {twoFactor ? (
+              <form onSubmit={handleTwoFactorSubmit} noValidate>
+                <Stack spacing={3}>
+                  <Alert severity="info" sx={{ borderRadius: 2 }}>
+                    Πληκτρολογήστε τον 6-ψήφιο κωδικό από τον αυθεντικοποιητή σας
+                    (ή έναν κωδικό ανάκτησης).
+                  </Alert>
+                  <TextField
+                    label="Κωδικός 2FA"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    autoFocus required fullWidth
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                    disabled={submitting}
+                    InputLabelProps={{ sx: authLabelSx }}
+                    sx={authFieldSx}
+                  />
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    size="large"
+                    fullWidth
+                    disableElevation
+                    disabled={submitting || code.trim().length < 6}
+                    startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : null}
+                    sx={{ ...authButtonSx, mt: 0.5 }}
+                  >
+                    {submitting ? "Έλεγχος…" : "Επαλήθευση"}
+                  </Button>
+                  <Button
+                    onClick={() => { setTwoFactor(null); setCode(""); setError(null); }}
+                    disabled={submitting}
+                    sx={{ textTransform: "none", color: "rgba(11,37,69,0.7)" }}
+                  >
+                    Πίσω στη σύνδεση
+                  </Button>
+                </Stack>
+              </form>
+            ) : (
             <form onSubmit={handleSubmit} noValidate>
               <Stack spacing={3}>
                 <TextField
@@ -200,6 +262,7 @@ export function LoginPage() {
                 </Button>
               </Stack>
             </form>
+            )}
 
             <Box sx={{ mt: 4.5, textAlign: "center" }}>
               <Typography sx={{ fontSize: 15, color: "rgba(11,37,69,0.7)" }}>

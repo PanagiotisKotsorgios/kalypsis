@@ -93,6 +93,62 @@ public sealed class JwtTokenService : IJwtTokenService
         return Convert.ToHexString(bytes);
     }
 
+    public string IssueTwoFactorChallenge(User user, int minutes = 5)
+    {
+        var now = _clock.UtcNow;
+        var expires = now.AddMinutes(minutes);
+
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new("2fa_pending", "true")
+        };
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Secret));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        // Different audience from real session tokens so a misrouted handler
+        // can't accidentally accept the challenge token as a real bearer.
+        var jwt = new JwtSecurityToken(
+            issuer: _options.Issuer,
+            audience: _options.Audience + ":2fa",
+            claims: claims,
+            notBefore: now,
+            expires: expires,
+            signingCredentials: creds);
+
+        return new JwtSecurityTokenHandler().WriteToken(jwt);
+    }
+
+    public Guid? ValidateTwoFactorChallenge(string challengeToken)
+    {
+        if (string.IsNullOrWhiteSpace(challengeToken)) return null;
+        var handler = new JwtSecurityTokenHandler();
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Secret));
+        try
+        {
+            var principal = handler.ValidateToken(challengeToken, new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = _options.Issuer,
+                ValidAudience = _options.Audience + ":2fa",
+                IssuerSigningKey = key,
+                ClockSkew = TimeSpan.FromSeconds(30)
+            }, out _);
+            if (principal.FindFirst("2fa_pending")?.Value != "true") return null;
+            var sub = principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+            return Guid.TryParse(sub, out var id) ? id : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static string GenerateRefreshToken()
     {
         var bytes = RandomNumberGenerator.GetBytes(64);
