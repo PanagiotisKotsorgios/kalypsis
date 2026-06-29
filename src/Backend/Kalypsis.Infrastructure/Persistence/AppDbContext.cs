@@ -354,6 +354,10 @@ public class AppDbContext : DbContext, IAppDbContext
     {
         var now = _clock.UtcNow;
         var tenantId = _currentUser.TenantId;
+        // PlatformAdmin / PlatformEmployee can legitimately write across tenants
+        // (e.g. provisioning a new tenant from the public registration queue).
+        // Everyone else MUST stay inside their own tenant — guard below.
+        var isPrivileged = _currentUser.IsPlatformLevel;
 
         foreach (var entry in ChangeTracker.Entries<BaseEntity>())
         {
@@ -362,17 +366,49 @@ public class AppDbContext : DbContext, IAppDbContext
                 case EntityState.Added:
                     if (entry.Entity.CreatedAt == default)
                         entry.Entity.CreatedAt = now;
-                    if (entry.Entity is TenantEntity addedTenantEntity && addedTenantEntity.TenantId == Guid.Empty && tenantId.HasValue)
+                    if (entry.Entity is TenantEntity addedTenantEntity)
                     {
-                        addedTenantEntity.TenantId = tenantId.Value;
+                        if (addedTenantEntity.TenantId == Guid.Empty && tenantId.HasValue)
+                        {
+                            addedTenantEntity.TenantId = tenantId.Value;
+                        }
+                        // Cross-tenant write guard: a non-platform user creating a row
+                        // explicitly for ANOTHER tenant is either compromised or a bug.
+                        // We refuse rather than persist.
+                        else if (!isPrivileged && tenantId.HasValue
+                                 && addedTenantEntity.TenantId != tenantId.Value)
+                        {
+                            throw new InvalidOperationException(
+                                $"Cross-tenant write blocked: tried to insert {entry.Entity.GetType().Name} into tenant {addedTenantEntity.TenantId} from session of tenant {tenantId.Value}.");
+                        }
                     }
                     break;
 
                 case EntityState.Modified:
                     entry.Entity.UpdatedAt = now;
+                    // Same guard on UPDATE — protects against an attacker loading a row
+                    // via IgnoreQueryFilters() then mutating it. Compares the ORIGINAL
+                    // TenantId so a malicious change to TenantId itself is also caught.
+                    if (entry.Entity is TenantEntity modTenantEntity && !isPrivileged && tenantId.HasValue)
+                    {
+                        var original = entry.OriginalValues[nameof(TenantEntity.TenantId)];
+                        var originalTid = original is Guid og ? og : modTenantEntity.TenantId;
+                        if (originalTid != tenantId.Value || modTenantEntity.TenantId != tenantId.Value)
+                        {
+                            throw new InvalidOperationException(
+                                $"Cross-tenant write blocked: tried to update {entry.Entity.GetType().Name} from tenant {originalTid} → {modTenantEntity.TenantId} (session tenant {tenantId.Value}).");
+                        }
+                    }
                     break;
 
                 case EntityState.Deleted:
+                    // Same guard on DELETE.
+                    if (entry.Entity is TenantEntity delTenantEntity && !isPrivileged && tenantId.HasValue
+                        && delTenantEntity.TenantId != tenantId.Value)
+                    {
+                        throw new InvalidOperationException(
+                            $"Cross-tenant delete blocked: tried to delete {entry.Entity.GetType().Name} from tenant {delTenantEntity.TenantId} (session tenant {tenantId.Value}).");
+                    }
                     entry.State = EntityState.Modified;
                     entry.Entity.DeletedAt = now;
                     break;

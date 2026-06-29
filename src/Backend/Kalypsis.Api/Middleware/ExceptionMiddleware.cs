@@ -49,6 +49,22 @@ public class ExceptionMiddleware
                 severity = ex.Severity
             }, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }));
         }
+        // Tenant-boundary violation from the SaveChanges guard in AppDbContext.
+        // We log loudly (this should never happen in legitimate flows) and
+        // respond with 403 + a generic message so an attacker probing for
+        // cross-tenant writes can't infer schema details from the error.
+        catch (InvalidOperationException ex) when (ex.Message.StartsWith("Cross-tenant", StringComparison.Ordinal))
+        {
+            _logger.LogError(ex, "Cross-tenant write blocked");
+            ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(new
+            {
+                code = "forbidden",
+                message = "Δεν επιτρέπεται η ενέργεια.",
+                severity = "error"
+            }));
+        }
         // Missing files on disk (deleted/never-uploaded/legacy paths) shouldn't 500.
         catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
         {
