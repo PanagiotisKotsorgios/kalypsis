@@ -45,8 +45,15 @@ export function LandingPage() {
       bgcolor: "#ffffff",
       color: NAVY,
       fontFamily: '"Inter", "Segoe UI", system-ui, -apple-system, sans-serif',
-      display: "flex", flexDirection: "column"
+      display: "flex", flexDirection: "column",
+      position: "relative"
     }}>
+      {/* Masthead accent — slim gradient stripe along the very top edge. */}
+      <Box sx={{
+        height: 3,
+        background: "linear-gradient(90deg, #0b2545 0%, #1ea7e1 50%, #0b2545 100%)"
+      }} />
+
       {/* Tiny top bar — contact info on the left, language picker on the right. */}
       <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 }, pt: { xs: 2, md: 2.5 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
@@ -62,7 +69,7 @@ export function LandingPage() {
               <PhoneOutlinedIcon sx={{ fontSize: 17 }} />
               2631028971
             </Box>
-            <Box component="a" href="mailto:info@kalypsis.gr"
+            <Box component="a" href="mailto:info@mykalypsis.gr"
               sx={{
                 display: "inline-flex", alignItems: "center", gap: 0.75,
                 color: NAVY, textDecoration: "none", fontSize: 13.5, fontWeight: 600,
@@ -70,7 +77,7 @@ export function LandingPage() {
                 "&:hover": { color: ACCENT }
               }}>
               <MailOutlineIcon sx={{ fontSize: 17 }} />
-              info@kalypsis.gr
+              info@mykalypsis.gr
             </Box>
           </Stack>
           <Stack direction="row" spacing={1.25} alignItems="center" sx={{ ml: "auto" }}>
@@ -79,7 +86,7 @@ export function LandingPage() {
               to="/contact"
               size="small"
               variant="outlined"
-              startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 17 }} />}
+              startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 17, color: ACCENT }} />}
               sx={{
                 borderRadius: 999,
                 px: { xs: 1.5, sm: 2 },
@@ -89,9 +96,13 @@ export function LandingPage() {
                 letterSpacing: "0.01em",
                 textTransform: "none",
                 color: NAVY,
-                borderColor: "rgba(11,37,69,0.22)",
+                bgcolor: "rgba(30,167,225,0.06)",
+                borderColor: "rgba(30,167,225,0.35)",
                 "& .MuiButton-startIcon": { mr: { xs: 0, sm: 0.75 } },
-                "&:hover": { borderColor: NAVY, bgcolor: "rgba(11,37,69,0.04)" }
+                "&:hover": {
+                  borderColor: ACCENT,
+                  bgcolor: "rgba(30,167,225,0.12)"
+                }
               }}
             >
               <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
@@ -104,6 +115,12 @@ export function LandingPage() {
             <LanguageToggle />
           </Stack>
         </Stack>
+        {/* Hairline accent under the top bar — softly fades in and out. */}
+        <Box sx={{
+          mt: { xs: 1.5, md: 2 },
+          height: 1,
+          background: "linear-gradient(90deg, transparent 0%, rgba(30,167,225,0.35) 50%, transparent 100%)"
+        }} />
       </Container>
 
       <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 }, py: { xs: 2, md: 3 }, flex: 1 }}>

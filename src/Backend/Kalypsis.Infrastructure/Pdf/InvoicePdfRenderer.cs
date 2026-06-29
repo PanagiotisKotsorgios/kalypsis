@@ -45,7 +45,7 @@ public class InvoicePdfRenderer : IInvoicePdfRenderer
                     {
                         col.Item().Text("KALYPSIS").FontSize(20).Bold().LetterSpacing(0.04f).FontColor(NavyHex);
                         col.Item().Text("Πλατφόρμα Ασφαλιστικού Γραφείου").FontSize(9).FontColor(SoftHex);
-                        col.Item().Text("info@kalypsis.gr · 2631028971").FontSize(9).FontColor(SoftHex);
+                        col.Item().Text("info@mykalypsis.gr · 2631028971").FontSize(9).FontColor(SoftHex);
                     });
                     row.RelativeItem().AlignRight().Column(col =>
                     {
@@ -143,7 +143,7 @@ public class InvoicePdfRenderer : IInvoicePdfRenderer
                 // ---------- FOOTER ----------
                 page.Footer().BorderTop(1).BorderColor(RuleHex).PaddingTop(8).Row(row =>
                 {
-                    row.RelativeItem().Text($"Kalypsis · info@kalypsis.gr · {DateTime.UtcNow.Year}")
+                    row.RelativeItem().Text($"Kalypsis · info@mykalypsis.gr · {DateTime.UtcNow.Year}")
                         .FontSize(8).FontColor(SoftHex);
                     row.RelativeItem().AlignRight().Text(text =>
                     {

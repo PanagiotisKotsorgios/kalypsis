@@ -29,7 +29,7 @@ export function TermsPage() {
                 νομίμως εκπροσωπούμενη.
               </p>
               <p>
-                Επικοινωνία: <a href="mailto:hello@kalypsis.gr">hello@kalypsis.gr</a>,
+                Επικοινωνία: <a href="mailto:info@mykalypsis.gr">info@mykalypsis.gr</a>,
                 τηλ. +30 210 600 0000.
               </p>
             </>

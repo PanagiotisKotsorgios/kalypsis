@@ -68,7 +68,7 @@ export function PackageLockedPage({ requiredPackage }: { requiredPackage: Packag
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 1 }}>
           <Button
             component="a"
-            href="mailto:hello@kalypsis.gr?subject=Package%20upgrade%20request"
+            href="mailto:info@mykalypsis.gr?subject=Package%20upgrade%20request"
             variant="contained"
             startIcon={<EmailIcon />}
           >

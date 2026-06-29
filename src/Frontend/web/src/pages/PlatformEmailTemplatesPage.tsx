@@ -326,7 +326,7 @@ const STARTER_HTML = `<!doctype html>
           <p style="font-size:16px;line-height:1.65;color:#3a5170;margin:0 0 16px">Το κύριο σώμα του μηνύματος. Χρησιμοποιήστε {{μεταβλητές}} για δυναμικά πεδία.</p>
           <p style="margin:0 0 24px"><a href="{{appUrl}}" style="background:#0b2545;color:#f5ede1;padding:14px 26px;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:0.04em">CALL TO ACTION</a></p>
         </td></tr>
-        <tr><td style="padding:24px 32px;color:rgba(245,237,225,0.62);font-size:12px;line-height:1.5">Kalypsis Platform · hello@kalypsis.gr</td></tr>
+        <tr><td style="padding:24px 32px;color:rgba(245,237,225,0.62);font-size:12px;line-height:1.5">Kalypsis Platform · info@mykalypsis.gr</td></tr>
       </table>
     </td></tr>
   </table>

@@ -390,7 +390,7 @@ public class SendInvoiceEmailCommandHandler
     </p>
   </td></tr>
   <tr><td style=""padding:16px 32px;border-top:1px solid #e5e9ef;font-size:12px;color:#3d4f6b"">
-    Για ερωτήσεις στείλτε email στο info@kalypsis.gr ή καλέστε στο 2631028971.
+    Για ερωτήσεις στείλτε email στο info@mykalypsis.gr ή καλέστε στο 2631028971.
   </td></tr>
 </table></body></html>";
     }
@@ -413,7 +413,7 @@ public class SendInvoiceEmailCommandHandler
 
 Καταληκτική ημερομηνία πληρωμής: {inv.DueAt:dd/MM/yyyy}.
 
-Ερωτήσεις: info@kalypsis.gr · 2631028971";
+Ερωτήσεις: info@mykalypsis.gr · 2631028971";
     }
 }
 

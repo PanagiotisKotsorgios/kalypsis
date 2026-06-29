@@ -293,7 +293,7 @@ public class PlatformEmailTemplatesController : ControllerBase
         <tr><td style=""padding:32px 32px 16px""><div style=""font-family:Georgia,'Times New Roman',serif;font-size:32px;color:#f5ede1;letter-spacing:-0.02em;font-weight:600"">Kalypsis</div></td></tr>
         <tr><td style=""background:#f5ede1;padding:40px 32px 32px"">{innerHtml}</td></tr>
         <tr><td style=""padding:24px 32px;color:rgba(245,237,225,0.62);font-size:12px;line-height:1.5"">
-          Kalypsis Platform · Λ. Κηφισίας 268, 152 32 Χαλάνδρι · hello@kalypsis.gr<br/>
+          Kalypsis Platform · Λ. Κηφισίας 268, 152 32 Χαλάνδρι · info@mykalypsis.gr<br/>
           Λάβατε αυτό το email επειδή το γραφείο σας έχει ενεργή συνδρομή στην πλατφόρμα Kalypsis.
         </td></tr>
       </table>

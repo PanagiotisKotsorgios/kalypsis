@@ -100,7 +100,7 @@ export function UnderMaintenancePage({ title, message }: { title?: string | null
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
               <Button
                 component="a"
-                href="mailto:hello@kalypsis.gr"
+                href="mailto:info@mykalypsis.gr"
                 variant="contained"
                 startIcon={<EmailIcon />}
                 disableElevation

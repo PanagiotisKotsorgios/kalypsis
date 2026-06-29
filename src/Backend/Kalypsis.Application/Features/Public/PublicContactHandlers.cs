@@ -57,7 +57,7 @@ public class SubmitPublicContactHandler : IRequestHandler<SubmitPublicContactCom
         var settings = await _db.PlatformSettings.IgnoreQueryFilters().OrderBy(s => s.CreatedAt).FirstOrDefaultAsync(ct);
         var to = !string.IsNullOrWhiteSpace(settings?.SupportEmail)
             ? settings!.SupportEmail!
-            : (!string.IsNullOrWhiteSpace(settings?.BrevoSenderEmail) ? settings!.BrevoSenderEmail! : "hello@kalypsis.gr");
+            : (!string.IsNullOrWhiteSpace(settings?.BrevoSenderEmail) ? settings!.BrevoSenderEmail! : "info@mykalypsis.gr");
 
         var html = BuildHtml(b, reference, cmd.ClientIp, cmd.UserAgent);
         var subjectPrefix = b.InquiryType?.ToLowerInvariant() switch

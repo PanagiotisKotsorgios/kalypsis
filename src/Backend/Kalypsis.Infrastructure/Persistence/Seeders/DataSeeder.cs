@@ -42,7 +42,7 @@ public static class DataSeeder
                 SubscriptionPlan = SubscriptionPlan.Enterprise,
                 LogoUrl = "/static/kalypsis-logo.jpg",
                 BrandColorHex = "#0B2545",
-                ContactEmail = "hello@kalypsis.gr",
+                ContactEmail = "info@mykalypsis.gr",
                 ContactPhone = "+30 210 600 0000",
                 AddressLine = "Λ. Κηφισίας 268, 152 32 Χαλάνδρι, Αθήνα"
             };
@@ -56,7 +56,7 @@ public static class DataSeeder
             // Backfill branding on the existing platform tenant so the mobile app has something to show.
             platformTenant.LogoUrl = "/static/kalypsis-logo.jpg";
             platformTenant.BrandColorHex = "#0B2545";
-            platformTenant.ContactEmail = "hello@kalypsis.gr";
+            platformTenant.ContactEmail = "info@mykalypsis.gr";
             platformTenant.ContactPhone = "+30 210 600 0000";
             platformTenant.AddressLine = "Λ. Κηφισίας 268, 152 32 Χαλάνδρι, Αθήνα";
             await db.SaveChangesAsync(cancellationToken);

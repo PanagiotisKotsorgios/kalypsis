@@ -36,7 +36,7 @@ export function UpgradePlanDialogHost() {
   const body = focusMeta
     ? `Καλημέρα,\n\nΘα ήθελα να ενεργοποιήσω το premium feature «${focusMeta.label}» στο λογαριασμό μου.\n\nΕυχαριστώ.`
     : "Καλημέρα,\n\nΘα ήθελα να δω τις διαθέσιμες αναβαθμίσεις premium στο λογαριασμό μου.\n\nΕυχαριστώ.";
-  const mailto = `mailto:hello@kalypsis.gr?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const mailto = `mailto:info@mykalypsis.gr?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
   return (
     <Dialog

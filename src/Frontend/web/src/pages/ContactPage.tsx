@@ -117,6 +117,12 @@ export function ContactPage() {
       fontFamily: '"Inter", "Segoe UI", system-ui, -apple-system, sans-serif',
       display: "flex", flexDirection: "column"
     }}>
+      {/* Masthead accent — slim gradient stripe along the very top edge. */}
+      <Box sx={{
+        height: 3,
+        background: "linear-gradient(90deg, #0b2545 0%, #1ea7e1 50%, #0b2545 100%)"
+      }} />
+
       {/* Same top bar as LandingPage */}
       <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 }, pt: { xs: 2, md: 2.5 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
@@ -126,9 +132,9 @@ export function ContactPage() {
               <PhoneOutlinedIcon sx={{ fontSize: 17 }} />
               2631028971
             </Box>
-            <Box component="a" href="mailto:info@kalypsis.gr" sx={topLinkSx}>
+            <Box component="a" href="mailto:info@mykalypsis.gr" sx={topLinkSx}>
               <MailOutlineIcon sx={{ fontSize: 17 }} />
-              info@kalypsis.gr
+              info@mykalypsis.gr
             </Box>
           </Stack>
           <Stack direction="row" spacing={1.25} alignItems="center" sx={{ ml: "auto" }}>
@@ -151,6 +157,12 @@ export function ContactPage() {
             <LanguageToggle />
           </Stack>
         </Stack>
+        {/* Hairline accent under the top bar */}
+        <Box sx={{
+          mt: { xs: 1.5, md: 2 },
+          height: 1,
+          background: "linear-gradient(90deg, transparent 0%, rgba(30,167,225,0.35) 50%, transparent 100%)"
+        }} />
       </Container>
 
       <Container maxWidth="md" sx={{ px: { xs: 3, md: 6 }, py: { xs: 4, md: 6 }, flex: 1 }}>
@@ -184,14 +196,24 @@ export function ContactPage() {
             </Typography>
           </Box>
 
-          {/* Form card */}
+          {/* Form card — a thin accent stripe along the left edge gives it
+              identity without breaking the restrained palette. */}
           <Box sx={{
             maxWidth: 720, mx: "auto",
             bgcolor: "#ffffff",
             border: `1px solid ${RULE}`,
             borderRadius: 3,
             p: { xs: 3, md: 5 },
-            boxShadow: "0 4px 24px rgba(11,37,69,0.04)"
+            boxShadow: "0 4px 24px rgba(11,37,69,0.04)",
+            position: "relative",
+            overflow: "hidden",
+            "&::before": {
+              content: '""',
+              position: "absolute",
+              left: 0, top: 0, bottom: 0,
+              width: 3,
+              background: `linear-gradient(180deg, ${ACCENT} 0%, ${NAVY} 100%)`
+            }
           }}>
             {error && (
               <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 3, borderRadius: 2 }}>
@@ -303,8 +325,8 @@ export function ContactPage() {
             <Box component="a" href="tel:+302631028971" sx={inlineLinkSx}>
               <PhoneOutlinedIcon sx={{ fontSize: 17 }} /> 2631028971
             </Box>
-            <Box component="a" href="mailto:info@kalypsis.gr" sx={inlineLinkSx}>
-              <MailOutlineIcon sx={{ fontSize: 17 }} /> info@kalypsis.gr
+            <Box component="a" href="mailto:info@mykalypsis.gr" sx={inlineLinkSx}>
+              <MailOutlineIcon sx={{ fontSize: 17 }} /> info@mykalypsis.gr
             </Box>
           </Stack>
         </PageEnter>
