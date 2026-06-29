@@ -44,7 +44,18 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IFileSafetyService, Kalypsis.Infrastructure.Storage.FileSafetyService>();
-        services.AddSingleton<IAntivirusScanner, Kalypsis.Infrastructure.Storage.NoopAntivirusScanner>();
+        // ClamAV is opt-in: when Clamav:Host is set in Coolify env vars, the
+        // sidecar daemon is reached over the docker network and INSTREAM-scans
+        // every upload. Until then, the noop scanner returns "clean" — magic
+        // -byte safety in FileSafetyService still runs either way.
+        if (!string.IsNullOrWhiteSpace(configuration["Clamav:Host"]))
+        {
+            services.AddSingleton<IAntivirusScanner, Kalypsis.Infrastructure.Storage.ClamAvScanner>();
+        }
+        else
+        {
+            services.AddSingleton<IAntivirusScanner, Kalypsis.Infrastructure.Storage.NoopAntivirusScanner>();
+        }
         services.AddSingleton<IInvoicePdfRenderer, InvoicePdfRenderer>();
 
         services.AddHttpClient("brevo");

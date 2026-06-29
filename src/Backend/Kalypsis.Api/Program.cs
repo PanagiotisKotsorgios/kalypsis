@@ -27,17 +27,58 @@ builder.Services.AddScoped<Kalypsis.Application.Features.Phase13.IDiasClient, Ka
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
           ?? throw new InvalidOperationException("Jwt configuration section is missing.");
 
-// Refuse to start with a weak JWT signing key. 256 bits (32 bytes) is the
-// minimum for HS256; we require 48 bytes in production for a margin.
+// Production-only secret sanity checks. Refuse to boot if any of the critical
+// secrets are missing or look like placeholders — better a noisy crash on
+// deploy than a quiet "secured" with default values.
 if (!builder.Environment.IsDevelopment())
 {
+    // 1) JWT signing key — at least 48 chars (~ 256 bits) and not a placeholder.
     if (string.IsNullOrWhiteSpace(jwt.Secret) || jwt.Secret.Length < 48)
         throw new InvalidOperationException(
-            "Jwt:Secret must be at least 48 chars in production. Set it from a cryptographically random source.");
-    if (jwt.Secret.Equals("change-me", StringComparison.OrdinalIgnoreCase)
-        || jwt.Secret.Contains("dev", StringComparison.OrdinalIgnoreCase)
-        || jwt.Secret.Contains("test", StringComparison.OrdinalIgnoreCase))
-        throw new InvalidOperationException("Jwt:Secret looks like a placeholder — refuse to start.");
+            "Jwt:Secret must be at least 48 chars in production. Generate from a CSPRNG (e.g. openssl rand -base64 48).");
+    if (LooksLikePlaceholder(jwt.Secret))
+        throw new InvalidOperationException("Jwt:Secret looks like a placeholder — refuse to start. See SECURITY.md.");
+
+    // 2) Database connection string — must include a non-empty password.
+    var conn = builder.Configuration.GetConnectionString("Default") ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(conn))
+        throw new InvalidOperationException("ConnectionStrings:Default is required in production.");
+    if (!HasNonEmptyPassword(conn))
+        throw new InvalidOperationException(
+            "ConnectionStrings:Default must include a non-empty Password= value. See SECURITY.md.");
+
+    // 3) Frontend origin — must be the real HTTPS host, not the dev fallback.
+    var origins = builder.Configuration["Cors:FrontendOrigin"] ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(origins)
+        || origins.Contains("localhost", StringComparison.OrdinalIgnoreCase)
+        || origins.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !origins.Contains("https://", StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("Cors:FrontendOrigin must be an https:// origin in production.");
+
+    // 4) Brevo — warn loudly but don't refuse to boot. The platform can still run
+    //    without outbound email; password resets and contact form just won't send.
+    var brevoKey = builder.Configuration["Brevo:ApiKey"];
+    if (string.IsNullOrWhiteSpace(brevoKey))
+        Console.Error.WriteLine("[BOOT] WARNING: Brevo:ApiKey unset — password reset / contact form will not send email.");
+}
+
+static bool LooksLikePlaceholder(string s) =>
+    s.Equals("change-me", StringComparison.OrdinalIgnoreCase)
+    || s.Contains("placeholder", StringComparison.OrdinalIgnoreCase)
+    || s.Contains("changeme", StringComparison.OrdinalIgnoreCase)
+    || s.Contains("xxxx", StringComparison.OrdinalIgnoreCase);
+
+static bool HasNonEmptyPassword(string connectionString)
+{
+    foreach (var part in connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    {
+        var eq = part.IndexOf('=');
+        if (eq <= 0) continue;
+        var k = part[..eq].Trim();
+        var v = part[(eq + 1)..].Trim();
+        if (k.Equals("Password", StringComparison.OrdinalIgnoreCase) || k.Equals("Pwd", StringComparison.OrdinalIgnoreCase))
+            return !string.IsNullOrWhiteSpace(v) && v.Length >= 8 && !LooksLikePlaceholder(v);
+    }
+    return false;
 }
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -212,6 +253,7 @@ else
 //   3) Exception middleware — turns any throw below into a clean JSON response.
 //   4) CORS, rate limiter, auth, controllers.
 app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseMiddleware<ApiVersionHeaderMiddleware>();
 app.UseMiddleware<IpBlockMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseStaticFiles();
@@ -225,6 +267,15 @@ app.MapGet("/api/health", () => Results.Ok(new
     status = "ok",
     service = "kalypsis-api",
     utcNow = DateTime.UtcNow
+}));
+
+// Lightweight contract-discovery endpoint. Clients hit this on boot to confirm
+// they're talking to a compatible API version (today: 1). When a breaking
+// change ships, this returns supported + deprecated + sunset dates.
+app.MapGet("/api/version", () => Results.Ok(new
+{
+    current = Kalypsis.Api.Middleware.ApiVersionHeaderMiddleware.CurrentVersion,
+    supported = new[] { "1" }
 }));
 
 app.MapControllers();
