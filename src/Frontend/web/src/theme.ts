@@ -37,6 +37,27 @@ export const theme = createTheme({
       styleOverrides: {
         root: { boxShadow: "0 4px 24px rgba(11, 37, 69, 0.06)" }
       }
+    },
+    // Make the required-field asterisk red across every form (login, register,
+    // forgot-password, contact, etc.) — the visible signal is what users expect.
+    MuiFormLabel: {
+      styleOverrides: {
+        asterisk: {
+          color: "#d32f2f",
+          fontWeight: 700,
+          marginLeft: 2,
+          "&.Mui-error": { color: "#d32f2f" }
+        }
+      }
+    },
+    MuiInputLabel: {
+      styleOverrides: {
+        asterisk: {
+          color: "#d32f2f",
+          fontWeight: 700,
+          marginLeft: 2
+        }
+      }
     }
   }
 });
