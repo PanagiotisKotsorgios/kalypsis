@@ -10,6 +10,7 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
     /// the commission they expected for a specific policy. Discrepancies vs the
     /// agency's CommissionRunLines emit a notification to the agency admins.
     /// </summary>
+    [Migration("20260629100000_AddProducerCommissionDeclarations")]
     public partial class AddProducerCommissionDeclarations : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

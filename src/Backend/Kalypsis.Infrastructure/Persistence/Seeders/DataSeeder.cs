@@ -20,6 +20,15 @@ public static class DataSeeder
 
         await db.Database.MigrateAsync(cancellationToken);
 
+        // Schema safety net: some migrations in this project ship without a
+        // Designer.cs companion, and earlier deploys may have missed them. To
+        // guarantee the columns / tables the running code references actually
+        // exist, run a tiny set of idempotent ALTER/CREATE statements directly
+        // through information_schema. This is belt-and-braces alongside the
+        // EF migration; if EF already added everything, these are no-ops.
+        try { await EnsureSchemaSafetyAsync(db, logger, cancellationToken); }
+        catch (Exception ex) { logger.LogError(ex, "EnsureSchemaSafetyAsync failed — continuing boot."); }
+
         // Wrap each seeder in try/catch so one failure doesn't block the API
         // from booting — the operator needs a running container in order to log
         // in and fix anything via the admin UI.
@@ -242,5 +251,105 @@ public static class DataSeeder
         }
         await db.SaveChangesAsync(ct);
         logger.LogInformation("Seeded {Count} insurance companies.", missing.Count);
+    }
+
+    /// <summary>
+    /// Idempotent schema safety net. For every column the running code requires
+    /// but an earlier deploy may have missed (because of a Designer-less
+    /// migration EF couldn't discover), check INFORMATION_SCHEMA and ALTER the
+    /// table if necessary. Same for missing tables. This is BELT-AND-BRACES on
+    /// top of MigrateAsync — when migrations work, every check below is a no-op.
+    /// </summary>
+    private static async Task EnsureSchemaSafetyAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open)
+            await conn.OpenAsync(ct);
+        var dbName = conn.Database;
+
+        // --- insurance_companies.IsBroker / ParentCompanyId ----------------
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "insurance_companies", column: "IsBroker",
+            addSql: "ALTER TABLE `insurance_companies` ADD COLUMN `IsBroker` tinyint(1) NOT NULL DEFAULT 0", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "insurance_companies", column: "ParentCompanyId",
+            addSql: "ALTER TABLE `insurance_companies` ADD COLUMN `ParentCompanyId` char(36) NULL", ct);
+        await EnsureIndexAsync(db, logger, dbName,
+            table: "insurance_companies", indexName: "IX_insurance_companies_ParentCompanyId",
+            addSql: "CREATE INDEX `IX_insurance_companies_ParentCompanyId` ON `insurance_companies` (`ParentCompanyId`)", ct);
+
+        // --- TenantPackageGrants.PremiumFeaturesJson -----------------------
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "TenantPackageGrants", column: "PremiumFeaturesJson",
+            addSql: "ALTER TABLE `TenantPackageGrants` ADD COLUMN `PremiumFeaturesJson` longtext NULL", ct);
+
+        // --- producer_commission_declarations table ------------------------
+        await EnsureTableAsync(db, logger, dbName,
+            table: "producer_commission_declarations",
+            createSql: @"CREATE TABLE IF NOT EXISTS `producer_commission_declarations` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `ProducerId` char(36) NOT NULL,
+                `PolicyId` char(36) NOT NULL,
+                `ExpectedAmount` decimal(14,2) NOT NULL,
+                `ExpectedPercent` decimal(7,2) NULL,
+                `Currency` varchar(3) CHARACTER SET utf8mb4 NOT NULL,
+                `Notes` varchar(1000) CHARACTER SET utf8mb4 NULL,
+                `DeclaredAt` datetime(6) NOT NULL,
+                `RecordedAmount` decimal(14,2) NULL,
+                `DifferenceAmount` decimal(14,2) NULL,
+                `ReconciliationStatus` varchar(40) CHARACTER SET utf8mb4 NOT NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_pcd_policy` (`PolicyId`),
+                KEY `IX_pcd_tenant_producer` (`TenantId`,`ProducerId`)
+            ) CHARACTER SET=utf8mb4", ct);
+    }
+
+    private static async Task<bool> ColumnExistsAsync(AppDbContext db, string dbName, string table, string column, CancellationToken ct)
+    {
+        var sql = "SELECT COUNT(*) FROM information_schema.COLUMNS " +
+                  "WHERE TABLE_SCHEMA = {0} AND TABLE_NAME = {1} AND COLUMN_NAME = {2}";
+        var count = await db.Database.SqlQueryRaw<long>(sql, dbName, table, column).ToListAsync(ct);
+        return count.FirstOrDefault() > 0;
+    }
+
+    private static async Task EnsureColumnAsync(AppDbContext db, ILogger logger, string dbName, string table, string column, string addSql, CancellationToken ct)
+    {
+        if (!await ColumnExistsAsync(db, dbName, table, column, ct))
+        {
+            await db.Database.ExecuteSqlRawAsync(addSql, ct);
+            logger.LogWarning("Schema safety net: added {Table}.{Column}", table, column);
+        }
+    }
+
+    private static async Task EnsureIndexAsync(AppDbContext db, ILogger logger, string dbName, string table, string indexName, string addSql, CancellationToken ct)
+    {
+        var sql = "SELECT COUNT(*) FROM information_schema.STATISTICS " +
+                  "WHERE TABLE_SCHEMA = {0} AND TABLE_NAME = {1} AND INDEX_NAME = {2}";
+        var count = await db.Database.SqlQueryRaw<long>(sql, dbName, table, indexName).ToListAsync(ct);
+        if ((count.FirstOrDefault()) == 0)
+        {
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(addSql, ct);
+                logger.LogWarning("Schema safety net: added index {Index} on {Table}", indexName, table);
+            }
+            catch (Exception ex) { logger.LogWarning(ex, "Schema safety: index {Index} create failed (likely race), continuing.", indexName); }
+        }
+    }
+
+    private static async Task EnsureTableAsync(AppDbContext db, ILogger logger, string dbName, string table, string createSql, CancellationToken ct)
+    {
+        var sql = "SELECT COUNT(*) FROM information_schema.TABLES " +
+                  "WHERE TABLE_SCHEMA = {0} AND TABLE_NAME = {1}";
+        var count = await db.Database.SqlQueryRaw<long>(sql, dbName, table).ToListAsync(ct);
+        if ((count.FirstOrDefault()) == 0)
+        {
+            await db.Database.ExecuteSqlRawAsync(createSql, ct);
+            logger.LogWarning("Schema safety net: created table {Table}", table);
+        }
     }
 }

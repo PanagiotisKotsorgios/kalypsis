@@ -9,6 +9,7 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
     /// feature codes unlocked WITHIN that package for the tenant. See
     /// PremiumFeatureCodes in the application layer for the well-known values.
     /// </summary>
+    [Migration("20260628100000_AddPremiumFeatures")]
     public partial class AddPremiumFeatures : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

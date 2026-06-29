@@ -14,6 +14,7 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
     /// Used to model Grand Cover (IW) and similar πρακτορεία that redistribute
     /// many real carriers' products under one contract.
     /// </summary>
+    [Migration("20260629140000_AddInsuranceCompanyBrokerHierarchy")]
     public partial class AddInsuranceCompanyBrokerHierarchy : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
