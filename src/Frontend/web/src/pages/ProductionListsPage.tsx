@@ -16,7 +16,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 
-interface Carrier { id: string; name: string; }
+interface Carrier { id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null; }
 interface Producer { id: string; name: string; }
 interface Row {
   policyId: string; policyNumber: string;
@@ -137,7 +137,21 @@ export function ProductionListsPage() {
           <TextField select size="small" label={t("productionList.carrier")} value={f.insuranceCompanyId}
             onChange={e => setF({ ...f, insuranceCompanyId: e.target.value })}>
             <MenuItem value="">{t("common.all")}</MenuItem>
-            {(carriers.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+            {/* Brokers + standalone carriers at the top level; subcompanies
+                appear indented underneath their broker. */}
+            {(carriers.data ?? []).filter(c => !c.parentCompanyId).flatMap(c => {
+              const subs = (carriers.data ?? []).filter(s => s.parentCompanyId === c.id);
+              const head = (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.name}{c.isBroker ? " · πρακτορείο" : ""}
+                </MenuItem>
+              );
+              return subs.length === 0 ? [head] : [head, ...subs.map(s => (
+                <MenuItem key={s.id} value={s.id} sx={{ pl: 4, fontSize: 14, color: "text.secondary" }}>
+                  ↳ {s.name}
+                </MenuItem>
+              ))];
+            })}
           </TextField>
           <TextField select size="small" label={t("productionList.producer")} value={f.producerId}
             onChange={e => setF({ ...f, producerId: e.target.value })}>

@@ -98,7 +98,9 @@ public class InsuranceCompaniesController : ControllerBase
         Guid? TenantCopyId, bool IsImportedToTenant,
         Guid? BridgeId, bool BridgeLinked, int CommissionDefaultCount, int ParameterItemCount,
         string? AgentCode, string? ContactName, string? ContactEmail, string? ContactPhone,
-        string? AfmVat, string? Notes);
+        string? AfmVat, string? Notes,
+        bool IsBroker = false,
+        Guid? ParentCompanyId = null);
 
     public record UpsertCompanyBody(
         string Name, string Code, string? Country, string? Website, bool IsActive,
@@ -329,7 +331,8 @@ public class InsuranceCompaniesController : ControllerBase
             c.TenantId, c.TenantId == null,
             tenantCopy?.Id, tenantCopy != null,
             bridge?.Id, bridge != null, ruleCount, parameterCount,
-            c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes);
+            c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes,
+            c.IsBroker, c.ParentCompanyId);
     }
 
     private async Task<int> CountParameterItemsAsync(string companyCode, CancellationToken ct) =>

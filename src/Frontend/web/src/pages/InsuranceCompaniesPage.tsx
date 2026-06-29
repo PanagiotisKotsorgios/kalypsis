@@ -33,6 +33,8 @@ interface CompanyDto {
   contactPhone: string | null;
   afmVat: string | null;
   notes: string | null;
+  isBroker?: boolean;
+  parentCompanyId?: string | null;
 }
 
 interface UpsertBody {
@@ -88,7 +90,18 @@ export function InsuranceCompaniesPage() {
     onError: (e) => setError(extractErrorMessage(e))
   });
 
-  const globalRows = (q.data ?? []).filter(c => c.isGlobal);
+  // Re-order the global list so each broker is followed by its subcompanies
+  // grouped underneath. Top-level standalone carriers stay in alphabetical
+  // order. Standalone agency-added carriers (ownRows) keep their original order.
+  const allGlobal = (q.data ?? []).filter(c => c.isGlobal);
+  const topLevel = allGlobal.filter(c => !c.parentCompanyId);
+  const grouped: CompanyDto[] = [];
+  for (const top of topLevel) {
+    grouped.push(top);
+    const subs = allGlobal.filter(c => c.parentCompanyId === top.id);
+    for (const s of subs) grouped.push(s);
+  }
+  const globalRows = grouped;
   const ownRows = (q.data ?? []).filter(c => !c.isGlobal);
 
   return (
@@ -195,10 +208,18 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onImport, importingId 
         </TableHead>
         <TableBody>
           {rows.map((r) => (
-            <TableRow key={r.id} hover>
-              <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.code}</TableCell>
+            <TableRow key={r.id} hover
+              sx={r.parentCompanyId ? { bgcolor: "rgba(11,37,69,0.02)" } : undefined}>
+              <TableCell sx={{ fontFamily: "monospace", fontWeight: 700, pl: r.parentCompanyId ? 4 : 2 }}>
+                {r.parentCompanyId ? "↳ " : ""}{r.code}
+              </TableCell>
               <TableCell>
-                <Typography fontWeight={600}>{r.name}</Typography>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Typography fontWeight={600} sx={{ color: r.parentCompanyId ? "text.secondary" : "text.primary" }}>
+                    {r.name}
+                  </Typography>
+                  {r.isBroker && <Chip size="small" label="πρακτορείο" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />}
+                </Stack>
                 {r.country && <Typography variant="caption" color="text.secondary">{r.country}</Typography>}
               </TableCell>
               <TableCell sx={{ fontFamily: "monospace", fontSize: 13 }}>{r.agentCode ?? "—"}</TableCell>

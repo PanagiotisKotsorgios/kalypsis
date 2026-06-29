@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControlLabel, IconButton, MenuItem, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow,
@@ -9,6 +9,7 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
@@ -79,6 +80,27 @@ export function PlatformCompanyParametersPage() {
   const [kindFilter, setKindFilter] = useState<ParameterKind | "">("");
   const [search, setSearch] = useState("");
   const [includeInactive, setIncludeInactive] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const importFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const importMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!companyFilter) throw new Error("Επιλέξτε ασφαλιστική εταιρία πρώτα.");
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await api.post<{ inserted: number; skipped: number; warnings: string[] }>(
+        `/platform/company-parameters/import/${companyFilter}`, fd,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      return res.data;
+    },
+    onSuccess: (r) => {
+      setImporting(false);
+      setSuccess(`Προστέθηκαν ${r.inserted} εγγραφές (${r.skipped} παραλείφθηκαν ως διπλές).`);
+      void qc.invalidateQueries({ queryKey: ["platform-company-parameters"] });
+    },
+    onError: (e) => { setImporting(false); setErr(extractErrorMessage(e)); }
+  });
 
   const companies = useQuery({
     queryKey: ["platform-company-parameter-companies"],
@@ -138,6 +160,28 @@ export function PlatformCompanyParametersPage() {
           </Box>
         </Stack>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <input
+            ref={importFileInputRef}
+            type="file"
+            accept=".csv,.xlsx"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              setImporting(true);
+              importMutation.mutate(f);
+              e.target.value = "";
+            }}
+          />
+          <Button
+            variant="outlined"
+            startIcon={<UploadFileIcon />}
+            disabled={!companyFilter || importing}
+            title={!companyFilter ? "Επιλέξτε εταιρία πρώτα" : "Ανέβασμα xlsx/csv με κλάδους, χρήσεις, καλύψεις και πακέτα"}
+            onClick={() => importFileInputRef.current?.click()}
+          >
+            {importing ? <CircularProgress size={18} /> : "Εισαγωγή xlsx/csv"}
+          </Button>
           <Button variant="outlined" startIcon={<AutoFixHighIcon />} disabled={seed.isPending}
             onClick={() => seed.mutate()}>
             {seed.isPending ? <CircularProgress size={18} /> : "Συμπλήρωση defaults"}

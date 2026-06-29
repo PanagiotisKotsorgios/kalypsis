@@ -18,7 +18,7 @@ const POLICY_TYPES: PolicyTypeOpt[] = [
   { value: 99, label: "Άλλο" }
 ];
 
-interface CompanyLite { id: string; name: string; code: string; }
+interface CompanyLite { id: string; name: string; code: string; isBroker?: boolean; parentCompanyId?: string | null; }
 interface ProducerLite { id: string; code: string; name: string; }
 
 interface PreviewRow {
@@ -111,7 +111,23 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
             <TextField select label="Ασφαλιστική εταιρεία" value={filter.insuranceCompanyId}
               onChange={(e) => setFilter({ ...filter, insuranceCompanyId: e.target.value })}>
               <MenuItem value="">Όλες</MenuItem>
-              {(companies.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+              {/* Top-level carriers + brokers. Subcompanies appear indented
+                  under their broker so the cascade is visible inline. */}
+              {(companies.data ?? []).filter(c => !c.parentCompanyId).flatMap(c => {
+                const subs = (companies.data ?? []).filter(s => s.parentCompanyId === c.id);
+                const head = (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}{c.isBroker ? " · πρακτορείο" : ""}
+                  </MenuItem>
+                );
+                return subs.length === 0
+                  ? [head]
+                  : [head, ...subs.map(s => (
+                      <MenuItem key={s.id} value={s.id} sx={{ pl: 4, fontSize: 14, color: "text.secondary" }}>
+                        ↳ {s.name}
+                      </MenuItem>
+                    ))];
+              })}
             </TextField>
             <TextField select label="Συνεργάτης" value={filter.producerId}
               onChange={(e) => setFilter({ ...filter, producerId: e.target.value })}>
