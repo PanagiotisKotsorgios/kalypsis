@@ -29,6 +29,8 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import LoginIcon from "@mui/icons-material/Login";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
+import { Menu } from "@mui/material";
 import { FormControlLabel, Switch } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -76,6 +78,23 @@ export function TenantsPage() {
   const [createdInfo, setCreatedInfo] = useState<{ email: string; password: string } | null>(null);
   const [editing, setEditing] = useState<Tenant | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [premiumMenu, setPremiumMenu] = useState<{ anchor: HTMLElement; tenantId: string } | null>(null);
+
+  // Premium-grant presets that mirror the TenantDetailPage Premium tab.
+  // One-click PUT lets the platform admin upgrade a tenant without drilling in.
+  const PREMIUM_PRESETS: { key: string; label: string; codes: string[] }[] = [
+    { key: "none",  label: "Καμία premium",  codes: [] },
+    { key: "small", label: "Small Office",   codes: ["recycle-bin", "advanced-exports"] },
+    { key: "pro",   label: "Pro Office",     codes: ["recycle-bin", "advanced-exports", "bulk-commissions", "premium-reports"] },
+    { key: "ent",   label: "Enterprise (όλα)", codes: ["recycle-bin", "advanced-exports", "producer-reconciliation", "bulk-commissions", "multi-branch", "premium-reports"] }
+  ];
+
+  const applyPremiumPreset = useMutation({
+    mutationFn: async ({ tenantId, codes }: { tenantId: string; codes: string[] }) =>
+      api.put(`/platform/tenants/${tenantId}/premium-features`, { codes }),
+    onSuccess: () => { setPremiumMenu(null); setError(null); },
+    onError: (e) => setError(extractErrorMessage(e))
+  });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => api.delete(`/tenants/${id}`),
@@ -168,6 +187,11 @@ export function TenantsPage() {
                           disabled={isPlatform}>
                           <LoginIcon fontSize="small" />
                         </IconButton>
+                        <IconButton size="small" disabled={isPlatform}
+                          title="Premium δυνατότητες"
+                          onClick={(e) => setPremiumMenu({ anchor: e.currentTarget, tenantId: row.id })}>
+                          <WorkspacePremiumIcon fontSize="small" sx={{ color: "#b08a3e" }} />
+                        </IconButton>
                         <IconButton size="small" onClick={() => setEditing(row)} disabled={isPlatform}>
                           <EditIcon fontSize="small" />
                         </IconButton>
@@ -207,6 +231,27 @@ export function TenantsPage() {
         title={t("tenants.created")}
         introKey="tenants.created"
       />
+
+      <Menu
+        anchorEl={premiumMenu?.anchor}
+        open={!!premiumMenu}
+        onClose={() => setPremiumMenu(null)}
+        slotProps={{ paper: { sx: { minWidth: 220 } } }}
+      >
+        {PREMIUM_PRESETS.map(p => (
+          <MenuItem
+            key={p.key}
+            disabled={applyPremiumPreset.isPending}
+            onClick={() => {
+              if (!premiumMenu) return;
+              applyPremiumPreset.mutate({ tenantId: premiumMenu.tenantId, codes: p.codes });
+            }}
+          >
+            {p.label}
+            <Box sx={{ ml: "auto", fontSize: 11, color: "text.secondary" }}>{p.codes.length}</Box>
+          </MenuItem>
+        ))}
+      </Menu>
     </Box>
   );
 }

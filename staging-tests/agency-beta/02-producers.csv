@@ -1,0 +1,6 @@
+Code,Name,Email,Phone,Status,Tier,Notes
+PRD-101,Δημήτρης Αλεξίου,d.alexiou@example.gr,6911000001,Active,A,Senior συνεργάτης
+PRD-102,Ελένη Νικολαΐδου,e.nikolaidou@example.gr,6911000002,Active,B,Νέος partner — πιλοτικά
+PRD-103,Στράτος Μαντάς,s.mantas@example.gr,6911000003,Active,C,
+PRD-104,Άννα Παπαγεωργίου,a.papageorgiou@example.gr,6911000004,Active,B,Εξειδίκευση Auto + Home
+PRD-105,Παναγιώτης Σαρρής,p.sarris@example.gr,6911000005,Suspended,D,Εκκρεμεί επαναπιστοποίηση

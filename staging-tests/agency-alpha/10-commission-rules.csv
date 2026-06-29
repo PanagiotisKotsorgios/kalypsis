@@ -1,0 +1,11 @@
+ProducerCode,ProducerTier,InsuranceCompanyCode,PolicyType,CoverCode,VehicleUseCategory,AgencyPercent,ProducerPercent,EffectiveFrom,EffectiveTo
+,,ERGO,Auto,FBC00100,EIX,15.00,12.00,2026-01-01,
+,,ERGO,Auto,FBC00100,FIX,18.00,14.00,2026-01-01,
+,A,,,,,,15.00,2026-01-01,
+,B,,,,,,12.00,2026-01-01,
+,C,,,,,,9.00,2026-01-01,
+PRD-001,,ERGO,Auto,,EIX,,14.00,2026-01-01,Senior special rate
+PRD-002,,GENERALI,Home,,,,11.00,2026-02-01,
+PRD-004,,EUROLIFE,Health,,,,13.00,2026-03-01,Health specialist
+,,GRAND_COVER,Auto,FBC00100,EIX,16.00,12.00,2026-04-01,IW broker rate
+,,ALLIANZ,Auto,FBC00100,FIX,20.00,15.00,2026-01-01,Fleet rate

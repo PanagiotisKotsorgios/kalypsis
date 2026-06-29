@@ -1,0 +1,11 @@
+CustomerNumber,Type,FirstName,LastName,CompanyName,VatNumber,Email,Phone,City,Address,Notes
+KP-BCUS-0001,Individual,Γιώργος,Παπαδόπουλος,,123456789,giorgos.papadopoulos@example.gr,6900000001,Αθήνα,Λεωφ. Συγγρού 100,
+KP-BCUS-0002,Individual,Μαρία,Ιωάννου,,234567890,maria.ioannou@example.gr,6900000002,Θεσσαλονίκη,Τσιμισκή 25,
+KP-BCUS-0003,Company,,,Παπαδόπουλος ΑΕ,345678901,info@papadopoulos.gr,2100000003,Αθήνα,Πανεπιστημίου 12,Εταιρικός λογαριασμός με στόλο 8 οχημάτων
+KP-BCUS-0004,Individual,Νίκος,Δημητρίου,,456789012,nikos.dimitriou@example.gr,6900000004,Πάτρα,Κορίνθου 50,
+KP-BCUS-0005,Individual,Ελένη,Νικολάου,,567890123,eleni.nikolaou@example.gr,6900000005,Λάρισα,Παπακυριαζή 10,
+KP-BCUS-0006,Company,,,Λογιστικό Γραφείο Άλφα,678901234,alfalogos@example.gr,2310000006,Θεσσαλονίκη,Εθνικής Αμύνης 33,
+KP-BCUS-0007,Individual,Κώστας,Σταμάτης,,789012345,kostas.stamatis@example.gr,6900000007,Ιωάννινα,Νεοχωρίου 5,
+KP-BCUS-0008,Individual,Σοφία,Παππά,,890123456,sofia.pappa@example.gr,6900000008,Βόλος,Δημητριάδος 88,
+KP-BCUS-0009,Individual,Αλέξανδρος,Καραγιάννης,,901234567,alex.karagiannis@example.gr,6900000009,Ηράκλειο,Λεωφ. Δικαιοσύνης 12,
+KP-BCUS-0010,Company,,,Τεχνική Α.Ε. Βορρά,012345678,techniki@example.gr,2310000010,Θεσσαλονίκη,Μοναστηρίου 200,Στόλος 5 φορτηγών

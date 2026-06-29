@@ -16,92 +16,49 @@ interface Tool {
   pkg: "BackOffice" | "FrontOffice" | "Crm" | "Intelligence" | "Integrations";
 }
 
-// All routable pages in the platform, categorized for discovery.
-// Each entry mirrors a NavItem from App.tsx — keep in sync when adding pages.
+// "All Tools" only lists pages that are NOT already in the role sidebar —
+// power-user shortcuts, accounting back-room utilities, claims sub-flows,
+// and quoting tools that live behind the main pages. Anything reachable
+// from the sidebar is intentionally not duplicated here; that would just
+// make the catalogue noisier without making any page easier to find.
 const TOOLS: Tool[] = [
-  // Operations & lifecycle
-  { to: "/insurance-companies", labelKey: "nav.insuranceCompanies", descKey: "tools.insuranceCompanies", category: "operations", pkg: "BackOffice" },
-  { to: "/tariffs", labelKey: "nav.tariffs", descKey: "tools.tariffs", category: "operations", pkg: "BackOffice" },
-  { to: "/endorsements", labelKey: "nav.endorsements", descKey: "tools.endorsements", category: "operations", pkg: "BackOffice" },
-  { to: "/cancellations", labelKey: "nav.cancellations", descKey: "tools.cancellations", category: "operations", pkg: "BackOffice" },
-  { to: "/credit-notes", labelKey: "nav.creditNotes", descKey: "tools.creditNotes", category: "operations", pkg: "BackOffice" },
-  { to: "/policies?view=group", labelKey: "nav.groupPolicies", descKey: "tools.groupPolicies", category: "operations", pkg: "BackOffice" },
-  { to: "/policies?view=delivery", labelKey: "nav.policyDelivery", descKey: "tools.policyDelivery", category: "operations", pkg: "BackOffice" },
-  { to: "/lookups", labelKey: "nav.lookups", descKey: "tools.lookups", category: "operations", pkg: "BackOffice" },
-  { to: "/parametric-files", labelKey: "nav.parametricFiles", descKey: "tools.parametricFiles", category: "operations", pkg: "BackOffice" },
-  { to: "/vehicle-models", labelKey: "nav.vehicleModels", descKey: "tools.vehicleModels", category: "operations", pkg: "BackOffice" },
-  { to: "/document-designer", labelKey: "nav.docDesigner", descKey: "tools.docDesigner", category: "operations", pkg: "BackOffice" },
-  { to: "/cover-notes", labelKey: "nav.coverNotes", descKey: "tools.coverNotes", category: "operations", pkg: "FrontOffice" },
+  // Claims & settlements (sub-flows, not main Claims page)
+  { to: "/garages",              labelKey: "nav.garages",      descKey: "tools.garages",      category: "claimsOps",   pkg: "BackOffice" },
+  { to: "/claim-provisions",     labelKey: "nav.provisions",   descKey: "tools.provisions",   category: "claimsOps",   pkg: "BackOffice" },
+  { to: "/indemnities",          labelKey: "nav.indemnities",  descKey: "tools.indemnities",  category: "claimsOps",   pkg: "BackOffice" },
+  { to: "/friendly-settlements", labelKey: "nav.friendly",     descKey: "tools.friendly",     category: "claimsOps",   pkg: "BackOffice" },
 
-  // Claims & settlements
-  { to: "/garages", labelKey: "nav.garages", descKey: "tools.garages", category: "claimsOps", pkg: "BackOffice" },
-  { to: "/claim-provisions", labelKey: "nav.provisions", descKey: "tools.provisions", category: "claimsOps", pkg: "BackOffice" },
-  { to: "/indemnities", labelKey: "nav.indemnities", descKey: "tools.indemnities", category: "claimsOps", pkg: "BackOffice" },
-  { to: "/friendly-settlements", labelKey: "nav.friendly", descKey: "tools.friendly", category: "claimsOps", pkg: "BackOffice" },
-  { to: "/usae", labelKey: "nav.usae", descKey: "tools.usae", category: "claimsOps", pkg: "Integrations" },
-
-  // Commissions
+  // Commission runs — paired with the Commission Rules page in the sidebar.
   { to: "/commission-runs", labelKey: "nav.commissionRuns", descKey: "tools.commissionRuns", category: "commissions", pkg: "BackOffice" },
-  { to: "/commission-rules", labelKey: "nav.commissionRules", descKey: "tools.bulkCommissions", category: "commissions", pkg: "BackOffice" },
-  { to: "/over-commissions", labelKey: "nav.overCommissions", descKey: "tools.overCommissions", category: "commissions", pkg: "BackOffice" },
 
-  // Cash & receivables
-  { to: "/receipts", labelKey: "nav.receipts", descKey: "tools.receipts", category: "financials", pkg: "BackOffice" },
-  { to: "/payments", labelKey: "nav.payments", descKey: "tools.payments", category: "financials", pkg: "BackOffice" },
-  { to: "/financial-movements", labelKey: "nav.financials", descKey: "tools.financials", category: "financials", pkg: "BackOffice" },
-  { to: "/securities", labelKey: "nav.securities", descKey: "tools.securities", category: "financials", pkg: "BackOffice" },
-  { to: "/advance-payments", labelKey: "nav.advance", descKey: "tools.advance", category: "financials", pkg: "BackOffice" },
-  { to: "/reconciliation", labelKey: "nav.reconciliation", descKey: "tools.reconciliation", category: "financials", pkg: "BackOffice" },
-  { to: "/cash", labelKey: "nav.cash", descKey: "tools.cash", category: "financials", pkg: "BackOffice" },
+  // Cash / tachy back-room — not surfaced in the agency sidebar by default.
+  { to: "/cash",          labelKey: "nav.cash",  descKey: "tools.cash",  category: "financials", pkg: "BackOffice" },
   { to: "/tachypayments", labelKey: "nav.tachy", descKey: "tools.tachy", category: "financials", pkg: "BackOffice" },
 
-  // Accounting
-  { to: "/gl", labelKey: "nav.gl", descKey: "tools.gl", category: "accounting", pkg: "BackOffice" },
-  { to: "/accounting", labelKey: "nav.accounting", descKey: "tools.accounting", category: "accounting", pkg: "BackOffice" },
-  { to: "/kepyo", labelKey: "nav.kepyo", descKey: "tools.kepyo", category: "accounting", pkg: "BackOffice" },
-  { to: "/magnetic-import", labelKey: "nav.magneticImport", descKey: "tools.magneticImport", category: "accounting", pkg: "BackOffice" },
-  { to: "/config-hub", labelKey: "nav.configHub", descKey: "tools.configHub", category: "accounting", pkg: "BackOffice" },
+  // Accounting — separate workflow, hidden from the main sidebar to keep it tidy.
+  { to: "/gl",               labelKey: "nav.gl",              descKey: "tools.gl",              category: "accounting", pkg: "BackOffice" },
+  { to: "/accounting",       labelKey: "nav.accounting",      descKey: "tools.accounting",      category: "accounting", pkg: "BackOffice" },
+  { to: "/kepyo",            labelKey: "nav.kepyo",           descKey: "tools.kepyo",           category: "accounting", pkg: "BackOffice" },
+  { to: "/magnetic-import",  labelKey: "nav.magneticImport",  descKey: "tools.magneticImport",  category: "accounting", pkg: "BackOffice" },
 
-  // CRM
-  { to: "/appointments", labelKey: "nav.appointments", descKey: "tools.appointments", category: "crm", pkg: "Crm" },
-  { to: "/document-manager", labelKey: "nav.documentManager", descKey: "tools.documentManager", category: "crm", pkg: "Crm" },
-  { to: "/marketing", labelKey: "nav.marketing", descKey: "tools.marketing", category: "crm", pkg: "Crm" },
-  { to: "/name-days", labelKey: "nav.nameDays", descKey: "tools.nameDays", category: "crm", pkg: "Crm" },
-  { to: "/caller-id", labelKey: "nav.callerId", descKey: "tools.callerId", category: "crm", pkg: "Crm" },
-  { to: "/delivery-tracking", labelKey: "nav.deliveryTracking", descKey: "tools.deliveryTracking", category: "crm", pkg: "Crm" },
-  { to: "/customer-merge", labelKey: "nav.merge", descKey: "tools.merge", category: "crm", pkg: "BackOffice" },
-
-  // Front-office / quoting
-  { to: "/quote-builder", labelKey: "nav.quoteBuilder", descKey: "tools.quoteBuilder", category: "quotes", pkg: "FrontOffice" },
+  // Quoting / front-office sub-tools.
   { to: "/risk-profiles", labelKey: "nav.riskProfiles", descKey: "tools.riskProfiles", category: "quotes", pkg: "FrontOffice" },
-  { to: "/print-pay", labelKey: "nav.printPay", descKey: "tools.printPay", category: "quotes", pkg: "FrontOffice" },
-  { to: "/plafond", labelKey: "nav.plafond", descKey: "tools.plafond", category: "quotes", pkg: "FrontOffice" },
+  { to: "/print-pay",     labelKey: "nav.printPay",     descKey: "tools.printPay",     category: "quotes", pkg: "FrontOffice" },
+  { to: "/plafond",       labelKey: "nav.plafond",      descKey: "tools.plafond",      category: "quotes", pkg: "FrontOffice" },
 
-  // Intelligence
-  { to: "/workflows", labelKey: "nav.workflows", descKey: "tools.workflows", category: "intelligence", pkg: "Intelligence" },
-  { to: "/churn", labelKey: "nav.churn", descKey: "tools.churn", category: "intelligence", pkg: "Intelligence" },
+  // Intelligence power-user tools (sidebar shows the main Reports page only).
+  { to: "/workflows",      labelKey: "nav.workflows",      descKey: "tools.workflows",      category: "intelligence", pkg: "Intelligence" },
+  { to: "/churn",          labelKey: "nav.churn",          descKey: "tools.churn",          category: "intelligence", pkg: "Intelligence" },
   { to: "/report-builder", labelKey: "nav.reportBuilder", descKey: "tools.reportBuilder", category: "intelligence", pkg: "Intelligence" },
-  { to: "/named-reports", labelKey: "nav.namedReports", descKey: "tools.namedReports", category: "intelligence", pkg: "Intelligence" },
-  { to: "/persistency", labelKey: "nav.persistency", descKey: "tools.persistency", category: "intelligence", pkg: "Intelligence" },
-  { to: "/production-stats", labelKey: "nav.productionStats", descKey: "tools.productionStats", category: "intelligence", pkg: "Intelligence" },
-  { to: "/goals", labelKey: "nav.goals", descKey: "tools.goals", category: "intelligence", pkg: "Intelligence" },
+  { to: "/goals",          labelKey: "nav.goals",          descKey: "tools.goals",          category: "intelligence", pkg: "Intelligence" },
 
-  // Integrations
-  { to: "/dias", labelKey: "nav.dias", descKey: "tools.dias", category: "integrations", pkg: "Integrations" },
-  { to: "/bank-connections", labelKey: "nav.bankConnections", descKey: "tools.bankConnections", category: "integrations", pkg: "Integrations" },
-  { to: "/company-bridges", labelKey: "nav.companyBridges", descKey: "tools.companyBridges", category: "integrations", pkg: "Integrations" },
-  { to: "/api-keys", labelKey: "nav.thirdParty", descKey: "tools.thirdParty", category: "integrations", pkg: "Integrations" },
-  { to: "/partner-portals", labelKey: "nav.b2bPortal", descKey: "tools.b2bPortal", category: "integrations", pkg: "Integrations" },
-  { to: "/integration-settings", labelKey: "nav.integrationSettings", descKey: "tools.integrationSettings", category: "integrations", pkg: "Integrations" },
-  { to: "/mydata", labelKey: "nav.mydata", descKey: "tools.mydata", category: "integrations", pkg: "Integrations" },
-  { to: "/info-center", labelKey: "nav.infoCenter", descKey: "tools.infoCenter", category: "integrations", pkg: "Integrations" },
-  { to: "/branches", labelKey: "nav.branchDesigner", descKey: "tools.branchDesigner", category: "integrations", pkg: "Integrations" },
-  { to: "/agency-offices", labelKey: "nav.agencyOffices", descKey: "tools.agencyOffices", category: "integrations", pkg: "Integrations" },
+  // Operations odds and ends.
+  { to: "/lookups", labelKey: "nav.lookups", descKey: "tools.lookups", category: "operations", pkg: "BackOffice" },
 ];
 
 const CATEGORY_ORDER = [
-  "operations", "claimsOps", "commissions", "financials", "accounting",
-  "crm", "quotes", "intelligence", "integrations"
+  "claimsOps", "commissions", "financials", "accounting",
+  "quotes", "intelligence", "operations"
 ];
 
 export function AllToolsPage() {

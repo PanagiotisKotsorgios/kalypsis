@@ -1,0 +1,5 @@
+EndorsementNumber,PolicyNumber,Type,EffectiveDate,PremiumDelta,Currency,Status,Reason
+END-2026-000001,ALPHA-2026-000001,VehicleChange,2026-03-15,+45.00,EUR,Issued,Αλλαγή αυτοκινήτου από Polo σε Golf
+END-2026-000002,ALPHA-2026-000003,Addition,2026-04-01,+260.00,EUR,Issued,Προσθήκη 9ου οχήματος στόλου
+END-2026-000003,ALPHA-2026-000004,Upgrade,2026-05-10,+82.00,EUR,Issued,Αναβάθμιση από Standard σε Privilege
+END-2026-000004,ALPHA-2026-000009,Removal,2026-07-01,-490.00,EUR,Issued,Αφαίρεση φορτηγού από στόλο

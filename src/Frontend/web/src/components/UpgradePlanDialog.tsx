@@ -2,7 +2,6 @@ import {
   Alert,
   Box,
   Button,
-  Card,
   Chip,
   Dialog,
   DialogActions,
@@ -13,15 +12,18 @@ import {
   Typography
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import EmailIcon from "@mui/icons-material/Email";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { PREMIUM_FEATURE_CATALOGUE, usePremium, type PremiumFeatureCode } from "../auth/PremiumContext";
 
+const NAVY = "#0b2545";
+const NAVY_SOFT = "#3d4f6b";
+const ACCENT = "#1ea7e1";
+const RULE = "#e5e9ef";
+
 /**
- * Reads the focused feature out of <PremiumContext /> and renders the upgrade
- * pitch. Mounted ONCE near the root (App.tsx) — every promptUpgrade() call
- * surfaces it.
+ * Restrained upgrade dialog — same palette as the landing / contact pages.
+ * No gradients, minimal icons, plain typography. Lists each premium feature
+ * with its monthly price and an email CTA to info@mykalypsis.gr.
  */
 export function UpgradePlanDialogHost() {
   const premium = usePremium();
@@ -42,106 +44,119 @@ export function UpgradePlanDialogHost() {
     <Dialog
       open={open}
       onClose={premium._closeDialog}
-      maxWidth="md"
+      maxWidth="sm"
       fullWidth
-      slotProps={{ paper: { sx: { borderRadius: 3 } } }}
+      slotProps={{ paper: { sx: { borderRadius: 2, border: `1px solid ${RULE}` } } }}
     >
-      <DialogTitle sx={{ pr: 7 }}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <Box sx={{
-            width: 44, height: 44, borderRadius: 2.5,
-            display: "grid", placeItems: "center",
-            background: "linear-gradient(135deg, #f5d27c 0%, #b08a3e 100%)",
-            color: "#3a2a05"
-          }}>
-            <WorkspacePremiumIcon />
-          </Box>
-          <Box>
-            <Typography sx={{ fontWeight: 850, fontSize: 22 }}>Αναβάθμιση πλάνου</Typography>
-            <Typography color="text.secondary" sx={{ fontSize: 14 }}>
-              Premium δυνατότητες για επαγγελματίες της ασφάλισης
-            </Typography>
-          </Box>
-        </Stack>
+      <DialogTitle sx={{ pr: 6, pb: 1.5 }}>
+        <Typography sx={{ fontWeight: 800, fontSize: 20, color: NAVY }}>
+          Αναβάθμιση πλάνου
+        </Typography>
+        <Typography sx={{ fontSize: 13.5, color: NAVY_SOFT, mt: 0.25 }}>
+          Premium δυνατότητες για επαγγελματίες της ασφάλισης
+        </Typography>
         <IconButton
           onClick={premium._closeDialog}
-          sx={{ position: "absolute", right: 12, top: 12 }}
+          sx={{ position: "absolute", right: 10, top: 10, color: NAVY_SOFT }}
           aria-label="Κλείσιμο"
+          size="small"
         >
-          <CloseIcon />
+          <CloseIcon fontSize="small" />
         </IconButton>
       </DialogTitle>
-      <DialogContent dividers>
+
+      <DialogContent dividers sx={{ borderColor: RULE }}>
         {focusMeta && (
           <Alert
-            icon={<WorkspacePremiumIcon />}
-            severity="warning"
-            sx={{ mb: 2.5, alignItems: "center", bgcolor: "rgba(245,210,124,0.12)", color: "#5a4612", borderColor: "rgba(176,138,62,0.4)" }}
+            severity="info"
+            icon={false}
             variant="outlined"
+            sx={{
+              mb: 2,
+              borderColor: ACCENT,
+              color: NAVY,
+              "& .MuiAlert-message": { fontSize: 14 }
+            }}
           >
-            Η δυνατότητα <strong>{focusMeta.label}</strong> δεν είναι ενεργοποιημένη στο πλάνο σας.
-            Επικοινωνήστε μαζί μας για ενεργοποίηση από <strong>{focusMeta.monthlyPriceEUR}€ / μήνα</strong>.
+            Η δυνατότητα <strong>{focusMeta.label}</strong> δεν είναι ενεργοποιημένη στο πλάνο σας —
+            ενεργοποίηση από <strong>{focusMeta.monthlyPriceEUR}€ / μήνα</strong>.
           </Alert>
         )}
-        <Stack spacing={1.5}>
+
+        <Stack divider={<Box sx={{ height: 1, bgcolor: RULE }} />} spacing={0}>
           {allCodes.map((code) => {
             const meta = PREMIUM_FEATURE_CATALOGUE[code];
             const granted = premium.has(code);
             const focused = focusCode === code;
             return (
-              <Card
+              <Box
                 key={code}
-                variant="outlined"
                 sx={{
-                  p: 2,
-                  borderColor: focused ? "#b08a3e" : "divider",
-                  borderWidth: focused ? 2 : 1,
-                  background: focused ? "rgba(245,210,124,0.06)" : "background.paper"
+                  py: 1.75,
+                  px: focused ? 1.25 : 0,
+                  borderLeft: focused ? `2px solid ${ACCENT}` : "2px solid transparent",
+                  bgcolor: focused ? "rgba(30,167,225,0.03)" : "transparent"
                 }}
               >
-                <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} spacing={1.5}>
-                  <Box sx={{
-                    width: 40, height: 40, borderRadius: 2,
-                    display: "grid", placeItems: "center",
-                    bgcolor: granted ? "rgba(46,164,79,0.12)" : "rgba(176,138,62,0.10)",
-                    color: granted ? "#1e7a32" : "#7a5b1c",
-                    flexShrink: 0
-                  }}>
-                    {granted ? <CheckCircleIcon /> : <WorkspacePremiumIcon />}
-                  </Box>
+                <Stack direction="row" alignItems="flex-start" spacing={2}>
                   <Box sx={{ flex: 1 }}>
-                    <Typography fontWeight={800} fontSize={16}>{meta.label}</Typography>
-                    <Typography color="text.secondary" fontSize={14}>{meta.description}</Typography>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Typography sx={{ fontWeight: 700, fontSize: 15, color: NAVY }}>
+                        {meta.label}
+                      </Typography>
+                      {granted && (
+                        <Chip
+                          size="small"
+                          icon={<CheckCircleOutlineIcon sx={{ fontSize: 14 }} />}
+                          label="Ενεργό"
+                          sx={{
+                            height: 22, fontSize: 11, fontWeight: 700,
+                            bgcolor: "rgba(46,164,79,0.10)",
+                            color: "#1e7a32",
+                            "& .MuiChip-icon": { color: "#1e7a32" }
+                          }}
+                        />
+                      )}
+                    </Stack>
+                    <Typography sx={{ fontSize: 13, color: NAVY_SOFT, mt: 0.25, lineHeight: 1.5 }}>
+                      {meta.description}
+                    </Typography>
                   </Box>
-                  <Box sx={{ textAlign: "right", minWidth: 110 }}>
-                    {granted ? (
-                      <Chip size="small" color="success" label="Ενεργό" sx={{ fontWeight: 800 }} />
-                    ) : (
-                      <>
-                        <Typography fontSize={18} fontWeight={850} color="#7a5b1c">
-                          {meta.monthlyPriceEUR}€
-                        </Typography>
-                        <Typography fontSize={11} color="text.secondary">ανά μήνα</Typography>
-                      </>
-                    )}
-                  </Box>
+                  {!granted && (
+                    <Box sx={{ textAlign: "right", minWidth: 80, flexShrink: 0 }}>
+                      <Typography sx={{ fontSize: 16, fontWeight: 800, color: NAVY, lineHeight: 1 }}>
+                        {meta.monthlyPriceEUR}€
+                      </Typography>
+                      <Typography sx={{ fontSize: 11, color: NAVY_SOFT, mt: 0.25 }}>
+                        / μήνα
+                      </Typography>
+                    </Box>
+                  )}
                 </Stack>
-              </Card>
+              </Box>
             );
           })}
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ p: 2 }}>
-        <Button onClick={premium._closeDialog}>Άκυρο</Button>
+
+      <DialogActions sx={{ p: 2, gap: 1 }}>
+        <Button
+          onClick={premium._closeDialog}
+          sx={{ color: NAVY_SOFT, textTransform: "none", fontWeight: 600 }}
+        >
+          Κλείσιμο
+        </Button>
         <Button
           component="a"
           href={mailto}
           variant="contained"
-          startIcon={<EmailIcon />}
+          disableElevation
           sx={{
-            background: "linear-gradient(135deg, #b08a3e 0%, #7a5b1c 100%)",
-            fontWeight: 800,
-            "&:hover": { background: "linear-gradient(135deg, #c79a4a 0%, #8a6b22 100%)" }
+            bgcolor: NAVY,
+            color: "#fff",
+            textTransform: "none",
+            fontWeight: 700,
+            "&:hover": { bgcolor: NAVY_SOFT }
           }}
         >
           Επικοινωνία για αναβάθμιση

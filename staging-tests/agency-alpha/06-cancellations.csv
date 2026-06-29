@@ -1,0 +1,3 @@
+CancellationNumber,PolicyNumber,CancellationDate,Reason,RefundAmount,Currency,Status,Notes
+CAN-2026-000001,ALPHA-2026-000007,2026-05-15,PolicyExpired,0.00,EUR,Final,Φυσική λήξη ταξιδιωτικού
+CAN-2026-000002,ALPHA-2026-000002,2026-08-15,CustomerRequest,72.00,EUR,Final,Πώληση ακινήτου — διακοπή

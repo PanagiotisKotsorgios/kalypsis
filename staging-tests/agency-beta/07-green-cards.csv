@@ -1,0 +1,5 @@
+GreenCardNumber,PolicyNumber,IssueDate,ValidFrom,ValidUntil,DestinationCountries,Status,Notes
+GC-B26-000001,BETA-2026-000001,2026-01-15,2026-01-15,2027-01-15,EU,Active,Standard EU coverage
+GC-B26-000002,BETA-2026-000006,2026-06-10,2026-06-20,2026-07-05,IT;FR;ES,Active,Διακοπές Ιούλιος
+GC-B26-000003,BETA-2026-000008,2026-05-01,2026-05-01,2027-05-01,EU;CH,Active,
+GC-B26-000004,BETA-2026-000009,2026-05-15,2026-05-15,2027-05-15,EU+TR,Active,Στόλος με διέλευση Τουρκίας

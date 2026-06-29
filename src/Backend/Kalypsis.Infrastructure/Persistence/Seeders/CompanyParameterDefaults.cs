@@ -180,6 +180,14 @@ public static class CompanyParameterDefaults
         yield return ("ERGO_CANCELLATION", "ERGO ακύρωση", null, null, "ERGO", "Cancellation", "RowType", "Cancellation");
         yield return ("ERGO_ENDORSEMENT", "ERGO πρόσθετη πράξη", null, null, "ERGO", "Endorsement", "RowType", "Endorsement");
         yield return ("ERGO_GREENCARD", "ERGO πράσινη κάρτα", PolicyType.Auto, "AUTO", "ERGO", "GreenCard", "RowType", "GreenCard");
+        // Grand Cover (Insurance World / IW) — row-type mapping mirrors ERGO's
+        // shape so the bridge importer can route Policies / Renewals / Endorsements
+        // / Cancellations / GreenCards from the IW Παραμετρικά_Αρχεία file.
+        yield return ("GRAND_COVER_NEW", "Grand Cover νέο/ανανέωση", PolicyType.Auto, "AUTO", "GRAND_COVER", "New", "RowType", "New");
+        yield return ("GRAND_COVER_RENEWAL", "Grand Cover ανανέωση", PolicyType.Auto, "AUTO", "GRAND_COVER", "Renewal", "RowType", "Renewal");
+        yield return ("GRAND_COVER_CANCELLATION", "Grand Cover ακύρωση", null, null, "GRAND_COVER", "Cancellation", "RowType", "Cancellation");
+        yield return ("GRAND_COVER_ENDORSEMENT", "Grand Cover πρόσθετη πράξη", null, null, "GRAND_COVER", "Endorsement", "RowType", "Endorsement");
+        yield return ("GRAND_COVER_GREENCARD", "Grand Cover πράσινη κάρτα", PolicyType.Auto, "AUTO", "GRAND_COVER", "GreenCard", "RowType", "GreenCard");
     }
 
     private static string UseName(VehicleUseCategory use) => use switch

@@ -211,7 +211,8 @@ public static class DataSeeder
             ("ALLIANZ",      "Allianz Ελλάδος",                    "GR"),
             ("NN",           "NN Hellas",                          "GR"),
             ("GENERALI",     "Generali Hellas",                    "GR"),
-            ("INTERLIFE",    "Interlife Α.Α.Ε.Γ.Α.",               "GR")
+            ("INTERLIFE",    "Interlife Α.Α.Ε.Γ.Α.",               "GR"),
+            ("GRAND_COVER",  "Grand Cover (IW)",                    "GR")
         };
 
         var existing = await db.InsuranceCompanies.IgnoreQueryFilters()

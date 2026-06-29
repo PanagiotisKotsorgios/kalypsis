@@ -1,0 +1,6 @@
+Title,Description,Status,Priority,AssignedToEmail,CustomerNumber,PolicyNumber,DueAt
+Ανανέωση συμβολαίου,Επικοινωνία με πελάτη για ανανέωση,Open,Normal,admin@beta.gr,KP-BCUS-0001,BETA-2026-000001,2027-01-08
+Έλεγχος εγγράφων,Λείπει αντίγραφο διπλώματος,Open,High,admin@beta.gr,KP-BCUS-0003,BETA-2026-000003,2026-03-01
+Είσπραξη οφειλής,Καθυστερημένη πληρωμή 2ης δόσης,InProgress,High,admin@beta.gr,KP-BCUS-0004,BETA-2026-000004,2026-06-15
+Πράσινη κάρτα,Προετοιμασία πράσινης κάρτας για διακοπές,Open,Low,admin@beta.gr,KP-BCUS-0007,BETA-2026-000006,2026-06-15
+Διακανονισμός,Συνάντηση για ζημιά αυτοκινήτου,Completed,Normal,admin@beta.gr,KP-BCUS-0009,BETA-2026-000008,2026-05-20

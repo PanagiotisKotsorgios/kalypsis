@@ -1,0 +1,8 @@
+PaymentNumber,PaidOn,BeneficiaryType,BeneficiaryName,InsuranceCompanyCode,ProducerCode,Method,Amount,CommissionsNetted,Currency,Notes
+PAY-2026-000001,2026-01-31,InsuranceCompany,ERGO Ασφαλιστική,ERGO,,Bank,378.00,126.00,EUR,Net of producer commission
+PAY-2026-000002,2026-01-31,Producer,Δημήτρης Αλεξίου,,PRD-001,Bank,75.00,0.00,EUR,Commission payout Jan
+PAY-2026-000003,2026-02-28,InsuranceCompany,Generali Hellas,GENERALI,,Bank,184.00,32.00,EUR,
+PAY-2026-000004,2026-02-28,Producer,Ελένη Νικολαΐδου,,PRD-002,Bank,48.00,0.00,EUR,
+PAY-2026-000005,2026-03-31,InsuranceCompany,Allianz Ελλάδος,ALLIANZ,,Bank,1850.00,370.00,EUR,Φλώτα ΑΕ
+PAY-2026-000006,2026-04-30,Producer,Στράτος Μαντάς,,PRD-003,Bank,108.00,0.00,EUR,
+PAY-2026-000007,2026-05-31,Producer,Άννα Παπαγεωργίου,,PRD-004,Bank,162.00,0.00,EUR,

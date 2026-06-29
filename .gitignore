@@ -44,3 +44,9 @@ desktop.ini
 
 # Local scratch
 NOTHING.txt
+
+# Staging — the README + anonymised template CSVs are versioned, but any real
+# carrier reference files (xlsx from IW etc) and any filled-in variants stay local.
+staging-tests/**/*.xlsx
+staging-tests/**/*.xls
+staging-tests/**/*.filled.csv
