@@ -33,6 +33,8 @@ import FamilyRestroomIcon from "@mui/icons-material/FamilyRestroom";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import HealthAndSafetyIcon from "@mui/icons-material/HealthAndSafety";
+import GroupsIcon from "@mui/icons-material/Groups";
+import { CustomerProducersDialog } from "../components/CustomerProducersDialog";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
@@ -118,6 +120,7 @@ const COMMUNICATION_KINDS = ["Note", "Phone", "Email", "Meeting", "Sms", "WalkIn
 export function CustomerDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
   const [tab, setTab] = useState(0);
+  const [showProducers, setShowProducers] = useState(false);
 
   const customerQ = useQuery({
     queryKey: ["customer", id],
@@ -155,7 +158,21 @@ export function CustomerDetailPage() {
             {customer.phone && <Chip label={customer.phone} size="small" variant="outlined" />}
           </Stack>
         </Box>
+        <Button
+          startIcon={<GroupsIcon />}
+          variant="outlined"
+          onClick={() => setShowProducers(true)}
+        >
+          Συνεργάτες πελάτη
+        </Button>
       </Stack>
+
+      <CustomerProducersDialog
+        open={showProducers}
+        onClose={() => setShowProducers(false)}
+        customerId={id}
+        customerDisplay={displayName}
+      />
 
       <CustomerSummaryCard customerId={id} />
 

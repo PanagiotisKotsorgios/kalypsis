@@ -116,6 +116,9 @@ public interface IAppDbContext
     // Phase 5 — Modular packaging
     DbSet<TenantPackageGrant> TenantPackageGrants { get; }
 
+    // Producer reconciliation — self-reported expected commission per policy
+    DbSet<ProducerCommissionDeclaration> ProducerCommissionDeclarations { get; }
+
     // Phase 6 — Multi-office agencies
     DbSet<AgencyOffice> AgencyOffices { get; }
     DbSet<UserAgencyOffice> UserAgencyOffices { get; }

@@ -189,8 +189,19 @@ public class GetMyAgencyLogoQueryHandler : IRequestHandler<GetMyAgencyLogoQuery,
         var t = await _db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == tenantId, ct);
         if (t is null || string.IsNullOrWhiteSpace(t.LogoUrl)) return null;
         if (t.LogoUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)) return null;
+        // Legacy frontend asset paths (e.g. "/static/kalypsis-logo.jpg") aren't in
+        // our storage root — treat them as "no logo" rather than blowing up.
+        if (t.LogoUrl.StartsWith("/static/", StringComparison.OrdinalIgnoreCase)) return null;
 
-        var stream = await _storage.DownloadAsync(t.LogoUrl, ct);
+        Stream stream;
+        try
+        {
+            stream = await _storage.DownloadAsync(t.LogoUrl, ct);
+        }
+        catch (FileNotFoundException) { return null; }
+        catch (DirectoryNotFoundException) { return null; }
+        catch (InvalidOperationException) { return null; }
+
         var fileName = Path.GetFileName(t.LogoUrl);
         var mime = GuessMime(fileName);
         return (stream, fileName, mime);

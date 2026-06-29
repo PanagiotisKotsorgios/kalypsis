@@ -6809,6 +6809,35 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.ToTable("producers", (string)null);
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.ProducerCommissionDeclaration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt").HasColumnType("datetime(6)");
+                    b.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnType("varchar(3)");
+                    b.Property<DateTime>("DeclaredAt").HasColumnType("datetime(6)");
+                    b.Property<DateTime?>("DeletedAt").HasColumnType("datetime(6)");
+                    b.Property<decimal?>("DifferenceAmount").HasColumnType("decimal(14,2)");
+                    b.Property<decimal>("ExpectedAmount").HasColumnType("decimal(14,2)");
+                    b.Property<decimal?>("ExpectedPercent").HasColumnType("decimal(7,2)");
+                    b.Property<string>("Notes").HasMaxLength(1000).HasColumnType("varchar(1000)");
+                    b.Property<Guid>("PolicyId").HasColumnType("char(36)");
+                    b.Property<Guid>("ProducerId").HasColumnType("char(36)");
+                    b.Property<decimal?>("RecordedAmount").HasColumnType("decimal(14,2)");
+                    b.Property<string>("ReconciliationStatus").IsRequired().HasMaxLength(40).HasColumnType("varchar(40)");
+                    b.Property<Guid>("TenantId").HasColumnType("char(36)");
+                    b.Property<DateTime?>("UpdatedAt").HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+                    b.HasIndex("PolicyId");
+                    b.HasIndex("ProducerId");
+                    b.HasIndex("TenantId", "ProducerId");
+
+                    b.ToTable("producer_commission_declarations", (string)null);
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.ProducerCategory", b =>
                 {
                     b.Property<Guid>("Id")

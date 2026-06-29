@@ -10,6 +10,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../api/client";
+import { ProducerDeclarationForm } from "../components/ProducerDeclarationForm";
+import { usePremium } from "../auth/PremiumContext";
 
 interface SeriesPoint { label: string; value: number }
 interface CarrierShare { carrier: string; policies: number; premium: number }
@@ -248,8 +250,16 @@ export function ProducerDashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      <ProducerDeclarationFormSection />
     </Box>
   );
+}
+
+function ProducerDeclarationFormSection() {
+  const premium = usePremium();
+  if (!premium.has("producer-reconciliation")) return null;
+  return <ProducerDeclarationForm />;
 }
 
 function Kpi({ label, value, accent }: { label: string; value: string; accent?: "warning" }) {

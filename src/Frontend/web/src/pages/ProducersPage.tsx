@@ -14,6 +14,8 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { CredentialsDialog } from "./TenantsPage";
 import { ProducerDetailDrawer } from "../components/ProducerDetailDrawer";
+import { ProducerCustomersDialog } from "../components/ProducerCustomersDialog";
+import PeopleIcon from "@mui/icons-material/People";
 import { useTableState } from "../components/useTableState";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 
@@ -43,6 +45,7 @@ export function ProducersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ProducerDto | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [customersFor, setCustomersFor] = useState<ProducerDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [issuedCreds, setIssuedCreds] = useState<{ email: string; password: string } | null>(null);
 
@@ -185,6 +188,10 @@ export function ProducersPage() {
                     <TableCell><Chip size="small" color={STATUS_COLOR[p.status]} label={t(`producers.statuses.${p.status}`)} /></TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                        <IconButton size="small" title="Πελάτες συνεργάτη"
+                          onClick={(e) => { e.stopPropagation(); setCustomersFor(p); }}>
+                          <PeopleIcon fontSize="small" />
+                        </IconButton>
                         <IconButton size="small" title={t("producers.issuePortal")}
                           disabled={!p.email || p.status !== "Active" || issuePortal.isPending}
                           onClick={() => issuePortal.mutate(p.id)}>
@@ -234,6 +241,13 @@ export function ProducersPage() {
         producerId={detailId}
         open={!!detailId}
         onClose={() => setDetailId(null)}
+      />
+
+      <ProducerCustomersDialog
+        open={!!customersFor}
+        onClose={() => setCustomersFor(null)}
+        producerId={customersFor?.id ?? null}
+        producerName={customersFor?.name}
       />
     </Box>
   );

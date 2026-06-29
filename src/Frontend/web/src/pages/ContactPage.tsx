@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from "react";
-import { Alert, Box, Container, MenuItem, Stack, TextField } from "@mui/material";
+import { useEffect, useState, type FormEvent } from "react";
+import { Alert, Box, Button, CircularProgress, Container, Dialog, DialogActions, DialogContent, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ArrowOutwardIcon from "@mui/icons-material/ArrowOutward";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import PhoneIcon from "@mui/icons-material/Phone";
@@ -96,38 +97,13 @@ export function ContactPage() {
     }, 700);
   };
 
-  if (submitted) {
-    return (
-      <PublicShell>
-        <Container maxWidth="md" sx={{ py: { xs: 12, md: 20 } }}>
-          <EdReveal>
-            <Box className="eyebrow" sx={{ mb: 4 }}>{t("contact.success.refCode")}</Box>
-            <Box className="display" sx={{ fontSize: { xs: 48, md: 80 }, color: "var(--ink)", mb: 4 }}>
-              {t("contact.success.title")}
-            </Box>
-            <Box sx={{ fontSize: 19, lineHeight: 1.7, color: "var(--ink-soft)", maxWidth: 580, mb: 5 }}>
-              {t("contact.success.body")}
-            </Box>
-            <Box sx={{ py: 3, my: 4, borderTop: "1px solid var(--ink)", borderBottom: "1px solid var(--ink)" }}>
-              <Box className="eyebrow">{t("contact.success.refCode")}</Box>
-              <Box sx={{ fontFamily: "var(--mono)", fontSize: 22, mt: 1, color: "var(--ink)" }}>
-                {submitted.ref}
-              </Box>
-            </Box>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-              <button onClick={() => navigate("/")} className="ink-button">
-                <span>{t("contact.success.backHome")}</span>
-                <ArrowOutwardIcon sx={{ fontSize: 18 }} />
-              </button>
-              <button onClick={() => { setSubmitted(null); setForm(initialForm); }} className="ghost-button">
-                <span>{t("contact.success.newMessage")}</span>
-              </button>
-            </Stack>
-          </EdReveal>
-        </Container>
-      </PublicShell>
-    );
-  }
+  // Auto-redirect to home a few seconds after the success popup appears so the
+  // user gets a clear confirmation but isn't stranded on this page.
+  useEffect(() => {
+    if (!submitted) return;
+    const id = window.setTimeout(() => navigate("/"), 4000);
+    return () => window.clearTimeout(id);
+  }, [submitted, navigate]);
 
   return (
     <PublicShell>
@@ -316,6 +292,47 @@ export function ContactPage() {
           </Box>
         </Container>
       </Box>
+
+      <Dialog
+        open={!!submitted}
+        onClose={() => navigate("/")}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{ paper: { sx: { borderRadius: 3, p: 1 } } }}
+      >
+        <DialogContent sx={{ textAlign: "center", py: 4 }}>
+          <Box sx={{
+            width: 72, height: 72, mx: "auto", mb: 2.5,
+            borderRadius: "50%",
+            display: "grid", placeItems: "center",
+            bgcolor: "rgba(46,164,79,0.10)", color: "#1e7a32"
+          }}>
+            <CheckCircleIcon sx={{ fontSize: 44 }} />
+          </Box>
+          <Typography variant="h5" sx={{ fontWeight: 850, mb: 1 }}>
+            {t("contact.success.title")}
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 2.5 }}>
+            {t("contact.success.body")}
+          </Typography>
+          {submitted && (
+            <Box sx={{ py: 1.5, mb: 2, borderTop: "1px solid", borderBottom: "1px solid", borderColor: "divider" }}>
+              <Typography variant="overline" color="text.secondary">{t("contact.success.refCode")}</Typography>
+              <Typography sx={{ fontFamily: "monospace", fontSize: 18, fontWeight: 700, mt: 0.5 }}>
+                {submitted.ref}
+              </Typography>
+            </Box>
+          )}
+          <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
+            <CircularProgress size={12} thickness={5} /> Μετάβαση στην αρχική…
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: "center", pb: 3 }}>
+          <Button onClick={() => navigate("/")} variant="contained" sx={{ fontWeight: 700 }}>
+            {t("contact.success.backHome")}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </PublicShell>
   );
 }

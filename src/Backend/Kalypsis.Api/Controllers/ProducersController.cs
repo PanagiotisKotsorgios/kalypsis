@@ -21,6 +21,12 @@ public class ProducersController : ControllerBase
     public async Task<ActionResult<ProducerDetailDto>> Detail(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetProducerDetailQuery(id), ct));
 
+    // Customers reachable through this producer (via Policy.ProducerId). Aggregated
+    // one row per customer with policy count + total premium for quick triage.
+    [HttpGet("{id:guid}/customers")]
+    public async Task<ActionResult<IReadOnlyList<ProducerCustomerLineDto>>> Customers(Guid id, CancellationToken ct)
+        => Ok(await _mediator.Send(new ListProducerCustomersQuery(id), ct));
+
     [HttpPost]
     public async Task<ActionResult<ProducerDto>> Create([FromBody] CreateProducerBody body, CancellationToken cancellationToken)
     {

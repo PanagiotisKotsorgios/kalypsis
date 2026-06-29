@@ -38,7 +38,7 @@ export function TenantDetailPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { enter } = useImpersonation();
-  const [tab, setTab] = useState<"overview" | "packages" | "billing" | "contracts" | "activity" | "users" | "customers" | "policies">("overview");
+  const [tab, setTab] = useState<"overview" | "packages" | "premium" | "billing" | "contracts" | "activity" | "users" | "customers" | "policies">("overview");
   const [err, setErr] = useState<string | null>(null);
 
   const overviewQ = useQuery({
@@ -114,6 +114,7 @@ export function TenantDetailPage() {
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ px: 2 }}>
           <Tab label={t("tenants.tab.overview")} value="overview" />
           <Tab label={t("tenants.tab.packages")} value="packages" />
+          <Tab label="Premium" value="premium" />
           <Tab label={t("tenants.tab.billing")} value="billing" />
           <Tab label={t("tenants.tab.contracts")} value="contracts" />
           <Tab label={t("tenants.tab.activity")} value="activity" />
@@ -160,6 +161,10 @@ export function TenantDetailPage() {
 
       {tab === "packages" && id && (
         <PackagesTab tenantId={id} onError={setErr} />
+      )}
+
+      {tab === "premium" && id && (
+        <PremiumTab tenantId={id} onError={setErr} />
       )}
 
       {tab === "billing" && id && (
@@ -895,6 +900,157 @@ function ActivityTab({ tenantId }: { tenantId: string }) {
             ))}
           </Stack>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------------- */
+/* Premium tab — toggle premium feature codes within the tenant's packages   */
+/* ------------------------------------------------------------------------- */
+
+import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
+import { PREMIUM_FEATURE_CATALOGUE, type PremiumFeatureCode } from "../auth/PremiumContext";
+
+interface PremiumResponse { codes: string[] }
+
+const PREMIUM_PRESETS: { key: string; label: string; description: string; codes: PremiumFeatureCode[] }[] = [
+  { key: "none",  label: "Καθαρό", description: "Καμία premium δυνατότητα.", codes: [] },
+  { key: "small", label: "Small Office", description: "Πακέτο μικρού γραφείου · κάδος + branded εξαγωγές.",
+    codes: ["recycle-bin", "advanced-exports"] },
+  { key: "pro",   label: "Pro Office", description: "Pro · προσθήκη μαζικών προμηθειών & premium reports.",
+    codes: ["recycle-bin", "advanced-exports", "bulk-commissions", "premium-reports"] },
+  { key: "ent",   label: "Enterprise", description: "Όλες οι premium δυνατότητες ξεκλείδωτες.",
+    codes: ["recycle-bin", "advanced-exports", "producer-reconciliation", "bulk-commissions", "multi-branch", "premium-reports"] }
+];
+
+function PremiumTab({ tenantId, onError }: { tenantId: string; onError: (m: string | null) => void }) {
+  const qc = useQueryClient();
+  const [draft, setDraft] = useState<Set<PremiumFeatureCode> | null>(null);
+
+  const q = useQuery({
+    queryKey: ["tenant-premium", tenantId],
+    queryFn: async () => (await api.get<PremiumResponse>(`/me/premium-features`, {
+      headers: { "X-Impersonate-Tenant": tenantId }
+    })).data
+  });
+
+  const save = useMutation({
+    mutationFn: async (next: PremiumFeatureCode[]) =>
+      (await api.put<PremiumResponse>(`/platform/tenants/${tenantId}/premium-features`, { codes: next })).data,
+    onSuccess: (r) => {
+      qc.setQueryData(["tenant-premium", tenantId], r);
+      setDraft(null);
+      onError(null);
+    },
+    onError: (e) => onError(extractErrorMessage(e))
+  });
+
+  if (q.isLoading) {
+    return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
+  }
+
+  const current = draft ?? new Set(q.data?.codes as PremiumFeatureCode[] ?? []);
+  const isDirty = draft !== null;
+  const allCodes = Object.keys(PREMIUM_FEATURE_CATALOGUE) as PremiumFeatureCode[];
+
+  function toggle(code: PremiumFeatureCode) {
+    const next = new Set(current);
+    if (next.has(code)) next.delete(code);
+    else next.add(code);
+    setDraft(next);
+  }
+
+  function applyPreset(codes: PremiumFeatureCode[]) {
+    setDraft(new Set(codes));
+  }
+
+  return (
+    <Card variant="outlined">
+      <CardContent>
+        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={2} sx={{ mb: 3 }}>
+          <Box>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <WorkspacePremiumIcon sx={{ color: "#b08a3e" }} />
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>Premium δυνατότητες</Typography>
+            </Stack>
+            <Typography variant="body2" color="text.secondary">
+              Ξεκλειδώστε premium features πάνω από τα baseline packages του tenant.
+            </Typography>
+          </Box>
+          {isDirty && (
+            <Stack direction="row" spacing={1}>
+              <Button onClick={() => setDraft(null)}>Άκυρο</Button>
+              <Button variant="contained" disabled={save.isPending}
+                onClick={() => save.mutate(Array.from(current))}>
+                {save.isPending ? <CircularProgress size={16} color="inherit" /> : "Αποθήκευση"}
+              </Button>
+            </Stack>
+          )}
+        </Stack>
+
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="overline" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+            Γρήγορα πακέτα
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            {PREMIUM_PRESETS.map(p => {
+              const isCurrent = p.codes.length === current.size &&
+                p.codes.every(c => current.has(c));
+              return (
+                <Button
+                  key={p.key}
+                  variant={isCurrent ? "contained" : "outlined"}
+                  size="small"
+                  onClick={() => applyPreset(p.codes)}
+                  sx={{ fontWeight: 700 }}
+                  title={p.description}
+                >
+                  {p.label} ({p.codes.length})
+                </Button>
+              );
+            })}
+          </Stack>
+        </Box>
+
+        <Stack divider={<Divider flexItem />} spacing={0}>
+          {allCodes.map((code) => {
+            const meta = PREMIUM_FEATURE_CATALOGUE[code];
+            const enabled = current.has(code);
+            return (
+              <Stack key={code} direction={{ xs: "column", sm: "row" }} spacing={2}
+                alignItems={{ sm: "center" }}
+                sx={{ py: 2.5 }}>
+                <Box sx={{ width: 60, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Box sx={{
+                    width: 44, height: 44, borderRadius: 2,
+                    display: "grid", placeItems: "center",
+                    background: enabled ? "linear-gradient(135deg, #f5d27c 0%, #b08a3e 100%)" : "rgba(0,0,0,0.04)",
+                    color: enabled ? "#3a2a05" : "text.disabled"
+                  }}>
+                    <WorkspacePremiumIcon />
+                  </Box>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Stack direction="row" spacing={1.5} alignItems="baseline">
+                    <Typography sx={{ fontWeight: 700, fontSize: 17 }}>{meta.label}</Typography>
+                    <Chip size="small" label={`${meta.monthlyPriceEUR}€/μήνα`}
+                      sx={{ fontWeight: 700, bgcolor: "rgba(176,138,62,0.1)", color: "#7a5b1c" }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>{code}</Typography>
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, maxWidth: 620 }}>
+                    {meta.description}
+                  </Typography>
+                </Box>
+                <FormControlLabel
+                  control={<Switch checked={enabled} onChange={() => toggle(code)} />}
+                  label={enabled ? "Ενεργό" : "Ανενεργό"}
+                  labelPlacement="start"
+                />
+              </Stack>
+            );
+          })}
+        </Stack>
       </CardContent>
     </Card>
   );

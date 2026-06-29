@@ -1,4 +1,5 @@
 using Kalypsis.Application.Features.Producers;
+using Kalypsis.Application.Features.Reconciliation;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,4 +21,15 @@ public class ProducerSelfController : ControllerBase
     [HttpGet("commissions")]
     public async Task<ActionResult<IReadOnlyList<ProducerRunLineDto>>> Commissions([FromQuery] int? year, CancellationToken ct)
         => Ok(await _m.Send(new GetProducerSelfCommissionsQuery(year), ct));
+
+    // Reconciliation — producer self-reports expected commission per policy.
+    // Premium-gated server-side (producer-reconciliation).
+    [HttpGet("declarations")]
+    public async Task<ActionResult<IReadOnlyList<ProducerDeclarationDto>>> ListMyDeclarations(CancellationToken ct)
+        => Ok(await _m.Send(new ListMyDeclarationsQuery(), ct));
+
+    [HttpPost("declarations")]
+    public async Task<ActionResult<ProducerDeclarationDto>> CreateMyDeclaration(
+        [FromBody] CreateProducerDeclarationBody body, CancellationToken ct)
+        => Ok(await _m.Send(new CreateMyDeclarationCommand(body), ct));
 }

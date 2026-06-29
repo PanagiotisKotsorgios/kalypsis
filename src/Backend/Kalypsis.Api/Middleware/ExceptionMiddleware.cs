@@ -49,6 +49,40 @@ public class ExceptionMiddleware
                 severity = ex.Severity
             }, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }));
         }
+        // Missing files on disk (deleted/never-uploaded/legacy paths) shouldn't 500.
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            _logger.LogWarning(ex, "Storage file missing — {Message}", ex.Message);
+            ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync(JsonSerializer.Serialize(new
+            {
+                code = "storage_missing",
+                message = "Το αρχείο δεν είναι πλέον διαθέσιμο.",
+                title = "Αρχείο μη διαθέσιμο",
+                why = "Το αρχείο που ζητήσατε δεν βρέθηκε στον αποθηκευτικό χώρο. Πιθανώς έχει διαγραφεί ή δεν ανέβηκε ποτέ.",
+                fix = "Αν χρειάζεστε αυτό το αρχείο, επικοινωνήστε με την υποστήριξη.",
+                severity = "warning"
+            }));
+        }
+        catch (BadHttpRequestException ex) when (ex.StatusCode == StatusCodes.Status400BadRequest)
+        {
+            _logger.LogWarning(ex, "Bad HTTP request");
+            ctx.Response.StatusCode = StatusCodes.Status400BadRequest;
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync(JsonSerializer.Serialize(new
+            {
+                code = "bad_request",
+                message = "Λανθασμένο αίτημα.",
+                title = "Λάθος αίτημα",
+                why = ex.Message,
+                severity = "warning"
+            }));
+        }
+        catch (OperationCanceledException) when (ctx.RequestAborted.IsCancellationRequested)
+        {
+            // Client closed the connection; nothing to do.
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception");

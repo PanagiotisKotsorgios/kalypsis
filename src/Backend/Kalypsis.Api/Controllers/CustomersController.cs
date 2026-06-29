@@ -1,4 +1,5 @@
 using Kalypsis.Application.Features.Customers;
+using Kalypsis.Application.Features.Producers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -31,6 +32,13 @@ public class CustomersController : ControllerBase
     [HttpGet("{id:guid}/summary")]
     public async Task<ActionResult<CustomerSummaryDto>> Summary(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetCustomerSummaryQuery(id), ct));
+
+    // Producers that have written policies for this customer. Reverse view of
+    // /producers/{id}/customers — useful when investigating commission disputes.
+    [HttpGet("{id:guid}/producers")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<IReadOnlyList<CustomerProducerLineDto>>> Producers(Guid id, CancellationToken ct)
+        => Ok(await _mediator.Send(new ListCustomerProducersQuery(id), ct));
 
     [HttpPost]
     [Authorize(Policy = "AgencyStaff")]

@@ -119,6 +119,9 @@ public class AppDbContext : DbContext, IAppDbContext
     // Phase 5 — Modular packaging
     public DbSet<TenantPackageGrant> TenantPackageGrants => Set<TenantPackageGrant>();
 
+    // Producer reconciliation — self-reported expected commission per policy
+    public DbSet<ProducerCommissionDeclaration> ProducerCommissionDeclarations => Set<ProducerCommissionDeclaration>();
+
     // Phase 6 — Multi-office agencies
     public DbSet<AgencyOffice> AgencyOffices => Set<AgencyOffice>();
     public DbSet<UserAgencyOffice> UserAgencyOffices => Set<UserAgencyOffice>();
