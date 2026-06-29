@@ -83,12 +83,14 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
 {
     private readonly IAppDbContext _db;
     private readonly IFileStorage _storage;
+    private readonly FileUploadGate _gate;
     private readonly ICurrentUser _current;
 
-    public UploadDocumentCommandHandler(IAppDbContext db, IFileStorage storage, ICurrentUser current)
+    public UploadDocumentCommandHandler(IAppDbContext db, IFileStorage storage, FileUploadGate gate, ICurrentUser current)
     {
         _db = db;
         _storage = storage;
+        _gate = gate;
         _current = current;
     }
 
@@ -100,8 +102,11 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
             .FirstOrDefaultAsync(p => p.Id == request.PolicyId && p.TenantId == tenantId && p.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Policy");
 
+        var safeType = await _gate.InspectAsync(
+            request.FileName, request.ContentType, request.SizeBytes, request.Content, FileUploadKind.Document, ct: ct);
+
         var key = $"documents/{tenantId}/{policy.Id}";
-        var path = await _storage.UploadAsync(key, request.FileName, request.ContentType, request.Content, ct);
+        var path = await _storage.UploadAsync(key, request.FileName, safeType, request.Content, ct);
 
         var doc = new PolicyDocument
         {
@@ -111,7 +116,7 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
             DocumentType = request.Type,
             FileName = Path.GetFileName(request.FileName),
             StoragePath = path,
-            MimeType = string.IsNullOrWhiteSpace(request.ContentType) ? "application/octet-stream" : request.ContentType,
+            MimeType = safeType,
             SizeBytes = request.SizeBytes,
             UploadedByUserId = _current.UserId
         };

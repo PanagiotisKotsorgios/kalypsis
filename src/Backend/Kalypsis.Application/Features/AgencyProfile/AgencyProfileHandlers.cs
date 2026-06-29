@@ -117,11 +117,12 @@ public class UploadAgencyLogoCommandHandler : IRequestHandler<UploadAgencyLogoCo
 {
     private readonly IAppDbContext _db;
     private readonly IFileStorage _storage;
+    private readonly FileUploadGate _gate;
     private readonly ICurrentUser _current;
 
-    public UploadAgencyLogoCommandHandler(IAppDbContext db, IFileStorage storage, ICurrentUser current)
+    public UploadAgencyLogoCommandHandler(IAppDbContext db, IFileStorage storage, FileUploadGate gate, ICurrentUser current)
     {
-        _db = db; _storage = storage; _current = current;
+        _db = db; _storage = storage; _gate = gate; _current = current;
     }
 
     public async Task<AgencyProfileDto> Handle(UploadAgencyLogoCommand request, CancellationToken ct)
@@ -144,17 +145,15 @@ public class UploadAgencyLogoCommandHandler : IRequestHandler<UploadAgencyLogoCo
                 why: $"Ανεβάσατε αρχείο {request.SizeBytes / 1024} KB. Το όριο είναι 4 MB ώστε να φορτώνει γρήγορα παντού στο εκτυπώσιμα παραστατικά και emails.",
                 fix: "Μειώστε το μέγεθος του αρχείου σε εργαλείο όπως tinypng.com ή εξάγετέ το ξανά σε μικρότερη ανάλυση (συνιστάται 512×512 PNG).");
 
-        var ct2 = (request.ContentType ?? "").ToLowerInvariant();
-        if (!(ct2.StartsWith("image/png") || ct2.StartsWith("image/jpeg") || ct2.StartsWith("image/svg") || ct2.StartsWith("image/webp")))
-            throw new AppException("logo_wrong_format",
-                "Logo must be PNG, JPEG, SVG or WebP.", 400,
-                title: "Μη υποστηριζόμενος τύπος",
-                why: $"Το αρχείο σας είναι τύπου {request.ContentType ?? "άγνωστο"}. Υποστηρίζουμε μόνο PNG, JPEG, SVG ή WebP — αυτοί οι τύποι δουλεύουν σε όλους τους browsers και τα PDF παραστατικά.",
-                fix: "Εξάγετε το λογότυπο σε PNG (καλύτερο για διαφάνεια) ή SVG (καλύτερο για ευκρίνεια σε μεγάλες αναλύσεις).");
+        // Magic-byte + extension + AV pipeline. Replaces the loose content-type
+        // sniff that came before — a renamed .exe won't pass this gate.
+        var safeType = await _gate.InspectAsync(
+            request.FileName, request.ContentType, request.SizeBytes, request.Content,
+            FileUploadKind.Image, maxBytes: 4_000_000, ct: ct);
 
         var oldPath = t.LogoUrl;
         var key = $"branding/{tenantId}";
-        var path = await _storage.UploadAsync(key, request.FileName, request.ContentType, request.Content, ct);
+        var path = await _storage.UploadAsync(key, request.FileName, safeType, request.Content, ct);
         t.LogoUrl = path;
         await _db.SaveChangesAsync(ct);
 

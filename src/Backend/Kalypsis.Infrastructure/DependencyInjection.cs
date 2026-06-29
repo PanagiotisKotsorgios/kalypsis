@@ -44,6 +44,7 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IFileSafetyService, Kalypsis.Infrastructure.Storage.FileSafetyService>();
+        services.AddSingleton<IAntivirusScanner, Kalypsis.Infrastructure.Storage.NoopAntivirusScanner>();
         services.AddSingleton<IInvoicePdfRenderer, InvoicePdfRenderer>();
 
         services.AddHttpClient("brevo");

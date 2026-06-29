@@ -21,11 +21,12 @@ public class CarrierParametricFilesController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IFileStorage _storage;
+    private readonly Kalypsis.Application.Common.FileUploadGate _gate;
     private readonly ICurrentUser _current;
     private readonly IDateTimeProvider _clock;
 
-    public CarrierParametricFilesController(AppDbContext db, IFileStorage storage, ICurrentUser current, IDateTimeProvider clock)
-    { _db = db; _storage = storage; _current = current; _clock = clock; }
+    public CarrierParametricFilesController(AppDbContext db, IFileStorage storage, Kalypsis.Application.Common.FileUploadGate gate, ICurrentUser current, IDateTimeProvider clock)
+    { _db = db; _storage = storage; _gate = gate; _current = current; _clock = clock; }
 
     public record ParametricFileDto(
         Guid Id, Guid? TenantId, bool IsBroadcast,
@@ -71,9 +72,15 @@ public class CarrierParametricFilesController : ControllerBase
             .ForEachAsync(f => f.IsActive = false, ct);
 
         using var stream = file.OpenReadStream();
+        // Spreadsheets / CSV are the legitimate shape here. Magic-byte + AV
+        // gate the file before it touches storage.
+        var safeType = await _gate.InspectAsync(
+            file.FileName, file.ContentType, file.Length, stream,
+            Kalypsis.Application.Abstractions.FileUploadKind.Spreadsheet,
+            maxBytes: 50_000_000, ct: ct);
         var key = await _storage.UploadAsync(
             $"parametric/{carrierCode.ToLowerInvariant()}/{body.Kind.ToLowerInvariant()}",
-            file.FileName, file.ContentType, stream, ct);
+            file.FileName, safeType, stream, ct);
 
         var entity = new CarrierParametricFile
         {

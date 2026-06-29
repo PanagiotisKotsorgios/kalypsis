@@ -1,6 +1,7 @@
 using System.Reflection;
 using FluentValidation;
 using Kalypsis.Application.Behaviors;
+using Kalypsis.Application.Common;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -19,6 +20,8 @@ public static class DependencyInjection
         });
 
         services.AddValidatorsFromAssembly(assembly);
+
+        services.AddScoped<FileUploadGate>();
 
         return services;
     }

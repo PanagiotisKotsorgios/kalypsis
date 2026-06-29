@@ -20,10 +20,11 @@ public class TenantContractsController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IDateTimeProvider _clock;
     private readonly IFileStorage _storage;
+    private readonly Kalypsis.Application.Common.FileUploadGate _gate;
     private readonly ICurrentUser _current;
 
-    public TenantContractsController(AppDbContext db, IDateTimeProvider clock, IFileStorage storage, ICurrentUser current)
-    { _db = db; _clock = clock; _storage = storage; _current = current; }
+    public TenantContractsController(AppDbContext db, IDateTimeProvider clock, IFileStorage storage, Kalypsis.Application.Common.FileUploadGate gate, ICurrentUser current)
+    { _db = db; _clock = clock; _storage = storage; _gate = gate; _current = current; }
 
     public record ContractDto(
         Guid Id, string ContractNumber,
@@ -150,14 +151,22 @@ public class TenantContractsController : ControllerBase
             .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId, ct)
             ?? throw AppException.NotFound("Contract");
         if (file is null || file.Length == 0) return BadRequest(new { code = "no_file" });
-        if (file.ContentType != "application/pdf") return BadRequest(new { code = "pdf_only", message = "Μόνο PDF γίνεται δεκτό." });
 
         // Delete prior file (if any) — keep storage tidy
         if (!string.IsNullOrEmpty(c.ContractFileKey))
             try { await _storage.DeleteAsync(c.ContractFileKey, ct); } catch { /* ignore */ }
 
         await using var stream = file.OpenReadStream();
-        var key = await _storage.UploadAsync($"contracts/{tenantId:N}", file.FileName, file.ContentType, stream, ct);
+        // Magic-byte + AV gate. PDF allowlist is enforced via the Document kind
+        // (PDF + Office + images — we'll keep PDF as the only kept extension by
+        // refusing non-PDF at the application boundary below).
+        var safeType = await _gate.InspectAsync(
+            file.FileName, file.ContentType, file.Length, stream,
+            Kalypsis.Application.Abstractions.FileUploadKind.Document,
+            maxBytes: 20_000_000, ct: ct);
+        if (!safeType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { code = "pdf_only", message = "Μόνο PDF γίνεται δεκτό." });
+        var key = await _storage.UploadAsync($"contracts/{tenantId:N}", file.FileName, safeType, stream, ct);
 
         c.ContractFileKey = key;
         c.ContractFileName = file.FileName;
