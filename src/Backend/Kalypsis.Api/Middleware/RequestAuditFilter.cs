@@ -68,6 +68,11 @@ public sealed class RequestAuditFilter : IAsyncActionFilter
 
             // Strip query string — never log it (may contain search terms etc).
             var safePath = path.Length > 256 ? path[..256] : path;
+            // Action column is `varchar(64)`. Build verb+path then truncate.
+            // The PagePath column holds the full path separately, so no info
+            // is lost — just the duplicated "METHOD /path" composite is short.
+            var actionFull = $"{method} {safePath}";
+            var actionTruncated = actionFull.Length > 64 ? actionFull[..64] : actionFull;
 
             db.AuditLogs.Add(new AuditLog
             {
@@ -77,7 +82,7 @@ public sealed class RequestAuditFilter : IAsyncActionFilter
                 UserId = userId,
                 EntityName = "HttpRequest",
                 EntityId = string.Empty,
-                Action = $"{method} {safePath}",
+                Action = actionTruncated,
                 Category = ClassifyCategory(method, safePath, status),
                 PagePath = safePath,
                 Metadata = $"{{\"status\":{status},\"durMs\":{sw.ElapsedMilliseconds}}}",
