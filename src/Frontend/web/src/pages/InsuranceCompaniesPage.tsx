@@ -3,7 +3,6 @@ import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControlLabel, IconButton, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import BusinessIcon from "@mui/icons-material/Business";
@@ -94,9 +93,9 @@ export function InsuranceCompaniesPage() {
         </Stack>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
           <DataExportButton entity="insurance-companies" />
-          <Button size="large" variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
-          Νέα ασφαλιστική
-          </Button>
+          {/* "Νέα ασφαλιστική" removed — every duplicate of a global was being
+              rejected anyway. New carriers are added by the platform admin
+              from /platform/carriers. */}
         </Stack>
       </Stack>
 
@@ -121,7 +120,7 @@ export function InsuranceCompaniesPage() {
             </Box>
             {ownRows.length === 0 ? (
               <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
-                Δεν έχετε προσθέσει ακόμη δικές σας ασφαλιστικές. Πατήστε «Νέα ασφαλιστική» επάνω δεξιά.
+                Δεν υπάρχουν δικές σας ασφαλιστικές. Οι καθολικές που διαχειρίζεται η Kalypsis εμφανίζονται παρακάτω.
               </Box>
             ) : (
               <CompanyTable rows={ownRows} onEdit={setEditing} onDelete={(id) => {

@@ -68,4 +68,7 @@ public class Policy : TenantEntity
     public ICollection<PolicyDocument> Documents { get; set; } = new List<PolicyDocument>();
     public ICollection<Claim> Claims { get; set; } = new List<Claim>();
     public ICollection<CommissionTransaction> CommissionTransactions { get; set; } = new List<CommissionTransaction>();
+    public ICollection<PolicyObject> Objects { get; set; } = new List<PolicyObject>();
+    public ICollection<PolicyCover> Covers { get; set; } = new List<PolicyCover>();
+    public ICollection<PolicyInstallment> Installments { get; set; } = new List<PolicyInstallment>();
 }

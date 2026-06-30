@@ -222,6 +222,9 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
           <Tab label={`${t("policyDetail.tab.claims")} (${p?.claimCount ?? 0})`} />
           <Tab label={`${t("policyDetail.tab.receipts")} (${p?.receiptCount ?? 0})`} />
           <Tab label={`PDF Συμβολαίου (${p?.documentCount ?? 0})`} />
+          <Tab label="Αντικείμενα" />
+          <Tab label="Καλύψεις" />
+          <Tab label="Δόσεις" />
         </Tabs>
 
         {/* Scrollable content */}
@@ -375,6 +378,9 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                   emptyKey="policyDetail.noReceipts" />
               )}
               {tab === 8 && <PolicyContractPdf policyId={p.id} />}
+              {tab === 9 && <PolicyObjectsTab policyId={p.id} />}
+              {tab === 10 && <PolicyCoversTab policyId={p.id} />}
+              {tab === 11 && <PolicyInstallmentsTab policyId={p.id} />}
             </>
           )}
         </Box>
@@ -619,6 +625,253 @@ function PolicyContractPdf({ policyId }: { policyId: string }) {
           <Box component="iframe" src={previewUrl} title="PDF preview"
             sx={{ width: "100%", height: 520, border: 0, display: "block" }} />
         </Box>
+      )}
+    </Stack>
+  );
+}
+
+/* ============== EXTENSION TABS ============== */
+
+function PolicyObjectsTab({ policyId }: { policyId: string }) {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["policy-objects", policyId],
+    queryFn: async () => (await api.get<any[]>(`/policies/${policyId}/objects`)).data
+  });
+  const [form, setForm] = useState({ objectKind: "", identifier: "", description: "", characteristic: "", fbcLinkCode: "" });
+  const add = useMutation({
+    mutationFn: async () => (await api.post(`/policies/${policyId}/objects`, form)).data,
+    onSuccess: () => {
+      setForm({ objectKind: "", identifier: "", description: "", characteristic: "", fbcLinkCode: "" });
+      void qc.invalidateQueries({ queryKey: ["policy-objects", policyId] });
+    }
+  });
+  const del = useMutation({
+    mutationFn: async (id: string) => api.delete(`/policies/${policyId}/objects/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["policy-objects", policyId] })
+  });
+
+  return (
+    <Stack spacing={2}>
+      <Typography variant="overline" color="text.secondary" fontWeight={700}>Αντικείμενα</Typography>
+      {q.isLoading ? <CircularProgress size={20} /> : (
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Είδος</TableCell>
+              <TableCell>Αναγνωριστικό</TableCell>
+              <TableCell>Περιγραφή</TableCell>
+              <TableCell>FBC</TableCell>
+              <TableCell width={42} />
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {(q.data ?? []).length === 0 && (
+              <TableRow><TableCell colSpan={5} align="center" sx={{ color: "text.secondary" }}>
+                Δεν υπάρχουν καταχωρημένα αντικείμενα.
+              </TableCell></TableRow>
+            )}
+            {(q.data ?? []).map((o: any) => (
+              <TableRow key={o.id} hover>
+                <TableCell>{o.objectKind}</TableCell>
+                <TableCell sx={{ fontFamily: "monospace" }}>{o.identifier ?? "—"}</TableCell>
+                <TableCell>{o.description ?? "—"}</TableCell>
+                <TableCell sx={{ fontFamily: "monospace", fontSize: 11 }}>{o.fbcLinkCode ?? "—"}</TableCell>
+                <TableCell>
+                  <IconButton size="small" color="error" onClick={() => { if (confirm("Διαγραφή;")) del.mutate(o.id); }}>
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+      <Box sx={{ p: 2, bgcolor: "background.default", borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
+        <Typography variant="caption" color="text.secondary">Νέο αντικείμενο</Typography>
+        <Stack spacing={1.5} mt={1}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <TextField size="small" label="Είδος" value={form.objectKind}
+              onChange={e => setForm({ ...form, objectKind: e.target.value })} sx={{ flex: 1 }} />
+            <TextField size="small" label="Αναγνωριστικό" value={form.identifier}
+              onChange={e => setForm({ ...form, identifier: e.target.value })} sx={{ flex: 1 }} />
+            <TextField size="small" label="FBC" value={form.fbcLinkCode}
+              onChange={e => setForm({ ...form, fbcLinkCode: e.target.value })} sx={{ width: 120 }} />
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <TextField size="small" label="Περιγραφή" value={form.description}
+              onChange={e => setForm({ ...form, description: e.target.value })} sx={{ flex: 1 }} />
+            <TextField size="small" label="Χαρακτηριστικό" value={form.characteristic}
+              onChange={e => setForm({ ...form, characteristic: e.target.value })} sx={{ flex: 1 }} />
+            <Button variant="contained" onClick={() => add.mutate()} disabled={!form.objectKind.trim() || add.isPending}>
+              {add.isPending ? <CircularProgress size={18} /> : "Προσθήκη"}
+            </Button>
+          </Stack>
+        </Stack>
+      </Box>
+    </Stack>
+  );
+}
+
+function PolicyCoversTab({ policyId }: { policyId: string }) {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["policy-covers", policyId],
+    queryFn: async () => (await api.get<any[]>(`/policies/${policyId}/covers`)).data
+  });
+  const objects = useQuery({
+    queryKey: ["policy-objects", policyId],
+    queryFn: async () => (await api.get<any[]>(`/policies/${policyId}/objects`)).data
+  });
+  const [form, setForm] = useState({ coverCode: "", coverName: "", policyObjectId: "", grossPremium: "", netPremium: "", coverageAmount: "" });
+  const add = useMutation({
+    mutationFn: async () => (await api.post(`/policies/${policyId}/covers`, {
+      coverCode: form.coverCode, coverName: form.coverName || null,
+      policyObjectId: form.policyObjectId || null,
+      grossPremium: Number(form.grossPremium) || 0,
+      netPremium: Number(form.netPremium) || 0,
+      coverageAmount: form.coverageAmount ? Number(form.coverageAmount) : null
+    })).data,
+    onSuccess: () => {
+      setForm({ coverCode: "", coverName: "", policyObjectId: "", grossPremium: "", netPremium: "", coverageAmount: "" });
+      void qc.invalidateQueries({ queryKey: ["policy-covers", policyId] });
+    }
+  });
+  const del = useMutation({
+    mutationFn: async (id: string) => api.delete(`/policies/${policyId}/covers/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["policy-covers", policyId] })
+  });
+
+  return (
+    <Stack spacing={2}>
+      <Typography variant="overline" color="text.secondary" fontWeight={700}>Καλύψεις</Typography>
+      {q.isLoading ? <CircularProgress size={20} /> : (
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Κωδικός</TableCell>
+              <TableCell>Όνομα</TableCell>
+              <TableCell align="right">Μικτά</TableCell>
+              <TableCell align="right">Καθαρά</TableCell>
+              <TableCell align="right">Κεφάλαιο</TableCell>
+              <TableCell width={42} />
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {(q.data ?? []).length === 0 && (
+              <TableRow><TableCell colSpan={6} align="center" sx={{ color: "text.secondary" }}>
+                Δεν υπάρχουν καταχωρημένες καλύψεις.
+              </TableCell></TableRow>
+            )}
+            {(q.data ?? []).map((c: any) => (
+              <TableRow key={c.id} hover>
+                <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{c.coverCode}</TableCell>
+                <TableCell>{c.coverName ?? "—"}</TableCell>
+                <TableCell align="right">{c.grossPremium.toFixed(2)}</TableCell>
+                <TableCell align="right">{c.netPremium.toFixed(2)}</TableCell>
+                <TableCell align="right">{c.coverageAmount ? c.coverageAmount.toFixed(2) : "—"}</TableCell>
+                <TableCell>
+                  <IconButton size="small" color="error" onClick={() => { if (confirm("Διαγραφή;")) del.mutate(c.id); }}>
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+      <Box sx={{ p: 2, bgcolor: "background.default", borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
+        <Typography variant="caption" color="text.secondary">Νέα κάλυψη</Typography>
+        <Stack spacing={1.5} mt={1}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <TextField size="small" label="Κωδικός" value={form.coverCode}
+              onChange={e => setForm({ ...form, coverCode: e.target.value.toUpperCase() })} sx={{ width: 140 }} />
+            <TextField size="small" label="Όνομα" value={form.coverName}
+              onChange={e => setForm({ ...form, coverName: e.target.value })} sx={{ flex: 1 }} />
+            <TextField size="small" select label="Αντικείμενο" value={form.policyObjectId}
+              onChange={e => setForm({ ...form, policyObjectId: e.target.value })} sx={{ width: 200 }}>
+              <MenuItem value="">—</MenuItem>
+              {(objects.data ?? []).map((o: any) => <MenuItem key={o.id} value={o.id}>{o.objectKind}{o.identifier ? ` · ${o.identifier}` : ""}</MenuItem>)}
+            </TextField>
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <TextField size="small" type="number" label="Μικτά" value={form.grossPremium}
+              onChange={e => setForm({ ...form, grossPremium: e.target.value })} sx={{ flex: 1 }} />
+            <TextField size="small" type="number" label="Καθαρά" value={form.netPremium}
+              onChange={e => setForm({ ...form, netPremium: e.target.value })} sx={{ flex: 1 }} />
+            <TextField size="small" type="number" label="Κεφάλαιο" value={form.coverageAmount}
+              onChange={e => setForm({ ...form, coverageAmount: e.target.value })} sx={{ flex: 1 }} />
+            <Button variant="contained" onClick={() => add.mutate()} disabled={!form.coverCode.trim() || add.isPending}>
+              {add.isPending ? <CircularProgress size={18} /> : "Προσθήκη"}
+            </Button>
+          </Stack>
+        </Stack>
+      </Box>
+    </Stack>
+  );
+}
+
+function PolicyInstallmentsTab({ policyId }: { policyId: string }) {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["policy-installments", policyId],
+    queryFn: async () => (await api.get<any[]>(`/policies/${policyId}/installments`)).data
+  });
+  const generate = useMutation({
+    mutationFn: async () => (await api.post(`/policies/${policyId}/installments/generate`)).data,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["policy-installments", policyId] })
+  });
+  const markPaid = useMutation({
+    mutationFn: async (id: string) => (await api.post(`/policies/${policyId}/installments/${id}/mark-paid`, {
+      paidVia: "Cash", receiptReference: null
+    })).data,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["policy-installments", policyId] })
+  });
+
+  return (
+    <Stack spacing={2}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Typography variant="overline" color="text.secondary" fontWeight={700}>Δόσεις</Typography>
+        <Button size="small" variant="outlined" onClick={() => generate.mutate()} disabled={generate.isPending}>
+          {generate.isPending ? <CircularProgress size={16} /> : "Δημιουργία δόσεων"}
+        </Button>
+      </Stack>
+      {q.isLoading ? <CircularProgress size={20} /> : (
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>#</TableCell>
+              <TableCell>Λήξη</TableCell>
+              <TableCell align="right">Ποσό</TableCell>
+              <TableCell>Πληρώθηκε</TableCell>
+              <TableCell>Τρόπος</TableCell>
+              <TableCell width={120} />
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {(q.data ?? []).length === 0 && (
+              <TableRow><TableCell colSpan={6} align="center" sx={{ color: "text.secondary" }}>
+                Δεν υπάρχουν δόσεις. Πατήστε «Δημιουργία δόσεων» για να δημιουργηθεί πλάνο.
+              </TableCell></TableRow>
+            )}
+            {(q.data ?? []).map((i: any) => (
+              <TableRow key={i.id} hover>
+                <TableCell>{i.ordinal}</TableCell>
+                <TableCell>{i.dueDate}</TableCell>
+                <TableCell align="right">{i.amount.toFixed(2)} {i.currency}</TableCell>
+                <TableCell>{i.paidAt ?? "—"}</TableCell>
+                <TableCell>{i.paidVia ?? "—"}</TableCell>
+                <TableCell>
+                  {!i.paidAt && (
+                    <Button size="small" onClick={() => markPaid.mutate(i.id)} disabled={markPaid.isPending}>
+                      Πληρώθηκε
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </Stack>
   );

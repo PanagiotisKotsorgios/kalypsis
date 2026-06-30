@@ -365,6 +365,83 @@ public static class DataSeeder
             table: "policies", column: "PaymentCollectionMethod",
             addSql: "ALTER TABLE `policies` ADD COLUMN `PaymentCollectionMethod` varchar(64) NULL", ct);
 
+        // --- customers.DriverLicense* columns -----------------------------
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "customers", column: "DriverLicenseNumber",
+            addSql: "ALTER TABLE `customers` ADD COLUMN `DriverLicenseNumber` varchar(64) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "customers", column: "DriverLicenseClass",
+            addSql: "ALTER TABLE `customers` ADD COLUMN `DriverLicenseClass` varchar(16) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "customers", column: "DriverLicenseIssueDate",
+            addSql: "ALTER TABLE `customers` ADD COLUMN `DriverLicenseIssueDate` date NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "customers", column: "DriverLicenseExpiryDate",
+            addSql: "ALTER TABLE `customers` ADD COLUMN `DriverLicenseExpiryDate` date NULL", ct);
+
+        // --- policy_objects table -----------------------------------------
+        await EnsureTableAsync(db, logger, dbName,
+            table: "policy_objects",
+            createSql: @"CREATE TABLE IF NOT EXISTS `policy_objects` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `PolicyId` char(36) NOT NULL,
+                `ObjectKind` varchar(64) NOT NULL,
+                `FbcLinkCode` varchar(32) NULL,
+                `Identifier` varchar(128) NULL,
+                `Description` varchar(512) NULL,
+                `Characteristic` varchar(128) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_policy_objects_PolicyId` (`PolicyId`),
+                KEY `IX_policy_objects_TenantId_PolicyId` (`TenantId`, `PolicyId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        // --- policy_covers table ------------------------------------------
+        await EnsureTableAsync(db, logger, dbName,
+            table: "policy_covers",
+            createSql: @"CREATE TABLE IF NOT EXISTS `policy_covers` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `PolicyId` char(36) NOT NULL,
+                `PolicyObjectId` char(36) NULL,
+                `CoverCode` varchar(32) NOT NULL,
+                `CoverName` varchar(200) NULL,
+                `GrossPremium` decimal(14,2) NOT NULL DEFAULT 0,
+                `NetPremium` decimal(14,2) NOT NULL DEFAULT 0,
+                `CoverageAmount` decimal(18,2) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_policy_covers_PolicyId` (`PolicyId`),
+                KEY `IX_policy_covers_PolicyObjectId` (`PolicyObjectId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        // --- policy_installments table ------------------------------------
+        await EnsureTableAsync(db, logger, dbName,
+            table: "policy_installments",
+            createSql: @"CREATE TABLE IF NOT EXISTS `policy_installments` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `PolicyId` char(36) NOT NULL,
+                `Ordinal` int NOT NULL,
+                `DueDate` date NOT NULL,
+                `Amount` decimal(14,2) NOT NULL,
+                `Currency` varchar(3) NOT NULL DEFAULT 'EUR',
+                `PaidAt` date NULL,
+                `PaidVia` varchar(64) NULL,
+                `ReceiptReference` varchar(128) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_policy_installments_PolicyId` (`PolicyId`),
+                KEY `IX_policy_installments_TenantId_DueDate_PaidAt` (`TenantId`, `DueDate`, `PaidAt`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         // --- producer_commission_declarations table ------------------------
         await EnsureTableAsync(db, logger, dbName,
             table: "producer_commission_declarations",

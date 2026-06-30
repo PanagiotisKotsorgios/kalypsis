@@ -30,6 +30,7 @@ import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import EventIcon from "@mui/icons-material/Event";
+import EventRepeatIcon from "@mui/icons-material/EventRepeat";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import LinkIcon from "@mui/icons-material/Link";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
@@ -186,6 +187,7 @@ import { AllToolsPage } from "./pages/AllToolsPage";
 import { BridgeImportPage } from "./pages/BridgeImportPage";
 import { CarrierBridgesPage } from "./pages/CarrierBridgesPage";
 import { ProductionListsPage } from "./pages/ProductionListsPage";
+import { RenewalsPage } from "./pages/RenewalsPage";
 import {
   SubscriptionPlansPage, BroadcastPage, PlatformTranslationsPage,
   PlatformApiKeysPage, PlatformIntegrationsPage, PlatformBackupsPage,
@@ -215,6 +217,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/production-lists", labelKey: "nav.productionLists", icon: <LeaderboardIcon />, package: "BackOffice", group: "production" },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice", group: "production" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice", group: "production" },
+    { to: "/renewals", labelKey: "nav.renewals", icon: <EventRepeatIcon />, package: "BackOffice", group: "production" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice", group: "production" },
     { to: "/producers", labelKey: "nav.producers", icon: <HandshakeIcon />, package: "BackOffice", group: "production" },
     { to: "/endorsements", labelKey: "nav.endorsements", icon: <EditNoteIcon />, package: "BackOffice", group: "production" },
@@ -544,6 +547,8 @@ export default function App() {
                   <Route path="bridge-import" element={<BridgeImportPage />} />
                   <Route path="carrier-bridges" element={<CarrierBridgesPage />} />
                   <Route path="production-lists" element={<ProductionListsPage />} />
+                  <Route path="renewals" element={<RenewalsPage />} />
+                  <Route path="company-bridges" element={<Navigate to="/app/carrier-bridges" replace />} />
                   <Route path="platform/carriers" element={<PlatformCarriersPage />} />
                   <Route path="platform/plans" element={<SubscriptionPlansPage />} />
                   <Route path="platform/billing" element={<PlatformBillingConfigPage />} />

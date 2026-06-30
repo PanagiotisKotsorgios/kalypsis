@@ -39,6 +39,16 @@ public class Customer : TenantEntity
     public string? Occupation { get; set; }
     public string? Employer { get; set; }
 
+    /// <summary>Δίπλωμα οδήγησης — αριθμός. Used for Auto policies + driver
+    /// allow-lists. Sensitive, encrypted at rest where supported.</summary>
+    public string? DriverLicenseNumber { get; set; }
+
+    /// <summary>Κατηγορία διπλώματος (Β, Γ, Δ, Ε, ΑΜ, Α1, A2, Α, …).</summary>
+    public string? DriverLicenseClass { get; set; }
+
+    public DateOnly? DriverLicenseIssueDate { get; set; }
+    public DateOnly? DriverLicenseExpiryDate { get; set; }
+
     public string? Source { get; set; }               // referral / web / walk-in / ad
     public string? TagsJson { get; set; }             // ["VIP","ξένος","priority"]
     public string? PhotoUrl { get; set; }
