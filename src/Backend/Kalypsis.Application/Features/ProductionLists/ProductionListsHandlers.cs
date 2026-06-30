@@ -25,7 +25,8 @@ public record ProductionFilters(
     Guid? InsuranceCompanyId, Guid? ProducerId,
     PolicyType? PolicyType, PolicyStatus? Status,
     VehicleUseCategory? VehicleUseCategory, string? CoverCode,
-    string? GroupBy);   // "carrier" | "producer" | "type" | "month" | null
+    string? GroupBy,
+    string? PackageCode = null);   // "carrier" | "producer" | "type" | "month" | null
 
 public record ProductionRowDto(
     Guid PolicyId, string PolicyNumber,
@@ -106,7 +107,19 @@ public static class ProductionListBuilder
 
         if (f.From.HasValue) query = query.Where(p => p.StartDate >= f.From);
         if (f.To.HasValue)   query = query.Where(p => p.StartDate <= f.To);
-        if (f.InsuranceCompanyId.HasValue) query = query.Where(p => p.InsuranceCompanyId == f.InsuranceCompanyId);
+        if (f.InsuranceCompanyId.HasValue)
+        {
+            // Cascade: when a broker is selected, also include all of its subs
+            // so the production list reflects the whole hierarchy. When a sub
+            // (or a standalone carrier) is selected, only its own policies.
+            var carrierIds = await _db.InsuranceCompanies.IgnoreQueryFilters()
+                .Where(c => c.DeletedAt == null
+                    && (c.Id == f.InsuranceCompanyId.Value
+                        || c.ParentCompanyId == f.InsuranceCompanyId.Value))
+                .Select(c => c.Id)
+                .ToListAsync(ct);
+            query = query.Where(p => carrierIds.Contains(p.InsuranceCompanyId));
+        }
         if (f.ProducerId.HasValue)         query = query.Where(p => p.ProducerId == f.ProducerId);
         if (f.PolicyType.HasValue)         query = query.Where(p => p.PolicyType == f.PolicyType);
         if (f.Status.HasValue)             query = query.Where(p => p.Status == f.Status);
@@ -116,6 +129,9 @@ public static class ProductionListBuilder
         var requestedCover = CleanCode(f.CoverCode);
         if (requestedCover is not null)
             policies = policies.Where(p => string.Equals(ExtractCoverCode(p.SpecsJson), requestedCover, StringComparison.OrdinalIgnoreCase)).ToList();
+        var requestedPackage = CleanCode(f.PackageCode);
+        if (requestedPackage is not null)
+            policies = policies.Where(p => string.Equals(ExtractPackageCode(p.SpecsJson), requestedPackage, StringComparison.OrdinalIgnoreCase)).ToList();
 
         // Pull active commission rules so partner commission % can be read from
         // parameterization (NOT the bridge). Most-specific rule wins.
@@ -245,6 +261,22 @@ public static class ProductionListBuilder
             }
         }
         catch { /* malformed specs are ignored for reporting filters */ }
+        return null;
+    }
+
+    private static string? ExtractPackageCode(string? specsJson)
+    {
+        if (string.IsNullOrWhiteSpace(specsJson)) return null;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(specsJson);
+            foreach (var key in new[] { "packageCode", "package" })
+            {
+                if (doc.RootElement.TryGetProperty(key, out var prop) && prop.ValueKind == System.Text.Json.JsonValueKind.String)
+                    return CleanCode(prop.GetString());
+            }
+        }
+        catch { /* malformed specs are ignored */ }
         return null;
     }
 }

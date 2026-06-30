@@ -315,13 +315,17 @@ public class CompanyParametersController : ControllerBase
 
         var carrier = await _db.InsuranceCompanies.IgnoreQueryFilters()
             .Where(c => c.Id == insuranceCompanyId.Value && c.DeletedAt == null)
-            .Select(c => new { c.Code, c.ParentCompanyId })
+            .Select(c => new { c.Id, c.Code, c.ParentCompanyId, c.IsBroker })
             .FirstOrDefaultAsync(ct)
             ?? throw AppException.NotFound("Ασφαλιστική εταιρεία");
 
-        // If the selected carrier is a sub of a broker, also include the
-        // broker's parametrics so the sub inherits the broker's full κλάδοι /
-        // χρήσεις / καλύψεις catalogue (plus the sub's own πακέτα).
+        // Cascade rules:
+        //   - SUB selected  → include the sub's own παραμετρικά (its packages)
+        //                     AND the broker's κλάδοι/χρήσεις/καλύψεις.
+        //   - BROKER selected → include the broker's catalogue AND every sub's
+        //                     packages so the dropdown shows the whole
+        //                     hierarchy in one place.
+        //   - STANDALONE     → just its own rows.
         if (carrier.ParentCompanyId.HasValue)
         {
             var parentCode = await _db.InsuranceCompanies.IgnoreQueryFilters()
@@ -330,9 +334,18 @@ public class CompanyParametersController : ControllerBase
                 .FirstOrDefaultAsync(ct);
             if (!string.IsNullOrEmpty(parentCode))
             {
-                var codes = new[] { carrier.Code, parentCode };
-                return q.Where(x => codes.Contains(x.InsuranceCompany.Code));
+                var subCodes = new[] { carrier.Code, parentCode };
+                return q.Where(x => subCodes.Contains(x.InsuranceCompany.Code));
             }
+        }
+        else if (carrier.IsBroker)
+        {
+            var hierarchyCodes = await _db.InsuranceCompanies.IgnoreQueryFilters()
+                .Where(c => c.DeletedAt == null
+                    && (c.Id == carrier.Id || c.ParentCompanyId == carrier.Id))
+                .Select(c => c.Code)
+                .ToListAsync(ct);
+            return q.Where(x => hierarchyCodes.Contains(x.InsuranceCompany.Code));
         }
 
         return q.Where(x => x.InsuranceCompany.Code == carrier.Code);

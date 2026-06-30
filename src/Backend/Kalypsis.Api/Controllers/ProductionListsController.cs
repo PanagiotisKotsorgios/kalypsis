@@ -20,9 +20,10 @@ public class ProductionListsController : ControllerBase
         [FromQuery] Guid? insuranceCompanyId, [FromQuery] Guid? producerId,
         [FromQuery] PolicyType? policyType, [FromQuery] PolicyStatus? status,
         [FromQuery] VehicleUseCategory? vehicleUseCategory, [FromQuery] string? coverCode,
+        [FromQuery] string? packageCode,
         [FromQuery] string? groupBy, CancellationToken ct)
         => Ok(await _mediator.Send(new GetProductionListQuery(
-            new ProductionFilters(from, to, insuranceCompanyId, producerId, policyType, status, vehicleUseCategory, coverCode, groupBy)), ct));
+            new ProductionFilters(from, to, insuranceCompanyId, producerId, policyType, status, vehicleUseCategory, coverCode, groupBy, packageCode)), ct));
 
     [HttpGet("export")]
     public async Task<IActionResult> Export(
@@ -30,11 +31,12 @@ public class ProductionListsController : ControllerBase
         [FromQuery] Guid? insuranceCompanyId, [FromQuery] Guid? producerId,
         [FromQuery] PolicyType? policyType, [FromQuery] PolicyStatus? status,
         [FromQuery] VehicleUseCategory? vehicleUseCategory, [FromQuery] string? coverCode,
+        [FromQuery] string? packageCode,
         [FromQuery] string? groupBy, [FromQuery] string format = "csv",
         CancellationToken ct = default)
     {
         var result = await _mediator.Send(new ExportProductionListQuery(
-            new ProductionFilters(from, to, insuranceCompanyId, producerId, policyType, status, vehicleUseCategory, coverCode, groupBy),
+            new ProductionFilters(from, to, insuranceCompanyId, producerId, policyType, status, vehicleUseCategory, coverCode, groupBy, packageCode),
             format), ct);
         return File(result.Content, result.MimeType, result.FileName);
     }

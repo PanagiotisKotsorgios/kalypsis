@@ -58,7 +58,8 @@ export function ProductionListsPage() {
   const [f, setF] = useState({
     from: monthStart, to: todayStr,
     insuranceCompanyId: "", producerId: "",
-    policyType: "", vehicleUseCategory: "", coverCode: "", status: "", groupBy: "carrier"
+    policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "",
+    status: "", groupBy: "carrier"
   });
 
   const carriers = useQuery({
@@ -92,6 +93,24 @@ export function ProductionListsPage() {
       .map(p => ({ key: `param:${p.id}`, value: p.vehicleUseCategory!, label: p.name }));
   }, [carrierParams.data, f.insuranceCompanyId]);
 
+  // Carrier-driven coverages and packages, identical scoping rules to the
+  // Κλάδος / Χρήση dropdowns. The /company-parameters endpoint already
+  // cascades broker → all subs' packages when the user picks a broker, and
+  // returns just the sub's packages when they drill into one.
+  const coverageOptions = useMemo(() => {
+    if (!f.insuranceCompanyId) return [];
+    return (carrierParams.data ?? [])
+      .filter(p => p.kind === "Coverage" && p.code)
+      .map(p => ({ key: `cov:${p.id}`, value: p.code, label: `${p.name} (${p.code})` }));
+  }, [carrierParams.data, f.insuranceCompanyId]);
+
+  const packageOptions = useMemo(() => {
+    if (!f.insuranceCompanyId) return [];
+    return (carrierParams.data ?? [])
+      .filter(p => p.kind === "Package" && p.code)
+      .map(p => ({ key: `pkg:${p.id}`, value: p.code, label: `${p.name} (${p.code})` }));
+  }, [carrierParams.data, f.insuranceCompanyId]);
+
   const params = {
     from: f.from || undefined,
     to: f.to || undefined,
@@ -100,6 +119,7 @@ export function ProductionListsPage() {
     policyType: f.policyType || undefined,
     vehicleUseCategory: f.vehicleUseCategory || undefined,
     coverCode: f.coverCode.trim() || undefined,
+    packageCode: f.packageCode || undefined,
     status: f.status || undefined,
     groupBy: f.groupBy || undefined
   };
@@ -165,7 +185,7 @@ export function ProductionListsPage() {
           <TextField type="date" size="small" InputLabelProps={{ shrink: true }} label={t("productionList.to")}
             value={f.to} onChange={e => setF({ ...f, to: e.target.value })} />
           <TextField select size="small" label={t("productionList.carrier")} value={f.insuranceCompanyId}
-            onChange={e => setF({ ...f, insuranceCompanyId: e.target.value, policyType: "", vehicleUseCategory: "" })}>
+            onChange={e => setF({ ...f, insuranceCompanyId: e.target.value, policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "" })}>
             <MenuItem value="">{t("common.all")}</MenuItem>
             {(carriers.data ?? []).filter(c => !c.parentCompanyId).map(c => (
               <MenuItem key={c.id} value={c.id}>
@@ -218,9 +238,24 @@ export function ProductionListsPage() {
             <MenuItem value="">{t("common.all")}</MenuItem>
             {useOptions.map(o => <MenuItem key={o.key} value={o.value}>{o.label}</MenuItem>)}
           </TextField>
-          <TextField size="small" label="Κάλυψη" value={f.coverCode}
-            onChange={e => setF({ ...f, coverCode: e.target.value.toUpperCase() })}
-            placeholder="MTPL" />
+          <TextField select size="small" label="Κάλυψη" value={f.coverCode}
+            onChange={e => setF({ ...f, coverCode: e.target.value })}
+            disabled={!f.insuranceCompanyId}
+            helperText={!f.insuranceCompanyId
+              ? "Επιλέξτε εταιρία"
+              : coverageOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : "Από παραμετρικά"}>
+            <MenuItem value="">{t("common.all")}</MenuItem>
+            {coverageOptions.map(o => <MenuItem key={o.key} value={o.value}>{o.label}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label="Πακέτο" value={f.packageCode}
+            onChange={e => setF({ ...f, packageCode: e.target.value })}
+            disabled={!f.insuranceCompanyId}
+            helperText={!f.insuranceCompanyId
+              ? "Επιλέξτε εταιρία"
+              : packageOptions.length === 0 ? "Δεν υπάρχουν πακέτα" : "Από παραμετρικά"}>
+            <MenuItem value="">{t("common.all")}</MenuItem>
+            {packageOptions.map(o => <MenuItem key={o.key} value={o.value}>{o.label}</MenuItem>)}
+          </TextField>
           <TextField select size="small" label={t("productionList.status")} value={f.status}
             onChange={e => setF({ ...f, status: e.target.value })}>
             <MenuItem value="">{t("common.all")}</MenuItem>
