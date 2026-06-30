@@ -123,6 +123,7 @@
     },
     "broadcastParametric": "Carrier Parametric Files",
     "companyParameters": "Carrier Parameters",
+    "platformCarriers": "Global Carriers",
     "coverNotes": "Cover Notes",
     "branchDesigner": "Branch Designer",
     "deliveryTracking": "Contract Delivery",

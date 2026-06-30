@@ -235,52 +235,86 @@ public static class DataSeeder
     /// </summary>
     public static async Task CleanupNonGrandCoverGlobalsAsync(AppDbContext db, ILogger logger, CancellationToken ct)
     {
-        // (0) Force-mark the Grand Cover row by Code regardless of its current
-        // state (deleted / wrong tenant / IsBroker=0 / etc.). This is the
-        // anchor for everything that follows.
+        // (0) Force-mark every row with Code='GRAND_COVER' OR IsBroker=1 as a
+        // global, active broker — so we don't lose any of them yet.
         var pinned = await db.Database.ExecuteSqlRawAsync(@"
             UPDATE `insurance_companies`
             SET `DeletedAt` = NULL, `IsActive` = 1, `IsBroker` = 1, `TenantId` = NULL, `ParentCompanyId` = NULL
-            WHERE `Code` = 'GRAND_COVER'", ct);
-        logger.LogInformation("Cleanup: pinned {Count} Grand Cover row(s) by Code.", pinned);
+            WHERE `Code` = 'GRAND_COVER' OR `IsBroker` = 1", ct);
+        logger.LogInformation("Cleanup: pinned {Count} broker candidate row(s).", pinned);
 
-        // (1) Force-undelete every broker row (defensive — covers cases where
-        // the Code might differ).
-        var resurrected = await db.Database.ExecuteSqlRawAsync(@"
-            UPDATE `insurance_companies`
-            SET `DeletedAt` = NULL, `IsActive` = 1
-            WHERE `IsBroker` = 1 AND `ParentCompanyId` IS NULL", ct);
-        logger.LogInformation("Cleanup: resurrected {Count} broker row(s).", resurrected);
+        // (1) Pick ONE canonical broker. Prefer the row with the most existing
+        // direct subs; tie-break by oldest CreatedAt then smallest Id. This
+        // beats picking randomly because the canonical row is the one that
+        // already has the IW subcompanies attached.
+        var canonicalBrokerId = await db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(c => c.IsBroker && c.ParentCompanyId == null && c.DeletedAt == null)
+            .Select(c => new {
+                c.Id,
+                c.CreatedAt,
+                SubCount = db.InsuranceCompanies.IgnoreQueryFilters()
+                    .Count(s => s.ParentCompanyId == c.Id && s.DeletedAt == null)
+            })
+            .OrderByDescending(x => x.SubCount)
+            .ThenBy(x => x.CreatedAt)
+            .ThenBy(x => x.Id)
+            .Select(x => (Guid?)x.Id)
+            .FirstOrDefaultAsync(ct);
 
-        // Look up the broker id(s) to anchor the rest of the cleanup.
-        var brokerIds = await db.InsuranceCompanies.IgnoreQueryFilters()
-            .Where(c => c.IsBroker && c.ParentCompanyId == null)
-            .Select(c => c.Id)
-            .ToListAsync(ct);
-
-        if (brokerIds.Count == 0)
+        if (canonicalBrokerId is null)
         {
-            logger.LogWarning("Cleanup: no broker found AFTER resurrect step — Grand Cover seeder probably failed.");
+            logger.LogWarning("Cleanup: no broker found, GrandCoverSeeder probably failed.");
             return;
         }
+        var canonical = canonicalBrokerId.Value;
+        logger.LogInformation("Cleanup: canonical broker id = {Id}", canonical);
 
-        // (2) Force-undelete the broker's subs.
-        var brokerIdList = string.Join(",", brokerIds.Select(id => $"'{id}'"));
+        // (2) Re-parent every sub of *any* broker row to the canonical broker.
+        // This catches duplicate brokers whose subs would otherwise orphan.
+        var reparented = await db.Database.ExecuteSqlRawAsync($@"
+            UPDATE `insurance_companies`
+            SET `ParentCompanyId` = '{canonical}'
+            WHERE `ParentCompanyId` IS NOT NULL
+              AND `ParentCompanyId` <> '{canonical}'
+              AND `ParentCompanyId` IN (
+                SELECT `Id` FROM (
+                    SELECT `Id` FROM `insurance_companies` WHERE `IsBroker` = 1
+                ) AS b
+              )", ct);
+        logger.LogInformation("Cleanup: reparented {Count} sub-rows to canonical broker.", reparented);
+
+        // (3) Force-undelete subs of the canonical broker.
         var subsResurrected = await db.Database.ExecuteSqlRawAsync($@"
             UPDATE `insurance_companies`
             SET `DeletedAt` = NULL, `IsActive` = 1
-            WHERE `ParentCompanyId` IN ({brokerIdList})", ct);
+            WHERE `ParentCompanyId` = '{canonical}'", ct);
         logger.LogInformation("Cleanup: resurrected {Count} broker-sub row(s).", subsResurrected);
 
-        // (3) Soft-delete every other carrier across the entire DB (tenant scope
-        // is intentionally ignored — no tenant gets to keep their own copies).
+        // (4) Soft-delete every row that isn't the canonical broker or one of
+        // its subs. This kills both the demo carriers AND the duplicate
+        // Grand Cover broker copies.
         var deletedCarriers = await db.Database.ExecuteSqlRawAsync($@"
             UPDATE `insurance_companies`
             SET `DeletedAt` = UTC_TIMESTAMP(6), `IsActive` = 0
             WHERE `DeletedAt` IS NULL
-              AND `Id` NOT IN ({brokerIdList})
-              AND (`ParentCompanyId` IS NULL OR `ParentCompanyId` NOT IN ({brokerIdList}))", ct);
-        logger.LogInformation("Cleanup: soft-deleted {Count} non-Grand-Cover carrier row(s) across all tenants.", deletedCarriers);
+              AND `Id` <> '{canonical}'
+              AND (`ParentCompanyId` IS NULL OR `ParentCompanyId` <> '{canonical}')", ct);
+        logger.LogInformation("Cleanup: soft-deleted {Count} non-canonical carrier row(s) across all tenants.", deletedCarriers);
+
+        // (5) Re-route any CompanyParameterItem rows that were attached to a
+        // duplicate broker. Without this their data would be invisible
+        // because the carrier they point to is now soft-deleted.
+        var paramsRouted = await db.Database.ExecuteSqlRawAsync($@"
+            UPDATE `company_parameter_items`
+            SET `InsuranceCompanyId` = '{canonical}'
+            WHERE `DeletedAt` IS NULL
+              AND `InsuranceCompanyId` IN (
+                SELECT `Id` FROM (
+                    SELECT `Id` FROM `insurance_companies`
+                    WHERE `IsBroker` = 1 AND `Id` <> '{canonical}' AND `DeletedAt` IS NOT NULL
+                ) AS d
+              )", ct);
+        logger.LogInformation("Cleanup: re-routed {Count} parametric row(s) from duplicate brokers.", paramsRouted);
 
         // (4) Soft-delete polluting Kalypsis defaults rows everywhere.
         var deletedParams = await db.Database.ExecuteSqlRawAsync(@"

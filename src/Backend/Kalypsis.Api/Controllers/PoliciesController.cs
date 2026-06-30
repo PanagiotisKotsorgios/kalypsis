@@ -314,6 +314,111 @@ public class InsuranceCompaniesController : ControllerBase
         return NoContent();
     }
 
+    // ============== PLATFORM ADMIN: global carrier management ==============
+
+    public record PlatformCarrierBody(
+        string Name, string Code, string? Country, string? Website, bool IsActive,
+        string? Notes, bool IsBroker = false, Guid? ParentCompanyId = null);
+
+    /// <summary>Lists every global carrier (TenantId IS NULL) for the platform admin UI.</summary>
+    [HttpGet("/api/platform/insurance-companies")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<IReadOnlyList<object>>> PlatformList(CancellationToken ct)
+    {
+        var rows = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(c => c.TenantId == null && c.DeletedAt == null)
+            .OrderBy(c => c.ParentCompanyId == null ? 0 : 1)
+            .ThenBy(c => c.Name)
+            .ToListAsync(ct);
+        var paramCounts = await _db.CompanyParameterItems.IgnoreQueryFilters()
+            .Where(p => p.DeletedAt == null)
+            .GroupBy(p => p.InsuranceCompanyId)
+            .Select(g => new { Id = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Id, x => x.Count, ct);
+        return Ok(rows.Select(c => new {
+            id = c.Id,
+            name = c.Name,
+            code = c.Code,
+            country = c.Country,
+            website = c.Website,
+            isActive = c.IsActive,
+            isBroker = c.IsBroker,
+            parentCompanyId = c.ParentCompanyId,
+            notes = c.Notes,
+            parameterItemCount = paramCounts.GetValueOrDefault(c.Id, 0)
+        }).ToList());
+    }
+
+    [HttpPost("/api/platform/insurance-companies")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<object>> PlatformCreate([FromBody] PlatformCarrierBody body, CancellationToken ct)
+    {
+        var code = NormalizeCode(body.Code);
+        ValidateCompanyBody(body.Name, code);
+        if (await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .AnyAsync(x => x.TenantId == null && x.DeletedAt == null && x.Code == code, ct))
+            throw new Kalypsis.Application.Common.AppException("global_company_code_exists",
+                "Υπάρχει ήδη καθολική ασφαλιστική με αυτόν τον κωδικό.", 400);
+        var c = new Kalypsis.Domain.Entities.InsuranceCompany
+        {
+            Id = Guid.NewGuid(),
+            TenantId = null,
+            Name = body.Name.Trim(),
+            Code = code,
+            Country = Clean(body.Country),
+            Website = Clean(body.Website),
+            IsActive = body.IsActive,
+            Notes = Clean(body.Notes),
+            IsBroker = body.IsBroker,
+            ParentCompanyId = body.ParentCompanyId,
+            CreatedAt = _clock.UtcNow
+        };
+        _db.InsuranceCompanies.Add(c);
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { id = c.Id, name = c.Name, code = c.Code, isBroker = c.IsBroker, parentCompanyId = c.ParentCompanyId });
+    }
+
+    [HttpPut("/api/platform/insurance-companies/{id:guid}")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<object>> PlatformUpdate(Guid id, [FromBody] PlatformCarrierBody body, CancellationToken ct)
+    {
+        var c = await _db.InsuranceCompanies.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == id, ct)
+            ?? throw Kalypsis.Application.Common.AppException.NotFound("Ασφαλιστική");
+        if (c.TenantId != null)
+            return BadRequest(new { code = "not_global", message = "Αυτό το endpoint διαχειρίζεται μόνο καθολικές ασφαλιστικές." });
+        var code = NormalizeCode(body.Code);
+        ValidateCompanyBody(body.Name, code);
+        if (await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .AnyAsync(x => x.TenantId == null && x.DeletedAt == null && x.Id != id && x.Code == code, ct))
+            throw new Kalypsis.Application.Common.AppException("global_company_code_exists",
+                "Υπάρχει ήδη καθολική ασφαλιστική με αυτόν τον κωδικό.", 400);
+        c.Name = body.Name.Trim();
+        c.Code = code;
+        c.Country = Clean(body.Country);
+        c.Website = Clean(body.Website);
+        c.IsActive = body.IsActive;
+        c.Notes = Clean(body.Notes);
+        c.IsBroker = body.IsBroker;
+        c.ParentCompanyId = body.ParentCompanyId;
+        c.UpdatedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { id = c.Id, name = c.Name, code = c.Code });
+    }
+
+    [HttpDelete("/api/platform/insurance-companies/{id:guid}")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult> PlatformDelete(Guid id, CancellationToken ct)
+    {
+        var c = await _db.InsuranceCompanies.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == id, ct)
+            ?? throw Kalypsis.Application.Common.AppException.NotFound("Ασφαλιστική");
+        if (c.TenantId != null)
+            return BadRequest(new { code = "not_global", message = "Αυτό το endpoint διαχειρίζεται μόνο καθολικές ασφαλιστικές." });
+        c.DeletedAt = _clock.UtcNow;
+        c.IsActive = false;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     private InsuranceCompanyExtendedDto ToDto(
         Kalypsis.Domain.Entities.InsuranceCompany c,
         IReadOnlyDictionary<string, Kalypsis.Domain.Entities.InsuranceCompany> tenantByCode,
