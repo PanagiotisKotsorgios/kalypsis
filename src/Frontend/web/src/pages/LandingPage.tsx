@@ -79,6 +79,22 @@ export function LandingPage() {
               <MailOutlineIcon sx={{ fontSize: 17 }} />
               info@mykalypsis.gr
             </Box>
+            <Box component={RouterLink} to="/login"
+              sx={{
+                color: NAVY, textDecoration: "none", fontSize: 13.5, fontWeight: 700,
+                letterSpacing: "0.01em",
+                "&:hover": { color: ACCENT }
+              }}>
+              Σύνδεση
+            </Box>
+            <Box component={RouterLink} to="/register"
+              sx={{
+                color: NAVY, textDecoration: "none", fontSize: 13.5, fontWeight: 700,
+                letterSpacing: "0.01em",
+                "&:hover": { color: ACCENT }
+              }}>
+              Εγγραφή
+            </Box>
           </Stack>
           <Stack direction="row" spacing={1.25} alignItems="center" sx={{ ml: "auto" }}>
             <Button

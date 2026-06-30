@@ -8,6 +8,8 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import BusinessIcon from "@mui/icons-material/Business";
 import PublicIcon from "@mui/icons-material/Public";
+import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
@@ -159,11 +161,35 @@ function CompanyTable({ rows, onEdit, onDelete, readonly }: {
   onDelete?: (id: string) => void;
   readonly?: boolean;
 }) {
+  // Track which brokers are expanded. Collapsed by default so the table
+  // doesn't dump 56 rows of subs onto the user; clicking the chevron on a
+  // broker row reveals its subs.
+  const [expandedBrokerIds, setExpandedBrokerIds] = useState<Set<string>>(new Set());
+  const toggleBroker = (id: string) => {
+    setExpandedBrokerIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  // How many subs each broker has, for the badge on the broker row.
+  const subCountByBroker = new Map<string, number>();
+  for (const r of rows) {
+    if (r.parentCompanyId) {
+      subCountByBroker.set(r.parentCompanyId, (subCountByBroker.get(r.parentCompanyId) ?? 0) + 1);
+    }
+  }
+  // Filter: sub rows are hidden unless their broker is expanded.
+  const visibleRows = rows.filter(r =>
+    !r.parentCompanyId || expandedBrokerIds.has(r.parentCompanyId)
+  );
+
   return (
     <Box sx={{ overflowX: "auto" }}>
       <Table size="small">
         <TableHead>
           <TableRow>
+            <TableCell sx={{ width: 32 }} />
             <TableCell>Κωδικός</TableCell>
             <TableCell>Όνομα</TableCell>
             <TableCell>Κωδικός συνεργασίας</TableCell>
@@ -176,10 +202,20 @@ function CompanyTable({ rows, onEdit, onDelete, readonly }: {
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map((r) => (
+          {visibleRows.map((r) => {
+            const subCount = r.isBroker ? subCountByBroker.get(r.id) ?? 0 : 0;
+            const expanded = expandedBrokerIds.has(r.id);
+            return (
             <TableRow key={r.id} hover
               sx={r.parentCompanyId ? { bgcolor: "rgba(11,37,69,0.02)" } : undefined}>
-              <TableCell sx={{ fontFamily: "monospace", fontWeight: 700, pl: r.parentCompanyId ? 4 : 2 }}>
+              <TableCell sx={{ width: 32, p: 0.5 }}>
+                {r.isBroker && subCount > 0 && (
+                  <IconButton size="small" onClick={() => toggleBroker(r.id)} aria-label={expanded ? "Σύμπτυξη" : "Επέκταση"}>
+                    {expanded ? <KeyboardArrowDownIcon fontSize="small" /> : <KeyboardArrowRightIcon fontSize="small" />}
+                  </IconButton>
+                )}
+              </TableCell>
+              <TableCell sx={{ fontFamily: "monospace", fontWeight: 700, pl: r.parentCompanyId ? 4 : 0 }}>
                 {r.parentCompanyId ? "↳ " : ""}{r.code}
               </TableCell>
               <TableCell>
@@ -188,6 +224,12 @@ function CompanyTable({ rows, onEdit, onDelete, readonly }: {
                     {r.name}
                   </Typography>
                   {r.isBroker && <Chip size="small" label="πρακτορείο" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />}
+                  {r.isBroker && subCount > 0 && (
+                    <Chip size="small" variant="outlined"
+                      label={`${subCount} υποασφαλιστικές`}
+                      sx={{ height: 18, fontSize: 10, fontWeight: 600 }}
+                      onClick={() => toggleBroker(r.id)} />
+                  )}
                 </Stack>
                 {r.country && <Typography variant="caption" color="text.secondary">{r.country}</Typography>}
               </TableCell>
@@ -231,7 +273,8 @@ function CompanyTable({ rows, onEdit, onDelete, readonly }: {
                 )}
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
         </TableBody>
       </Table>
     </Box>

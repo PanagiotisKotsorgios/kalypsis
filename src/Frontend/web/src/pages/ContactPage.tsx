@@ -139,6 +139,14 @@ export function ContactPage() {
               <MailOutlineIcon sx={{ fontSize: 17 }} />
               info@mykalypsis.gr
             </Box>
+            <Box component={RouterLink} to="/login"
+              sx={{ ...topLinkSx, fontWeight: 700 }}>
+              Σύνδεση
+            </Box>
+            <Box component={RouterLink} to="/register"
+              sx={{ ...topLinkSx, fontWeight: 700 }}>
+              Εγγραφή
+            </Box>
           </Stack>
           <Stack direction="row" spacing={1.25} alignItems="center" sx={{ ml: "auto" }}>
             <Button
