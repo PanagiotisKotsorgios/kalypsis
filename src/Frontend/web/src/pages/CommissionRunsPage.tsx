@@ -37,7 +37,7 @@ interface LineDto {
   isOverridden: boolean; originalCommissionAmount: number | null; overrideReason: string | null;
 }
 
-interface CompanyLite { id: string; name: string; }
+interface CompanyLite { id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null; }
 interface ProducerLite { id: string; name: string; }
 
 export function CommissionRunsPage() {
@@ -142,10 +142,41 @@ export function CommissionRunsPage() {
             <MenuItem value="Cancelled">Ακυρωμένη</MenuItem>
           </TextField>
           <TextField select size="small" label="Εταιρία" value={carrierFilter}
-            onChange={(e) => setCarrierFilter(e.target.value)} sx={{ minWidth: 200 }}>
+            onChange={(e) => setCarrierFilter(e.target.value)} sx={{ minWidth: 220 }}>
             <MenuItem value="">Όλες</MenuItem>
-            {(carriersQ.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+            {(carriersQ.data ?? []).filter(c => !c.parentCompanyId).flatMap(c => {
+              const subs = (carriersQ.data ?? []).filter(s => s.parentCompanyId === c.id);
+              const head = (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.name}{c.isBroker ? " · πρακτορείο" : ""}
+                </MenuItem>
+              );
+              return subs.length === 0 ? [head] : [head, ...subs.map(s => (
+                <MenuItem key={s.id} value={s.id} sx={{ pl: 4, fontSize: 14, color: "text.secondary" }}>
+                  ↳ {s.name}
+                </MenuItem>
+              ))];
+            })}
           </TextField>
+          {(() => {
+            const carrierData = carriersQ.data ?? [];
+            const selected = carrierData.find(c => c.id === carrierFilter);
+            const broker = selected?.isBroker
+              ? selected
+              : selected?.parentCompanyId
+                ? carrierData.find(c => c.id === selected.parentCompanyId)
+                : null;
+            if (!broker?.isBroker) return null;
+            const subs = carrierData.filter(c => c.parentCompanyId === broker.id);
+            const subValue = selected?.id !== broker.id ? selected?.id ?? "" : "";
+            return (
+              <TextField select size="small" label="Υποασφαλιστική" value={subValue}
+                onChange={e => setCarrierFilter(e.target.value || broker.id)} sx={{ minWidth: 220 }}>
+                <MenuItem value="">— όλες οι υποασφαλιστικές —</MenuItem>
+                {subs.map(s => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
+              </TextField>
+            );
+          })()}
           <TextField select size="small" label="Συνεργάτης" value={producerFilter}
             onChange={(e) => setProducerFilter(e.target.value)} sx={{ minWidth: 200 }}>
             <MenuItem value="">Όλοι</MenuItem>

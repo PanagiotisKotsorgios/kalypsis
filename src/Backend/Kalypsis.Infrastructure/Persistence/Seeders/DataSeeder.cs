@@ -37,15 +37,20 @@ public static class DataSeeder
         // in via the platform-admin bulk importer (POST /api/platform/
         // company-parameters/import/{insuranceCompanyId}). See
         // CompanyParameterImportController.
+        // Order matters: cleanup FIRST (so any leftover duplicates get
+        // collapsed onto one canonical broker), then seeder (which finds the
+        // canonical broker, refills missing subs, resurrects soft-deleted
+        // subs, ensures their ParentCompanyId points at the canonical row),
+        // then cleanup AGAIN (sweeps anything new the seeder might have
+        // left dangling — usually a no-op).
+        try { await CleanupNonGrandCoverGlobalsAsync(db, logger, cancellationToken); }
+        catch (Exception ex) { logger.LogError(ex, "CleanupNonGrandCoverGlobalsAsync (pre-seed) failed — continuing boot."); }
+
         try { await GrandCoverSeeder.SeedAsync(db, logger, cancellationToken); }
         catch (Exception ex) { logger.LogError(ex, "GrandCoverSeeder failed — continuing boot without IW seed."); }
 
-        // Cleanup: soft-delete any global InsuranceCompany row that isn't
-        // Grand Cover or one of its subs. Runs on every boot but is idempotent
-        // (won't re-touch already-deleted rows). Tenant-scoped carriers are
-        // left alone — those belong to the tenant who created them.
         try { await CleanupNonGrandCoverGlobalsAsync(db, logger, cancellationToken); }
-        catch (Exception ex) { logger.LogError(ex, "CleanupNonGrandCoverGlobalsAsync failed — continuing boot."); }
+        catch (Exception ex) { logger.LogError(ex, "CleanupNonGrandCoverGlobalsAsync (post-seed) failed — continuing boot."); }
 
         var seedEmail = (config["Seed:PlatformAdminEmail"] ?? "superadmin@kalypsis.gr").ToLowerInvariant();
         var seedPassword = config["Seed:PlatformAdminPassword"] ?? "Kalypsis@2026!";

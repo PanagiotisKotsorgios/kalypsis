@@ -1587,6 +1587,41 @@
           "name": "EUROINS-MULTI-ARAG"
         }
       ]
+    },
+    {
+      "id": 3,
+      "name": "FIDUCIA INSURANCE BROKERS",
+      "packages": []
+    },
+    {
+      "id": 14,
+      "name": "APEIRON INSURANCE [RENT]",
+      "packages": []
+    },
+    {
+      "id": 37,
+      "name": "ACCREDITED Insurance",
+      "packages": []
+    },
+    {
+      "id": 52,
+      "name": "ΙΝΤΕΡΣΑΛΟΝΙΚΑ [GNS]",
+      "packages": []
+    },
+    {
+      "id": 56,
+      "name": "ACCELERANT [IND]",
+      "packages": []
+    },
+    {
+      "id": 71,
+      "name": "PERSONAL [IT]",
+      "packages": []
+    },
+    {
+      "id": 72,
+      "name": "ARAG",
+      "packages": []
     }
   ],
   "branches": [

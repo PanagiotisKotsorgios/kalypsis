@@ -71,8 +71,15 @@ public static class GrandCoverSeeder
         }
 
         // === Subcompanies ===
+        // Look up existing subs GLOBALLY by code (not only under the current
+        // broker). Earlier deploys could have left subs orphaned under a
+        // duplicate, soft-deleted broker. If we find them by code, re-parent
+        // to the canonical broker and resurrect — never insert a duplicate.
+        var subCodes = seed.Subcompanies
+            .Select(s => $"GC_{s.Id:0000}")
+            .ToList();
         var existingSubs = await db.InsuranceCompanies.IgnoreQueryFilters()
-            .Where(c => c.ParentCompanyId == broker.Id && c.TenantId == null)
+            .Where(c => c.TenantId == null && subCodes.Contains(c.Code))
             .ToListAsync(ct);
         var existingByCode = existingSubs.ToDictionary(c => c.Code, StringComparer.OrdinalIgnoreCase);
         var subByExternalId = new Dictionary<int, InsuranceCompany>(seed.Subcompanies.Count);
@@ -82,6 +89,12 @@ public static class GrandCoverSeeder
             var subCode = $"GC_{sub.Id:0000}";
             if (existingByCode.TryGetValue(subCode, out var ent))
             {
+                // Force the sub back into the canonical hierarchy and
+                // resurrect it in case it was soft-deleted by cleanup.
+                ent.ParentCompanyId = broker.Id;
+                ent.DeletedAt = null;
+                ent.IsActive = true;
+                ent.Name = TruncSafe(sub.Name, 200);
                 subByExternalId[sub.Id] = ent;
                 continue;
             }
