@@ -276,18 +276,34 @@ public class CompanyParametersController : ControllerBase
 
     [Authorize(Policy = "PlatformAdmin")]
     [HttpPost("platform/company-parameters/seed-defaults")]
-    public async Task<ActionResult<SeedCompanyParametersResult>> SeedDefaults(
-        [FromBody] SeedCompanyParametersBody body,
+    public ActionResult<SeedCompanyParametersResult> SeedDefaults(
+        [FromBody] SeedCompanyParametersBody _,
+        CancellationToken __)
+    {
+        // Disabled. The generic «Kalypsis defaults» seeder created seven
+        // synthetic branches with names like "Αυτοκίνητο" / "Κατοικία" that
+        // polluted the real per-carrier catalogue (most notably Grand Cover
+        // IW). Going forward, παραμετρικά are populated exclusively via the
+        // bulk xlsx/csv importer per carrier. Returning a no-op keeps any
+        // existing UI button working without side-effects.
+        return Ok(new SeedCompanyParametersResult(0, 0));
+    }
+
+    /// <summary>
+    /// Manual trigger for the boot-time cleanup. Lets the platform admin
+    /// re-assert the "only Grand Cover exists" invariant without restarting
+    /// the API container.
+    /// </summary>
+    [Authorize(Policy = "PlatformAdmin")]
+    [HttpPost("platform/company-parameters/run-cleanup")]
+    public async Task<ActionResult<object>> RunCleanup(
+        [FromServices] Microsoft.Extensions.Logging.ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
-        var companiesProcessed = body.InsuranceCompanyId.HasValue
-            ? await _db.InsuranceCompanies.IgnoreQueryFilters()
-                .CountAsync(x => x.Id == body.InsuranceCompanyId.Value && x.TenantId == null && x.DeletedAt == null, ct)
-            : await _db.InsuranceCompanies.IgnoreQueryFilters()
-                .CountAsync(x => x.TenantId == null && x.DeletedAt == null && x.IsActive, ct);
-
-        var created = await CompanyParameterDefaults.SeedMissingAsync(_db, body.InsuranceCompanyId, ct);
-        return Ok(new SeedCompanyParametersResult(companiesProcessed, created));
+        var logger = loggerFactory.CreateLogger("ManualCleanup");
+        await Kalypsis.Infrastructure.Persistence.Seeders.DataSeeder
+            .CleanupNonGrandCoverGlobalsAsync(_db, logger, ct);
+        return Ok(new { ok = true, ranAt = DateTime.UtcNow });
     }
 
     private async Task<IQueryable<CompanyParameterItem>> ApplyCompanyCodeFilterAsync(

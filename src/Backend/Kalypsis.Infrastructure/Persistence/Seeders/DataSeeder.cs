@@ -223,84 +223,72 @@ public static class DataSeeder
     }
 
     /// <summary>
-    /// Cleanup pass that enforces the "only Grand Cover exists" invariant
-    /// across the whole DB. Three operations, every boot, idempotent:
+    /// Nuclear, raw-SQL cleanup. Runs on every boot, fully idempotent.
+    /// EF change-tracking is bypassed so this works even if any row has a
+    /// stale FK or a soft-delete state the model wouldn't normally read.
     ///
-    /// 1. Soft-delete every InsuranceCompany row (GLOBAL **and** TENANT-
-    ///    scoped) that isn't the Grand Cover broker itself or one of its
-    ///    seeded subcompanies. Tenants don't get to keep their own copies
-    ///    of Allianz/ERGO/etc anymore.
-    /// 2. Soft-delete any *generic* "Kalypsis defaults" / "Bridge defaults"
-    ///    CompanyParameterItem rows attached to the Grand Cover broker or
-    ///    its subs. These were created by an earlier call to the
-    ///    "Συμπλήρωση defaults" button and polluted the real IW catalogue
-    ///    with seven synthetic branches ("Αυτοκίνητο", "Κατοικία", …).
-    /// 3. Log what was removed.
+    ///   1. Force the Grand Cover broker row back to (DeletedAt=NULL, IsActive=1).
+    ///   2. Force every direct child of the broker back to (DeletedAt=NULL, IsActive=1).
+    ///   3. Soft-delete EVERY other InsuranceCompany row across the entire DB
+    ///      (global + every tenant). The platform is single-broker for now.
+    ///   4. Soft-delete every CompanyParameterItem with Source LIKE 'Kalypsis defaults%'.
     /// </summary>
-    private static async Task CleanupNonGrandCoverGlobalsAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    public static async Task CleanupNonGrandCoverGlobalsAsync(AppDbContext db, ILogger logger, CancellationToken ct)
     {
-        var broker = await db.InsuranceCompanies.IgnoreQueryFilters()
-            .Where(c => c.TenantId == null && c.DeletedAt == null && c.IsBroker)
-            .FirstOrDefaultAsync(ct);
-        if (broker is null)
+        // (0) Force-mark the Grand Cover row by Code regardless of its current
+        // state (deleted / wrong tenant / IsBroker=0 / etc.). This is the
+        // anchor for everything that follows.
+        var pinned = await db.Database.ExecuteSqlRawAsync(@"
+            UPDATE `insurance_companies`
+            SET `DeletedAt` = NULL, `IsActive` = 1, `IsBroker` = 1, `TenantId` = NULL, `ParentCompanyId` = NULL
+            WHERE `Code` = 'GRAND_COVER'", ct);
+        logger.LogInformation("Cleanup: pinned {Count} Grand Cover row(s) by Code.", pinned);
+
+        // (1) Force-undelete every broker row (defensive — covers cases where
+        // the Code might differ).
+        var resurrected = await db.Database.ExecuteSqlRawAsync(@"
+            UPDATE `insurance_companies`
+            SET `DeletedAt` = NULL, `IsActive` = 1
+            WHERE `IsBroker` = 1 AND `ParentCompanyId` IS NULL", ct);
+        logger.LogInformation("Cleanup: resurrected {Count} broker row(s).", resurrected);
+
+        // Look up the broker id(s) to anchor the rest of the cleanup.
+        var brokerIds = await db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(c => c.IsBroker && c.ParentCompanyId == null)
+            .Select(c => c.Id)
+            .ToListAsync(ct);
+
+        if (brokerIds.Count == 0)
         {
-            logger.LogWarning("CleanupNonGrandCoverGlobalsAsync: no broker found, skipping cleanup.");
+            logger.LogWarning("Cleanup: no broker found AFTER resurrect step — Grand Cover seeder probably failed.");
             return;
         }
 
-        // --- (1) Allowed carrier IDs = broker + its subs, regardless of tenant scope.
-        var allowedIds = new HashSet<Guid> { broker.Id };
-        var subIds = await db.InsuranceCompanies.IgnoreQueryFilters()
-            .Where(c => c.DeletedAt == null && c.ParentCompanyId == broker.Id)
-            .Select(c => c.Id)
-            .ToListAsync(ct);
-        foreach (var id in subIds) allowedIds.Add(id);
+        // (2) Force-undelete the broker's subs.
+        var brokerIdList = string.Join(",", brokerIds.Select(id => $"'{id}'"));
+        var subsResurrected = await db.Database.ExecuteSqlRawAsync($@"
+            UPDATE `insurance_companies`
+            SET `DeletedAt` = NULL, `IsActive` = 1
+            WHERE `ParentCompanyId` IN ({brokerIdList})", ct);
+        logger.LogInformation("Cleanup: resurrected {Count} broker-sub row(s).", subsResurrected);
 
-        // Wipe EVERY non-Grand-Cover InsuranceCompany row across the entire
-        // database (global or tenant-scoped). The platform is single-broker
-        // for now; tenants who need other carriers must wait for the
-        // superadmin to add them globally + import their παραμετρικά.
-        var carriersToDelete = await db.InsuranceCompanies.IgnoreQueryFilters()
-            .Where(c => c.DeletedAt == null && !allowedIds.Contains(c.Id))
-            .ToListAsync(ct);
+        // (3) Soft-delete every other carrier across the entire DB (tenant scope
+        // is intentionally ignored — no tenant gets to keep their own copies).
+        var deletedCarriers = await db.Database.ExecuteSqlRawAsync($@"
+            UPDATE `insurance_companies`
+            SET `DeletedAt` = UTC_TIMESTAMP(6), `IsActive` = 0
+            WHERE `DeletedAt` IS NULL
+              AND `Id` NOT IN ({brokerIdList})
+              AND (`ParentCompanyId` IS NULL OR `ParentCompanyId` NOT IN ({brokerIdList}))", ct);
+        logger.LogInformation("Cleanup: soft-deleted {Count} non-Grand-Cover carrier row(s) across all tenants.", deletedCarriers);
 
-        var now = DateTime.UtcNow;
-        if (carriersToDelete.Count > 0)
-        {
-            foreach (var c in carriersToDelete)
-            {
-                c.DeletedAt = now;
-                c.IsActive = false;
-            }
-            await db.SaveChangesAsync(ct);
-            logger.LogInformation("CleanupNonGrandCoverGlobalsAsync: soft-deleted {Count} non-Grand-Cover carriers ({Names}).",
-                carriersToDelete.Count,
-                string.Join(", ", carriersToDelete.Take(20).Select(c => c.Name)));
-        }
-
-        // --- (2) Purge "Kalypsis defaults" parameter rows. These come from
-        // the `CompanyParameterDefaults.SeedMissingAsync` button and contain
-        // the 7 generic branches ("Αυτοκίνητο" / "Κατοικία" / …) plus their
-        // coverages/packages — synthetic data that pollutes the real IW
-        // catalogue. We delete them EVERYWHERE (not only Grand Cover) since
-        // the other carriers are gone now. Manual additions (Source =
-        // "AgencyAdmin" / "Manual" / "BulkImport") are preserved.
-        var pollutedParams = await db.CompanyParameterItems.IgnoreQueryFilters()
-            .Where(p => p.DeletedAt == null
-                        && (p.Source == "Kalypsis defaults" || p.Source!.StartsWith("Kalypsis defaults")))
-            .ToListAsync(ct);
-
-        if (pollutedParams.Count > 0)
-        {
-            foreach (var p in pollutedParams)
-            {
-                p.DeletedAt = now;
-                p.IsActive = false;
-            }
-            await db.SaveChangesAsync(ct);
-            logger.LogInformation("CleanupNonGrandCoverGlobalsAsync: soft-deleted {Count} «Kalypsis defaults» παραμετρικά rows.",
-                pollutedParams.Count);
-        }
+        // (4) Soft-delete polluting Kalypsis defaults rows everywhere.
+        var deletedParams = await db.Database.ExecuteSqlRawAsync(@"
+            UPDATE `company_parameter_items`
+            SET `DeletedAt` = UTC_TIMESTAMP(6), `IsActive` = 0
+            WHERE `DeletedAt` IS NULL
+              AND (`Source` = 'Kalypsis defaults' OR `Source` LIKE 'Kalypsis defaults%')", ct);
+        logger.LogInformation("Cleanup: soft-deleted {Count} «Kalypsis defaults» παραμετρικά row(s).", deletedParams);
     }
 
     /// <summary>

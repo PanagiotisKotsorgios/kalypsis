@@ -167,8 +167,6 @@ export function ProductionListsPage() {
           <TextField select size="small" label={t("productionList.carrier")} value={f.insuranceCompanyId}
             onChange={e => setF({ ...f, insuranceCompanyId: e.target.value, policyType: "", vehicleUseCategory: "" })}>
             <MenuItem value="">{t("common.all")}</MenuItem>
-            {/* Brokers + standalone carriers at the top level; subcompanies
-                appear indented underneath their broker. */}
             {(carriers.data ?? []).filter(c => !c.parentCompanyId).flatMap(c => {
               const subs = (carriers.data ?? []).filter(s => s.parentCompanyId === c.id);
               const head = (
@@ -183,6 +181,28 @@ export function ProductionListsPage() {
               ))];
             })}
           </TextField>
+          {(() => {
+            const carrierData = carriers.data ?? [];
+            const selected = carrierData.find(c => c.id === f.insuranceCompanyId);
+            // Show the sub-picker when EITHER the broker is selected OR a
+            // sub of the broker is selected — so the user can switch
+            // between subs without going back to the broker first.
+            const broker = selected?.isBroker
+              ? selected
+              : selected?.parentCompanyId
+                ? carrierData.find(c => c.id === selected.parentCompanyId)
+                : null;
+            if (!broker?.isBroker) return null;
+            const subs = carrierData.filter(c => c.parentCompanyId === broker.id);
+            const subValue = selected?.id !== broker.id ? selected?.id ?? "" : "";
+            return (
+              <TextField select size="small" label="Υποασφαλιστική" value={subValue}
+                onChange={e => setF({ ...f, insuranceCompanyId: e.target.value || broker.id })}>
+                <MenuItem value="">— όλες οι υποασφαλιστικές —</MenuItem>
+                {subs.map(s => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
+              </TextField>
+            );
+          })()}
           <TextField select size="small" label={t("productionList.producer")} value={f.producerId}
             onChange={e => setF({ ...f, producerId: e.target.value })}>
             <MenuItem value="">{t("common.all")}</MenuItem>

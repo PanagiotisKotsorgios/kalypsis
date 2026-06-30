@@ -138,8 +138,6 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
             <TextField select label="Ασφαλιστική εταιρεία" value={filter.insuranceCompanyId}
               onChange={(e) => setFilter({ ...filter, insuranceCompanyId: e.target.value, policyType: "" })}>
               <MenuItem value="">Όλες</MenuItem>
-              {/* Top-level carriers + brokers. Subcompanies appear indented
-                  under their broker so the cascade is visible inline. */}
               {(companies.data ?? []).filter(c => !c.parentCompanyId).flatMap(c => {
                 const subs = (companies.data ?? []).filter(s => s.parentCompanyId === c.id);
                 const head = (
@@ -156,6 +154,25 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
                     ))];
               })}
             </TextField>
+            {(() => {
+              const carrierData = companies.data ?? [];
+              const selected = carrierData.find(c => c.id === filter.insuranceCompanyId);
+              const broker = selected?.isBroker
+                ? selected
+                : selected?.parentCompanyId
+                  ? carrierData.find(c => c.id === selected.parentCompanyId)
+                  : null;
+              if (!broker?.isBroker) return null;
+              const subs = carrierData.filter(c => c.parentCompanyId === broker.id);
+              const subValue = selected?.id !== broker.id ? selected?.id ?? "" : "";
+              return (
+                <TextField select label="Υποασφαλιστική" value={subValue}
+                  onChange={e => setFilter({ ...filter, insuranceCompanyId: e.target.value || broker.id, policyType: "" })}>
+                  <MenuItem value="">— όλες οι υποασφαλιστικές —</MenuItem>
+                  {subs.map(s => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
+                </TextField>
+              );
+            })()}
             <TextField select label="Συνεργάτης" value={filter.producerId}
               onChange={(e) => setFilter({ ...filter, producerId: e.target.value })}>
               <MenuItem value="">Όλοι</MenuItem>
