@@ -360,6 +360,11 @@ public static class DataSeeder
             table: "TenantPackageGrants", column: "PremiumFeaturesJson",
             addSql: "ALTER TABLE `TenantPackageGrants` ADD COLUMN `PremiumFeaturesJson` longtext NULL", ct);
 
+        // --- policies.PaymentCollectionMethod (τρόπος είσπραξης) ----------
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "PaymentCollectionMethod",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `PaymentCollectionMethod` varchar(64) NULL", ct);
+
         // --- producer_commission_declarations table ------------------------
         await EnsureTableAsync(db, logger, dbName,
             table: "producer_commission_declarations",

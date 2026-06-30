@@ -116,12 +116,13 @@ export function PolicyDeliveryPage({ embedded = false }: PolicyDeliveryPageProps
 function MarkDialog({ open, onClose, policyIds, onMarked }: { open: boolean; onClose: () => void; policyIds: string[]; onMarked: () => void }) {
   const { t } = useTranslation();
   const today = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({ deliveredAt: today, deliveredTo: "", deliveryMethod: "Hand" });
+  const [form, setForm] = useState({ deliveredAt: today, deliveredTo: "", deliveryMethod: "Hand", paymentCollectionMethod: "" });
   const [err, setErr] = useState<string | null>(null);
   const save = useMutation({
     mutationFn: async () => (await api.post<number>("/policy-delivery/mark-delivered", {
       policyIds, deliveredAt: form.deliveredAt,
-      deliveredTo: form.deliveredTo || null, deliveryMethod: form.deliveryMethod
+      deliveredTo: form.deliveredTo || null, deliveryMethod: form.deliveryMethod,
+      paymentCollectionMethod: form.paymentCollectionMethod || null
     })).data,
     onSuccess: onMarked, onError: e => setErr(extractErrorMessage(e))
   });
@@ -139,6 +140,17 @@ function MarkDialog({ open, onClose, policyIds, onMarked }: { open: boolean; onC
           <TextField select label={t("delivery.method")} value={form.deliveryMethod}
             onChange={e => setForm({ ...form, deliveryMethod: e.target.value })} fullWidth>
             {METHODS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+          </TextField>
+          <TextField select label="Τρόπος πληρωμής" value={form.paymentCollectionMethod}
+            onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })} fullWidth
+            helperText="Πώς θα εισπραχθεί το ασφάλιστρο.">
+            <MenuItem value="">—</MenuItem>
+            <MenuItem value="Cash">Μετρητά</MenuItem>
+            <MenuItem value="BankDeposit">Κατάθεση τραπέζης</MenuItem>
+            <MenuItem value="Card">Κάρτα</MenuItem>
+            <MenuItem value="DebitOrder">Πάγια εντολή</MenuItem>
+            <MenuItem value="Cheque">Επιταγή</MenuItem>
+            <MenuItem value="Other">Άλλο</MenuItem>
           </TextField>
         </Stack>
       </DialogContent>

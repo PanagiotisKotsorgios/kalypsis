@@ -37,8 +37,9 @@ public record PolicyDetailDto(
     bool RetainCommissionsOnRenewal, bool RetainDocumentNumberOnRenewal, bool RetainSpecialCommissionsOnRenewal,
     string? RenewalInstructions,
 
-    // Delivery
+    // Delivery + collection method
     DateOnly? DeliveredAt, string? DeliveredTo, string? DeliveryMethod,
+    string? PaymentCollectionMethod,
 
     // History
     Guid? RenewedFromPolicyId, string? RenewedFromPolicyNumber,
@@ -140,6 +141,7 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             p.RetainCommissionsOnRenewal, p.RetainDocumentNumberOnRenewal, p.RetainSpecialCommissionsOnRenewal,
             p.RenewalInstructions,
             p.DeliveredAt, p.DeliveredTo, p.DeliveryMethod,
+            p.PaymentCollectionMethod,
             p.RenewedFromPolicyId, renewedFromNumber,
             endorsementCount, cancellationCount, claimCount, commissionTxnCount,
             documentCount, receiptCount,
@@ -158,7 +160,8 @@ public record UpdatePolicyExtendedBody(
     Guid? RenewalTransferToProducerId, Guid? RenewalTransferToCarrierId,
     bool RetainCommissionsOnRenewal, bool RetainDocumentNumberOnRenewal, bool RetainSpecialCommissionsOnRenewal,
     string? RenewalInstructions,
-    DateOnly? DeliveredAt, string? DeliveredTo, string? DeliveryMethod);
+    DateOnly? DeliveredAt, string? DeliveredTo, string? DeliveryMethod,
+    string? PaymentCollectionMethod = null);
 
 public record UpdatePolicyExtendedCommand(Guid Id, UpdatePolicyExtendedBody Body) : IRequest<PolicyDetailDto>;
 
@@ -195,6 +198,7 @@ public class UpdatePolicyExtendedHandler : IRequestHandler<UpdatePolicyExtendedC
         p.DeliveredAt = b.DeliveredAt;
         p.DeliveredTo = b.DeliveredTo;
         p.DeliveryMethod = b.DeliveryMethod;
+        p.PaymentCollectionMethod = b.PaymentCollectionMethod;
 
         await _db.SaveChangesAsync(ct);
         return await _mediator.Send(new GetPolicyDetailQuery(p.Id), ct);

@@ -57,6 +57,14 @@ public class Policy : TenantEntity
     public string? DeliveredTo { get; set; }                         // Παραλήπτης
     public string? DeliveryMethod { get; set; }                      // hand / post / email
 
+    /// <summary>
+    /// Τρόπος είσπραξης ασφαλίστρου — how the premium is collected from the
+    /// customer (Cash / BankDeposit / Card / DebitOrder / Cheque / Other).
+    /// Shown on the policy card and on the delivery page next to the
+    /// delivery method.
+    /// </summary>
+    public string? PaymentCollectionMethod { get; set; }
+
     public ICollection<PolicyDocument> Documents { get; set; } = new List<PolicyDocument>();
     public ICollection<Claim> Claims { get; set; } = new List<Claim>();
     public ICollection<CommissionTransaction> CommissionTransactions { get; set; } = new List<CommissionTransaction>();

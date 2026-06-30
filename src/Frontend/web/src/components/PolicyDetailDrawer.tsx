@@ -28,6 +28,7 @@ export interface PolicyDetail {
   retainCommissionsOnRenewal: boolean; retainDocumentNumberOnRenewal: boolean; retainSpecialCommissionsOnRenewal: boolean;
   renewalInstructions: string | null;
   deliveredAt: string | null; deliveredTo: string | null; deliveryMethod: string | null;
+  paymentCollectionMethod: string | null;
   renewedFromPolicyId: string | null; renewedFromPolicyNumber: string | null;
   endorsementCount: number; cancellationCount: number; claimCount: number; commissionTxnCount: number;
   documentCount: number; receiptCount: number;
@@ -47,6 +48,15 @@ const STATUS_COLOR: Record<string, "default" | "success" | "warning" | "info" | 
 
 const FREQUENCIES = ["Annual", "Semiannual", "Quarterly", "Monthly", "Single"];
 const DELIVERY_METHODS = ["Hand", "Post", "Email", "Courier"];
+const COLLECTION_METHODS = ["Cash", "BankDeposit", "Card", "DebitOrder", "Cheque", "Other"];
+const COLLECTION_METHODS_LABEL: Record<string, string> = {
+  Cash: "Μετρητά",
+  BankDeposit: "Κατάθεση τραπέζης",
+  Card: "Κάρτα",
+  DebitOrder: "Πάγια εντολή",
+  Cheque: "Επιταγή",
+  Other: "Άλλο",
+};
 
 export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
   const { t } = useTranslation();
@@ -76,7 +86,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
     renewalInstructions: "",
     deliveredAt: "",
     deliveredTo: "",
-    deliveryMethod: ""
+    deliveryMethod: "",
+    paymentCollectionMethod: ""
   });
   useEffect(() => {
     if (q.data) {
@@ -94,7 +105,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
         renewalInstructions: q.data.renewalInstructions ?? "",
         deliveredAt: q.data.deliveredAt ?? "",
         deliveredTo: q.data.deliveredTo ?? "",
-        deliveryMethod: q.data.deliveryMethod ?? ""
+        deliveryMethod: q.data.deliveryMethod ?? "",
+        paymentCollectionMethod: q.data.paymentCollectionMethod ?? ""
       });
     }
   }, [q.data]);
@@ -131,7 +143,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
       renewalInstructions: form.renewalInstructions || null,
       deliveredAt: form.deliveredAt || null,
       deliveredTo: form.deliveredTo || null,
-      deliveryMethod: form.deliveryMethod || null
+      deliveryMethod: form.deliveryMethod || null,
+      paymentCollectionMethod: form.paymentCollectionMethod || null
     })).data,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] });
@@ -244,6 +257,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                     onChange={e => setForm({ ...form, paymentFrequency: e.target.value })}>
                     {FREQUENCIES.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
                   </TextField>
+                  <TextField select fullWidth label="Τρόπος είσπραξης" value={form.paymentCollectionMethod}
+                    onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })}>
+                    <MenuItem value="">—</MenuItem>
+                    {COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}
+                  </TextField>
                   <Stack direction="row" alignItems="center" spacing={1}>
                     <Switch checked={form.premiumIncludesVat} onChange={e => setForm({ ...form, premiumIncludesVat: e.target.checked })} />
                     <Typography>{t("policyDetail.premiumIncludesVat")}</Typography>
@@ -312,6 +330,12 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                     onChange={e => setForm({ ...form, deliveryMethod: e.target.value })}>
                     <MenuItem value="">—</MenuItem>
                     {DELIVERY_METHODS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                  </TextField>
+                  <TextField select fullWidth label="Τρόπος πληρωμής" value={form.paymentCollectionMethod}
+                    onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })}
+                    helperText="Πώς εισπράττεται το ασφάλιστρο από τον πελάτη.">
+                    <MenuItem value="">—</MenuItem>
+                    {COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}
                   </TextField>
                 </Stack>
               )}

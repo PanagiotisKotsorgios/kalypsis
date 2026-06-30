@@ -623,7 +623,7 @@ public record DeliveryRowDto(
     DateOnly StartDate, decimal Premium, string Currency,
     DateOnly? DeliveredAt, string? DeliveredTo, string? DeliveryMethod);
 
-public record MarkDeliveredBody(IReadOnlyList<Guid> PolicyIds, DateOnly DeliveredAt, string? DeliveredTo, string DeliveryMethod);
+public record MarkDeliveredBody(IReadOnlyList<Guid> PolicyIds, DateOnly DeliveredAt, string? DeliveredTo, string DeliveryMethod, string? PaymentCollectionMethod = null);
 
 public record ListUndeliveredPoliciesQuery() : IRequest<IReadOnlyList<DeliveryRowDto>>;
 public class ListUndeliveredPoliciesHandler : IRequestHandler<ListUndeliveredPoliciesQuery, IReadOnlyList<DeliveryRowDto>>
@@ -658,7 +658,8 @@ public class MarkPoliciesDeliveredHandler : IRequestHandler<MarkPoliciesDelivere
             .ExecuteUpdateAsync(s => s
                 .SetProperty(p => p.DeliveredAt, b.DeliveredAt)
                 .SetProperty(p => p.DeliveredTo, b.DeliveredTo)
-                .SetProperty(p => p.DeliveryMethod, b.DeliveryMethod), ct);
+                .SetProperty(p => p.DeliveryMethod, b.DeliveryMethod)
+                .SetProperty(p => p.PaymentCollectionMethod, b.PaymentCollectionMethod), ct);
         return n;
     }
 }
