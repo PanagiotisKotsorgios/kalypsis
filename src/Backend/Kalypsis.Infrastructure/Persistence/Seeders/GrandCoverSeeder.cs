@@ -118,32 +118,63 @@ public static class GrandCoverSeeder
         }
 
         // Deduplicate parametric rows on the broker hierarchy. After repeated
-        // boot attempts hit the broker-row duplication, every (InsuranceCompanyId,
-        // Kind, Code, ParentCode) tuple got 2-3 copies. Soft-delete all but
-        // the oldest of each duplicate group so the dropdowns show the
-        // catalogue exactly once. MySQL 8 ROW_NUMBER() handles this cleanly.
+        // boot attempts hit the broker-row duplication, every (Kind, Code,
+        // ParentCode) tuple ended up with 2-3 copies under the canonical
+        // broker. Soft-delete all but the oldest copy per tuple.
+        //
+        // Implementation note: this used to be a single UPDATE … JOIN
+        // ROW_NUMBER() statement, but MySQL 8.0.46's optimizer can silently
+        // no-op that pattern (the derived table gets merged back into the
+        // outer reference and the "can't update target table in FROM" rule
+        // kicks in without raising an error). Doing it in two passes — load
+        // ids via EF, then SaveChanges on the marked-deleted rows — is
+        // slower but actually works.
         var hierarchyIds = await db.InsuranceCompanies.IgnoreQueryFilters()
             .Where(c => c.Id == broker.Id || c.ParentCompanyId == broker.Id)
             .Select(c => c.Id)
             .ToListAsync(ct);
         if (hierarchyIds.Count > 0)
         {
-            var hierarchyList = string.Join(",", hierarchyIds.Select(id => $"'{id}'"));
-            var dedupRemoved = await db.Database.ExecuteSqlRawAsync($@"
-                UPDATE `company_parameter_items` p
-                JOIN (
-                    SELECT `Id`, ROW_NUMBER() OVER (
-                        PARTITION BY `InsuranceCompanyId`, `Kind`, `Code`, COALESCE(`ParentCode`, '')
-                        ORDER BY `CreatedAt`, `Id`
-                    ) AS rn
-                    FROM `company_parameter_items`
-                    WHERE `InsuranceCompanyId` IN ({hierarchyList})
-                      AND `DeletedAt` IS NULL
-                ) ranked ON p.`Id` = ranked.`Id`
-                SET p.`DeletedAt` = UTC_TIMESTAMP(6), p.`IsActive` = 0
-                WHERE ranked.rn > 1", ct);
-            if (dedupRemoved > 0)
-                logger.LogInformation("GrandCoverSeeder: dedup soft-deleted {Count} duplicate parametric rows.", dedupRemoved);
+            var beforeBranches = await db.CompanyParameterItems.IgnoreQueryFilters()
+                .CountAsync(p => hierarchyIds.Contains(p.InsuranceCompanyId) && p.DeletedAt == null
+                    && p.Kind == CompanyParameterItemKind.Branch, ct);
+
+            var liveRows = await db.CompanyParameterItems.IgnoreQueryFilters()
+                .Where(p => hierarchyIds.Contains(p.InsuranceCompanyId) && p.DeletedAt == null)
+                .OrderBy(p => p.CreatedAt).ThenBy(p => p.Id)
+                .ToListAsync(ct);
+
+            var seen = new HashSet<string>();
+            var dupes = new List<CompanyParameterItem>();
+            foreach (var row in liveRows)
+            {
+                var key = $"{row.InsuranceCompanyId}|{(int)row.Kind}|{row.Code}|{row.ParentCode ?? string.Empty}";
+                if (!seen.Add(key)) dupes.Add(row);
+            }
+
+            if (dupes.Count > 0)
+            {
+                var now = DateTime.UtcNow;
+                foreach (var d in dupes)
+                {
+                    d.DeletedAt = now;
+                    d.IsActive = false;
+                }
+                await db.SaveChangesAsync(ct);
+
+                var afterBranches = await db.CompanyParameterItems.IgnoreQueryFilters()
+                    .CountAsync(p => hierarchyIds.Contains(p.InsuranceCompanyId) && p.DeletedAt == null
+                        && p.Kind == CompanyParameterItemKind.Branch, ct);
+                logger.LogInformation(
+                    "GrandCoverSeeder: dedup soft-deleted {Count} duplicate parametric rows. Branches {Before}→{After}.",
+                    dupes.Count, beforeBranches, afterBranches);
+            }
+            else
+            {
+                logger.LogInformation(
+                    "GrandCoverSeeder: dedup scanned {Total} live rows, no duplicates found. Branches={Branches}.",
+                    liveRows.Count, beforeBranches);
+            }
         }
 
         // === Subcompanies ===
