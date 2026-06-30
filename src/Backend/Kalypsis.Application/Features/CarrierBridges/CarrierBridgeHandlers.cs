@@ -56,9 +56,13 @@ public class ListAvailableCarrierBridgesHandler : IRequestHandler<ListAvailableC
     public async Task<IReadOnlyList<AvailableCarrierDto>> Handle(ListAvailableCarrierBridgesQuery _, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        // Both tenant-owned and global carriers count: the agency has access to either.
+        // Subcompanies of a broker share the broker's bridge — they don't get
+        // their own slot here. So we exclude any row with a ParentCompanyId.
+        // Top-level brokers (πρακτορεία) and standalone carriers only.
         var carriers = await _db.InsuranceCompanies.IgnoreQueryFilters()
-            .Where(c => c.DeletedAt == null && (c.TenantId == null || c.TenantId == tenantId))
+            .Where(c => c.DeletedAt == null
+                && (c.TenantId == null || c.TenantId == tenantId)
+                && c.ParentCompanyId == null)
             .OrderBy(c => c.Name)
             .ToListAsync(ct);
 

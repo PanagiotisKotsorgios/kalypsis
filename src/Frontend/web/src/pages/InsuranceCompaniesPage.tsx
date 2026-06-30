@@ -202,12 +202,17 @@ function CompanyTable({ rows, onEdit, onDelete, readonly }: {
                 <Chip size="small" color={r.isActive ? "success" : "default"} label={r.isActive ? "Ενεργή" : "Ανενεργή"} />
               </TableCell>
               <TableCell>
-                <Chip
-                  size="small"
-                  color={r.bridgeLinked ? "primary" : "warning"}
-                  variant={r.bridgeLinked ? "filled" : "outlined"}
-                  label={r.bridgeLinked ? "Συνδεδεμένη" : "Χωρίς γέφυρα"}
-                />
+                {r.parentCompanyId ? (
+                  // Subs share the broker's bridge — they don't have their own.
+                  <Chip size="small" variant="outlined" label="Μέσω πρακτορείου" sx={{ color: "text.secondary" }} />
+                ) : (
+                  <Chip
+                    size="small"
+                    color={r.bridgeLinked ? "primary" : "warning"}
+                    variant={r.bridgeLinked ? "filled" : "outlined"}
+                    label={r.bridgeLinked ? "Συνδεδεμένη" : "Χωρίς γέφυρα"}
+                  />
+                )}
               </TableCell>
               <TableCell align="right">
                 <Chip size="small" color={r.parameterItemCount > 0 ? "success" : "warning"} variant="outlined" label={r.parameterItemCount} />
