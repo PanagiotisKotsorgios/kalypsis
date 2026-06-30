@@ -175,7 +175,6 @@ import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import CakeIcon from "@mui/icons-material/Cake";
 import PhoneCallbackIcon from "@mui/icons-material/PhoneCallback";
 import MergeIcon from "@mui/icons-material/Merge";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 // DirectionsCarIcon was the vehicle-models entry — removed from sidebar.
 import InventoryIcon from "@mui/icons-material/Inventory";
 import HubIcon from "@mui/icons-material/Hub";
@@ -184,7 +183,6 @@ import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import { AllToolsPage } from "./pages/AllToolsPage";
-import { BridgeImportPage } from "./pages/BridgeImportPage";
 import { CarrierBridgesPage } from "./pages/CarrierBridgesPage";
 import { ProductionListsPage } from "./pages/ProductionListsPage";
 import { RenewalsPage } from "./pages/RenewalsPage";
@@ -273,14 +271,15 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Crm" },
 
     // ===== FrontOffice =====
-    { to: "/quote-builder", labelKey: "nav.quoteBuilder", icon: <RequestQuoteIcon />, package: "FrontOffice" },
+    // quote-builder is still routable but hidden from the sidebar until the
+    // carrier-aware quote engine ships. cover-notes stays — it's wired.
     { to: "/cover-notes", labelKey: "nav.coverNotes", icon: <DescriptionOutlinedIcon />, package: "FrontOffice" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "FrontOffice" },
 
     // ===== Intelligence =====
+    // persistency hidden — analytics shell exists but not wired to data yet.
     { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, package: "Intelligence" },
     { to: "/named-reports", labelKey: "nav.namedReports", icon: <AssessmentOutlinedIcon />, package: "Intelligence" },
-    { to: "/persistency", labelKey: "nav.persistency", icon: <TrendingUpIcon />, package: "Intelligence" },
     { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, package: "Intelligence" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Intelligence" },
 
@@ -290,8 +289,8 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/usae", labelKey: "nav.usae", icon: <RuleIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/dias", labelKey: "nav.dias", icon: <AccountBalanceIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/bank-connections", labelKey: "nav.bankConnections", icon: <LinkIcon />, package: "Integrations", group: "integrationsGrp" },
-    { to: "/company-bridges", labelKey: "nav.companyBridges", icon: <HubIcon />, package: "Integrations", group: "integrationsGrp" },
-    { to: "/bridge-import", labelKey: "nav.bridgeImport", icon: <CloudUploadIcon />, package: "Integrations", group: "integrationsGrp" },
+    // company-bridges + bridge-import are duplicates of /carrier-bridges
+    // (BackOffice top-level). Routes redirect — sidebar entries removed.
     { to: "/info-center", labelKey: "nav.infoCenter", icon: <CloudUploadOutlinedIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/partner-portals", labelKey: "nav.b2bPortal", icon: <HubIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/api-keys", labelKey: "nav.thirdParty", icon: <ExtensionIcon />, package: "Integrations", group: "integrationsGrp" },
@@ -544,11 +543,11 @@ export default function App() {
                   <Route path="usae" element={<UsaeSubmissionsPage />} />
                   <Route path="all-tools" element={<AllToolsPage />} />
                   <Route path="default-value-rules" element={<Navigate to="/app/commission-rules" replace />} />
-                  <Route path="bridge-import" element={<BridgeImportPage />} />
                   <Route path="carrier-bridges" element={<CarrierBridgesPage />} />
                   <Route path="production-lists" element={<ProductionListsPage />} />
                   <Route path="renewals" element={<RenewalsPage />} />
                   <Route path="company-bridges" element={<Navigate to="/app/carrier-bridges" replace />} />
+                  <Route path="bridge-import" element={<Navigate to="/app/carrier-bridges" replace />} />
                   <Route path="platform/carriers" element={<PlatformCarriersPage />} />
                   <Route path="platform/plans" element={<SubscriptionPlansPage />} />
                   <Route path="platform/billing" element={<PlatformBillingConfigPage />} />

@@ -13,6 +13,18 @@ public class AuditLogsController : ControllerBase
     private readonly IMediator _mediator;
     public AuditLogsController(IMediator mediator) => _mediator = mediator;
 
+    /// <summary>Timeline for a single entity — small set of fields, surfaced
+    /// on detail screens. Allowed for any agency-staff role since they see
+    /// the entity already.</summary>
+    [HttpGet("entity/{entityName}/{entityId}")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<AuditLogPageDto>> ForEntity(
+        string entityName, string entityId, CancellationToken ct)
+        => Ok(await _mediator.Send(new ListAuditLogsQuery(
+            EntityName: entityName, Action: null, TenantId: null, UserId: null,
+            Category: null, Search: null, From: null, To: null,
+            Page: 1, PageSize: 50, EntityId: entityId), ct));
+
     [HttpGet]
     public async Task<ActionResult<AuditLogPageDto>> List(
         [FromQuery] string? entityName,

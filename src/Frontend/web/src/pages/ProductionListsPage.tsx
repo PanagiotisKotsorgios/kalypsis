@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { money, date } from "../utils/format";
 
 interface Carrier { id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null; }
 interface Producer { id: string; name: string; }
@@ -278,11 +279,11 @@ export function ProductionListsPage() {
           <Card sx={{ p: 2.5, mb: 2, bgcolor: "rgba(11,37,69,0.04)" }}>
             <Stack direction="row" spacing={3} flexWrap="wrap">
               <Kpi label={t("productionList.kpi.policies")} value={q.data.grand.count} />
-              <Kpi label={t("productionList.kpi.gross")} value={`${q.data.grand.gross.toFixed(2)} €`} />
-              <Kpi label={t("productionList.kpi.net")} value={`${q.data.grand.net.toFixed(2)} €`} />
-              <Kpi label={t("productionList.kpi.vat")} value={`${q.data.grand.vat.toFixed(2)} €`} />
-              <Kpi label={t("productionList.kpi.partnerComm")} value={`${q.data.grand.partnerCommission.toFixed(2)} €`} color="warning.main" />
-              <Kpi label={t("productionList.kpi.agencyComm")} value={`${q.data.grand.agencyCommission.toFixed(2)} €`} color="success.main" />
+              <Kpi label={t("productionList.kpi.gross")} value={money(q.data.grand.gross)} />
+              <Kpi label={t("productionList.kpi.net")} value={money(q.data.grand.net)} />
+              <Kpi label={t("productionList.kpi.vat")} value={money(q.data.grand.vat)} />
+              <Kpi label={t("productionList.kpi.partnerComm")} value={money(q.data.grand.partnerCommission)} color="warning.main" />
+              <Kpi label={t("productionList.kpi.agencyComm")} value={money(q.data.grand.agencyCommission)} color="success.main" />
             </Stack>
           </Card>
 
@@ -304,10 +305,10 @@ export function ProductionListsPage() {
                     <TableRow key={g.key} hover>
                       <TableCell sx={{ fontWeight: 600 }}>{g.key}</TableCell>
                       <TableCell align="right">{g.count}</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700 }}>{g.gross.toFixed(2)} €</TableCell>
-                      <TableCell align="right">{g.net.toFixed(2)} €</TableCell>
-                      <TableCell align="right" sx={{ color: "warning.main" }}>{g.partnerCommission.toFixed(2)} €</TableCell>
-                      <TableCell align="right" sx={{ color: "success.main", fontWeight: 700 }}>{g.agencyCommission.toFixed(2)} €</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>{money(g.gross)}</TableCell>
+                      <TableCell align="right">{money(g.net)}</TableCell>
+                      <TableCell align="right" sx={{ color: "warning.main" }}>{money(g.partnerCommission)}</TableCell>
+                      <TableCell align="right" sx={{ color: "success.main", fontWeight: 700 }}>{money(g.agencyCommission)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -342,21 +343,21 @@ export function ProductionListsPage() {
                 {q.data.rows.map(r => (
                   <TableRow key={r.policyId} hover>
                     <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.policyNumber}</TableCell>
-                    <TableCell sx={{ fontSize: 12 }}>{r.startDate}</TableCell>
+                    <TableCell sx={{ fontSize: 12 }}>{date(r.startDate)}</TableCell>
                     <TableCell>{r.customerName}</TableCell>
                     <TableCell>{r.insuranceCompany}</TableCell>
                     <TableCell>{r.producer ?? "—"}</TableCell>
                     <TableCell><Chip size="small" variant="outlined" label={r.policyType} /></TableCell>
                     <TableCell>{r.vehicleUseCategory ? <Chip size="small" label={r.vehicleUseCategory} /> : "—"}</TableCell>
                     <TableCell>{r.coverCode ? <Chip size="small" variant="outlined" label={r.coverCode} /> : "—"}</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700 }}>{r.gross.toFixed(2)}</TableCell>
-                    <TableCell align="right">{r.net.toFixed(2)}</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>{money(r.gross)}</TableCell>
+                    <TableCell align="right">{money(r.net)}</TableCell>
                     <TableCell align="right" sx={{ color: "info.main" }}>
-                      {r.incomingAgencyCommission.toFixed(2)} ({r.incomingAgencyCommissionPercent.toFixed(1)}%)
+                      {money(r.incomingAgencyCommission)} ({r.incomingAgencyCommissionPercent.toFixed(1)}%)
                     </TableCell>
                     <TableCell align="right" sx={{ color: "text.secondary" }}>{r.partnerCommissionPercent.toFixed(1)}%</TableCell>
-                    <TableCell align="right" sx={{ color: "warning.main" }}>{r.partnerCommission.toFixed(2)}</TableCell>
-                    <TableCell align="right" sx={{ color: "success.main", fontWeight: 700 }}>{r.agencyCommission.toFixed(2)}</TableCell>
+                    <TableCell align="right" sx={{ color: "warning.main" }}>{money(r.partnerCommission)}</TableCell>
+                    <TableCell align="right" sx={{ color: "success.main", fontWeight: 700 }}>{money(r.agencyCommission)}</TableCell>
                     <TableCell>
                       {r.commissionWarning
                         ? <Chip size="small" color="warning" label="Έλεγχος σύμβασης" title={r.commissionWarning} />

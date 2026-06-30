@@ -818,10 +818,75 @@ function FamilyNeedsTab({ customerId }: { customerId: string }) {
   return (
     <Stack spacing={2.5}>
       <CustomerProfileCard customerId={customerId} profile={q.data.profile} />
+      <DriverLicenseCard customerId={customerId} />
       <CustomerNeedsCard customerId={customerId} needs={q.data.needs} />
       <FamilyMembersCard customerId={customerId} members={q.data.family} />
       <OpportunitiesCard opportunities={q.data.opportunities} />
     </Stack>
+  );
+}
+
+function DriverLicenseCard({ customerId }: { customerId: string }) {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["driver-license", customerId],
+    queryFn: async () => (await api.get<{ number: string | null; class: string | null;
+      issueDate: string | null; expiryDate: string | null }>(`/customers/${customerId}/driver-license`)).data
+  });
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ number: "", class: "", issueDate: "", expiryDate: "" });
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    if (q.data) setForm({
+      number: q.data.number ?? "", class: q.data.class ?? "",
+      issueDate: q.data.issueDate ?? "", expiryDate: q.data.expiryDate ?? ""
+    });
+  }, [q.data]);
+  const save = useMutation({
+    mutationFn: async () => api.put(`/customers/${customerId}/driver-license`, {
+      number: form.number || null, class: form.class || null,
+      issueDate: form.issueDate || null, expiryDate: form.expiryDate || null
+    }),
+    onSuccess: () => { setEditing(false); setErr(null); void qc.invalidateQueries({ queryKey: ["driver-license", customerId] }); },
+    onError: e => setErr(extractErrorMessage(e))
+  });
+  return (
+    <Card variant="outlined" sx={{ p: 2.5 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+        <Box><Typography variant="h6">Δίπλωμα οδήγησης</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Χρησιμοποιείται στις ασφαλίσεις αυτοκινήτου και στη λίστα επιτρεπτών οδηγών.
+          </Typography></Box>
+        <Button startIcon={<EditIcon />} onClick={() => setEditing(!editing)}>{editing ? "Ακύρωση" : "Επεξεργασία"}</Button>
+      </Stack>
+      {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+      {editing ? (
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} flexWrap="wrap" useFlexGap>
+          <TextField label="Αριθμός" value={form.number}
+            onChange={e => setForm({ ...form, number: e.target.value })} sx={{ flex: 1, minWidth: 200 }} />
+          <TextField select label="Κατηγορία" value={form.class}
+            onChange={e => setForm({ ...form, class: e.target.value })} sx={{ width: 160 }}>
+            <MenuItem value="">—</MenuItem>
+            {["ΑΜ", "Α1", "Α2", "Α", "Β", "ΒΕ", "Γ", "ΓΕ", "Δ", "ΔΕ"].map(k =>
+              <MenuItem key={k} value={k}>{k}</MenuItem>)}
+          </TextField>
+          <TextField type="date" label="Έκδοση" InputLabelProps={{ shrink: true }}
+            value={form.issueDate} onChange={e => setForm({ ...form, issueDate: e.target.value })} sx={{ width: 180 }} />
+          <TextField type="date" label="Λήξη" InputLabelProps={{ shrink: true }}
+            value={form.expiryDate} onChange={e => setForm({ ...form, expiryDate: e.target.value })} sx={{ width: 180 }} />
+          <Box sx={{ width: "100%" }}>
+            <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>Αποθήκευση</Button>
+          </Box>
+        </Stack>
+      ) : (
+        <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(4, 1fr)" } }}>
+          <ProfileValue label="Αριθμός" value={q.data?.number ?? null} />
+          <ProfileValue label="Κατηγορία" value={q.data?.class ?? null} />
+          <ProfileValue label="Έκδοση" value={q.data?.issueDate ?? null} />
+          <ProfileValue label="Λήξη" value={q.data?.expiryDate ?? null} />
+        </Box>
+      )}
+    </Card>
   );
 }
 

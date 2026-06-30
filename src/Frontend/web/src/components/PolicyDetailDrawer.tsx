@@ -8,6 +8,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { EntityAuditTimeline } from "./EntityAuditTimeline";
 
 // Mirrors PolicyDetailDto from the backend (see PolicyDetailQuery.cs).
 export interface PolicyDetail {
@@ -225,6 +226,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
           <Tab label="Αντικείμενα" />
           <Tab label="Καλύψεις" />
           <Tab label="Δόσεις" />
+          <Tab label="Ιστορικό" />
         </Tabs>
 
         {/* Scrollable content */}
@@ -381,6 +383,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
               {tab === 9 && <PolicyObjectsTab policyId={p.id} />}
               {tab === 10 && <PolicyCoversTab policyId={p.id} />}
               {tab === 11 && <PolicyInstallmentsTab policyId={p.id} />}
+              {tab === 12 && <EntityAuditTimeline entityName="Policy" entityId={p.id} />}
             </>
           )}
         </Box>

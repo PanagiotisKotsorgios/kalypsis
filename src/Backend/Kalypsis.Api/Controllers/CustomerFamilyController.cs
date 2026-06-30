@@ -1,7 +1,10 @@
+using Kalypsis.Application.Abstractions;
+using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.Customers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kalypsis.Api.Controllers;
 
@@ -50,5 +53,48 @@ public class CustomerFamilyController : ControllerBase
     {
         await _mediator.Send(new DeleteCustomerNeedCommand(customerId, needId), ct);
         return NoContent();
+    }
+}
+
+/// <summary>Driver-license fields on a customer — needed for Auto policies.</summary>
+[ApiController]
+[Route("api/customers/{customerId:guid}/driver-license")]
+[Authorize(Policy = "AgencyStaff")]
+public class CustomerDriverLicenseController : ControllerBase
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    private readonly IDateTimeProvider _clock;
+    public CustomerDriverLicenseController(IAppDbContext db, ICurrentUser current, IDateTimeProvider clock)
+    { _db = db; _current = current; _clock = clock; }
+
+    public record DriverLicenseDto(string? Number, string? Class, DateOnly? IssueDate, DateOnly? ExpiryDate);
+
+    [HttpGet]
+    public async Task<ActionResult<DriverLicenseDto>> Get(Guid customerId, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var c = await _db.Customers.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == customerId && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Πελάτης");
+        return Ok(new DriverLicenseDto(c.DriverLicenseNumber, c.DriverLicenseClass,
+            c.DriverLicenseIssueDate, c.DriverLicenseExpiryDate));
+    }
+
+    [HttpPut]
+    public async Task<ActionResult<DriverLicenseDto>> Update(Guid customerId, [FromBody] DriverLicenseDto body, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var c = await _db.Customers.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == customerId && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Πελάτης");
+        c.DriverLicenseNumber = body.Number?.Trim();
+        c.DriverLicenseClass = body.Class?.Trim();
+        c.DriverLicenseIssueDate = body.IssueDate;
+        c.DriverLicenseExpiryDate = body.ExpiryDate;
+        c.UpdatedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new DriverLicenseDto(c.DriverLicenseNumber, c.DriverLicenseClass,
+            c.DriverLicenseIssueDate, c.DriverLicenseExpiryDate));
     }
 }

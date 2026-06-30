@@ -15,7 +15,8 @@ public record ListAuditLogsQuery(
     DateTime? From = null,
     DateTime? To = null,
     int Page = 1,
-    int PageSize = 50) : IRequest<AuditLogPageDto>;
+    int PageSize = 50,
+    string? EntityId = null) : IRequest<AuditLogPageDto>;
 
 public class ListAuditLogsQueryHandler : IRequestHandler<ListAuditLogsQuery, AuditLogPageDto>
 {
@@ -63,6 +64,11 @@ public class ListAuditLogsQueryHandler : IRequestHandler<ListAuditLogsQuery, Aud
         }
         if (!string.IsNullOrWhiteSpace(request.Action))
             q = q.Where(a => a.Action == request.Action);
+        if (!string.IsNullOrWhiteSpace(request.EntityId))
+        {
+            var entityId = request.EntityId.Trim();
+            q = q.Where(a => a.EntityId == entityId);
+        }
         if (request.UserId.HasValue)
             q = q.Where(a => a.UserId == request.UserId);
         if (!string.IsNullOrWhiteSpace(request.Category))
