@@ -138,21 +138,11 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
             <TextField select label="Ασφαλιστική εταιρεία" value={filter.insuranceCompanyId}
               onChange={(e) => setFilter({ ...filter, insuranceCompanyId: e.target.value, policyType: "" })}>
               <MenuItem value="">Όλες</MenuItem>
-              {(companies.data ?? []).filter(c => !c.parentCompanyId).flatMap(c => {
-                const subs = (companies.data ?? []).filter(s => s.parentCompanyId === c.id);
-                const head = (
-                  <MenuItem key={c.id} value={c.id}>
-                    {c.name}{c.isBroker ? " · πρακτορείο" : ""}
-                  </MenuItem>
-                );
-                return subs.length === 0
-                  ? [head]
-                  : [head, ...subs.map(s => (
-                      <MenuItem key={s.id} value={s.id} sx={{ pl: 4, fontSize: 14, color: "text.secondary" }}>
-                        ↳ {s.name}
-                      </MenuItem>
-                    ))];
-              })}
+              {(companies.data ?? []).filter(c => !c.parentCompanyId).map(c => (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.name}{c.isBroker ? " · πρακτορείο" : ""}
+                </MenuItem>
+              ))}
             </TextField>
             {(() => {
               const carrierData = companies.data ?? [];

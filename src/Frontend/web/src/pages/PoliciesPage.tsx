@@ -302,19 +302,11 @@ export function PoliciesPage() {
                 onChange={(e) => { setCarrierFilter(e.target.value); setSubCarrierFilter([]); setTypeFilter(""); }}
                 fullWidth>
                 <MenuItem value="">Όλες</MenuItem>
-                {(carriersQuery.data ?? []).filter(c => !c.parentCompanyId).flatMap(c => {
-                  const subs = (carriersQuery.data ?? []).filter(s => s.parentCompanyId === c.id);
-                  const head = (
-                    <MenuItem key={c.id} value={c.id}>
-                      {c.name}{c.isBroker ? " · πρακτορείο" : ""}
-                    </MenuItem>
-                  );
-                  return subs.length === 0 ? [head] : [head, ...subs.map(s => (
-                    <MenuItem key={s.id} value={s.id} sx={{ pl: 4, fontSize: 14, color: "text.secondary" }}>
-                      ↳ {s.name}
-                    </MenuItem>
-                  ))];
-                })}
+                {(carriersQuery.data ?? []).filter(c => !c.parentCompanyId).map(c => (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}{c.isBroker ? " · πρακτορείο" : ""}
+                  </MenuItem>
+                ))}
               </TextField>
               {(() => {
                 const selected = (carriersQuery.data ?? []).find(c => c.id === carrierFilter);
@@ -658,19 +650,11 @@ function PolicyFormDialog({
               onChange={(e) => setForm({ ...form, insuranceCompanyId: e.target.value, policyType: "Auto" })}
               fullWidth required
             >
-              {(carriersQuery.data ?? []).filter(c => !c.parentCompanyId).flatMap(c => {
-                const subs = (carriersQuery.data ?? []).filter(s => s.parentCompanyId === c.id);
-                const head = (
-                  <MenuItem key={c.id} value={c.id}>
-                    {c.name}{c.isBroker ? " · πρακτορείο" : ""}
-                  </MenuItem>
-                );
-                return subs.length === 0 ? [head] : [head, ...subs.map(s => (
-                  <MenuItem key={s.id} value={s.id} sx={{ pl: 4, fontSize: 14, color: "text.secondary" }}>
-                    ↳ {s.name}
-                  </MenuItem>
-                ))];
-              })}
+              {(carriersQuery.data ?? []).filter(c => !c.parentCompanyId).map(c => (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.name}{c.isBroker ? " · πρακτορείο" : ""}
+                </MenuItem>
+              ))}
             </TextField>
             <TextField
               select label={t("policies.form.type")}

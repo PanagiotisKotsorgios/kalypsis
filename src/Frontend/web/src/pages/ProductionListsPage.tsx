@@ -167,19 +167,11 @@ export function ProductionListsPage() {
           <TextField select size="small" label={t("productionList.carrier")} value={f.insuranceCompanyId}
             onChange={e => setF({ ...f, insuranceCompanyId: e.target.value, policyType: "", vehicleUseCategory: "" })}>
             <MenuItem value="">{t("common.all")}</MenuItem>
-            {(carriers.data ?? []).filter(c => !c.parentCompanyId).flatMap(c => {
-              const subs = (carriers.data ?? []).filter(s => s.parentCompanyId === c.id);
-              const head = (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.name}{c.isBroker ? " · πρακτορείο" : ""}
-                </MenuItem>
-              );
-              return subs.length === 0 ? [head] : [head, ...subs.map(s => (
-                <MenuItem key={s.id} value={s.id} sx={{ pl: 4, fontSize: 14, color: "text.secondary" }}>
-                  ↳ {s.name}
-                </MenuItem>
-              ))];
-            })}
+            {(carriers.data ?? []).filter(c => !c.parentCompanyId).map(c => (
+              <MenuItem key={c.id} value={c.id}>
+                {c.name}{c.isBroker ? " · πρακτορείο" : ""}
+              </MenuItem>
+            ))}
           </TextField>
           {(() => {
             const carrierData = carriers.data ?? [];

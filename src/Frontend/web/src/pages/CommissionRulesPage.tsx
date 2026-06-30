@@ -258,19 +258,11 @@ export function CommissionRulesPage() {
             onChange={(e) => { setCarrierFilter(e.target.value); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); }}
             sx={{ minWidth: 220 }}>
             <MenuItem value="">Όλες</MenuItem>
-            {(companies.data ?? []).filter(c => !c.parentCompanyId).flatMap(c => {
-              const subs = (companies.data ?? []).filter(s => s.parentCompanyId === c.id);
-              const head = (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.name}{c.isBroker ? " · πρακτορείο" : ""}
-                </MenuItem>
-              );
-              return subs.length === 0 ? [head] : [head, ...subs.map(s => (
-                <MenuItem key={s.id} value={s.id} sx={{ pl: 4, fontSize: 14, color: "text.secondary" }}>
-                  ↳ {s.name}
-                </MenuItem>
-              ))];
-            })}
+            {(companies.data ?? []).filter(c => !c.parentCompanyId).map(c => (
+              <MenuItem key={c.id} value={c.id}>
+                {c.name}{c.isBroker ? " · πρακτορείο" : ""}
+              </MenuItem>
+            ))}
           </TextField>
           {(() => {
             const selected = (companies.data ?? []).find(c => c.id === carrierFilter);

@@ -164,19 +164,11 @@ function RuleDialog({ item, onClose, onSaved }: { item: any | null; onClose: () 
               onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value, policyType: "", coverCode: "", packageCode: "" })}
               fullWidth>
               <MenuItem value="">{t("dvr.any")}</MenuItem>
-              {(carriers.data ?? []).filter(c => !c.parentCompanyId).flatMap(c => {
-                const subs = (carriers.data ?? []).filter(s => s.parentCompanyId === c.id);
-                const head = (
-                  <MenuItem key={c.id} value={c.id}>
-                    {c.name}{c.isBroker ? " · πρακτορείο" : ""}
-                  </MenuItem>
-                );
-                return subs.length === 0 ? [head] : [head, ...subs.map(s => (
-                  <MenuItem key={s.id} value={s.id} sx={{ pl: 4, fontSize: 14, color: "text.secondary" }}>
-                    ↳ {s.name}
-                  </MenuItem>
-                ))];
-              })}
+              {(carriers.data ?? []).filter(c => !c.parentCompanyId).map(c => (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.name}{c.isBroker ? " · πρακτορείο" : ""}
+                </MenuItem>
+              ))}
             </TextField>
             <TextField select label={t("dvr.policyType")} value={form.policyType}
               onChange={e => setForm({ ...form, policyType: e.target.value })} fullWidth

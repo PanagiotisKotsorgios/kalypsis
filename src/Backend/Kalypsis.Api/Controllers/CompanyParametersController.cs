@@ -313,13 +313,29 @@ public class CompanyParametersController : ControllerBase
     {
         if (!insuranceCompanyId.HasValue) return q;
 
-        var code = await _db.InsuranceCompanies.IgnoreQueryFilters()
+        var carrier = await _db.InsuranceCompanies.IgnoreQueryFilters()
             .Where(c => c.Id == insuranceCompanyId.Value && c.DeletedAt == null)
-            .Select(c => c.Code)
+            .Select(c => new { c.Code, c.ParentCompanyId })
             .FirstOrDefaultAsync(ct)
             ?? throw AppException.NotFound("Ασφαλιστική εταιρεία");
 
-        return q.Where(x => x.InsuranceCompany.Code == code);
+        // If the selected carrier is a sub of a broker, also include the
+        // broker's parametrics so the sub inherits the broker's full κλάδοι /
+        // χρήσεις / καλύψεις catalogue (plus the sub's own πακέτα).
+        if (carrier.ParentCompanyId.HasValue)
+        {
+            var parentCode = await _db.InsuranceCompanies.IgnoreQueryFilters()
+                .Where(c => c.Id == carrier.ParentCompanyId.Value && c.DeletedAt == null)
+                .Select(c => c.Code)
+                .FirstOrDefaultAsync(ct);
+            if (!string.IsNullOrEmpty(parentCode))
+            {
+                var codes = new[] { carrier.Code, parentCode };
+                return q.Where(x => codes.Contains(x.InsuranceCompany.Code));
+            }
+        }
+
+        return q.Where(x => x.InsuranceCompany.Code == carrier.Code);
     }
 
     private static IQueryable<CompanyParameterItem> ApplyCommonFilters(
