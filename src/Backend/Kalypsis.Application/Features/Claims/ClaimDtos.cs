@@ -17,7 +17,13 @@ public record ClaimDto(
     decimal? ClaimedAmount,
     decimal? ApprovedAmount,
     string? Description,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    // Enriched from the linked Policy so the claims filter row can scope
+    // by carrier / sub / use / cover / package without an extra fetch.
+    Guid? InsuranceCompanyId = null,
+    VehicleUseCategory? VehicleUseCategory = null,
+    string? CoverCode = null,
+    string? PackageCode = null);
 
 public record CreateClaimBody(
     Guid PolicyId,

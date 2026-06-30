@@ -525,6 +525,9 @@ interface FormBody {
   customerId: string;
   insuranceCompanyId: string;
   policyType: PolicyType;
+  vehicleUseCategory: string;
+  coverCode: string;
+  packageCode: string;
   startDate: string;
   endDate: string;
   premium: number;
@@ -561,6 +564,9 @@ function PolicyFormDialog({
     customerId: "",
     insuranceCompanyId: "",
     policyType: "Auto",
+    vehicleUseCategory: "",
+    coverCode: "",
+    packageCode: "",
     startDate: new Date().toISOString().slice(0, 10),
     endDate: new Date(Date.now() + 365 * 86_400_000).toISOString().slice(0, 10),
     premium: 0,
@@ -576,6 +582,9 @@ function PolicyFormDialog({
         customerId: policy.customerId,
         insuranceCompanyId: policy.insuranceCompanyId,
         policyType: policy.policyType,
+        vehicleUseCategory: "",
+        coverCode: "",
+        packageCode: "",
         startDate: policy.startDate,
         endDate: policy.endDate,
         premium: policy.premium,
@@ -587,6 +596,9 @@ function PolicyFormDialog({
         customerId: "",
         insuranceCompanyId: "",
         policyType: "Auto",
+        vehicleUseCategory: "",
+        coverCode: "",
+        packageCode: "",
         startDate: new Date().toISOString().slice(0, 10),
         endDate: new Date(Date.now() + 365 * 86_400_000).toISOString().slice(0, 10),
         premium: 0,
@@ -598,20 +610,23 @@ function PolicyFormDialog({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const body = {
+        insuranceCompanyId: form.insuranceCompanyId,
+        producerId: null,
+        policyType: form.policyType,
+        vehicleUseCategory: form.vehicleUseCategory || null,
+        coverCode: form.coverCode || null,
+        packageCode: form.packageCode || null,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        premium: form.premium,
+        currency: form.currency,
+        status: form.status,
+      };
       if (editing && policy) {
-        const body = {
-          insuranceCompanyId: form.insuranceCompanyId,
-          producerId: null,
-          policyType: form.policyType,
-          startDate: form.startDate,
-          endDate: form.endDate,
-          premium: form.premium,
-          currency: form.currency,
-          status: form.status
-        };
         return (await api.put<PolicyDto>(`/policies/${policy.id}`, body)).data;
       } else {
-        return (await api.post<PolicyDto>("/policies", form)).data;
+        return (await api.post<PolicyDto>("/policies", { ...form, ...body, customerId: form.customerId })).data;
       }
     },
     onSuccess: onSaved,
@@ -647,7 +662,7 @@ function PolicyFormDialog({
             <TextField
               select label={t("policies.form.carrier")}
               value={form.insuranceCompanyId}
-              onChange={(e) => setForm({ ...form, insuranceCompanyId: e.target.value, policyType: "Auto" })}
+              onChange={(e) => setForm({ ...form, insuranceCompanyId: e.target.value, policyType: "Auto", vehicleUseCategory: "", coverCode: "", packageCode: "" })}
               fullWidth required
             >
               {(carriersQuery.data ?? []).filter(c => !c.parentCompanyId).map(c => (
@@ -656,6 +671,29 @@ function PolicyFormDialog({
                 </MenuItem>
               ))}
             </TextField>
+            {(() => {
+              const carrierData = carriersQuery.data ?? [];
+              const selected = carrierData.find(c => c.id === form.insuranceCompanyId);
+              const broker = selected?.isBroker
+                ? selected
+                : selected?.parentCompanyId
+                  ? carrierData.find(c => c.id === selected.parentCompanyId)
+                  : null;
+              if (!broker?.isBroker) return null;
+              const subs = carrierData.filter(c => c.parentCompanyId === broker.id);
+              const subValue = selected?.id !== broker.id ? selected?.id ?? "" : "";
+              return (
+                <TextField select label="Υποασφαλιστική" value={subValue}
+                  onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value || broker.id, vehicleUseCategory: "", coverCode: "", packageCode: "" })}
+                  fullWidth>
+                  <MenuItem value="">— επιλέξτε υποασφαλιστική —</MenuItem>
+                  {subs.map(s => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
+                </TextField>
+              );
+            })()}
+          </Stack>
+
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField
               select label={t("policies.form.type")}
               value={form.policyType}
@@ -668,6 +706,54 @@ function PolicyFormDialog({
             >
               {dialogCatalogue.branches.map(b => (
                 <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              select label="Χρήση οχήματος"
+              value={form.vehicleUseCategory}
+              onChange={(e) => setForm({ ...form, vehicleUseCategory: e.target.value })}
+              fullWidth
+              disabled={!form.insuranceCompanyId}
+              helperText={!form.insuranceCompanyId
+                ? "Επιλέξτε εταιρία"
+                : dialogCatalogue.uses.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
+            >
+              <MenuItem value="">—</MenuItem>
+              {dialogCatalogue.uses.map(u => (
+                <MenuItem key={u.key} value={u.value}>{u.label}</MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <TextField
+              select label="Κάλυψη"
+              value={form.coverCode}
+              onChange={(e) => setForm({ ...form, coverCode: e.target.value })}
+              fullWidth
+              disabled={!form.insuranceCompanyId}
+              helperText={!form.insuranceCompanyId
+                ? "Επιλέξτε εταιρία"
+                : dialogCatalogue.coverages.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
+            >
+              <MenuItem value="">—</MenuItem>
+              {dialogCatalogue.coverages.map(c => (
+                <MenuItem key={c.key} value={c.value}>{c.label}</MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              select label="Πακέτο"
+              value={form.packageCode}
+              onChange={(e) => setForm({ ...form, packageCode: e.target.value })}
+              fullWidth
+              disabled={!form.insuranceCompanyId}
+              helperText={!form.insuranceCompanyId
+                ? "Επιλέξτε εταιρία"
+                : dialogCatalogue.packages.length === 0 ? "Δεν υπάρχουν πακέτα" : ""}
+            >
+              <MenuItem value="">—</MenuItem>
+              {dialogCatalogue.packages.map(p => (
+                <MenuItem key={p.key} value={p.value}>{p.label}</MenuItem>
               ))}
             </TextField>
           </Stack>

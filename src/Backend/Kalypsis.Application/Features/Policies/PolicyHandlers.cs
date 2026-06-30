@@ -197,11 +197,13 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
             InsuranceCompanyId = r.InsuranceCompanyId,
             ProducerId = r.ProducerId,
             PolicyType = r.PolicyType,
+            VehicleUseCategory = r.VehicleUseCategory,
             Status = r.Status,
             StartDate = r.StartDate,
             EndDate = r.EndDate,
             Premium = r.Premium,
             Currency = string.IsNullOrWhiteSpace(r.Currency) ? "EUR" : r.Currency.Trim().ToUpperInvariant(),
+            SpecsJson = PolicySpecsJsonHelper.MergeCodes(null, r.CoverCode, r.PackageCode),
             CreatedByUserId = _current.UserId
         };
         _db.Policies.Add(p);
@@ -250,11 +252,13 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
         p.InsuranceCompanyId = b.InsuranceCompanyId;
         p.ProducerId = b.ProducerId;
         p.PolicyType = b.PolicyType;
+        p.VehicleUseCategory = b.VehicleUseCategory;
         p.StartDate = b.StartDate;
         p.EndDate = b.EndDate;
         p.Premium = b.Premium;
         p.Currency = string.IsNullOrWhiteSpace(b.Currency) ? "EUR" : b.Currency.Trim().ToUpperInvariant();
         p.Status = b.Status;
+        p.SpecsJson = PolicySpecsJsonHelper.MergeCodes(p.SpecsJson, b.CoverCode, b.PackageCode);
 
         await _db.SaveChangesAsync(ct);
 
@@ -377,5 +381,49 @@ public class ListInsuranceCompaniesQueryHandler : IRequestHandler<ListInsuranceC
             .OrderBy(c => c.Name)
             .Select(c => new InsuranceCompanyDto(c.Id, c.Name, c.Code, c.Country, c.IsActive, c.IsBroker, c.ParentCompanyId))
             .ToListAsync(ct);
+    }
+}
+
+
+/// <summary>
+/// Merges optional CoverCode / PackageCode into Policy.SpecsJson without
+/// disturbing other fields the bridge import or other code may have written
+/// into the same blob. If both codes are null/blank the original JSON is
+/// returned unchanged.
+/// </summary>
+internal static class PolicySpecsJsonHelper
+{
+    public static string? MergeCodes(string? existingJson, string? coverCode, string? packageCode)
+    {
+        var hasCover = !string.IsNullOrWhiteSpace(coverCode);
+        var hasPkg = !string.IsNullOrWhiteSpace(packageCode);
+        if (!hasCover && !hasPkg) return existingJson;
+
+        var map = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(existingJson))
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(existingJson);
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                    map[prop.Name] = prop.Value.ValueKind switch
+                    {
+                        System.Text.Json.JsonValueKind.String => prop.Value.GetString(),
+                        System.Text.Json.JsonValueKind.Number => prop.Value.TryGetInt64(out var n) ? (object?)n : prop.Value.GetDouble(),
+                        System.Text.Json.JsonValueKind.True => true,
+                        System.Text.Json.JsonValueKind.False => false,
+                        System.Text.Json.JsonValueKind.Null => null,
+                        _ => prop.Value.GetRawText()
+                    };
+            }
+            catch
+            {
+                // Malformed existing SpecsJson — start fresh rather than throw.
+                map.Clear();
+            }
+        }
+        if (hasCover) map["coverCode"] = coverCode!.Trim().ToUpperInvariant();
+        if (hasPkg)   map["packageCode"] = packageCode!.Trim().ToUpperInvariant();
+        return System.Text.Json.JsonSerializer.Serialize(map);
     }
 }

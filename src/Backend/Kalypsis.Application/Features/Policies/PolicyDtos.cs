@@ -28,7 +28,10 @@ public record CreatePolicyBody(
     DateOnly EndDate,
     decimal Premium,
     string Currency = "EUR",
-    PolicyStatus Status = PolicyStatus.Active);
+    PolicyStatus Status = PolicyStatus.Active,
+    VehicleUseCategory? VehicleUseCategory = null,
+    string? CoverCode = null,
+    string? PackageCode = null);
 
 public record UpdatePolicyBody(
     Guid InsuranceCompanyId,
@@ -38,7 +41,10 @@ public record UpdatePolicyBody(
     DateOnly EndDate,
     decimal Premium,
     string Currency,
-    PolicyStatus Status);
+    PolicyStatus Status,
+    VehicleUseCategory? VehicleUseCategory = null,
+    string? CoverCode = null,
+    string? PackageCode = null);
 
 public record RenewPolicyBody(
     DateOnly StartDate,

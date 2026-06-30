@@ -73,7 +73,26 @@ public class ListClaimsQueryHandler : IRequestHandler<ListClaimsQuery, IReadOnly
             c.ClaimedAmount,
             c.ApprovedAmount,
             c.Description,
-            c.CreatedAt);
+            c.CreatedAt,
+            c.Policy?.InsuranceCompanyId,
+            c.Policy?.VehicleUseCategory,
+            ExtractSpecsCode(c.Policy?.SpecsJson, "coverCode", "coverageCode", "coverage", "cover"),
+            ExtractSpecsCode(c.Policy?.SpecsJson, "packageCode", "package"));
+    }
+
+    private static string? ExtractSpecsCode(string? specsJson, params string[] keys)
+    {
+        if (string.IsNullOrWhiteSpace(specsJson)) return null;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(specsJson);
+            foreach (var k in keys)
+                if (doc.RootElement.TryGetProperty(k, out var prop)
+                    && prop.ValueKind == System.Text.Json.JsonValueKind.String)
+                    return prop.GetString()?.Trim().ToUpperInvariant();
+        }
+        catch { }
+        return null;
     }
 }
 

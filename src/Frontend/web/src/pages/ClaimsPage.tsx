@@ -47,6 +47,10 @@ interface ClaimDto {
   customerDisplay: string;
   policyType: PolicyType;
   insuranceCompanyName: string;
+  insuranceCompanyId: string | null;
+  vehicleUseCategory: string | null;
+  coverCode: string | null;
+  packageCode: string | null;
   incidentDate: string;
   reportedDate: string;
   status: ClaimStatus;
@@ -113,6 +117,9 @@ export function ClaimsPage() {
   const [carrierFilter,  setCarrierFilter]  = useState(""); // carrier ID now
   const [subCarrierFilter, setSubCarrierFilter] = useState<string[]>([]);
   const [typeFilter,     setTypeFilter]     = useState("");
+  const [useFilter,      setUseFilter]      = useState("");
+  const [coverFilter,    setCoverFilter]    = useState("");
+  const [packageFilter,  setPackageFilter]  = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate,   setToDate]   = useState("");
 
@@ -134,12 +141,31 @@ export function ClaimsPage() {
 
   const rawClaims = claimsQuery.data ?? [];
   const allCarriers = carriersQ.data ?? [];
+  const allowedIds = useMemo(() => {
+    const out = new Set<string>();
+    if (!carrierFilter) return out;
+    if (subCarrierFilter.length > 0) {
+      for (const id of subCarrierFilter) out.add(id);
+      return out;
+    }
+    out.add(carrierFilter);
+    for (const c of allCarriers) if (c.parentCompanyId === carrierFilter) out.add(c.id);
+    return out;
+  }, [allCarriers, carrierFilter, subCarrierFilter]);
   const allowedNames = useMemoAllowed(allCarriers, carrierFilter, subCarrierFilter);
+
   const allClaims = rawClaims.filter(c => {
     if (carrierFilter) {
-      if (!allowedNames.has(c.insuranceCompanyName)) return false;
+      // Prefer the new InsuranceCompanyId field; fall back to name matching
+      // for any legacy rows the API hasn't populated yet.
+      if (c.insuranceCompanyId
+          ? !allowedIds.has(c.insuranceCompanyId)
+          : !allowedNames.has(c.insuranceCompanyName)) return false;
     }
     if (typeFilter && c.policyType !== typeFilter) return false;
+    if (useFilter && c.vehicleUseCategory !== useFilter) return false;
+    if (coverFilter && c.coverCode !== coverFilter) return false;
+    if (packageFilter && c.packageCode !== packageFilter) return false;
     if (customerFilter) {
       const f = customerFilter.toLowerCase();
       const hay = `${c.customerDisplay ?? ""} ${c.policyNumber ?? ""}`.toLowerCase();
@@ -194,7 +220,7 @@ export function ClaimsPage() {
               sx={{ minWidth: 260 }} />
             <TextField select size="small" label="Εταιρία"
               value={carrierFilter}
-              onChange={(e) => { setCarrierFilter(e.target.value); setSubCarrierFilter([]); setTypeFilter(""); }}
+              onChange={(e) => { setCarrierFilter(e.target.value); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); setCoverFilter(""); setPackageFilter(""); }}
               sx={{ minWidth: 220 }}>
               <MenuItem value="">Όλες</MenuItem>
               {(carriersQ.data ?? []).filter(c => !c.parentCompanyId).map(c => (
@@ -215,13 +241,50 @@ export function ClaimsPage() {
                 <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
               ))}
             </TextField>
+            <TextField select size="small" label="Χρήση οχήματος"
+              value={useFilter} onChange={(e) => setUseFilter(e.target.value)}
+              sx={{ minWidth: 220 }}
+              disabled={!carrierFilter}
+              helperText={!carrierFilter
+                ? "Επιλέξτε εταιρία"
+                : filterCatalogue.uses.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
+              <MenuItem value="">Όλες</MenuItem>
+              {filterCatalogue.uses.map(u => (
+                <MenuItem key={u.key} value={u.value}>{u.label}</MenuItem>
+              ))}
+            </TextField>
+            <TextField select size="small" label="Κάλυψη"
+              value={coverFilter} onChange={(e) => setCoverFilter(e.target.value)}
+              sx={{ minWidth: 220 }}
+              disabled={!carrierFilter}
+              helperText={!carrierFilter
+                ? "Επιλέξτε εταιρία"
+                : filterCatalogue.coverages.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
+              <MenuItem value="">Όλες</MenuItem>
+              {filterCatalogue.coverages.map(c => (
+                <MenuItem key={c.key} value={c.value}>{c.label}</MenuItem>
+              ))}
+            </TextField>
+            <TextField select size="small" label="Πακέτο"
+              value={packageFilter} onChange={(e) => setPackageFilter(e.target.value)}
+              sx={{ minWidth: 220 }}
+              disabled={!carrierFilter}
+              helperText={!carrierFilter
+                ? "Επιλέξτε εταιρία"
+                : filterCatalogue.packages.length === 0 ? "Δεν υπάρχουν πακέτα" : ""}>
+              <MenuItem value="">Όλα</MenuItem>
+              {filterCatalogue.packages.map(p => (
+                <MenuItem key={p.key} value={p.value}>{p.label}</MenuItem>
+              ))}
+            </TextField>
             <TextField size="small" type="date" label="Συμβάν από" InputLabelProps={{ shrink: true }}
               value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
             <TextField size="small" type="date" label="Συμβάν έως" InputLabelProps={{ shrink: true }}
               value={toDate} onChange={(e) => setToDate(e.target.value)} />
             <Button size="small" onClick={() => {
               setStatusFilter(""); setCustomerFilter(""); setCarrierFilter(""); setSubCarrierFilter([]);
-              setTypeFilter(""); setFromDate(""); setToDate("");
+              setTypeFilter(""); setUseFilter(""); setCoverFilter(""); setPackageFilter("");
+              setFromDate(""); setToDate("");
             }}>Καθαρισμός</Button>
           </Stack>
         </Card>
