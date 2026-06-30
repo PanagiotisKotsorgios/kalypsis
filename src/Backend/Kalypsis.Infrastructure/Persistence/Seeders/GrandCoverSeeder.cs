@@ -65,8 +65,17 @@ public static class GrandCoverSeeder
         logger.LogInformation("GrandCoverSeeder: loaded {SubCount} subs, {BranchCount} branches, {UseCount} uses, {CoverageCount} coverages.",
             seed.Subcompanies?.Count ?? 0, seed.Branches?.Count ?? 0, seed.Uses?.Count ?? 0, seed.Coverages?.Count ?? 0);
 
+        // Anchor on the SAME canonical broker the cleanup pass picks: oldest
+        // alive (DeletedAt = null) global row with the seed code. Without
+        // these filters, FirstOrDefault used to pick arbitrary duplicates
+        // across deploys and seeded the same data onto each one — which is
+        // how the DB ended up with 32 branches instead of 16, 584 uses
+        // instead of 293, and 1282 coverages instead of 641.
         var broker = await db.InsuranceCompanies.IgnoreQueryFilters()
-            .FirstOrDefaultAsync(c => c.Code == seed.BrokerCode && c.TenantId == null, ct);
+            .Where(c => c.Code == seed.BrokerCode && c.TenantId == null && c.DeletedAt == null)
+            .OrderBy(c => c.CreatedAt)
+            .ThenBy(c => c.Id)
+            .FirstOrDefaultAsync(ct);
         if (broker is null)
         {
             broker = new InsuranceCompany
@@ -86,6 +95,55 @@ public static class GrandCoverSeeder
         {
             broker.IsBroker = true;
             await db.SaveChangesAsync(ct);
+        }
+
+        // Re-route any parametric items that point at a NON-canonical
+        // (soft-deleted or stray) broker row onto the canonical one. After
+        // this, the dedup pass below can collapse the duplicates safely.
+        var strayBrokerIds = await db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(c => c.TenantId == null && c.Code == seed.BrokerCode && c.Id != broker.Id)
+            .Select(c => c.Id)
+            .ToListAsync(ct);
+        if (strayBrokerIds.Count > 0)
+        {
+            var idList = string.Join(",", strayBrokerIds.Select(id => $"'{id}'"));
+            var rerouted = await db.Database.ExecuteSqlRawAsync($@"
+                UPDATE `company_parameter_items`
+                SET `InsuranceCompanyId` = '{broker.Id}'
+                WHERE `InsuranceCompanyId` IN ({idList})
+                  AND `DeletedAt` IS NULL", ct);
+            if (rerouted > 0)
+                logger.LogInformation("GrandCoverSeeder: re-routed {Count} parametric rows from {Strays} stray broker(s) to canonical.",
+                    rerouted, strayBrokerIds.Count);
+        }
+
+        // Deduplicate parametric rows on the broker hierarchy. After repeated
+        // boot attempts hit the broker-row duplication, every (InsuranceCompanyId,
+        // Kind, Code, ParentCode) tuple got 2-3 copies. Soft-delete all but
+        // the oldest of each duplicate group so the dropdowns show the
+        // catalogue exactly once. MySQL 8 ROW_NUMBER() handles this cleanly.
+        var hierarchyIds = await db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(c => c.Id == broker.Id || c.ParentCompanyId == broker.Id)
+            .Select(c => c.Id)
+            .ToListAsync(ct);
+        if (hierarchyIds.Count > 0)
+        {
+            var hierarchyList = string.Join(",", hierarchyIds.Select(id => $"'{id}'"));
+            var dedupRemoved = await db.Database.ExecuteSqlRawAsync($@"
+                UPDATE `company_parameter_items` p
+                JOIN (
+                    SELECT `Id`, ROW_NUMBER() OVER (
+                        PARTITION BY `InsuranceCompanyId`, `Kind`, `Code`, COALESCE(`ParentCode`, '')
+                        ORDER BY `CreatedAt`, `Id`
+                    ) AS rn
+                    FROM `company_parameter_items`
+                    WHERE `InsuranceCompanyId` IN ({hierarchyList})
+                      AND `DeletedAt` IS NULL
+                ) ranked ON p.`Id` = ranked.`Id`
+                SET p.`DeletedAt` = UTC_TIMESTAMP(6), p.`IsActive` = 0
+                WHERE ranked.rn > 1", ct);
+            if (dedupRemoved > 0)
+                logger.LogInformation("GrandCoverSeeder: dedup soft-deleted {Count} duplicate parametric rows.", dedupRemoved);
         }
 
         // === Subcompanies ===
