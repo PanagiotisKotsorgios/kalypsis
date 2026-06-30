@@ -53,6 +53,17 @@ public static class GrandCoverSeeder
             logger.LogWarning("Grand Cover seed JSON not found in embedded resources — skipping.");
             return;
         }
+        // Defensive: if the JSON keys can't be deserialized, bail with a clear
+        // log message instead of attempting INSERTs with NULL columns and
+        // tripping the DB. This guards against future JSON-shape changes.
+        if (string.IsNullOrWhiteSpace(seed.BrokerCode) || string.IsNullOrWhiteSpace(seed.BrokerName))
+        {
+            logger.LogError("GrandCoverSeeder: deserialized seed is missing broker_code or broker_name (got '{Code}' / '{Name}'). Aborting.",
+                seed.BrokerCode ?? "<null>", seed.BrokerName ?? "<null>");
+            return;
+        }
+        logger.LogInformation("GrandCoverSeeder: loaded {SubCount} subs, {BranchCount} branches, {UseCount} uses, {CoverageCount} coverages.",
+            seed.Subcompanies?.Count ?? 0, seed.Branches?.Count ?? 0, seed.Uses?.Count ?? 0, seed.Coverages?.Count ?? 0);
 
         var broker = await db.InsuranceCompanies.IgnoreQueryFilters()
             .FirstOrDefaultAsync(c => c.Code == seed.BrokerCode && c.TenantId == null, ct);
@@ -244,9 +255,16 @@ public static class GrandCoverSeeder
         if (name is null) return null;
         using var stream = asm.GetManifestResourceStream(name);
         if (stream is null) return null;
+        // The IW dump uses snake_case keys (broker_code, broker_name,
+        // subcompanies[i].packages[j].package_id, branches[i].fbc, …).
+        // `PropertyNameCaseInsensitive` alone only ignores LETTER case —
+        // it doesn't bridge underscores, so `BrokerCode` was silently
+        // deserializing to null. Apply the SnakeCaseLower naming policy
+        // so snake_case JSON keys map onto our PascalCase record members.
         return JsonSerializer.Deserialize<SeedFile>(stream, new JsonSerializerOptions
         {
-            PropertyNameCaseInsensitive = true
+            PropertyNameCaseInsensitive = true,
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         });
     }
 
