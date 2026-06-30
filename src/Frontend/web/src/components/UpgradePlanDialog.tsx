@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Alert,
   Box,
@@ -10,18 +9,17 @@ import {
   DialogTitle,
   IconButton,
   Stack,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { PREMIUM_FEATURE_CATALOGUE, usePremium, type PremiumFeatureCode } from "../auth/PremiumContext";
 
-type Cycle = "monthly" | "yearly";
-/** Yearly = 10× monthly (2 months free). Tweak if the company decides on a
- *  different discount later — single source of truth. */
+/** Plans are billed annually only. Yearly = 10× the monthly rate stored in
+ *  the catalogue (≈17% discount vs. paying month-by-month). Single source
+ *  of truth — change here if the pricing model ever changes. */
 const YEARLY_MULTIPLIER = 10;
+const PERIOD_LABEL = "/ έτος";
 
 const NAVY = "#0b2545";
 const NAVY_SOFT = "#3d4f6b";
@@ -38,9 +36,7 @@ export function UpgradePlanDialogHost() {
   const open = premium._dialogOpen;
   const focusCode = premium._dialogFocus;
   const focusMeta = focusCode ? PREMIUM_FEATURE_CATALOGUE[focusCode] : null;
-  const [cycle, setCycle] = useState<Cycle>("monthly");
-  const priceFor = (monthly: number) => cycle === "yearly" ? monthly * YEARLY_MULTIPLIER : monthly;
-  const periodLabel = cycle === "yearly" ? "/ έτος" : "/ μήνα";
+  const yearlyPrice = (monthly: number) => monthly * YEARLY_MULTIPLIER;
 
   const allCodes = Object.keys(PREMIUM_FEATURE_CATALOGUE) as PremiumFeatureCode[];
   const subject = focusMeta
@@ -77,33 +73,6 @@ export function UpgradePlanDialogHost() {
       </DialogTitle>
 
       <DialogContent dividers sx={{ borderColor: RULE }}>
-        <Stack direction="row" justifyContent="center" mb={2}>
-          <ToggleButtonGroup
-            value={cycle}
-            exclusive
-            size="small"
-            onChange={(_, v) => v && setCycle(v as Cycle)}
-            sx={{
-              "& .MuiToggleButton-root": {
-                textTransform: "none", fontWeight: 700, fontSize: 13,
-                px: 2.5, color: NAVY_SOFT, borderColor: RULE,
-                "&.Mui-selected": {
-                  bgcolor: NAVY, color: "#fff",
-                  "&:hover": { bgcolor: NAVY }
-                }
-              }
-            }}
-          >
-            <ToggleButton value="monthly">Μηνιαία</ToggleButton>
-            <ToggleButton value="yearly">
-              Ετήσια
-              <Chip size="small" label="-17%" sx={{
-                ml: 1, height: 18, fontSize: 10, fontWeight: 800,
-                bgcolor: "rgba(46,164,79,0.15)", color: "#1e7a32"
-              }} />
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Stack>
         {focusMeta && (
           <Alert
             severity="info"
@@ -117,7 +86,7 @@ export function UpgradePlanDialogHost() {
             }}
           >
             Η δυνατότητα <strong>{focusMeta.label}</strong> δεν είναι ενεργοποιημένη στο πλάνο σας —
-            ενεργοποίηση από <strong>{priceFor(focusMeta.monthlyPriceEUR)}€ {periodLabel}</strong>.
+            ενεργοποίηση από <strong>{yearlyPrice(focusMeta.monthlyPriceEUR)}€ {PERIOD_LABEL}</strong>.
           </Alert>
         )}
 
@@ -163,10 +132,10 @@ export function UpgradePlanDialogHost() {
                   {!granted && (
                     <Box sx={{ textAlign: "right", minWidth: 80, flexShrink: 0 }}>
                       <Typography sx={{ fontSize: 16, fontWeight: 800, color: NAVY, lineHeight: 1 }}>
-                        {priceFor(meta.monthlyPriceEUR)}€
+                        {yearlyPrice(meta.monthlyPriceEUR)}€
                       </Typography>
                       <Typography sx={{ fontSize: 11, color: NAVY_SOFT, mt: 0.25 }}>
-                        {periodLabel}
+                        {PERIOD_LABEL}
                       </Typography>
                     </Box>
                   )}
