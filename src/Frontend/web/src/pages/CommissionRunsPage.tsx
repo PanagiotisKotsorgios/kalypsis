@@ -14,8 +14,8 @@ import EditIcon from "@mui/icons-material/Edit";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 
-const TYPES = ["Auto","Home","Health","Life","Business","Travel","Other"] as const;
 const STATUS_COLOR: Record<string, "default"|"success"|"error"> = { Draft: "default", Finalised: "success", Cancelled: "error" };
 
 interface RunDto {
@@ -281,6 +281,7 @@ function CreateDialog({ open, onClose, onCreated }: { open: boolean; onClose: ()
   });
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => { if (open) setForm({ year: now.getFullYear(), month: now.getMonth() + 1, title: "", insuranceCompanyId: "", producerId: "", policyType: "", packageCode: "", notes: "" }); /* eslint-disable-next-line */ }, [open]);
+  const carrierCatalogue = useCarrierCatalogue(form.insuranceCompanyId);
 
   const save = useMutation({
     mutationFn: async () => (await api.post<{ id: string }>("/commission-runs", {
@@ -311,21 +312,60 @@ function CreateDialog({ open, onClose, onCreated }: { open: boolean; onClose: ()
           </Stack>
           <TextField label={t("commissionRuns.titleField")} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} fullWidth helperText={t("commissionRuns.titleHelp")} />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("commissionRuns.filterCompany")} value={form.insuranceCompanyId} onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value })} fullWidth>
+            <TextField select label={t("commissionRuns.filterCompany")} value={form.insuranceCompanyId}
+              onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value, policyType: "", packageCode: "" })} fullWidth>
               <MenuItem value="">{t("common.all")}</MenuItem>
-              {(companies.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+              {(companies.data ?? []).filter(c => !c.parentCompanyId).map(c => (
+                <MenuItem key={c.id} value={c.id}>{c.name}{c.isBroker ? " · πρακτορείο" : ""}</MenuItem>
+              ))}
             </TextField>
             <TextField select label={t("commissionRuns.filterProducer")} value={form.producerId} onChange={e => setForm({ ...form, producerId: e.target.value })} fullWidth>
               <MenuItem value="">{t("common.all")}</MenuItem>
               {(producers.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
             </TextField>
           </Stack>
+          {(() => {
+            const carrierData = companies.data ?? [];
+            const selected = carrierData.find(c => c.id === form.insuranceCompanyId);
+            const broker = selected?.isBroker
+              ? selected
+              : selected?.parentCompanyId
+                ? carrierData.find(c => c.id === selected.parentCompanyId)
+                : null;
+            if (!broker?.isBroker) return null;
+            const subs = carrierData.filter(c => c.parentCompanyId === broker.id);
+            const subValue = selected?.id !== broker.id ? selected?.id ?? "" : "";
+            return (
+              <TextField select label="Υποασφαλιστική" value={subValue}
+                onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value || broker.id, policyType: "", packageCode: "" })} fullWidth>
+                <MenuItem value="">— όλες οι υποασφαλιστικές —</MenuItem>
+                {subs.map(s => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
+              </TextField>
+            );
+          })()}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("commissionRuns.filterBranch")} value={form.policyType} onChange={e => setForm({ ...form, policyType: e.target.value })} fullWidth>
+            <TextField select label={t("commissionRuns.filterBranch")} value={form.policyType}
+              onChange={e => setForm({ ...form, policyType: e.target.value })} fullWidth
+              disabled={!form.insuranceCompanyId}
+              helperText={!form.insuranceCompanyId
+                ? "Επιλέξτε εταιρία"
+                : carrierCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
               <MenuItem value="">{t("common.all")}</MenuItem>
-              {TYPES.map(p => <MenuItem key={p} value={p}>{t(`policyType.${p}`)}</MenuItem>)}
+              {carrierCatalogue.branches.map(b => (
+                <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
+              ))}
             </TextField>
-            <TextField label={t("commissionRuns.filterPackage")} value={form.packageCode} onChange={e => setForm({ ...form, packageCode: e.target.value })} fullWidth />
+            <TextField select label={t("commissionRuns.filterPackage")} value={form.packageCode}
+              onChange={e => setForm({ ...form, packageCode: e.target.value })} fullWidth
+              disabled={!form.insuranceCompanyId}
+              helperText={!form.insuranceCompanyId
+                ? "Επιλέξτε εταιρία"
+                : carrierCatalogue.packages.length === 0 ? "Δεν υπάρχουν πακέτα" : ""}>
+              <MenuItem value="">{t("common.all")}</MenuItem>
+              {carrierCatalogue.packages.map(p => (
+                <MenuItem key={p.key} value={p.value}>{p.label}</MenuItem>
+              ))}
+            </TextField>
           </Stack>
           <TextField label={t("common.notes")} multiline rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} fullWidth />
         </Stack>

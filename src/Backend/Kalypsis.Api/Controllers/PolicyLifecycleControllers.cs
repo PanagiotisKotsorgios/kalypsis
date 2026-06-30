@@ -410,7 +410,9 @@ public class BulkCommissionsController : ControllerBase
 
     public record FilterBody(
         Guid? InsuranceCompanyId, Guid? ProducerId, PolicyType? PolicyType,
-        DateOnly? StartDateFrom, DateOnly? StartDateTo);
+        DateOnly? StartDateFrom, DateOnly? StartDateTo,
+        VehicleUseCategory? VehicleUseCategory = null,
+        string? CoverCode = null, string? PackageCode = null);
 
     public record PreviewBody(FilterBody Filter, string Operation, decimal Value);
     // Operation: "SetPercentage" / "SetFixed" / "MultiplyBy" / "AddFixed"
@@ -423,7 +425,7 @@ public class BulkCommissionsController : ControllerBase
     public async Task<ActionResult<PreviewResponse>> Preview([FromBody] PreviewBody body, CancellationToken ct)
     {
         var q = BuildQuery(body.Filter);
-        var policies = await q.Take(2000).ToListAsync(ct);
+        var policies = ApplyJsonFilters(await q.Take(2000).ToListAsync(ct), body.Filter);
         var rows = new List<PreviewRow>();
         decimal totalDelta = 0m;
         foreach (var p in policies)
@@ -453,7 +455,7 @@ public class BulkCommissionsController : ControllerBase
     public async Task<ActionResult<PreviewResponse>> Apply([FromBody] PreviewBody body, CancellationToken ct)
     {
         var q = BuildQuery(body.Filter);
-        var policies = await q.Take(2000).ToListAsync(ct);
+        var policies = ApplyJsonFilters(await q.Take(2000).ToListAsync(ct), body.Filter);
         var rows = new List<PreviewRow>();
         decimal totalDelta = 0m;
         foreach (var p in policies)
@@ -500,11 +502,52 @@ public class BulkCommissionsController : ControllerBase
     private IQueryable<Policy> BuildQuery(FilterBody f)
     {
         var q = _db.Policies.Where(p => p.DeletedAt == null);
-        if (f.InsuranceCompanyId.HasValue) q = q.Where(p => p.InsuranceCompanyId == f.InsuranceCompanyId.Value);
+        if (f.InsuranceCompanyId.HasValue)
+        {
+            // Cascade broker → all subs. Picking a broker returns policies
+            // across the whole hierarchy; picking a sub (or standalone)
+            // returns only that carrier's policies.
+            var ids = _db.InsuranceCompanies.IgnoreQueryFilters()
+                .Where(c => c.DeletedAt == null
+                    && (c.Id == f.InsuranceCompanyId.Value
+                        || c.ParentCompanyId == f.InsuranceCompanyId.Value))
+                .Select(c => c.Id);
+            q = q.Where(p => ids.Contains(p.InsuranceCompanyId));
+        }
         if (f.ProducerId.HasValue) q = q.Where(p => p.ProducerId == f.ProducerId.Value);
         if (f.PolicyType.HasValue) q = q.Where(p => p.PolicyType == f.PolicyType.Value);
+        if (f.VehicleUseCategory.HasValue) q = q.Where(p => p.VehicleUseCategory == f.VehicleUseCategory.Value);
         if (f.StartDateFrom.HasValue) q = q.Where(p => p.StartDate >= f.StartDateFrom.Value);
         if (f.StartDateTo.HasValue) q = q.Where(p => p.StartDate <= f.StartDateTo.Value);
+        // CoverCode / PackageCode live inside Policy.SpecsJson — apply them as
+        // post-filters on the materialized rows since EF can't translate
+        // System.Text.Json parsing to SQL.
         return q;
+    }
+
+    /// <summary>Post-filter materialized policies by JSON-stored cover / package codes.</summary>
+    private static List<Policy> ApplyJsonFilters(List<Policy> rows, FilterBody f)
+    {
+        var cover = string.IsNullOrWhiteSpace(f.CoverCode) ? null : f.CoverCode!.Trim().ToUpperInvariant();
+        var pkg = string.IsNullOrWhiteSpace(f.PackageCode) ? null : f.PackageCode!.Trim().ToUpperInvariant();
+        if (cover is null && pkg is null) return rows;
+
+        static string? Extract(string? json, params string[] keys)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                foreach (var k in keys)
+                    if (doc.RootElement.TryGetProperty(k, out var prop)
+                        && prop.ValueKind == System.Text.Json.JsonValueKind.String)
+                        return prop.GetString()?.Trim().ToUpperInvariant();
+            }
+            catch { }
+            return null;
+        }
+        return rows.Where(p =>
+            (cover is null || string.Equals(Extract(p.SpecsJson, "coverCode", "coverageCode", "coverage", "cover"), cover))
+            && (pkg is null || string.Equals(Extract(p.SpecsJson, "packageCode", "package"), pkg))).ToList();
     }
 }

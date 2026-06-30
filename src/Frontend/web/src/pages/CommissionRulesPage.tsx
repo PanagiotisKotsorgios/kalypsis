@@ -255,7 +255,7 @@ export function CommissionRulesPage() {
           <TextField size="small" placeholder="Συνεργάτης, εταιρία, κλάδος…"
             value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
           <TextField select size="small" label="Εταιρία" value={carrierFilter}
-            onChange={(e) => { setCarrierFilter(e.target.value); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); }}
+            onChange={(e) => { setCarrierFilter(e.target.value); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); setCoverFilter(""); }}
             sx={{ minWidth: 220 }}>
             <MenuItem value="">Όλες</MenuItem>
             {(companies.data ?? []).filter(c => !c.parentCompanyId).map(c => (
@@ -307,9 +307,22 @@ export function CommissionRulesPage() {
               <MenuItem key={u.key} value={u.value}>{u.label}</MenuItem>
             ))}
           </TextField>
-          <TextField size="small" label="Κάλυψη" value={coverFilter}
-            onChange={(e) => setCoverFilter(e.target.value.toUpperCase())}
-            sx={{ minWidth: 150 }} placeholder="MTPL" />
+          <TextField select size="small" label="Κάλυψη / πακέτο" value={coverFilter}
+            onChange={(e) => setCoverFilter(e.target.value)} sx={{ minWidth: 220 }}
+            disabled={!carrierFilter}
+            helperText={!carrierFilter
+              ? "Επιλέξτε εταιρία"
+              : filterCatalogue.coverages.length + filterCatalogue.packages.length === 0
+                ? "Δεν υπάρχουν παραμετρικά"
+                : ""}>
+            <MenuItem value="">Όλες</MenuItem>
+            {filterCatalogue.coverages.map(c => (
+              <MenuItem key={c.key} value={c.value}>{c.label}</MenuItem>
+            ))}
+            {filterCatalogue.packages.map(p => (
+              <MenuItem key={p.key} value={p.value}>{p.label}</MenuItem>
+            ))}
+          </TextField>
           <Button size="small" onClick={() => {
             setSearch(""); setCarrierFilter(""); setSubCarrierFilter([]); setTierFilter(""); setTypeFilter(""); setUseFilter(""); setCoverFilter("");
           }}>Καθαρισμός</Button>

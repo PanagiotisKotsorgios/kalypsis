@@ -20,6 +20,7 @@ interface CompanyParameterItem {
   code: string;
   name: string;
   policyType: string | null;
+  vehicleUseCategory: string | null;
   parentCode: string | null;
 }
 
@@ -38,6 +39,7 @@ interface PreviewResponse {
 export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [filter, setFilter] = useState({
     insuranceCompanyId: "", producerId: "", policyType: "",
+    vehicleUseCategory: "", coverCode: "", packageCode: "",
     startDateFrom: "", startDateTo: ""
   });
   const [operation, setOperation] = useState("SetPercentage");
@@ -78,10 +80,34 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
       }));
   }, [carrierParams.data, filter.insuranceCompanyId]);
 
+  const useOptions = useMemo(() => {
+    if (!filter.insuranceCompanyId) return [];
+    return (carrierParams.data ?? [])
+      .filter(p => p.kind === "Use" && p.vehicleUseCategory && p.vehicleUseCategory !== "None")
+      .map(p => ({ key: `use:${p.id}`, value: p.vehicleUseCategory!, label: p.name }));
+  }, [carrierParams.data, filter.insuranceCompanyId]);
+
+  const coverageOptions = useMemo(() => {
+    if (!filter.insuranceCompanyId) return [];
+    return (carrierParams.data ?? [])
+      .filter(p => p.kind === "Coverage" && p.code)
+      .map(p => ({ key: `cov:${p.id}`, value: p.code, label: `${p.name} (${p.code})` }));
+  }, [carrierParams.data, filter.insuranceCompanyId]);
+
+  const packageOptions = useMemo(() => {
+    if (!filter.insuranceCompanyId) return [];
+    return (carrierParams.data ?? [])
+      .filter(p => p.kind === "Package" && p.code)
+      .map(p => ({ key: `pkg:${p.id}`, value: p.code, label: `${p.name} (${p.code})` }));
+  }, [carrierParams.data, filter.insuranceCompanyId]);
+
   const buildFilter = () => ({
     insuranceCompanyId: filter.insuranceCompanyId || null,
     producerId: filter.producerId || null,
     policyType: filter.policyType ? Number(filter.policyType) : null,
+    vehicleUseCategory: filter.vehicleUseCategory || null,
+    coverCode: filter.coverCode || null,
+    packageCode: filter.packageCode || null,
     startDateFrom: filter.startDateFrom || null,
     startDateTo: filter.startDateTo || null
   });
@@ -136,7 +162,7 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>1. Φίλτρα επιλογής συμβολαίων</Typography>
           <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" } }}>
             <TextField select label="Ασφαλιστική εταιρεία" value={filter.insuranceCompanyId}
-              onChange={(e) => setFilter({ ...filter, insuranceCompanyId: e.target.value, policyType: "" })}>
+              onChange={(e) => setFilter({ ...filter, insuranceCompanyId: e.target.value, policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "" })}>
               <MenuItem value="">Όλες</MenuItem>
               {(companies.data ?? []).filter(c => !c.parentCompanyId).map(c => (
                 <MenuItem key={c.id} value={c.id}>
@@ -157,7 +183,7 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
               const subValue = selected?.id !== broker.id ? selected?.id ?? "" : "";
               return (
                 <TextField select label="Υποασφαλιστική" value={subValue}
-                  onChange={e => setFilter({ ...filter, insuranceCompanyId: e.target.value || broker.id, policyType: "" })}>
+                  onChange={e => setFilter({ ...filter, insuranceCompanyId: e.target.value || broker.id, policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "" })}>
                   <MenuItem value="">— όλες οι υποασφαλιστικές —</MenuItem>
                   {subs.map(s => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
                 </TextField>
@@ -176,6 +202,33 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
                 : policyTypeOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : "Από τα παραμετρικά"}>
               <MenuItem value="">Όλα</MenuItem>
               {policyTypeOptions.map(t => <MenuItem key={t.key} value={t.value}>{t.label}</MenuItem>)}
+            </TextField>
+            <TextField select label="Χρήση οχήματος" value={filter.vehicleUseCategory}
+              onChange={(e) => setFilter({ ...filter, vehicleUseCategory: e.target.value })}
+              disabled={!filter.insuranceCompanyId}
+              helperText={!filter.insuranceCompanyId
+                ? "Επιλέξτε εταιρία"
+                : useOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
+              <MenuItem value="">Όλες</MenuItem>
+              {useOptions.map(u => <MenuItem key={u.key} value={u.value}>{u.label}</MenuItem>)}
+            </TextField>
+            <TextField select label="Κάλυψη" value={filter.coverCode}
+              onChange={(e) => setFilter({ ...filter, coverCode: e.target.value })}
+              disabled={!filter.insuranceCompanyId}
+              helperText={!filter.insuranceCompanyId
+                ? "Επιλέξτε εταιρία"
+                : coverageOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
+              <MenuItem value="">Όλες</MenuItem>
+              {coverageOptions.map(c => <MenuItem key={c.key} value={c.value}>{c.label}</MenuItem>)}
+            </TextField>
+            <TextField select label="Πακέτο" value={filter.packageCode}
+              onChange={(e) => setFilter({ ...filter, packageCode: e.target.value })}
+              disabled={!filter.insuranceCompanyId}
+              helperText={!filter.insuranceCompanyId
+                ? "Επιλέξτε εταιρία"
+                : packageOptions.length === 0 ? "Δεν υπάρχουν πακέτα" : ""}>
+              <MenuItem value="">Όλα</MenuItem>
+              {packageOptions.map(p => <MenuItem key={p.key} value={p.value}>{p.label}</MenuItem>)}
             </TextField>
             <TextField type="date" label="Έναρξη από" InputLabelProps={{ shrink: true }}
               value={filter.startDateFrom} onChange={(e) => setFilter({ ...filter, startDateFrom: e.target.value })} />
