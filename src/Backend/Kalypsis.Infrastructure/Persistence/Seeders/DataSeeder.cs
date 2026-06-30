@@ -29,19 +29,23 @@ public static class DataSeeder
         try { await EnsureSchemaSafetyAsync(db, logger, cancellationToken); }
         catch (Exception ex) { logger.LogError(ex, "EnsureSchemaSafetyAsync failed — continuing boot."); }
 
-        // Wrap each seeder in try/catch so one failure doesn't block the API
-        // from booting — the operator needs a running container in order to log
-        // in and fix anything via the admin UI.
-        try { await SeedInsuranceCompaniesAsync(db, logger, cancellationToken); }
-        catch (Exception ex) { logger.LogError(ex, "SeedInsuranceCompaniesAsync failed — continuing boot."); }
-
-        // Carrier parametrics intentionally start BLANK for every company except
-        // Grand Cover (IW), which we seed line-by-line from the embedded IW dump
-        // resource. Other carriers wait for the superadmin to enter their real
-        // branch / use / cover / package data — dropdowns are empty until then so
-        // an agency can't pick a setup that doesn't actually exist at the carrier.
+        // NOTE on insurance-company seeding: we deliberately do NOT seed the
+        // old list of demo carriers (Allianz/ERGO/NN/Generali/...) anymore.
+        // Every carrier in the system must have real παραμετρικά (branches,
+        // uses, coverages, packages) for its dropdowns to be usable. Today
+        // only Grand Cover (IW) ships with a seed dump; future carriers come
+        // in via the platform-admin bulk importer (POST /api/platform/
+        // company-parameters/import/{insuranceCompanyId}). See
+        // CompanyParameterImportController.
         try { await GrandCoverSeeder.SeedAsync(db, logger, cancellationToken); }
         catch (Exception ex) { logger.LogError(ex, "GrandCoverSeeder failed — continuing boot without IW seed."); }
+
+        // Cleanup: soft-delete any global InsuranceCompany row that isn't
+        // Grand Cover or one of its subs. Runs on every boot but is idempotent
+        // (won't re-touch already-deleted rows). Tenant-scoped carriers are
+        // left alone — those belong to the tenant who created them.
+        try { await CleanupNonGrandCoverGlobalsAsync(db, logger, cancellationToken); }
+        catch (Exception ex) { logger.LogError(ex, "CleanupNonGrandCoverGlobalsAsync failed — continuing boot."); }
 
         var seedEmail = (config["Seed:PlatformAdminEmail"] ?? "superadmin@kalypsis.gr").ToLowerInvariant();
         var seedPassword = config["Seed:PlatformAdminPassword"] ?? "Kalypsis@2026!";
@@ -218,39 +222,61 @@ public static class DataSeeder
         logger.LogInformation("Seeded test customer user {Email} (password: {Password}).", email, password);
     }
 
-    private static async Task SeedInsuranceCompaniesAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    /// <summary>
+    /// Cleanup pass: soft-deletes any *global* InsuranceCompany row (TenantId
+    /// IS NULL) that isn't the Grand Cover broker itself or one of its
+    /// subcompanies. Idempotent — already-deleted rows are skipped. Tenant-
+    /// scoped rows are intentionally untouched.
+    ///
+    /// Rationale: the agency-facing app must never show carriers without
+    /// real παραμετρικά (branches/uses/coverages/packages). The old demo
+    /// carriers (Allianz/ERGO/NN/...) had no parametrics and made the user-
+    /// facing dropdowns lie. They are removed here once-and-for-all; future
+    /// carriers join the system only via the platform-admin bulk importer.
+    /// </summary>
+    private static async Task CleanupNonGrandCoverGlobalsAsync(AppDbContext db, ILogger logger, CancellationToken ct)
     {
-        var seed = new (string Code, string Name, string Country)[]
+        // Identify the Grand Cover broker by IsBroker=true at the global
+        // scope; fall back to Code = "IW" if the IsBroker flag hasn't been
+        // applied yet (cold boot before GrandCoverSeeder ran).
+        var broker = await db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(c => c.TenantId == null && c.DeletedAt == null && c.IsBroker)
+            .FirstOrDefaultAsync(ct);
+        if (broker is null)
         {
-            ("INTERAMERICAN", "Interamerican Ελληνική Ασφαλιστική", "GR"),
-            ("ETHNIKI",      "Εθνική Ασφαλιστική",                 "GR"),
-            ("EUROLIFE",     "Eurolife FFH",                       "GR"),
-            ("ERGO",         "ERGO Ασφαλιστική",                   "GR"),
-            ("ALLIANZ",      "Allianz Ελλάδος",                    "GR"),
-            ("NN",           "NN Hellas",                          "GR"),
-            ("GENERALI",     "Generali Hellas",                    "GR"),
-            ("INTERLIFE",    "Interlife Α.Α.Ε.Γ.Α.",               "GR"),
-            ("GRAND_COVER",  "Grand Cover (IW)",                    "GR")
-        };
+            // Nothing to anchor cleanup against. Avoid wiping carriers when
+            // GrandCoverSeeder failed earlier in this boot — better to keep
+            // demo carriers than to leave the operator with an empty list.
+            logger.LogWarning("CleanupNonGrandCoverGlobalsAsync: no broker found, skipping cleanup.");
+            return;
+        }
 
-        var existing = await db.InsuranceCompanies.IgnoreQueryFilters()
-            .Select(c => c.Code).ToListAsync(ct);
-        var missing = seed.Where(s => !existing.Contains(s.Code, StringComparer.OrdinalIgnoreCase)).ToList();
-        if (missing.Count == 0) return;
+        var allowedIds = new HashSet<Guid> { broker.Id };
+        var subIds = await db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(c => c.TenantId == null && c.DeletedAt == null && c.ParentCompanyId == broker.Id)
+            .Select(c => c.Id)
+            .ToListAsync(ct);
+        foreach (var id in subIds) allowedIds.Add(id);
 
-        foreach (var s in missing)
+        var toDelete = await db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(c => c.TenantId == null && c.DeletedAt == null && !allowedIds.Contains(c.Id))
+            .ToListAsync(ct);
+
+        if (toDelete.Count == 0)
         {
-            db.InsuranceCompanies.Add(new InsuranceCompany
-            {
-                Id = Guid.NewGuid(),
-                Code = s.Code,
-                Name = s.Name,
-                Country = s.Country,
-                IsActive = true
-            });
+            logger.LogDebug("CleanupNonGrandCoverGlobalsAsync: no non-Grand-Cover globals to remove.");
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        foreach (var c in toDelete)
+        {
+            c.DeletedAt = now;
+            c.IsActive = false;
         }
         await db.SaveChangesAsync(ct);
-        logger.LogInformation("Seeded {Count} insurance companies.", missing.Count);
+        logger.LogInformation("CleanupNonGrandCoverGlobalsAsync: soft-deleted {Count} non-Grand-Cover global carriers ({Names}).",
+            toDelete.Count, string.Join(", ", toDelete.Select(c => c.Name)));
     }
 
     /// <summary>

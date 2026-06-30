@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -25,6 +26,7 @@ import {
   TextField,
   Typography
 } from "@mui/material";
+import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
@@ -80,6 +82,8 @@ interface CarrierDto {
   name: string;
   code: string;
   isActive: boolean;
+  isBroker?: boolean;
+  parentCompanyId?: string | null;
 }
 
 const STATUS_COLOR: Record<PolicyStatus, "default" | "success" | "warning" | "info" | "error"> = {
@@ -112,9 +116,13 @@ export function PoliciesPage() {
   const [statusFilter, setStatusFilter] = useState<PolicyStatus | "">("");
   const [typeFilter, setTypeFilter] = useState<PolicyType | "">("");
   const [carrierFilter, setCarrierFilter] = useState<string>("");
+  const [subCarrierFilter, setSubCarrierFilter] = useState<string[]>([]);
   const [producerFilter, setProducerFilter] = useState<string>("");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
+
+  // Carrier-driven Κλάδος options — empty when no carrier is selected.
+  const filterCatalogue = useCarrierCatalogue(carrierFilter, subCarrierFilter);
 
   const carriersQuery = useQuery({
     queryKey: ["insurance-companies-for-filter"],
@@ -167,13 +175,28 @@ export function PoliciesPage() {
     if (documentPolicyId && rawRows.some(policy => policy.id === documentPolicyId))
       setDetailId(documentPolicyId);
   }, [documentPolicyId, rawRows]);
-  const allRows = useMemo(() => rawRows.filter(p => {
-    if (carrierFilter  && p.insuranceCompanyId !== carrierFilter) return false;
-    if (producerFilter && p.producerId         !== producerFilter) return false;
-    if (fromDate && p.startDate < fromDate) return false;
-    if (toDate   && p.startDate > toDate)   return false;
-    return true;
-  }), [rawRows, carrierFilter, producerFilter, fromDate, toDate]);
+  const allRows = useMemo(() => {
+    const allCarriers = carriersQuery.data ?? [];
+    return rawRows.filter(p => {
+      if (carrierFilter) {
+        if (subCarrierFilter.length > 0) {
+          // Sub picks narrow strictly to those subs.
+          if (!subCarrierFilter.includes(p.insuranceCompanyId)) return false;
+        } else {
+          // No subs picked — match the carrier itself OR (when broker) any of its subs.
+          const allowed = new Set<string>([carrierFilter]);
+          for (const c of allCarriers) {
+            if (c.parentCompanyId === carrierFilter) allowed.add(c.id);
+          }
+          if (!allowed.has(p.insuranceCompanyId)) return false;
+        }
+      }
+      if (producerFilter && p.producerId !== producerFilter) return false;
+      if (fromDate && p.startDate < fromDate) return false;
+      if (toDate   && p.startDate > toDate)   return false;
+      return true;
+    });
+  }, [rawRows, carriersQuery.data, carrierFilter, subCarrierFilter, producerFilter, fromDate, toDate]);
 
   // Phase 15.2 — client-side search + sort + pagination.
   const table = useTableState<PolicyDto>({
@@ -262,18 +285,53 @@ export function PoliciesPage() {
               </TextField>
               <TextField select size="small" label={t("policies.col.type")}
                 value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as PolicyType | "")}
-                sx={{ minWidth: { sm: 170 } }}>
+                sx={{ minWidth: { sm: 220 } }}
+                disabled={!carrierFilter}
+                helperText={!carrierFilter
+                  ? "Επιλέξτε εταιρία"
+                  : filterCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
                 <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
-                {(["Auto","Home","Health","Life","Business","Travel","Other"] as const).map(tp =>
-                  <MenuItem key={tp} value={tp}>{t(`policies.types.${tp}`)}</MenuItem>)}
+                {filterCatalogue.branches.map(b => (
+                  <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
+                ))}
               </TextField>
             </Stack>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField select size="small" label="Εταιρία"
-                value={carrierFilter} onChange={(e) => setCarrierFilter(e.target.value)} fullWidth>
+                value={carrierFilter}
+                onChange={(e) => { setCarrierFilter(e.target.value); setSubCarrierFilter([]); setTypeFilter(""); }}
+                fullWidth>
                 <MenuItem value="">Όλες</MenuItem>
-                {(carriersQuery.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+                {(carriersQuery.data ?? []).filter(c => !c.parentCompanyId).flatMap(c => {
+                  const subs = (carriersQuery.data ?? []).filter(s => s.parentCompanyId === c.id);
+                  const head = (
+                    <MenuItem key={c.id} value={c.id}>
+                      {c.name}{c.isBroker ? " · πρακτορείο" : ""}
+                    </MenuItem>
+                  );
+                  return subs.length === 0 ? [head] : [head, ...subs.map(s => (
+                    <MenuItem key={s.id} value={s.id} sx={{ pl: 4, fontSize: 14, color: "text.secondary" }}>
+                      ↳ {s.name}
+                    </MenuItem>
+                  ))];
+                })}
               </TextField>
+              {(() => {
+                const selected = (carriersQuery.data ?? []).find(c => c.id === carrierFilter);
+                if (!selected?.isBroker) return null;
+                const subs = (carriersQuery.data ?? []).filter(c => c.parentCompanyId === selected.id);
+                return (
+                  <Autocomplete<CarrierDto, true>
+                    multiple size="small" sx={{ minWidth: 280, flex: 1 }}
+                    options={subs}
+                    value={subs.filter(s => subCarrierFilter.includes(s.id))}
+                    onChange={(_, value) => setSubCarrierFilter(value.map(v => v.id))}
+                    getOptionLabel={(s) => s.name}
+                    isOptionEqualToValue={(a, b) => a.id === b.id}
+                    renderInput={(params) => <TextField {...params} label="Υποασφαλιστικές" />}
+                  />
+                );
+              })()}
               <TextField select size="small" label="Συνεργάτης"
                 value={producerFilter} onChange={(e) => setProducerFilter(e.target.value)} fullWidth>
                 <MenuItem value="">Όλοι</MenuItem>
@@ -284,7 +342,7 @@ export function PoliciesPage() {
               <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
                 value={toDate}   onChange={(e) => setToDate(e.target.value)}   sx={{ minWidth: { sm: 160 } }} />
               <Button size="small" onClick={() => {
-                setCarrierFilter(""); setProducerFilter("");
+                setCarrierFilter(""); setSubCarrierFilter([]); setProducerFilter("");
                 setFromDate(""); setToDate(""); setStatusFilter(""); setTypeFilter(""); setSearch("");
               }}>Καθαρισμός</Button>
             </Stack>
@@ -518,6 +576,7 @@ function PolicyFormDialog({
     status: "Active"
   });
   const [error, setError] = useState<string | null>(null);
+  const dialogCatalogue = useCarrierCatalogue(form.insuranceCompanyId);
 
   useEffect(() => {
     if (policy) {
@@ -596,20 +655,36 @@ function PolicyFormDialog({
             <TextField
               select label={t("policies.form.carrier")}
               value={form.insuranceCompanyId}
-              onChange={(e) => setForm({ ...form, insuranceCompanyId: e.target.value })}
+              onChange={(e) => setForm({ ...form, insuranceCompanyId: e.target.value, policyType: "Auto" })}
               fullWidth required
             >
-              {(carriersQuery.data ?? []).map((c) => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+              {(carriersQuery.data ?? []).filter(c => !c.parentCompanyId).flatMap(c => {
+                const subs = (carriersQuery.data ?? []).filter(s => s.parentCompanyId === c.id);
+                const head = (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}{c.isBroker ? " · πρακτορείο" : ""}
+                  </MenuItem>
+                );
+                return subs.length === 0 ? [head] : [head, ...subs.map(s => (
+                  <MenuItem key={s.id} value={s.id} sx={{ pl: 4, fontSize: 14, color: "text.secondary" }}>
+                    ↳ {s.name}
+                  </MenuItem>
+                ))];
+              })}
             </TextField>
             <TextField
               select label={t("policies.form.type")}
               value={form.policyType}
               onChange={(e) => setForm({ ...form, policyType: e.target.value as PolicyType })}
               fullWidth required
+              disabled={!form.insuranceCompanyId}
+              helperText={!form.insuranceCompanyId
+                ? "Επιλέξτε εταιρία πρώτα"
+                : dialogCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
             >
-              {(["Auto","Home","Health","Life","Business","Travel","Other"] as const).map(tp =>
-                <MenuItem key={tp} value={tp}>{t(`policies.types.${tp}`)}</MenuItem>
-              )}
+              {dialogCatalogue.branches.map(b => (
+                <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
+              ))}
             </TextField>
           </Stack>
 

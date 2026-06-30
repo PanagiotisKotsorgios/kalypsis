@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import {
   Alert,
@@ -33,6 +33,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { ClaimDetailDrawer } from "../components/ClaimDetailDrawer";
 import { useTableState } from "../components/useTableState";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
+import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type ClaimStatus = "Reported" | "UnderReview" | "Approved" | "Rejected" | "Paid" | "Closed";
@@ -63,6 +64,30 @@ interface PolicyLite {
   insuranceCompanyName: string;
 }
 
+function useMemoAllowed(
+  allCarriers: { id: string; name: string; parentCompanyId?: string | null }[],
+  carrierId: string,
+  subIds: string[]
+) {
+  return useMemo(() => {
+    const out = new Set<string>();
+    if (!carrierId) return out;
+    if (subIds.length > 0) {
+      for (const id of subIds) {
+        const c = allCarriers.find(x => x.id === id);
+        if (c) out.add(c.name);
+      }
+      return out;
+    }
+    const top = allCarriers.find(x => x.id === carrierId);
+    if (top) out.add(top.name);
+    for (const c of allCarriers) {
+      if (c.parentCompanyId === carrierId) out.add(c.name);
+    }
+    return out;
+  }, [allCarriers, carrierId, subIds]);
+}
+
 const STATUS_COLOR: Record<ClaimStatus, "default" | "info" | "warning" | "success" | "error"> = {
   Reported: "info",
   UnderReview: "warning",
@@ -85,10 +110,18 @@ export function ClaimsPage() {
   const [detail, setDetail] = useState<ClaimDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [customerFilter, setCustomerFilter] = useState("");
-  const [carrierFilter,  setCarrierFilter]  = useState("");
+  const [carrierFilter,  setCarrierFilter]  = useState(""); // carrier ID now
+  const [subCarrierFilter, setSubCarrierFilter] = useState<string[]>([]);
   const [typeFilter,     setTypeFilter]     = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate,   setToDate]   = useState("");
+
+  const carriersQ = useQuery({
+    queryKey: ["carriers-claims-filter"],
+    queryFn: async () => (await api.get<{ id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null }[]>(
+      "/insurance-companies")).data
+  });
+  const filterCatalogue = useCarrierCatalogue(carrierFilter, subCarrierFilter);
 
   const claimsQuery = useQuery({
     queryKey: ["claims", statusFilter],
@@ -100,8 +133,12 @@ export function ClaimsPage() {
   });
 
   const rawClaims = claimsQuery.data ?? [];
+  const allCarriers = carriersQ.data ?? [];
+  const allowedNames = useMemoAllowed(allCarriers, carrierFilter, subCarrierFilter);
   const allClaims = rawClaims.filter(c => {
-    if (carrierFilter && !c.insuranceCompanyName.toLowerCase().includes(carrierFilter.toLowerCase())) return false;
+    if (carrierFilter) {
+      if (!allowedNames.has(c.insuranceCompanyName)) return false;
+    }
     if (typeFilter && c.policyType !== typeFilter) return false;
     if (customerFilter) {
       const f = customerFilter.toLowerCase();
@@ -155,22 +192,43 @@ export function ClaimsPage() {
             <TextField size="small" label="Πελάτης / Συμβόλαιο / ΑΦΜ" placeholder="…αναζήτηση…"
               value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)}
               sx={{ minWidth: 260 }} />
-            <TextField size="small" label="Εταιρία"
-              value={carrierFilter} onChange={(e) => setCarrierFilter(e.target.value)}
-              sx={{ minWidth: 180 }} />
+            <TextField select size="small" label="Εταιρία"
+              value={carrierFilter}
+              onChange={(e) => { setCarrierFilter(e.target.value); setSubCarrierFilter([]); setTypeFilter(""); }}
+              sx={{ minWidth: 220 }}>
+              <MenuItem value="">Όλες</MenuItem>
+              {(carriersQ.data ?? []).filter(c => !c.parentCompanyId).flatMap(c => {
+                const subs = (carriersQ.data ?? []).filter(s => s.parentCompanyId === c.id);
+                const head = (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}{c.isBroker ? " · πρακτορείο" : ""}
+                  </MenuItem>
+                );
+                return subs.length === 0 ? [head] : [head, ...subs.map(s => (
+                  <MenuItem key={s.id} value={s.id} sx={{ pl: 4, fontSize: 14, color: "text.secondary" }}>
+                    ↳ {s.name}
+                  </MenuItem>
+                ))];
+              })}
+            </TextField>
             <TextField select size="small" label="Κλάδος"
               value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
-              sx={{ minWidth: 160 }}>
+              sx={{ minWidth: 220 }}
+              disabled={!carrierFilter}
+              helperText={!carrierFilter
+                ? "Επιλέξτε εταιρία"
+                : filterCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
               <MenuItem value="">Όλοι</MenuItem>
-              {(["Auto","Home","Health","Life","Business","Travel","Other"] as const).map(p =>
-                <MenuItem key={p} value={p}>{t(`policies.types.${p}`)}</MenuItem>)}
+              {filterCatalogue.branches.map(b => (
+                <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
+              ))}
             </TextField>
             <TextField size="small" type="date" label="Συμβάν από" InputLabelProps={{ shrink: true }}
               value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
             <TextField size="small" type="date" label="Συμβάν έως" InputLabelProps={{ shrink: true }}
               value={toDate} onChange={(e) => setToDate(e.target.value)} />
             <Button size="small" onClick={() => {
-              setStatusFilter(""); setCustomerFilter(""); setCarrierFilter("");
+              setStatusFilter(""); setCustomerFilter(""); setCarrierFilter(""); setSubCarrierFilter([]);
               setTypeFilter(""); setFromDate(""); setToDate("");
             }}>Καθαρισμός</Button>
           </Stack>

@@ -37,13 +37,7 @@ interface Result {
   grand: GroupTotal;
 }
 
-const TYPES = ["Auto", "Home", "Health", "Life", "Business", "Travel", "Other"];
-const TYPE_LABEL: Record<string, string> = {
-  Auto: "Αυτοκίνητο", Home: "Κατοικία", Health: "Υγείας", Life: "Ζωής",
-  Business: "Επιχείρησης", Travel: "Ταξιδιού", Other: "Άλλο",
-};
 const STATUSES = ["Draft", "Active", "Expired", "Cancelled", "Renewed", "PendingRenewal"];
-const VEHICLE_USES = ["EIX", "EDX", "FIX", "FDX", "LIX", "LDX", "Motorcycle", "Agricultural", "Construction"];
 
 interface ParamItem {
   id: string;
@@ -83,22 +77,19 @@ export function ProductionListsPage() {
     enabled: !!f.insuranceCompanyId,
   });
 
-  // Branches (Κλάδοι) — carrier-specific names when a carrier is picked.
+  // Strict: only show real παραμετρικά. No enum fallback.
   const branchOptions = useMemo(() => {
-    const items = (carrierParams.data ?? [])
+    if (!f.insuranceCompanyId) return [];
+    return (carrierParams.data ?? [])
       .filter(p => p.kind === "Branch" && p.policyType)
       .map(p => ({ key: `param:${p.id}`, value: p.policyType!, label: p.name }));
-    if (f.insuranceCompanyId && items.length > 0) return items;
-    return TYPES.map(t => ({ key: `enum:${t}`, value: t, label: TYPE_LABEL[t] ?? t }));
   }, [carrierParams.data, f.insuranceCompanyId]);
 
-  // Vehicle uses (Χρήσεις) — carrier-specific names when present.
   const useOptions = useMemo(() => {
-    const items = (carrierParams.data ?? [])
+    if (!f.insuranceCompanyId) return [];
+    return (carrierParams.data ?? [])
       .filter(p => p.kind === "Use" && p.vehicleUseCategory && p.vehicleUseCategory !== "None")
       .map(p => ({ key: `param:${p.id}`, value: p.vehicleUseCategory!, label: p.name }));
-    if (f.insuranceCompanyId && items.length > 0) return items;
-    return VEHICLE_USES.map(u => ({ key: `enum:${u}`, value: u, label: u }));
   }, [carrierParams.data, f.insuranceCompanyId]);
 
   const params = {
@@ -199,13 +190,19 @@ export function ProductionListsPage() {
           </TextField>
           <TextField select size="small" label={t("productionList.type")} value={f.policyType}
             onChange={e => setF({ ...f, policyType: e.target.value })}
-            helperText={f.insuranceCompanyId && branchOptions.some(o => o.key.startsWith("param:")) ? "Από παραμετρικά" : ""}>
+            disabled={!f.insuranceCompanyId}
+            helperText={!f.insuranceCompanyId
+              ? "Επιλέξτε εταιρία"
+              : branchOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : "Από παραμετρικά"}>
             <MenuItem value="">{t("common.all")}</MenuItem>
             {branchOptions.map(o => <MenuItem key={o.key} value={o.value}>{o.label}</MenuItem>)}
           </TextField>
           <TextField select size="small" label="Χρήση οχήματος" value={f.vehicleUseCategory}
             onChange={e => setF({ ...f, vehicleUseCategory: e.target.value })}
-            helperText={f.insuranceCompanyId && useOptions.some(o => o.key.startsWith("param:")) ? "Από παραμετρικά" : ""}>
+            disabled={!f.insuranceCompanyId}
+            helperText={!f.insuranceCompanyId
+              ? "Επιλέξτε εταιρία"
+              : useOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : "Από παραμετρικά"}>
             <MenuItem value="">{t("common.all")}</MenuItem>
             {useOptions.map(o => <MenuItem key={o.key} value={o.value}>{o.label}</MenuItem>)}
           </TextField>

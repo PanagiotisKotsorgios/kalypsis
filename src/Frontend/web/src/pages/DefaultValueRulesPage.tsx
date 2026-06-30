@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 
 interface RuleDto {
   id: string; name: string;
@@ -19,7 +20,7 @@ interface RuleDto {
   valuesJson: string; priority: number; isActive: boolean; notes: string | null;
 }
 
-const TYPES = ["Auto", "Home", "Health", "Life", "Business", "Travel", "Other"];
+interface CarrierLite { id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null; }
 
 export function DefaultValueRulesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
@@ -112,7 +113,8 @@ function RuleDialog({ item, onClose, onSaved }: { item: any | null; onClose: () 
   });
   const [err, setErr] = useState<string | null>(null);
   const carriers = useQuery({ queryKey: ["carriers-for-dvr"], enabled: !!item,
-    queryFn: async () => (await api.get<{id:string; name:string}[]>("/insurance-companies")).data });
+    queryFn: async () => (await api.get<CarrierLite[]>("/insurance-companies")).data });
+  const dvrCatalogue = useCarrierCatalogue(form.insuranceCompanyId);
   useEffect(() => {
     if (item && item.id) setForm({
       ...item,
@@ -158,18 +160,51 @@ function RuleDialog({ item, onClose, onSaved }: { item: any | null; onClose: () 
             <TextField type="number" label={t("dvr.priority")} value={form.priority} onChange={e => setForm({ ...form, priority: Number(e.target.value) })} sx={{ width: 140 }} />
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("dvr.carrier")} value={form.insuranceCompanyId} onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value })} fullWidth>
+            <TextField select label={t("dvr.carrier")} value={form.insuranceCompanyId}
+              onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value, policyType: "", coverCode: "", packageCode: "" })}
+              fullWidth>
               <MenuItem value="">{t("dvr.any")}</MenuItem>
-              {(carriers.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+              {(carriers.data ?? []).filter(c => !c.parentCompanyId).flatMap(c => {
+                const subs = (carriers.data ?? []).filter(s => s.parentCompanyId === c.id);
+                const head = (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}{c.isBroker ? " · πρακτορείο" : ""}
+                  </MenuItem>
+                );
+                return subs.length === 0 ? [head] : [head, ...subs.map(s => (
+                  <MenuItem key={s.id} value={s.id} sx={{ pl: 4, fontSize: 14, color: "text.secondary" }}>
+                    ↳ {s.name}
+                  </MenuItem>
+                ))];
+              })}
             </TextField>
-            <TextField select label={t("dvr.policyType")} value={form.policyType} onChange={e => setForm({ ...form, policyType: e.target.value })} fullWidth>
+            <TextField select label={t("dvr.policyType")} value={form.policyType}
+              onChange={e => setForm({ ...form, policyType: e.target.value })} fullWidth
+              disabled={!form.insuranceCompanyId}
+              helperText={!form.insuranceCompanyId
+                ? "Επιλέξτε εταιρία πρώτα"
+                : dvrCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
               <MenuItem value="">{t("dvr.any")}</MenuItem>
-              {TYPES.map(tp => <MenuItem key={tp} value={tp}>{tp}</MenuItem>)}
+              {dvrCatalogue.branches.map(b => (
+                <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
+              ))}
             </TextField>
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField label={t("dvr.cover")} value={form.coverCode} onChange={e => setForm({ ...form, coverCode: e.target.value })} fullWidth placeholder="BASIC / MTPL / EXTRA" />
-            <TextField label={t("dvr.package")} value={form.packageCode} onChange={e => setForm({ ...form, packageCode: e.target.value })} fullWidth placeholder="STANDARD / SILVER / GOLD" />
+            <TextField select label={t("dvr.cover")} value={form.coverCode}
+              onChange={e => setForm({ ...form, coverCode: e.target.value })} fullWidth
+              disabled={!form.insuranceCompanyId}
+              helperText={!form.insuranceCompanyId ? "Επιλέξτε εταιρία" : dvrCatalogue.coverages.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
+              <MenuItem value="">{t("dvr.any")}</MenuItem>
+              {dvrCatalogue.coverages.map(c => <MenuItem key={c.key} value={c.value}>{c.label}</MenuItem>)}
+            </TextField>
+            <TextField select label={t("dvr.package")} value={form.packageCode}
+              onChange={e => setForm({ ...form, packageCode: e.target.value })} fullWidth
+              disabled={!form.insuranceCompanyId}
+              helperText={!form.insuranceCompanyId ? "Επιλέξτε εταιρία" : dvrCatalogue.packages.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
+              <MenuItem value="">{t("dvr.any")}</MenuItem>
+              {dvrCatalogue.packages.map(p => <MenuItem key={p.key} value={p.value}>{p.label}</MenuItem>)}
+            </TextField>
           </Stack>
           <TextField label={t("dvr.values")} value={form.valuesJson}
             onChange={e => setForm({ ...form, valuesJson: e.target.value })}

@@ -18,6 +18,7 @@ import { BulkCommissionsPage } from "./BulkCommissionsPage";
 import { DefaultValueRulesPage } from "./DefaultValueRulesPage";
 import { CompanyCatalogueDialog } from "../components/CompanyCatalogueDialog";
 import SettingsIcon from "@mui/icons-material/Settings";
+import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 
 type ProducerTier = "None" | "A" | "B" | "C" | "D" | "E";
 type PolicyType   = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
@@ -49,7 +50,6 @@ const USE_LABEL: Record<VehicleUse, string> = {
   Agricultural: "ΑΓΡ — Αγροτικό",
   Construction: "ΕΡΓ — Εργοταξιακό"
 };
-const USE_TYPES: VehicleUse[] = ["EIX","EDX","FIX","FDX","LIX","LDX","Motorcycle","Agricultural","Construction"];
 
 interface CompanyLite {
   id: string;
@@ -96,7 +96,6 @@ const TIER_LABEL: Record<ProducerTier, string> = {
 const TIER_COLOR: Record<ProducerTier, "default" | "warning" | "primary" | "info" | "success"> = {
   A: "warning", B: "primary", C: "info", D: "success", E: "default", None: "default"
 };
-const POLICY_TYPES: PolicyType[] = ["Auto","Home","Health","Life","Business","Travel","Other"];
 const TYPE_LABEL: Record<PolicyType, string> = {
   Auto: "Αυτοκίνητο", Home: "Κατοικία", Health: "Υγείας", Life: "Ζωής",
   Business: "Επιχείρησης", Travel: "Ταξιδιού", Other: "Άλλο"
@@ -133,12 +132,16 @@ export function CommissionRulesPage() {
   // Filters
   const [search, setSearch] = useState("");
   const [carrierFilter, setCarrierFilter] = useState("");
+  const [subCarrierFilter, setSubCarrierFilter] = useState<string[]>([]);
   const [tierFilter, setTierFilter]       = useState<ProducerTier | "">("");
   const [typeFilter, setTypeFilter]       = useState<PolicyType | "">("");
   const [useFilter,  setUseFilter]        = useState<VehicleUse  | "">("");
   const [coverFilter, setCoverFilter]     = useState("");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 25;
+
+  // Carrier-driven filter options — empty when no carrier picked.
+  const filterCatalogue = useCarrierCatalogue(carrierFilter, subCarrierFilter);
 
   const q = useQuery({
     queryKey: ["commission-rules"],
@@ -252,14 +255,49 @@ export function CommissionRulesPage() {
           <TextField size="small" placeholder="Συνεργάτης, εταιρία, κλάδος…"
             value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
           <TextField select size="small" label="Εταιρία" value={carrierFilter}
-            onChange={(e) => setCarrierFilter(e.target.value)} sx={{ minWidth: 200 }}>
+            onChange={(e) => { setCarrierFilter(e.target.value); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); }}
+            sx={{ minWidth: 220 }}>
             <MenuItem value="">Όλες</MenuItem>
-            {(companies.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+            {(companies.data ?? []).filter(c => !c.parentCompanyId).flatMap(c => {
+              const subs = (companies.data ?? []).filter(s => s.parentCompanyId === c.id);
+              const head = (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.name}{c.isBroker ? " · πρακτορείο" : ""}
+                </MenuItem>
+              );
+              return subs.length === 0 ? [head] : [head, ...subs.map(s => (
+                <MenuItem key={s.id} value={s.id} sx={{ pl: 4, fontSize: 14, color: "text.secondary" }}>
+                  ↳ {s.name}
+                </MenuItem>
+              ))];
+            })}
           </TextField>
+          {(() => {
+            const selected = (companies.data ?? []).find(c => c.id === carrierFilter);
+            if (!selected?.isBroker) return null;
+            const subs = (companies.data ?? []).filter(c => c.parentCompanyId === selected.id);
+            return (
+              <Autocomplete<CompanyLite, true>
+                multiple size="small" sx={{ minWidth: 260 }}
+                options={subs}
+                value={subs.filter(s => subCarrierFilter.includes(s.id))}
+                onChange={(_, value) => setSubCarrierFilter(value.map(v => v.id))}
+                getOptionLabel={(s) => s.name}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                renderInput={(params) => <TextField {...params} label="Υποασφαλιστικές" />}
+              />
+            );
+          })()}
           <TextField select size="small" label="Κλάδος" value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as PolicyType | "")} sx={{ minWidth: 160 }}>
+            onChange={(e) => setTypeFilter(e.target.value as PolicyType | "")} sx={{ minWidth: 200 }}
+            disabled={!carrierFilter}
+            helperText={!carrierFilter
+              ? "Επιλέξτε εταιρία"
+              : filterCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
             <MenuItem value="">Όλοι</MenuItem>
-            {POLICY_TYPES.map(p => <MenuItem key={p} value={p}>{TYPE_LABEL[p]}</MenuItem>)}
+            {filterCatalogue.branches.map(b => (
+              <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
+            ))}
           </TextField>
           <TextField select size="small" label="Κατηγορία" value={tierFilter}
             onChange={(e) => setTierFilter(e.target.value as ProducerTier | "")} sx={{ minWidth: 160 }}>
@@ -267,15 +305,21 @@ export function CommissionRulesPage() {
             {(["A","B","C","D","E"] as const).map(t => <MenuItem key={t} value={t}>{TIER_LABEL[t]}</MenuItem>)}
           </TextField>
           <TextField select size="small" label="Χρήση" value={useFilter}
-            onChange={(e) => setUseFilter(e.target.value as VehicleUse | "")} sx={{ minWidth: 200 }}>
+            onChange={(e) => setUseFilter(e.target.value as VehicleUse | "")} sx={{ minWidth: 220 }}
+            disabled={!carrierFilter}
+            helperText={!carrierFilter
+              ? "Επιλέξτε εταιρία"
+              : filterCatalogue.uses.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
             <MenuItem value="">Όλες</MenuItem>
-            {USE_TYPES.map(u => <MenuItem key={u} value={u}>{USE_LABEL[u]}</MenuItem>)}
+            {filterCatalogue.uses.map(u => (
+              <MenuItem key={u.key} value={u.value}>{u.label}</MenuItem>
+            ))}
           </TextField>
           <TextField size="small" label="Κάλυψη" value={coverFilter}
             onChange={(e) => setCoverFilter(e.target.value.toUpperCase())}
             sx={{ minWidth: 150 }} placeholder="MTPL" />
           <Button size="small" onClick={() => {
-            setSearch(""); setCarrierFilter(""); setTierFilter(""); setTypeFilter(""); setUseFilter(""); setCoverFilter("");
+            setSearch(""); setCarrierFilter(""); setSubCarrierFilter([]); setTierFilter(""); setTypeFilter(""); setUseFilter(""); setCoverFilter("");
           }}>Καθαρισμός</Button>
           {seededZeroCount > 0 && (
             <Chip size="small" variant="outlined" label={`${seededZeroCount} μηδενικοί κανόνες κρυφοί`} />
@@ -444,28 +488,22 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
   // Grand Cover: ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ, ΖΩΗΣ-ΥΓΕΙΑΣ, …). When no carrier is
   // selected, fall back to the seven PolicyType enums so an agency-wide rule
   // can still be made.
+  // Strict: only show real παραμετρικά. Never fall back to the PolicyType
+  // enum — if the carrier has no Branch items, the dropdown is empty and
+  // the helper text tells the user to add them first.
   const branchOptions = useMemo<BranchOption[]>(() => {
-    if (form.insuranceCompanyId) {
-      const items: BranchOption[] = mergedParams
-        .filter(p => p.kind === "Branch")
-        .map(p => ({
-          key: `param:${p.id}`,
-          code: p.code,
-          label: p.policyType
-            ? `${p.name} · ${TYPE_LABEL[p.policyType]}`
-            : p.name,
-          policyType: p.policyType ?? "Other",
-          source: "param" as const,
-        }));
-      if (items.length > 0) return items;
-    }
-    return POLICY_TYPES.map(pt => ({
-      key: `enum:${pt}`,
-      code: pt,
-      label: TYPE_LABEL[pt],
-      policyType: pt,
-      source: "enum" as const,
-    }));
+    if (!form.insuranceCompanyId) return [];
+    return mergedParams
+      .filter(p => p.kind === "Branch")
+      .map(p => ({
+        key: `param:${p.id}`,
+        code: p.code,
+        label: p.policyType
+          ? `${p.name} · ${TYPE_LABEL[p.policyType]}`
+          : p.name,
+        policyType: p.policyType ?? "Other",
+        source: "param" as const,
+      }));
   }, [mergedParams, form.insuranceCompanyId]);
 
   // PolicyType set covered by the user's branch selection — used downstream
@@ -481,36 +519,24 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
     [form.branches]
   );
 
+  // Strict: only show real παραμετρικά. No enum fallback.
   const useOptions = useMemo<UseOption[]>(() => {
-    if (form.insuranceCompanyId) {
-      const items: UseOption[] = mergedParams
-        .filter(p => p.kind === "Use" && p.vehicleUseCategory && p.vehicleUseCategory !== "None")
-        // If branches are selected, narrow uses to those that hang off one of
-        // the selected branch codes via parentCode. Items without parentCode
-        // (top-level uses) pass through.
-        .filter(p =>
-          selectedBranchCodes.length === 0
-          || !p.parentCode
-          || selectedBranchCodes.includes(p.parentCode)
-        )
-        .map(p => ({
-          key: `param:${p.id}`,
-          code: p.code,
-          label: `${p.name}${p.vehicleUseCategory && p.vehicleUseCategory !== "None" ? ` · ${p.vehicleUseCategory}` : ""}`,
-          vehicleUseCategory: p.vehicleUseCategory ?? "None",
-          policyType: p.policyType,
-          source: "param" as const,
-        }));
-      if (items.length > 0) return items;
-    }
-    return USE_TYPES.map(u => ({
-      key: `enum:${u}`,
-      code: u,
-      label: USE_LABEL[u],
-      vehicleUseCategory: u,
-      policyType: "Auto",
-      source: "enum" as const,
-    }));
+    if (!form.insuranceCompanyId) return [];
+    return mergedParams
+      .filter(p => p.kind === "Use" && p.vehicleUseCategory && p.vehicleUseCategory !== "None")
+      .filter(p =>
+        selectedBranchCodes.length === 0
+        || !p.parentCode
+        || selectedBranchCodes.includes(p.parentCode)
+      )
+      .map(p => ({
+        key: `param:${p.id}`,
+        code: p.code,
+        label: `${p.name}${p.vehicleUseCategory && p.vehicleUseCategory !== "None" ? ` · ${p.vehicleUseCategory}` : ""}`,
+        vehicleUseCategory: p.vehicleUseCategory ?? "None",
+        policyType: p.policyType,
+        source: "param" as const,
+      }));
   }, [mergedParams, form.insuranceCompanyId, selectedBranchCodes]);
 
   const codeOptions = useMemo(() => {
@@ -751,9 +777,11 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
             }
             renderInput={(params) => (
               <TextField {...params} label="Κλάδοι"
-                helperText={form.insuranceCompanyId && branchOptions.some(o => o.source === "param")
-                  ? "Εμφανίζονται οι κλάδοι του πρακτορείου από τα παραμετρικά αρχεία της εταιρίας."
-                  : "Κενό σημαίνει όλοι οι κλάδοι. Επιλέξτε πολλούς για ίδια προμήθεια."} />
+                helperText={!form.insuranceCompanyId
+                  ? "Επιλέξτε εταιρία πρώτα — οι κλάδοι έρχονται από τα παραμετρικά της."
+                  : branchOptions.length === 0
+                    ? "Δεν έχουν περαστεί παραμετρικά για αυτή την εταιρία."
+                    : "Κλάδοι από τα παραμετρικά. Επιλέξτε πολλούς για ίδια προμήθεια."} />
             )}
           />
 
@@ -770,9 +798,11 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
             }
             renderInput={(params) => (
               <TextField {...params} label="Χρήσεις οχήματος"
-                helperText={form.insuranceCompanyId && useOptions.some(o => o.source === "param")
-                  ? "Εμφανίζονται οι χρήσεις της εταιρίας. Φιλτράρονται από τους επιλεγμένους κλάδους."
-                  : "Κενό σημαίνει όλες οι χρήσεις. Ενεργό όταν ο κλάδος περιέχει Αυτοκίνητο."} />
+                helperText={!form.insuranceCompanyId
+                  ? "Επιλέξτε εταιρία πρώτα."
+                  : useOptions.length === 0
+                    ? "Δεν έχουν περαστεί χρήσεις για αυτή την εταιρία."
+                    : "Χρήσεις από τα παραμετρικά. Φιλτράρονται από τους επιλεγμένους κλάδους."} />
             )}
           />
 

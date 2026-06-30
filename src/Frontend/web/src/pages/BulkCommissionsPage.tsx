@@ -11,15 +11,6 @@ import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 
 interface PolicyTypeOpt { value: number; label: string; key: string; }
-const POLICY_TYPES: PolicyTypeOpt[] = [
-  { key: "enum:1",  value: 1,  label: "Αυτοκίνητο" },
-  { key: "enum:2",  value: 2,  label: "Κατοικία" },
-  { key: "enum:3",  value: 3,  label: "Υγείας" },
-  { key: "enum:4",  value: 4,  label: "Ζωής" },
-  { key: "enum:5",  value: 5,  label: "Επιχείρησης" },
-  { key: "enum:6",  value: 6,  label: "Ταξιδιού" },
-  { key: "enum:99", value: 99, label: "Άλλο" }
-];
 const POLICY_TYPE_TO_NUM: Record<string, number> = {
   Auto: 1, Home: 2, Health: 3, Life: 4, Business: 5, Travel: 6, Other: 99,
 };
@@ -75,15 +66,16 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
     enabled: !!filter.insuranceCompanyId
   });
 
+  // Strict: only show real παραμετρικά. No enum fallback.
   const policyTypeOptions = useMemo<PolicyTypeOpt[]>(() => {
-    const branchItems = (carrierParams.data ?? [])
-      .filter(p => p.kind === "Branch" && p.policyType && POLICY_TYPE_TO_NUM[p.policyType]);
-    if (!filter.insuranceCompanyId || branchItems.length === 0) return POLICY_TYPES;
-    return branchItems.map(p => ({
-      key: `param:${p.id}`,
-      value: POLICY_TYPE_TO_NUM[p.policyType!],
-      label: p.name,
-    }));
+    if (!filter.insuranceCompanyId) return [];
+    return (carrierParams.data ?? [])
+      .filter(p => p.kind === "Branch" && p.policyType && POLICY_TYPE_TO_NUM[p.policyType])
+      .map(p => ({
+        key: `param:${p.id}`,
+        value: POLICY_TYPE_TO_NUM[p.policyType!],
+        label: p.name,
+      }));
   }, [carrierParams.data, filter.insuranceCompanyId]);
 
   const buildFilter = () => ({
@@ -169,11 +161,12 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
               <MenuItem value="">Όλοι</MenuItem>
               {(producers.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.code} · {p.name}</MenuItem>)}
             </TextField>
-            <TextField select label="Τύπος συμβολαίου / Κλάδος" value={filter.policyType}
+            <TextField select label="Κλάδος" value={filter.policyType}
               onChange={(e) => setFilter({ ...filter, policyType: e.target.value })}
-              helperText={filter.insuranceCompanyId && policyTypeOptions.some(o => o.key.startsWith("param:"))
-                ? "Κλάδοι από το παραμετρικό αρχείο της εταιρίας."
-                : ""}>
+              disabled={!filter.insuranceCompanyId}
+              helperText={!filter.insuranceCompanyId
+                ? "Επιλέξτε εταιρία πρώτα"
+                : policyTypeOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : "Από τα παραμετρικά"}>
               <MenuItem value="">Όλα</MenuItem>
               {policyTypeOptions.map(t => <MenuItem key={t.key} value={t.value}>{t.label}</MenuItem>)}
             </TextField>
