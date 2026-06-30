@@ -223,60 +223,84 @@ public static class DataSeeder
     }
 
     /// <summary>
-    /// Cleanup pass: soft-deletes any *global* InsuranceCompany row (TenantId
-    /// IS NULL) that isn't the Grand Cover broker itself or one of its
-    /// subcompanies. Idempotent — already-deleted rows are skipped. Tenant-
-    /// scoped rows are intentionally untouched.
+    /// Cleanup pass that enforces the "only Grand Cover exists" invariant
+    /// across the whole DB. Three operations, every boot, idempotent:
     ///
-    /// Rationale: the agency-facing app must never show carriers without
-    /// real παραμετρικά (branches/uses/coverages/packages). The old demo
-    /// carriers (Allianz/ERGO/NN/...) had no parametrics and made the user-
-    /// facing dropdowns lie. They are removed here once-and-for-all; future
-    /// carriers join the system only via the platform-admin bulk importer.
+    /// 1. Soft-delete every InsuranceCompany row (GLOBAL **and** TENANT-
+    ///    scoped) that isn't the Grand Cover broker itself or one of its
+    ///    seeded subcompanies. Tenants don't get to keep their own copies
+    ///    of Allianz/ERGO/etc anymore.
+    /// 2. Soft-delete any *generic* "Kalypsis defaults" / "Bridge defaults"
+    ///    CompanyParameterItem rows attached to the Grand Cover broker or
+    ///    its subs. These were created by an earlier call to the
+    ///    "Συμπλήρωση defaults" button and polluted the real IW catalogue
+    ///    with seven synthetic branches ("Αυτοκίνητο", "Κατοικία", …).
+    /// 3. Log what was removed.
     /// </summary>
     private static async Task CleanupNonGrandCoverGlobalsAsync(AppDbContext db, ILogger logger, CancellationToken ct)
     {
-        // Identify the Grand Cover broker by IsBroker=true at the global
-        // scope; fall back to Code = "IW" if the IsBroker flag hasn't been
-        // applied yet (cold boot before GrandCoverSeeder ran).
         var broker = await db.InsuranceCompanies.IgnoreQueryFilters()
             .Where(c => c.TenantId == null && c.DeletedAt == null && c.IsBroker)
             .FirstOrDefaultAsync(ct);
         if (broker is null)
         {
-            // Nothing to anchor cleanup against. Avoid wiping carriers when
-            // GrandCoverSeeder failed earlier in this boot — better to keep
-            // demo carriers than to leave the operator with an empty list.
             logger.LogWarning("CleanupNonGrandCoverGlobalsAsync: no broker found, skipping cleanup.");
             return;
         }
 
+        // --- (1) Allowed carrier IDs = broker + its subs, regardless of tenant scope.
         var allowedIds = new HashSet<Guid> { broker.Id };
         var subIds = await db.InsuranceCompanies.IgnoreQueryFilters()
-            .Where(c => c.TenantId == null && c.DeletedAt == null && c.ParentCompanyId == broker.Id)
+            .Where(c => c.DeletedAt == null && c.ParentCompanyId == broker.Id)
             .Select(c => c.Id)
             .ToListAsync(ct);
         foreach (var id in subIds) allowedIds.Add(id);
 
-        var toDelete = await db.InsuranceCompanies.IgnoreQueryFilters()
-            .Where(c => c.TenantId == null && c.DeletedAt == null && !allowedIds.Contains(c.Id))
+        // Wipe EVERY non-Grand-Cover InsuranceCompany row across the entire
+        // database (global or tenant-scoped). The platform is single-broker
+        // for now; tenants who need other carriers must wait for the
+        // superadmin to add them globally + import their παραμετρικά.
+        var carriersToDelete = await db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(c => c.DeletedAt == null && !allowedIds.Contains(c.Id))
             .ToListAsync(ct);
 
-        if (toDelete.Count == 0)
+        var now = DateTime.UtcNow;
+        if (carriersToDelete.Count > 0)
         {
-            logger.LogDebug("CleanupNonGrandCoverGlobalsAsync: no non-Grand-Cover globals to remove.");
-            return;
+            foreach (var c in carriersToDelete)
+            {
+                c.DeletedAt = now;
+                c.IsActive = false;
+            }
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("CleanupNonGrandCoverGlobalsAsync: soft-deleted {Count} non-Grand-Cover carriers ({Names}).",
+                carriersToDelete.Count,
+                string.Join(", ", carriersToDelete.Take(20).Select(c => c.Name)));
         }
 
-        var now = DateTime.UtcNow;
-        foreach (var c in toDelete)
+        // --- (2) Purge "Kalypsis defaults" parameter rows. These come from
+        // the `CompanyParameterDefaults.SeedMissingAsync` button and contain
+        // the 7 generic branches ("Αυτοκίνητο" / "Κατοικία" / …) plus their
+        // coverages/packages — synthetic data that pollutes the real IW
+        // catalogue. We delete them EVERYWHERE (not only Grand Cover) since
+        // the other carriers are gone now. Manual additions (Source =
+        // "AgencyAdmin" / "Manual" / "BulkImport") are preserved.
+        var pollutedParams = await db.CompanyParameterItems.IgnoreQueryFilters()
+            .Where(p => p.DeletedAt == null
+                        && (p.Source == "Kalypsis defaults" || p.Source!.StartsWith("Kalypsis defaults")))
+            .ToListAsync(ct);
+
+        if (pollutedParams.Count > 0)
         {
-            c.DeletedAt = now;
-            c.IsActive = false;
+            foreach (var p in pollutedParams)
+            {
+                p.DeletedAt = now;
+                p.IsActive = false;
+            }
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("CleanupNonGrandCoverGlobalsAsync: soft-deleted {Count} «Kalypsis defaults» παραμετρικά rows.",
+                pollutedParams.Count);
         }
-        await db.SaveChangesAsync(ct);
-        logger.LogInformation("CleanupNonGrandCoverGlobalsAsync: soft-deleted {Count} non-Grand-Cover global carriers ({Names}).",
-            toDelete.Count, string.Join(", ", toDelete.Select(c => c.Name)));
     }
 
     /// <summary>
