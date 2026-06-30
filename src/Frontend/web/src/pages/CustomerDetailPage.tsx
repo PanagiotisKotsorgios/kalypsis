@@ -821,8 +821,136 @@ function FamilyNeedsTab({ customerId }: { customerId: string }) {
       <DriverLicenseCard customerId={customerId} />
       <CustomerNeedsCard customerId={customerId} needs={q.data.needs} />
       <FamilyMembersCard customerId={customerId} members={q.data.family} />
+      <ConsentsCard customerId={customerId} />
+      <CommunicationsCard customerId={customerId} />
       <OpportunitiesCard opportunities={q.data.opportunities} />
     </Stack>
+  );
+}
+
+function ConsentsCard({ customerId }: { customerId: string }) {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["consents", customerId],
+    queryFn: async () => (await api.get<any[]>(`/customers/${customerId}/consents`)).data
+  });
+  const [form, setForm] = useState({ kind: "Marketing", channel: "Email", source: "ManualAgency" });
+  const grant = useMutation({
+    mutationFn: async () => (await api.post(`/customers/${customerId}/consents`, form)).data,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["consents", customerId] })
+  });
+  const revoke = useMutation({
+    mutationFn: async (kind: string) => api.post(`/customers/${customerId}/consents/revoke`, { kind }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["consents", customerId] })
+  });
+  return (
+    <Card variant="outlined" sx={{ p: 2.5 }}>
+      <Stack mb={2}>
+        <Typography variant="h6">Συγκαταθέσεις (GDPR)</Typography>
+        <Typography variant="body2" color="text.secondary">
+          Καταγραφή ρητής συγκατάθεσης για επικοινωνία / προώθηση / άλλους σκοπούς.
+        </Typography>
+      </Stack>
+      {q.isLoading ? <CircularProgress size={20} /> : (q.data ?? []).length === 0 ? (
+        <Typography variant="body2" color="text.secondary">Δεν έχουν καταγραφεί συγκαταθέσεις.</Typography>
+      ) : (
+        <Stack spacing={1.5}>
+          {(q.data ?? []).map((c: any) => (
+            <Stack key={c.id} direction="row" alignItems="center" spacing={1.5}
+              sx={{ p: 1.25, border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
+              <Box sx={{ flex: 1 }}>
+                <Typography fontWeight={700}>{c.kind} · {c.channel}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Από {c.source} · {c.grantedAt ? `δοθείσα ${c.grantedAt}` : "—"}
+                  {c.revokedAt && ` · ανακλήθηκε ${c.revokedAt}`}
+                </Typography>
+              </Box>
+              {!c.revokedAt && (
+                <Button size="small" color="error" onClick={() => revoke.mutate(c.kind)}>Ανάκληση</Button>
+              )}
+            </Stack>
+          ))}
+        </Stack>
+      )}
+      <Box sx={{ mt: 2, p: 1.5, bgcolor: "background.default", borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
+        <Typography variant="caption" color="text.secondary">Νέα συγκατάθεση</Typography>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} mt={1}>
+          <TextField select size="small" label="Είδος" value={form.kind}
+            onChange={e => setForm({ ...form, kind: e.target.value })} sx={{ minWidth: 160 }}>
+            {["Marketing", "Communication", "DataSharing", "Other"].map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label="Κανάλι" value={form.channel}
+            onChange={e => setForm({ ...form, channel: e.target.value })} sx={{ minWidth: 140 }}>
+            {["Email", "Sms", "Phone", "Postal", "All"].map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+          </TextField>
+          <Button variant="contained" onClick={() => grant.mutate()} disabled={grant.isPending}>
+            {grant.isPending ? <CircularProgress size={18} /> : "Καταγραφή συγκατάθεσης"}
+          </Button>
+        </Stack>
+      </Box>
+    </Card>
+  );
+}
+
+function CommunicationsCard({ customerId }: { customerId: string }) {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["communications", customerId],
+    queryFn: async () => (await api.get<any[]>(`/customers/${customerId}/communications`)).data
+  });
+  const [form, setForm] = useState({ kind: "Call", subject: "", summary: "" });
+  const log = useMutation({
+    mutationFn: async () => (await api.post(`/customers/${customerId}/communications`, form)).data,
+    onSuccess: () => {
+      setForm({ kind: "Call", subject: "", summary: "" });
+      void qc.invalidateQueries({ queryKey: ["communications", customerId] });
+    }
+  });
+  return (
+    <Card variant="outlined" sx={{ p: 2.5 }}>
+      <Stack mb={2}>
+        <Typography variant="h6">Επικοινωνίες</Typography>
+        <Typography variant="body2" color="text.secondary">
+          Ιστορικό κλήσεων / email / SMS / επιστολών με τον πελάτη.
+        </Typography>
+      </Stack>
+      {q.isLoading ? <CircularProgress size={20} /> : (q.data ?? []).length === 0 ? (
+        <Typography variant="body2" color="text.secondary">Δεν έχουν καταγραφεί επικοινωνίες.</Typography>
+      ) : (
+        <Stack spacing={1.5}>
+          {(q.data ?? []).slice(0, 20).map((c: any) => (
+            <Box key={c.id} sx={{ p: 1.25, border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
+              <Stack direction="row" alignItems="baseline" justifyContent="space-between">
+                <Typography fontWeight={700}>{c.kind} · {c.subject ?? "—"}</Typography>
+                <Typography variant="caption" color="text.secondary">{c.occurredAt ?? c.createdAt}</Typography>
+              </Stack>
+              {c.summary && <Typography variant="body2" sx={{ mt: 0.5, color: "text.secondary" }}>{c.summary}</Typography>}
+            </Box>
+          ))}
+        </Stack>
+      )}
+      <Box sx={{ mt: 2, p: 1.5, bgcolor: "background.default", borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
+        <Typography variant="caption" color="text.secondary">Καταγραφή επικοινωνίας</Typography>
+        <Stack spacing={1} mt={1}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <TextField select size="small" label="Είδος" value={form.kind}
+              onChange={e => setForm({ ...form, kind: e.target.value })} sx={{ minWidth: 140 }}>
+              {["Call", "Email", "Sms", "Postal", "Meeting", "Note"].map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
+            </TextField>
+            <TextField size="small" label="Θέμα" value={form.subject}
+              onChange={e => setForm({ ...form, subject: e.target.value })} sx={{ flex: 1 }} />
+          </Stack>
+          <TextField size="small" label="Σύνοψη" value={form.summary} multiline rows={2}
+            onChange={e => setForm({ ...form, summary: e.target.value })} fullWidth />
+          <Box>
+            <Button variant="contained" size="small" onClick={() => log.mutate()}
+              disabled={log.isPending || !form.subject.trim()}>
+              {log.isPending ? <CircularProgress size={18} /> : "Καταγραφή"}
+            </Button>
+          </Box>
+        </Stack>
+      </Box>
+    </Card>
   );
 }
 

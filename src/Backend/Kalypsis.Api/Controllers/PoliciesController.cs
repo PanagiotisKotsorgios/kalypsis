@@ -368,7 +368,8 @@ public class InsuranceCompaniesController : ControllerBase
 
     public record PlatformCarrierBody(
         string Name, string Code, string? Country, string? Website, bool IsActive,
-        string? Notes, bool IsBroker = false, Guid? ParentCompanyId = null);
+        string? Notes, bool IsBroker = false, Guid? ParentCompanyId = null,
+        IReadOnlyList<string>? ExcludedBranchCodes = null);
 
     /// <summary>Lists every global carrier (TenantId IS NULL) for the platform admin UI.</summary>
     [HttpGet("/api/platform/insurance-companies")]
@@ -395,6 +396,7 @@ public class InsuranceCompaniesController : ControllerBase
             isBroker = c.IsBroker,
             parentCompanyId = c.ParentCompanyId,
             notes = c.Notes,
+            excludedBranchCodesJson = c.ExcludedBranchCodesJson,
             parameterItemCount = paramCounts.GetValueOrDefault(c.Id, 0)
         }).ToList());
     }
@@ -421,6 +423,9 @@ public class InsuranceCompaniesController : ControllerBase
             Notes = Clean(body.Notes),
             IsBroker = body.IsBroker,
             ParentCompanyId = body.ParentCompanyId,
+            ExcludedBranchCodesJson = body.ExcludedBranchCodes is { Count: > 0 }
+                ? System.Text.Json.JsonSerializer.Serialize(body.ExcludedBranchCodes)
+                : null,
             CreatedAt = _clock.UtcNow
         };
         _db.InsuranceCompanies.Add(c);
@@ -450,6 +455,9 @@ public class InsuranceCompaniesController : ControllerBase
         c.Notes = Clean(body.Notes);
         c.IsBroker = body.IsBroker;
         c.ParentCompanyId = body.ParentCompanyId;
+        c.ExcludedBranchCodesJson = body.ExcludedBranchCodes is { Count: > 0 }
+            ? System.Text.Json.JsonSerializer.Serialize(body.ExcludedBranchCodes)
+            : null;
         c.UpdatedAt = _clock.UtcNow;
         await _db.SaveChangesAsync(ct);
         return Ok(new { id = c.Id, name = c.Name, code = c.Code });

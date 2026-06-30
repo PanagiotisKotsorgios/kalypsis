@@ -351,6 +351,9 @@ public static class DataSeeder
         await EnsureColumnAsync(db, logger, dbName,
             table: "insurance_companies", column: "ParentCompanyId",
             addSql: "ALTER TABLE `insurance_companies` ADD COLUMN `ParentCompanyId` char(36) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "insurance_companies", column: "ExcludedBranchCodesJson",
+            addSql: "ALTER TABLE `insurance_companies` ADD COLUMN `ExcludedBranchCodesJson` longtext NULL", ct);
         await EnsureIndexAsync(db, logger, dbName,
             table: "insurance_companies", indexName: "IX_insurance_companies_ParentCompanyId",
             addSql: "CREATE INDEX `IX_insurance_companies_ParentCompanyId` ON `insurance_companies` (`ParentCompanyId`)", ct);

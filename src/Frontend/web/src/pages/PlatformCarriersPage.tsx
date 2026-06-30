@@ -37,11 +37,13 @@ interface FormBody {
   isBroker: boolean;
   parentCompanyId: string;
   notes: string;
+  excludedBranchCodes: string; // comma-separated for the form
 }
 
 const EMPTY_FORM: FormBody = {
   name: "", code: "", country: "GR", website: "",
-  isActive: true, isBroker: false, parentCompanyId: "", notes: ""
+  isActive: true, isBroker: false, parentCompanyId: "", notes: "",
+  excludedBranchCodes: ""
 };
 
 export function PlatformCarriersPage() {
@@ -68,6 +70,9 @@ export function PlatformCarriersPage() {
         isBroker: body.isBroker,
         parentCompanyId: body.parentCompanyId || null,
         notes: body.notes.trim() || null,
+        excludedBranchCodes: body.excludedBranchCodes
+          ? body.excludedBranchCodes.split(",").map(s => s.trim()).filter(Boolean)
+          : null,
       };
       if (body.id) {
         return (await api.put(`/platform/insurance-companies/${body.id}`, payload)).data;
@@ -220,13 +225,22 @@ export function PlatformCarriersPage() {
                         <UploadFileIcon fontSize="small" />
                       </IconButton>
                       <IconButton size="small" title="Επεξεργασία"
-                        onClick={() => setEditing({
-                          id: r.id, name: r.name, code: r.code,
-                          country: r.country ?? "", website: r.website ?? "",
-                          isActive: r.isActive, isBroker: r.isBroker,
-                          parentCompanyId: r.parentCompanyId ?? "",
-                          notes: r.notes ?? ""
-                        })}>
+                        onClick={() => {
+                          let exc = "";
+                          try {
+                            const arr = (r as any).excludedBranchCodesJson
+                              ? JSON.parse((r as any).excludedBranchCodesJson) : null;
+                            if (Array.isArray(arr)) exc = arr.join(", ");
+                          } catch { /* ignore malformed json */ }
+                          setEditing({
+                            id: r.id, name: r.name, code: r.code,
+                            country: r.country ?? "", website: r.website ?? "",
+                            isActive: r.isActive, isBroker: r.isBroker,
+                            parentCompanyId: r.parentCompanyId ?? "",
+                            notes: r.notes ?? "",
+                            excludedBranchCodes: exc
+                          });
+                        }}>
                         <EditIcon fontSize="small" />
                       </IconButton>
                       <IconButton size="small" color="error" title="Διαγραφή"
@@ -282,6 +296,13 @@ export function PlatformCarriersPage() {
                 {(carriers.data ?? []).filter(c => c.isBroker && c.id !== editing.id).map(b =>
                   <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>)}
               </TextField>
+              <TextField label="Εξαιρούμενοι κλάδοι"
+                value={editing.excludedBranchCodes}
+                onChange={e => setEditing({ ...editing, excludedBranchCodes: e.target.value })}
+                disabled={editing.isBroker || !editing.parentCompanyId}
+                placeholder="π.χ. IW15, IW07, IW04"
+                helperText="Κωδικοί κλάδων του πρακτορείου που αυτή η υποασφαλιστική ΔΕΝ πουλάει — διαχωρισμός με κόμμα. Άδειο = πουλάει όλους τους κλάδους."
+                fullWidth />
               <TextField label="Σημειώσεις" value={editing.notes} multiline rows={2} fullWidth
                 onChange={e => setEditing({ ...editing, notes: e.target.value })} />
             </Stack>

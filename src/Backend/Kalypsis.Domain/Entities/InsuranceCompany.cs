@@ -41,5 +41,13 @@ public class InsuranceCompany : BaseEntity
     /// the row as a direct carrier.</summary>
     public bool IsBroker { get; set; }
 
+    /// <summary>
+    /// JSON array of branch codes the sub-carrier explicitly does NOT sell,
+    /// e.g. ["IW15","IW07"] for «ΣΚΑΦΗ» and «ΣΚΑΦΗ». Filters narrow the
+    /// broker's branch dropdown when this sub is picked. Null/empty = sells
+    /// every branch in the broker's catalogue.
+    /// </summary>
+    public string? ExcludedBranchCodesJson { get; set; }
+
     public ICollection<Policy> Policies { get; set; } = new List<Policy>();
 }

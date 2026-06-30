@@ -315,13 +315,15 @@ public class CompanyParametersController : ControllerBase
 
         var carrier = await _db.InsuranceCompanies.IgnoreQueryFilters()
             .Where(c => c.Id == insuranceCompanyId.Value && c.DeletedAt == null)
-            .Select(c => new { c.Id, c.Code, c.ParentCompanyId, c.IsBroker })
+            .Select(c => new { c.Id, c.Code, c.ParentCompanyId, c.IsBroker, c.ExcludedBranchCodesJson })
             .FirstOrDefaultAsync(ct)
             ?? throw AppException.NotFound("Ασφαλιστική εταιρεία");
 
         // Cascade rules:
         //   - SUB selected  → include the sub's own παραμετρικά (its packages)
-        //                     AND the broker's κλάδοι/χρήσεις/καλύψεις.
+        //                     AND the broker's κλάδοι/χρήσεις/καλύψεις, MINUS
+        //                     any branch codes the sub explicitly doesn't sell
+        //                     (per its ExcludedBranchCodesJson list).
         //   - BROKER selected → include the broker's catalogue AND every sub's
         //                     packages so the dropdown shows the whole
         //                     hierarchy in one place.
@@ -335,7 +337,13 @@ public class CompanyParametersController : ControllerBase
             if (!string.IsNullOrEmpty(parentCode))
             {
                 var subCodes = new[] { carrier.Code, parentCode };
-                return q.Where(x => subCodes.Contains(x.InsuranceCompany.Code));
+                var filtered = q.Where(x => subCodes.Contains(x.InsuranceCompany.Code));
+                // Honour the sub's exclusion list — strip branches it doesn't sell.
+                var excluded = ParseExclusions(carrier.ExcludedBranchCodesJson);
+                if (excluded.Count > 0)
+                    filtered = filtered.Where(x =>
+                        !(x.Kind == CompanyParameterItemKind.Branch && excluded.Contains(x.Code)));
+                return filtered;
             }
         }
         else if (carrier.IsBroker)
@@ -349,6 +357,26 @@ public class CompanyParametersController : ControllerBase
         }
 
         return q.Where(x => x.InsuranceCompany.Code == carrier.Code);
+    }
+
+    private static HashSet<string> ParseExclusions(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return new(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Array)
+                return new(StringComparer.OrdinalIgnoreCase);
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var el in doc.RootElement.EnumerateArray())
+                if (el.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    var s = el.GetString();
+                    if (!string.IsNullOrWhiteSpace(s)) set.Add(s.Trim().ToUpperInvariant());
+                }
+            return set;
+        }
+        catch { return new(StringComparer.OrdinalIgnoreCase); }
     }
 
     private static IQueryable<CompanyParameterItem> ApplyCommonFilters(
