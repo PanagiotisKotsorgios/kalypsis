@@ -70,6 +70,26 @@ interface CompanyParameterItem {
   parentCode: string | null;
 }
 
+/** A branch option displayed in the Κλάδοι dropdown. When a carrier is
+ *  selected, options come from its CompanyParameterItem catalogue and show
+ *  the carrier-specific branch NAME (e.g. ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ). When no
+ *  carrier is selected, options fall back to the seven PolicyType enums. */
+type BranchOption = {
+  key: string;              // unique selection key
+  code: string;             // carrier-specific code OR enum value
+  label: string;            // display name
+  policyType: PolicyType;   // derived enum for rule storage
+  source: "param" | "enum";
+};
+type UseOption = {
+  key: string;
+  code: string;
+  label: string;
+  vehicleUseCategory: VehicleUse;
+  policyType: PolicyType | null;
+  source: "param" | "enum";
+};
+
 const TIER_LABEL: Record<ProducerTier, string> = {
   A: "Κατ. Α", B: "Κατ. Β", C: "Κατ. Γ", D: "Κατ. Δ", E: "Κατ. Ε", None: "—"
 };
@@ -378,8 +398,8 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
     scope: "tier" as "tier" | "producer" | "all",
     insuranceCompanyId: "",
     subCompanyIds: [] as string[],   // for broker cascade
-    policyTypes: [] as PolicyType[],
-    vehicleUseCategories: [] as VehicleUse[],
+    branches: [] as BranchOption[],
+    uses: [] as UseOption[],
     coverCodes: [] as string[],
     producerId: "",
     producerTier: "None" as ProducerTier,
@@ -419,31 +439,95 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
     return [...broker, ...subs];
   }, [parameters.data, subParametersQueries.map(q => q.data).join(",")]);
 
-  // Dynamic-only: when a company IS selected, dropdowns show only what's been
-  // parameterised for that carrier. Empty list = empty dropdown (the superadmin
-  // hasn't entered the carrier's catalogue yet). When no company is selected,
-  // fall back to the policy-type enum so an agency-wide rule can still be made.
-  const branchOptions = useMemo(() => {
-    if (!form.insuranceCompanyId) return POLICY_TYPES;
-    return mergedParams
-      .filter(p => p.kind === "Branch" && p.policyType)
-      .map(p => p.policyType!)
-      .filter((p, i, arr) => arr.indexOf(p) === i);
+  // Dynamic-only: when a company IS selected, dropdowns show the actual
+  // carrier-specific branch NAMES from CompanyParameterItem rows (e.g. for
+  // Grand Cover: ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ, ΖΩΗΣ-ΥΓΕΙΑΣ, …). When no carrier is
+  // selected, fall back to the seven PolicyType enums so an agency-wide rule
+  // can still be made.
+  const branchOptions = useMemo<BranchOption[]>(() => {
+    if (form.insuranceCompanyId) {
+      const items: BranchOption[] = mergedParams
+        .filter(p => p.kind === "Branch")
+        .map(p => ({
+          key: `param:${p.id}`,
+          code: p.code,
+          label: p.policyType
+            ? `${p.name} · ${TYPE_LABEL[p.policyType]}`
+            : p.name,
+          policyType: p.policyType ?? "Other",
+          source: "param" as const,
+        }));
+      if (items.length > 0) return items;
+    }
+    return POLICY_TYPES.map(pt => ({
+      key: `enum:${pt}`,
+      code: pt,
+      label: TYPE_LABEL[pt],
+      policyType: pt,
+      source: "enum" as const,
+    }));
   }, [mergedParams, form.insuranceCompanyId]);
 
-  const useOptions = useMemo(() => {
-    if (!form.insuranceCompanyId) return USE_TYPES;
-    return mergedParams
-      .filter(p => p.kind === "Use" && p.vehicleUseCategory && p.vehicleUseCategory !== "None")
-      .map(p => p.vehicleUseCategory!)
-      .filter((p, i, arr) => arr.indexOf(p) === i);
-  }, [mergedParams, form.insuranceCompanyId]);
+  // PolicyType set covered by the user's branch selection — used downstream
+  // for coverages/uses filtering and for the saved rule's enum field.
+  const selectedPolicyTypes = useMemo<PolicyType[]>(() => {
+    const set = new Set<PolicyType>();
+    for (const b of form.branches) set.add(b.policyType);
+    return Array.from(set);
+  }, [form.branches]);
+
+  const selectedBranchCodes = useMemo<string[]>(
+    () => form.branches.filter(b => b.source === "param").map(b => b.code),
+    [form.branches]
+  );
+
+  const useOptions = useMemo<UseOption[]>(() => {
+    if (form.insuranceCompanyId) {
+      const items: UseOption[] = mergedParams
+        .filter(p => p.kind === "Use" && p.vehicleUseCategory && p.vehicleUseCategory !== "None")
+        // If branches are selected, narrow uses to those that hang off one of
+        // the selected branch codes via parentCode. Items without parentCode
+        // (top-level uses) pass through.
+        .filter(p =>
+          selectedBranchCodes.length === 0
+          || !p.parentCode
+          || selectedBranchCodes.includes(p.parentCode)
+        )
+        .map(p => ({
+          key: `param:${p.id}`,
+          code: p.code,
+          label: `${p.name}${p.vehicleUseCategory && p.vehicleUseCategory !== "None" ? ` · ${p.vehicleUseCategory}` : ""}`,
+          vehicleUseCategory: p.vehicleUseCategory ?? "None",
+          policyType: p.policyType,
+          source: "param" as const,
+        }));
+      if (items.length > 0) return items;
+    }
+    return USE_TYPES.map(u => ({
+      key: `enum:${u}`,
+      code: u,
+      label: USE_LABEL[u],
+      vehicleUseCategory: u,
+      policyType: "Auto",
+      source: "enum" as const,
+    }));
+  }, [mergedParams, form.insuranceCompanyId, selectedBranchCodes]);
 
   const codeOptions = useMemo(() => {
-    const selectedBranches = form.policyTypes;
     const fromParams = mergedParams
       .filter(p => (p.kind === "Coverage" || p.kind === "Package") && p.code)
-      .filter(p => selectedBranches.length === 0 || !p.policyType || selectedBranches.includes(p.policyType))
+      // Narrow by selected branches via parentCode if any are picked; also
+      // narrow by selected PolicyTypes for the enum-fallback case.
+      .filter(p => {
+        if (selectedBranchCodes.length > 0) {
+          // Carrier-specific: branch's children link by parentCode.
+          if (p.parentCode && selectedBranchCodes.includes(p.parentCode)) return true;
+          // Or fall back to policyType match for items without parentCode.
+          if (!p.parentCode && (selectedPolicyTypes.length === 0 || !p.policyType || selectedPolicyTypes.includes(p.policyType))) return true;
+          return false;
+        }
+        return selectedPolicyTypes.length === 0 || !p.policyType || selectedPolicyTypes.includes(p.policyType);
+      })
       .map(p => ({
         code: p.code,
         label: `${p.name} (${p.code})`,
@@ -454,16 +538,22 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
     for (const item of fromParams) byCode.set(item.code, item);
     for (const code of form.coverCodes) if (!byCode.has(code)) byCode.set(code, { code, label: code, kind: "Coverage", policyType: null });
     return Array.from(byCode.values());
-  }, [mergedParams, form.policyTypes, form.coverCodes]);
+  }, [mergedParams, selectedPolicyTypes, selectedBranchCodes, form.coverCodes]);
 
   useEffect(() => {
     if (rule) {
+      const pt = rule.policyType;
+      const vu = rule.vehicleUseCategory;
       setForm({
         scope: rule.producerId ? "producer" : (rule.producerTier && rule.producerTier !== "None") ? "tier" : "all",
         insuranceCompanyId: rule.insuranceCompanyId ?? "",
         subCompanyIds: [],
-        policyTypes: rule.policyType ? [rule.policyType] : [],
-        vehicleUseCategories: rule.vehicleUseCategory && rule.vehicleUseCategory !== "None" ? [rule.vehicleUseCategory] : [],
+        branches: pt ? [{
+          key: `enum:${pt}`, code: pt, label: TYPE_LABEL[pt], policyType: pt, source: "enum" as const,
+        }] : [],
+        uses: vu && vu !== "None" ? [{
+          key: `enum:${vu}`, code: vu, label: USE_LABEL[vu], vehicleUseCategory: vu, policyType: "Auto" as PolicyType, source: "enum" as const,
+        }] : [],
         coverCodes: rule.coverCode ? [rule.coverCode] : [],
         producerId: rule.producerId ?? "",
         producerTier: rule.producerTier ?? "None",
@@ -477,8 +567,8 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         scope: "tier",
         insuranceCompanyId: "",
         subCompanyIds: [],
-        policyTypes: [],
-        vehicleUseCategories: [],
+        branches: [],
+        uses: [],
         coverCodes: [],
         producerId: "",
         producerTier: "None",
@@ -492,14 +582,20 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rule, open]);
 
+  const selectedUseCategories = useMemo<VehicleUse[]>(() => {
+    const set = new Set<VehicleUse>();
+    for (const u of form.uses) if (u.vehicleUseCategory !== "None") set.add(u.vehicleUseCategory);
+    return Array.from(set);
+  }, [form.uses]);
+
   const combos = useMemo(() => {
-    const policies = form.policyTypes.length > 0 ? form.policyTypes : [null];
+    const policies = selectedPolicyTypes.length > 0 ? selectedPolicyTypes : [null];
     const covers = form.coverCodes.length > 0 ? form.coverCodes : [null];
     return policies.reduce((sum, p) => {
-      const uses = p === "Auto" && form.vehicleUseCategories.length > 0 ? form.vehicleUseCategories : [null];
+      const uses = p === "Auto" && selectedUseCategories.length > 0 ? selectedUseCategories : [null];
       return sum + uses.length * covers.length;
     }, 0);
-  }, [form.policyTypes, form.vehicleUseCategories, form.coverCodes]);
+  }, [selectedPolicyTypes, selectedUseCategories, form.coverCodes]);
 
   const addManualCode = () => {
     const code = manualCode.trim().toUpperCase();
@@ -514,8 +610,8 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         producerId: form.scope === "producer" ? (form.producerId || null) : null,
         producerTier: form.scope === "tier" && form.producerTier !== "None" ? form.producerTier : null,
         insuranceCompanyId: form.insuranceCompanyId || null,
-        policyType: form.policyTypes[0] || null,
-        vehicleUseCategory: form.vehicleUseCategories[0] || null,
+        policyType: selectedPolicyTypes[0] || null,
+        vehicleUseCategory: selectedUseCategories[0] || null,
         coverCode: form.coverCodes[0] || null,
         agencyPercent: Number.isFinite(form.agencyPercent) ? Number(form.agencyPercent) : null,
         producerPercent: Number.isFinite(form.producerPercent) ? Number(form.producerPercent) : null,
@@ -531,8 +627,8 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         producerId: singleBody.producerId,
         producerTier: singleBody.producerTier,
         insuranceCompanyId: singleBody.insuranceCompanyId,
-        policyTypes: form.policyTypes,
-        vehicleUseCategories: form.vehicleUseCategories,
+        policyTypes: selectedPolicyTypes,
+        vehicleUseCategories: selectedUseCategories,
         coverCodes: form.coverCodes,
         agencyPercent: singleBody.agencyPercent,
         producerPercent: singleBody.producerPercent,
@@ -568,7 +664,14 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         <Stack spacing={2.5} mt={1}>
           <Stack direction="row" spacing={1} alignItems="flex-start">
             <TextField select label="Ασφαλιστική εταιρία" value={form.insuranceCompanyId}
-              onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value, coverCodes: [] })} fullWidth>
+              onChange={e => setForm({
+                ...form,
+                insuranceCompanyId: e.target.value,
+                subCompanyIds: [],
+                branches: [],
+                uses: [],
+                coverCodes: [],
+              })} fullWidth>
               <MenuItem value="">— Όλες οι εταιρίες —</MenuItem>
               {/* Hide subcompanies from the primary picker — they appear via the
                   broker cascade below. Top-level carriers + brokers only. */}
@@ -631,29 +734,45 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
           <Autocomplete
             multiple
             options={branchOptions}
-            value={form.policyTypes}
-            onChange={(_, value) => setForm({ ...form, policyTypes: value, vehicleUseCategories: value.includes("Auto") ? form.vehicleUseCategories : [] })}
-            getOptionLabel={(value) => TYPE_LABEL[value]}
+            value={form.branches}
+            onChange={(_, value) => {
+              // If selected branches no longer cover Auto, clear uses.
+              const stillHasAuto = value.some(b => b.policyType === "Auto");
+              setForm({
+                ...form,
+                branches: value,
+                uses: stillHasAuto ? form.uses : [],
+              });
+            }}
+            getOptionLabel={(o) => o.label}
+            isOptionEqualToValue={(a, b) => a.key === b.key}
             renderTags={(value, getTagProps) =>
-              value.map((option, index) => <Chip label={TYPE_LABEL[option]} {...getTagProps({ index })} key={option} />)
+              value.map((option, index) => <Chip label={option.label} {...getTagProps({ index })} key={option.key} />)
             }
             renderInput={(params) => (
-              <TextField {...params} label="Κλάδοι" helperText="Κενό σημαίνει όλοι οι κλάδοι. Επιλέξτε πολλούς για ίδια προμήθεια." />
+              <TextField {...params} label="Κλάδοι"
+                helperText={form.insuranceCompanyId && branchOptions.some(o => o.source === "param")
+                  ? "Εμφανίζονται οι κλάδοι του πρακτορείου από τα παραμετρικά αρχεία της εταιρίας."
+                  : "Κενό σημαίνει όλοι οι κλάδοι. Επιλέξτε πολλούς για ίδια προμήθεια."} />
             )}
           />
 
           <Autocomplete
             multiple
             options={useOptions}
-            value={form.vehicleUseCategories}
-            disabled={form.policyTypes.length > 0 && !form.policyTypes.includes("Auto")}
-            onChange={(_, value) => setForm({ ...form, vehicleUseCategories: value })}
-            getOptionLabel={(value) => USE_LABEL[value]}
+            value={form.uses}
+            disabled={selectedPolicyTypes.length > 0 && !selectedPolicyTypes.includes("Auto")}
+            onChange={(_, value) => setForm({ ...form, uses: value })}
+            getOptionLabel={(o) => o.label}
+            isOptionEqualToValue={(a, b) => a.key === b.key}
             renderTags={(value, getTagProps) =>
-              value.map((option, index) => <Chip label={option} {...getTagProps({ index })} key={option} />)
+              value.map((option, index) => <Chip label={option.label} {...getTagProps({ index })} key={option.key} />)
             }
             renderInput={(params) => (
-              <TextField {...params} label="Χρήσεις οχήματος" helperText="Κενό σημαίνει όλες οι χρήσεις. Ενεργό όταν ο κλάδος περιέχει Αυτοκίνητο." />
+              <TextField {...params} label="Χρήσεις οχήματος"
+                helperText={form.insuranceCompanyId && useOptions.some(o => o.source === "param")
+                  ? "Εμφανίζονται οι χρήσεις της εταιρίας. Φιλτράρονται από τους επιλεγμένους κλάδους."
+                  : "Κενό σημαίνει όλες οι χρήσεις. Ενεργό όταν ο κλάδος περιέχει Αυτοκίνητο."} />
             )}
           />
 

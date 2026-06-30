@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, CardContent, CircularProgress, MenuItem, Stack, Table, TableBody,
   TableCell, TableHead, TableRow, TextField, Typography
@@ -10,13 +10,27 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 
-interface PolicyTypeOpt { value: number; label: string; }
+interface PolicyTypeOpt { value: number; label: string; key: string; }
 const POLICY_TYPES: PolicyTypeOpt[] = [
-  { value: 1, label: "Αυτοκίνητο" }, { value: 2, label: "Κατοικία" },
-  { value: 3, label: "Υγείας" },     { value: 4, label: "Ζωής" },
-  { value: 5, label: "Επιχείρησης" },{ value: 6, label: "Ταξιδιού" },
-  { value: 99, label: "Άλλο" }
+  { key: "enum:1",  value: 1,  label: "Αυτοκίνητο" },
+  { key: "enum:2",  value: 2,  label: "Κατοικία" },
+  { key: "enum:3",  value: 3,  label: "Υγείας" },
+  { key: "enum:4",  value: 4,  label: "Ζωής" },
+  { key: "enum:5",  value: 5,  label: "Επιχείρησης" },
+  { key: "enum:6",  value: 6,  label: "Ταξιδιού" },
+  { key: "enum:99", value: 99, label: "Άλλο" }
 ];
+const POLICY_TYPE_TO_NUM: Record<string, number> = {
+  Auto: 1, Home: 2, Health: 3, Life: 4, Business: 5, Travel: 6, Other: 99,
+};
+interface CompanyParameterItem {
+  id: string;
+  kind: "Branch" | "Coverage" | "Use" | "Package" | "BridgeCode" | "Field" | "Other";
+  code: string;
+  name: string;
+  policyType: string | null;
+  parentCode: string | null;
+}
 
 interface CompanyLite { id: string; name: string; code: string; isBroker?: boolean; parentCompanyId?: string | null; }
 interface ProducerLite { id: string; code: string; name: string; }
@@ -50,6 +64,27 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
     queryKey: ["producers-lite-bulk"],
     queryFn: async () => (await api.get<ProducerLite[]>("/producers")).data
   });
+
+  // When a carrier is selected, fetch its catalogue so we can show the real
+  // branch names (e.g. ΧΕΡΣΑΙΩΝ ΟΧΗΜΑΤΩΝ) instead of the generic enum.
+  const carrierParams = useQuery({
+    queryKey: ["company-parameters-bulk", filter.insuranceCompanyId],
+    queryFn: async () => (await api.get<CompanyParameterItem[]>("/company-parameters", {
+      params: { insuranceCompanyId: filter.insuranceCompanyId }
+    })).data,
+    enabled: !!filter.insuranceCompanyId
+  });
+
+  const policyTypeOptions = useMemo<PolicyTypeOpt[]>(() => {
+    const branchItems = (carrierParams.data ?? [])
+      .filter(p => p.kind === "Branch" && p.policyType && POLICY_TYPE_TO_NUM[p.policyType]);
+    if (!filter.insuranceCompanyId || branchItems.length === 0) return POLICY_TYPES;
+    return branchItems.map(p => ({
+      key: `param:${p.id}`,
+      value: POLICY_TYPE_TO_NUM[p.policyType!],
+      label: p.name,
+    }));
+  }, [carrierParams.data, filter.insuranceCompanyId]);
 
   const buildFilter = () => ({
     insuranceCompanyId: filter.insuranceCompanyId || null,
@@ -109,7 +144,7 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>1. Φίλτρα επιλογής συμβολαίων</Typography>
           <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" } }}>
             <TextField select label="Ασφαλιστική εταιρεία" value={filter.insuranceCompanyId}
-              onChange={(e) => setFilter({ ...filter, insuranceCompanyId: e.target.value })}>
+              onChange={(e) => setFilter({ ...filter, insuranceCompanyId: e.target.value, policyType: "" })}>
               <MenuItem value="">Όλες</MenuItem>
               {/* Top-level carriers + brokers. Subcompanies appear indented
                   under their broker so the cascade is visible inline. */}
@@ -134,10 +169,13 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
               <MenuItem value="">Όλοι</MenuItem>
               {(producers.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.code} · {p.name}</MenuItem>)}
             </TextField>
-            <TextField select label="Τύπος συμβολαίου" value={filter.policyType}
-              onChange={(e) => setFilter({ ...filter, policyType: e.target.value })}>
+            <TextField select label="Τύπος συμβολαίου / Κλάδος" value={filter.policyType}
+              onChange={(e) => setFilter({ ...filter, policyType: e.target.value })}
+              helperText={filter.insuranceCompanyId && policyTypeOptions.some(o => o.key.startsWith("param:"))
+                ? "Κλάδοι από το παραμετρικό αρχείο της εταιρίας."
+                : ""}>
               <MenuItem value="">Όλα</MenuItem>
-              {POLICY_TYPES.map(t => <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>)}
+              {policyTypeOptions.map(t => <MenuItem key={t.key} value={t.value}>{t.label}</MenuItem>)}
             </TextField>
             <TextField type="date" label="Έναρξη από" InputLabelProps={{ shrink: true }}
               value={filter.startDateFrom} onChange={(e) => setFilter({ ...filter, startDateFrom: e.target.value })} />

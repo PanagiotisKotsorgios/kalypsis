@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, MenuItem,
   Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
@@ -38,8 +38,22 @@ interface Result {
 }
 
 const TYPES = ["Auto", "Home", "Health", "Life", "Business", "Travel", "Other"];
+const TYPE_LABEL: Record<string, string> = {
+  Auto: "Αυτοκίνητο", Home: "Κατοικία", Health: "Υγείας", Life: "Ζωής",
+  Business: "Επιχείρησης", Travel: "Ταξιδιού", Other: "Άλλο",
+};
 const STATUSES = ["Draft", "Active", "Expired", "Cancelled", "Renewed", "PendingRenewal"];
 const VEHICLE_USES = ["EIX", "EDX", "FIX", "FDX", "LIX", "LDX", "Motorcycle", "Agricultural", "Construction"];
+
+interface ParamItem {
+  id: string;
+  kind: "Branch" | "Coverage" | "Use" | "Package" | "BridgeCode" | "Field" | "Other";
+  code: string;
+  name: string;
+  policyType: string | null;
+  vehicleUseCategory: string | null;
+  parentCode: string | null;
+}
 
 export function ProductionListsPage() {
   const { t } = useTranslation();
@@ -61,6 +75,31 @@ export function ProductionListsPage() {
     queryKey: ["producers-prod-list"],
     queryFn: async () => (await api.get<Producer[]>("/producers")).data
   });
+  const carrierParams = useQuery({
+    queryKey: ["company-parameters-prod-list", f.insuranceCompanyId],
+    queryFn: async () => (await api.get<ParamItem[]>("/company-parameters", {
+      params: { insuranceCompanyId: f.insuranceCompanyId }
+    })).data,
+    enabled: !!f.insuranceCompanyId,
+  });
+
+  // Branches (Κλάδοι) — carrier-specific names when a carrier is picked.
+  const branchOptions = useMemo(() => {
+    const items = (carrierParams.data ?? [])
+      .filter(p => p.kind === "Branch" && p.policyType)
+      .map(p => ({ key: `param:${p.id}`, value: p.policyType!, label: p.name }));
+    if (f.insuranceCompanyId && items.length > 0) return items;
+    return TYPES.map(t => ({ key: `enum:${t}`, value: t, label: TYPE_LABEL[t] ?? t }));
+  }, [carrierParams.data, f.insuranceCompanyId]);
+
+  // Vehicle uses (Χρήσεις) — carrier-specific names when present.
+  const useOptions = useMemo(() => {
+    const items = (carrierParams.data ?? [])
+      .filter(p => p.kind === "Use" && p.vehicleUseCategory && p.vehicleUseCategory !== "None")
+      .map(p => ({ key: `param:${p.id}`, value: p.vehicleUseCategory!, label: p.name }));
+    if (f.insuranceCompanyId && items.length > 0) return items;
+    return VEHICLE_USES.map(u => ({ key: `enum:${u}`, value: u, label: u }));
+  }, [carrierParams.data, f.insuranceCompanyId]);
 
   const params = {
     from: f.from || undefined,
@@ -135,7 +174,7 @@ export function ProductionListsPage() {
           <TextField type="date" size="small" InputLabelProps={{ shrink: true }} label={t("productionList.to")}
             value={f.to} onChange={e => setF({ ...f, to: e.target.value })} />
           <TextField select size="small" label={t("productionList.carrier")} value={f.insuranceCompanyId}
-            onChange={e => setF({ ...f, insuranceCompanyId: e.target.value })}>
+            onChange={e => setF({ ...f, insuranceCompanyId: e.target.value, policyType: "", vehicleUseCategory: "" })}>
             <MenuItem value="">{t("common.all")}</MenuItem>
             {/* Brokers + standalone carriers at the top level; subcompanies
                 appear indented underneath their broker. */}
@@ -159,14 +198,16 @@ export function ProductionListsPage() {
             {(producers.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
           </TextField>
           <TextField select size="small" label={t("productionList.type")} value={f.policyType}
-            onChange={e => setF({ ...f, policyType: e.target.value })}>
+            onChange={e => setF({ ...f, policyType: e.target.value })}
+            helperText={f.insuranceCompanyId && branchOptions.some(o => o.key.startsWith("param:")) ? "Από παραμετρικά" : ""}>
             <MenuItem value="">{t("common.all")}</MenuItem>
-            {TYPES.map(tp => <MenuItem key={tp} value={tp}>{tp}</MenuItem>)}
+            {branchOptions.map(o => <MenuItem key={o.key} value={o.value}>{o.label}</MenuItem>)}
           </TextField>
           <TextField select size="small" label="Χρήση οχήματος" value={f.vehicleUseCategory}
-            onChange={e => setF({ ...f, vehicleUseCategory: e.target.value })}>
+            onChange={e => setF({ ...f, vehicleUseCategory: e.target.value })}
+            helperText={f.insuranceCompanyId && useOptions.some(o => o.key.startsWith("param:")) ? "Από παραμετρικά" : ""}>
             <MenuItem value="">{t("common.all")}</MenuItem>
-            {VEHICLE_USES.map(u => <MenuItem key={u} value={u}>{u}</MenuItem>)}
+            {useOptions.map(o => <MenuItem key={o.key} value={o.value}>{o.label}</MenuItem>)}
           </TextField>
           <TextField size="small" label="Κάλυψη" value={f.coverCode}
             onChange={e => setF({ ...f, coverCode: e.target.value.toUpperCase() })}
