@@ -45,13 +45,6 @@ interface UpsertBody {
   installZeroCommissionDefaults: boolean;
 }
 
-interface ImportDefaultsResult {
-  imported: number;
-  alreadyImported: number;
-  bridgesCreated: number;
-  commissionRulesCreated: number;
-}
-
 export function InsuranceCompaniesPage() {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
@@ -70,25 +63,6 @@ export function InsuranceCompaniesPage() {
     onError: (e) => setError(extractErrorMessage(e))
   });
 
-  const importAll = useMutation({
-    mutationFn: async () => (await api.post<ImportDefaultsResult>("/insurance-companies/import-defaults", {})).data,
-    onSuccess: (res) => {
-      setSuccess(`Εισαγωγή ολοκληρώθηκε: ${res.imported} νέες, ${res.alreadyImported} ήδη υπήρχαν, ${res.bridgesCreated} γέφυρες, ${res.commissionRulesCreated} μηδενικοί κανόνες προμήθειας.`);
-      void qc.invalidateQueries({ queryKey: ["insurance-companies"] });
-      void qc.invalidateQueries({ queryKey: ["commission-rules"] });
-    },
-    onError: (e) => setError(extractErrorMessage(e))
-  });
-
-  const importOne = useMutation({
-    mutationFn: async (id: string) => (await api.post<CompanyDto>(`/insurance-companies/${id}/import-default`, {})).data,
-    onSuccess: (company) => {
-      setSuccess(`Η ${company.name} προστέθηκε στο γραφείο με γέφυρα και μηδενικούς κανόνες προμήθειας.`);
-      void qc.invalidateQueries({ queryKey: ["insurance-companies"] });
-      void qc.invalidateQueries({ queryKey: ["commission-rules"] });
-    },
-    onError: (e) => setError(extractErrorMessage(e))
-  });
 
   // Re-order the global list so each broker is followed by its subcompanies
   // grouped underneath. Top-level standalone carriers stay in alphabetical
@@ -118,9 +92,6 @@ export function InsuranceCompaniesPage() {
         </Stack>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
           <DataExportButton entity="insurance-companies" />
-          <Button size="large" variant="outlined" onClick={() => importAll.mutate()} disabled={importAll.isPending || globalRows.length === 0}>
-            {importAll.isPending ? <CircularProgress size={18} /> : "Εισαγωγή όλων στο γραφείο"}
-          </Button>
           <Button size="large" variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
           Νέα ασφαλιστική
           </Button>
@@ -130,7 +101,7 @@ export function InsuranceCompaniesPage() {
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}
       <Alert severity="info" sx={{ mb: 2 }}>
-        Οι προεπιλεγμένες εταιρείες Kalypsis μπορούν να εισαχθούν στο γραφείο. Η εισαγωγή δημιουργεί εταιρεία γραφείου, placeholder γέφυρας και μηδενικούς κανόνες προμήθειας ώστε να μη γίνει λάθος πληρωμή πριν συμπληρωθούν οι πραγματικές συμβάσεις.
+        Οι καθολικές εταιρείες Kalypsis είναι ήδη ορατές σε όλα τα γραφεία — δεν χρειάζεται εισαγωγή. Δουλέψτε απευθείας με τις καθολικές εγγραφές.
       </Alert>
 
       {q.isLoading ? (
@@ -169,7 +140,7 @@ export function InsuranceCompaniesPage() {
                 Διαχειρίζεται από την Kalypsis · κοινός σε όλα τα γραφεία
               </Typography>
             </Box>
-            <CompanyTable rows={globalRows} readonly onImport={(id) => importOne.mutate(id)} importingId={importOne.variables} />
+            <CompanyTable rows={globalRows} readonly />
           </Card>
         </Stack>
       )}
@@ -182,13 +153,11 @@ export function InsuranceCompaniesPage() {
   );
 }
 
-function CompanyTable({ rows, onEdit, onDelete, readonly, onImport, importingId }: {
+function CompanyTable({ rows, onEdit, onDelete, readonly }: {
   rows: CompanyDto[];
   onEdit?: (c: CompanyDto) => void;
   onDelete?: (id: string) => void;
   readonly?: boolean;
-  onImport?: (id: string) => void;
-  importingId?: string;
 }) {
   return (
     <Box sx={{ overflowX: "auto" }}>
@@ -246,18 +215,7 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onImport, importingId 
               <TableCell align="right" sx={{ fontWeight: 700 }}>{r.commissionDefaultCount}</TableCell>
               <TableCell align="right">
                 {readonly ? (
-                  r.isImportedToTenant ? (
-                    <Chip size="small" color="success" label="Στο γραφείο" />
-                  ) : (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => onImport?.(r.id)}
-                      disabled={importingId === r.id}
-                    >
-                      {importingId === r.id ? <CircularProgress size={16} /> : "Εισαγωγή"}
-                    </Button>
-                  )
+                  <Chip size="small" variant="outlined" label="Καθολική" />
                 ) : (
                   <>
                     <IconButton size="small" onClick={() => onEdit?.(r)}><EditIcon fontSize="small" /></IconButton>

@@ -116,6 +116,32 @@ public class InsuranceCompaniesController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<InsuranceCompanyExtendedDto>>> List(CancellationToken ct)
     {
         var tenantId = _current.TenantId;
+
+        // Auto-heal: silently soft-delete any tenant-scoped carrier whose Code
+        // duplicates a global carrier. Earlier deploys created these via the
+        // (now-disabled) "Εισαγωγή στο γραφείο" button and they show as
+        // duplicates everywhere. Runs only when a tenant copy exists, so the
+        // hot path stays fast for tenants with clean data.
+        if (tenantId.HasValue)
+        {
+            var globalCodes = await _db.InsuranceCompanies.IgnoreQueryFilters()
+                .Where(c => c.TenantId == null && c.DeletedAt == null)
+                .Select(c => c.Code)
+                .ToListAsync(ct);
+            var dupes = await _db.InsuranceCompanies.IgnoreQueryFilters()
+                .Where(c => c.TenantId == tenantId.Value && c.DeletedAt == null && globalCodes.Contains(c.Code))
+                .ToListAsync(ct);
+            if (dupes.Count > 0)
+            {
+                foreach (var d in dupes)
+                {
+                    d.DeletedAt = _clock.UtcNow;
+                    d.IsActive = false;
+                }
+                await _db.SaveChangesAsync(ct);
+            }
+        }
+
         var rows = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
             .ToListAsync(_db.InsuranceCompanies.IgnoreQueryFilters()
                 .Where(c => c.DeletedAt == null && (c.TenantId == null || c.TenantId == tenantId))
@@ -259,6 +285,31 @@ public class InsuranceCompaniesController : ControllerBase
             .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == null && x.DeletedAt == null, ct)
             ?? throw Kalypsis.Application.Common.AppException.NotFound("Default insurance company");
 
+        // Global carriers (especially the Grand Cover broker + its 49 subs)
+        // are already visible to every tenant via the listing endpoint —
+        // creating a tenant-scoped copy here only produced "two Grand Covers"
+        // in every dropdown + bridge page. Reject the action and clean up
+        // any leftover tenant copy of this exact carrier so the symptom heals.
+        var existingTenantCopy = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null && x.Code == global.Code)
+            .ToListAsync(ct);
+        if (existingTenantCopy.Count > 0)
+        {
+            foreach (var copy in existingTenantCopy)
+            {
+                copy.DeletedAt = _clock.UtcNow;
+                copy.IsActive = false;
+            }
+            await _db.SaveChangesAsync(ct);
+        }
+        throw new Kalypsis.Application.Common.AppException("global_already_visible",
+            "Η εταιρία είναι ήδη καθολική — δεν χρειάζεται εισαγωγή. Είναι ορατή σε όλα τα γραφεία αυτόματα.",
+            400,
+            title: "Καθολική εταιρεία",
+            why: "Αν δημιουργούσαμε αντίγραφο στο γραφείο, η εταιρία θα εμφανιζόταν δύο φορές στα dropdowns, γέφυρες και φίλτρα.",
+            fix: "Χρησιμοποιήστε την υπάρχουσα καθολική εγγραφή. Τυχόν αντίγραφα διαγράφηκαν αυτόματα.");
+
+        #pragma warning disable CS0162 // unreachable
         var tenantCompany = await InstallDefaultCompanyAsync(tenantId, global, ct);
         await _db.SaveChangesAsync(ct);
         var bridge = await _db.CompanyBridges.IgnoreQueryFilters()
@@ -276,40 +327,27 @@ public class InsuranceCompaniesController : ControllerBase
     {
         var tenantId = _current.TenantId
             ?? throw Kalypsis.Application.Common.AppException.Forbidden();
-        var globals = await _db.InsuranceCompanies.IgnoreQueryFilters()
-            .Where(x => x.TenantId == null && x.DeletedAt == null && x.IsActive)
-            .OrderBy(x => x.Name)
+        // Sweep any tenant-scoped copies of global carriers — they would
+        // otherwise show as duplicates in dropdowns and γέφυρες.
+        var globalCodes = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(x => x.TenantId == null && x.DeletedAt == null)
+            .Select(x => x.Code)
             .ToListAsync(ct);
-
-        var imported = 0;
-        var already = 0;
-        var bridgesCreated = 0;
-        var rulesCreated = 0;
-        foreach (var global in globals)
+        var tenantDupes = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null && globalCodes.Contains(x.Code))
+            .ToListAsync(ct);
+        foreach (var d in tenantDupes)
         {
-            var existingBefore = await _db.InsuranceCompanies.IgnoreQueryFilters()
-                .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.DeletedAt == null && x.Code == global.Code, ct);
-            var beforeCompanyExists = existingBefore is not null;
-            var hadBridgeBefore = existingBefore is not null && await _db.CompanyBridges.IgnoreQueryFilters()
-                .AnyAsync(b => b.TenantId == tenantId && b.DeletedAt == null && b.InsuranceCompanyId == existingBefore.Id, ct);
-            var ruleCountBefore = existingBefore is null ? 0 : await _db.CommissionRules.IgnoreQueryFilters()
-                .CountAsync(r => r.TenantId == tenantId && r.DeletedAt == null && r.InsuranceCompanyId == existingBefore.Id, ct);
-
-            var tenantCompany = await InstallDefaultCompanyAsync(tenantId, global, ct);
-            await _db.SaveChangesAsync(ct);
-            if (beforeCompanyExists) already++; else imported++;
-
-            var hasBridgeAfter = await _db.CompanyBridges.IgnoreQueryFilters()
-                .AnyAsync(b => b.TenantId == tenantId && b.DeletedAt == null && b.InsuranceCompanyId == tenantCompany.Id, ct);
-            if (!hadBridgeBefore && hasBridgeAfter) bridgesCreated++;
-
-            var ruleCountAfter = await _db.CommissionRules.IgnoreQueryFilters()
-                .CountAsync(r => r.TenantId == tenantId && r.DeletedAt == null && r.InsuranceCompanyId == tenantCompany.Id, ct);
-            rulesCreated += Math.Max(0, ruleCountAfter - ruleCountBefore);
+            d.DeletedAt = _clock.UtcNow;
+            d.IsActive = false;
         }
-
-        await _db.SaveChangesAsync(ct);
-        return Ok(new ImportDefaultCompaniesResult(imported, already, bridgesCreated, rulesCreated));
+        if (tenantDupes.Count > 0) await _db.SaveChangesAsync(ct);
+        throw new Kalypsis.Application.Common.AppException("globals_already_visible",
+            "Οι καθολικές εταιρείες είναι ήδη ορατές σε όλα τα γραφεία — δεν χρειάζεται εισαγωγή.",
+            400,
+            title: "Καθολικός κατάλογος",
+            why: "Η εισαγωγή θα δημιουργούσε αντίγραφα στο γραφείο που θα εμφανίζονταν δύο φορές παντού (dropdowns, γέφυρες, φίλτρα).",
+            fix: "Δουλέψτε απευθείας με τις καθολικές εγγραφές. Τυχόν αντίγραφα έχουν διαγραφεί αυτόματα.");
     }
 
     [HttpDelete("{id:guid}")]
