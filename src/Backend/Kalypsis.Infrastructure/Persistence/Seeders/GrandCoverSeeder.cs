@@ -33,7 +33,14 @@ public static class GrandCoverSeeder
         IReadOnlyList<CoverageEntry> Coverages);
 
     private record SubcompanyEntry(int Id, string Name, IReadOnlyList<PackageEntry> Packages);
-    private record PackageEntry(string? Package_id, string Name);
+    /// <summary>
+    /// PackageEntry.Package_id is `int?` because the IW dump JSON stores it
+    /// as a number. Earlier this was declared as `string?` which caused
+    /// `JsonException: Cannot get the value of a token type 'Number' as a
+    /// string` at every boot and the entire seed silently failed — leaving
+    /// no subs, no branches, no παραμετρικά in the DB.
+    /// </summary>
+    private record PackageEntry(int? Package_id, string Name);
     private record BranchEntry(int Id, string Name, string? Fbc);
     private record UseEntry(int Id, string? Code, string Name, string? Label);
     private record CoverageEntry(string Name, string Fbc, int? Branch_id, string? Branch_name);
@@ -202,7 +209,8 @@ public static class GrandCoverSeeder
             var pkgOrder = 0;
             foreach (var pkg in sub.Packages)
             {
-                var code = Sanitize(pkg.Package_id, pkg.Name);
+                var pkgIdStr = pkg.Package_id?.ToString();
+                var code = Sanitize(pkgIdStr, pkg.Name);
                 if (!existingSubCodes.Add(code)) continue;
                 db.CompanyParameterItems.Add(new CompanyParameterItem
                 {
@@ -215,7 +223,7 @@ public static class GrandCoverSeeder
                     DisplayOrder = pkgOrder++,
                     Source = "GrandCover IW dump",
                     BridgeSystem = "GRAND_COVER",
-                    BridgeCode = pkg.Package_id
+                    BridgeCode = pkgIdStr
                 });
             }
         }
