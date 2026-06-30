@@ -239,12 +239,39 @@ public static class GrandCoverSeeder
             }
         }
 
+        // Count BEFORE saving — after SaveChangesAsync the entities transition
+        // from Added → Unchanged so the count would always read zero.
+        var addedItems = db.ChangeTracker.Entries<CompanyParameterItem>()
+            .Count(e => e.State == EntityState.Added);
+        var addedSubs = db.ChangeTracker.Entries<InsuranceCompany>()
+            .Count(e => e.State == EntityState.Added);
+
         if (db.ChangeTracker.HasChanges())
         {
             await db.SaveChangesAsync(ct);
-            logger.LogInformation("Grand Cover seed applied — {Subs} subcompanies, {Items} parametric items.",
-                seed.Subcompanies.Count, db.ChangeTracker.Entries<CompanyParameterItem>().Count(e => e.State == EntityState.Added));
         }
+
+        // After save, query the DB for the actual current totals on the
+        // broker hierarchy so we know what the agencies will see, regardless
+        // of whether this boot added rows or just confirmed the existing ones.
+        var subIds = await db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(c => c.ParentCompanyId == broker.Id && c.DeletedAt == null)
+            .Select(c => c.Id)
+            .ToListAsync(ct);
+        var ownedIds = subIds.Append(broker.Id).ToList();
+        var totalItems = await db.CompanyParameterItems.IgnoreQueryFilters()
+            .CountAsync(p => ownedIds.Contains(p.InsuranceCompanyId) && p.DeletedAt == null, ct);
+        var branchCount = await db.CompanyParameterItems.IgnoreQueryFilters()
+            .CountAsync(p => p.InsuranceCompanyId == broker.Id && p.Kind == CompanyParameterItemKind.Branch && p.DeletedAt == null, ct);
+        var useCount = await db.CompanyParameterItems.IgnoreQueryFilters()
+            .CountAsync(p => p.InsuranceCompanyId == broker.Id && p.Kind == CompanyParameterItemKind.Use && p.DeletedAt == null, ct);
+        var coverageCount = await db.CompanyParameterItems.IgnoreQueryFilters()
+            .CountAsync(p => p.InsuranceCompanyId == broker.Id && p.Kind == CompanyParameterItemKind.Coverage && p.DeletedAt == null, ct);
+
+        logger.LogInformation(
+            "Grand Cover seed applied — added {AddedSubs} new sub rows, {AddedItems} new parametric rows this run. " +
+            "DB totals: {Subs} subs, {Branches} branches, {Uses} uses, {Coverages} coverages ({Total} total parametric rows under the broker hierarchy).",
+            addedSubs, addedItems, subIds.Count, branchCount, useCount, coverageCount, totalItems);
     }
 
     private static SeedFile? LoadEmbedded()
