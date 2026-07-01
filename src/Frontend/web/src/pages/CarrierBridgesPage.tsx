@@ -15,6 +15,8 @@ import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import HubIcon from "@mui/icons-material/Hub";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
+import FolderZipIcon from "@mui/icons-material/FolderZip";
+import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import AddIcon from "@mui/icons-material/Add";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -245,48 +247,116 @@ export function CarrierBridgesPage() {
           <Alert severity="info" sx={{ mb: 2 }}>
             {(() => {
               const fmt = (selected.bridgeFormat ?? "ERGO").toUpperCase();
-              // GRAND_COVER exports a multi-CSV .zip; ERGO ships a single .xlsx.
-              // Each carrier picks its own extension so the operator sees the
-              // right instruction.
               const ext = fmt.includes("GRAND") ? ".zip" : ".xlsx";
               return `Αναλυτής για format: ${fmt}. Δεκτό αρχείο: ${ext}`;
             })()}
             <br />
-            {t("carrierBridges.lobNote", "Επιλέξτε τον κλάδο του αρχείου. Επιτρέπεται ένα αρχείο τη φορά.")}
+            {(() => {
+              const fmt = (selected.bridgeFormat ?? "").toUpperCase();
+              if (fmt.includes("GRAND"))
+                return "Το Grand Cover εξάγει ένα ενιαίο .zip με όλα τα συμβόλαια. Ανεβάστε το αυτούσιο.";
+              return t("carrierBridges.lobNote", "Επιλέξτε τον κλάδο του αρχείου. Επιτρέπεται ένα αρχείο τη φορά.");
+            })()}
           </Alert>
           <input ref={fileRef} type="file"
             accept=".xlsx,.zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,application/x-zip-compressed" hidden
             onChange={e => { const f = e.target.files?.[0]; if (f) uploadAndPreview.mutate({ file: f, lob: pendingLob }); }} />
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <Card variant="outlined" sx={{ p: 2.5, flex: 1, cursor: "pointer",
-              "&:hover": { borderColor: "primary.main", bgcolor: "action.hover" } }}
-              onClick={() => { setPendingLob("auto"); fileRef.current?.click(); }}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <DirectionsCarIcon color="primary" sx={{ fontSize: 36 }} />
-                <Box sx={{ flex: 1 }}>
-                  <Typography fontWeight={700}>{t("carrierBridges.lob.auto", "Αυτοκίνητο")}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {t("carrierBridges.lob.autoHelp", "Συμβόλαια οχημάτων με πινακίδα.")}
-                  </Typography>
-                </Box>
-                <CloudUploadIcon color="action" />
+          {(() => {
+            // Each carrier's export shape drives which tiles we show.
+            // Grand Cover ships a single mixed ZIP → one tile.
+            // ERGO ships two separate .xlsx (auto + fire) → two tiles.
+            const fmt = (selected.bridgeFormat ?? "").toUpperCase();
+            if (fmt.includes("GRAND")) {
+              return (
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                  <Card variant="outlined" sx={{
+                    p: 2.5, flex: 1, cursor: "pointer",
+                    borderStyle: "dashed",
+                    "&:hover": { borderColor: "primary.main", bgcolor: "action.hover" }
+                  }}
+                    onClick={() => { setPendingLob("auto"); fileRef.current?.click(); }}>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <FolderZipIcon color="primary" sx={{ fontSize: 44 }} />
+                      <Box sx={{ flex: 1 }}>
+                        <Typography fontWeight={800}>
+                          Πλήρες πακέτο Grand Cover (.zip)
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Ένα .zip με Policies, Customers, Objects, Covers, FBC*.
+                          Καλύπτει ταυτόχρονα οχήματα, περιουσία και υγεία.
+                        </Typography>
+                      </Box>
+                      <CloudUploadIcon color="action" />
+                    </Stack>
+                  </Card>
+                </Stack>
+              );
+            }
+            if (fmt.includes("ERGO")) {
+              return (
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                  <Card variant="outlined" sx={{
+                    p: 2.5, flex: 1, cursor: "pointer",
+                    "&:hover": { borderColor: "primary.main", bgcolor: "action.hover" }
+                  }}
+                    onClick={() => { setPendingLob("auto"); fileRef.current?.click(); }}>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <DirectionsCarIcon color="primary" sx={{ fontSize: 36 }} />
+                      <Box sx={{ flex: 1 }}>
+                        <Typography fontWeight={700}>
+                          {t("carrierBridges.lob.auto", "Αυτοκίνητο")}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {t("carrierBridges.lob.autoHelp", "Συμβόλαια οχημάτων με πινακίδα.")}
+                        </Typography>
+                      </Box>
+                      <CloudUploadIcon color="action" />
+                    </Stack>
+                  </Card>
+                  <Card variant="outlined" sx={{
+                    p: 2.5, flex: 1, cursor: "pointer",
+                    "&:hover": { borderColor: "error.main", bgcolor: "action.hover" }
+                  }}
+                    onClick={() => { setPendingLob("fire"); fileRef.current?.click(); }}>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <LocalFireDepartmentIcon color="error" sx={{ fontSize: 36 }} />
+                      <Box sx={{ flex: 1 }}>
+                        <Typography fontWeight={700}>
+                          {t("carrierBridges.lob.fire", "Πυρός / Περιουσίας")}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {t("carrierBridges.lob.fireHelp", "Κατοικίες, επιχειρήσεις, ζημιές περιουσίας.")}
+                        </Typography>
+                      </Box>
+                      <CloudUploadIcon color="action" />
+                    </Stack>
+                  </Card>
+                </Stack>
+              );
+            }
+            // Generic fallback for any future carrier — single upload tile.
+            return (
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <Card variant="outlined" sx={{
+                  p: 2.5, flex: 1, cursor: "pointer",
+                  borderStyle: "dashed",
+                  "&:hover": { borderColor: "primary.main", bgcolor: "action.hover" }
+                }}
+                  onClick={() => { setPendingLob("auto"); fileRef.current?.click(); }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <ShieldOutlinedIcon color="primary" sx={{ fontSize: 40 }} />
+                    <Box sx={{ flex: 1 }}>
+                      <Typography fontWeight={700}>Ανέβασμα αρχείου εταιρίας</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Επιλέξτε το αρχείο εξαγωγής που στέλνει η ασφαλιστική.
+                      </Typography>
+                    </Box>
+                    <CloudUploadIcon color="action" />
+                  </Stack>
+                </Card>
               </Stack>
-            </Card>
-            <Card variant="outlined" sx={{ p: 2.5, flex: 1, cursor: "pointer",
-              "&:hover": { borderColor: "error.main", bgcolor: "action.hover" } }}
-              onClick={() => { setPendingLob("fire"); fileRef.current?.click(); }}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <LocalFireDepartmentIcon color="error" sx={{ fontSize: 36 }} />
-                <Box sx={{ flex: 1 }}>
-                  <Typography fontWeight={700}>{t("carrierBridges.lob.fire", "Πυρός / Περιουσίας")}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {t("carrierBridges.lob.fireHelp", "Κατοικίες, επιχειρήσεις, ζημιές περιουσίας.")}
-                  </Typography>
-                </Box>
-                <CloudUploadIcon color="action" />
-              </Stack>
-            </Card>
-          </Stack>
+            );
+          })()}
         </Card>
       )}
 

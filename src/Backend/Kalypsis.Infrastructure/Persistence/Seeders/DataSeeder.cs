@@ -309,35 +309,79 @@ public static class DataSeeder
               AND `Code` NOT IN ({carrierWhitelistCsv})", ct);
         logger.LogInformation("Cleanup: soft-deleted {Count} non-canonical carrier row(s) across all tenants.", deletedCarriers);
 
-        // (4.5) Force-undelete + globalise every whitelisted standalone
-        // carrier that already exists in the DB (any tenant), so ERGO
-        // becomes a proper global row again after prior cleanups nuked it.
-        var whitelistedResurrected = await db.Database.ExecuteSqlRawAsync($@"
-            UPDATE `insurance_companies`
-            SET `DeletedAt` = NULL, `IsActive` = 1, `TenantId` = NULL, `ParentCompanyId` = NULL, `IsBroker` = 0
-            WHERE `Code` IN ({carrierWhitelistCsv})", ct);
-        logger.LogInformation("Cleanup: resurrected {Count} whitelisted standalone carrier row(s).", whitelistedResurrected);
-
-        // (4.6) If ERGO doesn't exist at all, seed it as a global standalone
-        // carrier so the γέφυρα upload flow can pick it. We only need name+
-        // code+active; everything else is set by the operator later.
-        var ergoExists = await db.InsuranceCompanies.IgnoreQueryFilters()
-            .AnyAsync(c => c.Code == "ERGO" && c.DeletedAt == null, ct);
-        if (!ergoExists)
+        // (4.5) Dedupe + normalise every whitelisted standalone carrier code.
+        //
+        // For each Code in the whitelist we pick ONE canonical row (oldest
+        // CreatedAt, tie-broken by smallest Id — same rule the broker uses),
+        // force it to (DeletedAt=NULL, IsActive=1, TenantId=NULL, ParentCompanyId=NULL,
+        // IsBroker=0), then soft-delete every other row with the same Code
+        // and re-route their CompanyParameterItems to the canonical row.
+        // This is idempotent — running twice yields the same single row.
+        var whitelistedCodes = new[] { "ERGO" };
+        foreach (var wcode in whitelistedCodes)
         {
-            db.InsuranceCompanies.Add(new InsuranceCompany
+            var canonicalWlId = await db.InsuranceCompanies.IgnoreQueryFilters()
+                .Where(c => c.Code == wcode)
+                .OrderBy(c => c.CreatedAt)
+                .ThenBy(c => c.Id)
+                .Select(c => (Guid?)c.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (canonicalWlId is null)
             {
-                Id = Guid.NewGuid(),
-                TenantId = null,
-                Name = "ERGO Hellas",
-                Code = "ERGO",
-                Country = "GR",
-                IsActive = true,
-                IsBroker = false,
-                ParentCompanyId = null
-            });
-            await db.SaveChangesAsync(ct);
-            logger.LogInformation("Cleanup: seeded ERGO Hellas global carrier row.");
+                // No row exists at all — seed a fresh one.
+                db.InsuranceCompanies.Add(new InsuranceCompany
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = null,
+                    Name = wcode == "ERGO" ? "ERGO Hellas" : wcode,
+                    Code = wcode,
+                    Country = "GR",
+                    IsActive = true,
+                    IsBroker = false,
+                    ParentCompanyId = null
+                });
+                await db.SaveChangesAsync(ct);
+                logger.LogInformation("Cleanup: seeded {Code} global carrier row.", wcode);
+                continue;
+            }
+
+            var canonicalWl = canonicalWlId.Value;
+
+            // Promote the canonical row to a clean global carrier.
+            var promoted = await db.Database.ExecuteSqlRawAsync($@"
+                UPDATE `insurance_companies`
+                SET `DeletedAt` = NULL, `IsActive` = 1, `TenantId` = NULL,
+                    `ParentCompanyId` = NULL, `IsBroker` = 0
+                WHERE `Id` = '{canonicalWl}'", ct);
+            logger.LogInformation("Cleanup: promoted canonical {Code} row {Id} ({Rows} row(s) updated).",
+                wcode, canonicalWl, promoted);
+
+            // Re-route CompanyParameterItem rows attached to any DUPLICATE
+            // row of this code to the canonical row before we delete the
+            // duplicates.
+            var paramsMoved = await db.Database.ExecuteSqlRawAsync($@"
+                UPDATE `company_parameter_items`
+                SET `InsuranceCompanyId` = '{canonicalWl}'
+                WHERE `DeletedAt` IS NULL
+                  AND `InsuranceCompanyId` IN (
+                    SELECT `Id` FROM (
+                        SELECT `Id` FROM `insurance_companies`
+                        WHERE `Code` = '{wcode}' AND `Id` <> '{canonicalWl}'
+                    ) AS d
+                  )", ct);
+            if (paramsMoved > 0)
+                logger.LogInformation("Cleanup: moved {Count} param row(s) from duplicate {Code} rows to canonical.",
+                    paramsMoved, wcode);
+
+            // Soft-delete every OTHER row with this Code (any tenant, any state).
+            var dupesRemoved = await db.Database.ExecuteSqlRawAsync($@"
+                UPDATE `insurance_companies`
+                SET `DeletedAt` = UTC_TIMESTAMP(6), `IsActive` = 0
+                WHERE `Code` = '{wcode}' AND `Id` <> '{canonicalWl}' AND `DeletedAt` IS NULL", ct);
+            if (dupesRemoved > 0)
+                logger.LogInformation("Cleanup: soft-deleted {Count} duplicate {Code} row(s).",
+                    dupesRemoved, wcode);
         }
 
         // (5) Re-route any CompanyParameterItem rows that were attached to a

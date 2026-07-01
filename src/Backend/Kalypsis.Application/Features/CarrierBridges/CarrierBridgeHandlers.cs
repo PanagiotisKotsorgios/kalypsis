@@ -166,23 +166,28 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             format = "ERGO";
         }
 
-        // LOB sanity check — refuse a mis-routed upload (auto file into fire slot or
-        // the other way around). We sample the first N data rows that have a row type.
-        var sample = rows.Take(20).ToList();
-        var hasPlates = sample.Count(x => !string.IsNullOrEmpty(x.PlateNumber));
-        var lob = (r.Lob ?? "auto").ToLowerInvariant();
-        if (lob == "auto" && sample.Count > 0 && hasPlates == 0)
-            throw new AppException("lob_mismatch_auto",
-                "Το αρχείο δεν φαίνεται να είναι αυτοκινήτου — δεν εντοπίστηκαν πινακίδες σε καμία γραμμή.", 400,
-                title: "Λάθος κλάδος",
-                why: "Επιλέξατε «Αυτοκίνητο» αλλά οι πρώτες γραμμές δεν έχουν αριθμό πινακίδας.",
-                fix: "Ανεβάστε το αρχείο στο πεδίο «Πυρός / Περιουσίας» ή επιλέξτε το σωστό xlsx από ERGO.");
-        if (lob == "fire" && sample.Count > 0 && hasPlates > sample.Count / 2)
-            throw new AppException("lob_mismatch_fire",
-                "Το αρχείο φαίνεται να είναι αυτοκινήτου — εντοπίστηκαν πινακίδες σε πολλές γραμμές.", 400,
-                title: "Λάθος κλάδος",
-                why: "Επιλέξατε «Πυρός / Περιουσίας» αλλά οι περισσότερες γραμμές έχουν αριθμό πινακίδας.",
-                fix: "Ανεβάστε το αρχείο στο πεδίο «Αυτοκίνητο».");
+        // LOB sanity check — refuse a mis-routed upload (auto file into fire
+        // slot or the other way around). Only ERGO ships two separate
+        // .xlsx (one per LOB) so this only applies there; Grand Cover's
+        // .zip is mixed by design.
+        if (format == "ERGO")
+        {
+            var sample = rows.Take(20).ToList();
+            var hasPlates = sample.Count(x => !string.IsNullOrEmpty(x.PlateNumber));
+            var lob = (r.Lob ?? "auto").ToLowerInvariant();
+            if (lob == "auto" && sample.Count > 0 && hasPlates == 0)
+                throw new AppException("lob_mismatch_auto",
+                    "Το αρχείο δεν φαίνεται να είναι αυτοκινήτου — δεν εντοπίστηκαν πινακίδες σε καμία γραμμή.", 400,
+                    title: "Λάθος κλάδος",
+                    why: "Επιλέξατε «Αυτοκίνητο» αλλά οι πρώτες γραμμές δεν έχουν αριθμό πινακίδας.",
+                    fix: "Ανεβάστε το αρχείο στο πεδίο «Πυρός / Περιουσίας» ή επιλέξτε το σωστό xlsx από ERGO.");
+            if (lob == "fire" && sample.Count > 0 && hasPlates > sample.Count / 2)
+                throw new AppException("lob_mismatch_fire",
+                    "Το αρχείο φαίνεται να είναι αυτοκινήτου — εντοπίστηκαν πινακίδες σε πολλές γραμμές.", 400,
+                    title: "Λάθος κλάδος",
+                    why: "Επιλέξατε «Πυρός / Περιουσίας» αλλά οι περισσότερες γραμμές έχουν αριθμό πινακίδας.",
+                    fix: "Ανεβάστε το αρχείο στο πεδίο «Αυτοκίνητο».");
+        }
 
         await ApplyDiffsAsync(rows, carrier.Id, ct);
 
