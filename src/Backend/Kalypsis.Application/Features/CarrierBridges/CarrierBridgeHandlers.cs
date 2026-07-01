@@ -51,7 +51,17 @@ public class ListAvailableCarrierBridgesHandler : IRequestHandler<ListAvailableC
     public ListAvailableCarrierBridgesHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
 
     // Carriers we know how to parse. Keyed by uppercase carrier name/code substrings.
-    private static readonly HashSet<string> SupportedTokens = new(StringComparer.OrdinalIgnoreCase) { "ERGO" };
+    // - ERGO ships a single .xlsx.
+    // - GRAND COVER ships a .zip containing Policies.csv, Customers.csv,
+    //   Objects.csv, Covers.csv and one FBC00100_<class>.csv per vehicle
+    //   class (1 = passenger cars, 6 = vintage, 26 = trucks, 28 = other
+    //   cars, 77 = old car), all CP1253-encoded semicolon-separated.
+    private static readonly HashSet<string> SupportedTokens = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "ERGO",
+        "GRAND COVER",
+        "GRANDCOVER"
+    };
 
     public async Task<IReadOnlyList<AvailableCarrierDto>> Handle(ListAvailableCarrierBridgesQuery _, CancellationToken ct)
     {
@@ -107,26 +117,54 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             ?? throw AppException.NotFound("Ασφαλιστική εταιρία");
 
         var carrierKey = (carrier.Code + " " + carrier.Name).ToUpperInvariant();
-        if (!carrierKey.Contains("ERGO"))
+        var isErgo = carrierKey.Contains("ERGO");
+        var isGrandCover = carrierKey.Contains("GRAND COVER") || carrierKey.Contains("GRANDCOVER");
+        if (!isErgo && !isGrandCover)
             throw new AppException("bridge_format_not_supported",
                 "Δεν υπάρχει διαθέσιμος αναλυτής για αυτή την εταιρία ακόμη.", 400,
                 title: "Μη υποστηριζόμενος αναλυτής",
-                why: "Κάθε εταιρία στέλνει το αρχείο της σε διαφορετική μορφή. Έχουμε υλοποιήσει μέχρι στιγμής μόνο ERGO.",
-                fix: "Επιλέξτε ERGO, ή ζητήστε υποστήριξη για τη συγκεκριμένη εταιρία.");
+                why: "Κάθε εταιρία στέλνει το αρχείο της σε διαφορετική μορφή. Έχουμε υλοποιήσει μέχρι στιγμής ERGO και Grand Cover.",
+                fix: "Επιλέξτε ERGO ή Grand Cover, ή ζητήστε υποστήριξη για τη συγκεκριμένη εταιρία.");
 
-        using var stream = new MemoryStream(r.FileContent);
-        XLWorkbook wb;
-        try { wb = new XLWorkbook(stream); }
-        catch (Exception ex)
+        // File-shape detection. ERGO ships one .xlsx; Grand Cover ships a
+        // .zip with the CSV pack. We sniff the magic bytes so an admin can
+        // upload either regardless of the filename.
+        var isZip = r.FileContent.Length >= 4
+            && r.FileContent[0] == 0x50 && r.FileContent[1] == 0x4B
+            && (r.FileContent[2] == 0x03 || r.FileContent[2] == 0x05 || r.FileContent[2] == 0x07);
+        // xlsx is technically a zip too, but its central directory has an
+        // [Content_Types].xml. We treat as zip-pack only when the archive
+        // contains a Policies.csv entry at root.
+        List<BridgeImportRow> rows;
+        string format;
+        if (isGrandCover)
         {
-            throw new AppException("xlsx_invalid",
-                "Δεν είναι έγκυρο αρχείο Excel.", 400,
-                title: "Ακατάλληλο αρχείο",
-                why: ex.Message,
-                fix: "Σιγουρευτείτε ότι ανεβάζετε .xlsx από ERGO χωρίς αλλαγές.");
+            if (!isZip)
+                throw new AppException("grand_cover_zip_required",
+                    "Το Grand Cover εξάγει τα δεδομένα σε αρχείο .zip. Ανεβάστε το πλήρες πακέτο εξαγωγής.",
+                    400,
+                    title: "Λάθος μορφή αρχείου",
+                    why: "Δεν εντοπίστηκε αρχείο zip.",
+                    fix: "Από το Grand Cover επιλέξτε «Εξαγωγή Συμβολαίων» και ανεβάστε το .zip που κατέβηκε αυτούσιο.");
+            rows = ParseGrandCoverZip(r.FileContent);
+            format = "GRAND_COVER";
         }
-
-        var rows = ParseErgo(wb);
+        else
+        {
+            using var stream = new MemoryStream(r.FileContent);
+            XLWorkbook wb;
+            try { wb = new XLWorkbook(stream); }
+            catch (Exception ex)
+            {
+                throw new AppException("xlsx_invalid",
+                    "Δεν είναι έγκυρο αρχείο Excel.", 400,
+                    title: "Ακατάλληλο αρχείο",
+                    why: ex.Message,
+                    fix: "Σιγουρευτείτε ότι ανεβάζετε .xlsx από ERGO χωρίς αλλαγές.");
+            }
+            rows = ParseErgo(wb);
+            format = "ERGO";
+        }
 
         // LOB sanity check — refuse a mis-routed upload (auto file into fire slot or
         // the other way around). We sample the first N data rows that have a row type.
@@ -149,7 +187,7 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         await ApplyDiffsAsync(rows, carrier.Id, ct);
 
         return new BridgeImportPreviewResult(
-            carrier.Name, "ERGO",
+            carrier.Name, format,
             rows.Count, rows,
             rows.Count(x => x.Status == "Ready"),
             rows.Count(x => x.Status == "WarnDiff"),
@@ -301,6 +339,410 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         }
 
         return rows;
+    }
+
+    // ========================================================================
+    // GRAND COVER format: multi-CSV .zip.
+    //
+    //   Policies.csv    Α/Α;Εταιρία;Κλάδος;Κατηγορία;Συμβόλαιο;Απόδειξη;
+    //                   Πρόταση;Χαρακτ/κό;Πελάτης;Ασφαλιζόμ.;Συνεργάτης;
+    //                   Εισπράκτορας;Πωλητής;ΠρώτηΕναρξη;Εκδοση;Εναρξη;
+    //                   Λήξη;Διακοπή;Καθαρά;Μικτά;ΠρομΣυνεργάτη;
+    //                   ΦόροςΣυνεργάτη;Πακέτο;ΗμΕκτύπωσης;EPaymentCode;
+    //                   ΥποΣυνεργάτης;Παρατηρήσεις;Λεπτομέρειες
+    //
+    //   Customers.csv   Κωδικός;Ονομα;Περιγραφή;Πατρώνυμο;Α.Α.Τ;Α.Φ.Μ;…
+    //                   → provides the VAT + address that Policies.csv only
+    //                   references by numeric customer id.
+    //
+    //   Objects.csv     Α/Α (policy);Α/Α (obj);FbcLinkCode;Χαρακτ/κό;
+    //                   Κωδ.Αντικειμένου
+    //
+    //   Covers.csv      Απόδειξη;Αντικείμενο;Κάλυψη;Ασφάλιστρα;Καθαρά;
+    //                   ΚαλΚεφάλαιο
+    //                   → per-cover breakdown; joined by Απόδειξη+Αντικείμενο.
+    //
+    //   FBC00100_N.csv  Α/Α;ΙΠΠΟΙ/ΚΥΒΙΚΑ;ΕΡΓΟΣΤΑΣΙΟ[;ΜΟΝΤΕΛΟ];ΧΡΗΣΗ[;ΧΡΗΣΗ2];
+    //                   [ΑΞΙΑ;]ΕΤΟΣ
+    //                   → vehicle spec per class N (1=cars, 6=vintage,
+    //                     26=trucks, 28=other cars, 77=old car). Joined
+    //                     by Objects.FbcLinkCode = FBC.Α/Α.
+    //
+    // All files are CP1253-encoded, semicolon-separated, one row per line.
+    // ========================================================================
+    private static List<BridgeImportRow> ParseGrandCoverZip(byte[] zipBytes)
+    {
+        var rows = new List<BridgeImportRow>();
+        using var ms = new MemoryStream(zipBytes);
+        using var archive = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Read);
+
+        // Load each CSV we recognise. Case-insensitive filename lookup so
+        // the pack still parses if a file was renamed with different case.
+        Dictionary<string, List<Dictionary<string, string>>> tables =
+            new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, List<Dictionary<string, string>>> fbc =
+            new(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in archive.Entries)
+        {
+            if (string.IsNullOrEmpty(entry.Name)) continue;
+            if (!entry.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)) continue;
+            using var es = entry.Open();
+            using var cms = new MemoryStream();
+            es.CopyTo(cms);
+            var parsed = ParseCp1253Csv(cms.ToArray());
+            if (entry.Name.StartsWith("FBC00100_", StringComparison.OrdinalIgnoreCase))
+                fbc[Path.GetFileNameWithoutExtension(entry.Name)] = parsed;
+            else
+                tables[Path.GetFileNameWithoutExtension(entry.Name)] = parsed;
+        }
+
+        if (!tables.TryGetValue("Policies", out var policies) || policies.Count == 0)
+            throw new AppException("grand_cover_missing_policies",
+                "Το αρχείο δεν περιέχει Policies.csv.", 400,
+                title: "Ελλιπές πακέτο εξαγωγής",
+                why: "Απαιτούμε τουλάχιστον Policies.csv για να ξεκινήσει η εισαγωγή.",
+                fix: "Επαναλάβετε την εξαγωγή από το Grand Cover χωρίς να αφαιρέσετε αρχεία.");
+
+        tables.TryGetValue("Customers", out var customers);
+        tables.TryGetValue("Objects", out var objects);
+        tables.TryGetValue("Covers", out var covers);
+
+        // --- Build lookup indexes -------------------------------------------
+        // Customers.csv keyed by numeric Κωδικός → gives us name + AFM +
+        // phone + address per row.
+        var customerById = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+        if (customers != null)
+        {
+            foreach (var c in customers)
+            {
+                var code = FirstNonEmpty(c, "Κωδικός", "code");
+                if (!string.IsNullOrEmpty(code)) customerById[code] = c;
+            }
+        }
+
+        // Objects grouped by policy Α/Α (first column). Grand Cover uses two
+        // columns named Α/Α — the first is the policy id, the second is the
+        // object id. `ParseCp1253Csv` renames the duplicate to "Α/Α_2".
+        var objectsByPolicy = new Dictionary<string, List<Dictionary<string, string>>>(StringComparer.Ordinal);
+        if (objects != null)
+        {
+            foreach (var o in objects)
+            {
+                var polId = FirstNonEmpty(o, "Α/Α", "policyId");
+                if (string.IsNullOrEmpty(polId)) continue;
+                if (!objectsByPolicy.TryGetValue(polId, out var list))
+                    objectsByPolicy[polId] = list = new List<Dictionary<string, string>>();
+                list.Add(o);
+            }
+        }
+
+        // FBC vehicle rows keyed by (fileClass, Α/Α). We collapse into a
+        // single "linkCode → spec" dict because Objects.csv already knows
+        // which FBC file to consult via FbcLinkCode; but if the caller
+        // renamed the FBC files we still want to find the row, so we build a
+        // global lookup keyed by Α/Α across every FBC file.
+        var fbcByLinkCode = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+        foreach (var kv in fbc)
+        {
+            foreach (var row in kv.Value)
+            {
+                var id = FirstNonEmpty(row, "Α/Α", "id");
+                if (!string.IsNullOrEmpty(id)) fbcByLinkCode[id] = row;
+            }
+        }
+
+        // Covers grouped by (Απόδειξη, Αντικείμενο). We collapse into per-
+        // policy totals + a small list of cover codes so previews stay
+        // compact.
+        var coversByReceipt = new Dictionary<string, List<Dictionary<string, string>>>(StringComparer.Ordinal);
+        if (covers != null)
+        {
+            foreach (var cv in covers)
+            {
+                var receipt = FirstNonEmpty(cv, "Απόδειξη", "receipt");
+                if (string.IsNullOrEmpty(receipt)) continue;
+                if (!coversByReceipt.TryGetValue(receipt, out var list))
+                    coversByReceipt[receipt] = list = new List<Dictionary<string, string>>();
+                list.Add(cv);
+            }
+        }
+
+        // --- Produce a BridgeImportRow per Policies.csv row -----------------
+        int index = 0;
+        foreach (var p in policies)
+        {
+            index++;
+            var notes = new List<BridgeImportNote>();
+            var policyId = FirstNonEmpty(p, "Α/Α", "id");
+            var subCarrierNumeric = FirstNonEmpty(p, "Εταιρία", "carrier");
+            var branchCode = FirstNonEmpty(p, "Κλάδος", "branch");
+            var policyNumber = FirstNonEmpty(p, "Συμβόλαιο", "policy");
+            var receiptNumber = FirstNonEmpty(p, "Απόδειξη", "receipt");
+            var proposal = FirstNonEmpty(p, "Πρόταση", "proposal");
+            var plate = FirstNonEmpty(p, "Χαρακτ/κό", "plate");
+            var customerId = FirstNonEmpty(p, "Πελάτης", "customer");
+            var producerCode = FirstNonEmpty(p, "Συνεργάτης", "producer");
+            var subProducerCode = FirstNonEmpty(p, "ΥποΣυνεργάτης");
+            var firstStart = ParseGcDate(FirstNonEmpty(p, "ΠρώτηΕναρξη"));
+            var issue = ParseGcDate(FirstNonEmpty(p, "Εκδοση", "issue"));
+            var start = ParseGcDate(FirstNonEmpty(p, "Εναρξη", "start"));
+            var end = ParseGcDate(FirstNonEmpty(p, "Λήξη", "end"));
+            var cancelled = ParseGcDate(FirstNonEmpty(p, "Διακοπή"));
+            var net = ParseGcAmount(FirstNonEmpty(p, "Καθαρά", "net"));
+            var gross = ParseGcAmount(FirstNonEmpty(p, "Μικτά", "gross"));
+            var partnerComm = ParseGcAmount(FirstNonEmpty(p, "ΠρομΣυνεργάτη", "partnerCommission"));
+            var partnerCommTax = ParseGcAmount(FirstNonEmpty(p, "ΦόροςΣυνεργάτη"));
+            var packageCode = FirstNonEmpty(p, "Πακέτο", "package");
+            var epayment = FirstNonEmpty(p, "EPaymentCode");
+
+            // Preview raw pack — everything the user might want to see in the
+            // side panel. The commit path uses these where relational fields
+            // don't exist on Policy yet (package, cover breakdown, etc.).
+            var raw = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in p) raw[kv.Key] = kv.Value;
+
+            // ---- Customer enrichment ---------------------------------------
+            string? customerName = null;
+            string? customerVat = null;
+            if (!string.IsNullOrEmpty(customerId) && customerById.TryGetValue(customerId, out var custRow))
+            {
+                customerName = FirstNonEmpty(custRow, "Ονομα", "name");
+                customerVat  = FirstNonEmpty(custRow, "Α.Φ.Μ", "afm", "vat");
+                var phone    = FirstNonEmpty(custRow, "Τηλέφωνο", "phone");
+                var mobile   = FirstNonEmpty(custRow, "Κινητό", "mobile");
+                var email    = FirstNonEmpty(custRow, "Email", "email");
+                if (!string.IsNullOrEmpty(customerVat)) raw["Customer.ΑΦΜ"] = customerVat;
+                if (!string.IsNullOrEmpty(phone))       raw["Customer.Τηλ"] = phone;
+                if (!string.IsNullOrEmpty(mobile))      raw["Customer.Κινητό"] = mobile;
+                if (!string.IsNullOrEmpty(email))       raw["Customer.Email"] = email;
+            }
+
+            // ---- Objects + vehicle spec enrichment -------------------------
+            if (!string.IsNullOrEmpty(policyId) && objectsByPolicy.TryGetValue(policyId, out var objList))
+            {
+                var summaries = new List<string>();
+                foreach (var o in objList)
+                {
+                    var link = FirstNonEmpty(o, "FbcLinkCode");
+                    var objKind = FirstNonEmpty(o, "Κωδ.Αντικειμένου");
+                    if (!string.IsNullOrEmpty(link) && fbcByLinkCode.TryGetValue(link, out var fbcRow))
+                    {
+                        var hpCc = FirstNonEmpty(fbcRow, "ΙΠΠΟΙ/ΚΥΒΙΚΑ");
+                        var make = FirstNonEmpty(fbcRow, "ΕΡΓΟΣΤΑΣΙΟ");
+                        var model = FirstNonEmpty(fbcRow, "ΜΟΝΤΕΛΟ");
+                        var use = FirstNonEmpty(fbcRow, "ΧΡΗΣΗ");
+                        var year = FirstNonEmpty(fbcRow, "ΕΤΟΣ");
+                        summaries.Add(string.Join(" ", new[] { make, model, hpCc, use, year }.Where(s => !string.IsNullOrWhiteSpace(s))));
+                    }
+                    else summaries.Add(objKind);
+                }
+                if (summaries.Count > 0)
+                    raw["Αντικείμενα"] = string.Join(" | ", summaries.Where(s => !string.IsNullOrWhiteSpace(s)));
+            }
+
+            // ---- Cover breakdown enrichment --------------------------------
+            if (!string.IsNullOrEmpty(receiptNumber) && coversByReceipt.TryGetValue(receiptNumber, out var covRows))
+            {
+                var codes = covRows
+                    .Select(cv => FirstNonEmpty(cv, "Κάλυψη"))
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+                if (codes.Count > 0) raw["Καλύψεις"] = string.Join(", ", codes);
+                var coverSum = covRows.Sum(cv => ParseGcAmount(FirstNonEmpty(cv, "Ασφάλιστρα")) ?? 0m);
+                if (coverSum > 0) raw["Καλύψεις Σύνολο"] = coverSum.ToString("F2", CultureInfo.InvariantCulture);
+            }
+
+            // Copy structured keys back onto the raw pack so downstream
+            // reporting / commit can pick them up without re-parsing.
+            if (!string.IsNullOrEmpty(subCarrierNumeric)) raw["Sub.Carrier.Id"] = subCarrierNumeric;
+            if (!string.IsNullOrEmpty(branchCode))       raw["Κλάδος.Code"] = branchCode;
+            if (!string.IsNullOrEmpty(packageCode))      raw["Πακέτο.Code"] = packageCode;
+            if (!string.IsNullOrEmpty(producerCode))     raw["Συνεργάτης.Code"] = producerCode;
+            if (!string.IsNullOrEmpty(subProducerCode) && subProducerCode != "0")
+                raw["ΥποΣυνεργάτης.Code"] = subProducerCode;
+            if (!string.IsNullOrEmpty(epayment)) raw["EPaymentCode"] = epayment;
+
+            // ---- Validation + row-type detection ---------------------------
+            var status = "Ready";
+            if (string.IsNullOrWhiteSpace(policyNumber))
+            {
+                status = "Error";
+                notes.Add(new BridgeImportNote("Συμβόλαιο", "error", "Αριθμός συμβολαίου λείπει"));
+            }
+            if (string.IsNullOrWhiteSpace(customerName))
+            {
+                status = "Error";
+                notes.Add(new BridgeImportNote("Πελάτης", "error", "Πελάτης χωρίς όνομα (ελλείπει από Customers.csv)"));
+            }
+            if (!gross.HasValue)
+            {
+                status = "Error";
+                notes.Add(new BridgeImportNote("Μικτά", "error", "Μη έγκυρο ποσό ασφαλίστρου"));
+            }
+            else if (gross.Value == 0m)
+                notes.Add(new BridgeImportNote("Μικτά", "warn", "Μηδενικό ασφάλιστρο"));
+
+            string rowType = "New";
+            if (gross.HasValue && gross.Value < 0)
+            {
+                rowType = "Cancellation";
+                notes.Add(new BridgeImportNote("Τύπος", "info", "Αρνητικό ποσό → ακυρωτική κίνηση"));
+            }
+            else if (cancelled.HasValue)
+            {
+                rowType = "Cancellation";
+                notes.Add(new BridgeImportNote("Τύπος", "info",
+                    $"Ημ. διακοπής {cancelled:dd/MM/yyyy} → ακύρωση συμβολαίου"));
+            }
+            else if (start.HasValue && end.HasValue)
+            {
+                var days = end.Value.DayNumber - start.Value.DayNumber;
+                if (days is >= 10 and <= 45 && gross.HasValue && gross.Value > 0 && gross.Value <= 80)
+                {
+                    rowType = "GreenCard";
+                    notes.Add(new BridgeImportNote("Τύπος", "info",
+                        $"Διάρκεια {days} ημέρες & μικρό ποσό ({gross.Value:0.00} €) → πιθανή Πράσινη Κάρτα"));
+                }
+                else if (days < 60)
+                {
+                    rowType = "Endorsement";
+                    notes.Add(new BridgeImportNote("Τύπος", "info", $"Διάρκεια {days} ημέρες → πρόσθετη πράξη"));
+                }
+                else if (firstStart.HasValue && firstStart.Value != start.Value)
+                {
+                    rowType = "Renewal";
+                    notes.Add(new BridgeImportNote("Τύπος", "info",
+                        $"Πρώτη έναρξη {firstStart:dd/MM/yyyy} → ανανέωση"));
+                }
+            }
+
+            if (start.HasValue && end.HasValue && end.Value <= start.Value)
+                notes.Add(new BridgeImportNote("Λήξη", "warn", "Λήξη πριν την έναρξη"));
+
+            rows.Add(new BridgeImportRow(
+                index,
+                policyNumber,
+                proposal,
+                customerName,
+                customerVat,
+                issue,
+                start,
+                end,
+                gross,
+                net,
+                partnerComm,
+                null,                 // Grand Cover exports partner tax, not agency commission — leave agency null
+                null,                 // CarrierName resolved at commit time via Sub.Carrier.Id mapping
+                producerCode,
+                raw,
+                notes,
+                status,
+                rowType,
+                null,
+                null,
+                string.IsNullOrWhiteSpace(plate) ? null : plate.Trim()));
+        }
+
+        return rows;
+    }
+
+    /// <summary>Pull the first non-null / non-empty value across the given keys.</summary>
+    private static string? FirstNonEmpty(Dictionary<string, string> row, params string[] keys)
+    {
+        foreach (var k in keys)
+        {
+            if (row.TryGetValue(k, out var v) && !string.IsNullOrWhiteSpace(v))
+                return v.Trim();
+        }
+        return null;
+    }
+
+    /// <summary>Parse a CP1253-encoded semicolon-separated CSV into a
+    /// list of column→value dicts. Duplicate column headers are disambiguated
+    /// by suffixing "_2", "_3", … since Grand Cover ships two "Α/Α" columns
+    /// in Objects.csv (policy Α/Α + object Α/Α).</summary>
+    // CP1253 (Windows-Greek) isn't in .NET's default provider set — register
+    // the CodePages provider exactly once. This is idempotent and cheap.
+    private static readonly bool _cp1253Registered = RegisterCp1253();
+    private static bool RegisterCp1253()
+    {
+        try { System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance); }
+        catch { /* already registered by another consumer — ignore */ }
+        return true;
+    }
+
+    private static List<Dictionary<string, string>> ParseCp1253Csv(byte[] bytes)
+    {
+        _ = _cp1253Registered;
+        var enc = System.Text.Encoding.GetEncoding(1253);
+        var text = enc.GetString(bytes);
+        var rows = new List<Dictionary<string, string>>();
+        var lines = text.Split('\n');
+        if (lines.Length == 0) return rows;
+
+        var header = SplitCsvLine(lines[0].TrimEnd('\r'));
+        // Disambiguate duplicate column names.
+        var seen = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (int i = 0; i < header.Count; i++)
+        {
+            var h = header[i];
+            if (!seen.TryAdd(h, 1)) header[i] = $"{h}_{++seen[h]}";
+        }
+
+        for (int i = 1; i < lines.Length; i++)
+        {
+            var line = lines[i].TrimEnd('\r');
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            var cols = SplitCsvLine(line);
+            var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            for (int c = 0; c < header.Count; c++)
+                dict[header[c]] = c < cols.Count ? cols[c] : "";
+            rows.Add(dict);
+        }
+        return rows;
+    }
+
+    /// <summary>Semicolon-separated CSV splitter that respects the quote
+    /// convention Grand Cover uses (fields may be quoted when they contain a
+    /// literal semicolon).</summary>
+    private static List<string> SplitCsvLine(string line)
+    {
+        var cols = new List<string>();
+        var buf = new System.Text.StringBuilder();
+        bool inQuote = false;
+        for (int i = 0; i < line.Length; i++)
+        {
+            var ch = line[i];
+            if (ch == '"') { inQuote = !inQuote; continue; }
+            if (ch == ';' && !inQuote) { cols.Add(buf.ToString()); buf.Clear(); continue; }
+            buf.Append(ch);
+        }
+        cols.Add(buf.ToString());
+        return cols;
+    }
+
+    /// <summary>Parse dd/MM/yyyy dates the way Grand Cover exports them.</summary>
+    private static DateOnly? ParseGcDate(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        if (DateOnly.TryParseExact(s.Trim(), "dd/MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
+            return d;
+        if (DateOnly.TryParse(s.Trim(), new CultureInfo("el-GR"), DateTimeStyles.None, out var d2))
+            return d2;
+        return null;
+    }
+
+    /// <summary>Parse "12,34 €" style amounts (Greek locale, optional € suffix).</summary>
+    private static decimal? ParseGcAmount(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        var cleaned = s.Replace("€", "").Replace(" ", "").Trim();
+        if (cleaned.Length == 0) return null;
+        cleaned = cleaned.Replace(".", "").Replace(',', '.');   // 1.234,56 → 1234.56
+        if (decimal.TryParse(cleaned, NumberStyles.Any, CultureInfo.InvariantCulture, out var v))
+            return v;
+        return null;
     }
 
     /// <summary>Pass over the parsed rows and attach parameterization-diff notes

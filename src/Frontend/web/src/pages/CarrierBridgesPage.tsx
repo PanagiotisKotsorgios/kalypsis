@@ -248,7 +248,7 @@ export function CarrierBridgesPage() {
             {t("carrierBridges.lobNote", "Επιλέξτε τον κλάδο του αρχείου. Επιτρέπεται ένα αρχείο τη φορά.")}
           </Alert>
           <input ref={fileRef} type="file"
-            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden
+            accept=".xlsx,.zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,application/x-zip-compressed" hidden
             onChange={e => { const f = e.target.files?.[0]; if (f) uploadAndPreview.mutate({ file: f, lob: pendingLob }); }} />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <Card variant="outlined" sx={{ p: 2.5, flex: 1, cursor: "pointer",
