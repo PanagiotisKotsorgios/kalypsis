@@ -2,11 +2,10 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider, CssBaseline } from "@mui/material";
 import { I18nextProvider } from "react-i18next";
 
 import App from "./App";
-import { theme } from "./theme";
+import { KalypsisThemeProvider } from "./theme/KalypsisThemeProvider";
 import "./styles/editorial.css";
 import "./styles/a11y.css";
 import "./styles/app-mobile.css";
@@ -28,8 +27,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
+        <KalypsisThemeProvider>
           <MaintenanceProvider>
             <AuthProvider>
               <PackagesProvider>
@@ -45,7 +43,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
               </PackagesProvider>
             </AuthProvider>
           </MaintenanceProvider>
-        </ThemeProvider>
+        </KalypsisThemeProvider>
       </QueryClientProvider>
     </I18nextProvider>
   </React.StrictMode>

@@ -477,8 +477,12 @@ function PolicyContractPdf({ policyId }: { policyId: string }) {
     mutationFn: async (file: File) => {
       const fd = new FormData();
       fd.append("policyId", policyId);
-      // 1 = Contract (matches DocumentType enum). Anything PDF-ish lands here.
-      fd.append("type", "Contract");
+      // Backend DocumentType enum is Policy | GreenCard | Roadside |
+      // Invoice | Other. «Contract» does NOT exist and the model binder
+      // rejects the whole multipart with a generic 400 — which surfaced
+      // as «Something went wrong» in the drawer. The policy contract PDF
+      // is tagged as «Policy».
+      fd.append("type", "Policy");
       fd.append("file", file);
       return (await api.post<PolicyDoc>("/documents/upload", fd, {
         headers: { "Content-Type": "multipart/form-data" }

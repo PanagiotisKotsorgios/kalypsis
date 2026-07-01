@@ -18,6 +18,29 @@ import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { useAuth, TwoFactorRequiredError } from "../auth/AuthContext";
 import { KalypsisLogo } from "../components/KalypsisLogo";
 import { LanguageToggle } from "../components/LanguageToggle";
+import { PREFS_KEY, DEFAULT_PREFS } from "../theme/KalypsisThemeProvider";
+
+/**
+ * Resolves the post-login landing path from the user's saved preference.
+ * Falls back to "/app" (dashboard) when nothing is stored or on parse
+ * error. The mapping mirrors the ProfilePage «Αρχική οθόνη» dropdown.
+ */
+function landingPath(): string {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (!raw) return "/app";
+    const prefs = { ...DEFAULT_PREFS, ...JSON.parse(raw) };
+    switch (prefs.landingPage) {
+      case "policies":   return "/app/policies";
+      case "customers":  return "/app/customers";
+      case "renewals":   return "/app/renewals";
+      case "financials": return "/app/financials";
+      case "tasks":      return "/app/tasks";
+      case "dashboard":
+      default:           return "/app";
+    }
+  } catch { return "/app"; }
+}
 import { PasswordField } from "../components/PasswordField";
 import { PageEnter } from "../components/PageEnter";
 import { extractErrorMessage } from "../api/client";
@@ -42,7 +65,7 @@ export function LoginPage() {
     setSubmitting(true);
     try {
       await signIn(email.trim(), password, rememberMe);
-      navigate("/app", { replace: true });
+      navigate(landingPath(), { replace: true });
     } catch (err) {
       if (err instanceof TwoFactorRequiredError) {
         setTwoFactor({ challengeToken: err.challengeToken });
@@ -61,7 +84,7 @@ export function LoginPage() {
     setSubmitting(true);
     try {
       await completeTwoFactor(twoFactor.challengeToken, code.trim(), rememberMe);
-      navigate("/app", { replace: true });
+      navigate(landingPath(), { replace: true });
     } catch (err) {
       setError(extractErrorMessage(err, "Λανθασμένος κωδικός 2FA."));
     } finally {

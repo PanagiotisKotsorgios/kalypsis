@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import {
   Alert,
@@ -13,6 +13,8 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
+  Drawer,
   IconButton,
   InputAdornment,
   MenuItem,
@@ -33,6 +35,13 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DownloadIcon from "@mui/icons-material/Download";
 import DeleteIcon from "@mui/icons-material/Delete";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import ImageIcon from "@mui/icons-material/Image";
+import DescriptionIcon from "@mui/icons-material/Description";
+import EditIcon from "@mui/icons-material/Edit";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
@@ -66,6 +75,7 @@ export function DocumentsPage() {
   const qc = useQueryClient();
   const canEdit = user?.role === "AgencyAdmin" || user?.role === "AgencyUser";
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [previewOf, setPreviewOf] = useState<DocumentDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Filter state — all local so the operator can narrow the huge document
   // list by policy number, customer name, doc type, or upload date range
@@ -214,10 +224,21 @@ export function DocumentsPage() {
               </TableHead>
               <TableBody>
                 {rows.map((d) => (
-                  <TableRow key={d.id} hover>
+                  <TableRow
+                    key={d.id}
+                    hover
+                    sx={{ cursor: "pointer" }}
+                    onClick={(e) => {
+                      // Ignore clicks that landed on an action button so the
+                      // Download / Delete / etc. IconButtons keep their own
+                      // behaviour and don't accidentally open the drawer.
+                      if ((e.target as HTMLElement).closest("button")) return;
+                      setPreviewOf(d);
+                    }}
+                  >
                     <TableCell>
                       <Stack direction="row" spacing={1.5} alignItems="center">
-                        <InsertDriveFileIcon color="action" />
+                        <MimeIcon mime={d.mimeType} />
                         <Box>
                           <Typography fontWeight={600}>{d.fileName}</Typography>
                           <Typography variant="caption" color="text.secondary">
@@ -232,6 +253,9 @@ export function DocumentsPage() {
                     <TableCell sx={{ fontSize: 13 }}>{date(d.createdAt)}</TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                        <IconButton size="small" onClick={() => setPreviewOf(d)} title="Προεπισκόπηση">
+                          <VisibilityIcon fontSize="small" />
+                        </IconButton>
                         <IconButton size="small" onClick={() => download(d.id, d.fileName)} title={t("documents.download")}>
                           <DownloadIcon fontSize="small" />
                         </IconButton>
@@ -261,7 +285,234 @@ export function DocumentsPage() {
           onUploaded={() => { void qc.invalidateQueries({ queryKey: ["documents"] }); setUploadOpen(false); }}
         />
       )}
+
+      <DocumentPreviewDrawer
+        doc={previewOf}
+        canEdit={canEdit}
+        onClose={() => setPreviewOf(null)}
+        onChanged={() => void qc.invalidateQueries({ queryKey: ["documents"] })}
+      />
     </Box>
+  );
+}
+
+/* ============================================================================
+   MimeIcon — quick visual cue for the file kind: PDFs / images / text /
+   everything else. Used both in the list row and the preview drawer header.
+   ============================================================================ */
+function MimeIcon({ mime, sx }: { mime: string; sx?: object }) {
+  if (/pdf/i.test(mime)) return <PictureAsPdfIcon color="error" sx={sx} />;
+  if (/^image\//i.test(mime)) return <ImageIcon color="primary" sx={sx} />;
+  if (/text|xml|json|csv|word|excel|spreadsheet|document/i.test(mime))
+    return <DescriptionIcon color="action" sx={sx} />;
+  return <InsertDriveFileIcon color="action" sx={sx} />;
+}
+
+/* ============================================================================
+   DocumentPreviewDrawer
+   ----------------------------------------------------------------------------
+   Slides in from the right when a row is clicked. Shows:
+     - Header with the MIME icon, filename, chips (type + size), metadata,
+       and a close button.
+     - Inline preview iframe backed by /api/documents/{id}/preview so PDFs
+       and images render in-place; a friendly fallback for other MIME
+       types with a Download-Instead button.
+     - Actions rail: Download, «Άνοιγμα σε νέα καρτέλα», Replace, Rename,
+       Change Type, Delete (each guarded by canEdit).
+   The Replace flow reuses a hidden file input; Rename/ChangeType update
+   only the DB row (no re-upload).
+   ========================================================================= */
+function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
+  doc: DocumentDto | null;
+  canEdit: boolean;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const { t } = useTranslation();
+  const [editing, setEditing] = useState(false);
+  const [fileName, setFileName] = useState("");
+  const [docType, setDocType] = useState<DocumentType>("Policy");
+  const [err, setErr] = useState<string | null>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+
+  // Reset the local rename state whenever the drawer switches documents.
+  useEffect(() => {
+    setEditing(false);
+    setErr(null);
+    if (doc) {
+      setFileName(doc.fileName);
+      setDocType(doc.documentType);
+    }
+  }, [doc]);
+
+  // Preview URL — the browser handles the auth cookie automatically, so we
+  // don't need to pipe the file through JS. The token appended forces a
+  // reload whenever the drawer switches to a new document.
+  const previewUrl = doc ? `/api/documents/${doc.id}/preview?v=${doc.createdAt}` : "";
+  const canInlinePreview = doc
+    ? /pdf|^image\/|^text\/|json|xml|csv/i.test(doc.mimeType)
+    : false;
+
+  const patchMut = useMutation({
+    mutationFn: async () => (await api.patch(`/documents/${doc!.id}`, {
+      fileName: fileName || undefined,
+      documentType: docType,
+    })).data,
+    onSuccess: () => { setEditing(false); onChanged(); },
+    onError: (e) => setErr(extractErrorMessage(e)),
+  });
+
+  const replaceMut = useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      return (await api.put(`/documents/${doc!.id}/replace`, fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })).data;
+    },
+    onSuccess: () => onChanged(),
+    onError: (e) => setErr(extractErrorMessage(e)),
+  });
+
+  const download = async () => {
+    if (!doc) return;
+    const res = await api.get<Blob>(`/documents/${doc.id}/download`, { responseType: "blob" });
+    const url = window.URL.createObjectURL(res.data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = doc.fileName;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Drawer
+      anchor="right"
+      open={!!doc}
+      onClose={onClose}
+      PaperProps={{
+        sx: {
+          width: { xs: "100%", sm: "min(720px, 96vw)" },
+          display: "flex", flexDirection: "column"
+        }
+      }}
+    >
+      {doc && (
+        <>
+          <Stack direction="row" alignItems="center" spacing={2} sx={{ p: 2 }}>
+            <MimeIcon mime={doc.mimeType} sx={{ fontSize: 32 }} />
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              {editing ? (
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <TextField
+                    size="small"
+                    fullWidth
+                    autoFocus
+                    value={fileName}
+                    onChange={(e) => setFileName(e.target.value)}
+                  />
+                </Stack>
+              ) : (
+                <Typography sx={{ fontWeight: 700 }} noWrap title={doc.fileName}>
+                  {doc.fileName}
+                </Typography>
+              )}
+              <Typography variant="caption" color="text.secondary">
+                {Math.round(doc.sizeBytes / 1024)} KB · {doc.mimeType} · {date(doc.createdAt)}
+              </Typography>
+            </Box>
+            <Chip size="small" label={t(`documents.types.${doc.documentType}`)} />
+            <IconButton onClick={onClose}><CloseIcon /></IconButton>
+          </Stack>
+          <Divider />
+
+          {err && <Alert severity="error" onClose={() => setErr(null)} sx={{ m: 2 }}>{err}</Alert>}
+
+          {/* Actions rail */}
+          <Stack direction="row" spacing={1} sx={{ p: 2, flexWrap: "wrap", gap: 1 }}>
+            <Button size="small" variant="outlined" startIcon={<DownloadIcon />} onClick={download}>
+              {t("documents.download")}
+            </Button>
+            <Button size="small" variant="outlined" startIcon={<OpenInNewIcon />}
+              onClick={() => window.open(previewUrl, "_blank", "noopener")}>
+              Νέα καρτέλα
+            </Button>
+            {canEdit && (
+              <>
+                <Button size="small" variant="outlined" startIcon={<SwapHorizIcon />}
+                  onClick={() => replaceInputRef.current?.click()}
+                  disabled={replaceMut.isPending}>
+                  {replaceMut.isPending ? <CircularProgress size={16} /> : "Αντικατάσταση αρχείου"}
+                </Button>
+                <Button size="small" variant="outlined" startIcon={<EditIcon />}
+                  onClick={() => setEditing(v => !v)}>
+                  {editing ? "Ακύρωση" : "Μετονομασία / Τύπος"}
+                </Button>
+                {editing && (
+                  <>
+                    <TextField
+                      select size="small" label="Τύπος"
+                      value={docType} onChange={(e) => setDocType(e.target.value as DocumentType)}
+                      sx={{ minWidth: 160 }}
+                    >
+                      {(["Policy","GreenCard","Roadside","Invoice","Other"] as const).map(d => (
+                        <MenuItem key={d} value={d}>{t(`documents.types.${d}`)}</MenuItem>
+                      ))}
+                    </TextField>
+                    <Button size="small" variant="contained"
+                      disabled={patchMut.isPending || !fileName.trim()}
+                      onClick={() => patchMut.mutate()}>
+                      {patchMut.isPending ? <CircularProgress size={16} /> : "Αποθήκευση"}
+                    </Button>
+                  </>
+                )}
+              </>
+            )}
+            <input
+              ref={replaceInputRef}
+              type="file"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) replaceMut.mutate(f);
+                e.target.value = "";
+              }}
+            />
+          </Stack>
+          <Divider />
+
+          {/* Preview surface — fills the remaining drawer height. */}
+          <Box sx={{
+            flex: 1,
+            bgcolor: "action.hover",
+            display: "flex", alignItems: "stretch", justifyContent: "stretch",
+            overflow: "hidden"
+          }}>
+            {canInlinePreview ? (
+              <Box
+                component="iframe"
+                src={previewUrl}
+                title={doc.fileName}
+                sx={{ flex: 1, border: 0, width: "100%", height: "100%", bgcolor: "background.paper" }}
+              />
+            ) : (
+              <Stack alignItems="center" justifyContent="center" spacing={2}
+                sx={{ flex: 1, p: 4, textAlign: "center" }}>
+                <MimeIcon mime={doc.mimeType} sx={{ fontSize: 64 }} />
+                <Typography variant="h6" fontWeight={700}>Δεν υπάρχει προεπισκόπηση</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 420 }}>
+                  Ο τύπος «{doc.mimeType}» δεν υποστηρίζεται από τον browser για inline προβολή.
+                  Κατεβάστε το αρχείο για να το ανοίξετε στην κατάλληλη εφαρμογή.
+                </Typography>
+                <Button variant="contained" startIcon={<DownloadIcon />} onClick={download}>
+                  {t("documents.download")}
+                </Button>
+              </Stack>
+            )}
+          </Box>
+        </>
+      )}
+    </Drawer>
   );
 }
 
