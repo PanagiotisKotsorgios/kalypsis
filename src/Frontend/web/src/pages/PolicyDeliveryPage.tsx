@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { money } from "../utils/format";
 
 interface DeliveryRow {
   policyId: string; policyNumber: string; customerName: string;
@@ -100,7 +101,7 @@ export function PolicyDeliveryPage({ embedded = false }: PolicyDeliveryPageProps
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.policyNumber}</TableCell>
                   <TableCell>{r.customerName}</TableCell>
                   <TableCell>{r.startDate}</TableCell>
-                  <TableCell align="right">{r.premium.toFixed(2)} {r.currency}</TableCell>
+                  <TableCell align="right">{money(r.premium, r.currency)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

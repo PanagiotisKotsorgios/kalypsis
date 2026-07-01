@@ -121,7 +121,7 @@ export function CashPositionPage() {
             <Typography variant="caption" color="text.secondary">{a.code}</Typography>
             <Typography fontWeight={700}>{a.name}</Typography>
             <Typography variant="h5" fontWeight={800} color={a.currentBalance >= 0 ? "success.main" : "error.main"}>
-              {a.currentBalance.toFixed(2)} {a.currency}
+              {money(a.currentBalance, a.currency)}
             </Typography>
           </Card>
         ))}
@@ -140,13 +140,13 @@ export function CashPositionPage() {
         <Card variant="outlined" sx={{ p: 2, flex: 1 }}>
           <Typography variant="caption" color="text.secondary">Σήμερα — Καθαρό</Typography>
           <Typography variant="h5" fontWeight={800} color={todayIn - todayOut >= 0 ? "success.main" : "error.main"}>
-            {(todayIn - todayOut).toFixed(2)} €
+            {money(todayIn - todayOut)}
           </Typography>
         </Card>
         <Card variant="outlined" sx={{ p: 2, flex: 1 }}>
           <Typography variant="caption" color="text.secondary">Σύνολο φιλτραρισμένα</Typography>
           <Typography variant="h5" fontWeight={800}>
-            {filteredMovements.reduce((s, m) => s + (m.direction === "In" ? m.amount : -m.amount), 0).toFixed(2)} €
+            {money(filteredMovements.reduce((s, m) => s + (m.direction === "In" ? m.amount : -m.amount), 0))}
           </Typography>
         </Card>
       </Stack>
@@ -223,7 +223,7 @@ export function CashPositionPage() {
                 <TableCell>{m.reason}</TableCell>
                 <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{m.reference ?? "—"}</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 700, color: m.direction === "In" ? "success.main" : "error.main" }}>
-                  {(m.direction === "In" ? "+" : "−")}{m.amount.toFixed(2)} {m.currency}
+                  {(m.direction === "In" ? "+" : "−")}{money(m.amount, m.currency)}
                 </TableCell>
               </TableRow>
             ))}
@@ -390,7 +390,7 @@ function MovementDialog({ open, onClose, accounts, onSaved }: { open: boolean; o
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField select required label={t("cash.account")} value={form.cashAccountId}
               onChange={e => setForm({ ...form, cashAccountId: e.target.value })} fullWidth>
-              {accounts.map(a => <MenuItem key={a.id} value={a.id}>{a.name} ({a.currentBalance.toFixed(2)} {a.currency})</MenuItem>)}
+              {accounts.map(a => <MenuItem key={a.id} value={a.id}>{a.name} ({money(a.currentBalance, a.currency)})</MenuItem>)}
             </TextField>
             <TextField type="date" label={t("cash.movementDate")} InputLabelProps={{ shrink: true }}
               value={form.movementDate} onChange={e => setForm({ ...form, movementDate: e.target.value })} fullWidth />
@@ -461,7 +461,7 @@ function MovementDialog({ open, onClose, accounts, onSaved }: { open: boolean; o
               onChange={e => setForm({ ...form, policyId: e.target.value })} fullWidth>
               <MenuItem value="">— Καμία σύνδεση —</MenuItem>
               {(customerPolicies.data ?? []).map(p => (
-                <MenuItem key={p.id} value={p.id}>{p.policyNumber} · {p.premium.toFixed(2)} €</MenuItem>
+                <MenuItem key={p.id} value={p.id}>{p.policyNumber} · {money(p.premium)}</MenuItem>
               ))}
             </TextField>
           )}

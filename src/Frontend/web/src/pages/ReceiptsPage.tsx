@@ -271,15 +271,15 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
               <MenuItem value="">— Καμία σύνδεση —</MenuItem>
               {(customerPolicies.data ?? []).map(p => (
                 <MenuItem key={p.id} value={p.id}>
-                  {p.policyNumber} · {p.insuranceCompanyName} · {p.premium.toFixed(2)} €
+                  {p.policyNumber} · {p.insuranceCompanyName} · {money(p.premium)}
                 </MenuItem>
               ))}
             </TextField>
           )}
           {policyPayment.data && (
             <Alert severity={STATUS_COLOR[policyPayment.data.status] === "success" ? "info" : STATUS_COLOR[policyPayment.data.status] as any}>
-              {policyPayment.data.statusLabelGr} · Πληρωμένο {policyPayment.data.paidAmount.toFixed(2)} € / {policyPayment.data.premium.toFixed(2)} € ·
-              Υπόλοιπο {policyPayment.data.remainingAmount.toFixed(2)} €
+              {policyPayment.data.statusLabelGr} · Πληρωμένο {money(policyPayment.data.paidAmount)} / {money(policyPayment.data.premium)} ·
+              Υπόλοιπο {money(policyPayment.data.remainingAmount)}
             </Alert>
           )}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>

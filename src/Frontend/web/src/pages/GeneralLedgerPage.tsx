@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { money, num } from "../utils/format";
 
 interface AccountDto { id: string; code: string; name: string; type: string; category: string | null; isActive: boolean; displayOrder: number; }
 interface EntryDto {
@@ -92,8 +93,8 @@ function EntriesPanel() {
                   <TableCell><Typography fontWeight={600}>{e.accountCode}</Typography>
                     <Typography variant="caption" color="text.secondary">{e.accountName}</Typography></TableCell>
                   <TableCell>{e.description}</TableCell>
-                  <TableCell align="right" sx={{ color: "success.main" }}>{e.debit > 0 ? e.debit.toFixed(2) : "—"}</TableCell>
-                  <TableCell align="right" sx={{ color: "error.main" }}>{e.credit > 0 ? e.credit.toFixed(2) : "—"}</TableCell>
+                  <TableCell align="right" sx={{ color: "success.main" }}>{e.debit > 0 ? num(e.debit) : "—"}</TableCell>
+                  <TableCell align="right" sx={{ color: "error.main" }}>{e.credit > 0 ? num(e.credit) : "—"}</TableCell>
                   <TableCell align="right">
                     <IconButton size="small" color="error" onClick={() => { if (confirm(t("common.confirmDelete"))) del.mutate(e.id); }}>
                       <DeleteIcon fontSize="small" />
@@ -293,15 +294,15 @@ function SummaryPanel() {
       <Stack direction="row" spacing={2} mb={3}>
         <Card sx={{ p: 2, flex: 1 }}>
           <Typography variant="caption" color="text.secondary">{t("gl.totalDebit")}</Typography>
-          <Typography variant="h5" fontWeight={800} color="success.main">{s.totalDebit.toFixed(2)} €</Typography>
+          <Typography variant="h5" fontWeight={800} color="success.main">{money(s.totalDebit)}</Typography>
         </Card>
         <Card sx={{ p: 2, flex: 1 }}>
           <Typography variant="caption" color="text.secondary">{t("gl.totalCredit")}</Typography>
-          <Typography variant="h5" fontWeight={800} color="error.main">{s.totalCredit.toFixed(2)} €</Typography>
+          <Typography variant="h5" fontWeight={800} color="error.main">{money(s.totalCredit)}</Typography>
         </Card>
         <Card sx={{ p: 2, flex: 1 }}>
           <Typography variant="caption" color="text.secondary">{t("gl.balance")}</Typography>
-          <Typography variant="h5" fontWeight={800}>{s.balance.toFixed(2)} €</Typography>
+          <Typography variant="h5" fontWeight={800}>{money(s.balance)}</Typography>
         </Card>
       </Stack>
       <Card variant="outlined" sx={{ overflowX: "auto" }}>
@@ -320,9 +321,9 @@ function SummaryPanel() {
                 <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.accountCode}</TableCell>
                 <TableCell>{r.accountName}</TableCell>
                 <TableCell>{r.type}</TableCell>
-                <TableCell align="right" sx={{ color: "success.main" }}>{r.debit.toFixed(2)}</TableCell>
-                <TableCell align="right" sx={{ color: "error.main" }}>{r.credit.toFixed(2)}</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700 }}>{r.balance.toFixed(2)}</TableCell>
+                <TableCell align="right" sx={{ color: "success.main" }}>{num(r.debit)}</TableCell>
+                <TableCell align="right" sx={{ color: "error.main" }}>{num(r.credit)}</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700 }}>{num(r.balance)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
