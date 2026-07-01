@@ -20,12 +20,26 @@ import { LanguageToggle } from "../components/LanguageToggle";
 import { api } from "../api/client";
 
 // Restrained brand palette — navy for type, single accent blue, soft borders.
-// White page background — no gradient washes, no neon glows.
+// The hero now sits on a soft white→light-blue gradient with wave accents; the
+// rest of the page stays clean.
 const NAVY = "#0b2545";        // primary text / logotype
 const NAVY_SOFT = "#3d4f6b";   // secondary text
 const ACCENT = "#1f7bb3";      // single accent — links + primary CTA
 const RULE = "#e5e9ef";        // hairline borders
 const SURFACE = "#fafbfc";     // ultra-light card surface
+
+// Inline SVG wave — repeated bottom-left / bottom-right via CSS mask. Encoded
+// once so we can flip it with a CSS transform for the right-hand corner.
+const WAVE_SVG = encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 400' fill='none'>
+    <path d='M0 340 C 120 300, 220 380, 340 320 S 560 260, 600 300' stroke='rgba(59,130,246,0.35)' stroke-width='1.4' fill='none'/>
+    <path d='M0 310 C 130 260, 240 350, 360 280 S 580 220, 600 260' stroke='rgba(59,130,246,0.28)' stroke-width='1.2' fill='none'/>
+    <path d='M0 280 C 140 220, 260 320, 380 240 S 590 180, 600 220' stroke='rgba(59,130,246,0.22)' stroke-width='1.0' fill='none'/>
+    <path d='M0 250 C 150 190, 270 300, 400 210 S 590 150, 600 190' stroke='rgba(59,130,246,0.16)' stroke-width='0.9' fill='none'/>
+    <path d='M0 220 C 160 170, 280 280, 420 190 S 590 120, 600 160' stroke='rgba(59,130,246,0.12)' stroke-width='0.8' fill='none'/>
+  </svg>`
+);
+const WAVE_URL = `url("data:image/svg+xml;utf8,${WAVE_SVG}")`;
 
 // Feature list keys — labels resolved at render-time via t() so they respect
 // the current language.
@@ -54,9 +68,60 @@ export function LandingPage() {
         background: "linear-gradient(90deg, #0b2545 0%, #1ea7e1 50%, #0b2545 100%)"
       }} />
 
-      {/* Tiny top bar — contact info on the left, language picker on the right. */}
-      <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 }, pt: { xs: 2, md: 2.5 } }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+      {/* ═══ Hero section ═══
+          Soft white→light-blue gradient with two radial blue glows in the
+          lower corners, plus SVG wave layers overlaid at bottom-left and
+          bottom-right. The center stays clean so the logo/headline/CTAs
+          remain readable. All non-background elements sit above with z=1. */}
+      <Box sx={{
+        position: "relative",
+        overflow: "hidden",
+        background: `
+          radial-gradient(circle at 15% 88%, rgba(59,130,246,0.20), transparent 38%),
+          radial-gradient(circle at 88% 88%, rgba(14,165,233,0.18), transparent 40%),
+          linear-gradient(180deg, #f8fbff 0%, #ffffff 45%, #edf6ff 100%)
+        `,
+        // Wave layers — decorative, non-interactive.
+        "&::before": {
+          content: '""', position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
+          backgroundImage: `${WAVE_URL}, ${WAVE_URL}`,
+          backgroundRepeat: "no-repeat, no-repeat",
+          backgroundPosition: "left bottom, right bottom",
+          backgroundSize: "48% auto, 48% auto",
+          // Flip the right-hand copy horizontally so the waves mirror inward.
+          // We can't apply transform to a pseudo-element background image
+          // directly per-layer, so a wrapper for the right wave lives below.
+        },
+        "&::after": {
+          content: '""', position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
+          backgroundImage: WAVE_URL,
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "right bottom",
+          backgroundSize: "48% auto",
+          transform: "scaleX(-1)",
+          transformOrigin: "center",
+          opacity: 0.9
+        }
+      }}>
+
+      {/* Tiny top bar — contact info on the left, language picker on the right.
+          Now wrapped in a rounded glass card that hovers above the hero. */}
+      <Container maxWidth="lg" sx={{
+        px: { xs: 2, md: 3 },
+        pt: { xs: 1.5, md: 2 },
+        position: "relative", zIndex: 1
+      }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}
+          sx={{
+            // Glass card wrapper for the whole top bar.
+            borderRadius: { xs: 3, md: "18px" },
+            px: { xs: 2, md: 3.5 }, py: { xs: 1.25, md: 1.4 },
+            background: "rgba(255,255,255,0.78)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
+            boxShadow: "0 14px 35px rgba(15,42,80,0.10)",
+            border: "1px solid rgba(148,191,230,0.35)"
+          }}>
           <Stack direction="row" spacing={{ xs: 1.5, sm: 3 }} alignItems="center"
             sx={{ display: { xs: "none", sm: "flex" } }}>
             <Box component="a" href="tel:+302631028971"
@@ -131,18 +196,25 @@ export function LandingPage() {
             <LanguageToggle />
           </Stack>
         </Stack>
-        {/* Hairline accent under the top bar — softly fades in and out. */}
-        <Box sx={{
-          mt: { xs: 1.5, md: 2 },
-          height: 1,
-          background: "linear-gradient(90deg, transparent 0%, rgba(30,167,225,0.35) 50%, transparent 100%)"
-        }} />
       </Container>
 
-      <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 }, py: { xs: 2, md: 3 }, flex: 1 }}>
+      {/* Logo + hero copy sit inside the gradient/wave hero area. */}
+      <Container maxWidth="lg" sx={{
+        px: { xs: 3, md: 6 }, py: { xs: 2, md: 3 },
+        position: "relative", zIndex: 1
+      }}>
         <PageEnter stagger={700}>
           <BigLogo />
           <Hero />
+        </PageEnter>
+      </Container>
+
+      </Box> {/* ═══ /Hero section ═══ */}
+
+      {/* Feature grid + newsletter live on the plain-white lower half so the
+          gradient stays focused on the pitch above the fold. */}
+      <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 }, py: { xs: 2, md: 3 }, flex: 1 }}>
+        <PageEnter stagger={700}>
           <FeatureGrid />
           <NewsletterCard />
         </PageEnter>
@@ -211,8 +283,15 @@ function Hero() {
             fontSize: { xs: 17, md: 19 }, fontWeight: 700, letterSpacing: "0.04em",
             textTransform: "none",
             minWidth: { sm: 240 },
-            bgcolor: NAVY, color: "#fff",
-            "&:hover": { bgcolor: NAVY_SOFT }
+            color: "#fff",
+            // Navy → accent blue diagonal gradient for a more premium feel;
+            // shadow lifts the button off the pale background.
+            background: `linear-gradient(135deg, ${NAVY} 0%, #123a6b 55%, ${ACCENT} 100%)`,
+            boxShadow: "0 10px 24px rgba(11,37,69,0.28)",
+            "&:hover": {
+              background: `linear-gradient(135deg, #0a213e 0%, #0f325d 55%, #1a6ea3 100%)`,
+              boxShadow: "0 14px 30px rgba(11,37,69,0.34)"
+            }
           }}>
           {t("landing.v2.ctaLogin")}
         </Button>
@@ -223,11 +302,14 @@ function Hero() {
             fontSize: { xs: 17, md: 19 }, fontWeight: 700, letterSpacing: "0.04em",
             textTransform: "none",
             minWidth: { sm: 240 },
-            color: NAVY,
-            borderColor: NAVY, borderWidth: 2,
+            color: ACCENT,
+            bgcolor: "#fff",
+            borderColor: ACCENT, borderWidth: 2,
+            boxShadow: "0 8px 20px rgba(31,123,179,0.14)",
             "&:hover": {
-              borderWidth: 2, borderColor: NAVY,
-              bgcolor: "rgba(11,37,69,0.04)"
+              borderWidth: 2, borderColor: ACCENT,
+              bgcolor: "rgba(31,123,179,0.06)",
+              boxShadow: "0 10px 24px rgba(31,123,179,0.20)"
             }
           }}>
           {t("landing.v2.ctaRegister")}
