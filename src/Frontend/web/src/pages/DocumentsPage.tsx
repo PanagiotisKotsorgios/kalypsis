@@ -32,6 +32,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
+import { date } from "../utils/format";
 
 type DocumentType = "Policy" | "GreenCard" | "Roadside" | "Invoice" | "Other";
 
@@ -148,7 +149,7 @@ export function DocumentsPage() {
                     <TableCell><Chip label={t(`documents.types.${d.documentType}`)} size="small" /></TableCell>
                     <TableCell>{d.policyNumber}</TableCell>
                     {!isCustomer && <TableCell>{d.customerDisplay}</TableCell>}
-                    <TableCell sx={{ fontSize: 13 }}>{new Date(d.createdAt).toLocaleDateString("el-GR")}</TableCell>
+                    <TableCell sx={{ fontSize: 13 }}>{date(d.createdAt)}</TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                         <IconButton size="small" onClick={() => download(d.id, d.fileName)} title={t("documents.download")}>

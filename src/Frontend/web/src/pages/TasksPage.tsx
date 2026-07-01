@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
+import { date } from "../utils/format";
 
 type TaskStatus = "Open" | "InProgress" | "Completed" | "Cancelled";
 type TaskPriority = "Low" | "Normal" | "High" | "Urgent";
@@ -125,7 +126,7 @@ export function TasksPage() {
                         <Stack direction="row" spacing={0.75} alignItems="center" mt={1.5} flexWrap="wrap" gap={0.5}>
                           <Chip icon={<FlagIcon />} label={t(`tasks.priorities.${task.priority}`)} size="small" color={PRIORITY_COLOR[task.priority]} />
                           {task.dueAt && (
-                            <Chip icon={<EventIcon />} label={new Date(task.dueAt).toLocaleDateString("el-GR")} size="small"
+                            <Chip icon={<EventIcon />} label={date(task.dueAt)} size="small"
                               color={overdue ? "error" : "default"} variant={overdue ? "filled" : "outlined"} />
                           )}
                           {task.assignedToUserName && <Chip label={task.assignedToUserName} size="small" variant="outlined" />}

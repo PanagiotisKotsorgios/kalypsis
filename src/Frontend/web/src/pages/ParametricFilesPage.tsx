@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { ErrorPopup, useDescriptiveError } from "../components/ErrorPopup";
+import { date } from "../utils/format";
 
 interface CatalogEntry {
   broadcastId: string;
@@ -108,8 +109,8 @@ export function ParametricFilesPage() {
                       <TableCell>{e.kind}</TableCell>
                       <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{e.version}</TableCell>
                       <TableCell sx={{ fontSize: 13 }}>
-                        {e.effectiveFrom ? new Date(e.effectiveFrom).toLocaleDateString("el-GR") : "—"}
-                        {e.effectiveTo ? ` → ${new Date(e.effectiveTo).toLocaleDateString("el-GR")}` : ""}
+                        {e.effectiveFrom ? date(e.effectiveFrom) : "—"}
+                        {e.effectiveTo ? ` → ${date(e.effectiveTo)}` : ""}
                       </TableCell>
                       <TableCell sx={{ fontSize: 13 }}>
                         {e.originalFileName ?? "—"}

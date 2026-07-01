@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { date } from "../utils/format";
 
 interface DuplicateGroup {
   groupKey: string; matchedOn: string;
@@ -119,7 +120,7 @@ function GroupCard({ group, onMerged, onError }: { group: DuplicateGroup; onMerg
                 <TableCell>{c.email ?? "—"}</TableCell>
                 <TableCell>{c.phone ?? "—"}</TableCell>
                 <TableCell align="right">{c.policyCount}</TableCell>
-                <TableCell sx={{ fontSize: 12, color: "text.secondary" }}>{new Date(c.createdAt).toLocaleDateString("el-GR")}</TableCell>
+                <TableCell sx={{ fontSize: 12, color: "text.secondary" }}>{date(c.createdAt)}</TableCell>
               </TableRow>
             ))}
           </TableBody>

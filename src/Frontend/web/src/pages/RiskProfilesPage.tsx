@@ -8,6 +8,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { date } from "../utils/format";
 
 const PRODUCT_TYPES = ["Auto", "Home", "Health", "Life", "Business", "Travel"] as const;
 type ProductType = typeof PRODUCT_TYPES[number];
@@ -125,7 +126,7 @@ export function RiskProfilesPage() {
                 <Row label="Κυβικά">{lookup.ccEngine}</Row>
                 <Row label="ίπποι (kW)">{lookup.kw}</Row>
                 <Row label="Καύσιμο">{lookup.fuelType}</Row>
-                <Row label="1η ταξιν.">{lookup.firstRegistration && new Date(lookup.firstRegistration).toLocaleDateString("el-GR")}</Row>
+                <Row label="1η ταξιν.">{lookup.firstRegistration && date(lookup.firstRegistration)}</Row>
               </Stack>
               <Button fullWidth variant="contained" sx={{ mt: 2 }}
                 disabled={save.isPending} onClick={() => save.mutate()}>

@@ -9,6 +9,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { date } from "../utils/format";
 
 interface ApiKeyDto { id: string; name: string; keyPrefix: string; scopes: string; isActive: boolean; lastUsedAt: string | null; expiresAt: string | null; createdAt: string; }
 interface CreateResp { key: ApiKeyDto; plaintextSecret: string; }
@@ -55,7 +56,7 @@ export function ApiKeysPage() {
                   <TableCell sx={{ fontFamily: "monospace" }}>{k.keyPrefix}…</TableCell>
                   <TableCell sx={{ color: "text.secondary" }}>{k.scopes || "—"}</TableCell>
                   <TableCell>{k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleString("el-GR") : "—"}</TableCell>
-                  <TableCell>{k.expiresAt ? new Date(k.expiresAt).toLocaleDateString("el-GR") : "—"}</TableCell>
+                  <TableCell>{k.expiresAt ? date(k.expiresAt) : "—"}</TableCell>
                   <TableCell><Chip size="small" color={k.isActive ? "success" : "default"} label={k.isActive ? t("common.active") : t("apiKeys.revoked")} /></TableCell>
                   <TableCell align="right">
                     <IconButton size="small" color="error" onClick={() => { if (confirm(t("apiKeys.revokeConfirm"))) del.mutate(k.id); }}>

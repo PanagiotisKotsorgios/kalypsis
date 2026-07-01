@@ -9,6 +9,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { date } from "../utils/format";
 
 const CHANNELS = ["Email","Courier","InPerson","Portal"] as const;
 const STATUSES = ["Pending","InTransit","Delivered","Failed"] as const;
@@ -64,9 +65,9 @@ export function DeliveryTrackingPage() {
                 <TableRow key={d.id} hover>
                   <TableCell><Typography fontWeight={700} sx={{ fontFamily: "monospace" }}>{d.policyNumber}</Typography></TableCell>
                   <TableCell>{t(`delivery.channelLabel.${d.channel}`)}</TableCell>
-                  <TableCell>{d.dispatchedAt ? new Date(d.dispatchedAt).toLocaleDateString("el-GR") : "—"}</TableCell>
-                  <TableCell>{d.deliveredAt ? new Date(d.deliveredAt).toLocaleDateString("el-GR") : "—"}</TableCell>
-                  <TableCell>{d.acknowledgedAt ? new Date(d.acknowledgedAt).toLocaleDateString("el-GR") : "—"}</TableCell>
+                  <TableCell>{d.dispatchedAt ? date(d.dispatchedAt) : "—"}</TableCell>
+                  <TableCell>{d.deliveredAt ? date(d.deliveredAt) : "—"}</TableCell>
+                  <TableCell>{d.acknowledgedAt ? date(d.acknowledgedAt) : "—"}</TableCell>
                   <TableCell sx={{ fontFamily: "monospace" }}>{d.reference ?? "—"}</TableCell>
                   <TableCell><Chip size="small" color={colors[d.status]} label={t(`delivery.statusLabel.${d.status}`)} /></TableCell>
                   <TableCell align="right">

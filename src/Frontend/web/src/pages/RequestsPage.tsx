@@ -36,6 +36,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
+import { date } from "../utils/format";
 
 type ServiceRequestType = "NewPolicy" | "AccidentReport" | "DocumentRequest" | "PolicyChange" | "GeneralQuestion";
 type ServiceRequestStatus = "Submitted" | "InReview" | "AwaitingCustomerInfo" | "Resolved" | "Closed" | "Rejected";
@@ -200,7 +201,7 @@ export function RequestsPage() {
                         color={STATUS_COLOR[r.status]}
                       />
                     </TableCell>
-                    <TableCell>{new Date(r.createdAt).toLocaleDateString("el-GR")}</TableCell>
+                    <TableCell>{date(r.createdAt)}</TableCell>
                     <TableCell>
                       {r.attachments.length > 0 && (
                         <Chip
@@ -502,7 +503,7 @@ function RequestDetailDialog({ request, onClose, onChanged, isAgency }: DetailPr
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Typography sx={{ fontWeight: 600 }} noWrap>{a.fileName}</Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {t(`requests.attachmentCategories.${a.category}`)} · {Math.round(a.sizeBytes / 1024)} KB · {new Date(a.createdAt).toLocaleDateString("el-GR")}
+                          {t(`requests.attachmentCategories.${a.category}`)} · {Math.round(a.sizeBytes / 1024)} KB · {date(a.createdAt)}
                         </Typography>
                       </Box>
                       <IconButton onClick={() => downloadAttachment(a.id, a.fileName)} size="small">
