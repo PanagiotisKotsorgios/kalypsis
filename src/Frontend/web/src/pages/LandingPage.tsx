@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   Alert, Box, Button, CircularProgress, Container, Divider, Drawer, IconButton,
   Stack, TextField, Typography
@@ -38,6 +38,43 @@ const SURFACE = "#fafbfc";     // ultra-light card surface
 // Hero background — the finished wave artwork ships as a PNG and is loaded
 // as a `cover` background so it fills the entire hero exactly as designed.
 const HERO_BG = "/images/kalypsis-hero-bg.png";
+
+/**
+ * Reveal — cheap, GPU-only scroll-in animation.
+ *
+ * Wraps its children in a Box that starts a few px down + faded, then rises
+ * into place the first time it intersects the viewport. Everything after
+ * that is untouched by React (no re-renders, no observers hanging around),
+ * so a page full of Reveals costs practically nothing.
+ *
+ * Pass `delay` (ms) to stagger neighbouring reveals.
+ */
+function Reveal({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) { setVisible(true); io.disconnect(); }
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" }
+    );
+    io.observe(node);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <Box ref={ref} sx={{
+      opacity: visible ? 1 : 0,
+      transform: visible ? "translateY(0)" : "translateY(18px)",
+      transition: `opacity 700ms cubic-bezier(0.16,1,0.3,1) ${delay}ms, transform 700ms cubic-bezier(0.16,1,0.3,1) ${delay}ms`,
+      willChange: "opacity, transform"
+    }}>
+      {children}
+    </Box>
+  );
+}
 
 // Feature list keys — labels resolved at render-time via t() so they respect
 // the current language.
@@ -86,8 +123,11 @@ export function LandingPage() {
       }}>
 
       {/* Tiny top bar — contact info on the left, language picker on the right.
-          Now wrapped in a rounded glass card that hovers above the hero. */}
-      <Container maxWidth="lg" sx={{
+          Now wrapped in a rounded glass card that hovers above the hero.
+          Wider container so the nav bar breathes: ~80% of viewport up to
+          1600px on very wide screens. */}
+      <Container maxWidth={false} sx={{
+        maxWidth: { xs: "100%", md: "82%", xl: "1600px" },
         px: { xs: 2, md: 3 },
         pt: { xs: 1.5, md: 2 },
         position: "relative", zIndex: 1
@@ -103,7 +143,32 @@ export function LandingPage() {
             backdropFilter: "blur(16px)",
             WebkitBackdropFilter: "blur(16px)",
             boxShadow: "0 18px 44px rgba(15,42,80,0.12)",
-            border: "1px solid rgba(148,191,230,0.35)"
+            border: "1px solid rgba(148,191,230,0.35)",
+            // Entrance — the whole nav shelf glides down from above with a
+            // subtle horizontal expansion for the "settle in" feel.
+            animation: "kalypsisNavIn 850ms cubic-bezier(0.16,1,0.3,1) 60ms both",
+            transformOrigin: "top center",
+            "@keyframes kalypsisNavIn": {
+              "0%":   { opacity: 0, transform: "translateY(-24px) scaleX(0.94)" },
+              "60%":  { opacity: 1 },
+              "100%": { opacity: 1, transform: "translateY(0) scaleX(1)" }
+            },
+            // Stagger the contact-info group and the right cluster so they
+            // arrive from opposite sides after the shelf lands.
+            "& [data-nav-slot='left']": {
+              animation: "kalypsisNavLeftIn 700ms cubic-bezier(0.16,1,0.3,1) 380ms both"
+            },
+            "& [data-nav-slot='right']": {
+              animation: "kalypsisNavRightIn 700ms cubic-bezier(0.16,1,0.3,1) 380ms both"
+            },
+            "@keyframes kalypsisNavLeftIn": {
+              "0%":   { opacity: 0, transform: "translateX(-18px)" },
+              "100%": { opacity: 1, transform: "translateX(0)" }
+            },
+            "@keyframes kalypsisNavRightIn": {
+              "0%":   { opacity: 0, transform: "translateX(18px)" },
+              "100%": { opacity: 1, transform: "translateX(0)" }
+            }
           }}>
           {/* Mobile-only left slot — language toggle sits here so the
               hamburger can own the right-hand side. */}
@@ -112,6 +177,7 @@ export function LandingPage() {
           </Box>
 
           <Stack direction="row" spacing={{ xs: 1.5, sm: 3.5 }} alignItems="center"
+            data-nav-slot="left"
             sx={{ display: { xs: "none", sm: "flex" } }}>
             <Box component="a" href="tel:+302631028971"
               sx={{
@@ -135,6 +201,11 @@ export function LandingPage() {
               <MailOutlineIcon sx={{ fontSize: 20 }} />
               info@mykalypsis.gr
             </Box>
+            {/* Vertical divider between the contact info and the auth links. */}
+            <Box aria-hidden sx={{
+              width: "1px", height: 22,
+              bgcolor: "rgba(11,37,69,0.18)"
+            }} />
             <Box component={RouterLink} to="/login"
               sx={{
                 color: NAVY, textDecoration: "none",
@@ -156,6 +227,7 @@ export function LandingPage() {
           </Stack>
           {/* Desktop-only right cluster — Contact button + LanguageToggle. */}
           <Stack direction="row" spacing={1.75} alignItems="center"
+            data-nav-slot="right"
             sx={{ ml: "auto", display: { xs: "none", sm: "flex" } }}>
             <Button
               component={RouterLink}
@@ -318,7 +390,8 @@ export function LandingPage() {
       </Drawer>
 
       {/* Logo + hero copy sit inside the gradient/wave hero area. */}
-      <Container maxWidth="lg" sx={{
+      <Container maxWidth={false} sx={{
+        maxWidth: { xs: "100%", md: "82%", xl: "1600px" },
         px: { xs: 3, md: 6 }, py: { xs: 2, md: 3 },
         position: "relative", zIndex: 1
       }}>
@@ -332,7 +405,10 @@ export function LandingPage() {
 
       {/* Feature grid + newsletter live on the plain-white lower half so the
           gradient stays focused on the pitch above the fold. */}
-      <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 }, py: { xs: 2, md: 3 }, flex: 1 }}>
+      <Container maxWidth={false} sx={{
+        maxWidth: { xs: "100%", md: "82%", xl: "1600px" },
+        px: { xs: 3, md: 6 }, py: { xs: 2, md: 3 }, flex: 1
+      }}>
         <PageEnter stagger={700}>
           <FeatureGrid />
           <NewsletterCard />
@@ -354,15 +430,19 @@ function BigLogo() {
       pt: { xs: 2, md: 4 }, pb: { xs: 2, md: 3 }
     }}>
       <Box component="img"
-        src="/kalypsis-logo.jpg"
+        src="/kalypsis-logo.png"
         alt="Kalypsis"
         sx={{
           width: "100%",
           maxWidth: { xs: 320, sm: 520, md: 720 },
           height: "auto",
-          // Imperceptibly trim the white edges of the jpg so it sits flush
-          // against the white page.
-          mixBlendMode: "multiply"
+          // Gentle "float in" — one clean transform, GPU-accelerated,
+          // avoids the layout-jank you get from animating margin/height.
+          animation: "kalypsisLogoIn 900ms cubic-bezier(0.16,1,0.3,1) both",
+          "@keyframes kalypsisLogoIn": {
+            "0%":   { opacity: 0, transform: "translateY(20px) scale(0.985)" },
+            "100%": { opacity: 1, transform: "translateY(0) scale(1)" }
+          }
         }} />
     </Box>
   );
@@ -373,23 +453,35 @@ function BigLogo() {
    ============================================================================ */
 function Hero() {
   const { t } = useTranslation();
+  // Shared keyframe: quick, GPU-only fade + rise. Reused on the headline,
+  // sub, and CTA row with different delays for a natural cascade.
+  const fadeUp = {
+    "@keyframes kalypsisFadeUp": {
+      "0%":   { opacity: 0, transform: "translateY(16px)" },
+      "100%": { opacity: 1, transform: "translateY(0)" }
+    }
+  } as const;
   return (
     <Box sx={{
       textAlign: "center",
-      maxWidth: 760, mx: "auto",
-      pb: { xs: 6, md: 10 }
+      // Wider cap so the Εγγραφή button label doesn't wrap to two lines.
+      maxWidth: 920, mx: "auto",
+      pb: { xs: 6, md: 10 },
+      ...fadeUp
     }}>
       <Typography component="h1" sx={{
         fontSize: { xs: 32, sm: 40, md: 52 }, fontWeight: 700,
         lineHeight: 1.12, letterSpacing: "-0.02em",
-        color: NAVY, mb: 2
+        color: NAVY, mb: 2,
+        animation: "kalypsisFadeUp 800ms cubic-bezier(0.16,1,0.3,1) 220ms both"
       }}>
         {t("landing.v2.heroWelcome")}{" "}{t("landing.v2.heroAction")}
       </Typography>
 
       <Typography sx={{
         fontSize: { xs: 16, md: 18 }, lineHeight: 1.6,
-        color: NAVY_SOFT, mb: 5, maxWidth: 620, mx: "auto"
+        color: NAVY_SOFT, mb: 5, maxWidth: 720, mx: "auto",
+        animation: "kalypsisFadeUp 800ms cubic-bezier(0.16,1,0.3,1) 360ms both"
       }}>
         {t("landing.v2.heroSub")}
       </Typography>
@@ -403,7 +495,13 @@ function Hero() {
         spacing={{ xs: 2, sm: 3 }}
         justifyContent="center"
         alignItems="stretch"
-        sx={{ width: "100%", maxWidth: { xs: "100%", sm: 640 }, mx: "auto" }}
+        sx={{
+          width: "100%",
+          // Wider cap so both CTAs (including the long Εγγραφή label) stay
+          // on a single line at md+ without pinching.
+          maxWidth: { xs: "100%", sm: 760, md: 820 }, mx: "auto",
+          animation: "kalypsisFadeUp 800ms cubic-bezier(0.16,1,0.3,1) 520ms both"
+        }}
       >
         {/* Primary — Σύνδεση. Deep navy → royal-blue vertical gradient with
             a subtle top highlight; drops a soft blue shadow; hovers brighter
@@ -493,26 +591,28 @@ function FeatureGrid() {
   const { t } = useTranslation();
   return (
     <Box sx={{ pb: { xs: 4, md: 6 }, borderTop: `1px solid ${RULE}`, pt: { xs: 5, md: 7 } }}>
-      <Box sx={{ textAlign: "center", mb: { xs: 4, md: 6 } }}>
-        <Typography sx={{
-          fontSize: 12, letterSpacing: "0.22em", textTransform: "uppercase",
-          color: NAVY_SOFT, fontWeight: 600, mb: 1.5
-        }}>
-          {t("landing.v2.featuresEyebrow")}
-        </Typography>
-        <Typography sx={{
-          fontSize: { xs: 22, md: 28 }, fontWeight: 700,
-          color: NAVY, letterSpacing: "-0.01em", mb: 1.5
-        }}>
-          {t("landing.v2.featuresHeadline")}
-        </Typography>
-        <Typography sx={{
-          fontSize: { xs: 14.5, md: 15.5 }, lineHeight: 1.6,
-          color: NAVY_SOFT, maxWidth: 720, mx: "auto"
-        }}>
-          {t("landing.v2.featuresSub")}
-        </Typography>
-      </Box>
+      <Reveal>
+        <Box sx={{ textAlign: "center", mb: { xs: 4, md: 6 } }}>
+          <Typography sx={{
+            fontSize: 12, letterSpacing: "0.22em", textTransform: "uppercase",
+            color: NAVY_SOFT, fontWeight: 600, mb: 1.5
+          }}>
+            {t("landing.v2.featuresEyebrow")}
+          </Typography>
+          <Typography sx={{
+            fontSize: { xs: 22, md: 28 }, fontWeight: 700,
+            color: NAVY, letterSpacing: "-0.01em", mb: 1.5
+          }}>
+            {t("landing.v2.featuresHeadline")}
+          </Typography>
+          <Typography sx={{
+            fontSize: { xs: 14.5, md: 15.5 }, lineHeight: 1.6,
+            color: NAVY_SOFT, maxWidth: 720, mx: "auto"
+          }}>
+            {t("landing.v2.featuresSub")}
+          </Typography>
+        </Box>
+      </Reveal>
 
       {/* Bento-style asymmetric grid — one large hero tile, two smaller
           stacked next to it, and three regular tiles below. On mobile it
@@ -639,6 +739,7 @@ function NewsletterCard() {
 
   return (
     <Box sx={{ pt: { xs: 5, md: 7 }, pb: { xs: 4, md: 6 } }}>
+      <Reveal>
       <Box sx={{
         borderRadius: 3,
         p: { xs: 3.5, md: 5 },
@@ -723,6 +824,7 @@ function NewsletterCard() {
           )}
         </Box>
       </Box>
+      </Reveal>
     </Box>
   );
 }
