@@ -17,6 +17,7 @@ import { DataExportButton } from "../components/DataExportButton";
 import { BulkCommissionsPage } from "./BulkCommissionsPage";
 import { DefaultValueRulesPage } from "./DefaultValueRulesPage";
 import { CompanyCatalogueDialog } from "../components/CompanyCatalogueDialog";
+import { SearchableSelect } from "../components/SearchableSelect";
 import SettingsIcon from "@mui/icons-material/Settings";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 
@@ -254,16 +255,15 @@ export function CommissionRulesPage() {
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
           <TextField size="small" placeholder="Συνεργάτης, εταιρία, κλάδος…"
             value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
-          <TextField select size="small" label="Εταιρία" value={carrierFilter}
-            onChange={(e) => { setCarrierFilter(e.target.value); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); setCoverFilter(""); }}
-            sx={{ minWidth: 220 }}>
-            <MenuItem value="">Όλες</MenuItem>
-            {(companies.data ?? []).filter(c => !c.parentCompanyId).map(c => (
-              <MenuItem key={c.id} value={c.id}>
-                {c.name}{c.isBroker ? " · πρακτορείο" : ""}
-              </MenuItem>
-            ))}
-          </TextField>
+          <SearchableSelect
+            label="Εταιρία" value={carrierFilter}
+            onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); setCoverFilter(""); }}
+            emptyLabel="Όλες"
+            sx={{ minWidth: 220 }}
+            options={(companies.data ?? []).filter(c => !c.parentCompanyId).map(c => ({
+              value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : c.code,
+            }))}
+          />
           {(() => {
             const selected = (companies.data ?? []).find(c => c.id === carrierFilter);
             if (!selected?.isBroker) return null;
@@ -280,49 +280,49 @@ export function CommissionRulesPage() {
               />
             );
           })()}
-          <TextField select size="small" label="Κλάδος" value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as PolicyType | "")} sx={{ minWidth: 200 }}
+          <SearchableSelect
+            label="Κλάδος" value={typeFilter}
+            onChange={(v) => setTypeFilter(v as PolicyType | "")}
             disabled={!carrierFilter}
             helperText={!carrierFilter
               ? "Επιλέξτε εταιρία"
-              : filterCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
-            <MenuItem value="">Όλοι</MenuItem>
-            {filterCatalogue.branches.map(b => (
-              <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
-            ))}
-          </TextField>
+              : filterCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
+            emptyLabel="Όλοι"
+            sx={{ minWidth: 200 }}
+            options={filterCatalogue.branches.map(b => ({ value: b.value, label: b.label }))}
+          />
           <TextField select size="small" label="Κατηγορία" value={tierFilter}
             onChange={(e) => setTierFilter(e.target.value as ProducerTier | "")} sx={{ minWidth: 160 }}>
             <MenuItem value="">Όλες</MenuItem>
             {(["A","B","C","D","E"] as const).map(t => <MenuItem key={t} value={t}>{TIER_LABEL[t]}</MenuItem>)}
           </TextField>
-          <TextField select size="small" label="Χρήση" value={useFilter}
-            onChange={(e) => setUseFilter(e.target.value as VehicleUse | "")} sx={{ minWidth: 220 }}
+          <SearchableSelect
+            label="Χρήση" value={useFilter}
+            onChange={(v) => setUseFilter(v as VehicleUse | "")}
             disabled={!carrierFilter}
             helperText={!carrierFilter
               ? "Επιλέξτε εταιρία"
-              : filterCatalogue.uses.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
-            <MenuItem value="">Όλες</MenuItem>
-            {filterCatalogue.uses.map(u => (
-              <MenuItem key={u.key} value={u.value}>{u.label}</MenuItem>
-            ))}
-          </TextField>
-          <TextField select size="small" label="Κάλυψη / πακέτο" value={coverFilter}
-            onChange={(e) => setCoverFilter(e.target.value)} sx={{ minWidth: 220 }}
+              : filterCatalogue.uses.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
+            emptyLabel="Όλες"
+            sx={{ minWidth: 220 }}
+            options={filterCatalogue.uses.map(u => ({ value: u.value, label: u.label }))}
+          />
+          <SearchableSelect
+            label="Κάλυψη / πακέτο" value={coverFilter}
+            onChange={(v) => setCoverFilter(v)}
             disabled={!carrierFilter}
             helperText={!carrierFilter
               ? "Επιλέξτε εταιρία"
               : filterCatalogue.coverages.length + filterCatalogue.packages.length === 0
                 ? "Δεν υπάρχουν παραμετρικά"
-                : ""}>
-            <MenuItem value="">Όλες</MenuItem>
-            {filterCatalogue.coverages.map(c => (
-              <MenuItem key={c.key} value={c.value}>{c.label}</MenuItem>
-            ))}
-            {filterCatalogue.packages.map(p => (
-              <MenuItem key={p.key} value={p.value}>{p.label}</MenuItem>
-            ))}
-          </TextField>
+                : ""}
+            emptyLabel="Όλες"
+            sx={{ minWidth: 220 }}
+            options={[
+              ...filterCatalogue.coverages.map(c => ({ value: c.value, label: c.label, group: "Καλύψεις" })),
+              ...filterCatalogue.packages.map(p => ({ value: p.value, label: p.label, group: "Πακέτα" })),
+            ]}
+          />
           <Button size="small" onClick={() => {
             setSearch(""); setCarrierFilter(""); setSubCarrierFilter([]); setTierFilter(""); setTypeFilter(""); setUseFilter(""); setCoverFilter("");
           }}>Καθαρισμός</Button>
@@ -694,23 +694,24 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
 
         <Stack spacing={2.5} mt={1}>
           <Stack direction="row" spacing={1} alignItems="flex-start">
-            <TextField select label="Ασφαλιστική εταιρία" value={form.insuranceCompanyId}
-              onChange={e => setForm({
+            <SearchableSelect
+              label="Ασφαλιστική εταιρία"
+              value={form.insuranceCompanyId}
+              onChange={(v) => setForm({
                 ...form,
-                insuranceCompanyId: e.target.value,
+                insuranceCompanyId: v,
                 subCompanyIds: [],
                 branches: [],
                 uses: [],
                 coverCodes: [],
-              })} fullWidth>
-              <MenuItem value="">— Όλες οι εταιρίες —</MenuItem>
-              {/* Hide subcompanies from the primary picker — they appear via the
-                  broker cascade below. Top-level carriers + brokers only. */}
-              {companies.filter(c => !c.parentCompanyId).map(c =>
-                <MenuItem key={c.id} value={c.id}>
-                  {c.name}{c.isBroker ? " · πρακτορείο" : ""}
-                </MenuItem>)}
-            </TextField>
+              })}
+              emptyLabel="— Όλες οι εταιρίες —"
+              // Hide subcompanies from the primary picker — they appear via the
+              // broker cascade below. Top-level carriers + brokers only.
+              options={companies.filter(c => !c.parentCompanyId).map(c => ({
+                value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : c.code,
+              }))}
+            />
             <Button
               variant="outlined"
               size="medium"
@@ -851,11 +852,16 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
           )}
 
           {form.scope === "producer" && (
-            <TextField select label="Συνεργάτης" value={form.producerId}
-              onChange={e => setForm({ ...form, producerId: e.target.value })} fullWidth>
-              {producers.map(p =>
-                <MenuItem key={p.id} value={p.id}>{p.name}{p.tier && p.tier !== "None" ? ` · ${TIER_LABEL[p.tier]}` : ""}</MenuItem>)}
-            </TextField>
+            <SearchableSelect
+              label="Συνεργάτης"
+              value={form.producerId}
+              onChange={(v) => setForm({ ...form, producerId: v })}
+              options={producers.map(p => ({
+                value: p.id,
+                label: p.name,
+                hint: p.tier && p.tier !== "None" ? TIER_LABEL[p.tier] : undefined,
+              }))}
+            />
           )}
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>

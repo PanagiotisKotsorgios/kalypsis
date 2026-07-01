@@ -34,6 +34,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { ClaimDetailDrawer } from "../components/ClaimDetailDrawer";
 import { useTableState } from "../components/useTableState";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
+import { SearchableSelect } from "../components/SearchableSelect";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
@@ -219,65 +220,60 @@ export function ClaimsPage() {
             <TextField size="small" label="Πελάτης / Συμβόλαιο / ΑΦΜ" placeholder="…αναζήτηση…"
               value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)}
               sx={{ minWidth: 260 }} />
-            <TextField select size="small" label="Εταιρία"
+            <SearchableSelect
+              label="Εταιρία"
               value={carrierFilter}
-              onChange={(e) => { setCarrierFilter(e.target.value); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); setCoverFilter(""); setPackageFilter(""); }}
-              sx={{ minWidth: 220 }}>
-              <MenuItem value="">Όλες</MenuItem>
-              {(carriersQ.data ?? []).filter(c => !c.parentCompanyId).map(c => (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.name}{c.isBroker ? " · πρακτορείο" : ""}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField select size="small" label="Κλάδος"
-              value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
+              onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); setCoverFilter(""); setPackageFilter(""); }}
+              emptyLabel="Όλες"
               sx={{ minWidth: 220 }}
+              options={(carriersQ.data ?? []).filter(c => !c.parentCompanyId).map(c => ({
+                value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : undefined,
+              }))}
+            />
+            <SearchableSelect
+              label="Κλάδος"
+              value={typeFilter} onChange={(v) => setTypeFilter(v)}
               disabled={!carrierFilter}
               helperText={!carrierFilter
                 ? "Επιλέξτε εταιρία"
-                : filterCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
-              <MenuItem value="">Όλοι</MenuItem>
-              {filterCatalogue.branches.map(b => (
-                <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
-              ))}
-            </TextField>
-            <TextField select size="small" label="Χρήση οχήματος"
-              value={useFilter} onChange={(e) => setUseFilter(e.target.value)}
+                : filterCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
+              emptyLabel="Όλοι"
               sx={{ minWidth: 220 }}
+              options={filterCatalogue.branches.map(b => ({ value: b.value, label: b.label }))}
+            />
+            <SearchableSelect
+              label="Χρήση οχήματος"
+              value={useFilter} onChange={(v) => setUseFilter(v)}
               disabled={!carrierFilter}
               helperText={!carrierFilter
                 ? "Επιλέξτε εταιρία"
-                : filterCatalogue.uses.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
-              <MenuItem value="">Όλες</MenuItem>
-              {filterCatalogue.uses.map(u => (
-                <MenuItem key={u.key} value={u.value}>{u.label}</MenuItem>
-              ))}
-            </TextField>
-            <TextField select size="small" label="Κάλυψη"
-              value={coverFilter} onChange={(e) => setCoverFilter(e.target.value)}
+                : filterCatalogue.uses.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
+              emptyLabel="Όλες"
               sx={{ minWidth: 220 }}
+              options={filterCatalogue.uses.map(u => ({ value: u.value, label: u.label }))}
+            />
+            <SearchableSelect
+              label="Κάλυψη"
+              value={coverFilter} onChange={(v) => setCoverFilter(v)}
               disabled={!carrierFilter}
               helperText={!carrierFilter
                 ? "Επιλέξτε εταιρία"
-                : filterCatalogue.coverages.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
-              <MenuItem value="">Όλες</MenuItem>
-              {filterCatalogue.coverages.map(c => (
-                <MenuItem key={c.key} value={c.value}>{c.label}</MenuItem>
-              ))}
-            </TextField>
-            <TextField select size="small" label="Πακέτο"
-              value={packageFilter} onChange={(e) => setPackageFilter(e.target.value)}
+                : filterCatalogue.coverages.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
+              emptyLabel="Όλες"
               sx={{ minWidth: 220 }}
+              options={filterCatalogue.coverages.map(c => ({ value: c.value, label: c.label }))}
+            />
+            <SearchableSelect
+              label="Πακέτο"
+              value={packageFilter} onChange={(v) => setPackageFilter(v)}
               disabled={!carrierFilter}
               helperText={!carrierFilter
                 ? "Επιλέξτε εταιρία"
-                : filterCatalogue.packages.length === 0 ? "Δεν υπάρχουν πακέτα" : ""}>
-              <MenuItem value="">Όλα</MenuItem>
-              {filterCatalogue.packages.map(p => (
-                <MenuItem key={p.key} value={p.value}>{p.label}</MenuItem>
-              ))}
-            </TextField>
+                : filterCatalogue.packages.length === 0 ? "Δεν υπάρχουν πακέτα" : ""}
+              emptyLabel="Όλα"
+              sx={{ minWidth: 220 }}
+              options={filterCatalogue.packages.map(p => ({ value: p.value, label: p.label }))}
+            />
             <TextField size="small" type="date" label="Συμβάν από" InputLabelProps={{ shrink: true }}
               value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
             <TextField size="small" type="date" label="Συμβάν έως" InputLabelProps={{ shrink: true }}

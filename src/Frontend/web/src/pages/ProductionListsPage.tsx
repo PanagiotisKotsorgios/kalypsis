@@ -17,6 +17,7 @@ import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money, date } from "../utils/format";
 import { SavedReportsButton } from "../components/SavedReportsButton";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 interface Carrier { id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null; }
 interface Producer { id: string; name: string; }
@@ -187,15 +188,15 @@ export function ProductionListsPage() {
             value={f.from} onChange={e => setF({ ...f, from: e.target.value })} />
           <TextField type="date" size="small" InputLabelProps={{ shrink: true }} label={t("productionList.to")}
             value={f.to} onChange={e => setF({ ...f, to: e.target.value })} />
-          <TextField select size="small" label={t("productionList.carrier")} value={f.insuranceCompanyId}
-            onChange={e => setF({ ...f, insuranceCompanyId: e.target.value, policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "" })}>
-            <MenuItem value="">{t("common.all")}</MenuItem>
-            {(carriers.data ?? []).filter(c => !c.parentCompanyId).map(c => (
-              <MenuItem key={c.id} value={c.id}>
-                {c.name}{c.isBroker ? " · πρακτορείο" : ""}
-              </MenuItem>
-            ))}
-          </TextField>
+          <SearchableSelect
+            label={t("productionList.carrier")}
+            value={f.insuranceCompanyId}
+            onChange={(v) => setF({ ...f, insuranceCompanyId: v, policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "" })}
+            emptyLabel={t("common.all")}
+            options={(carriers.data ?? []).filter(c => !c.parentCompanyId).map(c => ({
+              value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : undefined,
+            }))}
+          />
           {(() => {
             const carrierData = carriers.data ?? [];
             const selected = carrierData.find(c => c.id === f.insuranceCompanyId);
@@ -211,54 +212,61 @@ export function ProductionListsPage() {
             const subs = carrierData.filter(c => c.parentCompanyId === broker.id);
             const subValue = selected?.id !== broker.id ? selected?.id ?? "" : "";
             return (
-              <TextField select size="small" label="Υποασφαλιστική" value={subValue}
-                onChange={e => setF({ ...f, insuranceCompanyId: e.target.value || broker.id })}>
-                <MenuItem value="">— όλες οι υποασφαλιστικές —</MenuItem>
-                {subs.map(s => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
-              </TextField>
+              <SearchableSelect
+                label="Υποασφαλιστική"
+                value={subValue}
+                onChange={(v) => setF({ ...f, insuranceCompanyId: v || broker.id })}
+                emptyLabel="— όλες οι υποασφαλιστικές —"
+                options={subs.map(s => ({ value: s.id, label: s.name }))}
+              />
             );
           })()}
-          <TextField select size="small" label={t("productionList.producer")} value={f.producerId}
-            onChange={e => setF({ ...f, producerId: e.target.value })}>
-            <MenuItem value="">{t("common.all")}</MenuItem>
-            {(producers.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-          </TextField>
-          <TextField select size="small" label={t("productionList.type")} value={f.policyType}
-            onChange={e => setF({ ...f, policyType: e.target.value })}
+          <SearchableSelect
+            label={t("productionList.producer")}
+            value={f.producerId} onChange={(v) => setF({ ...f, producerId: v })}
+            emptyLabel={t("common.all")}
+            options={(producers.data ?? []).map(p => ({ value: p.id, label: p.name }))}
+          />
+          <SearchableSelect
+            label={t("productionList.type")}
+            value={f.policyType} onChange={(v) => setF({ ...f, policyType: v })}
             disabled={!f.insuranceCompanyId}
             helperText={!f.insuranceCompanyId
               ? "Επιλέξτε εταιρία"
-              : branchOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : "Από παραμετρικά"}>
-            <MenuItem value="">{t("common.all")}</MenuItem>
-            {branchOptions.map(o => <MenuItem key={o.key} value={o.value}>{o.label}</MenuItem>)}
-          </TextField>
-          <TextField select size="small" label="Χρήση οχήματος" value={f.vehicleUseCategory}
-            onChange={e => setF({ ...f, vehicleUseCategory: e.target.value })}
+              : branchOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : "Από παραμετρικά"}
+            emptyLabel={t("common.all")}
+            options={branchOptions.map(o => ({ value: o.value, label: o.label }))}
+          />
+          <SearchableSelect
+            label="Χρήση οχήματος"
+            value={f.vehicleUseCategory} onChange={(v) => setF({ ...f, vehicleUseCategory: v })}
             disabled={!f.insuranceCompanyId}
             helperText={!f.insuranceCompanyId
               ? "Επιλέξτε εταιρία"
-              : useOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : "Από παραμετρικά"}>
-            <MenuItem value="">{t("common.all")}</MenuItem>
-            {useOptions.map(o => <MenuItem key={o.key} value={o.value}>{o.label}</MenuItem>)}
-          </TextField>
-          <TextField select size="small" label="Κάλυψη" value={f.coverCode}
-            onChange={e => setF({ ...f, coverCode: e.target.value })}
+              : useOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : "Από παραμετρικά"}
+            emptyLabel={t("common.all")}
+            options={useOptions.map(o => ({ value: o.value, label: o.label }))}
+          />
+          <SearchableSelect
+            label="Κάλυψη"
+            value={f.coverCode} onChange={(v) => setF({ ...f, coverCode: v })}
             disabled={!f.insuranceCompanyId}
             helperText={!f.insuranceCompanyId
               ? "Επιλέξτε εταιρία"
-              : coverageOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : "Από παραμετρικά"}>
-            <MenuItem value="">{t("common.all")}</MenuItem>
-            {coverageOptions.map(o => <MenuItem key={o.key} value={o.value}>{o.label}</MenuItem>)}
-          </TextField>
-          <TextField select size="small" label="Πακέτο" value={f.packageCode}
-            onChange={e => setF({ ...f, packageCode: e.target.value })}
+              : coverageOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : "Από παραμετρικά"}
+            emptyLabel={t("common.all")}
+            options={coverageOptions.map(o => ({ value: o.value, label: o.label }))}
+          />
+          <SearchableSelect
+            label="Πακέτο"
+            value={f.packageCode} onChange={(v) => setF({ ...f, packageCode: v })}
             disabled={!f.insuranceCompanyId}
             helperText={!f.insuranceCompanyId
               ? "Επιλέξτε εταιρία"
-              : packageOptions.length === 0 ? "Δεν υπάρχουν πακέτα" : "Από παραμετρικά"}>
-            <MenuItem value="">{t("common.all")}</MenuItem>
-            {packageOptions.map(o => <MenuItem key={o.key} value={o.value}>{o.label}</MenuItem>)}
-          </TextField>
+              : packageOptions.length === 0 ? "Δεν υπάρχουν πακέτα" : "Από παραμετρικά"}
+            emptyLabel={t("common.all")}
+            options={packageOptions.map(o => ({ value: o.value, label: o.label }))}
+          />
           <TextField select size="small" label={t("productionList.status")} value={f.status}
             onChange={e => setF({ ...f, status: e.target.value })}>
             <MenuItem value="">{t("common.all")}</MenuItem>

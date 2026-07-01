@@ -47,6 +47,7 @@ import { useTableState } from "../components/useTableState";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 import { PolicyDeliveryPage } from "./PolicyDeliveryPage";
 import { GroupPoliciesPage } from "./GroupPoliciesPage";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal";
@@ -298,17 +299,19 @@ export function PoliciesPage() {
               </TextField>
             </Stack>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-              <TextField select size="small" label="Εταιρία"
+              <SearchableSelect
+                label="Εταιρία"
                 value={carrierFilter}
-                onChange={(e) => { setCarrierFilter(e.target.value); setSubCarrierFilter([]); setTypeFilter(""); }}
-                fullWidth>
-                <MenuItem value="">Όλες</MenuItem>
-                {(carriersQuery.data ?? []).filter(c => !c.parentCompanyId).map(c => (
-                  <MenuItem key={c.id} value={c.id}>
-                    {c.name}{c.isBroker ? " · πρακτορείο" : ""}
-                  </MenuItem>
-                ))}
-              </TextField>
+                onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); }}
+                emptyLabel="Όλες"
+                options={(carriersQuery.data ?? [])
+                  .filter(c => !c.parentCompanyId)
+                  .map(c => ({
+                    value: c.id,
+                    label: c.name,
+                    hint: c.isBroker ? "πρακτορείο" : c.code,
+                  }))}
+              />
               {(() => {
                 const selected = (carriersQuery.data ?? []).find(c => c.id === carrierFilter);
                 if (!selected?.isBroker) return null;
@@ -325,11 +328,15 @@ export function PoliciesPage() {
                   />
                 );
               })()}
-              <TextField select size="small" label="Συνεργάτης"
-                value={producerFilter} onChange={(e) => setProducerFilter(e.target.value)} fullWidth>
-                <MenuItem value="">Όλοι</MenuItem>
-                {(producersQuery.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-              </TextField>
+              <SearchableSelect
+                label="Συνεργάτης"
+                value={producerFilter}
+                onChange={(v) => setProducerFilter(v)}
+                emptyLabel="Όλοι"
+                options={(producersQuery.data ?? []).map(p => ({
+                  value: p.id, label: p.name, hint: p.code,
+                }))}
+              />
               <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
                 value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: { sm: 160 } }} />
               <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}

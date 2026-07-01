@@ -13,6 +13,7 @@ import { DataExportButton } from "../components/DataExportButton";
 import { money, date } from "../utils/format";
 import { useTableState } from "../components/useTableState";
 import { NumberedPager } from "../components/TableToolbar";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 const METHODS = ["Cash","Card","BankTransfer","Cheque","PromissoryNote","Other"] as const;
 type Method = typeof METHODS[number];
@@ -257,24 +258,30 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
             <TextField type="date" label={t("receipts.date")} InputLabelProps={{ shrink: true }}
               value={form.receivedOn} onChange={e => setForm({ ...form, receivedOn: e.target.value })} fullWidth />
           </Stack>
-          <TextField select required label={t("receipts.customer")} value={form.customerId}
-            onChange={e => setForm({ ...form, customerId: e.target.value, policyId: "" })} fullWidth>
-            {(customers.data ?? []).map(c => (
-              <MenuItem key={c.id} value={c.id}>
-                {c.type === "Individual" ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() : c.companyName}
-              </MenuItem>
-            ))}
-          </TextField>
+          <SearchableSelect
+            label={t("receipts.customer")}
+            required
+            value={form.customerId}
+            onChange={(v) => setForm({ ...form, customerId: v, policyId: "" })}
+            options={(customers.data ?? []).map(c => ({
+              value: c.id,
+              label: c.type === "Individual"
+                ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim()
+                : (c.companyName ?? ""),
+            }))}
+          />
           {form.customerId && (
-            <TextField select label="Συμβόλαιο (προαιρετικό)" value={form.policyId}
-              onChange={e => setForm({ ...form, policyId: e.target.value, amount: 0 })} fullWidth>
-              <MenuItem value="">— Καμία σύνδεση —</MenuItem>
-              {(customerPolicies.data ?? []).map(p => (
-                <MenuItem key={p.id} value={p.id}>
-                  {p.policyNumber} · {p.insuranceCompanyName} · {money(p.premium)}
-                </MenuItem>
-              ))}
-            </TextField>
+            <SearchableSelect
+              label="Συμβόλαιο (προαιρετικό)"
+              value={form.policyId}
+              onChange={(v) => setForm({ ...form, policyId: v, amount: 0 })}
+              emptyLabel="— Καμία σύνδεση —"
+              options={(customerPolicies.data ?? []).map(p => ({
+                value: p.id,
+                label: p.policyNumber,
+                hint: `${p.insuranceCompanyName} · ${money(p.premium)}`,
+              }))}
+            />
           )}
           {policyPayment.data && (
             <Alert severity={STATUS_COLOR[policyPayment.data.status] === "success" ? "info" : STATUS_COLOR[policyPayment.data.status] as any}>
