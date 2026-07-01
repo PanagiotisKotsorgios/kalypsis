@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Alert, Box, Button, CircularProgress, Container, Stack, TextField, Typography } from "@mui/material";
+import {
+  Alert, Box, Button, CircularProgress, Container, Divider, Drawer, IconButton,
+  Stack, TextField, Typography
+} from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import MenuIcon from "@mui/icons-material/Menu";
+import CloseIcon from "@mui/icons-material/Close";
+import LoginIcon from "@mui/icons-material/Login";
+import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import CloudSyncOutlinedIcon from "@mui/icons-material/CloudSyncOutlined";
 import LeaderboardOutlinedIcon from "@mui/icons-material/LeaderboardOutlined";
@@ -28,18 +35,9 @@ const ACCENT = "#1f7bb3";      // single accent — links + primary CTA
 const RULE = "#e5e9ef";        // hairline borders
 const SURFACE = "#fafbfc";     // ultra-light card surface
 
-// Inline SVG wave — repeated bottom-left / bottom-right via CSS mask. Encoded
-// once so we can flip it with a CSS transform for the right-hand corner.
-const WAVE_SVG = encodeURIComponent(
-  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 400' fill='none'>
-    <path d='M0 340 C 120 300, 220 380, 340 320 S 560 260, 600 300' stroke='rgba(59,130,246,0.35)' stroke-width='1.4' fill='none'/>
-    <path d='M0 310 C 130 260, 240 350, 360 280 S 580 220, 600 260' stroke='rgba(59,130,246,0.28)' stroke-width='1.2' fill='none'/>
-    <path d='M0 280 C 140 220, 260 320, 380 240 S 590 180, 600 220' stroke='rgba(59,130,246,0.22)' stroke-width='1.0' fill='none'/>
-    <path d='M0 250 C 150 190, 270 300, 400 210 S 590 150, 600 190' stroke='rgba(59,130,246,0.16)' stroke-width='0.9' fill='none'/>
-    <path d='M0 220 C 160 170, 280 280, 420 190 S 590 120, 600 160' stroke='rgba(59,130,246,0.12)' stroke-width='0.8' fill='none'/>
-  </svg>`
-);
-const WAVE_URL = `url("data:image/svg+xml;utf8,${WAVE_SVG}")`;
+// Hero background — the finished wave artwork ships as a PNG and is loaded
+// as a `cover` background so it fills the entire hero exactly as designed.
+const HERO_BG = "/images/kalypsis-hero-bg.png";
 
 // Feature list keys — labels resolved at render-time via t() so they respect
 // the current language.
@@ -53,6 +51,10 @@ const FEATURE_KEYS: { icon: typeof HubOutlinedIcon; t: string; b: string }[] = [
 ];
 
 export function LandingPage() {
+  // Mobile drawer for the login/register/contact actions — desktop keeps them
+  // inline on the top bar, mobile collapses everything behind a hamburger on
+  // the right side of the glass card.
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <Box sx={{
       minHeight: "100vh",
@@ -69,39 +71,18 @@ export function LandingPage() {
       }} />
 
       {/* ═══ Hero section ═══
-          Soft white→light-blue gradient with two radial blue glows in the
-          lower corners, plus SVG wave layers overlaid at bottom-left and
-          bottom-right. The center stays clean so the logo/headline/CTAs
-          remain readable. All non-background elements sit above with z=1. */}
+          The finished wave artwork is a single PNG background. `cover` fills
+          the hero while `center bottom` keeps the wave crests anchored at the
+          floor of the section. All foreground elements sit above with z=1. */}
       <Box sx={{
         position: "relative",
         overflow: "hidden",
-        background: `
-          radial-gradient(circle at 15% 88%, rgba(59,130,246,0.20), transparent 38%),
-          radial-gradient(circle at 88% 88%, rgba(14,165,233,0.18), transparent 40%),
-          linear-gradient(180deg, #f8fbff 0%, #ffffff 45%, #edf6ff 100%)
-        `,
-        // Wave layers — decorative, non-interactive.
-        "&::before": {
-          content: '""', position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
-          backgroundImage: `${WAVE_URL}, ${WAVE_URL}`,
-          backgroundRepeat: "no-repeat, no-repeat",
-          backgroundPosition: "left bottom, right bottom",
-          backgroundSize: "48% auto, 48% auto",
-          // Flip the right-hand copy horizontally so the waves mirror inward.
-          // We can't apply transform to a pseudo-element background image
-          // directly per-layer, so a wrapper for the right wave lives below.
-        },
-        "&::after": {
-          content: '""', position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
-          backgroundImage: WAVE_URL,
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "right bottom",
-          backgroundSize: "48% auto",
-          transform: "scaleX(-1)",
-          transformOrigin: "center",
-          opacity: 0.9
-        }
+        backgroundImage: `url("${HERO_BG}")`,
+        backgroundSize: "cover",
+        backgroundPosition: "center bottom",
+        backgroundRepeat: "no-repeat",
+        // Fallback color while the PNG is loading so the white flash matches.
+        bgcolor: "#f8fbff"
       }}>
 
       {/* Tiny top bar — contact info on the left, language picker on the right.
@@ -115,13 +96,19 @@ export function LandingPage() {
           sx={{
             // Glass card wrapper for the whole top bar.
             borderRadius: { xs: 3, md: "18px" },
-            px: { xs: 2, md: 3.5 }, py: { xs: 1.25, md: 1.4 },
+            px: { xs: 1.5, md: 3.5 }, py: { xs: 1, md: 1.4 },
             background: "rgba(255,255,255,0.78)",
             backdropFilter: "blur(14px)",
             WebkitBackdropFilter: "blur(14px)",
             boxShadow: "0 14px 35px rgba(15,42,80,0.10)",
             border: "1px solid rgba(148,191,230,0.35)"
           }}>
+          {/* Mobile-only left slot — language toggle sits here so the
+              hamburger can own the right-hand side. */}
+          <Box sx={{ display: { xs: "flex", sm: "none" }, alignItems: "center" }}>
+            <LanguageToggle />
+          </Box>
+
           <Stack direction="row" spacing={{ xs: 1.5, sm: 3 }} alignItems="center"
             sx={{ display: { xs: "none", sm: "flex" } }}>
             <Box component="a" href="tel:+302631028971"
@@ -161,7 +148,9 @@ export function LandingPage() {
               Εγγραφή
             </Box>
           </Stack>
-          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ ml: "auto" }}>
+          {/* Desktop-only right cluster — Contact button + LanguageToggle. */}
+          <Stack direction="row" spacing={1.25} alignItems="center"
+            sx={{ ml: "auto", display: { xs: "none", sm: "flex" } }}>
             <Button
               component={RouterLink}
               to="/contact"
@@ -186,17 +175,142 @@ export function LandingPage() {
                 }
               }}
             >
-              <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
-                Επικοινωνία / Αναφορά Προβλήματος
-              </Box>
-              <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
-                Επικοινωνία
-              </Box>
+              Επικοινωνία / Αναφορά Προβλήματος
             </Button>
             <LanguageToggle />
           </Stack>
+
+          {/* Mobile-only hamburger — opens the right-hand drawer with
+              Σύνδεση / Εγγραφή / Επικοινωνία. */}
+          <IconButton
+            aria-label="Άνοιγμα μενού"
+            onClick={() => setMenuOpen(true)}
+            sx={{
+              display: { xs: "inline-flex", sm: "none" },
+              color: NAVY,
+              bgcolor: "rgba(30,167,225,0.06)",
+              border: "1px solid rgba(30,167,225,0.35)",
+              borderRadius: 2,
+              p: 1,
+              "&:hover": { bgcolor: "rgba(30,167,225,0.14)" }
+            }}
+          >
+            <MenuIcon />
+          </IconButton>
         </Stack>
       </Container>
+
+      {/* Right-anchored mobile drawer. Slides in over the hero so the sidebar
+          sensation matches the mockup while the page underneath stays put. */}
+      <Drawer
+        anchor="right"
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        PaperProps={{
+          sx: {
+            width: { xs: 288, sm: 320 },
+            bgcolor: "#f8fbff",
+            borderLeft: "1px solid rgba(148,191,230,0.35)",
+            backgroundImage: `
+              radial-gradient(circle at 100% 100%, rgba(31,123,179,0.14), transparent 50%),
+              linear-gradient(180deg, #ffffff 0%, #eef6ff 100%)
+            `
+          }
+        }}
+      >
+        <Stack direction="row" alignItems="center" justifyContent="space-between"
+          sx={{ px: 2.5, py: 2 }}>
+          <Typography sx={{
+            fontSize: 12, letterSpacing: "0.22em", textTransform: "uppercase",
+            color: NAVY_SOFT, fontWeight: 700
+          }}>
+            Μενού
+          </Typography>
+          <IconButton onClick={() => setMenuOpen(false)} sx={{ color: NAVY }}>
+            <CloseIcon />
+          </IconButton>
+        </Stack>
+        <Divider sx={{ borderColor: "rgba(148,191,230,0.35)" }} />
+        <Stack spacing={1.5} sx={{ p: 2.5 }}>
+          <Button
+            component={RouterLink} to="/login" fullWidth
+            onClick={() => setMenuOpen(false)}
+            variant="contained" disableElevation
+            startIcon={<LoginIcon />}
+            sx={{
+              justifyContent: "flex-start",
+              borderRadius: 2, py: 1.4, px: 2,
+              fontSize: 15, fontWeight: 700, textTransform: "none",
+              color: "#fff",
+              background: `linear-gradient(135deg, ${NAVY} 0%, #123a6b 55%, ${ACCENT} 100%)`,
+              boxShadow: "0 10px 24px rgba(11,37,69,0.24)",
+              "&:hover": {
+                background: `linear-gradient(135deg, #0a213e 0%, #0f325d 55%, #1a6ea3 100%)`
+              }
+            }}
+          >
+            Σύνδεση
+          </Button>
+          <Button
+            component={RouterLink} to="/register" fullWidth
+            onClick={() => setMenuOpen(false)}
+            variant="outlined"
+            startIcon={<PersonAddOutlinedIcon />}
+            sx={{
+              justifyContent: "flex-start",
+              borderRadius: 2, py: 1.4, px: 2,
+              fontSize: 15, fontWeight: 700, textTransform: "none",
+              color: ACCENT, bgcolor: "#fff",
+              borderColor: ACCENT, borderWidth: 2,
+              boxShadow: "0 8px 20px rgba(31,123,179,0.14)",
+              "&:hover": {
+                borderWidth: 2, borderColor: ACCENT,
+                bgcolor: "rgba(31,123,179,0.06)"
+              }
+            }}
+          >
+            Εγγραφή
+          </Button>
+          <Button
+            component={RouterLink} to="/contact" fullWidth
+            onClick={() => setMenuOpen(false)}
+            variant="text"
+            startIcon={<ChatBubbleOutlineIcon />}
+            sx={{
+              justifyContent: "flex-start",
+              borderRadius: 2, py: 1.3, px: 2,
+              fontSize: 14.5, fontWeight: 700, textTransform: "none",
+              color: NAVY,
+              bgcolor: "rgba(30,167,225,0.06)",
+              border: "1px solid rgba(30,167,225,0.25)",
+              "&:hover": { bgcolor: "rgba(30,167,225,0.14)" }
+            }}
+          >
+            Επικοινωνία / Αναφορά Προβλήματος
+          </Button>
+        </Stack>
+        <Divider sx={{ borderColor: "rgba(148,191,230,0.35)", my: 1 }} />
+        <Stack spacing={1.25} sx={{ px: 2.5, pb: 3 }}>
+          <Box component="a" href="tel:+302631028971"
+            sx={{
+              display: "inline-flex", alignItems: "center", gap: 1,
+              color: NAVY, textDecoration: "none", fontSize: 14, fontWeight: 600,
+              "&:hover": { color: ACCENT }
+            }}>
+            <PhoneOutlinedIcon sx={{ fontSize: 18 }} />
+            2631028971
+          </Box>
+          <Box component="a" href="mailto:info@mykalypsis.gr"
+            sx={{
+              display: "inline-flex", alignItems: "center", gap: 1,
+              color: NAVY, textDecoration: "none", fontSize: 14, fontWeight: 600,
+              "&:hover": { color: ACCENT }
+            }}>
+            <MailOutlineIcon sx={{ fontSize: 18 }} />
+            info@mykalypsis.gr
+          </Box>
+        </Stack>
+      </Drawer>
 
       {/* Logo + hero copy sit inside the gradient/wave hero area. */}
       <Container maxWidth="lg" sx={{
