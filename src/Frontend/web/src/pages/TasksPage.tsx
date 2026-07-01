@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
+import { SearchableSelect } from "../components/SearchableSelect";
 import { date } from "../utils/format";
 
 type TaskStatus = "Open" | "InProgress" | "Completed" | "Cancelled";
@@ -236,24 +237,31 @@ function TaskFormDialog({ open, onClose, task, onSaved }: {
             )}
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("tasks.form.assignedTo")} value={form.assignedToUserId}
-              onChange={(e) => setForm({ ...form, assignedToUserId: e.target.value })} fullWidth>
-              <MenuItem value="">—</MenuItem>
-              {(usersQuery.data ?? []).map((u) =>
-                <MenuItem key={u.id} value={u.id}>{u.firstName} {u.lastName}</MenuItem>)}
-            </TextField>
+            <SearchableSelect
+              label={t("tasks.form.assignedTo")}
+              value={form.assignedToUserId}
+              onChange={(v) => setForm({ ...form, assignedToUserId: v })}
+              emptyLabel="—"
+              options={(usersQuery.data ?? []).map(u => ({
+                value: u.id, label: `${u.firstName} ${u.lastName}`.trim(),
+              }))}
+            />
             <TextField type="datetime-local" label={t("tasks.form.dueAt")} InputLabelProps={{ shrink: true }}
               value={form.dueAt} onChange={(e) => setForm({ ...form, dueAt: e.target.value })} fullWidth />
           </Stack>
-          <TextField select label={t("tasks.form.customer")} value={form.customerId}
-            onChange={(e) => setForm({ ...form, customerId: e.target.value })} fullWidth>
-            <MenuItem value="">—</MenuItem>
-            {(customersQuery.data ?? []).map((c) => (
-              <MenuItem key={c.id} value={c.id}>
-                {c.type === "Individual" ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() : c.companyName} · {c.customerNumber}
-              </MenuItem>
-            ))}
-          </TextField>
+          <SearchableSelect
+            label={t("tasks.form.customer")}
+            value={form.customerId}
+            onChange={(v) => setForm({ ...form, customerId: v })}
+            emptyLabel="—"
+            options={(customersQuery.data ?? []).map(c => ({
+              value: c.id,
+              label: c.type === "Individual"
+                ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim()
+                : (c.companyName ?? ""),
+              hint: c.customerNumber,
+            }))}
+          />
         </Stack>
       </DialogContent>
       <DialogActions>

@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { money } from "../utils/format";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 const STATUSES = ["Pending","Paid","Cancelled"] as const;
 type Status = typeof STATUSES[number];
@@ -109,9 +110,13 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
       <DialogContent>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2.5} mt={1}>
-          <TextField select required label={t("dias.policy")} value={form.policyId} onChange={e => setForm({ ...form, policyId: e.target.value })} fullWidth>
-            {(policies.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.policyNumber}</MenuItem>)}
-          </TextField>
+          <SearchableSelect
+            label={t("dias.policy")}
+            required
+            value={form.policyId}
+            onChange={(v) => setForm({ ...form, policyId: v })}
+            options={(policies.data ?? []).map(p => ({ value: p.id, label: p.policyNumber }))}
+          />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField type="number" required label={t("dias.amount")} value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth />
             <TextField label={t("tariffs.currency")} value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value.toUpperCase().slice(0, 3) })} fullWidth />

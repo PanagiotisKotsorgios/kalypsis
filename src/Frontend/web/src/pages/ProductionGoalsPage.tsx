@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { money } from "../utils/format";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 const TYPES = ["","Auto","Home","Health","Life","Business","Travel","Other"] as const;
 interface GoalDto { id: string; producerId: string | null; producerName: string | null; year: number; month: number | null; policyType: string | null; targetPremium: number; targetPolicies: number | null; notes: string | null; }
@@ -121,10 +122,13 @@ function FormDialog({ open, onClose, item, defaultYear, onSaved }: { open: boole
       <DialogContent>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2.5} mt={1}>
-          <TextField select label={t("goals.producer")} value={form.producerId} onChange={e => setForm({ ...form, producerId: e.target.value })} fullWidth>
-            <MenuItem value="">{t("goals.agencyWide")}</MenuItem>
-            {(producers.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-          </TextField>
+          <SearchableSelect
+            label={t("goals.producer")}
+            value={form.producerId}
+            onChange={(v) => setForm({ ...form, producerId: v })}
+            emptyLabel={t("goals.agencyWide")}
+            options={(producers.data ?? []).map(p => ({ value: p.id, label: p.name }))}
+          />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField type="number" label={t("financials.year")} value={form.year} onChange={e => setForm({ ...form, year: Number(e.target.value) })} fullWidth />
             <TextField select label={t("goals.month")} value={form.month} onChange={e => setForm({ ...form, month: e.target.value })} fullWidth>

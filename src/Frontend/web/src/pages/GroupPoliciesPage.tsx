@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { SearchableSelect } from "../components/SearchableSelect";
 import { money } from "../utils/format";
 
 interface GroupPolicyDto {
@@ -181,14 +182,20 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
             <TextField required label={t("groupPolicies.number")} value={form.groupNumber} onChange={e => setForm({ ...form, groupNumber: e.target.value })} fullWidth />
             <TextField required label={t("groupPolicies.name")} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} fullWidth sx={{ flex: 2 }} />
           </Stack>
-          <TextField select required label={t("groupPolicies.holder")} value={form.policyHolderCustomerId}
-            onChange={e => setForm({ ...form, policyHolderCustomerId: e.target.value })} fullWidth>
-            {(customers.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{customerLabel(c)}</MenuItem>)}
-          </TextField>
-          <TextField select required label={t("groupPolicies.carrier")} value={form.insuranceCompanyId}
-            onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value })} fullWidth>
-            {(companies.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-          </TextField>
+          <SearchableSelect
+            label={t("groupPolicies.holder")}
+            required
+            value={form.policyHolderCustomerId}
+            onChange={(v) => setForm({ ...form, policyHolderCustomerId: v })}
+            options={(customers.data ?? []).map(c => ({ value: c.id, label: customerLabel(c) }))}
+          />
+          <SearchableSelect
+            label={t("groupPolicies.carrier")}
+            required
+            value={form.insuranceCompanyId}
+            onChange={(v) => setForm({ ...form, insuranceCompanyId: v })}
+            options={(companies.data ?? []).map(c => ({ value: c.id, label: c.name }))}
+          />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField type="date" label={t("groupPolicies.startDate")} InputLabelProps={{ shrink: true }}
               value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} fullWidth />

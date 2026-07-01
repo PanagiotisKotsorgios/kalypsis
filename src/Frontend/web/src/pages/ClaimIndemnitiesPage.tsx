@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money } from "../utils/format";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 interface IndemnityDto {
   id: string; claimId: string; claimNumber: string;
@@ -145,10 +146,13 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
       <DialogContent>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2} mt={1}>
-          <TextField select required label={t("indemnities.claim")} value={form.claimId}
-            onChange={e => setForm({ ...form, claimId: e.target.value })} fullWidth>
-            {(claims.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.claimNumber}</MenuItem>)}
-          </TextField>
+          <SearchableSelect
+            label={t("indemnities.claim")}
+            required
+            value={form.claimId}
+            onChange={(v) => setForm({ ...form, claimId: v })}
+            options={(claims.data ?? []).map(c => ({ value: c.id, label: c.claimNumber }))}
+          />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField required label={t("indemnities.number")} value={form.paymentNumber}
               onChange={e => setForm({ ...form, paymentNumber: e.target.value })} fullWidth />
@@ -161,10 +165,12 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
               {PAYEE_TYPES.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
             </TextField>
             {form.payeeType === "Garage" ? (
-              <TextField select label={t("garages.title")} value={form.garageId}
-                onChange={e => setForm({ ...form, garageId: e.target.value })} fullWidth>
-                {(garages.data ?? []).map(g => <MenuItem key={g.id} value={g.id}>{g.name}</MenuItem>)}
-              </TextField>
+              <SearchableSelect
+                label={t("garages.title")}
+                value={form.garageId}
+                onChange={(v) => setForm({ ...form, garageId: v })}
+                options={(garages.data ?? []).map(g => ({ value: g.id, label: g.name }))}
+              />
             ) : (
               <TextField label={t("indemnities.payeeName")} value={form.payeeName}
                 onChange={e => setForm({ ...form, payeeName: e.target.value })} fullWidth />

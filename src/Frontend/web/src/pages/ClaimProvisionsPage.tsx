@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Alert, Box, Button, Card, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  IconButton, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money, num } from "../utils/format";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 interface ProvisionDto {
   id: string; claimId: string; claimNumber: string;
@@ -127,10 +128,13 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
       <DialogContent>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2} mt={1}>
-          <TextField select required label={t("provisions.claim")} value={form.claimId}
-            onChange={e => setForm({ ...form, claimId: e.target.value })} fullWidth>
-            {(claims.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.claimNumber}</MenuItem>)}
-          </TextField>
+          <SearchableSelect
+            label={t("provisions.claim")}
+            required
+            value={form.claimId}
+            onChange={(v) => setForm({ ...form, claimId: v })}
+            options={(claims.data ?? []).map(c => ({ value: c.id, label: c.claimNumber }))}
+          />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField required type="number" label={t("provisions.reserve")} value={form.reserveAmount}
               onChange={e => setForm({ ...form, reserveAmount: Number(e.target.value) })} fullWidth />

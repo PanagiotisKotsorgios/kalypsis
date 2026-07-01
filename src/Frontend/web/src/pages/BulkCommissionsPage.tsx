@@ -9,6 +9,7 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { SearchableSelect } from "../components/SearchableSelect";
 import { money } from "../utils/format";
 
 interface PolicyTypeOpt { value: number; label: string; key: string; }
@@ -162,15 +163,15 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>1. Φίλτρα επιλογής συμβολαίων</Typography>
           <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" } }}>
-            <TextField select label="Ασφαλιστική εταιρεία" value={filter.insuranceCompanyId}
-              onChange={(e) => setFilter({ ...filter, insuranceCompanyId: e.target.value, policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "" })}>
-              <MenuItem value="">Όλες</MenuItem>
-              {(companies.data ?? []).filter(c => !c.parentCompanyId).map(c => (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.name}{c.isBroker ? " · πρακτορείο" : ""}
-                </MenuItem>
-              ))}
-            </TextField>
+            <SearchableSelect
+              label="Ασφαλιστική εταιρεία"
+              value={filter.insuranceCompanyId}
+              onChange={(v) => setFilter({ ...filter, insuranceCompanyId: v, policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "" })}
+              emptyLabel="Όλες"
+              options={(companies.data ?? []).filter(c => !c.parentCompanyId).map(c => ({
+                value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : undefined,
+              }))}
+            />
             {(() => {
               const carrierData = companies.data ?? [];
               const selected = carrierData.find(c => c.id === filter.insuranceCompanyId);
@@ -183,54 +184,64 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
               const subs = carrierData.filter(c => c.parentCompanyId === broker.id);
               const subValue = selected?.id !== broker.id ? selected?.id ?? "" : "";
               return (
-                <TextField select label="Υποασφαλιστική" value={subValue}
-                  onChange={e => setFilter({ ...filter, insuranceCompanyId: e.target.value || broker.id, policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "" })}>
-                  <MenuItem value="">— όλες οι υποασφαλιστικές —</MenuItem>
-                  {subs.map(s => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
-                </TextField>
+                <SearchableSelect
+                  label="Υποασφαλιστική"
+                  value={subValue}
+                  onChange={(v) => setFilter({ ...filter, insuranceCompanyId: v || broker.id, policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "" })}
+                  emptyLabel="— όλες οι υποασφαλιστικές —"
+                  options={subs.map(s => ({ value: s.id, label: s.name }))}
+                />
               );
             })()}
-            <TextField select label="Συνεργάτης" value={filter.producerId}
-              onChange={(e) => setFilter({ ...filter, producerId: e.target.value })}>
-              <MenuItem value="">Όλοι</MenuItem>
-              {(producers.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.code} · {p.name}</MenuItem>)}
-            </TextField>
-            <TextField select label="Κλάδος" value={filter.policyType}
-              onChange={(e) => setFilter({ ...filter, policyType: e.target.value })}
+            <SearchableSelect
+              label="Συνεργάτης"
+              value={filter.producerId}
+              onChange={(v) => setFilter({ ...filter, producerId: v })}
+              emptyLabel="Όλοι"
+              options={(producers.data ?? []).map(p => ({
+                value: p.id, label: p.name, hint: p.code,
+              }))}
+            />
+            <SearchableSelect
+              label="Κλάδος"
+              value={filter.policyType} onChange={(v) => setFilter({ ...filter, policyType: v })}
               disabled={!filter.insuranceCompanyId}
               helperText={!filter.insuranceCompanyId
                 ? "Επιλέξτε εταιρία πρώτα"
-                : policyTypeOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : "Από τα παραμετρικά"}>
-              <MenuItem value="">Όλα</MenuItem>
-              {policyTypeOptions.map(t => <MenuItem key={t.key} value={t.value}>{t.label}</MenuItem>)}
-            </TextField>
-            <TextField select label="Χρήση οχήματος" value={filter.vehicleUseCategory}
-              onChange={(e) => setFilter({ ...filter, vehicleUseCategory: e.target.value })}
+                : policyTypeOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : "Από τα παραμετρικά"}
+              emptyLabel="Όλα"
+              options={policyTypeOptions.map(x => ({ value: String(x.value), label: x.label }))}
+            />
+            <SearchableSelect
+              label="Χρήση οχήματος"
+              value={filter.vehicleUseCategory} onChange={(v) => setFilter({ ...filter, vehicleUseCategory: v })}
               disabled={!filter.insuranceCompanyId}
               helperText={!filter.insuranceCompanyId
                 ? "Επιλέξτε εταιρία"
-                : useOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
-              <MenuItem value="">Όλες</MenuItem>
-              {useOptions.map(u => <MenuItem key={u.key} value={u.value}>{u.label}</MenuItem>)}
-            </TextField>
-            <TextField select label="Κάλυψη" value={filter.coverCode}
-              onChange={(e) => setFilter({ ...filter, coverCode: e.target.value })}
+                : useOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
+              emptyLabel="Όλες"
+              options={useOptions.map(u => ({ value: u.value, label: u.label }))}
+            />
+            <SearchableSelect
+              label="Κάλυψη"
+              value={filter.coverCode} onChange={(v) => setFilter({ ...filter, coverCode: v })}
               disabled={!filter.insuranceCompanyId}
               helperText={!filter.insuranceCompanyId
                 ? "Επιλέξτε εταιρία"
-                : coverageOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
-              <MenuItem value="">Όλες</MenuItem>
-              {coverageOptions.map(c => <MenuItem key={c.key} value={c.value}>{c.label}</MenuItem>)}
-            </TextField>
-            <TextField select label="Πακέτο" value={filter.packageCode}
-              onChange={(e) => setFilter({ ...filter, packageCode: e.target.value })}
+                : coverageOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
+              emptyLabel="Όλες"
+              options={coverageOptions.map(c => ({ value: c.value, label: c.label }))}
+            />
+            <SearchableSelect
+              label="Πακέτο"
+              value={filter.packageCode} onChange={(v) => setFilter({ ...filter, packageCode: v })}
               disabled={!filter.insuranceCompanyId}
               helperText={!filter.insuranceCompanyId
                 ? "Επιλέξτε εταιρία"
-                : packageOptions.length === 0 ? "Δεν υπάρχουν πακέτα" : ""}>
-              <MenuItem value="">Όλα</MenuItem>
-              {packageOptions.map(p => <MenuItem key={p.key} value={p.value}>{p.label}</MenuItem>)}
-            </TextField>
+                : packageOptions.length === 0 ? "Δεν υπάρχουν πακέτα" : ""}
+              emptyLabel="Όλα"
+              options={packageOptions.map(p => ({ value: p.value, label: p.label }))}
+            />
             <TextField type="date" label="Έναρξη από" InputLabelProps={{ shrink: true }}
               value={filter.startDateFrom} onChange={(e) => setFilter({ ...filter, startDateFrom: e.target.value })} />
             <TextField type="date" label="Έναρξη έως" InputLabelProps={{ shrink: true }}

@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { money } from "../utils/format";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 const TYPES = ["Auto","Home","Health","Life","Business","Travel","Other"] as const;
 const STATUSES = ["Active","Converted","Expired","Cancelled"] as const;
@@ -170,23 +171,30 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
         {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
         <Stack spacing={2.5} mt={1}>
           <TextField required label={t("coverNotes.number")} value={form.number} onChange={e => setForm({ ...form, number: e.target.value })} fullWidth />
-          <TextField select required label={t("coverNotes.customer")} value={form.customerId} onChange={e => setForm({ ...form, customerId: e.target.value })} fullWidth>
-            {(customers.data ?? []).map(c => (
-              <MenuItem key={c.id} value={c.id}>
-                {c.type === "Individual" ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() : c.companyName}
-              </MenuItem>
-            ))}
-          </TextField>
+          <SearchableSelect
+            label={t("coverNotes.customer")}
+            required
+            value={form.customerId}
+            onChange={(v) => setForm({ ...form, customerId: v })}
+            options={(customers.data ?? []).map(c => ({
+              value: c.id,
+              label: c.type === "Individual"
+                ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim()
+                : (c.companyName ?? ""),
+            }))}
+          />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField select label={t("coverNotes.type")} value={form.policyType}
               onChange={e => setForm({ ...form, policyType: e.target.value as typeof TYPES[number] })} fullWidth>
               {TYPES.map(p => <MenuItem key={p} value={p}>{t(`policyType.${p}`)}</MenuItem>)}
             </TextField>
-            <TextField select label={t("coverNotes.company")} value={form.insuranceCompanyId}
-              onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value })} fullWidth>
-              <MenuItem value="">—</MenuItem>
-              {(companies.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-            </TextField>
+            <SearchableSelect
+              label={t("coverNotes.company")}
+              value={form.insuranceCompanyId}
+              onChange={(v) => setForm({ ...form, insuranceCompanyId: v })}
+              emptyLabel="—"
+              options={(companies.data ?? []).map(c => ({ value: c.id, label: c.name }))}
+            />
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField type="date" label={t("coverNotes.from")} InputLabelProps={{ shrink: true }}

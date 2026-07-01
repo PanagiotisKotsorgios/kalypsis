@@ -11,6 +11,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money } from "../utils/format";
 import { NumberedPager } from "../components/TableToolbar";
+import { SearchableSelect } from "../components/SearchableSelect";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, Legend
@@ -428,26 +429,33 @@ function MovementDialog({ open, onClose, accounts, onSaved }: { open: boolean; o
               <MenuItem value="Vendor">Προμηθευτής</MenuItem>
             </TextField>
             {form.counterpartyType === "Customer" && (
-              <TextField select label="Πελάτης" fullWidth value={form.customerId}
-                onChange={e => setForm({ ...form, customerId: e.target.value, policyId: "" })}>
-                {(customers.data ?? []).map(c => (
-                  <MenuItem key={c.id} value={c.id}>
-                    {c.type === "Individual" ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() : c.companyName}
-                  </MenuItem>
-                ))}
-              </TextField>
+              <SearchableSelect
+                label="Πελάτης"
+                value={form.customerId}
+                onChange={(v) => setForm({ ...form, customerId: v, policyId: "" })}
+                options={(customers.data ?? []).map(c => ({
+                  value: c.id,
+                  label: c.type === "Individual"
+                    ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim()
+                    : (c.companyName ?? ""),
+                }))}
+              />
             )}
             {form.counterpartyType === "Producer" && (
-              <TextField select label="Συνεργάτης" fullWidth value={form.producerId}
-                onChange={e => setForm({ ...form, producerId: e.target.value })}>
-                {(producers.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-              </TextField>
+              <SearchableSelect
+                label="Συνεργάτης"
+                value={form.producerId}
+                onChange={(v) => setForm({ ...form, producerId: v })}
+                options={(producers.data ?? []).map(p => ({ value: p.id, label: p.name }))}
+              />
             )}
             {form.counterpartyType === "Company" && (
-              <TextField select label="Ασφαλιστική" fullWidth value={form.insuranceCompanyId}
-                onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value })}>
-                {(companies.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-              </TextField>
+              <SearchableSelect
+                label="Ασφαλιστική"
+                value={form.insuranceCompanyId}
+                onChange={(v) => setForm({ ...form, insuranceCompanyId: v })}
+                options={(companies.data ?? []).map(c => ({ value: c.id, label: c.name }))}
+              />
             )}
             {form.counterpartyType === "Vendor" && (
               <TextField label="Επωνυμία προμηθευτή" fullWidth value={form.vendorName}
@@ -457,13 +465,15 @@ function MovementDialog({ open, onClose, accounts, onSaved }: { open: boolean; o
 
           {/* Row 4: linked policy (only when customer is set) */}
           {form.customerId && (
-            <TextField select label="Συμβόλαιο πελάτη (προαιρετικό)" value={form.policyId}
-              onChange={e => setForm({ ...form, policyId: e.target.value })} fullWidth>
-              <MenuItem value="">— Καμία σύνδεση —</MenuItem>
-              {(customerPolicies.data ?? []).map(p => (
-                <MenuItem key={p.id} value={p.id}>{p.policyNumber} · {money(p.premium)}</MenuItem>
-              ))}
-            </TextField>
+            <SearchableSelect
+              label="Συμβόλαιο πελάτη (προαιρετικό)"
+              value={form.policyId}
+              onChange={(v) => setForm({ ...form, policyId: v })}
+              emptyLabel="— Καμία σύνδεση —"
+              options={(customerPolicies.data ?? []).map(p => ({
+                value: p.id, label: p.policyNumber, hint: money(p.premium),
+              }))}
+            />
           )}
 
           {/* Row 5: payment method + receipt # + reference */}

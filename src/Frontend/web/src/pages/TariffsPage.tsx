@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
+import { SearchableSelect } from "../components/SearchableSelect";
 import { money } from "../utils/format";
 
 const POLICY_TYPES = ["Auto","Home","Health","Life","Business","Travel","Other"] as const;
@@ -160,11 +161,13 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
               onChange={e => setForm({ ...form, policyType: e.target.value as PolicyType })} fullWidth>
               {POLICY_TYPES.map(p => <MenuItem key={p} value={p}>{t(`policyType.${p}`)}</MenuItem>)}
             </TextField>
-            <TextField select label={t("tariffs.col.company")} value={form.insuranceCompanyId}
-              onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value })} fullWidth>
-              <MenuItem value="">—</MenuItem>
-              {(companies.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-            </TextField>
+            <SearchableSelect
+              label={t("tariffs.col.company")}
+              value={form.insuranceCompanyId}
+              onChange={(v) => setForm({ ...form, insuranceCompanyId: v })}
+              emptyLabel="—"
+              options={(companies.data ?? []).map(c => ({ value: c.id, label: c.name }))}
+            />
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField type="number" label={t("tariffs.col.premium")} value={form.basePremium}

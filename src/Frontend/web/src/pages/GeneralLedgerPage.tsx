@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money, num } from "../utils/format";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 interface AccountDto { id: string; code: string; name: string; type: string; category: string | null; isActive: boolean; displayOrder: number; }
 interface EntryDto {
@@ -148,10 +149,15 @@ function EntryDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =>
             <TextField type="date" label={t("gl.entryDate")} InputLabelProps={{ shrink: true }}
               value={form.entryDate} onChange={e => setForm({ ...form, entryDate: e.target.value })} fullWidth />
           </Stack>
-          <TextField select required label={t("gl.account")} value={form.accountId}
-            onChange={e => setForm({ ...form, accountId: e.target.value })} fullWidth>
-            {(accounts.data ?? []).map(a => <MenuItem key={a.id} value={a.id}>{a.code} — {a.name}</MenuItem>)}
-          </TextField>
+          <SearchableSelect
+            label={t("gl.account")}
+            required
+            value={form.accountId}
+            onChange={(v) => setForm({ ...form, accountId: v })}
+            options={(accounts.data ?? []).map(a => ({
+              value: a.id, label: a.name, hint: a.code,
+            }))}
+          />
           <TextField required label={t("common.description")} value={form.description}
             onChange={e => setForm({ ...form, description: e.target.value })} fullWidth multiline rows={2} />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>

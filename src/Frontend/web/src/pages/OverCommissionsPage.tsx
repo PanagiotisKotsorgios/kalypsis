@@ -9,6 +9,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 const TYPES = ["","Auto","Home","Health","Life","Business","Travel","Other"] as const;
 interface RuleDto {
@@ -123,12 +124,20 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
       <DialogContent>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2.5} mt={1}>
-          <TextField select required label={t("overCommissions.manager")} value={form.managerProducerId} onChange={e => setForm({ ...form, managerProducerId: e.target.value })} fullWidth>
-            {(producers.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-          </TextField>
-          <TextField select required label={t("overCommissions.subordinate")} value={form.subordinateProducerId} onChange={e => setForm({ ...form, subordinateProducerId: e.target.value })} fullWidth>
-            {(producers.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-          </TextField>
+          <SearchableSelect
+            label={t("overCommissions.manager")}
+            required
+            value={form.managerProducerId}
+            onChange={(v) => setForm({ ...form, managerProducerId: v })}
+            options={(producers.data ?? []).map(p => ({ value: p.id, label: p.name }))}
+          />
+          <SearchableSelect
+            label={t("overCommissions.subordinate")}
+            required
+            value={form.subordinateProducerId}
+            onChange={(v) => setForm({ ...form, subordinateProducerId: v })}
+            options={(producers.data ?? []).map(p => ({ value: p.id, label: p.name }))}
+          />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField select label={t("overCommissions.level")} value={form.level} onChange={e => setForm({ ...form, level: Number(e.target.value) })} fullWidth>
               {[1,2,3,4,5,6,7,8,9].map(l => <MenuItem key={l} value={l}>L{l}</MenuItem>)}

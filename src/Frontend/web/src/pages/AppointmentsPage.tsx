@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 type Status = "Scheduled" | "Done" | "Cancelled";
 interface AppointmentDto {
@@ -201,21 +202,28 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
               onChange={(e) => setForm({ ...form, status: e.target.value as Status })} fullWidth>
               {(["Scheduled","Done","Cancelled"] as const).map(s => <MenuItem key={s} value={s}>{t(`appointments.status.${s}`)}</MenuItem>)}
             </TextField>
-            <TextField select label={t("appointments.assignedTo")} value={form.assignedToUserId}
-              onChange={(e) => setForm({ ...form, assignedToUserId: e.target.value })} fullWidth>
-              <MenuItem value="">—</MenuItem>
-              {(usersQ.data ?? []).map(u => <MenuItem key={u.id} value={u.id}>{u.firstName} {u.lastName}</MenuItem>)}
-            </TextField>
+            <SearchableSelect
+              label={t("appointments.assignedTo")}
+              value={form.assignedToUserId}
+              onChange={(v) => setForm({ ...form, assignedToUserId: v })}
+              emptyLabel="—"
+              options={(usersQ.data ?? []).map(u => ({
+                value: u.id, label: `${u.firstName} ${u.lastName}`.trim(),
+              }))}
+            />
           </Stack>
-          <TextField select label={t("appointments.customer")} value={form.customerId}
-            onChange={(e) => setForm({ ...form, customerId: e.target.value })} fullWidth>
-            <MenuItem value="">—</MenuItem>
-            {(custsQ.data ?? []).map(c => (
-              <MenuItem key={c.id} value={c.id}>
-                {c.type === "Individual" ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() : c.companyName}
-              </MenuItem>
-            ))}
-          </TextField>
+          <SearchableSelect
+            label={t("appointments.customer")}
+            value={form.customerId}
+            onChange={(v) => setForm({ ...form, customerId: v })}
+            emptyLabel="—"
+            options={(custsQ.data ?? []).map(c => ({
+              value: c.id,
+              label: c.type === "Individual"
+                ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim()
+                : (c.companyName ?? ""),
+            }))}
+          />
           <TextField label={t("appointments.notes")} multiline rows={3} value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })} fullWidth />
         </Stack>

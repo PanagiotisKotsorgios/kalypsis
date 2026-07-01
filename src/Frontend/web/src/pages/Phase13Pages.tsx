@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money, num } from "../utils/format";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 /* ============================================================================
    ADVANCE PAYMENTS (Προκαταβολές)
@@ -124,19 +125,31 @@ function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClos
             {["Customer", "Producer", "Carrier"].map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
           </TextField>
           {form.partyType === "Customer" && (
-            <TextField select label={t("advance.customer")} value={form.customerId} onChange={e => setForm({ ...form, customerId: e.target.value })} fullWidth>
-              {(customers.data ?? []).map((c: any) => <MenuItem key={c.id} value={c.id}>{c.companyName ?? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim()}</MenuItem>)}
-            </TextField>
+            <SearchableSelect
+              label={t("advance.customer")}
+              value={form.customerId}
+              onChange={(v) => setForm({ ...form, customerId: v })}
+              options={(customers.data ?? []).map((c: any) => ({
+                value: c.id,
+                label: c.companyName ?? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim(),
+              }))}
+            />
           )}
           {form.partyType === "Producer" && (
-            <TextField select label={t("advance.producer")} value={form.producerId} onChange={e => setForm({ ...form, producerId: e.target.value })} fullWidth>
-              {(producers.data ?? []).map((p: any) => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-            </TextField>
+            <SearchableSelect
+              label={t("advance.producer")}
+              value={form.producerId}
+              onChange={(v) => setForm({ ...form, producerId: v })}
+              options={(producers.data ?? []).map((p: any) => ({ value: p.id, label: p.name }))}
+            />
           )}
           {form.partyType === "Carrier" && (
-            <TextField select label={t("advance.carrier")} value={form.insuranceCompanyId} onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value })} fullWidth>
-              {(carriers.data ?? []).map((c: any) => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-            </TextField>
+            <SearchableSelect
+              label={t("advance.carrier")}
+              value={form.insuranceCompanyId}
+              onChange={(v) => setForm({ ...form, insuranceCompanyId: v })}
+              options={(carriers.data ?? []).map((c: any) => ({ value: c.id, label: c.name }))}
+            />
           )}
           <Stack direction="row" spacing={2}>
             <TextField type="number" required label={t("advance.amount")} value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth />
