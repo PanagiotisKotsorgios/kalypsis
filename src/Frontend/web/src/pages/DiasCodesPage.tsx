@@ -8,6 +8,7 @@ import CheckIcon from "@mui/icons-material/Check";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { money } from "../utils/format";
 
 const STATUSES = ["Pending","Paid","Cancelled"] as const;
 type Status = typeof STATUSES[number];
@@ -63,7 +64,7 @@ export function DiasCodesPage() {
                 <TableRow key={d.id} hover>
                   <TableCell><Typography fontWeight={700} sx={{ fontFamily: "monospace" }}>{d.rfCode}</Typography></TableCell>
                   <TableCell>{d.policyNumber}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{d.amount.toFixed(2)} {d.currency}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{money(d.amount, d.currency)}</TableCell>
                   <TableCell>{d.dueDate}</TableCell>
                   <TableCell>{d.paidAt ? new Date(d.paidAt).toLocaleString("el-GR") : "—"}</TableCell>
                   <TableCell sx={{ fontFamily: "monospace" }}>{d.bankReference ?? "—"}</TableCell>
