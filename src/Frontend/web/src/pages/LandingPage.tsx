@@ -592,7 +592,36 @@ function Hero() {
 function FeatureGrid() {
   const { t } = useTranslation();
   return (
-    <Box sx={{ pb: { xs: 4, md: 6 }, borderTop: `1px solid ${RULE}`, pt: { xs: 5, md: 7 } }}>
+    <Box sx={{
+      position: "relative",
+      pb: { xs: 4, md: 6 },
+      borderTop: `1px solid ${RULE}`,
+      pt: { xs: 5, md: 7 },
+      // Same finished wave PNG as the hero, but rotated 180° so the crests
+      // now flow into the section from the TOP — visually reading as a
+      // continuation of the hero background. `background-attachment: fixed`
+      // is intentionally avoided because it kills mobile scroll perf.
+      "&::before": {
+        content: '""',
+        position: "absolute", inset: 0,
+        backgroundImage: `url("${HERO_BG}")`,
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "center top",
+        backgroundSize: "cover",
+        transform: "rotate(180deg)",
+        transformOrigin: "center",
+        opacity: 0.55,
+        pointerEvents: "none",
+        zIndex: 0,
+        // Soft mask that keeps the top vibrant and fades to plain white
+        // near the bottom so the newsletter block underneath still reads
+        // clean.
+        maskImage: "linear-gradient(180deg, #000 0%, #000 62%, transparent 100%)",
+        WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 62%, transparent 100%)"
+      },
+      // Sit every child above the ::before pseudo-element.
+      "& > *": { position: "relative", zIndex: 1 }
+    }}>
       <Reveal>
         <Box sx={{ textAlign: "center", mb: { xs: 4, md: 6 } }}>
           <Typography sx={{
