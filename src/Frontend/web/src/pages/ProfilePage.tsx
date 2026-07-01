@@ -202,40 +202,35 @@ interface UserPreferences {
   showQuickActions: boolean;
   showKpisOnTop: boolean;
 }
-const DEFAULT_PREFS: UserPreferences = {
-  themeMode: "auto",
-  density: "comfortable",
-  digestFrequency: "daily",
-  playSounds: true,
-  emailAlerts: true,
-  landingPage: "dashboard",
-  autoLockMinutes: 0,
-  showQuickActions: true,
-  showKpisOnTop: true,
-};
-const PREFS_KEY = "kalypsis:userPreferences:v1";
-function loadPrefs(): UserPreferences {
-  try {
-    const raw = localStorage.getItem(PREFS_KEY);
-    if (!raw) return DEFAULT_PREFS;
-    return { ...DEFAULT_PREFS, ...JSON.parse(raw) };
-  } catch { return DEFAULT_PREFS; }
-}
-function savePrefs(p: UserPreferences) {
-  try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch { /* quota — ignore */ }
-}
+// Local aliases of the shared preferences shape + IO helpers from the
+// KalypsisThemeProvider. The theme provider is the source of truth so we
+// share exactly the same DEFAULTS, read/write functions and per-user
+// keying — no risk of drift.
+import {
+  DEFAULT_PREFS as SHARED_DEFAULT_PREFS,
+  readPrefsFor,
+  writePrefsFor,
+} from "../theme/KalypsisThemeProvider";
+import { useAuth } from "../auth/AuthContext";
+
+const DEFAULT_PREFS: UserPreferences = SHARED_DEFAULT_PREFS as UserPreferences;
 
 function UserPreferencesSection({ role }: { role?: string }) {
-  const [prefs, setPrefs] = useState<UserPreferences>(() => loadPrefs());
+  const { user } = useAuth();
+  const userId = user?.userId ?? null;
+  const [prefs, setPrefs] = useState<UserPreferences>(() => readPrefsFor(userId) as UserPreferences);
   const [saved, setSaved] = useState(false);
+
+  // Re-load whenever the effective user id changes (e.g. an admin
+  // impersonates someone else while the profile page is mounted).
+  useEffect(() => { setPrefs(readPrefsFor(userId) as UserPreferences); }, [userId]);
+
   const update = <K extends keyof UserPreferences>(k: K, v: UserPreferences[K]) => {
     const next = { ...prefs, [k]: v };
     setPrefs(next);
-    savePrefs(next);
+    writePrefsFor(userId, next);   // per-user bucket + broadcast for the theme provider
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1500);
-    // Broadcast so other tabs / components can react (e.g. the theme provider).
-    window.dispatchEvent(new StorageEvent("storage", { key: PREFS_KEY, newValue: JSON.stringify(next) }));
   };
   const landingOptions: Array<{ key: LandingPageKey; label: string }> = [
     { key: "dashboard",  label: "Πίνακας" },
@@ -364,7 +359,7 @@ function UserPreferencesSection({ role }: { role?: string }) {
           </Box>
 
           <Button variant="text" size="small" color="inherit"
-            onClick={() => { setPrefs(DEFAULT_PREFS); savePrefs(DEFAULT_PREFS); }}
+            onClick={() => { setPrefs(DEFAULT_PREFS); writePrefsFor(userId, DEFAULT_PREFS); }}
             sx={{ alignSelf: "flex-start", color: "text.secondary" }}>
             Επαναφορά προεπιλογών
           </Button>

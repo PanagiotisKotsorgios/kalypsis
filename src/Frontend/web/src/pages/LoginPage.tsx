@@ -18,18 +18,18 @@ import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { useAuth, TwoFactorRequiredError } from "../auth/AuthContext";
 import { KalypsisLogo } from "../components/KalypsisLogo";
 import { LanguageToggle } from "../components/LanguageToggle";
-import { PREFS_KEY, DEFAULT_PREFS } from "../theme/KalypsisThemeProvider";
+import { readPrefsFor } from "../theme/KalypsisThemeProvider";
+import type { AuthUser } from "../auth/AuthContext";
 
 /**
- * Resolves the post-login landing path from the user's saved preference.
- * Falls back to "/app" (dashboard) when nothing is stored or on parse
- * error. The mapping mirrors the ProfilePage «Αρχική οθόνη» dropdown.
+ * Resolves the post-login landing path from the freshly-authenticated
+ * user's own saved preferences (per-user localStorage bucket). Falls
+ * back to «/app» (dashboard) when nothing is stored yet — first-time
+ * users always land on the platform default.
  */
-function landingPath(): string {
+function landingPath(user: AuthUser): string {
   try {
-    const raw = localStorage.getItem(PREFS_KEY);
-    if (!raw) return "/app";
-    const prefs = { ...DEFAULT_PREFS, ...JSON.parse(raw) };
+    const prefs = readPrefsFor(user.userId);
     switch (prefs.landingPage) {
       case "policies":   return "/app/policies";
       case "customers":  return "/app/customers";
@@ -64,8 +64,8 @@ export function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await signIn(email.trim(), password, rememberMe);
-      navigate(landingPath(), { replace: true });
+      const authed = await signIn(email.trim(), password, rememberMe);
+      navigate(landingPath(authed), { replace: true });
     } catch (err) {
       if (err instanceof TwoFactorRequiredError) {
         setTwoFactor({ challengeToken: err.challengeToken });
@@ -83,8 +83,8 @@ export function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await completeTwoFactor(twoFactor.challengeToken, code.trim(), rememberMe);
-      navigate(landingPath(), { replace: true });
+      const authed = await completeTwoFactor(twoFactor.challengeToken, code.trim(), rememberMe);
+      navigate(landingPath(authed), { replace: true });
     } catch (err) {
       setError(extractErrorMessage(err, "Λανθασμένος κωδικός 2FA."));
     } finally {
