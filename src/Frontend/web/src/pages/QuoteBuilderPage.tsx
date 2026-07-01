@@ -6,7 +6,7 @@ import {
 import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
 import { useMutation } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
-import { money } from "../utils/format";
+import { money, date } from "../utils/format";
 
 const PRODUCT_TYPES = ["Auto", "Home", "Health", "Life", "Business", "Travel"] as const;
 type ProductType = typeof PRODUCT_TYPES[number];
@@ -212,7 +212,7 @@ export function QuoteBuilderPage() {
                           {o.commission != null ? money(o.commission) : "—"}
                         </TableCell>
                         <TableCell>
-                          {o.validUntil ? new Date(o.validUntil).toLocaleDateString("el-GR") : "—"}
+                          {o.validUntil ? date(o.validUntil) : "—"}
                         </TableCell>
                         <TableCell align="right">
                           <Button size="small" variant="outlined" disabled>

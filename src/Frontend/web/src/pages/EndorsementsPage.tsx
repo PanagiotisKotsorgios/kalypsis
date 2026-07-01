@@ -12,7 +12,7 @@ import EditNoteIcon from "@mui/icons-material/EditNote";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
-import { money } from "../utils/format";
+import { money, date } from "../utils/format";
 
 type EndorsementType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 99;
 type EndorsementStatus = "Draft" | "Issued" | "Cancelled";
@@ -125,8 +125,8 @@ export function EndorsementsPage() {
                   <TableCell sx={{ fontFamily: "monospace", fontSize: 13 }}>{e.policyNumber}</TableCell>
                   <TableCell>{TYPE_LABELS[e.type]}</TableCell>
                   <TableCell sx={{ fontSize: 13 }}>
-                    <div>έκδοση: {new Date(e.issuedAt).toLocaleDateString("el-GR")}</div>
-                    <div>ισχύς: {new Date(e.effectiveFrom).toLocaleDateString("el-GR")}</div>
+                    <div>έκδοση: {date(e.issuedAt)}</div>
+                    <div>ισχύς: {date(e.effectiveFrom)}</div>
                   </TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700, color: e.premiumDelta > 0 ? "error.main" : "success.main" }}>
                     {e.premiumDelta > 0 ? "+" : ""}{money(e.premiumDelta, e.currency)}

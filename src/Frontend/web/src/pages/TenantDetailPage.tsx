@@ -17,7 +17,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
-import { money } from "../utils/format";
+import { money, date } from "../utils/format";
 import { useImpersonation } from "../impersonation/ImpersonationContext";
 
 interface TenantOverview {
@@ -624,9 +624,9 @@ function ContractsTab({ tenantId, onError }: { tenantId: string; onError: (m: st
                           )}
                         </Stack>
                         <Box sx={{ mt: 1.5, display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, gap: 2, fontSize: 13 }}>
-                          <Stat label="Υπογραφή" value={new Date(c.signedAt).toLocaleDateString("el-GR")} />
-                          <Stat label="Έναρξη ισχύος" value={new Date(c.effectiveFrom).toLocaleDateString("el-GR")} />
-                          <Stat label="Λήξη" value={c.effectiveTo ? new Date(c.effectiveTo).toLocaleDateString("el-GR") : "Ανοιχτό"} />
+                          <Stat label="Υπογραφή" value={date(c.signedAt)} />
+                          <Stat label="Έναρξη ισχύος" value={date(c.effectiveFrom)} />
+                          <Stat label="Λήξη" value={c.effectiveTo ? date(c.effectiveTo) : "Ανοιχτό"} />
                           <Stat label="Μηνιαία βάση" value={money(c.monthlyBaseAmount, c.currency)} highlight />
                         </Box>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>

@@ -9,7 +9,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
-import { money } from "../utils/format";
+import { money, date } from "../utils/format";
 
 type Status = "Draft" | "Submitted" | "Approved" | "Rejected" | "Effective";
 
@@ -97,7 +97,7 @@ export function PolicyCancellationsPage() {
                     {c.reasonName ?? "—"}
                     {c.reasonText && <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{c.reasonText}</Typography>}
                   </TableCell>
-                  <TableCell>{new Date(c.effectiveFrom).toLocaleDateString("el-GR")}</TableCell>
+                  <TableCell>{date(c.effectiveFrom)}</TableCell>
                   <TableCell>
                     <Chip size="small" label={c.refundMethod} variant="outlined" />
                   </TableCell>

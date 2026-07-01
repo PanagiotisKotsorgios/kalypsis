@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { ErrorPopup, useDescriptiveError } from "../components/ErrorPopup";
+import { date } from "../utils/format";
 
 const KIND_OPTIONS = [
   "Tariff",       // Τιμολόγια
@@ -112,8 +113,8 @@ export function PlatformParametricFilesPage() {
                       <TableCell>{f.kind}</TableCell>
                       <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{f.version}</TableCell>
                       <TableCell sx={{ fontSize: 13 }}>
-                        {f.effectiveFrom ? new Date(f.effectiveFrom).toLocaleDateString("el-GR") : "—"}
-                        {f.effectiveTo ? ` → ${new Date(f.effectiveTo).toLocaleDateString("el-GR")}` : ""}
+                        {f.effectiveFrom ? date(f.effectiveFrom) : "—"}
+                        {f.effectiveTo ? ` → ${date(f.effectiveTo)}` : ""}
                       </TableCell>
                       <TableCell sx={{ fontSize: 13 }}>
                         {f.originalFileName ?? "—"}
