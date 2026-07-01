@@ -12,6 +12,7 @@ import { useAuth } from "../auth/AuthContext";
 import { api } from "../api/client";
 import { ProducerDeclarationForm } from "../components/ProducerDeclarationForm";
 import { usePremium } from "../auth/PremiumContext";
+import { money, num } from "../utils/format";
 
 interface SeriesPoint { label: string; value: number }
 interface CarrierShare { carrier: string; policies: number; premium: number }
@@ -96,13 +97,13 @@ export function ProducerDashboardPage() {
 
       {/* KPI tiles */}
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(5, 1fr)" }, mb: 3 }}>
-        <Kpi label={t("producerDashboard.kpi.customers")} value={r.kpis.customers.toLocaleString("el-GR")} />
-        <Kpi label={t("producerDashboard.kpi.activePolicies")} value={r.kpis.activePolicies.toLocaleString("el-GR")} />
-        <Kpi label={t("producerDashboard.kpi.expiringSoon")} value={r.kpis.expiringSoon.toLocaleString("el-GR")}
+        <Kpi label={t("producerDashboard.kpi.customers")} value={num(r.kpis.customers)} />
+        <Kpi label={t("producerDashboard.kpi.activePolicies")} value={num(r.kpis.activePolicies)} />
+        <Kpi label={t("producerDashboard.kpi.expiringSoon")} value={num(r.kpis.expiringSoon)}
           accent={r.kpis.expiringSoon > 0 ? "warning" : undefined} />
         <Kpi label={t("producerDashboard.kpi.monthlyPremium")}
-          value={`€${r.kpis.monthlyPremium.toLocaleString("el-GR", { minimumFractionDigits: 0 })}`} />
-        <Kpi label={t("producerDashboard.kpi.renewalsYear")} value={r.kpis.renewalsThisYear.toLocaleString("el-GR")} />
+          value={money(r.kpis.monthlyPremium)} />
+        <Kpi label={t("producerDashboard.kpi.renewalsYear")} value={num(r.kpis.renewalsThisYear)} />
       </Box>
 
       {/* My commission section (from /api/producer/me) */}
@@ -111,10 +112,10 @@ export function ProducerDashboardPage() {
           <CardContent>
             <Typography variant="h6" fontWeight={700} mb={2}>{t("producerDashboard.myCommissions")}</Typography>
             <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, mb: 2 }}>
-              <Kpi label={t("producerDashboard.kpi.commissionMtd")} value={`€${self.data.commissionMtd.toFixed(2)}`} />
-              <Kpi label={t("producerDashboard.kpi.commissionYtd")} value={`€${self.data.commissionYtd.toFixed(2)}`} />
-              <Kpi label={t("producerDashboard.kpi.overCommissionYtd")} value={`€${self.data.overCommissionYtd.toFixed(2)}`} />
-              <Kpi label={t("producerDashboard.kpi.premiumYtd")} value={`€${self.data.premiumYtd.toFixed(2)}`} />
+              <Kpi label={t("producerDashboard.kpi.commissionMtd")} value={money(self.data.commissionMtd)} />
+              <Kpi label={t("producerDashboard.kpi.commissionYtd")} value={money(self.data.commissionYtd)} />
+              <Kpi label={t("producerDashboard.kpi.overCommissionYtd")} value={money(self.data.overCommissionYtd)} />
+              <Kpi label={t("producerDashboard.kpi.premiumYtd")} value={money(self.data.premiumYtd)} />
             </Box>
 
             {(myLines.data ?? []).length === 0 ? (
@@ -142,9 +143,9 @@ export function ProducerDashboardPage() {
                           {l.isOverCommission && <Chip label={`OVR L${l.overCommissionLevel}`} size="small" color="warning" sx={{ ml: 0.5, height: 18 }} />}
                           {l.onBehalfOfProducerName && <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{l.onBehalfOfProducerName}</Typography>}
                         </TableCell>
-                        <TableCell align="right">{l.premium.toFixed(2)} €</TableCell>
+                        <TableCell align="right">{money(l.premium)}</TableCell>
                         <TableCell align="right">{l.ratePercent.toFixed(2)}%</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700, color: "primary.main" }}>{l.commissionAmount.toFixed(2)} €</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700, color: "primary.main" }}>{money(l.commissionAmount)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -165,7 +166,7 @@ export function ProducerDashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e9f0" />
                 <XAxis dataKey="label" stroke="#456079" fontSize={12} />
                 <YAxis stroke="#456079" fontSize={12} tickFormatter={(v) => `€${v}`} />
-                <Tooltip formatter={(v) => `€${Number(v).toLocaleString("el-GR", { minimumFractionDigits: 0 })}`} />
+                <Tooltip formatter={(v) => money(Number(v))} />
                 <Line type="monotone" dataKey="value" stroke="#0b2545" strokeWidth={3} dot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
@@ -229,7 +230,7 @@ export function ProducerDashboardPage() {
                         <TableCell>{t(`policies.types.${p.type}`)}</TableCell>
                         <TableCell>{p.carrierName}</TableCell>
                         <TableCell align="right">
-                          {p.premium.toLocaleString("el-GR", { minimumFractionDigits: 2 })} €
+                          {money(p.premium)}
                         </TableCell>
                         <TableCell>
                           <Stack direction="row" spacing={1} alignItems="center">
