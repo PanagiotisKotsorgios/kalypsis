@@ -30,6 +30,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Persistence\Seeders\Resources\grand-cover-seed.json" />
+    <EmbeddedResource Include="Persistence\Seeders\Resources\atlantic-parametrics.json" />
   </ItemGroup>
 
 </Project>

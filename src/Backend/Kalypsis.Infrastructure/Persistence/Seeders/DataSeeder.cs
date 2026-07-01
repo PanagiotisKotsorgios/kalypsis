@@ -52,6 +52,13 @@ public static class DataSeeder
         try { await CleanupNonGrandCoverGlobalsAsync(db, logger, cancellationToken); }
         catch (Exception ex) { logger.LogError(ex, "CleanupNonGrandCoverGlobalsAsync (post-seed) failed — continuing boot."); }
 
+        // Runs *after* cleanup so the ATLANTIC global carrier row it needs
+        // is guaranteed to exist. Seeds the official παραμετρικά extracted
+        // from the ΠΑΡΑΜΕΤΡΙΚΑ.zip pack: 20 κλάδοι + 104 χρήσεις + 2648
+        // καλύψεις attached to ATLANTIC.
+        try { await AtlanticSeeder.SeedAsync(db, logger, cancellationToken); }
+        catch (Exception ex) { logger.LogError(ex, "AtlanticSeeder failed — continuing boot without Atlantic παραμετρικά."); }
+
         var seedEmail = (config["Seed:PlatformAdminEmail"] ?? "superadmin@kalypsis.gr").ToLowerInvariant();
         var seedPassword = config["Seed:PlatformAdminPassword"] ?? "Kalypsis@2026!";
         var seedFirstName = config["Seed:PlatformAdminFirstName"] ?? "Super";
