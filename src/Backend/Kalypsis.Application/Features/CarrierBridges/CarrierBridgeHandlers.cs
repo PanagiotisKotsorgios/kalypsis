@@ -854,25 +854,49 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         var poldt   = Read("Filpoldt.txt");
         var rechd   = Read("Filrechd.txt");
 
-        // ---- Customer master → id → (name, birth) ---------------------------
-        // Layout: CUSCOD(7) BDATE(8 YYYYMMDD) SURNAME(30) FIRSTNAME(30) FATHER(30) ...
+        // ---- Customer master → id → (name, afm) -----------------------------
+        // The real Filcusdt.txt uses fixed-width blocks (CUSCOD 7 + BDATE 8 +
+        // three 30-char name blocks) but different Atlantic releases pad
+        // with variable spacing, so pure fixed-width slicing produces off-by-
+        // one errors on some rows.
+        //
+        // Robust approach: split each line on whitespace to grab the tokens
+        // we know are always numeric (CUSCOD, BDATE), then reach back into
+        // the raw line at the offset AFTER the birth date to slice the
+        // 30-char surname + 30-char first-name blocks.
         var customerById = new Dictionary<string, (string Name, string? Afm)>(StringComparer.Ordinal);
         foreach (var line in cusdt)
         {
-            if (line.Length < 45) continue;
-            var id = line.Substring(0, 7).Trim();
-            if (string.IsNullOrEmpty(id)) continue;
-            var surname   = SafeSlice(line, 15, 30).Trim();
-            var firstName = SafeSlice(line, 45, 30).Trim();
-            // AFM is a 9-digit block that appears further along; grab the
-            // first 9-digit run after the name blocks.
+            if (line.Length < 20) continue;
+            var toks = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (toks.Length < 2) continue;
+            var id = toks[0];
+            if (string.IsNullOrEmpty(id) || !id.All(char.IsDigit)) continue;
+
+            // Find where the birth date lives in the raw line, so we know
+            // where the name blocks start.
+            var bdate = toks.FirstOrDefault(t => t.Length == 8 && t.All(char.IsDigit));
+            int nameStart = -1;
+            if (bdate is not null)
+            {
+                nameStart = line.IndexOf(bdate, StringComparison.Ordinal);
+                if (nameStart >= 0) nameStart += bdate.Length;
+            }
+            if (nameStart < 0) nameStart = line.IndexOf(id, StringComparison.Ordinal) + id.Length + 9;
+
+            var surname   = SafeSlice(line, nameStart, 30).Trim();
+            var firstName = SafeSlice(line, nameStart + 30, 30).Trim();
+            // AFM is the first 9-digit run after the name blocks.
             string? afm = null;
-            var afmMatch = System.Text.RegularExpressions.Regex.Match(
-                line.Length > 105 ? line[105..] : "", "\\d{9}");
-            if (afmMatch.Success) afm = afmMatch.Value;
+            if (line.Length > nameStart + 90)
+            {
+                var afmMatch = System.Text.RegularExpressions.Regex.Match(line[(nameStart + 90)..], "\\d{9}");
+                if (afmMatch.Success) afm = afmMatch.Value;
+            }
             var full = string.IsNullOrEmpty(firstName)
                 ? surname
                 : $"{surname} {firstName}".Trim();
+            if (string.IsNullOrEmpty(full)) continue;
             customerById[id] = (full, afm);
         }
 
@@ -945,14 +969,18 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             var policyNumber = toks[1];
             var policyAnalytical = toks[2];
 
-            // Locate the two amount tokens (contain a comma).
+            // Filpolhd emits several comma-decimals per row (FRDHL fire
+            // deductible, PLNYPR yearly premium, PLNFEE fee). PLNYPR and
+            // PLNFEE are ALWAYS the last two. Also skip trivial zero-amounts
+            // like ",00" that Atlantic pads inactive fields with.
             var amountIndexes = new List<int>();
-            for (int i = 0; i < toks.Length; i++) if (toks[i].Contains(',')) amountIndexes.Add(i);
+            for (int i = 0; i < toks.Length; i++)
+                if (toks[i].Contains(',') && ParseGcAmount(toks[i]) != null) amountIndexes.Add(i);
             decimal? gross = null, fee = null;
             if (amountIndexes.Count >= 2)
             {
-                gross = ParseGcAmount(toks[amountIndexes[0]]);
-                fee = ParseGcAmount(toks[amountIndexes[^1]]);
+                gross = ParseGcAmount(toks[amountIndexes[^2]]);
+                fee   = ParseGcAmount(toks[amountIndexes[^1]]);
             }
             else if (amountIndexes.Count == 1)
             {
@@ -998,17 +1026,22 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             if (appNum     != null) raw["APLNUM"] = appNum;
             if (coverageEnd.HasValue) raw["PLEEPE"] = coverageEnd.Value.ToString("yyyy-MM-dd");
 
-            // Customer + AFM enrichment
+            // Customer + AFM enrichment. Try the id verbatim first, then
+            // stripped of any leading zeros — Filcusdt keys them either way
+            // depending on release.
             string? customerName = null, customerVat = null;
-            if (customerId != null && customerById.TryGetValue(customerId.TrimStart('0'), out var cust))
+            if (customerId != null)
             {
-                customerName = cust.Name;
-                customerVat  = cust.Afm;
-            }
-            else if (customerId != null && customerById.TryGetValue(customerId, out var cust2))
-            {
-                customerName = cust2.Name;
-                customerVat  = cust2.Afm;
+                if (customerById.TryGetValue(customerId, out var cust1))
+                {
+                    customerName = cust1.Name;
+                    customerVat  = cust1.Afm;
+                }
+                else if (customerById.TryGetValue(customerId.TrimStart('0'), out var cust2))
+                {
+                    customerName = cust2.Name;
+                    customerVat  = cust2.Afm;
+                }
             }
 
             // Vehicle enrichment
@@ -1327,7 +1360,23 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                         $"Δεν υπάρχει συνεργάτης «{r.PartnerCode}» — θα δημιουργηθεί αυτόματα στην εισαγωγή"));
             }
 
-            var rowPolicyType = !string.IsNullOrEmpty(r.PlateNumber) ? PolicyType.Auto : PolicyType.Other;
+            // Row → PolicyType. First try the KLDCOD branch code (Atlantic
+            // carries it in the raw pack) matched against the seeded Branch
+            // parametrics; then fall back to the plate heuristic used for
+            // ERGO. Rows without either signal stay "Other".
+            PolicyType rowPolicyType = PolicyType.Other;
+            if (r.Raw.TryGetValue("KLDCOD", out var kldRaw) && !string.IsNullOrWhiteSpace(kldRaw))
+            {
+                var kld = kldRaw.Trim().PadLeft(2, '0');
+                var branchRow = companyParams.FirstOrDefault(p =>
+                    p.Kind == CompanyParameterItemKind.Branch
+                    && (string.Equals(p.Code, kld, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(p.BridgeCode, kld, StringComparison.OrdinalIgnoreCase)));
+                if (branchRow?.PolicyType is PolicyType t) rowPolicyType = t;
+            }
+            if (rowPolicyType == PolicyType.Other && !string.IsNullOrEmpty(r.PlateNumber))
+                rowPolicyType = PolicyType.Auto;
+
             if (companyParams.Count == 0)
             {
                 r.Notes.Add(new BridgeImportNote("Παραμετρικά εταιρείας", "warn",

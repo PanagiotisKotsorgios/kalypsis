@@ -59,6 +59,12 @@ public static class DataSeeder
         try { await AtlanticSeeder.SeedAsync(db, logger, cancellationToken); }
         catch (Exception ex) { logger.LogError(ex, "AtlanticSeeder failed — continuing boot without Atlantic παραμετρικά."); }
 
+        // Same idea for ERGO: seeds branches + ~450 coverage codes extracted
+        // from ERGO's «Κωδικοποίηση και περιγραφή» PDF, keyed off the ERGO
+        // global carrier row.
+        try { await ErgoSeeder.SeedAsync(db, logger, cancellationToken); }
+        catch (Exception ex) { logger.LogError(ex, "ErgoSeeder failed — continuing boot without ERGO παραμετρικά."); }
+
         var seedEmail = (config["Seed:PlatformAdminEmail"] ?? "superadmin@kalypsis.gr").ToLowerInvariant();
         var seedPassword = config["Seed:PlatformAdminPassword"] ?? "Kalypsis@2026!";
         var seedFirstName = config["Seed:PlatformAdminFirstName"] ?? "Super";
