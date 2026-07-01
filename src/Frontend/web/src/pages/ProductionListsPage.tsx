@@ -273,6 +273,17 @@ export function ProductionListsPage() {
             <MenuItem value="month">{t("productionList.byMonth")}</MenuItem>
           </TextField>
         </Box>
+        <Stack direction="row" justifyContent="flex-end" mt={1.5}>
+          <Button size="small" variant="text" color="inherit"
+            onClick={() => setF({
+              from: monthStart, to: todayStr,
+              insuranceCompanyId: "", producerId: "",
+              policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "",
+              status: "", groupBy: "carrier"
+            })}>
+            Καθαρισμός φίλτρων
+          </Button>
+        </Stack>
       </Card>
 
       {q.isLoading ? <CircularProgress /> : !q.data ? null : (
