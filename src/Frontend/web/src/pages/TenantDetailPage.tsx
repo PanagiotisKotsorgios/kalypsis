@@ -17,6 +17,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
+import { money } from "../utils/format";
 import { useImpersonation } from "../impersonation/ImpersonationContext";
 
 interface TenantOverview {
@@ -420,7 +421,7 @@ function BillingTab({ tenantId, onError }: { tenantId: string; onError: (m: stri
             <Stat label={t("tenants.billingTab.billable")}  value={b.billableOfficeCount} />
             <Stat
               label={t("tenants.billingTab.monthlyTotal")}
-              value={`${b.monthlyOfficeSurchargeTotal.toFixed(2)} ${b.officeSurchargeCurrency}`}
+              value={money(b.monthlyOfficeSurchargeTotal, b.officeSurchargeCurrency)}
               big
               highlight={b.monthlyOfficeSurchargeTotal > 0} />
           </Box>
@@ -504,7 +505,7 @@ function BillingTab({ tenantId, onError }: { tenantId: string; onError: (m: stri
                     <TableCell align="right">
                       {chargeable ? (
                         <Typography sx={{ fontWeight: 700, color: willCharge ? "primary.main" : "text.secondary" }}>
-                          {b.officeSurchargeAmount.toFixed(2)} {b.officeSurchargeCurrency}
+                          {money(b.officeSurchargeAmount, b.officeSurchargeCurrency)}
                         </Typography>
                       ) : (
                         <Typography color="text.secondary">—</Typography>
@@ -626,10 +627,10 @@ function ContractsTab({ tenantId, onError }: { tenantId: string; onError: (m: st
                           <Stat label="Υπογραφή" value={new Date(c.signedAt).toLocaleDateString("el-GR")} />
                           <Stat label="Έναρξη ισχύος" value={new Date(c.effectiveFrom).toLocaleDateString("el-GR")} />
                           <Stat label="Λήξη" value={c.effectiveTo ? new Date(c.effectiveTo).toLocaleDateString("el-GR") : "Ανοιχτό"} />
-                          <Stat label="Μηνιαία βάση" value={`${c.monthlyBaseAmount.toFixed(2)} ${c.currency}`} highlight />
+                          <Stat label="Μηνιαία βάση" value={money(c.monthlyBaseAmount, c.currency)} highlight />
                         </Box>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
-                          {c.officeIncludedCount} υποκαταστήματα στη βάση, +{c.officeSurchargePerExtra.toFixed(2)} {c.currency} ανά επιπλέον ·{" "}
+                          {c.officeIncludedCount} υποκαταστήματα στη βάση, +{money(c.officeSurchargePerExtra, c.currency)} ανά επιπλέον ·{" "}
                           {c.autoRenew ? `Αυτόματη ανανέωση κάθε ${c.renewalTermMonths} μήνες` : "Χωρίς αυτόματη ανανέωση"}
                         </Typography>
                         {c.signedByName && (

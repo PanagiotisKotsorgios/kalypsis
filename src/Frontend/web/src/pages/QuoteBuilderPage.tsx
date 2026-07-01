@@ -6,6 +6,7 @@ import {
 import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
 import { useMutation } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { money } from "../utils/format";
 
 const PRODUCT_TYPES = ["Auto", "Home", "Health", "Life", "Business", "Travel"] as const;
 type ProductType = typeof PRODUCT_TYPES[number];
@@ -175,7 +176,7 @@ export function QuoteBuilderPage() {
                     <Box>
                       <Typography variant="body2" color="text.secondary">Φθηνότερη</Typography>
                       <Typography sx={{ fontWeight: 700, color: "success.main" }}>
-                        {cheapest.premium?.toFixed(2)} € · {cheapest.carrierCode}
+                        {cheapest.premium != null ? money(cheapest.premium) : "—"} · {cheapest.carrierCode}
                       </Typography>
                     </Box>
                   )}
@@ -205,10 +206,10 @@ export function QuoteBuilderPage() {
                         </TableCell>
                         <TableCell>{o.carrierProductCode ?? "—"}</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 700, fontSize: 16 }}>
-                          {o.premium != null ? `${o.premium.toFixed(2)} €` : "—"}
+                          {o.premium != null ? money(o.premium) : "—"}
                         </TableCell>
                         <TableCell align="right">
-                          {o.commission != null ? `${o.commission.toFixed(2)} €` : "—"}
+                          {o.commission != null ? money(o.commission) : "—"}
                         </TableCell>
                         <TableCell>
                           {o.validUntil ? new Date(o.validUntil).toLocaleDateString("el-GR") : "—"}

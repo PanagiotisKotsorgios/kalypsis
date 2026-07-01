@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { money, num } from "../utils/format";
 
 const MONTHS = ["Ιαν", "Φεβ", "Μαρ", "Απρ", "Μάι", "Ιούν", "Ιούλ", "Αύγ", "Σεπ", "Οκτ", "Νοέ", "Δεκ"];
 
@@ -120,9 +121,9 @@ function Report507() {
                   <TableCell>{r.customerName}</TableCell>
                   <TableCell>{r.startDate}</TableCell>
                   <TableCell>{r.endDate}</TableCell>
-                  <TableCell align="right">{r.premium.toFixed(2)} {r.currency}</TableCell>
-                  <TableCell align="right">{r.allocated.toFixed(2)}</TableCell>
-                  <TableCell align="right" sx={{ color: "error.main", fontWeight: 700 }}>{r.outstanding.toFixed(2)}</TableCell>
+                  <TableCell align="right">{money(r.premium, r.currency)}</TableCell>
+                  <TableCell align="right">{num(r.allocated)}</TableCell>
+                  <TableCell align="right" sx={{ color: "error.main", fontWeight: 700 }}>{num(r.outstanding)}</TableCell>
                   <TableCell align="right" sx={{ color: r.daysOverdue > 60 ? "error.main" : r.daysOverdue > 30 ? "warning.main" : "text.primary" }}>{r.daysOverdue}</TableCell>
                 </TableRow>
               ))}
@@ -153,12 +154,12 @@ function Report506() {
           {(q.data ?? []).map((r: any, i: number) => (
             <TableRow key={i} hover>
               <TableCell sx={{ fontWeight: 600 }}>{r.customerName}</TableCell>
-              <TableCell align="right">{r.current.toFixed(2)}</TableCell>
-              <TableCell align="right">{r.days30.toFixed(2)}</TableCell>
-              <TableCell align="right">{r.days60.toFixed(2)}</TableCell>
-              <TableCell align="right">{r.days90.toFixed(2)}</TableCell>
-              <TableCell align="right" sx={{ color: "error.main" }}>{r.over90.toFixed(2)}</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700 }}>{r.total.toFixed(2)}</TableCell>
+              <TableCell align="right">{num(r.current)}</TableCell>
+              <TableCell align="right">{num(r.days30)}</TableCell>
+              <TableCell align="right">{num(r.days60)}</TableCell>
+              <TableCell align="right">{num(r.days90)}</TableCell>
+              <TableCell align="right" sx={{ color: "error.main" }}>{num(r.over90)}</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>{num(r.total)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -184,8 +185,8 @@ function Report610() {
             <TableRow key={r.carrierId} hover>
               <TableCell sx={{ fontWeight: 600 }}>{r.carrierName}</TableCell>
               <TableCell align="right">{r.openClaimCount}</TableCell>
-              <TableCell align="right">{r.totalPremium.toFixed(2)}</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700, color: "success.main" }}>{r.totalCommissionDue.toFixed(2)}</TableCell>
+              <TableCell align="right">{num(r.totalPremium)}</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700, color: "success.main" }}>{num(r.totalCommissionDue)}</TableCell>
             </TableRow>
           ))}
         </TableBody>

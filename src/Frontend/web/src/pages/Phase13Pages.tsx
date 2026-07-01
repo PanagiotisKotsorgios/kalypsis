@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { money, num } from "../utils/format";
 
 /* ============================================================================
    ADVANCE PAYMENTS (Προκαταβολές)
@@ -69,9 +70,9 @@ export function AdvancePaymentsPage() {
                   <TableCell>{a.receivedOn}</TableCell>
                   <TableCell>{a.partyType}</TableCell>
                   <TableCell>{a.customerName ?? a.producerName ?? a.insuranceCompanyName ?? "—"}</TableCell>
-                  <TableCell align="right">{a.amount.toFixed(2)} {a.currency}</TableCell>
-                  <TableCell align="right">{a.allocatedAmount.toFixed(2)}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700, color: "success.main" }}>{(a.amount - a.allocatedAmount).toFixed(2)}</TableCell>
+                  <TableCell align="right">{money(a.amount, a.currency)}</TableCell>
+                  <TableCell align="right">{num(a.allocatedAmount)}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, color: "success.main" }}>{num(a.amount - a.allocatedAmount)}</TableCell>
                   <TableCell><Chip size="small" color={a.status === "FullyAllocated" ? "success" : a.status === "Open" ? "warning" : "info"} label={a.status} /></TableCell>
                 </TableRow>
               ))}
@@ -207,7 +208,7 @@ function Section({ title, rows }: { title: string; rows: any[] }) {
               <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.reference}</TableCell>
               <TableCell>{r.date}</TableCell>
               <TableCell>{r.partyName}</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700, color: "error.main" }}>{r.amount.toFixed(2)} {r.currency}</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700, color: "error.main" }}>{money(r.amount, r.currency)}</TableCell>
               <TableCell align="right"><IconButton size="small" color="primary"><LinkIcon fontSize="small" /></IconButton></TableCell>
             </TableRow>
           ))}
@@ -259,7 +260,7 @@ export function TachyPaymentsPage() {
                   <TableCell>{new Date(b.createdAt).toLocaleString("el-GR")}</TableCell>
                   <TableCell>{b.dueDate}</TableCell>
                   <TableCell align="right">{b.policyCount}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{b.totalAmount.toFixed(2)} {b.currency}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{money(b.totalAmount, b.currency)}</TableCell>
                   <TableCell><Chip size="small" color={b.status === "Settled" ? "success" : b.status === "Exported" ? "info" : "default"} label={b.status} /></TableCell>
                   <TableCell align="right">
                     <Button size="small" startIcon={<DownloadIcon />} href={`/api/tachypayments/${b.id}/export`} target="_blank">{t("tachy.exportCsv")}</Button>
@@ -315,7 +316,7 @@ function CreateTachyDialog({ open, onClose, onSaved }: { open: boolean; onClose:
                   <TableCell><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} /></TableCell>
                   <TableCell sx={{ fontFamily: "monospace" }}>{p.policyNumber}</TableCell>
                   <TableCell>{p.customerName}</TableCell>
-                  <TableCell align="right">{p.outstanding.toFixed(2)} {p.currency}</TableCell>
+                  <TableCell align="right">{money(p.outstanding, p.currency)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { money } from "../utils/format";
 
 interface PersistencyRow { dimension: string; issued: number; renewed: number; persistencyPercent: number; premiumRetained: number; }
 interface PersistencyDto {
@@ -103,7 +104,7 @@ function Section({ title, rows }: { title: string; rows: PersistencyRow[] }) {
                   sx={{ height: 6, borderRadius: 1 }}
                   color={r.persistencyPercent >= 70 ? "success" : r.persistencyPercent >= 50 ? "warning" : "error"} />
               </TableCell>
-              <TableCell align="right">{r.premiumRetained.toFixed(2)} €</TableCell>
+              <TableCell align="right">{money(r.premiumRetained)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
