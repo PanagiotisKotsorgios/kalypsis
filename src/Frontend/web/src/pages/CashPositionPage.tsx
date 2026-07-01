@@ -389,10 +389,15 @@ function MovementDialog({ open, onClose, accounts, onSaved }: { open: boolean; o
         <Stack spacing={2} mt={1}>
           {/* Row 1: account + date + direction + amount */}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select required label={t("cash.account")} value={form.cashAccountId}
-              onChange={e => setForm({ ...form, cashAccountId: e.target.value })} fullWidth>
-              {accounts.map(a => <MenuItem key={a.id} value={a.id}>{a.name} ({money(a.currentBalance, a.currency)})</MenuItem>)}
-            </TextField>
+            <SearchableSelect
+              label={t("cash.account")}
+              required
+              value={form.cashAccountId}
+              onChange={(v) => setForm({ ...form, cashAccountId: v })}
+              options={accounts.map(a => ({
+                value: a.id, label: a.name, hint: money(a.currentBalance, a.currency),
+              }))}
+            />
             <TextField type="date" label={t("cash.movementDate")} InputLabelProps={{ shrink: true }}
               value={form.movementDate} onChange={e => setForm({ ...form, movementDate: e.target.value })} fullWidth />
             <TextField select label={t("cash.direction")} value={form.direction}

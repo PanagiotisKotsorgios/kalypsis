@@ -348,36 +348,38 @@ function CreateDialog({ open, onClose, onCreated }: { open: boolean; onClose: ()
             const subs = carrierData.filter(c => c.parentCompanyId === broker.id);
             const subValue = selected?.id !== broker.id ? selected?.id ?? "" : "";
             return (
-              <TextField select label="Υποασφαλιστική" value={subValue}
-                onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value || broker.id, policyType: "", packageCode: "" })} fullWidth>
-                <MenuItem value="">— όλες οι υποασφαλιστικές —</MenuItem>
-                {subs.map(s => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
-              </TextField>
+              <SearchableSelect
+                label="Υποασφαλιστική"
+                value={subValue}
+                onChange={(v) => setForm({ ...form, insuranceCompanyId: v || broker.id, policyType: "", packageCode: "" })}
+                emptyLabel="— όλες οι υποασφαλιστικές —"
+                options={subs.map(s => ({ value: s.id, label: s.name }))}
+              />
             );
           })()}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("commissionRuns.filterBranch")} value={form.policyType}
-              onChange={e => setForm({ ...form, policyType: e.target.value })} fullWidth
+            <SearchableSelect
+              label={t("commissionRuns.filterBranch")}
+              value={form.policyType}
+              onChange={(v) => setForm({ ...form, policyType: v })}
               disabled={!form.insuranceCompanyId}
               helperText={!form.insuranceCompanyId
                 ? "Επιλέξτε εταιρία"
-                : carrierCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
-              <MenuItem value="">{t("common.all")}</MenuItem>
-              {carrierCatalogue.branches.map(b => (
-                <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
-              ))}
-            </TextField>
-            <TextField select label={t("commissionRuns.filterPackage")} value={form.packageCode}
-              onChange={e => setForm({ ...form, packageCode: e.target.value })} fullWidth
+                : carrierCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
+              emptyLabel={t("common.all")}
+              options={carrierCatalogue.branches.map(b => ({ value: b.value, label: b.label }))}
+            />
+            <SearchableSelect
+              label={t("commissionRuns.filterPackage")}
+              value={form.packageCode}
+              onChange={(v) => setForm({ ...form, packageCode: v })}
               disabled={!form.insuranceCompanyId}
               helperText={!form.insuranceCompanyId
                 ? "Επιλέξτε εταιρία"
-                : carrierCatalogue.packages.length === 0 ? "Δεν υπάρχουν πακέτα" : ""}>
-              <MenuItem value="">{t("common.all")}</MenuItem>
-              {carrierCatalogue.packages.map(p => (
-                <MenuItem key={p.key} value={p.value}>{p.label}</MenuItem>
-              ))}
-            </TextField>
+                : carrierCatalogue.packages.length === 0 ? "Δεν υπάρχουν πακέτα" : ""}
+              emptyLabel={t("common.all")}
+              options={carrierCatalogue.packages.map(p => ({ value: p.value, label: p.label }))}
+            />
           </Stack>
           <TextField label={t("common.notes")} multiline rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} fullWidth />
         </Stack>

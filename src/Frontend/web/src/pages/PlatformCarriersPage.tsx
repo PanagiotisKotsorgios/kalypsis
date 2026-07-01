@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import {
   Alert, Box, Button, Card, Checkbox, Chip, CircularProgress,
   Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel,
-  IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow,
+  IconButton, Stack, Table, TableBody, TableCell, TableHead, TableRow,
   TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -13,6 +13,7 @@ import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 interface CarrierRow {
   id: string;
@@ -288,14 +289,16 @@ export function PlatformCarriersPage() {
                     onChange={e => setEditing({ ...editing, isBroker: e.target.checked, parentCompanyId: "" })} />}
                   label="Πρακτορείο (broker)" />
               </Stack>
-              <TextField select label="Γονικό πρακτορείο (αν υποασφαλιστική)"
+              <SearchableSelect
+                label="Γονικό πρακτορείο (αν υποασφαλιστική)"
                 value={editing.parentCompanyId}
+                onChange={(v) => setEditing({ ...editing, parentCompanyId: v })}
                 disabled={editing.isBroker}
-                onChange={e => setEditing({ ...editing, parentCompanyId: e.target.value })}>
-                <MenuItem value="">— Καμία —</MenuItem>
-                {(carriers.data ?? []).filter(c => c.isBroker && c.id !== editing.id).map(b =>
-                  <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>)}
-              </TextField>
+                emptyLabel="— Καμία —"
+                options={(carriers.data ?? []).filter(c => c.isBroker && c.id !== editing.id).map(b => ({
+                  value: b.id, label: b.name,
+                }))}
+              />
               <TextField label="Εξαιρούμενοι κλάδοι"
                 value={editing.excludedBranchCodes}
                 onChange={e => setEditing({ ...editing, excludedBranchCodes: e.target.value })}
