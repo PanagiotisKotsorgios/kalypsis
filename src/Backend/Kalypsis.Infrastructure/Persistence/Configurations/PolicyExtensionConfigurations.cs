@@ -54,3 +54,17 @@ public class PolicyInstallmentConfiguration : IEntityTypeConfiguration<PolicyIns
         b.HasOne(x => x.Policy).WithMany(p => p.Installments).HasForeignKey(x => x.PolicyId).OnDelete(DeleteBehavior.Cascade);
     }
 }
+
+public class SavedReportConfiguration : IEntityTypeConfiguration<SavedReport>
+{
+    public void Configure(EntityTypeBuilder<SavedReport> b)
+    {
+        b.ToTable("saved_reports");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Entity).HasMaxLength(64).IsRequired();
+        b.Property(x => x.Name).HasMaxLength(200).IsRequired();
+        b.Property(x => x.FiltersJson).HasColumnType("longtext");
+        b.HasIndex(x => new { x.TenantId, x.OwnerUserId, x.Entity });
+        b.HasIndex(x => new { x.TenantId, x.Entity, x.IsShared });
+    }
+}

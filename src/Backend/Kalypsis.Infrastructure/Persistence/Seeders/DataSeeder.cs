@@ -423,6 +423,25 @@ public static class DataSeeder
                 KEY `IX_policy_covers_PolicyObjectId` (`PolicyObjectId`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
 
+        // --- saved_reports table ------------------------------------------
+        await EnsureTableAsync(db, logger, dbName,
+            table: "saved_reports",
+            createSql: @"CREATE TABLE IF NOT EXISTS `saved_reports` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `OwnerUserId` char(36) NOT NULL,
+                `Entity` varchar(64) NOT NULL,
+                `Name` varchar(200) NOT NULL,
+                `FiltersJson` longtext NOT NULL,
+                `IsShared` tinyint(1) NOT NULL DEFAULT 0,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_saved_reports_TenantId_OwnerUserId_Entity` (`TenantId`, `OwnerUserId`, `Entity`),
+                KEY `IX_saved_reports_TenantId_Entity_IsShared` (`TenantId`, `Entity`, `IsShared`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         // --- policy_installments table ------------------------------------
         await EnsureTableAsync(db, logger, dbName,
             table: "policy_installments",

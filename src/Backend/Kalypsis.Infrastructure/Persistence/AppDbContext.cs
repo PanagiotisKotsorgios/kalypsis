@@ -31,6 +31,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<PolicyObject> PolicyObjects => Set<PolicyObject>();
     public DbSet<PolicyCover> PolicyCovers => Set<PolicyCover>();
     public DbSet<PolicyInstallment> PolicyInstallments => Set<PolicyInstallment>();
+    public DbSet<SavedReport> SavedReports => Set<SavedReport>();
     public DbSet<PolicyDocument> PolicyDocuments => Set<PolicyDocument>();
     public DbSet<Claim> Claims => Set<Claim>();
     public DbSet<CommissionRule> CommissionRules => Set<CommissionRule>();

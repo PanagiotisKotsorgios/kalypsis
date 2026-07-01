@@ -405,8 +405,16 @@ public class BulkCommissionsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IDateTimeProvider _clock;
-    public BulkCommissionsController(AppDbContext db, IDateTimeProvider clock)
-    { _db = db; _clock = clock; }
+    private readonly ICurrentUser _current;
+    public BulkCommissionsController(AppDbContext db, IDateTimeProvider clock, ICurrentUser current)
+    { _db = db; _clock = clock; _current = current; }
+
+    private async Task EnsurePremiumAsync(CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        await Kalypsis.Application.Features.Premium.PremiumGate.RequireAsync(
+            _db, tenantId, Kalypsis.Application.Features.Premium.PremiumFeatureCodes.BulkCommissions, ct);
+    }
 
     public record FilterBody(
         Guid? InsuranceCompanyId, Guid? ProducerId, PolicyType? PolicyType,
@@ -424,6 +432,7 @@ public class BulkCommissionsController : ControllerBase
     [HttpPost("preview")]
     public async Task<ActionResult<PreviewResponse>> Preview([FromBody] PreviewBody body, CancellationToken ct)
     {
+        await EnsurePremiumAsync(ct);
         var q = BuildQuery(body.Filter);
         var policies = ApplyJsonFilters(await q.Take(2000).ToListAsync(ct), body.Filter);
         var rows = new List<PreviewRow>();
@@ -454,6 +463,7 @@ public class BulkCommissionsController : ControllerBase
     [HttpPost("apply")]
     public async Task<ActionResult<PreviewResponse>> Apply([FromBody] PreviewBody body, CancellationToken ct)
     {
+        await EnsurePremiumAsync(ct);
         var q = BuildQuery(body.Filter);
         var policies = ApplyJsonFilters(await q.Take(2000).ToListAsync(ct), body.Filter);
         var rows = new List<PreviewRow>();

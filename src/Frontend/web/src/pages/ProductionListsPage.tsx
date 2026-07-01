@@ -16,6 +16,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money, date } from "../utils/format";
+import { SavedReportsButton } from "../components/SavedReportsButton";
 
 interface Carrier { id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null; }
 interface Producer { id: string; name: string; }
@@ -162,6 +163,7 @@ export function ProductionListsPage() {
         </Stack>
         <Box sx={{ flex: 1 }} />
         <Stack direction="row" spacing={1}>
+          <SavedReportsButton entity="production-lists" currentFilters={f} onLoad={(next) => setF({ ...f, ...next })} />
           <Button component={RouterLink} to="/app/commission-runs" variant="outlined" color="secondary" startIcon={<CalculateIcon />}>
             Εκκαθαρίσεις προμηθειών
           </Button>
