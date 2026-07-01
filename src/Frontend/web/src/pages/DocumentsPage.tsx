@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -13,6 +14,7 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  InputAdornment,
   MenuItem,
   Stack,
   Table,
@@ -24,6 +26,9 @@ import {
   TextField,
   Typography
 } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import CloseIcon from "@mui/icons-material/Close";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DownloadIcon from "@mui/icons-material/Download";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -62,6 +67,13 @@ export function DocumentsPage() {
   const canEdit = user?.role === "AgencyAdmin" || user?.role === "AgencyUser";
   const [uploadOpen, setUploadOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Filter state — all local so the operator can narrow the huge document
+  // list by policy number, customer name, doc type, or upload date range
+  // without a page reload.
+  const [q, setQ]     = useState("");           // free text (policy # OR customer OR filename)
+  const [type, setType] = useState<DocumentType | "">("");
+  const [from, setFrom] = useState<string>("");
+  const [to, setTo]     = useState<string>("");
 
   const docsQuery = useQuery({
     queryKey: ["documents"],
@@ -84,8 +96,25 @@ export function DocumentsPage() {
     window.URL.revokeObjectURL(url);
   };
 
-  const rows = docsQuery.data ?? [];
+  const allRows = docsQuery.data ?? [];
   const isCustomer = user?.role === "Customer";
+
+  // Client-side filter — the /documents endpoint returns everything for the
+  // current tenant, so we filter here instead of round-tripping.
+  const rows = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return allRows.filter(d => {
+      if (needle) {
+        const hay = [d.policyNumber, d.customerDisplay, d.fileName].join(" ").toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      if (type && d.documentType !== type) return false;
+      if (from && d.createdAt < from) return false;
+      if (to && d.createdAt > to + "T23:59:59") return false;
+      return true;
+    });
+  }, [allRows, q, type, from, to]);
+  const anyFilterActive = q || type || from || to;
 
   return (
     <Box>
@@ -109,6 +138,57 @@ export function DocumentsPage() {
       </Stack>
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
+
+      {/* Filters — search by policy #, customer, filename + type + date range. */}
+      <Card sx={{ p: 2, mb: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
+          <FilterListIcon color="action" sx={{ display: { xs: "none", md: "inline-flex" } }} />
+          <TextField
+            size="small"
+            placeholder="Αναζήτηση: αριθμός συμβολαίου, πελάτης, όνομα αρχείου"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            sx={{ minWidth: 320, flex: 1 }}
+            InputProps={{
+              startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+              endAdornment: q ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setQ("")}><CloseIcon fontSize="small" /></IconButton>
+                </InputAdornment>
+              ) : undefined
+            }}
+          />
+          <TextField
+            select size="small" label="Τύπος" value={type}
+            onChange={(e) => setType(e.target.value as DocumentType | "")}
+            sx={{ minWidth: 160 }}
+          >
+            <MenuItem value="">Όλοι</MenuItem>
+            {(["Policy","GreenCard","Roadside","Invoice","Other"] as const).map(d => (
+              <MenuItem key={d} value={d}>{t(`documents.types.${d}`)}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            type="date" size="small" label="Από" InputLabelProps={{ shrink: true }}
+            value={from} onChange={(e) => setFrom(e.target.value)} sx={{ minWidth: 150 }}
+          />
+          <TextField
+            type="date" size="small" label="Έως" InputLabelProps={{ shrink: true }}
+            value={to} onChange={(e) => setTo(e.target.value)} sx={{ minWidth: 150 }}
+          />
+          {anyFilterActive && (
+            <Button size="small" onClick={() => { setQ(""); setType(""); setFrom(""); setTo(""); }}>
+              Καθαρισμός
+            </Button>
+          )}
+          <Chip
+            size="small"
+            label={`${rows.length} / ${allRows.length}`}
+            color={anyFilterActive ? "primary" : "default"}
+            sx={{ ml: "auto" }}
+          />
+        </Stack>
+      </Card>
 
       {docsQuery.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
@@ -231,14 +311,50 @@ function UploadDialog({ open, onClose, onUploaded }: {
       <DialogContent>
         {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
         <Stack spacing={2.5} mt={1}>
-          <TextField
-            select required fullWidth label={t("documents.upload.policy")}
-            value={policyId} onChange={(e) => setPolicyId(e.target.value)}
-          >
-            {(policiesQuery.data ?? []).map((p) => (
-              <MenuItem key={p.id} value={p.id}>{p.policyNumber} · {p.customerDisplay}</MenuItem>
-            ))}
-          </TextField>
+          <Autocomplete
+            fullWidth
+            options={policiesQuery.data ?? []}
+            getOptionLabel={(p) => `${p.policyNumber} · ${p.customerDisplay}`}
+            isOptionEqualToValue={(a, b) => a.id === b.id}
+            value={(policiesQuery.data ?? []).find(p => p.id === policyId) ?? null}
+            onChange={(_, v) => setPolicyId(v?.id ?? "")}
+            loading={policiesQuery.isLoading}
+            // Fuzzy-ish match: match on policy number OR customer display, so
+            // «καλογηρου» matches a customer AND «12345» matches a policy #.
+            filterOptions={(opts, state) => {
+              const needle = state.inputValue.trim().toLowerCase();
+              if (!needle) return opts.slice(0, 100);
+              return opts.filter(p =>
+                p.policyNumber.toLowerCase().includes(needle)
+                || p.customerDisplay.toLowerCase().includes(needle)
+              ).slice(0, 100);
+            }}
+            renderOption={(props, p) => (
+              <li {...props} key={p.id}>
+                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ width: "100%" }}>
+                  <Typography sx={{ fontFamily: "monospace", fontWeight: 700, minWidth: 100 }}>
+                    {p.policyNumber}
+                  </Typography>
+                  <Typography sx={{ flex: 1 }}>{p.customerDisplay}</Typography>
+                </Stack>
+              </li>
+            )}
+            renderInput={(params) => (
+              <TextField {...params} required
+                label={t("documents.upload.policy")}
+                placeholder="Γράψτε αριθμό συμβολαίου ή όνομα πελάτη…"
+                InputProps={{
+                  ...params.InputProps,
+                  startAdornment: (
+                    <>
+                      <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>
+                      {params.InputProps.startAdornment}
+                    </>
+                  )
+                }}
+              />
+            )}
+          />
           <TextField
             select required fullWidth label={t("documents.upload.type")}
             value={type} onChange={(e) => setType(e.target.value as DocumentType)}

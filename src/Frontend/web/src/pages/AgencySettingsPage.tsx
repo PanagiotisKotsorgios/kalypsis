@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Alert, Avatar, Box, Button, Card, CardContent, Chip, CircularProgress,
-  InputAdornment, Stack, TextField, Typography
+  InputAdornment, Popover, Stack, TextField, Typography
 } from "@mui/material";
+import ColorLensIcon from "@mui/icons-material/ColorLens";
 import SaveIcon from "@mui/icons-material/Save";
 import UploadIcon from "@mui/icons-material/Upload";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -44,9 +45,13 @@ export function AgencySettingsPage() {
   const [saved, setSaved] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [logoVersion, setLogoVersion] = useState(0); // cache-bust preview after upload
+  // Local FileReader preview so the operator sees the new logo the moment
+  // they pick the file — before the POST resolves. Cleared on upload
+  // success (the fresh server URL takes over) or dialog cancel.
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
 
   const hasLogo = !!q.data?.logoUrl;
-  const logoPreviewUrl = hasLogo ? `/api/agency-profile/logo?v=${logoVersion}` : null;
+  const logoPreviewUrl = localPreview ?? (hasLogo ? `/api/agency-profile/logo?v=${logoVersion}` : null);
 
   useEffect(() => {
     if (q.data) {
@@ -85,6 +90,7 @@ export function AgencySettingsPage() {
     },
     onSuccess: () => {
       setLogoVersion((v) => v + 1);
+      setLocalPreview(null);
       void qc.invalidateQueries({ queryKey: ["agency-profile"] });
       void qc.invalidateQueries({ queryKey: ["tenant-logo"] });
     },
@@ -95,6 +101,7 @@ export function AgencySettingsPage() {
     mutationFn: async () => (await api.delete<AgencyProfile>("/agency-profile/logo")).data,
     onSuccess: () => {
       setLogoVersion((v) => v + 1);
+      setLocalPreview(null);
       void qc.invalidateQueries({ queryKey: ["agency-profile"] });
       void qc.invalidateQueries({ queryKey: ["tenant-logo"] });
     },
@@ -109,6 +116,14 @@ export function AgencySettingsPage() {
       setError(t("agencySettings.logoTooBig"));
       return;
     }
+    // Live preview — read the picked file into a data URL and drop it into
+    // `localPreview` so the Avatar re-renders immediately, even before the
+    // POST returns.
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") setLocalPreview(reader.result);
+    };
+    reader.readAsDataURL(f);
     uploadLogo.mutate(f);
     e.target.value = "";
   };
@@ -187,13 +202,11 @@ export function AgencySettingsPage() {
                 </Stack>
               </Box>
 
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
-                <TextField label={t("agencySettings.brandColor")} value={form.brandColorHex}
-                  onChange={(e) => setForm({ ...form, brandColorHex: e.target.value })} fullWidth
-                  helperText="#0b2545"
-                  InputProps={{ startAdornment: <InputAdornment position="start">#</InputAdornment> }} />
-                <Box sx={{ width: 56, height: 56, borderRadius: 1.5, border: "1px solid", borderColor: "divider", bgcolor: form.brandColorHex }} />
-              </Stack>
+              <ColorPickerField
+                label={t("agencySettings.brandColor")}
+                value={form.brandColorHex}
+                onChange={(v) => setForm({ ...form, brandColorHex: v })}
+              />
               <TextField label={t("agencySettings.vat")} value={form.vatNumber}
                 onChange={(e) => setForm({ ...form, vatNumber: e.target.value.replace(/\D/g, "").slice(0, 9) })} fullWidth />
             </Stack>
@@ -219,14 +232,14 @@ export function AgencySettingsPage() {
         <Card>
           <CardContent sx={{ p: 4 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>{t("agencySettings.section.defaults")}</Typography>
+            {/* Default policy duration lived here but has been moved: it's now
+                a per-carrier/per-line-of-business setting on the platform
+                παραμετρικά page, so keeping it here caused two sources of
+                truth. */}
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField label={t("agencySettings.currency")} value={form.defaultCurrency}
                 onChange={(e) => setForm({ ...form, defaultCurrency: e.target.value.toUpperCase().slice(0, 3) })}
                 fullWidth helperText={t("agencySettings.currencyHelp")} />
-              <TextField type="number" label={t("agencySettings.duration")} value={form.defaultPolicyDurationMonths}
-                onChange={(e) => setForm({ ...form, defaultPolicyDurationMonths: Number(e.target.value) })}
-                fullWidth helperText={t("agencySettings.durationHelp")}
-                InputProps={{ endAdornment: <InputAdornment position="end">{t("agencySettings.months")}</InputAdornment> }} />
             </Stack>
           </CardContent>
         </Card>
@@ -239,4 +252,116 @@ export function AgencySettingsPage() {
       </Stack>
     </Box>
   );
+}
+
+/**
+ * ColorPickerField — a text-field-shaped control that opens a popover with
+ * a native color input + a compact swatch palette when clicked. Emits hex
+ * strings ("#0b2545") on change; accepts either "#0b2545" or "0b2545".
+ *
+ * Rationale over the previous plain TextField: users copy hex codes wrong
+ * more often than they get the color they wanted. The popover surfaces both
+ * the native color-wheel + a curated Kalypsis-brand palette so most picks
+ * are one click.
+ */
+function ColorPickerField({ label, value, onChange }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const hex = normaliseHex(value);
+  // Curated palette — brand-safe navy/blue/accent tones + a set of common
+  // enterprise colors that read well on dark navy dashboards.
+  const PALETTE = [
+    "#0b2545", "#13315c", "#1ea7e1", "#1f7bb3", "#2f6bd6",
+    "#0f4c81", "#005f73", "#2a9d8f", "#5b8b3e", "#c88820",
+    "#a85c40", "#c62828", "#6a1b9a", "#1a1a1a", "#4a5568",
+  ];
+
+  return (
+    <>
+      <TextField
+        label={label}
+        value={hex}
+        onChange={(e) => onChange(normaliseHex(e.target.value))}
+        fullWidth
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <Box
+                onClick={(e) => setAnchor(e.currentTarget as HTMLElement)}
+                sx={{
+                  width: 28, height: 28, borderRadius: 1,
+                  border: "1px solid", borderColor: "divider",
+                  bgcolor: hex, cursor: "pointer",
+                  transition: "transform 120ms ease",
+                  "&:hover": { transform: "scale(1.08)" }
+                }}
+              />
+            </InputAdornment>
+          ),
+          endAdornment: (
+            <InputAdornment position="end">
+              <Button size="small" startIcon={<ColorLensIcon />}
+                onClick={(e) => setAnchor(e.currentTarget as HTMLElement)}>
+                Επιλογή
+              </Button>
+            </InputAdornment>
+          )
+        }}
+      />
+      <Popover
+        open={!!anchor}
+        anchorEl={anchor}
+        onClose={() => setAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        slotProps={{ paper: { sx: { p: 2, minWidth: 260 } } }}
+      >
+        <Stack spacing={1.5}>
+          <Typography variant="caption" color="text.secondary">Ελεύθερη επιλογή</Typography>
+          <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
+            <Box
+              component="input"
+              type="color"
+              value={hex}
+              onChange={(e) => onChange((e.target as HTMLInputElement).value)}
+              sx={{
+                width: 44, height: 44, border: "1px solid",
+                borderColor: "divider", borderRadius: 1, p: 0, cursor: "pointer",
+                bgcolor: "transparent"
+              }}
+            />
+            <Typography sx={{ fontFamily: "monospace", fontWeight: 700 }}>{hex}</Typography>
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>Παλέτα Kalypsis</Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 0.75 }}>
+            {PALETTE.map(c => (
+              <Box
+                key={c}
+                onClick={() => { onChange(c); setAnchor(null); }}
+                sx={{
+                  aspectRatio: "1 / 1", borderRadius: 1, cursor: "pointer",
+                  bgcolor: c,
+                  outline: c.toLowerCase() === hex.toLowerCase() ? "2px solid" : "1px solid",
+                  outlineColor: c.toLowerCase() === hex.toLowerCase() ? "primary.main" : "divider",
+                  transition: "transform 120ms ease",
+                  "&:hover": { transform: "scale(1.12)" }
+                }}
+              />
+            ))}
+          </Box>
+        </Stack>
+      </Popover>
+    </>
+  );
+}
+
+function normaliseHex(v: string): string {
+  const s = (v ?? "").trim().replace(/^#/, "");
+  if (!/^[0-9a-fA-F]{3,8}$/.test(s)) return "#0b2545";
+  const canon = s.length === 3
+    ? s.split("").map(c => c + c).join("")
+    : s.slice(0, 6);
+  return "#" + canon.toLowerCase();
 }

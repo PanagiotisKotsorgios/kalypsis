@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
 import {
-  Alert, Box, Button, Card, CardContent, CircularProgress, Divider,
-  MenuItem, Stack, TextField, Typography
+  Alert, Box, Button, Card, CardContent, CircularProgress, Divider, FormControlLabel,
+  MenuItem, Stack, Switch, TextField, ToggleButton, ToggleButtonGroup, Typography
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import LockResetIcon from "@mui/icons-material/LockReset";
 import SchoolIcon from "@mui/icons-material/School";
+import TuneIcon from "@mui/icons-material/Tune";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
+import BrightnessAutoIcon from "@mui/icons-material/BrightnessAuto";
+import NotificationsIcon from "@mui/icons-material/Notifications";
+import DashboardIcon from "@mui/icons-material/Dashboard";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -165,8 +171,205 @@ export function ProfilePage() {
           </CardContent>
         </Card>
 
+        <UserPreferencesSection role={profileQuery.data?.role} />
+
         <TwoFactorSection />
       </Stack>
     </Box>
+  );
+}
+
+/* ============================================================================
+   UserPreferencesSection
+   ----------------------------------------------------------------------------
+   Per-user configuration options stored client-side (localStorage) under
+   the key `kalypsis:userPreferences:v1`. Doesn't require a backend round
+   trip for these UI-only knobs; a future migration can sync them up if
+   we ever want to persist across devices.
+   ========================================================================= */
+type ThemeMode = "light" | "dark" | "auto";
+type Density   = "comfortable" | "compact";
+type LandingPageKey =
+  | "dashboard" | "policies" | "customers" | "renewals" | "financials" | "tasks";
+interface UserPreferences {
+  themeMode: ThemeMode;
+  density: Density;
+  digestFrequency: "daily" | "weekly" | "never";
+  playSounds: boolean;
+  emailAlerts: boolean;
+  landingPage: LandingPageKey;
+  autoLockMinutes: number;   // 0 = never
+  showQuickActions: boolean;
+  showKpisOnTop: boolean;
+}
+const DEFAULT_PREFS: UserPreferences = {
+  themeMode: "auto",
+  density: "comfortable",
+  digestFrequency: "daily",
+  playSounds: true,
+  emailAlerts: true,
+  landingPage: "dashboard",
+  autoLockMinutes: 0,
+  showQuickActions: true,
+  showKpisOnTop: true,
+};
+const PREFS_KEY = "kalypsis:userPreferences:v1";
+function loadPrefs(): UserPreferences {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (!raw) return DEFAULT_PREFS;
+    return { ...DEFAULT_PREFS, ...JSON.parse(raw) };
+  } catch { return DEFAULT_PREFS; }
+}
+function savePrefs(p: UserPreferences) {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch { /* quota — ignore */ }
+}
+
+function UserPreferencesSection({ role }: { role?: string }) {
+  const [prefs, setPrefs] = useState<UserPreferences>(() => loadPrefs());
+  const [saved, setSaved] = useState(false);
+  const update = <K extends keyof UserPreferences>(k: K, v: UserPreferences[K]) => {
+    const next = { ...prefs, [k]: v };
+    setPrefs(next);
+    savePrefs(next);
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 1500);
+    // Broadcast so other tabs / components can react (e.g. the theme provider).
+    window.dispatchEvent(new StorageEvent("storage", { key: PREFS_KEY, newValue: JSON.stringify(next) }));
+  };
+  const landingOptions: Array<{ key: LandingPageKey; label: string }> = [
+    { key: "dashboard",  label: "Πίνακας" },
+    { key: "policies",   label: "Συμβόλαια" },
+    { key: "customers",  label: "Πελάτες" },
+    { key: "renewals",   label: "Ανανεώσεις" },
+    { key: "financials", label: "Οικονομικά" },
+    { key: "tasks",      label: "Εργασίες" },
+  ];
+  return (
+    <Card>
+      <CardContent sx={{ p: 4 }}>
+        <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+          <TuneIcon color="primary" />
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>Προτιμήσεις πλατφόρμας</Typography>
+          {saved && <Alert severity="success" sx={{ py: 0.25, ml: "auto" }}>Αποθηκεύτηκε</Alert>}
+        </Stack>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Εξατομικευμένες ρυθμίσεις εμφάνισης και ειδοποιήσεων για τον λογαριασμό σας.
+          Αποθηκεύονται τοπικά στον περιηγητή και ισχύουν αμέσως.
+        </Typography>
+
+        <Stack spacing={3}>
+          {/* Theme mode */}
+          <Box>
+            <Typography variant="body2" fontWeight={700} mb={1}>Θέμα εμφάνισης</Typography>
+            <ToggleButtonGroup exclusive size="small" value={prefs.themeMode}
+              onChange={(_, v) => v && update("themeMode", v as ThemeMode)}>
+              <ToggleButton value="light"><LightModeIcon fontSize="small" sx={{ mr: 0.5 }} />Ανοιχτό</ToggleButton>
+              <ToggleButton value="dark"><DarkModeIcon fontSize="small" sx={{ mr: 0.5 }} />Σκούρο</ToggleButton>
+              <ToggleButton value="auto"><BrightnessAutoIcon fontSize="small" sx={{ mr: 0.5 }} />Αυτόματο</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+
+          {/* Density */}
+          <Box>
+            <Typography variant="body2" fontWeight={700} mb={1}>Πυκνότητα διεπαφής</Typography>
+            <ToggleButtonGroup exclusive size="small" value={prefs.density}
+              onChange={(_, v) => v && update("density", v as Density)}>
+              <ToggleButton value="comfortable">Άνετη</ToggleButton>
+              <ToggleButton value="compact">Συμπαγής</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+
+          {/* Landing */}
+          <Box>
+            <Typography variant="body2" fontWeight={700} mb={1}>
+              <DashboardIcon fontSize="small" sx={{ verticalAlign: "middle", mr: 0.5 }} />
+              Αρχική οθόνη μετά τη σύνδεση
+            </Typography>
+            <TextField select value={prefs.landingPage}
+              onChange={(e) => update("landingPage", e.target.value as LandingPageKey)}
+              size="small" sx={{ minWidth: 240 }}>
+              {landingOptions.map(o => (
+                <MenuItem key={o.key} value={o.key}>{o.label}</MenuItem>
+              ))}
+            </TextField>
+          </Box>
+
+          <Divider />
+
+          {/* Notifications */}
+          <Box>
+            <Typography variant="body2" fontWeight={700} mb={1}>
+              <NotificationsIcon fontSize="small" sx={{ verticalAlign: "middle", mr: 0.5 }} />
+              Ειδοποιήσεις
+            </Typography>
+            <Stack spacing={1.5}>
+              <TextField select label="Συχνότητα e-mail digest" value={prefs.digestFrequency}
+                onChange={(e) => update("digestFrequency", e.target.value as UserPreferences["digestFrequency"])}
+                size="small" sx={{ maxWidth: 320 }}>
+                <MenuItem value="daily">Καθημερινά</MenuItem>
+                <MenuItem value="weekly">Εβδομαδιαία</MenuItem>
+                <MenuItem value="never">Ποτέ</MenuItem>
+              </TextField>
+              <FormControlLabel
+                control={<Switch checked={prefs.emailAlerts}
+                  onChange={(e) => update("emailAlerts", e.target.checked)} />}
+                label="Ειδοποιήσεις e-mail για κρίσιμα γεγονότα"
+              />
+              <FormControlLabel
+                control={<Switch checked={prefs.playSounds}
+                  onChange={(e) => update("playSounds", e.target.checked)} />}
+                label="Ήχος για νέες ειδοποιήσεις στην πλατφόρμα"
+              />
+            </Stack>
+          </Box>
+
+          <Divider />
+
+          {/* Dashboard layout */}
+          <Box>
+            <Typography variant="body2" fontWeight={700} mb={1}>Πίνακας ελέγχου</Typography>
+            <Stack spacing={0.75}>
+              <FormControlLabel
+                control={<Switch checked={prefs.showKpisOnTop}
+                  onChange={(e) => update("showKpisOnTop", e.target.checked)} />}
+                label="Εμφάνιση KPIs στην κορυφή"
+              />
+              <FormControlLabel
+                control={<Switch checked={prefs.showQuickActions}
+                  onChange={(e) => update("showQuickActions", e.target.checked)} />}
+                label="Γρήγορες ενέργειες πάνω δεξιά"
+              />
+            </Stack>
+          </Box>
+
+          <Divider />
+
+          {/* Session */}
+          <Box>
+            <Typography variant="body2" fontWeight={700} mb={1}>Ασφάλεια συνεδρίας</Typography>
+            <TextField select size="small" label="Αυτόματο κλείδωμα μετά από"
+              value={String(prefs.autoLockMinutes)}
+              onChange={(e) => update("autoLockMinutes", Number(e.target.value))}
+              sx={{ maxWidth: 320 }}>
+              <MenuItem value="0">Ποτέ</MenuItem>
+              <MenuItem value="5">5 λεπτά</MenuItem>
+              <MenuItem value="15">15 λεπτά</MenuItem>
+              <MenuItem value="30">30 λεπτά</MenuItem>
+              <MenuItem value="60">1 ώρα</MenuItem>
+            </TextField>
+            <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+              Ρόλος λογαριασμού: {role ?? "—"}
+            </Typography>
+          </Box>
+
+          <Button variant="text" size="small" color="inherit"
+            onClick={() => { setPrefs(DEFAULT_PREFS); savePrefs(DEFAULT_PREFS); }}
+            sx={{ alignSelf: "flex-start", color: "text.secondary" }}>
+            Επαναφορά προεπιλογών
+          </Button>
+        </Stack>
+      </CardContent>
+    </Card>
   );
 }
