@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { money } from "../utils/format";
 
 interface GroupPolicyDto {
   id: string; groupNumber: string; name: string;
@@ -110,7 +111,7 @@ export function GroupPoliciesPage({ embedded = false }: GroupPoliciesPageProps =
                   <TableCell>{g.policyHolderName}</TableCell>
                   <TableCell>{g.insuranceCompanyName}</TableCell>
                   <TableCell>{g.startDate}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{g.premium.toFixed(2)} {g.currency}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{money(g.premium, g.currency)}</TableCell>
                   <TableCell align="center">{g.memberCount}</TableCell>
                   <TableCell><Chip size="small" color={g.status === "Active" ? "success" : "default"} label={g.status} /></TableCell>
                   <TableCell align="right">

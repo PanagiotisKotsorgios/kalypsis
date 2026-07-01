@@ -39,6 +39,7 @@ import {
 } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../../api/client";
+import { money, date, dateTime } from "../../utils/format";
 import { useAuth } from "../../auth/AuthContext";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -202,7 +203,7 @@ export function PlatformDashboard() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                  <YAxis tickFormatter={(v) => `${(v as number).toLocaleString("el-GR")} €`} tick={{ fontSize: 12 }} />
+                  <YAxis tickFormatter={(v) => money(v as number)} tick={{ fontSize: 12 }} />
                   <Tooltip formatter={(v) => moneyFmt.format(v as number)} />
                   <Area type="monotone" dataKey="premium" stroke={theme.palette.primary.main}
                         strokeWidth={3} fill="url(#premiumFill)" />
@@ -321,7 +322,7 @@ export function PlatformDashboard() {
                       </Stack>
                     </Box>
                     <Typography variant="caption" color="text.secondary">
-                      {new Date(t.createdAt).toLocaleDateString("el-GR")}
+                      {date(t.createdAt)}
                     </Typography>
                   </Stack>
                 ))}
@@ -348,7 +349,7 @@ export function PlatformDashboard() {
                       <Typography>{a.label}</Typography>
                     </Stack>
                     <Typography variant="caption" color="text.secondary">
-                      {new Date(a.occurredAt).toLocaleString("el-GR", { dateStyle: "short", timeStyle: "short" })}
+                      {dateTime(a.occurredAt)}
                     </Typography>
                   </Stack>
                 ))}

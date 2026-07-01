@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
+import { money, date } from "../utils/format";
 
 interface Overview {
   totalTenants: number; activeTenants: number; trialTenants: number;
@@ -67,9 +68,9 @@ export function PlatformEconomicsPage() {
         display: "grid", gap: 2, mb: 3,
         gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }
       }}>
-        <KpiCard label={t("economics.kpi.mrr")}  value={`${o.mrr.toFixed(2)} ${o.currency}`} icon={<EuroIcon />} highlight />
-        <KpiCard label={t("economics.kpi.arr")}  value={`${o.arr.toFixed(2)} ${o.currency}`} icon={<EuroIcon />} />
-        <KpiCard label={t("economics.kpi.arpa")} value={`${o.averageRevenuePerTenant.toFixed(2)} ${o.currency}`} />
+        <KpiCard label={t("economics.kpi.mrr")}  value={money(o.mrr, o.currency)} icon={<EuroIcon />} highlight />
+        <KpiCard label={t("economics.kpi.arr")}  value={money(o.arr, o.currency)} icon={<EuroIcon />} />
+        <KpiCard label={t("economics.kpi.arpa")} value={money(o.averageRevenuePerTenant, o.currency)} />
         <KpiCard label={t("economics.kpi.tenants")} value={o.totalTenants} icon={<BusinessIcon />} />
       </Box>
 
@@ -112,7 +113,7 @@ export function PlatformEconomicsPage() {
                       borderTopLeftRadius: 4, borderTopRightRadius: 4,
                       opacity: p.mrr > 0 ? 1 : 0.2,
                       transition: "height 380ms ease"
-                    }} title={`${p.mrr.toFixed(2)} ${o.currency}`} />
+                    }} title={money(p.mrr, o.currency)} />
                     <Typography variant="caption" sx={{ mt: 0.5, color: "text.secondary", fontSize: 11 }}>
                       {p.month.slice(5)}
                     </Typography>
@@ -176,13 +177,13 @@ export function PlatformEconomicsPage() {
                           <Stack direction="column" spacing={0}>
                             <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.contractNumber}</Typography>
                             <Typography variant="caption" color="text.secondary">
-                              {r.contractEffectiveFrom ? new Date(r.contractEffectiveFrom).toLocaleDateString("el-GR") : ""}
+                              {r.contractEffectiveFrom ? date(r.contractEffectiveFrom) : ""}
                             </Typography>
                           </Stack>
                         ) : <Chip size="small" label={t("economics.table.noContract")} color="warning" variant="outlined" />}
                       </TableCell>
                       <TableCell align="right" sx={{ fontWeight: 700, color: r.monthlyTotal > 0 ? "primary.main" : "text.disabled" }}>
-                        {r.monthlyTotal.toFixed(2)} {r.currency}
+                        {money(r.monthlyTotal, r.currency)}
                       </TableCell>
                     </TableRow>
                   ))}

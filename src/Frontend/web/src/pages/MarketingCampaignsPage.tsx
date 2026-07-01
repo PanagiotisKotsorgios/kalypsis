@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { dateTime } from "../utils/format";
 
 const STATUSES = ["Draft","Scheduled","Sent"] as const;
 type Status = typeof STATUSES[number];
@@ -90,7 +91,7 @@ export function MarketingCampaignsPage() {
                   <TableCell>{c.segmentKey ? t(`marketing.segmentLabel.${c.segmentKey}`) : "—"}</TableCell>
                   <TableCell><Stack direction="row" spacing={0.5} flexWrap="wrap">{c.channels.map(channel => <Chip key={channel} size="small" label={channel} variant="outlined" />)}</Stack></TableCell>
                   <TableCell align="right">{c.recipients} / {c.sent}{c.failed > 0 ? ` (${c.failed} αποτυχίες)` : ""}</TableCell>
-                  <TableCell>{c.sentAt ? new Date(c.sentAt).toLocaleString("el-GR") : "—"}</TableCell>
+                  <TableCell>{c.sentAt ? dateTime(c.sentAt) : "—"}</TableCell>
                   <TableCell><Chip size="small" color={colors[c.status]} label={t(`marketing.statusLabel.${c.status}`)} /></TableCell>
                   <TableCell align="right">
                     {canSend && c.status !== "Sent" && (
