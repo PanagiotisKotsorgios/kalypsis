@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
 import { api } from "../api/client";
+import { money } from "../utils/format";
 
 interface Stats {
   year: number; totalPremium: number; totalPolicies: number;
@@ -40,7 +41,7 @@ export function ProductionStatsPage() {
           <Stack direction={{ xs: "column", md: "row" }} spacing={2} mb={3}>
             <Card sx={{ flex: 1 }}><CardContent>
               <Typography variant="overline" color="text.secondary">{t("productionStats.totalPremium")}</Typography>
-              <Typography variant="h4" fontWeight={800} color="primary.main">{(q.data?.totalPremium ?? 0).toFixed(2)} €</Typography>
+              <Typography variant="h4" fontWeight={800} color="primary.main">{money(q.data?.totalPremium ?? 0)}</Typography>
             </CardContent></Card>
             <Card sx={{ flex: 1 }}><CardContent>
               <Typography variant="overline" color="text.secondary">{t("productionStats.totalPolicies")}</Typography>
@@ -49,7 +50,7 @@ export function ProductionStatsPage() {
             <Card sx={{ flex: 1 }}><CardContent>
               <Typography variant="overline" color="text.secondary">{t("productionStats.avgPremium")}</Typography>
               <Typography variant="h4" fontWeight={800}>
-                {q.data && q.data.totalPolicies > 0 ? (q.data.totalPremium / q.data.totalPolicies).toFixed(2) : "0.00"} €
+                {q.data && q.data.totalPolicies > 0 ? money(q.data.totalPremium / q.data.totalPolicies) : money(0)}
               </Typography>
             </CardContent></Card>
           </Stack>
@@ -100,8 +101,8 @@ export function ProductionStatsPage() {
                   <TableRow key={p.producerId ?? "_none"} hover>
                     <TableCell><Typography fontWeight={700}>{p.name}</Typography></TableCell>
                     <TableCell align="right">{p.count}</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700 }}>{p.premium.toFixed(2)} €</TableCell>
-                    <TableCell align="right">{p.count > 0 ? (p.premium / p.count).toFixed(2) : "0.00"} €</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>{money(p.premium)}</TableCell>
+                    <TableCell align="right">{p.count > 0 ? money(p.premium / p.count) : money(0)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

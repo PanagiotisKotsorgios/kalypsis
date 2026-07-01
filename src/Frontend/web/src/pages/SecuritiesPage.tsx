@@ -9,6 +9,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { money } from "../utils/format";
 
 const KINDS = ["Cheque","PromissoryNote"] as const;
 const STATUSES = ["Open","Paid","Bounced","Cancelled"] as const;
@@ -71,7 +72,7 @@ export function SecuritiesPage() {
                     <TableCell>{s.issuingBankName ?? "—"}</TableCell>
                     <TableCell>{s.issueDate}</TableCell>
                     <TableCell sx={{ color: overdue ? "error.main" : undefined, fontWeight: overdue ? 700 : undefined }}>{s.maturityDate}</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700 }}>{s.amount.toFixed(2)} {s.currency}</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>{money(s.amount, s.currency)}</TableCell>
                     <TableCell><Chip size="small" color={colors[s.status]} label={t(`securities.statusLabel.${s.status}`)} /></TableCell>
                     <TableCell align="right">
                       <IconButton size="small" onClick={() => setEditing(s)}><EditIcon fontSize="small" /></IconButton>

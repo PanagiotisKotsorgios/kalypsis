@@ -9,6 +9,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { money } from "../utils/format";
 
 const TYPES = ["","Auto","Home","Health","Life","Business","Travel","Other"] as const;
 interface GoalDto { id: string; producerId: string | null; producerName: string | null; year: number; month: number | null; policyType: string | null; targetPremium: number; targetPolicies: number | null; notes: string | null; }
@@ -59,7 +60,7 @@ export function ProductionGoalsPage() {
                   <TableCell><Typography fontWeight={700}>{g.producerName ?? t("goals.agencyWide")}</Typography></TableCell>
                   <TableCell>{g.year}{g.month && ` · ${g.month.toString().padStart(2, "0")}`}</TableCell>
                   <TableCell>{g.policyType ? t(`policyType.${g.policyType}`) : t("common.all")}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{g.targetPremium.toFixed(2)} €</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{money(g.targetPremium)}</TableCell>
                   <TableCell align="right">{g.targetPolicies ?? "—"}</TableCell>
                   <TableCell align="right">
                     <IconButton size="small" onClick={() => setEditing(g)}><EditIcon fontSize="small" /></IconButton>

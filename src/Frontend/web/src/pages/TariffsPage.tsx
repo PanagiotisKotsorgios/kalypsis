@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
+import { money } from "../utils/format";
 
 const POLICY_TYPES = ["Auto","Home","Health","Life","Business","Travel","Other"] as const;
 type PolicyType = typeof POLICY_TYPES[number];
@@ -75,7 +76,7 @@ export function TariffsPage() {
                   <TableCell><Typography fontWeight={600}>{r.name}</Typography></TableCell>
                   <TableCell>{t(`policyType.${r.policyType}`)}</TableCell>
                   <TableCell>{r.insuranceCompanyName ?? "—"}</TableCell>
-                  <TableCell align="right">{r.basePremium.toFixed(2)} {r.currency}</TableCell>
+                  <TableCell align="right">{money(r.basePremium, r.currency)}</TableCell>
                   <TableCell align="right">{r.commissionPercent != null ? `${r.commissionPercent.toFixed(2)}%` : "—"}</TableCell>
                   <TableCell>
                     <Chip size="small" color={r.isActive ? "success" : "default"} label={r.isActive ? t("common.active") : t("common.inactive")} />
