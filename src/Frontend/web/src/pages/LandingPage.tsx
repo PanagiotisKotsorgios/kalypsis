@@ -430,7 +430,9 @@ function BigLogo() {
       pt: { xs: 2, md: 4 }, pb: { xs: 2, md: 3 }
     }}>
       <Box component="img"
-        src="/kalypsis-logo.png"
+        // ?v=… busts the CDN/browser cache when the underlying PNG changes.
+        // Bump this whenever the logo file is replaced.
+        src="/kalypsis-logo.png?v=2026-07-01"
         alt="Kalypsis"
         sx={{
           width: "100%",
