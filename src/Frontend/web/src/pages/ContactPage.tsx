@@ -33,6 +33,30 @@ const NAVY = "#0b2545";
 const NAVY_SOFT = "#3d4f6b";
 const ACCENT = "#1ea7e1";
 const RULE = "#e5e9ef";
+// Same wave PNG that ships as the landing hero background — reused here so
+// the contact page reads as a continuation of the marketing surface.
+const HERO_BG = "/images/kalypsis-hero-bg.png";
+
+/**
+ * Shared TextField styling for the contact form. Darker borders + stronger
+ * placeholder / label / value contrast so every field is easy to see on the
+ * gradient/wave background. Also stops the default MUI ambient-alpha look
+ * from washing out on light surfaces.
+ */
+const FORM_INPUT_SX = {
+  "& .MuiOutlinedInput-root": {
+    bgcolor: "#ffffff",
+    "& fieldset":         { borderColor: "#c1cad6", borderWidth: "1.5px" },
+    "&:hover fieldset":   { borderColor: "#0b2545" },
+    "&.Mui-focused fieldset": { borderColor: "#17417f", borderWidth: 2 },
+    "&.Mui-error fieldset":   { borderColor: "#c62828" }
+  },
+  "& .MuiOutlinedInput-input":    { color: "#0b2545", fontWeight: 500 },
+  "& .MuiInputBase-input::placeholder": { color: "#5a6a80", opacity: 1 },
+  "& .MuiInputLabel-root":        { color: "#0b2545", fontWeight: 600 },
+  "& .MuiInputLabel-root.Mui-focused": { color: "#17417f" },
+  "& .MuiFormHelperText-root":    { color: "#3d4f6b" }
+} as const;
 
 type ContactForm = {
   inquiryType: string;
@@ -115,10 +139,19 @@ export function ContactPage() {
   return (
     <Box sx={{
       minHeight: "100vh",
-      bgcolor: "#ffffff",
+      // Same base color + wave PNG as the landing hero, so the contact page
+      // reads as a continuation of the marketing surface. Cover + center-
+      // bottom mirrors the hero exactly. `attachment: fixed` is
+      // intentionally avoided (mobile scroll perf).
+      bgcolor: "#f8fbff",
+      backgroundImage: `url("${HERO_BG}")`,
+      backgroundSize: "cover",
+      backgroundPosition: "center bottom",
+      backgroundRepeat: "no-repeat",
       color: NAVY,
       fontFamily: '"Inter", "Segoe UI", system-ui, -apple-system, sans-serif',
-      display: "flex", flexDirection: "column"
+      display: "flex", flexDirection: "column",
+      position: "relative"
     }}>
       {/* Masthead accent — slim gradient stripe along the very top edge. */}
       <Box sx={{
@@ -189,29 +222,31 @@ export function ContactPage() {
             </Typography>
             <Typography sx={{
               fontSize: { xs: 15, md: 17 },
-              lineHeight: 1.6, color: NAVY_SOFT,
+              lineHeight: 1.6, color: NAVY, fontWeight: 500,
               maxWidth: 560, mx: "auto"
             }}>
               {t("contact.form.subtitle", "Συμπληρώστε τη φόρμα και θα σας απαντήσουμε στο email που θα ορίσετε. Για bugs ή παράπονα, επιλέξτε τον σχετικό τύπο.")}
             </Typography>
           </Box>
 
-          {/* Form card — a thin accent stripe along the left edge gives it
-              identity without breaking the restrained palette. */}
+          {/* Form card — solid white surface on top of the wave background
+              so every field stays sharp. Darker border + stronger shadow
+              for a serious/premium read; kept the accent stripe along the
+              left edge. */}
           <Box sx={{
             maxWidth: 720, mx: "auto",
             bgcolor: "#ffffff",
-            border: `1px solid ${RULE}`,
+            border: "1px solid #cbd6e2",
             borderRadius: 3,
             p: { xs: 3, md: 5 },
-            boxShadow: "0 4px 24px rgba(11,37,69,0.04)",
+            boxShadow: "0 20px 50px rgba(11,37,69,0.14)",
             position: "relative",
             overflow: "hidden",
             "&::before": {
               content: '""',
               position: "absolute",
               left: 0, top: 0, bottom: 0,
-              width: 3,
+              width: 4,
               background: `linear-gradient(180deg, ${ACCENT} 0%, ${NAVY} 100%)`
             }
           }}>
@@ -240,6 +275,7 @@ export function ContactPage() {
                   value={form.inquiryType}
                   onChange={(e) => set("inquiryType", e.target.value)}
                   size="medium"
+                  sx={FORM_INPUT_SX}
                 >
                   {INQUIRY_TYPES.map((v) => (
                     <MenuItem key={v} value={v}>{t(`contact.form.inquiryTypes.${v}`)}</MenuItem>
@@ -247,34 +283,34 @@ export function ContactPage() {
                 </TextField>
 
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                  <TextField fullWidth required
+                  <TextField fullWidth required sx={FORM_INPUT_SX}
                     label={t("contact.form.firstName", "Όνομα")}
                     value={form.firstName} onChange={(e) => set("firstName", e.target.value)} />
-                  <TextField fullWidth required
+                  <TextField fullWidth required sx={FORM_INPUT_SX}
                     label={t("contact.form.lastName", "Επώνυμο")}
                     value={form.lastName} onChange={(e) => set("lastName", e.target.value)} />
                 </Stack>
 
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                  <TextField fullWidth required type="email"
+                  <TextField fullWidth required type="email" sx={FORM_INPUT_SX}
                     label={t("contact.form.email", "Email")}
                     value={form.email} onChange={(e) => set("email", e.target.value)} />
-                  <TextField fullWidth
+                  <TextField fullWidth sx={FORM_INPUT_SX}
                     label={t("contact.form.phone", "Τηλέφωνο")}
                     value={form.phone} onChange={(e) => set("phone", e.target.value)} />
                 </Stack>
 
-                <TextField fullWidth
+                <TextField fullWidth sx={FORM_INPUT_SX}
                   label={t("contact.form.agencyOrCity", "Γραφείο / Πόλη")}
                   value={form.agencyOrCity}
                   onChange={(e) => set("agencyOrCity", e.target.value)} />
 
-                <TextField fullWidth required
+                <TextField fullWidth required sx={FORM_INPUT_SX}
                   label={t("contact.form.subject", "Θέμα")}
                   value={form.subject}
                   onChange={(e) => set("subject", e.target.value)} />
 
-                <TextField fullWidth required multiline rows={6}
+                <TextField fullWidth required multiline rows={6} sx={FORM_INPUT_SX}
                   label={t("contact.form.message", "Μήνυμα")}
                   placeholder="Περιγράψτε αναλυτικά το θέμα σας. Αν αφορά bug, αναφέρετε τα βήματα αναπαραγωγής."
                   value={form.message}
@@ -289,9 +325,9 @@ export function ContactPage() {
                     />
                   }
                   label={
-                    <Typography sx={{ fontSize: 14, color: NAVY_SOFT, lineHeight: 1.55 }}>
+                    <Typography sx={{ fontSize: 14, color: NAVY, lineHeight: 1.55, fontWeight: 500 }}>
                       {t("contact.form.consent", "Συναινώ στην επεξεργασία των στοιχείων μου αποκλειστικά για την απάντηση στο μήνυμά μου.")}{" "}
-                      <Link component={RouterLink} to="/privacy" sx={{ color: ACCENT, textDecoration: "none", "&:hover": { textDecoration: "underline" } }}>
+                      <Link component={RouterLink} to="/privacy" sx={{ color: "#17417f", fontWeight: 700, textDecoration: "underline", "&:hover": { color: "#0b2545" } }}>
                         Πολιτική Απορρήτου
                       </Link>
                     </Typography>

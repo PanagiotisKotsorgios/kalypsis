@@ -11,8 +11,6 @@ import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
-import LoginIcon from "@mui/icons-material/Login";
-import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import CloudSyncOutlinedIcon from "@mui/icons-material/CloudSyncOutlined";
 import LeaderboardOutlinedIcon from "@mui/icons-material/LeaderboardOutlined";
@@ -176,13 +174,13 @@ export function LandingPage() {
           }}>
           {/* Mobile-only left slot — language toggle sits here so the
               hamburger can own the right-hand side. */}
-          <Box sx={{ display: { xs: "flex", sm: "none" }, alignItems: "center" }}>
+          <Box sx={{ display: { xs: "flex", md: "none" }, alignItems: "center" }}>
             <LanguageToggle />
           </Box>
 
           <Stack direction="row" spacing={{ xs: 1.5, sm: 3.5 }} alignItems="center"
             data-nav-slot="left"
-            sx={{ display: { xs: "none", sm: "flex" } }}>
+            sx={{ display: { xs: "none", md: "flex" } }}>
             <Box component="a" href="tel:+302631028971"
               sx={{
                 display: "inline-flex", alignItems: "center", gap: 1,
@@ -232,7 +230,7 @@ export function LandingPage() {
           {/* Desktop-only right cluster — Contact button + LanguageToggle. */}
           <Stack direction="row" spacing={1.75} alignItems="center"
             data-nav-slot="right"
-            sx={{ ml: "auto", display: { xs: "none", sm: "flex" } }}>
+            sx={{ ml: "auto", display: { xs: "none", md: "flex" } }}>
             <Button
               component={RouterLink}
               to="/contact"
@@ -267,7 +265,7 @@ export function LandingPage() {
             aria-label="Άνοιγμα μενού"
             onClick={() => setMenuOpen(true)}
             sx={{
-              display: { xs: "inline-flex", sm: "none" },
+              display: { xs: "inline-flex", md: "none" },
               color: NAVY,
               bgcolor: "rgba(30,167,225,0.06)",
               border: "1px solid rgba(30,167,225,0.35)",
@@ -281,77 +279,156 @@ export function LandingPage() {
         </Stack>
       </Container>
 
-      {/* Right-anchored mobile drawer. Slides in over the hero so the sidebar
-          sensation matches the mockup while the page underneath stays put. */}
+      {/* Right-anchored mobile / laptop drawer. Slides in from the right
+          when the viewport is below the `md` breakpoint (900px). Redesigned
+          to feel serious + premium: dark navy masthead with the Kalypsis
+          logo, then CTA buttons that mirror the hero exactly (same vertical
+          royal-blue→navy gradient, same white-with-royal-blue-border
+          outline, same 14px radius and shadow). */}
       <Drawer
         anchor="right"
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
+        transitionDuration={{ enter: 280, exit: 220 }}
         PaperProps={{
           sx: {
-            width: { xs: 288, sm: 320 },
-            bgcolor: "#f8fbff",
+            width: { xs: 300, sm: 340 },
+            bgcolor: "#f7fafd",
             borderLeft: "1px solid rgba(148,191,230,0.35)",
+            display: "flex", flexDirection: "column",
+            // Very subtle inner tint so the drawer never reads as a plain
+            // white slab. Two radial washes replicate the hero's palette.
             backgroundImage: `
-              radial-gradient(circle at 100% 100%, rgba(31,123,179,0.14), transparent 50%),
-              linear-gradient(180deg, #ffffff 0%, #eef6ff 100%)
-            `
+              radial-gradient(circle at 100% 0%, rgba(47,107,214,0.10), transparent 55%),
+              radial-gradient(circle at 0% 100%, rgba(30,167,225,0.08), transparent 55%),
+              linear-gradient(180deg, #ffffff 0%, #eaf3ff 100%)
+            `,
+            // Soft shadow flush with the border, so the drawer floats.
+            boxShadow: "-24px 0 60px rgba(11,37,69,0.18)"
           }
         }}
       >
-        <Stack direction="row" alignItems="center" justifyContent="space-between"
-          sx={{ px: 2.5, py: 2 }}>
-          <Typography sx={{
-            fontSize: 12, letterSpacing: "0.22em", textTransform: "uppercase",
-            color: NAVY_SOFT, fontWeight: 700
-          }}>
-            Μενού
-          </Typography>
-          <IconButton onClick={() => setMenuOpen(false)} sx={{ color: NAVY }}>
-            <CloseIcon />
-          </IconButton>
-        </Stack>
-        <Divider sx={{ borderColor: "rgba(148,191,230,0.35)" }} />
+        {/* ═══ Navy masthead ═══
+            Deep gradient bar echoing the hero CTA so the drawer opens with a
+            branded surface — not a stark white sheet. */}
+        <Box sx={{
+          background: "linear-gradient(180deg, #2f6bd6 0%, #17417f 55%, #0b2545 100%)",
+          color: "#fff",
+          px: 2.5, py: 2,
+          borderBottom: "1px solid rgba(255,255,255,0.10)"
+        }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Stack>
+              <Typography sx={{
+                fontSize: 11, letterSpacing: "0.28em", textTransform: "uppercase",
+                color: "rgba(255,255,255,0.72)", fontWeight: 700
+              }}>
+                Kalypsis
+              </Typography>
+              <Typography sx={{
+                fontSize: 17, fontWeight: 800, letterSpacing: "-0.01em", mt: 0.25
+              }}>
+                Μενού
+              </Typography>
+            </Stack>
+            <IconButton onClick={() => setMenuOpen(false)}
+              sx={{
+                color: "#fff",
+                bgcolor: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.14)",
+                borderRadius: 1.5,
+                "&:hover": { bgcolor: "rgba(255,255,255,0.16)" }
+              }}>
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+        </Box>
+
+        {/* ═══ Auth CTAs — same visual language as the hero ═══ */}
         <Stack spacing={1.5} sx={{ p: 2.5 }}>
+          <Typography sx={{
+            fontSize: 10, letterSpacing: "0.28em", textTransform: "uppercase",
+            color: NAVY_SOFT, fontWeight: 700, mb: 0.5
+          }}>
+            Λογαριασμός
+          </Typography>
+
+          {/* Primary — Σύνδεση. Identical spec to the hero CTA. */}
           <Button
             component={RouterLink} to="/login" fullWidth
             onClick={() => setMenuOpen(false)}
             variant="contained" disableElevation
-            startIcon={<LoginIcon />}
+            endIcon={<ArrowForwardIcon sx={{ fontSize: 20 }} />}
             sx={{
-              justifyContent: "flex-start",
-              borderRadius: 2, py: 1.4, px: 2,
-              fontSize: 15, fontWeight: 700, textTransform: "none",
+              height: 52,
+              borderRadius: "14px",
+              justifyContent: "space-between",
+              px: 2.25,
+              fontSize: 15,
+              fontWeight: 800,
+              letterSpacing: "0.02em",
+              textTransform: "uppercase",
               color: "#fff",
-              background: `linear-gradient(135deg, ${NAVY} 0%, #123a6b 55%, ${ACCENT} 100%)`,
-              boxShadow: "0 10px 24px rgba(11,37,69,0.24)",
+              background: "linear-gradient(180deg, #2f6bd6 0%, #17417f 55%, #0b2545 100%)",
+              boxShadow:
+                "0 10px 22px rgba(11,37,69,0.28), inset 0 1px 0 rgba(255,255,255,0.18)",
+              transition: "transform 180ms ease, box-shadow 180ms ease, background 180ms ease",
               "&:hover": {
-                background: `linear-gradient(135deg, #0a213e 0%, #0f325d 55%, #1a6ea3 100%)`
-              }
+                background: "linear-gradient(180deg, #3d7be0 0%, #1c4f95 55%, #0e2b52 100%)",
+                boxShadow: "0 14px 28px rgba(11,37,69,0.34), inset 0 1px 0 rgba(255,255,255,0.22)",
+                transform: "translateY(-1px)"
+              },
+              "&:active": { transform: "translateY(0)" }
             }}
           >
             Σύνδεση
           </Button>
+
+          {/* Secondary — Εγγραφή. Identical spec to the hero CTA. */}
           <Button
             component={RouterLink} to="/register" fullWidth
             onClick={() => setMenuOpen(false)}
             variant="outlined"
-            startIcon={<PersonAddOutlinedIcon />}
+            endIcon={<ArrowForwardIcon sx={{ fontSize: 20 }} />}
             sx={{
-              justifyContent: "flex-start",
-              borderRadius: 2, py: 1.4, px: 2,
-              fontSize: 15, fontWeight: 700, textTransform: "none",
-              color: ACCENT, bgcolor: "#fff",
-              borderColor: ACCENT, borderWidth: 2,
-              boxShadow: "0 8px 20px rgba(31,123,179,0.14)",
+              height: 52,
+              borderRadius: "14px",
+              justifyContent: "space-between",
+              px: 2.25,
+              fontSize: 15,
+              fontWeight: 800,
+              letterSpacing: "0.02em",
+              textTransform: "uppercase",
+              color: "#17417f",
+              bgcolor: "#ffffff",
+              borderColor: "#2f6bd6",
+              borderWidth: "1.8px",
+              boxShadow: "0 8px 20px rgba(47,107,214,0.14)",
+              transition: "transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease",
               "&:hover": {
-                borderWidth: 2, borderColor: ACCENT,
-                bgcolor: "rgba(31,123,179,0.06)"
-              }
+                borderWidth: "1.8px",
+                borderColor: "#17417f",
+                bgcolor: "#eef4ff",
+                boxShadow: "0 12px 26px rgba(47,107,214,0.22)",
+                transform: "translateY(-1px)"
+              },
+              "&:active": { transform: "translateY(0)" }
             }}
           >
             Εγγραφή
           </Button>
+        </Stack>
+
+        <Divider sx={{ borderColor: "rgba(148,191,230,0.35)", mx: 2.5 }} />
+
+        {/* ═══ Support / contact link ═══ */}
+        <Stack spacing={1.5} sx={{ p: 2.5 }}>
+          <Typography sx={{
+            fontSize: 10, letterSpacing: "0.28em", textTransform: "uppercase",
+            color: NAVY_SOFT, fontWeight: 700, mb: 0.5
+          }}>
+            Υποστήριξη
+          </Typography>
           <Button
             component={RouterLink} to="/contact" fullWidth
             onClick={() => setMenuOpen(false)}
@@ -359,38 +436,71 @@ export function LandingPage() {
             startIcon={<ChatBubbleOutlineIcon />}
             sx={{
               justifyContent: "flex-start",
-              borderRadius: 2, py: 1.3, px: 2,
+              borderRadius: 2, py: 1.35, px: 2,
               fontSize: 14.5, fontWeight: 700, textTransform: "none",
               color: NAVY,
               bgcolor: "rgba(30,167,225,0.06)",
-              border: "1px solid rgba(30,167,225,0.25)",
-              "&:hover": { bgcolor: "rgba(30,167,225,0.14)" }
+              border: "1px solid rgba(30,167,225,0.28)",
+              "&:hover": {
+                bgcolor: "rgba(30,167,225,0.14)",
+                borderColor: "rgba(30,167,225,0.55)"
+              }
             }}
           >
             Επικοινωνία / Αναφορά Προβλήματος
           </Button>
         </Stack>
-        <Divider sx={{ borderColor: "rgba(148,191,230,0.35)", my: 1 }} />
-        <Stack spacing={1.25} sx={{ px: 2.5, pb: 3 }}>
-          <Box component="a" href="tel:+302631028971"
-            sx={{
-              display: "inline-flex", alignItems: "center", gap: 1,
-              color: NAVY, textDecoration: "none", fontSize: 14, fontWeight: 600,
-              "&:hover": { color: ACCENT }
+
+        <Divider sx={{ borderColor: "rgba(148,191,230,0.35)", mx: 2.5 }} />
+
+        {/* ═══ Direct contact block ═══ Pushed to the bottom of the drawer. */}
+        <Box sx={{ mt: "auto" }}>
+          <Stack spacing={1.5} sx={{ px: 2.5, py: 2.5 }}>
+            <Typography sx={{
+              fontSize: 10, letterSpacing: "0.28em", textTransform: "uppercase",
+              color: NAVY_SOFT, fontWeight: 700
             }}>
-            <PhoneOutlinedIcon sx={{ fontSize: 18 }} />
-            2631028971
-          </Box>
-          <Box component="a" href="mailto:info@mykalypsis.gr"
-            sx={{
-              display: "inline-flex", alignItems: "center", gap: 1,
-              color: NAVY, textDecoration: "none", fontSize: 14, fontWeight: 600,
-              "&:hover": { color: ACCENT }
-            }}>
-            <MailOutlineIcon sx={{ fontSize: 18 }} />
-            info@mykalypsis.gr
-          </Box>
-        </Stack>
+              Επικοινωνία
+            </Typography>
+            <Box component="a" href="tel:+302631028971"
+              sx={{
+                display: "inline-flex", alignItems: "center", gap: 1.25,
+                color: NAVY, textDecoration: "none", fontSize: 14.5, fontWeight: 700,
+                py: 0.5,
+                "&:hover": { color: ACCENT }
+              }}>
+              <Box sx={{
+                width: 32, height: 32, borderRadius: "50%",
+                bgcolor: "rgba(47,107,214,0.10)",
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                color: "#17417f"
+              }}>
+                <PhoneOutlinedIcon sx={{ fontSize: 18 }} />
+              </Box>
+              2631028971
+            </Box>
+            <Box component="a" href="mailto:info@mykalypsis.gr"
+              sx={{
+                display: "inline-flex", alignItems: "center", gap: 1.25,
+                color: NAVY, textDecoration: "none", fontSize: 14.5, fontWeight: 700,
+                py: 0.5,
+                "&:hover": { color: ACCENT }
+              }}>
+              <Box sx={{
+                width: 32, height: 32, borderRadius: "50%",
+                bgcolor: "rgba(47,107,214,0.10)",
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                color: "#17417f"
+              }}>
+                <MailOutlineIcon sx={{ fontSize: 18 }} />
+              </Box>
+              info@mykalypsis.gr
+            </Box>
+            <Typography variant="caption" sx={{ color: NAVY_SOFT, mt: 1 }}>
+              © {new Date().getFullYear()} Kalypsis — Η κάλυψη που εμπιστεύεστε
+            </Typography>
+          </Stack>
+        </Box>
       </Drawer>
 
       {/* Logo + hero copy sit inside the gradient/wave hero area. */}
