@@ -94,13 +94,15 @@ export function LandingPage() {
       }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}
           sx={{
-            // Glass card wrapper for the whole top bar.
-            borderRadius: { xs: 3, md: "18px" },
-            px: { xs: 1.5, md: 3.5 }, py: { xs: 1, md: 1.4 },
-            background: "rgba(255,255,255,0.78)",
-            backdropFilter: "blur(14px)",
-            WebkitBackdropFilter: "blur(14px)",
-            boxShadow: "0 14px 35px rgba(15,42,80,0.10)",
+            // Glass card wrapper for the whole top bar. Larger on desktop
+            // — beefier padding + radius so it reads as a proper navigation
+            // shelf rather than a chip.
+            borderRadius: { xs: 3, md: "22px" },
+            px: { xs: 1.5, md: 4.5 }, py: { xs: 1, md: 2 },
+            background: "rgba(255,255,255,0.82)",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+            boxShadow: "0 18px 44px rgba(15,42,80,0.12)",
             border: "1px solid rgba(148,191,230,0.35)"
           }}>
           {/* Mobile-only left slot — language toggle sits here so the
@@ -109,31 +111,34 @@ export function LandingPage() {
             <LanguageToggle />
           </Box>
 
-          <Stack direction="row" spacing={{ xs: 1.5, sm: 3 }} alignItems="center"
+          <Stack direction="row" spacing={{ xs: 1.5, sm: 3.5 }} alignItems="center"
             sx={{ display: { xs: "none", sm: "flex" } }}>
             <Box component="a" href="tel:+302631028971"
               sx={{
-                display: "inline-flex", alignItems: "center", gap: 0.75,
-                color: NAVY, textDecoration: "none", fontSize: 13.5, fontWeight: 600,
+                display: "inline-flex", alignItems: "center", gap: 1,
+                color: NAVY, textDecoration: "none",
+                fontSize: { sm: 15, md: 15.5 }, fontWeight: 600,
                 letterSpacing: "0.01em",
                 "&:hover": { color: ACCENT }
               }}>
-              <PhoneOutlinedIcon sx={{ fontSize: 17 }} />
+              <PhoneOutlinedIcon sx={{ fontSize: 20 }} />
               2631028971
             </Box>
             <Box component="a" href="mailto:info@mykalypsis.gr"
               sx={{
-                display: "inline-flex", alignItems: "center", gap: 0.75,
-                color: NAVY, textDecoration: "none", fontSize: 13.5, fontWeight: 600,
+                display: "inline-flex", alignItems: "center", gap: 1,
+                color: NAVY, textDecoration: "none",
+                fontSize: { sm: 15, md: 15.5 }, fontWeight: 600,
                 letterSpacing: "0.01em",
                 "&:hover": { color: ACCENT }
               }}>
-              <MailOutlineIcon sx={{ fontSize: 17 }} />
+              <MailOutlineIcon sx={{ fontSize: 20 }} />
               info@mykalypsis.gr
             </Box>
             <Box component={RouterLink} to="/login"
               sx={{
-                color: NAVY, textDecoration: "none", fontSize: 13.5, fontWeight: 700,
+                color: NAVY, textDecoration: "none",
+                fontSize: { sm: 15, md: 15.5 }, fontWeight: 700,
                 letterSpacing: "0.01em",
                 "&:hover": { color: ACCENT }
               }}>
@@ -141,7 +146,8 @@ export function LandingPage() {
             </Box>
             <Box component={RouterLink} to="/register"
               sx={{
-                color: NAVY, textDecoration: "none", fontSize: 13.5, fontWeight: 700,
+                color: NAVY, textDecoration: "none",
+                fontSize: { sm: 15, md: 15.5 }, fontWeight: 700,
                 letterSpacing: "0.01em",
                 "&:hover": { color: ACCENT }
               }}>
@@ -149,26 +155,25 @@ export function LandingPage() {
             </Box>
           </Stack>
           {/* Desktop-only right cluster — Contact button + LanguageToggle. */}
-          <Stack direction="row" spacing={1.25} alignItems="center"
+          <Stack direction="row" spacing={1.75} alignItems="center"
             sx={{ ml: "auto", display: { xs: "none", sm: "flex" } }}>
             <Button
               component={RouterLink}
               to="/contact"
-              size="small"
               variant="outlined"
-              startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 17, color: ACCENT }} />}
+              startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 20, color: ACCENT }} />}
               sx={{
                 borderRadius: 999,
-                px: { xs: 1.5, sm: 2 },
-                py: 0.6,
-                fontSize: 13,
+                px: { sm: 2.25, md: 2.75 },
+                py: { sm: 0.85, md: 1 },
+                fontSize: { sm: 14, md: 14.5 },
                 fontWeight: 700,
                 letterSpacing: "0.01em",
                 textTransform: "none",
                 color: NAVY,
                 bgcolor: "rgba(30,167,225,0.06)",
                 borderColor: "rgba(30,167,225,0.35)",
-                "& .MuiButton-startIcon": { mr: { xs: 0, sm: 0.75 } },
+                "& .MuiButton-startIcon": { mr: 1 },
                 "&:hover": {
                   borderColor: ACCENT,
                   bgcolor: "rgba(30,167,225,0.12)"
@@ -191,11 +196,11 @@ export function LandingPage() {
               bgcolor: "rgba(30,167,225,0.06)",
               border: "1px solid rgba(30,167,225,0.35)",
               borderRadius: 2,
-              p: 1,
+              p: 1.15,
               "&:hover": { bgcolor: "rgba(30,167,225,0.14)" }
             }}
           >
-            <MenuIcon />
+            <MenuIcon sx={{ fontSize: 26 }} />
           </IconButton>
         </Stack>
       </Container>
@@ -389,43 +394,90 @@ function Hero() {
         {t("landing.v2.heroSub")}
       </Typography>
 
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="center" alignItems="center">
-        <Button component={RouterLink} to="/login"
-          variant="contained" disableElevation size="large" endIcon={<ArrowForwardIcon sx={{ fontSize: 22 }} />}
+      {/* CTA row. Matched pair — same height, same radius, uppercase bold
+          type with 0.02em tracking, right-pointing arrow after the label.
+          On mobile the stack goes vertical and each button fills the
+          container so the touch target stays generous. */}
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={{ xs: 2, sm: 3 }}
+        justifyContent="center"
+        alignItems="stretch"
+        sx={{ width: "100%", maxWidth: { xs: "100%", sm: 640 }, mx: "auto" }}
+      >
+        {/* Primary — Σύνδεση. Deep navy → royal-blue vertical gradient with
+            a subtle top highlight; drops a soft blue shadow; hovers brighter
+            and rises 2px. */}
+        <Button
+          component={RouterLink}
+          to="/login"
+          variant="contained"
+          disableElevation
+          endIcon={<ArrowForwardIcon sx={{ fontSize: 24 }} />}
           sx={{
-            borderRadius: 2.5, px: 6, py: 2.2,
-            fontSize: { xs: 17, md: 19 }, fontWeight: 700, letterSpacing: "0.04em",
-            textTransform: "none",
-            minWidth: { sm: 240 },
+            flex: { xs: "1 1 auto", sm: "1 1 0" },
+            height: { xs: 58, md: 62 },
+            borderRadius: "14px",
+            px: { xs: 3, sm: 5, md: 6 },
+            fontSize: { xs: 15, sm: 16, md: 17 },
+            fontWeight: 800,
+            letterSpacing: "0.02em",
+            textTransform: "uppercase",
             color: "#fff",
-            // Navy → accent blue diagonal gradient for a more premium feel;
-            // shadow lifts the button off the pale background.
-            background: `linear-gradient(135deg, ${NAVY} 0%, #123a6b 55%, ${ACCENT} 100%)`,
-            boxShadow: "0 10px 24px rgba(11,37,69,0.28)",
+            // Vertical gradient: royal-blue at top, deep navy at the base —
+            // matches the polished look in the mockup.
+            background: "linear-gradient(180deg, #2f6bd6 0%, #17417f 55%, #0b2545 100%)",
+            boxShadow:
+              "0 10px 22px rgba(11,37,69,0.28), inset 0 1px 0 rgba(255,255,255,0.18)",
+            transition:
+              "transform 180ms ease, box-shadow 180ms ease, background 180ms ease",
             "&:hover": {
-              background: `linear-gradient(135deg, #0a213e 0%, #0f325d 55%, #1a6ea3 100%)`,
-              boxShadow: "0 14px 30px rgba(11,37,69,0.34)"
-            }
-          }}>
+              background:
+                "linear-gradient(180deg, #3d7be0 0%, #1c4f95 55%, #0e2b52 100%)",
+              boxShadow:
+                "0 16px 30px rgba(11,37,69,0.34), inset 0 1px 0 rgba(255,255,255,0.22)",
+              transform: "translateY(-2px)"
+            },
+            "&:active": { transform: "translateY(0)" }
+          }}
+        >
           {t("landing.v2.ctaLogin")}
         </Button>
-        <Button component={RouterLink} to="/register"
-          variant="outlined" size="large" endIcon={<ArrowForwardIcon sx={{ fontSize: 22 }} />}
+
+        {/* Secondary — Εγγραφή. White pill, ~1.8px royal-blue border, blue
+            bold uppercase text; lighter blue shadow. Hover brightens the
+            border and floods the fill with a very light blue tint. */}
+        <Button
+          component={RouterLink}
+          to="/register"
+          variant="outlined"
+          endIcon={<ArrowForwardIcon sx={{ fontSize: 24 }} />}
           sx={{
-            borderRadius: 2.5, px: 6, py: 2.2,
-            fontSize: { xs: 17, md: 19 }, fontWeight: 700, letterSpacing: "0.04em",
-            textTransform: "none",
-            minWidth: { sm: 240 },
-            color: ACCENT,
-            bgcolor: "#fff",
-            borderColor: ACCENT, borderWidth: 2,
-            boxShadow: "0 8px 20px rgba(31,123,179,0.14)",
+            flex: { xs: "1 1 auto", sm: "1 1 0" },
+            height: { xs: 58, md: 62 },
+            borderRadius: "14px",
+            px: { xs: 3, sm: 5, md: 6 },
+            fontSize: { xs: 15, sm: 16, md: 17 },
+            fontWeight: 800,
+            letterSpacing: "0.02em",
+            textTransform: "uppercase",
+            color: "#17417f",
+            bgcolor: "#ffffff",
+            borderColor: "#2f6bd6",
+            borderWidth: "1.8px",
+            boxShadow: "0 8px 20px rgba(47,107,214,0.14)",
+            transition:
+              "transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease",
             "&:hover": {
-              borderWidth: 2, borderColor: ACCENT,
-              bgcolor: "rgba(31,123,179,0.06)",
-              boxShadow: "0 10px 24px rgba(31,123,179,0.20)"
-            }
-          }}>
+              borderWidth: "1.8px",
+              borderColor: "#17417f",
+              bgcolor: "#eef4ff",
+              boxShadow: "0 12px 26px rgba(47,107,214,0.22)",
+              transform: "translateY(-2px)"
+            },
+            "&:active": { transform: "translateY(0)" }
+          }}
+        >
           {t("landing.v2.ctaRegister")}
         </Button>
       </Stack>
