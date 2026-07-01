@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
+import { money } from "../utils/format";
 
 const STATUS_COLOR: Record<string, "default"|"success"|"error"> = { Draft: "default", Finalised: "success", Cancelled: "error" };
 
@@ -193,11 +194,11 @@ export function CommissionRunsPage() {
         </Card>
         <Card variant="outlined" sx={{ p: 2, flex: 1 }}>
           <Typography variant="caption" color="text.secondary">Συνολικό μεικτό</Typography>
-          <Typography variant="h5" fontWeight={800}>{totalPremium.toFixed(2)} €</Typography>
+          <Typography variant="h5" fontWeight={800}>{money(totalPremium)}</Typography>
         </Card>
         <Card variant="outlined" sx={{ p: 2, flex: 1 }}>
           <Typography variant="caption" color="text.secondary">Συνολικές προμήθειες</Typography>
-          <Typography variant="h5" fontWeight={800} color="primary.main">{totalCommission.toFixed(2)} €</Typography>
+          <Typography variant="h5" fontWeight={800} color="primary.main">{money(totalCommission)}</Typography>
         </Card>
       </Stack>
 
@@ -234,8 +235,8 @@ export function CommissionRunsPage() {
                     </Stack>
                   </TableCell>
                   <TableCell align="right">{r.lineCount}</TableCell>
-                  <TableCell align="right">{r.totalPremium.toFixed(2)} €</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700, color: "primary.main" }}>{r.totalCommission.toFixed(2)} €</TableCell>
+                  <TableCell align="right">{money(r.totalPremium)}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, color: "primary.main" }}>{money(r.totalCommission)}</TableCell>
                   <TableCell><Chip size="small" color={STATUS_COLOR[r.status]} label={t(`commissionRuns.status.${r.status}`)} /></TableCell>
                   <TableCell align="right">
                     <IconButton size="small" onClick={() => setDetailId(r.id)} title={t("commissionRuns.viewDetail")}>
@@ -449,18 +450,18 @@ function DetailDialog({ runId, onClose, onChanged }: { runId: string | null; onC
               </Card>
               <Card variant="outlined" sx={{ flex: 1, p: 2 }}>
                 <Typography variant="overline" color="text.secondary">{t("commissionRuns.totalPremium")}</Typography>
-                <Typography variant="h5" fontWeight={800}>{r.totalPremium.toFixed(2)} €</Typography>
+                <Typography variant="h5" fontWeight={800}>{money(r.totalPremium)}</Typography>
               </Card>
               <Card variant="outlined" sx={{ flex: 1, p: 2 }}>
                 <Typography variant="overline" color="text.secondary">{t("commissionRuns.totalCommission")}</Typography>
-                <Typography variant="h5" fontWeight={800} color="primary.main">{r.totalCommission.toFixed(2)} €</Typography>
+                <Typography variant="h5" fontWeight={800} color="primary.main">{money(r.totalCommission)}</Typography>
               </Card>
             </Stack>
 
             <Typography variant="overline" color="text.secondary">{t("commissionRuns.byProducer")}</Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" gap={1} mb={2} mt={0.5}>
               {Object.entries(byProducer).map(([name, amount]) =>
-                <Chip key={name} label={`${name}: ${amount.toFixed(2)} €`} color="primary" variant="outlined" />
+                <Chip key={name} label={`${name}: ${money(amount)}`} color="primary" variant="outlined" />
               )}
             </Stack>
 
@@ -483,10 +484,10 @@ function DetailDialog({ runId, onClose, onChanged }: { runId: string | null; onC
                       <TableCell>{l.producerName ?? "—"}</TableCell>
                       <TableCell>{l.insuranceCompanyName}</TableCell>
                       <TableCell>{t(`policyType.${l.policyType}`)}</TableCell>
-                      <TableCell align="right">{l.premium.toFixed(2)} €</TableCell>
+                      <TableCell align="right">{money(l.premium)}</TableCell>
                       <TableCell align="right">{l.ratePercent.toFixed(2)}%</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 700 }}>
-                        {l.commissionAmount.toFixed(2)} €
+                        {money(l.commissionAmount)}
                         {l.isOverridden && <Chip label="OVR" size="small" color="warning" sx={{ ml: 0.5, height: 16, fontSize: 10 }} />}
                       </TableCell>
                       <TableCell align="right">
@@ -541,7 +542,7 @@ function OverrideDialog({ line, onClose, onSaved }: { line: LineDto | null; onCl
               {t("commissionRuns.policy")}: {line.policyNumber} · {line.producerName ?? "—"}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {t("commissionRuns.calculated")}: {line.commissionAmount.toFixed(2)} € ({line.ratePercent.toFixed(2)}%)
+              {t("commissionRuns.calculated")}: {money(line.commissionAmount)} ({line.ratePercent.toFixed(2)}%)
             </Typography>
             <TextField type="number" autoFocus required label={t("commissionRuns.newAmount")}
               value={amount} onChange={e => setAmount(Number(e.target.value))} fullWidth />

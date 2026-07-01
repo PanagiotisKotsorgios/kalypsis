@@ -23,6 +23,7 @@ import ReportGmailerrorredIcon from "@mui/icons-material/ReportGmailerrorred";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
+import { money, date } from "../utils/format";
 
 interface ProducerDeclarationDto {
   id: string;
@@ -193,20 +194,20 @@ export function ProducerReconciliationPage() {
                 return (
                   <TableRow key={r.id} hover>
                     <TableCell sx={{ color: "text.secondary", whiteSpace: "nowrap" }}>
-                      {new Date(r.declaredAt).toLocaleDateString("el-GR")}
+                      {date(r.declaredAt)}
                     </TableCell>
                     <TableCell><Typography fontWeight={700}>{r.producerName}</Typography></TableCell>
                     <TableCell><Typography sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.policyNumber}</Typography></TableCell>
-                    <TableCell align="right"><Typography fontWeight={700}>{r.expectedAmount.toFixed(2)} {r.currency}</Typography></TableCell>
+                    <TableCell align="right"><Typography fontWeight={700}>{money(r.expectedAmount, r.currency)}</Typography></TableCell>
                     <TableCell align="right">
                       {r.recordedAmount !== null
-                        ? <Typography>{r.recordedAmount.toFixed(2)} {r.currency}</Typography>
+                        ? <Typography>{money(r.recordedAmount, r.currency)}</Typography>
                         : <Typography color="text.secondary">—</Typography>}
                     </TableCell>
                     <TableCell align="right">
                       {r.differenceAmount !== null
                         ? <Typography fontWeight={800} color={color === "default" ? "text.secondary" : `${color}.main`}>
-                            {r.differenceAmount > 0 ? "+" : ""}{r.differenceAmount.toFixed(2)} {r.currency}
+                            {r.differenceAmount > 0 ? "+" : ""}{money(r.differenceAmount, r.currency)}
                           </Typography>
                         : <Typography color="text.secondary">—</Typography>}
                     </TableCell>

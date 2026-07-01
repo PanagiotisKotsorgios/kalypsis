@@ -28,6 +28,7 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { money, date } from "../utils/format";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
 import { ClaimDetailDrawer } from "../components/ClaimDetailDrawer";
@@ -349,17 +350,11 @@ export function ClaimsPage() {
                       </Typography>
                     </TableCell>
                     {!isCustomer && <TableCell>{c.customerDisplay}</TableCell>}
-                    <TableCell>{c.incidentDate}</TableCell>
-                    <TableCell align="right">
-                      {c.claimedAmount != null
-                        ? `${c.claimedAmount.toLocaleString("el-GR", { minimumFractionDigits: 2 })} €`
-                        : "—"}
-                    </TableCell>
+                    <TableCell>{date(c.incidentDate)}</TableCell>
+                    <TableCell align="right">{c.claimedAmount != null ? money(c.claimedAmount) : "—"}</TableCell>
                     <TableCell align="right">
                       <Typography fontWeight={c.approvedAmount != null ? 700 : 400}>
-                        {c.approvedAmount != null
-                          ? `${c.approvedAmount.toLocaleString("el-GR", { minimumFractionDigits: 2 })} €`
-                          : "—"}
+                        {c.approvedAmount != null ? money(c.approvedAmount) : "—"}
                       </Typography>
                     </TableCell>
                     <TableCell>

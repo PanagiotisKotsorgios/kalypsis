@@ -38,6 +38,7 @@ import GroupsIcon from "@mui/icons-material/Groups";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
+import { money, date } from "../utils/format";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
 import { ExportButton } from "../components/ExportButton";
@@ -401,7 +402,7 @@ export function PoliciesPage() {
                       {!isCustomer && <TableCell><Typography fontWeight={600}>{p.customerDisplay}</Typography></TableCell>}
                       <TableCell>{p.insuranceCompanyName}</TableCell>
                       <TableCell>
-                        <Typography variant="body2">{p.startDate} → {p.endDate}</Typography>
+                        <Typography variant="body2">{date(p.startDate)} → {date(p.endDate)}</Typography>
                         {expiringSoon && (
                           <Typography variant="caption" color="warning.main" fontWeight={700}>
                             {t("policies.expiresIn", { days: daysToEnd })}
@@ -409,7 +410,7 @@ export function PoliciesPage() {
                         )}
                       </TableCell>
                       <TableCell align="right">
-                        <Typography fontWeight={700}>{p.premium.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {p.currency}</Typography>
+                        <Typography fontWeight={700}>{money(p.premium, p.currency)}</Typography>
                       </TableCell>
                       <TableCell><Chip data-tour="policies-status" label={t(`policies.statuses.${p.status}`)} color={STATUS_COLOR[p.status]} size="small" /></TableCell>
                       {canEdit && (

@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../api/client";
+import { money, date } from "../utils/format";
 
 interface Policy {
   id: string;
@@ -225,15 +226,12 @@ export function CustomerDashboardPage() {
                           {p.insuranceCompanyName}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {p.startDate} → {p.endDate}
+                          {date(p.startDate)} → {date(p.endDate)}
                         </Typography>
                       </Box>
                       <Box sx={{ textAlign: "right", flexShrink: 0 }}>
                         <Typography fontWeight={800}>
-                          €{p.premium.toLocaleString("el-GR", { minimumFractionDigits: 0 })}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {p.currency}
+                          {money(p.premium, p.currency)}
                         </Typography>
                       </Box>
                     </Stack>

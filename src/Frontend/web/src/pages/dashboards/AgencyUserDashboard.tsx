@@ -22,6 +22,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import { useWorkspace } from "../../auth/WorkspaceContext";
+import { money, date } from "../../utils/format";
 
 interface AgencyUserKpi {
   myCustomers: number;
@@ -118,7 +119,7 @@ export function AgencyUserDashboard() {
                 <LineChart data={r.myMonthlyPremium.map(p => ({ month: p.label, premium: Number(p.value) }))}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                  <YAxis tickFormatter={(v) => `${(v as number).toLocaleString("el-GR")} €`} tick={{ fontSize: 12 }} />
+                  <YAxis tickFormatter={(v) => money(v as number)} tick={{ fontSize: 12 }} />
                   <Tooltip formatter={(v) => moneyFmt.format(v as number)} />
                   <Line type="monotone" dataKey="premium" stroke={theme.palette.secondary.main} strokeWidth={3} dot={{ r: 4 }} />
                 </LineChart>
@@ -204,7 +205,7 @@ export function AgencyUserDashboard() {
                       <Typography fontWeight={500}>{it.label}</Typography>
                     </Stack>
                     <Typography variant="caption" color="text.secondary">
-                      {new Date(it.occurredAt).toLocaleDateString("el-GR")}
+                      {date(it.occurredAt)}
                     </Typography>
                   </Stack>
                 ))}

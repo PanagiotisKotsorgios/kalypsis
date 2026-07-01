@@ -1,3 +1,6 @@
+using Kalypsis.Application.Abstractions;
+using Kalypsis.Application.Common;
+using Kalypsis.Application.Features.Premium;
 using Kalypsis.Application.Features.Reconciliation;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -16,11 +19,18 @@ namespace Kalypsis.Api.Controllers;
 public class ProducerReconciliationController : ControllerBase
 {
     private readonly IMediator _m;
-    public ProducerReconciliationController(IMediator m) => _m = m;
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public ProducerReconciliationController(IMediator m, IAppDbContext db, ICurrentUser current)
+    { _m = m; _db = db; _current = current; }
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ProducerDeclarationDto>>> List(
         [FromQuery] Guid? producerId,
         CancellationToken ct)
-        => Ok(await _m.Send(new ListAgencyDeclarationsQuery(producerId), ct));
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        await PremiumGate.RequireAsync(_db, tenantId, PremiumFeatureCodes.ProducerReconciliation, ct);
+        return Ok(await _m.Send(new ListAgencyDeclarationsQuery(producerId), ct));
+    }
 }

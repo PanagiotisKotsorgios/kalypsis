@@ -9,6 +9,7 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { money } from "../utils/format";
 
 interface PolicyTypeOpt { value: number; label: string; key: string; }
 const POLICY_TYPE_TO_NUM: Record<string, number> = {
@@ -131,7 +132,7 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
     onSuccess: (r) => {
       setApplied(r);
       setPreview(null);
-      setSuccess(`Επεξεργάστηκαν ${r.affectedCount} συμβόλαια. Συνολική μεταβολή προμηθειών: ${r.totalDelta.toFixed(2)} €.`);
+      setSuccess(`Επεξεργάστηκαν ${r.affectedCount} συμβόλαια. Συνολική μεταβολή προμηθειών: ${money(r.totalDelta)}.`);
     },
     onError: (e) => setError(extractErrorMessage(e))
   });
@@ -283,7 +284,7 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
                       <Typography variant="body2" color="text.secondary">
                         {data.affectedCount} συμβόλαια θα επηρεαστούν · Συνολική διαφορά:{" "}
                         <strong style={{ color: data.totalDelta >= 0 ? "#5b8b3e" : "#a85c40" }}>
-                          {data.totalDelta >= 0 ? "+" : ""}{data.totalDelta.toFixed(2)} €
+                          {data.totalDelta >= 0 ? "+" : ""}{money(data.totalDelta)}
                         </strong>
                       </Typography>
                     </Box>
@@ -319,18 +320,18 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
                         {data.sample.map(r => (
                           <TableRow key={r.policyId} hover>
                             <TableCell sx={{ fontFamily: "monospace", fontSize: 13 }}>{r.policyNumber}</TableCell>
-                            <TableCell align="right">{r.premium.toFixed(2)} {r.currency}</TableCell>
+                            <TableCell align="right">{money(r.premium, r.currency)}</TableCell>
                             <TableCell align="right" sx={{ color: "text.secondary" }}>
-                              {r.currentCommission.toFixed(2)} {r.currency}
+                              {money(r.currentCommission, r.currency)}
                             </TableCell>
                             <TableCell align="right" sx={{ fontWeight: 700 }}>
-                              {r.newCommission.toFixed(2)} {r.currency}
+                              {money(r.newCommission, r.currency)}
                             </TableCell>
                             <TableCell align="right" sx={{
                               fontWeight: 700,
                               color: r.delta >= 0 ? "success.main" : "error.main"
                             }}>
-                              {r.delta >= 0 ? "+" : ""}{r.delta.toFixed(2)} {r.currency}
+                              {r.delta >= 0 ? "+" : ""}{money(r.delta, r.currency)}
                             </TableCell>
                           </TableRow>
                         ))}

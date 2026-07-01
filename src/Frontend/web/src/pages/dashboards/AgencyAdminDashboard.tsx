@@ -31,6 +31,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
+import { money } from "../../utils/format";
 
 interface KpiDto {
   customers: number;
@@ -144,7 +145,7 @@ export function AgencyAdminDashboard() {
                 <LineChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                  <YAxis tickFormatter={(v) => `${(v as number).toLocaleString("el-GR")} €`} tick={{ fontSize: 12 }} />
+                  <YAxis tickFormatter={(v) => money(v as number)} tick={{ fontSize: 12 }} />
                   <Tooltip formatter={(v) => moneyFmt.format(v as number)} />
                   <Line type="monotone" dataKey="premium" stroke={theme.palette.primary.main} strokeWidth={3} dot={{ r: 4 }} />
                 </LineChart>
