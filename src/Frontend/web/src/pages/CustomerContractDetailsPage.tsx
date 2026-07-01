@@ -27,6 +27,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../api/client";
+import { money, date } from "../utils/format";
 
 interface Policy {
   id: string;
@@ -147,7 +148,7 @@ export function CustomerContractDetailsPage() {
             <Field label={t("contractDetails.endDate")} value={p.endDate} highlight={days > 0 && days <= 30 ? "warn" : undefined} />
             <Field
               label={t("contractDetails.premium")}
-              value={`${p.premium.toLocaleString("el-GR", { minimumFractionDigits: 2 })} ${p.currency}`}
+              value={money(p.premium, p.currency)}
             />
           </Box>
         </CardContent>
@@ -266,7 +267,7 @@ function DocumentRow({ doc, onPreview }: { doc: DocumentDto; onPreview: () => vo
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{ fontWeight: 700 }} noWrap>{doc.fileName}</Typography>
           <Typography variant="caption" color="text.secondary">
-            {t(`documents.types.${doc.documentType}`)} · {Math.round(doc.sizeBytes / 1024)} KB · {new Date(doc.createdAt).toLocaleDateString("el-GR")}
+            {t(`documents.types.${doc.documentType}`)} · {Math.round(doc.sizeBytes / 1024)} KB · {date(doc.createdAt)}
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} justifyContent={{ xs: "center", sm: "flex-end" }}>

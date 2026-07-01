@@ -11,6 +11,7 @@ import AddIcon from "@mui/icons-material/Add";
 import SavingsIcon from "@mui/icons-material/Savings";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { money } from "../utils/format";
 
 type Regime = "TypoPlirono" | "PlironoTypono" | "Koumparas";
 
@@ -113,9 +114,9 @@ export function PlafondPage() {
                   <TableRow key={p.id} hover>
                     <TableCell><Typography fontWeight={600}>{producerName(p.producerId)}</Typography></TableCell>
                     <TableCell><Chip size="small" label={REGIME_LABELS[p.regime]} /></TableCell>
-                    <TableCell align="right">{p.creditLimit.toFixed(2)} €</TableCell>
+                    <TableCell align="right">{money(p.creditLimit)}</TableCell>
                     <TableCell align="right" sx={{ color: balanceColor, fontWeight: 700 }}>
-                      {p.currentBalance.toFixed(2)} €
+                      {money(p.currentBalance)}
                     </TableCell>
                     <TableCell sx={{ minWidth: 140 }}>
                       <LinearProgress variant="determinate" value={usage}

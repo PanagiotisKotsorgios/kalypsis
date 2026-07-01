@@ -6,6 +6,7 @@ import {
 import PrintIcon from "@mui/icons-material/Print";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { money, date } from "../utils/format";
 
 interface InstallmentDto {
   id: string;
@@ -101,7 +102,7 @@ export function PrintPayBasketPage() {
             <Box>
               <Typography variant="body2" color="text.secondary">Σύνολο</Typography>
               <Typography sx={{ fontSize: 32, fontWeight: 800, color: "primary.main" }}>
-                {total.toFixed(2)} €
+                {money(total)}
               </Typography>
             </Box>
           </Stack>
@@ -154,9 +155,9 @@ export function PrintPayBasketPage() {
                       </TableCell>
                       <TableCell sx={{ fontFamily: "monospace" }}>{i.policyId.slice(0, 8)}…</TableCell>
                       <TableCell align="right">{i.sequenceNumber}</TableCell>
-                      <TableCell>{new Date(i.dueDate).toLocaleDateString("el-GR")}</TableCell>
+                      <TableCell>{date(i.dueDate)}</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 700 }}>
-                        {(i.amount - i.paidAmount).toFixed(2)} €
+                        {money(i.amount - i.paidAmount)}
                       </TableCell>
                       <TableCell>
                         <Chip size="small"
@@ -193,12 +194,12 @@ export function PrintPayBasketPage() {
                 {(notices.data ?? []).slice(0, 20).map((n) => (
                   <TableRow key={n.id}>
                     <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{n.code}</TableCell>
-                    <TableCell align="right">{n.amount.toFixed(2)} {n.currency}</TableCell>
+                    <TableCell align="right">{money(n.amount, n.currency)}</TableCell>
                     <TableCell>
                       <Chip size="small" color={n.status === "Paid" ? "success" : "warning"} label={n.status} />
                     </TableCell>
-                    <TableCell>{new Date(n.issuedAt).toLocaleDateString("el-GR")}</TableCell>
-                    <TableCell>{n.dueAt ? new Date(n.dueAt).toLocaleDateString("el-GR") : "—"}</TableCell>
+                    <TableCell>{date(n.issuedAt)}</TableCell>
+                    <TableCell>{n.dueAt ? date(n.dueAt) : "—"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
