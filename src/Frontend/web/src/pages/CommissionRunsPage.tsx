@@ -5,6 +5,7 @@ import {
   TextField, Typography
 } from "@mui/material";
 import { NumberedPager } from "../components/TableToolbar";
+import { SearchableSelect } from "../components/SearchableSelect";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -142,15 +143,15 @@ export function CommissionRunsPage() {
             <MenuItem value="Finalised">Οριστική</MenuItem>
             <MenuItem value="Cancelled">Ακυρωμένη</MenuItem>
           </TextField>
-          <TextField select size="small" label="Εταιρία" value={carrierFilter}
-            onChange={(e) => setCarrierFilter(e.target.value)} sx={{ minWidth: 220 }}>
-            <MenuItem value="">Όλες</MenuItem>
-            {(carriersQ.data ?? []).filter(c => !c.parentCompanyId).map(c => (
-              <MenuItem key={c.id} value={c.id}>
-                {c.name}{c.isBroker ? " · πρακτορείο" : ""}
-              </MenuItem>
-            ))}
-          </TextField>
+          <SearchableSelect
+            label="Εταιρία" value={carrierFilter}
+            onChange={(v) => setCarrierFilter(v)}
+            emptyLabel="Όλες"
+            sx={{ minWidth: 220 }}
+            options={(carriersQ.data ?? []).filter(c => !c.parentCompanyId).map(c => ({
+              value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : undefined,
+            }))}
+          />
           {(() => {
             const carrierData = carriersQ.data ?? [];
             const selected = carrierData.find(c => c.id === carrierFilter);
@@ -163,18 +164,23 @@ export function CommissionRunsPage() {
             const subs = carrierData.filter(c => c.parentCompanyId === broker.id);
             const subValue = selected?.id !== broker.id ? selected?.id ?? "" : "";
             return (
-              <TextField select size="small" label="Υποασφαλιστική" value={subValue}
-                onChange={e => setCarrierFilter(e.target.value || broker.id)} sx={{ minWidth: 220 }}>
-                <MenuItem value="">— όλες οι υποασφαλιστικές —</MenuItem>
-                {subs.map(s => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
-              </TextField>
+              <SearchableSelect
+                label="Υποασφαλιστική"
+                value={subValue}
+                onChange={(v) => setCarrierFilter(v || broker.id)}
+                emptyLabel="— όλες οι υποασφαλιστικές —"
+                sx={{ minWidth: 220 }}
+                options={subs.map(s => ({ value: s.id, label: s.name }))}
+              />
             );
           })()}
-          <TextField select size="small" label="Συνεργάτης" value={producerFilter}
-            onChange={(e) => setProducerFilter(e.target.value)} sx={{ minWidth: 200 }}>
-            <MenuItem value="">Όλοι</MenuItem>
-            {(producersQ.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-          </TextField>
+          <SearchableSelect
+            label="Συνεργάτης" value={producerFilter}
+            onChange={(v) => setProducerFilter(v)}
+            emptyLabel="Όλοι"
+            sx={{ minWidth: 200 }}
+            options={(producersQ.data ?? []).map(p => ({ value: p.id, label: p.name }))}
+          />
           <Button size="small" onClick={() => {
             setSearch(""); setYearFilter(""); setMonthFilter(""); setStatusFilter("");
             setCarrierFilter(""); setProducerFilter("");
@@ -313,17 +319,22 @@ function CreateDialog({ open, onClose, onCreated }: { open: boolean; onClose: ()
           </Stack>
           <TextField label={t("commissionRuns.titleField")} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} fullWidth helperText={t("commissionRuns.titleHelp")} />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("commissionRuns.filterCompany")} value={form.insuranceCompanyId}
-              onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value, policyType: "", packageCode: "" })} fullWidth>
-              <MenuItem value="">{t("common.all")}</MenuItem>
-              {(companies.data ?? []).filter(c => !c.parentCompanyId).map(c => (
-                <MenuItem key={c.id} value={c.id}>{c.name}{c.isBroker ? " · πρακτορείο" : ""}</MenuItem>
-              ))}
-            </TextField>
-            <TextField select label={t("commissionRuns.filterProducer")} value={form.producerId} onChange={e => setForm({ ...form, producerId: e.target.value })} fullWidth>
-              <MenuItem value="">{t("common.all")}</MenuItem>
-              {(producers.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-            </TextField>
+            <SearchableSelect
+              label={t("commissionRuns.filterCompany")}
+              value={form.insuranceCompanyId}
+              onChange={(v) => setForm({ ...form, insuranceCompanyId: v, policyType: "", packageCode: "" })}
+              emptyLabel={t("common.all")}
+              options={(companies.data ?? []).filter(c => !c.parentCompanyId).map(c => ({
+                value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : undefined,
+              }))}
+            />
+            <SearchableSelect
+              label={t("commissionRuns.filterProducer")}
+              value={form.producerId}
+              onChange={(v) => setForm({ ...form, producerId: v })}
+              emptyLabel={t("common.all")}
+              options={(producers.data ?? []).map(p => ({ value: p.id, label: p.name }))}
+            />
           </Stack>
           {(() => {
             const carrierData = companies.data ?? [];

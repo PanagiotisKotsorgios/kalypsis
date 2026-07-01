@@ -9,6 +9,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { SearchableSelect } from "../components/SearchableSelect";
 import { money, date } from "../utils/format";
 
 type Status = "Draft" | "Submitted" | "Approved" | "Rejected" | "Effective";
@@ -208,11 +209,14 @@ function CancellationDialog({ open, onClose, onSaved }: { open: boolean; onClose
           />
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label="Αιτία ακύρωσης" value={reasonId}
-              onChange={(e) => setReasonId(e.target.value)} sx={{ flex: 1 }}>
-              <MenuItem value="">— Χωρίς προκαθορισμένη αιτία —</MenuItem>
-              {(reasons.data ?? []).map(r => <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>)}
-            </TextField>
+            <SearchableSelect
+              label="Αιτία ακύρωσης"
+              value={reasonId}
+              onChange={(v) => setReasonId(v)}
+              emptyLabel="— Χωρίς προκαθορισμένη αιτία —"
+              sx={{ flex: 1 }}
+              options={(reasons.data ?? []).map(r => ({ value: r.id, label: r.name }))}
+            />
             <TextField type="date" label="Ισχύς ακύρωσης" InputLabelProps={{ shrink: true }}
               value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} sx={{ width: 180 }} />
             <HelpHint id="cancellation.effectiveFrom" />

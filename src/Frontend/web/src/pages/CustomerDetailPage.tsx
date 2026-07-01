@@ -35,6 +35,7 @@ import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import HealthAndSafetyIcon from "@mui/icons-material/HealthAndSafety";
 import GroupsIcon from "@mui/icons-material/Groups";
 import { CustomerProducersDialog } from "../components/CustomerProducersDialog";
+import { SearchableSelect } from "../components/SearchableSelect";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
@@ -1150,7 +1151,17 @@ function FamilyMembersCard({ customerId, members }: { customerId: string; member
       <Stack direction="row" spacing={0.5} flexWrap="wrap" mt={0.5}>{member.needs.map(need => <Chip key={need.id} size="small" color={need.isInsured ? "success" : "warning"} label={`${NEED_LABEL[need.kind] ?? need.kind}: ${need.title}`} />)}</Stack>
       {member.notes && <Typography variant="body2" color="text.secondary" mt={0.75}>{member.notes}</Typography>}</Box><Button size="small" color="error" onClick={() => { if (confirm("Αφαίρεση οικογενειακής σχέσης;")) del.mutate(member.relationshipId); }}>Αφαίρεση</Button></Stack></Card>)}</Stack>}
     <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm"><DialogTitle>Σύνδεση οικογενειακού μέλους</DialogTitle><DialogContent><Stack spacing={2} mt={1}>
-      <TextField select label="Υπάρχων πελάτης" value={form.relatedCustomerId} onChange={e => setForm({ ...form, relatedCustomerId: e.target.value })} fullWidth required>{candidates.map(candidate => <MenuItem key={candidate.id} value={candidate.id}>{display(candidate)} · {candidate.customerNumber}</MenuItem>)}</TextField>
+      <SearchableSelect
+        label="Υπάρχων πελάτης"
+        required
+        value={form.relatedCustomerId}
+        onChange={(v) => setForm({ ...form, relatedCustomerId: v })}
+        options={candidates.map(candidate => ({
+          value: candidate.id,
+          label: display(candidate),
+          hint: candidate.customerNumber,
+        }))}
+      />
       <TextField select label="Σχέση" value={form.relationshipType} onChange={e => setForm({ ...form, relationshipType: e.target.value })} fullWidth>{RELATIONSHIP_TYPES.map(type => <MenuItem key={type} value={type}>{RELATION_LABEL[type]}</MenuItem>)}</TextField>
       <TextField label="Σημειώσεις σχέσης" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} multiline rows={3} fullWidth />
       <Alert severity="info">Αν το μέλος δεν υπάρχει ακόμη ως πελάτης, δημιουργήστε πρώτα την καρτέλα του και μετά συνδέστε το εδώ.</Alert>
