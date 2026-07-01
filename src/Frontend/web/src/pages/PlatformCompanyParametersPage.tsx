@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Autocomplete, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControlLabel, IconButton, MenuItem, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow,
   TextField, Typography
 } from "@mui/material";
@@ -23,6 +23,17 @@ interface CompanyDto {
   name: string;
   code: string;
   isGlobal: boolean;
+  isBroker?: boolean;
+  parentCompanyId?: string | null;
+}
+
+// Row shape enriched with the parent broker's name so the autocomplete can
+// group subs under their broker AND surface a searchable "parent name"
+// against the free-text filter.
+interface CompanyOption extends CompanyDto {
+  parentName?: string;
+  displayName: string;   // «↳ ACCELERANT (υπό Grand Cover)» for subs, plain name for standalone
+  groupLabel: string;    // "Grand Cover — subcompanies" | "Standalone carriers"
 }
 
 interface ParameterDto {
@@ -106,6 +117,41 @@ export function PlatformCompanyParametersPage() {
     queryKey: ["platform-company-parameter-companies"],
     queryFn: async () => (await api.get<CompanyDto[]>("/insurance-companies")).data.filter(c => c.isGlobal)
   });
+
+  // Options list for the pickers — brokers get their own group, subs are
+  // indented and carry their broker's name so `↳ ACCELERANT (υπό Grand Cover)`
+  // shows up in every dropdown. Grouping matches how the operator scans:
+  //   1. Standalone carriers (ERGO, ATLANTIC, …)
+  //   2. Grand Cover — the broker itself
+  //   3. Grand Cover — subcompanies, sorted alphabetically
+  const companyOptions = useMemo<CompanyOption[]>(() => {
+    const rows = companies.data ?? [];
+    const byId = new Map(rows.map(c => [c.id, c]));
+    return rows
+      .map(c => {
+        const parent = c.parentCompanyId ? byId.get(c.parentCompanyId) : null;
+        const isSub = !!parent;
+        return {
+          ...c,
+          parentName: parent?.name,
+          displayName: isSub ? `↳ ${c.name}` : c.name,
+          groupLabel: isSub
+            ? `Υποεταιρίες ${parent!.name}`
+            : c.isBroker
+              ? "Πρακτορεία"
+              : "Καθολικές εταιρίες"
+        } as CompanyOption;
+      })
+      .sort((a, b) => {
+        // Group order: standalone → brokers → subs. Within each group,
+        // alphabetical by name.
+        const groupRank = (o: CompanyOption) =>
+          o.groupLabel.startsWith("Υποεταιρίες") ? 2 : o.isBroker ? 1 : 0;
+        const g = groupRank(a) - groupRank(b);
+        if (g !== 0) return g;
+        return a.name.localeCompare(b.name, "el");
+      });
+  }, [companies.data]);
 
   const params = useQuery({
     queryKey: ["platform-company-parameters", companyFilter, kindFilter, search, includeInactive],
@@ -197,11 +243,35 @@ export function PlatformCompanyParametersPage() {
 
       <Card sx={{ p: 2, mb: 2 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
-          <TextField select size="small" label="Εταιρεία" value={companyFilter}
-            onChange={(e) => setCompanyFilter(e.target.value)} sx={{ minWidth: 240 }}>
-            <MenuItem value="">Όλες</MenuItem>
-            {(companies.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-          </TextField>
+          <Autocomplete
+            size="small"
+            sx={{ minWidth: 320 }}
+            options={companyOptions}
+            groupBy={(o) => o.groupLabel}
+            getOptionLabel={(o) => o.displayName}
+            isOptionEqualToValue={(a, b) => a.id === b.id}
+            value={companyOptions.find(o => o.id === companyFilter) ?? null}
+            onChange={(_, v) => setCompanyFilter(v?.id ?? "")}
+            filterOptions={(opts, state) => {
+              const q = state.inputValue.trim().toLowerCase();
+              if (!q) return opts;
+              return opts.filter(o =>
+                o.name.toLowerCase().includes(q)
+                || o.code.toLowerCase().includes(q)
+                || (o.parentName ?? "").toLowerCase().includes(q)
+              );
+            }}
+            renderOption={(props, o) => (
+              <li {...props} key={o.id} style={{ paddingLeft: o.groupLabel.startsWith("Υπο") ? 24 : 12 }}>
+                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ width: "100%" }}>
+                  <Typography sx={{ flex: 1 }}>{o.displayName}</Typography>
+                  <Chip size="small" variant="outlined" label={o.code} sx={{ fontFamily: "monospace", fontSize: 11 }} />
+                </Stack>
+              </li>
+            )}
+            renderInput={(params) => <TextField {...params} label="Εταιρεία (γράψτε για αναζήτηση)" placeholder="Όλες" />}
+            clearOnEscape
+          />
           <TextField select size="small" label="Τύπος" value={kindFilter}
             onChange={(e) => setKindFilter(e.target.value as ParameterKind | "")} sx={{ minWidth: 190 }}>
             <MenuItem value="">Όλοι</MenuItem>
@@ -286,7 +356,9 @@ export function PlatformCompanyParametersPage() {
         </Card>
       )}
 
-      <ParameterDialog open={createOpen || !!editing} item={editing} companies={companies.data ?? []}
+      <ParameterDialog open={createOpen || !!editing} item={editing}
+        companies={companies.data ?? []} companyOptions={companyOptions}
+        defaultCompanyId={companyFilter || null}
         onClose={() => { setCreateOpen(false); setEditing(null); }}
         onSaved={() => {
           void qc.invalidateQueries({ queryKey: ["platform-company-parameters"] });
@@ -297,10 +369,12 @@ export function PlatformCompanyParametersPage() {
   );
 }
 
-function ParameterDialog({ open, item, companies, onClose, onSaved }: {
+function ParameterDialog({ open, item, companies, companyOptions, defaultCompanyId, onClose, onSaved }: {
   open: boolean;
   item: ParameterDto | null;
   companies: CompanyDto[];
+  companyOptions: CompanyOption[];
+  defaultCompanyId?: string | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -348,7 +422,10 @@ function ParameterDialog({ open, item, companies, onClose, onSaved }: {
       });
     } else if (open) {
       setForm({
-        insuranceCompanyId: companies[0]?.id ?? "",
+        // Prefill the carrier — priority: existing selection > filter > first
+        // company in list. Saves the operator from re-picking after every
+        // "New entry" while working on a single carrier's catalogue.
+        insuranceCompanyId: defaultCompanyId || companies[0]?.id || "",
         kind: "Coverage",
         code: "",
         name: "",
@@ -367,7 +444,7 @@ function ParameterDialog({ open, item, companies, onClose, onSaved }: {
         notes: ""
       });
     }
-  }, [item, open, companies]);
+  }, [item, open, companies, defaultCompanyId]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -403,10 +480,40 @@ function ParameterDialog({ open, item, companies, onClose, onSaved }: {
       <DialogContent>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2} mt={1}>
-          <TextField select label="Ασφαλιστική εταιρεία *" value={form.insuranceCompanyId}
-            onChange={(e) => setForm({ ...form, insuranceCompanyId: e.target.value })} required fullWidth>
-            {companies.map(c => <MenuItem key={c.id} value={c.id}>{c.name} · {c.code}</MenuItem>)}
-          </TextField>
+          <Autocomplete
+            options={companyOptions}
+            groupBy={(o) => o.groupLabel}
+            getOptionLabel={(o) => `${o.displayName} · ${o.code}`}
+            isOptionEqualToValue={(a, b) => a.id === b.id}
+            value={companyOptions.find(o => o.id === form.insuranceCompanyId) ?? null}
+            onChange={(_, v) => setForm({ ...form, insuranceCompanyId: v?.id ?? "" })}
+            filterOptions={(opts, state) => {
+              const q = state.inputValue.trim().toLowerCase();
+              if (!q) return opts;
+              return opts.filter(o =>
+                o.name.toLowerCase().includes(q)
+                || o.code.toLowerCase().includes(q)
+                || (o.parentName ?? "").toLowerCase().includes(q)
+              );
+            }}
+            renderOption={(props, o) => (
+              <li {...props} key={o.id} style={{ paddingLeft: o.groupLabel.startsWith("Υπο") ? 24 : 12 }}>
+                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ width: "100%" }}>
+                  <Typography sx={{ flex: 1 }}>{o.displayName}</Typography>
+                  <Chip size="small" variant="outlined" label={o.code} sx={{ fontFamily: "monospace", fontSize: 11 }} />
+                </Stack>
+              </li>
+            )}
+            renderInput={(params) => (
+              <TextField {...params} label="Ασφαλιστική εταιρεία *"
+                helperText={form.insuranceCompanyId
+                  ? (companyOptions.find(o => o.id === form.insuranceCompanyId)?.parentName
+                      ? `Υπό: ${companyOptions.find(o => o.id === form.insuranceCompanyId)!.parentName}`
+                      : undefined)
+                  : "Γράψτε όνομα, κωδικό ή πρακτορείο για γρήγορη εύρεση"} />
+            )}
+            fullWidth
+          />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField select label="Τύπος *" value={form.kind}
               onChange={(e) => setForm({ ...form, kind: e.target.value as ParameterKind })} fullWidth>
