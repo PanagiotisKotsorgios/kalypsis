@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ClosedXML.Excel;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Domain.Entities;
@@ -131,6 +132,141 @@ public class CompanyParametersController : ControllerBase
             .ToListAsync(ct);
 
         return Ok(rows.Select(Map).ToList());
+    }
+
+    /// <summary>
+    /// Excel export of company parametrics. Same filter surface as the JSON
+    /// endpoints — accepts insuranceCompanyId, kind, policyType,
+    /// vehicleUseCategory, parentCode, search and audience.
+    ///
+    /// audience:
+    ///   headquarters (default) — every column, no producer filtering.
+    ///                            Requires AgencyAdmin+ or PlatformAdmin.
+    ///   producer               — trimmed columns suitable for handing to
+    ///                            producers; strips internal source/notes.
+    /// </summary>
+    [Authorize(Policy = "AgencyStaff")]
+    [HttpGet("company-parameters/export.xlsx")]
+    public async Task<IActionResult> ExportXlsx(
+        [FromQuery] Guid? insuranceCompanyId,
+        [FromQuery] CompanyParameterItemKind? kind,
+        [FromQuery] PolicyType? policyType,
+        [FromQuery] VehicleUseCategory? vehicleUseCategory,
+        [FromQuery] string? parentCode,
+        [FromQuery] string? search,
+        [FromQuery] string audience = "headquarters",
+        CancellationToken ct = default)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+
+        var accessibleCodes = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(c => c.DeletedAt == null && (c.TenantId == null || c.TenantId == tenantId))
+            .Select(c => c.Code)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var q = _db.CompanyParameterItems.IgnoreQueryFilters()
+            .Include(x => x.InsuranceCompany)
+            .Where(x => x.DeletedAt == null && x.IsActive
+                && accessibleCodes.Contains(x.InsuranceCompany.Code));
+
+        q = await ApplyCompanyCodeFilterAsync(q, insuranceCompanyId, ct);
+        q = ApplyCommonFilters(q, kind, search);
+        if (policyType.HasValue)
+            q = q.Where(x => x.PolicyType == policyType.Value);
+        if (vehicleUseCategory.HasValue)
+            q = q.Where(x => x.VehicleUseCategory == vehicleUseCategory.Value);
+        if (!string.IsNullOrWhiteSpace(parentCode))
+            q = q.Where(x => x.ParentCode == parentCode);
+
+        var today = DateOnly.FromDateTime(_clock.UtcNow);
+        q = q.Where(x => (!x.EffectiveFrom.HasValue || x.EffectiveFrom <= today)
+            && (!x.EffectiveTo.HasValue || x.EffectiveTo >= today));
+
+        var rows = await q
+            .OrderBy(x => x.InsuranceCompany.Name)
+            .ThenBy(x => x.Kind)
+            .ThenBy(x => x.PolicyType)
+            .ThenBy(x => x.DisplayOrder)
+            .ThenBy(x => x.Code)
+            .Take(20000)
+            .ToListAsync(ct);
+
+        var producerView = string.Equals(audience, "producer", StringComparison.OrdinalIgnoreCase);
+
+        using var wb = new XLWorkbook();
+        var sheet = wb.Worksheets.Add("Παραμετρικά");
+        var col = 1;
+        void H(string label) { sheet.Cell(1, col).Value = label; col++; }
+        H("Ασφαλιστική");
+        H("Κωδικός εταιρίας");
+        H("Είδος");
+        H("Κωδικός");
+        H("Όνομα");
+        H("Κλάδος");
+        H("Χρήση οχήματος");
+        H("Πατέρας (parentCode)");
+        H("Γέφυρα (system)");
+        H("Γέφυρα (κωδικός)");
+        H("Ισχύς από");
+        H("Ισχύς έως");
+        if (!producerView)
+        {
+            H("Πηγή");
+            H("Σημειώσεις");
+        }
+        var lastCol = col - 1;
+
+        var header = sheet.Range(1, 1, 1, lastCol);
+        header.Style.Font.Bold = true;
+        header.Style.Fill.BackgroundColor = XLColor.FromHtml("#0b2545");
+        header.Style.Font.FontColor = XLColor.White;
+
+        int r = 2;
+        foreach (var x in rows)
+        {
+            col = 1;
+            sheet.Cell(r, col++).Value = x.InsuranceCompany.Name;
+            sheet.Cell(r, col++).Value = x.InsuranceCompany.Code;
+            sheet.Cell(r, col++).Value = x.Kind.ToString();
+            sheet.Cell(r, col++).Value = x.Code;
+            sheet.Cell(r, col++).Value = x.Name;
+            sheet.Cell(r, col++).Value = x.PolicyType.HasValue ? x.PolicyType.Value.ToString() : "";
+            sheet.Cell(r, col++).Value = x.VehicleUseCategory.HasValue ? x.VehicleUseCategory.Value.ToString() : "";
+            sheet.Cell(r, col++).Value = x.ParentCode ?? "";
+            sheet.Cell(r, col++).Value = x.BridgeSystem ?? "";
+            sheet.Cell(r, col++).Value = x.BridgeCode ?? "";
+            if (x.EffectiveFrom.HasValue) sheet.Cell(r, col).Value = x.EffectiveFrom.Value.ToDateTime(TimeOnly.MinValue);
+            col++;
+            if (x.EffectiveTo.HasValue) sheet.Cell(r, col).Value = x.EffectiveTo.Value.ToDateTime(TimeOnly.MinValue);
+            col++;
+            if (!producerView)
+            {
+                sheet.Cell(r, col++).Value = x.Source ?? "";
+                sheet.Cell(r, col++).Value = x.Notes ?? "";
+            }
+            r++;
+        }
+
+        // Date columns as dd/MM/yyyy.
+        sheet.Column(11).Style.DateFormat.Format = "dd/MM/yyyy";
+        sheet.Column(12).Style.DateFormat.Format = "dd/MM/yyyy";
+
+        sheet.Columns().AdjustToContents();
+        // Cap the widths so long notes don't produce a monstrous column.
+        for (int i = 1; i <= lastCol; i++)
+            if (sheet.Column(i).Width > 50) sheet.Column(i).Width = 50;
+        sheet.SheetView.FreezeRows(1);
+
+        using var stream = new MemoryStream();
+        wb.SaveAs(stream);
+        stream.Position = 0;
+        var stamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmm");
+        var scope = insuranceCompanyId.HasValue ? "εταιρία" : "ολα";
+        var filename = $"parametrics_{scope}_{audience}_{stamp}.xlsx";
+        return File(stream.ToArray(),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            filename);
     }
 
     [Authorize(Policy = "PlatformAdmin")]

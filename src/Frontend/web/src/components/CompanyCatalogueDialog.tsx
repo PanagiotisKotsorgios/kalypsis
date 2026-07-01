@@ -29,6 +29,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import GridOnIcon from "@mui/icons-material/GridOn";
 import { Tooltip } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
@@ -152,6 +153,48 @@ export function CompanyCatalogueDialog({
             sx={{ maxWidth: { md: 320 } }}
           />
           <Box sx={{ flex: 1 }} />
+          <Button startIcon={<GridOnIcon />} variant="outlined" size="small"
+            onClick={async () => {
+              const resp = await api.get("/company-parameters/export.xlsx", {
+                params: {
+                  insuranceCompanyId,
+                  kind: tab,
+                  audience: "headquarters",
+                },
+                responseType: "blob",
+              });
+              const url = URL.createObjectURL(resp.data as Blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `parametrics_${(insuranceCompanyName ?? "carrier").replace(/\s+/g, "_")}_${tab}.xlsx`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }}>
+            Εξαγωγή XLSX
+          </Button>
+          <Button startIcon={<GridOnIcon />} variant="outlined" size="small"
+            onClick={async () => {
+              const resp = await api.get("/company-parameters/export.xlsx", {
+                params: {
+                  insuranceCompanyId,
+                  kind: tab,
+                  audience: "producer",
+                },
+                responseType: "blob",
+              });
+              const url = URL.createObjectURL(resp.data as Blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `parametrics_producer_${(insuranceCompanyName ?? "carrier").replace(/\s+/g, "_")}_${tab}.xlsx`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }}>
+            Για συνεργάτες
+          </Button>
           <Button startIcon={<AddIcon />} variant="contained" size="small"
             onClick={() => setCreating(true)} disabled={!insuranceCompanyId}>
             Νέα εγγραφή

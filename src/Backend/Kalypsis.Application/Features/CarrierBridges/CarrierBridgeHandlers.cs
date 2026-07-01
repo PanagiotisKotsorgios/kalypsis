@@ -60,7 +60,15 @@ public class ListAvailableCarrierBridgesHandler : IRequestHandler<ListAvailableC
     {
         "ERGO",
         "GRAND COVER",
-        "GRANDCOVER"
+        "GRANDCOVER",
+        // Ατλαντική Ένωση exports a producer folder as a .zip containing
+        // Filpolhd.txt (headers), Filpoldt.txt (per-cover detail),
+        // Filcusdt.txt (customers), Filvehcl.txt (vehicles), Filrechd/dt
+        // (receipts) and Filcomis.txt (commissions), all CP1253 fixed-width
+        // text. See the Description spreadsheet in ΠΑΡΑΜΕΤΡΙΚΑ.zip.
+        "ATLANTIC",
+        "ATLANTIKI",
+        "ΑΤΛΑΝΤΙΚΗ"
     };
 
     public async Task<IReadOnlyList<AvailableCarrierDto>> Handle(ListAvailableCarrierBridgesQuery _, CancellationToken ct)
@@ -119,12 +127,14 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         var carrierKey = (carrier.Code + " " + carrier.Name).ToUpperInvariant();
         var isErgo = carrierKey.Contains("ERGO");
         var isGrandCover = carrierKey.Contains("GRAND COVER") || carrierKey.Contains("GRANDCOVER");
-        if (!isErgo && !isGrandCover)
+        var isAtlantic = carrierKey.Contains("ATLANTIC") || carrierKey.Contains("ATLANTIKI")
+            || carrierKey.Contains("ΑΤΛΑΝΤΙΚΗ");
+        if (!isErgo && !isGrandCover && !isAtlantic)
             throw new AppException("bridge_format_not_supported",
                 "Δεν υπάρχει διαθέσιμος αναλυτής για αυτή την εταιρία ακόμη.", 400,
                 title: "Μη υποστηριζόμενος αναλυτής",
-                why: "Κάθε εταιρία στέλνει το αρχείο της σε διαφορετική μορφή. Έχουμε υλοποιήσει μέχρι στιγμής ERGO και Grand Cover.",
-                fix: "Επιλέξτε ERGO ή Grand Cover, ή ζητήστε υποστήριξη για τη συγκεκριμένη εταιρία.");
+                why: "Κάθε εταιρία στέλνει το αρχείο της σε διαφορετική μορφή. Έχουμε υλοποιήσει μέχρι στιγμής ERGO, Grand Cover και Ατλαντική Ένωση.",
+                fix: "Επιλέξτε ERGO, Grand Cover ή Ατλαντική Ένωση, ή ζητήστε υποστήριξη για τη συγκεκριμένη εταιρία.");
 
         // File-shape detection. ERGO ships one .xlsx; Grand Cover ships a
         // .zip with the CSV pack. We sniff the magic bytes so an admin can
@@ -148,6 +158,18 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                     fix: "Από το Grand Cover επιλέξτε «Εξαγωγή Συμβολαίων» και ανεβάστε το .zip που κατέβηκε αυτούσιο.");
             rows = ParseGrandCoverZip(r.FileContent);
             format = "GRAND_COVER";
+        }
+        else if (isAtlantic)
+        {
+            if (!isZip)
+                throw new AppException("atlantic_zip_required",
+                    "Η Ατλαντική Ένωση εξάγει τα δεδομένα σε φάκελο Producer_YYYYMMDDhhmmss.zip.",
+                    400,
+                    title: "Λάθος μορφή αρχείου",
+                    why: "Δεν εντοπίστηκε αρχείο zip.",
+                    fix: "Ανεβάστε τον φάκελο Producer_ .zip αυτούσιο, χωρίς αποσυμπίεση.");
+            rows = ParseAtlanticZip(r.FileContent);
+            format = "ATLANTIC";
         }
         else
         {
@@ -748,6 +770,351 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         if (decimal.TryParse(cleaned, NumberStyles.Any, CultureInfo.InvariantCulture, out var v))
             return v;
         return null;
+    }
+
+    // ========================================================================
+    // ATLANTIC UNION (Ατλαντική Ένωση) format: fixed-width text files inside a
+    // Producer_YYYYMMDDhhmmss.zip. Files are CP1253-encoded, CRLF line endings.
+    //
+    //   Filpolhd.txt   Policy headers, 171 chars per row:
+    //                    KLDCOD(2)  branch code
+    //                    POLNUM(7)  policy number
+    //                    POLANA(7)  analytical
+    //                    POLST1(2)  status
+    //                    SALAGC/SALUNT/SALAUN/SALAGT (3+2+2+3) agency
+    //                    COMSYS(3)  commission system
+    //                    POLIDT(8)  issue date        DDMMYYYY
+    //                    PLEFDT(8)  effective from    YYYYMMDD
+    //                    PLEXDT(8)  expiry            YYYYMMDD
+    //                    PLEEPE(8)  coverage end      YYYYMMDD
+    //                    PAYMOD(2)  payment method
+    //                    COLGRP(1)/COLCOD(2) collection code
+    //                    RENWYM(6)  renewal month     YYYYMM
+    //                    VHBM(2)/VHCLM(2) auto-only bonus-malus / class
+    //                    FRANT(1)/FRSHT(1)/FRDHL(4)  fire-only flags/deductible
+    //                    RENFLG(1)  renewal flag
+    //                    ASFLG(1)   health flag       (branch 04)
+    //                    MFFLG(1)   MF flag           (branch 08)
+    //                    PLNYPR(9)  yearly premium     nnnnnnn,nn
+    //                    PLNFEE(7)  fee                nnnnn,nn
+    //                    APLNUM(7)  application #
+    //                    CUSCOD(7)  customer id → Filcusdt.CUSCOD
+    //                    VHCOD(7)   vehicle id  → Filvehcl.VHCOD
+    //                    FRCOD(7)   building id → Filfrbld.FRCOD
+    //                    UNUSED(7)
+    //                    trailing " 1" flag byte(s)
+    //
+    //   Filcusdt.txt   Customer master. First 7 chars = CUSCOD, next 8 =
+    //                  birth date YYYYMMDD, then a 30-char surname block,
+    //                  30-char first name block, 30-char father-name block…
+    //
+    // Given the number of fields per row exceeds what we can safely address
+    // by fixed offsets across every Atlantic release, this parser uses
+    // whitespace tokenisation for numeric-only fields (they never contain
+    // spaces, and every one is right-justified with leading padding), and
+    // fixed-width slicing only for the string blocks in Filcusdt.txt.
+    // ========================================================================
+    private static List<BridgeImportRow> ParseAtlanticZip(byte[] zipBytes)
+    {
+        _ = _cp1253Registered;
+        var enc = System.Text.Encoding.GetEncoding(1253);
+        var rows = new List<BridgeImportRow>();
+
+        using var ms = new MemoryStream(zipBytes);
+        using var archive = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Read);
+
+        // Slurp each .txt we care about into memory as line arrays.
+        string[] Read(string suffix)
+        {
+            foreach (var entry in archive.Entries)
+            {
+                if (entry.Name.Equals(suffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    using var es = entry.Open();
+                    using var cms = new MemoryStream();
+                    es.CopyTo(cms);
+                    return enc.GetString(cms.ToArray()).Split('\n')
+                        .Select(l => l.TrimEnd('\r')).Where(l => l.Length > 0).ToArray();
+                }
+            }
+            return Array.Empty<string>();
+        }
+
+        var polhd = Read("Filpolhd.txt");
+        if (polhd.Length == 0)
+            throw new AppException("atlantic_missing_polhd",
+                "Το αρχείο δεν περιέχει Filpolhd.txt.", 400,
+                title: "Ελλιπές πακέτο εξαγωγής",
+                why: "Απαιτούμε τουλάχιστον Filpolhd.txt για να ξεκινήσει η εισαγωγή.",
+                fix: "Ανεβάστε τον πλήρη φάκελο Producer_ .zip όπως τον στέλνει η Ατλαντική.");
+
+        var cusdt   = Read("Filcusdt.txt");
+        var vhinf   = Read("Filvhinf.txt");
+        var vehcl   = Read("Filvehcl.txt");
+        var poldt   = Read("Filpoldt.txt");
+        var rechd   = Read("Filrechd.txt");
+
+        // ---- Customer master → id → (name, birth) ---------------------------
+        // Layout: CUSCOD(7) BDATE(8 YYYYMMDD) SURNAME(30) FIRSTNAME(30) FATHER(30) ...
+        var customerById = new Dictionary<string, (string Name, string? Afm)>(StringComparer.Ordinal);
+        foreach (var line in cusdt)
+        {
+            if (line.Length < 45) continue;
+            var id = line.Substring(0, 7).Trim();
+            if (string.IsNullOrEmpty(id)) continue;
+            var surname   = SafeSlice(line, 15, 30).Trim();
+            var firstName = SafeSlice(line, 45, 30).Trim();
+            // AFM is a 9-digit block that appears further along; grab the
+            // first 9-digit run after the name blocks.
+            string? afm = null;
+            var afmMatch = System.Text.RegularExpressions.Regex.Match(
+                line.Length > 105 ? line[105..] : "", "\\d{9}");
+            if (afmMatch.Success) afm = afmMatch.Value;
+            var full = string.IsNullOrEmpty(firstName)
+                ? surname
+                : $"{surname} {firstName}".Trim();
+            customerById[id] = (full, afm);
+        }
+
+        // ---- Vehicle info per policy: policy id → plate + reg year ----------
+        // Filvhinf layout is: POLNUM(7) VHCOD(7) PLATE(8?) BDATE(8) …
+        // We do a light tokenisation and grab the plate token when present.
+        var vhinfByPolicy = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (var line in vhinf)
+        {
+            var toks = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (toks.Length < 2) continue;
+            var polnum = toks[0];
+            // Plate looks like 3 letters + 4 digits (Greek plate) — pick any
+            // token that matches the pattern.
+            var plate = toks.FirstOrDefault(t => System.Text.RegularExpressions.Regex.IsMatch(t, "^[A-Za-zΑ-Ω]{2,3}\\d{3,4}$"));
+            vhinfByPolicy[polnum] = plate;
+        }
+
+        // ---- Vehicle catalogue: VHCOD → "make model" ------------------------
+        var vehicleById = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var line in vehcl)
+        {
+            if (line.Length < 20) continue;
+            var id = line.Substring(0, 7).Trim();
+            if (string.IsNullOrEmpty(id)) continue;
+            // The next ~30 chars are make (or make+model separated by space).
+            var spec = SafeSlice(line, 7, 40).Trim();
+            vehicleById[id] = spec;
+        }
+
+        // ---- Per-cover breakdown: policy → list of cover codes --------------
+        var coversByPolicy = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        foreach (var line in poldt)
+        {
+            var toks = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (toks.Length < 5) continue;
+            var polnum = toks[1];    // KLDCOD then POLNUM
+            // Cover code = the alphanumeric 4-5 char token near the front.
+            var coverTok = toks.FirstOrDefault(t =>
+                t.Length is >= 3 and <= 6 && t.All(c => char.IsLetterOrDigit(c)) && t.Any(char.IsLetter));
+            if (coverTok is null) continue;
+            if (!coversByPolicy.TryGetValue(polnum, out var list))
+                coversByPolicy[polnum] = list = new List<string>();
+            if (!list.Contains(coverTok)) list.Add(coverTok);
+        }
+
+        // ---- Receipt headers: policy → latest paid receipt (currency check) -
+        var lastReceiptByPolicy = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var line in rechd)
+        {
+            var toks = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (toks.Length < 4) continue;
+            lastReceiptByPolicy[toks[1]] = toks[5]; // receipt id
+        }
+
+        // ---- Main pass: one BridgeImportRow per Filpolhd line ---------------
+        int index = 0;
+        foreach (var line in polhd)
+        {
+            index++;
+            var notes = new List<BridgeImportNote>();
+            var toks = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (toks.Length < 20)
+            {
+                notes.Add(new BridgeImportNote("Γραμμή", "warn", "Υπερβολικά λίγα πεδία — γραμμή παραλείπεται"));
+                continue;
+            }
+
+            var branchCode  = toks[0];
+            var policyNumber = toks[1];
+            var policyAnalytical = toks[2];
+
+            // Locate the two amount tokens (contain a comma).
+            var amountIndexes = new List<int>();
+            for (int i = 0; i < toks.Length; i++) if (toks[i].Contains(',')) amountIndexes.Add(i);
+            decimal? gross = null, fee = null;
+            if (amountIndexes.Count >= 2)
+            {
+                gross = ParseGcAmount(toks[amountIndexes[0]]);
+                fee = ParseGcAmount(toks[amountIndexes[^1]]);
+            }
+            else if (amountIndexes.Count == 1)
+            {
+                gross = ParseGcAmount(toks[amountIndexes[0]]);
+            }
+
+            // Trailing customer/vehicle/building/unused ids sit right after
+            // the last amount. There are 5 (APLNUM, CUSCOD, VHCOD, FRCOD,
+            // UNUSED) then a trailing flag.
+            string? customerId = null, vehicleId = null, buildingId = null, appNum = null;
+            if (amountIndexes.Count >= 2 && amountIndexes[^1] + 5 < toks.Length)
+            {
+                var b = amountIndexes[^1];
+                appNum      = toks[b + 1];
+                customerId  = toks[b + 2];
+                vehicleId   = toks[b + 3];
+                buildingId  = toks[b + 4];
+            }
+
+            // Dates: scan tokens for 8-digit YYYYMMDD strings.
+            var dateToks = toks.Where(t => t.Length == 8 && t.All(char.IsDigit)).ToList();
+            DateOnly? start = null, end = null, coverageEnd = null;
+            if (dateToks.Count >= 1) start = ParseAtlanticYmd(dateToks[0]);
+            if (dateToks.Count >= 2) end = ParseAtlanticYmd(dateToks[1]);
+            if (dateToks.Count >= 3) coverageEnd = ParseAtlanticYmd(dateToks[2]);
+            // Issue date is DDMMYYYY, 7-digit if leading zero stripped. Look
+            // for a 7-digit token immediately before the first YYYYMMDD one.
+            DateOnly? issue = null;
+            var idxYmd = Array.IndexOf(toks, dateToks.FirstOrDefault());
+            if (idxYmd > 0 && toks[idxYmd - 1].Length is 7 or 8 && toks[idxYmd - 1].All(char.IsDigit))
+                issue = ParseAtlanticDmy(toks[idxYmd - 1]);
+
+            var raw = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Filpolhd.raw"] = line,
+                ["KLDCOD"] = branchCode,
+                ["POLNUM"] = policyNumber,
+                ["POLANA"] = policyAnalytical
+            };
+            if (customerId != null) raw["CUSCOD"] = customerId;
+            if (vehicleId  != null) raw["VHCOD"]  = vehicleId;
+            if (buildingId != null) raw["FRCOD"]  = buildingId;
+            if (appNum     != null) raw["APLNUM"] = appNum;
+            if (coverageEnd.HasValue) raw["PLEEPE"] = coverageEnd.Value.ToString("yyyy-MM-dd");
+
+            // Customer + AFM enrichment
+            string? customerName = null, customerVat = null;
+            if (customerId != null && customerById.TryGetValue(customerId.TrimStart('0'), out var cust))
+            {
+                customerName = cust.Name;
+                customerVat  = cust.Afm;
+            }
+            else if (customerId != null && customerById.TryGetValue(customerId, out var cust2))
+            {
+                customerName = cust2.Name;
+                customerVat  = cust2.Afm;
+            }
+
+            // Vehicle enrichment
+            string? plate = null;
+            if (vhinfByPolicy.TryGetValue(policyNumber, out var plateFromVhinf))
+                plate = plateFromVhinf;
+            if (vehicleId != null && vehicleById.TryGetValue(vehicleId, out var vspec))
+                raw["Vehicle"] = vspec;
+
+            // Cover code list
+            if (coversByPolicy.TryGetValue(policyNumber, out var covers) && covers.Count > 0)
+                raw["Καλύψεις"] = string.Join(", ", covers);
+            if (lastReceiptByPolicy.TryGetValue(policyNumber, out var recId))
+                raw["Απόδειξη"] = recId;
+
+            // Row type
+            var rowType = "New";
+            if (gross.HasValue && gross.Value < 0)
+            {
+                rowType = "Cancellation";
+                notes.Add(new BridgeImportNote("Τύπος", "info", "Αρνητικό ποσό → ακύρωση"));
+            }
+            else if (start.HasValue && end.HasValue)
+            {
+                var days = end.Value.DayNumber - start.Value.DayNumber;
+                if (days is >= 10 and <= 45 && gross is > 0 and <= 80)
+                {
+                    rowType = "GreenCard";
+                    notes.Add(new BridgeImportNote("Τύπος", "info",
+                        $"Διάρκεια {days} ημ. & μικρό ποσό ({gross:0.00} €) → πιθανή Πράσινη Κάρτα"));
+                }
+                else if (days < 60)
+                {
+                    rowType = "Endorsement";
+                    notes.Add(new BridgeImportNote("Τύπος", "info", $"Διάρκεια {days} ημ. → πρόσθετη πράξη"));
+                }
+            }
+
+            var status = "Ready";
+            if (string.IsNullOrEmpty(policyNumber))
+            { status = "Error"; notes.Add(new BridgeImportNote("POLNUM", "error", "Λείπει ο αριθμός συμβολαίου")); }
+            if (string.IsNullOrEmpty(customerName))
+            { notes.Add(new BridgeImportNote("Πελάτης", "warn", "Ο πελάτης δεν βρέθηκε στο Filcusdt.txt")); }
+            if (!gross.HasValue)
+            { notes.Add(new BridgeImportNote("Ασφάλιστρο", "warn", "Δεν εντοπίστηκε ποσό ασφαλίστρου")); }
+
+            rows.Add(new BridgeImportRow(
+                index,
+                policyNumber,
+                appNum,
+                customerName,
+                customerVat,
+                issue,
+                start,
+                end,
+                gross,
+                gross.HasValue && fee.HasValue ? gross.Value - fee.Value : null, // net = gross - fee
+                null,
+                null,
+                null,
+                null,
+                raw,
+                notes,
+                status,
+                rowType,
+                null,
+                null,
+                plate));
+        }
+
+        return rows;
+    }
+
+    /// <summary>Safely slice a string with a start + length even if the underlying
+    /// string is shorter. Trailing missing chars are ignored.</summary>
+    private static string SafeSlice(string s, int start, int len)
+    {
+        if (start >= s.Length) return string.Empty;
+        var take = Math.Min(len, s.Length - start);
+        return s.Substring(start, take);
+    }
+
+    /// <summary>Parse YYYYMMDD → DateOnly, tolerating leading spaces.</summary>
+    private static DateOnly? ParseAtlanticYmd(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        s = s.Trim().PadLeft(8, '0');
+        if (s.Length != 8) return null;
+        if (!int.TryParse(s.AsSpan(0, 4), out var y)) return null;
+        if (!int.TryParse(s.AsSpan(4, 2), out var m)) return null;
+        if (!int.TryParse(s.AsSpan(6, 2), out var d)) return null;
+        if (y is < 1900 or > 2100 || m is < 1 or > 12 || d is < 1 or > 31) return null;
+        try { return new DateOnly(y, m, d); } catch { return null; }
+    }
+
+    /// <summary>Parse DDMMYYYY (7 or 8 chars) → DateOnly.</summary>
+    private static DateOnly? ParseAtlanticDmy(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        s = s.Trim().PadLeft(8, '0');
+        if (s.Length != 8) return null;
+        if (!int.TryParse(s.AsSpan(0, 2), out var d)) return null;
+        if (!int.TryParse(s.AsSpan(2, 2), out var m)) return null;
+        if (!int.TryParse(s.AsSpan(4, 4), out var y)) return null;
+        if (y is < 1900 or > 2100 || m is < 1 or > 12 || d is < 1 or > 31) return null;
+        try { return new DateOnly(y, m, d); } catch { return null; }
     }
 
     /// <summary>Pass over the parsed rows and attach parameterization-diff notes

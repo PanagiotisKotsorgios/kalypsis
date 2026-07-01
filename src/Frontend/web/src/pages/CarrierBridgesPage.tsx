@@ -247,14 +247,16 @@ export function CarrierBridgesPage() {
           <Alert severity="info" sx={{ mb: 2 }}>
             {(() => {
               const fmt = (selected.bridgeFormat ?? "ERGO").toUpperCase();
-              const ext = fmt.includes("GRAND") ? ".zip" : ".xlsx";
-              return `Αναλυτής για format: ${fmt}. Δεκτό αρχείο: ${ext}`;
+              const zip = fmt.includes("GRAND") || fmt.includes("ATLANTIC");
+              return `Αναλυτής για format: ${fmt}. Δεκτό αρχείο: ${zip ? ".zip" : ".xlsx"}`;
             })()}
             <br />
             {(() => {
               const fmt = (selected.bridgeFormat ?? "").toUpperCase();
               if (fmt.includes("GRAND"))
                 return "Το Grand Cover εξάγει ένα ενιαίο .zip με όλα τα συμβόλαια. Ανεβάστε το αυτούσιο.";
+              if (fmt.includes("ATLANTIC"))
+                return "Η Ατλαντική Ένωση εξάγει τον φάκελο Producer_ .zip. Ανεβάστε τον αυτούσιο.";
               return t("carrierBridges.lobNote", "Επιλέξτε τον κλάδο του αρχείου. Επιτρέπεται ένα αρχείο τη φορά.");
             })()}
           </Alert>
@@ -284,6 +286,32 @@ export function CarrierBridgesPage() {
                         <Typography variant="caption" color="text.secondary">
                           Ένα .zip με Policies, Customers, Objects, Covers, FBC*.
                           Καλύπτει ταυτόχρονα οχήματα, περιουσία και υγεία.
+                        </Typography>
+                      </Box>
+                      <CloudUploadIcon color="action" />
+                    </Stack>
+                  </Card>
+                </Stack>
+              );
+            }
+            if (fmt.includes("ATLANTIC")) {
+              return (
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                  <Card variant="outlined" sx={{
+                    p: 2.5, flex: 1, cursor: "pointer",
+                    borderStyle: "dashed",
+                    "&:hover": { borderColor: "primary.main", bgcolor: "action.hover" }
+                  }}
+                    onClick={() => { setPendingLob("auto"); fileRef.current?.click(); }}>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <FolderZipIcon color="primary" sx={{ fontSize: 44 }} />
+                      <Box sx={{ flex: 1 }}>
+                        <Typography fontWeight={800}>
+                          Producer_ .zip Ατλαντικής Ένωσης
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Φάκελος Producer_YYYYMMDDhhmmss.zip με Filpolhd, Filpoldt,
+                          Filcusdt, Filvhinf, Filvehcl, Filrechd/dt, Filcomis.
                         </Typography>
                       </Box>
                       <CloudUploadIcon color="action" />
