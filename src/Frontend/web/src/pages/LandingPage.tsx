@@ -408,10 +408,12 @@ export function LandingPage() {
       </Box> {/* ═══ /Hero section ═══ */}
 
       {/* Feature grid + newsletter live on the plain-white lower half so the
-          gradient stays focused on the pitch above the fold. */}
+          gradient stays focused on the pitch above the fold. Top padding
+          is zeroed here so the reversed wave background on FeatureGrid can
+          butt directly against the hero — no white gap between them. */}
       <Container maxWidth={false} sx={{
         maxWidth: { xs: "100%", md: "82%", xl: "1600px" },
-        px: { xs: 3, md: 6 }, py: { xs: 2, md: 3 }, flex: 1
+        px: { xs: 3, md: 6 }, pt: 0, pb: { xs: 2, md: 3 }, flex: 1
       }}>
         <PageEnter stagger={700}>
           <FeatureGrid />
@@ -599,19 +601,17 @@ function FeatureGrid() {
     <Box sx={{
       position: "relative",
       pb: { xs: 4, md: 6 },
-      borderTop: `1px solid ${RULE}`,
       pt: { xs: 5, md: 7 },
       // Same finished wave PNG as the hero, but rotated 180° so the crests
       // flow INTO the section from the TOP — reading as a continuation of
-      // the hero. We use the classic viewport-breakout trick
-      // (`left:50%; margin-left:-50vw; width:100vw`) so the artwork spans
-      // the entire viewport regardless of the parent Container's max-width.
-      // Full opacity + same colors as the hero; only a tiny fade at the
-      // very bottom edge so the newsletter block underneath reads clean.
+      // the hero. Viewport breakout so the artwork spans the entire screen
+      // regardless of the parent Container's 82%/1600px cap.
       "&::before": {
         content: '""',
         position: "absolute",
-        top: 0,
+        // Extend upward slightly so the wave TOUCHES the hero background
+        // with no white sliver between the two sections.
+        top: { xs: -40, md: -80 },
         bottom: 0,
         left: "50%",
         width: "100vw",
@@ -624,10 +624,12 @@ function FeatureGrid() {
         transformOrigin: "center",
         pointerEvents: "none",
         zIndex: 0,
-        // Only the last ~10% fades to transparent so the newsletter card
-        // that lives immediately below still sits on a neutral surface.
-        maskImage: "linear-gradient(180deg, #000 0%, #000 90%, transparent 100%)",
-        WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 90%, transparent 100%)"
+        // Softer, longer fade at the tail (last ~25%) so the wave crests
+        // dissolve into the white newsletter surface underneath instead of
+        // ending in a hard band. Cubic easing (three-stop gradient) gives
+        // a smoother visual than a straight linear ramp.
+        maskImage: "linear-gradient(180deg, #000 0%, #000 70%, rgba(0,0,0,0.55) 88%, transparent 100%)",
+        WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 70%, rgba(0,0,0,0.55) 88%, transparent 100%)"
       },
       // Sit every child above the ::before pseudo-element.
       "& > *": { position: "relative", zIndex: 1 }
