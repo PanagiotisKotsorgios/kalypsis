@@ -34,7 +34,6 @@ import EventRepeatIcon from "@mui/icons-material/EventRepeat";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import LinkIcon from "@mui/icons-material/Link";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
-import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
 import LeaderboardIcon from "@mui/icons-material/Leaderboard";
 import EngineeringIcon from "@mui/icons-material/Engineering";
 
@@ -87,10 +86,7 @@ import { AppointmentsPage } from "./pages/AppointmentsPage";
 import { TariffsPage } from "./pages/TariffsPage";
 import { CoverNotesPage } from "./pages/CoverNotesPage";
 import { BranchesPage } from "./pages/BranchesPage";
-import { ReceiptsPage } from "./pages/ReceiptsPage";
-import { PaymentsPage } from "./pages/PaymentsPage";
 import { SecuritiesPage } from "./pages/SecuritiesPage";
-import { FinancialMovementsPage } from "./pages/FinancialMovementsPage";
 import { BankConnectionsPage } from "./pages/BankConnectionsPage";
 import { MarketingCampaignsPage } from "./pages/MarketingCampaignsPage";
 import { DeliveryTrackingPage } from "./pages/DeliveryTrackingPage";
@@ -134,8 +130,6 @@ import { PlatformCompanyParametersPage } from "./pages/PlatformCompanyParameters
 import { GaragesPage } from "./pages/GaragesPage";
 import { ClaimProvisionsPage } from "./pages/ClaimProvisionsPage";
 import { ClaimIndemnitiesPage } from "./pages/ClaimIndemnitiesPage";
-import { GeneralLedgerPage } from "./pages/GeneralLedgerPage";
-import { CashPositionPage } from "./pages/CashPositionPage";
 import { NameDaysPage } from "./pages/NameDaysPage";
 import { MyDataSubmissionsPage } from "./pages/MyDataSubmissionsPage";
 import { DocumentDesignerPage } from "./pages/DocumentDesignerPage";
@@ -186,6 +180,7 @@ import { AllToolsPage } from "./pages/AllToolsPage";
 import { CarrierBridgesPage } from "./pages/CarrierBridgesPage";
 import { ProductionListsPage } from "./pages/ProductionListsPage";
 import { RenewalsPage } from "./pages/RenewalsPage";
+import { FinancialsPage } from "./pages/FinancialsPage";
 import {
   SubscriptionPlansPage, BroadcastPage, PlatformTranslationsPage,
   PlatformApiKeysPage, PlatformIntegrationsPage, PlatformBackupsPage,
@@ -221,10 +216,8 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/endorsements", labelKey: "nav.endorsements", icon: <EditNoteIcon />, package: "BackOffice", group: "production" },
     { to: "/cancellations", labelKey: "nav.cancellations", icon: <CancelPresentationIcon />, package: "BackOffice", group: "production" },
 
-    // BackOffice → ΟΙΚΟΝΟΜΙΚΑ
-    { to: "/receipts", labelKey: "nav.receipts", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
-    { to: "/payments", labelKey: "nav.payments", icon: <RequestQuoteIcon />, package: "BackOffice", group: "financials" },
-    { to: "/financial-movements", labelKey: "nav.financials", icon: <AttachMoneyIcon />, package: "BackOffice", group: "financials" },
+    // BackOffice → ΟΙΚΟΝΟΜΙΚΑ (unified — five sub-workspaces as tabs)
+    { to: "/financials", labelKey: "nav.financials", icon: <AttachMoneyIcon />, package: "BackOffice", group: "financials" },
     { to: "/securities", labelKey: "nav.securities", icon: <RestoreIcon />, package: "BackOffice", group: "financials" },
     { to: "/credit-notes", labelKey: "nav.creditNotes", icon: <ReceiptLongOutlinedIcon />, package: "BackOffice", group: "financials" },
 
@@ -489,10 +482,7 @@ export default function App() {
                   <Route path="tariffs" element={<TariffsPage />} />
                   <Route path="cover-notes" element={<CoverNotesPage />} />
                   <Route path="branches" element={<BranchesPage />} />
-                  <Route path="receipts" element={<ReceiptsPage />} />
-                  <Route path="payments" element={<PaymentsPage />} />
                   <Route path="securities" element={<SecuritiesPage />} />
-                  <Route path="financial-movements" element={<FinancialMovementsPage />} />
                   <Route path="bank-connections" element={<BankConnectionsPage />} />
                   <Route path="marketing" element={<MarketingCampaignsPage />} />
                   <Route path="delivery-tracking" element={<DeliveryTrackingPage />} />
@@ -530,8 +520,6 @@ export default function App() {
                   <Route path="garages" element={<GaragesPage />} />
                   <Route path="claim-provisions" element={<ClaimProvisionsPage />} />
                   <Route path="indemnities" element={<ClaimIndemnitiesPage />} />
-                  <Route path="gl" element={<GeneralLedgerPage />} />
-                  <Route path="cash" element={<CashPositionPage />} />
                   <Route path="name-days" element={<NameDaysPage />} />
                   <Route path="mydata" element={<MyDataSubmissionsPage />} />
                   <Route path="document-designer" element={<DocumentDesignerPage />} />
@@ -546,6 +534,12 @@ export default function App() {
                   <Route path="carrier-bridges" element={<CarrierBridgesPage />} />
                   <Route path="production-lists" element={<ProductionListsPage />} />
                   <Route path="renewals" element={<RenewalsPage />} />
+                  <Route path="financials" element={<FinancialsPage />} />
+                  <Route path="receipts" element={<Navigate to="/app/financials?tab=receipts" replace />} />
+                  <Route path="payments" element={<Navigate to="/app/financials?tab=payments" replace />} />
+                  <Route path="financial-movements" element={<Navigate to="/app/financials?tab=movements" replace />} />
+                  <Route path="cash" element={<Navigate to="/app/financials?tab=cash" replace />} />
+                  <Route path="gl" element={<Navigate to="/app/financials?tab=gl" replace />} />
                   <Route path="company-bridges" element={<Navigate to="/app/carrier-bridges" replace />} />
                   <Route path="bridge-import" element={<Navigate to="/app/carrier-bridges" replace />} />
                   <Route path="platform/carriers" element={<PlatformCarriersPage />} />

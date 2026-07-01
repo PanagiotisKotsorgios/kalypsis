@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { money } from "../utils/format";
 import { NumberedPager } from "../components/TableToolbar";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -105,7 +106,7 @@ export function CashPositionPage() {
         <Stack direction="row" spacing={2}>
           <Box sx={{ textAlign: "right" }}>
             <Typography variant="caption" color="text.secondary">{t("cash.totalLabel")}</Typography>
-            <Typography variant="h5" fontWeight={800} color="success.main">{totalCash.toFixed(2)} €</Typography>
+            <Typography variant="h5" fontWeight={800} color="success.main">{money(totalCash)}</Typography>
           </Box>
           <Button variant="outlined" startIcon={<AddIcon />} onClick={() => setNewAccountOpen(true)}>{t("cash.createAccount")}</Button>
           <Button variant="contained" size="large" startIcon={<AddIcon />} onClick={() => setNewMovementOpen(true)}>{t("cash.createMovement")}</Button>
@@ -130,11 +131,11 @@ export function CashPositionPage() {
       <Stack direction={{ xs: "column", md: "row" }} spacing={2} mb={3}>
         <Card variant="outlined" sx={{ p: 2, flex: 1 }}>
           <Typography variant="caption" color="text.secondary">Σήμερα — Είσοδος</Typography>
-          <Typography variant="h5" fontWeight={800} color="success.main">+{todayIn.toFixed(2)} €</Typography>
+          <Typography variant="h5" fontWeight={800} color="success.main">+{money(todayIn)}</Typography>
         </Card>
         <Card variant="outlined" sx={{ p: 2, flex: 1 }}>
           <Typography variant="caption" color="text.secondary">Σήμερα — Έξοδος</Typography>
-          <Typography variant="h5" fontWeight={800} color="error.main">−{todayOut.toFixed(2)} €</Typography>
+          <Typography variant="h5" fontWeight={800} color="error.main">−{money(todayOut)}</Typography>
         </Card>
         <Card variant="outlined" sx={{ p: 2, flex: 1 }}>
           <Typography variant="caption" color="text.secondary">Σήμερα — Καθαρό</Typography>

@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
+import { money, date } from "../utils/format";
 import { useTableState } from "../components/useTableState";
 import { NumberedPager } from "../components/TableToolbar";
 
@@ -106,7 +107,7 @@ export function ReceiptsPage() {
         <Stack direction="row" spacing={2} alignItems="center">
           <Box sx={{ textAlign: "right" }}>
             <Typography variant="caption" color="text.secondary">{t("receipts.totalShown")}</Typography>
-            <Typography variant="h5" fontWeight={800}>{total.toFixed(2)} €</Typography>
+            <Typography variant="h5" fontWeight={800}>{money(total)}</Typography>
           </Box>
           <DataExportButton entity="receipts" search={search} />
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("receipts.create")}</Button>
@@ -157,12 +158,12 @@ export function ReceiptsPage() {
               {rows.map(r => (
                 <TableRow key={r.id} hover>
                   <TableCell><Typography fontWeight={700} sx={{ fontFamily: "monospace" }}>{r.number}</Typography></TableCell>
-                  <TableCell>{r.receivedOn}</TableCell>
+                  <TableCell>{date(r.receivedOn)}</TableCell>
                   <TableCell>{r.customerName}</TableCell>
                   <TableCell>{r.policyNumber ?? "—"}</TableCell>
                   <TableCell><PaidChip policyId={r.policyId} /></TableCell>
                   <TableCell>{t(`paymentMethod.${r.method}`)}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{r.amount.toFixed(2)} {r.currency}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{money(r.amount, r.currency)}</TableCell>
                   <TableCell align="right">
                     <IconButton size="small" color="error" onClick={() => { if (confirm(t("common.confirmDelete"))) del.mutate(r.id); }}>
                       <DeleteIcon fontSize="small" />

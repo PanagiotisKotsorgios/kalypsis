@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
+import { money, date } from "../utils/format";
 
 const METHODS = ["Cash","Card","BankTransfer","Cheque","PromissoryNote","Other"] as const;
 type Method = typeof METHODS[number];
@@ -69,7 +70,7 @@ export function PaymentsPage() {
           <Box sx={{ textAlign: "right" }}>
             <Typography variant="caption" color="text.secondary">Σύνολο · Συμψηφισμός · Καθαρή εκροή</Typography>
             <Typography variant="body1" fontWeight={800}>
-              {total.toFixed(2)} € · −{netted.toFixed(2)} € · {cashOutTotal.toFixed(2)} €
+              {money(total)} · −{money(netted)} · {money(cashOutTotal)}
             </Typography>
           </Box>
           <DataExportButton entity="payments" search={search} />
@@ -127,7 +128,7 @@ export function PaymentsPage() {
                 return (
                 <TableRow key={p.id} hover>
                   <TableCell><Typography fontWeight={700} sx={{ fontFamily: "monospace" }}>{p.number}</Typography></TableCell>
-                  <TableCell>{p.paidOn}</TableCell>
+                  <TableCell>{date(p.paidOn)}</TableCell>
                   <TableCell>{p.beneficiaryInsuranceCompanyName ?? p.beneficiaryProducerName ?? p.beneficiaryName ?? "—"} <Typography variant="caption" color="text.secondary"> · {t(`payments.benType.${p.beneficiaryType}`)}</Typography></TableCell>
                   <TableCell>
                     <Chip size="small"
@@ -136,8 +137,8 @@ export function PaymentsPage() {
                       sx={{ fontWeight: 700 }} />
                   </TableCell>
                   <TableCell>{t(`paymentMethod.${p.method}`)}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{p.amount.toFixed(2)} {p.currency}</TableCell>
-                  <TableCell align="right" sx={{ color: "text.secondary" }}>{p.commissionsNetted.toFixed(2)}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{money(p.amount, p.currency)}</TableCell>
+                  <TableCell align="right" sx={{ color: "text.secondary" }}>{money(p.commissionsNetted)}</TableCell>
                   <TableCell align="right">
                     <IconButton size="small" color="error" onClick={() => { if (confirm(t("common.confirmDelete"))) del.mutate(p.id); }}>
                       <DeleteIcon fontSize="small" />

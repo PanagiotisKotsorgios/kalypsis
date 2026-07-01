@@ -16,6 +16,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { api } from "../api/client";
 import { ExportButton } from "../components/ExportButton";
+import { money, date } from "../utils/format";
 
 const KINDS = ["CustomerCharge","CustomerCredit","PartnerCharge","PartnerCredit","CompanyCharge","CompanyCredit","CommissionEarned","OverCommissionEarned","Adjustment"] as const;
 type Kind = typeof KINDS[number];
@@ -110,15 +111,15 @@ export function FinancialMovementsPage() {
       <Stack direction={{ xs: "column", md: "row" }} spacing={2} mb={3}>
         <Card sx={{ flex: 1 }}><CardContent>
           <Typography variant="overline" color="text.secondary">{t("financials.kpis.receipts")}</Typography>
-          <Typography variant="h4" fontWeight={800} color="success.main">{(summary.data?.totalReceipts ?? 0).toFixed(2)} €</Typography>
+          <Typography variant="h4" fontWeight={800} color="success.main">{money(summary.data?.totalReceipts ?? 0)}</Typography>
         </CardContent></Card>
         <Card sx={{ flex: 1 }}><CardContent>
           <Typography variant="overline" color="text.secondary">{t("financials.kpis.payments")}</Typography>
-          <Typography variant="h4" fontWeight={800} color="error.main">{(summary.data?.totalPayments ?? 0).toFixed(2)} €</Typography>
+          <Typography variant="h4" fontWeight={800} color="error.main">{money(summary.data?.totalPayments ?? 0)}</Typography>
         </CardContent></Card>
         <Card sx={{ flex: 1 }}><CardContent>
           <Typography variant="overline" color="text.secondary">{t("financials.kpis.commissions")}</Typography>
-          <Typography variant="h4" fontWeight={800} color="primary.main">{(summary.data?.commissionsEarned ?? 0).toFixed(2)} €</Typography>
+          <Typography variant="h4" fontWeight={800} color="primary.main">{money(summary.data?.commissionsEarned ?? 0)}</Typography>
         </CardContent></Card>
       </Stack>
 
@@ -152,7 +153,7 @@ export function FinancialMovementsPage() {
               )}
               {(q.data ?? []).map(m => (
                 <TableRow key={m.id} hover>
-                  <TableCell>{m.movementDate}</TableCell>
+                  <TableCell>{date(m.movementDate)}</TableCell>
                   <TableCell><Chip label={t(`financials.kindLabel.${m.kind}`)} size="small" /></TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5}>
@@ -163,7 +164,7 @@ export function FinancialMovementsPage() {
                     </Stack>
                   </TableCell>
                   <TableCell sx={{ color: "text.secondary" }}>{m.description ?? "—"}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{m.amount.toFixed(2)} {m.currency}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{money(m.amount, m.currency)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
