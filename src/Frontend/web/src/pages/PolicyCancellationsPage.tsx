@@ -9,6 +9,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { money } from "../utils/format";
 
 type Status = "Draft" | "Submitted" | "Approved" | "Rejected" | "Effective";
 
@@ -101,7 +102,7 @@ export function PolicyCancellationsPage() {
                     <Chip size="small" label={c.refundMethod} variant="outlined" />
                   </TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700, color: "success.main" }}>
-                    {c.refundAmount.toFixed(2)} {c.currency}
+                    {money(c.refundAmount, c.currency)}
                   </TableCell>
                   <TableCell>
                     <Chip size="small"
@@ -111,7 +112,7 @@ export function PolicyCancellationsPage() {
                   <TableCell align="right">
                     {c.status !== "Effective" && c.status !== "Rejected" && (
                       <IconButton size="small" color="success" onClick={() => {
-                        if (confirm(`Έγκριση ακύρωσης ${c.cancellationNumber}; Θα δημιουργηθεί αυτόματα πιστωτικό για ${c.refundAmount.toFixed(2)} ${c.currency}.`)) {
+                        if (confirm(`Έγκριση ακύρωσης ${c.cancellationNumber}; Θα δημιουργηθεί αυτόματα πιστωτικό για ${money(c.refundAmount, c.currency)}.`)) {
                           approve.mutate(c.id);
                         }
                       }} title="Έγκριση & εφαρμογή">
@@ -199,7 +200,7 @@ function CancellationDialog({ open, onClose, onSaved }: { open: boolean; onClose
         <Stack spacing={2} mt={1}>
           <Autocomplete
             options={policies.data ?? []}
-            getOptionLabel={(p) => `${p.policyNumber} · ${p.premium.toFixed(2)} ${p.currency}`}
+            getOptionLabel={(p) => `${p.policyNumber} · ${money(p.premium, p.currency)}`}
             value={policy}
             onChange={(_, v) => setPolicy(v)}
             renderInput={(p) => <TextField {...p} label="Συμβόλαιο προς ακύρωση *" />}
@@ -237,7 +238,7 @@ function CancellationDialog({ open, onClose, onSaved }: { open: boolean; onClose
 
           {previewRefund !== null && (
             <Alert severity="info" sx={{ fontSize: 14 }}>
-              <strong>Υπολογισμός επιστροφής:</strong> {previewRefund.toFixed(2)} {policy?.currency} (προεπισκόπηση)
+              <strong>Υπολογισμός επιστροφής:</strong> {money(previewRefund, policy?.currency ?? "EUR")} (προεπισκόπηση)
               {refundMethod === "ProRata" && " — αναλογικά για τις υπόλοιπες ημέρες"}
               {refundMethod === "ShortRate" && " — pro rata με 20% ποινή πρόωρης λήξης"}
             </Alert>

@@ -22,6 +22,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { NumberedPager } from "../components/TableToolbar";
+import { num } from "../utils/format";
 
 interface AvailableCarrier {
   insuranceCompanyId: string; name: string; code: string;
@@ -423,10 +424,10 @@ export function CarrierBridgesPage() {
                     </TableCell>
                     <TableCell sx={{ fontSize: 12 }}>{row.startDate ?? "—"}</TableCell>
                     <TableCell sx={{ fontSize: 12 }}>{row.endDate ?? "—"}</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700 }}>{row.grossPremium?.toFixed(2) ?? "—"}</TableCell>
-                    <TableCell align="right">{row.netPremium?.toFixed(2) ?? "—"}</TableCell>
-                    <TableCell align="right">{row.partnerCommission?.toFixed(2) ?? "—"}</TableCell>
-                    <TableCell align="right">{row.agencyCommission?.toFixed(2) ?? "—"}</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>{row.grossPremium != null ? num(row.grossPremium) : "—"}</TableCell>
+                    <TableCell align="right">{row.netPremium != null ? num(row.netPremium) : "—"}</TableCell>
+                    <TableCell align="right">{row.partnerCommission != null ? num(row.partnerCommission) : "—"}</TableCell>
+                    <TableCell align="right">{row.agencyCommission != null ? num(row.agencyCommission) : "—"}</TableCell>
                     <TableCell>
                       {(() => {
                         const shownNotes = row.linkedPolicyId
@@ -567,10 +568,10 @@ function RowDetailDialog({ row, onClose, onUpdate }: {
               <Field label="Πρόταση" value={row.proposalNumber} />
               <Field label={t("carrierBridges.col.start")} value={row.startDate} />
               <Field label={t("carrierBridges.col.end")} value={row.endDate} />
-              <Field label={t("carrierBridges.col.gross")} value={row.grossPremium?.toFixed(2) ?? null} />
-              <Field label={t("carrierBridges.col.net")} value={row.netPremium?.toFixed(2) ?? null} />
-              <Field label={t("carrierBridges.col.partnerComm")} value={row.partnerCommission?.toFixed(2) ?? null} />
-              <Field label={t("carrierBridges.col.agencyComm")} value={row.agencyCommission?.toFixed(2) ?? null} />
+              <Field label={t("carrierBridges.col.gross")} value={row.grossPremium != null ? num(row.grossPremium) : null} />
+              <Field label={t("carrierBridges.col.net")} value={row.netPremium != null ? num(row.netPremium) : null} />
+              <Field label={t("carrierBridges.col.partnerComm")} value={row.partnerCommission != null ? num(row.partnerCommission) : null} />
+              <Field label={t("carrierBridges.col.agencyComm")} value={row.agencyCommission != null ? num(row.agencyCommission) : null} />
               <Field label="Συνεργάτης" value={row.partnerCode} />
               <Field label="Εταιρία" value={row.carrierName} />
             </Box>

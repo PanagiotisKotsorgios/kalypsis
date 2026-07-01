@@ -10,6 +10,7 @@ import PrintIcon from "@mui/icons-material/Print";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { money } from "../utils/format";
 
 const TYPES = ["Auto","Home","Health","Life","Business","Travel","Other"] as const;
 const STATUSES = ["Active","Converted","Expired","Cancelled"] as const;
@@ -88,7 +89,7 @@ export function CoverNotesPage() {
                   <TableCell>{n.customerName}</TableCell>
                   <TableCell>{t(`policyType.${n.policyType}`)}</TableCell>
                   <TableCell>{n.validFrom} → {n.validUntil}</TableCell>
-                  <TableCell align="right">{n.estimatedPremium != null ? `${n.estimatedPremium.toFixed(2)} ${n.currency}` : "—"}</TableCell>
+                  <TableCell align="right">{n.estimatedPremium != null ? money(n.estimatedPremium, n.currency) : "—"}</TableCell>
                   <TableCell><Chip size="small" color={colors[n.status]} label={t(`coverNotes.status.${n.status}`)} /></TableCell>
                   <TableCell align="right">
                     <IconButton size="small" title={t("coverNotes.print")} onClick={() => printNote(n)}><PrintIcon fontSize="small" /></IconButton>

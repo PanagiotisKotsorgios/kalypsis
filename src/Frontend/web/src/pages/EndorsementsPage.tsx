@@ -12,6 +12,7 @@ import EditNoteIcon from "@mui/icons-material/EditNote";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { money } from "../utils/format";
 
 type EndorsementType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 99;
 type EndorsementStatus = "Draft" | "Issued" | "Cancelled";
@@ -128,10 +129,10 @@ export function EndorsementsPage() {
                     <div>ισχύς: {new Date(e.effectiveFrom).toLocaleDateString("el-GR")}</div>
                   </TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700, color: e.premiumDelta > 0 ? "error.main" : "success.main" }}>
-                    {e.premiumDelta > 0 ? "+" : ""}{e.premiumDelta.toFixed(2)} {e.currency}
+                    {e.premiumDelta > 0 ? "+" : ""}{money(e.premiumDelta, e.currency)}
                   </TableCell>
                   <TableCell align="right" sx={{ color: "text.secondary" }}>
-                    {e.commissionDelta > 0 ? "+" : ""}{e.commissionDelta.toFixed(2)} {e.currency}
+                    {e.commissionDelta > 0 ? "+" : ""}{money(e.commissionDelta, e.currency)}
                   </TableCell>
                   <TableCell>
                     <Chip size="small" color={e.status === "Issued" ? "success" : e.status === "Cancelled" ? "default" : "warning"}
@@ -255,7 +256,7 @@ function EndorsementDialog({ open, item, onClose, onSaved }: {
           {!item && (
             <Autocomplete
               options={policies.data ?? []}
-              getOptionLabel={(p) => `${p.policyNumber} · ασφάλιστρο ${p.premium.toFixed(2)} €`}
+              getOptionLabel={(p) => `${p.policyNumber} · ασφάλιστρο ${money(p.premium)}`}
               value={policy}
               onChange={(_, v) => setPolicy(v)}
               renderInput={(p) => <TextField {...p} label="Συμβόλαιο *" />}
