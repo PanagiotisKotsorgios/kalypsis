@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { money } from "../utils/format";
 
 interface IndemnityDto {
   id: string; claimId: string; claimNumber: string;
@@ -54,7 +55,7 @@ export function ClaimIndemnitiesPage() {
         <Stack direction="row" spacing={2} alignItems="center">
           <Box sx={{ textAlign: "right" }}>
             <Typography variant="caption" color="text.secondary">{t("indemnities.totalsLabel")}</Typography>
-            <Typography variant="body1" fontWeight={800}>{total.toFixed(2)} €</Typography>
+            <Typography variant="body1" fontWeight={800}>{money(total)}</Typography>
           </Box>
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("indemnities.create")}</Button>
         </Stack>
@@ -86,7 +87,7 @@ export function ClaimIndemnitiesPage() {
                     <Typography variant="caption" color="text.secondary"> · {i.payeeType}</Typography>
                   </TableCell>
                   <TableCell>{i.paymentMethod}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700, color: "error.main" }}>{i.amount.toFixed(2)} {i.currency}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, color: "error.main" }}>{money(i.amount, i.currency)}</TableCell>
                   <TableCell align="right">
                     <IconButton size="small" color="error" onClick={() => { if (confirm(t("common.confirmDelete"))) del.mutate(i.id); }}>
                       <DeleteIcon fontSize="small" />

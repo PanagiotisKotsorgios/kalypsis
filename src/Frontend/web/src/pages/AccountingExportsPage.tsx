@@ -7,6 +7,7 @@ import PlayCircleIcon from "@mui/icons-material/PlayCircle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { dateTime } from "../utils/format";
 
 interface ExportDto { id: string; year: number; month: number; runAt: string; status: "Pending"|"Running"|"Completed"|"Failed"; entries: number; fileName: string | null; notes: string | null; }
 
@@ -62,7 +63,7 @@ export function AccountingExportsPage() {
               {(q.data ?? []).map(x => (
                 <TableRow key={x.id} hover>
                   <TableCell><Typography fontWeight={700}>{x.year}-{x.month.toString().padStart(2, "0")}</Typography></TableCell>
-                  <TableCell>{new Date(x.runAt).toLocaleString("el-GR")}</TableCell>
+                  <TableCell>{dateTime(x.runAt)}</TableCell>
                   <TableCell align="right">{x.entries}</TableCell>
                   <TableCell sx={{ fontFamily: "monospace" }}>{x.fileName ?? "—"}</TableCell>
                   <TableCell><Chip size="small" color={statusColor(x.status)} label={t(`accounting.statusLabel.${x.status}`)} /></TableCell>

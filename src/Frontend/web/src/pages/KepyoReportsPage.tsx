@@ -7,6 +7,7 @@ import PlayCircleIcon from "@mui/icons-material/PlayCircle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { money, dateTime } from "../utils/format";
 
 interface KepyoDto { id: string; year: number; runAt: string; status: "Pending"|"Running"|"Completed"|"Failed"; suppliers: number; customers: number; totalAmount: number; fileName: string | null; }
 
@@ -60,10 +61,10 @@ export function KepyoReportsPage() {
               {(q.data ?? []).map(r => (
                 <TableRow key={r.id} hover>
                   <TableCell><Typography fontWeight={700}>{r.year}</Typography></TableCell>
-                  <TableCell>{new Date(r.runAt).toLocaleString("el-GR")}</TableCell>
+                  <TableCell>{dateTime(r.runAt)}</TableCell>
                   <TableCell align="right">{r.suppliers}</TableCell>
                   <TableCell align="right">{r.customers}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{r.totalAmount.toFixed(2)} €</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{money(r.totalAmount)}</TableCell>
                   <TableCell sx={{ fontFamily: "monospace" }}>{r.fileName ?? "—"}</TableCell>
                   <TableCell><Chip size="small" color={color(r.status)} label={t(`accounting.statusLabel.${r.status}`)} /></TableCell>
                 </TableRow>

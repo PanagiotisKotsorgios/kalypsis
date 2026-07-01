@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { money, num } from "../utils/format";
 
 interface SettlementDto {
   id: string; claimId: string; claimNumber: string;
@@ -89,7 +90,7 @@ export function FriendlySettlementsPage() {
                   <TableCell>{s.claimNumber}</TableCell>
                   <TableCell>{s.declarationDate}</TableCell>
                   <TableCell>{s.otherPartyInsurer ?? "—"}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{s.agreedAmount?.toFixed(2) ?? "—"} {s.currency}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{s.agreedAmount != null ? money(s.agreedAmount, s.currency) : "—"}</TableCell>
                   <TableCell align="center">{s.victimCount}</TableCell>
                   <TableCell><Chip size="small" color={STATUS_COLOR[s.status] ?? "default"} label={s.status} /></TableCell>
                   <TableCell align="right">
@@ -285,8 +286,8 @@ function VictimsDialog({ settlement, onClose }: { settlement: SettlementDto | nu
                     <TableCell>{v.victimType}</TableCell>
                     <TableCell>{v.afm ?? "—"}</TableCell>
                     <TableCell>{v.phone ?? "—"}</TableCell>
-                    <TableCell align="right">{v.reserveAmount?.toFixed(2) ?? "—"}</TableCell>
-                    <TableCell align="right">{v.paidAmount?.toFixed(2) ?? "—"}</TableCell>
+                    <TableCell align="right">{v.reserveAmount != null ? num(v.reserveAmount) : "—"}</TableCell>
+                    <TableCell align="right">{v.paidAmount != null ? num(v.paidAmount) : "—"}</TableCell>
                     <TableCell>{v.status}</TableCell>
                     <TableCell align="right">
                       <IconButton size="small" color="error" onClick={() => { if (confirm(t("common.confirmDelete"))) del.mutate(v.id); }}>

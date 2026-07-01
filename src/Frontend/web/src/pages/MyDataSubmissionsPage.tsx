@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { money, dateTime } from "../utils/format";
 
 interface SubmissionDto {
   id: string; submissionNumber: string; transmissionKind: string;
@@ -70,9 +71,9 @@ export function MyDataSubmissionsPage() {
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{s.submissionNumber}</TableCell>
                   <TableCell>{s.transmissionKind}</TableCell>
                   <TableCell>{s.periodFrom} → {s.periodTo}</TableCell>
-                  <TableCell>{new Date(s.submittedAt).toLocaleString("el-GR")}</TableCell>
+                  <TableCell>{dateTime(s.submittedAt)}</TableCell>
                   <TableCell align="right">{s.invoiceCount}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{s.totalAmount.toFixed(2)} {s.currency}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{money(s.totalAmount, s.currency)}</TableCell>
                   <TableCell sx={{ fontFamily: "monospace", fontSize: 11 }}>{s.aadeMark ?? "—"}</TableCell>
                   <TableCell><Chip size="small" color={STATUS_COLOR[s.status] ?? "default"} label={s.status} /></TableCell>
                   <TableCell align="right">

@@ -8,6 +8,7 @@ import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { money, date } from "../utils/format";
 
 const KIND_LABELS: Record<number, string> = {
   1: "Επιστροφή λόγω ακύρωσης",
@@ -101,7 +102,7 @@ export function CreditNotesPage() {
           <Box sx={{ flex: 1 }} />
           <Box sx={{ textAlign: "right" }}>
             <Typography variant="caption" color="text.secondary">Σύνολο φιλτραρισμένα</Typography>
-            <Typography fontWeight={800}>{total.toFixed(2)} €</Typography>
+            <Typography fontWeight={800}>{money(total)}</Typography>
           </Box>
           <Button size="small" onClick={() => {
             setSearch(""); setKindFilter(""); setStatusFilter(""); setFromDate(""); setToDate("");
@@ -135,11 +136,11 @@ export function CreditNotesPage() {
                 <TableRow key={n.id} hover>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{n.creditNoteNumber}</TableCell>
                   <TableCell>{KIND_LABELS[n.kind] ?? "—"}</TableCell>
-                  <TableCell>{new Date(n.issuedAt).toLocaleDateString("el-GR")}</TableCell>
+                  <TableCell>{date(n.issuedAt)}</TableCell>
                   <TableCell>{n.description}</TableCell>
                   <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{n.relatedDocumentRef ?? "—"}</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700, color: "success.main" }}>
-                    {n.amount.toFixed(2)} {n.currency}
+                    {money(n.amount, n.currency)}
                   </TableCell>
                   <TableCell><Chip size="small" color={n.status === "Issued" ? "success" : "default"} label={n.status} /></TableCell>
                 </TableRow>

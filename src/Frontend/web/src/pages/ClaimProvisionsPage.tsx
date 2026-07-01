@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { money, num } from "../utils/format";
 
 interface ProvisionDto {
   id: string; claimId: string; claimNumber: string;
@@ -51,7 +52,7 @@ export function ClaimProvisionsPage() {
           <Box sx={{ textAlign: "right" }}>
             <Typography variant="caption" color="text.secondary">{t("provisions.totalsLabel")}</Typography>
             <Typography variant="body1" fontWeight={800}>
-              {t("provisions.reserve")} {totalReserve.toFixed(2)} € · IBNR {totalIbnr.toFixed(2)} €
+              {t("provisions.reserve")} {money(totalReserve)} · IBNR {money(totalIbnr)}
             </Typography>
           </Box>
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("provisions.create")}</Button>
@@ -78,8 +79,8 @@ export function ClaimProvisionsPage() {
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{p.claimNumber}</TableCell>
                   <TableCell>{p.evaluationDate}</TableCell>
                   <TableCell>{p.assessorName ?? "—"}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{p.reserveAmount.toFixed(2)} {p.currency}</TableCell>
-                  <TableCell align="right" sx={{ color: "text.secondary" }}>{(p.incurredButNotReported ?? 0).toFixed(2)}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{money(p.reserveAmount, p.currency)}</TableCell>
+                  <TableCell align="right" sx={{ color: "text.secondary" }}>{num(p.incurredButNotReported ?? 0)}</TableCell>
                   <TableCell align="right">
                     <IconButton size="small" color="error" onClick={() => { if (confirm(t("common.confirmDelete"))) del.mutate(p.id); }}>
                       <DeleteIcon fontSize="small" />
