@@ -295,16 +295,50 @@ public static class DataSeeder
             WHERE `ParentCompanyId` = '{canonical}'", ct);
         logger.LogInformation("Cleanup: resurrected {Count} broker-sub row(s).", subsResurrected);
 
-        // (4) Soft-delete every row that isn't the canonical broker or one of
-        // its subs. This kills both the demo carriers AND the duplicate
-        // Grand Cover broker copies.
+        // (4) Soft-delete every row that isn't the canonical broker, one of
+        // its subs, or a *whitelisted standalone carrier we ship a bridge
+        // parser for*. This kills the demo carriers and duplicate Grand
+        // Cover broker copies while keeping ERGO alive alongside GC.
+        var carrierWhitelistCsv = "'ERGO'"; // extend when a new bridge lands
         var deletedCarriers = await db.Database.ExecuteSqlRawAsync($@"
             UPDATE `insurance_companies`
             SET `DeletedAt` = UTC_TIMESTAMP(6), `IsActive` = 0
             WHERE `DeletedAt` IS NULL
               AND `Id` <> '{canonical}'
-              AND (`ParentCompanyId` IS NULL OR `ParentCompanyId` <> '{canonical}')", ct);
+              AND (`ParentCompanyId` IS NULL OR `ParentCompanyId` <> '{canonical}')
+              AND `Code` NOT IN ({carrierWhitelistCsv})", ct);
         logger.LogInformation("Cleanup: soft-deleted {Count} non-canonical carrier row(s) across all tenants.", deletedCarriers);
+
+        // (4.5) Force-undelete + globalise every whitelisted standalone
+        // carrier that already exists in the DB (any tenant), so ERGO
+        // becomes a proper global row again after prior cleanups nuked it.
+        var whitelistedResurrected = await db.Database.ExecuteSqlRawAsync($@"
+            UPDATE `insurance_companies`
+            SET `DeletedAt` = NULL, `IsActive` = 1, `TenantId` = NULL, `ParentCompanyId` = NULL, `IsBroker` = 0
+            WHERE `Code` IN ({carrierWhitelistCsv})", ct);
+        logger.LogInformation("Cleanup: resurrected {Count} whitelisted standalone carrier row(s).", whitelistedResurrected);
+
+        // (4.6) If ERGO doesn't exist at all, seed it as a global standalone
+        // carrier so the γέφυρα upload flow can pick it. We only need name+
+        // code+active; everything else is set by the operator later.
+        var ergoExists = await db.InsuranceCompanies.IgnoreQueryFilters()
+            .AnyAsync(c => c.Code == "ERGO" && c.DeletedAt == null, ct);
+        if (!ergoExists)
+        {
+            db.InsuranceCompanies.Add(new InsuranceCompany
+            {
+                Id = Guid.NewGuid(),
+                TenantId = null,
+                Name = "ERGO Hellas",
+                Code = "ERGO",
+                Country = "GR",
+                IsActive = true,
+                IsBroker = false,
+                ParentCompanyId = null
+            });
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("Cleanup: seeded ERGO Hellas global carrier row.");
+        }
 
         // (5) Re-route any CompanyParameterItem rows that were attached to a
         // duplicate broker. Without this their data would be invisible

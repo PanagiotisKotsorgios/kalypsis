@@ -246,14 +246,24 @@ function CompanyTable({ rows, onEdit, onDelete, readonly }: {
                 {r.parentCompanyId ? (
                   // Subs share the broker's bridge — they don't have their own.
                   <Chip size="small" variant="outlined" label="Μέσω πρακτορείου" sx={{ color: "text.secondary" }} />
-                ) : (
-                  <Chip
-                    size="small"
-                    color={r.bridgeLinked ? "primary" : "warning"}
-                    variant={r.bridgeLinked ? "filled" : "outlined"}
-                    label={r.bridgeLinked ? "Συνδεδεμένη" : "Χωρίς γέφυρα"}
-                  />
-                )}
+                ) : (() => {
+                  // Three tiers of availability:
+                  //   1. Συνδεδεμένη — tenant already has a CompanyBridge row
+                  //      (usually created on first commit).
+                  //   2. Αναλυτής διαθέσιμος — the platform ships a parser
+                  //      for this carrier, so the operator can upload today.
+                  //   3. Χωρίς γέφυρα — no parser exists yet.
+                  const code = (r.code ?? "").toUpperCase();
+                  const analyzerAvailable =
+                    code.includes("ERGO") || code.includes("GRAND_COVER") || code.includes("GRANDCOVER");
+                  if (r.bridgeLinked) {
+                    return <Chip size="small" color="primary" label="Συνδεδεμένη" />;
+                  }
+                  if (analyzerAvailable) {
+                    return <Chip size="small" color="info" variant="outlined" label="Αναλυτής διαθέσιμος" />;
+                  }
+                  return <Chip size="small" color="warning" variant="outlined" label="Χωρίς γέφυρα" />;
+                })()}
               </TableCell>
               <TableCell align="right">
                 <Chip size="small" color={r.parameterItemCount > 0 ? "success" : "warning"} variant="outlined" label={r.parameterItemCount} />

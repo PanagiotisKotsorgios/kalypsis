@@ -243,7 +243,14 @@ export function CarrierBridgesPage() {
             <Button onClick={() => setSelected(null)}>{t("carrierBridges.changeCarrier")}</Button>
           </Stack>
           <Alert severity="info" sx={{ mb: 2 }}>
-            {t("carrierBridges.formatNote", { format: selected.bridgeFormat ?? "ERGO" })}
+            {(() => {
+              const fmt = (selected.bridgeFormat ?? "ERGO").toUpperCase();
+              // GRAND_COVER exports a multi-CSV .zip; ERGO ships a single .xlsx.
+              // Each carrier picks its own extension so the operator sees the
+              // right instruction.
+              const ext = fmt.includes("GRAND") ? ".zip" : ".xlsx";
+              return `Αναλυτής για format: ${fmt}. Δεκτό αρχείο: ${ext}`;
+            })()}
             <br />
             {t("carrierBridges.lobNote", "Επιλέξτε τον κλάδο του αρχείου. Επιτρέπεται ένα αρχείο τη φορά.")}
           </Alert>
