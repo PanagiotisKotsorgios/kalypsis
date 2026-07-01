@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import {
-  Alert, Box, Button, Card, Chip, CircularProgress, MenuItem, Stack,
-  Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  Alert, Box, Button, Card, Chip, CircularProgress, Stack,
+  Table, TableBody, TableCell, TableHead, TableRow, Typography
 } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 interface Bridge { id: string; name: string; insuranceCompanyName?: string; isActive: boolean; }
 interface BridgeRun {
@@ -78,10 +79,15 @@ export function BridgeImportPage() {
           </Box>
         </Alert>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
-          <TextField select required label={t("bridge.selectBridge")} value={bridgeId} onChange={e => setBridgeId(e.target.value)} sx={{ minWidth: 280 }}>
-            {(bridges.data ?? []).map(b => <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>)}
-            {(bridges.data ?? []).length === 0 && <MenuItem disabled value="">{t("bridge.noBridges")}</MenuItem>}
-          </TextField>
+          <SearchableSelect
+            label={t("bridge.selectBridge")}
+            required
+            value={bridgeId}
+            onChange={(v) => setBridgeId(v)}
+            sx={{ minWidth: 280 }}
+            options={(bridges.data ?? []).map(b => ({ value: b.id, label: b.name }))}
+            helperText={(bridges.data ?? []).length === 0 ? t("bridge.noBridges") : undefined}
+          />
           <input ref={fileRef} type="file" accept=".csv,text/csv" hidden
             onChange={e => { const f = e.target.files?.[0]; if (f) upload.mutate(f); }} />
           <Button variant="contained" startIcon={<CloudUploadIcon />} disabled={!bridgeId || upload.isPending}
@@ -94,10 +100,14 @@ export function BridgeImportPage() {
       <Stack direction="row" alignItems="center" spacing={2} mb={2}>
         <Typography fontWeight={700}>{t("bridge.runHistory")}</Typography>
         <Box sx={{ flex: 1 }} />
-        <TextField select size="small" label={t("bridge.filterBridge")} value={bridgeId} onChange={e => setBridgeId(e.target.value)} sx={{ minWidth: 220 }}>
-          <MenuItem value="">{t("common.all")}</MenuItem>
-          {(bridges.data ?? []).map(b => <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>)}
-        </TextField>
+        <SearchableSelect
+          label={t("bridge.filterBridge")}
+          value={bridgeId}
+          onChange={(v) => setBridgeId(v)}
+          emptyLabel={t("common.all")}
+          sx={{ minWidth: 220 }}
+          options={(bridges.data ?? []).map(b => ({ value: b.id, label: b.name }))}
+        />
         <Button size="small" startIcon={<RefreshIcon />} onClick={() => qc.invalidateQueries({ queryKey: ["bridge-runs"] })}>
           {t("common.refresh")}
         </Button>

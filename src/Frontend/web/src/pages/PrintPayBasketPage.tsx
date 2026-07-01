@@ -1,12 +1,13 @@
 import { useState } from "react";
 import {
-  Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, MenuItem, Stack, Table, TableBody,
-  TableCell, TableHead, TableRow, TextField, Typography
+  Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Stack, Table, TableBody,
+  TableCell, TableHead, TableRow, Typography
 } from "@mui/material";
 import PrintIcon from "@mui/icons-material/Print";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { money, date } from "../utils/format";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 interface InstallmentDto {
   id: string;
@@ -87,12 +88,16 @@ export function PrintPayBasketPage() {
       <Stack direction={{ xs: "column", lg: "row" }} spacing={3}>
         <Card variant="outlined" sx={{ p: 3, width: { xs: "100%", lg: 360 } }}>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Καλάθι αγορών</Typography>
-          <TextField select fullWidth label="Συνεργάτης (πλαφόν)" value={producerId}
-            onChange={(e) => setProducerId(e.target.value)} sx={{ mb: 2 }}>
-            <MenuItem value="">—</MenuItem>
-            {(producers.data ?? []).map((p) =>
-              <MenuItem key={p.id} value={p.id}>{p.code} · {p.name}</MenuItem>)}
-          </TextField>
+          <SearchableSelect
+            label="Συνεργάτης (πλαφόν)"
+            value={producerId}
+            onChange={(v) => setProducerId(v)}
+            emptyLabel="—"
+            sx={{ mb: 2 }}
+            options={(producers.data ?? []).map((p) => ({
+              value: p.id, label: p.name, hint: p.code,
+            }))}
+          />
 
           <Stack spacing={1}>
             <Box>

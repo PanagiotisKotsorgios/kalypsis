@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 // Unified configuration hub — Movement Types, Bonus-Malus, Renewal Rules,
 // Register Templates, Custom Fields, SAP Bridge, Period Locks.
@@ -627,9 +628,13 @@ function SapMappingDialog({ item, onClose, onSaved }: { item: any | null; onClos
       <DialogContent>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2} mt={1}>
-          <TextField select required label={t("configHub.movementType")} value={form.movementTypeId} onChange={e => setForm({ ...form, movementTypeId: e.target.value })} fullWidth>
-            {(mts.data ?? []).map((m: any) => <MenuItem key={m.id} value={m.id}>{m.name}</MenuItem>)}
-          </TextField>
+          <SearchableSelect
+            label={t("configHub.movementType")}
+            required
+            value={form.movementTypeId}
+            onChange={(v) => setForm({ ...form, movementTypeId: v })}
+            options={(mts.data ?? []).map((m: any) => ({ value: m.id, label: m.name }))}
+          />
           <TextField required label={t("configHub.sapAccount")} value={form.sapAccount} onChange={e => setForm({ ...form, sapAccount: e.target.value })} fullWidth />
           <Stack direction="row" spacing={2}>
             <TextField label={t("configHub.costCenter")} value={form.costCenter} onChange={e => setForm({ ...form, costCenter: e.target.value })} fullWidth />

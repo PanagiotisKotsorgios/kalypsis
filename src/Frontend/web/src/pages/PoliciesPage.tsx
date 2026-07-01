@@ -691,12 +691,13 @@ function PolicyFormDialog({
               const subs = carrierData.filter(c => c.parentCompanyId === broker.id);
               const subValue = selected?.id !== broker.id ? selected?.id ?? "" : "";
               return (
-                <TextField select label="Υποασφαλιστική" value={subValue}
-                  onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value || broker.id, vehicleUseCategory: "", coverCode: "", packageCode: "" })}
-                  fullWidth>
-                  <MenuItem value="">— επιλέξτε υποασφαλιστική —</MenuItem>
-                  {subs.map(s => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
-                </TextField>
+                <SearchableSelect
+                  label="Υποασφαλιστική"
+                  value={subValue}
+                  onChange={(v) => setForm({ ...form, insuranceCompanyId: v || broker.id, vehicleUseCategory: "", coverCode: "", packageCode: "" })}
+                  emptyLabel="— επιλέξτε υποασφαλιστική —"
+                  options={subs.map(s => ({ value: s.id, label: s.name }))}
+                />
               );
             })()}
           </Stack>

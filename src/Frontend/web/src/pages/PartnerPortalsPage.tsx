@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  IconButton, MenuItem, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  IconButton, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -9,6 +9,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 interface AccessDto {
   id: string; producerId: string; producerName: string;
@@ -111,9 +112,14 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
       <DialogContent>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2.5} mt={1}>
-          <TextField select required label={t("partnerPortals.producer")} value={form.producerId} onChange={e => setForm({ ...form, producerId: e.target.value })} fullWidth disabled={editing}>
-            {(producers.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-          </TextField>
+          <SearchableSelect
+            label={t("partnerPortals.producer")}
+            required
+            disabled={editing}
+            value={form.producerId}
+            onChange={(v) => setForm({ ...form, producerId: v })}
+            options={(producers.data ?? []).map(p => ({ value: p.id, label: p.name }))}
+          />
           <Stack spacing={1}>
             {[
               { key: "isActive", label: t("common.active") },

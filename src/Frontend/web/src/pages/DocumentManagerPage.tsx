@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Alert, Box, Button, Card, CardContent, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  Grid, IconButton, MenuItem, Stack, TextField, Typography
+  Grid, IconButton, Stack, TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -9,6 +9,7 @@ import FolderIcon from "@mui/icons-material/Folder";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 interface FolderDto { id: string; name: string; description: string | null; customerId: string | null; customerName: string | null; parentFolderId: string | null; color: string; }
 interface CustomerLite { id: string; type: string; firstName?: string; lastName?: string; companyName?: string; }
@@ -91,10 +92,18 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
         <Stack spacing={2.5} mt={1}>
           <TextField required label={t("documentManager.name")} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} fullWidth />
           <TextField label={t("common.description")} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} multiline rows={2} fullWidth />
-          <TextField select label={t("documentManager.customer")} value={form.customerId} onChange={e => setForm({ ...form, customerId: e.target.value })} fullWidth>
-            <MenuItem value="">—</MenuItem>
-            {(customers.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.type === "Individual" ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() : c.companyName}</MenuItem>)}
-          </TextField>
+          <SearchableSelect
+            label={t("documentManager.customer")}
+            value={form.customerId}
+            onChange={(v) => setForm({ ...form, customerId: v })}
+            emptyLabel="—"
+            options={(customers.data ?? []).map(c => ({
+              value: c.id,
+              label: c.type === "Individual"
+                ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim()
+                : (c.companyName ?? ""),
+            }))}
+          />
           <TextField type="color" label={t("documentManager.color")} value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} sx={{ width: 140 }} />
         </Stack>
       </DialogContent>

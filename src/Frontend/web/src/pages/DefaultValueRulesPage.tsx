@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  IconButton, MenuItem, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  IconButton, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { SearchableSelect } from "../components/SearchableSelect";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 
 interface RuleDto {
@@ -160,43 +161,46 @@ function RuleDialog({ item, onClose, onSaved }: { item: any | null; onClose: () 
             <TextField type="number" label={t("dvr.priority")} value={form.priority} onChange={e => setForm({ ...form, priority: Number(e.target.value) })} sx={{ width: 140 }} />
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("dvr.carrier")} value={form.insuranceCompanyId}
-              onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value, policyType: "", coverCode: "", packageCode: "" })}
-              fullWidth>
-              <MenuItem value="">{t("dvr.any")}</MenuItem>
-              {(carriers.data ?? []).filter(c => !c.parentCompanyId).map(c => (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.name}{c.isBroker ? " · πρακτορείο" : ""}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField select label={t("dvr.policyType")} value={form.policyType}
-              onChange={e => setForm({ ...form, policyType: e.target.value })} fullWidth
+            <SearchableSelect
+              label={t("dvr.carrier")}
+              value={form.insuranceCompanyId}
+              onChange={(v) => setForm({ ...form, insuranceCompanyId: v, policyType: "", coverCode: "", packageCode: "" })}
+              emptyLabel={t("dvr.any")}
+              options={(carriers.data ?? []).filter(c => !c.parentCompanyId).map(c => ({
+                value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : undefined,
+              }))}
+            />
+            <SearchableSelect
+              label={t("dvr.policyType")}
+              value={form.policyType}
+              onChange={(v) => setForm({ ...form, policyType: v })}
               disabled={!form.insuranceCompanyId}
               helperText={!form.insuranceCompanyId
                 ? "Επιλέξτε εταιρία πρώτα"
-                : dvrCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
-              <MenuItem value="">{t("dvr.any")}</MenuItem>
-              {dvrCatalogue.branches.map(b => (
-                <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
-              ))}
-            </TextField>
+                : dvrCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
+              emptyLabel={t("dvr.any")}
+              options={dvrCatalogue.branches.map(b => ({ value: b.value, label: b.label }))}
+            />
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("dvr.cover")} value={form.coverCode}
-              onChange={e => setForm({ ...form, coverCode: e.target.value })} fullWidth
+            <SearchableSelect
+              label={t("dvr.cover")}
+              value={form.coverCode}
+              onChange={(v) => setForm({ ...form, coverCode: v })}
               disabled={!form.insuranceCompanyId}
-              helperText={!form.insuranceCompanyId ? "Επιλέξτε εταιρία" : dvrCatalogue.coverages.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
-              <MenuItem value="">{t("dvr.any")}</MenuItem>
-              {dvrCatalogue.coverages.map(c => <MenuItem key={c.key} value={c.value}>{c.label}</MenuItem>)}
-            </TextField>
-            <TextField select label={t("dvr.package")} value={form.packageCode}
-              onChange={e => setForm({ ...form, packageCode: e.target.value })} fullWidth
+              helperText={!form.insuranceCompanyId ? "Επιλέξτε εταιρία" : dvrCatalogue.coverages.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
+              emptyLabel={t("dvr.any")}
+              options={dvrCatalogue.coverages.map(c => ({ value: c.value, label: c.label }))}
+            />
+            <SearchableSelect
+              label={t("dvr.package")}
+              value={form.packageCode}
+              onChange={(v) => setForm({ ...form, packageCode: v })}
               disabled={!form.insuranceCompanyId}
-              helperText={!form.insuranceCompanyId ? "Επιλέξτε εταιρία" : dvrCatalogue.packages.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
-              <MenuItem value="">{t("dvr.any")}</MenuItem>
-              {dvrCatalogue.packages.map(p => <MenuItem key={p.key} value={p.value}>{p.label}</MenuItem>)}
-            </TextField>
+              helperText={!form.insuranceCompanyId ? "Επιλέξτε εταιρία" : dvrCatalogue.packages.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
+              emptyLabel={t("dvr.any")}
+              options={dvrCatalogue.packages.map(p => ({ value: p.value, label: p.label }))}
+            />
           </Stack>
           <TextField label={t("dvr.values")} value={form.valuesJson}
             onChange={e => setForm({ ...form, valuesJson: e.target.value })}

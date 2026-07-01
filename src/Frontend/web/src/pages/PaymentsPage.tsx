@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
+import { SearchableSelect } from "../components/SearchableSelect";
 import { money, date } from "../utils/format";
 
 const METHODS = ["Cash","Card","BankTransfer","Cheque","PromissoryNote","Other"] as const;
@@ -202,14 +203,20 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
             {BENEFICIARIES.map(b => <MenuItem key={b} value={b}>{t(`payments.benType.${b}`)}</MenuItem>)}
           </TextField>
           {form.beneficiaryType === "InsuranceCompany" && (
-            <TextField select label={t("payments.companyBen")} value={form.beneficiaryInsuranceCompanyId} onChange={e => setForm({ ...form, beneficiaryInsuranceCompanyId: e.target.value })} fullWidth>
-              {(companies.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-            </TextField>
+            <SearchableSelect
+              label={t("payments.companyBen")}
+              value={form.beneficiaryInsuranceCompanyId}
+              onChange={(v) => setForm({ ...form, beneficiaryInsuranceCompanyId: v })}
+              options={(companies.data ?? []).map(c => ({ value: c.id, label: c.name }))}
+            />
           )}
           {form.beneficiaryType === "Producer" && (
-            <TextField select label={t("payments.producerBen")} value={form.beneficiaryProducerId} onChange={e => setForm({ ...form, beneficiaryProducerId: e.target.value })} fullWidth>
-              {(producers.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-            </TextField>
+            <SearchableSelect
+              label={t("payments.producerBen")}
+              value={form.beneficiaryProducerId}
+              onChange={(v) => setForm({ ...form, beneficiaryProducerId: v })}
+              options={(producers.data ?? []).map(p => ({ value: p.id, label: p.name }))}
+            />
           )}
           {form.beneficiaryType === "Vendor" && (
             <TextField label={t("payments.vendorName")} value={form.beneficiaryName} onChange={e => setForm({ ...form, beneficiaryName: e.target.value })} fullWidth />

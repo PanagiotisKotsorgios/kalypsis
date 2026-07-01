@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { money } from "../utils/format";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 const KINDS = ["Cheque","PromissoryNote"] as const;
 const STATUSES = ["Open","Paid","Bounced","Cancelled"] as const;
@@ -157,13 +158,25 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
               {STATUSES.map(s => <MenuItem key={s} value={s}>{t(`securities.statusLabel.${s}`)}</MenuItem>)}
             </TextField>
           </Stack>
-          <TextField select required label={t("securities.customer")} value={form.customerId} onChange={e => setForm({ ...form, customerId: e.target.value })} fullWidth>
-            {(customers.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.type === "Individual" ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() : c.companyName}</MenuItem>)}
-          </TextField>
-          <TextField select label={t("securities.bank")} value={form.issuingBankId} onChange={e => setForm({ ...form, issuingBankId: e.target.value })} fullWidth>
-            <MenuItem value="">—</MenuItem>
-            {(banks.data ?? []).map(b => <MenuItem key={b.id} value={b.id}>{b.bankName}</MenuItem>)}
-          </TextField>
+          <SearchableSelect
+            label={t("securities.customer")}
+            required
+            value={form.customerId}
+            onChange={(v) => setForm({ ...form, customerId: v })}
+            options={(customers.data ?? []).map(c => ({
+              value: c.id,
+              label: c.type === "Individual"
+                ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim()
+                : (c.companyName ?? ""),
+            }))}
+          />
+          <SearchableSelect
+            label={t("securities.bank")}
+            value={form.issuingBankId}
+            onChange={(v) => setForm({ ...form, issuingBankId: v })}
+            emptyLabel="—"
+            options={(banks.data ?? []).map(b => ({ value: b.id, label: b.bankName }))}
+          />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField type="date" label={t("securities.issued")} InputLabelProps={{ shrink: true }} value={form.issueDate} onChange={e => setForm({ ...form, issueDate: e.target.value })} fullWidth />
             <TextField type="date" label={t("securities.maturity")} InputLabelProps={{ shrink: true }} value={form.maturityDate} onChange={e => setForm({ ...form, maturityDate: e.target.value })} fullWidth />

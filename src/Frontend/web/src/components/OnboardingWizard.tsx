@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { SearchableSelect } from "./SearchableSelect";
 
 interface OnboardingState {
   completed: boolean;
@@ -229,10 +230,13 @@ function StepCommissionRule({ onErr }: { onErr: (e: string | null) => void }) {
         <TextField select label={t("commissionRuns.filterBranch")} value={form.policyType} onChange={e => setForm({ ...form, policyType: e.target.value as typeof TYPES[number] })} fullWidth>
           {TYPES.map(p => <MenuItem key={p} value={p}>{t(`policyType.${p}`)}</MenuItem>)}
         </TextField>
-        <TextField select label={t("commissionRuns.filterCompany")} value={form.insuranceCompanyId} onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value })} fullWidth>
-          <MenuItem value="">{t("common.all")}</MenuItem>
-          {(companies.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-        </TextField>
+        <SearchableSelect
+          label={t("commissionRuns.filterCompany")}
+          value={form.insuranceCompanyId}
+          onChange={(v) => setForm({ ...form, insuranceCompanyId: v })}
+          emptyLabel={t("common.all")}
+          options={(companies.data ?? []).map(c => ({ value: c.id, label: c.name }))}
+        />
         <TextField type="number" label={t("onboarding.percent")} value={form.value} onChange={e => setForm({ ...form, value: Number(e.target.value) })} fullWidth inputProps={{ step: 0.5, min: 0, max: 100 }} />
       </Stack>
       <TextField type="date" label={t("tariffs.effectiveFrom")} InputLabelProps={{ shrink: true }} value={form.effectiveFrom} onChange={e => setForm({ ...form, effectiveFrom: e.target.value })} sx={{ width: 200 }} />

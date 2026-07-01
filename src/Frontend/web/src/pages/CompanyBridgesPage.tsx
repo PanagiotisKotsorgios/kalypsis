@@ -10,6 +10,7 @@ import SyncIcon from "@mui/icons-material/Sync";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 const KINDS = ["Manual","ApiPull","Email","Ftp","Webhook"] as const;
 type Kind = typeof KINDS[number];
@@ -141,9 +142,13 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2.5} mt={1}>
           <TextField required label={t("companyBridges.name")} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} fullWidth />
-          <TextField select required label={t("companyBridges.company")} value={form.insuranceCompanyId} onChange={e => setForm({ ...form, insuranceCompanyId: e.target.value })} fullWidth>
-            {(companies.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-          </TextField>
+          <SearchableSelect
+            label={t("companyBridges.company")}
+            required
+            value={form.insuranceCompanyId}
+            onChange={(v) => setForm({ ...form, insuranceCompanyId: v })}
+            options={(companies.data ?? []).map(c => ({ value: c.id, label: c.name }))}
+          />
           <TextField select label={t("companyBridges.kind")} value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as Kind })} fullWidth>
             {KINDS.map(k => <MenuItem key={k} value={k}>{t(`companyBridges.kindLabel.${k}`)}</MenuItem>)}
           </TextField>

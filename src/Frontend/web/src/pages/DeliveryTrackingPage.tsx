@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { date } from "../utils/format";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 const CHANNELS = ["Email","Courier","InPerson","Portal"] as const;
 const STATUSES = ["Pending","InTransit","Delivered","Failed"] as const;
@@ -131,9 +132,13 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
       <DialogContent>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2.5} mt={1}>
-          <TextField select required label={t("delivery.policy")} value={form.policyId} onChange={e => setForm({ ...form, policyId: e.target.value })} fullWidth>
-            {(policies.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.policyNumber}</MenuItem>)}
-          </TextField>
+          <SearchableSelect
+            label={t("delivery.policy")}
+            required
+            value={form.policyId}
+            onChange={(v) => setForm({ ...form, policyId: v })}
+            options={(policies.data ?? []).map(p => ({ value: p.id, label: p.policyNumber }))}
+          />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField select label={t("delivery.channel")} value={form.channel} onChange={e => setForm({ ...form, channel: e.target.value as Channel })} fullWidth>
               {CHANNELS.map(c => <MenuItem key={c} value={c}>{t(`delivery.channelLabel.${c}`)}</MenuItem>)}
