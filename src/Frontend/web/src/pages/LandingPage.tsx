@@ -99,7 +99,11 @@ export function LandingPage() {
       color: NAVY,
       fontFamily: '"Inter", "Segoe UI", system-ui, -apple-system, sans-serif',
       display: "flex", flexDirection: "column",
-      position: "relative"
+      position: "relative",
+      // The feature-grid section uses a `100vw` breakout for its background
+      // — clip any horizontal overflow that produces so a scrollbar doesn't
+      // appear on wide screens.
+      overflowX: "hidden"
     }}>
       {/* Masthead accent — slim gradient stripe along the very top edge. */}
       <Box sx={{
@@ -598,26 +602,32 @@ function FeatureGrid() {
       borderTop: `1px solid ${RULE}`,
       pt: { xs: 5, md: 7 },
       // Same finished wave PNG as the hero, but rotated 180° so the crests
-      // now flow into the section from the TOP — visually reading as a
-      // continuation of the hero background. `background-attachment: fixed`
-      // is intentionally avoided because it kills mobile scroll perf.
+      // flow INTO the section from the TOP — reading as a continuation of
+      // the hero. We use the classic viewport-breakout trick
+      // (`left:50%; margin-left:-50vw; width:100vw`) so the artwork spans
+      // the entire viewport regardless of the parent Container's max-width.
+      // Full opacity + same colors as the hero; only a tiny fade at the
+      // very bottom edge so the newsletter block underneath reads clean.
       "&::before": {
         content: '""',
-        position: "absolute", inset: 0,
+        position: "absolute",
+        top: 0,
+        bottom: 0,
+        left: "50%",
+        width: "100vw",
+        marginLeft: "-50vw",
         backgroundImage: `url("${HERO_BG}")`,
         backgroundRepeat: "no-repeat",
         backgroundPosition: "center top",
         backgroundSize: "cover",
         transform: "rotate(180deg)",
         transformOrigin: "center",
-        opacity: 0.55,
         pointerEvents: "none",
         zIndex: 0,
-        // Soft mask that keeps the top vibrant and fades to plain white
-        // near the bottom so the newsletter block underneath still reads
-        // clean.
-        maskImage: "linear-gradient(180deg, #000 0%, #000 62%, transparent 100%)",
-        WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 62%, transparent 100%)"
+        // Only the last ~10% fades to transparent so the newsletter card
+        // that lives immediately below still sits on a neutral surface.
+        maskImage: "linear-gradient(180deg, #000 0%, #000 90%, transparent 100%)",
+        WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 90%, transparent 100%)"
       },
       // Sit every child above the ::before pseudo-element.
       "& > *": { position: "relative", zIndex: 1 }
