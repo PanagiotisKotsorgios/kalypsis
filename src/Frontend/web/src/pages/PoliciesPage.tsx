@@ -674,29 +674,27 @@ function PolicyFormDialog({
       <DialogContent>
         {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
         <Stack spacing={2.5} mt={1}>
-          <TextField
-            select label={t("policies.form.customer")}
+          <SearchableSelect
+            label={t("policies.form.customer")}
             value={form.customerId}
-            onChange={(e) => setForm({ ...form, customerId: e.target.value })}
-            fullWidth required disabled={editing}
+            onChange={(v) => setForm({ ...form, customerId: v })}
+            required disabled={editing}
             helperText={editing ? t("policies.form.customerLocked") : undefined}
-          >
-            {customerOptions.map((c) => <MenuItem key={c.id} value={c.id}>{c.label}</MenuItem>)}
-          </TextField>
+            options={customerOptions.map((c) => ({ value: c.id, label: c.label }))}
+          />
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField
-              select label={t("policies.form.carrier")}
+            <SearchableSelect
+              label={t("policies.form.carrier")}
               value={form.insuranceCompanyId}
-              onChange={(e) => setForm({ ...form, insuranceCompanyId: e.target.value, policyType: "Auto", vehicleUseCategory: "", coverCode: "", packageCode: "" })}
-              fullWidth required
-            >
-              {(carriersQuery.data ?? []).filter(c => !c.parentCompanyId).map(c => (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.name}{c.isBroker ? " · πρακτορείο" : ""}
-                </MenuItem>
-              ))}
-            </TextField>
+              onChange={(v) => setForm({ ...form, insuranceCompanyId: v, policyType: "Auto", vehicleUseCategory: "", coverCode: "", packageCode: "" })}
+              required
+              options={(carriersQuery.data ?? []).filter(c => !c.parentCompanyId).map(c => ({
+                value: c.id,
+                label: c.name,
+                hint: c.isBroker ? "πρακτορείο" : undefined,
+              }))}
+            />
             {(() => {
               const carrierData = carriersQuery.data ?? [];
               const selected = carrierData.find(c => c.id === form.insuranceCompanyId);
@@ -721,68 +719,53 @@ function PolicyFormDialog({
           </Stack>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField
-              select label={t("policies.form.type")}
+            <SearchableSelect
+              label={t("policies.form.type")}
               value={form.policyType}
-              onChange={(e) => setForm({ ...form, policyType: e.target.value as PolicyType })}
-              fullWidth required
+              onChange={(v) => setForm({ ...form, policyType: v as PolicyType })}
+              required
               disabled={!form.insuranceCompanyId}
               helperText={!form.insuranceCompanyId
                 ? "Επιλέξτε εταιρία πρώτα"
                 : dialogCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
-            >
-              {dialogCatalogue.branches.map(b => (
-                <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select label="Χρήση οχήματος"
+              options={dialogCatalogue.branches.map(b => ({ value: b.value, label: b.label }))}
+            />
+            <SearchableSelect
+              label="Χρήση οχήματος"
               value={form.vehicleUseCategory}
-              onChange={(e) => setForm({ ...form, vehicleUseCategory: e.target.value })}
-              fullWidth
+              onChange={(v) => setForm({ ...form, vehicleUseCategory: v })}
               disabled={!form.insuranceCompanyId}
               helperText={!form.insuranceCompanyId
                 ? "Επιλέξτε εταιρία"
                 : dialogCatalogue.uses.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
-            >
-              <MenuItem value="">—</MenuItem>
-              {dialogCatalogue.uses.map(u => (
-                <MenuItem key={u.key} value={u.value}>{u.label}</MenuItem>
-              ))}
-            </TextField>
+              emptyLabel="—"
+              options={dialogCatalogue.uses.map(u => ({ value: u.value, label: u.label }))}
+            />
           </Stack>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField
-              select label="Κάλυψη"
+            <SearchableSelect
+              label="Κάλυψη"
               value={form.coverCode}
-              onChange={(e) => setForm({ ...form, coverCode: e.target.value })}
-              fullWidth
+              onChange={(v) => setForm({ ...form, coverCode: v })}
               disabled={!form.insuranceCompanyId}
               helperText={!form.insuranceCompanyId
                 ? "Επιλέξτε εταιρία"
                 : dialogCatalogue.coverages.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
-            >
-              <MenuItem value="">—</MenuItem>
-              {dialogCatalogue.coverages.map(c => (
-                <MenuItem key={c.key} value={c.value}>{c.label}</MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select label="Πακέτο"
+              emptyLabel="—"
+              options={dialogCatalogue.coverages.map(c => ({ value: c.value, label: c.label }))}
+            />
+            <SearchableSelect
+              label="Πακέτο"
               value={form.packageCode}
-              onChange={(e) => setForm({ ...form, packageCode: e.target.value })}
-              fullWidth
+              onChange={(v) => setForm({ ...form, packageCode: v })}
               disabled={!form.insuranceCompanyId}
               helperText={!form.insuranceCompanyId
                 ? "Επιλέξτε εταιρία"
                 : dialogCatalogue.packages.length === 0 ? "Δεν υπάρχουν πακέτα" : ""}
-            >
-              <MenuItem value="">—</MenuItem>
-              {dialogCatalogue.packages.map(p => (
-                <MenuItem key={p.key} value={p.value}>{p.label}</MenuItem>
-              ))}
-            </TextField>
+              emptyLabel="—"
+              options={dialogCatalogue.packages.map(p => ({ value: p.value, label: p.label }))}
+            />
           </Stack>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>

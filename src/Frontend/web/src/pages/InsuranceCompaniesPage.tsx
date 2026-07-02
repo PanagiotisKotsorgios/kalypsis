@@ -82,19 +82,17 @@ export function InsuranceCompaniesPage() {
   });
 
 
-  // "Δικές μου ασφαλιστικές" = every row the tenant actually uses:
-  //   1) tenant-owned rows (isGlobal=false), and
-  //   2) universal rows they've explicitly opted into (isUsedByTenant=true).
-  // The catalog section below shows only the universal rows they HAVEN'T
-  // opted-in to yet — so checking the box actually moves the row into
-  // "Δικές μου", matching the user's expected UX.
+  // "Δικές μου ασφαλιστικές" lists tenant-owned rows + universal rows the
+  // tenant has opted-in to. The catalog section below keeps showing the FULL
+  // universal list regardless of opt-in state — the row's status badge
+  // (Ενταγμένη / Διαθέσιμη) is what tells the operator whether they've
+  // already ticked it. This mirrors how real insurance CRMs render their
+  // carrier catalogs: the master list is stable, per-tenant status floats
+  // on top of it.
   const allData = q.data ?? [];
   const allGlobal = allData.filter(c => c.isGlobal);
-  const availableGlobal = allGlobal.filter(c => !c.isUsedByTenant);
   const usedGlobal = allGlobal.filter(c => c.isUsedByTenant);
 
-  // Same grouping rule (broker followed by its subs) applied to whichever
-  // list a broker lands in — keeps subs visually attached to their parent.
   const groupByBroker = (rows: CompanyDto[]): CompanyDto[] => {
     const topLevel = rows.filter(c => !c.parentCompanyId);
     const out: CompanyDto[] = [];
@@ -104,12 +102,11 @@ export function InsuranceCompaniesPage() {
     }
     return out;
   };
-  const availableGlobalGrouped = groupByBroker(availableGlobal);
+  const allGlobalGrouped = groupByBroker(allGlobal);
   const usedGlobalGrouped = groupByBroker(usedGlobal);
   const ownTenantRows = allData.filter(c => !c.isGlobal);
-  // The "my carriers" table concatenates tenant-owned + opted-in universals.
   const ownRows = [...ownTenantRows, ...usedGlobalGrouped];
-  const globalRows = availableGlobalGrouped;
+  const globalRows = allGlobalGrouped;
 
   return (
     <Box>
@@ -173,15 +170,8 @@ export function InsuranceCompaniesPage() {
                 Διαχειρίζεται από την Kalypsis · κοινός σε όλα τα γραφεία
               </Typography>
             </Box>
-            {globalRows.length === 0 ? (
-              <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
-                Έχετε ενεργοποιήσει όλες τις καθολικές εταιρείες. Μπορείτε να αφαιρέσετε όποια δεν χρησιμοποιείτε
-                από το τσεκ στο πάνω πίνακα.
-              </Box>
-            ) : (
-              <CompanyTable rows={globalRows} readonly
-                onToggleOptIn={(id, enable) => toggleOptIn.mutate({ id, enable })} />
-            )}
+            <CompanyTable rows={globalRows} readonly
+              onToggleOptIn={(id, enable) => toggleOptIn.mutate({ id, enable })} />
           </Card>
         </Stack>
       )}
@@ -340,7 +330,17 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn }: {
               <TableCell align="right" sx={{ fontWeight: 700 }}>{r.commissionDefaultCount}</TableCell>
               <TableCell align="right">
                 {readonly ? (
-                  <Chip size="small" variant="outlined" label="Καθολική" />
+                  // Ενταγμένη = tenant has ticked "Χρησιμοποιώ" (or created the
+                  // row themselves). Διαθέσιμη = universal row still up for
+                  // grabs. Sub-carriers inherit the broker's status silently
+                  // — no chip so the row stays visually secondary.
+                  r.parentCompanyId ? (
+                    <Chip size="small" variant="outlined" label="Υπό πρακτορείο" sx={{ color: "text.secondary" }} />
+                  ) : r.isUsedByTenant ? (
+                    <Chip size="small" color="success" label="Ενταγμένη" sx={{ fontWeight: 700 }} />
+                  ) : (
+                    <Chip size="small" variant="outlined" label="Διαθέσιμη" sx={{ color: "text.secondary" }} />
+                  )
                 ) : (
                   <>
                     <IconButton size="small" onClick={() => onEdit?.(r)}><EditIcon fontSize="small" /></IconButton>

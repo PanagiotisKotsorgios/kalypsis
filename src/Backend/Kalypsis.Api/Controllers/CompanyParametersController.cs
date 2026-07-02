@@ -88,11 +88,15 @@ public class CompanyParametersController : ControllerBase
         q = await ApplyCompanyCodeFilterAsync(q, insuranceCompanyId, ct);
         q = ApplyCommonFilters(q, kind, search);
 
+        // See note on the tenant-facing handler below — Atlantic + Grand Cover
+        // both blow past 2000 params, and the Kind ordering pushes Uses last,
+        // so the safety cap was silently dropping every Χρήση row.
+        var takePlatform = insuranceCompanyId.HasValue ? 20000 : 2000;
         var rows = await q.OrderBy(x => x.InsuranceCompany.Name)
             .ThenBy(x => x.Kind)
             .ThenBy(x => x.DisplayOrder)
             .ThenBy(x => x.Code)
-            .Take(2000)
+            .Take(takePlatform)
             .ToListAsync(ct);
 
         return Ok(rows.Select(Map).ToList());
@@ -124,11 +128,18 @@ public class CompanyParametersController : ControllerBase
         q = q.Where(x => (!x.EffectiveFrom.HasValue || x.EffectiveFrom <= today)
             && (!x.EffectiveTo.HasValue || x.EffectiveTo >= today));
 
+        // Big carriers can exceed 2000 (Atlantic 2772, Grand Cover 2292). The
+        // ORDER BY Kind sequence puts Coverages before Uses, so with a 2000
+        // budget every carrier's Χρήση rows silently vanish. Scoping to a
+        // single carrier is always bounded — lift the ceiling then. The
+        // unfiltered call keeps the 2000 safety cap so a bad frontend can't
+        // haul the entire catalog.
+        var take = insuranceCompanyId.HasValue ? 20000 : 2000;
         var rows = await q.OrderBy(x => x.InsuranceCompany.Name)
             .ThenBy(x => x.Kind)
             .ThenBy(x => x.DisplayOrder)
             .ThenBy(x => x.Code)
-            .Take(2000)
+            .Take(take)
             .ToListAsync(ct);
 
         return Ok(rows.Select(Map).ToList());
