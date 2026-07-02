@@ -173,10 +173,21 @@ export function PoliciesPage() {
 
   const rawRows = policiesQuery.data ?? [];
   const documentPolicyId = searchParams.get("documentPolicyId");
+  // Deep-link: `/app/policies?documentPolicyId={guid}` opens that policy's
+  // drawer directly. We DON'T gate on the policy being present in the
+  // filtered list — the drawer fetches its own detail via
+  // /api/policies/{id}/detail, so a filter that would hide the row
+  // shouldn't hide the deep-linked drawer. We also strip the query
+  // param from the URL immediately so closing the drawer doesn't get
+  // re-triggered by the same param on a re-render.
   useEffect(() => {
-    if (documentPolicyId && rawRows.some(policy => policy.id === documentPolicyId))
-      setDetailId(documentPolicyId);
-  }, [documentPolicyId, rawRows]);
+    if (!documentPolicyId) return;
+    setDetailId(documentPolicyId);
+    const next = new URLSearchParams(searchParams);
+    next.delete("documentPolicyId");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentPolicyId]);
   const allRows = useMemo(() => {
     const allCarriers = carriersQuery.data ?? [];
     return rawRows.filter(p => {
@@ -472,6 +483,18 @@ export function PoliciesPage() {
         </Card>
       )}
 
+      {/* The detail drawer is READ+edit-safe for every role that reaches
+          this page (superadmin viewing an impersonated tenant, agency
+          admin/user, customer). It was previously nested inside the
+          `canEdit &&` block, which meant clicking a row as a viewer set
+          detailId but the drawer wasn't even mounted — click did nothing.
+          Now it lives at the top level so every role can preview a policy. */}
+      <PolicyDetailDrawer
+        policyId={detailId}
+        open={!!detailId}
+        onClose={() => setDetailId(null)}
+      />
+
       {canEdit && (
         <>
           <PolicyFormDialog
@@ -490,11 +513,6 @@ export function PoliciesPage() {
             policy={renewing}
             onClose={() => setRenewing(null)}
             onSaved={() => { void qc.invalidateQueries({ queryKey: ["policies"] }); setRenewing(null); }}
-          />
-          <PolicyDetailDrawer
-            policyId={detailId}
-            open={!!detailId}
-            onClose={() => setDetailId(null)}
           />
         </>
       )}
