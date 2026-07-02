@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 const TYPES = ["","Auto","Home","Health","Life","Business","Travel","Other"] as const;
 interface RuleDto {
@@ -139,13 +140,13 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
             options={(producers.data ?? []).map(p => ({ value: p.id, label: p.name }))}
           />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("overCommissions.level")} value={form.level} onChange={e => setForm({ ...form, level: Number(e.target.value) })} fullWidth>
+            <SearchableTextField label={t("overCommissions.level")} value={form.level} onChange={e => setForm({ ...form, level: Number(e.target.value) })} fullWidth>
               {[1,2,3,4,5,6,7,8,9].map(l => <MenuItem key={l} value={l}>L{l}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <TextField type="number" required label={t("overCommissions.percentage")} value={form.percentage} onChange={e => setForm({ ...form, percentage: Number(e.target.value) })} fullWidth inputProps={{ step: 0.25, min: 0, max: 100 }} />
-            <TextField select label={t("overCommissions.branchType")} value={form.policyType} onChange={e => setForm({ ...form, policyType: e.target.value })} fullWidth>
+            <SearchableTextField label={t("overCommissions.branchType")} value={form.policyType} onChange={e => setForm({ ...form, policyType: e.target.value })} fullWidth>
               {TYPES.map(p => <MenuItem key={p || "_all"} value={p}>{p ? t(`policyType.${p}`) : t("common.all")}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField type="date" label={t("overCommissions.effectiveFrom")} InputLabelProps={{ shrink: true }} value={form.effectiveFrom} onChange={e => setForm({ ...form, effectiveFrom: e.target.value })} fullWidth />

@@ -18,6 +18,7 @@ import { HelpHint } from "../components/HelpHint";
 import { money, date } from "../utils/format";
 import { SavedReportsButton } from "../components/SavedReportsButton";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface Carrier { id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null; }
 interface Producer { id: string; name: string; }
@@ -267,19 +268,19 @@ export function ProductionListsPage() {
             emptyLabel={t("common.all")}
             options={packageOptions.map(o => ({ value: o.value, label: o.label }))}
           />
-          <TextField select size="small" label={t("productionList.status")} value={f.status}
+          <SearchableTextField size="small" label={t("productionList.status")} value={f.status}
             onChange={e => setF({ ...f, status: e.target.value })}>
             <MenuItem value="">{t("common.all")}</MenuItem>
             {STATUSES.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-          </TextField>
-          <TextField select size="small" label={t("productionList.groupBy")} value={f.groupBy}
+          </SearchableTextField>
+          <SearchableTextField size="small" label={t("productionList.groupBy")} value={f.groupBy}
             onChange={e => setF({ ...f, groupBy: e.target.value })}>
             <MenuItem value="">{t("productionList.noGrouping")}</MenuItem>
             <MenuItem value="carrier">{t("productionList.byCarrier")}</MenuItem>
             <MenuItem value="producer">{t("productionList.byProducer")}</MenuItem>
             <MenuItem value="type">{t("productionList.byType")}</MenuItem>
             <MenuItem value="month">{t("productionList.byMonth")}</MenuItem>
-          </TextField>
+          </SearchableTextField>
         </Box>
         <Stack direction="row" justifyContent="flex-end" mt={1.5}>
           <Button size="small" variant="text" color="inherit"

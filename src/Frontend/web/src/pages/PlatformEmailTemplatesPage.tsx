@@ -11,6 +11,7 @@ import SendIcon from "@mui/icons-material/Send";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface TemplateDto {
   id: string; code: string; name: string; subject: string; bodyHtml: string;
@@ -219,11 +220,11 @@ function TemplateDialog({ open, item, onClose, onSaved }: {
               disabled={!!item?.isSystem} />
             <TextField label="Όνομα" value={form.name} required fullWidth
               onChange={(e) => setForm({ ...form, name: e.target.value })} sx={{ flex: 2 }} />
-            <TextField select label="Γλώσσα" value={form.language} sx={{ width: 130 }}
+            <SearchableTextField label="Γλώσσα" value={form.language} sx={{ width: 130 }}
               onChange={(e) => setForm({ ...form, language: e.target.value })}>
               <MenuItem value="el">Ελληνικά</MenuItem>
               <MenuItem value="en">English</MenuItem>
-            </TextField>
+            </SearchableTextField>
             <FormControlLabel
               control={<Switch checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />}
               label="Ενεργό" />
@@ -234,10 +235,10 @@ function TemplateDialog({ open, item, onClose, onSaved }: {
             placeholder="Π.χ. Καλώς ήρθατε, {{agencyName}}" />
 
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-            <TextField select label="Trigger event" value={form.triggerEvent} fullWidth
+            <SearchableTextField label="Trigger event" value={form.triggerEvent} fullWidth
               onChange={(e) => setForm({ ...form, triggerEvent: e.target.value })}>
               {TRIGGER_EVENTS.map((e) => <MenuItem key={e.value || "manual"} value={e.value}>{e.label}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <TextField label="Brevo Template ID (προαιρετικό)" value={form.brevoTemplateId} sx={{ width: 260 }}
               onChange={(e) => setForm({ ...form, brevoTemplateId: e.target.value })}
               placeholder="π.χ. 42" />

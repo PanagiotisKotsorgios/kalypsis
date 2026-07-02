@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { money } from "../utils/format";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 const KINDS = ["Cheque","PromissoryNote"] as const;
 const STATUSES = ["Open","Paid","Bounced","Cancelled"] as const;
@@ -151,12 +152,12 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
         <Stack spacing={2.5} mt={1}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField required label={t("securities.number")} value={form.number} onChange={e => setForm({ ...form, number: e.target.value })} fullWidth />
-            <TextField select label={t("securities.kind")} value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as Kind })} fullWidth>
+            <SearchableTextField label={t("securities.kind")} value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as Kind })} fullWidth>
               {KINDS.map(k => <MenuItem key={k} value={k}>{t(`securities.kindLabel.${k}`)}</MenuItem>)}
-            </TextField>
-            <TextField select label={t("common.status")} value={form.status} onChange={e => setForm({ ...form, status: e.target.value as Status })} fullWidth>
+            </SearchableTextField>
+            <SearchableTextField label={t("common.status")} value={form.status} onChange={e => setForm({ ...form, status: e.target.value as Status })} fullWidth>
               {STATUSES.map(s => <MenuItem key={s} value={s}>{t(`securities.statusLabel.${s}`)}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
           <SearchableSelect
             label={t("securities.customer")}

@@ -105,11 +105,11 @@ export function ProfilePage() {
               </Stack>
               <TextField label={t("profile.phone")} value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })} fullWidth />
-              <TextField select label={t("profile.language")} value={form.preferredLanguage}
+              <SearchableTextField label={t("profile.language")} value={form.preferredLanguage}
                 onChange={(e) => setForm({ ...form, preferredLanguage: e.target.value })} fullWidth sx={{ maxWidth: 280 }}>
                 <MenuItem value="el">Ελληνικά</MenuItem>
                 <MenuItem value="en">English</MenuItem>
-              </TextField>
+              </SearchableTextField>
               <Button variant="contained" startIcon={<SaveIcon />}
                 onClick={() => save.mutate()} disabled={save.isPending}
                 sx={{ alignSelf: "flex-start", fontWeight: 700, px: 3 }}>
@@ -212,6 +212,7 @@ import {
   writePrefsFor,
 } from "../theme/KalypsisThemeProvider";
 import { useAuth } from "../auth/AuthContext";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 const DEFAULT_PREFS: UserPreferences = SHARED_DEFAULT_PREFS as UserPreferences;
 
@@ -281,13 +282,13 @@ function UserPreferencesSection({ role }: { role?: string }) {
               <DashboardIcon fontSize="small" sx={{ verticalAlign: "middle", mr: 0.5 }} />
               Αρχική οθόνη μετά τη σύνδεση
             </Typography>
-            <TextField select value={prefs.landingPage}
+            <SearchableTextField value={prefs.landingPage}
               onChange={(e) => update("landingPage", e.target.value as LandingPageKey)}
               size="small" sx={{ minWidth: 240 }}>
               {landingOptions.map(o => (
                 <MenuItem key={o.key} value={o.key}>{o.label}</MenuItem>
               ))}
-            </TextField>
+            </SearchableTextField>
           </Box>
 
           <Divider />
@@ -299,13 +300,13 @@ function UserPreferencesSection({ role }: { role?: string }) {
               Ειδοποιήσεις
             </Typography>
             <Stack spacing={1.5}>
-              <TextField select label="Συχνότητα e-mail digest" value={prefs.digestFrequency}
+              <SearchableTextField label="Συχνότητα e-mail digest" value={prefs.digestFrequency}
                 onChange={(e) => update("digestFrequency", e.target.value as UserPreferences["digestFrequency"])}
                 size="small" sx={{ maxWidth: 320 }}>
                 <MenuItem value="daily">Καθημερινά</MenuItem>
                 <MenuItem value="weekly">Εβδομαδιαία</MenuItem>
                 <MenuItem value="never">Ποτέ</MenuItem>
-              </TextField>
+              </SearchableTextField>
               <FormControlLabel
                 control={<Switch checked={prefs.emailAlerts}
                   onChange={(e) => update("emailAlerts", e.target.checked)} />}
@@ -343,7 +344,7 @@ function UserPreferencesSection({ role }: { role?: string }) {
           {/* Session */}
           <Box>
             <Typography variant="body2" fontWeight={700} mb={1}>Ασφάλεια συνεδρίας</Typography>
-            <TextField select size="small" label="Αυτόματο κλείδωμα μετά από"
+            <SearchableTextField size="small" label="Αυτόματο κλείδωμα μετά από"
               value={String(prefs.autoLockMinutes)}
               onChange={(e) => update("autoLockMinutes", Number(e.target.value))}
               sx={{ maxWidth: 320 }}>
@@ -352,7 +353,7 @@ function UserPreferencesSection({ role }: { role?: string }) {
               <MenuItem value="15">15 λεπτά</MenuItem>
               <MenuItem value="30">30 λεπτά</MenuItem>
               <MenuItem value="60">1 ώρα</MenuItem>
-            </TextField>
+            </SearchableTextField>
             <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
               Ρόλος λογαριασμού: {role ?? "—"}
             </Typography>

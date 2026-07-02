@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { money } from "../utils/format";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 type Regime = "TypoPlirono" | "PlironoTypono" | "Koumparas";
 
@@ -198,11 +199,11 @@ function ConfigureDialog({ open, onClose, producers, onSaved }: {
             onChange={(v) => setProducerId(v)}
             options={producers.map((p) => ({ value: p.id, label: p.name, hint: p.code }))}
           />
-          <TextField select label="Καθεστώς" fullWidth value={regime} onChange={(e) => setRegime(e.target.value as Regime)}>
+          <SearchableTextField label="Καθεστώς" fullWidth value={regime} onChange={(e) => setRegime(e.target.value as Regime)}>
             <MenuItem value="TypoPlirono">Τυπώνω-Πληρώνω (πίστωση)</MenuItem>
             <MenuItem value="PlironoTypono">Πληρώνω-Τυπώνω (προπληρωμή ανά συμβόλαιο)</MenuItem>
             <MenuItem value="Koumparas">Κουμπαράς (συνολική προπληρωμή)</MenuItem>
-          </TextField>
+          </SearchableTextField>
           <TextField type="number" label="Όριο πίστωσης (€)" fullWidth value={creditLimit}
             onChange={(e) => setCreditLimit(Number(e.target.value))} />
           <TextField type="number" label="Ημέρες χάριτος" fullWidth value={graceDays}

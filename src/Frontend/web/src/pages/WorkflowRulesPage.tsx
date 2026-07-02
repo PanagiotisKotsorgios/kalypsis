@@ -8,6 +8,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import BoltIcon from "@mui/icons-material/Bolt";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 type WorkflowEvent =
   | "CustomerCreated" | "PolicyIssued" | "PolicyAboutToExpire" | "PolicyExpired"
@@ -186,10 +187,10 @@ function RuleDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
             onChange={(e) => setName(e.target.value)} />
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select fullWidth label="Γεγονός" value={triggerEvent}
+            <SearchableTextField fullWidth label="Γεγονός" value={triggerEvent}
               onChange={(e) => setTriggerEvent(e.target.value as WorkflowEvent)}>
               {EVENTS.map((e) => <MenuItem key={e.code} value={e.code}>{e.el}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <TextField type="number" fullWidth label="Προτεραιότητα" value={priority}
               onChange={(e) => setPriority(Number(e.target.value))} />
             <Stack direction="row" alignItems="center" spacing={1}>
@@ -218,13 +219,13 @@ function RuleDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
               {actions.map((a, i) => (
                 <Card key={i} variant="outlined" sx={{ p: 2 }}>
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="flex-start">
-                    <TextField select size="small" label="Τύπος" value={a.action} sx={{ minWidth: 240 }}
+                    <SearchableTextField size="small" label="Τύπος" value={a.action} sx={{ minWidth: 240 }}
                       onChange={(e) => {
                         const next = [...actions]; next[i] = { ...next[i], action: e.target.value as WorkflowAction };
                         setActions(next);
                       }}>
                       {ACTIONS.map((x) => <MenuItem key={x.code} value={x.code}>{x.el}</MenuItem>)}
-                    </TextField>
+                    </SearchableTextField>
                     <TextField fullWidth size="small" label="Παράμετροι (JSON)"
                       value={a.payloadJson} multiline minRows={2}
                       onChange={(e) => {

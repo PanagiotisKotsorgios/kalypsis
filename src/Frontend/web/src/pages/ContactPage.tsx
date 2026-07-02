@@ -28,6 +28,7 @@ import { PublicFooter } from "../components/PublicFooter";
 import { AccessibilityWidget } from "../components/AccessibilityWidget";
 import { PageEnter } from "../components/PageEnter";
 import { api, extractErrorMessage } from "../api/client";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 const NAVY = "#0b2545";
 const NAVY_SOFT = "#3d4f6b";
@@ -269,7 +270,7 @@ export function ContactPage() {
                 style={{ position: "absolute", left: "-10000px", top: "auto", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
               />
               <Stack spacing={2.5}>
-                <TextField
+                <SearchableTextField
                   select fullWidth
                   label={t("contact.form.inquiryType", "Είδος ερώτησης")}
                   value={form.inquiryType}
@@ -280,7 +281,7 @@ export function ContactPage() {
                   {INQUIRY_TYPES.map((v) => (
                     <MenuItem key={v} value={v}>{t(`contact.form.inquiryTypes.${v}`)}</MenuItem>
                   ))}
-                </TextField>
+                </SearchableTextField>
 
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
                   <TextField fullWidth required sx={FORM_INPUT_SX}

@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface NameDayDto { id: string; name: string; month: number; day: number; notes: string | null; isActive: boolean; }
 interface CelebrantDto { customerId: string; customerName: string; customerNumber: string; phone: string | null; email: string | null; nameDay: string; }
@@ -58,9 +59,9 @@ function CelebrantsPanel() {
       <Stack direction="row" spacing={2} mb={2} alignItems="center">
         <Typography>{t("nameDays.lookupOn")}</Typography>
         <TextField type="number" label={t("nameDays.day")} value={day} onChange={e => setDay(Number(e.target.value))} sx={{ width: 100 }} inputProps={{ min: 1, max: 31 }} />
-        <TextField select label={t("nameDays.month")} value={month} onChange={e => setMonth(Number(e.target.value))} sx={{ width: 140 }}>
+        <SearchableTextField label={t("nameDays.month")} value={month} onChange={e => setMonth(Number(e.target.value))} sx={{ width: 140 }}>
           {MONTHS.map((m, i) => <MenuItem key={i} value={i + 1}>{m}</MenuItem>)}
-        </TextField>
+        </SearchableTextField>
         <Box sx={{ flex: 1 }} />
         <Typography variant="caption" color="text.secondary">{(q.data ?? []).length} {t("nameDays.celebrate")}</Typography>
       </Stack>
@@ -120,10 +121,10 @@ function CalendarPanel() {
     <Box>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       <Stack direction="row" spacing={2} mb={2}>
-        <TextField select label={t("nameDays.filterMonth")} value={filter} onChange={e => setFilter(Number(e.target.value))} sx={{ width: 200 }}>
+        <SearchableTextField label={t("nameDays.filterMonth")} value={filter} onChange={e => setFilter(Number(e.target.value))} sx={{ width: 200 }}>
           <MenuItem value={0}>{t("common.all")}</MenuItem>
           {MONTHS.map((m, i) => <MenuItem key={i} value={i + 1}>{m}</MenuItem>)}
-        </TextField>
+        </SearchableTextField>
         <Box sx={{ flex: 1 }} />
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>{t("nameDays.add")}</Button>
       </Stack>
@@ -182,10 +183,10 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
           <Stack direction="row" spacing={2}>
             <TextField type="number" required label={t("nameDays.day")} value={form.day}
               onChange={e => setForm({ ...form, day: Number(e.target.value) })} sx={{ width: 120 }} inputProps={{ min: 1, max: 31 }} />
-            <TextField select required label={t("nameDays.month")} value={form.month}
+            <SearchableTextField required label={t("nameDays.month")} value={form.month}
               onChange={e => setForm({ ...form, month: Number(e.target.value) })} fullWidth>
               {MONTHS.map((m, i) => <MenuItem key={i} value={i + 1}>{m}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
           <TextField label={t("common.notes")} value={form.notes}
             onChange={e => setForm({ ...form, notes: e.target.value })} fullWidth placeholder="π.χ. Αγ. Γεωργίου" />

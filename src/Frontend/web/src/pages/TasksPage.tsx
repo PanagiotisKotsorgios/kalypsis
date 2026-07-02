@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 import { date } from "../utils/format";
 
 type TaskStatus = "Open" | "InProgress" | "Completed" | "Cancelled";
@@ -225,15 +226,15 @@ function TaskFormDialog({ open, onClose, task, onSaved }: {
           <TextField fullWidth multiline rows={3} label={t("tasks.form.description")} value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })} />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("tasks.form.priority")} value={form.priority}
+            <SearchableTextField label={t("tasks.form.priority")} value={form.priority}
               onChange={(e) => setForm({ ...form, priority: e.target.value as TaskPriority })} fullWidth>
               {(["Low","Normal","High","Urgent"] as const).map(p => <MenuItem key={p} value={p}>{t(`tasks.priorities.${p}`)}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             {editing && (
-              <TextField select label={t("tasks.form.status")} value={form.status}
+              <SearchableTextField label={t("tasks.form.status")} value={form.status}
                 onChange={(e) => setForm({ ...form, status: e.target.value as TaskStatus })} fullWidth>
                 {(["Open","InProgress","Completed","Cancelled"] as const).map(s => <MenuItem key={s} value={s}>{t(`tasks.statuses.${s}`)}</MenuItem>)}
-              </TextField>
+              </SearchableTextField>
             )}
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>

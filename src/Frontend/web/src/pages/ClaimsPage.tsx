@@ -35,6 +35,7 @@ import { ClaimDetailDrawer } from "../components/ClaimDetailDrawer";
 import { useTableState } from "../components/useTableState";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
@@ -210,13 +211,13 @@ export function ClaimsPage() {
       {!isCustomer && (
         <Card sx={{ p: 2, mb: 2 }}>
           <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
-            <TextField select size="small" label={t("claims.col.status")}
+            <SearchableTextField size="small" label={t("claims.col.status")}
               value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "")}
               sx={{ minWidth: 180 }}>
               <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
               {(["Reported","UnderReview","Approved","Rejected","Paid","Closed"] as const).map(s =>
                 <MenuItem key={s} value={s}>{t(`claims.statuses.${s}`)}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <TextField size="small" label="Πελάτης / Συμβόλαιο / ΑΦΜ" placeholder="…αναζήτηση…"
               value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)}
               sx={{ minWidth: 260 }} />
@@ -454,7 +455,7 @@ function CreateClaimDialog({ open, onClose, onSaved }: {
       <DialogContent>
         {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
         <Stack spacing={2.5} mt={1}>
-          <TextField
+          <SearchableTextField
             select required fullWidth
             label={t("claims.form.policy")}
             value={form.policyId}
@@ -465,7 +466,7 @@ function CreateClaimDialog({ open, onClose, onSaved }: {
                 {p.policyNumber} · {t(`policies.types.${p.policyType}`)} · {p.customerDisplay} · {p.insuranceCompanyName}
               </MenuItem>
             ))}
-          </TextField>
+          </SearchableTextField>
           <TextField
             type="date" label={t("claims.form.incidentDate")}
             InputLabelProps={{ shrink: true }} value={form.incidentDate}
@@ -608,7 +609,7 @@ function EditClaimDialog({ claim, onClose, onSaved }: {
             />
           </Stack>
 
-          <TextField
+          <SearchableTextField
             select label={t("claims.col.status")} value={form.status}
             onChange={(e) => setForm({ ...form, status: e.target.value as ClaimStatus })}
             fullWidth
@@ -616,7 +617,7 @@ function EditClaimDialog({ claim, onClose, onSaved }: {
             {(["Reported","UnderReview","Approved","Rejected","Paid","Closed"] as const).map(s =>
               <MenuItem key={s} value={s}>{t(`claims.statuses.${s}`)}</MenuItem>
             )}
-          </TextField>
+          </SearchableTextField>
 
           <TextField
             label={t("claims.form.description")} value={form.description}

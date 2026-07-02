@@ -13,6 +13,7 @@ import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type VehicleUse = "None" | "EIX" | "EDX" | "FIX" | "FDX" | "LIX" | "LDX" | "Motorcycle" | "Agricultural" | "Construction";
@@ -272,11 +273,11 @@ export function PlatformCompanyParametersPage() {
             renderInput={(params) => <TextField {...params} label="Εταιρεία (γράψτε για αναζήτηση)" placeholder="Όλες" />}
             clearOnEscape
           />
-          <TextField select size="small" label="Τύπος" value={kindFilter}
+          <SearchableTextField size="small" label="Τύπος" value={kindFilter}
             onChange={(e) => setKindFilter(e.target.value as ParameterKind | "")} sx={{ minWidth: 190 }}>
             <MenuItem value="">Όλοι</MenuItem>
             {KINDS.map(k => <MenuItem key={k} value={k}>{KIND_LABEL[k]}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <TextField size="small" label="Αναζήτηση" value={search}
             onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }}
             placeholder="κωδικός, όνομα, bridge code" />
@@ -515,10 +516,10 @@ function ParameterDialog({ open, item, companies, companyOptions, defaultCompany
             fullWidth
           />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label="Τύπος *" value={form.kind}
+            <SearchableTextField label="Τύπος *" value={form.kind}
               onChange={(e) => setForm({ ...form, kind: e.target.value as ParameterKind })} fullWidth>
               {KINDS.map(k => <MenuItem key={k} value={k}>{KIND_LABEL[k]}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <TextField label="Κωδικός *" value={form.code}
               onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
               required fullWidth placeholder="MTPL, AUTO_BASIC, ERGO_NEW" />
@@ -527,16 +528,16 @@ function ParameterDialog({ open, item, companies, companyOptions, defaultCompany
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             required fullWidth />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label="Κλάδος" value={form.policyType}
+            <SearchableTextField label="Κλάδος" value={form.policyType}
               onChange={(e) => setForm({ ...form, policyType: e.target.value as PolicyType | "" })} fullWidth>
               <MenuItem value="">—</MenuItem>
               {POLICY_TYPES.map(p => <MenuItem key={p} value={p}>{TYPE_LABEL[p]}</MenuItem>)}
-            </TextField>
-            <TextField select label="Χρήση" value={form.vehicleUseCategory}
+            </SearchableTextField>
+            <SearchableTextField label="Χρήση" value={form.vehicleUseCategory}
               onChange={(e) => setForm({ ...form, vehicleUseCategory: e.target.value as VehicleUse | "" })} fullWidth>
               <MenuItem value="">—</MenuItem>
               {VEHICLE_USES.map(u => <MenuItem key={u} value={u}>{u}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
           <TextField label="Parent code" value={form.parentCode}
             onChange={(e) => setForm({ ...form, parentCode: e.target.value.toUpperCase() })}

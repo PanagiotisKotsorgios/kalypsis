@@ -40,6 +40,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import PersonOffIcon from "@mui/icons-material/PersonOff";
 import { api, extractErrorMessage } from "../api/client";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 type Role = "PlatformAdmin" | "PlatformEmployee" | "AgencyAdmin" | "AgencyUser" | "Producer" | "Customer";
 
@@ -137,7 +138,7 @@ export function AllUsersPage() {
             value={search} onChange={(e) => setSearch(e.target.value)}
             InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
           />
-          <TextField
+          <SearchableTextField
             select size="small" label={t("allUsers.tenant")}
             value={tenantFilter} onChange={(e) => setTenantFilter(e.target.value)}
             sx={{ minWidth: { sm: 220 } }}
@@ -146,8 +147,8 @@ export function AllUsersPage() {
             {(tenantsQuery.data ?? []).map((tn) =>
               <MenuItem key={tn.id} value={tn.id}>{tn.name}</MenuItem>
             )}
-          </TextField>
-          <TextField
+          </SearchableTextField>
+          <SearchableTextField
             select size="small" label={t("allUsers.role")}
             value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as Role | "")}
             sx={{ minWidth: { sm: 200 } }}
@@ -156,7 +157,7 @@ export function AllUsersPage() {
             {(["PlatformAdmin","PlatformEmployee","AgencyAdmin","AgencyUser","Producer","Customer"] as const).map(r =>
               <MenuItem key={r} value={r}>{t(`roles.${r}`)}</MenuItem>
             )}
-          </TextField>
+          </SearchableTextField>
         </Stack>
       </Card>
 
@@ -323,12 +324,12 @@ function EditUserDialog({ user, onClose, onSaved }: {
           </Stack>
           <TextField label={t("users.phone")} value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })} fullWidth />
-          <TextField select label={t("users.role")} value={form.role}
+          <SearchableTextField label={t("users.role")} value={form.role}
             onChange={(e) => setForm({ ...form, role: e.target.value as Role })} fullWidth>
             {(["PlatformAdmin","PlatformEmployee","AgencyAdmin","AgencyUser","Producer","Customer"] as const).map(r =>
               <MenuItem key={r} value={r}>{t(`roles.${r}`)}</MenuItem>
             )}
-          </TextField>
+          </SearchableTextField>
           <FormControlLabel
             control={<Switch checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />}
             label={t("allUsers.edit.active")}

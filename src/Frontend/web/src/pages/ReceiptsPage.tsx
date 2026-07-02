@@ -14,6 +14,7 @@ import { money, date } from "../utils/format";
 import { useTableState } from "../components/useTableState";
 import { NumberedPager } from "../components/TableToolbar";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 const METHODS = ["Cash","Card","BankTransfer","Cheque","PromissoryNote","Other"] as const;
 type Method = typeof METHODS[number];
@@ -135,12 +136,12 @@ export function ReceiptsPage() {
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
           <TextField size="small" placeholder="Αριθμός, πελάτης, συμβόλαιο, σημείωση…"
             value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
-          <TextField select size="small" label="Μέθοδος"
+          <SearchableTextField size="small" label="Μέθοδος"
             value={methodFilter} onChange={(e) => setMethodFilter(e.target.value as Method | "")}
             sx={{ minWidth: 160 }}>
             <MenuItem value="">Όλες</MenuItem>
             {METHODS.map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`)}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <TextField size="small" label="Πελάτης / Συμβόλαιο"
             value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)} sx={{ minWidth: 200 }} />
           <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
@@ -309,10 +310,10 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
             </Alert>
           )}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("receipts.method")} value={form.method}
+            <SearchableTextField label={t("receipts.method")} value={form.method}
               onChange={e => setForm({ ...form, method: e.target.value as Method })} fullWidth>
               {METHODS.map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`)}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <TextField type="number" required label={t("receipts.amount")} value={form.amount}
               onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth />
             <TextField label={t("tariffs.currency")} value={form.currency}

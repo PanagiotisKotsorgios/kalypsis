@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { date } from "../utils/format";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 const CHANNELS = ["Email","Courier","InPerson","Portal"] as const;
 const STATUSES = ["Pending","InTransit","Delivered","Failed"] as const;
@@ -140,12 +141,12 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
             options={(policies.data ?? []).map(p => ({ value: p.id, label: p.policyNumber }))}
           />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("delivery.channel")} value={form.channel} onChange={e => setForm({ ...form, channel: e.target.value as Channel })} fullWidth>
+            <SearchableTextField label={t("delivery.channel")} value={form.channel} onChange={e => setForm({ ...form, channel: e.target.value as Channel })} fullWidth>
               {CHANNELS.map(c => <MenuItem key={c} value={c}>{t(`delivery.channelLabel.${c}`)}</MenuItem>)}
-            </TextField>
-            <TextField select label={t("common.status")} value={form.status} onChange={e => setForm({ ...form, status: e.target.value as Status })} fullWidth>
+            </SearchableTextField>
+            <SearchableTextField label={t("common.status")} value={form.status} onChange={e => setForm({ ...form, status: e.target.value as Status })} fullWidth>
               {STATUSES.map(s => <MenuItem key={s} value={s}>{t(`delivery.statusLabel.${s}`)}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField type="datetime-local" label={t("delivery.dispatched")} InputLabelProps={{ shrink: true }} value={form.dispatchedAt} onChange={e => setForm({ ...form, dispatchedAt: e.target.value })} fullWidth />

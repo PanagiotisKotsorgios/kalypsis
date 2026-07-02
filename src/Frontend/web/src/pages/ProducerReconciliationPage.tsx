@@ -24,6 +24,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
 import { money, date } from "../utils/format";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface ProducerDeclarationDto {
   id: string;
@@ -137,7 +138,7 @@ export function ProducerReconciliationPage() {
               placeholder="Αναζήτηση σε συμβόλαιο, συνεργάτη, σημείωση…"
               InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
             />
-            <TextField
+            <SearchableTextField
               select size="small" label="Συνεργάτης"
               value={producerId} onChange={(e) => setProducerId(e.target.value)}
               sx={{ minWidth: 220 }}
@@ -146,8 +147,8 @@ export function ProducerReconciliationPage() {
               {(producersQ.data ?? []).map(p => (
                 <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
               ))}
-            </TextField>
-            <TextField
+            </SearchableTextField>
+            <SearchableTextField
               select size="small" label="Κατάσταση"
               value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
               sx={{ minWidth: 200 }}
@@ -156,7 +157,7 @@ export function ProducerReconciliationPage() {
               {Object.entries(STATUS_LABEL).map(([k, v]) => (
                 <MenuItem key={k} value={k}>{v}</MenuItem>
               ))}
-            </TextField>
+            </SearchableTextField>
           </Stack>
         </CardContent>
       </Card>

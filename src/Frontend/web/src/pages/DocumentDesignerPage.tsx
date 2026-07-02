@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface TemplateDto {
   id: string; code: string; name: string; kind: string;
@@ -157,15 +158,15 @@ function TemplateDialog({ open, onClose, item, onSaved }: { open: boolean; onClo
             <TextField required label={t("docDesigner.name")} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} fullWidth sx={{ flex: 2 }} />
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("docDesigner.kind")} value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })} fullWidth>
+            <SearchableTextField label={t("docDesigner.kind")} value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })} fullWidth>
               {KINDS.map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
-            </TextField>
-            <TextField select label={t("docDesigner.pageSize")} value={form.pageSize} onChange={e => setForm({ ...form, pageSize: e.target.value })} fullWidth>
+            </SearchableTextField>
+            <SearchableTextField label={t("docDesigner.pageSize")} value={form.pageSize} onChange={e => setForm({ ...form, pageSize: e.target.value })} fullWidth>
               {PAGES.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
-            </TextField>
-            <TextField select label={t("docDesigner.orientation")} value={form.orientation} onChange={e => setForm({ ...form, orientation: e.target.value })} fullWidth>
+            </SearchableTextField>
+            <SearchableTextField label={t("docDesigner.orientation")} value={form.orientation} onChange={e => setForm({ ...form, orientation: e.target.value })} fullWidth>
               {ORIENTATIONS.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
           <TextField label={t("docDesigner.headerHtml")} value={form.headerHtml} onChange={e => setForm({ ...form, headerHtml: e.target.value })} fullWidth multiline rows={3} placeholder='<div><img src="{{logo}}" /></div>' />
           <TextField label={t("docDesigner.bodyHtml")} value={form.bodyHtml} onChange={e => setForm({ ...form, bodyHtml: e.target.value })} fullWidth multiline rows={6} placeholder="<h1>{{title}}</h1><p>{{description}}</p>" />
@@ -282,9 +283,9 @@ function RuleDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
       <DialogContent>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2} mt={1}>
-          <TextField select label={t("docDesigner.documentKind")} value={form.documentKind} onChange={e => setForm({ ...form, documentKind: e.target.value })} fullWidth disabled={editing}>
+          <SearchableTextField label={t("docDesigner.documentKind")} value={form.documentKind} onChange={e => setForm({ ...form, documentKind: e.target.value })} fullWidth disabled={editing}>
             {KINDS.map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <Stack direction="row" spacing={2}>
             <TextField label={t("docDesigner.prefix")} value={form.prefix} onChange={e => setForm({ ...form, prefix: e.target.value })} fullWidth placeholder="ΑΠ-" />
             <TextField label={t("docDesigner.suffix")} value={form.suffix} onChange={e => setForm({ ...form, suffix: e.target.value })} fullWidth placeholder="/2026" />

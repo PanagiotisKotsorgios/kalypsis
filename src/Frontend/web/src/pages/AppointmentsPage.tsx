@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 type Status = "Scheduled" | "Done" | "Cancelled";
 interface AppointmentDto {
@@ -198,10 +199,10 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
               value={form.endsAt} onChange={(e) => setForm({ ...form, endsAt: e.target.value })} fullWidth />
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("appointments.status_")} value={form.status}
+            <SearchableTextField label={t("appointments.status_")} value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value as Status })} fullWidth>
               {(["Scheduled","Done","Cancelled"] as const).map(s => <MenuItem key={s} value={s}>{t(`appointments.status.${s}`)}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <SearchableSelect
               label={t("appointments.assignedTo")}
               value={form.assignedToUserId}

@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money, num } from "../utils/format";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 const MONTHS = ["Ιαν", "Φεβ", "Μαρ", "Απρ", "Μάι", "Ιούν", "Ιούλ", "Αύγ", "Σεπ", "Οκτ", "Νοέ", "Δεκ"];
 
@@ -52,10 +53,10 @@ function Report4500() {
   return (
     <Box>
       <Stack direction="row" spacing={2} mb={2}>
-        <TextField select label={t("namedReports.month")} value={month} onChange={e => setMonth(Number(e.target.value))} sx={{ width: 160 }}>
+        <SearchableTextField label={t("namedReports.month")} value={month} onChange={e => setMonth(Number(e.target.value))} sx={{ width: 160 }}>
           <MenuItem value={0}>{t("common.all")}</MenuItem>
           {MONTHS.map((m, i) => <MenuItem key={i} value={i + 1}>{m}</MenuItem>)}
-        </TextField>
+        </SearchableTextField>
         <TextField type="number" label={t("namedReports.day")} value={day} onChange={e => setDay(Number(e.target.value))} sx={{ width: 100 }} />
         <TextField label={t("namedReports.firstName")} value={name} onChange={e => setName(e.target.value)} sx={{ width: 200 }} placeholder="π.χ. Γιώργος" />
       </Stack>

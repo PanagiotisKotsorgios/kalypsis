@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { money } from "../utils/format";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 const TYPES = ["","Auto","Home","Health","Life","Business","Travel","Other"] as const;
 interface GoalDto { id: string; producerId: string | null; producerName: string | null; year: number; month: number | null; policyType: string | null; targetPremium: number; targetPolicies: number | null; notes: string | null; }
@@ -34,9 +35,9 @@ export function ProductionGoalsPage() {
         <Box><Typography variant="h4" sx={{ fontWeight: 800 }}>{t("goals.title")}</Typography>
           <Typography color="text.secondary">{t("goals.subtitle")}</Typography></Box>
         <Stack direction="row" spacing={2}>
-          <TextField size="small" select label={t("financials.year")} value={year} onChange={e => setYear(Number(e.target.value))} sx={{ minWidth: 100 }}>
+          <SearchableTextField size="small" select label={t("financials.year")} value={year} onChange={e => setYear(Number(e.target.value))} sx={{ minWidth: 100 }}>
             {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - 1 + i).map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("goals.create")}</Button>
         </Stack>
       </Stack>
@@ -131,13 +132,13 @@ function FormDialog({ open, onClose, item, defaultYear, onSaved }: { open: boole
           />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField type="number" label={t("financials.year")} value={form.year} onChange={e => setForm({ ...form, year: Number(e.target.value) })} fullWidth />
-            <TextField select label={t("goals.month")} value={form.month} onChange={e => setForm({ ...form, month: e.target.value })} fullWidth>
+            <SearchableTextField label={t("goals.month")} value={form.month} onChange={e => setForm({ ...form, month: e.target.value })} fullWidth>
               <MenuItem value="">{t("goals.yearWide")}</MenuItem>
               {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <MenuItem key={m} value={m}>{m.toString().padStart(2, "0")}</MenuItem>)}
-            </TextField>
-            <TextField select label={t("goals.branch")} value={form.policyType} onChange={e => setForm({ ...form, policyType: e.target.value })} fullWidth>
+            </SearchableTextField>
+            <SearchableTextField label={t("goals.branch")} value={form.policyType} onChange={e => setForm({ ...form, policyType: e.target.value })} fullWidth>
               {TYPES.map(p => <MenuItem key={p || "_all"} value={p}>{p ? t(`policyType.${p}`) : t("common.all")}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField type="number" required label={t("goals.targetPremium")} value={form.targetPremium} onChange={e => setForm({ ...form, targetPremium: Number(e.target.value) })} fullWidth />

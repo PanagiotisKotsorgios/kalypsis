@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 import { money, date } from "../utils/format";
 
 type Status = "Draft" | "Submitted" | "Approved" | "Rejected" | "Effective";
@@ -226,13 +227,13 @@ function CancellationDialog({ open, onClose, onSaved }: { open: boolean; onClose
             value={reasonText} onChange={(e) => setReasonText(e.target.value)} />
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label="Μέθοδος επιστροφής" value={refundMethod}
+            <SearchableTextField label="Μέθοδος επιστροφής" value={refundMethod}
               onChange={(e) => setRefundMethod(e.target.value)} sx={{ flex: 1 }}>
               <MenuItem value="ProRata">Pro Rata — αναλογικά</MenuItem>
               <MenuItem value="ShortRate">Short Rate — με ποινή 20%</MenuItem>
               <MenuItem value="Full">Πλήρης επιστροφή</MenuItem>
               <MenuItem value="Custom">Custom — χειροκίνητο</MenuItem>
-            </TextField>
+            </SearchableTextField>
             <HelpHint id="cancellation.refundMethod" />
             {refundMethod === "Custom" && (
               <TextField type="number" label="Ποσό επιστροφής (€)" value={customRefund}

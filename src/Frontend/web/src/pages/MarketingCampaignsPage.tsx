@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { dateTime } from "../utils/format";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 const STATUSES = ["Draft","Scheduled","Sent"] as const;
 type Status = typeof STATUSES[number];
@@ -161,21 +162,21 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
           <TextField required label={t("marketing.name")} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} fullWidth />
           <TextField required label={t("marketing.subject")} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} fullWidth />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("marketing.segment")} value={form.segmentKey} onChange={e => setForm({ ...form, segmentKey: e.target.value as Segment })} fullWidth>
+            <SearchableTextField label={t("marketing.segment")} value={form.segmentKey} onChange={e => setForm({ ...form, segmentKey: e.target.value as Segment })} fullWidth>
               {SEGMENTS.map(s => <MenuItem key={s} value={s}>{t(`marketing.segmentLabel.${s}`)}</MenuItem>)}
-            </TextField>
-            <TextField select label={t("common.status")} value={form.status} onChange={e => setForm({ ...form, status: e.target.value as Status })} fullWidth>
+            </SearchableTextField>
+            <SearchableTextField label={t("common.status")} value={form.status} onChange={e => setForm({ ...form, status: e.target.value as Status })} fullWidth>
               {STATUSES.filter(s => s !== "Sent").map(s => <MenuItem key={s} value={s}>{t(`marketing.statusLabel.${s}`)}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <TextField type="datetime-local" label={t("marketing.scheduleFor")} InputLabelProps={{ shrink: true }}
               value={form.scheduledFor} onChange={e => setForm({ ...form, scheduledFor: e.target.value })} fullWidth />
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField label="Επάγγελμα / κλάδος" value={form.occupationFilter ?? ""} onChange={e => setForm({ ...form, occupationFilter: e.target.value })} fullWidth placeholder="π.χ. εστίαση" />
-            <TextField select label="Ανάγκη / περιουσία" value={form.needKindFilter ?? ""} onChange={e => setForm({ ...form, needKindFilter: e.target.value })} fullWidth>
+            <SearchableTextField label="Ανάγκη / περιουσία" value={form.needKindFilter ?? ""} onChange={e => setForm({ ...form, needKindFilter: e.target.value })} fullWidth>
               <MenuItem value="">Όλες</MenuItem>
               {NEED_KINDS.map(kind => <MenuItem key={kind} value={kind}>{kind}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
             {CHANNELS.map(channel => <FormControlLabel key={channel} label={channel} control={<Checkbox checked={(form.channels ?? ["Email"]).includes(channel)} onChange={e => {

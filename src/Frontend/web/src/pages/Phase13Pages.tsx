@@ -17,6 +17,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money, num } from "../utils/format";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 /* ============================================================================
    ADVANCE PAYMENTS (Προκαταβολές)
@@ -43,10 +44,10 @@ export function AdvancePaymentsPage() {
           </Box>
         </Stack>
         <Stack direction="row" spacing={2}>
-          <TextField select size="small" label={t("common.status")} value={filter} onChange={e => setFilter(e.target.value)} sx={{ width: 200 }}>
+          <SearchableTextField size="small" label={t("common.status")} value={filter} onChange={e => setFilter(e.target.value)} sx={{ width: 200 }}>
             <MenuItem value="">{t("common.all")}</MenuItem>
             {["Open", "PartiallyAllocated", "FullyAllocated", "Refunded"].map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>{t("advance.create")}</Button>
         </Stack>
       </Stack>
@@ -121,9 +122,9 @@ function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClos
             <TextField required label={t("advance.number")} value={form.number} onChange={e => setForm({ ...form, number: e.target.value })} fullWidth />
             <TextField type="date" label={t("advance.receivedOn")} InputLabelProps={{ shrink: true }} value={form.receivedOn} onChange={e => setForm({ ...form, receivedOn: e.target.value })} fullWidth />
           </Stack>
-          <TextField select label={t("advance.party")} value={form.partyType} onChange={e => setForm({ ...form, partyType: e.target.value })} fullWidth>
+          <SearchableTextField label={t("advance.party")} value={form.partyType} onChange={e => setForm({ ...form, partyType: e.target.value })} fullWidth>
             {["Customer", "Producer", "Carrier"].map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           {form.partyType === "Customer" && (
             <SearchableSelect
               label={t("advance.customer")}
@@ -154,9 +155,9 @@ function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClos
           <Stack direction="row" spacing={2}>
             <TextField type="number" required label={t("advance.amount")} value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth />
             <TextField label={t("common.currency")} value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value.toUpperCase() })} sx={{ width: 100 }} />
-            <TextField select label={t("advance.method")} value={form.paymentMethod} onChange={e => setForm({ ...form, paymentMethod: e.target.value })} sx={{ width: 200 }}>
+            <SearchableTextField label={t("advance.method")} value={form.paymentMethod} onChange={e => setForm({ ...form, paymentMethod: e.target.value })} sx={{ width: 200 }}>
               {["Cash", "BankTransfer", "Cheque", "Card", "Other"].map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
           <TextField label={t("advance.reference")} value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} fullWidth />
           <TextField label={t("common.notes")} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} fullWidth multiline rows={2} />
@@ -368,9 +369,9 @@ export function InfoCenterPage() {
           </Box>
         </Stack>
         <Stack direction="row" spacing={2}>
-          <TextField select label={t("infoCenter.kind")} value={kind} onChange={e => setKind(e.target.value)} sx={{ width: 200 }}>
+          <SearchableTextField label={t("infoCenter.kind")} value={kind} onChange={e => setKind(e.target.value)} sx={{ width: 200 }}>
             {["Vehicles", "Customers", "Policies"].map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => create.mutate()} disabled={create.isPending}>{t("infoCenter.createBatch")}</Button>
         </Stack>
       </Stack>
@@ -490,12 +491,12 @@ function CreateVehicleDialog({ open, onClose, onSaved }: { open: boolean; onClos
             <TextField type="number" label={t("vehicles.hp")} value={form.horsePower} onChange={e => setForm({ ...form, horsePower: e.target.value })} fullWidth />
           </Stack>
           <Stack direction="row" spacing={2}>
-            <TextField select label={t("vehicles.fuel")} value={form.fuelType} onChange={e => setForm({ ...form, fuelType: e.target.value })} fullWidth>
+            <SearchableTextField label={t("vehicles.fuel")} value={form.fuelType} onChange={e => setForm({ ...form, fuelType: e.target.value })} fullWidth>
               {["Petrol", "Diesel", "Hybrid", "Electric", "LPG", "CNG"].map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
-            </TextField>
-            <TextField select label={t("vehicles.category")} value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} fullWidth>
+            </SearchableTextField>
+            <SearchableTextField label={t("vehicles.category")} value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} fullWidth>
               {["passenger", "van", "truck", "motorcycle", "bus", "tractor"].map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
         </Stack>
       </DialogContent>

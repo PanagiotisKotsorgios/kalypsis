@@ -12,6 +12,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money, num } from "../utils/format";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface AccountDto { id: string; code: string; name: string; type: string; category: string | null; isActive: boolean; displayOrder: number; }
 interface EntryDto {
@@ -271,9 +272,9 @@ function AccountDialog({ open, onClose, item, onSaved }: { open: boolean; onClos
             <TextField type="number" label={t("gl.displayOrder")} value={form.displayOrder} onChange={e => setForm({ ...form, displayOrder: Number(e.target.value) })} sx={{ width: 120 }} />
           </Stack>
           <TextField required label={t("gl.accountName")} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} fullWidth />
-          <TextField select label={t("gl.accountType")} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} fullWidth>
+          <SearchableTextField label={t("gl.accountType")} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} fullWidth>
             {ACCOUNT_TYPES.map(tp => <MenuItem key={tp} value={tp}>{tp}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <TextField label={t("gl.category")} value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} fullWidth />
         </Stack>
       </DialogContent>

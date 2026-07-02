@@ -32,6 +32,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface AuditLog {
   id: string;
@@ -171,7 +172,7 @@ export function AuditLogsPage() {
               size="small"
               inputProps={{ "data-audit-search": "audit-log-search" }}
             />
-            <TextField
+            <SearchableTextField
               select
               label="Υπάλληλος"
               value={userId}
@@ -185,8 +186,8 @@ export function AuditLogsPage() {
                   {employee.firstName} {employee.lastName} — {employee.email}
                 </MenuItem>
               ))}
-            </TextField>
-            <TextField
+            </SearchableTextField>
+            <SearchableTextField
               select
               label="Κατηγορία"
               value={category}
@@ -196,10 +197,10 @@ export function AuditLogsPage() {
             >
               <MenuItem value="">Όλες οι κατηγορίες</MenuItem>
               {Object.entries(CATEGORY_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
           <Stack direction={{ xs: "column", lg: "row" }} spacing={1.5}>
-            <TextField
+            <SearchableTextField
               select
               label="Ενέργεια"
               value={action}
@@ -209,7 +210,7 @@ export function AuditLogsPage() {
             >
               <MenuItem value="">Όλες οι ενέργειες</MenuItem>
               {Object.entries(ACTION_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <TextField
               label="Εγγραφή / ενότητα"
               value={entityName}

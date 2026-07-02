@@ -20,6 +20,7 @@ import PeopleIcon from "@mui/icons-material/People";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { useTableState } from "../components/useTableState";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 type ProducerStatus = "Active" | "Suspended" | "Terminated";
 type ProducerTier = "None" | "A" | "B" | "C" | "D" | "E";
@@ -106,21 +107,21 @@ export function ProducersPage() {
 
       <Card sx={{ p: 2, mb: 2 }}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-          <TextField select size="small" label={t("producers.col.status")}
+          <SearchableTextField size="small" label={t("producers.col.status")}
             value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ProducerStatus | "")}
             sx={{ minWidth: { sm: 200 } }}>
             <MenuItem value="">Όλες</MenuItem>
             {(["Active","Suspended","Terminated"] as const).map(s =>
               <MenuItem key={s} value={s}>{t(`producers.statuses.${s}`)}</MenuItem>)}
-          </TextField>
-          <TextField select size="small" label="Κατηγορία"
+          </SearchableTextField>
+          <SearchableTextField size="small" label="Κατηγορία"
             value={tierFilter} onChange={(e) => setTierFilter(e.target.value as ProducerTier | "")}
             sx={{ minWidth: { sm: 180 } }}>
             <MenuItem value="">Όλες</MenuItem>
             {(["A","B","C","D","E"] as const).map(t =>
               <MenuItem key={t} value={t}>{TIER_LABEL[t as ProducerTier]}</MenuItem>)}
             <MenuItem value="None">Χωρίς κατηγορία</MenuItem>
-          </TextField>
+          </SearchableTextField>
           <Stack direction="row" alignItems="center" spacing={1}>
             <input type="checkbox" id="has-policies-only" checked={hasPoliciesOnly}
               onChange={(e) => setHasPoliciesOnly(e.target.checked)} />
@@ -308,18 +309,18 @@ function ProducerDialog({ open, onClose, producer, onSaved }: {
           <Stack direction="row" spacing={2}>
             <TextField label={t("producers.col.code")} value={form.code}
               onChange={(e) => setForm({ ...form, code: e.target.value })} fullWidth required disabled={editing} />
-            <TextField select label={t("producers.col.status")} value={form.status}
+            <SearchableTextField label={t("producers.col.status")} value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value as ProducerStatus })} fullWidth>
               {(["Active","Suspended","Terminated"] as const).map(s => <MenuItem key={s} value={s}>{t(`producers.statuses.${s}`)}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
-          <TextField select label="Κατηγορία προμηθειών" value={form.tier}
+          <SearchableTextField label="Κατηγορία προμηθειών" value={form.tier}
             onChange={(e) => setForm({ ...form, tier: e.target.value as ProducerTier })} fullWidth
             helperText="Επιλέξτε την κατηγορία Α/Β/Γ/Δ/Ε ώστε ο συνεργάτης να παίρνει αυτόματα την προμήθεια που έχετε ορίσει στην παραμετροποίηση για την κατηγορία του.">
             <MenuItem value="None">— Χωρίς κατηγορία —</MenuItem>
             {(["A","B","C","D","E"] as const).map(tier =>
               <MenuItem key={tier} value={tier}>{TIER_LABEL[tier as ProducerTier]}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <TextField label={t("producers.col.name")} value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth required />
           <TextField label={t("producers.col.email")} type="email" value={form.email}

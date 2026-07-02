@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money, date } from "../utils/format";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 type EndorsementType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 99;
 type EndorsementStatus = "Draft" | "Issued" | "Cancelled";
@@ -265,12 +266,12 @@ function EndorsementDialog({ open, item, onClose, onSaved }: {
           )}
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label="Τύπος πράξης" value={form.type}
+            <SearchableTextField label="Τύπος πράξης" value={form.type}
               onChange={(e) => setForm({ ...form, type: Number(e.target.value) as EndorsementType })}
               sx={{ flex: 1 }} required>
               {Object.entries(TYPE_LABELS).map(([k, v]) =>
                 <MenuItem key={k} value={Number(k)}>{v}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               <HelpHint id="endorsement.type" />
             </Box>

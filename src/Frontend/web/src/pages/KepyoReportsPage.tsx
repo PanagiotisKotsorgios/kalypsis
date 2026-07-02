@@ -1,13 +1,14 @@
 import { useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, MenuItem, Stack, Table, TableBody, TableCell,
-  TableHead, TableRow, TextField, Typography
+  TableHead, TableRow, Typography
 } from "@mui/material";
 import PlayCircleIcon from "@mui/icons-material/PlayCircle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { money, dateTime } from "../utils/format";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface KepyoDto { id: string; year: number; runAt: string; status: "Pending"|"Running"|"Completed"|"Failed"; suppliers: number; customers: number; totalAmount: number; fileName: string | null; }
 
@@ -33,9 +34,9 @@ export function KepyoReportsPage() {
         <Box><Typography variant="h4" sx={{ fontWeight: 800 }}>{t("kepyo.title")}</Typography>
           <Typography color="text.secondary">{t("kepyo.subtitle")}</Typography></Box>
         <Stack direction="row" spacing={1.5} alignItems="center">
-          <TextField size="small" select label={t("kepyo.year")} value={year} onChange={e => setYear(Number(e.target.value))} sx={{ minWidth: 100 }}>
+          <SearchableTextField size="small" select label={t("kepyo.year")} value={year} onChange={e => setYear(Number(e.target.value))} sx={{ minWidth: 100 }}>
             {Array.from({ length: 6 }, (_, i) => now.getFullYear() - i).map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <Button startIcon={<PlayCircleIcon />} variant="contained" onClick={() => run.mutate()} disabled={run.isPending}>
             {run.isPending ? <CircularProgress size={18} /> : t("kepyo.run")}
           </Button>

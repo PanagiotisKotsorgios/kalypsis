@@ -6,6 +6,7 @@ import {
 } from "@mui/material";
 import { NumberedPager } from "../components/TableToolbar";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -125,24 +126,24 @@ export function CommissionRunsPage() {
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
           <TextField size="small" placeholder="Τίτλος, εταιρία, συνεργάτης, σημείωση…"
             value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
-          <TextField select size="small" label="Έτος" value={yearFilter}
+          <SearchableTextField size="small" label="Έτος" value={yearFilter}
             onChange={(e) => setYearFilter(e.target.value)} sx={{ minWidth: 120 }}>
             <MenuItem value="">Όλα</MenuItem>
             {years.map(y => <MenuItem key={y} value={String(y)}>{y}</MenuItem>)}
-          </TextField>
-          <TextField select size="small" label="Μήνας" value={monthFilter}
+          </SearchableTextField>
+          <SearchableTextField size="small" label="Μήνας" value={monthFilter}
             onChange={(e) => setMonthFilter(e.target.value)} sx={{ minWidth: 120 }}>
             <MenuItem value="">Όλοι</MenuItem>
             {Array.from({ length: 12 }, (_, i) => i + 1).map(m =>
               <MenuItem key={m} value={String(m)}>{m.toString().padStart(2, "0")}</MenuItem>)}
-          </TextField>
-          <TextField select size="small" label="Κατάσταση" value={statusFilter}
+          </SearchableTextField>
+          <SearchableTextField size="small" label="Κατάσταση" value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 160 }}>
             <MenuItem value="">Όλες</MenuItem>
             <MenuItem value="Draft">Πρόχειρη</MenuItem>
             <MenuItem value="Finalised">Οριστική</MenuItem>
             <MenuItem value="Cancelled">Ακυρωμένη</MenuItem>
-          </TextField>
+          </SearchableTextField>
           <SearchableSelect
             label="Εταιρία" value={carrierFilter}
             onChange={(v) => setCarrierFilter(v)}
@@ -310,12 +311,12 @@ function CreateDialog({ open, onClose, onCreated }: { open: boolean; onClose: ()
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2.5} mt={1}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("financials.year")} value={form.year} onChange={e => setForm({ ...form, year: Number(e.target.value) })} fullWidth>
+            <SearchableTextField label={t("financials.year")} value={form.year} onChange={e => setForm({ ...form, year: Number(e.target.value) })} fullWidth>
               {Array.from({ length: 6 }, (_, i) => now.getFullYear() - i).map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
-            </TextField>
-            <TextField select label={t("goals.month")} value={form.month} onChange={e => setForm({ ...form, month: Number(e.target.value) })} fullWidth>
+            </SearchableTextField>
+            <SearchableTextField label={t("goals.month")} value={form.month} onChange={e => setForm({ ...form, month: Number(e.target.value) })} fullWidth>
               {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <MenuItem key={m} value={m}>{m.toString().padStart(2, "0")}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
           <TextField label={t("commissionRuns.titleField")} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} fullWidth helperText={t("commissionRuns.titleHelp")} />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>

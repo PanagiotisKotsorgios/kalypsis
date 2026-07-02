@@ -37,6 +37,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
 import { date } from "../utils/format";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 type ServiceRequestType = "NewPolicy" | "AccidentReport" | "DocumentRequest" | "PolicyChange" | "GeneralQuestion";
 type ServiceRequestStatus = "Submitted" | "InReview" | "AwaitingCustomerInfo" | "Resolved" | "Closed" | "Rejected";
@@ -273,7 +274,7 @@ function CreateRequestDialog({ open, onClose, onSubmit, submitting }: CreateProp
           {t("requests.create.subtitle")}
         </Typography>
         <Stack spacing={2.5} mt={1}>
-          <TextField
+          <SearchableTextField
             select
             label={t("requests.create.type")}
             value={body.type}
@@ -285,7 +286,7 @@ function CreateRequestDialog({ open, onClose, onSubmit, submitting }: CreateProp
             <MenuItem value="DocumentRequest">{t("requests.types.DocumentRequest")}</MenuItem>
             <MenuItem value="PolicyChange">{t("requests.types.PolicyChange")}</MenuItem>
             <MenuItem value="GeneralQuestion">{t("requests.types.GeneralQuestion")}</MenuItem>
-          </TextField>
+          </SearchableTextField>
           <TextField
             label={t("requests.create.subject")}
             value={body.subject}
@@ -527,7 +528,7 @@ function RequestDetailDialog({ request, onClose, onChanged, isAgency }: DetailPr
                   </Alert>
                 )}
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
-                  <TextField
+                  <SearchableTextField
                     select
                     size="small"
                     label={t("requests.detail.attachmentCategory")}
@@ -541,7 +542,7 @@ function RequestDetailDialog({ request, onClose, onChanged, isAgency }: DetailPr
                     <MenuItem value="AccidentReport">{t("requests.attachmentCategories.AccidentReport")}</MenuItem>
                     <MenuItem value="IdCard">{t("requests.attachmentCategories.IdCard")}</MenuItem>
                     <MenuItem value="Other">{t("requests.attachmentCategories.Other")}</MenuItem>
-                  </TextField>
+                  </SearchableTextField>
                   <Button
                     component="label"
                     variant="contained"
@@ -572,7 +573,7 @@ function RequestDetailDialog({ request, onClose, onChanged, isAgency }: DetailPr
                 <Typography variant="overline" color="text.secondary">{t("requests.detail.agencyActions")}</Typography>
                 <Stack spacing={2} sx={{ mt: 1 }}>
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                    <TextField
+                    <SearchableTextField
                       select
                       label={t("requests.detail.changeStatus")}
                       value={newStatus}
@@ -582,7 +583,7 @@ function RequestDetailDialog({ request, onClose, onChanged, isAgency }: DetailPr
                       {(["Submitted", "InReview", "AwaitingCustomerInfo", "Resolved", "Closed", "Rejected"] as const).map(s => (
                         <MenuItem key={s} value={s}>{t(`requests.statuses.${s}`)}</MenuItem>
                       ))}
-                    </TextField>
+                    </SearchableTextField>
                     <Button
                       variant="contained"
                       onClick={() => updateStatus.mutate({ id: request.id, status: newStatus, notes: agencyNotes })}

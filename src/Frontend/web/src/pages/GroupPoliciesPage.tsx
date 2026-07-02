@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 import { money } from "../utils/format";
 
 interface GroupPolicyDto {
@@ -207,10 +208,10 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
               onChange={e => setForm({ ...form, premium: Number(e.target.value) })} fullWidth />
             <TextField label={t("common.currency")} value={form.currency}
               onChange={e => setForm({ ...form, currency: e.target.value.toUpperCase().slice(0, 3) })} sx={{ width: 100 }} />
-            <TextField select label={t("common.status")} value={form.status}
+            <SearchableTextField label={t("common.status")} value={form.status}
               onChange={e => setForm({ ...form, status: e.target.value })} sx={{ width: 160 }}>
               {STATUSES.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
           <TextField label={t("common.notes")} multiline rows={2} value={form.notes}
             onChange={e => setForm({ ...form, notes: e.target.value })} fullWidth />
@@ -308,10 +309,10 @@ function MembersDialog({ group, onClose }: { group: GroupPolicyDto | null; onClo
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField type="date" label={t("groupPolicies.birthDate")} InputLabelProps={{ shrink: true }}
                 value={form.birthDate} onChange={e => setForm({ ...form, birthDate: e.target.value })} fullWidth />
-              <TextField select label={t("groupPolicies.relationship")} value={form.relationship}
+              <SearchableTextField label={t("groupPolicies.relationship")} value={form.relationship}
                 onChange={e => setForm({ ...form, relationship: e.target.value })} fullWidth>
                 {["self", "spouse", "child", "parent", "other"].map(r => <MenuItem key={r} value={r}>{r}</MenuItem>)}
-              </TextField>
+              </SearchableTextField>
             </Stack>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField type="date" label={t("groupPolicies.enrolledFrom")} InputLabelProps={{ shrink: true }}

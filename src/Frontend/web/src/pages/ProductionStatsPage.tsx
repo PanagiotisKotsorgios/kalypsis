@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { Box, Card, CardContent, CircularProgress, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
+import { Box, Card, CardContent, CircularProgress, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
 import { api } from "../api/client";
 import { money } from "../utils/format";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface Stats {
   year: number; totalPremium: number; totalPolicies: number;
@@ -31,9 +32,9 @@ export function ProductionStatsPage() {
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Box><Typography variant="h4" sx={{ fontWeight: 800 }}>{t("productionStats.title")}</Typography>
           <Typography color="text.secondary">{t("productionStats.subtitle")}</Typography></Box>
-        <TextField size="small" select label={t("financials.year")} value={year} onChange={e => setYear(Number(e.target.value))} sx={{ minWidth: 100 }}>
+        <SearchableTextField size="small" select label={t("financials.year")} value={year} onChange={e => setYear(Number(e.target.value))} sx={{ minWidth: 100 }}>
           {Array.from({ length: 6 }, (_, i) => now.getFullYear() - i).map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
-        </TextField>
+        </SearchableTextField>
       </Stack>
 
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (

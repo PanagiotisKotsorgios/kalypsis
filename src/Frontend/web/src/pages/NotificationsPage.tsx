@@ -27,6 +27,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
+import { SearchableTextField } from "../components/SearchableTextField";
 import {
   NOTIFICATION_SEVERITY_COLOR,
   NOTIFICATION_SEVERITY_TINT,
@@ -268,7 +269,7 @@ export function NotificationsPage() {
                 )
               }}
             />
-            <TextField
+            <SearchableTextField
               select
               size="small"
               label="Κατάσταση"
@@ -282,8 +283,8 @@ export function NotificationsPage() {
               <MenuItem value="all">Όλες</MenuItem>
               <MenuItem value="unread">Μη αναγνωσμένες</MenuItem>
               <MenuItem value="read">Αναγνωσμένες</MenuItem>
-            </TextField>
-            <TextField
+            </SearchableTextField>
+            <SearchableTextField
               select
               size="small"
               label="Τύπος"
@@ -296,8 +297,8 @@ export function NotificationsPage() {
             >
               <MenuItem value="all">Όλοι οι τύποι</MenuItem>
               {categories.map(c => <MenuItem key={c.value} value={c.value}>{c.label}</MenuItem>)}
-            </TextField>
-            <TextField
+            </SearchableTextField>
+            <SearchableTextField
               select
               size="small"
               label="Περίοδος"
@@ -312,8 +313,8 @@ export function NotificationsPage() {
               <MenuItem value="today">Σήμερα</MenuItem>
               <MenuItem value="7d">Τελευταίες 7 ημέρες</MenuItem>
               <MenuItem value="30d">Τελευταίες 30 ημέρες</MenuItem>
-            </TextField>
-            <TextField
+            </SearchableTextField>
+            <SearchableTextField
               select
               size="small"
               label="Σειρά"
@@ -326,8 +327,8 @@ export function NotificationsPage() {
             >
               <MenuItem value="newest">Νεότερες πρώτα</MenuItem>
               <MenuItem value="oldest">Παλαιότερες πρώτα</MenuItem>
-            </TextField>
-            <TextField
+            </SearchableTextField>
+            <SearchableTextField
               select
               size="small"
               label="Ανά σελίδα"
@@ -339,7 +340,7 @@ export function NotificationsPage() {
               sx={{ minWidth: 125 }}
             >
               {[10, 20, 50].map(size => <MenuItem key={size} value={size}>{size}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
 
           {(search || status !== "all" || category !== "all" || period !== "all") && (

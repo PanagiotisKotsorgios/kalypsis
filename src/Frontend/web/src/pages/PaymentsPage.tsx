@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 import { money, date } from "../utils/format";
 
 const METHODS = ["Cash","Card","BankTransfer","Cheque","PromissoryNote","Other"] as const;
@@ -99,18 +100,18 @@ export function PaymentsPage() {
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
           <TextField size="small" placeholder="Αριθμός, δικαιούχος, σημείωση…"
             value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
-          <TextField select size="small" label="Δικαιούχος"
+          <SearchableTextField size="small" label="Δικαιούχος"
             value={benFilter} onChange={(e) => setBenFilter(e.target.value as BType | "")}
             sx={{ minWidth: 180 }}>
             <MenuItem value="">Όλοι</MenuItem>
             {BENEFICIARIES.map(b => <MenuItem key={b} value={b}>{t(`payments.benType.${b}`)}</MenuItem>)}
-          </TextField>
-          <TextField select size="small" label="Μέθοδος"
+          </SearchableTextField>
+          <SearchableTextField size="small" label="Μέθοδος"
             value={methodFilter} onChange={(e) => setMethodFilter(e.target.value as Method | "")}
             sx={{ minWidth: 160 }}>
             <MenuItem value="">Όλες</MenuItem>
             {METHODS.map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`)}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
             value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
           <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
@@ -228,9 +229,9 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
             <TextField required label="Αριθμός πληρωμής" value={form.number} onChange={e => setForm({ ...form, number: e.target.value })} fullWidth />
             <TextField type="date" label={t("payments.date")} InputLabelProps={{ shrink: true }} value={form.paidOn} onChange={e => setForm({ ...form, paidOn: e.target.value })} fullWidth />
           </Stack>
-          <TextField select label={t("payments.benType")} value={form.beneficiaryType} onChange={e => setForm({ ...form, beneficiaryType: e.target.value as BType })} fullWidth>
+          <SearchableTextField label={t("payments.benType")} value={form.beneficiaryType} onChange={e => setForm({ ...form, beneficiaryType: e.target.value as BType })} fullWidth>
             {BENEFICIARIES.map(b => <MenuItem key={b} value={b}>{t(`payments.benType.${b}`)}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           {form.beneficiaryType === "InsuranceCompany" && (
             <SearchableSelect
               label={t("payments.companyBen")}
@@ -264,9 +265,9 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
             <TextField label={t("payments.vendorName")} value={form.beneficiaryName} onChange={e => setForm({ ...form, beneficiaryName: e.target.value })} fullWidth />
           )}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("payments.method")} value={form.method} onChange={e => setForm({ ...form, method: e.target.value as Method })} fullWidth>
+            <SearchableTextField label={t("payments.method")} value={form.method} onChange={e => setForm({ ...form, method: e.target.value as Method })} fullWidth>
               {METHODS.map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`)}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <TextField type="number" required label={t("payments.amount")} value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth />
             <TextField type="number" label={t("payments.netted")} value={form.commissionsNetted} onChange={e => setForm({ ...form, commissionsNetted: Number(e.target.value) })} fullWidth />
           </Stack>

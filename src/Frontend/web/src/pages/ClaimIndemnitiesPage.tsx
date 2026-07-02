@@ -12,6 +12,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money } from "../utils/format";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface IndemnityDto {
   id: string; claimId: string; claimNumber: string;
@@ -160,10 +161,10 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
               value={form.paidOn} onChange={e => setForm({ ...form, paidOn: e.target.value })} fullWidth />
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("indemnities.payeeType")} value={form.payeeType}
+            <SearchableTextField label={t("indemnities.payeeType")} value={form.payeeType}
               onChange={e => setForm({ ...form, payeeType: e.target.value })} fullWidth>
               {PAYEE_TYPES.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             {form.payeeType === "Garage" ? (
               <SearchableSelect
                 label={t("garages.title")}
@@ -177,10 +178,10 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
             )}
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("indemnities.method")} value={form.paymentMethod}
+            <SearchableTextField label={t("indemnities.method")} value={form.paymentMethod}
               onChange={e => setForm({ ...form, paymentMethod: e.target.value })} fullWidth>
               {METHODS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <TextField required type="number" label={t("indemnities.amount")} value={form.amount}
               onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth />
             <TextField label={t("common.currency")} value={form.currency}

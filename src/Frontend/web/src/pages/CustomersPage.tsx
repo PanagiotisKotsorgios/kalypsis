@@ -34,6 +34,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { CredentialsDialog } from "./TenantsPage";
 import { useTableState } from "../components/useTableState";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 type CustomerType = "Individual" | "Company";
 const NEED_KINDS = ["Home", "Vehicle", "Health", "Life", "Business", "Travel", "Pet", "Liability", "Cyber", "Other"] as const;
@@ -151,11 +152,11 @@ export function CustomersPage() {
             <TextField size="small" label="Επάγγελμα / κλάδος" value={occupationFilter}
               onChange={(e) => setOccupationFilter(e.target.value)} sx={{ minWidth: { md: 250 } }}
               placeholder="π.χ. εστίαση" />
-            <TextField select size="small" label="Ανάγκη / περιουσία" value={needKind}
+            <SearchableTextField size="small" label="Ανάγκη / περιουσία" value={needKind}
               onChange={(e) => setNeedKind(e.target.value)} sx={{ minWidth: { md: 210 } }}>
               <MenuItem value="">Όλες</MenuItem>
               {NEED_KINDS.map(kind => <MenuItem key={kind} value={kind}>{kind}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <FormControlLabel control={<Switch checked={onlyUninsuredNeeds} disabled={!needKind}
               onChange={(e) => setOnlyUninsuredNeeds(e.target.checked)} />} label="Μόνο χωρίς ενεργή κάλυψη" />
           </Stack>
@@ -329,7 +330,7 @@ function CreateCustomerDialog({
           {t("customers.createHelp")}
         </Typography>
         <Stack spacing={2} mt={1}>
-          <TextField
+          <SearchableTextField
             select
             label={t("customers.type")}
             value={form.type}
@@ -338,7 +339,7 @@ function CreateCustomerDialog({
           >
             <MenuItem value="Individual">{t("customers.individual")}</MenuItem>
             <MenuItem value="Company">{t("customers.company")}</MenuItem>
-          </TextField>
+          </SearchableTextField>
 
           {form.type === "Individual" ? (
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>

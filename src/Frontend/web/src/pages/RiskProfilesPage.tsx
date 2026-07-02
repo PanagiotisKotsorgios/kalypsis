@@ -9,6 +9,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { date } from "../utils/format";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 const PRODUCT_TYPES = ["Auto", "Home", "Health", "Life", "Business", "Travel"] as const;
 type ProductType = typeof PRODUCT_TYPES[number];
@@ -141,10 +142,10 @@ export function RiskProfilesPage() {
 
         <Box sx={{ flex: 1 }}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mb={2}>
-            <TextField select label="Τύπος προϊόντος" value={productType}
+            <SearchableTextField label="Τύπος προϊόντος" value={productType}
               onChange={(e) => setProductType(e.target.value as ProductType)} sx={{ minWidth: 200 }}>
               {PRODUCT_TYPES.map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <TextField fullWidth size="small" label="Αναζήτηση" value={search}
               onChange={(e) => setSearch(e.target.value)} placeholder="πινακίδα ή ετικέτα" />
           </Stack>

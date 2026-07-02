@@ -12,6 +12,7 @@ import { HelpHint } from "../components/HelpHint";
 import { money } from "../utils/format";
 import { NumberedPager } from "../components/TableToolbar";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, Legend
@@ -177,19 +178,19 @@ export function CashPositionPage() {
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
           <TextField size="small" placeholder="Λόγος, αναφορά, ταμείο…"
             value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
-          <TextField select size="small" label="Κατεύθυνση"
+          <SearchableTextField size="small" label="Κατεύθυνση"
             value={directionFilter} onChange={(e) => setDirectionFilter(e.target.value as any)}
             sx={{ minWidth: 140 }}>
             <MenuItem value="">Όλες</MenuItem>
             <MenuItem value="In">Είσοδοι</MenuItem>
             <MenuItem value="Out">Έξοδοι</MenuItem>
-          </TextField>
-          <TextField select size="small" label="Κατηγορία λόγου"
+          </SearchableTextField>
+          <SearchableTextField size="small" label="Κατηγορία λόγου"
             value={reasonFilter} onChange={(e) => setReasonFilter(e.target.value)}
             sx={{ minWidth: 220 }}>
             <MenuItem value="">Όλες</MenuItem>
             {REASON_PRESETS.map(r => <MenuItem key={r} value={r}>{r}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
             value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
           <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
@@ -400,29 +401,29 @@ function MovementDialog({ open, onClose, accounts, onSaved }: { open: boolean; o
             />
             <TextField type="date" label={t("cash.movementDate")} InputLabelProps={{ shrink: true }}
               value={form.movementDate} onChange={e => setForm({ ...form, movementDate: e.target.value })} fullWidth />
-            <TextField select label={t("cash.direction")} value={form.direction}
+            <SearchableTextField label={t("cash.direction")} value={form.direction}
               onChange={e => setForm({ ...form, direction: e.target.value })} fullWidth>
               <MenuItem value="In">Είσοδος (+)</MenuItem>
               <MenuItem value="Out">Έξοδος (−)</MenuItem>
-            </TextField>
+            </SearchableTextField>
             <TextField required type="number" label={t("cash.amount")} value={form.amount}
               onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth />
           </Stack>
 
           {/* Row 2: reason category + free text */}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label="Κατηγορία" value={form.reasonCategory}
+            <SearchableTextField label="Κατηγορία" value={form.reasonCategory}
               onChange={e => setForm({ ...form, reasonCategory: e.target.value })} sx={{ minWidth: 260 }}>
               <MenuItem value="">—</MenuItem>
               {REASON_PRESETS.map(r => <MenuItem key={r} value={r}>{r}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <TextField label="Ελεύθερη περιγραφή" value={form.reason}
               onChange={e => setForm({ ...form, reason: e.target.value })} fullWidth />
           </Stack>
 
           {/* Row 3: counterparty */}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label="Τύπος αντισυμβαλλόμενου"
+            <SearchableTextField label="Τύπος αντισυμβαλλόμενου"
               value={form.counterpartyType}
               onChange={e => setForm({ ...form, counterpartyType: e.target.value as any,
                 customerId: "", producerId: "", insuranceCompanyId: "", vendorName: "" })}
@@ -432,7 +433,7 @@ function MovementDialog({ open, onClose, accounts, onSaved }: { open: boolean; o
               <MenuItem value="Producer">Συνεργάτης</MenuItem>
               <MenuItem value="Company">Ασφαλιστική εταιρία</MenuItem>
               <MenuItem value="Vendor">Προμηθευτής</MenuItem>
-            </TextField>
+            </SearchableTextField>
             {form.counterpartyType === "Customer" && (
               <SearchableSelect
                 label="Πελάτης"
@@ -483,7 +484,7 @@ function MovementDialog({ open, onClose, accounts, onSaved }: { open: boolean; o
 
           {/* Row 5: payment method + receipt # + reference */}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label="Μέθοδος πληρωμής" value={form.paymentMethod}
+            <SearchableTextField label="Μέθοδος πληρωμής" value={form.paymentMethod}
               onChange={e => setForm({ ...form, paymentMethod: e.target.value as any })}
               sx={{ minWidth: 200 }}>
               <MenuItem value="Cash">Μετρητά</MenuItem>
@@ -492,7 +493,7 @@ function MovementDialog({ open, onClose, accounts, onSaved }: { open: boolean; o
               <MenuItem value="Cheque">Επιταγή</MenuItem>
               <MenuItem value="PromissoryNote">Γραμμάτιο</MenuItem>
               <MenuItem value="Other">Άλλο</MenuItem>
-            </TextField>
+            </SearchableTextField>
             <TextField label="Αρ. απόδειξης" value={form.receiptNumber}
               onChange={e => setForm({ ...form, receiptNumber: e.target.value })} sx={{ minWidth: 200 }} />
             <TextField label={t("cash.reference")} value={form.reference}

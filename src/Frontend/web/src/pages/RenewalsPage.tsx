@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import {
   Alert, Badge, Box, Button, Card, Checkbox, Chip, CircularProgress, IconButton,
   MenuItem, Popover, Stack, Table, TableBody, TableCell, TableHead, TableRow,
-  ToggleButton, ToggleButtonGroup, TextField, Typography
+  ToggleButton, ToggleButtonGroup, Typography
 } from "@mui/material";
 import EventRepeatIcon from "@mui/icons-material/EventRepeat";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
@@ -13,6 +13,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { money, date } from "../utils/format";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface UpcomingRow {
   policyId: string;
@@ -146,10 +147,10 @@ export function RenewalsPage() {
             <ToggleButton value="list"><ViewListIcon fontSize="small" sx={{ mr: 0.5 }} />Λίστα</ToggleButton>
             <ToggleButton value="calendar"><CalendarViewMonthIcon fontSize="small" sx={{ mr: 0.5 }} />Ημερολόγιο</ToggleButton>
           </ToggleButtonGroup>
-          <TextField select size="small" label="Παράθυρο" value={windowDays}
+          <SearchableTextField size="small" label="Παράθυρο" value={windowDays}
             onChange={(e) => setWindowDays(Number(e.target.value))} sx={{ minWidth: 160 }}>
             {WINDOWS.map(w => <MenuItem key={w.value} value={w.value}>{w.label}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <Button
             variant="contained" startIcon={<AutorenewIcon />}
             disabled={selected.size === 0 || bulk.isPending}

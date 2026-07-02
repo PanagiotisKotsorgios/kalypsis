@@ -36,6 +36,7 @@ import HealthAndSafetyIcon from "@mui/icons-material/HealthAndSafety";
 import GroupsIcon from "@mui/icons-material/Groups";
 import { CustomerProducersDialog } from "../components/CustomerProducersDialog";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
@@ -508,12 +509,12 @@ function CommunicationsTab({ customerId }: { customerId: string }) {
         <DialogTitle>Νέα καταχώρηση επικοινωνίας</DialogTitle>
         <DialogContent>
           <Stack spacing={2} mt={1}>
-            <TextField select label="Τύπος" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
+            <SearchableTextField label="Τύπος" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
               {COMMUNICATION_KINDS.map((k) => <MenuItem key={k} value={k}>{k}</MenuItem>)}
-            </TextField>
-            <TextField select label="Κατεύθυνση" value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value })}>
+            </SearchableTextField>
+            <SearchableTextField label="Κατεύθυνση" value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value })}>
               {["Internal", "Inbound", "Outbound"].map((d) => <MenuItem key={d} value={d}>{d}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <TextField required label="Θέμα" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
             <TextField multiline rows={4} label="Σώμα / σημειώσεις" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
             <TextField type="number" label="Διάρκεια (sec)" value={form.durationSeconds} onChange={(e) => setForm({ ...form, durationSeconds: e.target.value })} />
@@ -876,14 +877,14 @@ function ConsentsCard({ customerId }: { customerId: string }) {
       <Box sx={{ mt: 2, p: 1.5, bgcolor: "background.default", borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
         <Typography variant="caption" color="text.secondary">Νέα συγκατάθεση</Typography>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} mt={1}>
-          <TextField select size="small" label="Είδος" value={form.kind}
+          <SearchableTextField size="small" label="Είδος" value={form.kind}
             onChange={e => setForm({ ...form, kind: e.target.value })} sx={{ minWidth: 160 }}>
             {["Marketing", "Communication", "DataSharing", "Other"].map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
-          </TextField>
-          <TextField select size="small" label="Κανάλι" value={form.channel}
+          </SearchableTextField>
+          <SearchableTextField size="small" label="Κανάλι" value={form.channel}
             onChange={e => setForm({ ...form, channel: e.target.value })} sx={{ minWidth: 140 }}>
             {["Email", "Sms", "Phone", "Postal", "All"].map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <Button variant="contained" onClick={() => grant.mutate()} disabled={grant.isPending}>
             {grant.isPending ? <CircularProgress size={18} /> : "Καταγραφή συγκατάθεσης"}
           </Button>
@@ -934,10 +935,10 @@ function CommunicationsCard({ customerId }: { customerId: string }) {
         <Typography variant="caption" color="text.secondary">Καταγραφή επικοινωνίας</Typography>
         <Stack spacing={1} mt={1}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <TextField select size="small" label="Είδος" value={form.kind}
+            <SearchableTextField size="small" label="Είδος" value={form.kind}
               onChange={e => setForm({ ...form, kind: e.target.value })} sx={{ minWidth: 140 }}>
               {["Call", "Email", "Sms", "Postal", "Meeting", "Note"].map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <TextField size="small" label="Θέμα" value={form.subject}
               onChange={e => setForm({ ...form, subject: e.target.value })} sx={{ flex: 1 }} />
           </Stack>
@@ -993,12 +994,12 @@ function DriverLicenseCard({ customerId }: { customerId: string }) {
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} flexWrap="wrap" useFlexGap>
           <TextField label="Αριθμός" value={form.number}
             onChange={e => setForm({ ...form, number: e.target.value })} sx={{ flex: 1, minWidth: 200 }} />
-          <TextField select label="Κατηγορία" value={form.class}
+          <SearchableTextField label="Κατηγορία" value={form.class}
             onChange={e => setForm({ ...form, class: e.target.value })} sx={{ width: 160 }}>
             <MenuItem value="">—</MenuItem>
             {["ΑΜ", "Α1", "Α2", "Α", "Β", "ΒΕ", "Γ", "ΓΕ", "Δ", "ΔΕ"].map(k =>
               <MenuItem key={k} value={k}>{k}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <TextField type="date" label="Έκδοση" InputLabelProps={{ shrink: true }}
             value={form.issueDate} onChange={e => setForm({ ...form, issueDate: e.target.value })} sx={{ width: 180 }} />
           <TextField type="date" label="Λήξη" InputLabelProps={{ shrink: true }}
@@ -1045,10 +1046,10 @@ function CustomerProfileCard({ customerId, profile }: { customerId: string; prof
       {editing ? (
         <Stack spacing={1.5}>
           <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
-            <TextField select label="Οικογενειακή κατάσταση" value={form.maritalStatus} onChange={e => setForm({ ...form, maritalStatus: e.target.value })} fullWidth>
+            <SearchableTextField label="Οικογενειακή κατάσταση" value={form.maritalStatus} onChange={e => setForm({ ...form, maritalStatus: e.target.value })} fullWidth>
               <MenuItem value="">—</MenuItem>
               {["Single", "Married", "Divorced", "Widowed", "Other"].map(status => <MenuItem key={status} value={status}>{status}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <TextField label="Επάγγελμα / κλάδος" value={form.occupation} onChange={e => setForm({ ...form, occupation: e.target.value })} fullWidth />
             <TextField label="Εργοδότης / επιχείρηση" value={form.employer} onChange={e => setForm({ ...form, employer: e.target.value })} fullWidth />
           </Stack>
@@ -1118,11 +1119,11 @@ function CustomerNeedsCard({ customerId, needs }: { customerId: string; needs: C
         </Box>
       )}
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm"><DialogTitle>{editing ? "Επεξεργασία ανάγκης" : "Νέα ανάγκη / περιουσία"}</DialogTitle><DialogContent><Stack spacing={2} mt={1}>
-        <TextField select label="Τύπος" value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })} fullWidth>{NEED_KINDS.map(kind => <MenuItem key={kind} value={kind}>{NEED_LABEL[kind]}</MenuItem>)}</TextField>
+        <SearchableTextField label="Τύπος" value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })} fullWidth>{NEED_KINDS.map(kind => <MenuItem key={kind} value={kind}>{NEED_LABEL[kind]}</MenuItem>)}</SearchableTextField>
         <TextField label="Περιγραφή" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} fullWidth required placeholder="π.χ. Toyota Yaris, εξοχικό, ιδιωτική υγεία" />
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}><FormControlLabel control={<Switch checked={form.hasAsset} onChange={e => setForm({ ...form, hasAsset: e.target.checked })} />} label="Έχει την περιουσία / ανάγκη" />
           <FormControlLabel control={<Switch checked={form.isInsured} onChange={e => setForm({ ...form, isInsured: e.target.checked })} />} label="Είναι ήδη ασφαλισμένο" /></Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}><TextField select label="Προτεραιότητα" value={form.priority} onChange={e => setForm({ ...form, priority: Number(e.target.value) })} fullWidth>{[1,2,3,4,5].map(n => <MenuItem key={n} value={n}>{n}</MenuItem>)}</TextField>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}><SearchableTextField label="Προτεραιότητα" value={form.priority} onChange={e => setForm({ ...form, priority: Number(e.target.value) })} fullWidth>{[1,2,3,4,5].map(n => <MenuItem key={n} value={n}>{n}</MenuItem>)}</SearchableTextField>
           <TextField type="date" label="Επόμενη επικοινωνία" InputLabelProps={{ shrink: true }} value={form.nextContactAt} onChange={e => setForm({ ...form, nextContactAt: e.target.value })} fullWidth /></Stack>
         <TextField label="Σημειώσεις" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} multiline rows={3} fullWidth />
       </Stack></DialogContent><DialogActions><Button onClick={() => setOpen(false)}>Άκυρο</Button><Button variant="contained" disabled={!form.title.trim() || save.isPending} onClick={() => save.mutate()}>Αποθήκευση</Button></DialogActions></Dialog>
@@ -1162,7 +1163,7 @@ function FamilyMembersCard({ customerId, members }: { customerId: string; member
           hint: candidate.customerNumber,
         }))}
       />
-      <TextField select label="Σχέση" value={form.relationshipType} onChange={e => setForm({ ...form, relationshipType: e.target.value })} fullWidth>{RELATIONSHIP_TYPES.map(type => <MenuItem key={type} value={type}>{RELATION_LABEL[type]}</MenuItem>)}</TextField>
+      <SearchableTextField label="Σχέση" value={form.relationshipType} onChange={e => setForm({ ...form, relationshipType: e.target.value })} fullWidth>{RELATIONSHIP_TYPES.map(type => <MenuItem key={type} value={type}>{RELATION_LABEL[type]}</MenuItem>)}</SearchableTextField>
       <TextField label="Σημειώσεις σχέσης" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} multiline rows={3} fullWidth />
       <Alert severity="info">Αν το μέλος δεν υπάρχει ακόμη ως πελάτης, δημιουργήστε πρώτα την καρτέλα του και μετά συνδέστε το εδώ.</Alert>
     </Stack></DialogContent><DialogActions><Button onClick={() => setOpen(false)}>Άκυρο</Button><Button variant="contained" disabled={!form.relatedCustomerId || save.isPending} onClick={() => save.mutate()}>Σύνδεση</Button></DialogActions></Dialog>

@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money, dateTime } from "../utils/format";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface SubmissionDto {
   id: string; submissionNumber: string; transmissionKind: string;
@@ -122,10 +123,10 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
       <DialogContent>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2} mt={1}>
-          <TextField select label={t("mydata.kind")} value={form.transmissionKind}
+          <SearchableTextField label={t("mydata.kind")} value={form.transmissionKind}
             onChange={e => setForm({ ...form, transmissionKind: e.target.value })} fullWidth>
             {KINDS.map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField type="date" label={t("mydata.periodFrom")} InputLabelProps={{ shrink: true }}
               value={form.periodFrom} onChange={e => setForm({ ...form, periodFrom: e.target.value })} fullWidth />
@@ -175,10 +176,10 @@ function MarkDialog({ submission, onClose, onSaved }: { submission: SubmissionDt
       <DialogContent>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2} mt={1}>
-          <TextField select label={t("common.status")} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} fullWidth>
+          <SearchableTextField label={t("common.status")} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} fullWidth>
             <MenuItem value="Accepted">Accepted</MenuItem>
             <MenuItem value="Rejected">Rejected</MenuItem>
-          </TextField>
+          </SearchableTextField>
           {form.status === "Accepted" ? (
             <>
               <TextField label="MARK" value={form.aadeMark} onChange={e => setForm({ ...form, aadeMark: e.target.value })} fullWidth />

@@ -48,6 +48,7 @@ import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 import { PolicyDeliveryPage } from "./PolicyDeliveryPage";
 import { GroupPoliciesPage } from "./GroupPoliciesPage";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal";
@@ -289,14 +290,14 @@ export function PoliciesPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
               />
-              <TextField select size="small" label={t("policies.col.status")}
+              <SearchableTextField size="small" label={t("policies.col.status")}
                 value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as PolicyStatus | "")}
                 sx={{ minWidth: { sm: 170 } }}>
                 <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
                 {(["Draft","Active","Expired","Cancelled","Renewed","PendingRenewal"] as const).map(s =>
                   <MenuItem key={s} value={s}>{t(`policies.statuses.${s}`)}</MenuItem>)}
-              </TextField>
-              <TextField select size="small" label={t("policies.col.type")}
+              </SearchableTextField>
+              <SearchableTextField size="small" label={t("policies.col.type")}
                 value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as PolicyType | "")}
                 sx={{ minWidth: { sm: 220 } }}
                 disabled={!carrierFilter}
@@ -307,7 +308,7 @@ export function PoliciesPage() {
                 {filterCatalogue.branches.map(b => (
                   <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
                 ))}
-              </TextField>
+              </SearchableTextField>
             </Stack>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <SearchableSelect
@@ -789,7 +790,7 @@ function PolicyFormDialog({
               InputProps={{ endAdornment: <InputAdornment position="end">{form.currency}</InputAdornment> }}
               fullWidth required
             />
-            <TextField
+            <SearchableTextField
               select label={t("policies.col.status")}
               value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value as PolicyStatus })}
@@ -798,7 +799,7 @@ function PolicyFormDialog({
               {(["Draft","Active","PendingRenewal","Expired","Cancelled","Renewed"] as const).map(s =>
                 <MenuItem key={s} value={s}>{t(`policies.statuses.${s}`)}</MenuItem>
               )}
-            </TextField>
+            </SearchableTextField>
           </Stack>
         </Stack>
       </DialogContent>

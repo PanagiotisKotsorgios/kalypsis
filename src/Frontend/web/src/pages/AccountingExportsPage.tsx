@@ -1,13 +1,14 @@
 import { useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, MenuItem, Stack, Table, TableBody, TableCell,
-  TableHead, TableRow, TextField, Typography
+  TableHead, TableRow, Typography
 } from "@mui/material";
 import PlayCircleIcon from "@mui/icons-material/PlayCircle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { dateTime } from "../utils/format";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface ExportDto { id: string; year: number; month: number; runAt: string; status: "Pending"|"Running"|"Completed"|"Failed"; entries: number; fileName: string | null; notes: string | null; }
 
@@ -34,12 +35,12 @@ export function AccountingExportsPage() {
         <Box><Typography variant="h4" sx={{ fontWeight: 800 }}>{t("accounting.title")}</Typography>
           <Typography color="text.secondary">{t("accounting.subtitle")}</Typography></Box>
         <Stack direction="row" spacing={1.5} alignItems="center">
-          <TextField size="small" select label={t("accounting.year")} value={year} onChange={e => setYear(Number(e.target.value))} sx={{ minWidth: 100 }}>
+          <SearchableTextField size="small" select label={t("accounting.year")} value={year} onChange={e => setYear(Number(e.target.value))} sx={{ minWidth: 100 }}>
             {Array.from({ length: 6 }, (_, i) => now.getFullYear() - i).map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
-          </TextField>
-          <TextField size="small" select label={t("accounting.month")} value={month} onChange={e => setMonth(Number(e.target.value))} sx={{ minWidth: 120 }}>
+          </SearchableTextField>
+          <SearchableTextField size="small" select label={t("accounting.month")} value={month} onChange={e => setMonth(Number(e.target.value))} sx={{ minWidth: 120 }}>
             {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <MenuItem key={m} value={m}>{m.toString().padStart(2, "0")}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <Button startIcon={<PlayCircleIcon />} variant="contained" onClick={() => run.mutate()} disabled={run.isPending}>
             {run.isPending ? <CircularProgress size={18} /> : t("accounting.run")}
           </Button>

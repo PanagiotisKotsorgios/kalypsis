@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { money } from "../utils/format";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 const TYPES = ["Auto","Home","Health","Life","Business","Travel","Other"] as const;
 const STATUSES = ["Active","Converted","Expired","Cancelled"] as const;
@@ -184,10 +185,10 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
             }))}
           />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("coverNotes.type")} value={form.policyType}
+            <SearchableTextField label={t("coverNotes.type")} value={form.policyType}
               onChange={e => setForm({ ...form, policyType: e.target.value as typeof TYPES[number] })} fullWidth>
               {TYPES.map(p => <MenuItem key={p} value={p}>{t(`policyType.${p}`)}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <SearchableSelect
               label={t("coverNotes.company")}
               value={form.insuranceCompanyId}
@@ -207,10 +208,10 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
               onChange={e => setForm({ ...form, estimatedPremium: e.target.value })} fullWidth />
             <TextField label={t("tariffs.currency")} value={form.currency}
               onChange={e => setForm({ ...form, currency: e.target.value.toUpperCase().slice(0, 3) })} fullWidth />
-            <TextField select label={t("common.status")} value={form.status}
+            <SearchableTextField label={t("common.status")} value={form.status}
               onChange={e => setForm({ ...form, status: e.target.value as Status })} fullWidth>
               {STATUSES.map(s => <MenuItem key={s} value={s}>{t(`coverNotes.status.${s}`)}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
           <TextField label={t("coverNotes.subject")} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} fullWidth />
           <TextField label={t("common.notes")} multiline rows={2} value={form.notes}

@@ -30,6 +30,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { PasswordField } from "../components/PasswordField";
 import { UserPermissionsDialog } from "../components/UserPermissionsDialog";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface UserDto {
   id: string;
@@ -207,7 +208,7 @@ function CreateDialog({
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
             fullWidth
           />
-          <TextField
+          <SearchableTextField
             select
             label={t("users.role")}
             value={form.role}
@@ -216,7 +217,7 @@ function CreateDialog({
           >
             <MenuItem value="AgencyUser">{t("roles.AgencyUser")}</MenuItem>
             <MenuItem value="AgencyAdmin">{t("roles.AgencyAdmin")}</MenuItem>
-          </TextField>
+          </SearchableTextField>
           <PasswordField
             label={t("users.password")}
             value={form.password}

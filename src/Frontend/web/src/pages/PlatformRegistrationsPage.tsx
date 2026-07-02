@@ -19,6 +19,7 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 type RegistrationStatus = "New" | "Reviewing" | "Approved" | "Rejected";
 
@@ -439,7 +440,7 @@ function DetailDialog({ id, onClose, onAfterSave }: {
             <Box>
               <Typography fontSize={14} fontWeight={700} mb={1.5}>{t("registrations.detail.reviewSection")}</Typography>
               <Stack spacing={2}>
-                <TextField
+                <SearchableTextField
                   select size="small" label={t("common.status")}
                   value={status} onChange={(e) => setStatus(e.target.value as RegistrationStatus)}
                   sx={{ maxWidth: 280 }}
@@ -449,7 +450,7 @@ function DetailDialog({ id, onClose, onAfterSave }: {
                   {(["New","Reviewing","Approved","Rejected"] as RegistrationStatus[]).map(s => (
                     <MenuItem key={s} value={s}>{t(`registrations.status.${s}`)}</MenuItem>
                   ))}
-                </TextField>
+                </SearchableTextField>
 
                 {isApproving && (
                   <Box sx={{

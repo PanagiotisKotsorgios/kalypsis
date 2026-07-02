@@ -7,6 +7,7 @@ import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
 import { useMutation } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { money, date } from "../utils/format";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 const PRODUCT_TYPES = ["Auto", "Home", "Health", "Life", "Business", "Travel"] as const;
 type ProductType = typeof PRODUCT_TYPES[number];
@@ -92,7 +93,7 @@ export function QuoteBuilderPage() {
       <Stack direction={{ xs: "column", lg: "row" }} spacing={3} alignItems="flex-start">
         <Card variant="outlined" sx={{ p: 3, width: { xs: "100%", lg: 460 } }}>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Τύπος προϊόντος</Typography>
-          <TextField select fullWidth value={productType} onChange={(e) => switchProduct(e.target.value as ProductType)}>
+          <SearchableTextField fullWidth value={productType} onChange={(e) => switchProduct(e.target.value as ProductType)}>
             {PRODUCT_TYPES.map((p) => (
               <MenuItem key={p} value={p}>
                 {p === "Auto" ? "Αυτοκίνητο" :
@@ -102,7 +103,7 @@ export function QuoteBuilderPage() {
                   p === "Business" ? "Επιχείρησης" : "Ταξιδιού"}
               </MenuItem>
             ))}
-          </TextField>
+          </SearchableTextField>
 
           <Typography variant="h6" sx={{ fontWeight: 700, mt: 3, mb: 1.5 }}>Στοιχεία κινδύνου</Typography>
           <Stack spacing={1.5}>

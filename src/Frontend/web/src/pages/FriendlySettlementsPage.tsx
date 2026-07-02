@@ -13,6 +13,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money, num } from "../utils/format";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface SettlementDto {
   id: string; claimId: string; claimNumber: string;
@@ -180,10 +181,10 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
               value={form.declarationDate} onChange={e => setForm({ ...form, declarationDate: e.target.value })} fullWidth />
             <TextField type="date" label={t("friendly.settlementDate")} InputLabelProps={{ shrink: true }}
               value={form.settlementDate} onChange={e => setForm({ ...form, settlementDate: e.target.value })} fullWidth />
-            <TextField select label={t("common.status")} value={form.status}
+            <SearchableTextField label={t("common.status")} value={form.status}
               onChange={e => setForm({ ...form, status: e.target.value })} sx={{ width: 160 }}>
               {STATUSES.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
           <TextField label={t("friendly.authority")} value={form.settlementAuthority}
             onChange={e => setForm({ ...form, settlementAuthority: e.target.value })} fullWidth />
@@ -307,9 +308,9 @@ function VictimsDialog({ settlement, onClose }: { settlement: SettlementDto | nu
           <Stack spacing={2} mt={1}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField required label={t("friendly.victimName")} value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} fullWidth />
-              <TextField select label={t("friendly.victimType")} value={form.victimType} onChange={e => setForm({ ...form, victimType: e.target.value })} sx={{ width: 160 }}>
+              <SearchableTextField label={t("friendly.victimType")} value={form.victimType} onChange={e => setForm({ ...form, victimType: e.target.value })} sx={{ width: 160 }}>
                 {VICTIM_TYPES.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}
-              </TextField>
+              </SearchableTextField>
             </Stack>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField label={t("friendly.afm")} value={form.afm} onChange={e => setForm({ ...form, afm: e.target.value })} fullWidth />

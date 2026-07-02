@@ -26,6 +26,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import CategoryIcon from "@mui/icons-material/Category";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface RecycleCategoryDto {
   key: string;
@@ -149,7 +150,7 @@ export function RecycleBinPage() {
                 )
               }}
             />
-            <TextField
+            <SearchableTextField
               select
               size="small"
               label="Κατηγορία"
@@ -161,8 +162,8 @@ export function RecycleBinPage() {
               {(data?.categories ?? []).map(c => (
                 <MenuItem key={c.key} value={c.key}>{c.label} ({c.count})</MenuItem>
               ))}
-            </TextField>
-            <TextField
+            </SearchableTextField>
+            <SearchableTextField
               select
               size="small"
               label="Ανά σελίδα"
@@ -171,7 +172,7 @@ export function RecycleBinPage() {
               sx={{ minWidth: 130 }}
             >
               {[10, 25, 50, 100].map(n => <MenuItem key={n} value={n}>{n}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           </Stack>
 
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.5 }}>

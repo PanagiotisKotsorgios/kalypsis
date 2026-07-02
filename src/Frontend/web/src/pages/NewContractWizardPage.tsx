@@ -30,6 +30,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 
@@ -322,28 +323,28 @@ function DetailsForm({ a, set }: DetailsFormProps) {
         </Stack>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
           <TextField fullWidth label={t("wizard.auto.plate")} value={a.plateNumber} onChange={(e) => set("plateNumber", e.target.value.toUpperCase())} required />
-          <TextField select fullWidth label={t("wizard.auto.usage")} value={a.vehicleUsage} onChange={(e) => set("vehicleUsage", e.target.value as AnswerSet["vehicleUsage"])} required>
+          <SearchableTextField fullWidth label={t("wizard.auto.usage")} value={a.vehicleUsage} onChange={(e) => set("vehicleUsage", e.target.value as AnswerSet["vehicleUsage"])} required>
             <MenuItem value="personal">{t("wizard.auto.usagePersonal")}</MenuItem>
             <MenuItem value="commercial">{t("wizard.auto.usageCommercial")}</MenuItem>
             <MenuItem value="taxi">{t("wizard.auto.usageTaxi")}</MenuItem>
-          </TextField>
+          </SearchableTextField>
           <TextField fullWidth label={t("wizard.auto.annualKm")} type="number" value={a.annualKm} onChange={(e) => set("annualKm", e.target.value)} />
         </Stack>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
           <TextField fullWidth label={t("wizard.auto.driverAge")} type="number" value={a.driverAge} onChange={(e) => set("driverAge", e.target.value)} />
           <TextField fullWidth label={t("wizard.auto.licenseYear")} type="number" value={a.licenseYear} onChange={(e) => set("licenseYear", e.target.value)} />
-          <TextField select fullWidth label={t("wizard.auto.accidents")} value={a.accidents5y} onChange={(e) => set("accidents5y", e.target.value as AnswerSet["accidents5y"])} required>
+          <SearchableTextField fullWidth label={t("wizard.auto.accidents")} value={a.accidents5y} onChange={(e) => set("accidents5y", e.target.value as AnswerSet["accidents5y"])} required>
             <MenuItem value="0">0</MenuItem>
             <MenuItem value="1">1</MenuItem>
             <MenuItem value="2+">2+</MenuItem>
-          </TextField>
+          </SearchableTextField>
         </Stack>
         <TextField fullWidth label={t("wizard.auto.currentInsurer")} value={a.currentInsurer} onChange={(e) => set("currentInsurer", e.target.value)} />
-        <TextField select fullWidth label={t("wizard.auto.coverage")} value={a.autoCoverage} onChange={(e) => set("autoCoverage", e.target.value as AnswerSet["autoCoverage"])} required>
+        <SearchableTextField fullWidth label={t("wizard.auto.coverage")} value={a.autoCoverage} onChange={(e) => set("autoCoverage", e.target.value as AnswerSet["autoCoverage"])} required>
           <MenuItem value="thirdPartyOnly">{t("wizard.auto.coverageThird")}</MenuItem>
           <MenuItem value="thirdPartyPlus">{t("wizard.auto.coveragePlus")}</MenuItem>
           <MenuItem value="comprehensive">{t("wizard.auto.coverageComprehensive")}</MenuItem>
-        </TextField>
+        </SearchableTextField>
         <TextField fullWidth type="date" InputLabelProps={{ shrink: true }} label={t("wizard.startWish")} value={a.startWish} onChange={(e) => set("startWish", e.target.value)} />
       </Stack>
     );
@@ -352,26 +353,26 @@ function DetailsForm({ a, set }: DetailsFormProps) {
     return (
       <Stack spacing={2.5}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-          <TextField select fullWidth label={t("wizard.home.type")} value={a.propertyType} onChange={(e) => set("propertyType", e.target.value as AnswerSet["propertyType"])} required>
+          <SearchableTextField fullWidth label={t("wizard.home.type")} value={a.propertyType} onChange={(e) => set("propertyType", e.target.value as AnswerSet["propertyType"])} required>
             <MenuItem value="apartment">{t("wizard.home.apartment")}</MenuItem>
             <MenuItem value="house">{t("wizard.home.house")}</MenuItem>
-          </TextField>
+          </SearchableTextField>
           <TextField fullWidth label={t("wizard.home.sqm")} type="number" value={a.propertySqm} onChange={(e) => set("propertySqm", e.target.value)} required />
           <TextField fullWidth label={t("wizard.home.year")} type="number" value={a.propertyYear} onChange={(e) => set("propertyYear", e.target.value)} />
         </Stack>
         <TextField fullWidth label={t("wizard.home.address")} value={a.propertyAddress} onChange={(e) => set("propertyAddress", e.target.value)} required />
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
           <TextField fullWidth label={t("wizard.home.contents")} type="number" value={a.contentsValue} onChange={(e) => set("contentsValue", e.target.value)} />
-          <TextField select fullWidth label={t("wizard.home.alarm")} value={a.hasAlarm} onChange={(e) => set("hasAlarm", e.target.value as AnswerSet["hasAlarm"])}>
+          <SearchableTextField fullWidth label={t("wizard.home.alarm")} value={a.hasAlarm} onChange={(e) => set("hasAlarm", e.target.value as AnswerSet["hasAlarm"])}>
             <MenuItem value="yes">{t("common.yes")}</MenuItem>
             <MenuItem value="no">{t("common.no")}</MenuItem>
-          </TextField>
+          </SearchableTextField>
         </Stack>
-        <TextField select fullWidth label={t("wizard.home.coverage")} value={a.homeCoverage} onChange={(e) => set("homeCoverage", e.target.value as AnswerSet["homeCoverage"])} required>
+        <SearchableTextField fullWidth label={t("wizard.home.coverage")} value={a.homeCoverage} onChange={(e) => set("homeCoverage", e.target.value as AnswerSet["homeCoverage"])} required>
           <MenuItem value="fire">{t("wizard.home.coverageFire")}</MenuItem>
           <MenuItem value="firePlus">{t("wizard.home.coverageFirePlus")}</MenuItem>
           <MenuItem value="comprehensive">{t("wizard.home.coverageComprehensive")}</MenuItem>
-        </TextField>
+        </SearchableTextField>
         <TextField fullWidth type="date" InputLabelProps={{ shrink: true }} label={t("wizard.startWish")} value={a.startWish} onChange={(e) => set("startWish", e.target.value)} />
       </Stack>
     );
@@ -380,19 +381,19 @@ function DetailsForm({ a, set }: DetailsFormProps) {
     return (
       <Stack spacing={2.5}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-          <TextField select fullWidth label={t("wizard.health.for")} value={a.healthFor} onChange={(e) => set("healthFor", e.target.value as AnswerSet["healthFor"])} required>
+          <SearchableTextField fullWidth label={t("wizard.health.for")} value={a.healthFor} onChange={(e) => set("healthFor", e.target.value as AnswerSet["healthFor"])} required>
             <MenuItem value="myself">{t("wizard.health.myself")}</MenuItem>
             <MenuItem value="family">{t("wizard.health.family")}</MenuItem>
-          </TextField>
+          </SearchableTextField>
           <TextField fullWidth label={t("wizard.health.members")} type="number" value={a.membersCount} onChange={(e) => set("membersCount", e.target.value)} />
           <TextField fullWidth label={t("wizard.health.ages")} value={a.agesText} onChange={(e) => set("agesText", e.target.value)} helperText={t("wizard.health.agesHelp")} />
         </Stack>
         <TextField fullWidth multiline rows={3} label={t("wizard.health.preExisting")} value={a.preExisting} onChange={(e) => set("preExisting", e.target.value)} />
-        <TextField select fullWidth label={t("wizard.health.tier")} value={a.healthTier} onChange={(e) => set("healthTier", e.target.value as AnswerSet["healthTier"])} required>
+        <SearchableTextField fullWidth label={t("wizard.health.tier")} value={a.healthTier} onChange={(e) => set("healthTier", e.target.value as AnswerSet["healthTier"])} required>
           <MenuItem value="basic">{t("wizard.health.basic")}</MenuItem>
           <MenuItem value="mid">{t("wizard.health.mid")}</MenuItem>
           <MenuItem value="premium">{t("wizard.health.premium")}</MenuItem>
-        </TextField>
+        </SearchableTextField>
       </Stack>
     );
   }
@@ -400,16 +401,16 @@ function DetailsForm({ a, set }: DetailsFormProps) {
     return (
       <Stack spacing={2.5}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-          <TextField select fullWidth label={t("wizard.life.for")} value={a.lifeFor} onChange={(e) => set("lifeFor", e.target.value as AnswerSet["lifeFor"])} required>
+          <SearchableTextField fullWidth label={t("wizard.life.for")} value={a.lifeFor} onChange={(e) => set("lifeFor", e.target.value as AnswerSet["lifeFor"])} required>
             <MenuItem value="myself">{t("wizard.life.myself")}</MenuItem>
             <MenuItem value="spouse">{t("wizard.life.spouse")}</MenuItem>
             <MenuItem value="child">{t("wizard.life.child")}</MenuItem>
-          </TextField>
+          </SearchableTextField>
           <TextField fullWidth type="number" label={t("wizard.life.age")} value={a.lifeAge} onChange={(e) => set("lifeAge", e.target.value)} />
-          <TextField select fullWidth label={t("wizard.life.smoker")} value={a.lifeSmoker} onChange={(e) => set("lifeSmoker", e.target.value as AnswerSet["lifeSmoker"])}>
+          <SearchableTextField fullWidth label={t("wizard.life.smoker")} value={a.lifeSmoker} onChange={(e) => set("lifeSmoker", e.target.value as AnswerSet["lifeSmoker"])}>
             <MenuItem value="yes">{t("common.yes")}</MenuItem>
             <MenuItem value="no">{t("common.no")}</MenuItem>
-          </TextField>
+          </SearchableTextField>
         </Stack>
         <TextField fullWidth label={t("wizard.life.occupation")} value={a.lifeOccupation} onChange={(e) => set("lifeOccupation", e.target.value)} />
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>

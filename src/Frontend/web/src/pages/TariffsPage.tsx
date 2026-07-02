@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 import { money } from "../utils/format";
 
 const POLICY_TYPES = ["Auto","Home","Health","Life","Business","Travel","Other"] as const;
@@ -157,10 +158,10 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
         <Stack spacing={2.5} mt={1}>
           <TextField required label={t("tariffs.col.name")} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} fullWidth />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label={t("tariffs.col.type")} value={form.policyType}
+            <SearchableTextField label={t("tariffs.col.type")} value={form.policyType}
               onChange={e => setForm({ ...form, policyType: e.target.value as PolicyType })} fullWidth>
               {POLICY_TYPES.map(p => <MenuItem key={p} value={p}>{t(`policyType.${p}`)}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <SearchableSelect
               label={t("tariffs.col.company")}
               value={form.insuranceCompanyId}

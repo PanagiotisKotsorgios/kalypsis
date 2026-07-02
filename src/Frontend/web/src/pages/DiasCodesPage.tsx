@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { money } from "../utils/format";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 const STATUSES = ["Pending","Paid","Cancelled"] as const;
 type Status = typeof STATUSES[number];
@@ -36,10 +37,10 @@ export function DiasCodesPage() {
         <Box><Typography variant="h4" sx={{ fontWeight: 800 }}>{t("dias.title")}</Typography>
           <Typography color="text.secondary">{t("dias.subtitle")}</Typography></Box>
         <Stack direction="row" spacing={2}>
-          <TextField size="small" select label={t("common.status")} value={statusFilter} onChange={e => setStatusFilter(e.target.value as Status | "")} sx={{ minWidth: 160 }}>
+          <SearchableTextField size="small" select label={t("common.status")} value={statusFilter} onChange={e => setStatusFilter(e.target.value as Status | "")} sx={{ minWidth: 160 }}>
             <MenuItem value="">{t("common.all")}</MenuItem>
             {STATUSES.map(s => <MenuItem key={s} value={s}>{t(`dias.statusLabel.${s}`)}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("dias.create")}</Button>
         </Stack>
       </Stack>

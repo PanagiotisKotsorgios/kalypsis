@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money, date } from "../utils/format";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 const KIND_LABELS: Record<number, string> = {
   1: "Επιστροφή λόγω ακύρωσης",
@@ -82,19 +83,19 @@ export function CreditNotesPage() {
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap alignItems={{ md: "center" }}>
           <TextField size="small" placeholder="Αριθμός, περιγραφή, σχετικό έγγραφο…"
             value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
-          <TextField select size="small" label="Είδος"
+          <SearchableTextField size="small" label="Είδος"
             value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} sx={{ minWidth: 200 }}>
             <MenuItem value="">Όλα</MenuItem>
             {Object.entries(KIND_LABELS).map(([k, label]) =>
               <MenuItem key={k} value={k}>{label}</MenuItem>)}
-          </TextField>
-          <TextField select size="small" label="Κατάσταση"
+          </SearchableTextField>
+          <SearchableTextField size="small" label="Κατάσταση"
             value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 160 }}>
             <MenuItem value="">Όλες</MenuItem>
             <MenuItem value="Issued">Εκδόθηκε</MenuItem>
             <MenuItem value="Applied">Εφαρμόστηκε</MenuItem>
             <MenuItem value="Cancelled">Ακυρώθηκε</MenuItem>
-          </TextField>
+          </SearchableTextField>
           <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
             value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
           <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
@@ -213,11 +214,11 @@ function CreditNoteDialog({ open, onClose, onSaved }: { open: boolean; onClose: 
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2} mt={1}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select label="Είδος *" value={form.kind}
+            <SearchableTextField label="Είδος *" value={form.kind}
               onChange={(e) => setForm({ ...form, kind: Number(e.target.value) })} sx={{ flex: 1 }}>
               {Object.entries(KIND_LABELS).map(([k, v]) =>
                 <MenuItem key={k} value={Number(k)}>{v}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
             <TextField type="date" label="Ημ. έκδοσης" InputLabelProps={{ shrink: true }}
               value={form.issuedAt} onChange={(e) => setForm({ ...form, issuedAt: e.target.value })} />
           </Stack>

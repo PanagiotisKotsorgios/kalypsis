@@ -52,6 +52,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
 import { date } from "../utils/format";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 type DocumentType = "Policy" | "GreenCard" | "Roadside" | "Invoice" | "Other";
 
@@ -173,7 +174,7 @@ export function DocumentsPage() {
               ) : undefined
             }}
           />
-          <TextField
+          <SearchableTextField
             select size="small" label="Τύπος" value={type}
             onChange={(e) => setType(e.target.value as DocumentType | "")}
             sx={{ minWidth: 160 }}
@@ -182,7 +183,7 @@ export function DocumentsPage() {
             {(["Policy","GreenCard","Roadside","Invoice","Other"] as const).map(d => (
               <MenuItem key={d} value={d}>{t(`documents.types.${d}`)}</MenuItem>
             ))}
-          </TextField>
+          </SearchableTextField>
           <TextField
             type="date" size="small" label="Από" InputLabelProps={{ shrink: true }}
             value={from} onChange={(e) => setFrom(e.target.value)} sx={{ minWidth: 150 }}
@@ -496,7 +497,7 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
                 </Button>
                 {editing && (
                   <>
-                    <TextField
+                    <SearchableTextField
                       select size="small" label="Τύπος"
                       value={docType} onChange={(e) => setDocType(e.target.value as DocumentType)}
                       sx={{ minWidth: 160 }}
@@ -504,7 +505,7 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
                       {(["Policy","GreenCard","Roadside","Invoice","Other"] as const).map(d => (
                         <MenuItem key={d} value={d}>{t(`documents.types.${d}`)}</MenuItem>
                       ))}
-                    </TextField>
+                    </SearchableTextField>
                     <Button size="small" variant="contained"
                       disabled={patchMut.isPending || !fileName.trim()}
                       onClick={() => patchMut.mutate()}>
@@ -751,14 +752,14 @@ function UploadDialog({ open, onClose, onUploaded }: {
               />
             )}
           />
-          <TextField
+          <SearchableTextField
             select required fullWidth label={t("documents.upload.type")}
             value={type} onChange={(e) => setType(e.target.value as DocumentType)}
           >
             {(["Policy","GreenCard","Roadside","Invoice","Other"] as const).map(d =>
               <MenuItem key={d} value={d}>{t(`documents.types.${d}`)}</MenuItem>
             )}
-          </TextField>
+          </SearchableTextField>
           <Button
             component="label" variant="outlined" startIcon={<CloudUploadIcon />}
             sx={{ py: 1.4 }}

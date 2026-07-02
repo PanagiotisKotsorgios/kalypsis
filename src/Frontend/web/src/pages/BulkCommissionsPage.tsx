@@ -10,6 +10,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 import { money } from "../utils/format";
 
 interface PolicyTypeOpt { value: number; label: string; key: string; }
@@ -257,13 +258,13 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
             <HelpHint id="commission.bulkOperation" />
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
-            <TextField select label="Λειτουργία" value={operation}
+            <SearchableTextField label="Λειτουργία" value={operation}
               onChange={(e) => setOperation(e.target.value)} sx={{ minWidth: 240 }}>
               <MenuItem value="SetPercentage">Ορισμός ποσοστού (% επί ασφαλίστρου)</MenuItem>
               <MenuItem value="SetFixed">Ορισμός σταθερού ποσού (€)</MenuItem>
               <MenuItem value="MultiplyBy">Πολλαπλασιασμός υφιστάμενης (×)</MenuItem>
               <MenuItem value="AddFixed">Προσθήκη σταθερού ποσού (€)</MenuItem>
-            </TextField>
+            </SearchableTextField>
             <TextField type="number" label="Τιμή" value={value}
               onChange={(e) => setValue(e.target.value)} inputProps={{ step: "0.01" }} sx={{ width: 160 }}
               helperText={

@@ -38,6 +38,7 @@ import { useNavigate } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 import { useImpersonation } from "../impersonation/ImpersonationContext";
 import { PasswordField } from "../components/PasswordField";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface Tenant {
   id: string;
@@ -299,7 +300,7 @@ function CreateTenantDialog({ open, onClose, onSubmit, submitting }: CreateDialo
             fullWidth
             required
           />
-          <TextField
+          <SearchableTextField
             select
             label={t("tenants.subscriptionPlan")}
             value={form.subscriptionPlan}
@@ -311,7 +312,7 @@ function CreateTenantDialog({ open, onClose, onSubmit, submitting }: CreateDialo
                 {p}
               </MenuItem>
             ))}
-          </TextField>
+          </SearchableTextField>
           <Typography variant="overline" color="text.secondary" sx={{ mt: 2 }}>
             {t("tenants.adminSection")}
           </Typography>
@@ -405,10 +406,10 @@ function EditTenantDialog({ tenant, onClose, onSaved }: {
         <Stack spacing={2.5} mt={1}>
           <TextField label={t("tenants.name")} value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth required />
-          <TextField select label={t("tenants.subscriptionPlan")} value={form.subscriptionPlan}
+          <SearchableTextField label={t("tenants.subscriptionPlan")} value={form.subscriptionPlan}
             onChange={(e) => setForm({ ...form, subscriptionPlan: e.target.value })} fullWidth>
             {["Trial","Basic","Pro","Enterprise"].map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <FormControlLabel
             control={<Switch checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />}
             label={t("tenants.active")}

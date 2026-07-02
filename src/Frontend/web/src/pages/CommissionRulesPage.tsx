@@ -18,6 +18,7 @@ import { BulkCommissionsPage } from "./BulkCommissionsPage";
 import { DefaultValueRulesPage } from "./DefaultValueRulesPage";
 import { CompanyCatalogueDialog } from "../components/CompanyCatalogueDialog";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 import SettingsIcon from "@mui/icons-material/Settings";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 
@@ -291,11 +292,11 @@ export function CommissionRulesPage() {
             sx={{ minWidth: 200 }}
             options={filterCatalogue.branches.map(b => ({ value: b.value, label: b.label }))}
           />
-          <TextField select size="small" label="Κατηγορία" value={tierFilter}
+          <SearchableTextField size="small" label="Κατηγορία" value={tierFilter}
             onChange={(e) => setTierFilter(e.target.value as ProducerTier | "")} sx={{ minWidth: 160 }}>
             <MenuItem value="">Όλες</MenuItem>
             {(["A","B","C","D","E"] as const).map(t => <MenuItem key={t} value={t}>{TIER_LABEL[t]}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <SearchableSelect
             label="Χρήση" value={useFilter}
             onChange={(v) => setUseFilter(v as VehicleUse | "")}
@@ -836,19 +837,19 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
             <Button variant="outlined" onClick={addManualCode}>Προσθήκη</Button>
           </Stack>
 
-          <TextField select label="Στόχος προμήθειας" value={form.scope}
+          <SearchableTextField label="Στόχος προμήθειας" value={form.scope}
             onChange={e => setForm({ ...form, scope: e.target.value as "tier" | "producer" | "all" })} fullWidth>
             <MenuItem value="tier">Κατηγορία συνεργατών (Α/Β/Γ/Δ/Ε)</MenuItem>
             <MenuItem value="producer">Συγκεκριμένος συνεργάτης</MenuItem>
             <MenuItem value="all">Όλοι οι συνεργάτες</MenuItem>
-          </TextField>
+          </SearchableTextField>
 
           {form.scope === "tier" && (
-            <TextField select label="Κατηγορία συνεργάτη" value={form.producerTier}
+            <SearchableTextField label="Κατηγορία συνεργάτη" value={form.producerTier}
               onChange={e => setForm({ ...form, producerTier: e.target.value as ProducerTier })} fullWidth>
               <MenuItem value="None">— Επιλέξτε κατηγορία —</MenuItem>
               {(["A","B","C","D","E"] as const).map(t => <MenuItem key={t} value={t}>{TIER_LABEL[t]}</MenuItem>)}
-            </TextField>
+            </SearchableTextField>
           )}
 
           {form.scope === "producer" && (

@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 const KINDS = ["Manual","ApiPull","Email","Ftp","Webhook"] as const;
 type Kind = typeof KINDS[number];
@@ -149,9 +150,9 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
             onChange={(v) => setForm({ ...form, insuranceCompanyId: v })}
             options={(companies.data ?? []).map(c => ({ value: c.id, label: c.name }))}
           />
-          <TextField select label={t("companyBridges.kind")} value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as Kind })} fullWidth>
+          <SearchableTextField label={t("companyBridges.kind")} value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as Kind })} fullWidth>
             {KINDS.map(k => <MenuItem key={k} value={k}>{t(`companyBridges.kindLabel.${k}`)}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
           <TextField label={t("companyBridges.configJson")} value={form.configJson} onChange={e => setForm({ ...form, configJson: e.target.value })} fullWidth multiline rows={4}
             placeholder='{"endpoint":"https://...","apiKey":"...","mapping":{...}}' helperText={t("companyBridges.configHelp")} />
           <TextField label={t("common.notes")} multiline rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} fullWidth />

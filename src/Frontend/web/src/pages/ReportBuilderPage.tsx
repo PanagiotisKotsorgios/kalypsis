@@ -9,6 +9,7 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 type ReportEntity = "Customers" | "Policies" | "Claims" | "Commissions" | "Requests" | "Documents" | "Communications";
 
@@ -257,16 +258,16 @@ function ReportDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
             onChange={(e) => setName(e.target.value)} />
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select fullWidth label="Οντότητα" value={entity}
+            <SearchableTextField fullWidth label="Οντότητα" value={entity}
               onChange={(e) => { setEntity(e.target.value as ReportEntity); setPickedFields([]); }}>
               {(Object.keys(ENTITY_LABELS) as ReportEntity[]).map((k) =>
                 <MenuItem key={k} value={k}>{ENTITY_LABELS[k]}</MenuItem>)}
-            </TextField>
-            <TextField select fullWidth label="Ορατότητα" value={visibility}
+            </SearchableTextField>
+            <SearchableTextField fullWidth label="Ορατότητα" value={visibility}
               onChange={(e) => setVisibility(e.target.value)}>
               <MenuItem value="Private">Ιδιωτική</MenuItem>
               <MenuItem value="Agency">Ολόκληρο το γραφείο</MenuItem>
-            </TextField>
+            </SearchableTextField>
           </Stack>
 
           <Box>

@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money } from "../utils/format";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 interface DeliveryRow {
   policyId: string; policyNumber: string; customerName: string;
@@ -138,11 +139,11 @@ function MarkDialog({ open, onClose, policyIds, onMarked }: { open: boolean; onC
           <TextField label={t("delivery.deliveredTo")} value={form.deliveredTo}
             onChange={e => setForm({ ...form, deliveredTo: e.target.value })} fullWidth
             placeholder={t("delivery.deliveredToPlaceholder")} />
-          <TextField select label={t("delivery.method")} value={form.deliveryMethod}
+          <SearchableTextField label={t("delivery.method")} value={form.deliveryMethod}
             onChange={e => setForm({ ...form, deliveryMethod: e.target.value })} fullWidth>
             {METHODS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
-          </TextField>
-          <TextField select label="Τρόπος πληρωμής" value={form.paymentCollectionMethod}
+          </SearchableTextField>
+          <SearchableTextField label="Τρόπος πληρωμής" value={form.paymentCollectionMethod}
             onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })} fullWidth
             helperText="Πώς θα εισπραχθεί το ασφάλιστρο.">
             <MenuItem value="">—</MenuItem>
@@ -152,7 +153,7 @@ function MarkDialog({ open, onClose, policyIds, onMarked }: { open: boolean; onC
             <MenuItem value="DebitOrder">Πάγια εντολή</MenuItem>
             <MenuItem value="Cheque">Επιταγή</MenuItem>
             <MenuItem value="Other">Άλλο</MenuItem>
-          </TextField>
+          </SearchableTextField>
         </Stack>
       </DialogContent>
       <DialogActions>

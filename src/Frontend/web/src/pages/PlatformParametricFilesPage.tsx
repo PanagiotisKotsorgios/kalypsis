@@ -13,6 +13,7 @@ import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { ErrorPopup, useDescriptiveError } from "../components/ErrorPopup";
 import { date } from "../utils/format";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 const KIND_OPTIONS = [
   "Tariff",       // Τιμολόγια
@@ -202,10 +203,10 @@ function UploadDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
           </Stack>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField select SelectProps={{ native: true }} label="Τύπος *" value={form.kind}
+            <SearchableTextField SelectProps={{ native: true }} label="Τύπος *" value={form.kind}
               onChange={(e) => setForm({ ...form, kind: e.target.value })} sx={{ flex: 1 }}>
               {KIND_OPTIONS.map(k => <option key={k} value={k}>{k}</option>)}
-            </TextField>
+            </SearchableTextField>
             <TextField label="Έκδοση *" required value={form.version}
               onChange={(e) => setForm({ ...form, version: e.target.value })}
               placeholder="2026.06" sx={{ flex: 1 }} />

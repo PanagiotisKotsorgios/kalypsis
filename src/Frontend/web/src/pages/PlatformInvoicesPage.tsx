@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage, API_BASE_URL } from "../api/client";
+import { SearchableTextField } from "../components/SearchableTextField";
 
 type InvoiceStatus = "Draft" | "Issued" | "Sent" | "Paid" | "Overdue" | "Cancelled";
 
@@ -107,26 +108,26 @@ export function PlatformInvoicesPage() {
 
       <Card variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-          <TextField select size="small" label={t("invoices.filter.year")}
+          <SearchableTextField size="small" label={t("invoices.filter.year")}
             value={year} onChange={(e) => setYear(Number(e.target.value))} sx={{ minWidth: 120 }}>
             {[0,1,2,3].map(off => {
               const y = now.getFullYear() - off;
               return <MenuItem key={y} value={y}>{y}</MenuItem>;
             })}
-          </TextField>
-          <TextField select size="small" label={t("invoices.filter.month")}
+          </SearchableTextField>
+          <SearchableTextField size="small" label={t("invoices.filter.month")}
             value={month} onChange={(e) => setMonth(e.target.value === "" ? "" : Number(e.target.value))}
             sx={{ minWidth: 140 }}>
             <MenuItem value="">{t("common.all")}</MenuItem>
             {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
               <MenuItem key={m} value={m}>{String(m).padStart(2,"0")}</MenuItem>
             ))}
-          </TextField>
-          <TextField select size="small" label={t("common.status")}
+          </SearchableTextField>
+          <SearchableTextField size="small" label={t("common.status")}
             value={status} onChange={(e) => setStatus(e.target.value)} sx={{ minWidth: 160 }}>
             <MenuItem value="">{t("common.all")}</MenuItem>
             {STATUSES.map(s => <MenuItem key={s} value={s}>{t(`invoices.status.${s}`)}</MenuItem>)}
-          </TextField>
+          </SearchableTextField>
         </Stack>
       </Card>
 
@@ -246,17 +247,17 @@ function GenerateDialog({ open, onClose, defaultYear, defaultMonth, onDone }: {
               {t("invoices.generateDialog.lead")}
             </Typography>
             <Stack direction="row" spacing={2}>
-              <TextField select label={t("invoices.filter.year")} value={year} onChange={(e) => setYear(Number(e.target.value))} fullWidth>
+              <SearchableTextField label={t("invoices.filter.year")} value={year} onChange={(e) => setYear(Number(e.target.value))} fullWidth>
                 {[0,1,2,3].map(off => {
                   const y = new Date().getFullYear() - off;
                   return <MenuItem key={y} value={y}>{y}</MenuItem>;
                 })}
-              </TextField>
-              <TextField select label={t("invoices.filter.month")} value={month} onChange={(e) => setMonth(Number(e.target.value))} fullWidth>
+              </SearchableTextField>
+              <SearchableTextField label={t("invoices.filter.month")} value={month} onChange={(e) => setMonth(Number(e.target.value))} fullWidth>
                 {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
                   <MenuItem key={m} value={m}>{String(m).padStart(2,"0")}</MenuItem>
                 ))}
-              </TextField>
+              </SearchableTextField>
             </Stack>
             <TextField
               label={t("invoices.generateDialog.vatRate")}
