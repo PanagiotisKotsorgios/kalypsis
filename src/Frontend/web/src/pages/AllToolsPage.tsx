@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import {
-  Box, Card, CardActionArea, Chip, InputAdornment, Stack, TextField, Typography
+  Box, Button, Card, CardActionArea, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
+  InputAdornment, Stack, TextField, Typography
 } from "@mui/material";
+import ConstructionIcon from "@mui/icons-material/Construction";
 import SearchIcon from "@mui/icons-material/Search";
 import AppsIcon from "@mui/icons-material/Apps";
-import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { HelpHint } from "../components/HelpHint";
 
@@ -21,25 +22,18 @@ interface Tool {
 // and quoting tools that live behind the main pages. Anything reachable
 // from the sidebar is intentionally not duplicated here; that would just
 // make the catalogue noisier without making any page easier to find.
+//
+// The «Προμήθειες / Οικονομικά / Λογιστική / Εργασίες Συμβολαίων» categories
+// were removed on 2026-07-02: their pages either duplicated sidebar entries
+// (Commission runs) or exposed half-finished back-office flows to agencies
+// that didn't need them. Everything below is still work-in-progress, so the
+// cards open a «Coming soon» dialog instead of navigating.
 const TOOLS: Tool[] = [
   // Claims & settlements (sub-flows, not main Claims page)
   { to: "/garages",              labelKey: "nav.garages",      descKey: "tools.garages",      category: "claimsOps",   pkg: "BackOffice" },
   { to: "/claim-provisions",     labelKey: "nav.provisions",   descKey: "tools.provisions",   category: "claimsOps",   pkg: "BackOffice" },
   { to: "/indemnities",          labelKey: "nav.indemnities",  descKey: "tools.indemnities",  category: "claimsOps",   pkg: "BackOffice" },
   { to: "/friendly-settlements", labelKey: "nav.friendly",     descKey: "tools.friendly",     category: "claimsOps",   pkg: "BackOffice" },
-
-  // Commission runs — paired with the Commission Rules page in the sidebar.
-  { to: "/commission-runs", labelKey: "nav.commissionRuns", descKey: "tools.commissionRuns", category: "commissions", pkg: "BackOffice" },
-
-  // Cash / tachy back-room — not surfaced in the agency sidebar by default.
-  { to: "/cash",          labelKey: "nav.cash",  descKey: "tools.cash",  category: "financials", pkg: "BackOffice" },
-  { to: "/tachypayments", labelKey: "nav.tachy", descKey: "tools.tachy", category: "financials", pkg: "BackOffice" },
-
-  // Accounting — separate workflow, hidden from the main sidebar to keep it tidy.
-  { to: "/gl",               labelKey: "nav.gl",              descKey: "tools.gl",              category: "accounting", pkg: "BackOffice" },
-  { to: "/accounting",       labelKey: "nav.accounting",      descKey: "tools.accounting",      category: "accounting", pkg: "BackOffice" },
-  { to: "/kepyo",            labelKey: "nav.kepyo",           descKey: "tools.kepyo",           category: "accounting", pkg: "BackOffice" },
-  { to: "/magnetic-import",  labelKey: "nav.magneticImport",  descKey: "tools.magneticImport",  category: "accounting", pkg: "BackOffice" },
 
   // Quoting / front-office sub-tools.
   { to: "/risk-profiles", labelKey: "nav.riskProfiles", descKey: "tools.riskProfiles", category: "quotes", pkg: "FrontOffice" },
@@ -51,19 +45,17 @@ const TOOLS: Tool[] = [
   { to: "/churn",          labelKey: "nav.churn",          descKey: "tools.churn",          category: "intelligence", pkg: "Intelligence" },
   { to: "/report-builder", labelKey: "nav.reportBuilder", descKey: "tools.reportBuilder", category: "intelligence", pkg: "Intelligence" },
   { to: "/goals",          labelKey: "nav.goals",          descKey: "tools.goals",          category: "intelligence", pkg: "Intelligence" },
-
-  // Operations odds and ends.
-  { to: "/lookups", labelKey: "nav.lookups", descKey: "tools.lookups", category: "operations", pkg: "BackOffice" },
 ];
 
-const CATEGORY_ORDER = [
-  "claimsOps", "commissions", "financials", "accounting",
-  "quotes", "intelligence", "operations"
-];
+const CATEGORY_ORDER = ["claimsOps", "quotes", "intelligence"];
 
 export function AllToolsPage() {
   const { t } = useTranslation();
   const [q, setQ] = useState("");
+  // The whole catalogue is still WIP — clicking any tool opens a shared
+  // «Coming soon» dialog instead of navigating. `pending` holds the tool
+  // the user clicked so the dialog can name it.
+  const [pending, setPending] = useState<Tool | null>(null);
 
   const grouped = useMemo(() => {
     const filter = q.trim().toLowerCase();
@@ -125,7 +117,7 @@ export function AllToolsPage() {
                 transition: "transform 120ms, box-shadow 120ms",
                 "&:hover": { transform: "translateY(-2px)", boxShadow: 3, borderColor: "primary.light" }
               }}>
-                <CardActionArea component={RouterLink} to={`/app${tool.to}`} sx={{ p: 2, height: "100%" }}>
+                <CardActionArea onClick={() => setPending(tool)} sx={{ p: 2, height: "100%" }}>
                   <Typography fontWeight={700} sx={{ mb: 0.5 }} noWrap>{t(tool.labelKey)}</Typography>
                   <Typography variant="caption" color="text.secondary" sx={{
                     display: "-webkit-box",
@@ -137,7 +129,13 @@ export function AllToolsPage() {
                   }}>
                     {t(tool.descKey, "")}
                   </Typography>
-                  <Chip size="small" label={tool.pkg} sx={{ mt: 1, fontWeight: 600, fontSize: 10, height: 18 }} />
+                  <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 1 }}>
+                    <Chip size="small" label={tool.pkg} sx={{ fontWeight: 600, fontSize: 10, height: 18 }} />
+                    <Chip size="small" color="warning" variant="outlined"
+                      icon={<ConstructionIcon sx={{ fontSize: 12 }} />}
+                      label="Υπό ανάπτυξη"
+                      sx={{ fontWeight: 600, fontSize: 10, height: 18 }} />
+                  </Stack>
                 </CardActionArea>
               </Card>
             ))}
@@ -150,6 +148,26 @@ export function AllToolsPage() {
           {t("allTools.noResults", { query: q })}
         </Typography>
       )}
+
+      <Dialog open={!!pending} onClose={() => setPending(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1, fontWeight: 800 }}>
+          <ConstructionIcon color="warning" />
+          Έρχεται σύντομα
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 1.5 }}>
+            {pending ? <b>{t(pending.labelKey)}</b> : null} — αυτή η λειτουργία είναι ακόμη υπό
+            ανάπτυξη. Δουλεύουμε πάνω της και θα ανακοινώσουμε τη διαθεσιμότητά της σύντομα.
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Έχετε συγκεκριμένη ανάγκη ή σχόλιο για αυτό το εργαλείο; Πείτε μας στο{" "}
+            <a href="mailto:info@mykalypsis.gr">info@mykalypsis.gr</a>.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPending(null)} variant="contained">Εντάξει</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
