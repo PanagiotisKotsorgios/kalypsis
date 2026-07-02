@@ -152,6 +152,18 @@ export function SearchableSelect<V = string>({
       getOptionDisabled={(o) => !!o.disabled}
       groupBy={augmented.some(o => o.group) ? (o) => o.group ?? "" : undefined}
       filterOptions={filterOptions}
+      // UX niceties that make the field usable when it already displays an
+      // "Όλα" / "— any —" placeholder: focusing highlights the text so the
+      // next keystroke replaces it, the dropdown pops up right away, Home /
+      // End behave as text-editing keys instead of jumping between options,
+      // and typing that doesn't match anything is NOT thrown away on blur —
+      // so the user can freely delete / retype without the field snapping
+      // back to whatever was previously selected.
+      selectOnFocus
+      openOnFocus
+      handleHomeEndKeys
+      clearOnBlur={false}
+      autoHighlight
       renderOption={(props, o) => (
         <li {...props} key={String(o.value) + "|" + o.label}>
           <Stack direction="row" alignItems="center" spacing={1.25} sx={{ width: "100%" }}>
