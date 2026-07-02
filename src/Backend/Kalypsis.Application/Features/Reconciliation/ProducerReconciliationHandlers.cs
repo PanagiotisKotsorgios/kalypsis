@@ -202,17 +202,28 @@ public class ListAgencyDeclarationsHandler : IRequestHandler<ListAgencyDeclarati
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
 
-        var q = _db.ProducerCommissionDeclarations
-            .Include(d => d.Policy)
-            .Include(d => d.Producer)
-            .Where(d => d.TenantId == tenantId && d.DeletedAt == null);
-        if (r.ProducerId.HasValue) q = q.Where(d => d.ProducerId == r.ProducerId);
+        try
+        {
+            var q = _db.ProducerCommissionDeclarations
+                .Include(d => d.Policy)
+                .Include(d => d.Producer)
+                .Where(d => d.TenantId == tenantId && d.DeletedAt == null);
+            if (r.ProducerId.HasValue) q = q.Where(d => d.ProducerId == r.ProducerId);
 
-        var rows = await q.OrderByDescending(d => d.DeclaredAt).Take(500).ToListAsync(ct);
+            var rows = await q.OrderByDescending(d => d.DeclaredAt).Take(500).ToListAsync(ct);
 
-        return rows.Select(d => new ProducerDeclarationDto(
-            d.Id, d.PolicyId, d.Policy?.PolicyNumber ?? "", d.ProducerId, d.Producer?.Name ?? "",
-            d.ExpectedAmount, d.ExpectedPercent, d.RecordedAmount, d.DifferenceAmount,
-            d.ReconciliationStatus, d.Currency, d.Notes, d.DeclaredAt)).ToList();
+            return rows.Select(d => new ProducerDeclarationDto(
+                d.Id, d.PolicyId, d.Policy?.PolicyNumber ?? "", d.ProducerId, d.Producer?.Name ?? "",
+                d.ExpectedAmount, d.ExpectedPercent, d.RecordedAmount, d.DifferenceAmount,
+                d.ReconciliationStatus, d.Currency, d.Notes, d.DeclaredAt)).ToList();
+        }
+        catch
+        {
+            // If the paired migration hasn't applied yet the table can be
+            // missing on a partial deploy — treat as "no declarations" so the
+            // page renders instead of the frontend flashing a red error.
+            // The schema safety net will create it on the next boot.
+            return Array.Empty<ProducerDeclarationDto>();
+        }
     }
 }

@@ -34,6 +34,19 @@ export interface PolicyDetail {
   endorsementCount: number; cancellationCount: number; claimCount: number; commissionTxnCount: number;
   documentCount: number; receiptCount: number;
   totalReceived: number; outstanding: number; totalCommissions: number;
+  covers: PolicyCoverRow[]; coversGrossTotal: number;
+}
+
+export interface PolicyCoverRow {
+  id: string;
+  coverCode: string;
+  coverName: string | null;
+  grossPremium: number;
+  netPremium: number;
+  coverageAmount: number | null;
+  // Per-cover commission %; null → falls back to the matching CommissionRule.
+  commissionPercent: number | null;
+  agencyCommissionPercent: number | null;
 }
 
 interface Props {
@@ -258,6 +271,13 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
               {tab === 1 && (
                 <Stack spacing={2.5}>
                   <KV label={t("policyDetail.premium")} value={`${p.premium.toFixed(2)} ${p.currency}`} />
+
+                  {/* Covers breakdown — shown only when the policy actually
+                      has PolicyCover rows on file. Highlights any drift
+                      between the stated premium and the sum of covers so the
+                      operator can spot bad data before it feeds commission
+                      calculations. */}
+                  {p.covers && p.covers.length > 0 && <CoversBreakdown p={p} />}
                   <TextField select fullWidth label={t("policyDetail.paymentFrequency")} value={form.paymentFrequency}
                     onChange={e => setForm({ ...form, paymentFrequency: e.target.value })}>
                     {FREQUENCIES.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
@@ -401,6 +421,75 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
         )}
       </Box>
     </Drawer>
+  );
+}
+
+/**
+ * Coverage breakdown for the Financials tab. Shows every PolicyCover row
+ * with its gross premium and (when set) its per-cover commission %, then a
+ * totals row. When the stated policy premium doesn't match the sum of
+ * covers, a red drift warning appears so the operator knows to reconcile
+ * before commissions run.
+ */
+function CoversBreakdown({ p }: { p: PolicyDetail }) {
+  const drift = Math.abs(p.premium - p.coversGrossTotal);
+  const hasDrift = drift > 0.01;
+  const anyProducerRate = p.covers.some(c => c.commissionPercent !== null);
+  const anyAgencyRate   = p.covers.some(c => c.agencyCommissionPercent !== null);
+  return (
+    <Box>
+      <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+        <Typography variant="overline" color="text.secondary" fontWeight={700}>
+          Καλύψεις ({p.covers.length})
+        </Typography>
+        {hasDrift && (
+          <Chip size="small" color="error" variant="outlined"
+            label={`Διαφορά με ασφάλιστρο: ${drift.toFixed(2)} ${p.currency}`}
+            sx={{ height: 20, fontSize: 11, fontWeight: 700 }} />
+        )}
+      </Stack>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Κωδικός</TableCell>
+            <TableCell>Όνομα</TableCell>
+            <TableCell align="right">Μεικτό</TableCell>
+            {anyProducerRate && <TableCell align="right">Προμ. συν. %</TableCell>}
+            {anyAgencyRate   && <TableCell align="right">Προμ. γρ. %</TableCell>}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {p.covers.map(c => (
+            <TableRow key={c.id}>
+              <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{c.coverCode}</TableCell>
+              <TableCell>{c.coverName ?? "—"}</TableCell>
+              <TableCell align="right">{c.grossPremium.toFixed(2)}</TableCell>
+              {anyProducerRate && (
+                <TableCell align="right" sx={{ color: c.commissionPercent === null ? "text.disabled" : undefined }}>
+                  {c.commissionPercent === null ? "—" : `${c.commissionPercent.toFixed(2)}%`}
+                </TableCell>
+              )}
+              {anyAgencyRate && (
+                <TableCell align="right" sx={{ color: c.agencyCommissionPercent === null ? "text.disabled" : undefined }}>
+                  {c.agencyCommissionPercent === null ? "—" : `${c.agencyCommissionPercent.toFixed(2)}%`}
+                </TableCell>
+              )}
+            </TableRow>
+          ))}
+          <TableRow>
+            <TableCell colSpan={2} sx={{ fontWeight: 700 }}>Σύνολο από καλύψεις</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 700 }}>{p.coversGrossTotal.toFixed(2)} {p.currency}</TableCell>
+            {anyProducerRate && <TableCell />}
+            {anyAgencyRate   && <TableCell />}
+          </TableRow>
+        </TableBody>
+      </Table>
+      {(anyProducerRate || anyAgencyRate) && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+          «—» στα ποσοστά σημαίνει ότι η κάλυψη κληρονομεί το ποσοστό από τον κανόνα προμηθειών.
+        </Typography>
+      )}
+    </Box>
   );
 }
 

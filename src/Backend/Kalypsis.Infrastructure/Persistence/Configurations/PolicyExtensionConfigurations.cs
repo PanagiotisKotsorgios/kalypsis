@@ -32,6 +32,8 @@ public class PolicyCoverConfiguration : IEntityTypeConfiguration<PolicyCover>
         b.Property(x => x.GrossPremium).HasColumnType("decimal(14,2)");
         b.Property(x => x.NetPremium).HasColumnType("decimal(14,2)");
         b.Property(x => x.CoverageAmount).HasColumnType("decimal(18,2)");
+        b.Property(x => x.CommissionPercent).HasColumnType("decimal(7,4)");
+        b.Property(x => x.AgencyCommissionPercent).HasColumnType("decimal(7,4)");
         b.HasIndex(x => x.PolicyId);
         b.HasIndex(x => x.PolicyObjectId);
         b.HasOne(x => x.Policy).WithMany(p => p.Covers).HasForeignKey(x => x.PolicyId).OnDelete(DeleteBehavior.Cascade);

@@ -263,6 +263,14 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
         p.Status = b.Status;
         p.SpecsJson = PolicySpecsJsonHelper.MergeCodes(p.SpecsJson, b.CoverCode, b.PackageCode);
 
+        // Cover-driven premium sync — if the policy has PolicyCover rows on
+        // file, its Premium column becomes read-only and always equals the
+        // sum of the covers' GrossPremium. Manual entries on cover-less
+        // policies still respect b.Premium.
+        var covers = await _db.PolicyCovers.IgnoreQueryFilters()
+            .Where(c => c.PolicyId == p.Id && c.DeletedAt == null).ToListAsync(ct);
+        PolicyPremiumMath.TrySyncPolicyPremiumFromCovers(p, covers);
+
         await _db.SaveChangesAsync(ct);
 
         var saved = await _db.Policies.IgnoreQueryFilters()

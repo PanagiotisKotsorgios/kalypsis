@@ -13,6 +13,14 @@ namespace Kalypsis.Application.Features.Policies;
 // everything in one network round-trip.
 // ============================================================================
 
+/// <summary>Per-cover breakdown line for the policy detail drawer.</summary>
+public record PolicyCoverDto(
+    Guid Id, string CoverCode, string? CoverName,
+    decimal GrossPremium, decimal NetPremium,
+    decimal? CoverageAmount,
+    decimal? CommissionPercent,          // per-cover producer % (null → uses rule fallback)
+    decimal? AgencyCommissionPercent);   // per-cover agency %   (null → uses rule fallback)
+
 public record PolicyDetailDto(
     // Core
     Guid Id, string PolicyNumber, PolicyType PolicyType, PolicyStatus Status,
@@ -50,7 +58,15 @@ public record PolicyDetailDto(
 
     // Quick financial totals
     decimal TotalReceived, decimal Outstanding,
-    decimal TotalCommissions);
+    decimal TotalCommissions,
+
+    // Cover breakdown — populated when the policy has PolicyCover rows
+    // (either from a carrier bridge or manual entry). Empty otherwise;
+    // in that case the drawer just shows the flat Premium field.
+    // CoversGrossTotal is provided pre-summed so the frontend can
+    // display it prominently as "Σύνολο από καλύψεις".
+    IReadOnlyList<PolicyCoverDto> Covers,
+    decimal CoversGrossTotal);
 
 public record GetPolicyDetailQuery(Guid Id) : IRequest<PolicyDetailDto>;
 
@@ -106,6 +122,24 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             .Where(x => x.PolicyId == p.Id && x.DeletedAt == null)
             .SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
 
+        // Cover breakdown. Wrapped so a missing table (partial deploy on an
+        // old DB) doesn't fail the whole detail load — the safety net will
+        // create policy_covers on the next boot.
+        List<PolicyCoverDto> covers = new();
+        try
+        {
+            covers = await _db.PolicyCovers.IgnoreQueryFilters()
+                .Where(c => c.PolicyId == p.Id && c.DeletedAt == null)
+                .OrderBy(c => c.CoverCode)
+                .Select(c => new PolicyCoverDto(
+                    c.Id, c.CoverCode, c.CoverName,
+                    c.GrossPremium, c.NetPremium, c.CoverageAmount,
+                    c.CommissionPercent, c.AgencyCommissionPercent))
+                .ToListAsync(ct);
+        }
+        catch { covers = new List<PolicyCoverDto>(); }
+        var coversGrossTotal = covers.Sum(c => c.GrossPremium);
+
         // Renewal transfer-to names (so UI doesn't need a second lookup).
         string? renewalProducerName = null;
         if (p.RenewalTransferToProducerId.HasValue)
@@ -146,7 +180,8 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             endorsementCount, cancellationCount, claimCount, commissionTxnCount,
             documentCount, receiptCount,
             totalReceived, p.Premium - totalReceived,
-            totalCommissions);
+            totalCommissions,
+            covers, coversGrossTotal);
     }
 }
 

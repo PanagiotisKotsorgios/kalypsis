@@ -482,6 +482,34 @@ public static class DataSeeder
             table: "payments", indexName: "IX_payments_PolicyId",
             addSql: "CREATE INDEX `IX_payments_PolicyId` ON `payments` (`PolicyId`)", ct);
 
+        // --- producer_commission_declarations table ---------------------
+        // Producer reconciliation: producer-side self-reported expected
+        // commissions with diff vs recorded runs. Missing table would make
+        // /api/producer-reconciliation return 500 for every agency.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "producer_commission_declarations",
+            createSql: @"CREATE TABLE IF NOT EXISTS `producer_commission_declarations` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `ProducerId` char(36) NOT NULL,
+                `PolicyId` char(36) NOT NULL,
+                `ExpectedAmount` decimal(14,2) NOT NULL,
+                `ExpectedPercent` decimal(7,2) NULL,
+                `Currency` varchar(3) NOT NULL,
+                `Notes` varchar(1000) NULL,
+                `DeclaredAt` datetime(6) NOT NULL,
+                `RecordedAmount` decimal(14,2) NULL,
+                `DifferenceAmount` decimal(14,2) NULL,
+                `ReconciliationStatus` varchar(40) NOT NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_producer_commission_declarations_TenantId` (`TenantId`),
+                KEY `IX_producer_commission_declarations_ProducerId` (`ProducerId`),
+                KEY `IX_producer_commission_declarations_PolicyId` (`PolicyId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         // --- tenant_carrier_optins table ---------------------------------
         // Per-tenant opt-in against the universal carrier catalog. Referenced
         // by /api/insurance-companies on every page load — if it's missing
@@ -548,6 +576,8 @@ public static class DataSeeder
                 `GrossPremium` decimal(14,2) NOT NULL DEFAULT 0,
                 `NetPremium` decimal(14,2) NOT NULL DEFAULT 0,
                 `CoverageAmount` decimal(18,2) NULL,
+                `CommissionPercent` decimal(7,4) NULL,
+                `AgencyCommissionPercent` decimal(7,4) NULL,
                 `CreatedAt` datetime(6) NOT NULL,
                 `UpdatedAt` datetime(6) NULL,
                 `DeletedAt` datetime(6) NULL,
@@ -555,6 +585,14 @@ public static class DataSeeder
                 KEY `IX_policy_covers_PolicyId` (`PolicyId`),
                 KEY `IX_policy_covers_PolicyObjectId` (`PolicyObjectId`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+        // Old policy_covers rows on already-migrated DBs won't have the
+        // per-cover commission columns from the create statement above.
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policy_covers", column: "CommissionPercent",
+            addSql: "ALTER TABLE `policy_covers` ADD COLUMN `CommissionPercent` decimal(7,4) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policy_covers", column: "AgencyCommissionPercent",
+            addSql: "ALTER TABLE `policy_covers` ADD COLUMN `AgencyCommissionPercent` decimal(7,4) NULL", ct);
 
         // --- saved_reports table ------------------------------------------
         await EnsureTableAsync(db, logger, dbName,

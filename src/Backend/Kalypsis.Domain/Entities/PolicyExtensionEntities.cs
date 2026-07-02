@@ -57,6 +57,18 @@ public class PolicyCover : TenantEntity
 
     /// <summary>Capital insured / κάλυψη κεφαλαίου (limit).</summary>
     public decimal? CoverageAmount { get; set; }
+
+    /// <summary>
+    /// Optional per-cover producer commission % override. When set, this
+    /// overrides the matching CommissionRule for this specific cover so
+    /// that policies with mixed coverages (MTPL 15% + οδική 0% + νομική 0%)
+    /// compute correct commissions per-line instead of applying a flat rate
+    /// to the whole premium.
+    /// </summary>
+    public decimal? CommissionPercent { get; set; }
+
+    /// <summary>Same as CommissionPercent but for the agency (office share).</summary>
+    public decimal? AgencyCommissionPercent { get; set; }
 }
 
 /// <summary>

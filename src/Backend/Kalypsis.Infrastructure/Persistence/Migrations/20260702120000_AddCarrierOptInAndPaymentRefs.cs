@@ -98,6 +98,11 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                 columns: new[] { "TenantId", "InsuranceCompanyId" },
                 unique: true,
                 filter: "`DeletedAt` IS NULL");
+
+            // NOTE: policy_covers.CommissionPercent / AgencyCommissionPercent
+            // are added by DataSeeder.EnsureSchemaSafetyAsync — the
+            // policy_covers table itself is created there (no formal migration
+            // for it), so we keep both schema changes co-located.
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
