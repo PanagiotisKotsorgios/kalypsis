@@ -42,7 +42,12 @@ import EditIcon from "@mui/icons-material/Edit";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import ArticleIcon from "@mui/icons-material/Article";
+import PersonIcon from "@mui/icons-material/Person";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import LinkIcon from "@mui/icons-material/Link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
@@ -329,13 +334,23 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
   onChanged: () => void;
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [fileName, setFileName] = useState("");
   const [docType, setDocType] = useState<DocumentType>("Policy");
   const [err, setErr] = useState<string | null>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
+  // Blob URL for the preview iframe. We fetch the file via authenticated
+  // axios (Bearer token) and wrap the response in URL.createObjectURL, so
+  // the browser can render it in an <iframe> without needing to attach the
+  // Authorization header itself (iframes/plain URLs don't run axios
+  // interceptors — that's why the /preview endpoint was returning 401 on a
+  // direct visit and the iframe was showing empty).
+  const [previewObjectUrl, setPreviewObjectUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
-  // Reset the local rename state whenever the drawer switches documents.
+  // Reset the local rename state + refetch the preview blob whenever the
+  // drawer switches documents. Old blob URLs are revoked so we don't leak.
   useEffect(() => {
     setEditing(false);
     setErr(null);
@@ -345,10 +360,34 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
     }
   }, [doc]);
 
-  // Preview URL — the browser handles the auth cookie automatically, so we
-  // don't need to pipe the file through JS. The token appended forces a
-  // reload whenever the drawer switches to a new document.
-  const previewUrl = doc ? `/api/documents/${doc.id}/preview?v=${doc.createdAt}` : "";
+  useEffect(() => {
+    let cancelled = false;
+    let mintedUrl: string | null = null;
+    if (previewObjectUrl) { URL.revokeObjectURL(previewObjectUrl); setPreviewObjectUrl(null); }
+    const canInline = doc
+      ? /pdf|^image\/|^text\/|json|xml|csv/i.test(doc.mimeType)
+      : false;
+    if (doc && canInline) {
+      setPreviewLoading(true);
+      api.get<Blob>(`/documents/${doc.id}/preview`, { responseType: "blob" })
+        .then((res) => {
+          if (cancelled) return;
+          // Force the MIME on the Blob — some browsers ignore an inline
+          // `application/octet-stream` and refuse to render as PDF.
+          const blob = new Blob([res.data], { type: doc.mimeType });
+          mintedUrl = URL.createObjectURL(blob);
+          setPreviewObjectUrl(mintedUrl);
+        })
+        .catch((e) => { if (!cancelled) setErr(extractErrorMessage(e)); })
+        .finally(() => { if (!cancelled) setPreviewLoading(false); });
+    }
+    return () => {
+      cancelled = true;
+      if (mintedUrl) URL.revokeObjectURL(mintedUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc?.id, doc?.mimeType, doc?.createdAt]);
+
   const canInlinePreview = doc
     ? /pdf|^image\/|^text\/|json|xml|csv/i.test(doc.mimeType)
     : false;
@@ -434,7 +473,14 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
               {t("documents.download")}
             </Button>
             <Button size="small" variant="outlined" startIcon={<OpenInNewIcon />}
-              onClick={() => window.open(previewUrl, "_blank", "noopener")}>
+              disabled={!previewObjectUrl}
+              onClick={() => {
+                // Blob URLs are same-origin so the new tab (from the same
+                // browsing context) can consume them without any auth
+                // headers. This is how we avoid the 401 that used to hit
+                // when opening the raw /preview endpoint in a new tab.
+                if (previewObjectUrl) window.open(previewObjectUrl, "_blank", "noopener");
+              }}>
               Νέα καρτέλα
             </Button>
             {canEdit && (
@@ -481,6 +527,98 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
           </Stack>
           <Divider />
 
+          {/* Linked entities — the operator's map into the rest of the app.
+              Clicking either row navigates to the underlying record and
+              closes the drawer, so a document can never be an orphan. */}
+          <Stack spacing={0.5} sx={{ px: 2, py: 1.5, bgcolor: "background.default" }}>
+            <Typography sx={{
+              fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase",
+              color: "text.secondary", fontWeight: 700, mb: 0.5
+            }}>
+              Συνδέεται με
+            </Typography>
+            {/* Policy row */}
+            <Box
+              onClick={() => {
+                if (!doc.policyId) return;
+                navigate(`/app/policies?documentPolicyId=${doc.policyId}`);
+                onClose();
+              }}
+              sx={{
+                display: "flex", alignItems: "center", gap: 1.25,
+                px: 1, py: 1, borderRadius: 1.5,
+                cursor: doc.policyId ? "pointer" : "default",
+                bgcolor: "background.paper",
+                border: "1px solid",
+                borderColor: "divider",
+                transition: "border-color 160ms, background-color 160ms",
+                "&:hover": doc.policyId ? {
+                  borderColor: "primary.main",
+                  bgcolor: "action.hover"
+                } : undefined
+              }}
+            >
+              <ArticleIcon color="primary" fontSize="small" />
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="caption" color="text.secondary">Συμβόλαιο</Typography>
+                <Typography sx={{ fontFamily: "monospace", fontWeight: 700 }} noWrap>
+                  {doc.policyNumber || "—"}
+                </Typography>
+              </Box>
+              {doc.policyId && <ArrowForwardIcon fontSize="small" color="action" />}
+            </Box>
+            {/* Customer row */}
+            <Box
+              onClick={() => {
+                if (!doc.customerId) return;
+                navigate(`/app/customers/${doc.customerId}`);
+                onClose();
+              }}
+              sx={{
+                display: "flex", alignItems: "center", gap: 1.25,
+                px: 1, py: 1, borderRadius: 1.5, mt: 0.5,
+                cursor: doc.customerId ? "pointer" : "default",
+                bgcolor: "background.paper",
+                border: "1px solid",
+                borderColor: "divider",
+                transition: "border-color 160ms, background-color 160ms",
+                "&:hover": doc.customerId ? {
+                  borderColor: "primary.main",
+                  bgcolor: "action.hover"
+                } : undefined
+              }}
+            >
+              <PersonIcon color="primary" fontSize="small" />
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="caption" color="text.secondary">Πελάτης</Typography>
+                <Typography fontWeight={700} noWrap>
+                  {doc.customerDisplay || "—"}
+                </Typography>
+              </Box>
+              {doc.customerId && <ArrowForwardIcon fontSize="small" color="action" />}
+            </Box>
+            {/* Copy-direct-link row (nice-to-have for sharing internally) */}
+            <Box
+              onClick={async () => {
+                try {
+                  const url = `${window.location.origin}/app/documents#doc=${doc.id}`;
+                  await navigator.clipboard.writeText(url);
+                } catch { /* clipboard blocked — ignore */ }
+              }}
+              sx={{
+                display: "flex", alignItems: "center", gap: 1.25,
+                px: 1, py: 0.75, borderRadius: 1.5, mt: 0.25,
+                cursor: "pointer",
+                color: "text.secondary",
+                "&:hover": { color: "primary.main" }
+              }}
+            >
+              <LinkIcon fontSize="small" />
+              <Typography variant="caption">Αντιγραφή εσωτερικού συνδέσμου</Typography>
+            </Box>
+          </Stack>
+          <Divider />
+
           {/* Preview surface — fills the remaining drawer height. */}
           <Box sx={{
             flex: 1,
@@ -488,10 +626,14 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
             display: "flex", alignItems: "stretch", justifyContent: "stretch",
             overflow: "hidden"
           }}>
-            {canInlinePreview ? (
+            {previewLoading ? (
+              <Stack alignItems="center" justifyContent="center" sx={{ flex: 1 }}>
+                <CircularProgress />
+              </Stack>
+            ) : canInlinePreview && previewObjectUrl ? (
               <Box
                 component="iframe"
-                src={previewUrl}
+                src={previewObjectUrl}
                 title={doc.fileName}
                 sx={{ flex: 1, border: 0, width: "100%", height: "100%", bgcolor: "background.paper" }}
               />
@@ -499,10 +641,13 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
               <Stack alignItems="center" justifyContent="center" spacing={2}
                 sx={{ flex: 1, p: 4, textAlign: "center" }}>
                 <MimeIcon mime={doc.mimeType} sx={{ fontSize: 64 }} />
-                <Typography variant="h6" fontWeight={700}>Δεν υπάρχει προεπισκόπηση</Typography>
+                <Typography variant="h6" fontWeight={700}>
+                  {canInlinePreview ? "Δεν φορτώθηκε η προεπισκόπηση" : "Δεν υπάρχει προεπισκόπηση"}
+                </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 420 }}>
-                  Ο τύπος «{doc.mimeType}» δεν υποστηρίζεται από τον browser για inline προβολή.
-                  Κατεβάστε το αρχείο για να το ανοίξετε στην κατάλληλη εφαρμογή.
+                  {canInlinePreview
+                    ? "Δοκιμάστε ξανά ή κατεβάστε το αρχείο για να το ανοίξετε στην κατάλληλη εφαρμογή."
+                    : `Ο τύπος «${doc.mimeType}» δεν υποστηρίζεται από τον browser για inline προβολή. Κατεβάστε το αρχείο για να το ανοίξετε στην κατάλληλη εφαρμογή.`}
                 </Typography>
                 <Button variant="contained" startIcon={<DownloadIcon />} onClick={download}>
                   {t("documents.download")}
