@@ -21,6 +21,11 @@ public class Receipt : TenantEntity
     public string? Notes { get; set; }
     public Guid? RecordedByUserId { get; set; }
     public User? RecordedByUser { get; set; }
+
+    // Optional external reference — POS terminal id / Ζ report / cheque number /
+    // bank tx id — label swaps in the UI depending on Method so it stays useful
+    // for whichever channel the receipt was made through.
+    public string? TransactionReference { get; set; }
 }
 
 public class Payment : TenantEntity
@@ -42,6 +47,15 @@ public class Payment : TenantEntity
     public decimal CommissionsNetted { get; set; }
     public string Currency { get; set; } = "EUR";
     public string? Notes { get; set; }
+
+    /// Same shape as Receipt.TransactionReference — bank ref / cheque no / etc.
+    public string? TransactionReference { get; set; }
+
+    /// Optional link to the policy the payment settles (if payment is against
+    /// a specific policy — e.g. mid-term company billing). Kept nullable for
+    /// bulk sweeps to a carrier.
+    public Guid? PolicyId { get; set; }
+    public Policy? Policy { get; set; }
 }
 
 public class Security : TenantEntity

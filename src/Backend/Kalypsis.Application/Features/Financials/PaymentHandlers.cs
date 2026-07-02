@@ -13,12 +13,14 @@ public record PaymentDto(
     Guid? BeneficiaryInsuranceCompanyId, string? BeneficiaryInsuranceCompanyName,
     Guid? BeneficiaryProducerId, string? BeneficiaryProducerName,
     string? BeneficiaryName, PaymentMethod Method,
-    decimal Amount, decimal CommissionsNetted, string Currency, string? Notes);
+    decimal Amount, decimal CommissionsNetted, string Currency, string? Notes,
+    string? TransactionReference, Guid? PolicyId, string? PolicyNumber);
 
 public record PaymentBody(
     string Number, DateOnly PaidOn, BeneficiaryType BeneficiaryType,
     Guid? BeneficiaryInsuranceCompanyId, Guid? BeneficiaryProducerId, string? BeneficiaryName,
-    PaymentMethod Method, decimal Amount, decimal CommissionsNetted, string Currency, string? Notes);
+    PaymentMethod Method, decimal Amount, decimal CommissionsNetted, string Currency, string? Notes,
+    string? TransactionReference, Guid? PolicyId);
 
 public record ListPaymentsQuery(DateOnly? From, DateOnly? To, BeneficiaryType? Type) : IRequest<IReadOnlyList<PaymentDto>>;
 
@@ -31,6 +33,7 @@ public class ListPaymentsQueryHandler : IRequestHandler<ListPaymentsQuery, IRead
         var q = _db.Payments
             .Include(p => p.BeneficiaryInsuranceCompany)
             .Include(p => p.BeneficiaryProducer)
+            .Include(p => p.Policy)
             .AsQueryable();
         if (r.From.HasValue) q = q.Where(x => x.PaidOn >= r.From);
         if (r.To.HasValue) q = q.Where(x => x.PaidOn <= r.To);
@@ -43,7 +46,8 @@ public class ListPaymentsQueryHandler : IRequestHandler<ListPaymentsQuery, IRead
         p.BeneficiaryInsuranceCompanyId, p.BeneficiaryInsuranceCompany?.Name,
         p.BeneficiaryProducerId,
         p.BeneficiaryProducer?.Name,
-        p.BeneficiaryName, p.Method, p.Amount, p.CommissionsNetted, p.Currency, p.Notes);
+        p.BeneficiaryName, p.Method, p.Amount, p.CommissionsNetted, p.Currency, p.Notes,
+        p.TransactionReference, p.PolicyId, p.Policy?.PolicyNumber);
 }
 
 public class PaymentBodyValidator : AbstractValidator<PaymentBody>
@@ -79,7 +83,9 @@ public class CreatePaymentCommandHandler : IRequestHandler<CreatePaymentCommand,
             Amount = b.Amount,
             CommissionsNetted = b.CommissionsNetted,
             Currency = b.Currency.ToUpperInvariant(),
-            Notes = b.Notes
+            Notes = b.Notes,
+            TransactionReference = string.IsNullOrWhiteSpace(b.TransactionReference) ? null : b.TransactionReference.Trim(),
+            PolicyId = b.PolicyId
         };
         _db.Payments.Add(p);
 
@@ -95,6 +101,7 @@ public class CreatePaymentCommandHandler : IRequestHandler<CreatePaymentCommand,
             Amount = b.Amount, Currency = b.Currency.ToUpperInvariant(),
             InsuranceCompanyId = b.BeneficiaryInsuranceCompanyId,
             ProducerId = b.BeneficiaryProducerId,
+            PolicyId = b.PolicyId,
             PaymentId = p.Id,
             Description = $"Πληρωμή #{b.Number}"
         });

@@ -23,6 +23,22 @@ interface PaymentDto {
   beneficiaryProducerId: string | null; beneficiaryProducerName: string | null;
   beneficiaryName: string | null;
   method: Method; amount: number; commissionsNetted: number; currency: string; notes: string | null;
+  transactionReference: string | null;
+  policyId: string | null; policyNumber: string | null;
+}
+
+// Same shape as receipts — swap the label for the external reference input
+// based on the payment method so a bank transfer records a wire ref, a cheque
+// records a cheque number, etc.
+function txRefLabelFor(method: Method): string {
+  switch (method) {
+    case "Cash": return "Αριθμός παραστατικού";
+    case "Card": return "Αριθμός συναλλαγής POS";
+    case "BankTransfer": return "Αριθμός τραπεζικής συναλλαγής";
+    case "Cheque": return "Αριθμός επιταγής";
+    case "PromissoryNote": return "Αριθμός γραμματίου";
+    default: return "Αριθμός αναφοράς";
+  }
 }
 
 export function PaymentsPage() {
@@ -160,8 +176,8 @@ export function PaymentsPage() {
 
 function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: () => void }) {
   const { t } = useTranslation();
-  const companies = useQuery({ queryKey: ["insurance-companies-lite"], enabled: open,
-    queryFn: async () => (await api.get<{ id: string; name: string }[]>("/insurance-companies")).data });
+  const companies = useQuery({ queryKey: ["insurance-companies-lite-used"], enabled: open,
+    queryFn: async () => (await api.get<{ id: string; name: string }[]>("/insurance-companies", { params: { onlyUsed: true } })).data });
   const producers = useQuery({ queryKey: ["producers-lite"], enabled: open,
     queryFn: async () => (await api.get<{ id: string; name: string }[]>("/producers")).data });
 
@@ -169,10 +185,21 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
   const [form, setForm] = useState({
     number: "", paidOn: today, beneficiaryType: "InsuranceCompany" as BType,
     beneficiaryInsuranceCompanyId: "", beneficiaryProducerId: "", beneficiaryName: "",
-    method: "BankTransfer" as Method, amount: 0, commissionsNetted: 0, currency: "EUR", notes: ""
+    method: "BankTransfer" as Method, amount: 0, commissionsNetted: 0, currency: "EUR", notes: "",
+    transactionReference: "", policyId: ""
   });
   const [err, setErr] = useState<string | null>(null);
-  useEffect(() => { if (open) setForm(f => ({ ...f, number: `P-${Date.now().toString().slice(-6)}`, paidOn: today, amount: 0, commissionsNetted: 0 })); /* eslint-disable-next-line */ }, [open]);
+  useEffect(() => { if (open) setForm(f => ({ ...f, number: `P-${Date.now().toString().slice(-6)}`, paidOn: today, amount: 0, commissionsNetted: 0, transactionReference: "", policyId: "" })); /* eslint-disable-next-line */ }, [open]);
+
+  // Policies list for the current beneficiary carrier — used when the operator
+  // wants to attach a payment against a specific contract (e.g. mid-term
+  // settlement). Empty for producer/vendor beneficiaries.
+  const carrierPolicies = useQuery({
+    queryKey: ["carrier-policies-for-payment", form.beneficiaryInsuranceCompanyId],
+    enabled: open && form.beneficiaryType === "InsuranceCompany" && !!form.beneficiaryInsuranceCompanyId,
+    queryFn: async () => (await api.get<{ id: string; policyNumber: string; premium: number; customerName?: string }[]>(
+      "/policies", { params: { insuranceCompanyId: form.beneficiaryInsuranceCompanyId } })).data
+  });
 
   const save = useMutation({
     mutationFn: async () => {
@@ -182,7 +209,9 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
         beneficiaryProducerId: form.beneficiaryType === "Producer" ? form.beneficiaryProducerId || null : null,
         beneficiaryName: form.beneficiaryName || null,
         method: form.method, amount: Number(form.amount), commissionsNetted: Number(form.commissionsNetted),
-        currency: form.currency.toUpperCase(), notes: form.notes || null
+        currency: form.currency.toUpperCase(), notes: form.notes || null,
+        transactionReference: form.transactionReference.trim() || null,
+        policyId: form.beneficiaryType === "InsuranceCompany" && form.policyId ? form.policyId : null
       };
       return (await api.post("/payments", body)).data;
     },
@@ -196,7 +225,7 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2.5} mt={1}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField required label={t("payments.number")} value={form.number} onChange={e => setForm({ ...form, number: e.target.value })} fullWidth />
+            <TextField required label="Αριθμός πληρωμής" value={form.number} onChange={e => setForm({ ...form, number: e.target.value })} fullWidth />
             <TextField type="date" label={t("payments.date")} InputLabelProps={{ shrink: true }} value={form.paidOn} onChange={e => setForm({ ...form, paidOn: e.target.value })} fullWidth />
           </Stack>
           <TextField select label={t("payments.benType")} value={form.beneficiaryType} onChange={e => setForm({ ...form, beneficiaryType: e.target.value as BType })} fullWidth>
@@ -206,8 +235,21 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
             <SearchableSelect
               label={t("payments.companyBen")}
               value={form.beneficiaryInsuranceCompanyId}
-              onChange={(v) => setForm({ ...form, beneficiaryInsuranceCompanyId: v })}
+              onChange={(v) => setForm({ ...form, beneficiaryInsuranceCompanyId: v, policyId: "" })}
               options={(companies.data ?? []).map(c => ({ value: c.id, label: c.name }))}
+            />
+          )}
+          {form.beneficiaryType === "InsuranceCompany" && form.beneficiaryInsuranceCompanyId && (
+            <SearchableSelect
+              label="Συμβόλαιο (προαιρετικό)"
+              value={form.policyId}
+              onChange={(v) => setForm({ ...form, policyId: v })}
+              emptyLabel="— Καμία σύνδεση —"
+              options={(carrierPolicies.data ?? []).map(p => ({
+                value: p.id,
+                label: p.policyNumber,
+                hint: `${p.customerName ?? ""} · ${money(p.premium)}`,
+              }))}
             />
           )}
           {form.beneficiaryType === "Producer" && (
@@ -228,6 +270,10 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
             <TextField type="number" required label={t("payments.amount")} value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth />
             <TextField type="number" label={t("payments.netted")} value={form.commissionsNetted} onChange={e => setForm({ ...form, commissionsNetted: Number(e.target.value) })} fullWidth />
           </Stack>
+          <TextField label={txRefLabelFor(form.method)} value={form.transactionReference}
+            onChange={e => setForm({ ...form, transactionReference: e.target.value })}
+            placeholder="π.χ. αρ. συναλλαγής, αρ. επιταγής"
+            fullWidth />
           <TextField label={t("common.notes")} multiline rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} fullWidth />
         </Stack>
       </DialogContent>

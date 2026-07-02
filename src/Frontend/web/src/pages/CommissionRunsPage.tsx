@@ -60,8 +60,8 @@ export function CommissionRunsPage() {
   const PAGE_SIZE = 25;
 
   const q = useQuery({ queryKey: ["commission-runs"], queryFn: async () => (await api.get<RunDto[]>("/commission-runs")).data });
-  const carriersQ = useQuery({ queryKey: ["insurance-companies-lite-runs"],
-    queryFn: async () => (await api.get<CompanyLite[]>("/insurance-companies")).data });
+  const carriersQ = useQuery({ queryKey: ["insurance-companies-lite-runs-used"],
+    queryFn: async () => (await api.get<CompanyLite[]>("/insurance-companies", { params: { onlyUsed: true } })).data });
   const producersQ = useQuery({ queryKey: ["producers-lite-runs"],
     queryFn: async () => (await api.get<ProducerLite[]>("/producers")).data });
   const del = useMutation({
@@ -276,8 +276,8 @@ export function CommissionRunsPage() {
 
 function CreateDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (id: string) => void }) {
   const { t } = useTranslation();
-  const companies = useQuery({ queryKey: ["insurance-companies-lite"], enabled: open,
-    queryFn: async () => (await api.get<CompanyLite[]>("/insurance-companies")).data });
+  const companies = useQuery({ queryKey: ["insurance-companies-lite-used"], enabled: open,
+    queryFn: async () => (await api.get<CompanyLite[]>("/insurance-companies", { params: { onlyUsed: true } })).data });
   const producers = useQuery({ queryKey: ["producers-lite"], enabled: open,
     queryFn: async () => (await api.get<ProducerLite[]>("/producers")).data });
 

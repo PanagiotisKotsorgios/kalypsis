@@ -202,5 +202,9 @@ public interface IAppDbContext
     DbSet<TenantInvoice> TenantInvoices { get; }
     DbSet<TenantInvoiceLine> TenantInvoiceLines { get; }
 
+    // Per-tenant opt-in to universal carriers — restricts Γέφυρες / dashboard /
+    // policy pickers to the carriers the office actually uses.
+    DbSet<TenantCarrierOptIn> TenantCarrierOptIns { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

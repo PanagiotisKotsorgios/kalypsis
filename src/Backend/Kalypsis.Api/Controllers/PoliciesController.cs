@@ -21,8 +21,9 @@ public class PoliciesController : ControllerBase
         [FromQuery] PolicyStatus? status,
         [FromQuery] PolicyType? type,
         [FromQuery] Guid? customerId,
+        [FromQuery] Guid? insuranceCompanyId,
         CancellationToken cancellationToken)
-        => Ok(await _mediator.Send(new ListPoliciesQuery(search, status, type, customerId), cancellationToken));
+        => Ok(await _mediator.Send(new ListPoliciesQuery(search, status, type, customerId, insuranceCompanyId), cancellationToken));
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<PolicyDto>> Get(Guid id, CancellationToken cancellationToken)
@@ -100,7 +101,11 @@ public class InsuranceCompaniesController : ControllerBase
         string? AgentCode, string? ContactName, string? ContactEmail, string? ContactPhone,
         string? AfmVat, string? Notes,
         bool IsBroker = false,
-        Guid? ParentCompanyId = null);
+        Guid? ParentCompanyId = null,
+        // IsUsedByTenant = true when the tenant has explicitly ticked "Χρησιμοποιώ"
+        // (universal catalog rows) OR the row is the tenant's own carrier
+        // (which is implicitly opted-in). Filter surfaces gate on this flag.
+        bool IsUsedByTenant = false);
 
     public record UpsertCompanyBody(
         string Name, string Code, string? Country, string? Website, bool IsActive,
@@ -113,7 +118,9 @@ public class InsuranceCompaniesController : ControllerBase
         int Imported, int AlreadyImported, int BridgesCreated, int CommissionRulesCreated);
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<InsuranceCompanyExtendedDto>>> List(CancellationToken ct)
+    public async Task<ActionResult<IReadOnlyList<InsuranceCompanyExtendedDto>>> List(
+        CancellationToken ct,
+        [FromQuery] bool onlyUsed = false)
     {
         var tenantId = _current.TenantId;
 
@@ -178,7 +185,23 @@ public class InsuranceCompaniesController : ControllerBase
                 .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase)
             : new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-        return Ok(rows.Select(c => ToDto(c, tenantByCode, bridges, ruleCounts, parameterCounts)).ToList());
+        // Which universal carriers the tenant has explicitly opted-in to. Empty
+        // for platform-level users (no tenant context).
+        var optIns = tenantId.HasValue
+            ? await _db.TenantCarrierOptIns.IgnoreQueryFilters()
+                .Where(o => o.TenantId == tenantId.Value && o.DeletedAt == null)
+                .Select(o => o.InsuranceCompanyId)
+                .ToListAsync(ct)
+            : new List<Guid>();
+        var optInSet = new HashSet<Guid>(optIns);
+
+        var dtos = rows.Select(c => ToDto(c, tenantByCode, bridges, ruleCounts, parameterCounts, optInSet)).ToList();
+        // Operational surfaces (γέφυρες, policy carrier picker, commission runs...)
+        // pass ?onlyUsed=true so the user only picks from carriers their office
+        // actually does business with. The catalog page omits it and shows both.
+        if (onlyUsed && tenantId.HasValue)
+            dtos = dtos.Where(d => d.IsUsedByTenant).ToList();
+        return Ok(dtos);
     }
 
     [HttpPost]
@@ -236,7 +259,8 @@ public class InsuranceCompaniesController : ControllerBase
             .CountAsync(r => r.TenantId == tenantId && r.DeletedAt == null && r.InsuranceCompanyId == c.Id, ct);
         return Ok(new InsuranceCompanyExtendedDto(c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
             c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(c.Code, ct),
-            c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes));
+            c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes,
+            IsUsedByTenant: true));
     }
 
     [HttpPut("{id:guid}")]
@@ -272,7 +296,8 @@ public class InsuranceCompaniesController : ControllerBase
             .CountAsync(r => r.TenantId == c.TenantId && r.DeletedAt == null && r.InsuranceCompanyId == c.Id, ct);
         return Ok(new InsuranceCompanyExtendedDto(c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
             c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(c.Code, ct),
-            c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes));
+            c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes,
+            IsUsedByTenant: true));
     }
 
     [HttpPost("{id:guid}/import-default")]
@@ -318,7 +343,8 @@ public class InsuranceCompaniesController : ControllerBase
             .CountAsync(r => r.TenantId == tenantId && r.DeletedAt == null && r.InsuranceCompanyId == tenantCompany.Id, ct);
         return Ok(new InsuranceCompanyExtendedDto(tenantCompany.Id, tenantCompany.Name, tenantCompany.Code, tenantCompany.Country, tenantCompany.Website, tenantCompany.IsActive,
             tenantCompany.TenantId, false, tenantCompany.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(tenantCompany.Code, ct),
-            tenantCompany.AgentCode, tenantCompany.ContactName, tenantCompany.ContactEmail, tenantCompany.ContactPhone, tenantCompany.AfmVat, tenantCompany.Notes));
+            tenantCompany.AgentCode, tenantCompany.ContactName, tenantCompany.ContactEmail, tenantCompany.ContactPhone, tenantCompany.AfmVat, tenantCompany.Notes,
+            IsUsedByTenant: true));
     }
 
     [HttpPost("import-defaults")]
@@ -362,6 +388,59 @@ public class InsuranceCompaniesController : ControllerBase
         c.DeletedAt = _clock.UtcNow;
         await _db.SaveChangesAsync(ct);
         return NoContent();
+    }
+
+    public record OptInToggleResult(Guid InsuranceCompanyId, bool IsUsedByTenant);
+
+    /// Flips the "Χρησιμοποιώ" mark on a universal (Kalypsis-managed) carrier
+    /// for the current tenant. Idempotent — reactivates a soft-deleted opt-in
+    /// row instead of inserting a duplicate.
+    [HttpPost("{id:guid}/opt-in")]
+    public async Task<ActionResult<OptInToggleResult>> OptInCarrier(Guid id, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        var c = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct)
+            ?? throw Kalypsis.Application.Common.AppException.NotFound("Ασφαλιστική");
+        if (c.TenantId != null)
+            // Tenant-owned rows are implicitly used — no opt-in row needed.
+            return Ok(new OptInToggleResult(id, true));
+
+        var existing = await _db.TenantCarrierOptIns.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(o => o.TenantId == tenantId && o.InsuranceCompanyId == id, ct);
+        if (existing is null)
+        {
+            _db.TenantCarrierOptIns.Add(new Kalypsis.Domain.Entities.TenantCarrierOptIn
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                InsuranceCompanyId = id,
+                EnabledAt = _clock.UtcNow,
+                CreatedAt = _clock.UtcNow
+            });
+        }
+        else if (existing.DeletedAt != null)
+        {
+            existing.DeletedAt = null;
+            existing.EnabledAt = _clock.UtcNow;
+            existing.UpdatedAt = _clock.UtcNow;
+        }
+        await _db.SaveChangesAsync(ct);
+        return Ok(new OptInToggleResult(id, true));
+    }
+
+    [HttpDelete("{id:guid}/opt-in")]
+    public async Task<ActionResult<OptInToggleResult>> OptOutCarrier(Guid id, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        var existing = await _db.TenantCarrierOptIns.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(o => o.TenantId == tenantId && o.InsuranceCompanyId == id && o.DeletedAt == null, ct);
+        if (existing != null)
+        {
+            existing.DeletedAt = _clock.UtcNow;
+            await _db.SaveChangesAsync(ct);
+        }
+        return Ok(new OptInToggleResult(id, false));
     }
 
     // ============== PLATFORM ADMIN: global carrier management ==============
@@ -482,20 +561,25 @@ public class InsuranceCompaniesController : ControllerBase
         IReadOnlyDictionary<string, Kalypsis.Domain.Entities.InsuranceCompany> tenantByCode,
         IReadOnlyDictionary<Guid, Kalypsis.Domain.Entities.CompanyBridge> bridges,
         IReadOnlyDictionary<Guid, int> ruleCounts,
-        IReadOnlyDictionary<string, int> parameterCounts)
+        IReadOnlyDictionary<string, int> parameterCounts,
+        HashSet<Guid> optInSet)
     {
         var tenantCopy = c.TenantId == null && tenantByCode.TryGetValue(c.Code, out var copy) ? copy : c.TenantId != null ? c : null;
         var bridgeCompanyId = tenantCopy?.Id ?? c.Id;
         bridges.TryGetValue(bridgeCompanyId, out var bridge);
         ruleCounts.TryGetValue(bridgeCompanyId, out var ruleCount);
         parameterCounts.TryGetValue(c.Code, out var parameterCount);
+        // Universal rows opt-in through TenantCarrierOptIn; tenant-scoped rows
+        // are implicitly used (the tenant created them).
+        var isUsedByTenant = c.TenantId != null || optInSet.Contains(c.Id);
         return new InsuranceCompanyExtendedDto(
             c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
             c.TenantId, c.TenantId == null,
             tenantCopy?.Id, tenantCopy != null,
             bridge?.Id, bridge != null, ruleCount, parameterCount,
             c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes,
-            c.IsBroker, c.ParentCompanyId);
+            c.IsBroker, c.ParentCompanyId,
+            isUsedByTenant);
     }
 
     private async Task<int> CountParameterItemsAsync(string companyCode, CancellationToken ct) =>

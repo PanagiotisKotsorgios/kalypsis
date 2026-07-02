@@ -113,6 +113,7 @@ public class ReceiptConfiguration : IEntityTypeConfiguration<Receipt>
         b.Property(x => x.Amount).HasPrecision(14, 2);
         b.Property(x => x.Currency).HasMaxLength(3).HasDefaultValue("EUR");
         b.Property(x => x.Notes).HasMaxLength(1000);
+        b.Property(x => x.TransactionReference).HasMaxLength(80);
         b.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne(x => x.Policy).WithMany().HasForeignKey(x => x.PolicyId).OnDelete(DeleteBehavior.SetNull);
         b.HasOne(x => x.RecordedByUser).WithMany().HasForeignKey(x => x.RecordedByUserId).OnDelete(DeleteBehavior.SetNull);
@@ -135,8 +136,10 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         b.Property(x => x.Currency).HasMaxLength(3).HasDefaultValue("EUR");
         b.Property(x => x.BeneficiaryName).HasMaxLength(200);
         b.Property(x => x.Notes).HasMaxLength(1000);
+        b.Property(x => x.TransactionReference).HasMaxLength(80);
         b.HasOne(x => x.BeneficiaryInsuranceCompany).WithMany().HasForeignKey(x => x.BeneficiaryInsuranceCompanyId).OnDelete(DeleteBehavior.SetNull);
         b.HasOne(x => x.BeneficiaryProducer).WithMany().HasForeignKey(x => x.BeneficiaryProducerId).OnDelete(DeleteBehavior.SetNull);
+        b.HasOne(x => x.Policy).WithMany().HasForeignKey(x => x.PolicyId).OnDelete(DeleteBehavior.SetNull);
         b.HasIndex(x => new { x.TenantId, x.Number }).IsUnique();
         b.HasIndex(x => new { x.TenantId, x.PaidOn });
     }

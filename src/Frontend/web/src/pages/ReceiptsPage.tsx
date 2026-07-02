@@ -22,6 +22,22 @@ interface ReceiptDto {
   customerId: string; customerName: string;
   policyId: string | null; policyNumber: string | null;
   method: Method; amount: number; currency: string; notes: string | null;
+  transactionReference: string | null;
+}
+
+// Method-specific label for the external reference field. Cash receipts get
+// the Ζ report id, card/POS gets the terminal transaction id, bank transfer
+// gets the wire ref, cheque gets the cheque number. Falls back to a generic
+// label so any other method still has somewhere to record a receipt trail.
+function txRefLabelFor(method: Method): string {
+  switch (method) {
+    case "Cash": return "Αριθμός ταμειακής (Ζ)";
+    case "Card": return "Αριθμός συναλλαγής POS";
+    case "BankTransfer": return "Αριθμός τραπεζικής συναλλαγής";
+    case "Cheque": return "Αριθμός επιταγής";
+    case "PromissoryNote": return "Αριθμός γραμματίου";
+    default: return "Αριθμός αναφοράς";
+  }
 }
 
 interface PolicyPaymentSummary {
@@ -199,7 +215,8 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
     number: "", receivedOn: today, customerId: "", policyId: "",
-    method: "Cash" as Method, amount: 0, currency: "EUR", notes: ""
+    method: "Cash" as Method, amount: 0, currency: "EUR", notes: "",
+    transactionReference: ""
   });
   const [err, setErr] = useState<string | null>(null);
 
@@ -220,7 +237,8 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
   useEffect(() => {
     if (open) setForm({
       number: `R-${Date.now().toString().slice(-6)}`, receivedOn: today,
-      customerId: "", policyId: "", method: "Cash", amount: 0, currency: "EUR", notes: ""
+      customerId: "", policyId: "", method: "Cash", amount: 0, currency: "EUR", notes: "",
+      transactionReference: ""
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -239,7 +257,8 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
       const body = {
         number: form.number.trim(), receivedOn: form.receivedOn, customerId: form.customerId,
         policyId: form.policyId || null, method: form.method, amount: Number(form.amount),
-        currency: form.currency.toUpperCase(), notes: form.notes || null
+        currency: form.currency.toUpperCase(), notes: form.notes || null,
+        transactionReference: form.transactionReference.trim() || null
       };
       return (await api.post("/receipts", body)).data;
     },
@@ -253,7 +272,7 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2.5} mt={1}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField required label={t("receipts.number")} value={form.number}
+            <TextField required label="Αριθμός απόδειξης" value={form.number}
               onChange={e => setForm({ ...form, number: e.target.value })} fullWidth />
             <TextField type="date" label={t("receipts.date")} InputLabelProps={{ shrink: true }}
               value={form.receivedOn} onChange={e => setForm({ ...form, receivedOn: e.target.value })} fullWidth />
@@ -299,6 +318,10 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
             <TextField label={t("tariffs.currency")} value={form.currency}
               onChange={e => setForm({ ...form, currency: e.target.value.toUpperCase().slice(0, 3) })} fullWidth />
           </Stack>
+          <TextField label={txRefLabelFor(form.method)} value={form.transactionReference}
+            onChange={e => setForm({ ...form, transactionReference: e.target.value })}
+            placeholder="π.χ. αρ. συναλλαγής, αρ. επιταγής, ΖZΖ"
+            fullWidth />
           <TextField label={t("common.notes")} multiline rows={2} value={form.notes}
             onChange={e => setForm({ ...form, notes: e.target.value })} fullWidth />
         </Stack>

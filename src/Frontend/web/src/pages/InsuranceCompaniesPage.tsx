@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
-  Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  FormControlLabel, IconButton, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
+  FormControlLabel, IconButton, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Tooltip, Typography
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -36,6 +36,7 @@ interface CompanyDto {
   notes: string | null;
   isBroker?: boolean;
   parentCompanyId?: string | null;
+  isUsedByTenant?: boolean;
 }
 
 interface UpsertBody {
@@ -61,6 +62,22 @@ export function InsuranceCompaniesPage() {
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/insurance-companies/${id}`),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["insurance-companies"] }),
+    onError: (e) => setError(extractErrorMessage(e))
+  });
+
+  // Toggle the tenant's opt-in for a universal (Kalypsis-managed) carrier.
+  // Invalidates every other "insurance-companies*" query so filters elsewhere
+  // (γέφυρες dropdowns, policy pickers) pick up the change without a hard
+  // reload.
+  const toggleOptIn = useMutation({
+    mutationFn: async (args: { id: string; enable: boolean }) =>
+      args.enable
+        ? api.post(`/insurance-companies/${args.id}/opt-in`)
+        : api.delete(`/insurance-companies/${args.id}/opt-in`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ predicate: (q) =>
+        typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("insurance-companies") });
+    },
     onError: (e) => setError(extractErrorMessage(e))
   });
 
@@ -141,7 +158,8 @@ export function InsuranceCompaniesPage() {
                 Διαχειρίζεται από την Kalypsis · κοινός σε όλα τα γραφεία
               </Typography>
             </Box>
-            <CompanyTable rows={globalRows} readonly />
+            <CompanyTable rows={globalRows} readonly
+              onToggleOptIn={(id, enable) => toggleOptIn.mutate({ id, enable })} />
           </Card>
         </Stack>
       )}
@@ -154,11 +172,13 @@ export function InsuranceCompaniesPage() {
   );
 }
 
-function CompanyTable({ rows, onEdit, onDelete, readonly }: {
+function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn }: {
   rows: CompanyDto[];
   onEdit?: (c: CompanyDto) => void;
   onDelete?: (id: string) => void;
   readonly?: boolean;
+  // Only wired for the universal-catalog table — flips the tenant's opt-in.
+  onToggleOptIn?: (id: string, enable: boolean) => void;
 }) {
   // Track which brokers are expanded. Collapsed by default so the table
   // doesn't dump 56 rows of subs onto the user; clicking the chevron on a
@@ -189,6 +209,13 @@ function CompanyTable({ rows, onEdit, onDelete, readonly }: {
         <TableHead>
           <TableRow>
             <TableCell sx={{ width: 32 }} />
+            {onToggleOptIn && (
+              <TableCell align="center" sx={{ width: 60 }}>
+                <Tooltip title="Χρησιμοποιώ αυτή την εταιρεία — εμφανίζεται στις γέφυρες, στους πίνακες και στα φίλτρα.">
+                  <span>Χρησιμοποιώ</span>
+                </Tooltip>
+              </TableCell>
+            )}
             <TableCell>Κωδικός</TableCell>
             <TableCell>Όνομα</TableCell>
             <TableCell>Κωδικός συνεργασίας</TableCell>
@@ -214,6 +241,21 @@ function CompanyTable({ rows, onEdit, onDelete, readonly }: {
                   </IconButton>
                 )}
               </TableCell>
+              {onToggleOptIn && (
+                <TableCell align="center" sx={{ width: 60, p: 0.5 }}>
+                  {/* Sub-carriers inherit from their broker — the broker's
+                      opt-in gates them. Showing an independent checkbox here
+                      would be misleading. */}
+                  {r.parentCompanyId ? null : (
+                    <Checkbox
+                      size="small"
+                      checked={!!r.isUsedByTenant}
+                      onChange={(e) => onToggleOptIn(r.id, e.target.checked)}
+                      inputProps={{ "aria-label": `Χρησιμοποιώ ${r.name}` }}
+                    />
+                  )}
+                </TableCell>
+              )}
               <TableCell sx={{ fontFamily: "monospace", fontWeight: 700, pl: r.parentCompanyId ? 4 : 0 }}>
                 {r.parentCompanyId ? "↳ " : ""}{r.code}
               </TableCell>

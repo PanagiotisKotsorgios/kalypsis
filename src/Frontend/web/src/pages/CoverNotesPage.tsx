@@ -119,8 +119,8 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
   const editing = !!item;
   const customers = useQuery({ queryKey: ["customers-lite"], enabled: open,
     queryFn: async () => (await api.get<{ id: string; type: string; firstName?: string; lastName?: string; companyName?: string; }[]>("/customers")).data });
-  const companies = useQuery({ queryKey: ["insurance-companies-lite"], enabled: open,
-    queryFn: async () => (await api.get<{ id: string; name: string }[]>("/insurance-companies")).data });
+  const companies = useQuery({ queryKey: ["insurance-companies-lite-used"], enabled: open,
+    queryFn: async () => (await api.get<{ id: string; name: string }[]>("/insurance-companies", { params: { onlyUsed: true } })).data });
 
   const today = new Date().toISOString().slice(0, 10);
   const month = new Date(); month.setDate(month.getDate() + 30);

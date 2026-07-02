@@ -146,8 +146,8 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
 
   const customers = useQuery({ queryKey: ["customers-lite"], enabled: open,
     queryFn: async () => (await api.get<CustomerLite[]>("/customers")).data });
-  const companies = useQuery({ queryKey: ["insurance-companies-lite"], enabled: open,
-    queryFn: async () => (await api.get<CompanyLite[]>("/insurance-companies")).data });
+  const companies = useQuery({ queryKey: ["insurance-companies-lite-used"], enabled: open,
+    queryFn: async () => (await api.get<CompanyLite[]>("/insurance-companies", { params: { onlyUsed: true } })).data });
 
   useEffect(() => {
     if (open) setForm({

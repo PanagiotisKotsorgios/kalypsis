@@ -111,8 +111,8 @@ export function CompanyBridgesPage() {
 function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: () => void; item: BridgeDto | null; onSaved: () => void }) {
   const { t } = useTranslation();
   const editing = !!item;
-  const companies = useQuery({ queryKey: ["insurance-companies-lite"], enabled: open,
-    queryFn: async () => (await api.get<{ id: string; name: string }[]>("/insurance-companies")).data });
+  const companies = useQuery({ queryKey: ["insurance-companies-lite-used"], enabled: open,
+    queryFn: async () => (await api.get<{ id: string; name: string }[]>("/insurance-companies", { params: { onlyUsed: true } })).data });
 
   const [form, setForm] = useState({ name: "", insuranceCompanyId: "", kind: "Manual" as Kind, configJson: "", isActive: true, autoSync: false, notes: "" });
   const [err, setErr] = useState<string | null>(null);

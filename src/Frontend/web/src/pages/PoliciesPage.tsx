@@ -127,8 +127,8 @@ export function PoliciesPage() {
   const filterCatalogue = useCarrierCatalogue(carrierFilter, subCarrierFilter);
 
   const carriersQuery = useQuery({
-    queryKey: ["insurance-companies-for-filter"],
-    queryFn: async () => (await api.get<CarrierDto[]>("/insurance-companies")).data
+    queryKey: ["insurance-companies-for-filter-used"],
+    queryFn: async () => (await api.get<CarrierDto[]>("/insurance-companies", { params: { onlyUsed: true } })).data
   });
   const producersQuery = useQuery({
     queryKey: ["producers-for-filter"],
@@ -581,8 +581,8 @@ function PolicyFormDialog({
     enabled: open
   });
   const carriersQuery = useQuery({
-    queryKey: ["insurance-companies"],
-    queryFn: async () => (await api.get<CarrierDto[]>("/insurance-companies")).data,
+    queryKey: ["insurance-companies-used"],
+    queryFn: async () => (await api.get<CarrierDto[]>("/insurance-companies", { params: { onlyUsed: true } })).data,
     enabled: open
   });
 

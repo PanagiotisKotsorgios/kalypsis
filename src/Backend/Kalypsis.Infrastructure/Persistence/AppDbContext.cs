@@ -205,6 +205,9 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<TenantInvoice> TenantInvoices => Set<TenantInvoice>();
     public DbSet<TenantInvoiceLine> TenantInvoiceLines => Set<TenantInvoiceLine>();
 
+    // Per-tenant opt-in to universal carriers.
+    public DbSet<TenantCarrierOptIn> TenantCarrierOptIns => Set<TenantCarrierOptIn>();
+
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
 
     // PlatformAdmin / PlatformEmployee normally bypass the tenant filter, but

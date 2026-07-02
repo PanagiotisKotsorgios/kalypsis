@@ -12,11 +12,13 @@ public record ReceiptDto(
     Guid Id, string Number, DateOnly ReceivedOn,
     Guid CustomerId, string CustomerName,
     Guid? PolicyId, string? PolicyNumber,
-    PaymentMethod Method, decimal Amount, string Currency, string? Notes);
+    PaymentMethod Method, decimal Amount, string Currency, string? Notes,
+    string? TransactionReference);
 
 public record ReceiptBody(
     string Number, DateOnly ReceivedOn, Guid CustomerId, Guid? PolicyId,
-    PaymentMethod Method, decimal Amount, string Currency, string? Notes);
+    PaymentMethod Method, decimal Amount, string Currency, string? Notes,
+    string? TransactionReference);
 
 public record ListReceiptsQuery(DateOnly? From, DateOnly? To, Guid? CustomerId) : IRequest<IReadOnlyList<ReceiptDto>>;
 
@@ -39,7 +41,8 @@ public class ListReceiptsQueryHandler : IRequestHandler<ListReceiptsQuery, IRead
             ? $"{r.Customer.FirstName} {r.Customer.LastName}".Trim()
             : r.Customer.CompanyName ?? "—";
         return new ReceiptDto(r.Id, r.Number, r.ReceivedOn, r.CustomerId, name,
-            r.PolicyId, r.Policy?.PolicyNumber, r.Method, r.Amount, r.Currency, r.Notes);
+            r.PolicyId, r.Policy?.PolicyNumber, r.Method, r.Amount, r.Currency, r.Notes,
+            r.TransactionReference);
     }
 }
 
@@ -71,7 +74,8 @@ public class CreateReceiptCommandHandler : IRequestHandler<CreateReceiptCommand,
             Id = Guid.NewGuid(), Number = b.Number.Trim(), ReceivedOn = b.ReceivedOn,
             CustomerId = b.CustomerId, PolicyId = b.PolicyId, Method = b.Method,
             Amount = b.Amount, Currency = b.Currency.ToUpperInvariant(), Notes = b.Notes,
-            RecordedByUserId = _current.UserId
+            RecordedByUserId = _current.UserId,
+            TransactionReference = string.IsNullOrWhiteSpace(b.TransactionReference) ? null : b.TransactionReference.Trim()
         };
         _db.Receipts.Add(rc);
 

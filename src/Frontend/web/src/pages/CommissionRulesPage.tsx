@@ -149,8 +149,8 @@ export function CommissionRulesPage() {
     queryFn: async () => (await api.get<CommissionRuleDto[]>("/commission-rules")).data
   });
   const companies = useQuery({
-    queryKey: ["insurance-companies-lite-rules"],
-    queryFn: async () => (await api.get<CompanyLite[]>("/insurance-companies")).data
+    queryKey: ["insurance-companies-lite-rules-used"],
+    queryFn: async () => (await api.get<CompanyLite[]>("/insurance-companies", { params: { onlyUsed: true } })).data
   });
   const producers = useQuery({
     queryKey: ["producers-lite-rules"],

@@ -52,8 +52,8 @@ export function BulkCommissionsPage({ embedded = false }: { embedded?: boolean }
   const [success, setSuccess] = useState<string | null>(null);
 
   const companies = useQuery({
-    queryKey: ["insurance-companies-lite"],
-    queryFn: async () => (await api.get<CompanyLite[]>("/insurance-companies")).data
+    queryKey: ["insurance-companies-lite-used"],
+    queryFn: async () => (await api.get<CompanyLite[]>("/insurance-companies", { params: { onlyUsed: true } })).data
   });
   const producers = useQuery({
     queryKey: ["producers-lite-bulk"],

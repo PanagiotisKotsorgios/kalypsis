@@ -5911,8 +5911,15 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly>("PaidOn")
                         .HasColumnType("date");
 
+                    b.Property<Guid?>("PolicyId")
+                        .HasColumnType("char(36)");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("char(36)");
+
+                    b.Property<string>("TransactionReference")
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
@@ -5922,6 +5929,8 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.HasIndex("BeneficiaryInsuranceCompanyId");
 
                     b.HasIndex("BeneficiaryProducerId");
+
+                    b.HasIndex("PolicyId");
 
                     b.HasIndex("TenantId", "Number")
                         .IsUnique();
@@ -7215,6 +7224,10 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("char(36)");
+
+                    b.Property<string>("TransactionReference")
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
@@ -8702,6 +8715,41 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.HasIndex("InvoiceId");
 
                     b.ToTable("tenant_invoice_lines", (string)null);
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.TenantCarrierOptIn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("EnabledAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("InsuranceCompanyId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InsuranceCompanyId");
+
+                    b.HasIndex("TenantId", "InsuranceCompanyId")
+                        .IsUnique()
+                        .HasFilter("`DeletedAt` IS NULL");
+
+                    b.ToTable("tenant_carrier_optins", (string)null);
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.TenantPackageGrant", b =>
@@ -10270,9 +10318,16 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .HasForeignKey("BeneficiaryProducerId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("Kalypsis.Domain.Entities.Policy", "Policy")
+                        .WithMany()
+                        .HasForeignKey("PolicyId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("BeneficiaryInsuranceCompany");
 
                     b.Navigation("BeneficiaryProducer");
+
+                    b.Navigation("Policy");
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.PaymentNoticeLine", b =>
@@ -10682,6 +10737,17 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Invoice");
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.TenantCarrierOptIn", b =>
+                {
+                    b.HasOne("Kalypsis.Domain.Entities.InsuranceCompany", "InsuranceCompany")
+                        .WithMany()
+                        .HasForeignKey("InsuranceCompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InsuranceCompany");
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.TenantPackageGrant", b =>

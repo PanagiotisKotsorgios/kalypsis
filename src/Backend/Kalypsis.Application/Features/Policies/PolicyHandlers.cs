@@ -14,7 +14,8 @@ public record ListPoliciesQuery(
     string? Search,
     PolicyStatus? Status,
     PolicyType? Type,
-    Guid? CustomerId) : IRequest<IReadOnlyList<PolicyDto>>;
+    Guid? CustomerId,
+    Guid? InsuranceCompanyId = null) : IRequest<IReadOnlyList<PolicyDto>>;
 
 public class ListPoliciesQueryHandler : IRequestHandler<ListPoliciesQuery, IReadOnlyList<PolicyDto>>
 {
@@ -61,6 +62,8 @@ public class ListPoliciesQueryHandler : IRequestHandler<ListPoliciesQuery, IRead
 
         if (request.Status.HasValue) q = q.Where(p => p.Status == request.Status.Value);
         if (request.Type.HasValue) q = q.Where(p => p.PolicyType == request.Type.Value);
+        if (request.InsuranceCompanyId.HasValue)
+            q = q.Where(p => p.InsuranceCompanyId == request.InsuranceCompanyId.Value);
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var s = $"%{request.Search.Trim()}%";

@@ -106,8 +106,8 @@ export function TariffsPage() {
 function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: () => void; item: TariffDto | null; onSaved: () => void }) {
   const { t } = useTranslation();
   const editing = !!item;
-  const companies = useQuery({ queryKey: ["insurance-companies-lite"], enabled: open,
-    queryFn: async () => (await api.get<CompanyLite[]>("/insurance-companies")).data.map(c => ({ id: c.id, name: c.name })) });
+  const companies = useQuery({ queryKey: ["insurance-companies-lite-used"], enabled: open,
+    queryFn: async () => (await api.get<CompanyLite[]>("/insurance-companies", { params: { onlyUsed: true } })).data.map(c => ({ id: c.id, name: c.name })) });
 
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
