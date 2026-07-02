@@ -265,6 +265,14 @@ public static class GrandCoverSeeder
                     Code = code.ToUpperInvariant(),
                     Name = TruncSafe(use.Name, 200),
                     PolicyType = PolicyType.Auto,
+                    // Fill in the vehicle-use bucket so the frontend
+                    // filter «p.vehicleUseCategory && p.vehicleUseCategory
+                    // !== "None"» doesn't hide the whole list. Without
+                    // this, every χρήση dropdown across the platform (production
+                    // lists, commission rules, bulk commissions, claims,
+                    // policies form) showed «Δεν υπάρχουν παραμετρικά» for
+                    // Grand Cover carriers even though 293 uses existed.
+                    VehicleUseCategory = GuessVehicleUseCategoryFromName(use.Name, use.Label),
                     IsActive = true,
                     DisplayOrder = order++,
                     Source = "GrandCover IW dump",
@@ -340,6 +348,11 @@ public static class GrandCoverSeeder
             await db.SaveChangesAsync(ct);
         }
 
+        // Backfill VehicleUseCategory on any Χρήση rows seeded before the
+        // enum column was populated. Runs on every boot — cheap when the
+        // column is already set.
+        await BackfillVehicleUseCategoriesAsync(db, broker.Id, logger, ct);
+
         // After save, query the DB for the actual current totals on the
         // broker hierarchy so we know what the agencies will see, regardless
         // of whether this boot added rows or just confirmed the existing ones.
@@ -414,5 +427,76 @@ public static class GrandCoverSeeder
         if (string.IsNullOrEmpty(s)) return "";
         var t = s.Trim();
         return t.Length <= max ? t : t[..max];
+    }
+
+    /// <summary>
+    /// Map a Grand Cover Χρήση row's Greek description onto the platform's
+    /// VehicleUseCategory enum. EIX/EDX/FIX/FDX/LIX/LDX are the standard
+    /// Greek insurance-industry buckets. The IW dump lists uses like
+    /// «ΕΠΙΒΑΤΙΚΟ Ι.Χ.», «ΤΑΞΙ», «ΦΟΡΤΗΓΟ Ι.Χ.», «ΛΕΩΦΟΡΕΙΟ», «ΜΟΤΟΣ.» —
+    /// this maps the recognisable Greek forms; falls back to
+    /// VehicleUseCategory.None (never null) so the frontend filter
+    /// (`p.vehicleUseCategory && p.vehicleUseCategory !== "None"`) still
+    /// hides truly uncategorised rows but the enum value survives.
+    /// </summary>
+    private static VehicleUseCategory GuessVehicleUseCategoryFromName(string? name, string? label)
+    {
+        var hay = ((name ?? "") + " " + (label ?? "")).ToUpperInvariant();
+
+        // Short-code hints (the label column often carries them, e.g.
+        // «Ε.Ι.Χ.», «Φ.Δ.Χ.», «ΤΑΞΙ»).
+        if (hay.Contains("Ε.Δ.Χ") || hay.Contains("ΤΑΞΙ")) return VehicleUseCategory.EDX;
+        if (hay.Contains("Ε.Ι.Χ") || hay.Contains("ΕΠΙΒΑΤΙΚΟ ΙΔ")
+            || hay.Contains("ΕΠΙΒ. Ι.Χ") || hay.Contains("ΕΠΙΒ.ΙΧ")
+            || hay.StartsWith("ΕΠΙΒΑΤΙΚΟ")) return VehicleUseCategory.EIX;
+        if (hay.Contains("Φ.Δ.Χ") || hay.Contains("ΦΟΡΤΗΓΟ ΔΗ")
+            || hay.Contains("ΦΟΡΤΗΓΟ Δ")) return VehicleUseCategory.FDX;
+        if (hay.Contains("Φ.Ι.Χ") || hay.Contains("ΦΟΡΤΗΓΟ ΙΔ")
+            || hay.StartsWith("ΦΟΡΤΗΓΟ")) return VehicleUseCategory.FIX;
+        if (hay.Contains("Λ.Δ.Χ") || hay.Contains("ΛΕΩΦΟΡΕΙΟ ΔΗ")) return VehicleUseCategory.LDX;
+        if (hay.Contains("Λ.Ι.Χ") || hay.Contains("ΛΕΩΦΟΡΕΙΟ ΙΔ")
+            || hay.StartsWith("ΛΕΩΦΟΡΕΙΟ")) return VehicleUseCategory.LIX;
+        if (hay.Contains("ΜΟΤΟΣ") || hay.Contains("ΔΙΚΥΚΛ")
+            || hay.Contains("ΜΟΤΟΣΥΚΛΕΤ")) return VehicleUseCategory.Motorcycle;
+        if (hay.Contains("ΑΓΡΟΤΙΚ") || hay.Contains("ΑΓΡΟΤ.")) return VehicleUseCategory.Agricultural;
+        if (hay.Contains("ΕΡΓΟΤΑΞ") || hay.Contains("ΜΗΧΑΝΗΜΑ ΕΡΓΟΥ")
+            || hay.Contains("ΓΕΡΑΝ")) return VehicleUseCategory.Construction;
+
+        // Unknown Greek phrase — keep as None instead of null so the enum
+        // column stays populated. Frontend filter will still hide these.
+        return VehicleUseCategory.None;
+    }
+
+    /// <summary>
+    /// Backfill pass — updates every Grand Cover Use row that was seeded
+    /// BEFORE the VehicleUseCategory column was populated (all uses with
+    /// null / None values) so already-deployed tenants see the χρήση
+    /// dropdowns fill up on next boot without needing a fresh install.
+    /// </summary>
+    public static async Task<int> BackfillVehicleUseCategoriesAsync(
+        AppDbContext db, Guid brokerId, ILogger logger, CancellationToken ct)
+    {
+        var candidates = await db.CompanyParameterItems.IgnoreQueryFilters()
+            .Where(p => p.InsuranceCompanyId == brokerId
+                && p.Kind == CompanyParameterItemKind.Use
+                && p.DeletedAt == null
+                && (p.VehicleUseCategory == null || p.VehicleUseCategory == VehicleUseCategory.None))
+            .ToListAsync(ct);
+        int updated = 0;
+        foreach (var row in candidates)
+        {
+            var guessed = GuessVehicleUseCategoryFromName(row.Name, row.Notes);
+            if (guessed != VehicleUseCategory.None)
+            {
+                row.VehicleUseCategory = guessed;
+                updated++;
+            }
+        }
+        if (updated > 0)
+        {
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("GrandCoverSeeder: backfilled VehicleUseCategory on {Count} Χρήση row(s).", updated);
+        }
+        return updated;
     }
 }
