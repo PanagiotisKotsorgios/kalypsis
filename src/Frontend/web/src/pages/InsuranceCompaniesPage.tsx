@@ -322,7 +322,9 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn }: {
                   //   3. Χωρίς γέφυρα — no parser exists yet.
                   const code = (r.code ?? "").toUpperCase();
                   const analyzerAvailable =
-                    code.includes("ERGO") || code.includes("GRAND_COVER") || code.includes("GRANDCOVER");
+                    code.includes("ERGO") ||
+                    code.includes("GRAND_COVER") || code.includes("GRANDCOVER") ||
+                    code.includes("ATLANTIC");
                   if (r.bridgeLinked) {
                     return <Chip size="small" color="primary" label="Συνδεδεμένη" />;
                   }
