@@ -922,7 +922,7 @@ const PREMIUM_PRESETS: { key: string; label: string; description: string; codes:
   { key: "pro",   label: "Pro Office", description: "Pro · προσθήκη μαζικών προμηθειών & premium reports.",
     codes: ["recycle-bin", "advanced-exports", "bulk-commissions", "premium-reports"] },
   { key: "ent",   label: "Enterprise", description: "Όλες οι premium δυνατότητες ξεκλείδωτες.",
-    codes: ["recycle-bin", "advanced-exports", "producer-reconciliation", "bulk-commissions", "multi-branch", "premium-reports"] }
+    codes: ["recycle-bin", "advanced-exports", "bulk-commissions", "multi-branch", "premium-reports"] }
 ];
 
 function PremiumTab({ tenantId, onError }: { tenantId: string; onError: (m: string | null) => void }) {

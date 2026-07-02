@@ -11,7 +11,6 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../api/client";
 import { ProducerDeclarationForm } from "../components/ProducerDeclarationForm";
-import { usePremium } from "../auth/PremiumContext";
 import { money, num } from "../utils/format";
 
 interface SeriesPoint { label: string; value: number }
@@ -258,8 +257,6 @@ export function ProducerDashboardPage() {
 }
 
 function ProducerDeclarationFormSection() {
-  const premium = usePremium();
-  if (!premium.has("producer-reconciliation")) return null;
   return <ProducerDeclarationForm />;
 }
 

@@ -245,7 +245,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
     { to: "/audit", labelKey: "nav.audit", icon: <GavelIcon />, package: "BackOffice", group: "admin" },
     { to: "/recycle-bin", labelKey: "nav.recycleBin", icon: <RestoreFromTrashIcon />, package: "BackOffice", group: "admin", premium: "recycle-bin" },
-    { to: "/producer-reconciliation", labelKey: "nav.producerReconciliation", icon: <VerifiedIcon />, package: "BackOffice", group: "admin", premium: "producer-reconciliation" },
+    { to: "/producer-reconciliation", labelKey: "nav.producerReconciliation", icon: <VerifiedIcon />, package: "BackOffice", group: "admin" },
     { to: "/customer-merge", labelKey: "nav.merge", icon: <MergeIcon />, package: "BackOffice", group: "admin" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "BackOffice", group: "admin" },
 
@@ -463,7 +463,7 @@ export default function App() {
                   <Route path="requests" element={<RequestsPage />} />
                   <Route path="audit" element={<AuditLogsPage />} />
                   <Route path="recycle-bin" element={<PremiumGate code="recycle-bin"><RecycleBinPage /></PremiumGate>} />
-                  <Route path="producer-reconciliation" element={<PremiumGate code="producer-reconciliation"><ProducerReconciliationPage /></PremiumGate>} />
+                  <Route path="producer-reconciliation" element={<ProducerReconciliationPage />} />
                   <Route path="tasks" element={<TasksPage />} />
                   <Route path="producers" element={<ProducersPage />} />
                   <Route path="claims" element={<ClaimsPage />} />

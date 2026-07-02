@@ -14,7 +14,7 @@ namespace Kalypsis.Application.Features.Reconciliation;
 // the most recent CommissionRunLine the agency recorded for that producer×policy
 // and write a Notification to the agency admins if the numbers diverge.
 //
-// Premium-gated by feature code "producer-reconciliation" on the tenant.
+// Available to every agency (previously gated by producer-reconciliation).
 // ============================================================================
 
 public record ProducerDeclarationDto(
@@ -59,7 +59,6 @@ public class CreateMyDeclarationHandler : IRequestHandler<CreateMyDeclarationCom
     {
         var userId = _current.UserId ?? throw AppException.Unauthorized();
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        await EnsurePremiumAsync(tenantId, ct);
 
         var b = cmd.Body;
         if (b.ExpectedAmount < 0) throw new AppException("amount_invalid", "Το ποσό δεν μπορεί να είναι αρνητικό.", 400);
@@ -135,20 +134,6 @@ public class CreateMyDeclarationHandler : IRequestHandler<CreateMyDeclarationCom
             declaration.ExpectedAmount, declaration.ExpectedPercent, declaration.RecordedAmount,
             declaration.DifferenceAmount, declaration.ReconciliationStatus, declaration.Currency,
             declaration.Notes, declaration.DeclaredAt);
-    }
-
-    private async Task EnsurePremiumAsync(Guid tenantId, CancellationToken ct)
-    {
-        var jsonRows = await _db.TenantPackageGrants
-            .Where(g => g.TenantId == tenantId && g.DeletedAt == null && g.PremiumFeaturesJson != null)
-            .Select(g => g.PremiumFeaturesJson!)
-            .ToListAsync(ct);
-        foreach (var json in jsonRows)
-            foreach (var c in PremiumFeatureJson.TryParseCodes(json))
-                if (string.Equals(c, PremiumFeatureCodes.ProducerReconciliation, StringComparison.OrdinalIgnoreCase)) return;
-        throw new AppException("premium_required",
-            "Η ταυτοποίηση συνεργατών απαιτεί αναβάθμιση πλάνου.", 402,
-            title: "Premium δυνατότητα");
     }
 
     private static string ComputeStatus(decimal? recorded, decimal expected)

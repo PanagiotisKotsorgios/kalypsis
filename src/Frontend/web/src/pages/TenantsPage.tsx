@@ -87,7 +87,7 @@ export function TenantsPage() {
     { key: "none",  label: "Καμία premium",  codes: [] },
     { key: "small", label: "Small Office",   codes: ["recycle-bin", "advanced-exports"] },
     { key: "pro",   label: "Pro Office",     codes: ["recycle-bin", "advanced-exports", "bulk-commissions", "premium-reports"] },
-    { key: "ent",   label: "Enterprise (όλα)", codes: ["recycle-bin", "advanced-exports", "producer-reconciliation", "bulk-commissions", "multi-branch", "premium-reports"] }
+    { key: "ent",   label: "Enterprise (όλα)", codes: ["recycle-bin", "advanced-exports", "bulk-commissions", "multi-branch", "premium-reports"] }
   ];
 
   const applyPremiumPreset = useMutation({

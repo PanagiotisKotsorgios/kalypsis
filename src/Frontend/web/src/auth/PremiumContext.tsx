@@ -5,7 +5,6 @@ import { useAuth } from "./AuthContext";
 export type PremiumFeatureCode =
   | "recycle-bin"
   | "advanced-exports"
-  | "producer-reconciliation"
   | "bulk-commissions"
   | "multi-branch"
   | "premium-reports";
@@ -32,12 +31,6 @@ export const PREMIUM_FEATURE_CATALOGUE: Record<PremiumFeatureCode, PremiumFeatur
     label: "Επαγγελματικές εξαγωγές",
     description: "Branded PDF & XLSX πέρα από το βασικό CSV για κάθε λίστα.",
     monthlyPriceEUR: 6
-  },
-  "producer-reconciliation": {
-    code: "producer-reconciliation",
-    label: "Ταυτοποίηση Συνεργατών",
-    description: "Πλήρης σύγκριση συμβολαίων & ποσών με τα στοιχεία του συνεργάτη, με ειδοποιήσεις διαφορών.",
-    monthlyPriceEUR: 12
   },
   "bulk-commissions": {
     code: "bulk-commissions",
