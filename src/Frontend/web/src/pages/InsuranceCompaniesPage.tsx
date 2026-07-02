@@ -82,19 +82,34 @@ export function InsuranceCompaniesPage() {
   });
 
 
-  // Re-order the global list so each broker is followed by its subcompanies
-  // grouped underneath. Top-level standalone carriers stay in alphabetical
-  // order. Standalone agency-added carriers (ownRows) keep their original order.
-  const allGlobal = (q.data ?? []).filter(c => c.isGlobal);
-  const topLevel = allGlobal.filter(c => !c.parentCompanyId);
-  const grouped: CompanyDto[] = [];
-  for (const top of topLevel) {
-    grouped.push(top);
-    const subs = allGlobal.filter(c => c.parentCompanyId === top.id);
-    for (const s of subs) grouped.push(s);
-  }
-  const globalRows = grouped;
-  const ownRows = (q.data ?? []).filter(c => !c.isGlobal);
+  // "Δικές μου ασφαλιστικές" = every row the tenant actually uses:
+  //   1) tenant-owned rows (isGlobal=false), and
+  //   2) universal rows they've explicitly opted into (isUsedByTenant=true).
+  // The catalog section below shows only the universal rows they HAVEN'T
+  // opted-in to yet — so checking the box actually moves the row into
+  // "Δικές μου", matching the user's expected UX.
+  const allData = q.data ?? [];
+  const allGlobal = allData.filter(c => c.isGlobal);
+  const availableGlobal = allGlobal.filter(c => !c.isUsedByTenant);
+  const usedGlobal = allGlobal.filter(c => c.isUsedByTenant);
+
+  // Same grouping rule (broker followed by its subs) applied to whichever
+  // list a broker lands in — keeps subs visually attached to their parent.
+  const groupByBroker = (rows: CompanyDto[]): CompanyDto[] => {
+    const topLevel = rows.filter(c => !c.parentCompanyId);
+    const out: CompanyDto[] = [];
+    for (const top of topLevel) {
+      out.push(top);
+      for (const s of rows.filter(c => c.parentCompanyId === top.id)) out.push(s);
+    }
+    return out;
+  };
+  const availableGlobalGrouped = groupByBroker(availableGlobal);
+  const usedGlobalGrouped = groupByBroker(usedGlobal);
+  const ownTenantRows = allData.filter(c => !c.isGlobal);
+  // The "my carriers" table concatenates tenant-owned + opted-in universals.
+  const ownRows = [...ownTenantRows, ...usedGlobalGrouped];
+  const globalRows = availableGlobalGrouped;
 
   return (
     <Box>
@@ -137,12 +152,12 @@ export function InsuranceCompaniesPage() {
             </Box>
             {ownRows.length === 0 ? (
               <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
-                Δεν υπάρχουν δικές σας ασφαλιστικές. Οι καθολικές που διαχειρίζεται η Kalypsis εμφανίζονται παρακάτω.
+                Δεν υπάρχουν δικές σας ασφαλιστικές. Τσεκάρετε από τον καθολικό κατάλογο παρακάτω όσες χρησιμοποιείτε.
               </Box>
             ) : (
               <CompanyTable rows={ownRows} onEdit={setEditing} onDelete={(id) => {
                 if (confirm("Διαγραφή ασφαλιστικής;")) del.mutate(id);
-              }} />
+              }} onToggleOptIn={(id, enable) => toggleOptIn.mutate({ id, enable })} />
             )}
           </Card>
 
@@ -158,8 +173,15 @@ export function InsuranceCompaniesPage() {
                 Διαχειρίζεται από την Kalypsis · κοινός σε όλα τα γραφεία
               </Typography>
             </Box>
-            <CompanyTable rows={globalRows} readonly
-              onToggleOptIn={(id, enable) => toggleOptIn.mutate({ id, enable })} />
+            {globalRows.length === 0 ? (
+              <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
+                Έχετε ενεργοποιήσει όλες τις καθολικές εταιρείες. Μπορείτε να αφαιρέσετε όποια δεν χρησιμοποιείτε
+                από το τσεκ στο πάνω πίνακα.
+              </Box>
+            ) : (
+              <CompanyTable rows={globalRows} readonly
+                onToggleOptIn={(id, enable) => toggleOptIn.mutate({ id, enable })} />
+            )}
           </Card>
         </Stack>
       )}
@@ -244,9 +266,12 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn }: {
               {onToggleOptIn && (
                 <TableCell align="center" sx={{ width: 60, p: 0.5 }}>
                   {/* Sub-carriers inherit from their broker — the broker's
-                      opt-in gates them. Showing an independent checkbox here
-                      would be misleading. */}
-                  {r.parentCompanyId ? null : (
+                      opt-in gates them.
+                      Tenant-owned rows (isGlobal=false) aren't opt-in at all;
+                      they're implicitly used and get removed via the delete
+                      icon, not the checkbox — so we hide the checkbox for
+                      them too. */}
+                  {r.parentCompanyId || !r.isGlobal ? null : (
                     <Checkbox
                       size="small"
                       checked={!!r.isUsedByTenant}

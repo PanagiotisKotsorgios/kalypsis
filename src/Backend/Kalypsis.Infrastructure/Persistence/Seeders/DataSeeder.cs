@@ -465,6 +465,42 @@ public static class DataSeeder
             table: "policies", column: "PaymentCollectionMethod",
             addSql: "ALTER TABLE `policies` ADD COLUMN `PaymentCollectionMethod` varchar(64) NULL", ct);
 
+        // --- receipts / payments: TransactionReference + payments.PolicyId ---
+        // Ship 2026-07-02. Belt-and-braces so the /api/insurance-companies and
+        // financials endpoints keep working even when the paired EF migration
+        // was skipped for whatever reason (partial deploy, aborted boot).
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "receipts", column: "TransactionReference",
+            addSql: "ALTER TABLE `receipts` ADD COLUMN `TransactionReference` varchar(80) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "payments", column: "TransactionReference",
+            addSql: "ALTER TABLE `payments` ADD COLUMN `TransactionReference` varchar(80) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "payments", column: "PolicyId",
+            addSql: "ALTER TABLE `payments` ADD COLUMN `PolicyId` char(36) NULL", ct);
+        await EnsureIndexAsync(db, logger, dbName,
+            table: "payments", indexName: "IX_payments_PolicyId",
+            addSql: "CREATE INDEX `IX_payments_PolicyId` ON `payments` (`PolicyId`)", ct);
+
+        // --- tenant_carrier_optins table ---------------------------------
+        // Per-tenant opt-in against the universal carrier catalog. Referenced
+        // by /api/insurance-companies on every page load — if it's missing
+        // EVERY tenant sees an empty catalog. Highest-priority safety net.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "tenant_carrier_optins",
+            createSql: @"CREATE TABLE IF NOT EXISTS `tenant_carrier_optins` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `InsuranceCompanyId` char(36) NOT NULL,
+                `EnabledAt` datetime(6) NOT NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_tenant_carrier_optins_InsuranceCompanyId` (`InsuranceCompanyId`),
+                UNIQUE KEY `IX_tenant_carrier_optins_TenantId_InsuranceCompanyId` (`TenantId`, `InsuranceCompanyId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         // --- customers.DriverLicense* columns -----------------------------
         await EnsureColumnAsync(db, logger, dbName,
             table: "customers", column: "DriverLicenseNumber",

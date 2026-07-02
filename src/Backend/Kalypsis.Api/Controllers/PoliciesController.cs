@@ -186,14 +186,27 @@ public class InsuranceCompaniesController : ControllerBase
             : new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         // Which universal carriers the tenant has explicitly opted-in to. Empty
-        // for platform-level users (no tenant context).
-        var optIns = tenantId.HasValue
-            ? await _db.TenantCarrierOptIns.IgnoreQueryFilters()
-                .Where(o => o.TenantId == tenantId.Value && o.DeletedAt == null)
-                .Select(o => o.InsuranceCompanyId)
-                .ToListAsync(ct)
-            : new List<Guid>();
-        var optInSet = new HashSet<Guid>(optIns);
+        // for platform-level users (no tenant context). Wrapped in a try/catch
+        // so a partial deploy where the paired migration hasn't applied yet
+        // doesn't wipe out the entire carrier list — the schema safety net
+        // will create the table on the next boot anyway.
+        var optInSet = new HashSet<Guid>();
+        if (tenantId.HasValue)
+        {
+            try
+            {
+                var optIns = await _db.TenantCarrierOptIns.IgnoreQueryFilters()
+                    .Where(o => o.TenantId == tenantId.Value && o.DeletedAt == null)
+                    .Select(o => o.InsuranceCompanyId)
+                    .ToListAsync(ct);
+                optInSet = new HashSet<Guid>(optIns);
+            }
+            catch
+            {
+                // Table not there yet — treat as no opt-ins so every universal
+                // carrier still shows in the catalog.
+            }
+        }
 
         var dtos = rows.Select(c => ToDto(c, tenantByCode, bridges, ruleCounts, parameterCounts, optInSet)).ToList();
         // Operational surfaces (γέφυρες, policy carrier picker, commission runs...)
