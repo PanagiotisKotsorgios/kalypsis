@@ -326,3 +326,13 @@ export function useAuth(): AuthContextValue {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
+
+/**
+ * Safe variant — returns `null` when no AuthProvider is above, instead of
+ * throwing. Used by pre-auth surfaces (the theme provider, maintenance
+ * screen, etc.) that render outside the provider on boot.
+ */
+export function useOptionalAuthUser(): AuthUser | null {
+  const ctx = useContext(AuthContext);
+  return ctx?.user ?? null;
+}

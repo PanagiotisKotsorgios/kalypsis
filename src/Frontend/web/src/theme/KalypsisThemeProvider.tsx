@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ThemeProvider } from "@mui/material/styles";
 import { CssBaseline, useMediaQuery } from "@mui/material";
 import { buildKalypsisTheme } from "../theme";
-import { useAuth } from "../auth/AuthContext";
+import { useOptionalAuthUser } from "../auth/AuthContext";
 import type { ReactNode } from "react";
 
 /**
@@ -104,7 +104,12 @@ export function writePrefsFor(userId: string | null | undefined, prefs: UserPref
  * (localStorage storage event).
  */
 export function useUserPreferences(): UserPreferences {
-  const { user } = useAuth();
+  // `useOptionalAuthUser` returns null when this hook is called from a
+  // component that renders OUTSIDE the AuthProvider (the KalypsisThemeProvider
+  // wraps everything in main.tsx and pre-auth surfaces like the maintenance
+  // screen render before AuthProvider exists). In that state we simply fall
+  // back to the anon bucket instead of throwing and crashing the tree.
+  const user = useOptionalAuthUser();
   const userId = user?.userId ?? null;
   const [prefs, setPrefs] = useState<UserPreferences>(() => readPrefsFor(userId));
 
