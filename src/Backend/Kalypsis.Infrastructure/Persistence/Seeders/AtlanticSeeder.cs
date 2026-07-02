@@ -161,6 +161,73 @@ public static class AtlanticSeeder
         {
             logger.LogInformation("Atlantic seed: no new παραμετρικά to insert (already up to date).");
         }
+
+        // Backfill: any Χρήση row seeded before we started writing
+        // VehicleUseCategory would still have null / None → hidden from
+        // every χρήση dropdown across the platform. Runs on every boot;
+        // idempotent when the column is already populated.
+        var useBackfilled = await BackfillVehicleUseCategoriesAsync(db, carrier.Id, ct);
+        if (useBackfilled > 0)
+            logger.LogInformation("Atlantic seed: backfilled VehicleUseCategory on {Count} Χρήση row(s).", useBackfilled);
+
+        // Backfill Coverage rows whose branch didn't map to a PolicyType
+        // at the time — same reason (blank «Κάλυψη» dropdowns when a
+        // PolicyType filter is applied).
+        var covBackfilled = await BackfillCoveragePolicyTypeAsync(db, carrier.Id, ct);
+        if (covBackfilled > 0)
+            logger.LogInformation("Atlantic seed: backfilled PolicyType on {Count} Κάλυψη row(s).", covBackfilled);
+    }
+
+    /// <summary>Update every Atlantic Χρήση row whose VehicleUseCategory is
+    /// null or None, guessing from Name + Notes (the IW label column).</summary>
+    private static async Task<int> BackfillVehicleUseCategoriesAsync(
+        AppDbContext db, Guid carrierId, CancellationToken ct)
+    {
+        var rows = await db.CompanyParameterItems.IgnoreQueryFilters()
+            .Where(p => p.InsuranceCompanyId == carrierId
+                && p.Kind == CompanyParameterItemKind.Use
+                && p.DeletedAt == null
+                && (p.VehicleUseCategory == null || p.VehicleUseCategory == VehicleUseCategory.None))
+            .ToListAsync(ct);
+        int updated = 0;
+        foreach (var r in rows)
+        {
+            var guessed = GuessVehicleUseCategory(r.Code ?? "", r.Name ?? "");
+            if (guessed.HasValue && guessed.Value != VehicleUseCategory.None)
+            {
+                r.VehicleUseCategory = guessed;
+                updated++;
+            }
+        }
+        if (updated > 0) await db.SaveChangesAsync(ct);
+        return updated;
+    }
+
+    /// <summary>Fill in PolicyType on Coverage rows where the branch code
+    /// now maps to a known enum value but the row was seeded before that
+    /// mapping existed.</summary>
+    private static async Task<int> BackfillCoveragePolicyTypeAsync(
+        AppDbContext db, Guid carrierId, CancellationToken ct)
+    {
+        var rows = await db.CompanyParameterItems.IgnoreQueryFilters()
+            .Where(p => p.InsuranceCompanyId == carrierId
+                && p.Kind == CompanyParameterItemKind.Coverage
+                && p.DeletedAt == null
+                && p.PolicyType == null
+                && p.ParentCode != null)
+            .ToListAsync(ct);
+        int updated = 0;
+        foreach (var r in rows)
+        {
+            var pt = GuessBranchPolicyType(r.ParentCode ?? "", null);
+            if (pt.HasValue)
+            {
+                r.PolicyType = pt;
+                updated++;
+            }
+        }
+        if (updated > 0) await db.SaveChangesAsync(ct);
+        return updated;
     }
 
     private static string Key(CompanyParameterItemKind kind, string code, string? parent)

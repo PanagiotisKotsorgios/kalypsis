@@ -126,6 +126,49 @@ public static class ErgoSeeder
         {
             logger.LogInformation("ERGO seed: no new παραμετρικά to insert (already up to date).");
         }
+
+        // Backfill: any Κάλυψη row seeded before we started resolving
+        // PolicyType from the parent branch would still have null → hidden
+        // when a Κλάδος filter is applied on production lists / commission
+        // rules / claims / bulk commissions. Runs on every boot; idempotent.
+        var covBackfilled = await BackfillCoveragePolicyTypeAsync(db, carrier.Id, seed.Branches, ct);
+        if (covBackfilled > 0)
+            logger.LogInformation("ERGO seed: backfilled PolicyType on {Count} Κάλυψη row(s).", covBackfilled);
+    }
+
+    /// <summary>Fill in PolicyType on Coverage rows where the parent
+    /// branch has a known PolicyType in the seed JSON but the row was
+    /// inserted with null. Also updates rows attached to a Branch whose
+    /// own PolicyType was later corrected. Case-insensitive branch
+    /// lookup so a re-casing of ParentCode doesn't break the join.</summary>
+    private static async Task<int> BackfillCoveragePolicyTypeAsync(
+        AppDbContext db, Guid carrierId, IReadOnlyList<BranchEntry> branches, CancellationToken ct)
+    {
+        var lookup = branches
+            .Where(b => !string.IsNullOrWhiteSpace(b.PolicyType))
+            .ToDictionary(
+                b => b.Code.Trim().ToUpperInvariant(),
+                b => ParsePolicyType(b.PolicyType),
+                StringComparer.OrdinalIgnoreCase);
+        if (lookup.Count == 0) return 0;
+        var rows = await db.CompanyParameterItems.IgnoreQueryFilters()
+            .Where(p => p.InsuranceCompanyId == carrierId
+                && p.Kind == CompanyParameterItemKind.Coverage
+                && p.DeletedAt == null
+                && p.PolicyType == null
+                && p.ParentCode != null)
+            .ToListAsync(ct);
+        int updated = 0;
+        foreach (var r in rows)
+        {
+            if (lookup.TryGetValue((r.ParentCode ?? "").Trim().ToUpperInvariant(), out var pt) && pt.HasValue)
+            {
+                r.PolicyType = pt;
+                updated++;
+            }
+        }
+        if (updated > 0) await db.SaveChangesAsync(ct);
+        return updated;
     }
 
     private static string Key(CompanyParameterItemKind kind, string code, string? parent)
