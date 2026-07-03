@@ -110,4 +110,21 @@ public class AuthController : ControllerBase
             new CompleteTwoFactorLoginCommand(request.ChallengeToken, request.Code, ip, ua), ct);
         return Ok(result);
     }
+
+    public record EmailCodeLoginRequest(string ChallengeToken, string Code);
+
+    /// <summary>Second leg of the email-code login flow. See LoginCommand for details.</summary>
+    [HttpPost("email-code-login")]
+    [AllowAnonymous]
+    [EnableRateLimiting("login")]
+    public async Task<ActionResult<LoginResponse>> CompleteEmailCodeLogin(
+        [FromBody] EmailCodeLoginRequest request,
+        CancellationToken ct)
+    {
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var ua = Request.Headers.UserAgent.ToString();
+        var result = await _mediator.Send(
+            new CompleteEmailCodeLoginCommand(request.ChallengeToken, request.Code, ip, ua), ct);
+        return Ok(result);
+    }
 }

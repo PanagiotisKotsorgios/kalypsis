@@ -19,6 +19,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         b.Property(x => x.Role).HasConversion<int>();
 
         b.Property(x => x.TotpSecret).HasMaxLength(128);
+        b.Property(x => x.PendingLoginCodeHash).HasMaxLength(200);
 
         b.HasIndex(x => new { x.TenantId, x.Email }).IsUnique();
         b.HasIndex(x => x.TenantId);

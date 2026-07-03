@@ -15,7 +15,7 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useTranslation } from "react-i18next";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
-import { useAuth, TwoFactorRequiredError } from "../auth/AuthContext";
+import { useAuth, TwoFactorRequiredError, EmailCodeRequiredError } from "../auth/AuthContext";
 import { KalypsisLogo } from "../components/KalypsisLogo";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { readPrefsFor } from "../theme/KalypsisThemeProvider";
@@ -48,7 +48,7 @@ import { authFieldSx, authButtonSx, authLabelSx } from "./authShared";
 
 export function LoginPage() {
   const { t } = useTranslation();
-  const { signIn, completeTwoFactor } = useAuth();
+  const { signIn, completeTwoFactor, completeEmailCode } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -57,6 +57,9 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   // When the backend reports 2FA is required, switch into code-entry mode.
   const [twoFactor, setTwoFactor] = useState<{ challengeToken: string } | null>(null);
+  // Email-code step — a 6-digit code sent to the user's inbox after
+  // password verification when the platform gate is enabled.
+  const [emailCode, setEmailCode] = useState<{ challengeToken: string } | null>(null);
   const [code, setCode] = useState("");
 
   const handleSubmit = async (e: FormEvent) => {
@@ -69,6 +72,8 @@ export function LoginPage() {
     } catch (err) {
       if (err instanceof TwoFactorRequiredError) {
         setTwoFactor({ challengeToken: err.challengeToken });
+      } else if (err instanceof EmailCodeRequiredError) {
+        setEmailCode({ challengeToken: err.challengeToken });
       } else {
         setError(extractErrorMessage(err, t("auth.errors.generic")));
       }
@@ -87,6 +92,21 @@ export function LoginPage() {
       navigate(landingPath(authed), { replace: true });
     } catch (err) {
       setError(extractErrorMessage(err, "Λανθασμένος κωδικός 2FA."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEmailCodeSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!emailCode) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      const authed = await completeEmailCode(emailCode.challengeToken, code.trim(), rememberMe);
+      navigate(landingPath(authed), { replace: true });
+    } catch (err) {
+      setError(extractErrorMessage(err, "Λανθασμένος κωδικός."));
     } finally {
       setSubmitting(false);
     }
@@ -173,7 +193,46 @@ export function LoginPage() {
               </Alert>
             )}
 
-            {twoFactor ? (
+            {emailCode ? (
+              <form onSubmit={handleEmailCodeSubmit} noValidate>
+                <Stack spacing={3}>
+                  <Alert severity="info" sx={{ borderRadius: 2 }}>
+                    Στείλαμε 6-ψήφιο κωδικό στο <strong>{email}</strong>. Ισχύει
+                    για 10 λεπτά.
+                  </Alert>
+                  <TextField
+                    label="Κωδικός email"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    autoFocus required fullWidth
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                    disabled={submitting}
+                    InputLabelProps={{ sx: authLabelSx }}
+                    sx={authFieldSx}
+                  />
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    size="large"
+                    fullWidth
+                    disableElevation
+                    disabled={submitting || code.trim().length < 6}
+                    startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : null}
+                    sx={{ ...authButtonSx, mt: 0.5 }}
+                  >
+                    {submitting ? "Έλεγχος…" : "Επαλήθευση"}
+                  </Button>
+                  <Button
+                    onClick={() => { setEmailCode(null); setCode(""); setError(null); }}
+                    disabled={submitting}
+                    sx={{ textTransform: "none", color: "rgba(11,37,69,0.7)" }}
+                  >
+                    Πίσω στη σύνδεση
+                  </Button>
+                </Stack>
+              </form>
+            ) : twoFactor ? (
               <form onSubmit={handleTwoFactorSubmit} noValidate>
                 <Stack spacing={3}>
                   <Alert severity="info" sx={{ borderRadius: 2 }}>

@@ -30,4 +30,12 @@ public class PlatformSetting : BaseEntity
 
     public Guid? LastUpdatedByUserId { get; set; }
     public User? LastUpdatedByUser { get; set; }
+
+    /// <summary>
+    /// Global email-code 2FA gate. When true, every successful password login
+    /// pauses at a challenge step: the backend emails a 6-digit code via Brevo
+    /// and the client must POST it to /api/auth/email-code-login to receive
+    /// session tokens. Toggled by the Platform admin from Ρυθμίσεις.
+    /// </summary>
+    public bool RequireEmailLoginCode { get; set; }
 }

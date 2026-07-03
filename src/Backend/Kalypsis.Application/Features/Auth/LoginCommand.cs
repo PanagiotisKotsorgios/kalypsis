@@ -30,13 +30,16 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
     private readonly IPasswordHasher _hasher;
     private readonly IJwtTokenService _jwt;
     private readonly IDateTimeProvider _clock;
+    private readonly IEmailSender _email;
 
-    public LoginCommandHandler(IAppDbContext db, IPasswordHasher hasher, IJwtTokenService jwt, IDateTimeProvider clock)
+    public LoginCommandHandler(IAppDbContext db, IPasswordHasher hasher, IJwtTokenService jwt,
+        IDateTimeProvider clock, IEmailSender email)
     {
         _db = db;
         _hasher = hasher;
         _jwt = jwt;
         _clock = clock;
+        _email = email;
     }
 
     // A pre-computed BCrypt hash of a constant value. We run Verify against it
@@ -104,6 +107,51 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
                     user.Role, user.PreferredLanguage, Array.Empty<string>()),
                 RequiresTwoFactor: true,
                 ChallengeToken: challenge);
+        }
+
+        // Email-code 2FA gate — enabled globally via the
+        // PlatformSetting.RequireEmailLoginCode toggle in Ρυθμίσεις.
+        // Generates a random 6-digit code, hashes + stores it with a 10-min
+        // expiry on the user row, then delivers it via IEmailSender (Brevo
+        // when configured). Client submits the code with the challenge to
+        // receive tokens.
+        var requireEmailCode = await _db.PlatformSettings.IgnoreQueryFilters()
+            .OrderBy(s => s.Id).Select(s => (bool?)s.RequireEmailLoginCode)
+            .FirstOrDefaultAsync(cancellationToken) ?? false;
+        if (requireEmailCode)
+        {
+            var code = new Random().Next(100000, 1_000_000).ToString("D6");
+            user.PendingLoginCodeHash = _hasher.Hash(code);
+            user.PendingLoginCodeExpiresAt = _clock.UtcNow.AddMinutes(10);
+            user.PendingLoginCodeAttempts = 0;
+            var challenge = _jwt.IssueTwoFactorChallenge(user);
+            AddAuthenticationAudit(user, "LoginRequiresEmailCode", request);
+            await _db.SaveChangesAsync(cancellationToken);
+            // Fire the email — swallow failures so a temporary Brevo outage
+            // still leaves the user free to try again (the code is stored).
+            try
+            {
+                await _email.SendAsync(new EmailMessage(
+                    ToEmail: user.Email,
+                    ToName: $"{user.FirstName} {user.LastName}".Trim(),
+                    Subject: "Κωδικός σύνδεσης Kalypsis",
+                    HtmlBody: $"<p>Ο κωδικός σύνδεσής σας είναι:</p>" +
+                              $"<h1 style=\"letter-spacing: 6px; font-family: monospace;\">{code}</h1>" +
+                              "<p>Ισχύει για 10 λεπτά. Αν δεν κάνατε προσπάθεια σύνδεσης, αγνοήστε αυτό το μήνυμα.</p>",
+                    TextBody: $"Ο κωδικός σύνδεσής σας είναι: {code}\nΙσχύει για 10 λεπτά."),
+                    cancellationToken);
+            }
+            catch { /* delivered on next retry; user can request a new code from the frontend */ }
+            return new LoginResponse(
+                AccessToken: string.Empty,
+                AccessTokenExpiresAt: _clock.UtcNow,
+                RefreshToken: string.Empty,
+                RefreshTokenExpiresAt: _clock.UtcNow,
+                User: new AuthenticatedUserDto(user.Id, null, null, user.Email, user.FirstName, user.LastName,
+                    user.Role, user.PreferredLanguage, Array.Empty<string>()),
+                RequiresTwoFactor: false,
+                ChallengeToken: challenge,
+                RequiresEmailCode: true);
         }
 
         var tenantInfo = user.TenantId == Guid.Empty

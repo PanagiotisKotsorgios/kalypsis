@@ -475,12 +475,15 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
             </Button>
             <Button size="small" variant="outlined" startIcon={<OpenInNewIcon />}
               disabled={!previewObjectUrl}
-              onClick={() => {
-                // Blob URLs are same-origin so the new tab (from the same
-                // browsing context) can consume them without any auth
-                // headers. This is how we avoid the 401 that used to hit
-                // when opening the raw /preview endpoint in a new tab.
-                if (previewObjectUrl) window.open(previewObjectUrl, "_blank", "noopener");
+              // Anchor-based new-tab open — browsers treat this as a genuine
+              // navigation instead of a popup, so no "blocked pop-up" warning
+              // even when the click handler awaited a blob fetch earlier.
+              component="a"
+              href={previewObjectUrl ?? undefined}
+              target="_blank"
+              rel="noopener"
+              onClick={(e) => {
+                if (!previewObjectUrl) e.preventDefault();
               }}>
               Νέα καρτέλα
             </Button>

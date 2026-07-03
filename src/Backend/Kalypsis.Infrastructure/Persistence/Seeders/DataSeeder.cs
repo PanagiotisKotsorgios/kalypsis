@@ -465,6 +465,22 @@ public static class DataSeeder
             table: "policies", column: "PaymentCollectionMethod",
             addSql: "ALTER TABLE `policies` ADD COLUMN `PaymentCollectionMethod` varchar(64) NULL", ct);
 
+        // platform_settings: email-code login toggle
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "platform_settings", column: "RequireEmailLoginCode",
+            addSql: "ALTER TABLE `platform_settings` ADD COLUMN `RequireEmailLoginCode` tinyint(1) NOT NULL DEFAULT 0", ct);
+
+        // users: email-code 2FA columns
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "users", column: "PendingLoginCodeHash",
+            addSql: "ALTER TABLE `users` ADD COLUMN `PendingLoginCodeHash` varchar(200) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "users", column: "PendingLoginCodeExpiresAt",
+            addSql: "ALTER TABLE `users` ADD COLUMN `PendingLoginCodeExpiresAt` datetime(6) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "users", column: "PendingLoginCodeAttempts",
+            addSql: "ALTER TABLE `users` ADD COLUMN `PendingLoginCodeAttempts` int NOT NULL DEFAULT 0", ct);
+
         // email_templates: policy-trigger + SMS body columns
         await EnsureColumnAsync(db, logger, dbName,
             table: "email_templates", column: "PolicyTrigger",

@@ -720,9 +720,30 @@ function PolicyContractPdf({ policyId }: { policyId: string }) {
   const print = async (d: PolicyDoc) => {
     try {
       const url = await fetchBlobUrl(d.id);
-      const w = window.open(url, "_blank");
-      if (!w) { setErr("Ο φυλλομετρητής μπλόκαρε το άνοιγμα — επιτρέψτε pop-ups."); return; }
-      w.addEventListener("load", () => { try { w.print(); } catch { /* user dismissed */ } });
+      // Use a hidden iframe instead of window.open so browsers can't
+      // block the action as a popup. The iframe is injected into the
+      // DOM, waits for the PDF to load, triggers the print dialog from
+      // its contentWindow, then removes itself. Same UX as opening a new
+      // tab and printing, no popup blocker involvement.
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        try { iframe.contentWindow?.focus(); iframe.contentWindow?.print(); }
+        catch { /* user dismissed */ }
+        // Give the print dialog time to detach from the iframe before we
+        // remove it, else some browsers cancel the dialog mid-print.
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+          URL.revokeObjectURL(url);
+        }, 5000);
+      };
     } catch (e) { setErr(extractErrorMessage(e)); }
   };
 

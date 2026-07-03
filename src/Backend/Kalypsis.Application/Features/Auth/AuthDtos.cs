@@ -27,4 +27,9 @@ public record LoginResponse(
     // empty access/refresh tokens, and a short-lived ChallengeToken. The client
     // then POSTs the TOTP code + challenge to /api/auth/2fa/login to get real tokens.
     bool RequiresTwoFactor = false,
-    string? ChallengeToken = null);
+    string? ChallengeToken = null,
+    // When the tenant has enabled the email-code gate, the first login
+    // call returns RequiresEmailCode=true + a challenge. The client then
+    // asks the user for the 6-digit code they just received via email
+    // and POSTs it to /api/auth/email-code-login with the challenge.
+    bool RequiresEmailCode = false);

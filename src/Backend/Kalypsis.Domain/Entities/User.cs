@@ -34,6 +34,18 @@ public class User : TenantEntity
     public ICollection<TwoFactorRecoveryCode> RecoveryCodes { get; set; } = new List<TwoFactorRecoveryCode>();
 
     /// <summary>
+    /// Email-code 2FA: on successful password check, a 6-digit code is
+    /// generated + emailed via Brevo and stored here (BCrypt hash). The
+    /// login response returns a challenge token; the client must POST the
+    /// code with the challenge to receive the actual session tokens.
+    /// Enabled via PlatformSetting `require_email_login_code` (global) or
+    /// a future per-user opt-in.
+    /// </summary>
+    public string? PendingLoginCodeHash { get; set; }
+    public DateTime? PendingLoginCodeExpiresAt { get; set; }
+    public int PendingLoginCodeAttempts { get; set; }
+
+    /// <summary>
     /// JSON array of permission codes the agency admin has granted this user
     /// (e.g. ["customers.read","customers.write","commissions.run"]). Null /
     /// empty means use the role defaults.

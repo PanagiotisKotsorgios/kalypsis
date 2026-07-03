@@ -37,6 +37,7 @@ interface LoginResponse {
   user: AuthUser;
   requiresTwoFactor?: boolean;
   challengeToken?: string;
+  requiresEmailCode?: boolean;
 }
 
 export class TwoFactorRequiredError extends Error {
@@ -45,6 +46,15 @@ export class TwoFactorRequiredError extends Error {
     super("two_factor_required");
     this.challengeToken = challengeToken;
     this.name = "TwoFactorRequiredError";
+  }
+}
+
+export class EmailCodeRequiredError extends Error {
+  challengeToken: string;
+  constructor(challengeToken: string) {
+    super("email_code_required");
+    this.challengeToken = challengeToken;
+    this.name = "EmailCodeRequiredError";
   }
 }
 
@@ -59,6 +69,8 @@ interface AuthContextValue {
   signIn: (email: string, password: string, rememberMe?: boolean) => Promise<AuthUser>;
   /** Second leg of the 2FA login flow. */
   completeTwoFactor: (challengeToken: string, code: string, rememberMe?: boolean) => Promise<AuthUser>;
+  /** Second leg of the email-code login flow. */
+  completeEmailCode: (challengeToken: string, code: string, rememberMe?: boolean) => Promise<AuthUser>;
   signOut: () => void;
   /** Phase 7 — log in as a specific user (PlatformAdmin only). Backs up the original session. */
   startUserImpersonation: (userId: string) => Promise<void>;
@@ -189,6 +201,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (payload.requiresTwoFactor && payload.challengeToken) {
         throw new TwoFactorRequiredError(payload.challengeToken);
       }
+      if (payload.requiresEmailCode && payload.challengeToken) {
+        throw new EmailCodeRequiredError(payload.challengeToken);
+      }
       return persistSession(payload, rememberMe);
     },
     [persistSession]
@@ -197,6 +212,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const completeTwoFactor = useCallback(
     async (challengeToken: string, code: string, rememberMe: boolean = true) => {
       const res = await api.post<LoginResponse>("/auth/2fa/login", { challengeToken, code });
+      return persistSession(res.data, rememberMe);
+    },
+    [persistSession]
+  );
+
+  const completeEmailCode = useCallback(
+    async (challengeToken: string, code: string, rememberMe: boolean = true) => {
+      const res = await api.post<LoginResponse>("/auth/email-code-login", { challengeToken, code });
       return persistSession(res.data, rememberMe);
     },
     [persistSession]
@@ -314,8 +337,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })();
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, accessToken, loading, signIn, completeTwoFactor, signOut, startUserImpersonation, endUserImpersonation, isImpersonatingUser, impersonatorEmail }),
-    [user, accessToken, loading, signIn, completeTwoFactor, signOut, startUserImpersonation, endUserImpersonation, isImpersonatingUser, impersonatorEmail]
+    () => ({ user, accessToken, loading, signIn, completeTwoFactor, completeEmailCode, signOut, startUserImpersonation, endUserImpersonation, isImpersonatingUser, impersonatorEmail }),
+    [user, accessToken, loading, signIn, completeTwoFactor, completeEmailCode, signOut, startUserImpersonation, endUserImpersonation, isImpersonatingUser, impersonatorEmail]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
