@@ -47,6 +47,7 @@ import { UserImpersonationBanner } from "./components/UserImpersonationBanner";
 import { OnboardingWizard } from "./components/OnboardingWizard";
 import { PageLoader } from "./components/PageLoader";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { PreloginResponsiveStyles } from "./components/PreloginResponsiveStyles";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
@@ -412,6 +413,7 @@ export default function App() {
   return (
     <>
       <ScrollToTop />
+      <PreloginResponsiveStyles />
       <UserImpersonationBanner />
       <UpgradePlanDialogHost />
       <Routes>
