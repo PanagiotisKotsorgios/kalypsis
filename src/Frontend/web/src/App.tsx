@@ -42,6 +42,8 @@ import { useImpersonation } from "./impersonation/ImpersonationContext";
 import { type NavItem } from "./components/AppLayout";
 import { AppShell } from "./components/AppShell";
 import { GlobalKeyboardShortcuts } from "./components/GlobalKeyboardShortcuts";
+import { CommandPalette } from "./components/CommandPalette";
+import { GlobalStickyHeaders } from "./components/GlobalStickyHeaders";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { CookieBanner } from "./components/CookieBanner";
 import { UserImpersonationBanner } from "./components/UserImpersonationBanner";
@@ -446,6 +448,8 @@ export default function App() {
               {isGated ? <UnderMaintenancePage title={maintenance.launchGateTitle} message={maintenance.launchGateMessage} /> : (
               <AppShell navItems={effectiveRole ? navByRole[effectiveRole] : []} role={effectiveRole}>
                 <GlobalKeyboardShortcuts />
+                <CommandPalette />
+                <GlobalStickyHeaders />
                 <Routes>
                   {/* Agency users land on the Workspace Hub; other roles keep their dashboard. */}
                   <Route index element={

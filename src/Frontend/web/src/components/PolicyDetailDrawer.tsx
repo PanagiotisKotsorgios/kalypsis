@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { EntityAuditTimeline } from "./EntityAuditTimeline";
+import { PropagateChangesDialog, type PropagatableChanges } from "./PropagateChangesDialog";
 
 // Mirrors PolicyDetailDto from the backend (see PolicyDetailQuery.cs).
 export interface PolicyDetail {
@@ -149,29 +150,59 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
     queryFn: async () => (await api.get<any[]>("/receipts")).data.filter((r: any) => r.policyId === policyId)
   });
 
+  // Snapshot of the fields that support propagation to sibling policies —
+  // captured BEFORE save so we can diff against the response and show the
+  // «apply to other contracts of this customer» prompt afterwards.
+  const [propagateChanges, setPropagateChanges] = useState<PropagatableChanges | null>(null);
   const save = useMutation({
-    mutationFn: async () => (await api.put<PolicyDetail>(`/policies/${policyId}/extended`, {
-      paymentFrequency: form.paymentFrequency,
-      premiumIncludesVat: form.premiumIncludesVat,
-      specialCommissionPercent: form.specialCommissionPercent ? Number(form.specialCommissionPercent) : null,
-      specsJson: form.specsJson || null,
-      nextRenewalDate: form.nextRenewalDate || null,
-      renewalTransferToProducerId: form.renewalTransferToProducerId || null,
-      renewalTransferToCarrierId: form.renewalTransferToCarrierId || null,
-      retainCommissionsOnRenewal: form.retainCommissionsOnRenewal,
-      retainDocumentNumberOnRenewal: form.retainDocumentNumberOnRenewal,
-      retainSpecialCommissionsOnRenewal: form.retainSpecialCommissionsOnRenewal,
-      renewalInstructions: form.renewalInstructions || null,
-      deliveredAt: form.deliveredAt || null,
-      deliveredTo: form.deliveredTo || null,
-      deliveryMethod: form.deliveryMethod || null,
-      paymentCollectionMethod: form.paymentCollectionMethod || null
-    })).data,
-    onSuccess: () => {
+    mutationFn: async () => {
+      const before = {
+        paymentFrequency: q.data?.paymentFrequency,
+        specialCommissionPercent: q.data?.specialCommissionPercent,
+        renewalTransferToProducerId: q.data?.renewalTransferToProducerId,
+        renewalTransferToCarrierId: q.data?.renewalTransferToCarrierId,
+        paymentCollectionMethod: q.data?.paymentCollectionMethod,
+      };
+      const saved = (await api.put<PolicyDetail>(`/policies/${policyId}/extended`, {
+        paymentFrequency: form.paymentFrequency,
+        premiumIncludesVat: form.premiumIncludesVat,
+        specialCommissionPercent: form.specialCommissionPercent ? Number(form.specialCommissionPercent) : null,
+        specsJson: form.specsJson || null,
+        nextRenewalDate: form.nextRenewalDate || null,
+        renewalTransferToProducerId: form.renewalTransferToProducerId || null,
+        renewalTransferToCarrierId: form.renewalTransferToCarrierId || null,
+        retainCommissionsOnRenewal: form.retainCommissionsOnRenewal,
+        retainDocumentNumberOnRenewal: form.retainDocumentNumberOnRenewal,
+        retainSpecialCommissionsOnRenewal: form.retainSpecialCommissionsOnRenewal,
+        renewalInstructions: form.renewalInstructions || null,
+        deliveredAt: form.deliveredAt || null,
+        deliveredTo: form.deliveredTo || null,
+        deliveryMethod: form.deliveryMethod || null,
+        paymentCollectionMethod: form.paymentCollectionMethod || null
+      })).data;
+      // Diff the fields that map to propagatable ones.
+      const diff: PropagatableChanges = {};
+      if (saved.paymentFrequency !== before.paymentFrequency)
+        diff.paymentFrequency = saved.paymentFrequency;
+      if (saved.specialCommissionPercent !== before.specialCommissionPercent)
+        diff.specialCommissionPercent = saved.specialCommissionPercent ?? null;
+      if (saved.renewalTransferToProducerId !== before.renewalTransferToProducerId)
+        diff.renewalTransferToProducerId = saved.renewalTransferToProducerId ?? null;
+      if (saved.renewalTransferToCarrierId !== before.renewalTransferToCarrierId)
+        diff.renewalTransferToCarrierId = saved.renewalTransferToCarrierId ?? null;
+      if (saved.paymentCollectionMethod !== before.paymentCollectionMethod)
+        diff.paymentCollectionMethod = saved.paymentCollectionMethod ?? null;
+      return diff;
+    },
+    onSuccess: (diff) => {
       void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] });
       void qc.invalidateQueries({ queryKey: ["policies"] });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
+      // Trigger the propagation prompt only when at least one propagatable
+      // field actually moved. Dialog auto-dismisses silently if the
+      // customer has no other contracts.
+      if (Object.keys(diff).length > 0) setPropagateChanges(diff);
     },
     onError: (e) => setErr(extractErrorMessage(e))
   });
@@ -435,6 +466,17 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
           </Box>
         )}
       </Box>
+      <PropagateChangesDialog
+        open={!!propagateChanges}
+        sourcePolicyId={policyId}
+        changes={propagateChanges ?? {}}
+        onClose={(result) => {
+          setPropagateChanges(null);
+          if (result && result.updatedCount > 0) {
+            void qc.invalidateQueries({ queryKey: ["policies"] });
+          }
+        }}
+      />
     </Drawer>
   );
 }

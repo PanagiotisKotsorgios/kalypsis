@@ -83,6 +83,22 @@ public class PoliciesController : ControllerBase
         [FromBody] BulkUpdatePoliciesBody body, CancellationToken ct)
         => Ok(await _mediator.Send(new BulkUpdatePoliciesCommand(body), ct));
 
+    /// <summary>All OTHER policies that share this customer — used to power
+    /// the «do you also want to apply this change to their older contracts?»
+    /// prompt after a save.</summary>
+    [HttpGet("{id:guid}/related")]
+    public async Task<ActionResult<IReadOnlyList<RelatedPolicySummary>>> Related(
+        Guid id, CancellationToken ct)
+        => Ok(await _mediator.Send(new ListRelatedPoliciesQuery(id), ct));
+
+    /// <summary>Apply the specified field changes to a chosen subset of the
+    /// customer's other policies (the ones the operator ticked in the
+    /// propagation dialog).</summary>
+    [HttpPost("propagate-changes")]
+    public async Task<ActionResult<PropagatePolicyChangesResult>> PropagateChanges(
+        [FromBody] PropagatePolicyChangesBody body, CancellationToken ct)
+        => Ok(await _mediator.Send(new PropagatePolicyChangesCommand(body), ct));
+
     [HttpGet("{id:guid}/payment-summary")]
     public async Task<ActionResult<PolicyPaymentSummaryDto>> PaymentSummary(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetPolicyPaymentSummaryQuery(id), ct));

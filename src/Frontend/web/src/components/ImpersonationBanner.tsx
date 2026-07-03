@@ -38,9 +38,18 @@ export function ImpersonationBanner() {
         }}
       >
         <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} justifyContent="space-between" spacing={1}>
-          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            {t("impersonation.viewingAs", { name: tenantName ?? tenantId })}
-          </Typography>
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              {t("impersonation.viewingAs", { name: tenantName ?? tenantId })}
+            </Typography>
+            {/* Explicit reminder that any mutation from here writes to the
+                impersonated tenant's data — protects against the
+                Platform-admin footgun of forgetting they're not in their own
+                sandbox. */}
+            <Typography variant="caption" sx={{ display: "block", fontWeight: 600, opacity: 0.9 }}>
+              Οι αλλαγές που κάνετε ΓΡΑΦΟΝΤΑΙ στα δεδομένα του γραφείου «{tenantName ?? tenantId}».
+            </Typography>
+          </Box>
           <Button
             size="small"
             variant="outlined"
