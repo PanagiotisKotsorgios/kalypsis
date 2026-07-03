@@ -53,6 +53,8 @@ import { GroupPoliciesPage } from "./GroupPoliciesPage";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { useUndoable } from "../components/UndoToast";
+import { useColumnPreferences } from "../hooks/useColumnPreferences";
+import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal";
@@ -172,6 +174,21 @@ export function PoliciesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
   const { pushUndoable } = useUndoable();
+
+  // User-configurable table columns. Order and visibility persist per
+  // (user × table) via useColumnPreferences → localStorage. "number" and
+  // "actions" stay alwaysVisible so the operator always has an id column
+  // and a way to open/edit a row.
+  const columnPrefs = useColumnPreferences("policies", [
+    { key: "number",   label: "Αρ. Συμβολαίου", alwaysVisible: true },
+    { key: "type",     label: "Κλάδος" },
+    { key: "customer", label: "Πελάτης" },
+    { key: "carrier",  label: "Ασφαλιστική" },
+    { key: "producer", label: "Συνεργάτης", defaultVisible: false },
+    { key: "dates",    label: "Έναρξη → Λήξη" },
+    { key: "premium",  label: "Ασφάλιστρο" },
+    { key: "status",   label: "Κατάσταση" },
+  ]);
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = (await api.delete<{ deleted: boolean; blockers: { kind: string; count: number; message: string }[] }>(`/policies/${id}`)).data;
@@ -439,14 +456,26 @@ export function PoliciesPage() {
                       />
                     </TableCell>
                   )}
-                  <TableCell>{t("policies.col.number")}</TableCell>
-                  <TableCell>{t("policies.col.type")}</TableCell>
-                  {!isCustomer && <TableCell>{t("policies.col.customer")}</TableCell>}
-                  <TableCell>{t("policies.col.carrier")}</TableCell>
-                  <TableCell>{t("policies.col.dates")}</TableCell>
-                  <TableCell align="right">{t("policies.col.premium")}</TableCell>
-                  <TableCell>{t("policies.col.status")}</TableCell>
-                  {canEdit && <TableCell />}
+                  {columnPrefs.visibleColumns.map(c => {
+                    if (c.key === "customer" && isCustomer) return null;
+                    const isRight = c.key === "premium";
+                    return (
+                      <TableCell key={c.key} align={isRight ? "right" : "left"}>
+                        {c.label}
+                      </TableCell>
+                    );
+                  })}
+                  {canEdit && (
+                    <TableCell align="right" padding="checkbox">
+                      <ColumnPreferencesButton
+                        orderedColumns={columnPrefs.orderedColumns}
+                        hiddenSet={columnPrefs.hiddenSet}
+                        toggleVisibility={columnPrefs.toggleVisibility}
+                        moveColumn={columnPrefs.moveColumn}
+                        reset={columnPrefs.reset}
+                      />
+                    </TableCell>
+                  )}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -475,22 +504,42 @@ export function PoliciesPage() {
                           />
                         </TableCell>
                       )}
-                      <TableCell><Chip label={p.policyNumber} variant="outlined" size="small" /></TableCell>
-                      <TableCell>{t(`policies.types.${p.policyType}`)}</TableCell>
-                      {!isCustomer && <TableCell><Typography fontWeight={600}>{p.customerDisplay}</Typography></TableCell>}
-                      <TableCell>{p.insuranceCompanyName}</TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{date(p.startDate)} → {date(p.endDate)}</Typography>
-                        {expiringSoon && (
-                          <Typography variant="caption" color="warning.main" fontWeight={700}>
-                            {t("policies.expiresIn", { days: daysToEnd })}
-                          </Typography>
-                        )}
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography fontWeight={700}>{money(p.premium, p.currency)}</Typography>
-                      </TableCell>
-                      <TableCell><Chip data-tour="policies-status" label={t(`policies.statuses.${p.status}`)} color={STATUS_COLOR[p.status]} size="small" /></TableCell>
+                      {columnPrefs.visibleColumns.map(c => {
+                        if (c.key === "customer" && isCustomer) return null;
+                        switch (c.key) {
+                          case "number":
+                            return <TableCell key={c.key}><Chip label={p.policyNumber} variant="outlined" size="small" /></TableCell>;
+                          case "type":
+                            return <TableCell key={c.key}>{t(`policies.types.${p.policyType}`)}</TableCell>;
+                          case "customer":
+                            return <TableCell key={c.key}><Typography fontWeight={600}>{p.customerDisplay}</Typography></TableCell>;
+                          case "carrier":
+                            return <TableCell key={c.key}>{p.insuranceCompanyName}</TableCell>;
+                          case "producer":
+                            return <TableCell key={c.key}>{p.producerName ?? "—"}</TableCell>;
+                          case "dates":
+                            return (
+                              <TableCell key={c.key}>
+                                <Typography variant="body2">{date(p.startDate)} → {date(p.endDate)}</Typography>
+                                {expiringSoon && (
+                                  <Typography variant="caption" color="warning.main" fontWeight={700}>
+                                    {t("policies.expiresIn", { days: daysToEnd })}
+                                  </Typography>
+                                )}
+                              </TableCell>
+                            );
+                          case "premium":
+                            return (
+                              <TableCell key={c.key} align="right">
+                                <Typography fontWeight={700}>{money(p.premium, p.currency)}</Typography>
+                              </TableCell>
+                            );
+                          case "status":
+                            return <TableCell key={c.key}><Chip data-tour="policies-status" label={t(`policies.statuses.${p.status}`)} color={STATUS_COLOR[p.status]} size="small" /></TableCell>;
+                          default:
+                            return <TableCell key={c.key}>—</TableCell>;
+                        }
+                      })}
                       {canEdit && (
                         <TableCell align="right">
                           <Stack direction="row" spacing={0.5} justifyContent="flex-end">
