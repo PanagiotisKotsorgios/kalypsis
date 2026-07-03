@@ -27,6 +27,7 @@ import {
   Typography
 } from "@mui/material";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
+import { useDraftPersistence } from "../hooks/useDraftPersistence";
 import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
@@ -574,6 +575,7 @@ function PolicyFormDialog({
   onSaved: () => void;
 }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const editing = !!policy;
 
   const customersQuery = useQuery({
@@ -602,6 +604,12 @@ function PolicyFormDialog({
   });
   const [error, setError] = useState<string | null>(null);
   const dialogCatalogue = useCarrierCatalogue(form.insuranceCompanyId);
+  // Auto-save the new-policy draft to localStorage so a lost tab or
+  // accidental close leaves the operator right where they were. Only
+  // active for CREATE (editing an existing policy shouldn't accidentally
+  // overwrite a stashed draft from a different day).
+  const { clearDraft, hasDraft } = useDraftPersistence<FormBody>(
+    "policy-new", user?.userId ?? null, form, setForm, open && !editing);
 
   useEffect(() => {
     if (policy) {
@@ -656,7 +664,7 @@ function PolicyFormDialog({
         return (await api.post<PolicyDto>("/policies", { ...form, ...body, customerId: form.customerId })).data;
       }
     },
-    onSuccess: onSaved,
+    onSuccess: () => { clearDraft(); onSaved(); },
     onError: (err) => setError(extractErrorMessage(err))
   });
 
@@ -674,6 +682,13 @@ function PolicyFormDialog({
       <DialogTitle>{editing ? t("policies.form.editTitle") : t("policies.form.createTitle")}</DialogTitle>
       <DialogContent>
         {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
+        {!editing && hasDraft && (
+          <Alert severity="info" sx={{ mb: 2 }} action={
+            <Button size="small" onClick={() => { clearDraft(); window.location.reload(); }}>Καθαρισμός</Button>
+          }>
+            Επαναφέραμε τα δεδομένα από την προηγούμενη σύνοδο.
+          </Alert>
+        )}
         <Stack spacing={2.5} mt={1}>
           <SearchableSelect
             label={t("policies.form.customer")}

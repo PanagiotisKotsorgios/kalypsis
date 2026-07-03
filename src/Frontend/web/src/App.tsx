@@ -41,6 +41,7 @@ import { useAuth, type Role } from "./auth/AuthContext";
 import { useImpersonation } from "./impersonation/ImpersonationContext";
 import { type NavItem } from "./components/AppLayout";
 import { AppShell } from "./components/AppShell";
+import { GlobalKeyboardShortcuts } from "./components/GlobalKeyboardShortcuts";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { CookieBanner } from "./components/CookieBanner";
 import { UserImpersonationBanner } from "./components/UserImpersonationBanner";
@@ -444,6 +445,7 @@ export default function App() {
             <ProtectedRoute>
               {isGated ? <UnderMaintenancePage title={maintenance.launchGateTitle} message={maintenance.launchGateMessage} /> : (
               <AppShell navItems={effectiveRole ? navByRole[effectiveRole] : []} role={effectiveRole}>
+                <GlobalKeyboardShortcuts />
                 <Routes>
                   {/* Agency users land on the Workspace Hub; other roles keep their dashboard. */}
                   <Route index element={

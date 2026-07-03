@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Chip, CircularProgress, Divider, Drawer, IconButton, MenuItem,
+  Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
+  Divider, Drawer, IconButton, MenuItem,
   Stack, Switch, Tab, Tabs, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
@@ -965,12 +966,23 @@ function PolicyCoversTabInner({ policyId }: { policyId: string }) {
   const totalGross = rows.reduce((s, c) => s + c.grossPremium, 0);
   const totalNet   = rows.reduce((s, c) => s + c.netPremium, 0);
 
+  const [bulkOpen, setBulkOpen] = useState(false);
   return (
     <Stack spacing={2}>
       <Stack direction="row" alignItems="center" spacing={1}>
         <Typography variant="overline" color="text.secondary" fontWeight={700}>Καλύψεις</Typography>
         <Chip size="small" label={`${rows.length}`} sx={{ height: 20, fontSize: 11 }} />
+        <Box sx={{ flex: 1 }} />
+        <Button size="small" variant="text" onClick={() => setBulkOpen(true)}>
+          Μαζική εισαγωγή CSV
+        </Button>
       </Stack>
+      <BulkCoversImportDialog
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        policyId={policyId}
+        onImported={() => { setBulkOpen(false); invalidate(); }}
+      />
       {q.isLoading ? <CircularProgress size={20} /> : (
         <Box sx={{ overflowX: "auto" }}>
           <Table size="small">
@@ -1082,6 +1094,106 @@ function PolicyCoversTabInner({ policyId }: { policyId: string }) {
         Ποσοστά που αφήνετε κενά κληρονομούνται από τον κανόνα προμηθειών.
       </Typography>
     </Stack>
+  );
+}
+
+/**
+ * CSV-paste bulk import for policy covers. Accepts the shape:
+ *   coverCode,coverName,grossPremium,netPremium,coverageAmount,commissionPercent,agencyCommissionPercent
+ * one row per line. Empty fields → null. First line optionally a header.
+ * "Αντικατάσταση υπαρχόντων" checkbox flips the ReplaceExisting server flag
+ * so existing covers with the same code get UPDATED instead of duplicated.
+ */
+function BulkCoversImportDialog({
+  open, onClose, policyId, onImported
+}: {
+  open: boolean; onClose: () => void; policyId: string; onImported: () => void;
+}) {
+  const [csv, setCsv] = useState("");
+  const [replaceExisting, setReplaceExisting] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [result, setResult] = useState<{ created: number; updatedExisting: number; skipped: number } | null>(null);
+
+  const parsed = useMemo(() => {
+    const lines = csv.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+    const rows: any[] = [];
+    for (const line of lines) {
+      const parts = line.split(",").map(p => p.trim());
+      if (parts.length < 3) continue;
+      // Skip a header line if the first cell isn't a code-like token.
+      if (rows.length === 0 && /coverCode|Κωδικός/i.test(parts[0])) continue;
+      const num = (s: string): number | null => {
+        if (!s) return null;
+        const n = Number(s.replace(",", "."));
+        return isNaN(n) ? null : n;
+      };
+      rows.push({
+        coverCode: parts[0],
+        coverName: parts[1] || null,
+        grossPremium: num(parts[2]) ?? 0,
+        netPremium: num(parts[3] ?? "") ?? 0,
+        coverageAmount: num(parts[4] ?? ""),
+        commissionPercent: num(parts[5] ?? ""),
+        agencyCommissionPercent: num(parts[6] ?? ""),
+      });
+    }
+    return rows;
+  }, [csv]);
+
+  const importMut = useMutation({
+    mutationFn: async () => (await api.post<{ created: number; updatedExisting: number; skipped: number }>(
+      `/policies/${policyId}/covers/bulk-import`,
+      { rows: parsed, replaceExisting })).data,
+    onSuccess: (r) => setResult(r),
+    onError: (e) => setErr(extractErrorMessage(e))
+  });
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+      <DialogTitle sx={{ fontWeight: 800 }}>Μαζική εισαγωγή καλύψεων</DialogTitle>
+      <DialogContent>
+        {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+        {result && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            Ολοκληρώθηκε: {result.created} νέες, {result.updatedExisting} ενημερώθηκαν,
+            {" "}{result.skipped} παραλείφθηκαν.
+          </Alert>
+        )}
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+          Μία κάλυψη ανά γραμμή, τιμές χωρισμένες με κόμμα:
+          <br />
+          <code>κωδικός,όνομα,μεικτά,καθαρά,κεφάλαιο,%συν.,%γρ.</code>
+          <br />
+          Παράδειγμα: <code>MTPL,Αστική ευθύνη,240.50,220.00,,15,0</code>
+        </Typography>
+        <TextField
+          fullWidth multiline minRows={8}
+          placeholder="MTPL,Αστική ευθύνη,240.50,220.00,,15,0"
+          value={csv} onChange={(e) => setCsv(e.target.value)}
+          sx={{ fontFamily: "monospace" }}
+        />
+        <Stack direction="row" alignItems="center" spacing={2} sx={{ mt: 2 }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Switch checked={replaceExisting} onChange={(e) => setReplaceExisting(e.target.checked)} />
+            <Typography variant="body2">Αντικατάσταση υπαρχόντων με ίδιο κωδικό</Typography>
+          </Stack>
+          <Box sx={{ flex: 1 }} />
+          <Chip label={`${parsed.length} γραμμές έτοιμες`} size="small"
+            color={parsed.length > 0 ? "primary" : "default"} sx={{ fontWeight: 700 }} />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => { setCsv(""); setResult(null); onClose(); }}>Κλείσιμο</Button>
+        <Button variant="contained"
+          disabled={parsed.length === 0 || importMut.isPending}
+          onClick={() => { setErr(null); setResult(null); importMut.mutate(); }}>
+          {importMut.isPending ? <CircularProgress size={18} /> : `Εισαγωγή (${parsed.length})`}
+        </Button>
+        {result && (
+          <Button variant="text" onClick={() => { onImported(); }}>Ανανέωση καλύψεων</Button>
+        )}
+      </DialogActions>
+    </Dialog>
   );
 }
 

@@ -227,6 +227,73 @@ public class PolicyExtensionsController : ControllerBase
             audit.Reason, audit.CreatedAt));
     }
 
+    public record BulkCoverRow(string CoverCode, string? CoverName,
+        decimal GrossPremium, decimal NetPremium,
+        decimal? CoverageAmount, decimal? CommissionPercent, decimal? AgencyCommissionPercent);
+    public record BulkCoverImportBody(IReadOnlyList<BulkCoverRow> Rows, bool ReplaceExisting);
+    public record BulkCoverImportResult(int Created, int UpdatedExisting, int Skipped);
+
+    /// <summary>
+    /// Batch import of PolicyCover rows for a single policy — typically fed
+    /// by a CSV/XLSX paste from a carrier file that the bridge doesn't parse.
+    /// When ReplaceExisting is true, matching CoverCode rows on the policy
+    /// are updated in place instead of duplicated. All amounts are recognised
+    /// in Policy.Currency; conversion is a caller-side concern.
+    /// </summary>
+    [HttpPost("covers/bulk-import")]
+    public async Task<ActionResult<BulkCoverImportResult>> BulkImportCovers(
+        Guid policyId, [FromBody] BulkCoverImportBody body, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var policy = await _db.Policies.FirstOrDefaultAsync(
+            p => p.Id == policyId && p.TenantId == tenantId && p.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Συμβόλαιο");
+
+        var existing = await _db.PolicyCovers
+            .Where(c => c.PolicyId == policyId && c.TenantId == tenantId && c.DeletedAt == null)
+            .ToListAsync(ct);
+        var existingByCode = existing.GroupBy(c => c.CoverCode, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        int created = 0, updated = 0, skipped = 0;
+        foreach (var r in body.Rows)
+        {
+            var code = (r.CoverCode ?? "").Trim().ToUpperInvariant();
+            if (string.IsNullOrEmpty(code)) { skipped++; continue; }
+
+            if (body.ReplaceExisting && existingByCode.TryGetValue(code, out var current))
+            {
+                current.CoverName = r.CoverName?.Trim() ?? current.CoverName;
+                current.GrossPremium = r.GrossPremium;
+                current.NetPremium = r.NetPremium;
+                current.CoverageAmount = r.CoverageAmount;
+                current.CommissionPercent = r.CommissionPercent;
+                current.AgencyCommissionPercent = r.AgencyCommissionPercent;
+                current.UpdatedAt = _clock.UtcNow;
+                updated++;
+                continue;
+            }
+            _db.PolicyCovers.Add(new PolicyCover
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                PolicyId = policyId,
+                CoverCode = code,
+                CoverName = r.CoverName?.Trim(),
+                GrossPremium = r.GrossPremium,
+                NetPremium = r.NetPremium,
+                CoverageAmount = r.CoverageAmount,
+                CommissionPercent = r.CommissionPercent,
+                AgencyCommissionPercent = r.AgencyCommissionPercent,
+                CreatedAt = _clock.UtcNow
+            });
+            created++;
+        }
+        await _db.SaveChangesAsync(ct);
+        await SyncPolicyPremiumFromCoversAsync(tenantId, policyId, ct);
+        return Ok(new BulkCoverImportResult(created, updated, skipped));
+    }
+
     /// <summary>Full history of bridge-triggered % adjustments on a policy.</summary>
     [HttpGet("cover-adjustments")]
     public async Task<ActionResult<IReadOnlyList<CoverAdjustmentDto>>> ListCoverAdjustments(

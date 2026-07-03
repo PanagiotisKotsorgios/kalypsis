@@ -22,6 +22,16 @@ public class CommissionRulesController : ControllerBase
     public async Task<ActionResult<CommissionRuleDto>> Create([FromBody] CommissionRuleBody body, CancellationToken ct)
         => Ok(await _mediator.Send(new CreateCommissionRuleCommand(body), ct));
 
+    /// <summary>
+    /// Preview the impact of a proposed rule BEFORE saving — how many active
+    /// policies it would apply to and what the resulting annual commission
+    /// would be at the proposed percentages.
+    /// </summary>
+    [HttpPost("preview")]
+    public async Task<ActionResult<CommissionRulePreviewDto>> Preview(
+        [FromBody] CommissionRuleBody body, CancellationToken ct)
+        => Ok(await _mediator.Send(new PreviewCommissionRuleQuery(body), ct));
+
     [HttpPost("batch")]
     [Authorize(Policy = "AgencyAdmin")]
     public async Task<ActionResult<CommissionRuleBatchResult>> UpsertBatch([FromBody] CommissionRuleBatchBody body, CancellationToken ct)

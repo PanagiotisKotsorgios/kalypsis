@@ -888,6 +888,7 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
             <Typography variant="body2" color="text.secondary">
               Θα αποθηκευτούν {combos} συνδυασμοί. Υπάρχοντες ίδιοι συνδυασμοί ενημερώνονται αυτόματα.
             </Typography>
+            <RuleImpactPreview form={form} />
           </Card>
         </Stack>
       </DialogContent>
@@ -902,5 +903,83 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         </Button>
       </DialogActions>
     </Dialog>
+  );
+}
+
+interface PreviewResult {
+  matchingPolicyCount: number;
+  totalMatchingPremium: number;
+  estimatedAgencyCommission: number;
+  estimatedProducerCommission: number;
+  warningMessage: string | null;
+}
+
+/**
+ * Live-preview panel on the rule-creation form. Debounces the form state and
+ * asks the backend to score it against actual policies from the last 12
+ * months — so before saving, the operator sees «θα εφαρμοστεί σε 132
+ * συμβόλαια · €48.500 ετήσια προμήθεια · €7.275 συνεργάτης» with a warning
+ * chip when the numbers look off (0 matches, oversized batch, producer >
+ * agency %). Preview uses the FIRST branch/use/cover combination the user
+ * ticked so we don't fire N queries per keystroke.
+ */
+function RuleImpactPreview({ form }: { form: any }) {
+  const firstBranch = form.branches[0];
+  const firstUse = form.uses[0];
+  const firstCover: string | null = form.coverCodes[0] ?? null;
+  const enabled = form.agencyPercent !== undefined || form.producerPercent !== undefined;
+
+  const body = useMemo(() => ({
+    producerId: form.scope === "producer" ? (form.producerId || null) : null,
+    producerTier: form.scope === "tier" ? form.producerTier : null,
+    insuranceCompanyId: form.insuranceCompanyId || null,
+    policyType: firstBranch?.policyType ?? null,
+    coverCode: firstCover,
+    vehicleUseCategory: firstUse?.vehicleUseCategory ?? null,
+    agencyPercent: form.agencyPercent ?? 0,
+    producerPercent: form.producerPercent ?? 0,
+    effectiveFrom: form.effectiveFrom,
+    effectiveTo: form.effectiveTo || null,
+  }), [form.scope, form.producerId, form.producerTier, form.insuranceCompanyId,
+       firstBranch?.policyType, firstCover, firstUse?.vehicleUseCategory,
+       form.agencyPercent, form.producerPercent, form.effectiveFrom, form.effectiveTo]);
+
+  const q = useQuery<PreviewResult>({
+    queryKey: ["commission-rule-preview", JSON.stringify(body)],
+    queryFn: async () => (await api.post<PreviewResult>("/commission-rules/preview", body)).data,
+    enabled,
+    staleTime: 30_000,
+  });
+
+  if (!enabled) return null;
+  if (q.isLoading) {
+    return (
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1.5 }}>
+        <CircularProgress size={14} />
+        <Typography variant="caption" color="text.secondary">Υπολογισμός επίπτωσης…</Typography>
+      </Stack>
+    );
+  }
+  if (!q.data) return null;
+  const p = q.data;
+  return (
+    <Stack spacing={0.5} sx={{ mt: 1.5, borderTop: "1px dashed", borderColor: "divider", pt: 1 }}>
+      <Stack direction="row" spacing={2} flexWrap="wrap">
+        <Chip size="small" label={`${p.matchingPolicyCount} συμβόλαια σε 12 μήνες`}
+          color={p.matchingPolicyCount === 0 ? "default" : "primary"} sx={{ fontWeight: 700 }} />
+        <Chip size="small" variant="outlined"
+          label={`Ασφάλιστρα: €${p.totalMatchingPremium.toFixed(0)}`} />
+        <Chip size="small" variant="outlined" color="success"
+          label={`Προμήθεια γρ.: €${p.estimatedAgencyCommission.toFixed(0)}`} />
+        <Chip size="small" variant="outlined" color="info"
+          label={`Προμήθεια συν.: €${p.estimatedProducerCommission.toFixed(0)}`} />
+      </Stack>
+      {p.warningMessage && (
+        <Typography variant="caption" color="warning.main">{p.warningMessage}</Typography>
+      )}
+      <Typography variant="caption" color="text.disabled">
+        Εκτίμηση βασισμένη στα τελευταία 12 μήνες, στον πρώτο συνδυασμό κλάδου/χρήσης/κάλυψης.
+      </Typography>
+    </Stack>
   );
 }
