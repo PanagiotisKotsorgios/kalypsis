@@ -21,6 +21,17 @@ public class ProducersController : ControllerBase
     public async Task<ActionResult<ProducerDetailDto>> Detail(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetProducerDetailQuery(id), ct));
 
+    /// <summary>KPI snapshot for a producer + month — powers the drawer
+    /// «Monthly snapshot» card and the auto-mailer template.</summary>
+    [HttpGet("{id:guid}/monthly-snapshot")]
+    public async Task<ActionResult<ProducerMonthlySnapshotDto>> MonthlySnapshot(
+        Guid id, [FromQuery] int? year, [FromQuery] int? month, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        return Ok(await _mediator.Send(
+            new GetProducerMonthlySnapshotQuery(id, year ?? now.Year, month ?? now.Month), ct));
+    }
+
     // Customers reachable through this producer (via Policy.ProducerId). Aggregated
     // one row per customer with policy count + total premium for quick triage.
     [HttpGet("{id:guid}/customers")]

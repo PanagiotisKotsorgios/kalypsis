@@ -53,6 +53,8 @@ public class ListCustomersQueryHandler : IRequestHandler<ListCustomersQuery, IRe
                 EF.Functions.Like(c.CompanyName ?? "", s) ||
                 EF.Functions.Like(c.Email ?? "", s) ||
                 EF.Functions.Like(c.Phone ?? "", s) ||
+                EF.Functions.Like(c.MobilePhone ?? "", s) ||
+                EF.Functions.Like(c.AltPhone ?? "", s) ||
                 EF.Functions.Like(c.VatNumber ?? "", s) ||
                 EF.Functions.Like(c.CustomerNumber, s));
         }

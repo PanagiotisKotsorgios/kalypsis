@@ -291,33 +291,93 @@ function CustomerPoliciesTab({ customerId }: { customerId: string }) {
   const rows = q.data ?? [];
   if (rows.length === 0) return <Alert severity="info">Δεν υπάρχουν συμβόλαια.</Alert>;
   return (
-    <Card variant="outlined">
-      <Table size="small">
-        <TableHead><TableRow>
-          <TableCell>Αρ.Συμβ.</TableCell>
-          <TableCell>Εταιρία</TableCell>
-          <TableCell>Κλάδος</TableCell>
-          <TableCell>Έναρξη → Λήξη</TableCell>
-          <TableCell align="right">Ασφάλιστρο</TableCell>
-          <TableCell>Κατάσταση</TableCell>
-          <TableCell />
-        </TableRow></TableHead>
-        <TableBody>
-          {rows.map(p => (
-            <TableRow key={p.id} hover>
-              <TableCell sx={{ fontFamily: "monospace" }}>{p.policyNumber}</TableCell>
-              <TableCell>{p.insuranceCompanyName}</TableCell>
-              <TableCell>{p.policyType}</TableCell>
-              <TableCell>{p.startDate} → {p.endDate}</TableCell>
-              <TableCell align="right">{p.premium.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {p.currency}</TableCell>
-              <TableCell><Chip size="small" label={p.status} /></TableCell>
-              <TableCell>
-                <Button size="small" component={RouterLink} to={`/app/policies?focus=${p.id}`}>Προβολή</Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <Stack spacing={3}>
+      <RenewalTimeline policies={rows} />
+      <Card variant="outlined">
+        <Table size="small">
+          <TableHead><TableRow>
+            <TableCell>Αρ.Συμβ.</TableCell>
+            <TableCell>Εταιρία</TableCell>
+            <TableCell>Κλάδος</TableCell>
+            <TableCell>Έναρξη → Λήξη</TableCell>
+            <TableCell align="right">Ασφάλιστρο</TableCell>
+            <TableCell>Κατάσταση</TableCell>
+            <TableCell />
+          </TableRow></TableHead>
+          <TableBody>
+            {rows.map(p => (
+              <TableRow key={p.id} hover>
+                <TableCell sx={{ fontFamily: "monospace" }}>{p.policyNumber}</TableCell>
+                <TableCell>{p.insuranceCompanyName}</TableCell>
+                <TableCell>{p.policyType}</TableCell>
+                <TableCell>{p.startDate} → {p.endDate}</TableCell>
+                <TableCell align="right">{p.premium.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {p.currency}</TableCell>
+                <TableCell><Chip size="small" label={p.status} /></TableCell>
+                <TableCell>
+                  <Button size="small" component={RouterLink} to={`/app/policies?focus=${p.id}`}>Προβολή</Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+    </Stack>
+  );
+}
+
+interface TimelinePolicy {
+  id: string; policyNumber: string; insuranceCompanyName: string; policyType: string;
+  status: string; startDate: string; endDate: string; premium: number; currency: string;
+}
+
+/**
+ * Renewal timeline — a visual «what's coming up» strip for this customer's
+ * active policies, sorted by end date. Colour-codes each row by how many
+ * days remain: red < 30, orange < 90, green otherwise. Filters out
+ * Cancelled / Expired / Draft so the strip only shows things that need
+ * attention.
+ */
+function RenewalTimeline({ policies }: { policies: TimelinePolicy[] }) {
+  const now = new Date();
+  const upcoming = policies
+    .filter(p => p.status === "Active" || p.status === "PendingRenewal")
+    .map(p => {
+      const end = new Date(p.endDate);
+      const days = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      return { p, days, end };
+    })
+    .sort((a, b) => a.end.getTime() - b.end.getTime());
+  if (upcoming.length === 0) return null;
+  const colorFor = (days: number) =>
+    days < 30 ? "error" : days < 90 ? "warning" : "success";
+  return (
+    <Card variant="outlined" sx={{ p: 2 }}>
+      <Typography variant="overline" color="text.secondary" fontWeight={700}>
+        Χρονογραμμή ανανεώσεων
+      </Typography>
+      <Stack spacing={1} sx={{ mt: 1 }}>
+        {upcoming.map(({ p, days }) => {
+          const label = days < 0
+            ? `Έληξε πριν ${Math.abs(days)} μέρες`
+            : days === 0 ? "Λήγει σήμερα"
+            : `Σε ${days} μέρες`;
+          return (
+            <Stack key={p.id} direction="row" alignItems="center" spacing={1.5}
+              sx={{ p: 1, borderLeft: 4, borderColor: `${colorFor(days)}.main`, bgcolor: "background.default", borderRadius: 1 }}>
+              <Chip size="small" color={colorFor(days)} label={label} sx={{ fontWeight: 700, minWidth: 130 }} />
+              <Typography sx={{ fontFamily: "monospace" }}>{p.policyNumber}</Typography>
+              <Typography color="text.secondary" sx={{ flex: 1 }}>
+                {p.insuranceCompanyName} · {p.policyType}
+              </Typography>
+              <Typography sx={{ color: "text.secondary" }}>Λήξη: {p.endDate}</Typography>
+              <Typography sx={{ fontWeight: 700 }}>
+                {p.premium.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {p.currency}
+              </Typography>
+              <Button size="small" component={RouterLink} to={`/app/policies?focus=${p.id}`}>Άνοιγμα</Button>
+            </Stack>
+          );
+        })}
+      </Stack>
     </Card>
   );
 }

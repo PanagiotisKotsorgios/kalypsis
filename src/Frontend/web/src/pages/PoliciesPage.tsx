@@ -6,6 +6,7 @@ import {
   Box,
   Button,
   Card,
+  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
@@ -28,6 +29,7 @@ import {
 } from "@mui/material";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 import { useDraftPersistence } from "../hooks/useDraftPersistence";
+import { useCustomerSearch } from "../hooks/useCustomerSearch";
 import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
@@ -50,6 +52,7 @@ import { PolicyDeliveryPage } from "./PolicyDeliveryPage";
 import { GroupPoliciesPage } from "./GroupPoliciesPage";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { useUndoable } from "../components/UndoToast";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal";
@@ -72,6 +75,8 @@ interface PolicyDto {
   createdAt: string;
 }
 
+// Kept for typing; the picker now uses useCustomerSearch's own CustomerLite.
+// @ts-expect-error kept for backwards-compat with older imports
 interface CustomerLite {
   id: string;
   customerNumber: string;
@@ -162,13 +167,25 @@ export function PoliciesPage() {
   });
 
   const [blockers, setBlockers] = useState<{ kind: string; count: number; message: string }[] | null>(null);
+  // Bulk selection for multi-row updates. Only AgencyAdmin sees the checkbox
+  // column, so viewers can't accidentally select-and-mutate.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const { pushUndoable } = useUndoable();
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) =>
-      (await api.delete<{ deleted: boolean; blockers: { kind: string; count: number; message: string }[] }>(`/policies/${id}`)).data,
+    mutationFn: async (id: string) => {
+      const res = (await api.delete<{ deleted: boolean; blockers: { kind: string; count: number; message: string }[] }>(`/policies/${id}`)).data;
+      return { ...res, id };
+    },
     onSuccess: (res) => {
       if (!res.deleted) { setBlockers(res.blockers); return; }
       setBlockers(null);
       void qc.invalidateQueries({ queryKey: ["policies"] });
+      pushUndoable({
+        category: "policies", id: res.id,
+        message: "Το συμβόλαιο διαγράφηκε",
+        onRestore: () => { void qc.invalidateQueries({ queryKey: ["policies"] }); }
+      });
     },
     onError: (err) => setError(extractErrorMessage(err))
   });
@@ -392,10 +409,36 @@ export function PoliciesPage() {
               ]}
             />
           </Box>
+          {canEdit && selectedIds.size > 0 && (
+            <Box sx={{ p: 1.5, mb: 2, bgcolor: "primary.main", color: "primary.contrastText", borderRadius: 1,
+                display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+              <Typography fontWeight={700}>{selectedIds.size} επιλεγμένα συμβόλαια</Typography>
+              <Box sx={{ flex: 1 }} />
+              <Button variant="contained" color="secondary" onClick={() => setBulkOpen(true)}>
+                Μαζική αλλαγή…
+              </Button>
+              <Button color="inherit" onClick={() => setSelectedIds(new Set())}>Καθαρισμός</Button>
+            </Box>
+          )}
           <TableContainer>
             <Table>
               <TableHead>
                 <TableRow>
+                  {canEdit && (
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        size="small"
+                        checked={rows.length > 0 && rows.every(r => selectedIds.has(r.id))}
+                        indeterminate={rows.some(r => selectedIds.has(r.id)) && !rows.every(r => selectedIds.has(r.id))}
+                        onChange={(e) => {
+                          const next = new Set(selectedIds);
+                          if (e.target.checked) rows.forEach(r => next.add(r.id));
+                          else rows.forEach(r => next.delete(r.id));
+                          setSelectedIds(next);
+                        }}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell>{t("policies.col.number")}</TableCell>
                   <TableCell>{t("policies.col.type")}</TableCell>
                   {!isCustomer && <TableCell>{t("policies.col.customer")}</TableCell>}
@@ -413,10 +456,25 @@ export function PoliciesPage() {
                   return (
                     <TableRow key={p.id} hover sx={{ cursor: "pointer" }}
                       data-tour="policies-row"
+                      selected={selectedIds.has(p.id)}
                       onClick={(e) => {
-                        if ((e.target as HTMLElement).closest("button, a, .MuiIconButton-root")) return;
+                        if ((e.target as HTMLElement).closest("button, a, .MuiIconButton-root, .MuiCheckbox-root")) return;
                         setDetailId(p.id);
                       }}>
+                      {canEdit && (
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            size="small"
+                            checked={selectedIds.has(p.id)}
+                            onChange={(e) => {
+                              const next = new Set(selectedIds);
+                              if (e.target.checked) next.add(p.id); else next.delete(p.id);
+                              setSelectedIds(next);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell><Chip label={p.policyNumber} variant="outlined" size="small" /></TableCell>
                       <TableCell>{t(`policies.types.${p.policyType}`)}</TableCell>
                       {!isCustomer && <TableCell><Typography fontWeight={600}>{p.customerDisplay}</Typography></TableCell>}
@@ -516,6 +574,12 @@ export function PoliciesPage() {
             onClose={() => setRenewing(null)}
             onSaved={() => { void qc.invalidateQueries({ queryKey: ["policies"] }); setRenewing(null); }}
           />
+          <BulkEditDialog
+            open={bulkOpen}
+            onClose={() => setBulkOpen(false)}
+            selectedIds={Array.from(selectedIds)}
+            onDone={() => { void qc.invalidateQueries({ queryKey: ["policies"] }); setSelectedIds(new Set()); setBulkOpen(false); }}
+          />
         </>
       )}
 
@@ -578,11 +642,10 @@ function PolicyFormDialog({
   const { user } = useAuth();
   const editing = !!policy;
 
-  const customersQuery = useQuery({
-    queryKey: ["customers", "minimal"],
-    queryFn: async () => (await api.get<CustomerLite[]>("/customers")).data,
-    enabled: open
-  });
+  // Full server-side customer search (ΑΦΜ / κινητό / email / όνομα κ.λπ.) —
+  // no more «τα πρώτα 500» wall. See useCustomerSearch for the debounce +
+  // selected-customer inclusion logic.
+  const customerSearch = useCustomerSearch(null);
   const carriersQuery = useQuery({
     queryKey: ["insurance-companies-used"],
     queryFn: async () => (await api.get<CarrierDto[]>("/insurance-companies", { params: { onlyUsed: true } })).data,
@@ -668,14 +731,7 @@ function PolicyFormDialog({
     onError: (err) => setError(extractErrorMessage(err))
   });
 
-  const customerOptions = useMemo(() => {
-    return (customersQuery.data ?? []).map((c) => ({
-      id: c.id,
-      label: c.type === "Individual"
-        ? `${c.firstName ?? ""} ${c.lastName ?? ""} · ${c.customerNumber}`.trim()
-        : `${c.companyName} · ${c.customerNumber}`
-    }));
-  }, [customersQuery.data]);
+  // customer options come from useCustomerSearch (server-side filtered).
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -694,9 +750,10 @@ function PolicyFormDialog({
             label={t("policies.form.customer")}
             value={form.customerId}
             onChange={(v) => setForm({ ...form, customerId: v })}
+            onInputChange={customerSearch.setInput}
             required disabled={editing}
-            helperText={editing ? t("policies.form.customerLocked") : undefined}
-            options={customerOptions.map((c) => ({ value: c.id, label: c.label }))}
+            helperText={editing ? t("policies.form.customerLocked") : "Πληκτρολογήστε ΑΦΜ, όνομα, κινητό ή email"}
+            options={customerSearch.options}
           />
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -887,6 +944,98 @@ function RenewDialog({
         <Button variant="contained" startIcon={<AutorenewIcon />} onClick={() => mutation.mutate()} disabled={mutation.isPending}>
           {mutation.isPending ? <CircularProgress size={18} /> : t("policies.actions.renew")}
         </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+/**
+ * Bulk-edit dialog for the Policies table selection toolbar. Every field
+ * is optional — leaving a field empty keeps its existing value on each
+ * selected policy. Applies via POST /policies/bulk-update; the handler
+ * validates tenant scope and skips silently for any id that isn't
+ * touchable so a bad payload can't cross-tenant leak.
+ */
+function BulkEditDialog({
+  open, onClose, selectedIds, onDone
+}: {
+  open: boolean; onClose: () => void; selectedIds: string[]; onDone: () => void;
+}) {
+  const producersQ = useQuery({
+    queryKey: ["producers-for-bulk"],
+    queryFn: async () => (await api.get<{ id: string; name: string }[]>("/producers")).data,
+    enabled: open
+  });
+  const carriersQ = useQuery({
+    queryKey: ["insurance-companies-lite-used"],
+    queryFn: async () => (await api.get<CarrierDto[]>("/insurance-companies", { params: { onlyUsed: true } })).data,
+    enabled: open
+  });
+  const [producerId, setProducerId] = useState<string>("");
+  const [renewalToProducerId, setRenewalToProducerId] = useState<string>("");
+  const [renewalToCarrierId, setRenewalToCarrierId] = useState<string>("");
+  const [status, setStatus] = useState<string>("");
+  const [err, setErr] = useState<string | null>(null);
+  const [result, setResult] = useState<{ updatedCount: number; skippedCount: number } | null>(null);
+
+  const bulkMutation = useMutation({
+    mutationFn: async () => (await api.post<{ updatedCount: number; skippedCount: number }>(
+      "/policies/bulk-update", {
+        policyIds: selectedIds,
+        producerId: producerId || null,
+        renewalTransferToProducerId: renewalToProducerId || null,
+        renewalTransferToCarrierId: renewalToCarrierId || null,
+        status: status || null,
+        paymentCollectionMethod: null,
+      })).data,
+    onSuccess: setResult,
+    onError: (e) => setErr(extractErrorMessage(e))
+  });
+
+  const anyChange = producerId || renewalToProducerId || renewalToCarrierId || status;
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle sx={{ fontWeight: 800 }}>Μαζική αλλαγή σε {selectedIds.length} συμβόλαια</DialogTitle>
+      <DialogContent>
+        {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+        {result && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            Ενημερώθηκαν {result.updatedCount} συμβόλαια
+            {result.skippedCount > 0 ? `, ${result.skippedCount} παραλείφθηκαν` : ""}.
+          </Alert>
+        )}
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Πεδία που αφήνετε κενά δεν αλλάζουν στα επιλεγμένα συμβόλαια.
+        </Alert>
+        <Stack spacing={2}>
+          <SearchableSelect label="Νέος συνεργάτης" value={producerId} onChange={setProducerId}
+            emptyLabel="— δεν αλλάζει —"
+            options={(producersQ.data ?? []).map(p => ({ value: p.id, label: p.name }))} />
+          <SearchableSelect label="Μεταφορά ανανέωσης · Συνεργάτης" value={renewalToProducerId} onChange={setRenewalToProducerId}
+            emptyLabel="— δεν αλλάζει —"
+            options={(producersQ.data ?? []).map(p => ({ value: p.id, label: p.name }))} />
+          <SearchableSelect label="Μεταφορά ανανέωσης · Ασφαλιστική" value={renewalToCarrierId} onChange={setRenewalToCarrierId}
+            emptyLabel="— δεν αλλάζει —"
+            options={(carriersQ.data ?? []).filter(c => !c.parentCompanyId).map(c => ({ value: c.id, label: c.name }))} />
+          <SearchableSelect label="Κατάσταση" value={status} onChange={setStatus}
+            emptyLabel="— δεν αλλάζει —"
+            options={["Active", "Draft", "Expired", "Cancelled", "Renewed", "PendingRenewal"]
+              .map(s => ({ value: s, label: s }))} />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => { setResult(null); setErr(null); onClose(); }}>
+          {result ? "Κλείσιμο" : "Άκυρο"}
+        </Button>
+        {result ? (
+          <Button variant="contained" onClick={onDone}>Ανανέωση λίστας</Button>
+        ) : (
+          <Button variant="contained" onClick={() => bulkMutation.mutate()}
+            disabled={!anyChange || bulkMutation.isPending}>
+            {bulkMutation.isPending ? <CircularProgress size={18} /> : `Εφαρμογή σε ${selectedIds.length}`}
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

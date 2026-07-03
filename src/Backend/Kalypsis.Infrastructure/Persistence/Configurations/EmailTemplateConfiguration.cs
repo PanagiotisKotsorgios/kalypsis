@@ -15,6 +15,9 @@ public class EmailTemplateConfiguration : IEntityTypeConfiguration<EmailTemplate
         b.Property(x => x.Subject).HasMaxLength(300).IsRequired();
         b.Property(x => x.BodyHtml).IsRequired();
         b.Property(x => x.Language).HasMaxLength(8).IsRequired();
+        b.Property(x => x.PolicyTrigger).HasMaxLength(40);
+        b.Property(x => x.SmsBody).HasMaxLength(1000);
         b.HasIndex(x => new { x.TenantId, x.Code, x.Language }).IsUnique();
+        b.HasIndex(x => new { x.TenantId, x.PolicyTrigger });
     }
 }

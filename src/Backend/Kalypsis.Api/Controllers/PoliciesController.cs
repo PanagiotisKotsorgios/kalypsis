@@ -71,6 +71,18 @@ public class PoliciesController : ControllerBase
     public async Task<ActionResult<DeletePolicyResultDto>> Delete(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new DeletePolicyCommand(id), ct));
 
+    /// <summary>
+    /// Batch update: apply the same field changes to N selected policies in
+    /// one transaction. Null fields on the body are ignored (policies keep
+    /// their existing values). Used by the multi-select toolbar on the
+    /// Policies list.
+    /// </summary>
+    [HttpPost("bulk-update")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<BulkUpdatePoliciesResult>> BulkUpdate(
+        [FromBody] BulkUpdatePoliciesBody body, CancellationToken ct)
+        => Ok(await _mediator.Send(new BulkUpdatePoliciesCommand(body), ct));
+
     [HttpGet("{id:guid}/payment-summary")]
     public async Task<ActionResult<PolicyPaymentSummaryDto>> PaymentSummary(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetPolicyPaymentSummaryQuery(id), ct));

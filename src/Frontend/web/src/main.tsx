@@ -14,6 +14,7 @@ import { i18n } from "./i18n";
 import { AuthProvider } from "./auth/AuthContext";
 import { PackagesProvider } from "./auth/PackagesContext";
 import { PremiumProvider } from "./auth/PremiumContext";
+import { UndoProvider } from "./components/UndoToast";
 import { WorkspaceProvider } from "./auth/WorkspaceContext";
 import { MaintenanceProvider } from "./auth/MaintenanceContext";
 import { ImpersonationProvider } from "./impersonation/ImpersonationContext";
@@ -51,9 +52,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
                   <PremiumProvider>
                     <WorkspaceProvider>
                       <ImpersonationProvider>
-                        <BrowserRouter>
-                          <App />
-                        </BrowserRouter>
+                        <UndoProvider>
+                          <BrowserRouter>
+                            <App />
+                          </BrowserRouter>
+                        </UndoProvider>
                       </ImpersonationProvider>
                     </WorkspaceProvider>
                   </PremiumProvider>

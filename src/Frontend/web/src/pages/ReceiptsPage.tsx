@@ -15,6 +15,7 @@ import { useTableState } from "../components/useTableState";
 import { NumberedPager } from "../components/TableToolbar";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { useUndoable } from "../components/UndoToast";
 
 const METHODS = ["Cash","Card","BankTransfer","Cheque","PromissoryNote","Other"] as const;
 type Method = typeof METHODS[number];
@@ -84,9 +85,17 @@ export function ReceiptsPage() {
     queryKey: ["receipts"],
     queryFn: async () => (await api.get<ReceiptDto[]>("/receipts")).data
   });
+  const { pushUndoable } = useUndoable();
   const del = useMutation({
-    mutationFn: async (id: string) => api.delete(`/receipts/${id}`),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["receipts"] }),
+    mutationFn: async (id: string) => { await api.delete(`/receipts/${id}`); return id; },
+    onSuccess: (id) => {
+      void qc.invalidateQueries({ queryKey: ["receipts"] });
+      pushUndoable({
+        category: "receipts", id,
+        message: "Η είσπραξη διαγράφηκε",
+        onRestore: () => { void qc.invalidateQueries({ queryKey: ["receipts"] }); }
+      });
+    },
     onError: e => setErr(extractErrorMessage(e))
   });
 

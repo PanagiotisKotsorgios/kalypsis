@@ -465,6 +465,14 @@ public static class DataSeeder
             table: "policies", column: "PaymentCollectionMethod",
             addSql: "ALTER TABLE `policies` ADD COLUMN `PaymentCollectionMethod` varchar(64) NULL", ct);
 
+        // email_templates: policy-trigger + SMS body columns
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "email_templates", column: "PolicyTrigger",
+            addSql: "ALTER TABLE `email_templates` ADD COLUMN `PolicyTrigger` varchar(40) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "email_templates", column: "SmsBody",
+            addSql: "ALTER TABLE `email_templates` ADD COLUMN `SmsBody` varchar(1000) NULL", ct);
+
         // policies: VAT / tax breakdown columns (Καθαρό, ΦΠΑ, χαρτόσημο, etc.)
         await EnsureColumnAsync(db, logger, dbName,
             table: "policies", column: "NetPremium",
