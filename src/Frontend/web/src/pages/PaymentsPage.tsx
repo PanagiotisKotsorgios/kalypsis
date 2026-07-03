@@ -13,6 +13,8 @@ import { DataExportButton } from "../components/DataExportButton";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { money, date } from "../utils/format";
+import { useColumnPreferences } from "../hooks/useColumnPreferences";
+import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 
 const METHODS = ["Cash","Card","BankTransfer","Cheque","PromissoryNote","Other"] as const;
 type Method = typeof METHODS[number];
@@ -77,6 +79,17 @@ export function PaymentsPage() {
 
   const total  = filteredRows.reduce((s, p) => s + p.amount, 0);
   const netted = filteredRows.reduce((s, p) => s + p.commissionsNetted, 0);
+  const paymentCols = useColumnPreferences("payments", [
+    { key: "number",      label: "Αριθμός πληρωμής", alwaysVisible: true },
+    { key: "date",        label: "Ημερομηνία" },
+    { key: "beneficiary", label: "Δικαιούχος" },
+    { key: "status",      label: "Κατάσταση" },
+    { key: "method",      label: "Τρόπος" },
+    { key: "policy",      label: "Συμβόλαιο", defaultVisible: false },
+    { key: "txRef",       label: "Αναφορά συναλλαγής", defaultVisible: false },
+    { key: "amount",      label: "Ποσό" },
+    { key: "netted",      label: "Συμψηφισμός" },
+  ]);
   const cashOutTotal = filteredRows.reduce((s, p) => s + (p.amount - p.commissionsNetted), 0);
 
   return (
@@ -127,36 +140,65 @@ export function PaymentsPage() {
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
             <TableHead><TableRow>
-              <TableCell>{t("payments.number")}</TableCell>
-              <TableCell>{t("payments.date")}</TableCell>
-              <TableCell>{t("payments.beneficiary")}</TableCell>
-              <TableCell>Κατάσταση</TableCell>
-              <TableCell>{t("payments.method")}</TableCell>
-              <TableCell align="right">{t("payments.amount")}</TableCell>
-              <TableCell align="right">{t("payments.netted")}</TableCell>
-              <TableCell align="right" />
+              {paymentCols.visibleColumns.map(c => (
+                <TableCell key={c.key} align={c.key === "amount" || c.key === "netted" ? "right" : "left"}>
+                  {c.label}
+                </TableCell>
+              ))}
+              <TableCell align="right" padding="checkbox">
+                <ColumnPreferencesButton
+                  orderedColumns={paymentCols.orderedColumns}
+                  hiddenSet={paymentCols.hiddenSet}
+                  toggleVisibility={paymentCols.toggleVisibility}
+                  moveColumn={paymentCols.moveColumn}
+                  reset={paymentCols.reset}
+                />
+              </TableCell>
             </TableRow></TableHead>
             <TableBody>
               {filteredRows.length === 0 && (
-                <TableRow><TableCell colSpan={8} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("payments.empty")}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={paymentCols.visibleColumns.length + 1} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("payments.empty")}</TableCell></TableRow>
               )}
               {filteredRows.map(p => {
                 const cashOut = p.amount - p.commissionsNetted;
                 const fullyNetted = p.amount > 0 && p.commissionsNetted >= p.amount;
                 return (
                 <TableRow key={p.id} hover>
-                  <TableCell><Typography fontWeight={700} sx={{ fontFamily: "monospace" }}>{p.number}</Typography></TableCell>
-                  <TableCell>{date(p.paidOn)}</TableCell>
-                  <TableCell>{p.beneficiaryInsuranceCompanyName ?? p.beneficiaryProducerName ?? p.beneficiaryName ?? "—"} <Typography variant="caption" color="text.secondary"> · {t(`payments.benType.${p.beneficiaryType}`)}</Typography></TableCell>
-                  <TableCell>
-                    <Chip size="small"
-                      color={fullyNetted ? "success" : cashOut === 0 ? "info" : "warning"}
-                      label={fullyNetted ? "Πλήρης συμψηφισμός" : cashOut === 0 ? "Συμψηφισμένο" : "Εκκρεμεί καταβολή"}
-                      sx={{ fontWeight: 700 }} />
-                  </TableCell>
-                  <TableCell>{t(`paymentMethod.${p.method}`)}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{money(p.amount, p.currency)}</TableCell>
-                  <TableCell align="right" sx={{ color: "text.secondary" }}>{money(p.commissionsNetted)}</TableCell>
+                  {paymentCols.visibleColumns.map(c => {
+                    switch (c.key) {
+                      case "number":
+                        return <TableCell key={c.key}><Typography fontWeight={700} sx={{ fontFamily: "monospace" }}>{p.number}</Typography></TableCell>;
+                      case "date":
+                        return <TableCell key={c.key}>{date(p.paidOn)}</TableCell>;
+                      case "beneficiary":
+                        return (
+                          <TableCell key={c.key}>
+                            {p.beneficiaryInsuranceCompanyName ?? p.beneficiaryProducerName ?? p.beneficiaryName ?? "—"}
+                            <Typography variant="caption" color="text.secondary"> · {t(`payments.benType.${p.beneficiaryType}`)}</Typography>
+                          </TableCell>
+                        );
+                      case "status":
+                        return (
+                          <TableCell key={c.key}>
+                            <Chip size="small"
+                              color={fullyNetted ? "success" : cashOut === 0 ? "info" : "warning"}
+                              label={fullyNetted ? "Πλήρης συμψηφισμός" : cashOut === 0 ? "Συμψηφισμένο" : "Εκκρεμεί καταβολή"}
+                              sx={{ fontWeight: 700 }} />
+                          </TableCell>
+                        );
+                      case "method":
+                        return <TableCell key={c.key}>{t(`paymentMethod.${p.method}`)}</TableCell>;
+                      case "policy":
+                        return <TableCell key={c.key}>{p.policyNumber ?? "—"}</TableCell>;
+                      case "txRef":
+                        return <TableCell key={c.key} sx={{ fontFamily: "monospace", fontSize: 12 }}>{p.transactionReference ?? "—"}</TableCell>;
+                      case "amount":
+                        return <TableCell key={c.key} align="right" sx={{ fontWeight: 700 }}>{money(p.amount, p.currency)}</TableCell>;
+                      case "netted":
+                        return <TableCell key={c.key} align="right" sx={{ color: "text.secondary" }}>{money(p.commissionsNetted)}</TableCell>;
+                      default: return <TableCell key={c.key}>—</TableCell>;
+                    }
+                  })}
                   <TableCell align="right">
                     <IconButton size="small" color="error" onClick={() => { if (confirm(t("common.confirmDelete"))) del.mutate(p.id); }}>
                       <DeleteIcon fontSize="small" />

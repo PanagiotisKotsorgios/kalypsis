@@ -16,6 +16,8 @@ import { NumberedPager } from "../components/TableToolbar";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { useUndoable } from "../components/UndoToast";
+import { useColumnPreferences } from "../hooks/useColumnPreferences";
+import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 
 const METHODS = ["Cash","Card","BankTransfer","Cheque","PromissoryNote","Other"] as const;
 type Method = typeof METHODS[number];
@@ -117,6 +119,16 @@ export function ReceiptsPage() {
     pageSize: 25
   });
   const rows = table.paged;
+  const receiptCols = useColumnPreferences("receipts", [
+    { key: "number",   label: "Αριθμός απόδειξης", alwaysVisible: true },
+    { key: "date",     label: "Ημερομηνία" },
+    { key: "customer", label: "Πελάτης" },
+    { key: "policy",   label: "Συμβόλαιο" },
+    { key: "policyStatus", label: "Κατάσταση συμβολαίου" },
+    { key: "method",   label: "Τρόπος" },
+    { key: "txRef",    label: "Αναφορά συναλλαγής", defaultVisible: false },
+    { key: "amount",   label: "Ποσό" },
+  ]);
   const total = filtered.reduce((s, r) => s + r.amount, 0);
 
   useEffect(() => { table.setQuery(search); }, [search, table]);
@@ -169,28 +181,46 @@ export function ReceiptsPage() {
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
             <TableHead><TableRow>
-              <TableCell>{t("receipts.number")}</TableCell>
-              <TableCell>{t("receipts.date")}</TableCell>
-              <TableCell>{t("receipts.customer")}</TableCell>
-              <TableCell>{t("receipts.policy")}</TableCell>
-              <TableCell>Κατάσταση συμβολαίου</TableCell>
-              <TableCell>{t("receipts.method")}</TableCell>
-              <TableCell align="right">{t("receipts.amount")}</TableCell>
-              <TableCell align="right" />
+              {receiptCols.visibleColumns.map(c => (
+                <TableCell key={c.key} align={c.key === "amount" ? "right" : "left"}>{c.label}</TableCell>
+              ))}
+              <TableCell align="right" padding="checkbox">
+                <ColumnPreferencesButton
+                  orderedColumns={receiptCols.orderedColumns}
+                  hiddenSet={receiptCols.hiddenSet}
+                  toggleVisibility={receiptCols.toggleVisibility}
+                  moveColumn={receiptCols.moveColumn}
+                  reset={receiptCols.reset}
+                />
+              </TableCell>
             </TableRow></TableHead>
             <TableBody>
               {rows.length === 0 && (
-                <TableRow><TableCell colSpan={8} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("receipts.empty")}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={receiptCols.visibleColumns.length + 1} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("receipts.empty")}</TableCell></TableRow>
               )}
               {rows.map(r => (
                 <TableRow key={r.id} hover>
-                  <TableCell><Typography fontWeight={700} sx={{ fontFamily: "monospace" }}>{r.number}</Typography></TableCell>
-                  <TableCell>{date(r.receivedOn)}</TableCell>
-                  <TableCell>{r.customerName}</TableCell>
-                  <TableCell>{r.policyNumber ?? "—"}</TableCell>
-                  <TableCell><PaidChip policyId={r.policyId} /></TableCell>
-                  <TableCell>{t(`paymentMethod.${r.method}`)}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{money(r.amount, r.currency)}</TableCell>
+                  {receiptCols.visibleColumns.map(c => {
+                    switch (c.key) {
+                      case "number":
+                        return <TableCell key={c.key}><Typography fontWeight={700} sx={{ fontFamily: "monospace" }}>{r.number}</Typography></TableCell>;
+                      case "date":
+                        return <TableCell key={c.key}>{date(r.receivedOn)}</TableCell>;
+                      case "customer":
+                        return <TableCell key={c.key}>{r.customerName}</TableCell>;
+                      case "policy":
+                        return <TableCell key={c.key}>{r.policyNumber ?? "—"}</TableCell>;
+                      case "policyStatus":
+                        return <TableCell key={c.key}><PaidChip policyId={r.policyId} /></TableCell>;
+                      case "method":
+                        return <TableCell key={c.key}>{t(`paymentMethod.${r.method}`)}</TableCell>;
+                      case "txRef":
+                        return <TableCell key={c.key} sx={{ fontFamily: "monospace", fontSize: 12 }}>{r.transactionReference ?? "—"}</TableCell>;
+                      case "amount":
+                        return <TableCell key={c.key} align="right" sx={{ fontWeight: 700 }}>{money(r.amount, r.currency)}</TableCell>;
+                      default: return <TableCell key={c.key}>—</TableCell>;
+                    }
+                  })}
                   <TableCell align="right">
                     <IconButton size="small" color="error" onClick={() => { if (confirm(t("common.confirmDelete"))) del.mutate(r.id); }}>
                       <DeleteIcon fontSize="small" />
