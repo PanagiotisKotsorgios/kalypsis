@@ -47,6 +47,14 @@ public class CommissionRule : TenantEntity
 
     public DateOnly EffectiveFrom { get; set; }
     public DateOnly? EffectiveTo { get; set; }
+
+    /// <summary>
+    /// Which side supplies the per-cover % when both a bridge value and this
+    /// rule are available. Default <see cref="CommissionRateSource.Parametrization"/>
+    /// so existing rows keep their current behaviour (rule always wins).
+    /// See <see cref="CommissionRateSource"/> for the full trade-off.
+    /// </summary>
+    public CommissionRateSource RateSource { get; set; } = CommissionRateSource.Parametrization;
 }
 
 public class CommissionTransaction : TenantEntity

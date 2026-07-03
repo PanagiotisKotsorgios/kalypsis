@@ -206,5 +206,10 @@ public interface IAppDbContext
     // policy pickers to the carriers the office actually uses.
     DbSet<TenantCarrierOptIn> TenantCarrierOptIns { get; }
 
+    // Audit trail: agency-commission-% changes on a PolicyCover, and the
+    // proportional adjustment applied to the producer % as a result. Written
+    // by bridge imports; read by the drawer's «Ιστορικό προμηθειών» tab.
+    DbSet<PolicyCoverAdjustment> PolicyCoverAdjustments { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -208,6 +208,8 @@ public class AppDbContext : DbContext, IAppDbContext
     // Per-tenant opt-in to universal carriers.
     public DbSet<TenantCarrierOptIn> TenantCarrierOptIns => Set<TenantCarrierOptIn>();
 
+    public DbSet<PolicyCoverAdjustment> PolicyCoverAdjustments => Set<PolicyCoverAdjustment>();
+
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
 
     // PlatformAdmin / PlatformEmployee normally bypass the tenant filter, but

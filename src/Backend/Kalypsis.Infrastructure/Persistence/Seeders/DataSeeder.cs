@@ -594,6 +594,38 @@ public static class DataSeeder
             table: "policy_covers", column: "AgencyCommissionPercent",
             addSql: "ALTER TABLE `policy_covers` ADD COLUMN `AgencyCommissionPercent` decimal(7,4) NULL", ct);
 
+        // commission_rules.RateSource: which source (rule vs bridge) wins
+        // when both agency/producer % are available for a cover.
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "commission_rules", column: "RateSource",
+            addSql: "ALTER TABLE `commission_rules` ADD COLUMN `RateSource` int NOT NULL DEFAULT 1", ct);
+
+        // policy_cover_adjustments: audit trail of bridge-triggered %
+        // changes so the operator can see why a producer's commission
+        // dropped on a specific cover.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "policy_cover_adjustments",
+            createSql: @"CREATE TABLE IF NOT EXISTS `policy_cover_adjustments` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `PolicyCoverId` char(36) NOT NULL,
+                `PolicyId` char(36) NOT NULL,
+                `OldAgencyPercent` decimal(7,4) NULL,
+                `NewAgencyPercent` decimal(7,4) NULL,
+                `OldProducerPercent` decimal(7,4) NULL,
+                `NewProducerPercent` decimal(7,4) NULL,
+                `AgencyAmountDelta` decimal(14,2) NOT NULL DEFAULT 0,
+                `ProducerAmountDelta` decimal(14,2) NOT NULL DEFAULT 0,
+                `Reason` varchar(1000) NULL,
+                `SourceBridgeRunId` char(36) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_policy_cover_adjustments_PolicyCoverId` (`PolicyCoverId`),
+                KEY `IX_policy_cover_adjustments_TenantId_PolicyId` (`TenantId`, `PolicyId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         // --- saved_reports table ------------------------------------------
         await EnsureTableAsync(db, logger, dbName,
             table: "saved_reports",

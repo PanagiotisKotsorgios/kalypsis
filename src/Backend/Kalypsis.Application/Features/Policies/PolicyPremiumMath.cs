@@ -63,6 +63,63 @@ public static class PolicyPremiumMath
         decimal TotalProducerAmount,
         IReadOnlyList<CoverCommissionLine> Lines);
 
+    /// <summary>Result of <see cref="ApplyBridgeAgencyPercentChange"/>.</summary>
+    public readonly record struct BridgeAdjustmentResult(
+        decimal? OldAgencyPercent, decimal NewAgencyPercent,
+        decimal? OldProducerPercent, decimal? NewProducerPercent,
+        decimal AgencyAmountDelta, decimal ProducerAmountDelta,
+        string Reason);
+
+    /// <summary>
+    /// Task-2 core rule: when a carrier bridge reports a new agency % on a
+    /// cover, mutate the cover so
+    ///   • agency % → newAgencyPercent
+    ///   • producer % is scaled by the SAME RATIO the agency % moved by,
+    ///     so if the agency lost 3/15 of its rate the producer loses 3/15
+    ///     of theirs. Preserves the office↔producer contract ratio.
+    /// Returns a struct with all deltas so the caller can persist a
+    /// <see cref="Kalypsis.Domain.Entities.PolicyCoverAdjustment"/> audit row.
+    /// A null oldAgencyPct (no prior rate on file) skips the producer
+    /// proportional step — there's no ratio to preserve.
+    /// </summary>
+    public static BridgeAdjustmentResult ApplyBridgeAgencyPercentChange(
+        PolicyCover cover, decimal newAgencyPercent)
+    {
+        var oldAgency = cover.AgencyCommissionPercent;
+        var oldProducer = cover.CommissionPercent;
+        decimal? newProducer = oldProducer;
+
+        if (oldAgency.HasValue && oldAgency.Value > 0m && oldProducer.HasValue)
+        {
+            var ratio = newAgencyPercent / oldAgency.Value;
+            newProducer = decimal.Round(oldProducer.Value * ratio, 4);
+        }
+        cover.AgencyCommissionPercent = newAgencyPercent;
+        cover.CommissionPercent = newProducer;
+
+        var agencyAmountBefore = decimal.Round(cover.GrossPremium * (oldAgency ?? 0m) / 100m, 2);
+        var agencyAmountAfter  = decimal.Round(cover.GrossPremium * newAgencyPercent / 100m, 2);
+        var producerAmountBefore = decimal.Round(cover.GrossPremium * (oldProducer ?? 0m) / 100m, 2);
+        var producerAmountAfter  = decimal.Round(cover.GrossPremium * (newProducer ?? 0m) / 100m, 2);
+
+        var diffAgency   = agencyAmountBefore - agencyAmountAfter;
+        var diffProducer = producerAmountBefore - producerAmountAfter;
+
+        var reason = oldAgency.HasValue
+            ? $"Ενημέρωση από γέφυρα: προμήθεια έδρας άλλαξε από {oldAgency:0.##}% σε {newAgencyPercent:0.##}% " +
+              $"(διαφορά {diffAgency:0.00} €). Ανάλογη προσαρμογή συνεργάτη: " +
+              (oldProducer.HasValue
+                  ? $"από {oldProducer:0.##}% σε {newProducer:0.##}% (διαφορά {diffProducer:0.00} €)."
+                  : "καμία (χωρίς προηγούμενο ποσοστό συνεργάτη).")
+            : $"Ενημέρωση από γέφυρα: αρχικό ποσοστό έδρας {newAgencyPercent:0.##}%.";
+
+        return new BridgeAdjustmentResult(
+            oldAgency, newAgencyPercent,
+            oldProducer, newProducer,
+            diffAgency, diffProducer,
+            reason);
+    }
+
     /// <summary>
     /// Compute per-cover commission amounts. `fallbackAgencyPercent` and
     /// `fallbackProducerPercent` come from the matching CommissionRule
