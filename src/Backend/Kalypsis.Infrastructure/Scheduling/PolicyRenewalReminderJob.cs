@@ -82,7 +82,42 @@ public class PolicyRenewalReminderJob : BackgroundService
                     .AnyAsync(n => n.TenantId == p.TenantId && n.Link == dedupeLink, ct);
                 if (already) continue;
 
-                var (title, body) = BuildCopy(p.PolicyNumber, milestone.Offset, milestone.Before);
+                // Prefer an EmailTemplate tagged for this trigger if the tenant
+                // set one; falls back to the built-in Greek copy below.
+                var triggerCode = milestone.Before
+                    ? milestone.Offset switch
+                    {
+                        30 => "renewal-30d",
+                        7  => "renewal-7d",
+                        0  => "renewal-0d",
+                        _  => null
+                    }
+                    : "expired";
+                var template = triggerCode is null ? null : await db.EmailTemplates.IgnoreQueryFilters()
+                    .Where(t => t.TenantId == p.TenantId && t.DeletedAt == null
+                                && t.IsActive && t.PolicyTrigger == triggerCode)
+                    .OrderByDescending(t => t.Language == "el")
+                    .FirstOrDefaultAsync(ct);
+
+                string title, body;
+                if (template is not null)
+                {
+                    // Poor-man's Scriban — just swap the couple of placeholders
+                    // we actually use in the reminder templates. Anything more
+                    // elaborate belongs in a proper renderer, not here.
+                    title = template.Subject
+                        .Replace("{{policyNumber}}", p.PolicyNumber)
+                        .Replace("{{daysToExpiry}}", milestone.Offset.ToString());
+                    body = (template.BodyPlain ?? template.BodyHtml)
+                        .Replace("{{policyNumber}}", p.PolicyNumber)
+                        .Replace("{{daysToExpiry}}", milestone.Offset.ToString());
+                }
+                else
+                {
+                    var built = BuildCopy(p.PolicyNumber, milestone.Offset, milestone.Before);
+                    title = built.Title;
+                    body = built.Body;
+                }
 
                 // Notify the customer user (Customer portal) if linked.
                 var customerUserId = await db.Users.IgnoreQueryFilters()

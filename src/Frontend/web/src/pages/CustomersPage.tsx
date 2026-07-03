@@ -33,6 +33,8 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { CredentialsDialog } from "./TenantsPage";
 import { useTableState } from "../components/useTableState";
+import { useColumnPreferences } from "../hooks/useColumnPreferences";
+import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 import { SearchableTextField } from "../components/SearchableTextField";
 
@@ -117,6 +119,15 @@ export function CustomersPage() {
     pageSize: 25
   });
   const customers = table.paged;
+  const customerCols = useColumnPreferences("customers", [
+    { key: "number", label: "Αρ. Πελάτη", alwaysVisible: true },
+    { key: "type",   label: "Τύπος" },
+    { key: "name",   label: "Ονοματεπώνυμο / Επωνυμία" },
+    { key: "email",  label: "Email" },
+    { key: "phone",  label: "Τηλέφωνο" },
+    { key: "city",   label: "Πόλη", defaultVisible: false },
+    { key: "portal", label: "Πρόσβαση Portal" },
+  ]);
 
   return (
     <Box>
@@ -201,13 +212,18 @@ export function CustomersPage() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>{t("customers.customerNumber")}</TableCell>
-                  <TableCell>{t("customers.type")}</TableCell>
-                  <TableCell>{t("users.fullName")}</TableCell>
-                  <TableCell>{t("customers.email")}</TableCell>
-                  <TableCell>{t("customers.phone")}</TableCell>
-                  <TableCell>{t("customers.city")}</TableCell>
-                  <TableCell>{t("customers.portalAccount")}</TableCell>
+                  {customerCols.visibleColumns.map(c => (
+                    <TableCell key={c.key}>{c.label}</TableCell>
+                  ))}
+                  <TableCell align="right" padding="checkbox">
+                    <ColumnPreferencesButton
+                      orderedColumns={customerCols.orderedColumns}
+                      hiddenSet={customerCols.hiddenSet}
+                      toggleVisibility={customerCols.toggleVisibility}
+                      moveColumn={customerCols.moveColumn}
+                      reset={customerCols.reset}
+                    />
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -218,37 +234,52 @@ export function CustomersPage() {
                     sx={{ cursor: "pointer" }}
                     onClick={() => { window.location.href = `/app/customers/${c.id}`; }}
                   >
-                    <TableCell><Chip label={c.customerNumber} size="small" variant="outlined" /></TableCell>
-                    <TableCell>
-                      {c.type === "Individual" ? t("customers.individual") : t("customers.company")}
-                    </TableCell>
-                    <TableCell>
-                      <Typography fontWeight={600}>
-                        {c.type === "Individual"
-                          ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim()
-                          : c.companyName}
-                      </Typography>
-                      {c.vatNumber && (
-                        <Typography variant="caption" color="text.secondary">
-                          ΑΦΜ: {c.vatNumber}
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>{c.email ?? "-"}</TableCell>
-                    <TableCell>{c.phone ?? "-"}</TableCell>
-                    <TableCell>{c.city ?? "-"}</TableCell>
-                    <TableCell>
-                      {c.hasPortalAccount ? (
-                        <Chip label={t("customers.yes")} size="small" color="success" />
-                      ) : (
-                        <Chip label={t("customers.no")} size="small" />
-                      )}
-                    </TableCell>
+                    {customerCols.visibleColumns.map(col => {
+                      switch (col.key) {
+                        case "number":
+                          return <TableCell key={col.key}><Chip label={c.customerNumber} size="small" variant="outlined" /></TableCell>;
+                        case "type":
+                          return <TableCell key={col.key}>{c.type === "Individual" ? t("customers.individual") : t("customers.company")}</TableCell>;
+                        case "name":
+                          return (
+                            <TableCell key={col.key}>
+                              <Typography fontWeight={600}>
+                                {c.type === "Individual"
+                                  ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim()
+                                  : c.companyName}
+                              </Typography>
+                              {c.vatNumber && (
+                                <Typography variant="caption" color="text.secondary">
+                                  ΑΦΜ: {c.vatNumber}
+                                </Typography>
+                              )}
+                            </TableCell>
+                          );
+                        case "email":
+                          return <TableCell key={col.key}>{c.email ?? "-"}</TableCell>;
+                        case "phone":
+                          return <TableCell key={col.key}>{c.phone ?? "-"}</TableCell>;
+                        case "city":
+                          return <TableCell key={col.key}>{c.city ?? "-"}</TableCell>;
+                        case "portal":
+                          return (
+                            <TableCell key={col.key}>
+                              {c.hasPortalAccount ? (
+                                <Chip label={t("customers.yes")} size="small" color="success" />
+                              ) : (
+                                <Chip label={t("customers.no")} size="small" />
+                              )}
+                            </TableCell>
+                          );
+                        default: return <TableCell key={col.key}>—</TableCell>;
+                      }
+                    })}
+                    <TableCell />
                   </TableRow>
                 ))}
                 {customers.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7}>
+                    <TableCell colSpan={customerCols.visibleColumns.length + 1}>
                       <Typography color="text.secondary" textAlign="center" py={4}>
                         {t("customers.noCustomers")}
                       </Typography>

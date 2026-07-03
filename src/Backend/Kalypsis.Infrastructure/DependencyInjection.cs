@@ -65,6 +65,7 @@ public static class DependencyInjection
 
         services.AddHostedService<PolicyRenewalReminderJob>();
         services.AddHostedService<MarketingCampaignScheduler>();
+        services.AddHostedService<ProducerMonthlySnapshotJob>();
 
         // === Phase 3: pluggable integration surface ==========================
         // Every carrier we already seed in InsuranceCompanies gets a stub adapter.
