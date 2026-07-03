@@ -28,6 +28,22 @@ public class Policy : TenantEntity
     public decimal Premium { get; set; }
     public string Currency { get; set; } = "EUR";
 
+    /// <summary>Καθαρό ασφάλιστρο (before taxes and fees).</summary>
+    public decimal? NetPremium { get; set; }
+    /// <summary>ΦΠΑ / VAT amount (typically 24% on GR).</summary>
+    public decimal? VatAmount { get; set; }
+    /// <summary>Χαρτόσημο — τέλος χαρτοσήμου (2.4% on many branches).</summary>
+    public decimal? StampDutyAmount { get; set; }
+    /// <summary>
+    /// Ασφαλιστική εισφορά — τέλος υπέρ Επικουρικού Κεφαλαίου/Ειδικού Λογαριασμού,
+    /// varies by policy type. Kept as a nullable free field so future rate changes
+    /// don't need a schema change.
+    /// </summary>
+    public decimal? InsuranceContributionAmount { get; set; }
+    /// <summary>Λοιπές επιβαρύνσεις — άλλα τέλη που δεν εμπίπτουν στις παραπάνω
+    /// κατηγορίες (π.χ. δικαίωμα συμβολαίου, εγκύκλιοι).</summary>
+    public decimal? OtherChargesAmount { get; set; }
+
     public PaymentFrequency PaymentFrequency { get; set; } = PaymentFrequency.Annual;
     public bool PremiumIncludesVat { get; set; } = true;
 

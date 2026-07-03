@@ -93,9 +93,11 @@ public class PolicyExtensionsController : ControllerBase
     /* ===================== POLICY COVERS ===================== */
 
     public record CoverDto(Guid Id, Guid? PolicyObjectId, string CoverCode, string? CoverName,
-        decimal GrossPremium, decimal NetPremium, decimal? CoverageAmount);
+        decimal GrossPremium, decimal NetPremium, decimal? CoverageAmount,
+        decimal? CommissionPercent, decimal? AgencyCommissionPercent);
     public record CoverBody(Guid? PolicyObjectId, string CoverCode, string? CoverName,
-        decimal GrossPremium, decimal NetPremium, decimal? CoverageAmount);
+        decimal GrossPremium, decimal NetPremium, decimal? CoverageAmount,
+        decimal? CommissionPercent, decimal? AgencyCommissionPercent);
 
     [HttpGet("covers")]
     public async Task<ActionResult<IReadOnlyList<CoverDto>>> ListCovers(Guid policyId, CancellationToken ct)
@@ -105,8 +107,7 @@ public class PolicyExtensionsController : ControllerBase
             .Where(c => c.TenantId == tenantId && c.PolicyId == policyId && c.DeletedAt == null)
             .OrderBy(c => c.CreatedAt)
             .ToListAsync(ct);
-        return Ok(rows.Select(c => new CoverDto(c.Id, c.PolicyObjectId, c.CoverCode, c.CoverName,
-            c.GrossPremium, c.NetPremium, c.CoverageAmount)).ToList());
+        return Ok(rows.Select(MapCoverDto).ToList());
     }
 
     [HttpPost("covers")]
@@ -124,11 +125,37 @@ public class PolicyExtensionsController : ControllerBase
             GrossPremium = body.GrossPremium,
             NetPremium = body.NetPremium,
             CoverageAmount = body.CoverageAmount,
+            CommissionPercent = body.CommissionPercent,
+            AgencyCommissionPercent = body.AgencyCommissionPercent,
             CreatedAt = _clock.UtcNow
         };
         _db.PolicyCovers.Add(c);
         await _db.SaveChangesAsync(ct);
-        return Ok(new CoverDto(c.Id, c.PolicyObjectId, c.CoverCode, c.CoverName, c.GrossPremium, c.NetPremium, c.CoverageAmount));
+        await SyncPolicyPremiumFromCoversAsync(tenantId, policyId, ct);
+        return Ok(MapCoverDto(c));
+    }
+
+    [HttpPut("covers/{coverId:guid}")]
+    public async Task<ActionResult<CoverDto>> UpdateCover(Guid policyId, Guid coverId, [FromBody] CoverBody body, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var c = await _db.PolicyCovers.FirstOrDefaultAsync(
+            x => x.Id == coverId && x.PolicyId == policyId && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Κάλυψη");
+        if (string.IsNullOrWhiteSpace(body.CoverCode))
+            throw new AppException("cover_code_required", "Συμπληρώστε τον κωδικό κάλυψης.", 400);
+        c.PolicyObjectId = body.PolicyObjectId;
+        c.CoverCode = body.CoverCode.Trim().ToUpperInvariant();
+        c.CoverName = body.CoverName?.Trim();
+        c.GrossPremium = body.GrossPremium;
+        c.NetPremium = body.NetPremium;
+        c.CoverageAmount = body.CoverageAmount;
+        c.CommissionPercent = body.CommissionPercent;
+        c.AgencyCommissionPercent = body.AgencyCommissionPercent;
+        c.UpdatedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        await SyncPolicyPremiumFromCoversAsync(tenantId, policyId, ct);
+        return Ok(MapCoverDto(c));
     }
 
     [HttpDelete("covers/{coverId:guid}")]
@@ -140,7 +167,106 @@ public class PolicyExtensionsController : ControllerBase
             ?? throw AppException.NotFound("Κάλυψη");
         c.DeletedAt = _clock.UtcNow;
         await _db.SaveChangesAsync(ct);
+        await SyncPolicyPremiumFromCoversAsync(tenantId, policyId, ct);
         return NoContent();
+    }
+
+    public record CoverAdjustmentBody(decimal NewAgencyPercent, string? Reason, Guid? SourceBridgeRunId);
+
+    public record CoverAdjustmentDto(
+        Guid Id, Guid PolicyCoverId, string CoverCode, string? CoverName,
+        decimal? OldAgencyPercent, decimal? NewAgencyPercent,
+        decimal? OldProducerPercent, decimal? NewProducerPercent,
+        decimal AgencyAmountDelta, decimal ProducerAmountDelta,
+        string? Reason, DateTime CreatedAt);
+
+    /// <summary>
+    /// Bridge-triggered commission adjustment. Given a new agency % from the
+    /// carrier file, mutate the cover so the producer's % is scaled by the
+    /// same ratio (see PolicyPremiumMath.ApplyBridgeAgencyPercentChange for
+    /// the math) and persist a PolicyCoverAdjustment audit row so the office
+    /// can trace exactly why a producer's commission line dropped.
+    /// </summary>
+    [HttpPost("covers/{coverId:guid}/apply-agency-adjustment")]
+    public async Task<ActionResult<CoverAdjustmentDto>> ApplyAgencyAdjustment(
+        Guid policyId, Guid coverId, [FromBody] CoverAdjustmentBody body, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var c = await _db.PolicyCovers.FirstOrDefaultAsync(
+            x => x.Id == coverId && x.PolicyId == policyId && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Κάλυψη");
+
+        var result = Kalypsis.Application.Features.Policies.PolicyPremiumMath
+            .ApplyBridgeAgencyPercentChange(c, body.NewAgencyPercent);
+
+        var audit = new Kalypsis.Domain.Entities.PolicyCoverAdjustment
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            PolicyCoverId = c.Id,
+            PolicyId = policyId,
+            OldAgencyPercent = result.OldAgencyPercent,
+            NewAgencyPercent = result.NewAgencyPercent,
+            OldProducerPercent = result.OldProducerPercent,
+            NewProducerPercent = result.NewProducerPercent,
+            AgencyAmountDelta = result.AgencyAmountDelta,
+            ProducerAmountDelta = result.ProducerAmountDelta,
+            Reason = body.Reason ?? result.Reason,
+            SourceBridgeRunId = body.SourceBridgeRunId,
+            CreatedAt = _clock.UtcNow
+        };
+        _db.PolicyCoverAdjustments.Add(audit);
+        c.UpdatedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new CoverAdjustmentDto(
+            audit.Id, c.Id, c.CoverCode, c.CoverName,
+            audit.OldAgencyPercent, audit.NewAgencyPercent,
+            audit.OldProducerPercent, audit.NewProducerPercent,
+            audit.AgencyAmountDelta, audit.ProducerAmountDelta,
+            audit.Reason, audit.CreatedAt));
+    }
+
+    /// <summary>Full history of bridge-triggered % adjustments on a policy.</summary>
+    [HttpGet("cover-adjustments")]
+    public async Task<ActionResult<IReadOnlyList<CoverAdjustmentDto>>> ListCoverAdjustments(
+        Guid policyId, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var rows = await (from a in _db.PolicyCoverAdjustments
+                          join c in _db.PolicyCovers on a.PolicyCoverId equals c.Id
+                          where a.TenantId == tenantId && a.PolicyId == policyId && a.DeletedAt == null
+                          orderby a.CreatedAt descending
+                          select new CoverAdjustmentDto(
+                              a.Id, c.Id, c.CoverCode, c.CoverName,
+                              a.OldAgencyPercent, a.NewAgencyPercent,
+                              a.OldProducerPercent, a.NewProducerPercent,
+                              a.AgencyAmountDelta, a.ProducerAmountDelta,
+                              a.Reason, a.CreatedAt)).ToListAsync(ct);
+        return Ok(rows);
+    }
+
+    private static CoverDto MapCoverDto(PolicyCover c) => new(
+        c.Id, c.PolicyObjectId, c.CoverCode, c.CoverName,
+        c.GrossPremium, c.NetPremium, c.CoverageAmount,
+        c.CommissionPercent, c.AgencyCommissionPercent);
+
+    /// <summary>Recompute Policy.Premium = Σ(covers.GrossPremium) after any
+    /// mutation so the drawer's aggregate always matches what the operator
+    /// sees in the breakdown table.</summary>
+    private async Task SyncPolicyPremiumFromCoversAsync(Guid tenantId, Guid policyId, CancellationToken ct)
+    {
+        var policy = await _db.Policies.FirstOrDefaultAsync(
+            p => p.Id == policyId && p.TenantId == tenantId && p.DeletedAt == null, ct);
+        if (policy is null) return;
+        var covers = await _db.PolicyCovers
+            .Where(c => c.PolicyId == policyId && c.TenantId == tenantId && c.DeletedAt == null)
+            .ToListAsync(ct);
+        if (Kalypsis.Application.Features.Policies.PolicyPremiumMath
+            .TrySyncPolicyPremiumFromCovers(policy, covers))
+        {
+            await _db.SaveChangesAsync(ct);
+        }
     }
 
     /* ===================== POLICY INSTALLMENTS ===================== */

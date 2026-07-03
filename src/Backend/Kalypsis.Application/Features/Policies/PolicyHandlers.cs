@@ -210,6 +210,48 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
             CreatedByUserId = _current.UserId
         };
         _db.Policies.Add(p);
+
+        // Auto-generate installments when the customer picked a non-annual /
+        // non-single payment plan. The manual "Regenerate installments" button
+        // in the drawer stays available for adjustments — this is just a
+        // convenience so the operator doesn't have to click it right after
+        // creating the policy.
+        var installmentCount = p.PaymentFrequency switch
+        {
+            PaymentFrequency.Semiannual => 2,
+            PaymentFrequency.Quarterly  => 4,
+            PaymentFrequency.Monthly    => 12,
+            _ => 0
+        };
+        if (installmentCount > 0 && p.Premium > 0)
+        {
+            var perInstallment = Math.Round(p.Premium / installmentCount, 2);
+            var distributed = perInstallment * installmentCount;
+            var lastAdjust = p.Premium - distributed;
+            for (int n = 1; n <= installmentCount; n++)
+            {
+                var due = installmentCount switch
+                {
+                    12 => p.StartDate.AddMonths(n - 1),
+                    4  => p.StartDate.AddMonths((n - 1) * 3),
+                    2  => p.StartDate.AddMonths((n - 1) * 6),
+                    _  => p.StartDate
+                };
+                var amount = (n == installmentCount) ? perInstallment + lastAdjust : perInstallment;
+                _db.PolicyInstallments.Add(new PolicyInstallment
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    PolicyId = p.Id,
+                    Ordinal = n,
+                    DueDate = due,
+                    Amount = amount,
+                    Currency = p.Currency,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+        }
+
         await _db.SaveChangesAsync(ct);
 
         // Re-fetch with includes for display fields.

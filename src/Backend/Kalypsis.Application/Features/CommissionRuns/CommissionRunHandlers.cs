@@ -98,6 +98,26 @@ public class GenerateCommissionRunCommandHandler : IRequestHandler<GenerateCommi
 
         var policies = await policiesQ.ToListAsync(ct);
 
+        // Load covers grouped by policy for the whole run in one query. Empty
+        // for policies without covers → the flat-rate path stays in charge.
+        // Wrapped in try/catch so a pre-migration DB (no policy_covers table)
+        // simply falls back to the legacy per-policy math instead of failing
+        // the whole run.
+        Dictionary<Guid, List<PolicyCover>> coversByPolicy;
+        try
+        {
+            var policyIds = policies.Select(p => p.Id).ToList();
+            coversByPolicy = (await _db.PolicyCovers
+                .Where(c => c.DeletedAt == null && policyIds.Contains(c.PolicyId))
+                .ToListAsync(ct))
+                .GroupBy(c => c.PolicyId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+        }
+        catch
+        {
+            coversByPolicy = new Dictionary<Guid, List<PolicyCover>>();
+        }
+
         // All commission rules active during this month, with priority: most specific wins
         // (producer ID > tier > company > type). The tier dimension lets the agency
         // declare one rule per (Α/Β/Γ/Δ/Ε) bucket and have every producer in that
@@ -180,8 +200,30 @@ public class GenerateCommissionRunCommandHandler : IRequestHandler<GenerateCommi
                 : match?.CommissionType == CommissionType.FixedAmount     ? 0m
                 : 10m;
             var fixedAmount = match?.CommissionType == CommissionType.FixedAmount ? match.Value : 0m;
+            var agencyRatePercent = match?.AgencyPercent ?? 0m;
 
-            var commission = fixedAmount > 0 ? fixedAmount : Math.Round(p.Premium * (ratePercent / 100m), 2);
+            // Per-cover math: when the policy has PolicyCover rows and no
+            // fixed-amount rule wins, sum per-cover commissions instead of
+            // applying the flat rate to Policy.Premium. Each cover uses its
+            // own CommissionPercent if set (bridge-imported or manually
+            // overridden) or the rule rate as a fallback. This is the same
+            // helper the drawer's breakdown table uses so the run stays in
+            // lockstep with what the operator sees on-screen.
+            decimal commission;
+            if (fixedAmount > 0)
+            {
+                commission = fixedAmount;
+            }
+            else if (coversByPolicy.TryGetValue(p.Id, out var policyCovers) && policyCovers.Count > 0)
+            {
+                var breakdown = Kalypsis.Application.Features.Policies.PolicyPremiumMath
+                    .ComputePerCoverCommissions(policyCovers, agencyRatePercent, ratePercent);
+                commission = breakdown.TotalProducerAmount;
+            }
+            else
+            {
+                commission = Math.Round(p.Premium * (ratePercent / 100m), 2);
+            }
 
             _db.CommissionRunLines.Add(new CommissionRunLine
             {

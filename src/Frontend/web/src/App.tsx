@@ -144,6 +144,7 @@ import { NamedReportsPage } from "./pages/NamedReportsPage";
 import { ConfigHubPage } from "./pages/ConfigHubPage";
 import { RecycleBinPage } from "./pages/RecycleBinPage";
 import { ProducerReconciliationPage } from "./pages/ProducerReconciliationPage";
+import { ReconciliationDashboardPage } from "./pages/ReconciliationDashboardPage";
 import { PremiumGate } from "./components/PremiumGate";
 import { UpgradePlanDialogHost } from "./components/UpgradePlanDialog";
 import VerifiedIcon from "@mui/icons-material/Verified";
@@ -247,6 +248,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/audit", labelKey: "nav.audit", icon: <GavelIcon />, package: "BackOffice", group: "admin" },
     { to: "/recycle-bin", labelKey: "nav.recycleBin", icon: <RestoreFromTrashIcon />, package: "BackOffice", group: "admin", premium: "recycle-bin" },
     { to: "/producer-reconciliation", labelKey: "nav.producerReconciliation", icon: <VerifiedIcon />, package: "BackOffice", group: "admin" },
+    { to: "/reconciliation-dashboard", labelKey: "nav.reconciliationDashboard", icon: <AnalyticsIcon />, package: "BackOffice", group: "admin" },
     { to: "/customer-merge", labelKey: "nav.merge", icon: <MergeIcon />, package: "BackOffice", group: "admin" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "BackOffice", group: "admin" },
 
@@ -466,6 +468,7 @@ export default function App() {
                   <Route path="audit" element={<AuditLogsPage />} />
                   <Route path="recycle-bin" element={<PremiumGate code="recycle-bin"><RecycleBinPage /></PremiumGate>} />
                   <Route path="producer-reconciliation" element={<ProducerReconciliationPage />} />
+                  <Route path="reconciliation-dashboard" element={<ReconciliationDashboardPage />} />
                   <Route path="tasks" element={<TasksPage />} />
                   <Route path="producers" element={<ProducersPage />} />
                   <Route path="claims" element={<ClaimsPage />} />

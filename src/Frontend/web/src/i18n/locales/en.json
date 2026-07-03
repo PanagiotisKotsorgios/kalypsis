@@ -35,6 +35,7 @@
     "audit": "Audit Log",
     "recycleBin": "Recycle Bin",
     "producerReconciliation": "Producer Reconciliation",
+    "reconciliationDashboard": "Financial Reconciliation",
     "allUsers": "All Users",
     "registrations": "Registration Requests",
     "invoices": "Invoices",

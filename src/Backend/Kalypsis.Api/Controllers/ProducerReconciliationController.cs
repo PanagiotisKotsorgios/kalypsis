@@ -30,4 +30,15 @@ public class ProducerReconciliationController : ControllerBase
         _ = _current.TenantId ?? throw AppException.Forbidden();
         return Ok(await _m.Send(new ListAgencyDeclarationsQuery(producerId), ct));
     }
+
+    /// <summary>Reconciliation dashboard — monthly totals of premium billed
+    /// vs receipts collected vs commissions paid, plus yearly grand totals.</summary>
+    [HttpGet("dashboard")]
+    public async Task<ActionResult<ReconciliationDashboardDto>> Dashboard(
+        [FromQuery] int? year,
+        CancellationToken ct)
+    {
+        _ = _current.TenantId ?? throw AppException.Forbidden();
+        return Ok(await _m.Send(new GetReconciliationDashboardQuery(year ?? DateTime.UtcNow.Year), ct));
+    }
 }

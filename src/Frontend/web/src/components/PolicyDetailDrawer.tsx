@@ -4,6 +4,7 @@ import {
   Stack, Switch, Tab, Tabs, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -35,6 +36,11 @@ export interface PolicyDetail {
   documentCount: number; receiptCount: number;
   totalReceived: number; outstanding: number; totalCommissions: number;
   covers: PolicyCoverRow[]; coversGrossTotal: number;
+  netPremium: number | null;
+  vatAmount: number | null;
+  stampDutyAmount: number | null;
+  insuranceContributionAmount: number | null;
+  otherChargesAmount: number | null;
 }
 
 export interface PolicyCoverRow {
@@ -272,6 +278,14 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                 <Stack spacing={2.5}>
                   <KV label={t("policyDetail.premium")} value={`${p.premium.toFixed(2)} ${p.currency}`} />
 
+                  {/* Tax / duty breakdown: rendered only when at least one
+                      of the split-out numbers exists so cover-less legacy
+                      policies stay compact. */}
+                  {(p.netPremium !== null || p.vatAmount !== null || p.stampDutyAmount !== null
+                    || p.insuranceContributionAmount !== null || p.otherChargesAmount !== null) && (
+                    <TaxBreakdown p={p} />
+                  )}
+
                   {/* Covers breakdown — shown only when the policy actually
                       has PolicyCover rows on file. Highlights any drift
                       between the stated premium and the sum of covers so the
@@ -421,6 +435,48 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
         )}
       </Box>
     </Drawer>
+  );
+}
+
+/**
+ * Καθαρό / ΦΠΑ / Χαρτόσημο / Εισφορές / Λοιπά — the split-out numbers that
+ * make up the gross premium. Only fields that are non-null render; a policy
+ * that only tracks the top-line stays uncluttered.
+ */
+function TaxBreakdown({ p }: { p: PolicyDetail }) {
+  const rows: { label: string; value: number | null }[] = [
+    { label: "Καθαρό ασφάλιστρο", value: p.netPremium },
+    { label: "ΦΠΑ",                value: p.vatAmount },
+    { label: "Χαρτόσημο",          value: p.stampDutyAmount },
+    { label: "Ασφαλιστική εισφορά", value: p.insuranceContributionAmount },
+    { label: "Λοιπές επιβαρύνσεις", value: p.otherChargesAmount },
+  ].filter(r => r.value !== null && r.value !== 0);
+  if (rows.length === 0) return null;
+  const breakdownSum = rows.reduce((s, r) => s + (r.value ?? 0), 0);
+  const grossMatches = Math.abs(breakdownSum - p.premium) < 0.02;
+  return (
+    <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 1.5 }}>
+      <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+        <Typography variant="overline" color="text.secondary" fontWeight={700}>Ανάλυση</Typography>
+        {!grossMatches && (
+          <Chip size="small" color="warning" variant="outlined"
+            label={`Διαφορά με μεικτό: ${(p.premium - breakdownSum).toFixed(2)} ${p.currency}`}
+            sx={{ height: 20, fontSize: 11, fontWeight: 700 }} />
+        )}
+      </Stack>
+      <Stack spacing={0.5}>
+        {rows.map(r => (
+          <Stack key={r.label} direction="row" justifyContent="space-between">
+            <Typography sx={{ color: "text.secondary" }}>{r.label}</Typography>
+            <Typography sx={{ fontFamily: "monospace" }}>{(r.value ?? 0).toFixed(2)} {p.currency}</Typography>
+          </Stack>
+        ))}
+        <Stack direction="row" justifyContent="space-between" sx={{ pt: 0.75, borderTop: "1px dashed", borderColor: "divider" }}>
+          <Typography sx={{ fontWeight: 700 }}>Άθροισμα ανάλυσης</Typography>
+          <Typography sx={{ fontFamily: "monospace", fontWeight: 700 }}>{breakdownSum.toFixed(2)} {p.currency}</Typography>
+        </Stack>
+      </Stack>
+    </Box>
   );
 }
 
@@ -810,78 +866,177 @@ function PolicyObjectsTab({ policyId }: { policyId: string }) {
 }
 
 function PolicyCoversTab({ policyId }: { policyId: string }) {
+  return <PolicyCoversTabInner policyId={policyId} />;
+}
+
+interface CoverRow {
+  id: string;
+  policyObjectId: string | null;
+  coverCode: string;
+  coverName: string | null;
+  grossPremium: number;
+  netPremium: number;
+  coverageAmount: number | null;
+  commissionPercent: number | null;
+  agencyCommissionPercent: number | null;
+}
+
+interface CoverFormState {
+  coverCode: string;
+  coverName: string;
+  policyObjectId: string;
+  grossPremium: string;
+  netPremium: string;
+  coverageAmount: string;
+  commissionPercent: string;
+  agencyCommissionPercent: string;
+}
+
+const EMPTY_COVER_FORM: CoverFormState = {
+  coverCode: "", coverName: "", policyObjectId: "",
+  grossPremium: "", netPremium: "", coverageAmount: "",
+  commissionPercent: "", agencyCommissionPercent: ""
+};
+
+function toBody(f: CoverFormState) {
+  return {
+    coverCode: f.coverCode.trim().toUpperCase(),
+    coverName: f.coverName.trim() || null,
+    policyObjectId: f.policyObjectId || null,
+    grossPremium: Number(f.grossPremium) || 0,
+    netPremium: Number(f.netPremium) || 0,
+    coverageAmount: f.coverageAmount ? Number(f.coverageAmount) : null,
+    commissionPercent: f.commissionPercent === "" ? null : Number(f.commissionPercent),
+    agencyCommissionPercent: f.agencyCommissionPercent === "" ? null : Number(f.agencyCommissionPercent),
+  };
+}
+
+function PolicyCoversTabInner({ policyId }: { policyId: string }) {
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["policy-covers", policyId],
-    queryFn: async () => (await api.get<any[]>(`/policies/${policyId}/covers`)).data
+    queryFn: async () => (await api.get<CoverRow[]>(`/policies/${policyId}/covers`)).data
   });
   const objects = useQuery({
     queryKey: ["policy-objects", policyId],
     queryFn: async () => (await api.get<any[]>(`/policies/${policyId}/objects`)).data
   });
-  const [form, setForm] = useState({ coverCode: "", coverName: "", policyObjectId: "", grossPremium: "", netPremium: "", coverageAmount: "" });
+  const [form, setForm] = useState<CoverFormState>(EMPTY_COVER_FORM);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editing = editingId !== null;
+
+  // Invalidate BOTH the covers list AND the policy detail. The drawer's
+  // Financials tab renders a breakdown table + drift chip pulled from
+  // detail, so we need both to refetch or the two views diverge.
+  const invalidate = () => {
+    void qc.invalidateQueries({ queryKey: ["policy-covers", policyId] });
+    void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] });
+  };
+
   const add = useMutation({
-    mutationFn: async () => (await api.post(`/policies/${policyId}/covers`, {
-      coverCode: form.coverCode, coverName: form.coverName || null,
-      policyObjectId: form.policyObjectId || null,
-      grossPremium: Number(form.grossPremium) || 0,
-      netPremium: Number(form.netPremium) || 0,
-      coverageAmount: form.coverageAmount ? Number(form.coverageAmount) : null
-    })).data,
-    onSuccess: () => {
-      setForm({ coverCode: "", coverName: "", policyObjectId: "", grossPremium: "", netPremium: "", coverageAmount: "" });
-      void qc.invalidateQueries({ queryKey: ["policy-covers", policyId] });
-    }
+    mutationFn: async () => (await api.post(`/policies/${policyId}/covers`, toBody(form))).data,
+    onSuccess: () => { setForm(EMPTY_COVER_FORM); invalidate(); }
+  });
+  const update = useMutation({
+    mutationFn: async () => (await api.put(`/policies/${policyId}/covers/${editingId}`, toBody(form))).data,
+    onSuccess: () => { setEditingId(null); setForm(EMPTY_COVER_FORM); invalidate(); }
   });
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/policies/${policyId}/covers/${id}`),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["policy-covers", policyId] })
+    onSuccess: invalidate
   });
+
+  const startEdit = (c: CoverRow) => {
+    setEditingId(c.id);
+    setForm({
+      coverCode: c.coverCode,
+      coverName: c.coverName ?? "",
+      policyObjectId: c.policyObjectId ?? "",
+      grossPremium: String(c.grossPremium),
+      netPremium: String(c.netPremium),
+      coverageAmount: c.coverageAmount === null ? "" : String(c.coverageAmount),
+      commissionPercent: c.commissionPercent === null ? "" : String(c.commissionPercent),
+      agencyCommissionPercent: c.agencyCommissionPercent === null ? "" : String(c.agencyCommissionPercent),
+    });
+  };
+  const cancelEdit = () => { setEditingId(null); setForm(EMPTY_COVER_FORM); };
+
+  const rows = q.data ?? [];
+  const totalGross = rows.reduce((s, c) => s + c.grossPremium, 0);
+  const totalNet   = rows.reduce((s, c) => s + c.netPremium, 0);
 
   return (
     <Stack spacing={2}>
-      <Typography variant="overline" color="text.secondary" fontWeight={700}>Καλύψεις</Typography>
+      <Stack direction="row" alignItems="center" spacing={1}>
+        <Typography variant="overline" color="text.secondary" fontWeight={700}>Καλύψεις</Typography>
+        <Chip size="small" label={`${rows.length}`} sx={{ height: 20, fontSize: 11 }} />
+      </Stack>
       {q.isLoading ? <CircularProgress size={20} /> : (
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Κωδικός</TableCell>
-              <TableCell>Όνομα</TableCell>
-              <TableCell align="right">Μικτά</TableCell>
-              <TableCell align="right">Καθαρά</TableCell>
-              <TableCell align="right">Κεφάλαιο</TableCell>
-              <TableCell width={42} />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {(q.data ?? []).length === 0 && (
-              <TableRow><TableCell colSpan={6} align="center" sx={{ color: "text.secondary" }}>
-                Δεν υπάρχουν καταχωρημένες καλύψεις.
-              </TableCell></TableRow>
-            )}
-            {(q.data ?? []).map((c: any) => (
-              <TableRow key={c.id} hover>
-                <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{c.coverCode}</TableCell>
-                <TableCell>{c.coverName ?? "—"}</TableCell>
-                <TableCell align="right">{c.grossPremium.toFixed(2)}</TableCell>
-                <TableCell align="right">{c.netPremium.toFixed(2)}</TableCell>
-                <TableCell align="right">{c.coverageAmount ? c.coverageAmount.toFixed(2) : "—"}</TableCell>
-                <TableCell>
-                  <IconButton size="small" color="error" onClick={() => { if (confirm("Διαγραφή;")) del.mutate(c.id); }}>
-                    <CloseIcon fontSize="small" />
-                  </IconButton>
-                </TableCell>
+        <Box sx={{ overflowX: "auto" }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Κωδικός</TableCell>
+                <TableCell>Όνομα</TableCell>
+                <TableCell align="right">Μικτά</TableCell>
+                <TableCell align="right">Καθαρά</TableCell>
+                <TableCell align="right">Κεφάλαιο</TableCell>
+                <TableCell align="right">Προμ. συν. %</TableCell>
+                <TableCell align="right">Προμ. γρ. %</TableCell>
+                <TableCell width={80} />
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHead>
+            <TableBody>
+              {rows.length === 0 && (
+                <TableRow><TableCell colSpan={8} align="center" sx={{ color: "text.secondary", py: 3 }}>
+                  Δεν υπάρχουν καταχωρημένες καλύψεις.
+                </TableCell></TableRow>
+              )}
+              {rows.map((c) => (
+                <TableRow key={c.id} hover selected={editingId === c.id}>
+                  <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{c.coverCode}</TableCell>
+                  <TableCell>{c.coverName ?? "—"}</TableCell>
+                  <TableCell align="right">{c.grossPremium.toFixed(2)}</TableCell>
+                  <TableCell align="right">{c.netPremium.toFixed(2)}</TableCell>
+                  <TableCell align="right">{c.coverageAmount === null ? "—" : c.coverageAmount.toFixed(2)}</TableCell>
+                  <TableCell align="right" sx={{ color: c.commissionPercent === null ? "text.disabled" : undefined }}>
+                    {c.commissionPercent === null ? "—" : `${c.commissionPercent.toFixed(2)}%`}
+                  </TableCell>
+                  <TableCell align="right" sx={{ color: c.agencyCommissionPercent === null ? "text.disabled" : undefined }}>
+                    {c.agencyCommissionPercent === null ? "—" : `${c.agencyCommissionPercent.toFixed(2)}%`}
+                  </TableCell>
+                  <TableCell align="right">
+                    <IconButton size="small" onClick={() => startEdit(c)} disabled={editing && editingId !== c.id}>
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton size="small" color="error"
+                      onClick={() => { if (confirm(`Διαγραφή της κάλυψης ${c.coverCode};`)) del.mutate(c.id); }}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {rows.length > 0 && (
+                <TableRow>
+                  <TableCell colSpan={2} sx={{ fontWeight: 700 }}>Σύνολο</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{totalGross.toFixed(2)}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{totalNet.toFixed(2)}</TableCell>
+                  <TableCell colSpan={4} />
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Box>
       )}
       <Box sx={{ p: 2, bgcolor: "background.default", borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
-        <Typography variant="caption" color="text.secondary">Νέα κάλυψη</Typography>
+        <Typography variant="caption" color="text.secondary" fontWeight={700}>
+          {editing ? `Επεξεργασία κάλυψης · ${form.coverCode}` : "Νέα κάλυψη"}
+        </Typography>
         <Stack spacing={1.5} mt={1}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
             <TextField size="small" label="Κωδικός" value={form.coverCode}
-              onChange={e => setForm({ ...form, coverCode: e.target.value.toUpperCase() })} sx={{ width: 140 }} />
+              onChange={e => setForm({ ...form, coverCode: e.target.value.toUpperCase() })}
+              disabled={editing} sx={{ width: 140 }} />
             <TextField size="small" label="Όνομα" value={form.coverName}
               onChange={e => setForm({ ...form, coverName: e.target.value })} sx={{ flex: 1 }} />
             <TextField size="small" select label="Αντικείμενο" value={form.policyObjectId}
@@ -897,12 +1052,35 @@ function PolicyCoversTab({ policyId }: { policyId: string }) {
               onChange={e => setForm({ ...form, netPremium: e.target.value })} sx={{ flex: 1 }} />
             <TextField size="small" type="number" label="Κεφάλαιο" value={form.coverageAmount}
               onChange={e => setForm({ ...form, coverageAmount: e.target.value })} sx={{ flex: 1 }} />
-            <Button variant="contained" onClick={() => add.mutate()} disabled={!form.coverCode.trim() || add.isPending}>
-              {add.isPending ? <CircularProgress size={18} /> : "Προσθήκη"}
-            </Button>
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems="center">
+            <TextField size="small" type="number" label="Προμ. συνεργάτη %"
+              value={form.commissionPercent}
+              onChange={e => setForm({ ...form, commissionPercent: e.target.value })}
+              helperText="Κενό = από κανόνα"
+              sx={{ flex: 1 }} />
+            <TextField size="small" type="number" label="Προμ. γραφείου %"
+              value={form.agencyCommissionPercent}
+              onChange={e => setForm({ ...form, agencyCommissionPercent: e.target.value })}
+              helperText="Κενό = από κανόνα"
+              sx={{ flex: 1 }} />
+            <Stack direction="row" spacing={1}>
+              {editing && (
+                <Button variant="text" onClick={cancelEdit}>Άκυρο</Button>
+              )}
+              <Button variant="contained"
+                onClick={() => (editing ? update.mutate() : add.mutate())}
+                disabled={!form.coverCode.trim() || add.isPending || update.isPending}>
+                {(add.isPending || update.isPending) ? <CircularProgress size={18} /> : (editing ? "Αποθήκευση" : "Προσθήκη")}
+              </Button>
+            </Stack>
           </Stack>
         </Stack>
       </Box>
+      <Typography variant="caption" color="text.secondary">
+        Το ασφάλιστρο του συμβολαίου συγχρονίζεται αυτόματα με το σύνολο των Μικτών των καλύψεων.
+        Ποσοστά που αφήνετε κενά κληρονομούνται από τον κανόνα προμηθειών.
+      </Typography>
     </Stack>
   );
 }

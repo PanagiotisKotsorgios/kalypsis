@@ -38,6 +38,15 @@ public record PolicyDetailDto(
     decimal? SpecialCommissionPercent,
     string? SpecsJson,
 
+    // Tax / duty breakdown (all optional). When any of these are set the
+    // drawer renders a proper Καθαρό / ΦΠΑ / Χαρτόσημο / Εισφορές line
+    // under the gross premium.
+    decimal? NetPremium,
+    decimal? VatAmount,
+    decimal? StampDutyAmount,
+    decimal? InsuranceContributionAmount,
+    decimal? OtherChargesAmount,
+
     // Renewal preservation (Phase 12 BluByte parity)
     DateOnly? NextRenewalDate,
     Guid? RenewalTransferToProducerId, string? RenewalTransferToProducerName,
@@ -169,6 +178,7 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             p.Premium, p.Currency, p.PaymentFrequency, p.PremiumIncludesVat,
             p.SpecialCommissionPercent,
             p.SpecsJson,
+            p.NetPremium, p.VatAmount, p.StampDutyAmount, p.InsuranceContributionAmount, p.OtherChargesAmount,
             p.NextRenewalDate,
             p.RenewalTransferToProducerId, renewalProducerName,
             p.RenewalTransferToCarrierId, renewalCarrierName,
@@ -196,7 +206,13 @@ public record UpdatePolicyExtendedBody(
     bool RetainCommissionsOnRenewal, bool RetainDocumentNumberOnRenewal, bool RetainSpecialCommissionsOnRenewal,
     string? RenewalInstructions,
     DateOnly? DeliveredAt, string? DeliveredTo, string? DeliveryMethod,
-    string? PaymentCollectionMethod = null);
+    string? PaymentCollectionMethod = null,
+    // Tax / duty breakdown (all optional — null means "not tracked separately").
+    decimal? NetPremium = null,
+    decimal? VatAmount = null,
+    decimal? StampDutyAmount = null,
+    decimal? InsuranceContributionAmount = null,
+    decimal? OtherChargesAmount = null);
 
 public record UpdatePolicyExtendedCommand(Guid Id, UpdatePolicyExtendedBody Body) : IRequest<PolicyDetailDto>;
 
@@ -234,6 +250,11 @@ public class UpdatePolicyExtendedHandler : IRequestHandler<UpdatePolicyExtendedC
         p.DeliveredTo = b.DeliveredTo;
         p.DeliveryMethod = b.DeliveryMethod;
         p.PaymentCollectionMethod = b.PaymentCollectionMethod;
+        p.NetPremium = b.NetPremium;
+        p.VatAmount = b.VatAmount;
+        p.StampDutyAmount = b.StampDutyAmount;
+        p.InsuranceContributionAmount = b.InsuranceContributionAmount;
+        p.OtherChargesAmount = b.OtherChargesAmount;
 
         await _db.SaveChangesAsync(ct);
         return await _mediator.Send(new GetPolicyDetailQuery(p.Id), ct);

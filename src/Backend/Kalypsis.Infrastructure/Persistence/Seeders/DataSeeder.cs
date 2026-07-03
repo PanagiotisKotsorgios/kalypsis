@@ -465,6 +465,23 @@ public static class DataSeeder
             table: "policies", column: "PaymentCollectionMethod",
             addSql: "ALTER TABLE `policies` ADD COLUMN `PaymentCollectionMethod` varchar(64) NULL", ct);
 
+        // policies: VAT / tax breakdown columns (Καθαρό, ΦΠΑ, χαρτόσημο, etc.)
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "NetPremium",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `NetPremium` decimal(14,2) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "VatAmount",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `VatAmount` decimal(14,2) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "StampDutyAmount",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `StampDutyAmount` decimal(14,2) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "InsuranceContributionAmount",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `InsuranceContributionAmount` decimal(14,2) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "OtherChargesAmount",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `OtherChargesAmount` decimal(14,2) NULL", ct);
+
         // --- receipts / payments: TransactionReference + payments.PolicyId ---
         // Ship 2026-07-02. Belt-and-braces so the /api/insurance-companies and
         // financials endpoints keep working even when the paired EF migration

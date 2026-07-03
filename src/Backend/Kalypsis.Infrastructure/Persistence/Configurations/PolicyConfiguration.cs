@@ -15,6 +15,11 @@ public class PolicyConfiguration : IEntityTypeConfiguration<Policy>
         b.Property(x => x.Status).HasConversion<int>();
         b.Property(x => x.Premium).HasPrecision(14, 2);
         b.Property(x => x.Currency).HasMaxLength(3).HasDefaultValue("EUR");
+        b.Property(x => x.NetPremium).HasColumnType("decimal(14,2)");
+        b.Property(x => x.VatAmount).HasColumnType("decimal(14,2)");
+        b.Property(x => x.StampDutyAmount).HasColumnType("decimal(14,2)");
+        b.Property(x => x.InsuranceContributionAmount).HasColumnType("decimal(14,2)");
+        b.Property(x => x.OtherChargesAmount).HasColumnType("decimal(14,2)");
 
         b.HasIndex(x => new { x.TenantId, x.PolicyNumber }).IsUnique();
         b.HasIndex(x => new { x.TenantId, x.CustomerId });
