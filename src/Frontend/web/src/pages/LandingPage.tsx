@@ -129,13 +129,20 @@ export function LandingPage() {
           Wider container so the nav bar breathes: ~80% of viewport up to
           1600px on very wide screens. */}
       <Container maxWidth={false} sx={{
-        maxWidth: { xs: "100%", md: "82%", xl: "1600px" },
+        // On mid-desktops the previous 82% cap left the nav shelf too
+        // narrow, so contact + auth + CTA + language toggle collided. Give
+        // the shelf 96% width from md up to lg, then relax to 82% only at
+        // the truly wide viewports.
+        maxWidth: { xs: "100%", md: "96%", lg: "88%", xl: "1600px" },
         px: { xs: 2, md: 3 },
         pt: { xs: 1.5, md: 2 },
         position: "relative", zIndex: 1
       }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}
           sx={{
+            flexWrap: "nowrap",
+            minWidth: 0,
+            "& > *": { minWidth: 0 },
             // Glass card wrapper for the whole top bar. Larger on desktop
             // — beefier padding + radius so it reads as a proper navigation
             // shelf rather than a chip.
@@ -178,14 +185,18 @@ export function LandingPage() {
             <LanguageToggle />
           </Box>
 
-          <Stack direction="row" spacing={{ xs: 1.5, sm: 3.5 }} alignItems="center"
+          <Stack direction="row" spacing={{ xs: 1.5, md: 2, lg: 3.5 }} alignItems="center"
             data-nav-slot="left"
-            sx={{ display: { xs: "none", md: "flex" } }}>
+            sx={{ display: { xs: "none", md: "flex" }, flexShrink: 0, whiteSpace: "nowrap" }}>
+            {/* Phone + email + divider disappear between md and lg so the
+                shelf never has to compress the auth links or the CTA
+                button. Users still get contact through the "Επικοινωνία"
+                button on the right + a full contact section in the footer. */}
             <Box component="a" href="tel:+302631028971"
               sx={{
-                display: "inline-flex", alignItems: "center", gap: 1,
+                display: { md: "none", lg: "inline-flex" }, alignItems: "center", gap: 1,
                 color: NAVY, textDecoration: "none",
-                fontSize: { sm: 15, md: 15.5 }, fontWeight: 600,
+                fontSize: 15.5, fontWeight: 600,
                 letterSpacing: "0.01em",
                 "&:hover": { color: ACCENT }
               }}>
@@ -194,9 +205,9 @@ export function LandingPage() {
             </Box>
             <Box component="a" href="mailto:info@mykalypsis.gr"
               sx={{
-                display: "inline-flex", alignItems: "center", gap: 1,
+                display: { md: "none", lg: "inline-flex" }, alignItems: "center", gap: 1,
                 color: NAVY, textDecoration: "none",
-                fontSize: { sm: 15, md: 15.5 }, fontWeight: 600,
+                fontSize: 15.5, fontWeight: 600,
                 letterSpacing: "0.01em",
                 "&:hover": { color: ACCENT }
               }}>
@@ -205,13 +216,14 @@ export function LandingPage() {
             </Box>
             {/* Vertical divider between the contact info and the auth links. */}
             <Box aria-hidden sx={{
+              display: { md: "none", lg: "block" },
               width: "1px", height: 22,
               bgcolor: "rgba(11,37,69,0.18)"
             }} />
             <Box component={RouterLink} to="/login"
               sx={{
                 color: NAVY, textDecoration: "none",
-                fontSize: { sm: 15, md: 15.5 }, fontWeight: 700,
+                fontSize: { md: 14.5, lg: 15.5 }, fontWeight: 700,
                 letterSpacing: "0.01em",
                 "&:hover": { color: ACCENT }
               }}>
@@ -220,7 +232,7 @@ export function LandingPage() {
             <Box component={RouterLink} to="/register"
               sx={{
                 color: NAVY, textDecoration: "none",
-                fontSize: { sm: 15, md: 15.5 }, fontWeight: 700,
+                fontSize: { md: 14.5, lg: 15.5 }, fontWeight: 700,
                 letterSpacing: "0.01em",
                 "&:hover": { color: ACCENT }
               }}>
@@ -228,9 +240,9 @@ export function LandingPage() {
             </Box>
           </Stack>
           {/* Desktop-only right cluster — Contact button + LanguageToggle. */}
-          <Stack direction="row" spacing={1.75} alignItems="center"
+          <Stack direction="row" spacing={{ md: 1.25, lg: 1.75 }} alignItems="center"
             data-nav-slot="right"
-            sx={{ ml: "auto", display: { xs: "none", md: "flex" } }}>
+            sx={{ ml: "auto", display: { xs: "none", md: "flex" }, flexShrink: 0, whiteSpace: "nowrap" }}>
             <Button
               component={RouterLink}
               to="/contact"
@@ -238,12 +250,13 @@ export function LandingPage() {
               startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 20, color: ACCENT }} />}
               sx={{
                 borderRadius: 999,
-                px: { sm: 2.25, md: 2.75 },
-                py: { sm: 0.85, md: 1 },
-                fontSize: { sm: 14, md: 14.5 },
+                px: { md: 2, lg: 2.75 },
+                py: { md: 0.85, lg: 1 },
+                fontSize: { md: 13.5, lg: 14.5 },
                 fontWeight: 700,
                 letterSpacing: "0.01em",
                 textTransform: "none",
+                whiteSpace: "nowrap",
                 color: NAVY,
                 bgcolor: "rgba(30,167,225,0.06)",
                 borderColor: "rgba(30,167,225,0.35)",
@@ -254,7 +267,11 @@ export function LandingPage() {
                 }
               }}
             >
-              Επικοινωνία / Αναφορά Προβλήματος
+              {/* Between md-lg the shelf can't afford the full long label
+                  next to the auth links + language toggle, so trim to
+                  just «Επικοινωνία». The full label reappears at lg+. */}
+              <Box sx={{ display: { md: "inline", lg: "none" } }}>Επικοινωνία</Box>
+              <Box sx={{ display: { md: "none", lg: "inline" } }}>Επικοινωνία / Αναφορά Προβλήματος</Box>
             </Button>
             <LanguageToggle />
           </Stack>
