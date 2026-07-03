@@ -119,6 +119,17 @@ export function TenantsPage() {
     onError: (err) => setError(extractErrorMessage(err))
   });
 
+  const wipeReseed = useMutation({
+    mutationFn: async () => (await api.post<{
+      usersDeleted: number; tenantsDeleted: number;
+      tenantsCreated: number; usersCreated: number;
+      customersCreated: number; producersCreated: number;
+      policiesCreated: number; bridgeRunsCreated: number;
+    }>("/platform/demo/wipe-and-reseed")).data,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["tenants"] }); },
+    onError: (e) => setError(extractErrorMessage(e))
+  });
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
@@ -126,10 +137,28 @@ export function TenantsPage() {
           <Typography variant="h4">{t("tenants.title")}</Typography>
           <HelpHint id="page.tenants" />
         </Stack>
-        <Button startIcon={<AddIcon />} variant="contained" onClick={() => { setError(null); setOpen(true); }}>
-          {t("tenants.create")}
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" color="error"
+            onClick={() => {
+              if (!confirm("Θα διαγραφούν ΟΛΟΙ οι χρήστες + όλα τα γραφεία εκτός από τον superadmin και το Kalypsis Platform tenant, και θα δημιουργηθούν 5 νέα demo γραφεία. Είστε σίγουρος;")) return;
+              wipeReseed.mutate();
+            }}
+            disabled={wipeReseed.isPending}>
+            {wipeReseed.isPending ? <CircularProgress size={16} /> : "Wipe & Reseed Demo"}
+          </Button>
+          <Button startIcon={<AddIcon />} variant="contained" onClick={() => { setError(null); setOpen(true); }}>
+            {t("tenants.create")}
+          </Button>
+        </Stack>
       </Stack>
+      {wipeReseed.data && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          Ολοκληρώθηκε: {wipeReseed.data.tenantsDeleted} γραφεία διαγράφηκαν · {wipeReseed.data.usersDeleted} χρήστες ·
+          {" "}5 νέα γραφεία, {wipeReseed.data.usersCreated} users, {wipeReseed.data.producersCreated} συνεργάτες,
+          {" "}{wipeReseed.data.customersCreated} πελάτες, {wipeReseed.data.policiesCreated} συμβόλαια,
+          {" "}{wipeReseed.data.bridgeRunsCreated} bridge runs.
+        </Alert>
+      )}
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
