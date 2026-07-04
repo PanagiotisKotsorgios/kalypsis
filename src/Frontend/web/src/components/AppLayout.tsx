@@ -33,6 +33,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import FolderIcon from "@mui/icons-material/Folder";
 import DownloadForOfflineIcon from "@mui/icons-material/DownloadForOffline";
 import ConstructionIcon from "@mui/icons-material/Construction";
+import PhoneIphoneIcon from "@mui/icons-material/PhoneIphone";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
@@ -132,10 +133,12 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
   }, [openGroups]);
   const toggleGroup = (g: string) => setOpenGroups(s => ({ ...s, [g]: !s[g] }));
 
-  // Desktop-install teaser — surfaced at the bottom of every sidebar for every
-  // role. Clicking opens a "Coming soon" dialog for now; will link to the
-  // Kalypsis desktop installer once the app ships (post 2026-10-20).
+  // Desktop-install + mobile-app teasers — pinned at the bottom of every
+  // sidebar for every role. Both open a "Coming soon" dialog for now; the
+  // desktop entry will link to a Windows/macOS installer post 2026-10-20,
+  // the mobile entry to App Store / Play Store links once the RN app ships.
   const [desktopOpen, setDesktopOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   // Whether this user gets the workspace-switcher UI at all. Only agency-side roles see it;
   // platform staff (not impersonating) and customers/producers use the linear sidebar.
   const useWorkspaceUi = user?.role === "AgencyAdmin" || user?.role === "AgencyUser" || !!impersonatedTenantId;
@@ -330,15 +333,24 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           );
         })()}
       </List>
-      {/* Desktop-app installer teaser — visually distinct from regular nav
-          items (dashed secondary border, secondary tint) so it reads as a
-          "special" pinned action, not part of the flat nav list. Every role
-          sees it; clicking opens a Coming-soon dialog with the target date. */}
+      {/* Desktop + mobile install teasers — visually distinct from regular
+          nav items (dashed secondary border, secondary tint) so they read as
+          "special" pinned actions, not part of the flat nav list. Both open
+          Coming-soon dialogs with target dates and platform-specific copy. */}
       <Box sx={{ px: !isMobile && !open ? 0.5 : 1.5, pb: 1 }}>
-        {!isMobile && !open ? (
-          <Tooltip title={t("nav.installDesktop", "Εγκατάσταση σε υπολογιστή")} placement="right" arrow>
+        {[
+          { key: "desktop" as const, icon: <DownloadForOfflineIcon />,
+            labelKey: "nav.installDesktop", tipFallback: "Εγκατάσταση σε υπολογιστή",
+            labelFallback: "ΕΓΚΑΤΑΣΤΑΣΗ ΣΕ ΥΠΟΛΟΓΙΣΤΗ",
+            onClick: () => setDesktopOpen(true) },
+          { key: "mobile" as const, icon: <PhoneIphoneIcon />,
+            labelKey: "nav.installMobile", tipFallback: "Εφαρμογή κινητού",
+            labelFallback: "ΕΦΑΡΜΟΓΗ ΚΙΝΗΤΟΥ",
+            onClick: () => setMobileOpen(true) }
+        ].map(entry => !isMobile && !open ? (
+          <Tooltip key={entry.key} title={t(entry.labelKey, entry.tipFallback)} placement="right" arrow>
             <ListItemButton
-              onClick={() => setDesktopOpen(true)}
+              onClick={entry.onClick}
               sx={(th) => ({
                 mx: 0.5, mb: 0.4, borderRadius: 1.5, justifyContent: "center",
                 border: `1px dashed ${alpha(th.palette.secondary.main, 0.5)}`,
@@ -347,13 +359,14 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
               })}
             >
               <ListItemIcon sx={{ minWidth: 0, color: "secondary.main", justifyContent: "center" }}>
-                <DownloadForOfflineIcon />
+                {entry.icon}
               </ListItemIcon>
             </ListItemButton>
           </Tooltip>
         ) : (
           <ListItemButton
-            onClick={() => setDesktopOpen(true)}
+            key={entry.key}
+            onClick={entry.onClick}
             sx={(th) => ({
               mx: 1, mb: 0.4, borderRadius: 1.5,
               border: `1px dashed ${alpha(th.palette.secondary.main, 0.5)}`,
@@ -362,10 +375,10 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
             })}
           >
             <ListItemIcon sx={{ minWidth: 34, color: "secondary.main" }}>
-              <DownloadForOfflineIcon />
+              {entry.icon}
             </ListItemIcon>
             <ListItemText
-              primary={t("nav.installDesktop", "ΕΓΚΑΤΑΣΤΑΣΗ ΣΕ ΥΠΟΛΟΓΙΣΤΗ")}
+              primary={t(entry.labelKey, entry.labelFallback)}
               primaryTypographyProps={{
                 fontWeight: 800, noWrap: true, fontSize: 12.5,
                 letterSpacing: "0.06em", textTransform: "uppercase",
@@ -377,7 +390,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                 bgcolor: alpha(th.palette.secondary.main, 0.15),
                 color: "secondary.main", ml: 0.5 })} />
           </ListItemButton>
-        )}
+        ))}
       </Box>
       <Divider />
       <Dialog open={desktopOpen} onClose={() => setDesktopOpen(false)} maxWidth="xs" fullWidth>
@@ -399,6 +412,27 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
         </DialogContent>
         <DialogActions>
           <Button variant="contained" onClick={() => setDesktopOpen(false)}>Κατάλαβα</Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog open={mobileOpen} onClose={() => setMobileOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" spacing={1.2}>
+            <PhoneIphoneIcon color="secondary" />
+            <span>Εφαρμογή κινητού</span>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 1 }}>
+            Η <b>εφαρμογή Kalypsis για κινητά</b> (iOS + Android) είναι υπό ανάπτυξη. Θα διατεθεί στο <b>App Store</b>
+            {" "}και στο <b>Google Play</b> <b>μετά τις 20 Οκτωβρίου 2026</b>.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Το site λειτουργεί ήδη σαν προοδευτική εφαρμογή (PWA): μπορείτε να το «προσθέσετε στην αρχική οθόνη»
+            του κινητού σας και να έχετε εμπειρία εφαρμογής μέχρι να κυκλοφορήσουν τα native builds.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" onClick={() => setMobileOpen(false)}>Κατάλαβα</Button>
         </DialogActions>
       </Dialog>
       <Box sx={{ p: !isMobile && !open ? 1 : 2, pb: isMobile ? "max(16px, env(safe-area-inset-bottom))" : undefined }}>
