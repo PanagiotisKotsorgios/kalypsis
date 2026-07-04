@@ -381,6 +381,7 @@ function CreateCustomerDialog({
                 onChange={(e) => setForm({ ...form, firstName: e.target.value })}
                 fullWidth
                 required
+                InputProps={{ endAdornment: <FilterHelp title="Όνομα πελάτη — όπως αναγράφεται στην αστυνομική ταυτότητα." /> }}
               />
               <TextField
                 label={t("customers.lastName")}
@@ -388,6 +389,7 @@ function CreateCustomerDialog({
                 onChange={(e) => setForm({ ...form, lastName: e.target.value })}
                 fullWidth
                 required
+                InputProps={{ endAdornment: <FilterHelp title="Επώνυμο πελάτη — όπως αναγράφεται στην αστυνομική ταυτότητα." /> }}
               />
             </Stack>
           ) : (
@@ -398,6 +400,7 @@ function CreateCustomerDialog({
                 onChange={(e) => setForm({ ...form, companyName: e.target.value })}
                 fullWidth
                 required
+                InputProps={{ endAdornment: <FilterHelp title="Επίσημη επωνυμία επιχείρησης όπως εμφανίζεται στα ΓΕΜΗ / τιμολόγια." /> }}
               />
               <TextField
                 label={t("customers.vatNumber")}
@@ -405,6 +408,7 @@ function CreateCustomerDialog({
                 onChange={(e) => setForm({ ...form, vatNumber: e.target.value })}
                 fullWidth
                 required
+                InputProps={{ endAdornment: <FilterHelp title="ΑΦΜ επιχείρησης (9 ψηφία). Χρησιμοποιείται σε τιμολόγηση και έλεγχο διπλοεγγραφών." /> }}
               />
             </Stack>
           )}
@@ -415,6 +419,7 @@ function CreateCustomerDialog({
             onChange={(e) => setForm({ ...form, occupation: e.target.value })}
             fullWidth
             placeholder={form.type === "Company" ? "π.χ. Εστίαση, ξενοδοχείο, εμπόριο" : "π.χ. Ελεύθερος επαγγελματίας"}
+            InputProps={{ endAdornment: <FilterHelp title={form.type === "Company" ? "Κλάδος δραστηριότητας — βοηθά σε ανάλυση χαρτοφυλακίου ανά τομέα." : "Επάγγελμα πελάτη — αξιοποιείται σε cross-sell προτάσεις."} /> }}
           />
 
           <TextField
@@ -424,12 +429,14 @@ function CreateCustomerDialog({
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             fullWidth
             required={form.createPortalAccount}
+            InputProps={{ endAdornment: <FilterHelp title="Email πελάτη. Χρησιμοποιείται για αποστολή συμβολαίων, ανανεώσεων και άλλων ειδοποιήσεων." /> }}
           />
           <TextField
             label={t("customers.phone")}
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
             fullWidth
+            InputProps={{ endAdornment: <FilterHelp title="Τηλέφωνο επικοινωνίας. Χρησιμοποιείται σε SMS ειδοποιήσεις και CRM δραστηριότητες." /> }}
           />
 
           <TextField
@@ -437,6 +444,7 @@ function CreateCustomerDialog({
             value={form.address}
             onChange={(e) => setForm({ ...form, address: e.target.value })}
             fullWidth
+            InputProps={{ endAdornment: <FilterHelp title="Διεύθυνση αλληλογραφίας — οδός και αριθμός." /> }}
           />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField
@@ -444,12 +452,14 @@ function CreateCustomerDialog({
               value={form.city}
               onChange={(e) => setForm({ ...form, city: e.target.value })}
               fullWidth
+              InputProps={{ endAdornment: <FilterHelp title="Πόλη κατοικίας/έδρας. Χρησιμοποιείται σε φίλτρα και reports ανά περιοχή." /> }}
             />
             <TextField
               label={t("customers.postalCode")}
               value={form.postalCode}
               onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
               fullWidth
+              InputProps={{ endAdornment: <FilterHelp title="Ταχυδρομικός Κώδικας (5 ψηφία)." /> }}
             />
           </Stack>
 
@@ -460,6 +470,7 @@ function CreateCustomerDialog({
             fullWidth
             multiline
             rows={2}
+            InputProps={{ endAdornment: <FilterHelp title="Προαιρετικά εσωτερικά σχόλια για τον πελάτη — προτιμήσεις, ιστορικό, ειδικές συμφωνίες." /> }}
           />
 
           <FormControlLabel

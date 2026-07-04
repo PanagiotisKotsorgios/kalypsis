@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
+import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert,
   Box,
@@ -365,6 +366,7 @@ function CreateTenantDialog({ open, onClose, onSubmit, submitting }: CreateDialo
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             fullWidth
             required
+            InputProps={{ endAdornment: <FilterHelp title="Επίσημη επωνυμία γραφείου όπως εμφανίζεται στα έγγραφα και τα emails." /> }}
           />
           <TextField
             label={t("tenants.code")}
@@ -373,20 +375,23 @@ function CreateTenantDialog({ open, onClose, onSubmit, submitting }: CreateDialo
             onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
             fullWidth
             required
+            InputProps={{ endAdornment: <FilterHelp title="Σύντομος κωδικός γραφείου (κεφαλαία). Χρησιμοποιείται σε bridges και exports." /> }}
           />
-          <SearchableTextField
-            select
-            label={t("tenants.subscriptionPlan")}
-            value={form.subscriptionPlan}
-            onChange={(e) => setForm({ ...form, subscriptionPlan: e.target.value })}
-            fullWidth
-          >
-            {PLANS.map((p) => (
-              <MenuItem key={p} value={p}>
-                {p}
-              </MenuItem>
-            ))}
-          </SearchableTextField>
+          <FilterFieldWrap tip="Το πακέτο συνδρομής καθορίζει ποιες λειτουργίες θα είναι διαθέσιμες στο γραφείο.">
+            <SearchableTextField
+              select
+              label={t("tenants.subscriptionPlan")}
+              value={form.subscriptionPlan}
+              onChange={(e) => setForm({ ...form, subscriptionPlan: e.target.value })}
+              fullWidth
+            >
+              {PLANS.map((p) => (
+                <MenuItem key={p} value={p}>
+                  {p}
+                </MenuItem>
+              ))}
+            </SearchableTextField>
+          </FilterFieldWrap>
           <Typography variant="overline" color="text.secondary" sx={{ mt: 2 }}>
             {t("tenants.adminSection")}
           </Typography>
@@ -397,6 +402,7 @@ function CreateTenantDialog({ open, onClose, onSubmit, submitting }: CreateDialo
               onChange={(e) => setForm({ ...form, adminFirstName: e.target.value })}
               fullWidth
               required
+              InputProps={{ endAdornment: <FilterHelp title="Όνομα του κύριου διαχειριστή του γραφείου (πρώτος admin user)." /> }}
             />
             <TextField
               label={t("tenants.adminLastName")}
@@ -404,6 +410,7 @@ function CreateTenantDialog({ open, onClose, onSubmit, submitting }: CreateDialo
               onChange={(e) => setForm({ ...form, adminLastName: e.target.value })}
               fullWidth
               required
+              InputProps={{ endAdornment: <FilterHelp title="Επώνυμο του κύριου διαχειριστή του γραφείου." /> }}
             />
           </Stack>
           <TextField
@@ -413,12 +420,14 @@ function CreateTenantDialog({ open, onClose, onSubmit, submitting }: CreateDialo
             onChange={(e) => setForm({ ...form, adminEmail: e.target.value })}
             fullWidth
             required
+            InputProps={{ endAdornment: <FilterHelp title="Email εισόδου του διαχειριστή. Πρέπει να είναι μοναδικό σε ολόκληρη την πλατφόρμα." /> }}
           />
           <TextField
             label={t("tenants.adminPhone")}
             value={form.adminPhone}
             onChange={(e) => setForm({ ...form, adminPhone: e.target.value })}
             fullWidth
+            InputProps={{ endAdornment: <FilterHelp title="Τηλέφωνο επικοινωνίας του διαχειριστή (προαιρετικό)." /> }}
           />
           <PasswordField
             label={t("tenants.adminPassword")}
@@ -426,7 +435,7 @@ function CreateTenantDialog({ open, onClose, onSubmit, submitting }: CreateDialo
             onChange={(e) => setForm({ ...form, adminPassword: e.target.value })}
             fullWidth
             required
-            helperText="min 8 chars"
+            helperText="Ελάχιστο 8 χαρακτήρες. Ο διαχειριστής μπορεί να τον αλλάξει αργότερα από το προφίλ του."
           />
         </Stack>
       </DialogContent>
@@ -617,25 +626,31 @@ function StandaloneProducerDialog({ open, onClose, onCredentials }: {
         </Alert>
         {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
         <Stack spacing={2} mt={1}>
-          <SearchableTextField
-            select label="Γραφείο" value={form.tenantId}
-            onChange={(e) => setForm({ ...form, tenantId: e.target.value })}
-            required
-          >
-            <MenuItem value="">— Επιλέξτε γραφείο —</MenuItem>
-            {(tenantsQ.data ?? []).map(x => (
-              <MenuItem key={x.id} value={x.id}>{x.name} ({x.code})</MenuItem>
-            ))}
-          </SearchableTextField>
+          <FilterFieldWrap tip="Το ασφαλιστικό γραφείο στο οποίο θα ανήκει ο συνεργάτης.">
+            <SearchableTextField
+              select label="Γραφείο" value={form.tenantId}
+              onChange={(e) => setForm({ ...form, tenantId: e.target.value })}
+              required fullWidth
+            >
+              <MenuItem value="">— Επιλέξτε γραφείο —</MenuItem>
+              {(tenantsQ.data ?? []).map(x => (
+                <MenuItem key={x.id} value={x.id}>{x.name} ({x.code})</MenuItem>
+              ))}
+            </SearchableTextField>
+          </FilterFieldWrap>
           <TextField label="Κωδικός παραγωγού" value={form.code}
             onChange={(e) => setForm({ ...form, code: e.target.value })}
-            placeholder="π.χ. PR9901" required />
+            placeholder="π.χ. PR9901" required
+            InputProps={{ endAdornment: <FilterHelp title="Μοναδικός κωδικός συνεργάτη μέσα στο γραφείο. Χρησιμοποιείται σε bridges και reports." /> }} />
           <TextField label="Ονοματεπώνυμο" value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            onChange={(e) => setForm({ ...form, name: e.target.value })} required
+            InputProps={{ endAdornment: <FilterHelp title="Πλήρες όνομα του συνεργάτη όπως εμφανίζεται σε λίστες και έγγραφα." /> }} />
           <TextField label="Email" type="email" value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+            onChange={(e) => setForm({ ...form, email: e.target.value })} required
+            InputProps={{ endAdornment: <FilterHelp title="Email εισόδου του συνεργάτη στο portal του Kalypsis. Πρέπει να είναι μοναδικό στο γραφείο." /> }} />
           <TextField label="Τηλέφωνο (προαιρετικό)" value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            InputProps={{ endAdornment: <FilterHelp title="Τηλέφωνο επικοινωνίας του συνεργάτη (προαιρετικό)." /> }} />
         </Stack>
       </DialogContent>
       <DialogActions>

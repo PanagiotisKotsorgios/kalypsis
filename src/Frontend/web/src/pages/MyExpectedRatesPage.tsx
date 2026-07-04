@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert, Box, Button, Card, CardContent, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, InputAdornment, MenuItem, Stack,
@@ -201,48 +202,66 @@ function ExpectedRateDialog({ open, onClose, row, carriers, onSaved }: {
       <DialogContent>
         {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
         <Stack spacing={2.5} mt={1}>
-          <SearchableTextField
-            select label="Εταιρεία" value={form.insuranceCompanyId}
-            onChange={(e) => setForm({ ...form, insuranceCompanyId: e.target.value })}
-            helperText={carriers.length === 0
-              ? "Δεν έχετε ενεργά συμβόλαια ή κανόνες γραφείου με καμία εταιρεία ακόμα."
-              : "Εμφανίζονται μόνο οι εταιρείες στις οποίες έχετε συμβόλαια ή κανόνες γραφείου."}
-          >
-            <MenuItem value="">— Όλες οι εταιρείες —</MenuItem>
-            {carriers.map(c => (
-              <MenuItem key={c.id} value={c.id}>
-                {c.name}
-                {typeof c.policyCount === "number" && c.policyCount > 0 && ` · ${c.policyCount} συμβ.`}
-                {c.hasAgencyRule && " · έχει κανόνα γραφείου"}
-              </MenuItem>
-            ))}
-          </SearchableTextField>
-          <SearchableTextField
-            select label="Πακέτο" value={form.policyType}
-            onChange={(e) => setForm({ ...form, policyType: e.target.value })}
-            helperText="Αφήστε κενό για «Όλα τα πακέτα»"
-          >
-            <MenuItem value="">— Όλα τα πακέτα —</MenuItem>
-            {POLICY_TYPES.map(t => <MenuItem key={t} value={t}>{POLICY_TYPE_LABEL[t]}</MenuItem>)}
-          </SearchableTextField>
-          <SearchableTextField
-            select label="Χρήση οχήματος (αν αφορά)" value={form.vehicleUseCategory}
-            onChange={(e) => setForm({ ...form, vehicleUseCategory: e.target.value })}
-          >
-            <MenuItem value="">— Οποιαδήποτε —</MenuItem>
-            {USE_CATS.map(u => <MenuItem key={u} value={u}>{u}</MenuItem>)}
-          </SearchableTextField>
+          <FilterFieldWrap tip="Ασφαλιστική εταιρεία στην οποία αφορά αυτός ο κανόνας. Αφήστε κενό για κανόνα που ισχύει για ΟΛΕΣ τις εταιρείες.">
+            <SearchableTextField
+              select label="Εταιρεία" value={form.insuranceCompanyId}
+              onChange={(e) => setForm({ ...form, insuranceCompanyId: e.target.value })}
+              helperText={carriers.length === 0
+                ? "Δεν έχετε ενεργά συμβόλαια ή κανόνες γραφείου με καμία εταιρεία ακόμα."
+                : "Εμφανίζονται μόνο οι εταιρείες στις οποίες έχετε συμβόλαια ή κανόνες γραφείου."}
+              fullWidth
+            >
+              <MenuItem value="">— Όλες οι εταιρείες —</MenuItem>
+              {carriers.map(c => (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.name}
+                  {typeof c.policyCount === "number" && c.policyCount > 0 && ` · ${c.policyCount} συμβ.`}
+                  {c.hasAgencyRule && " · έχει κανόνα γραφείου"}
+                </MenuItem>
+              ))}
+            </SearchableTextField>
+          </FilterFieldWrap>
+          <FilterFieldWrap tip="Τύπος συμβολαίου (Οχήματα, Κατοικία, Υγεία κ.λπ.). Αφήστε κενό για κανόνα που ισχύει σε όλα τα πακέτα της εταιρείας.">
+            <SearchableTextField
+              select label="Πακέτο" value={form.policyType}
+              onChange={(e) => setForm({ ...form, policyType: e.target.value })}
+              fullWidth
+            >
+              <MenuItem value="">— Όλα τα πακέτα —</MenuItem>
+              {POLICY_TYPES.map(t => <MenuItem key={t} value={t}>{POLICY_TYPE_LABEL[t]}</MenuItem>)}
+            </SearchableTextField>
+          </FilterFieldWrap>
+          <FilterFieldWrap tip="Χρήση οχήματος για συμβόλαια αυτοκινήτου (Ιδιωτική, Ταξί, Δημόσιας χρήσης κ.λπ.). Αγνοήστε το για μη-οχήματα.">
+            <SearchableTextField
+              select label="Χρήση οχήματος (αν αφορά)" value={form.vehicleUseCategory}
+              onChange={(e) => setForm({ ...form, vehicleUseCategory: e.target.value })}
+              fullWidth
+            >
+              <MenuItem value="">— Οποιαδήποτε —</MenuItem>
+              {USE_CATS.map(u => <MenuItem key={u} value={u}>{u}</MenuItem>)}
+            </SearchableTextField>
+          </FilterFieldWrap>
           <TextField
             label="Ποσοστό" type="number"
             value={form.expectedPercent}
             onChange={(e) => setForm({ ...form, expectedPercent: e.target.value })}
-            InputProps={{ endAdornment: <InputAdornment position="end"><PercentIcon fontSize="small" /></InputAdornment> }}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <PercentIcon fontSize="small" />
+                  <FilterHelp title="Ποσοστό προμήθειας που θεωρείτε ότι δικαιούστε σε αυτό το scope. Θα συγκριθεί με την παραμετροποίηση του γραφείου σας." />
+                </InputAdornment>
+              )
+            }}
             required
           />
           <TextField
             label="Σημείωση" value={form.notes} multiline minRows={2}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
             placeholder="π.χ. «βάσει σύμβασης από 01/2026»"
+            InputProps={{
+              endAdornment: <FilterHelp title="Προαιρετικό σχόλιο για δική σας αναφορά — π.χ. σύνδεση με σύμβαση, ημερομηνία αλλαγής κ.λπ." />
+            }}
           />
         </Stack>
       </DialogContent>

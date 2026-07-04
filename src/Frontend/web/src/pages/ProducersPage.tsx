@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
-import { FilterFieldWrap } from "../components/FilterHelp";
+import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, MenuItem, Stack, Table, TableBody,
@@ -358,21 +358,26 @@ function ProducerDialog({ open, onClose, producer, onSaved }: {
         <Stack spacing={2.5} mt={1}>
           <Stack direction="row" spacing={2}>
             <TextField label={t("producers.col.code")} value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value })} fullWidth required disabled={editing} />
-            <SearchableTextField label={t("producers.col.status")} value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value as ProducerStatus })} fullWidth>
-              {(["Active","Suspended","Terminated"] as const).map(s => <MenuItem key={s} value={s}>{t(`producers.statuses.${s}`)}</MenuItem>)}
-            </SearchableTextField>
+              onChange={(e) => setForm({ ...form, code: e.target.value })} fullWidth required disabled={editing}
+              InputProps={{ endAdornment: <FilterHelp title="Μοναδικός κωδικός συνεργάτη. Δεν αλλάζει μετά τη δημιουργία — χρησιμοποιείται σε bridges και reports." /> }} />
+            <FilterFieldWrap tip="Ενεργός: εμφανίζεται και δουλεύει κανονικά. Ανενεργός/Τερματισμένος: κρύβεται από τις νέες αναθέσεις.">
+              <SearchableTextField label={t("producers.col.status")} value={form.status}
+                onChange={(e) => setForm({ ...form, status: e.target.value as ProducerStatus })} fullWidth>
+                {(["Active","Suspended","Terminated"] as const).map(s => <MenuItem key={s} value={s}>{t(`producers.statuses.${s}`)}</MenuItem>)}
+              </SearchableTextField>
+            </FilterFieldWrap>
           </Stack>
-          <SearchableTextField label="Κατηγορία προμηθειών" value={form.tier}
-            onChange={(e) => setForm({ ...form, tier: e.target.value as ProducerTier })} fullWidth
-            helperText="Επιλέξτε την κατηγορία Α/Β/Γ/Δ/Ε ώστε ο συνεργάτης να παίρνει αυτόματα την προμήθεια που έχετε ορίσει στην παραμετροποίηση για την κατηγορία του.">
-            <MenuItem value="None">— Χωρίς κατηγορία —</MenuItem>
-            {(["A","B","C","D","E"] as const).map(tier =>
-              <MenuItem key={tier} value={tier}>{TIER_LABEL[tier as ProducerTier]}</MenuItem>)}
-          </SearchableTextField>
+          <FilterFieldWrap tip="Επιλέξτε την κατηγορία Α/Β/Γ/Δ/Ε ώστε ο συνεργάτης να παίρνει αυτόματα την προμήθεια που έχετε ορίσει στην παραμετροποίηση για την κατηγορία του.">
+            <SearchableTextField label="Κατηγορία προμηθειών" value={form.tier}
+              onChange={(e) => setForm({ ...form, tier: e.target.value as ProducerTier })} fullWidth>
+              <MenuItem value="None">— Χωρίς κατηγορία —</MenuItem>
+              {(["A","B","C","D","E"] as const).map(tier =>
+                <MenuItem key={tier} value={tier}>{TIER_LABEL[tier as ProducerTier]}</MenuItem>)}
+            </SearchableTextField>
+          </FilterFieldWrap>
           <TextField label={t("producers.col.name")} value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth required />
+            onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth required
+            InputProps={{ endAdornment: <FilterHelp title="Πλήρες ονοματεπώνυμο συνεργάτη όπως εμφανίζεται σε λίστες, έγγραφα και reports." /> }} />
           <Box>
             <TextField
               label={t("producers.col.email")}
@@ -415,7 +420,8 @@ function ProducerDialog({ open, onClose, producer, onSaved }: {
             </Slide>
           </Box>
           <TextField label={t("producers.col.phone")} value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })} fullWidth />
+            onChange={(e) => setForm({ ...form, phone: e.target.value })} fullWidth
+            InputProps={{ endAdornment: <FilterHelp title="Τηλέφωνο επικοινωνίας. Χρησιμοποιείται για CRM δραστηριότητες όπως τηλεφωνήματα και SMS." /> }} />
         </Stack>
       </DialogContent>
       <DialogActions>

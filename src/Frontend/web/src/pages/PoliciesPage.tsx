@@ -908,11 +908,13 @@ function PolicyFormDialog({
               type="date" label={t("policies.form.startDate")} InputLabelProps={{ shrink: true }}
               value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })}
               fullWidth required
+              InputProps={{ endAdornment: <FilterHelp title="Ημερομηνία έναρξης ισχύος συμβολαίου. Καθορίζει και πότε αρχίζει η προμήθεια συνεργάτη." /> }}
             />
             <TextField
               type="date" label={t("policies.form.endDate")} InputLabelProps={{ shrink: true }}
               value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })}
               fullWidth required
+              InputProps={{ endAdornment: <FilterHelp title="Ημερομηνία λήξης συμβολαίου. Χρησιμοποιείται στις ειδοποιήσεις ανανέωσης." /> }}
             />
           </Stack>
 
@@ -921,7 +923,14 @@ function PolicyFormDialog({
               type="number" label={t("policies.form.premium")}
               value={form.premium}
               onChange={(e) => setForm({ ...form, premium: Number(e.target.value) })}
-              InputProps={{ endAdornment: <InputAdornment position="end">{form.currency}</InputAdornment> }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    {form.currency}
+                    <FilterHelp title="Μικτό ασφάλιστρο συμβολαίου. Το ποσό πάνω στο οποίο υπολογίζονται προμήθειες και ΦΠΑ." />
+                  </InputAdornment>
+                )
+              }}
               fullWidth required
             />
             <SearchableTextField
@@ -992,12 +1001,21 @@ function RenewDialog({
         <Stack spacing={2.5}>
           <Divider />
           <TextField type="date" label={t("policies.form.startDate")} InputLabelProps={{ shrink: true }}
-            value={startDate} onChange={(e) => setStartDate(e.target.value)} fullWidth required />
+            value={startDate} onChange={(e) => setStartDate(e.target.value)} fullWidth required
+            InputProps={{ endAdornment: <FilterHelp title="Νέα ημερομηνία έναρξης — συνήθως η αμέσως επόμενη μέρα από τη λήξη του παλιού συμβολαίου." /> }} />
           <TextField type="date" label={t("policies.form.endDate")} InputLabelProps={{ shrink: true }}
-            value={endDate} onChange={(e) => setEndDate(e.target.value)} fullWidth required />
+            value={endDate} onChange={(e) => setEndDate(e.target.value)} fullWidth required
+            InputProps={{ endAdornment: <FilterHelp title="Νέα ημερομηνία λήξης — συνήθως ένα έτος μετά τη νέα έναρξη." /> }} />
           <TextField type="number" label={t("policies.form.premium")}
             value={premium} onChange={(e) => setPremium(Number(e.target.value))}
-            InputProps={{ endAdornment: <InputAdornment position="end">{policy?.currency ?? "EUR"}</InputAdornment> }}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  {policy?.currency ?? "EUR"}
+                  <FilterHelp title="Ασφάλιστρο ανανεωμένου συμβολαίου. Προσυμπληρώνεται με το προηγούμενο — μπορείτε να το αλλάξετε." />
+                </InputAdornment>
+              )
+            }}
             fullWidth required />
         </Stack>
       </DialogContent>

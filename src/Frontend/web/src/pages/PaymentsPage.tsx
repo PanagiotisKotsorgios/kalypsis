@@ -280,12 +280,16 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2.5} mt={1}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField required label="Αριθμός πληρωμής" value={form.number} onChange={e => setForm({ ...form, number: e.target.value })} fullWidth />
-            <TextField type="date" label={t("payments.date")} InputLabelProps={{ shrink: true }} value={form.paidOn} onChange={e => setForm({ ...form, paidOn: e.target.value })} fullWidth />
+            <TextField required label="Αριθμός πληρωμής" value={form.number} onChange={e => setForm({ ...form, number: e.target.value })} fullWidth
+              InputProps={{ endAdornment: <FilterHelp title="Μοναδικός αριθμός εντολής πληρωμής. Προσυμπληρώνεται — μπορείτε να τον αλλάξετε." /> }} />
+            <TextField type="date" label={t("payments.date")} InputLabelProps={{ shrink: true }} value={form.paidOn} onChange={e => setForm({ ...form, paidOn: e.target.value })} fullWidth
+              InputProps={{ endAdornment: <FilterHelp title="Ημερομηνία εκτέλεσης πληρωμής." /> }} />
           </Stack>
-          <SearchableTextField label={t("payments.benType")} value={form.beneficiaryType} onChange={e => setForm({ ...form, beneficiaryType: e.target.value as BType })} fullWidth>
-            {BENEFICIARIES.map(b => <MenuItem key={b} value={b}>{t(`payments.benType.${b}`)}</MenuItem>)}
-          </SearchableTextField>
+          <FilterFieldWrap tip="Τύπος δικαιούχου: Ασφαλιστική εταιρεία, Συνεργάτης, Προμηθευτής. Καθορίζει τα επόμενα πεδία.">
+            <SearchableTextField label={t("payments.benType")} value={form.beneficiaryType} onChange={e => setForm({ ...form, beneficiaryType: e.target.value as BType })} fullWidth>
+              {BENEFICIARIES.map(b => <MenuItem key={b} value={b}>{t(`payments.benType.${b}`)}</MenuItem>)}
+            </SearchableTextField>
+          </FilterFieldWrap>
           {form.beneficiaryType === "InsuranceCompany" && (
             <SearchableSelect
               label={t("payments.companyBen")}
@@ -319,17 +323,23 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
             <TextField label={t("payments.vendorName")} value={form.beneficiaryName} onChange={e => setForm({ ...form, beneficiaryName: e.target.value })} fullWidth />
           )}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <SearchableTextField label={t("payments.method")} value={form.method} onChange={e => setForm({ ...form, method: e.target.value as Method })} fullWidth>
-              {METHODS.map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`)}</MenuItem>)}
-            </SearchableTextField>
-            <TextField type="number" required label={t("payments.amount")} value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth />
-            <TextField type="number" label={t("payments.netted")} value={form.commissionsNetted} onChange={e => setForm({ ...form, commissionsNetted: Number(e.target.value) })} fullWidth />
+            <FilterFieldWrap tip="Τρόπος πληρωμής (Μετρητά, Μεταφορά, Κάρτα κ.λπ.).">
+              <SearchableTextField label={t("payments.method")} value={form.method} onChange={e => setForm({ ...form, method: e.target.value as Method })} fullWidth>
+                {METHODS.map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`)}</MenuItem>)}
+              </SearchableTextField>
+            </FilterFieldWrap>
+            <TextField type="number" required label={t("payments.amount")} value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth
+              InputProps={{ endAdornment: <FilterHelp title="Μικτό ποσό πληρωμής προς τον δικαιούχο (πριν από συμψηφισμό προμηθειών)." /> }} />
+            <TextField type="number" label={t("payments.netted")} value={form.commissionsNetted} onChange={e => setForm({ ...form, commissionsNetted: Number(e.target.value) })} fullWidth
+              InputProps={{ endAdornment: <FilterHelp title="Ποσό προμηθειών που συμψηφίστηκαν από την πληρωμή (νετάρισμα). Καθαρή πληρωμή = Ποσό - Συμψηφισμός." /> }} />
           </Stack>
           <TextField label={txRefLabelFor(form.method)} value={form.transactionReference}
             onChange={e => setForm({ ...form, transactionReference: e.target.value })}
             placeholder="π.χ. αρ. συναλλαγής, αρ. επιταγής"
-            fullWidth />
-          <TextField label={t("common.notes")} multiline rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} fullWidth />
+            fullWidth
+            InputProps={{ endAdornment: <FilterHelp title="Αναφορά συναλλαγής (αρ. εντολής, αρ. επιταγής, IBAN κ.λπ.) — για έλεγχο και συμφωνία." /> }} />
+          <TextField label={t("common.notes")} multiline rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} fullWidth
+            InputProps={{ endAdornment: <FilterHelp title="Προαιρετικές σημειώσεις για την πληρωμή." /> }} />
         </Stack>
       </DialogContent>
       <DialogActions>
