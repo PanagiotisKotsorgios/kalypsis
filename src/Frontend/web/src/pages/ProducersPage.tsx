@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
+import { FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, MenuItem, Stack, Table, TableBody,
@@ -110,23 +111,27 @@ export function ProducersPage() {
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
 
-      <Card sx={{ p: 2, mb: 2 }}>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-          <SearchableTextField size="small" label={t("producers.col.status")}
-            value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ProducerStatus | "")}
-            sx={{ minWidth: { sm: 200 } }}>
-            <MenuItem value="">Όλες</MenuItem>
-            {(["Active","Suspended","Terminated"] as const).map(s =>
-              <MenuItem key={s} value={s}>{t(`producers.statuses.${s}`)}</MenuItem>)}
-          </SearchableTextField>
-          <SearchableTextField size="small" label="Κατηγορία"
-            value={tierFilter} onChange={(e) => setTierFilter(e.target.value as ProducerTier | "")}
-            sx={{ minWidth: { sm: 180 } }}>
-            <MenuItem value="">Όλες</MenuItem>
-            {(["A","B","C","D","E"] as const).map(t =>
-              <MenuItem key={t} value={t}>{TIER_LABEL[t as ProducerTier]}</MenuItem>)}
-            <MenuItem value="None">Χωρίς κατηγορία</MenuItem>
-          </SearchableTextField>
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }} flexWrap="wrap" useFlexGap>
+          <FilterFieldWrap tip="Φιλτράρετε τους συνεργάτες ανά κατάσταση (Ενεργός, Ανενεργός, Τερματισμένος).">
+            <SearchableTextField size="small" label={t("producers.col.status")}
+              value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ProducerStatus | "")}
+              sx={{ minWidth: 170, width: "100%" }}>
+              <MenuItem value="">Όλες</MenuItem>
+              {(["Active","Suspended","Terminated"] as const).map(s =>
+                <MenuItem key={s} value={s}>{t(`producers.statuses.${s}`)}</MenuItem>)}
+            </SearchableTextField>
+          </FilterFieldWrap>
+          <FilterFieldWrap tip="Φιλτράρετε ανά κατηγορία προμηθειών Α/Β/Γ/Δ/Ε ή «Χωρίς κατηγορία».">
+            <SearchableTextField size="small" label="Κατηγορία"
+              value={tierFilter} onChange={(e) => setTierFilter(e.target.value as ProducerTier | "")}
+              sx={{ minWidth: 150, width: "100%" }}>
+              <MenuItem value="">Όλες</MenuItem>
+              {(["A","B","C","D","E"] as const).map(t =>
+                <MenuItem key={t} value={t}>{TIER_LABEL[t as ProducerTier]}</MenuItem>)}
+              <MenuItem value="None">Χωρίς κατηγορία</MenuItem>
+            </SearchableTextField>
+          </FilterFieldWrap>
           <Stack direction="row" alignItems="center" spacing={1}>
             <input type="checkbox" id="has-policies-only" checked={hasPoliciesOnly}
               onChange={(e) => setHasPoliciesOnly(e.target.checked)} />

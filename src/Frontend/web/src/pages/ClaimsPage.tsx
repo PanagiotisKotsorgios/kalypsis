@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
+import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert,
   Box,
@@ -209,24 +210,29 @@ export function ClaimsPage() {
       </Stack>
 
       {!isCustomer && (
-        <Card sx={{ p: 2, mb: 2 }}>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
-            <SearchableTextField size="small" label={t("claims.col.status")}
-              value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "")}
-              sx={{ minWidth: 180 }}>
-              <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
-              {(["Reported","UnderReview","Approved","Rejected","Paid","Closed"] as const).map(s =>
-                <MenuItem key={s} value={s}>{t(`claims.statuses.${s}`)}</MenuItem>)}
-            </SearchableTextField>
-            <TextField size="small" label="Πελάτης / Συμβόλαιο / ΑΦΜ" placeholder="…αναζήτηση…"
+        <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
+            <FilterFieldWrap tip="Φιλτράρετε τις ζημιές ανά κατάσταση (Αναφορά, Υπό έλεγχο, Εγκεκριμένη κ.λπ.).">
+              <SearchableTextField size="small" label={t("claims.col.status")}
+                value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "")}
+                sx={{ minWidth: 160, width: "100%" }}>
+                <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
+                {(["Reported","UnderReview","Approved","Rejected","Paid","Closed"] as const).map(s =>
+                  <MenuItem key={s} value={s}>{t(`claims.statuses.${s}`)}</MenuItem>)}
+              </SearchableTextField>
+            </FilterFieldWrap>
+            <TextField size="small" label="Πελάτης / Συμβόλαιο / ΑΦΜ" placeholder="Αναζήτηση…"
               value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)}
-              sx={{ minWidth: 260 }} />
+              sx={{ minWidth: 220, flex: 1 }}
+              InputProps={{
+                endAdornment: <FilterHelp title="Αναζήτηση σε ονοματεπώνυμο πελάτη, αριθμό συμβολαίου ή ΑΦΜ." />
+              }} />
             <SearchableSelect
               label="Εταιρία"
               value={carrierFilter}
               onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); setCoverFilter(""); setPackageFilter(""); }}
               emptyLabel="Όλες"
-              sx={{ minWidth: 220 }}
+              sx={{ minWidth: 170 }}
               options={(carriersQ.data ?? []).filter(c => !c.parentCompanyId).map(c => ({
                 value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : undefined,
               }))}
@@ -239,7 +245,7 @@ export function ClaimsPage() {
                 ? "Επιλέξτε εταιρία"
                 : filterCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
               emptyLabel="Όλοι"
-              sx={{ minWidth: 220 }}
+              sx={{ minWidth: 170 }}
               options={filterCatalogue.branches.map(b => ({ value: b.value, label: b.label }))}
             />
             <SearchableSelect
@@ -250,7 +256,7 @@ export function ClaimsPage() {
                 ? "Επιλέξτε εταιρία"
                 : filterCatalogue.uses.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
               emptyLabel="Όλες"
-              sx={{ minWidth: 220 }}
+              sx={{ minWidth: 170 }}
               options={filterCatalogue.uses.map(u => ({ value: u.value, label: u.label }))}
             />
             <SearchableSelect
@@ -261,7 +267,7 @@ export function ClaimsPage() {
                 ? "Επιλέξτε εταιρία"
                 : filterCatalogue.coverages.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
               emptyLabel="Όλες"
-              sx={{ minWidth: 220 }}
+              sx={{ minWidth: 170 }}
               options={filterCatalogue.coverages.map(c => ({ value: c.value, label: c.label }))}
             />
             <SearchableSelect
@@ -272,13 +278,17 @@ export function ClaimsPage() {
                 ? "Επιλέξτε εταιρία"
                 : filterCatalogue.packages.length === 0 ? "Δεν υπάρχουν πακέτα" : ""}
               emptyLabel="Όλα"
-              sx={{ minWidth: 220 }}
+              sx={{ minWidth: 170 }}
               options={filterCatalogue.packages.map(p => ({ value: p.value, label: p.label }))}
             />
-            <TextField size="small" type="date" label="Συμβάν από" InputLabelProps={{ shrink: true }}
-              value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-            <TextField size="small" type="date" label="Συμβάν έως" InputLabelProps={{ shrink: true }}
-              value={toDate} onChange={(e) => setToDate(e.target.value)} />
+            <FilterFieldWrap tip="Ημερομηνία συμβάντος από — εμφανίζει ζημιές που συνέβησαν από αυτήν την ημέρα.">
+              <TextField size="small" type="date" label="Συμβάν από" InputLabelProps={{ shrink: true }}
+                value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 150, width: "100%" }} />
+            </FilterFieldWrap>
+            <FilterFieldWrap tip="Ημερομηνία συμβάντος έως — εμφανίζει ζημιές που συνέβησαν μέχρι αυτήν την ημέρα.">
+              <TextField size="small" type="date" label="Συμβάν έως" InputLabelProps={{ shrink: true }}
+                value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 150, width: "100%" }} />
+            </FilterFieldWrap>
             <Button size="small" onClick={() => {
               setStatusFilter(""); setCustomerFilter(""); setCarrierFilter(""); setSubCarrierFilter([]);
               setTypeFilter(""); setUseFilter(""); setCoverFilter(""); setPackageFilter("");

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
+import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert,
   Autocomplete,
@@ -315,37 +316,45 @@ export function PoliciesPage() {
       ) : (
         <>
       {!isCustomer && (
-        <Card sx={{ p: 2, mb: 2 }} data-tour="policies-search">
-          <Stack spacing={2}>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+        <Card sx={{ px: 1.5, py: 1.25, mb: 2 }} data-tour="policies-search">
+          <Stack spacing={1}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
               <TextField
                 fullWidth size="small"
-                placeholder={t("policies.searchPlaceholder") + " · ΑΦΜ · αρ. απόδειξης · πινακίδα"}
+                placeholder="Αναζήτηση: αρ. συμβολαίου, πελάτης, ΑΦΜ, πινακίδα…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
+                sx={{ flex: 1, minWidth: 220 }}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                  endAdornment: <FilterHelp title="Αναζήτηση σε αριθμό συμβολαίου, πελάτη, ΑΦΜ, αρ. απόδειξης ή πινακίδα οχήματος." />
+                }}
               />
-              <SearchableTextField size="small" label={t("policies.col.status")}
-                value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as PolicyStatus | "")}
-                sx={{ minWidth: { sm: 170 } }}>
-                <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
-                {(["Draft","Active","Expired","Cancelled","Renewed","PendingRenewal"] as const).map(s =>
-                  <MenuItem key={s} value={s}>{t(`policies.statuses.${s}`)}</MenuItem>)}
-              </SearchableTextField>
-              <SearchableTextField size="small" label={t("policies.col.type")}
-                value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as PolicyType | "")}
-                sx={{ minWidth: { sm: 220 } }}
-                disabled={!carrierFilter}
-                helperText={!carrierFilter
-                  ? "Επιλέξτε εταιρία"
-                  : filterCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
-                <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
-                {filterCatalogue.branches.map(b => (
-                  <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
-                ))}
-              </SearchableTextField>
+              <FilterFieldWrap tip="Φιλτράρετε τα συμβόλαια ανά κατάσταση (Ενεργά, Ληγμένα, Ακυρωμένα κ.λπ.).">
+                <SearchableTextField size="small" label={t("policies.col.status")}
+                  value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as PolicyStatus | "")}
+                  sx={{ minWidth: 150, width: "100%" }}>
+                  <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
+                  {(["Draft","Active","Expired","Cancelled","Renewed","PendingRenewal"] as const).map(s =>
+                    <MenuItem key={s} value={s}>{t(`policies.statuses.${s}`)}</MenuItem>)}
+                </SearchableTextField>
+              </FilterFieldWrap>
+              <FilterFieldWrap tip="Φιλτράρετε ανά είδος συμβολαίου (Οχήματα, Κατοικία, Υγεία κ.λπ.). Επιλέξτε πρώτα εταιρία.">
+                <SearchableTextField size="small" label={t("policies.col.type")}
+                  value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as PolicyType | "")}
+                  sx={{ minWidth: 180, width: "100%" }}
+                  disabled={!carrierFilter}
+                  helperText={!carrierFilter
+                    ? "Επιλέξτε εταιρία"
+                    : filterCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
+                  <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
+                  {filterCatalogue.branches.map(b => (
+                    <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
+                  ))}
+                </SearchableTextField>
+              </FilterFieldWrap>
             </Stack>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
               <SearchableSelect
                 label="Εταιρία"
                 value={carrierFilter}
@@ -384,10 +393,14 @@ export function PoliciesPage() {
                   value: p.id, label: p.name, hint: p.code,
                 }))}
               />
-              <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
-                value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: { sm: 160 } }} />
-              <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
-                value={toDate}   onChange={(e) => setToDate(e.target.value)}   sx={{ minWidth: { sm: 160 } }} />
+              <FilterFieldWrap tip="Ημερομηνία έναρξης — εμφανίζει συμβόλαια από αυτήν την ημέρα και μετά.">
+                <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
+                  value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 140, width: "100%" }} />
+              </FilterFieldWrap>
+              <FilterFieldWrap tip="Ημερομηνία λήξης — εμφανίζει συμβόλαια μέχρι αυτήν την ημέρα.">
+                <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
+                  value={toDate}   onChange={(e) => setToDate(e.target.value)}   sx={{ minWidth: 140, width: "100%" }} />
+              </FilterFieldWrap>
               <Button size="small" onClick={() => {
                 setCarrierFilter(""); setSubCarrierFilter([]); setProducerFilter("");
                 setFromDate(""); setToDate(""); setStatusFilter(""); setTypeFilter(""); setSearch("");

@@ -12,6 +12,7 @@ import TuneIcon from "@mui/icons-material/Tune";
 import { useMutation, useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { FilterHelp } from "../components/FilterHelp";
 import { NumberedPager } from "../components/TableToolbar";
 import { DataExportButton } from "../components/DataExportButton";
 import { BulkCommissionsPage } from "./BulkCommissionsPage";
@@ -252,15 +253,18 @@ export function CommissionRulesPage() {
         Η παραμετροποίηση είναι πλέον σε ένα σημείο. Οι κανόνες προμηθειών αφορούν πληρωμές γραφείου/συνεργατών. Οι «Προεπιλογές συμβολαίων» αφορούν μόνο αυτόματη συμπλήρωση πεδίων όταν καταχωρείται χειροκίνητα νέο συμβόλαιο.
       </Alert>
 
-      <Card sx={{ p: 2, mb: 2 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
-          <TextField size="small" placeholder="Συνεργάτης, εταιρία, κλάδος…"
-            value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} flexWrap="wrap" alignItems={{ md: "center" }} useFlexGap>
+          <TextField size="small" placeholder="Αναζήτηση…"
+            value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 200 }}
+            InputProps={{
+              endAdornment: <FilterHelp title="Αναζήτηση σε συνεργάτη, εταιρία ή κλάδο του κανόνα προμήθειας." />
+            }} />
           <SearchableSelect
             label="Εταιρία" value={carrierFilter}
             onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); setCoverFilter(""); }}
             emptyLabel="Όλες"
-            sx={{ minWidth: 220 }}
+            sx={{ minWidth: 170 }}
             options={(companies.data ?? []).filter(c => !c.parentCompanyId).map(c => ({
               value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : c.code,
             }))}
@@ -305,7 +309,7 @@ export function CommissionRulesPage() {
               ? "Επιλέξτε εταιρία"
               : filterCatalogue.uses.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
             emptyLabel="Όλες"
-            sx={{ minWidth: 220 }}
+            sx={{ minWidth: 170 }}
             options={filterCatalogue.uses.map(u => ({ value: u.value, label: u.label }))}
           />
           <SearchableSelect
@@ -318,7 +322,7 @@ export function CommissionRulesPage() {
                 ? "Δεν υπάρχουν παραμετρικά"
                 : ""}
             emptyLabel="Όλες"
-            sx={{ minWidth: 220 }}
+            sx={{ minWidth: 170 }}
             options={[
               ...filterCatalogue.coverages.map(c => ({ value: c.value, label: c.label, group: "Καλύψεις" })),
               ...filterCatalogue.packages.map(p => ({ value: p.value, label: p.label, group: "Πακέτα" })),

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
+import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
@@ -153,22 +154,34 @@ export function ReceiptsPage() {
         </Stack>
       </Stack>
 
-      <Card sx={{ p: 2, mb: 2 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
-          <TextField size="small" placeholder="Αριθμός, πελάτης, συμβόλαιο, σημείωση…"
-            value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
-          <SearchableTextField size="small" label="Μέθοδος"
-            value={methodFilter} onChange={(e) => setMethodFilter(e.target.value as Method | "")}
-            sx={{ minWidth: 160 }}>
-            <MenuItem value="">Όλες</MenuItem>
-            {METHODS.map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`)}</MenuItem>)}
-          </SearchableTextField>
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} flexWrap="wrap" alignItems={{ md: "center" }} useFlexGap>
+          <TextField size="small" placeholder="Αναζήτηση…"
+            value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 200 }}
+            InputProps={{
+              endAdornment: <FilterHelp title="Αναζήτηση σε αριθμό απόδειξης, πελάτη, συμβόλαιο ή σημείωση." />
+            }} />
+          <FilterFieldWrap tip="Φιλτράρετε τις αποδείξεις ανά τρόπο πληρωμής (Μετρητά, Κάρτα, Μεταφορά κ.λπ.).">
+            <SearchableTextField size="small" label="Μέθοδος"
+              value={methodFilter} onChange={(e) => setMethodFilter(e.target.value as Method | "")}
+              sx={{ minWidth: 150, width: "100%" }}>
+              <MenuItem value="">Όλες</MenuItem>
+              {METHODS.map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`)}</MenuItem>)}
+            </SearchableTextField>
+          </FilterFieldWrap>
           <TextField size="small" label="Πελάτης / Συμβόλαιο"
-            value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)} sx={{ minWidth: 200 }} />
-          <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
-            value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-          <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
-            value={toDate} onChange={(e) => setToDate(e.target.value)} />
+            value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)} sx={{ minWidth: 180 }}
+            InputProps={{
+              endAdornment: <FilterHelp title="Ονοματεπώνυμο πελάτη ή αριθμός συμβολαίου για στοχευμένη αναζήτηση." />
+            }} />
+          <FilterFieldWrap tip="Ημερομηνία έκδοσης από — εμφανίζει αποδείξεις από αυτήν την ημέρα και μετά.">
+            <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
+              value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 140, width: "100%" }} />
+          </FilterFieldWrap>
+          <FilterFieldWrap tip="Ημερομηνία έκδοσης έως — εμφανίζει αποδείξεις μέχρι αυτήν την ημέρα.">
+            <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
+              value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 140, width: "100%" }} />
+          </FilterFieldWrap>
           <Button size="small" onClick={() => {
             setSearch(""); setMethodFilter(""); setFromDate(""); setToDate(""); setCustomerFilter("");
           }}>Καθαρισμός</Button>

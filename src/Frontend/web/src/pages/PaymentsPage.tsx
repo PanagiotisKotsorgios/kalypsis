@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
+import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
@@ -109,26 +110,37 @@ export function PaymentsPage() {
         </Stack>
       </Stack>
 
-      <Card sx={{ p: 2, mb: 2 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
-          <TextField size="small" placeholder="Αριθμός, δικαιούχος, σημείωση…"
-            value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
-          <SearchableTextField size="small" label="Δικαιούχος"
-            value={benFilter} onChange={(e) => setBenFilter(e.target.value as BType | "")}
-            sx={{ minWidth: 180 }}>
-            <MenuItem value="">Όλοι</MenuItem>
-            {BENEFICIARIES.map(b => <MenuItem key={b} value={b}>{t(`payments.benType.${b}`)}</MenuItem>)}
-          </SearchableTextField>
-          <SearchableTextField size="small" label="Μέθοδος"
-            value={methodFilter} onChange={(e) => setMethodFilter(e.target.value as Method | "")}
-            sx={{ minWidth: 160 }}>
-            <MenuItem value="">Όλες</MenuItem>
-            {METHODS.map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`)}</MenuItem>)}
-          </SearchableTextField>
-          <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
-            value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-          <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
-            value={toDate} onChange={(e) => setToDate(e.target.value)} />
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} flexWrap="wrap" alignItems={{ md: "center" }} useFlexGap>
+          <TextField size="small" placeholder="Αναζήτηση…"
+            value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 200 }}
+            InputProps={{
+              endAdornment: <FilterHelp title="Αναζήτηση σε αριθμό εντολής, δικαιούχο ή σημείωση." />
+            }} />
+          <FilterFieldWrap tip="Φιλτράρετε τις πληρωμές ανά τύπο δικαιούχου (Συνεργάτης, Πελάτης, Εταιρεία).">
+            <SearchableTextField size="small" label="Δικαιούχος"
+              value={benFilter} onChange={(e) => setBenFilter(e.target.value as BType | "")}
+              sx={{ minWidth: 160, width: "100%" }}>
+              <MenuItem value="">Όλοι</MenuItem>
+              {BENEFICIARIES.map(b => <MenuItem key={b} value={b}>{t(`payments.benType.${b}`)}</MenuItem>)}
+            </SearchableTextField>
+          </FilterFieldWrap>
+          <FilterFieldWrap tip="Φιλτράρετε ανά τρόπο πληρωμής (Μετρητά, Κάρτα, Μεταφορά κ.λπ.).">
+            <SearchableTextField size="small" label="Μέθοδος"
+              value={methodFilter} onChange={(e) => setMethodFilter(e.target.value as Method | "")}
+              sx={{ minWidth: 150, width: "100%" }}>
+              <MenuItem value="">Όλες</MenuItem>
+              {METHODS.map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`)}</MenuItem>)}
+            </SearchableTextField>
+          </FilterFieldWrap>
+          <FilterFieldWrap tip="Ημερομηνία πληρωμής από — εμφανίζει πληρωμές από αυτήν την ημέρα και μετά.">
+            <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
+              value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 140, width: "100%" }} />
+          </FilterFieldWrap>
+          <FilterFieldWrap tip="Ημερομηνία πληρωμής έως — εμφανίζει πληρωμές μέχρι αυτήν την ημέρα.">
+            <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
+              value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 140, width: "100%" }} />
+          </FilterFieldWrap>
           <Button size="small" onClick={() => {
             setSearch(""); setMethodFilter(""); setBenFilter(""); setFromDate(""); setToDate("");
           }}>Καθαρισμός</Button>

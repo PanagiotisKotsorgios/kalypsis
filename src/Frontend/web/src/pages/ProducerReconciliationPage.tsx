@@ -222,11 +222,11 @@ export function ProducerReconciliationPage() {
               onChange={(_e, v) => v && setMode(v)}
               sx={{ mr: { md: 1 } }}
             >
-              <ToggleButton value="rule" sx={{ px: 1.5, textTransform: "none", fontWeight: 700 }}>
+              <ToggleButton value="rule" sx={{ px: 1.5, textTransform: "none", fontWeight: 700, whiteSpace: "nowrap" }}>
                 <RuleIcon fontSize="small" sx={{ mr: 0.75 }} />
                 Ανά παραμετροποίηση
               </ToggleButton>
-              <ToggleButton value="contract" sx={{ px: 1.5, textTransform: "none", fontWeight: 700 }}>
+              <ToggleButton value="contract" sx={{ px: 1.5, textTransform: "none", fontWeight: 700, whiteSpace: "nowrap" }}>
                 <DescriptionIcon fontSize="small" sx={{ mr: 0.75 }} />
                 Ανά συμβόλαιο
               </ToggleButton>

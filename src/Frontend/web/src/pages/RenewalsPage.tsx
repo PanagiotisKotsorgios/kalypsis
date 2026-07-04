@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert, Badge, Box, Button, Card, Checkbox, Chip, CircularProgress, IconButton,
   MenuItem, Popover, Stack, Table, TableBody, TableCell, TableHead, TableRow,
@@ -147,16 +148,19 @@ export function RenewalsPage() {
             <ToggleButton value="list"><ViewListIcon fontSize="small" sx={{ mr: 0.5 }} />Λίστα</ToggleButton>
             <ToggleButton value="calendar"><CalendarViewMonthIcon fontSize="small" sx={{ mr: 0.5 }} />Ημερολόγιο</ToggleButton>
           </ToggleButtonGroup>
-          <SearchableTextField size="small" label="Παράθυρο" value={windowDays}
-            onChange={(e) => setWindowDays(Number(e.target.value))} sx={{ minWidth: 160 }}>
-            {WINDOWS.map(w => <MenuItem key={w.value} value={w.value}>{w.label}</MenuItem>)}
-          </SearchableTextField>
+          <FilterFieldWrap tip="Χρονικό παράθυρο εμφάνισης — δείχνει τα συμβόλαια που λήγουν εντός τόσων ημερών.">
+            <SearchableTextField size="small" label="Παράθυρο" value={windowDays}
+              onChange={(e) => setWindowDays(Number(e.target.value))} sx={{ minWidth: 150, width: "100%" }}>
+              {WINDOWS.map(w => <MenuItem key={w.value} value={w.value}>{w.label}</MenuItem>)}
+            </SearchableTextField>
+          </FilterFieldWrap>
           <Button
             variant="contained" startIcon={<AutorenewIcon />}
             disabled={selected.size === 0 || bulk.isPending}
             onClick={() => {
               if (confirm(`Ανανέωση ${selected.size} συμβολαίων;`)) bulk.mutate();
-            }}>
+            }}
+            sx={{ whiteSpace: "nowrap", flexShrink: 0, minWidth: 220 }}>
             {bulk.isPending ? <CircularProgress size={18} color="inherit" />
               : `Μαζική ανανέωση (${selected.size})`}
           </Button>

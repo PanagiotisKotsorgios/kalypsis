@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { HelpHint } from "../components/HelpHint";
+import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert,
   Box,
@@ -144,33 +145,33 @@ export function CustomersPage() {
         </Stack>
       </Stack>
 
-      <Card sx={{ mb: 2, p: 2 }} data-tour="customers-search">
-        <Stack spacing={1.5}>
+      <Card sx={{ mb: 2, px: 1.5, py: 1.25 }} data-tour="customers-search">
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
           <TextField
-            fullWidth
+            size="small"
             placeholder={t("customers.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            sx={{ flex: 1, minWidth: 220 }}
             InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon color="action" />
-                </InputAdornment>
-              )
+              startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" color="action" /></InputAdornment>,
+              endAdornment: <FilterHelp title="Αναζήτηση σε όνομα, ΑΦΜ, email, τηλέφωνο, αρ. πελάτη ή πόλη." />
             }}
           />
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }}>
+          <FilterFieldWrap tip="Ελεύθερο κείμενο για επάγγελμα ή κλάδο δραστηριότητας (π.χ. «εστίαση»).">
             <TextField size="small" label="Επάγγελμα / κλάδος" value={occupationFilter}
-              onChange={(e) => setOccupationFilter(e.target.value)} sx={{ minWidth: { md: 250 } }}
+              onChange={(e) => setOccupationFilter(e.target.value)} sx={{ minWidth: 190, width: "100%" }}
               placeholder="π.χ. εστίαση" />
+          </FilterFieldWrap>
+          <FilterFieldWrap tip="Φιλτράρετε τους πελάτες βάσει ασφαλιστικής ανάγκης ή περιουσιακού στοιχείου.">
             <SearchableTextField size="small" label="Ανάγκη / περιουσία" value={needKind}
-              onChange={(e) => setNeedKind(e.target.value)} sx={{ minWidth: { md: 210 } }}>
+              onChange={(e) => setNeedKind(e.target.value)} sx={{ minWidth: 180, width: "100%" }}>
               <MenuItem value="">Όλες</MenuItem>
               {NEED_KINDS.map(kind => <MenuItem key={kind} value={kind}>{kind}</MenuItem>)}
             </SearchableTextField>
-            <FormControlLabel control={<Switch checked={onlyUninsuredNeeds} disabled={!needKind}
-              onChange={(e) => setOnlyUninsuredNeeds(e.target.checked)} />} label="Μόνο χωρίς ενεργή κάλυψη" />
-          </Stack>
+          </FilterFieldWrap>
+          <FormControlLabel control={<Switch checked={onlyUninsuredNeeds} disabled={!needKind}
+            onChange={(e) => setOnlyUninsuredNeeds(e.target.checked)} />} label="Μόνο χωρίς κάλυψη" />
         </Stack>
       </Card>
 
