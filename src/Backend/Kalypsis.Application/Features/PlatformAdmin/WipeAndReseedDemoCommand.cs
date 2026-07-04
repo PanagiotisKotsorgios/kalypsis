@@ -1,6 +1,5 @@
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
-using Kalypsis.Domain.Common;
 using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
 using MediatR;
@@ -37,6 +36,7 @@ public class WipeAndReseedDemoCommandHandler
     private readonly IAppDbContext _db;
     private readonly IPasswordHasher _hasher;
     private readonly IDateTimeProvider _clock;
+    private (int usersDeleted, int tenantsDeleted) _wipeCounts;
 
     public WipeAndReseedDemoCommandHandler(IAppDbContext db, IPasswordHasher hasher, IDateTimeProvider clock)
     {
@@ -50,65 +50,139 @@ public class WipeAndReseedDemoCommandHandler
         var now = _clock.UtcNow;
         var superEmail = r.SuperAdminEmail.Trim().ToLowerInvariant();
 
-        // ── 1. Soft-delete every user and tenant that is NOT the superadmin
-        //      or the Kalypsis Platform tenant. Universal carriers stay
-        //      because they're TenantId = null; tenant-scoped policies /
-        //      customers / receipts / etc. inherit the soft-delete via their
-        //      tenant's cascade OR are marked deleted below explicitly.
-        var keepTenantIds = await _db.Tenants.IgnoreQueryFilters()
-            .Where(t => t.Code == "PLATFORM" || t.Name.StartsWith("Kalypsis"))
-            .Select(t => t.Id).ToListAsync(ct);
+        // Raw SQL wipe — routed through IAppDbContext.ExecuteRawSqlAsync so
+        // this Application-layer handler doesn't need EF.Relational. Hard
+        // delete with FK checks off. Soft-delete alone kept leaving the
+        // rows in place and half the UI queries IgnoreQueryFilters so the
+        // «wiped» users kept showing up in the AllUsers table.
 
-        var otherTenantIds = await _db.Tenants.IgnoreQueryFilters()
-            .Where(t => t.DeletedAt == null && !keepTenantIds.Contains(t.Id))
-            .Select(t => t.Id).ToListAsync(ct);
+        // ── 1. Identify what to KEEP: the superadmin user and any tenant
+        //      that hosts them. Everything else — every other user, tenant,
+        //      customer, policy, etc. — gets HARD-deleted below.
+        var superAdminUserId = await _db.Users.IgnoreQueryFilters()
+            .Where(u => u.Email == superEmail)
+            .Select(u => (Guid?)u.Id)
+            .FirstOrDefaultAsync(ct);
+        if (superAdminUserId is null)
+            throw new InvalidOperationException(
+                $"Ο superadmin με email {superEmail} δεν βρέθηκε. Αδυναμία εκκαθάρισης.");
 
-        int usersDeleted = 0;
-        if (otherTenantIds.Count > 0)
+        var superAdminTenantId = await _db.Users.IgnoreQueryFilters()
+            .Where(u => u.Id == superAdminUserId.Value)
+            .Select(u => u.TenantId).FirstAsync(ct);
+
+        // Which tables carry a TenantId column — all these get wiped fully.
+        // Order irrelevant since FK checks are disabled during the delete.
+        var tenantScopedTables = new[]
         {
-            var toDelete = await _db.Users.IgnoreQueryFilters()
-                .Where(u => u.DeletedAt == null && u.Email != superEmail
-                            && otherTenantIds.Contains(u.TenantId))
-                .ToListAsync(ct);
-            foreach (var u in toDelete) { u.DeletedAt = now; u.IsActive = false; }
-            usersDeleted = toDelete.Count;
+            "customers", "customer_contacts", "customer_family_relationships",
+            "customer_insurance_needs", "producers", "producer_commission_declarations",
+            "policies", "policy_documents", "policy_covers", "policy_objects",
+            "policy_installments", "policy_endorsements", "policy_cancellations",
+            "policy_cover_adjustments", "receipts", "payments", "financial_movements",
+            "securities", "bank_connections", "claims", "claim_victims",
+            "settlement_payments", "friendly_settlements",
+            "commission_rules", "commission_transactions", "commission_runs",
+            "commission_run_lines", "over_commission_rules",
+            "notifications", "communications", "consents",
+            "agency_tasks", "appointments", "appointment_participants",
+            "company_bridges", "bridge_runs", "company_bridge_runs",
+            "insurance_companies", // wipe TENANT-scoped ones; keep universal below
+            "company_parameter_items",
+            "tariffs", "cover_notes", "credit_notes", "marketing_campaigns",
+            "newsletter_subscribers", "email_templates", "email_deliveries",
+            "documents", "editable_documents", "document_templates",
+            "document_numbering_rules", "info_center_exports", "contact_export_logs",
+            "reconciliation_links", "advance_payments",
+            "tachy_payment_batches", "tachy_payment_lines",
+            "sap_bridge_mappings", "period_locks", "default_value_rules",
+            "custom_field_definitions", "custom_field_values",
+            "movement_types", "bonus_malus_rules", "renewal_rules",
+            "register_templates", "callerid_logs", "usae_submissions",
+            "vehicle_models", "third_party_api_keys", "integration_settings",
+            "audit_logs", "service_requests", "service_request_attachments",
+            "workflow_rules", "workflow_rule_actions",
+            "policy_applications", "pending_items", "quote_offers",
+            "delivery_notes", "dias_codes",
+            "production_goals", "saved_reports", "tenant_carrier_optins",
+            "tenant_package_grants", "tenant_invoices", "tenant_invoice_lines",
+            "branches", "agency_offices",
+        };
+
+        int rowsDeleted = 0;
+        // FK checks off for the wipe. If a table doesn't exist (older schema)
+        // the DELETE fails silently but doesn't stop the batch — we catch and
+        // continue so a partial schema doesn't jam the whole operation.
+        await _db.ExecuteRawSqlAsync("SET FOREIGN_KEY_CHECKS = 0;", ct);
+        try
+        {
+            foreach (var table in tenantScopedTables)
+            {
+                try
+                {
+                    string sql;
+                    if (table == "insurance_companies")
+                    {
+                        // Universal carriers (TenantId IS NULL) stay so the
+                        // reseeded tenants can immediately write policies.
+                        sql = $"DELETE FROM `{table}` WHERE `TenantId` IS NOT NULL";
+                    }
+                    else
+                    {
+                        sql = $"DELETE FROM `{table}`";
+                    }
+                    var count = await _db.ExecuteRawSqlAsync(sql, ct);
+                    rowsDeleted += count;
+                }
+                catch { /* table missing / column missing → skip */ }
+            }
+
+            // Users — keep ONLY the superadmin. Everything else, including
+            // any platform-level (TenantId = 00000000-…) client accounts, goes.
+            var usersDeletedCount = await _db.ExecuteRawSqlAsync(
+                "DELETE FROM `users` WHERE `Email` <> {0}", ct, superEmail);
+
+            // Refresh tokens for those users are usually FK-cascaded, but be
+            // explicit in case the constraint was defined without cascade.
+            await _db.ExecuteRawSqlAsync(
+                "DELETE FROM `refresh_tokens` WHERE `UserId` NOT IN (SELECT `Id` FROM `users`)", ct);
+            try
+            {
+                await _db.ExecuteRawSqlAsync(
+                    "DELETE FROM `two_factor_recovery_codes` WHERE `UserId` NOT IN (SELECT `Id` FROM `users`)", ct);
+                await _db.ExecuteRawSqlAsync(
+                    "DELETE FROM `password_reset_tokens` WHERE `UserId` NOT IN (SELECT `Id` FROM `users`)", ct);
+            }
+            catch { }
+
+            // Tenants — keep only the one hosting superadmin (if any).
+            int tenantsDeletedCount;
+            if (superAdminTenantId != Guid.Empty)
+            {
+                tenantsDeletedCount = await _db.ExecuteRawSqlAsync(
+                    "DELETE FROM `tenants` WHERE `Id` <> {0}", ct, superAdminTenantId);
+            }
+            else
+            {
+                tenantsDeletedCount = await _db.ExecuteRawSqlAsync(
+                    "DELETE FROM `tenants`", ct);
+            }
+
+            // Stash the counts on the closure so the seed step below can echo
+            // them in the response.
+            _wipeCounts = (usersDeletedCount, tenantsDeletedCount);
+        }
+        finally
+        {
+            await _db.ExecuteRawSqlAsync("SET FOREIGN_KEY_CHECKS = 1;", ct);
         }
 
-        int tenantsDeleted = 0;
-        if (otherTenantIds.Count > 0)
-        {
-            var tenants = await _db.Tenants.IgnoreQueryFilters()
-                .Where(t => otherTenantIds.Contains(t.Id)).ToListAsync(ct);
-            foreach (var t in tenants) { t.DeletedAt = now; t.IsActive = false; }
-            tenantsDeleted = tenants.Count;
-        }
+        // EF cache is now out of sync with the DB — clear tracked entities
+        // so the seed step below doesn't try to reference deleted rows.
+        _db.ClearChangeTracker();
 
-        // Soft-delete tenant-scoped rows in bulk. We hit every table that
-        // carries TenantId so the fresh seed doesn't collide on unique
-        // (tenant, code) indexes.
-        async Task WipeAsync<T>(IQueryable<T> q) where T : TenantEntity
-        {
-            var rows = await q.IgnoreQueryFilters()
-                .Where(x => x.DeletedAt == null && otherTenantIds.Contains(x.TenantId))
-                .ToListAsync(ct);
-            foreach (var r in rows) r.DeletedAt = now;
-        }
-        if (otherTenantIds.Count > 0)
-        {
-            await WipeAsync(_db.Customers);
-            await WipeAsync(_db.Producers);
-            await WipeAsync(_db.Policies);
-            await WipeAsync(_db.Receipts);
-            await WipeAsync(_db.Payments);
-            await WipeAsync(_db.Claims);
-            await WipeAsync(_db.CommissionRules);
-            await WipeAsync(_db.CommissionTransactions);
-            await WipeAsync(_db.Notifications);
-            await WipeAsync(_db.AgencyTasks);
-            await WipeAsync(_db.CompanyBridges);
-            await WipeAsync(_db.CompanyBridgeRuns);
-        }
-        await _db.SaveChangesAsync(ct);
+        int usersDeleted = _wipeCounts.usersDeleted;
+        int tenantsDeleted = _wipeCounts.tenantsDeleted;
 
         // ── 2. Prepare universal carrier lookup for the seeded policies.
         var carriers = await _db.InsuranceCompanies.IgnoreQueryFilters()

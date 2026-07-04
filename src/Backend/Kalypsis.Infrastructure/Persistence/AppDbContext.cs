@@ -238,6 +238,13 @@ public class AppDbContext : DbContext, IAppDbContext
         base.OnModelCreating(modelBuilder);
     }
 
+    /// See <see cref="Kalypsis.Application.Abstractions.IAppDbContext.ExecuteRawSqlAsync"/>.
+    public Task<int> ExecuteRawSqlAsync(string sql, CancellationToken cancellationToken = default, params object[] parameters)
+        => Database.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+
+    /// See <see cref="Kalypsis.Application.Abstractions.IAppDbContext.ClearChangeTracker"/>.
+    public void ClearChangeTracker() => ChangeTracker.Clear();
+
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         ApplyAuditAndTenantStamps();

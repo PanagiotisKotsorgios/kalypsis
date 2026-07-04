@@ -212,4 +212,15 @@ public interface IAppDbContext
     DbSet<PolicyCoverAdjustment> PolicyCoverAdjustments { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// Escape hatch for the raw-SQL wipe path in
+    /// <see cref="Kalypsis.Application.Features.PlatformAdmin.WipeAndReseedDemoCommand"/>.
+    /// Application layer doesn't reference EF.Relational, so the raw
+    /// ExecuteSqlRawAsync extension isn't reachable directly — this method
+    /// delegates to the runtime AppDbContext's Database facade.
+    Task<int> ExecuteRawSqlAsync(string sql, CancellationToken cancellationToken = default, params object[] parameters);
+
+    /// Clears every locally tracked entity — needed after a raw-SQL delete
+    /// so subsequent EF operations don't reference stale rows.
+    void ClearChangeTracker();
 }
