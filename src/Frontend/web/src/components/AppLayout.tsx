@@ -329,69 +329,75 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                   </Box>
                 );
               })}
+              {/* Desktop + mobile install teasers — sit INSIDE the scrollable
+                  nav list at its very bottom so the operator has to scroll
+                  down to reach them (they're not pinned to the drawer
+                  chrome). Dark-green filled buttons make them clearly a
+                  different kind of action from the rest of the nav. */}
+              {(() => {
+                const green = "#1b5e20";      // material «green 900» — deliberately dark
+                const greenSoft = "#2e7d32";  // «green 800» for hover contrast
+                return (
+                  <Box sx={{ mt: 1, px: !isMobile && !open ? 0.5 : 1.5, pb: 1 }}>
+                    <Divider sx={{ mb: 1, mx: 1 }} />
+                    {[
+                      { key: "desktop" as const, icon: <DownloadForOfflineIcon />,
+                        labelKey: "nav.installDesktop", tipFallback: "Εγκατάσταση σε υπολογιστή",
+                        labelFallback: "ΕΓΚΑΤΑΣΤΑΣΗ ΣΕ ΥΠΟΛΟΓΙΣΤΗ",
+                        onClick: () => setDesktopOpen(true) },
+                      { key: "mobile" as const, icon: <PhoneIphoneIcon />,
+                        labelKey: "nav.installMobile", tipFallback: "Εφαρμογή κινητού",
+                        labelFallback: "ΕΦΑΡΜΟΓΗ ΚΙΝΗΤΟΥ",
+                        onClick: () => setMobileOpen(true) }
+                    ].map(entry => !isMobile && !open ? (
+                      <Tooltip key={entry.key} title={t(entry.labelKey, entry.tipFallback)} placement="right" arrow>
+                        <ListItemButton
+                          onClick={entry.onClick}
+                          sx={{
+                            mx: 0.5, mb: 0.6, borderRadius: 1.5, justifyContent: "center",
+                            bgcolor: green, color: "#fff",
+                            "&:hover": { bgcolor: greenSoft }
+                          }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 0, color: "#fff", justifyContent: "center" }}>
+                            {entry.icon}
+                          </ListItemIcon>
+                        </ListItemButton>
+                      </Tooltip>
+                    ) : (
+                      <ListItemButton
+                        key={entry.key}
+                        onClick={entry.onClick}
+                        sx={{
+                          mx: 1, mb: 0.6, borderRadius: 1.5,
+                          bgcolor: green, color: "#fff",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                          "&:hover": { bgcolor: greenSoft }
+                        }}
+                      >
+                        <ListItemIcon sx={{ minWidth: 34, color: "#fff" }}>
+                          {entry.icon}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={t(entry.labelKey, entry.labelFallback)}
+                          primaryTypographyProps={{
+                            fontWeight: 800, noWrap: true, fontSize: 12.5,
+                            letterSpacing: "0.06em", textTransform: "uppercase",
+                            color: "#fff"
+                          }}
+                        />
+                        <Chip label={t("nav.soon", "σύντομα")} size="small"
+                          sx={{ height: 18, fontSize: 10, fontWeight: 700,
+                            bgcolor: "rgba(255,255,255,0.2)", color: "#fff", ml: 0.5 }} />
+                      </ListItemButton>
+                    ))}
+                  </Box>
+                );
+              })()}
             </>
           );
         })()}
       </List>
-      {/* Desktop + mobile install teasers — visually distinct from regular
-          nav items (dashed secondary border, secondary tint) so they read as
-          "special" pinned actions, not part of the flat nav list. Both open
-          Coming-soon dialogs with target dates and platform-specific copy. */}
-      <Box sx={{ px: !isMobile && !open ? 0.5 : 1.5, pb: 1 }}>
-        {[
-          { key: "desktop" as const, icon: <DownloadForOfflineIcon />,
-            labelKey: "nav.installDesktop", tipFallback: "Εγκατάσταση σε υπολογιστή",
-            labelFallback: "ΕΓΚΑΤΑΣΤΑΣΗ ΣΕ ΥΠΟΛΟΓΙΣΤΗ",
-            onClick: () => setDesktopOpen(true) },
-          { key: "mobile" as const, icon: <PhoneIphoneIcon />,
-            labelKey: "nav.installMobile", tipFallback: "Εφαρμογή κινητού",
-            labelFallback: "ΕΦΑΡΜΟΓΗ ΚΙΝΗΤΟΥ",
-            onClick: () => setMobileOpen(true) }
-        ].map(entry => !isMobile && !open ? (
-          <Tooltip key={entry.key} title={t(entry.labelKey, entry.tipFallback)} placement="right" arrow>
-            <ListItemButton
-              onClick={entry.onClick}
-              sx={(th) => ({
-                mx: 0.5, mb: 0.4, borderRadius: 1.5, justifyContent: "center",
-                border: `1px dashed ${alpha(th.palette.secondary.main, 0.5)}`,
-                bgcolor: alpha(th.palette.secondary.main, 0.05),
-                "&:hover": { bgcolor: alpha(th.palette.secondary.main, 0.12) }
-              })}
-            >
-              <ListItemIcon sx={{ minWidth: 0, color: "secondary.main", justifyContent: "center" }}>
-                {entry.icon}
-              </ListItemIcon>
-            </ListItemButton>
-          </Tooltip>
-        ) : (
-          <ListItemButton
-            key={entry.key}
-            onClick={entry.onClick}
-            sx={(th) => ({
-              mx: 1, mb: 0.4, borderRadius: 1.5,
-              border: `1px dashed ${alpha(th.palette.secondary.main, 0.5)}`,
-              bgcolor: alpha(th.palette.secondary.main, 0.05),
-              "&:hover": { bgcolor: alpha(th.palette.secondary.main, 0.12) }
-            })}
-          >
-            <ListItemIcon sx={{ minWidth: 34, color: "secondary.main" }}>
-              {entry.icon}
-            </ListItemIcon>
-            <ListItemText
-              primary={t(entry.labelKey, entry.labelFallback)}
-              primaryTypographyProps={{
-                fontWeight: 800, noWrap: true, fontSize: 12.5,
-                letterSpacing: "0.06em", textTransform: "uppercase",
-                color: "secondary.main"
-              }}
-            />
-            <Chip label={t("nav.soon", "σύντομα")} size="small"
-              sx={(th) => ({ height: 18, fontSize: 10, fontWeight: 700,
-                bgcolor: alpha(th.palette.secondary.main, 0.15),
-                color: "secondary.main", ml: 0.5 })} />
-          </ListItemButton>
-        ))}
-      </Box>
       <Divider />
       <Dialog open={desktopOpen} onClose={() => setDesktopOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
