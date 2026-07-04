@@ -401,10 +401,14 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           </Stack>
         </DialogTitle>
         <DialogContent>
-          <Typography sx={{ mb: 1 }}>
+          <Typography sx={{ mb: 2 }}>
             Η <b>desktop έκδοση του Kalypsis</b> βρίσκεται ακόμη υπό ανάπτυξη. Θα είναι διαθέσιμη για κατέβασμα και
-            εγκατάσταση σε Windows / macOS <b>μετά τις 20 Οκτωβρίου 2026</b>.
+            εγκατάσταση <b>μετά τις 20 Οκτωβρίου 2026</b> για τις παρακάτω πλατφόρμες:
           </Typography>
+          <Stack direction="row" spacing={1.5} sx={{ mb: 2 }}>
+            <PlatformCard icon={<WindowsLogo />} name="Windows" hint="Installer .exe (Win 10 / 11)" />
+            <PlatformCard icon={<LinuxLogo />} name="Linux" hint=".deb · .rpm · AppImage" />
+          </Stack>
           <Typography variant="body2" color="text.secondary">
             Μέχρι τότε, μπορείτε να χρησιμοποιείτε κανονικά το Kalypsis μέσω browser — όλες οι λειτουργίες θα είναι
             διαθέσιμες και στην desktop έκδοση.
@@ -624,5 +628,53 @@ function WorkspacePill({ code, active, onClick, labelKey, t }: {
     >
       {t(labelKey)}
     </Box>
+  );
+}
+
+// Small card used inside the desktop-install dialog to preview each supported
+// platform. Icon + name + a monospace hint for the artefact format, plus a
+// "σύντομα" chip so it's clear these are teasers, not download links yet.
+function PlatformCard({ icon, name, hint }: { icon: ReactNode; name: string; hint: string }) {
+  return (
+    <Box sx={(th) => ({
+      flex: 1,
+      p: 1.5,
+      textAlign: "center",
+      borderRadius: 1.5,
+      border: `1px dashed ${alpha(th.palette.secondary.main, 0.5)}`,
+      bgcolor: alpha(th.palette.secondary.main, 0.05),
+    })}>
+      <Box sx={{ display: "grid", placeItems: "center", mb: 0.5, color: "secondary.main" }}>
+        {icon}
+      </Box>
+      <Typography variant="subtitle2" fontWeight={800}>{name}</Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace", display: "block", mb: 0.5 }}>
+        {hint}
+      </Typography>
+      <Chip label="σύντομα" size="small"
+        sx={(th) => ({ height: 18, fontSize: 10, fontWeight: 700,
+          bgcolor: alpha(th.palette.secondary.main, 0.15),
+          color: "secondary.main" })} />
+    </Box>
+  );
+}
+
+// Inline SVG platform logos so we don't pull in an extra icon pack. Both sized
+// to 32px and coloured via `currentColor` so they pick up the theme's
+// secondary tint from the parent Box.
+function WindowsLogo() {
+  return (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M0 3.449L9.75 2.1v9.451H0V3.449zM10.949 1.938L23.999 0v11.4H10.95V1.938zM0 12.6h9.75v9.451L0 20.699V12.6zM10.949 12.6H24V24l-13.052-1.9V12.6z" />
+    </svg>
+  );
+}
+function LinuxLogo() {
+  // Simplified Tux silhouette — recognisable at 32px without needing the full
+  // penguin detail. Same currentColor trick as WindowsLogo above.
+  return (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.077 1.093-.3 1.958-1.06 3.052-.885 1.135-2.132 2.968-2.827 4.87-.325.895-.523 1.798-.398 2.612-.35.79-.83 1.61-1.36 2.395-.79 1.176-1.75 2.246-2.06 2.75-.06.1-.06.2-.03.29.06.19.19.35.34.5.4.4 1 .8 1.65 1.05.65.25 1.36.34 1.9-.05.29-.22.5-.55.6-.9.14.03.29.05.44.05h.02c.6-.03 1.28-.29 1.7-.71.36-.36.63-.86.79-1.34.16.09.32.16.5.2.3.5.66 1 .96 1.4.4.5.85.9 1.4 1 .32.05.66.05 1.02.03.15 0 .3-.02.44-.04.35-.05.7-.13 1.05-.24.32-.1.66-.24.94-.42.28-.18.51-.4.65-.68.13-.24.2-.5.24-.75.03-.16.03-.32.03-.48.35-.06.68-.16.98-.28.42-.17.8-.4 1.1-.66.16.44.4.85.72 1.17.44.44 1.02.72 1.66.75h.02c.32 0 .64-.05.94-.15.3-.1.58-.24.82-.42.25-.19.46-.42.6-.7.14-.3.19-.66.11-1.02-.08-.35-.28-.65-.55-.9-.53-.51-1.34-1.5-2.14-2.72-.53-.8-1.05-1.66-1.42-2.47.12-.79-.08-1.66-.4-2.53-.68-1.86-1.9-3.65-2.75-4.75-.76-1.05-.98-1.85-1.05-2.9 0-.15-.02-.32-.02-.5 0-1.14.16-2.32-.32-3.32-.48-1.02-1.5-1.68-2.95-1.68z" />
+    </svg>
   );
 }
