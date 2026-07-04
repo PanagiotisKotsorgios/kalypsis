@@ -48,4 +48,12 @@ public class PlatformAdminDemoController : ControllerBase
         var result = await _mediator.Send(new GenerateBridgeSamplesQuery(), ct);
         return File(result.ZipBytes, "application/zip", result.FileName);
     }
+
+    /// <summary>Superadmin quick-create of a standalone Producer user in any
+    /// tenant — no impersonation required. Returns the generated temp password
+    /// so the operator can hand it to the producer.</summary>
+    [HttpPost("standalone-producer-user")]
+    public async Task<ActionResult<CreateStandaloneProducerUserResponse>> CreateStandaloneProducer(
+        [FromBody] CreateStandaloneProducerUserBody body, CancellationToken ct)
+        => Ok(await _mediator.Send(new CreateStandaloneProducerUserCommand(body), ct));
 }

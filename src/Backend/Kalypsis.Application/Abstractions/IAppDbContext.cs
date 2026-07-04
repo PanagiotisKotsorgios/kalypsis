@@ -122,6 +122,8 @@ public interface IAppDbContext
 
     // Producer reconciliation — self-reported expected commission per policy
     DbSet<ProducerCommissionDeclaration> ProducerCommissionDeclarations { get; }
+    // Producer self-set expected rates per (company × package × vehicle use)
+    DbSet<ProducerExpectedRate> ProducerExpectedRates { get; }
 
     // Phase 6 — Multi-office agencies
     DbSet<AgencyOffice> AgencyOffices { get; }

@@ -147,6 +147,8 @@ import { NamedReportsPage } from "./pages/NamedReportsPage";
 import { ConfigHubPage } from "./pages/ConfigHubPage";
 import { RecycleBinPage } from "./pages/RecycleBinPage";
 import { ProducerReconciliationPage } from "./pages/ProducerReconciliationPage";
+import { MyExpectedRatesPage } from "./pages/MyExpectedRatesPage";
+import { MyReconciliationPage } from "./pages/MyReconciliationPage";
 import { ReconciliationDashboardPage } from "./pages/ReconciliationDashboardPage";
 import { PremiumGate } from "./components/PremiumGate";
 import { UpgradePlanDialogHost } from "./components/UpgradePlanDialog";
@@ -316,8 +318,15 @@ const navByRole: Record<Role, NavItem[]> = {
   ],
   Producer: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
+    // «Λίστες Παραγωγής» — the producer's own book. Backend already
+    // filters /policies to their own ProducerId when Role=Producer.
     { to: "/policies", labelKey: "nav.policies", icon: <DescriptionIcon /> },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon /> },
+    // Producer's own «παραμετροποίηση προμηθειών» — what THEY expect per
+    // company × package. Feeds the comparison view below.
+    { to: "/my-expected-rates", labelKey: "nav.myExpectedRates", icon: <TuneOutlinedIcon /> },
+    // Live compare of my rates vs the office's rules, per company/package.
+    { to: "/my-reconciliation", labelKey: "nav.myReconciliation", icon: <VerifiedIcon /> },
     { to: "/notifications", labelKey: "nav.notifications", icon: <NotificationsIcon /> },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
@@ -474,6 +483,10 @@ export default function App() {
                   <Route path="audit" element={<AuditLogsPage />} />
                   <Route path="recycle-bin" element={<PremiumGate code="recycle-bin"><RecycleBinPage /></PremiumGate>} />
                   <Route path="producer-reconciliation" element={<ProducerReconciliationPage />} />
+                  {/* Producer portal — «Παραμετροποίηση μου» + «Σύγκριση με γραφείο». Both routes
+                      are backend-guarded by Role=Producer, so no client-side gating needed. */}
+                  <Route path="my-expected-rates" element={<MyExpectedRatesPage />} />
+                  <Route path="my-reconciliation" element={<MyReconciliationPage />} />
                   <Route path="reconciliation-dashboard" element={<ReconciliationDashboardPage />} />
                   <Route path="tasks" element={<TasksPage />} />
                   <Route path="producers" element={<ProducersPage />} />

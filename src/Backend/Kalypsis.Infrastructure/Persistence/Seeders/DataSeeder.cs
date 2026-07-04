@@ -551,6 +551,29 @@ public static class DataSeeder
                 KEY `IX_producer_commission_declarations_PolicyId` (`PolicyId`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
 
+        // --- producer_expected_rates table -------------------------------
+        // Producer-side «παραμετροποίηση» — a lightweight mirror of
+        // CommissionRule that the producer maintains themselves so the
+        // portal can compare «I expect X% from XYZ carrier» against what
+        // the agency actually configures.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "producer_expected_rates",
+            createSql: @"CREATE TABLE IF NOT EXISTS `producer_expected_rates` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `ProducerId` char(36) NOT NULL,
+                `InsuranceCompanyId` char(36) NULL,
+                `PolicyType` int NULL,
+                `VehicleUseCategory` int NULL,
+                `ExpectedPercent` decimal(7,2) NOT NULL,
+                `Notes` varchar(1000) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_producer_expected_rates_TenantId_ProducerId` (`TenantId`, `ProducerId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         // --- tenant_carrier_optins table ---------------------------------
         // Per-tenant opt-in against the universal carrier catalog. Referenced
         // by /api/insurance-companies on every page load — if it's missing

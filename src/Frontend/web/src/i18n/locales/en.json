@@ -35,6 +35,8 @@
     "audit": "Audit Log",
     "recycleBin": "Recycle Bin",
     "producerReconciliation": "Producer Reconciliation",
+    "myExpectedRates": "My commission rates",
+    "myReconciliation": "Compare with office",
     "reconciliationDashboard": "Financial Reconciliation",
     "allUsers": "All Users",
     "registrations": "Registration Requests",

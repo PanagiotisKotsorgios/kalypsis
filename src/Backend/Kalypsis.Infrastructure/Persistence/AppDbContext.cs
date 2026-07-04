@@ -125,6 +125,7 @@ public class AppDbContext : DbContext, IAppDbContext
 
     // Producer reconciliation — self-reported expected commission per policy
     public DbSet<ProducerCommissionDeclaration> ProducerCommissionDeclarations => Set<ProducerCommissionDeclaration>();
+    public DbSet<ProducerExpectedRate> ProducerExpectedRates => Set<ProducerExpectedRate>();
 
     // Phase 6 — Multi-office agencies
     public DbSet<AgencyOffice> AgencyOffices => Set<AgencyOffice>();
