@@ -46,6 +46,14 @@ public class User : TenantEntity
     public int PendingLoginCodeAttempts { get; set; }
 
     /// <summary>
+    /// Per-user opt-in for email-code 2FA. When true, every successful
+    /// password login triggers the 6-digit Brevo email challenge even if
+    /// PlatformSetting.RequireEmailLoginCode is off. Toggled from the
+    /// user's profile page (Ρυθμίσεις → 2FA).
+    /// </summary>
+    public bool EmailLoginCodeEnabled { get; set; }
+
+    /// <summary>
     /// JSON array of permission codes the agency admin has granted this user
     /// (e.g. ["customers.read","customers.write","commissions.run"]). Null /
     /// empty means use the role defaults.

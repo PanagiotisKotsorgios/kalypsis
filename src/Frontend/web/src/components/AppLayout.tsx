@@ -335,62 +335,91 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                   chrome). Dark-green filled buttons make them clearly a
                   different kind of action from the rest of the nav. */}
               {(() => {
-                const green = "#1b5e20";      // material «green 900» — deliberately dark
-                const greenSoft = "#2e7d32";  // «green 800» for hover contrast
+                const green = "#1b5e20";      // material «green 900»
+                const greenHover = "#256b2a"; // slightly brighter for hover
+                const greenGlow = "#4caf50";  // «green 500» for glow ring
+                // Attention-grabbing style: bold green gradient, thick colored
+                // shadow, subtle pulse animation so eyes catch it even when
+                // scrolled into view. Combined with an "@keyframes install-pulse"
+                // that ripples the box-shadow every 2.2s.
                 return (
-                  <Box sx={{ mt: 1, px: !isMobile && !open ? 0.5 : 1.5, pb: 1 }}>
-                    <Divider sx={{ mb: 1, mx: 1 }} />
-                    {[
-                      { key: "desktop" as const, icon: <DownloadForOfflineIcon />,
-                        labelKey: "nav.installDesktop", tipFallback: "Εγκατάσταση σε υπολογιστή",
-                        labelFallback: "ΕΓΚΑΤΑΣΤΑΣΗ ΣΕ ΥΠΟΛΟΓΙΣΤΗ",
-                        onClick: () => setDesktopOpen(true) },
-                      { key: "mobile" as const, icon: <PhoneIphoneIcon />,
-                        labelKey: "nav.installMobile", tipFallback: "Εφαρμογή κινητού",
-                        labelFallback: "ΕΦΑΡΜΟΓΗ ΚΙΝΗΤΟΥ",
-                        onClick: () => setMobileOpen(true) }
-                    ].map(entry => !isMobile && !open ? (
-                      <Tooltip key={entry.key} title={t(entry.labelKey, entry.tipFallback)} placement="right" arrow>
+                  <Box sx={{ mt: 1.5, px: !isMobile && !open ? 0.5 : 1.5, pb: 1 }}>
+                    <Divider sx={{ mb: 1.5, mx: 1 }} />
+                    <Box sx={{
+                      "@keyframes install-pulse": {
+                        "0%":   { boxShadow: `0 0 0 0 ${alpha(greenGlow, 0.55)}, 0 4px 10px rgba(0,0,0,0.28)` },
+                        "70%":  { boxShadow: `0 0 0 10px ${alpha(greenGlow, 0)}, 0 4px 10px rgba(0,0,0,0.28)` },
+                        "100%": { boxShadow: `0 0 0 0 ${alpha(greenGlow, 0)}, 0 4px 10px rgba(0,0,0,0.28)` }
+                      }
+                    }}>
+                      {[
+                        { key: "desktop" as const, icon: <DownloadForOfflineIcon sx={{ fontSize: 22 }} />,
+                          labelKey: "nav.installDesktop", tipFallback: "Εγκατάσταση σε υπολογιστή",
+                          labelFallback: "ΕΓΚΑΤΑΣΤΑΣΗ ΣΕ ΥΠΟΛΟΓΙΣΤΗ",
+                          onClick: () => setDesktopOpen(true) },
+                        { key: "mobile" as const, icon: <PhoneIphoneIcon sx={{ fontSize: 22 }} />,
+                          labelKey: "nav.installMobile", tipFallback: "Εφαρμογή κινητού",
+                          labelFallback: "ΕΦΑΡΜΟΓΗ ΚΙΝΗΤΟΥ",
+                          onClick: () => setMobileOpen(true) }
+                      ].map((entry, idx) => !isMobile && !open ? (
+                        <Tooltip key={entry.key} title={t(entry.labelKey, entry.tipFallback)} placement="right" arrow>
+                          <ListItemButton
+                            onClick={entry.onClick}
+                            sx={{
+                              mx: 0.5, mb: 0.8, borderRadius: 2, justifyContent: "center",
+                              py: 1.2,
+                              background: `linear-gradient(135deg, ${green} 0%, ${greenHover} 100%)`,
+                              color: "#fff",
+                              border: `2px solid ${alpha(greenGlow, 0.35)}`,
+                              boxShadow: `0 4px 10px rgba(0,0,0,0.28)`,
+                              animation: `install-pulse 2.4s ease-in-out ${idx * 1.1}s infinite`,
+                              "&:hover": {
+                                background: `linear-gradient(135deg, ${greenHover} 0%, ${greenGlow} 100%)`,
+                                transform: "translateY(-1px)"
+                              }
+                            }}
+                          >
+                            <ListItemIcon sx={{ minWidth: 0, color: "#fff", justifyContent: "center" }}>
+                              {entry.icon}
+                            </ListItemIcon>
+                          </ListItemButton>
+                        </Tooltip>
+                      ) : (
                         <ListItemButton
+                          key={entry.key}
                           onClick={entry.onClick}
                           sx={{
-                            mx: 0.5, mb: 0.6, borderRadius: 1.5, justifyContent: "center",
-                            bgcolor: green, color: "#fff",
-                            "&:hover": { bgcolor: greenSoft }
+                            mx: 1, mb: 0.8, borderRadius: 2, py: 1.3,
+                            background: `linear-gradient(135deg, ${green} 0%, ${greenHover} 100%)`,
+                            color: "#fff",
+                            border: `2px solid ${alpha(greenGlow, 0.35)}`,
+                            boxShadow: `0 4px 12px rgba(0,0,0,0.30)`,
+                            animation: `install-pulse 2.4s ease-in-out ${idx * 1.1}s infinite`,
+                            "&:hover": {
+                              background: `linear-gradient(135deg, ${greenHover} 0%, ${greenGlow} 100%)`,
+                              transform: "translateY(-1px)"
+                            }
                           }}
                         >
-                          <ListItemIcon sx={{ minWidth: 0, color: "#fff", justifyContent: "center" }}>
+                          <ListItemIcon sx={{ minWidth: 36, color: "#fff" }}>
                             {entry.icon}
                           </ListItemIcon>
+                          <ListItemText
+                            primary={t(entry.labelKey, entry.labelFallback)}
+                            primaryTypographyProps={{
+                              fontWeight: 900, noWrap: true, fontSize: 13.5,
+                              letterSpacing: "0.07em", textTransform: "uppercase",
+                              color: "#fff",
+                              sx: { textShadow: "0 1px 2px rgba(0,0,0,0.35)" }
+                            }}
+                          />
+                          <Chip label={t("nav.soon", "σύντομα")} size="small"
+                            sx={{ height: 20, fontSize: 10, fontWeight: 800,
+                              bgcolor: alpha(greenGlow, 0.6), color: "#fff",
+                              border: "1px solid rgba(255,255,255,0.35)", ml: 0.5 }} />
                         </ListItemButton>
-                      </Tooltip>
-                    ) : (
-                      <ListItemButton
-                        key={entry.key}
-                        onClick={entry.onClick}
-                        sx={{
-                          mx: 1, mb: 0.6, borderRadius: 1.5,
-                          bgcolor: green, color: "#fff",
-                          boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
-                          "&:hover": { bgcolor: greenSoft }
-                        }}
-                      >
-                        <ListItemIcon sx={{ minWidth: 34, color: "#fff" }}>
-                          {entry.icon}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={t(entry.labelKey, entry.labelFallback)}
-                          primaryTypographyProps={{
-                            fontWeight: 800, noWrap: true, fontSize: 12.5,
-                            letterSpacing: "0.06em", textTransform: "uppercase",
-                            color: "#fff"
-                          }}
-                        />
-                        <Chip label={t("nav.soon", "σύντομα")} size="small"
-                          sx={{ height: 18, fontSize: 10, fontWeight: 700,
-                            bgcolor: "rgba(255,255,255,0.2)", color: "#fff", ml: 0.5 }} />
-                      </ListItemButton>
-                    ))}
+                      ))}
+                    </Box>
                   </Box>
                 );
               })()}

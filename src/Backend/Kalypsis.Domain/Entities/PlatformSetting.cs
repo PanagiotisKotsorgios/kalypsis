@@ -38,4 +38,13 @@ public class PlatformSetting : BaseEntity
     /// session tokens. Toggled by the Platform admin from Ρυθμίσεις.
     /// </summary>
     public bool RequireEmailLoginCode { get; set; }
+
+    // Per-user monthly usage limits for outbound communications. Read by the
+    // profile-page Usage Monitor to draw progress bars and popup «pay for
+    // more» when a channel reaches capacity. Nulls fall back to hard-coded
+    // defaults in GetMyUsageMonitorHandler.
+    public int? EmailMonthlyLimit { get; set; }
+    public int? SmsMonthlyLimit { get; set; }
+    public int? ViberMonthlyLimit { get; set; }
+    public int? PhoneMonthlyLimit { get; set; }
 }

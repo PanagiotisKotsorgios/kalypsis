@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
+import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert,
   Autocomplete,
@@ -155,43 +156,51 @@ export function DocumentsPage() {
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
 
-      {/* Filters — search by policy #, customer, filename + type + date range. */}
-      <Card sx={{ p: 2, mb: 2 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
-          <FilterListIcon color="action" sx={{ display: { xs: "none", md: "inline-flex" } }} />
+      {/* Filters — compact single-row on desktop, wraps to 2 lines at most.
+          Each filter gets a right-side ⓘ tooltip with a Greek explanation. */}
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
+          <FilterListIcon color="action" fontSize="small" sx={{ display: { xs: "none", md: "inline-flex" } }} />
           <TextField
             size="small"
-            placeholder="Αναζήτηση: αριθμός συμβολαίου, πελάτης, όνομα αρχείου"
+            placeholder="Αναζήτηση…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            sx={{ minWidth: 320, flex: 1 }}
+            sx={{ minWidth: 220, flex: 1 }}
             InputProps={{
               startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
-              endAdornment: q ? (
+              endAdornment: (
                 <InputAdornment position="end">
-                  <IconButton size="small" onClick={() => setQ("")}><CloseIcon fontSize="small" /></IconButton>
+                  {q && <IconButton size="small" onClick={() => setQ("")}><CloseIcon fontSize="small" /></IconButton>}
+                  <FilterHelp title="Αναζήτηση σε αριθμό συμβολαίου, όνομα πελάτη ή όνομα αρχείου." />
                 </InputAdornment>
-              ) : undefined
+              )
             }}
           />
-          <SearchableTextField
-            select size="small" label="Τύπος" value={type}
-            onChange={(e) => setType(e.target.value as DocumentType | "")}
-            sx={{ minWidth: 160 }}
-          >
-            <MenuItem value="">Όλοι</MenuItem>
-            {(["Policy","GreenCard","Roadside","Invoice","Other"] as const).map(d => (
-              <MenuItem key={d} value={d}>{t(`documents.types.${d}`)}</MenuItem>
-            ))}
-          </SearchableTextField>
-          <TextField
-            type="date" size="small" label="Από" InputLabelProps={{ shrink: true }}
-            value={from} onChange={(e) => setFrom(e.target.value)} sx={{ minWidth: 150 }}
-          />
-          <TextField
-            type="date" size="small" label="Έως" InputLabelProps={{ shrink: true }}
-            value={to} onChange={(e) => setTo(e.target.value)} sx={{ minWidth: 150 }}
-          />
+          <FilterFieldWrap tip="Φιλτράρετε ανά είδος εγγράφου (συμβόλαιο, πράσινη κάρτα, τιμολόγιο κ.λπ.).">
+            <SearchableTextField
+              select size="small" label="Τύπος" value={type}
+              onChange={(e) => setType(e.target.value as DocumentType | "")}
+              sx={{ minWidth: 140, width: "100%" }}
+            >
+              <MenuItem value="">Όλοι</MenuItem>
+              {(["Policy","GreenCard","Roadside","Invoice","Other"] as const).map(d => (
+                <MenuItem key={d} value={d}>{t(`documents.types.${d}`)}</MenuItem>
+              ))}
+            </SearchableTextField>
+          </FilterFieldWrap>
+          <FilterFieldWrap tip="Ημερομηνία έναρξης — εμφανίζει έγγραφα από αυτήν την ημέρα και μετά.">
+            <TextField
+              type="date" size="small" label="Από" InputLabelProps={{ shrink: true }}
+              value={from} onChange={(e) => setFrom(e.target.value)} sx={{ minWidth: 140, width: "100%" }}
+            />
+          </FilterFieldWrap>
+          <FilterFieldWrap tip="Ημερομηνία λήξης — εμφανίζει έγγραφα μέχρι αυτήν την ημέρα.">
+            <TextField
+              type="date" size="small" label="Έως" InputLabelProps={{ shrink: true }}
+              value={to} onChange={(e) => setTo(e.target.value)} sx={{ minWidth: 140, width: "100%" }}
+            />
+          </FilterFieldWrap>
           {anyFilterActive && (
             <Button size="small" onClick={() => { setQ(""); setType(""); setFrom(""); setTo(""); }}>
               Καθαρισμός

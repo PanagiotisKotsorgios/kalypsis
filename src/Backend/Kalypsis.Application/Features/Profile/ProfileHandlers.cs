@@ -21,7 +21,8 @@ public record MyProfileDto(
     string? TenantBrandColorHex = null,
     string? TenantContactEmail = null,
     string? TenantContactPhone = null,
-    string? TenantAddressLine = null);
+    string? TenantAddressLine = null,
+    bool EmailLoginCodeEnabled = false);
 
 public record UpdateProfileBody(string FirstName, string LastName, string? Phone, string PreferredLanguage);
 public record ChangePasswordBody(string CurrentPassword, string NewPassword);
@@ -50,7 +51,8 @@ public class GetMyProfileQueryHandler : IRequestHandler<GetMyProfileQuery, MyPro
             u.Id, u.Email, u.FirstName, u.LastName, u.Phone, u.PreferredLanguage, u.Role,
             u.TenantId == Guid.Empty ? null : u.TenantId,
             tenant?.Name, tenant?.LogoUrl, tenant?.BrandColorHex,
-            tenant?.ContactEmail, tenant?.ContactPhone, tenant?.AddressLine);
+            tenant?.ContactEmail, tenant?.ContactPhone, tenant?.AddressLine,
+            u.EmailLoginCodeEnabled);
     }
 }
 
@@ -95,7 +97,8 @@ public class UpdateMyProfileCommandHandler : IRequestHandler<UpdateMyProfileComm
             u.Id, u.Email, u.FirstName, u.LastName, u.Phone, u.PreferredLanguage, u.Role,
             u.TenantId == Guid.Empty ? null : u.TenantId,
             tenant?.Name, tenant?.LogoUrl, tenant?.BrandColorHex,
-            tenant?.ContactEmail, tenant?.ContactPhone, tenant?.AddressLine);
+            tenant?.ContactEmail, tenant?.ContactPhone, tenant?.AddressLine,
+            u.EmailLoginCodeEnabled);
     }
 }
 
@@ -136,6 +139,33 @@ public class ChangeMyPasswordCommandHandler : IRequestHandler<ChangeMyPasswordCo
                 fixLink: "/login");
 
         u.PasswordHash = _hasher.Hash(request.Body.NewPassword);
+        await _db.SaveChangesAsync(ct);
+        return Unit.Value;
+    }
+}
+
+/* ========= Toggle email-code 2FA ========= */
+
+public record SetEmailTwoFactorBody(bool Enabled);
+public record SetEmailTwoFactorCommand(bool Enabled) : IRequest<Unit>;
+
+// Simple per-user opt-in. When enabled, LoginCommand ORs this flag with the
+// platform-wide RequireEmailLoginCode setting so the email challenge fires
+// even if the tenant hasn't turned it on globally.
+public class SetEmailTwoFactorHandler : IRequestHandler<SetEmailTwoFactorCommand, Unit>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public SetEmailTwoFactorHandler(IAppDbContext db, ICurrentUser current)
+    { _db = db; _current = current; }
+
+    public async Task<Unit> Handle(SetEmailTwoFactorCommand r, CancellationToken ct)
+    {
+        var userId = _current.UserId ?? throw AppException.Forbidden();
+        var user = await _db.Users.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == userId && u.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Χρήστης");
+        user.EmailLoginCodeEnabled = r.Enabled;
         await _db.SaveChangesAsync(ct);
         return Unit.Value;
     }

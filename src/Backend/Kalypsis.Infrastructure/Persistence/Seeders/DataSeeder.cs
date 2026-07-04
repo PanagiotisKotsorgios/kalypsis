@@ -480,6 +480,24 @@ public static class DataSeeder
         await EnsureColumnAsync(db, logger, dbName,
             table: "users", column: "PendingLoginCodeAttempts",
             addSql: "ALTER TABLE `users` ADD COLUMN `PendingLoginCodeAttempts` int NOT NULL DEFAULT 0", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "users", column: "EmailLoginCodeEnabled",
+            addSql: "ALTER TABLE `users` ADD COLUMN `EmailLoginCodeEnabled` tinyint(1) NOT NULL DEFAULT 0", ct);
+
+        // platform_settings: monthly usage limits (Email/SMS/Viber/Phone)
+        // per user — read by the profile page's UsageMonitorSection.
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "platform_settings", column: "EmailMonthlyLimit",
+            addSql: "ALTER TABLE `platform_settings` ADD COLUMN `EmailMonthlyLimit` int NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "platform_settings", column: "SmsMonthlyLimit",
+            addSql: "ALTER TABLE `platform_settings` ADD COLUMN `SmsMonthlyLimit` int NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "platform_settings", column: "ViberMonthlyLimit",
+            addSql: "ALTER TABLE `platform_settings` ADD COLUMN `ViberMonthlyLimit` int NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "platform_settings", column: "PhoneMonthlyLimit",
+            addSql: "ALTER TABLE `platform_settings` ADD COLUMN `PhoneMonthlyLimit` int NULL", ct);
 
         // email_templates: policy-trigger + SMS body columns
         await EnsureColumnAsync(db, logger, dbName,

@@ -18,6 +18,8 @@ import { api, extractErrorMessage } from "../api/client";
 import { PasswordField } from "../components/PasswordField";
 import { resetTourForRole } from "../components/KalypsisOnboarding";
 import { TwoFactorSection } from "../components/TwoFactorSection";
+import { EmailTwoFactorSection } from "../components/EmailTwoFactorSection";
+import { UsageMonitorSection } from "../components/UsageMonitorSection";
 
 interface Profile {
   userId: string;
@@ -174,6 +176,8 @@ export function ProfilePage() {
         <UserPreferencesSection role={profileQuery.data?.role} />
 
         <TwoFactorSection />
+        <EmailTwoFactorSection />
+        <UsageMonitorSection />
       </Stack>
     </Box>
   );

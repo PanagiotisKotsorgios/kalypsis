@@ -179,12 +179,14 @@ export function ProductionListsPage() {
         Οι λίστες παραγωγής είναι αναφορά και εξαγωγή του χαρτοφυλακίου. Από το «Εκκαθαρίσεις προμηθειών» δημιουργείτε, ελέγχετε και οριστικοποιείτε τις μηνιαίες εκκαθαρίσεις συνεργατών.
       </Alert>
 
-      <Card sx={{ p: 2.5, mb: 3 }}>
-        <Stack direction="row" alignItems="center" spacing={1} mb={2}>
-          <FilterAltIcon color="primary" />
-          <Typography fontWeight={700}>{t("productionList.filters")}</Typography>
+      <Card sx={{ px: 1.75, py: 1.25, mb: 3 }}>
+        <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+          <FilterAltIcon color="primary" fontSize="small" />
+          <Typography fontWeight={700} variant="body2">{t("productionList.filters")}</Typography>
         </Stack>
-        <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" } }}>
+        {/* Compact grid — 6 columns on lg, 3 on md. Same ? position unchanged
+            (next to the page title above). */}
+        <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)", lg: "repeat(6, 1fr)" } }}>
           <TextField type="date" size="small" InputLabelProps={{ shrink: true }} label={t("productionList.from")}
             value={f.from} onChange={e => setF({ ...f, from: e.target.value })} />
           <TextField type="date" size="small" InputLabelProps={{ shrink: true }} label={t("productionList.to")}

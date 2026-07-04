@@ -62,6 +62,24 @@ const STATUS_LABELS: Record<string, string> = {
   Renewed: "Ανανεώθηκε", PendingRenewal: "Προς ανανέωση"
 };
 
+// Recharts uses the dataKey as the series display name in tooltips + legends
+// by default — passing an explicit `name` prop overrides that with a Greek
+// label so nothing surfaces in English when the operator hovers.
+const SERIES_NAME_PREMIUM = "Ασφάλιστρα";
+const SERIES_NAME_COUNT = "Πλήθος";
+
+// The reports backend returns `Status.ToString()` (English enum names) for
+// claim + request breakdowns. Map to Greek on the frontend so the X-axis
+// labels + tooltips read natively.
+const BREAKDOWN_LABELS: Record<string, string> = {
+  // Claim statuses
+  Open: "Ανοιχτή", InReview: "Υπό εξέταση", Approved: "Εγκεκριμένη",
+  Rejected: "Απορρίφθηκε", Closed: "Κλειστή", Reopened: "Επανάνοιξη",
+  // Request statuses
+  Pending: "Εκκρεμεί", InProgress: "Σε εξέλιξη", Completed: "Ολοκληρώθηκε",
+  Cancelled: "Ακυρώθηκε",
+};
+
 const moneyFmt = new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const intFmt = new Intl.NumberFormat("el-GR");
 
@@ -147,7 +165,7 @@ export function AgencyAdminDashboard() {
                   <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                   <YAxis tickFormatter={(v) => money(v as number)} tick={{ fontSize: 12 }} />
                   <Tooltip formatter={(v) => moneyFmt.format(v as number)} />
-                  <Line type="monotone" dataKey="premium" stroke={theme.palette.primary.main} strokeWidth={3} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="premium" name={SERIES_NAME_PREMIUM} stroke={theme.palette.primary.main} strokeWidth={3} dot={{ r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>
             </Box>
@@ -187,7 +205,7 @@ export function AgencyAdminDashboard() {
                   <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                   <YAxis tick={{ fontSize: 12 }} />
                   <Tooltip />
-                  <Bar dataKey="value" fill={theme.palette.primary.main} radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="value" name={SERIES_NAME_COUNT} fill={theme.palette.primary.main} radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </Box>
@@ -203,8 +221,8 @@ export function AgencyAdminDashboard() {
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis type="number" tickFormatter={(v) => moneyFmt.format(v as number)} tick={{ fontSize: 11 }} />
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={130} />
-                  <Tooltip formatter={(v, n) => n === "premium" ? moneyFmt.format(v as number) : v} />
-                  <Bar dataKey="premium" fill={theme.palette.secondary.main} radius={[0, 6, 6, 0]} />
+                  <Tooltip formatter={(v, n) => n === SERIES_NAME_PREMIUM ? moneyFmt.format(v as number) : v} />
+                  <Bar dataKey="premium" name={SERIES_NAME_PREMIUM} fill={theme.palette.secondary.main} radius={[0, 6, 6, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </Box>
@@ -238,12 +256,12 @@ function BreakdownCard({ title, series, accent }: { title: string; series: Serie
         <Typography variant="h6" mb={2}>{title}</Typography>
         <Box sx={{ height: 200 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={series.map(s => ({ name: s.label, value: s.value }))}>
+            <BarChart data={series.map(s => ({ name: BREAKDOWN_LABELS[s.label] ?? s.label, value: s.value }))}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Bar dataKey="value" fill={accent} radius={[6, 6, 0, 0]} />
+              <Bar dataKey="value" name={SERIES_NAME_COUNT} fill={accent} radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Box>

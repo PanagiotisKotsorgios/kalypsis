@@ -115,9 +115,13 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
         // expiry on the user row, then delivers it via IEmailSender (Brevo
         // when configured). Client submits the code with the challenge to
         // receive tokens.
-        var requireEmailCode = await _db.PlatformSettings.IgnoreQueryFilters()
+        var platformRequires = await _db.PlatformSettings.IgnoreQueryFilters()
             .OrderBy(s => s.Id).Select(s => (bool?)s.RequireEmailLoginCode)
             .FirstOrDefaultAsync(cancellationToken) ?? false;
+        // Per-user opt-in from Ρυθμίσεις — either the platform admin has
+        // globally enforced the email code, or this specific user has toggled
+        // it on for themselves.
+        var requireEmailCode = platformRequires || user.EmailLoginCodeEnabled;
         if (requireEmailCode)
         {
             var code = new Random().Next(100000, 1_000_000).ToString("D6");

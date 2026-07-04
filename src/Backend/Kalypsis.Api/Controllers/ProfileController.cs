@@ -27,4 +27,21 @@ public class ProfileController : ControllerBase
         await _mediator.Send(new ChangeMyPasswordCommand(body), cancellationToken);
         return NoContent();
     }
+
+    /// <summary>Toggle per-user email 2FA. When enabled, every login sends
+    /// a 6-digit code to the user's email via Brevo before session tokens
+    /// are issued.</summary>
+    [HttpPost("email-2fa")]
+    public async Task<IActionResult> SetEmailTwoFactor([FromBody] SetEmailTwoFactorBody body, CancellationToken ct)
+    {
+        await _mediator.Send(new SetEmailTwoFactorCommand(body.Enabled), ct);
+        return NoContent();
+    }
+
+    /// <summary>Current-month outgoing-communication usage per channel
+    /// (Email/SMS/Viber/Phone) with the tenant limits. Powers the
+    /// UsageMonitorSection on the profile page.</summary>
+    [HttpGet("usage-monitor")]
+    public async Task<ActionResult<UsageMonitorDto>> UsageMonitor(CancellationToken ct)
+        => Ok(await _mediator.Send(new GetMyUsageMonitorQuery(), ct));
 }
