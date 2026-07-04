@@ -35,4 +35,17 @@ public class PlatformAdminDemoController : ControllerBase
         var email = _current.Email ?? throw new UnauthorizedAccessException("Missing current-user email.");
         return Ok(await _mediator.Send(new WipeAndReseedDemoCommand(email), ct));
     }
+
+    /// <summary>
+    /// Downloads a ZIP of ERGO-format xlsx samples — 3 per demo tenant —
+    /// with matched, unlinked and cancellation rows so every bridge
+    /// scenario can be exercised end-to-end from the Γέφυρες page.
+    /// See GenerateBridgeSamplesQuery for the scenario breakdown.
+    /// </summary>
+    [HttpGet("bridge-samples.zip")]
+    public async Task<IActionResult> BridgeSamples(CancellationToken ct)
+    {
+        var result = await _mediator.Send(new GenerateBridgeSamplesQuery(), ct);
+        return File(result.ZipBytes, "application/zip", result.FileName);
+    }
 }

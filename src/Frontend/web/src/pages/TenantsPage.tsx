@@ -143,6 +143,19 @@ export function TenantsPage() {
           <HelpHint id="page.tenants" />
         </Stack>
         <Stack direction="row" spacing={1}>
+          <Button variant="outlined"
+            onClick={async () => {
+              try {
+                const res = await api.get("/platform/demo/bridge-samples.zip", { responseType: "blob" });
+                const url = URL.createObjectURL(new Blob([res.data], { type: "application/zip" }));
+                const a = document.createElement("a");
+                a.href = url; a.download = "bridge-samples.zip";
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+              } catch (e) { setError(extractErrorMessage(e)); }
+            }}>
+            Κατέβασμα Bridge Samples
+          </Button>
           <Button variant="outlined" color="error"
             onClick={() => {
               if (!confirm("Θα διαγραφούν ΟΛΟΙ οι χρήστες + όλα τα γραφεία εκτός από τον superadmin και το Kalypsis Platform tenant, και θα δημιουργηθούν 5 νέα demo γραφεία. Είστε σίγουρος;")) return;
