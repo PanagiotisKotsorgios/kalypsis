@@ -2,8 +2,13 @@ import { useEffect, useState, type ReactNode } from "react";
 import {
   AppBar,
   Box,
+  Button,
   Chip,
   Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   Drawer,
   IconButton,
@@ -17,7 +22,8 @@ import {
   Typography,
   Avatar,
   useMediaQuery,
-  useTheme
+  useTheme,
+  alpha
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -25,6 +31,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import FolderIcon from "@mui/icons-material/Folder";
+import DownloadForOfflineIcon from "@mui/icons-material/DownloadForOffline";
+import ConstructionIcon from "@mui/icons-material/Construction";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
@@ -123,6 +131,11 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
     localStorage.setItem("nav.openGroups", JSON.stringify(openGroups));
   }, [openGroups]);
   const toggleGroup = (g: string) => setOpenGroups(s => ({ ...s, [g]: !s[g] }));
+
+  // Desktop-install teaser — surfaced at the bottom of every sidebar for every
+  // role. Clicking opens a "Coming soon" dialog for now; will link to the
+  // Kalypsis desktop installer once the app ships (post 2026-10-20).
+  const [desktopOpen, setDesktopOpen] = useState(false);
   // Whether this user gets the workspace-switcher UI at all. Only agency-side roles see it;
   // platform staff (not impersonating) and customers/producers use the linear sidebar.
   const useWorkspaceUi = user?.role === "AgencyAdmin" || user?.role === "AgencyUser" || !!impersonatedTenantId;
@@ -317,7 +330,77 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           );
         })()}
       </List>
+      {/* Desktop-app installer teaser — visually distinct from regular nav
+          items (dashed secondary border, secondary tint) so it reads as a
+          "special" pinned action, not part of the flat nav list. Every role
+          sees it; clicking opens a Coming-soon dialog with the target date. */}
+      <Box sx={{ px: !isMobile && !open ? 0.5 : 1.5, pb: 1 }}>
+        {!isMobile && !open ? (
+          <Tooltip title={t("nav.installDesktop", "Εγκατάσταση σε υπολογιστή")} placement="right" arrow>
+            <ListItemButton
+              onClick={() => setDesktopOpen(true)}
+              sx={(th) => ({
+                mx: 0.5, mb: 0.4, borderRadius: 1.5, justifyContent: "center",
+                border: `1px dashed ${alpha(th.palette.secondary.main, 0.5)}`,
+                bgcolor: alpha(th.palette.secondary.main, 0.05),
+                "&:hover": { bgcolor: alpha(th.palette.secondary.main, 0.12) }
+              })}
+            >
+              <ListItemIcon sx={{ minWidth: 0, color: "secondary.main", justifyContent: "center" }}>
+                <DownloadForOfflineIcon />
+              </ListItemIcon>
+            </ListItemButton>
+          </Tooltip>
+        ) : (
+          <ListItemButton
+            onClick={() => setDesktopOpen(true)}
+            sx={(th) => ({
+              mx: 1, mb: 0.4, borderRadius: 1.5,
+              border: `1px dashed ${alpha(th.palette.secondary.main, 0.5)}`,
+              bgcolor: alpha(th.palette.secondary.main, 0.05),
+              "&:hover": { bgcolor: alpha(th.palette.secondary.main, 0.12) }
+            })}
+          >
+            <ListItemIcon sx={{ minWidth: 34, color: "secondary.main" }}>
+              <DownloadForOfflineIcon />
+            </ListItemIcon>
+            <ListItemText
+              primary={t("nav.installDesktop", "ΕΓΚΑΤΑΣΤΑΣΗ ΣΕ ΥΠΟΛΟΓΙΣΤΗ")}
+              primaryTypographyProps={{
+                fontWeight: 800, noWrap: true, fontSize: 12.5,
+                letterSpacing: "0.06em", textTransform: "uppercase",
+                color: "secondary.main"
+              }}
+            />
+            <Chip label={t("nav.soon", "σύντομα")} size="small"
+              sx={(th) => ({ height: 18, fontSize: 10, fontWeight: 700,
+                bgcolor: alpha(th.palette.secondary.main, 0.15),
+                color: "secondary.main", ml: 0.5 })} />
+          </ListItemButton>
+        )}
+      </Box>
       <Divider />
+      <Dialog open={desktopOpen} onClose={() => setDesktopOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" spacing={1.2}>
+            <ConstructionIcon color="secondary" />
+            <span>Εγκατάσταση σε υπολογιστή</span>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 1 }}>
+            Η <b>desktop έκδοση του Kalypsis</b> βρίσκεται ακόμη υπό ανάπτυξη. Θα είναι διαθέσιμη για κατέβασμα και
+            εγκατάσταση σε Windows / macOS <b>μετά τις 20 Οκτωβρίου 2026</b>.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Μέχρι τότε, μπορείτε να χρησιμοποιείτε κανονικά το Kalypsis μέσω browser — όλες οι λειτουργίες θα είναι
+            διαθέσιμες και στην desktop έκδοση.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" onClick={() => setDesktopOpen(false)}>Κατάλαβα</Button>
+        </DialogActions>
+      </Dialog>
       <Box sx={{ p: !isMobile && !open ? 1 : 2, pb: isMobile ? "max(16px, env(safe-area-inset-bottom))" : undefined }}>
         {!isMobile && !open ? (
           <Tooltip title={`${user?.firstName ?? ""} ${user?.lastName ?? ""}`} placement="right" arrow>
