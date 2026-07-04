@@ -223,4 +223,13 @@ public interface IAppDbContext
     /// Clears every locally tracked entity — needed after a raw-SQL delete
     /// so subsequent EF operations don't reference stale rows.
     void ClearChangeTracker();
+
+    /// Opens the underlying DB connection and keeps it open until
+    /// <see cref="CloseConnectionAsync"/> is called. Needed for the wipe
+    /// path because `SET FOREIGN_KEY_CHECKS = 0` is a MySQL SESSION
+    /// variable — without pinning the connection, EF's pool may hand back
+    /// a different socket for the next statement and the FK checks come
+    /// back on mid-wipe.
+    Task OpenConnectionAsync(CancellationToken cancellationToken = default);
+    Task CloseConnectionAsync(CancellationToken cancellationToken = default);
 }

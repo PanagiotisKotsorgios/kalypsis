@@ -245,6 +245,14 @@ public class AppDbContext : DbContext, IAppDbContext
     /// See <see cref="Kalypsis.Application.Abstractions.IAppDbContext.ClearChangeTracker"/>.
     public void ClearChangeTracker() => ChangeTracker.Clear();
 
+    public Task OpenConnectionAsync(CancellationToken cancellationToken = default)
+        => Database.OpenConnectionAsync(cancellationToken);
+    public Task CloseConnectionAsync(CancellationToken cancellationToken = default)
+    {
+        Database.CloseConnection();
+        return Task.CompletedTask;
+    }
+
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         ApplyAuditAndTenantStamps();

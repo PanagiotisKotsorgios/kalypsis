@@ -121,12 +121,19 @@ public class WipeAndReseedDemoCommandHandler
         };
 
         int rowsDeleted = 0;
-        // FK checks off for the wipe. If a table doesn't exist (older schema)
-        // the DELETE fails silently but doesn't stop the batch — we catch and
-        // continue so a partial schema doesn't jam the whole operation.
-        await _db.ExecuteRawSqlAsync("SET FOREIGN_KEY_CHECKS = 0;", ct);
+
+        // Pin one physical connection open for the whole wipe. MySQL treats
+        // FOREIGN_KEY_CHECKS as a SESSION variable — if we let EF's pool
+        // hand back a fresh connection between statements, FK checks come
+        // back ON mid-wipe and DELETE FROM customers fails on the FK from
+        // policies (which we already deleted, but on a different session).
+        // Manual OpenConnectionAsync + a finally-close guarantees session
+        // stickiness across every DELETE below.
+        await _db.OpenConnectionAsync(ct);
         try
         {
+            await _db.ExecuteRawSqlAsync("SET FOREIGN_KEY_CHECKS = 0;", ct);
+
             foreach (var table in tenantScopedTables)
             {
                 try
@@ -182,10 +189,14 @@ public class WipeAndReseedDemoCommandHandler
             // Stash the counts on the closure so the seed step below can echo
             // them in the response.
             _wipeCounts = (usersDeletedCount, tenantsDeletedCount);
+
+            // Restore FK checks BEFORE releasing the connection, so the
+            // change is applied to the pinned session.
+            await _db.ExecuteRawSqlAsync("SET FOREIGN_KEY_CHECKS = 1;", ct);
         }
         finally
         {
-            await _db.ExecuteRawSqlAsync("SET FOREIGN_KEY_CHECKS = 1;", ct);
+            await _db.CloseConnectionAsync(ct);
         }
 
         // EF cache is now out of sync with the DB — clear tracked entities
