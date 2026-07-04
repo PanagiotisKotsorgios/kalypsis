@@ -80,6 +80,45 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
             Status = b.Status, Tier = b.Tier
         };
         _db.Producers.Add(p);
+
+        // Email-based User linking. If a Producer-role user already exists
+        // with this email in this tenant, link them by pointing
+        // User.ProducerId → new producer.Id. If no user exists yet, create
+        // one so the producer can log in and see their book right away.
+        // Cross-tenant producers (same person working in multiple offices)
+        // end up with separate User rows per tenant that share the same
+        // email — the (TenantId, Email) unique constraint holds.
+        if (!string.IsNullOrEmpty(p.Email))
+        {
+            var existingUser = await _db.Users.IgnoreQueryFilters()
+                .Where(u => u.TenantId == tenantId && u.Email == p.Email && u.DeletedAt == null)
+                .FirstOrDefaultAsync(ct);
+            if (existingUser is not null)
+            {
+                existingUser.ProducerId = p.Id;
+                if (existingUser.Role == Role.Customer) existingUser.Role = Role.Producer;
+            }
+            else
+            {
+                var nameParts = p.Name.Split(' ', 2);
+                _db.Users.Add(new User
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    Email = p.Email,
+                    // BCrypt hash of a placeholder that MUST be reset via forgot-password
+                    // flow before first login. Bare "!" is invalid on purpose so the
+                    // producer can't log in until they set their own.
+                    PasswordHash = "!",
+                    FirstName = nameParts[0],
+                    LastName = nameParts.Length > 1 ? nameParts[1] : "",
+                    Role = Role.Producer,
+                    ProducerId = p.Id,
+                    IsActive = true,
+                });
+            }
+        }
+
         await _db.SaveChangesAsync(ct);
         return new ProducerDto(p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, p.Tier, 0, p.CreatedAt);
     }
@@ -105,10 +144,51 @@ public class UpdateProducerCommandHandler : IRequestHandler<UpdateProducerComman
         var b = request.Body;
         p.Code = b.Code.Trim().ToUpperInvariant();
         p.Name = b.Name.Trim();
-        p.Email = b.Email?.Trim().ToLowerInvariant();
+        var newEmail = b.Email?.Trim().ToLowerInvariant();
+        var emailChanged = !string.Equals(p.Email, newEmail, StringComparison.OrdinalIgnoreCase);
+        p.Email = newEmail;
         p.Phone = b.Phone?.Trim();
         p.Status = b.Status;
         p.Tier   = b.Tier;
+
+        // Re-run the email-based user linking every time the email changes.
+        // Existing User with that email → set User.ProducerId = p.Id. No
+        // matching user → create one so the producer can be onboarded.
+        if (emailChanged && !string.IsNullOrEmpty(newEmail))
+        {
+            // Unlink any users previously pointing at this producer that
+            // no longer share the email (avoids double-linking scenarios).
+            var stale = await _db.Users.IgnoreQueryFilters()
+                .Where(u => u.TenantId == tenantId && u.ProducerId == p.Id && u.Email != newEmail)
+                .ToListAsync(ct);
+            foreach (var u in stale) u.ProducerId = null;
+
+            var target = await _db.Users.IgnoreQueryFilters()
+                .Where(u => u.TenantId == tenantId && u.Email == newEmail && u.DeletedAt == null)
+                .FirstOrDefaultAsync(ct);
+            if (target is not null)
+            {
+                target.ProducerId = p.Id;
+                if (target.Role == Role.Customer) target.Role = Role.Producer;
+            }
+            else
+            {
+                var nameParts = p.Name.Split(' ', 2);
+                _db.Users.Add(new User
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    Email = newEmail,
+                    PasswordHash = "!",
+                    FirstName = nameParts[0],
+                    LastName = nameParts.Length > 1 ? nameParts[1] : "",
+                    Role = Role.Producer,
+                    ProducerId = p.Id,
+                    IsActive = true,
+                });
+            }
+        }
+
         await _db.SaveChangesAsync(ct);
 
         var count = await _db.Policies.IgnoreQueryFilters()

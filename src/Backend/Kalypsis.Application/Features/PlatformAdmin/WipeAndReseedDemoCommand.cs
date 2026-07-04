@@ -282,20 +282,34 @@ public class WipeAndReseedDemoCommandHandler
             usersCreated += 2;
 
             // Producers: 5 for large tenants, 2 for small. Some shared names
-            // (cross-tenant συνεργάτες) — matched by name in the report only.
+            // (cross-tenant συνεργάτες) — matched by name AND email so a
+            // producer can log in once and see their book across every
+            // agency they're linked to. Each shared producer gets a
+            // dedicated portal User account (created inline below) with
+            // Role=Producer + User.ProducerId pointing at this tenant's
+            // Producer row. The producer registration flow (POST
+            // /producers) mirrors this logic: existing email → link
+            // existing user, new email → auto-create user.
             var producerCount = size == "large" ? 5 : 2;
             var producers = new List<Producer>();
-            var sharedNames = new[] { "Γεώργιος Ιωάννου", "Μαρία Παπαδοπούλου", "Νίκος Δημητρίου" };
+            var sharedProducers = new (string Name, string Email)[]
+            {
+                ("Γεώργιος Ιωάννου",   "g.ioannou@producer-demo.gr"),
+                ("Μαρία Παπαδοπούλου", "m.papadopoulou@producer-demo.gr"),
+                ("Νίκος Δημητρίου",    "n.dimitriou@producer-demo.gr"),
+            };
             for (int p = 1; p <= producerCount; p++)
             {
                 var isShared = p <= 2 && (tenantIndex == 1 || tenantIndex == 3 || tenantIndex == 5);
+                var producerName = isShared ? sharedProducers[p - 1].Name : $"Συνεργάτης {tenantIndex}.{p}";
+                var producerEmail = isShared ? sharedProducers[p - 1].Email : $"producer{tenantIndex}.{p}@kalypsis-demo.gr";
                 var producer = new Producer
                 {
                     Id = Guid.NewGuid(),
                     TenantId = tenant.Id,
                     Code = $"PR{tenantIndex:00}{p:00}",
-                    Name = isShared ? sharedNames[p - 1] : $"Συνεργάτης {tenantIndex}.{p}",
-                    Email = $"producer{tenantIndex}.{p}@kalypsis-demo.gr",
+                    Name = producerName,
+                    Email = producerEmail,
                     Status = ProducerStatus.Active,
                     Tier = (ProducerTier)((p % 5) + 1),
                     CreatedAt = now
@@ -303,6 +317,25 @@ public class WipeAndReseedDemoCommandHandler
                 producers.Add(producer);
                 _db.Producers.Add(producer);
                 producersCreated++;
+
+                // Every producer gets a portal user linked via
+                // User.ProducerId — this is what turns the producer
+                // dashboard on and enables the cross-tenant view.
+                var producerUser = new User
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    Email = producerEmail,
+                    PasswordHash = pwd,
+                    FirstName = producerName.Split(' ')[0],
+                    LastName = producerName.Split(' ').Length > 1 ? producerName.Split(' ')[1] : "",
+                    Role = Role.Producer,
+                    ProducerId = producer.Id,
+                    IsActive = true,
+                    CreatedAt = now
+                };
+                _db.Users.Add(producerUser);
+                usersCreated++;
             }
 
             // Customers.
@@ -372,6 +405,42 @@ public class WipeAndReseedDemoCommandHandler
 
             // ── Extra data per policy — makes every sidebar section feel alive ──
             var activePolicies = policies.Where(p => p.Status == PolicyStatus.Active).ToList();
+
+            // Producer declarations (Ταυτοποίηση Συνεργατών) — one per active
+            // policy per producer, with intentional mismatches so the
+            // reconciliation page has real diff data to render:
+            //   • Even-indexed policies → exact match (declared = 8% × premium)
+            //   • Odd-indexed policies  → small drift (declared = ~10% × premium)
+            //   • Every 5th policy      → large drift (declared = ~20% × premium)
+            // This gives the operator a healthy mix of «match / diff_small /
+            // diff_large» statuses across the reconciliation report.
+            var declPolicies = activePolicies.Take(size == "large" ? 20 : 6).ToList();
+            for (int dp = 0; dp < declPolicies.Count; dp++)
+            {
+                var p = declPolicies[dp];
+                if (!p.ProducerId.HasValue) continue;
+                var basePct = 8m;
+                var declaredPct = dp % 5 == 0 ? 20m
+                    : dp % 2 == 1 ? basePct + 2m
+                    : basePct;
+                var expected = decimal.Round(p.Premium * declaredPct / 100m, 2);
+                _db.ProducerCommissionDeclarations.Add(new ProducerCommissionDeclaration
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    ProducerId = p.ProducerId.Value,
+                    PolicyId = p.Id,
+                    ExpectedAmount = expected,
+                    ExpectedPercent = declaredPct,
+                    Currency = "EUR",
+                    Notes = dp % 5 == 0
+                        ? "Ο συνεργάτης θεωρεί ότι δικαιούται περισσότερα — επικοινωνία με γραφείο."
+                        : null,
+                    DeclaredAt = now.AddDays(-rng.Next(1, 30)),
+                    ReconciliationStatus = "pending",
+                    CreatedAt = now
+                });
+            }
 
             // Endorsements (πρόσθετες πράξεις) — one per ~10 active policies
             var endorsementTypes = Enum.GetValues<EndorsementType>();

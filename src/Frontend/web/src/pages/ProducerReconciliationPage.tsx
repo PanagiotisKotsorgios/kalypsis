@@ -110,7 +110,8 @@ export function ProducerReconciliationPage() {
           <Box>
             <Typography variant="h4" sx={{ fontWeight: 850 }}>Ταυτοποίηση Συνεργατών</Typography>
             <Typography color="text.secondary">
-              Δηλώσεις συνεργατών για αναμενόμενες προμήθειες, με σύγκριση έναντι των καταχωρημένων εκκαθαρίσεων.
+              Δηλώσεις συνεργατών για αναμενόμενες προμήθειες, με ζωντανή σύγκριση έναντι της παραμετροποίησης προμηθειών του γραφείου
+              (ίδιος υπολογισμός με τις Λίστες Παραγωγής).
             </Typography>
           </Box>
         </Stack>
@@ -174,18 +175,27 @@ export function ProducerReconciliationPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card variant="outlined" sx={{ overflowX: "auto" }}>
+        <>
+          {flagged > 0 && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <b>Υπάρχουν {flagged} δηλώσεις προς έλεγχο.</b>{" "}
+              Οι γραμμές με «Διαφορά» εμφανίζουν μη-μηδενική διαφορά μεταξύ αυτού που δηλώνει ο συνεργάτης και του
+              υπολογισμού του γραφείου. Επικοινωνήστε με τον συνεργάτη, ελέγξτε τη σύμβασή σας ή προσαρμόστε την
+              παραμετροποίηση προμηθειών.
+            </Alert>
+          )}
+          <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
             <TableHead>
               <TableRow>
                 <TableCell>Ημ/νία</TableCell>
                 <TableCell>Συνεργάτης</TableCell>
                 <TableCell>Συμβόλαιο</TableCell>
-                <TableCell align="right">Δηλωμένο</TableCell>
-                <TableCell align="right">Καταχωρημένο</TableCell>
+                <TableCell align="right">Δηλωμένο (συνεργάτης)</TableCell>
+                <TableCell align="right">Παραμετροποίηση (γραφείο)</TableCell>
                 <TableCell align="right">Διαφορά</TableCell>
                 <TableCell>Κατάσταση</TableCell>
-                <TableCell>Σημείωση</TableCell>
+                <TableCell>Ενέργεια</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -215,8 +225,20 @@ export function ProducerReconciliationPage() {
                     <TableCell>
                       <Chip size="small" label={STATUS_LABEL[statusKey] ?? statusKey} color={color} variant={color === "default" ? "outlined" : "filled"} sx={{ fontWeight: 700 }} />
                     </TableCell>
-                    <TableCell sx={{ color: "text.secondary", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {r.notes ?? "—"}
+                    <TableCell sx={{ color: "text.secondary", maxWidth: 260 }}>
+                      {statusKey === "match" ? (
+                        <Typography variant="caption" color="success.main" fontWeight={700}>
+                          Συμφωνεί με τη σύμβαση.
+                        </Typography>
+                      ) : statusKey === "missing" ? (
+                        <Typography variant="caption" color="text.secondary">
+                          Δεν υπάρχει κανόνας προμήθειας για αυτό το συμβόλαιο — προσθέστε τον από «Παραμετροποίηση Προμηθειών».
+                        </Typography>
+                      ) : (
+                        <Typography variant="caption" color="warning.main" fontWeight={700}>
+                          Επικοινωνία με τον συνεργάτη ή αναθεώρηση της σύμβασής σας — η παραμετροποίηση δίνει διαφορετικό αποτέλεσμα.
+                        </Typography>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
@@ -224,6 +246,7 @@ export function ProducerReconciliationPage() {
             </TableBody>
           </Table>
         </Card>
+        </>
       )}
     </Box>
   );

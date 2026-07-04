@@ -212,10 +212,61 @@ public class ListAgencyDeclarationsHandler : IRequestHandler<ListAgencyDeclarati
 
             var rows = await q.OrderByDescending(d => d.DeclaredAt).Take(500).ToListAsync(ct);
 
-            return rows.Select(d => new ProducerDeclarationDto(
-                d.Id, d.PolicyId, d.Policy?.PolicyNumber ?? "", d.ProducerId, d.Producer?.Name ?? "",
-                d.ExpectedAmount, d.ExpectedPercent, d.RecordedAmount, d.DifferenceAmount,
-                d.ReconciliationStatus, d.Currency, d.Notes, d.DeclaredAt)).ToList();
+            // ── Live agency-side computation ────────────────────────────
+            // Ταυτοποίηση Συνεργατών was reading RecordedAmount from stale
+            // batch CommissionRunLines. Switch to a LIVE compute: for each
+            // declaration, look up the tenant's CommissionRule for that
+            // producer × policy type × cover code, multiply by the policy
+            // premium, and compare against the declaration. This keeps the
+            // number identical to what the operator sees on the Λίστες
+            // Παραγωγής page (also derived from CommissionRules) — no more
+            // «my declaration matches the run but the production list
+            // disagrees» drift.
+            var rules = await _db.CommissionRules
+                .Where(rl => rl.TenantId == tenantId && rl.DeletedAt == null)
+                .ToListAsync(ct);
+
+            decimal ComputeAgencyExpected(Kalypsis.Domain.Entities.Policy p, Guid producerId)
+            {
+                var match = rules
+                    .Where(rl =>
+                        (!rl.ProducerId.HasValue          || rl.ProducerId == producerId) &&
+                        (!rl.PolicyType.HasValue          || rl.PolicyType == p.PolicyType) &&
+                        (!rl.VehicleUseCategory.HasValue  || rl.VehicleUseCategory == p.VehicleUseCategory) &&
+                        (!rl.InsuranceCompanyId.HasValue  || rl.InsuranceCompanyId == p.InsuranceCompanyId))
+                    .OrderByDescending(rl =>
+                        (rl.ProducerId.HasValue         ? 8 : 0) +
+                        (rl.PolicyType.HasValue         ? 4 : 0) +
+                        (rl.VehicleUseCategory.HasValue ? 2 : 0) +
+                        (rl.InsuranceCompanyId.HasValue ? 1 : 0))
+                    .FirstOrDefault();
+                if (match is null) return 0m;
+                var pct = match.ProducerPercent
+                    ?? (match.CommissionType == Kalypsis.Domain.Enums.CommissionType.Percentage ? match.Value : 0m);
+                return decimal.Round(p.Premium * pct / 100m, 2);
+            }
+
+            const decimal smallDiffLimit = 5m;
+            return rows.Select(d =>
+            {
+                decimal? agencyLive = d.Policy is null ? null
+                    : (decimal?)ComputeAgencyExpected(d.Policy, d.ProducerId);
+                decimal? diff = agencyLive.HasValue ? agencyLive - d.ExpectedAmount : null;
+                string status;
+                if (!agencyLive.HasValue || agencyLive.Value == 0m) status = "missing";
+                else if (diff.HasValue && Math.Abs(diff.Value) < 0.01m) status = "match";
+                else if (diff.HasValue && Math.Abs(diff.Value) < smallDiffLimit) status = "diff_small";
+                else status = "diff_large";
+
+                return new ProducerDeclarationDto(
+                    d.Id, d.PolicyId, d.Policy?.PolicyNumber ?? "", d.ProducerId, d.Producer?.Name ?? "",
+                    d.ExpectedAmount, d.ExpectedPercent,
+                    // RecordedAmount now returns the LIVE agency-side computed
+                    // value so the frontend doesn't need a schema change —
+                    // it already renders «Καταχωρημένο vs Δηλωμένο».
+                    agencyLive, diff,
+                    status, d.Currency, d.Notes, d.DeclaredAt);
+            }).ToList();
         }
         catch
         {
