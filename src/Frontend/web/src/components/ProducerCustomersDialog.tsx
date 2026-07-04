@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { FilterHelp } from "./FilterHelp";
 import {
   Alert,
   Box,
@@ -107,10 +108,11 @@ export function ProducerCustomersDialog({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             size="small"
-            placeholder="Αναζήτηση σε όνομα, ΑΦΜ, email, τηλέφωνο, πόλη…"
+            placeholder="Αναζήτηση…"
             fullWidth
             InputProps={{
-              startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>
+              startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+              endAdornment: <FilterHelp title="Αναζήτηση σε όνομα, ΑΦΜ, email, τηλέφωνο ή πόλη πελάτη." />
             }}
           />
           <Stack direction="row" spacing={1}>

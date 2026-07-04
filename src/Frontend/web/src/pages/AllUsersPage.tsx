@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert,
   Box,
@@ -131,33 +132,41 @@ export function AllUsersPage() {
       <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("allUsers.title")}</Typography>
       <Typography color="text.secondary" sx={{ mb: 3 }}>{t("allUsers.subtitle")}</Typography>
 
-      <Card sx={{ p: 2, mb: 2 }}>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }} flexWrap="wrap" useFlexGap>
           <TextField
-            fullWidth size="small" placeholder={t("allUsers.searchPlaceholder")}
+            size="small" placeholder={t("allUsers.searchPlaceholder")}
             value={search} onChange={(e) => setSearch(e.target.value)}
-            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
+            sx={{ flex: 1, minWidth: 220 }}
+            InputProps={{
+              startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+              endAdornment: <FilterHelp title="Αναζήτηση σε email, όνομα, επώνυμο ή γραφείο." />
+            }}
           />
-          <SearchableTextField
-            select size="small" label={t("allUsers.tenant")}
-            value={tenantFilter} onChange={(e) => setTenantFilter(e.target.value)}
-            sx={{ minWidth: { sm: 220 } }}
-          >
-            <MenuItem value="">{t("allUsers.allTenants")}</MenuItem>
-            {(tenantsQuery.data ?? []).map((tn) =>
-              <MenuItem key={tn.id} value={tn.id}>{tn.name}</MenuItem>
-            )}
-          </SearchableTextField>
-          <SearchableTextField
-            select size="small" label={t("allUsers.role")}
-            value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as Role | "")}
-            sx={{ minWidth: { sm: 200 } }}
-          >
-            <MenuItem value="">{t("allUsers.allRoles")}</MenuItem>
-            {(["PlatformAdmin","PlatformEmployee","AgencyAdmin","AgencyUser","Producer","Customer"] as const).map(r =>
-              <MenuItem key={r} value={r}>{t(`roles.${r}`)}</MenuItem>
-            )}
-          </SearchableTextField>
+          <FilterFieldWrap tip="Φιλτράρετε τους χρήστες ανά γραφείο (tenant).">
+            <SearchableTextField
+              select size="small" label={t("allUsers.tenant")}
+              value={tenantFilter} onChange={(e) => setTenantFilter(e.target.value)}
+              sx={{ minWidth: 180, width: "100%" }}
+            >
+              <MenuItem value="">{t("allUsers.allTenants")}</MenuItem>
+              {(tenantsQuery.data ?? []).map((tn) =>
+                <MenuItem key={tn.id} value={tn.id}>{tn.name}</MenuItem>
+              )}
+            </SearchableTextField>
+          </FilterFieldWrap>
+          <FilterFieldWrap tip="Φιλτράρετε ανά ρόλο (PlatformAdmin, AgencyAdmin, Παραγωγός, Πελάτης κ.λπ.).">
+            <SearchableTextField
+              select size="small" label={t("allUsers.role")}
+              value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as Role | "")}
+              sx={{ minWidth: 170, width: "100%" }}
+            >
+              <MenuItem value="">{t("allUsers.allRoles")}</MenuItem>
+              {(["PlatformAdmin","PlatformEmployee","AgencyAdmin","AgencyUser","Producer","Customer"] as const).map(r =>
+                <MenuItem key={r} value={r}>{t(`roles.${r}`)}</MenuItem>
+              )}
+            </SearchableTextField>
+          </FilterFieldWrap>
         </Stack>
       </Card>
 

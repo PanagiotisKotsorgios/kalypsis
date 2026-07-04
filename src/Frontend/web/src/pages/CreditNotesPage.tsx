@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert, Autocomplete, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
   DialogTitle, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
@@ -79,27 +80,38 @@ export function CreditNotesPage() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 
-      <Card sx={{ p: 2, mb: 2 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap alignItems={{ md: "center" }}>
-          <TextField size="small" placeholder="Αριθμός, περιγραφή, σχετικό έγγραφο…"
-            value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
-          <SearchableTextField size="small" label="Είδος"
-            value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} sx={{ minWidth: 200 }}>
-            <MenuItem value="">Όλα</MenuItem>
-            {Object.entries(KIND_LABELS).map(([k, label]) =>
-              <MenuItem key={k} value={k}>{label}</MenuItem>)}
-          </SearchableTextField>
-          <SearchableTextField size="small" label="Κατάσταση"
-            value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 160 }}>
-            <MenuItem value="">Όλες</MenuItem>
-            <MenuItem value="Issued">Εκδόθηκε</MenuItem>
-            <MenuItem value="Applied">Εφαρμόστηκε</MenuItem>
-            <MenuItem value="Cancelled">Ακυρώθηκε</MenuItem>
-          </SearchableTextField>
-          <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
-            value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-          <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
-            value={toDate} onChange={(e) => setToDate(e.target.value)} />
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} flexWrap="wrap" useFlexGap alignItems={{ md: "center" }}>
+          <TextField size="small" placeholder="Αναζήτηση…"
+            value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 200 }}
+            InputProps={{
+              endAdornment: <FilterHelp title="Αναζήτηση σε αριθμό, περιγραφή ή σχετικό έγγραφο." />
+            }} />
+          <FilterFieldWrap tip="Φιλτράρετε τα πιστωτικά ανά είδος (Έκπτωση, Επιστροφή, Ακύρωση κ.λπ.).">
+            <SearchableTextField size="small" label="Είδος"
+              value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} sx={{ minWidth: 170, width: "100%" }}>
+              <MenuItem value="">Όλα</MenuItem>
+              {Object.entries(KIND_LABELS).map(([k, label]) =>
+                <MenuItem key={k} value={k}>{label}</MenuItem>)}
+            </SearchableTextField>
+          </FilterFieldWrap>
+          <FilterFieldWrap tip="Φιλτράρετε ανά κατάσταση: Εκδόθηκε, Εφαρμόστηκε ή Ακυρώθηκε.">
+            <SearchableTextField size="small" label="Κατάσταση"
+              value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 150, width: "100%" }}>
+              <MenuItem value="">Όλες</MenuItem>
+              <MenuItem value="Issued">Εκδόθηκε</MenuItem>
+              <MenuItem value="Applied">Εφαρμόστηκε</MenuItem>
+              <MenuItem value="Cancelled">Ακυρώθηκε</MenuItem>
+            </SearchableTextField>
+          </FilterFieldWrap>
+          <FilterFieldWrap tip="Ημερομηνία έκδοσης από — εμφανίζει πιστωτικά από αυτήν την ημέρα και μετά.">
+            <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
+              value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 140, width: "100%" }} />
+          </FilterFieldWrap>
+          <FilterFieldWrap tip="Ημερομηνία έκδοσης έως — εμφανίζει πιστωτικά μέχρι αυτήν την ημέρα.">
+            <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
+              value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 140, width: "100%" }} />
+          </FilterFieldWrap>
           <Box sx={{ flex: 1 }} />
           <Box sx={{ textAlign: "right" }}>
             <Typography variant="caption" color="text.secondary">Σύνολο φιλτραρισμένα</Typography>

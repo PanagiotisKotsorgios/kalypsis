@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { FilterHelp } from "./FilterHelp";
 import {
   Alert,
   Box,
@@ -97,11 +98,12 @@ export function CustomerProducersDialog({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             size="small"
-            placeholder="Αναζήτηση σε κωδικό ή όνομα συνεργάτη…"
+            placeholder="Αναζήτηση…"
             fullWidth
             sx={{ mb: 2 }}
             InputProps={{
-              startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>
+              startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+              endAdornment: <FilterHelp title="Αναζήτηση σε κωδικό ή όνομα συνεργάτη — φιλτράρει τη λίστα ζωντανά καθώς πληκτρολογείτε." />
             }}
           />
         )}

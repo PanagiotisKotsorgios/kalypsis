@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FilterHelp } from "../components/FilterHelp";
 import {
   Alert, Autocomplete, Box, Button, Card, Chip, CircularProgress, Dialog, DialogContent, DialogTitle,
   Divider, IconButton, LinearProgress, Stack, Tab, Tabs, Table, TableBody, TableCell, TableHead, TableRow,
@@ -469,8 +470,11 @@ export function CarrierBridgesPage() {
                   />
                 ))}
               </Stack>
-              <TextField size="small" placeholder={t("carrierBridges.searchRows", "Αναζήτηση συμβολαίου, πελάτη, πινακίδας…") ?? ""}
-                value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} sx={{ minWidth: 260 }} />
+              <TextField size="small" placeholder="Αναζήτηση…"
+                value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} sx={{ minWidth: 220 }}
+                InputProps={{
+                  endAdornment: <FilterHelp title="Αναζήτηση σε αριθμό συμβολαίου, όνομα πελάτη ή πινακίδα οχήματος στη γέφυρα." />
+                }} />
               <Typography variant="caption" color="text.secondary" sx={{ minWidth: 130 }}>
                 {t("carrierBridges.showing", { n: filteredRows.length, total: preview.rows.length })
                   ?? `${filteredRows.length}/${preview.rows.length}`}

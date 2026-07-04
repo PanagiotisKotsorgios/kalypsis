@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert,
   Box,
@@ -250,97 +251,61 @@ export function NotificationsPage() {
       {message && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setMessage(null)}>{message}</Alert>}
 
       <Card sx={{ mb: 2, border: `1px solid ${BORDER}`, boxShadow: "0 10px 30px rgba(11,37,69,0.06)" }}>
-        <CardContent sx={{ p: 2 }}>
-          <Stack direction={{ xs: "column", lg: "row" }} spacing={1.5} alignItems={{ xs: "stretch", lg: "center" }}>
+        <CardContent sx={{ px: 1.5, py: 1.25 }}>
+          <Stack direction={{ xs: "column", lg: "row" }} spacing={1} alignItems={{ xs: "stretch", lg: "center" }} flexWrap="wrap" useFlexGap>
             <TextField
               size="small"
               value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                resetPage();
-              }}
-              placeholder="Αναζήτηση σε τίτλο, κείμενο ή τύπο ειδοποίησης…"
-              sx={{ flex: 1, minWidth: { lg: 340 } }}
+              onChange={(e) => { setSearch(e.target.value); resetPage(); }}
+              placeholder="Αναζήτηση…"
+              sx={{ flex: 1, minWidth: 220 }}
               InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ color: TEXT_MUTED }} />
-                  </InputAdornment>
-                )
+                startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" sx={{ color: TEXT_MUTED }} /></InputAdornment>,
+                endAdornment: <FilterHelp title="Αναζήτηση σε τίτλο, κείμενο ή τύπο ειδοποίησης." />
               }}
             />
-            <SearchableTextField
-              select
-              size="small"
-              label="Κατάσταση"
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value as StatusFilter);
-                resetPage();
-              }}
-              sx={{ minWidth: 170 }}
-            >
-              <MenuItem value="all">Όλες</MenuItem>
-              <MenuItem value="unread">Μη αναγνωσμένες</MenuItem>
-              <MenuItem value="read">Αναγνωσμένες</MenuItem>
-            </SearchableTextField>
-            <SearchableTextField
-              select
-              size="small"
-              label="Τύπος"
-              value={category}
-              onChange={(e) => {
-                setCategory(e.target.value);
-                resetPage();
-              }}
-              sx={{ minWidth: 210 }}
-            >
-              <MenuItem value="all">Όλοι οι τύποι</MenuItem>
-              {categories.map(c => <MenuItem key={c.value} value={c.value}>{c.label}</MenuItem>)}
-            </SearchableTextField>
-            <SearchableTextField
-              select
-              size="small"
-              label="Περίοδος"
-              value={period}
-              onChange={(e) => {
-                setPeriod(e.target.value as PeriodFilter);
-                resetPage();
-              }}
-              sx={{ minWidth: 150 }}
-            >
-              <MenuItem value="all">Όλες</MenuItem>
-              <MenuItem value="today">Σήμερα</MenuItem>
-              <MenuItem value="7d">Τελευταίες 7 ημέρες</MenuItem>
-              <MenuItem value="30d">Τελευταίες 30 ημέρες</MenuItem>
-            </SearchableTextField>
-            <SearchableTextField
-              select
-              size="small"
-              label="Σειρά"
-              value={sort}
-              onChange={(e) => {
-                setSort(e.target.value as SortOrder);
-                resetPage();
-              }}
-              sx={{ minWidth: 145 }}
-            >
-              <MenuItem value="newest">Νεότερες πρώτα</MenuItem>
-              <MenuItem value="oldest">Παλαιότερες πρώτα</MenuItem>
-            </SearchableTextField>
-            <SearchableTextField
-              select
-              size="small"
-              label="Ανά σελίδα"
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                resetPage();
-              }}
-              sx={{ minWidth: 125 }}
-            >
-              {[10, 20, 50].map(size => <MenuItem key={size} value={size}>{size}</MenuItem>)}
-            </SearchableTextField>
+            <FilterFieldWrap tip="Φιλτράρετε τις ειδοποιήσεις ανά κατάσταση: όλες, μη αναγνωσμένες ή αναγνωσμένες.">
+              <SearchableTextField select size="small" label="Κατάσταση" value={status}
+                onChange={(e) => { setStatus(e.target.value as StatusFilter); resetPage(); }}
+                sx={{ minWidth: 160, width: "100%" }}>
+                <MenuItem value="all">Όλες</MenuItem>
+                <MenuItem value="unread">Μη αναγνωσμένες</MenuItem>
+                <MenuItem value="read">Αναγνωσμένες</MenuItem>
+              </SearchableTextField>
+            </FilterFieldWrap>
+            <FilterFieldWrap tip="Φιλτράρετε ανά τύπο ειδοποίησης (Ανανέωση, Ζημιά, Πληρωμή κ.λπ.).">
+              <SearchableTextField select size="small" label="Τύπος" value={category}
+                onChange={(e) => { setCategory(e.target.value); resetPage(); }}
+                sx={{ minWidth: 180, width: "100%" }}>
+                <MenuItem value="all">Όλοι οι τύποι</MenuItem>
+                {categories.map(c => <MenuItem key={c.value} value={c.value}>{c.label}</MenuItem>)}
+              </SearchableTextField>
+            </FilterFieldWrap>
+            <FilterFieldWrap tip="Χρονικό παράθυρο εμφάνισης: σήμερα, τελευταίες 7 ή 30 ημέρες.">
+              <SearchableTextField select size="small" label="Περίοδος" value={period}
+                onChange={(e) => { setPeriod(e.target.value as PeriodFilter); resetPage(); }}
+                sx={{ minWidth: 140, width: "100%" }}>
+                <MenuItem value="all">Όλες</MenuItem>
+                <MenuItem value="today">Σήμερα</MenuItem>
+                <MenuItem value="7d">Τελευταίες 7 ημέρες</MenuItem>
+                <MenuItem value="30d">Τελευταίες 30 ημέρες</MenuItem>
+              </SearchableTextField>
+            </FilterFieldWrap>
+            <FilterFieldWrap tip="Σειρά εμφάνισης: πρώτα οι νεότερες ή πρώτα οι παλαιότερες.">
+              <SearchableTextField select size="small" label="Σειρά" value={sort}
+                onChange={(e) => { setSort(e.target.value as SortOrder); resetPage(); }}
+                sx={{ minWidth: 135, width: "100%" }}>
+                <MenuItem value="newest">Νεότερες πρώτα</MenuItem>
+                <MenuItem value="oldest">Παλαιότερες πρώτα</MenuItem>
+              </SearchableTextField>
+            </FilterFieldWrap>
+            <FilterFieldWrap tip="Πόσες ειδοποιήσεις εμφανίζονται ανά σελίδα.">
+              <SearchableTextField select size="small" label="Ανά σελίδα" value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); resetPage(); }}
+                sx={{ minWidth: 120, width: "100%" }}>
+                {[10, 20, 50].map(size => <MenuItem key={size} value={size}>{size}</MenuItem>)}
+              </SearchableTextField>
+            </FilterFieldWrap>
           </Stack>
 
           {(search || status !== "all" || category !== "all" || period !== "all") && (

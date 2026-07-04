@@ -1,4 +1,5 @@
 import { useDeferredValue, useState, type ReactNode } from "react";
+import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import { HelpHint } from "../components/HelpHint";
 import {
   Alert,
@@ -160,44 +161,51 @@ export function AuditLogsPage() {
         <Metric icon={<ManageSearchIcon color="primary" />} value={data?.totalCount ?? 0} label="Αποτελέσματα φίλτρων" />
       </Stack>
 
-      <Card sx={{ p: 2, mb: 2 }}>
-        <Stack spacing={1.5}>
-          <Stack direction={{ xs: "column", lg: "row" }} spacing={1.5}>
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Stack spacing={1}>
+          <Stack direction={{ xs: "column", lg: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
             <TextField
               label="Γρήγορη αναζήτηση"
               value={search}
               onChange={(e) => { setSearch(e.target.value); resetPage(); }}
-              placeholder="Υπάλληλος, ενέργεια, σελίδα ή στόχος"
-              fullWidth
+              placeholder="Αναζήτηση…"
+              sx={{ flex: 1, minWidth: 220 }}
               size="small"
               inputProps={{ "data-audit-search": "audit-log-search" }}
+              InputProps={{
+                endAdornment: <FilterHelp title="Αναζήτηση σε ονοματεπώνυμο υπαλλήλου, ενέργεια, σελίδα ή στόχο." />
+              }}
             />
-            <SearchableTextField
-              select
-              label="Υπάλληλος"
-              value={userId}
-              onChange={(e) => { setUserId(e.target.value); resetPage(); }}
-              sx={{ minWidth: { lg: 230 } }}
-              size="small"
-            >
-              <MenuItem value="">Όλοι οι υπάλληλοι</MenuItem>
-              {(employeesQuery.data ?? []).map((employee) => (
-                <MenuItem key={employee.id} value={employee.id}>
-                  {employee.firstName} {employee.lastName} — {employee.email}
-                </MenuItem>
-              ))}
-            </SearchableTextField>
-            <SearchableTextField
-              select
-              label="Κατηγορία"
-              value={category}
-              onChange={(e) => { setCategory(e.target.value); resetPage(); }}
-              sx={{ minWidth: { lg: 190 } }}
-              size="small"
-            >
-              <MenuItem value="">Όλες οι κατηγορίες</MenuItem>
-              {Object.entries(CATEGORY_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
-            </SearchableTextField>
+            <FilterFieldWrap tip="Φιλτράρετε τα audit logs ανά συγκεκριμένο υπάλληλο που εκτέλεσε τις ενέργειες.">
+              <SearchableTextField
+                select
+                label="Υπάλληλος"
+                value={userId}
+                onChange={(e) => { setUserId(e.target.value); resetPage(); }}
+                sx={{ minWidth: 180, width: "100%" }}
+                size="small"
+              >
+                <MenuItem value="">Όλοι οι υπάλληλοι</MenuItem>
+                {(employeesQuery.data ?? []).map((employee) => (
+                  <MenuItem key={employee.id} value={employee.id}>
+                    {employee.firstName} {employee.lastName} — {employee.email}
+                  </MenuItem>
+                ))}
+              </SearchableTextField>
+            </FilterFieldWrap>
+            <FilterFieldWrap tip="Φιλτράρετε ανά κατηγορία λειτουργίας (Auth, Data, Settings κ.λπ.).">
+              <SearchableTextField
+                select
+                label="Κατηγορία"
+                value={category}
+                onChange={(e) => { setCategory(e.target.value); resetPage(); }}
+                sx={{ minWidth: 170, width: "100%" }}
+                size="small"
+              >
+                <MenuItem value="">Όλες οι κατηγορίες</MenuItem>
+                {Object.entries(CATEGORY_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
+              </SearchableTextField>
+            </FilterFieldWrap>
           </Stack>
           <Stack direction={{ xs: "column", lg: "row" }} spacing={1.5}>
             <SearchableTextField

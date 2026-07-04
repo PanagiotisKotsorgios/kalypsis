@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { FilterHelp } from "./FilterHelp";
 import {
   Alert,
   Box,
@@ -146,10 +147,13 @@ export function CompanyCatalogueDialog({
           </ToggleButtonGroup>
           <TextField
             size="small" fullWidth
-            placeholder="Αναζήτηση σε κωδικό ή όνομα…"
+            placeholder="Αναζήτηση…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+            InputProps={{
+              startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+              endAdornment: <FilterHelp title="Αναζήτηση σε κωδικό ή όνομα ασφαλιστικής εταιρίας." />
+            }}
             sx={{ maxWidth: { md: 320 } }}
           />
           <Box sx={{ flex: 1 }} />

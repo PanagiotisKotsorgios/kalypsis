@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert, Autocomplete, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControlLabel, IconButton, MenuItem, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow,
@@ -242,11 +243,11 @@ export function PlatformCompanyParametersPage() {
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}
 
-      <Card sx={{ p: 2, mb: 2 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} flexWrap="wrap" useFlexGap>
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} flexWrap="wrap" alignItems={{ md: "center" }} useFlexGap>
           <Autocomplete
             size="small"
-            sx={{ minWidth: 320 }}
+            sx={{ minWidth: 260 }}
             options={companyOptions}
             groupBy={(o) => o.groupLabel}
             getOptionLabel={(o) => o.displayName}
@@ -273,14 +274,19 @@ export function PlatformCompanyParametersPage() {
             renderInput={(params) => <TextField {...params} label="Εταιρεία (γράψτε για αναζήτηση)" placeholder="Όλες" />}
             clearOnEscape
           />
-          <SearchableTextField size="small" label="Τύπος" value={kindFilter}
-            onChange={(e) => setKindFilter(e.target.value as ParameterKind | "")} sx={{ minWidth: 190 }}>
-            <MenuItem value="">Όλοι</MenuItem>
-            {KINDS.map(k => <MenuItem key={k} value={k}>{KIND_LABEL[k]}</MenuItem>)}
-          </SearchableTextField>
+          <FilterFieldWrap tip="Φιλτράρετε τα παραμετρικά ανά τύπο (Κλάδος, Κάλυψη, Χρήση οχήματος κ.λπ.).">
+            <SearchableTextField size="small" label="Τύπος" value={kindFilter}
+              onChange={(e) => setKindFilter(e.target.value as ParameterKind | "")} sx={{ minWidth: 160, width: "100%" }}>
+              <MenuItem value="">Όλοι</MenuItem>
+              {KINDS.map(k => <MenuItem key={k} value={k}>{KIND_LABEL[k]}</MenuItem>)}
+            </SearchableTextField>
+          </FilterFieldWrap>
           <TextField size="small" label="Αναζήτηση" value={search}
-            onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }}
-            placeholder="κωδικός, όνομα, bridge code" />
+            onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 200 }}
+            placeholder="κωδικός, όνομα, bridge code"
+            InputProps={{
+              endAdornment: <FilterHelp title="Αναζήτηση σε κωδικό, όνομα ή bridge code του παραμετρικού." />
+            }} />
           <FormControlLabel control={<Switch checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />}
             label="Ανενεργά" />
         </Stack>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert,
   Box,
@@ -134,35 +135,34 @@ export function RecycleBinPage() {
       {message && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setMessage(null)}>{message}</Alert>}
 
       <Card sx={{ mb: 2, border: `1px solid ${BORDER}` }}>
-        <CardContent sx={{ p: 2 }}>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ xs: "stretch", md: "center" }}>
+        <CardContent sx={{ px: 1.5, py: 1.25 }}>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }} flexWrap="wrap" useFlexGap>
             <TextField
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               size="small"
-              fullWidth
-              placeholder="Αναζήτηση σε τίτλο, περιγραφή, κωδικό ή κατηγορία…"
+              placeholder="Αναζήτηση…"
+              sx={{ flex: 1, minWidth: 220 }}
               InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                )
+                startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                endAdornment: <FilterHelp title="Αναζήτηση σε τίτλο, περιγραφή, κωδικό ή κατηγορία διαγραμμένου στοιχείου." />
               }}
             />
-            <SearchableTextField
-              select
-              size="small"
-              label="Κατηγορία"
-              value={category}
-              onChange={(e) => { setCategory(e.target.value); setPage(1); }}
-              sx={{ minWidth: 240 }}
-            >
-              <MenuItem value="all">Όλες οι κατηγορίες</MenuItem>
-              {(data?.categories ?? []).map(c => (
-                <MenuItem key={c.key} value={c.key}>{c.label} ({c.count})</MenuItem>
-              ))}
-            </SearchableTextField>
+            <FilterFieldWrap tip="Φιλτράρετε τα διαγραμμένα στοιχεία ανά κατηγορία (Συμβόλαια, Πελάτες, Έγγραφα κ.λπ.).">
+              <SearchableTextField
+                select
+                size="small"
+                label="Κατηγορία"
+                value={category}
+                onChange={(e) => { setCategory(e.target.value); setPage(1); }}
+                sx={{ minWidth: 200, width: "100%" }}
+              >
+                <MenuItem value="all">Όλες οι κατηγορίες</MenuItem>
+                {(data?.categories ?? []).map(c => (
+                  <MenuItem key={c.key} value={c.key}>{c.label} ({c.count})</MenuItem>
+                ))}
+              </SearchableTextField>
+            </FilterFieldWrap>
             <SearchableTextField
               select
               size="small"

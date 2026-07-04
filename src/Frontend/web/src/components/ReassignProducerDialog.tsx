@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { FilterHelp } from "./FilterHelp";
 import {
   Alert,
   Autocomplete,
@@ -151,7 +152,16 @@ export function ReassignProducerDialog({
               value={target}
               onChange={(_, v) => setTarget(v)}
               renderInput={(params) => (
-                <TextField {...params} label="Νέος συνεργάτης" placeholder="Πληκτρολογήστε όνομα ή κωδικό" />
+                <TextField {...params} label="Νέος συνεργάτης" placeholder="Πληκτρολογήστε όνομα ή κωδικό"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {params.InputProps.endAdornment}
+                        <FilterHelp title="Επιλέξτε τον συνεργάτη που θα αναλάβει το χαρτοφυλάκιο. Οι ήδη πληρωμένες προμήθειες μένουν στον αρχικό." />
+                      </>
+                    )
+                  }} />
               )}
               isOptionEqualToValue={(a, b) => a.id === b.id}
             />
