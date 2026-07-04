@@ -393,7 +393,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
         ))}
       </Box>
       <Divider />
-      <Dialog open={desktopOpen} onClose={() => setDesktopOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog open={desktopOpen} onClose={() => setDesktopOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Stack direction="row" alignItems="center" spacing={1.2}>
             <ConstructionIcon color="secondary" />
@@ -405,8 +405,9 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
             Η <b>desktop έκδοση του Kalypsis</b> βρίσκεται ακόμη υπό ανάπτυξη. Θα είναι διαθέσιμη για κατέβασμα και
             εγκατάσταση <b>μετά τις 20 Οκτωβρίου 2026</b> για τις παρακάτω πλατφόρμες:
           </Typography>
-          <Stack direction="row" spacing={1.5} sx={{ mb: 2 }}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mb: 2 }}>
             <PlatformCard icon={<WindowsLogo />} name="Windows" hint="Installer .exe (Win 10 / 11)" />
+            <PlatformCard icon={<MacOSLogo />} name="macOS" hint=".dmg (Apple silicon + Intel)" />
             <PlatformCard icon={<LinuxLogo />} name="Linux" hint=".deb · .rpm · AppImage" />
           </Stack>
           <Typography variant="body2" color="text.secondary">
@@ -666,6 +667,14 @@ function WindowsLogo() {
   return (
     <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
       <path d="M0 3.449L9.75 2.1v9.451H0V3.449zM10.949 1.938L23.999 0v11.4H10.95V1.938zM0 12.6h9.75v9.451L0 20.699V12.6zM10.949 12.6H24V24l-13.052-1.9V12.6z" />
+    </svg>
+  );
+}
+function MacOSLogo() {
+  // Apple mark — the standard silhouette used across macOS install flows.
+  return (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
     </svg>
   );
 }
