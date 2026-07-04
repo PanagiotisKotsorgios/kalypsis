@@ -125,6 +125,11 @@ export function TenantsPage() {
       tenantsCreated: number; usersCreated: number;
       customersCreated: number; producersCreated: number;
       policiesCreated: number; bridgeRunsCreated: number;
+      endorsementsCreated: number; cancellationsCreated: number;
+      claimsCreated: number; receiptsCreated: number; paymentsCreated: number;
+      tasksCreated: number; appointmentsCreated: number;
+      notificationsCreated: number; communicationsCreated: number;
+      commissionRulesCreated: number; commissionRunsCreated: number;
     }>("/platform/demo/wipe-and-reseed")).data,
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ["tenants"] }); },
     onError: (e) => setError(extractErrorMessage(e))
@@ -153,10 +158,24 @@ export function TenantsPage() {
       </Stack>
       {wipeReseed.data && (
         <Alert severity="success" sx={{ mb: 2 }}>
-          Ολοκληρώθηκε: {wipeReseed.data.tenantsDeleted} γραφεία διαγράφηκαν · {wipeReseed.data.usersDeleted} χρήστες ·
-          {" "}5 νέα γραφεία, {wipeReseed.data.usersCreated} users, {wipeReseed.data.producersCreated} συνεργάτες,
-          {" "}{wipeReseed.data.customersCreated} πελάτες, {wipeReseed.data.policiesCreated} συμβόλαια,
-          {" "}{wipeReseed.data.bridgeRunsCreated} bridge runs.
+          <div><b>Ολοκληρώθηκε το wipe & reseed!</b></div>
+          <div>Διαγράφηκαν: {wipeReseed.data.tenantsDeleted} γραφεία · {wipeReseed.data.usersDeleted} χρήστες</div>
+          <div>Δημιουργήθηκαν: {wipeReseed.data.tenantsCreated} γραφεία · {wipeReseed.data.usersCreated} users ·
+            {" "}{wipeReseed.data.producersCreated} συνεργάτες ·
+            {" "}{wipeReseed.data.customersCreated} πελάτες ·
+            {" "}{wipeReseed.data.policiesCreated} συμβόλαια</div>
+          <div>Στοιχεία ενεργειών: {wipeReseed.data.endorsementsCreated} πρόσθετες πράξεις ·
+            {" "}{wipeReseed.data.cancellationsCreated} ακυρώσεις ·
+            {" "}{wipeReseed.data.claimsCreated} ζημιές</div>
+          <div>Οικονομικά: {wipeReseed.data.receiptsCreated} εισπράξεις ·
+            {" "}{wipeReseed.data.paymentsCreated} πληρωμές ·
+            {" "}{wipeReseed.data.commissionRulesCreated} κανόνες προμηθειών ·
+            {" "}{wipeReseed.data.commissionRunsCreated} εκκαθαρίσεις</div>
+          <div>Καθημερινά: {wipeReseed.data.tasksCreated} εργασίες ·
+            {" "}{wipeReseed.data.appointmentsCreated} ραντεβού ·
+            {" "}{wipeReseed.data.communicationsCreated} επικοινωνίες ·
+            {" "}{wipeReseed.data.notificationsCreated} ειδοποιήσεις</div>
+          <div>Γέφυρες: {wipeReseed.data.bridgeRunsCreated} bridge runs (μερικά επίτηδες με σφάλματα για troubleshooting)</div>
         </Alert>
       )}
 

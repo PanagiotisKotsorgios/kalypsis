@@ -28,7 +28,18 @@ public record WipeAndReseedDemoResult(
     int CustomersCreated,
     int ProducersCreated,
     int PoliciesCreated,
-    int BridgeRunsCreated);
+    int BridgeRunsCreated,
+    int EndorsementsCreated = 0,
+    int CancellationsCreated = 0,
+    int ClaimsCreated = 0,
+    int ReceiptsCreated = 0,
+    int PaymentsCreated = 0,
+    int TasksCreated = 0,
+    int AppointmentsCreated = 0,
+    int NotificationsCreated = 0,
+    int CommunicationsCreated = 0,
+    int CommissionRulesCreated = 0,
+    int CommissionRunsCreated = 0);
 
 public class WipeAndReseedDemoCommandHandler
     : IRequestHandler<WipeAndReseedDemoCommand, WipeAndReseedDemoResult>
@@ -198,6 +209,17 @@ public class WipeAndReseedDemoCommandHandler
         var producersCreated = 0;
         var policiesCreated = 0;
         var bridgeRunsCreated = 0;
+        var endorsementsCreated = 0;
+        var cancellationsCreated = 0;
+        var claimsCreated = 0;
+        var receiptsCreated = 0;
+        var paymentsCreated = 0;
+        var tasksCreated = 0;
+        var appointmentsCreated = 0;
+        var notificationsCreated = 0;
+        var communicationsCreated = 0;
+        var commissionRulesCreated = 0;
+        var commissionRunsCreated = 0;
 
         var rng = new Random(42);   // deterministic seeds keep testing predictable
         var pwd = _hasher.Hash("Passw0rd!");
@@ -302,6 +324,7 @@ public class WipeAndReseedDemoCommandHandler
 
             // Policies. Large tenants get ~2 policies per customer; small get 1.
             var policyCount = size == "large" ? customerCount * 2 : customerCount;
+            var policies = new List<Policy>(policyCount);
             for (int i = 0; i < policyCount; i++)
             {
                 if (carriers.Count == 0) break;
@@ -314,7 +337,7 @@ public class WipeAndReseedDemoCommandHandler
                 var status = startOffset > 0 ? PolicyStatus.Draft
                     : (end < DateOnly.FromDateTime(_clock.UtcNow) ? PolicyStatus.Expired : PolicyStatus.Active);
                 var type = (PolicyType)((i % 6) + 1);
-                _db.Policies.Add(new Policy
+                var policy = new Policy
                 {
                     Id = Guid.NewGuid(),
                     TenantId = tenant.Id,
@@ -330,23 +353,321 @@ public class WipeAndReseedDemoCommandHandler
                     Currency = "EUR",
                     CreatedAt = now,
                     CreatedByUserId = adminUser.Id
-                });
+                };
+                _db.Policies.Add(policy);
+                policies.Add(policy);
                 policiesCreated++;
             }
 
-            // Bridge run history — 3 runs per tenant with mixed statuses so
-            // the operator has data for both success and troubleshooting
-            // paths. Some flag their linked policies as bridge-matched,
-            // others as unlinked (for the «missing πρωτασφαλιστήριο»
-            // troubleshooting flow).
-            for (int b = 0; b < 3; b++)
+            // ── Extra data per policy — makes every sidebar section feel alive ──
+            var activePolicies = policies.Where(p => p.Status == PolicyStatus.Active).ToList();
+
+            // Endorsements (πρόσθετες πράξεις) — one per ~10 active policies
+            var endorsementTypes = Enum.GetValues<EndorsementType>();
+            var endorsementCount = size == "large" ? Math.Max(activePolicies.Count / 8, 6) : Math.Max(activePolicies.Count / 6, 2);
+            for (int e = 0; e < endorsementCount && activePolicies.Count > 0; e++)
+            {
+                var p = activePolicies[rng.Next(activePolicies.Count)];
+                var eff = p.StartDate.AddDays(rng.Next(30, 240));
+                var pd = rng.Next(-50, 200);
+                _db.PolicyEndorsements.Add(new PolicyEndorsement
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    PolicyId = p.Id,
+                    EndorsementNumber = $"PP-{tenant.Code}-{2026}-{e + 1:D5}",
+                    Type = endorsementTypes[rng.Next(endorsementTypes.Length)],
+                    Status = e % 3 == 0 ? EndorsementStatus.Issued : EndorsementStatus.Draft,
+                    IssuedAt = eff,
+                    EffectiveFrom = eff,
+                    Description = $"Πρόσθετη πράξη επί του συμβολαίου {p.PolicyNumber}.",
+                    CarrierReference = $"C-REF-{rng.Next(1000, 9999)}",
+                    PremiumDelta = pd,
+                    CommissionDelta = decimal.Round(pd * 0.15m, 2),
+                    Currency = "EUR",
+                    CreatedByUserId = adminUser.Id,
+                    CreatedAt = now.AddDays(-rng.Next(1, 90))
+                });
+                endorsementsCreated++;
+            }
+
+            // Cancellations (ακυρώσεις)
+            var cancellationCount = size == "large" ? 5 : 1;
+            for (int cIx = 0; cIx < cancellationCount && policies.Count > 0; cIx++)
+            {
+                var p = policies[rng.Next(policies.Count)];
+                var refund = decimal.Round(p.Premium * 0.35m, 2);
+                _db.PolicyCancellations.Add(new PolicyCancellation
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    PolicyId = p.Id,
+                    CancellationNumber = $"AK-{tenant.Code}-{2026}-{cIx + 1:D5}",
+                    Status = cIx == 0 ? PolicyCancellationStatus.Effective : PolicyCancellationStatus.Submitted,
+                    ReasonText = "Αίτημα πελάτη — μετακόμιση στο εξωτερικό.",
+                    RequestedAt = DateOnly.FromDateTime(now.AddDays(-rng.Next(5, 120))),
+                    EffectiveFrom = DateOnly.FromDateTime(now.AddDays(-rng.Next(1, 30))),
+                    RefundMethod = "ProRata",
+                    RefundAmount = refund,
+                    PenaltyAmount = decimal.Round(p.Premium * 0.05m, 2),
+                    CommissionClawback = decimal.Round(refund * 0.15m, 2),
+                    Currency = "EUR",
+                    CreatedByUserId = adminUser.Id,
+                    CreatedAt = now
+                });
+                cancellationsCreated++;
+            }
+
+            // Claims (ζημιές)
+            var claimStatuses = new[] { ClaimStatus.Reported, ClaimStatus.UnderReview, ClaimStatus.Approved, ClaimStatus.Paid, ClaimStatus.Closed };
+            var claimCount = size == "large" ? 18 : 4;
+            for (int cl = 0; cl < claimCount && activePolicies.Count > 0; cl++)
+            {
+                var p = activePolicies[rng.Next(activePolicies.Count)];
+                var incident = p.StartDate.AddDays(rng.Next(1, 300));
+                var claimed = rng.Next(300, 4500);
+                var status = claimStatuses[rng.Next(claimStatuses.Length)];
+                _db.Claims.Add(new Claim
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    PolicyId = p.Id,
+                    ClaimNumber = $"CL-{tenant.Code}-{2026}-{cl + 1:D5}",
+                    IncidentDate = incident,
+                    ReportedDate = incident.AddDays(rng.Next(1, 10)),
+                    Status = status,
+                    ClaimedAmount = claimed,
+                    ApprovedAmount = status == ClaimStatus.Approved || status == ClaimStatus.Paid
+                        ? claimed * (0.75m + (decimal)rng.NextDouble() * 0.25m) : null,
+                    Description = "Ατύχημα κατά τη μεταφορά — υλικές ζημιές.",
+                    AffectsBonusMalus = rng.Next(0, 2) == 0,
+                    LiabilityPercent = rng.Next(0, 101),
+                    IsFriendlySettlement = rng.Next(0, 3) == 0,
+                    CreatedAt = now.AddDays(-rng.Next(1, 180))
+                });
+                claimsCreated++;
+            }
+
+            // Receipts — 1 per active policy on average
+            var receiptCount = size == "large" ? activePolicies.Count : (int)(activePolicies.Count * 0.7);
+            for (int rc = 0; rc < receiptCount && activePolicies.Count > 0; rc++)
+            {
+                var p = activePolicies[rng.Next(activePolicies.Count)];
+                _db.Receipts.Add(new Receipt
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    Number = $"R-{tenant.Code}-{rc + 1:D5}",
+                    ReceivedOn = DateOnly.FromDateTime(now.AddDays(-rng.Next(1, 180))),
+                    CustomerId = p.CustomerId,
+                    PolicyId = p.Id,
+                    Method = (PaymentMethod)(rng.Next(1, 5)),
+                    Amount = decimal.Round(p.Premium * (0.5m + (decimal)rng.NextDouble() * 0.5m), 2),
+                    Currency = "EUR",
+                    Notes = rc % 4 == 0 ? "Μερική πληρωμή" : null,
+                    TransactionReference = $"TX-{rng.Next(100000, 999999)}",
+                    CreatedAt = now
+                });
+                receiptsCreated++;
+            }
+
+            // Payments — a few to carriers per tenant
+            var paymentCount = size == "large" ? 12 : 4;
+            for (int pm = 0; pm < paymentCount && carriers.Count > 0; pm++)
+            {
+                var carrier = carriers[rng.Next(carriers.Count)];
+                var amount = rng.Next(500, 5000);
+                _db.Payments.Add(new Payment
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    Number = $"P-{tenant.Code}-{pm + 1:D5}",
+                    PaidOn = DateOnly.FromDateTime(now.AddDays(-rng.Next(5, 120))),
+                    BeneficiaryType = BeneficiaryType.InsuranceCompany,
+                    BeneficiaryInsuranceCompanyId = carrier.Id,
+                    Method = PaymentMethod.BankTransfer,
+                    Amount = amount,
+                    CommissionsNetted = decimal.Round(amount * 0.15m, 2),
+                    Currency = "EUR",
+                    TransactionReference = $"BANK-{rng.Next(10000000, 99999999)}",
+                    CreatedAt = now
+                });
+                paymentsCreated++;
+            }
+
+            // Tasks — assorted per tenant
+            var taskCount = size == "large" ? 15 : 5;
+            var taskTitles = new[] {
+                "Ανανέωση συμβολαίου", "Επικοινωνία με πελάτη", "Παράδοση εγγράφου",
+                "Έλεγχος ζημιάς", "Ενημέρωση παραμετρικών", "Αποστολή προσφοράς",
+                "Follow-up μετά από ραντεβού", "Οικονομική εκκαθάριση"
+            };
+            for (int ts = 0; ts < taskCount; ts++)
+            {
+                var due = now.AddDays(rng.Next(-30, 60));
+                _db.AgencyTasks.Add(new AgencyTask
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    Title = taskTitles[rng.Next(taskTitles.Length)],
+                    Description = "Εργασία που δημιουργήθηκε αυτόματα κατά το reseed.",
+                    Status = due < now ? AgencyTaskStatus.Open : AgencyTaskStatus.Open,
+                    Priority = (AgencyTaskPriority)(rng.Next(1, 4)),
+                    AssignedToUserId = rng.Next(0, 2) == 0 ? adminUser.Id : staffUser.Id,
+                    CustomerId = customers.Count > 0 ? customers[rng.Next(customers.Count)].Id : null,
+                    DueAt = due,
+                    CreatedAt = now
+                });
+                tasksCreated++;
+            }
+
+            // Appointments — a few upcoming
+            var apptCount = size == "large" ? 8 : 3;
+            for (int a = 0; a < apptCount && customers.Count > 0; a++)
+            {
+                var starts = now.AddDays(rng.Next(1, 30)).AddHours(rng.Next(9, 17));
+                var customer = customers[rng.Next(customers.Count)];
+                _db.Appointments.Add(new Appointment
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    Title = $"Ραντεβού με {(customer.Type == CustomerType.Individual ? $"{customer.FirstName} {customer.LastName}" : customer.CompanyName)}",
+                    Description = "Συζήτηση για ανανέωση/πρόταση νέων καλύψεων.",
+                    Location = "Γραφείο",
+                    StartsAt = starts,
+                    EndsAt = starts.AddHours(1),
+                    Status = AppointmentStatus.Scheduled,
+                    CustomerId = customer.Id,
+                    CreatedAt = now
+                });
+                appointmentsCreated++;
+            }
+
+            // Communications — call/email log per some customers
+            var commKinds = Enum.GetValues<CommunicationKind>();
+            var commCount = size == "large" ? 20 : 6;
+            for (int cm = 0; cm < commCount && customers.Count > 0; cm++)
+            {
+                var customer = customers[rng.Next(customers.Count)];
+                _db.CommunicationLogs.Add(new CommunicationLog
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    CustomerId = customer.Id,
+                    Kind = commKinds[rng.Next(commKinds.Length)],
+                    Direction = (CommunicationDirection)rng.Next(0, 3),
+                    Outcome = (CommunicationOutcome)rng.Next(0, 4),
+                    OccurredAt = now.AddDays(-rng.Next(1, 180)).AddHours(rng.Next(9, 18)),
+                    Subject = "Ενημέρωση για την κατάσταση συμβολαίου",
+                    Body = "Συνομιλία με τον πελάτη σχετικά με την ανανέωση του συμβολαίου.",
+                    CreatedAt = now
+                });
+                communicationsCreated++;
+            }
+
+            // Notifications — a few unread items for the admin
+            var notifCount = size == "large" ? 12 : 5;
+            var notifCategories = new[] { "renewal-due", "renewal-overdue", "producer-snapshot", "system", "claim-update" };
+            for (int nt = 0; nt < notifCount; nt++)
+            {
+                var category = notifCategories[rng.Next(notifCategories.Length)];
+                _db.Notifications.Add(new Notification
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    UserId = adminUser.Id,
+                    Title = category switch
+                    {
+                        "renewal-due" => "Επερχόμενη ανανέωση συμβολαίου",
+                        "renewal-overdue" => "Καθυστερημένη ανανέωση",
+                        "producer-snapshot" => "Μηνιαία σύνοψη παραγωγής",
+                        "claim-update" => "Ενημέρωση ζημιάς",
+                        _ => "Ενημέρωση συστήματος"
+                    },
+                    Body = "Δείτε τις λεπτομέρειες στο σχετικό συμβόλαιο.",
+                    Category = category,
+                    Link = "/app",
+                    CreatedAt = now.AddDays(-rng.Next(1, 30))
+                });
+                notificationsCreated++;
+            }
+
+            // Commission rules — one flat rule per policy type
+            var policyTypes = new[] { PolicyType.Auto, PolicyType.Home, PolicyType.Health, PolicyType.Life, PolicyType.Business };
+            foreach (var pt in policyTypes)
+            {
+                _db.CommissionRules.Add(new CommissionRule
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    PolicyType = pt,
+                    CommissionType = CommissionType.Percentage,
+                    Value = pt == PolicyType.Auto ? 12m : pt == PolicyType.Home ? 15m : 10m,
+                    AgencyPercent = pt == PolicyType.Auto ? 12m : pt == PolicyType.Home ? 15m : 10m,
+                    ProducerPercent = pt == PolicyType.Auto ? 8m : pt == PolicyType.Home ? 10m : 7m,
+                    EffectiveFrom = DateOnly.FromDateTime(new DateTime(2026, 1, 1)),
+                    CreatedAt = now
+                });
+                commissionRulesCreated++;
+            }
+
+            // Commission runs — one for last month
+            var lastMonth = now.AddMonths(-1);
+            var run2 = new CommissionRun
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenant.Id,
+                Title = $"Εκκαθάριση {lastMonth:MM/yyyy}",
+                Year = lastMonth.Year,
+                Month = lastMonth.Month,
+                Status = CommissionRunStatus.Finalised,
+                Currency = "EUR",
+                GeneratedAt = lastMonth.AddDays(5),
+                FinalisedAt = lastMonth.AddDays(10),
+                GeneratedByUserId = adminUser.Id,
+                TotalPremium = rng.Next(15000, 60000),
+                TotalCommission = rng.Next(2000, 8000),
+                LineCount = rng.Next(20, 80),
+                CreatedAt = now
+            };
+            _db.CommissionRuns.Add(run2);
+            commissionRunsCreated++;
+
+            // Bridge run history — 6 runs per tenant (was 3). Larger variety
+            // of success + warning + intentional-error scenarios so every
+            // troubleshooting path has real data behind it:
+            //   Run 0 (Success) — all rows matched to existing policies.
+            //   Run 1 (Warnings) — few unmatched premiums (small drift).
+            //   Run 2 (Failed) — ~30% γραμμές χωρίς πρωτασφαλιστήριο (unlinked).
+            //   Run 3 (Success) — smaller monthly increment.
+            //   Run 4 (Warnings) — 3 rows with mismatched producer, needs manual review.
+            //   Run 5 (Failed) — corrupt sheet, most rows rejected.
+            var bridgeScenarios = new[]
+            {
+                ("Completed", 100, 5, 0, (string?)null,
+                    "Ολοκληρώθηκε επιτυχώς — όλα τα ασφαλιστήρια ενημερώθηκαν."),
+                ("Completed", 80, 20, 2,
+                    "Προειδοποιήσεις: 2 γραμμές με μικρή απόκλιση ασφαλίστρου.",
+                    "Ολοκληρώθηκε με προειδοποιήσεις — ελέγξτε τις γραμμές με μικρή απόκλιση."),
+                ("Failed", 40, 15, 20,
+                    "Πολλές γραμμές χωρίς αντίστοιχο πρωτασφαλιστήριο — πρέπει να αντιστοιχιστούν χειροκίνητα από τη σελίδα «Γέφυρες».",
+                    "Απέτυχε: ~30% γραμμών δεν έχουν πρωτασφαλιστήριο. Χειροκίνητη διαλογή απαιτείται."),
+                ("Completed", 60, 8, 0, null, "Μηνιαία ενημέρωση — μικρότερος όγκος γραμμών."),
+                ("Completed", 45, 12, 3,
+                    "Προειδοποιήσεις: 3 γραμμές με διαφορετικό συνεργάτη από τον καταχωρημένο.",
+                    "Ολοκληρώθηκε με προειδοποιήσεις — 3 γραμμές δείχνουν διαφορετικό συνεργάτη."),
+                ("Failed", 15, 5, 40,
+                    "Το αρχείο περιέχει κατεστραμμένες γραμμές. Ελέγξτε την πηγή και ανεβάστε ξανά.",
+                    "Απέτυχε: το αρχείο είναι κατεστραμμένο. Επικοινωνήστε με την εταιρία για νέο export.")
+            };
+            for (int b = 0; b < bridgeScenarios.Length; b++)
             {
                 var carrier = carriers[rng.Next(carriers.Count)];
                 var bridge = new CompanyBridge
                 {
                     Id = Guid.NewGuid(),
                     TenantId = tenant.Id,
-                    Name = $"{carrier.Name} import",
+                    Name = $"{carrier.Name} import #{b + 1}",
                     InsuranceCompanyId = carrier.Id,
                     Kind = CompanyBridgeKind.Manual,
                     IsActive = true,
@@ -354,23 +675,22 @@ public class WipeAndReseedDemoCommandHandler
                     CreatedAt = now
                 };
                 _db.CompanyBridges.Add(bridge);
+                var (status, created, skipped, failed, errorMsg, _) = bridgeScenarios[b];
                 var run = new CompanyBridgeRun
                 {
                     Id = Guid.NewGuid(),
                     TenantId = tenant.Id,
                     BridgeId = bridge.Id,
-                    SourceFile = $"{carrier.Code}-{now.AddDays(-b * 30):yyyyMM}.xlsx",
-                    StartedAt = now.AddDays(-b * 30),
-                    CompletedAt = now.AddDays(-b * 30).AddMinutes(2),
-                    Status = b == 0 ? "Completed" : b == 1 ? "Completed" : "Failed",
-                    RowsTotal = rng.Next(50, 500),
-                    RowsCreated = rng.Next(5, 30),
-                    RowsSkipped = rng.Next(0, 10),
-                    RowsFailed = b == 2 ? rng.Next(10, 30) : 0,
-                    ErrorMessage = b == 2
-                        ? "Πολλές γραμμές χωρίς αντίστοιχο πρωτασφαλιστήριο — για troubleshooting scenario."
-                        : null,
-                    CreatedAt = now.AddDays(-b * 30)
+                    SourceFile = $"{carrier.Code}-{now.AddDays(-b * 20):yyyyMM}.xlsx",
+                    StartedAt = now.AddDays(-b * 20),
+                    CompletedAt = now.AddDays(-b * 20).AddMinutes(rng.Next(1, 5)),
+                    Status = status,
+                    RowsTotal = created + skipped + failed,
+                    RowsCreated = created,
+                    RowsSkipped = skipped,
+                    RowsFailed = failed,
+                    ErrorMessage = errorMsg,
+                    CreatedAt = now.AddDays(-b * 20)
                 };
                 _db.CompanyBridgeRuns.Add(run);
                 bridgeRunsCreated++;
@@ -380,6 +700,10 @@ public class WipeAndReseedDemoCommandHandler
 
         return new WipeAndReseedDemoResult(
             usersDeleted, tenantsDeleted, tenantsCreated, usersCreated,
-            customersCreated, producersCreated, policiesCreated, bridgeRunsCreated);
+            customersCreated, producersCreated, policiesCreated, bridgeRunsCreated,
+            endorsementsCreated, cancellationsCreated, claimsCreated,
+            receiptsCreated, paymentsCreated,
+            tasksCreated, appointmentsCreated, notificationsCreated,
+            communicationsCreated, commissionRulesCreated, commissionRunsCreated);
     }
 }
