@@ -23,7 +23,7 @@ interface ExpectedRateDto {
   notes: string | null;
 }
 
-interface CarrierDto { id: string; name: string; }
+interface CarrierDto { id: string; name: string; policyCount?: number; hasAgencyRule?: boolean; }
 
 const POLICY_TYPES = ["Auto", "Home", "Health", "Life", "Business", "Travel", "Marine", "Other"] as const;
 const POLICY_TYPE_LABEL: Record<string, string> = {
@@ -45,9 +45,11 @@ export function MyExpectedRatesPage() {
     queryKey: ["my-expected-rates"],
     queryFn: async () => (await api.get<ExpectedRateDto[]>("/producer-portal/expected-rates")).data
   });
+  // Only the carriers where the producer has active policies OR the office has
+  // a commission rule for them — same shortlist both sides «think in».
   const carriersQ = useQuery({
-    queryKey: ["insurance-companies-lite"],
-    queryFn: async () => (await api.get<CarrierDto[]>("/insurance-companies")).data
+    queryKey: ["my-relevant-carriers"],
+    queryFn: async () => (await api.get<CarrierDto[]>("/producer-portal/relevant-carriers")).data
   });
 
   const del = useMutation({
@@ -71,8 +73,9 @@ export function MyExpectedRatesPage() {
           <Box>
             <Typography variant="h4" sx={{ fontWeight: 850 }}>Παραμετροποίηση Προμηθειών μου</Typography>
             <Typography color="text.secondary">
-              Καταχωρήστε τα ποσοστά προμήθειας που θεωρείτε ότι δικαιούστε ανά εταιρεία και πακέτο.
-              Στη «Σύγκριση με γραφείο» θα δείτε αν συμπίπτουν με την παραμετροποίηση του γραφείου σας.
+              Καταχωρήστε τα ποσοστά προμήθειας που θεωρείτε ότι δικαιούστε ανά εταιρεία και πακέτο. Οι διαθέσιμες
+              εταιρείες περιορίζονται σε αυτές που ήδη έχετε συμβόλαια ή κανόνες γραφείου — ίδια λίστα με του
+              γραφείου σας, για ακριβή 1-προς-1 σύγκριση.
             </Typography>
           </Box>
         </Stack>
@@ -201,10 +204,18 @@ function ExpectedRateDialog({ open, onClose, row, carriers, onSaved }: {
           <SearchableTextField
             select label="Εταιρεία" value={form.insuranceCompanyId}
             onChange={(e) => setForm({ ...form, insuranceCompanyId: e.target.value })}
-            helperText="Αφήστε κενό για «Όλες οι εταιρείες»"
+            helperText={carriers.length === 0
+              ? "Δεν έχετε ενεργά συμβόλαια ή κανόνες γραφείου με καμία εταιρεία ακόμα."
+              : "Εμφανίζονται μόνο οι εταιρείες στις οποίες έχετε συμβόλαια ή κανόνες γραφείου."}
           >
             <MenuItem value="">— Όλες οι εταιρείες —</MenuItem>
-            {carriers.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+            {carriers.map(c => (
+              <MenuItem key={c.id} value={c.id}>
+                {c.name}
+                {typeof c.policyCount === "number" && c.policyCount > 0 && ` · ${c.policyCount} συμβ.`}
+                {c.hasAgencyRule && " · έχει κανόνα γραφείου"}
+              </MenuItem>
+            ))}
           </SearchableTextField>
           <SearchableTextField
             select label="Πακέτο" value={form.policyType}

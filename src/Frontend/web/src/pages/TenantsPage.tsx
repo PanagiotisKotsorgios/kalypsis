@@ -30,6 +30,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import LoginIcon from "@mui/icons-material/Login";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import { Menu } from "@mui/material";
 import { FormControlLabel, Switch } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -80,6 +81,7 @@ export function TenantsPage() {
   const [editing, setEditing] = useState<Tenant | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [premiumMenu, setPremiumMenu] = useState<{ anchor: HTMLElement; tenantId: string } | null>(null);
+  const [standaloneProducerOpen, setStandaloneProducerOpen] = useState(false);
 
   // Premium-grant presets that mirror the TenantDetailPage Premium tab.
   // One-click PUT lets the platform admin upgrade a tenant without drilling in.
@@ -163,6 +165,11 @@ export function TenantsPage() {
             }}
             disabled={wipeReseed.isPending}>
             {wipeReseed.isPending ? <CircularProgress size={16} /> : "Wipe & Reseed Demo"}
+          </Button>
+          <Button variant="outlined"
+            onClick={() => setStandaloneProducerOpen(true)}
+            startIcon={<PersonAddIcon />}>
+            Νέος Συνεργάτης
           </Button>
           <Button startIcon={<AddIcon />} variant="contained" onClick={() => { setError(null); setOpen(true); }}>
             {t("tenants.create")}
@@ -283,6 +290,12 @@ export function TenantsPage() {
         tenant={editing}
         onClose={() => setEditing(null)}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["tenants"] }); setEditing(null); }}
+      />
+
+      <StandaloneProducerDialog
+        open={standaloneProducerOpen}
+        onClose={() => setStandaloneProducerOpen(false)}
+        onCredentials={(info) => setCreatedInfo(info)}
       />
 
       <CredentialsDialog
@@ -543,6 +556,92 @@ export function CredentialsDialog({ open, email, password, onClose, title }: Cre
       <DialogActions>
         <Button onClick={onClose} variant="contained">
           {t("common.close")}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// Superadmin quick-create for a standalone Producer + linked User in any
+// tenant, no impersonation. Wraps POST /platform/demo/standalone-producer-user
+// which returns a generated temp password we surface via CredentialsDialog.
+function StandaloneProducerDialog({ open, onClose, onCredentials }: {
+  open: boolean;
+  onClose: () => void;
+  onCredentials: (info: { email: string; password: string }) => void;
+}) {
+  const [form, setForm] = useState({
+    tenantId: "",
+    code: "",
+    name: "",
+    email: "",
+    phone: ""
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setForm({ tenantId: "", code: "", name: "", email: "", phone: "" });
+      setError(null);
+    }
+  }, [open]);
+
+  const tenantsQ = useQuery({
+    queryKey: ["tenants"],
+    queryFn: async () => (await api.get<Tenant[]>("/tenants")).data,
+    enabled: open
+  });
+
+  const create = useMutation({
+    mutationFn: async () => {
+      const res = await api.post<{ producerId: string; userId: string; email: string; temporaryPassword: string }>(
+        "/platform/demo/standalone-producer-user", form);
+      return res.data;
+    },
+    onSuccess: (data) => {
+      onClose();
+      onCredentials({ email: data.email, password: data.temporaryPassword });
+    },
+    onError: (e) => setError(extractErrorMessage(e))
+  });
+
+  const canSubmit = !!form.tenantId && !!form.code.trim() && !!form.name.trim() && !!form.email.trim();
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Νέος Συνεργάτης (standalone)</DialogTitle>
+      <DialogContent>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Δημιουργεί παραγωγό + χρήστη portal σε ένα βήμα, σε οποιοδήποτε γραφείο, <b>χωρίς impersonation</b>.
+          Θα εμφανιστεί προσωρινός κωδικός που πρέπει να δώσετε στον συνεργάτη.
+        </Alert>
+        {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
+        <Stack spacing={2} mt={1}>
+          <SearchableTextField
+            select label="Γραφείο" value={form.tenantId}
+            onChange={(e) => setForm({ ...form, tenantId: e.target.value })}
+            required
+          >
+            <MenuItem value="">— Επιλέξτε γραφείο —</MenuItem>
+            {(tenantsQ.data ?? []).map(x => (
+              <MenuItem key={x.id} value={x.id}>{x.name} ({x.code})</MenuItem>
+            ))}
+          </SearchableTextField>
+          <TextField label="Κωδικός παραγωγού" value={form.code}
+            onChange={(e) => setForm({ ...form, code: e.target.value })}
+            placeholder="π.χ. PR9901" required />
+          <TextField label="Ονοματεπώνυμο" value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          <TextField label="Email" type="email" value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+          <TextField label="Τηλέφωνο (προαιρετικό)" value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Ακύρωση</Button>
+        <Button variant="contained" onClick={() => create.mutate()} disabled={!canSubmit || create.isPending}>
+          {create.isPending ? <CircularProgress size={18} /> : "Δημιουργία"}
         </Button>
       </DialogActions>
     </Dialog>

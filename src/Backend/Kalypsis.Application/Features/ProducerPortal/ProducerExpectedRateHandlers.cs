@@ -168,6 +168,64 @@ public class DeleteMyExpectedRateHandler : IRequestHandler<DeleteMyExpectedRateC
     }
 }
 
+/* ========= My relevant carriers (for the rate-form dropdown) ========= */
+//
+// Instead of surfacing the tenant-wide carrier catalog (which for a big
+// office is 40+ companies), we filter to just the carriers the producer
+// actually interacts with — a carrier is «relevant» if:
+//   • the producer has at least one active policy with them, OR
+//   • the office has already configured a CommissionRule for this producer
+//     that targets that carrier.
+// Everything else is noise on the παραμετροποίηση form.
+
+public record ProducerRelevantCarrierDto(Guid Id, string Name, int PolicyCount, bool HasAgencyRule);
+
+public record ListMyRelevantCarriersQuery : IRequest<IReadOnlyList<ProducerRelevantCarrierDto>>;
+
+public class ListMyRelevantCarriersHandler
+    : IRequestHandler<ListMyRelevantCarriersQuery, IReadOnlyList<ProducerRelevantCarrierDto>>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public ListMyRelevantCarriersHandler(IAppDbContext db, ICurrentUser current)
+    { _db = db; _current = current; }
+
+    public async Task<IReadOnlyList<ProducerRelevantCarrierDto>> Handle(ListMyRelevantCarriersQuery r, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var producerId = await ProducerPortalScope.ResolveProducerIdAsync(_db, _current, ct);
+
+        var policyCarrierCounts = await _db.Policies
+            .Where(p => p.TenantId == tenantId && p.DeletedAt == null && p.ProducerId == producerId
+                        && p.Status == PolicyStatus.Active)
+            .GroupBy(p => p.InsuranceCompanyId)
+            .Select(g => new { CarrierId = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+        var ruleCarrierIds = await _db.CommissionRules
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null && x.ProducerId == producerId
+                        && x.InsuranceCompanyId != null)
+            .Select(x => x.InsuranceCompanyId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var ids = policyCarrierCounts.Select(x => x.CarrierId).Concat(ruleCarrierIds).Distinct().ToList();
+        if (ids.Count == 0) return Array.Empty<ProducerRelevantCarrierDto>();
+
+        var carriers = await _db.InsuranceCompanies
+            .Where(c => ids.Contains(c.Id))
+            .ToListAsync(ct);
+
+        return carriers
+            .Select(c => new ProducerRelevantCarrierDto(
+                c.Id, c.Name,
+                policyCarrierCounts.FirstOrDefault(x => x.CarrierId == c.Id)?.Count ?? 0,
+                ruleCarrierIds.Contains(c.Id)))
+            .OrderByDescending(x => x.PolicyCount)
+            .ThenBy(x => x.Name)
+            .ToList();
+    }
+}
+
 /* ========= Comparison view (producer perspective) ========= */
 
 public record ProducerRateComparisonRow(

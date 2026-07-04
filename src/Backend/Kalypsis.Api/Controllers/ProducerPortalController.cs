@@ -40,4 +40,11 @@ public class ProducerPortalController : ControllerBase
     [HttpGet("rate-comparison")]
     public async Task<ActionResult<IReadOnlyList<ProducerRateComparisonRow>>> GetComparison(CancellationToken ct)
         => Ok(await _m.Send(new GetMyRateComparisonQuery(), ct));
+
+    /// <summary>Only the carriers the producer actually interacts with —
+    /// used to filter down the «Παραμετροποίηση μου» dropdown so both
+    /// sides of the comparison end up with the same shortlist.</summary>
+    [HttpGet("relevant-carriers")]
+    public async Task<ActionResult<IReadOnlyList<ProducerRelevantCarrierDto>>> ListRelevantCarriers(CancellationToken ct)
+        => Ok(await _m.Send(new ListMyRelevantCarriersQuery(), ct));
 }
