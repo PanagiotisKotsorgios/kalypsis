@@ -31,6 +31,21 @@ public class ProducerReconciliationController : ControllerBase
         return Ok(await _m.Send(new ListAgencyDeclarationsQuery(producerId), ct));
     }
 
+    /// <summary>
+    /// Ταυτοποίηση Συνεργατών aggregated by CommissionRule instead of by
+    /// individual policy. Answers «per producer × carrier × package/coverage,
+    /// does your παραμετροποίηση match what the producer is expecting?» — the
+    /// day-to-day view the operator lives in.
+    /// </summary>
+    [HttpGet("by-rule")]
+    public async Task<ActionResult<IReadOnlyList<RuleReconciliationDto>>> ListByRule(
+        [FromQuery] Guid? producerId,
+        CancellationToken ct)
+    {
+        _ = _current.TenantId ?? throw AppException.Forbidden();
+        return Ok(await _m.Send(new ListAgencyReconciliationByRuleQuery(producerId), ct));
+    }
+
     /// <summary>Reconciliation dashboard — monthly totals of premium billed
     /// vs receipts collected vs commissions paid, plus yearly grand totals.</summary>
     [HttpGet("dashboard")]

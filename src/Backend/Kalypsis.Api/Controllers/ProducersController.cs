@@ -45,6 +45,15 @@ public class ProducersController : ControllerBase
         return CreatedAtAction(nameof(List), null, r);
     }
 
+    /// <summary>Live lookup used by the producer form: as the operator types
+    /// an email we search the tenant's Users. Returns 200 with a body when
+    /// there's a match (frontend shows a verify-and-link popup) or 200 with
+    /// null when nothing matches (frontend shows «not registered on Kalypsis»).</summary>
+    [HttpGet("user-lookup")]
+    public async Task<ActionResult<ProducerUserLookupDto?>> UserLookup(
+        [FromQuery] string email, CancellationToken ct)
+        => Ok(await _mediator.Send(new LookupProducerUserByEmailQuery(email), ct));
+
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<ProducerDto>> Update(Guid id, [FromBody] UpdateProducerBody body, CancellationToken cancellationToken)
         => Ok(await _mediator.Send(new UpdateProducerCommand(id, body), cancellationToken));

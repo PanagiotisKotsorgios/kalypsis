@@ -278,3 +278,165 @@ public class ListAgencyDeclarationsHandler : IRequestHandler<ListAgencyDeclarati
         }
     }
 }
+
+// ===== Agency-side: aggregate by CommissionRule (default view) ==============
+//
+// The per-contract handler above is fine when the operator wants to drill down
+// row-by-row, but the day-to-day question is «for THIS producer working with
+// THIS carrier under THIS package, are they on the same page as our
+// παραμετροποίηση?». That's a per-rule question, not a per-policy one.
+//
+// This handler walks every CommissionRule scoped to a producer and, for each,
+// aggregates:
+//   • Παραμετροποίηση (γραφείο): rule.ProducerPercent × Σ(active policy premiums
+//     matching this rule's scope), which is the same live compute the Λίστες
+//     Παραγωγής page uses.
+//   • Δηλωμένο (συνεργάτης):     Σ(ExpectedAmount) from all declarations whose
+//     policy matches this rule's scope.
+//
+// The frontend renders one row per rule (grouped by producer) with a click-to-
+// expand explanation dialog that spells out the numbers in plain Greek.
+
+public record RuleReconciliationDto(
+    Guid RuleId,
+    Guid ProducerId,
+    string ProducerName,
+    Guid? InsuranceCompanyId,
+    string? InsuranceCompanyName,
+    PolicyType? PolicyType,
+    VehicleUseCategory? VehicleUseCategory,
+    string? CoverCode,
+    decimal ConfiguredPercent,
+    int PolicyCount,
+    decimal AgencyExpectedTotal,
+    int DeclarationCount,
+    decimal ProducerDeclaredTotal,
+    decimal? ImpliedProducerPercent,
+    decimal DifferenceAmount,
+    string Status,
+    string Currency);
+
+public record ListAgencyReconciliationByRuleQuery(Guid? ProducerId) : IRequest<IReadOnlyList<RuleReconciliationDto>>;
+
+public class ListAgencyReconciliationByRuleHandler
+    : IRequestHandler<ListAgencyReconciliationByRuleQuery, IReadOnlyList<RuleReconciliationDto>>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+
+    public ListAgencyReconciliationByRuleHandler(IAppDbContext db, ICurrentUser current)
+    {
+        _db = db;
+        _current = current;
+    }
+
+    public async Task<IReadOnlyList<RuleReconciliationDto>> Handle(
+        ListAgencyReconciliationByRuleQuery r, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+
+        try
+        {
+            var rules = await _db.CommissionRules
+                .Where(rl => rl.TenantId == tenantId && rl.DeletedAt == null && rl.ProducerId.HasValue)
+                .ToListAsync(ct);
+            if (r.ProducerId.HasValue)
+                rules = rules.Where(rl => rl.ProducerId == r.ProducerId).ToList();
+            if (rules.Count == 0) return Array.Empty<RuleReconciliationDto>();
+
+            var producerIds = rules.Select(rl => rl.ProducerId!.Value).Distinct().ToList();
+            var producers = await _db.Producers
+                .Where(p => p.TenantId == tenantId && producerIds.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id, p => p.Name, ct);
+
+            var carrierIds = rules.Where(rl => rl.InsuranceCompanyId.HasValue)
+                .Select(rl => rl.InsuranceCompanyId!.Value).Distinct().ToList();
+            var carriers = await _db.InsuranceCompanies
+                .Where(c => carrierIds.Contains(c.Id))
+                .ToDictionaryAsync(c => c.Id, c => c.Name, ct);
+
+            var activePolicies = await _db.Policies
+                .Where(p => p.TenantId == tenantId && p.DeletedAt == null
+                            && p.Status == PolicyStatus.Active
+                            && producerIds.Contains(p.ProducerId!.Value))
+                .ToListAsync(ct);
+
+            var declarations = await _db.ProducerCommissionDeclarations
+                .Where(d => d.TenantId == tenantId && d.DeletedAt == null
+                            && producerIds.Contains(d.ProducerId))
+                .ToListAsync(ct);
+            var declPolicyIds = declarations.Select(d => d.PolicyId).Distinct().ToList();
+            var declPolicies = await _db.Policies
+                .IgnoreQueryFilters()
+                .Where(p => declPolicyIds.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id, p => p, ct);
+
+            // A rule matches a policy when every scope field the rule declares
+            // is either null (wildcard) or equal to the policy's value.
+            static bool RuleMatchesPolicy(CommissionRule rl, Policy p) =>
+                (!rl.ProducerId.HasValue         || rl.ProducerId == p.ProducerId) &&
+                (!rl.PolicyType.HasValue         || rl.PolicyType == p.PolicyType) &&
+                (!rl.VehicleUseCategory.HasValue || rl.VehicleUseCategory == p.VehicleUseCategory) &&
+                (!rl.InsuranceCompanyId.HasValue || rl.InsuranceCompanyId == p.InsuranceCompanyId);
+
+            var result = new List<RuleReconciliationDto>(rules.Count);
+            foreach (var rule in rules)
+            {
+                var pct = rule.ProducerPercent
+                    ?? (rule.CommissionType == CommissionType.Percentage ? rule.Value : 0m);
+
+                var scopedPolicies = activePolicies.Where(p => RuleMatchesPolicy(rule, p)).ToList();
+                var agencyTotal = decimal.Round(
+                    scopedPolicies.Sum(p => p.Premium * pct / 100m), 2);
+
+                var scopedDecls = declarations.Where(d =>
+                    declPolicies.TryGetValue(d.PolicyId, out var p) && RuleMatchesPolicy(rule, p))
+                    .ToList();
+                var declaredTotal = scopedDecls.Sum(d => d.ExpectedAmount);
+
+                var declaredPremium = scopedDecls.Sum(d =>
+                    declPolicies.TryGetValue(d.PolicyId, out var p) ? p.Premium : 0m);
+                decimal? impliedPct = declaredPremium > 0
+                    ? decimal.Round(declaredTotal * 100m / declaredPremium, 2)
+                    : (decimal?)null;
+
+                var diff = decimal.Round(agencyTotal - declaredTotal, 2);
+                string status;
+                if (declaredTotal == 0m && agencyTotal == 0m) status = "empty";
+                else if (declaredTotal == 0m) status = "no_declarations";
+                else if (Math.Abs(diff) < 0.01m) status = "match";
+                else if (Math.Abs(diff) < 5m) status = "diff_small";
+                else status = "diff_large";
+
+                result.Add(new RuleReconciliationDto(
+                    rule.Id,
+                    rule.ProducerId!.Value,
+                    producers.TryGetValue(rule.ProducerId.Value, out var pn) ? pn : "—",
+                    rule.InsuranceCompanyId,
+                    rule.InsuranceCompanyId.HasValue && carriers.TryGetValue(rule.InsuranceCompanyId.Value, out var cn)
+                        ? cn : null,
+                    rule.PolicyType,
+                    rule.VehicleUseCategory,
+                    rule.CoverCode,
+                    pct,
+                    scopedPolicies.Count,
+                    agencyTotal,
+                    scopedDecls.Count,
+                    declaredTotal,
+                    impliedPct,
+                    diff,
+                    status,
+                    "EUR"));
+            }
+
+            return result
+                .OrderBy(x => x.ProducerName)
+                .ThenByDescending(x => Math.Abs(x.DifferenceAmount))
+                .ToList();
+        }
+        catch
+        {
+            return Array.Empty<RuleReconciliationDto>();
+        }
+    }
+}

@@ -5,10 +5,15 @@ import {
   DialogContent, DialogTitle, IconButton, MenuItem, Stack, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
+import { InputAdornment, Fade, Slide, Divider, alpha } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VpnKeyIcon from "@mui/icons-material/VpnKey";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import PersonSearchIcon from "@mui/icons-material/PersonSearch";
+import LinkIcon from "@mui/icons-material/Link";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -267,6 +272,18 @@ export function ProducersPage() {
   );
 }
 
+interface UserLookupDto {
+  userId: string;
+  email: string;
+  fullName: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
+  linkedProducerId: string | null;
+  linkedProducerCode: string | null;
+  linkedProducerName: string | null;
+}
+
 function ProducerDialog({ open, onClose, producer, onSaved }: {
   open: boolean; onClose: () => void; producer: ProducerDto | null; onSaved: () => void;
 }) {
@@ -278,6 +295,7 @@ function ProducerDialog({ open, onClose, producer, onSaved }: {
     tier: "None" as ProducerTier
   });
   const [error, setError] = useState<string | null>(null);
+  const [verifyOpen, setVerifyOpen] = useState(false);
 
   useEffect(() => {
     if (producer) {
@@ -291,6 +309,32 @@ function ProducerDialog({ open, onClose, producer, onSaved }: {
     }
   }, [producer, open]);
 
+  // Debounce the email as the operator types → live lookup against Kalypsis
+  // users. Only enable when the string looks like a plausible email and the
+  // dialog is open, so we don't burn queries while the field is empty.
+  const [debouncedEmail, setDebouncedEmail] = useState("");
+  useEffect(() => {
+    const trimmed = form.email.trim().toLowerCase();
+    const handle = setTimeout(() => setDebouncedEmail(trimmed), 400);
+    return () => clearTimeout(handle);
+  }, [form.email]);
+
+  const lookup = useQuery({
+    queryKey: ["producer-user-lookup", debouncedEmail],
+    queryFn: async () => (await api.get<UserLookupDto | null>("/producers/user-lookup", {
+      params: { email: debouncedEmail }
+    })).data,
+    enabled: open && debouncedEmail.length > 3 && debouncedEmail.includes("@") && debouncedEmail.includes("."),
+    staleTime: 30_000,
+  });
+
+  // Three visual states for the lookup: searching (spinner + wait), found (green
+  // check + «click to verify»), not-found (blue info hint). The check icon has a
+  // scale-in animation via MUI's Fade so it feels alive when a hit lands.
+  const searching = lookup.isFetching;
+  const foundUser = lookup.data ?? null;
+  const notFound = !searching && debouncedEmail.length > 3 && lookup.isFetched && !foundUser;
+
   const save = useMutation({
     mutationFn: async () => {
       if (editing) return (await api.put(`/producers/${producer!.id}`, form)).data;
@@ -301,6 +345,7 @@ function ProducerDialog({ open, onClose, producer, onSaved }: {
   });
 
   return (
+    <>
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
       <DialogTitle>{editing ? t("producers.form.editTitle") : t("producers.form.createTitle")}</DialogTitle>
       <DialogContent>
@@ -323,8 +368,47 @@ function ProducerDialog({ open, onClose, producer, onSaved }: {
           </SearchableTextField>
           <TextField label={t("producers.col.name")} value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth required />
-          <TextField label={t("producers.col.email")} type="email" value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })} fullWidth />
+          <Box>
+            <TextField
+              label={t("producers.col.email")}
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              fullWidth
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    {searching && <CircularProgress size={18} thickness={5} />}
+                    <Fade in={!searching && !!foundUser} unmountOnExit>
+                      <IconButton size="small" onClick={() => setVerifyOpen(true)} color="success" title="Βρέθηκε χρήστης στο Kalypsis">
+                        <CheckCircleIcon fontSize="small" />
+                      </IconButton>
+                    </Fade>
+                    <Fade in={notFound} unmountOnExit>
+                      <PersonSearchIcon fontSize="small" color="disabled" />
+                    </Fade>
+                  </InputAdornment>
+                )
+              }}
+            />
+            <Slide direction="down" in={!searching && !!foundUser} mountOnEnter unmountOnExit>
+              <Alert
+                icon={<CheckCircleIcon fontSize="inherit" />}
+                severity="success"
+                sx={{ mt: 1, cursor: "pointer" }}
+                onClick={() => setVerifyOpen(true)}
+                action={<Button size="small" onClick={() => setVerifyOpen(true)}>Επαλήθευση</Button>}
+              >
+                Βρέθηκε χρήστης στο Kalypsis — <b>{foundUser?.fullName || foundUser?.email}</b>. Επαληθεύστε τα στοιχεία πριν από τη σύνδεση.
+              </Alert>
+            </Slide>
+            <Slide direction="down" in={notFound} mountOnEnter unmountOnExit>
+              <Alert severity="info" sx={{ mt: 1 }} icon={<HelpOutlineIcon fontSize="inherit" />}>
+                Ο χρήστης δεν είναι εγγεγραμμένος στο Kalypsis. Θα δημιουργηθεί λογαριασμός portal για αυτόν κατά την αποθήκευση.
+                Όταν κάνει εγγραφή, μπορείτε να τον συνδέσετε ξανά μέσω «Επεξεργασία» βάζοντας το email του εδώ.
+              </Alert>
+            </Slide>
+          </Box>
           <TextField label={t("producers.col.phone")} value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })} fullWidth />
         </Stack>
@@ -336,5 +420,74 @@ function ProducerDialog({ open, onClose, producer, onSaved }: {
         </Button>
       </DialogActions>
     </Dialog>
+    <VerifyUserDialog open={verifyOpen} user={foundUser} onClose={() => setVerifyOpen(false)} />
+    </>
+  );
+}
+
+// Verification popup shown when the operator confirms the found User is the
+// intended person. Backend already does the linking on save (existing email →
+// User.ProducerId), so this dialog is informational — it exists so the operator
+// can eyeball name/role/linked producer and back out if it's the wrong person.
+function VerifyUserDialog({ open, user, onClose }: {
+  open: boolean; user: UserLookupDto | null; onClose: () => void;
+}) {
+  if (!user) return <Dialog open={open} onClose={onClose} />;
+  const alreadyLinked = !!user.linkedProducerId;
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <CheckCircleIcon color="success" />
+          <span>Επαλήθευση χρήστη Kalypsis</span>
+        </Stack>
+      </DialogTitle>
+      <DialogContent>
+        <Card variant="outlined" sx={{ p: 2, mb: 2, bgcolor: (th) => alpha(th.palette.success.main, 0.05) }}>
+          <Stack spacing={1}>
+            <VerifyRow label="Όνομα" value={user.fullName || "—"} />
+            <VerifyRow label="Email" value={user.email} mono />
+            <VerifyRow label="Ρόλος" value={user.role} />
+            <VerifyRow label="Ενεργός" value={user.isActive ? "Ναι" : "Όχι"} />
+            <VerifyRow label="Εγγραφή" value={new Date(user.createdAt).toLocaleDateString("el-GR")} />
+            <Divider />
+            {alreadyLinked ? (
+              <Stack direction="row" spacing={1} alignItems="center">
+                <LinkIcon fontSize="small" color="warning" />
+                <Typography variant="body2">
+                  Ο χρήστης είναι <b>ήδη συνδεδεμένος</b> με τον παραγωγό
+                  {" "}<b>{user.linkedProducerCode} — {user.linkedProducerName}</b>.
+                  Η αποθήκευση θα επαναφέρει τη σύνδεση σε αυτόν τον παραγωγό.
+                </Typography>
+              </Stack>
+            ) : (
+              <Stack direction="row" spacing={1} alignItems="center">
+                <LinkIcon fontSize="small" color="success" />
+                <Typography variant="body2">
+                  Ο χρήστης δεν έχει σύνδεση με παραγωγό. Θα συνδεθεί αυτόματα με τη νέα εγγραφή στην αποθήκευση.
+                </Typography>
+              </Stack>
+            )}
+          </Stack>
+        </Card>
+        <Typography variant="caption" color="text.secondary">
+          Αν <b>δεν είναι το ίδιο πρόσωπο</b>, αλλάξτε το email — δεν θα γίνει σύνδεση.
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button variant="contained" onClick={onClose}>Εντάξει</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function VerifyRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <Stack direction="row" spacing={2} alignItems="baseline">
+      <Typography variant="caption" color="text.secondary" sx={{ minWidth: 90 }}>{label}</Typography>
+      <Typography variant="body2" fontWeight={700} sx={mono ? { fontFamily: "monospace" } : undefined}>
+        {value}
+      </Typography>
+    </Stack>
   );
 }

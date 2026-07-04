@@ -219,3 +219,68 @@ public class DeleteProducerCommandHandler : IRequestHandler<DeleteProducerComman
         return Unit.Value;
     }
 }
+
+/* ========= Email lookup for producer form ========= */
+//
+// The producer create/edit dialog auto-searches Kalypsis Users as the operator
+// types an email. If a User with that email already exists in the current tenant,
+// the frontend pops up a verification card showing enough context (name, role,
+// linked producer, joined-at) for the operator to confirm «yes, that's them»
+// before we link User.ProducerId to the new/edited Producer. If not, the form
+// stays quiet and the user gets a soft «not found — link later via edit».
+//
+// Returns null (200 with null body) when nothing matches — that's not an error
+// state, just information for the UI.
+
+public record ProducerUserLookupDto(
+    Guid UserId,
+    string Email,
+    string FullName,
+    string Role,
+    bool IsActive,
+    DateTime CreatedAt,
+    Guid? LinkedProducerId,
+    string? LinkedProducerCode,
+    string? LinkedProducerName);
+
+public record LookupProducerUserByEmailQuery(string Email) : IRequest<ProducerUserLookupDto?>;
+
+public class LookupProducerUserByEmailHandler
+    : IRequestHandler<LookupProducerUserByEmailQuery, ProducerUserLookupDto?>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public LookupProducerUserByEmailHandler(IAppDbContext db, ICurrentUser current)
+    { _db = db; _current = current; }
+
+    public async Task<ProducerUserLookupDto?> Handle(LookupProducerUserByEmailQuery r, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var email = r.Email?.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(email) || !email.Contains('@')) return null;
+
+        var user = await _db.Users.IgnoreQueryFilters()
+            .Where(u => u.TenantId == tenantId && u.Email == email && u.DeletedAt == null)
+            .FirstOrDefaultAsync(ct);
+        if (user is null) return null;
+
+        Producer? linked = null;
+        if (user.ProducerId.HasValue)
+        {
+            linked = await _db.Producers.IgnoreQueryFilters()
+                .Where(p => p.Id == user.ProducerId.Value && p.DeletedAt == null)
+                .FirstOrDefaultAsync(ct);
+        }
+
+        return new ProducerUserLookupDto(
+            user.Id,
+            user.Email,
+            $"{user.FirstName} {user.LastName}".Trim(),
+            user.Role.ToString(),
+            user.IsActive,
+            user.CreatedAt,
+            linked?.Id,
+            linked?.Code,
+            linked?.Name);
+    }
+}
