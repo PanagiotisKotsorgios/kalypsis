@@ -88,11 +88,33 @@ export function SubscriptionPlansPage() {
   const tenants = useQuery({ queryKey: ["all-tenants"],
     queryFn: async () => (await api.get<any[]>("/tenants")).data });
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveOk, setSaveOk] = useState(false);
+
   const save = useMutation({
-    mutationFn: async () => (await api.put<PricingCatalog>("/platform/pricing", draft)).data,
+    mutationFn: async () => {
+      if (!draft) throw new Error("Δεν υπάρχουν αλλαγές προς αποθήκευση.");
+      setSaveError(null);
+      const res = await api.put<PricingCatalog>("/platform/pricing", draft);
+      return res.data;
+    },
     onSuccess: (data) => {
       qc.setQueryData(["platform-pricing"], data);
+      // Also invalidate so any other page (billing dashboard) picks it up.
+      qc.invalidateQueries({ queryKey: ["platform-pricing"] });
       setEditing(false); setDraft(null);
+      setSaveOk(true);
+      setTimeout(() => setSaveOk(false), 3500);
+    },
+    onError: (e: any) => {
+      const status = e?.response?.status;
+      const body   = e?.response?.data;
+      const msg = status === 401 || status === 403
+        ? "Δεν έχετε δικαίωμα αποθήκευσης πλάνων — απαιτείται ρόλος Platform Admin."
+        : status === 400
+          ? (body?.title || body?.message || "Μη έγκυρα δεδομένα.")
+          : e?.message || "Σφάλμα δικτύου.";
+      setSaveError(`${status ? `[${status}] ` : ""}${msg}`);
     }
   });
 
@@ -114,18 +136,40 @@ export function SubscriptionPlansPage() {
   return (
     <PageShell icon={<CreditCardIcon sx={{ fontSize: 36 }} color="primary" />} titleKey="plat.plans.title" subtitleKey="plat.plans.subtitle" helpId="page.platPlans">
 
+      {/* Save feedback */}
+      {saveError && (
+        <Alert severity="error" onClose={() => setSaveError(null)} sx={{ mb: 2 }}>
+          <b>Αποτυχία αποθήκευσης:</b> {saveError}
+        </Alert>
+      )}
+      {saveOk && (
+        <Alert severity="success" onClose={() => setSaveOk(false)} sx={{ mb: 2 }}>
+          Οι αλλαγές αποθηκεύτηκαν επιτυχώς.
+        </Alert>
+      )}
+
       {/* Edit toolbar */}
       <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={1} mb={2}>
         {editing ? (
           <>
-            <Button onClick={() => { setEditing(false); setDraft(null); }}>Ακύρωση</Button>
-            <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>
-              {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση αλλαγών"}
+            <Button onClick={() => { setEditing(false); setDraft(null); setSaveError(null); }}>
+              Ακύρωση
+            </Button>
+            <Button variant="contained" onClick={() => save.mutate()}
+              disabled={save.isPending || !draft}
+              startIcon={save.isPending ? <CircularProgress size={16} color="inherit" /> : undefined}>
+              {save.isPending ? "Αποθήκευση…" : "Αποθήκευση αλλαγών"}
             </Button>
           </>
         ) : (
           <Button variant="outlined"
-            onClick={() => { setDraft(structuredClone(current)); setEditing(true); }}>
+            onClick={() => {
+              // structuredClone falls back to JSON round-trip on older engines.
+              const clone = typeof structuredClone === "function"
+                ? structuredClone(current)
+                : JSON.parse(JSON.stringify(current));
+              setDraft(clone); setEditing(true); setSaveError(null); setSaveOk(false);
+            }}>
             Επεξεργασία τιμών
           </Button>
         )}
