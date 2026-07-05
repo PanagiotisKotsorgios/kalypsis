@@ -104,15 +104,71 @@ public class GetPricingCatalogHandler : IRequestHandler<GetPricingCatalogQuery, 
             var row = await _db.PlatformPricings.IgnoreQueryFilters()
                 .OrderBy(x => x.Id).FirstOrDefaultAsync(ct);
             if (row is null) return PricingDefaults.Build();
+
+            // The JSON might come from an older schema version — v1 used
+            // `pricePerUserYear` on plans + addons. Migrate on read: if the
+            // new `pricePerYear` field is missing/zero AND we can see the
+            // old field, port it over so the operator doesn't stare at
+            // blank inputs when editing.
+            PricingCatalogDto? parsed;
             try
             {
-                var parsed = JsonSerializer.Deserialize<PricingCatalogDto>(row.CatalogJson,
+                parsed = JsonSerializer.Deserialize<PricingCatalogDto>(row.CatalogJson,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                return parsed ?? PricingDefaults.Build();
             }
             catch { return PricingDefaults.Build(); }
+            if (parsed is null) return PricingDefaults.Build();
+
+            var raw = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(row.CatalogJson,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var migrated = MigrateLegacyIfNeeded(parsed, raw);
+            return migrated;
         }
         catch { return PricingDefaults.Build(); }
+    }
+
+    /// <summary>Legacy-shape rescue: if plans / addons in the parsed catalog
+    /// have zero <c>PricePerYear</c> but the raw JSON carries the v1
+    /// <c>pricePerUserYear</c> field, copy the old value into the new field
+    /// so the operator sees the real number in the editor. Prevents blank
+    /// TextField inputs after the shape rename.</summary>
+    private static PricingCatalogDto MigrateLegacyIfNeeded(PricingCatalogDto parsed, Dictionary<string, JsonElement>? raw)
+    {
+        if (raw is null || parsed.Plans.All(p => p.PricePerYear > 0)) return parsed;
+
+        var plans = parsed.Plans.ToArray();
+        if (raw.TryGetValue("plans", out var plansEl) && plansEl.ValueKind == JsonValueKind.Array)
+        {
+            var planItems = plansEl.EnumerateArray().ToArray();
+            for (int i = 0; i < plans.Length && i < planItems.Length; i++)
+            {
+                var p = plans[i];
+                if (p.PricePerYear > 0) continue;
+                if (planItems[i].TryGetProperty("pricePerUserYear", out var legacy) &&
+                    legacy.TryGetDecimal(out var v) && v > 0)
+                {
+                    plans[i] = p with { PricePerYear = v * Math.Max(1, p.IncludedUsers) };
+                }
+            }
+        }
+
+        var addons = parsed.Addons.ToArray();
+        if (raw.TryGetValue("addons", out var addonsEl) && addonsEl.ValueKind == JsonValueKind.Array)
+        {
+            var items = addonsEl.EnumerateArray().ToArray();
+            for (int i = 0; i < addons.Length && i < items.Length; i++)
+            {
+                var a = addons[i];
+                if (a.PricePerYear > 0) continue;
+                if (items[i].TryGetProperty("pricePerUserYear", out var legacy) &&
+                    legacy.TryGetDecimal(out var v) && v > 0)
+                {
+                    addons[i] = a with { PricePerYear = v };
+                }
+            }
+        }
+
+        return parsed with { Plans = plans, Addons = addons };
     }
 }
 
