@@ -49,4 +49,11 @@ public class TenantChargeable : BaseEntity
     /// = «pending», i.e. still visible in the next generation cycle.</summary>
     public Guid? InvoiceLineId { get; set; }
     public TenantInvoiceLine? InvoiceLine { get; set; }
+
+    /// <summary>Set when the operator marks the charge as paid directly
+    /// (bypass invoice for cash / in-hand payment). Independent from
+    /// InvoiceLineId — a chargeable can be either invoiced OR marked
+    /// paid directly, but not both.</summary>
+    public DateTime? PaidAt { get; set; }
+    public string? PaidReference { get; set; }
 }

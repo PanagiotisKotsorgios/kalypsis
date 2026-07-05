@@ -569,6 +569,20 @@ public static class DataSeeder
                 KEY `IX_producer_commission_declarations_PolicyId` (`PolicyId`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
 
+        // --- platform_pricings table (singleton row) ---------------------
+        await EnsureTableAsync(db, logger, dbName,
+            table: "platform_pricings",
+            createSql: @"CREATE TABLE IF NOT EXISTS `platform_pricings` (
+                `Id` char(36) NOT NULL,
+                `CatalogJson` longtext NOT NULL,
+                `Version` int NOT NULL,
+                `LastUpdatedByUserId` char(36) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         // --- tenant_chargeables table ------------------------------------
         // Ad-hoc chargeable items (training, migration, custom dev) per
         // tenant. Missing table would 500 the «Χρεώσεις Γραφείου»
@@ -587,6 +601,8 @@ public static class DataSeeder
                 `PerformedOn` datetime(6) NOT NULL,
                 `Notes` varchar(2000) NULL,
                 `InvoiceLineId` char(36) NULL,
+                `PaidAt` datetime(6) NULL,
+                `PaidReference` varchar(200) NULL,
                 `CreatedAt` datetime(6) NOT NULL,
                 `UpdatedAt` datetime(6) NULL,
                 `DeletedAt` datetime(6) NULL,
@@ -594,6 +610,15 @@ public static class DataSeeder
                 KEY `IX_tenant_chargeables_TenantId` (`TenantId`),
                 KEY `IX_tenant_chargeables_InvoiceLineId` (`InvoiceLineId`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        // In-place ALTER for existing tenant_chargeables tables — add the
+        // paid-tracking columns (added after v1 shipped).
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "tenant_chargeables", column: "PaidAt",
+            addSql: "ALTER TABLE `tenant_chargeables` ADD COLUMN `PaidAt` datetime(6) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "tenant_chargeables", column: "PaidReference",
+            addSql: "ALTER TABLE `tenant_chargeables` ADD COLUMN `PaidReference` varchar(200) NULL", ct);
 
         // --- producer_expected_rates table -------------------------------
         // Producer-side «παραμετροποίηση» — a lightweight mirror of

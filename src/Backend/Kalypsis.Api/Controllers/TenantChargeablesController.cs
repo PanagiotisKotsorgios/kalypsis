@@ -38,4 +38,12 @@ public class TenantChargeablesController : ControllerBase
     public async Task<ActionResult<TenantChargeableSummaryDto>> Summary(
         [FromQuery] Guid tenantId, CancellationToken ct)
         => Ok(await _m.Send(new GetTenantChargeableSummaryQuery(tenantId), ct));
+
+    [HttpPost("{id:guid}/paid")]
+    public async Task<IActionResult> MarkPaid(
+        Guid id, [FromBody] SetChargeablePaidBody body, CancellationToken ct)
+    {
+        await _m.Send(new SetChargeablePaidCommand(id, body.Paid, body.Reference), ct);
+        return NoContent();
+    }
 }

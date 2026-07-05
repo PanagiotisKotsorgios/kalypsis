@@ -53,98 +53,96 @@ const PageShell = ({ icon, titleKey, subtitleKey, helpId, children }: {
   );
 };
 
-/* ===================== Πλάνα Συνδρομής =====================
-   Redesigned to per-user annual pricing (August 2026):
-     • Producer  90€/έτος  — solo συνεργάτης, μόνο portal + own book
-     • Standard  550€/user/έτος — 1 γραφείο, default 4 users, όλα τα
-       κλασικά package: BackOffice + Client Portal + CRM + όλα τα bridges
-     • Premium   1200€/user/έτος — προσθέτει FrontOffice, Intelligence,
-       custom integrations, priority support
-   Ad-hoc services (εκπαίδευση, migration, custom dev) χρεώνονται ξεχωριστά
-   ανά ώρα μέσω του TenantChargeable panel.                              */
-const PLAN_DEFAULTS = [
-  {
-    code: "Producer", pricePerUserYear: 90, includedOffices: 0, includedUsers: 1,
-    packages: ["ProducerPortal"],
-    tagline: "Solo συνεργάτης · portal μόνο"
-  },
-  {
-    code: "Standard", pricePerUserYear: 550, includedOffices: 1, includedUsers: 4,
-    packages: ["BackOffice", "ClientPortal", "CRM", "AllBridges"],
-    tagline: "1 γραφείο · κλασικές λειτουργίες"
-  },
-  {
-    code: "Premium", pricePerUserYear: 1200, includedOffices: 3, includedUsers: 10,
-    packages: ["BackOffice", "ClientPortal", "CRM", "AllBridges", "FrontOffice", "Intelligence", "CustomIntegrations", "PrioritySupport"],
-    tagline: "Πλήρες σουίτα · priority support"
-  }
-];
+/* ===================== Πλάνα Συνδρομής ===================================
+   All prices editable by the platform admin — fetched from
+   GET /api/platform/pricing (public read) and saved via PUT (superadmin
+   only). The old hard-coded arrays now live server-side as fallback
+   defaults (see PricingDefaults.Build() in the backend).
+   ======================================================================= */
 
-// Optional addons — added per γραφείο βάσει ανάγκης. Ανά χρήστη·έτος.
-const ADDON_DEFAULTS = [
-  { code: "FrontOffice",        pricePerUserYear: 200, description: "Front office + καμπάνια εργαλεία" },
-  { code: "Intelligence",       pricePerUserYear: 150, description: "Analytics + reports + benchmarks" },
-  { code: "AdvancedBridges",    pricePerUserYear: 100, description: "Bridges premium — απεριόριστες γέφυρες + AI matching" },
-  { code: "PrioritySupport",    pricePerUserYear: 300, description: "SLA 4h · phone hotline" },
-  { code: "CustomIntegrations", pricePerUserYear: 500, description: "Ενσωμάτωση με ERPs (SAP, Oracle) + custom APIs" },
-];
-
-// Ad-hoc services (χρεώνονται ανά ώρα ή flat). Superadmin τα προσθέτει
-// σε συγκεκριμένα γραφεία από το «Χρεώσεις Γραφείου» panel.
-const SERVICE_DEFAULTS = [
-  { code: "RemoteTraining",     unitLabel: "ώρα",  unitPrice: 15,  description: "Εξ αποστάσεως εκπαίδευση (Zoom / Teams)" },
-  { code: "OnsiteTraining",     unitLabel: "ώρα",  unitPrice: 45,  description: "Εκπαίδευση στην έδρα του γραφείου" },
-  { code: "DataMigration",      unitLabel: "flat", unitPrice: 500, description: "Migration από παλαιό σύστημα" },
-  { code: "CustomDevelopment",  unitLabel: "ώρα",  unitPrice: 200, description: "Custom feature development" },
-];
+interface PlanDef {
+  code: string;
+  tagline: string;
+  pricePerUserYear: number;
+  includedOffices: number;
+  includedUsers: number;
+  extraOfficePerYear: number;
+  extraUserPerYear: number;
+  packages: string[];
+}
+interface AddonDef { code: string; description: string; pricePerUserYear: number; }
+interface ServiceDef { code: string; description: string; unitLabel: string; unitPrice: number; }
+interface PricingCatalog { version: number; plans: PlanDef[]; addons: AddonDef[]; services: ServiceDef[]; }
 
 export function SubscriptionPlansPage() {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<PricingCatalog | null>(null);
+
+  const catalog = useQuery({
+    queryKey: ["platform-pricing"],
+    queryFn: async () => (await api.get<PricingCatalog>("/platform/pricing")).data
+  });
   const tenants = useQuery({ queryKey: ["all-tenants"],
     queryFn: async () => (await api.get<any[]>("/tenants")).data });
+
+  const save = useMutation({
+    mutationFn: async () => (await api.put<PricingCatalog>("/platform/pricing", draft)).data,
+    onSuccess: (data) => {
+      qc.setQueryData(["platform-pricing"], data);
+      setEditing(false); setDraft(null);
+    }
+  });
+
+  const current = editing && draft ? draft : catalog.data;
   const planCounts: Record<string, number> = {};
   for (const t1 of tenants.data ?? []) {
     const k = String(t1.subscriptionPlan ?? "Standard");
     planCounts[k] = (planCounts[k] ?? 0) + 1;
   }
+
+  if (!current) {
+    return (
+      <PageShell icon={<CreditCardIcon sx={{ fontSize: 36 }} color="primary" />} titleKey="plat.plans.title" subtitleKey="plat.plans.subtitle" helpId="page.platPlans">
+        <CircularProgress />
+      </PageShell>
+    );
+  }
+
   return (
     <PageShell icon={<CreditCardIcon sx={{ fontSize: 36 }} color="primary" />} titleKey="plat.plans.title" subtitleKey="plat.plans.subtitle" helpId="page.platPlans">
-      {/* Base plans — 3 cards, per-user annual pricing */}
+
+      {/* Edit toolbar */}
+      <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={1} mb={2}>
+        {editing ? (
+          <>
+            <Button onClick={() => { setEditing(false); setDraft(null); }}>Ακύρωση</Button>
+            <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>
+              {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση αλλαγών"}
+            </Button>
+          </>
+        ) : (
+          <Button variant="outlined"
+            onClick={() => { setDraft(structuredClone(current)); setEditing(true); }}>
+            Επεξεργασία τιμών
+          </Button>
+        )}
+      </Stack>
+
+      {/* Base plans */}
       <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.14em", fontWeight: 700 }}>
-        Βασικά πλάνα
+        Βασικά πλάνα ({current.plans.length})
       </Typography>
-      <Box sx={{ display: "grid", gap: 2, mt: 1, mb: 4, gridTemplateColumns: { xs: "1fr", sm: "repeat(3,1fr)" } }}>
-        {PLAN_DEFAULTS.map(p => {
-          const baseAnnual = p.pricePerUserYear * p.includedUsers;
-          return (
-            <Card key={p.code} sx={{ p: 2.5, borderTop: "3px solid",
-              borderTopColor: p.code === "Producer" ? "info.main" : p.code === "Standard" ? "primary.main" : "warning.main" }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
-                <Typography variant="h6" fontWeight={800}>{p.code}</Typography>
-                <Chip size="small" label={`${planCounts[p.code] ?? 0} γραφεία`} color={planCounts[p.code] ? "primary" : "default"} />
-              </Stack>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-                {p.tagline}
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 900, color: "primary.main" }}>
-                {p.pricePerUserYear}€
-                <Typography component="span" variant="body2" color="text.secondary"> / χρήστη · έτος</Typography>
-              </Typography>
-              {p.includedUsers > 0 && (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  Βάση: <b>{baseAnnual}€/έτος</b> για {p.includedUsers} χρήστες · scale per user
-                </Typography>
-              )}
-              <Divider sx={{ my: 1.5 }} />
-              <Typography variant="caption" color="text.secondary">Περιλαμβάνει</Typography>
-              {p.includedOffices > 0 && <Typography variant="body2">• {p.includedOffices} γραφεία</Typography>}
-              <Typography variant="body2">• {p.includedUsers} χρήστες (default)</Typography>
-              <Typography variant="body2">• {p.packages.length} πακέτα</Typography>
-              <Stack direction="row" spacing={0.5} mt={1.5} flexWrap="wrap" gap={0.5}>
-                {p.packages.map(pkg => <Chip key={pkg} size="small" variant="outlined" label={pkg} />)}
-              </Stack>
-            </Card>
-          );
-        })}
+      <Box sx={{ display: "grid", gap: 2, mt: 1, mb: 4, gridTemplateColumns: { xs: "1fr", sm: "repeat(2,1fr)", lg: "repeat(4,1fr)" } }}>
+        {current.plans.map((p, idx) => (
+          <PlanCard
+            key={p.code}
+            plan={p}
+            editing={editing}
+            tenantCount={planCounts[p.code] ?? 0}
+            onChange={(next) => setDraft(d => d ? { ...d, plans: d.plans.map((pp, i) => i === idx ? next : pp) } : d)}
+          />
+        ))}
       </Box>
 
       {/* Addons */}
@@ -156,55 +154,250 @@ export function SubscriptionPlansPage() {
       </Typography>
       <Card sx={{ mb: 4 }}>
         <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Addon</TableCell>
-              <TableCell>Περιγραφή</TableCell>
-              <TableCell align="right">Τιμή / χρήστη · έτος</TableCell>
-            </TableRow>
-          </TableHead>
+          <TableHead><TableRow>
+            <TableCell>Addon</TableCell>
+            <TableCell>Περιγραφή</TableCell>
+            <TableCell align="right">Τιμή / χρήστη · έτος</TableCell>
+          </TableRow></TableHead>
           <TableBody>
-            {ADDON_DEFAULTS.map(a => (
+            {current.addons.map((a, idx) => (
               <TableRow key={a.code}>
                 <TableCell><Typography fontWeight={700}>{a.code}</Typography></TableCell>
                 <TableCell><Typography variant="body2" color="text.secondary">{a.description}</Typography></TableCell>
-                <TableCell align="right"><Typography fontWeight={700} color="primary.main">{a.pricePerUserYear}€</Typography></TableCell>
+                <TableCell align="right">
+                  {editing ? (
+                    <TextField size="small" type="number" value={a.pricePerUserYear}
+                      onChange={(e) => setDraft(d => d ? { ...d,
+                        addons: d.addons.map((aa, i) => i === idx ? { ...aa, pricePerUserYear: Number(e.target.value) } : aa)
+                      } : d)}
+                      sx={{ width: 110 }}
+                      InputProps={{ endAdornment: <InputAdornment position="end">€</InputAdornment> }} />
+                  ) : (
+                    <Typography fontWeight={700} color="primary.main">{a.pricePerUserYear}€</Typography>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </Card>
 
-      {/* Ad-hoc services */}
+      {/* Services */}
       <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.14em", fontWeight: 700 }}>
         Υπηρεσίες με χρέωση (ad-hoc)
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-        Χρεώνονται ανά ώρα ή flat, όταν χρειαστεί. Ο superadmin τις προσθέτει στο γραφείο από το «Χρεώσεις Γραφείου» panel και υπολογίζεται αυτόματα η χρέωση.
+        Χρεώνονται ανά ώρα ή flat, όταν χρειαστεί. Ο superadmin τις προσθέτει στο γραφείο από το «Χρεώσεις Γραφείων» panel και υπολογίζεται αυτόματα η χρέωση.
       </Typography>
       <Card>
         <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Υπηρεσία</TableCell>
-              <TableCell>Περιγραφή</TableCell>
-              <TableCell align="right">Μονάδα</TableCell>
-              <TableCell align="right">Τιμή</TableCell>
-            </TableRow>
-          </TableHead>
+          <TableHead><TableRow>
+            <TableCell>Υπηρεσία</TableCell>
+            <TableCell>Περιγραφή</TableCell>
+            <TableCell align="right">Μονάδα</TableCell>
+            <TableCell align="right">Τιμή</TableCell>
+          </TableRow></TableHead>
           <TableBody>
-            {SERVICE_DEFAULTS.map(s => (
+            {current.services.map((s, idx) => (
               <TableRow key={s.code}>
                 <TableCell><Typography fontWeight={700}>{s.code}</Typography></TableCell>
                 <TableCell><Typography variant="body2" color="text.secondary">{s.description}</Typography></TableCell>
                 <TableCell align="right"><Chip size="small" label={s.unitLabel} /></TableCell>
-                <TableCell align="right"><Typography fontWeight={700} color="primary.main">{s.unitPrice}€</Typography></TableCell>
+                <TableCell align="right">
+                  {editing ? (
+                    <TextField size="small" type="number" value={s.unitPrice}
+                      onChange={(e) => setDraft(d => d ? { ...d,
+                        services: d.services.map((ss, i) => i === idx ? { ...ss, unitPrice: Number(e.target.value) } : ss)
+                      } : d)}
+                      sx={{ width: 110 }}
+                      InputProps={{ endAdornment: <InputAdornment position="end">€</InputAdornment> }} />
+                  ) : (
+                    <Typography fontWeight={700} color="primary.main">{s.unitPrice}€</Typography>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </Card>
+
+      {/* Calculator */}
+      <Box sx={{ mt: 4 }}>
+        <PlanCalculator plans={current.plans} addons={current.addons} />
+      </Box>
     </PageShell>
+  );
+}
+
+// -------------------- PlanCard --------------------------------------------
+
+function PlanCard({ plan, editing, tenantCount, onChange }: {
+  plan: PlanDef; editing: boolean; tenantCount: number;
+  onChange: (next: PlanDef) => void;
+}) {
+  const baseAnnual = plan.pricePerUserYear * plan.includedUsers;
+  const set = <K extends keyof PlanDef>(k: K, v: PlanDef[K]) => onChange({ ...plan, [k]: v });
+  return (
+    <Card sx={{ p: 2.5, borderTop: "3px solid",
+      borderTopColor:
+        plan.code === "Producer" ? "info.main" :
+        plan.code === "Standard" ? "primary.main" :
+        plan.code === "Growth"   ? "success.main" : "warning.main"
+    }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
+        <Typography variant="h6" fontWeight={800}>{plan.code}</Typography>
+        <Chip size="small" label={`${tenantCount} γραφεία`} color={tenantCount ? "primary" : "default"} />
+      </Stack>
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+        {plan.tagline}
+      </Typography>
+
+      {editing ? (
+        <Stack spacing={1.5} sx={{ mt: 1 }}>
+          <TextField size="small" label="Τιμή / χρήστη · έτος" type="number"
+            value={plan.pricePerUserYear}
+            onChange={(e) => set("pricePerUserYear", Number(e.target.value))}
+            InputProps={{ endAdornment: <InputAdornment position="end">€</InputAdornment> }} />
+          <Stack direction="row" spacing={1}>
+            <TextField size="small" label="Default γραφεία" type="number"
+              value={plan.includedOffices}
+              onChange={(e) => set("includedOffices", Number(e.target.value))} fullWidth />
+            <TextField size="small" label="Default χρήστες" type="number"
+              value={plan.includedUsers}
+              onChange={(e) => set("includedUsers", Number(e.target.value))} fullWidth />
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <TextField size="small" label="Extra γραφείο / έτος" type="number"
+              value={plan.extraOfficePerYear}
+              onChange={(e) => set("extraOfficePerYear", Number(e.target.value))} fullWidth
+              InputProps={{ endAdornment: <InputAdornment position="end">€</InputAdornment> }} />
+            <TextField size="small" label="Extra χρήστης / έτος" type="number"
+              value={plan.extraUserPerYear}
+              onChange={(e) => set("extraUserPerYear", Number(e.target.value))} fullWidth
+              InputProps={{ endAdornment: <InputAdornment position="end">€</InputAdornment> }} />
+          </Stack>
+        </Stack>
+      ) : (
+        <>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: "primary.main" }}>
+            {plan.pricePerUserYear}€
+            <Typography component="span" variant="body2" color="text.secondary"> / χρήστη · έτος</Typography>
+          </Typography>
+          {plan.includedUsers > 0 && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Βάση: <b>{baseAnnual}€/έτος</b> για {plan.includedUsers} χρήστες
+            </Typography>
+          )}
+          <Divider sx={{ my: 1.5 }} />
+          <Typography variant="caption" color="text.secondary">Περιλαμβάνει</Typography>
+          {plan.includedOffices > 0 && <Typography variant="body2">• {plan.includedOffices} γραφεία</Typography>}
+          <Typography variant="body2">• {plan.includedUsers} χρήστες (default)</Typography>
+          <Typography variant="body2">• {plan.packages.length} πακέτα</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+            Extras: +{plan.extraOfficePerYear}€/γραφείο · +{plan.extraUserPerYear}€/χρήστη · έτος
+          </Typography>
+          <Stack direction="row" spacing={0.5} mt={1.5} flexWrap="wrap" gap={0.5}>
+            {plan.packages.map(pkg => <Chip key={pkg} size="small" variant="outlined" label={pkg} />)}
+          </Stack>
+        </>
+      )}
+    </Card>
+  );
+}
+
+// -------------------- PlanCalculator --------------------------------------
+
+function PlanCalculator({ plans, addons }: { plans: PlanDef[]; addons: AddonDef[] }) {
+  const [planCode, setPlanCode] = useState(plans[0]?.code ?? "");
+  const [extraOffices, setExtraOffices] = useState(0);
+  const [extraUsers, setExtraUsers] = useState(0);
+  const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
+
+  const plan = plans.find(p => p.code === planCode);
+  const totalUsers = (plan?.includedUsers ?? 0) + Math.max(0, extraUsers);
+  const baseAnnual = (plan?.pricePerUserYear ?? 0) * (plan?.includedUsers ?? 0);
+  const extraUsersCost = (plan?.extraUserPerYear ?? 0) * Math.max(0, extraUsers);
+  const extraOfficesCost = (plan?.extraOfficePerYear ?? 0) * Math.max(0, extraOffices);
+  const addonsCost = addons
+    .filter(a => selectedAddons[a.code])
+    .reduce((s, a) => s + a.pricePerUserYear * totalUsers, 0);
+  const grandAnnual = baseAnnual + extraUsersCost + extraOfficesCost + addonsCost;
+
+  return (
+    <Card sx={{ p: 3, border: "2px dashed", borderColor: "primary.main" }}>
+      <Typography variant="overline" color="primary.main" fontWeight={800} sx={{ letterSpacing: "0.14em" }}>
+        Κομπιουτεράκι κόστους
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Επιλέξτε πλάνο, δώστε πλήθος επιπλέον γραφείων/χρηστών + addons και δείτε το ετήσιο σύνολο ζωντανά.
+      </Typography>
+
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "flex-start" }}>
+        <Stack spacing={2} sx={{ flex: 1, minWidth: 260 }}>
+          <SearchableTextField select size="small" label="Πλάνο" value={planCode}
+            onChange={(e) => setPlanCode(e.target.value)}>
+            {plans.map(p => (
+              <MenuItem key={p.code} value={p.code}>
+                {p.code} · {p.pricePerUserYear}€/χρήστη
+              </MenuItem>
+            ))}
+          </SearchableTextField>
+          <Stack direction="row" spacing={2}>
+            <TextField size="small" label="Επιπλέον γραφεία" type="number"
+              value={extraOffices} onChange={(e) => setExtraOffices(Math.max(0, Number(e.target.value)))}
+              fullWidth
+              helperText={plan ? `Πάνω από τα ${plan.includedOffices} default` : " "} />
+            <TextField size="small" label="Επιπλέον χρήστες" type="number"
+              value={extraUsers} onChange={(e) => setExtraUsers(Math.max(0, Number(e.target.value)))}
+              fullWidth
+              helperText={plan ? `Πάνω από τους ${plan.includedUsers} default` : " "} />
+          </Stack>
+          <Box>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>Addons:</Typography>
+            <Stack direction="row" spacing={0.75} flexWrap="wrap" gap={0.75}>
+              {addons.map(a => (
+                <Chip key={a.code}
+                  label={`${a.code} · +${a.pricePerUserYear}€/user`}
+                  onClick={() => setSelectedAddons(s => ({ ...s, [a.code]: !s[a.code] }))}
+                  color={selectedAddons[a.code] ? "primary" : "default"}
+                  variant={selectedAddons[a.code] ? "filled" : "outlined"} />
+              ))}
+            </Stack>
+          </Box>
+        </Stack>
+
+        <Card variant="outlined" sx={{ p: 2, minWidth: { md: 280 }, bgcolor: "rgba(11,37,69,0.03)" }}>
+          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.14em", fontWeight: 700 }}>
+            Ανάλυση
+          </Typography>
+          <Stack spacing={0.5} sx={{ mt: 1 }}>
+            <CalcRow label={`Βάση (${plan?.includedUsers ?? 0} χρήστες)`} value={baseAnnual} />
+            <CalcRow label={`+${Math.max(0, extraOffices)} γραφεία`} value={extraOfficesCost} />
+            <CalcRow label={`+${Math.max(0, extraUsers)} χρήστες`} value={extraUsersCost} />
+            <CalcRow label="Addons" value={addonsCost} />
+          </Stack>
+          <Divider sx={{ my: 1.5 }} />
+          <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+            <Typography variant="body2" fontWeight={700}>Ετήσιο σύνολο</Typography>
+            <Typography variant="h4" fontWeight={900} color="primary.main">
+              {grandAnnual.toLocaleString("el-GR")}€
+            </Typography>
+          </Stack>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "right" }}>
+            ({Math.round(grandAnnual / 12).toLocaleString("el-GR")}€ / μήνα)
+          </Typography>
+        </Card>
+      </Stack>
+    </Card>
+  );
+}
+
+function CalcRow({ label, value }: { label: string; value: number }) {
+  return (
+    <Stack direction="row" justifyContent="space-between" sx={{ fontSize: 13 }}>
+      <Typography variant="body2" color="text.secondary">{label}</Typography>
+      <Typography variant="body2" fontWeight={600}>{value.toLocaleString("el-GR")}€</Typography>
+    </Stack>
   );
 }
 
@@ -213,12 +406,14 @@ export function PlatformBillingPage() {
   const { t } = useTranslation();
   const tenants = useQuery({ queryKey: ["all-tenants-billing"],
     queryFn: async () => (await api.get<any[]>("/tenants")).data });
+  const pricing = useQuery({
+    queryKey: ["platform-pricing"],
+    queryFn: async () => (await api.get<PricingCatalog>("/platform/pricing")).data
+  });
   const list = tenants.data ?? [];
-  // MRR derived from the annual per-user pricing → default users → /12.
-  // Rough approximation for the dashboard KPIs; the actual monthly invoice
-  // is generated from the tenant's real user count + addons + chargeables.
+  // MRR derived from the live pricing catalog — default users × price/user·έτος ÷ 12.
   const monthlyForPlan = (planCode: string | undefined) => {
-    const plan = PLAN_DEFAULTS.find(p => p.code === planCode);
+    const plan = pricing.data?.plans.find(p => p.code === planCode);
     if (!plan) return 0;
     return Math.round((plan.pricePerUserYear * plan.includedUsers) / 12);
   };
@@ -809,6 +1004,7 @@ interface Chargeable {
   unitPrice: number; quantity: number; lineTotal: number;
   performedOn: string; notes: string | null;
   invoiced: boolean; invoiceLineId: string | null;
+  paidAt: string | null; paidReference: string | null;
   createdAt: string;
 }
 
@@ -834,9 +1030,19 @@ export function TenantChargeablesPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tenant-chargeables", tenantId] })
   });
 
+  const setPaid = useMutation({
+    mutationFn: async ({ id, paid, ref }: { id: string; paid: boolean; ref?: string }) =>
+      api.post(`/platform/tenant-chargeables/${id}/paid`, { paid, reference: ref ?? null }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tenant-chargeables", tenantId] })
+  });
+
   const rows = list.data ?? [];
-  const pendingTotal = rows.filter(r => !r.invoiced).reduce((s, r) => s + r.lineTotal, 0);
-  const invoicedTotal = rows.filter(r => r.invoiced).reduce((s, r) => s + r.lineTotal, 0);
+  const pendingRows  = rows.filter(r => !r.invoiced && !r.paidAt);
+  const paidRows     = rows.filter(r => !r.invoiced && !!r.paidAt);
+  const invoicedRows = rows.filter(r => r.invoiced);
+  const pendingTotal  = pendingRows.reduce((s, r) => s + r.lineTotal, 0);
+  const paidTotal     = paidRows.reduce((s, r) => s + r.lineTotal, 0);
+  const invoicedTotal = invoicedRows.reduce((s, r) => s + r.lineTotal, 0);
 
   return (
     <PageShell
@@ -863,12 +1069,14 @@ export function TenantChargeablesPage() {
       </Card>
 
       {tenantId && (
-        <Box sx={{ display: "grid", gap: 2, mb: 2, gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" } }}>
-          <Kpi label="Εκκρεμείς χρεώσεις" value={`${pendingTotal.toFixed(2)}€`}
-            hint={`${rows.filter(r => !r.invoiced).length} γραμμές — μπαίνουν στο επόμενο τιμολόγιο`} />
-          <Kpi label="Ήδη τιμολογημένες" value={`${invoicedTotal.toFixed(2)}€`}
-            hint={`${rows.filter(r => r.invoiced).length} γραμμές — locked`} />
-          <Kpi label="Σύνολο" value={`${(pendingTotal + invoicedTotal).toFixed(2)}€`} />
+        <Box sx={{ display: "grid", gap: 2, mb: 2, gridTemplateColumns: { xs: "1fr", sm: "repeat(4, 1fr)" } }}>
+          <Kpi label="Εκκρεμείς" value={`${pendingTotal.toFixed(2)}€`}
+            hint={`${pendingRows.length} γραμμές — μπαίνουν στο επόμενο τιμολόγιο`} />
+          <Kpi label="Εξοφλημένες" value={`${paidTotal.toFixed(2)}€`}
+            hint={`${paidRows.length} γραμμές — cash / εκτός τιμολογίου`} />
+          <Kpi label="Τιμολογημένες" value={`${invoicedTotal.toFixed(2)}€`}
+            hint={`${invoicedRows.length} γραμμές — locked`} />
+          <Kpi label="Σύνολο" value={`${(pendingTotal + paidTotal + invoicedTotal).toFixed(2)}€`} />
         </Box>
       )}
 
@@ -907,14 +1115,32 @@ export function TenantChargeablesPage() {
                   <TableCell>
                     {r.invoiced
                       ? <Chip size="small" color="success" label="Τιμολογήθηκε" />
-                      : <Chip size="small" color="warning" label="Εκκρεμεί" />}
+                      : r.paidAt
+                        ? <Tooltip title={r.paidReference ? `Ref: ${r.paidReference}` : `Πληρώθηκε ${new Date(r.paidAt).toLocaleDateString("el-GR")}`}>
+                            <Chip size="small" color="info" label="Εξοφλημένη" />
+                          </Tooltip>
+                        : <Chip size="small" color="warning" label="Εκκρεμεί" />}
                   </TableCell>
                   <TableCell align="right">
-                    <Tooltip title={r.invoiced ? "Locked — έχει τιμολογηθεί" : "Επεξεργασία"}>
+                    {!r.invoiced && !r.paidAt && (
+                      <Tooltip title="Σημείωση ως πληρωμένη (cash, εκτός τιμολογίου)">
+                        <IconButton size="small" color="success"
+                          onClick={() => {
+                            const ref = prompt("Αναφορά πληρωμής (προαιρετικό):");
+                            if (ref !== null) setPaid.mutate({ id: r.id, paid: true, ref: ref || undefined });
+                          }}>€</IconButton>
+                      </Tooltip>
+                    )}
+                    {!r.invoiced && r.paidAt && (
+                      <Tooltip title="Αναίρεση πληρωμής">
+                        <IconButton size="small"
+                          onClick={() => setPaid.mutate({ id: r.id, paid: false })}>↩</IconButton>
+                      </Tooltip>
+                    )}
+                    <Tooltip title={r.invoiced ? "Locked — έχει τιμολογηθεί" : r.paidAt ? "Locked — πληρώθηκε" : "Επεξεργασία"}>
                       <span>
-                        <IconButton size="small" onClick={() => setDialog(r)} disabled={r.invoiced}>
-                          ✎
-                        </IconButton>
+                        <IconButton size="small" onClick={() => setDialog(r)}
+                          disabled={r.invoiced || !!r.paidAt}>✎</IconButton>
                       </span>
                     </Tooltip>
                     <Tooltip title={r.invoiced ? "Locked" : "Διαγραφή"}>

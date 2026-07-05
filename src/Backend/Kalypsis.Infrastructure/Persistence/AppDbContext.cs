@@ -207,6 +207,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<TenantInvoiceLine> TenantInvoiceLines => Set<TenantInvoiceLine>();
     // Ad-hoc chargeable services per tenant (training, migration, custom dev).
     public DbSet<TenantChargeable> TenantChargeables => Set<TenantChargeable>();
+    // Editable pricing catalog — singleton row.
+    public DbSet<PlatformPricing> PlatformPricings => Set<PlatformPricing>();
 
     // Per-tenant opt-in to universal carriers.
     public DbSet<TenantCarrierOptIn> TenantCarrierOptIns => Set<TenantCarrierOptIn>();

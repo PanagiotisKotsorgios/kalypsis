@@ -17,6 +17,7 @@ public record TenantChargeableDto(
     decimal UnitPrice, decimal Quantity, decimal LineTotal,
     DateTime PerformedOn, string? Notes,
     bool Invoiced, Guid? InvoiceLineId,
+    DateTime? PaidAt, string? PaidReference,
     DateTime CreatedAt);
 
 public record UpsertTenantChargeableBody(
@@ -48,7 +49,9 @@ public class ListTenantChargeablesHandler
                 x.Id, x.TenantId, x.ServiceCode, x.Description, x.UnitLabel,
                 x.UnitPrice, x.Quantity, x.LineTotal,
                 x.PerformedOn, x.Notes,
-                x.InvoiceLineId.HasValue, x.InvoiceLineId, x.CreatedAt)).ToList();
+                x.InvoiceLineId.HasValue, x.InvoiceLineId,
+                x.PaidAt, x.PaidReference,
+                x.CreatedAt)).ToList();
         }
         catch { return Array.Empty<TenantChargeableDto>(); }
     }
@@ -104,7 +107,40 @@ public class UpsertTenantChargeableHandler
             row.Id, row.TenantId, row.ServiceCode, row.Description, row.UnitLabel,
             row.UnitPrice, row.Quantity, row.LineTotal,
             row.PerformedOn, row.Notes,
-            row.InvoiceLineId.HasValue, row.InvoiceLineId, row.CreatedAt);
+            row.InvoiceLineId.HasValue, row.InvoiceLineId,
+            row.PaidAt, row.PaidReference,
+            row.CreatedAt);
+    }
+}
+
+/* ========= Mark as paid / unpaid ========= */
+
+public record SetChargeablePaidBody(bool Paid, string? Reference);
+
+public record SetChargeablePaidCommand(Guid Id, bool Paid, string? Reference) : IRequest<Unit>;
+
+public class SetChargeablePaidHandler : IRequestHandler<SetChargeablePaidCommand, Unit>
+{
+    private readonly IAppDbContext _db;
+    public SetChargeablePaidHandler(IAppDbContext db) => _db = db;
+
+    public async Task<Unit> Handle(SetChargeablePaidCommand r, CancellationToken ct)
+    {
+        var row = await _db.TenantChargeables.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == r.Id && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Χρέωση");
+        if (r.Paid)
+        {
+            row.PaidAt = DateTime.UtcNow;
+            row.PaidReference = string.IsNullOrWhiteSpace(r.Reference) ? null : r.Reference.Trim();
+        }
+        else
+        {
+            row.PaidAt = null;
+            row.PaidReference = null;
+        }
+        await _db.SaveChangesAsync(ct);
+        return Unit.Value;
     }
 }
 
@@ -134,7 +170,10 @@ public class DeleteTenantChargeableHandler : IRequestHandler<DeleteTenantChargea
 /* ========= Summary per tenant (used by billing dashboard) ========= */
 
 public record TenantChargeableSummaryDto(
-    Guid TenantId, decimal PendingTotal, int PendingCount, decimal InvoicedTotal, int InvoicedCount);
+    Guid TenantId,
+    decimal PendingTotal, int PendingCount,
+    decimal InvoicedTotal, int InvoicedCount,
+    decimal PaidTotal, int PaidCount);
 
 public record GetTenantChargeableSummaryQuery(Guid TenantId) : IRequest<TenantChargeableSummaryDto>;
 
@@ -150,18 +189,20 @@ public class GetTenantChargeableSummaryHandler
         {
             var rows = await _db.TenantChargeables.IgnoreQueryFilters()
                 .Where(x => x.TenantId == r.TenantId && x.DeletedAt == null)
-                .Select(x => new { x.LineTotal, x.InvoiceLineId })
+                .Select(x => new { x.LineTotal, x.InvoiceLineId, x.PaidAt })
                 .ToListAsync(ct);
-            var pending = rows.Where(x => !x.InvoiceLineId.HasValue).ToList();
             var invoiced = rows.Where(x => x.InvoiceLineId.HasValue).ToList();
+            var paid = rows.Where(x => x.PaidAt.HasValue && !x.InvoiceLineId.HasValue).ToList();
+            var pending = rows.Where(x => !x.InvoiceLineId.HasValue && !x.PaidAt.HasValue).ToList();
             return new TenantChargeableSummaryDto(
                 r.TenantId,
                 pending.Sum(x => x.LineTotal), pending.Count,
-                invoiced.Sum(x => x.LineTotal), invoiced.Count);
+                invoiced.Sum(x => x.LineTotal), invoiced.Count,
+                paid.Sum(x => x.LineTotal), paid.Count);
         }
         catch
         {
-            return new TenantChargeableSummaryDto(r.TenantId, 0, 0, 0, 0);
+            return new TenantChargeableSummaryDto(r.TenantId, 0, 0, 0, 0, 0, 0);
         }
     }
 }
