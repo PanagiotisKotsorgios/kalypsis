@@ -6,9 +6,13 @@ const NAVY_SOFT = "#3d4f6b";
 const RULE = "#e5e9ef";
 
 /**
- * Minimal pre-login footer to match the restrained white landing page —
- * copyright on the left and three legal links on the right. No newsletter,
- * no socials, no address — those belong on the Contact page.
+ * Pre-login footer used across landing / contact / legal pages.
+ * Two rows:
+ *   1. Copyright + legal links.
+ *   2. Legal entity strip — sole-proprietor identity («Παναγιώτης
+ *      Κοτσοργιός · ΑΦΜ 176091030 · ΔΟΥ Μεσολογγίου · έδρα … · Email»)
+ *      rendered small so it reads as a credits line, not marketing copy.
+ *      This is the identity the terms/privacy pages point back to.
  */
 export function PublicFooter() {
   return (
@@ -35,8 +39,44 @@ export function PublicFooter() {
             <FooterLink to="/cookies" label="Cookies" />
           </Stack>
         </Stack>
+
+        {/* Legal identity strip — sole-proprietor details required for the
+            terms/privacy pages to actually point at a real, verifiable
+            business. Rendered small + wrapped so it reads as a credits
+            line, not marketing copy. */}
+        <Box sx={{
+          mt: { xs: 2, md: 2.5 },
+          pt: { xs: 2, md: 2.5 },
+          borderTop: `1px solid ${RULE}`,
+          display: "flex", flexWrap: "wrap", gap: { xs: 1, md: 2 },
+          fontSize: 12, color: NAVY_SOFT, lineHeight: 1.55
+        }}>
+          <Box sx={{ fontWeight: 600, color: NAVY }}>Παναγιώτης Κοτσοργιός</Box>
+          <Divider />
+          <span>ΑΦΜ 176091030</span>
+          <Divider />
+          <span>ΔΟΥ Μεσολογγίου</span>
+          <Divider />
+          <span>Εργατικές Κατοικίες Λιμάνι Μεσολογγίου 113, 30200 Μεσολόγγι</span>
+          <Divider />
+          <Box component="a" href="mailto:info@mykalypsis.gr" sx={{
+            color: NAVY_SOFT, textDecoration: "none",
+            "&:hover": { color: NAVY, textDecoration: "underline" }
+          }}>
+            info@mykalypsis.gr
+          </Box>
+        </Box>
       </Container>
     </Box>
+  );
+}
+
+function Divider() {
+  return (
+    <Box aria-hidden sx={{
+      color: "#cbd6e2", display: { xs: "none", sm: "inline" },
+      userSelect: "none"
+    }}>·</Box>
   );
 }
 

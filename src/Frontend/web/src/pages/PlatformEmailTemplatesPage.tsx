@@ -293,7 +293,7 @@ function TemplateDialog({ open, item, onClose, onSaved }: {
               </Alert>
               <TextField label="Email παραλήπτη" value={testEmail}
                 onChange={(e) => setTestEmail(e.target.value)} fullWidth
-                placeholder="test@kalypsis.gr" />
+                placeholder="test@mykalypsis.gr" />
               <Box>
                 <Button variant="contained" startIcon={<SendIcon />} disabled={!testEmail || sendTest.isPending}
                   onClick={() => sendTest.mutate()}>

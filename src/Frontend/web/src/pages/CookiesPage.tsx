@@ -112,7 +112,7 @@ export function CookiesPage() {
           body: (
             <p>
               Για ερωτήσεις σχετικά με τη χρήση cookies από την Kalypsis, επικοινωνήστε
-              μαζί μας στο <a href="mailto:privacy@kalypsis.gr">privacy@kalypsis.gr</a>.
+              μαζί μας στο <a href="mailto:info@mykalypsis.gr">info@mykalypsis.gr</a>.
             </p>
           )
         }
