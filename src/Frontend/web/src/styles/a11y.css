@@ -17,9 +17,22 @@
    `zoom` on body re-renders everything inside body at the chosen ratio. The
    floating widget itself sits inside body so it scales too — which is
    correct: a low-vision user needs the controls bigger as well.
-   Keep the html-level font-size too for the rare rem-based child to inherit. */
+   Keep the html-level font-size too for the rare rem-based child to inherit.
+
+   We also bump every rendered text unit up in tandem via a rem-safe
+   multiplier so components that ignore body.zoom (portals, some overlays)
+   still respond. */
 html { font-size: calc(16px * var(--a11y-font-scale)); }
 body { zoom: var(--a11y-font-scale); }
+html[data-a11y-font-scale] .MuiTypography-root,
+html[data-a11y-font-scale] input,
+html[data-a11y-font-scale] textarea,
+html[data-a11y-font-scale] button,
+html[data-a11y-font-scale] label,
+html[data-a11y-font-scale] th,
+html[data-a11y-font-scale] td {
+  font-size: calc(1em * var(--a11y-font-scale, 1)) !important;
+}
 
 /* ---- Underline links -----------------------------------------------------
    Target every anchor and every text inside it. Excludes MUI Buttons (which
@@ -51,7 +64,10 @@ html[data-a11y-reduce-motion="1"] *::after {
 
 /* ---- High contrast -------------------------------------------------------
    Brute-force black/white override. Tears down every background, shadow and
-   inline color so the page degrades to a WCAG 1.4.6 AAA-grade 7:1 ratio.   */
+   inline color so the page degrades to a WCAG 1.4.6 AAA-grade 7:1 ratio.
+   Extended: MUI chips + table rows + dividers + focus rings + drawer /
+   dialog paper get explicit overrides so the Kalypsis surfaces don't leak
+   navy-on-navy through the generic wildcard.                              */
 html[data-a11y-contrast="1"],
 html[data-a11y-contrast="1"] body,
 html[data-a11y-contrast="1"] *:not(svg):not(svg *) {
@@ -94,8 +110,50 @@ html[data-a11y-contrast="1"] select {
   color: #000000 !important;
   border: 2px solid #000000 !important;
 }
-html[data-a11y-contrast="1"] img {
-  filter: grayscale(100%) contrast(110%) !important;
+html[data-a11y-contrast="1"] img,
+html[data-a11y-contrast="1"] svg image {
+  filter: grayscale(100%) contrast(115%) !important;
+}
+/* MUI-specific — chips, table rows, dividers, drawers, dialogs, tabs,
+   filled/outlined inputs, popovers, tooltips. The wildcard covers colours
+   but classy backgrounds (rgba tints, gradients, elevation shadows) sneak
+   through so we lock them down explicitly.                                */
+html[data-a11y-contrast="1"] .MuiChip-root {
+  background-color: #ffffff !important; border: 2px solid #000000 !important;
+}
+html[data-a11y-contrast="1"] .MuiChip-filled,
+html[data-a11y-contrast="1"] .MuiChip-colorPrimary,
+html[data-a11y-contrast="1"] .MuiChip-colorSecondary,
+html[data-a11y-contrast="1"] .MuiChip-colorSuccess,
+html[data-a11y-contrast="1"] .MuiChip-colorWarning,
+html[data-a11y-contrast="1"] .MuiChip-colorError,
+html[data-a11y-contrast="1"] .MuiChip-colorInfo {
+  background-color: #000000 !important; color: #ffffff !important;
+}
+html[data-a11y-contrast="1"] .MuiChip-filled * { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }
+html[data-a11y-contrast="1"] .MuiTableRow-root:nth-of-type(even) { background-color: #f0f0f0 !important; }
+html[data-a11y-contrast="1"] .MuiDivider-root { border-color: #000000 !important; }
+html[data-a11y-contrast="1"] .MuiPaper-root,
+html[data-a11y-contrast="1"] .MuiDrawer-paper,
+html[data-a11y-contrast="1"] .MuiDialog-paper,
+html[data-a11y-contrast="1"] .MuiPopover-paper {
+  background-color: #ffffff !important; border: 2px solid #000000 !important;
+}
+html[data-a11y-contrast="1"] .MuiTooltip-tooltip {
+  background-color: #000000 !important; color: #ffffff !important;
+}
+html[data-a11y-contrast="1"] .MuiAlert-root,
+html[data-a11y-contrast="1"] .MuiAlert-root * {
+  background-color: #ffffff !important; color: #000000 !important;
+  border: 2px solid #000000 !important;
+}
+html[data-a11y-contrast="1"] .MuiSwitch-track { background-color: #000000 !important; opacity: 1 !important; }
+html[data-a11y-contrast="1"] .MuiSwitch-thumb { background-color: #ffffff !important; border: 2px solid #000000 !important; }
+html[data-a11y-contrast="1"] .MuiTabs-indicator { background-color: #000000 !important; height: 3px !important; }
+/* Focus rings always visible in high-contrast mode, no matter the toggle */
+html[data-a11y-contrast="1"] *:focus,
+html[data-a11y-contrast="1"] *:focus-visible {
+  outline: 3px solid #000000 !important; outline-offset: 2px !important;
 }
 
 /* ---- Dyslexia-friendly font ----------------------------------------------
@@ -132,10 +190,45 @@ html[data-a11y-big-cursor="1"] [tabindex]:not([tabindex="-1"]) {
 }
 
 /* ---- Visible focus rings -------------------------------------------------
-   WCAG 2.4.7 — focus must always be visible.                              */
+   WCAG 2.4.7 — focus must always be visible. Yellow (#ffd400) on the outer
+   ring paired with a navy inner ring so the target stays visible against
+   BOTH light and dark backgrounds (yellow-on-white is fine, yellow-on-
+   yellow would vanish otherwise).                                         */
 html[data-a11y-focus="1"] *:focus,
 html[data-a11y-focus="1"] *:focus-visible {
-  outline: 3px solid #ffd400 !important;
+  outline: 4px solid #ffd400 !important;
   outline-offset: 3px !important;
-  box-shadow: 0 0 0 6px rgba(255, 212, 0, 0.35) !important;
+  box-shadow:
+    0 0 0 2px #0b2545,
+    0 0 0 6px rgba(255, 212, 0, 0.9),
+    0 0 0 10px rgba(11, 37, 69, 0.4) !important;
+  border-radius: 4px !important;
+}
+
+/* ---- Reduce motion, extended ---------------------------------------------
+   Beyond the wildcard on animation/transition, also disable smooth scroll
+   and the CSS `will-change`/`transform` on scroll observers.               */
+html[data-a11y-reduce-motion="1"] {
+  scroll-behavior: auto !important;
+}
+html[data-a11y-reduce-motion="1"] video,
+html[data-a11y-reduce-motion="1"] .marquee,
+html[data-a11y-reduce-motion="1"] [data-autoplay] {
+  animation-play-state: paused !important;
+}
+
+/* ---- Underline links, extended -------------------------------------------
+   Also underline RouterLinks rendered as Box component="a" (used in the
+   landing shell nav) — those don't carry an `<a>` tag until MUI resolves it. */
+html[data-a11y-underline-links="1"] [href],
+html[data-a11y-underline-links="1"] [href] * {
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+}
+html[data-a11y-underline-links="1"] .MuiButton-root,
+html[data-a11y-underline-links="1"] .MuiButtonBase-root,
+html[data-a11y-underline-links="1"] .MuiIconButton-root,
+html[data-a11y-underline-links="1"] .MuiToggleButton-root,
+html[data-a11y-underline-links="1"] .MuiTab-root {
+  text-decoration: none !important;
 }

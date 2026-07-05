@@ -12,15 +12,20 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 // EU-aligned accessibility widget (EAA / EN 301 549 / WCAG 2.1 AA).
 // A floating button on the bottom-right opens a right-side drawer with the
 // most-requested user-side adjustments. Every toggle persists in localStorage
-// (`kalypsis.a11y.v1`) and is applied as data-* attributes on <html>, which
-// global CSS in `index.css` reads.
+// (`kalypsis.a11y.v2`) and is applied as data-* attributes on <html>, which
+// global CSS in `styles/a11y.css` reads.
+//
+// v2 bump: font-scale attribute now written to <html> so a11y.css can bump
+// component text sizes independently of body.zoom; also honours the OS-level
+// `prefers-reduced-motion` on first load so a returning macOS user with the
+// system-wide toggle on gets consistent behaviour.
 //
 // Why client-side, not OS-level? EAA Article 12 requires the service itself
 // to provide controls that users can engage from inside the product — this
 // covers public-sector + key private-sector services from June 2025.
 // =============================================================================
 
-const STORAGE_KEY = "kalypsis.a11y.v1";
+const STORAGE_KEY = "kalypsis.a11y.v2";
 
 interface A11yState {
   fontScale: number;          // multiplier 0.85 / 1 / 1.15 / 1.3 / 1.5
@@ -44,16 +49,23 @@ const DEFAULT: A11yState = {
 
 function loadState(): A11yState {
   if (typeof window === "undefined") return DEFAULT;
+  // On first visit, honour the OS-level `prefers-reduced-motion` — a
+  // returning macOS/Windows user with the system toggle on gets it applied
+  // without having to re-toggle inside the app.
+  const osPrefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT;
+    if (!raw) return { ...DEFAULT, reduceMotion: osPrefersReducedMotion };
     return { ...DEFAULT, ...JSON.parse(raw) };
-  } catch { return DEFAULT; }
+  } catch { return { ...DEFAULT, reduceMotion: osPrefersReducedMotion }; }
 }
 
 function applyState(s: A11yState) {
   const html = document.documentElement;
   html.style.setProperty("--a11y-font-scale", String(s.fontScale));
+  // Presence flag — a11y.css uses [data-a11y-font-scale] to bump component
+  // text sizes even when the ratio is 1 (harmless when the multiplier is 1).
+  html.dataset.a11yFontScale      = String(s.fontScale);
   // Toggle data-attrs so global CSS can react.
   html.dataset.a11yContrast       = s.contrast       ? "1" : "0";
   html.dataset.a11yUnderlineLinks = s.underlineLinks ? "1" : "0";
@@ -190,16 +202,36 @@ export function AccessibilityWidget() {
             checked={state.bigCursor}
             onChange={(v) => set("bigCursor", v)} />
 
-          {/* Reset */}
+          {/* Reset — full-width button so it's discoverable, plus a
+              storage-notice line beneath. */}
           <Box sx={{ mt: 4, pt: 3, borderTop: "1px solid #e5e9ef" }}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Typography sx={{ fontSize: 13, color: "#3d4f6b" }}>
-                Οι ρυθμίσεις αποθηκεύονται μόνο στον φυλλομετρητή σας.
-              </Typography>
-              <IconButton aria-label="Επαναφορά προεπιλογών" onClick={reset} sx={a11yIconBtn}>
-                <RestartAltIcon />
-              </IconButton>
-            </Stack>
+            <Box
+              component="button"
+              onClick={reset}
+              aria-label="Επαναφορά προεπιλογών"
+              sx={{
+                width: "100%",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 1,
+                py: 1.35, px: 2,
+                border: "1px solid #cbd6e2", borderRadius: 1.5,
+                bgcolor: "#f6f9fc",
+                fontFamily: "inherit",
+                fontSize: 14, fontWeight: 700, color: "#0b2545",
+                letterSpacing: "0.01em",
+                cursor: "pointer",
+                transition: "background 150ms ease, border-color 150ms ease",
+                "&:hover": { bgcolor: "#eef4fa", borderColor: "#1f7bb3" }
+              }}
+            >
+              <RestartAltIcon sx={{ fontSize: 18 }} />
+              Επαναφορά προεπιλογών
+            </Box>
+            <Typography sx={{
+              mt: 1.5, fontSize: 12, color: "#6b7a91", textAlign: "center", lineHeight: 1.55
+            }}>
+              Οι ρυθμίσεις αποθηκεύονται μόνο στον φυλλομετρητή σας. Αν καθαρίσετε
+              τα cookies του browser, θα επανέλθουν στις προεπιλογές.
+            </Typography>
           </Box>
 
         </Box>

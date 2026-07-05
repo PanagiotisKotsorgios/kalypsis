@@ -19,10 +19,12 @@ import {
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
+import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { PublicFooter } from "../components/PublicFooter";
 import { AccessibilityWidget } from "../components/AccessibilityWidget";
@@ -30,9 +32,10 @@ import { PageEnter } from "../components/PageEnter";
 import { api, extractErrorMessage } from "../api/client";
 import { SearchableTextField } from "../components/SearchableTextField";
 
+// Palette exactly matches LandingPage so the page reads as a continuation.
 const NAVY = "#0b2545";
 const NAVY_SOFT = "#3d4f6b";
-const ACCENT = "#1ea7e1";
+const ACCENT = "#1f7bb3";
 const RULE = "#e5e9ef";
 // Same wave PNG that ships as the landing hero background — reused here so
 // the contact page reads as a continuation of the marketing surface.
@@ -154,60 +157,111 @@ export function ContactPage() {
       display: "flex", flexDirection: "column",
       position: "relative"
     }}>
-      {/* Masthead accent — slim gradient stripe along the very top edge. */}
-      <Box sx={{
-        height: 3,
-        background: "linear-gradient(90deg, #0b2545 0%, #1ea7e1 50%, #0b2545 100%)"
-      }} />
+      {/* Same glass-card nav shelf as LandingPage — logo + contact strip on
+          the left, «Στην αρχική» + language toggle on the right. Keeps the
+          brand experience continuous when a visitor bounces between /
+          and /contact. */}
+      <Container maxWidth={false} sx={{
+        maxWidth: { xs: "100%", md: "96%", lg: "88%", xl: "1600px" },
+        px: { xs: 2, md: 3 },
+        pt: { xs: 1.5, md: 2 },
+        position: "relative", zIndex: 1
+      }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}
+          sx={{
+            flexWrap: "nowrap", minWidth: 0, "& > *": { minWidth: 0 },
+            borderRadius: { xs: 3, md: "22px" },
+            px: { xs: 1.5, md: 4.5 }, py: { xs: 1, md: 2 },
+            background: "rgba(255,255,255,0.82)",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+            boxShadow: "0 18px 44px rgba(15,42,80,0.12)",
+            border: "1px solid rgba(148,191,230,0.35)",
+            animation: "kalypsisNavIn 850ms cubic-bezier(0.16,1,0.3,1) 60ms both",
+            transformOrigin: "top center",
+            "@keyframes kalypsisNavIn": {
+              "0%":   { opacity: 0, transform: "translateY(-24px) scaleX(0.94)" },
+              "60%":  { opacity: 1 },
+              "100%": { opacity: 1, transform: "translateY(0) scaleX(1)" }
+            }
+          }}>
+          {/* Mobile-only language toggle */}
+          <Box sx={{ display: { xs: "flex", md: "none" }, alignItems: "center" }}>
+            <LanguageToggle />
+          </Box>
 
-      {/* Same top bar as LandingPage */}
-      <Container maxWidth="lg" sx={{ px: { xs: 3, md: 6 }, pt: { xs: 2, md: 2.5 } }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-          <Stack direction="row" spacing={{ xs: 1.5, sm: 3 }} alignItems="center"
-            sx={{ display: { xs: "none", sm: "flex" } }}>
-            <Box component="a" href="tel:+302631028971" sx={topLinkSx}>
-              <PhoneOutlinedIcon sx={{ fontSize: 17 }} />
+          {/* Contact strip + auth links — desktop only */}
+          <Stack direction="row" spacing={{ xs: 1.5, md: 2, lg: 3.5 }} alignItems="center"
+            sx={{ display: { xs: "none", md: "flex" }, flexShrink: 0, whiteSpace: "nowrap" }}>
+            <Box component="a" href="tel:+302631028971"
+              sx={{
+                display: { md: "none", lg: "inline-flex" }, alignItems: "center", gap: 1,
+                color: NAVY, textDecoration: "none",
+                fontSize: 15.5, fontWeight: 600, letterSpacing: "0.01em",
+                "&:hover": { color: ACCENT }
+              }}>
+              <PhoneOutlinedIcon sx={{ fontSize: 20 }} />
               2631028971
             </Box>
-            <Box component="a" href="mailto:info@mykalypsis.gr" sx={topLinkSx}>
-              <MailOutlineIcon sx={{ fontSize: 17 }} />
+            <Box component="a" href="mailto:info@mykalypsis.gr"
+              sx={{
+                display: { md: "none", lg: "inline-flex" }, alignItems: "center", gap: 1,
+                color: NAVY, textDecoration: "none",
+                fontSize: 15.5, fontWeight: 600, letterSpacing: "0.01em",
+                "&:hover": { color: ACCENT }
+              }}>
+              <MailOutlineIcon sx={{ fontSize: 20 }} />
               info@mykalypsis.gr
             </Box>
+            <Box aria-hidden sx={{
+              display: { md: "none", lg: "block" },
+              width: "1px", height: 22,
+              bgcolor: "rgba(11,37,69,0.18)"
+            }} />
             <Box component={RouterLink} to="/login"
-              sx={{ ...topLinkSx, fontWeight: 700 }}>
+              sx={{
+                color: NAVY, textDecoration: "none",
+                fontSize: { md: 14.5, lg: 15.5 }, fontWeight: 700,
+                letterSpacing: "0.01em",
+                "&:hover": { color: ACCENT }
+              }}>
               Σύνδεση
             </Box>
             <Box component={RouterLink} to="/register"
-              sx={{ ...topLinkSx, fontWeight: 700 }}>
+              sx={{
+                color: NAVY, textDecoration: "none",
+                fontSize: { md: 14.5, lg: 15.5 }, fontWeight: 700,
+                letterSpacing: "0.01em",
+                "&:hover": { color: ACCENT }
+              }}>
               Εγγραφή
             </Box>
           </Stack>
-          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ ml: "auto" }}>
+
+          {/* Right cluster — «Στην αρχική» pill + LanguageToggle */}
+          <Stack direction="row" spacing={{ md: 1.25, lg: 1.75 }} alignItems="center"
+            sx={{ ml: "auto", display: { xs: "none", md: "flex" }, flexShrink: 0, whiteSpace: "nowrap" }}>
             <Button
               component={RouterLink}
               to="/"
-              size="small"
-              variant="text"
-              startIcon={<ArrowBackIcon sx={{ fontSize: 17 }} />}
+              variant="outlined"
               sx={{
+                borderRadius: 999,
+                px: { md: 2, lg: 2.75 }, py: { md: 0.85, lg: 1 },
+                fontSize: { md: 13.5, lg: 14.5 },
+                fontWeight: 700, letterSpacing: "0.01em",
+                textTransform: "none", whiteSpace: "nowrap",
                 color: NAVY,
-                textTransform: "none",
-                fontWeight: 600,
-                fontSize: 13,
-                "&:hover": { bgcolor: "rgba(11,37,69,0.04)" }
+                bgcolor: "rgba(30,167,225,0.06)",
+                borderColor: "rgba(30,167,225,0.35)",
+                "&:hover": { borderColor: ACCENT, bgcolor: "rgba(30,167,225,0.12)" }
               }}
             >
-              {t("nav.back")}
+              {t("nav.back", "Στην αρχική")}
             </Button>
             <LanguageToggle />
           </Stack>
         </Stack>
-        {/* Hairline accent under the top bar */}
-        <Box sx={{
-          mt: { xs: 1.5, md: 2 },
-          height: 1,
-          background: "linear-gradient(90deg, transparent 0%, rgba(30,167,225,0.35) 50%, transparent 100%)"
-        }} />
       </Container>
 
       <Container maxWidth="md" sx={{ px: { xs: 3, md: 6 }, py: { xs: 4, md: 6 }, flex: 1 }}>
@@ -230,27 +284,50 @@ export function ContactPage() {
             </Typography>
           </Box>
 
-          {/* Form card — solid white surface on top of the wave background
-              so every field stays sharp. Darker border + stronger shadow
-              for a serious/premium read; kept the accent stripe along the
-              left edge. */}
+          {/* Form card — solid white surface, sharp enterprise chrome:
+              formal header bar with a small icon + form label, structured
+              body, no decorative stripes. */}
           <Box sx={{
-            maxWidth: 720, mx: "auto",
+            maxWidth: 760, mx: "auto",
             bgcolor: "#ffffff",
-            border: "1px solid #cbd6e2",
-            borderRadius: 3,
-            p: { xs: 3, md: 5 },
-            boxShadow: "0 20px 50px rgba(11,37,69,0.14)",
-            position: "relative",
+            border: `1px solid ${RULE}`,
+            borderRadius: 2,
             overflow: "hidden",
-            "&::before": {
-              content: '""',
-              position: "absolute",
-              left: 0, top: 0, bottom: 0,
-              width: 4,
-              background: `linear-gradient(180deg, ${ACCENT} 0%, ${NAVY} 100%)`
-            }
+            boxShadow: "0 24px 60px rgba(11,37,69,0.10), 0 2px 6px rgba(11,37,69,0.04)"
           }}>
+            {/* Header bar — flat navy strip with form label, mimics an
+                enterprise support portal. */}
+            <Box sx={{
+              px: { xs: 3, md: 5 }, py: { xs: 2, md: 2.5 },
+              bgcolor: NAVY, color: "#fff",
+              display: "flex", alignItems: "center", gap: 1.5,
+              borderBottom: `3px solid ${ACCENT}`
+            }}>
+              <ChatBubbleOutlineIcon sx={{ fontSize: 22, opacity: 0.85 }} />
+              <Box sx={{ flex: 1 }}>
+                <Typography sx={{
+                  fontSize: 11, letterSpacing: "0.22em",
+                  textTransform: "uppercase", fontWeight: 600,
+                  color: "rgba(255,255,255,0.72)"
+                }}>
+                  Support · Sales · Bug reports
+                </Typography>
+                <Typography sx={{ fontSize: 15, fontWeight: 700, mt: 0.25 }}>
+                  {t("contact.form.header", "Φόρμα επικοινωνίας")}
+                </Typography>
+              </Box>
+              <Box sx={{
+                display: { xs: "none", sm: "flex" }, alignItems: "center", gap: 0.75,
+                fontSize: 12, color: "rgba(255,255,255,0.72)",
+                letterSpacing: "0.02em"
+              }}>
+                <ScheduleOutlinedIcon sx={{ fontSize: 14 }} />
+                <span>Απάντηση εντός 24h</span>
+              </Box>
+            </Box>
+
+            {/* Form body */}
+            <Box sx={{ p: { xs: 3, md: 5 } }}>
             {error && (
               <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 3, borderRadius: 2 }}>
                 {error}
@@ -360,6 +437,26 @@ export function ContactPage() {
                 </Box>
               </Stack>
             </form>
+            </Box>
+
+            {/* Footer strip inside the card — GDPR reassurance + Brevo
+                delivery note. Reads as a compliance line, not decoration. */}
+            <Box sx={{
+              px: { xs: 3, md: 5 }, py: 2,
+              bgcolor: "#f6f9fc",
+              borderTop: `1px solid ${RULE}`,
+              display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5,
+              fontSize: 12, color: NAVY_SOFT
+            }}>
+              <ShieldOutlinedIcon sx={{ fontSize: 16, color: ACCENT, flexShrink: 0 }} />
+              <Box sx={{ flex: 1, minWidth: 220, lineHeight: 1.55 }}>
+                Τα δεδομένα σας κρυπτογραφούνται σε TLS 1.3 και αποθηκεύονται
+                μόνο για την απάντηση στο μήνυμά σας. Πλήρεις λεπτομέρειες στην{" "}
+                <Link component={RouterLink} to="/privacy" sx={{ color: NAVY, fontWeight: 700, textDecoration: "underline" }}>
+                  Πολιτική Απορρήτου
+                </Link>.
+              </Box>
+            </Box>
           </Box>
 
           {/* Small reassurance row beneath the form */}
@@ -439,13 +536,6 @@ export function ContactPage() {
     </Box>
   );
 }
-
-const topLinkSx = {
-  display: "inline-flex", alignItems: "center", gap: 0.75,
-  color: NAVY, textDecoration: "none", fontSize: 13.5, fontWeight: 600,
-  letterSpacing: "0.01em",
-  "&:hover": { color: ACCENT }
-} as const;
 
 const inlineLinkSx = {
   display: "inline-flex", alignItems: "center", gap: 0.75,
