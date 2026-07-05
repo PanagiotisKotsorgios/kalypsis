@@ -63,14 +63,16 @@ const PageShell = ({ icon, titleKey, subtitleKey, helpId, children }: {
 interface PlanDef {
   code: string;
   tagline: string;
-  pricePerUserYear: number;
+  /** Flat annual price for the whole plan (includes default offices + users). */
+  pricePerYear: number;
   includedOffices: number;
   includedUsers: number;
   extraOfficePerYear: number;
   extraUserPerYear: number;
   packages: string[];
 }
-interface AddonDef { code: string; description: string; pricePerUserYear: number; }
+/** Addons are also flat annual — added to the plan's total when enabled. */
+interface AddonDef { code: string; description: string; pricePerYear: number; }
 interface ServiceDef { code: string; description: string; unitLabel: string; unitPrice: number; }
 interface PricingCatalog { version: number; plans: PlanDef[]; addons: AddonDef[]; services: ServiceDef[]; }
 
@@ -150,14 +152,14 @@ export function SubscriptionPlansPage() {
         Πρόσθετα πακέτα (addons)
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-        Προστίθενται πάνω στο βασικό πλάνο ανά χρήστη·έτος. Ο superadmin τα ενεργοποιεί ανά γραφείο.
+        Προστίθενται πάνω στο βασικό πλάνο σαν ετήσια χρέωση. Ο superadmin τα ενεργοποιεί ανά γραφείο.
       </Typography>
       <Card sx={{ mb: 4 }}>
         <Table size="small">
           <TableHead><TableRow>
             <TableCell>Addon</TableCell>
             <TableCell>Περιγραφή</TableCell>
-            <TableCell align="right">Τιμή / χρήστη · έτος</TableCell>
+            <TableCell align="right">Τιμή / έτος</TableCell>
           </TableRow></TableHead>
           <TableBody>
             {current.addons.map((a, idx) => (
@@ -166,14 +168,14 @@ export function SubscriptionPlansPage() {
                 <TableCell><Typography variant="body2" color="text.secondary">{a.description}</Typography></TableCell>
                 <TableCell align="right">
                   {editing ? (
-                    <TextField size="small" type="number" value={a.pricePerUserYear}
+                    <TextField size="small" type="number" value={a.pricePerYear}
                       onChange={(e) => setDraft(d => d ? { ...d,
-                        addons: d.addons.map((aa, i) => i === idx ? { ...aa, pricePerUserYear: Number(e.target.value) } : aa)
+                        addons: d.addons.map((aa, i) => i === idx ? { ...aa, pricePerYear: Number(e.target.value) } : aa)
                       } : d)}
                       sx={{ width: 110 }}
                       InputProps={{ endAdornment: <InputAdornment position="end">€</InputAdornment> }} />
                   ) : (
-                    <Typography fontWeight={700} color="primary.main">{a.pricePerUserYear}€</Typography>
+                    <Typography fontWeight={700} color="primary.main">{a.pricePerYear.toLocaleString("el-GR")}€</Typography>
                   )}
                 </TableCell>
               </TableRow>
@@ -235,7 +237,6 @@ function PlanCard({ plan, editing, tenantCount, onChange }: {
   plan: PlanDef; editing: boolean; tenantCount: number;
   onChange: (next: PlanDef) => void;
 }) {
-  const baseAnnual = plan.pricePerUserYear * plan.includedUsers;
   const set = <K extends keyof PlanDef>(k: K, v: PlanDef[K]) => onChange({ ...plan, [k]: v });
   return (
     <Card sx={{ p: 2.5, borderTop: "3px solid",
@@ -254,10 +255,11 @@ function PlanCard({ plan, editing, tenantCount, onChange }: {
 
       {editing ? (
         <Stack spacing={1.5} sx={{ mt: 1 }}>
-          <TextField size="small" label="Τιμή / χρήστη · έτος" type="number"
-            value={plan.pricePerUserYear}
-            onChange={(e) => set("pricePerUserYear", Number(e.target.value))}
-            InputProps={{ endAdornment: <InputAdornment position="end">€</InputAdornment> }} />
+          <TextField size="small" label="Τιμή πλάνου / έτος" type="number"
+            value={plan.pricePerYear}
+            onChange={(e) => set("pricePerYear", Number(e.target.value))}
+            InputProps={{ endAdornment: <InputAdornment position="end">€</InputAdornment> }}
+            helperText="Ετήσια χρέωση για το πλάνο (περιλαμβάνει τους default χρήστες + γραφεία)" />
           <Stack direction="row" spacing={1}>
             <TextField size="small" label="Default γραφεία" type="number"
               value={plan.includedOffices}
@@ -280,21 +282,19 @@ function PlanCard({ plan, editing, tenantCount, onChange }: {
       ) : (
         <>
           <Typography variant="h4" sx={{ fontWeight: 900, color: "primary.main" }}>
-            {plan.pricePerUserYear}€
-            <Typography component="span" variant="body2" color="text.secondary"> / χρήστη · έτος</Typography>
+            {plan.pricePerYear.toLocaleString("el-GR")}€
+            <Typography component="span" variant="body2" color="text.secondary"> / έτος</Typography>
           </Typography>
-          {plan.includedUsers > 0 && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Βάση: <b>{baseAnnual}€/έτος</b> για {plan.includedUsers} χρήστες
-            </Typography>
-          )}
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            (~{Math.round(plan.pricePerYear / 12).toLocaleString("el-GR")}€/μήνα)
+          </Typography>
           <Divider sx={{ my: 1.5 }} />
           <Typography variant="caption" color="text.secondary">Περιλαμβάνει</Typography>
           {plan.includedOffices > 0 && <Typography variant="body2">• {plan.includedOffices} γραφεία</Typography>}
-          <Typography variant="body2">• {plan.includedUsers} χρήστες (default)</Typography>
+          <Typography variant="body2">• {plan.includedUsers} χρήστες</Typography>
           <Typography variant="body2">• {plan.packages.length} πακέτα</Typography>
           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-            Extras: +{plan.extraOfficePerYear}€/γραφείο · +{plan.extraUserPerYear}€/χρήστη · έτος
+            Extras / έτος: +{plan.extraOfficePerYear}€ γραφείο · +{plan.extraUserPerYear}€ χρήστης
           </Typography>
           <Stack direction="row" spacing={0.5} mt={1.5} flexWrap="wrap" gap={0.5}>
             {plan.packages.map(pkg => <Chip key={pkg} size="small" variant="outlined" label={pkg} />)}
@@ -314,13 +314,14 @@ function PlanCalculator({ plans, addons }: { plans: PlanDef[]; addons: AddonDef[
   const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
 
   const plan = plans.find(p => p.code === planCode);
-  const totalUsers = (plan?.includedUsers ?? 0) + Math.max(0, extraUsers);
-  const baseAnnual = (plan?.pricePerUserYear ?? 0) * (plan?.includedUsers ?? 0);
-  const extraUsersCost = (plan?.extraUserPerYear ?? 0) * Math.max(0, extraUsers);
+  // Base = flat annual plan price. Extras add on top per unit·έτος. Addons
+  // are flat annual chargeables (not per-user).
+  const baseAnnual       = plan?.pricePerYear ?? 0;
+  const extraUsersCost   = (plan?.extraUserPerYear   ?? 0) * Math.max(0, extraUsers);
   const extraOfficesCost = (plan?.extraOfficePerYear ?? 0) * Math.max(0, extraOffices);
   const addonsCost = addons
     .filter(a => selectedAddons[a.code])
-    .reduce((s, a) => s + a.pricePerUserYear * totalUsers, 0);
+    .reduce((s, a) => s + a.pricePerYear, 0);
   const grandAnnual = baseAnnual + extraUsersCost + extraOfficesCost + addonsCost;
 
   return (
@@ -338,7 +339,7 @@ function PlanCalculator({ plans, addons }: { plans: PlanDef[]; addons: AddonDef[
             onChange={(e) => setPlanCode(e.target.value)}>
             {plans.map(p => (
               <MenuItem key={p.code} value={p.code}>
-                {p.code} · {p.pricePerUserYear}€/χρήστη
+                {p.code} · {p.pricePerYear.toLocaleString("el-GR")}€/έτος
               </MenuItem>
             ))}
           </SearchableTextField>
@@ -357,7 +358,7 @@ function PlanCalculator({ plans, addons }: { plans: PlanDef[]; addons: AddonDef[
             <Stack direction="row" spacing={0.75} flexWrap="wrap" gap={0.75}>
               {addons.map(a => (
                 <Chip key={a.code}
-                  label={`${a.code} · +${a.pricePerUserYear}€/user`}
+                  label={`${a.code} · +${a.pricePerYear.toLocaleString("el-GR")}€/έτος`}
                   onClick={() => setSelectedAddons(s => ({ ...s, [a.code]: !s[a.code] }))}
                   color={selectedAddons[a.code] ? "primary" : "default"}
                   variant={selectedAddons[a.code] ? "filled" : "outlined"} />
@@ -371,9 +372,9 @@ function PlanCalculator({ plans, addons }: { plans: PlanDef[]; addons: AddonDef[
             Ανάλυση
           </Typography>
           <Stack spacing={0.5} sx={{ mt: 1 }}>
-            <CalcRow label={`Βάση (${plan?.includedUsers ?? 0} χρήστες)`} value={baseAnnual} />
-            <CalcRow label={`+${Math.max(0, extraOffices)} γραφεία`} value={extraOfficesCost} />
-            <CalcRow label={`+${Math.max(0, extraUsers)} χρήστες`} value={extraUsersCost} />
+            <CalcRow label={`Βάση πλάνου (${plan?.includedUsers ?? 0} χρήστες, ${plan?.includedOffices ?? 0} γραφεία)`} value={baseAnnual} />
+            <CalcRow label={`+${Math.max(0, extraOffices)} επιπλέον γραφεία`} value={extraOfficesCost} />
+            <CalcRow label={`+${Math.max(0, extraUsers)} επιπλέον χρήστες`} value={extraUsersCost} />
             <CalcRow label="Addons" value={addonsCost} />
           </Stack>
           <Divider sx={{ my: 1.5 }} />
@@ -411,11 +412,11 @@ export function PlatformBillingPage() {
     queryFn: async () => (await api.get<PricingCatalog>("/platform/pricing")).data
   });
   const list = tenants.data ?? [];
-  // MRR derived from the live pricing catalog — default users × price/user·έτος ÷ 12.
+  // MRR derived from the live pricing catalog — flat annual plan price ÷ 12.
   const monthlyForPlan = (planCode: string | undefined) => {
     const plan = pricing.data?.plans.find(p => p.code === planCode);
     if (!plan) return 0;
-    return Math.round((plan.pricePerUserYear * plan.includedUsers) / 12);
+    return Math.round(plan.pricePerYear / 12);
   };
   const totalMrr = list.reduce((s, t1: any) => s + monthlyForPlan(t1.subscriptionPlan), 0);
   return (
