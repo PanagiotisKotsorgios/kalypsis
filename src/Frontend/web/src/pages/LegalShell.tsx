@@ -110,8 +110,6 @@ export function LegalShell({ eyebrow, title, lastUpdated, sections, intro }: Leg
           }}>
             <MetaItem label="Τελευταία ενημέρωση" value={lastUpdated} />
             <MetaItem label="Έκδοση" value={"1.0"} />
-            <MetaItem label="Έλεγχος επόμενος" value="+12 μήνες" />
-            <MetaItem label="Δικαιοδοσία" value="Ελλάδα · ΕΕ" />
           </Box>
         </Box>
 
