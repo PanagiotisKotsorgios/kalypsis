@@ -203,6 +203,7 @@ public interface IAppDbContext
     // Phase 15 — Per-tenant invoicing (lines derived from TenantPackageGrants)
     DbSet<TenantInvoice> TenantInvoices { get; }
     DbSet<TenantInvoiceLine> TenantInvoiceLines { get; }
+    DbSet<TenantChargeable> TenantChargeables { get; }
 
     // Per-tenant opt-in to universal carriers — restricts Γέφυρες / dashboard /
     // policy pickers to the carriers the office actually uses.

@@ -569,6 +569,32 @@ public static class DataSeeder
                 KEY `IX_producer_commission_declarations_PolicyId` (`PolicyId`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
 
+        // --- tenant_chargeables table ------------------------------------
+        // Ad-hoc chargeable items (training, migration, custom dev) per
+        // tenant. Missing table would 500 the «Χρεώσεις Γραφείου»
+        // superadmin panel for every tenant.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "tenant_chargeables",
+            createSql: @"CREATE TABLE IF NOT EXISTS `tenant_chargeables` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `ServiceCode` varchar(60) NOT NULL,
+                `Description` varchar(400) NOT NULL,
+                `UnitLabel` varchar(40) NOT NULL,
+                `UnitPrice` decimal(12,2) NOT NULL,
+                `Quantity` decimal(12,2) NOT NULL,
+                `LineTotal` decimal(14,2) NOT NULL,
+                `PerformedOn` datetime(6) NOT NULL,
+                `Notes` varchar(2000) NULL,
+                `InvoiceLineId` char(36) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_tenant_chargeables_TenantId` (`TenantId`),
+                KEY `IX_tenant_chargeables_InvoiceLineId` (`InvoiceLineId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         // --- producer_expected_rates table -------------------------------
         // Producer-side «παραμετροποίηση» — a lightweight mirror of
         // CommissionRule that the producer maintains themselves so the

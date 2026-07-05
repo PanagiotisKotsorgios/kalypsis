@@ -189,7 +189,7 @@ import { ProductionListsPage } from "./pages/ProductionListsPage";
 import { RenewalsPage } from "./pages/RenewalsPage";
 import { FinancialsPage } from "./pages/FinancialsPage";
 import {
-  SubscriptionPlansPage, BroadcastPage, PlatformTranslationsPage,
+  SubscriptionPlansPage, TenantChargeablesPage, BroadcastPage, PlatformTranslationsPage,
   PlatformApiKeysPage, PlatformIntegrationsPage, PlatformBackupsPage,
   PlatformStoragePage, PlatformJobsPage, PlatformStatusPage, PlatformCompliancePage, PlatformSupportPage
 } from "./pages/PlatformAdminPages";
@@ -343,6 +343,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/platform/parametric-files", labelKey: "nav.broadcastParametric", icon: <InventoryIcon /> },
     { to: "/platform/company-parameters", labelKey: "nav.companyParameters", icon: <TuneOutlinedIcon /> },
     { to: "/platform/plans", labelKey: "nav.subscriptionPlans", icon: <CreditCardIcon /> },
+    { to: "/platform/chargeables", labelKey: "nav.chargeables", icon: <PaymentsIcon /> },
     { to: "/platform/billing", labelKey: "nav.billing", icon: <PaymentsIcon /> },
     { to: "/platform/invoices", labelKey: "nav.invoices", icon: <ReceiptLongIcon /> },
     { to: "/platform/email-templates", labelKey: "nav.emailTemplates", icon: <EmailIcon /> },
@@ -568,6 +569,7 @@ export default function App() {
                   <Route path="bridge-import" element={<Navigate to="/app/carrier-bridges" replace />} />
                   <Route path="platform/carriers" element={<PlatformCarriersPage />} />
                   <Route path="platform/plans" element={<SubscriptionPlansPage />} />
+                  <Route path="platform/chargeables" element={<TenantChargeablesPage />} />
                   <Route path="platform/billing" element={<PlatformBillingConfigPage />} />
                   <Route path="platform/invoices" element={<PlatformInvoicesPage />} />
                   <Route path="platform/broadcast" element={<BroadcastPage />} />

@@ -205,6 +205,8 @@ public class AppDbContext : DbContext, IAppDbContext
     // Phase 15 — invoicing
     public DbSet<TenantInvoice> TenantInvoices => Set<TenantInvoice>();
     public DbSet<TenantInvoiceLine> TenantInvoiceLines => Set<TenantInvoiceLine>();
+    // Ad-hoc chargeable services per tenant (training, migration, custom dev).
+    public DbSet<TenantChargeable> TenantChargeables => Set<TenantChargeable>();
 
     // Per-tenant opt-in to universal carriers.
     public DbSet<TenantCarrierOptIn> TenantCarrierOptIns => Set<TenantCarrierOptIn>();

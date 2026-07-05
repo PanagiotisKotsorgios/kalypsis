@@ -50,6 +50,7 @@
     "carriers": "Ασφαλιστικές Εταιρείες",
     "partners": "Συνεργαζόμενες Εταιρείες",
     "subscriptionPlans": "Πλάνα Συνδρομής",
+    "chargeables": "Χρεώσεις Γραφείων",
     "billing": "Χρεώσεις & Τιμολόγηση",
     "emailTemplates": "Πρότυπα Email",
     "broadcast": "Μαζικές Ανακοινώσεις",
@@ -3443,6 +3444,10 @@
       "offices": "γραφεία",
       "users": "χρήστες",
       "packagesIncluded": "πακέτα"
+    },
+    "chargeables": {
+      "title": "Χρεώσεις Γραφείων",
+      "subtitle": "Προσθέστε ad-hoc χρεώσεις σε κάθε γραφείο — εκπαίδευση, migration, custom feature. Ρέουν στο επόμενο τιμολόγιο αυτόματα."
     },
     "billing": {
       "title": "Χρεώσεις & Τιμολόγηση",
