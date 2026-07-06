@@ -334,7 +334,7 @@ function RuleTable({ rows, onExplain }: {
           const statusKey = r.status;
           const color = STATUS_COLOR[statusKey] ?? "default";
           return (
-            <TableRow key={r.ruleId} hover>
+            <TableRow key={`${r.ruleId}-${r.producerId}`} hover>
               <TableCell><Typography fontWeight={700}>{r.producerName}</Typography></TableCell>
               <TableCell>
                 <Typography variant="body2">{ruleScopeLabel(r)}</Typography>
