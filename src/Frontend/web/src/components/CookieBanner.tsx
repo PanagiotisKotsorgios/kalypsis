@@ -90,6 +90,19 @@ export function CookieBanner() {
     if (stored.version !== CONSENT_VERSION) persist(stored);
   }, [location.pathname]);
 
+  // Re-open the banner (in granular mode, pre-filled with current choices) when
+  // the floating CookiePreferencesButton fires its event. Ignored on /app.
+  useEffect(() => {
+    const reopen = () => {
+      if (location.pathname.startsWith("/app")) return;
+      setPrefs(readStored() ?? DEFAULT_CONSENT());
+      setExpanded(true);
+      setOpen(true);
+    };
+    window.addEventListener("kalypsis:open-cookie-settings", reopen);
+    return () => window.removeEventListener("kalypsis:open-cookie-settings", reopen);
+  }, [location.pathname]);
+
   const acceptAll = () => {
     const next: CookieConsent = { ...DEFAULT_CONSENT(),
       functional: true, analytics: true, marketing: true };

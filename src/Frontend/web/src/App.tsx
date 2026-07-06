@@ -46,6 +46,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { GlobalStickyHeaders } from "./components/GlobalStickyHeaders";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { CookieBanner } from "./components/CookieBanner";
+import { CookiePreferencesButton } from "./components/CookiePreferencesButton";
 import { UserImpersonationBanner } from "./components/UserImpersonationBanner";
 import { OnboardingWizard } from "./components/OnboardingWizard";
 import { PageLoader } from "./components/PageLoader";
@@ -600,6 +601,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <CookieBanner />
+      <CookiePreferencesButton />
       {user?.role === "AgencyAdmin" && !impersonatedTenantId && <OnboardingWizard />}
     </>
   );
