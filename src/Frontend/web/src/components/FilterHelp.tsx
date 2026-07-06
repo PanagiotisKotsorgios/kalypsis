@@ -1,58 +1,51 @@
-import type { ReactNode } from "react";
-import { Box, Tooltip } from "@mui/material";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { Box } from "@mui/material";
 
-/**
- * Small ⓘ affordance used at the right edge of a filter input. Two shapes:
- *
- *   • <FilterHelp title="…" />   — bare icon; drop into an InputAdornment.
- *   • <FilterHelp title="…" wrapper /> — positioned absolutely at right:28
- *     for selects/date pickers where the built-in caret would collide.
- *
- * For fields that don't accept `InputProps` (e.g. our custom
- * SearchableTextField), wrap the field in <FilterFieldWrap tip="…"> to
- * add the ⓘ on the right side without touching internal input APIs.
- */
-export function FilterHelp({ title, wrapper }: { title: string; wrapper?: boolean }) {
-  const icon = (
-    <Tooltip title={title} arrow placement="top">
-      <HelpOutlineIcon
-        fontSize="small"
-        sx={{ color: "text.disabled", opacity: 0.7, cursor: "help",
-              "&:hover": { color: "primary.main", opacity: 1 } }}
-      />
-    </Tooltip>
-  );
-  if (!wrapper) return icon;
-  return (
-    <Box sx={{ position: "absolute", right: 28, top: "50%", transform: "translateY(-50%)",
-               display: "flex", alignItems: "center", pointerEvents: "auto" }}>
-      {icon}
-    </Box>
-  );
+// Filter-row tooltips are no longer rendered inline. Instead these components
+// silently attach a `data-field-tip` attribute to the nearest MUI form control
+// so BackOfficeActionHelp can pick it up and render a gray ⓘ at the top-right
+// outside the field. This preserves developer-authored tip text without
+// requiring per-page edits.
+
+function attachTip(el: HTMLElement | null | undefined, tip: string) {
+  if (!el || !tip) return;
+  if (el.dataset.fieldTip === tip) return;
+  el.dataset.fieldTip = tip;
 }
 
 /**
- * Wrap a filter input so a ⓘ icon appears at its right edge without
- * modifying the input component's props. Useful for wrappers that don't
- * accept InputProps (SearchableTextField, SearchableSelect).
+ * Used as an InputAdornment child in existing pages. Now renders an invisible
+ * sentinel that finds the enclosing TextField/FormControl and stamps the tip
+ * onto it as `data-field-tip`.
+ */
+export function FilterHelp({ title }: { title: string; wrapper?: boolean }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const anchor = ref.current?.closest<HTMLElement>(
+      ".MuiTextField-root, .MuiFormControl-root, .MuiInputBase-root"
+    );
+    attachTip(anchor, title);
+  }, [title]);
+  return <span ref={ref} style={{ display: "none" }} data-filter-help />;
+}
+
+/**
+ * Wraps a filter field. Previously it drew its own absolute ⓘ; now it just
+ * relays the tip text to the wrapped field via `data-field-tip`.
  */
 export function FilterFieldWrap({ tip, children, sx }: {
   tip: string; children: ReactNode; sx?: object;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const anchor = ref.current?.querySelector<HTMLElement>(
+      ".MuiTextField-root, .MuiFormControl-root, .MuiInputBase-root"
+    );
+    attachTip(anchor, tip);
+  }, [tip]);
   return (
-    <Box sx={{ position: "relative", display: "flex", alignItems: "center", ...sx }}>
+    <Box ref={ref} sx={{ display: "flex", alignItems: "center", ...sx }}>
       {children}
-      <Box sx={{ position: "absolute", right: 30, top: "50%", transform: "translateY(-50%)",
-                 pointerEvents: "auto" }}>
-        <Tooltip title={tip} arrow placement="top">
-          <HelpOutlineIcon
-            fontSize="small"
-            sx={{ color: "text.disabled", opacity: 0.7, cursor: "help",
-                  "&:hover": { color: "primary.main", opacity: 1 } }}
-          />
-        </Tooltip>
-      </Box>
     </Box>
   );
 }

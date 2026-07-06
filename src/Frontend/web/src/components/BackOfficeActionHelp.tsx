@@ -1,13 +1,13 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
-import { useMediaQuery, useTheme } from "@mui/material";
+import { Box, Tooltip, useMediaQuery, useTheme } from "@mui/material";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { HelpHint } from "./HelpHint";
 
 interface HelpDecoration {
   anchor: HTMLElement;
   host: HTMLElement;
-  label: string;
+  tip: string;
 }
 
 const fieldSelector = [
@@ -20,10 +20,12 @@ const fieldSelector = [
 let hostCounter = 0;
 
 /**
- * Adds contextual help to real form fields only. Earlier this was a fixed
- * overlay positioned from viewport coordinates; that made the icons float over
- * the top bar, dialogs and pagination. The decorator is now static DOM inside
- * each field container, so it scrolls with the page and stays below modals.
+ * Adds a single gray ⓘ affordance to every form field on agency pages. The
+ * icon is absolute-positioned at the top-right corner OUTSIDE the field so
+ * it never collides with the field's label, adornments, or content. Hovering
+ * reveals a tooltip — either the developer-authored text (via `data-field-tip`
+ * on the field, typically stamped by <FilterHelp> or <FilterFieldWrap>) or a
+ * generic "{label}" message when none was provided.
  */
 export function BackOfficeActionHelp() {
   const { i18n } = useTranslation();
@@ -46,21 +48,25 @@ export function BackOfficeActionHelp() {
       const rect = anchor.getBoundingClientRect();
       if (rect.width < 24 || rect.height < 16) return;
 
-      const label = getControlLabel(candidate, anchor);
+      const tip = resolveTip(candidate, anchor, isGreek);
       const host = ensureHost(anchor, hostsRef.current);
       seen.add(anchor);
-      next.push({ anchor, host, label });
+      next.push({ anchor, host, tip });
     });
 
     for (const [anchor, host] of hostsRef.current) {
       if (!seen.has(anchor) || !document.body.contains(anchor)) {
         host.remove();
+        if (anchor.dataset.actionHelpPositioned === "true") {
+          anchor.style.position = "";
+          delete anchor.dataset.actionHelpPositioned;
+        }
         hostsRef.current.delete(anchor);
       }
     }
 
     setDecorations((previous) => sameDecorations(previous, next) ? previous : next);
-  }, []);
+  }, [isGreek]);
 
   useLayoutEffect(() => {
     if (isMobile) {
@@ -81,7 +87,7 @@ export function BackOfficeActionHelp() {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["aria-hidden", "disabled", "style", "class"]
+      attributeFilter: ["aria-hidden", "disabled", "style", "class", "data-field-tip"]
     });
     window.addEventListener("resize", schedule);
 
@@ -98,20 +104,44 @@ export function BackOfficeActionHelp() {
   return (
     <>
       {decorations.map((decoration) =>
-        createPortal(
-          <HelpHint
-            size="small"
-            title={decoration.label}
-            body={buildHelpBody(decoration.label, isGreek)}
-            sx={{ position: "static", zIndex: "auto" }}
-          />,
-          decoration.host,
-          decorationKey(decoration)
-        )
+        createPortal(<GrayTip tip={decoration.tip} />, decoration.host, decorationKey(decoration))
       )}
     </>
   );
 }
+
+// ─────────────────────────── Icon component ────────────────────────────────
+
+function GrayTip({ tip }: { tip: string }) {
+  return (
+    <Tooltip title={tip} arrow placement="top">
+      <Box
+        component="span"
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "help",
+          bgcolor: "#ffffff",
+          borderRadius: "50%",
+          lineHeight: 0
+        }}
+      >
+        <InfoOutlinedIcon
+          sx={{
+            fontSize: 16,
+            color: "text.disabled",
+            opacity: 0.7,
+            transition: "color 120ms ease, opacity 120ms ease",
+            "&:hover": { color: "primary.main", opacity: 1 }
+          }}
+        />
+      </Box>
+    </Tooltip>
+  );
+}
+
+// ─────────────────────────── DOM helpers ───────────────────────────────────
 
 function belongsToBackOffice(element: HTMLElement) {
   return Boolean(element.closest("[data-backoffice-help-root], .MuiDialog-root, .MuiDrawer-root"))
@@ -174,33 +204,52 @@ function ensureHost(anchor: HTMLElement, hosts: Map<HTMLElement, HTMLElement>) {
   const existing = hosts.get(anchor);
   if (existing?.isConnected) return existing;
 
+  // The tip is absolute-positioned relative to the anchor. If the anchor is
+  // still statically positioned (rare for MUI wrappers, but possible), promote
+  // it to `relative` so top/right coordinates resolve as expected. Track the
+  // mutation via a data flag so we can undo it on cleanup.
+  const computedPos = window.getComputedStyle(anchor).position;
+  if (computedPos === "static") {
+    anchor.style.position = "relative";
+    anchor.dataset.actionHelpPositioned = "true";
+  }
+
   const host = document.createElement("span");
   host.dataset.actionHelpHost = "true";
   host.dataset.actionHelpId = String(++hostCounter);
-  host.style.display = "inline-flex";
-  host.style.alignItems = "center";
-  host.style.alignSelf = "flex-start";
-  host.style.flex = "0 0 auto";
-  host.style.lineHeight = "0";
-  host.style.marginTop = "3px";
-  host.style.marginLeft = "4px";
+  host.style.position = "absolute";
+  host.style.top = "-8px";
+  host.style.right = "-8px";
+  host.style.zIndex = "2";
   host.style.pointerEvents = "auto";
-  host.style.position = "static";
-  host.style.zIndex = "auto";
+  host.style.lineHeight = "0";
 
-  if (anchor.matches(".MuiTextField-root, .MuiFormControl-root")) {
-    anchor.appendChild(host);
-  } else {
-    anchor.insertAdjacentElement("afterend", host);
-  }
-
+  anchor.appendChild(host);
   hosts.set(anchor, host);
   return host;
 }
 
 function removeAllHosts(hosts: Map<HTMLElement, HTMLElement>) {
-  for (const host of hosts.values()) host.remove();
+  for (const [anchor, host] of hosts) {
+    host.remove();
+    if (anchor.dataset.actionHelpPositioned === "true") {
+      anchor.style.position = "";
+      delete anchor.dataset.actionHelpPositioned;
+    }
+  }
   hosts.clear();
+}
+
+function resolveTip(element: HTMLElement, anchor: HTMLElement, greek: boolean) {
+  // Developer-authored tip beats the generic fallback. FilterHelp /
+  // FilterFieldWrap stamp `data-field-tip` on the anchor at mount; pages can
+  // also set the attribute directly on any field wrapper.
+  const withTip = anchor.closest<HTMLElement>("[data-field-tip]")
+    ?? element.closest<HTMLElement>("[data-field-tip]");
+  const declared = withTip?.dataset.fieldTip;
+  if (declared) return declared;
+  const label = getControlLabel(element, anchor);
+  return buildHelpBody(label, greek);
 }
 
 function getControlLabel(element: HTMLElement, anchor: HTMLElement) {
@@ -236,14 +285,13 @@ function cleanText(value: string | null | undefined) {
 
 function buildHelpBody(label: string, greek: boolean) {
   if (greek) {
-    return `Συμπληρώστε ή επιλέξτε την τιμή για «${label}». Αν υπάρχει Αποθήκευση ή Δημιουργία, η αλλαγή εφαρμόζεται αφού πατήσετε το αντίστοιχο κουμπί.`;
+    return `Συμπληρώστε ή επιλέξτε την τιμή για «${label}».`;
   }
-
-  return `Enter or select the value for ${label}. Where Save or Create is available, the change is applied after you select it.`;
+  return `Enter or select the value for ${label}.`;
 }
 
 function decorationKey(decoration: HelpDecoration) {
-  return decoration.host.dataset.actionHelpId ?? decoration.label;
+  return decoration.host.dataset.actionHelpId ?? decoration.tip;
 }
 
 function sameDecorations(previous: HelpDecoration[], next: HelpDecoration[]) {
@@ -251,6 +299,6 @@ function sameDecorations(previous: HelpDecoration[], next: HelpDecoration[]) {
     const candidate = next[index];
     return item.anchor === candidate.anchor
       && item.host === candidate.host
-      && item.label === candidate.label;
+      && item.tip === candidate.tip;
   });
 }
