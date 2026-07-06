@@ -46,7 +46,7 @@ export function AdvancePaymentsPage() {
         <Stack direction="row" spacing={2}>
           <SearchableTextField size="small" label={t("common.status")} value={filter} onChange={e => setFilter(e.target.value)} sx={{ width: 200 }}>
             <MenuItem value="">{t("common.all")}</MenuItem>
-            {["Open", "PartiallyAllocated", "FullyAllocated", "Refunded"].map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+            {["Open", "PartiallyAllocated", "FullyAllocated", "Refunded"].map(s => <MenuItem key={s} value={s}>{t(`batchStatus.${s}`, s)}</MenuItem>)}
           </SearchableTextField>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>{t("advance.create")}</Button>
         </Stack>
@@ -70,12 +70,12 @@ export function AdvancePaymentsPage() {
                 <TableRow key={a.id} hover>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{a.number}</TableCell>
                   <TableCell>{a.receivedOn}</TableCell>
-                  <TableCell>{a.partyType}</TableCell>
+                  <TableCell>{String(t(`payeeType.${a.partyType}`, a.partyType))}</TableCell>
                   <TableCell>{a.customerName ?? a.producerName ?? a.insuranceCompanyName ?? "—"}</TableCell>
                   <TableCell align="right">{money(a.amount, a.currency)}</TableCell>
                   <TableCell align="right">{num(a.allocatedAmount)}</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700, color: "success.main" }}>{num(a.amount - a.allocatedAmount)}</TableCell>
-                  <TableCell><Chip size="small" color={a.status === "FullyAllocated" ? "success" : a.status === "Open" ? "warning" : "info"} label={a.status} /></TableCell>
+                  <TableCell><Chip size="small" color={a.status === "FullyAllocated" ? "success" : a.status === "Open" ? "warning" : "info"} label={String(t(`batchStatus.${a.status}`, a.status))} /></TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -123,7 +123,7 @@ function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClos
             <TextField type="date" label={t("advance.receivedOn")} InputLabelProps={{ shrink: true }} value={form.receivedOn} onChange={e => setForm({ ...form, receivedOn: e.target.value })} fullWidth />
           </Stack>
           <SearchableTextField label={t("advance.party")} value={form.partyType} onChange={e => setForm({ ...form, partyType: e.target.value })} fullWidth>
-            {["Customer", "Producer", "Carrier"].map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+            {["Customer", "Producer", "Carrier"].map(p => <MenuItem key={p} value={p}>{t(`payeeType.${p}`, p)}</MenuItem>)}
           </SearchableTextField>
           {form.partyType === "Customer" && (
             <SearchableSelect
@@ -156,7 +156,7 @@ function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClos
             <TextField type="number" required label={t("advance.amount")} value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth />
             <TextField label={t("common.currency")} value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value.toUpperCase() })} sx={{ width: 100 }} />
             <SearchableTextField label={t("advance.method")} value={form.paymentMethod} onChange={e => setForm({ ...form, paymentMethod: e.target.value })} sx={{ width: 200 }}>
-              {["Cash", "BankTransfer", "Cheque", "Card", "Other"].map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+              {["Cash", "BankTransfer", "Cheque", "Card", "Other"].map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`, m)}</MenuItem>)}
             </SearchableTextField>
           </Stack>
           <TextField label={t("advance.reference")} value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} fullWidth />
@@ -275,7 +275,7 @@ export function TachyPaymentsPage() {
                   <TableCell>{b.dueDate}</TableCell>
                   <TableCell align="right">{b.policyCount}</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700 }}>{money(b.totalAmount, b.currency)}</TableCell>
-                  <TableCell><Chip size="small" color={b.status === "Settled" ? "success" : b.status === "Exported" ? "info" : "default"} label={b.status} /></TableCell>
+                  <TableCell><Chip size="small" color={b.status === "Settled" ? "success" : b.status === "Exported" ? "info" : "default"} label={String(t(`batchStatus.${b.status}`, b.status))} /></TableCell>
                   <TableCell align="right">
                     <Button size="small" startIcon={<DownloadIcon />} href={`/api/tachypayments/${b.id}/export`} target="_blank">{t("tachy.exportCsv")}</Button>
                   </TableCell>
@@ -370,7 +370,7 @@ export function InfoCenterPage() {
         </Stack>
         <Stack direction="row" spacing={2}>
           <SearchableTextField label={t("infoCenter.kind")} value={kind} onChange={e => setKind(e.target.value)} sx={{ width: 200 }}>
-            {["Vehicles", "Customers", "Policies"].map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
+            {["Vehicles", "Customers", "Policies"].map(k => <MenuItem key={k} value={k}>{t(`infoCenterKind.${k}`, k)}</MenuItem>)}
           </SearchableTextField>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => create.mutate()} disabled={create.isPending}>{t("infoCenter.createBatch")}</Button>
         </Stack>
@@ -392,9 +392,9 @@ export function InfoCenterPage() {
                 <TableRow key={e.id}>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{e.batchNumber}</TableCell>
                   <TableCell>{new Date(e.createdAt).toLocaleString("el-GR")}</TableCell>
-                  <TableCell>{e.kind}</TableCell>
+                  <TableCell>{String(t(`infoCenterKind.${e.kind}`, e.kind))}</TableCell>
                   <TableCell align="right">{e.recordCount}</TableCell>
-                  <TableCell><Chip size="small" color={e.status === "Accepted" ? "success" : e.status === "Rejected" ? "error" : "default"} label={e.status} /></TableCell>
+                  <TableCell><Chip size="small" color={e.status === "Accepted" ? "success" : e.status === "Rejected" ? "error" : "default"} label={String(t(`batchStatus.${e.status}`, e.status))} /></TableCell>
                   <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{e.responseCode ?? "—"}</TableCell>
                 </TableRow>
               ))}

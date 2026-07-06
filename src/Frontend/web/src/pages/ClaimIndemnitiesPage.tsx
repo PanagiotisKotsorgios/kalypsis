@@ -86,9 +86,9 @@ export function ClaimIndemnitiesPage() {
                   <TableCell>{i.paidOn}</TableCell>
                   <TableCell>
                     {i.payeeType === "Garage" ? (i.garageName ?? "—") : (i.payeeName ?? "—")}
-                    <Typography variant="caption" color="text.secondary"> · {i.payeeType}</Typography>
+                    <Typography variant="caption" color="text.secondary"> · {t(`payeeType.${i.payeeType}`, i.payeeType)}</Typography>
                   </TableCell>
-                  <TableCell>{i.paymentMethod}</TableCell>
+                  <TableCell>{t(`paymentMethod.${i.paymentMethod}`, i.paymentMethod)}</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700, color: "error.main" }}>{money(i.amount, i.currency)}</TableCell>
                   <TableCell align="right">
                     <IconButton size="small" color="error" onClick={() => { if (confirm(t("common.confirmDelete"))) del.mutate(i.id); }}>
@@ -163,7 +163,7 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <SearchableTextField label={t("indemnities.payeeType")} value={form.payeeType}
               onChange={e => setForm({ ...form, payeeType: e.target.value })} fullWidth>
-              {PAYEE_TYPES.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+              {PAYEE_TYPES.map(p => <MenuItem key={p} value={p}>{t(`payeeType.${p}`, p)}</MenuItem>)}
             </SearchableTextField>
             {form.payeeType === "Garage" ? (
               <SearchableSelect
@@ -180,7 +180,7 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <SearchableTextField label={t("indemnities.method")} value={form.paymentMethod}
               onChange={e => setForm({ ...form, paymentMethod: e.target.value })} fullWidth>
-              {METHODS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+              {METHODS.map(m => <MenuItem key={m} value={m}>{t(`paymentMethod.${m}`, m)}</MenuItem>)}
             </SearchableTextField>
             <TextField required type="number" label={t("indemnities.amount")} value={form.amount}
               onChange={e => setForm({ ...form, amount: Number(e.target.value) })} fullWidth />

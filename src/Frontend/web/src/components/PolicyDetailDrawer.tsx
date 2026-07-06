@@ -400,7 +400,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                   <TextField select fullWidth label={t("policyDetail.deliveryMethod")} value={form.deliveryMethod}
                     onChange={e => setForm({ ...form, deliveryMethod: e.target.value })}>
                     <MenuItem value="">—</MenuItem>
-                    {DELIVERY_METHODS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                    {DELIVERY_METHODS.map(m => <MenuItem key={m} value={m}>{t(`deliveryMethod.${m}`, m)}</MenuItem>)}
                   </TextField>
                   <TextField select fullWidth label="Τρόπος πληρωμής" value={form.paymentCollectionMethod}
                     onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })}
@@ -429,7 +429,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                   cols={[
                     { key: "claimNumber", label: t("policyDetail.claimNo") },
                     { key: "incidentDate", label: t("policyDetail.incidentDate") },
-                    { key: "status", label: t("common.status") },
+                    { key: "status", label: t("common.status"),
+                      format: (v) => v ? String(t(`claimStatus.${v}`, v)) : "—" },
                     { key: "approvedAmount", label: t("policyDetail.amount"), numeric: true }
                   ]}
                   emptyKey="policyDetail.noClaims" />
@@ -440,7 +441,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                   cols={[
                     { key: "number", label: t("policyDetail.receiptNo") },
                     { key: "receivedOn", label: t("policyDetail.paidOn") },
-                    { key: "method", label: t("policyDetail.method") },
+                    { key: "method", label: t("policyDetail.method"),
+                      format: (v) => v ? String(t(`paymentMethod.${v}`, v)) : "—" },
                     { key: "amount", label: t("policyDetail.amount"), numeric: true }
                   ]}
                   emptyKey="policyDetail.noReceipts" />
@@ -605,7 +607,11 @@ function KV({ label, value, mono }: { label: string; value: React.ReactNode; mon
 
 function SimpleList({ rows, cols, emptyKey }: {
   rows: any[];
-  cols: { key: string; label: string; numeric?: boolean }[];
+  cols: {
+    key: string; label: string; numeric?: boolean;
+    /** Optional per-column formatter — use for enum values that need i18n. */
+    format?: (value: any, row: any) => React.ReactNode;
+  }[];
   emptyKey: string;
 }) {
   const { t } = useTranslation();
@@ -620,12 +626,18 @@ function SimpleList({ rows, cols, emptyKey }: {
       <TableBody>
         {rows.map((row, i) => (
           <TableRow key={row.id ?? i} hover>
-            {cols.map(c => (
-              <TableCell key={c.key} align={c.numeric ? "right" : "left"}
-                sx={{ fontFamily: c.key.toLowerCase().includes("number") || c.key.toLowerCase().includes("no") ? "monospace" : undefined }}>
-                {c.numeric && typeof row[c.key] === "number" ? row[c.key].toFixed(2) : (row[c.key] ?? "—")}
-              </TableCell>
-            ))}
+            {cols.map(c => {
+              const raw = row[c.key];
+              const rendered = c.format
+                ? c.format(raw, row)
+                : (c.numeric && typeof raw === "number" ? raw.toFixed(2) : (raw ?? "—"));
+              return (
+                <TableCell key={c.key} align={c.numeric ? "right" : "left"}
+                  sx={{ fontFamily: c.key.toLowerCase().includes("number") || c.key.toLowerCase().includes("no") ? "monospace" : undefined }}>
+                  {rendered}
+                </TableCell>
+              );
+            })}
           </TableRow>
         ))}
       </TableBody>

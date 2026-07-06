@@ -2119,6 +2119,52 @@
     "PromissoryNote": "Συναλλαγματική",
     "Other": "Άλλο"
   },
+  "payeeType": {
+    "Customer": "Πελάτης",
+    "Garage": "Συνεργείο",
+    "Hospital": "Νοσοκομείο",
+    "Producer": "Συνεργάτης",
+    "Carrier": "Εταιρεία",
+    "Other": "Άλλο"
+  },
+  "deliveryMethod": {
+    "Hand": "Δια χειρός",
+    "Pickup": "Παραλαβή",
+    "Post": "Ταχυδρομείο",
+    "Courier": "Ταχυμεταφορά",
+    "Email": "Email",
+    "InPerson": "Δια χειρός",
+    "Other": "Άλλο"
+  },
+  "batchStatus": {
+    "Pending": "Σε αναμονή",
+    "Exported": "Απεσταλμένο",
+    "Settled": "Εκκαθαρισμένο",
+    "Accepted": "Δεκτό",
+    "Rejected": "Απορρίφθηκε",
+    "Open": "Ανοιχτό",
+    "Closed": "Κλειστό",
+    "Cancelled": "Ακυρωμένο",
+    "PartiallyAllocated": "Μερικώς κατανεμημένο",
+    "FullyAllocated": "Πλήρως κατανεμημένο",
+    "Refunded": "Επιστροφή",
+    "Draft": "Πρόχειρο",
+    "Approved": "Εγκεκριμένο"
+  },
+  "infoCenterKind": {
+    "Vehicles": "Οχήματα",
+    "Customers": "Πελάτες",
+    "Policies": "Συμβόλαια"
+  },
+  "claimStatus": {
+    "Open": "Ανοιχτή",
+    "InProgress": "Σε επεξεργασία",
+    "Approved": "Εγκεκριμένη",
+    "Rejected": "Απορρίφθηκε",
+    "Paid": "Πληρωμένη",
+    "Closed": "Κλειστή",
+    "Cancelled": "Ακυρωμένη"
+  },
   "appointments": {
     "title": "Ραντεβού & Ημερολόγιο",
     "subtitle": "Διαχείριση συναντήσεων με πελάτες και συνεργάτες.",

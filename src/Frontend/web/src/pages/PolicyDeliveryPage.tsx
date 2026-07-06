@@ -141,7 +141,7 @@ function MarkDialog({ open, onClose, policyIds, onMarked }: { open: boolean; onC
             placeholder={t("delivery.deliveredToPlaceholder")} />
           <SearchableTextField label={t("delivery.method")} value={form.deliveryMethod}
             onChange={e => setForm({ ...form, deliveryMethod: e.target.value })} fullWidth>
-            {METHODS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+            {METHODS.map(m => <MenuItem key={m} value={m}>{t(`deliveryMethod.${m}`, m)}</MenuItem>)}
           </SearchableTextField>
           <SearchableTextField label="Τρόπος πληρωμής" value={form.paymentCollectionMethod}
             onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })} fullWidth

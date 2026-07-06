@@ -2017,6 +2017,52 @@
     "PromissoryNote": "Promissory Note",
     "Other": "Other"
   },
+  "payeeType": {
+    "Customer": "Customer",
+    "Garage": "Garage",
+    "Hospital": "Hospital",
+    "Producer": "Producer",
+    "Carrier": "Carrier",
+    "Other": "Other"
+  },
+  "deliveryMethod": {
+    "Hand": "By hand",
+    "Pickup": "Pickup",
+    "Post": "Post",
+    "Courier": "Courier",
+    "Email": "Email",
+    "InPerson": "In person",
+    "Other": "Other"
+  },
+  "batchStatus": {
+    "Pending": "Pending",
+    "Exported": "Exported",
+    "Settled": "Settled",
+    "Accepted": "Accepted",
+    "Rejected": "Rejected",
+    "Open": "Open",
+    "Closed": "Closed",
+    "Cancelled": "Cancelled",
+    "PartiallyAllocated": "Partially allocated",
+    "FullyAllocated": "Fully allocated",
+    "Refunded": "Refunded",
+    "Draft": "Draft",
+    "Approved": "Approved"
+  },
+  "infoCenterKind": {
+    "Vehicles": "Vehicles",
+    "Customers": "Customers",
+    "Policies": "Policies"
+  },
+  "claimStatus": {
+    "Open": "Open",
+    "InProgress": "In progress",
+    "Approved": "Approved",
+    "Rejected": "Rejected",
+    "Paid": "Paid",
+    "Closed": "Closed",
+    "Cancelled": "Cancelled"
+  },
   "appointments": {
     "title": "Appointments & Calendar",
     "subtitle": "Manage meetings with customers and partners.",
