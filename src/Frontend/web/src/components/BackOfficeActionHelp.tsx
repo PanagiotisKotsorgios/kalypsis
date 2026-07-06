@@ -3,6 +3,7 @@ import { Box, Tooltip, useMediaQuery, useTheme } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import { lookupTip } from "../config/fieldTips";
 
 interface HelpDecoration {
   anchor: HTMLElement;
@@ -241,14 +242,22 @@ function removeAllHosts(hosts: Map<HTMLElement, HTMLElement>) {
 }
 
 function resolveTip(element: HTMLElement, anchor: HTMLElement, greek: boolean) {
-  // Developer-authored tip beats the generic fallback. FilterHelp /
-  // FilterFieldWrap stamp `data-field-tip` on the anchor at mount; pages can
-  // also set the attribute directly on any field wrapper.
+  // 1. Developer-authored tip beats everything else. FilterHelp /
+  //    FilterFieldWrap stamp `data-field-tip` on the anchor at mount; pages
+  //    can also set the attribute directly on any field wrapper.
   const withTip = anchor.closest<HTMLElement>("[data-field-tip]")
     ?? element.closest<HTMLElement>("[data-field-tip]");
   const declared = withTip?.dataset.fieldTip;
   if (declared) return declared;
+
+  // 2. Central dictionary keyed by label (with path-scoped overrides for
+  //    labels that mean different things on different pages).
   const label = getControlLabel(element, anchor);
+  const path = typeof window !== "undefined" ? window.location.pathname : "";
+  const fromDict = lookupTip(label, path);
+  if (fromDict) return fromDict;
+
+  // 3. Generic fallback for anything the dictionary doesn't cover.
   return buildHelpBody(label, greek);
 }
 
