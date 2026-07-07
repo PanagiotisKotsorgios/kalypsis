@@ -22,6 +22,7 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(assembly);
 
         services.AddScoped<FileUploadGate>();
+        services.AddScoped<Features.Policies.PolicyCommissionCalculator>();
 
         return services;
     }

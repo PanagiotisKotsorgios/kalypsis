@@ -187,6 +187,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
     enabled: open && tab === 13 && !!policyId,
     queryFn: async () => (await api.get<PolicyCommunicationRow[]>(`/policies/${policyId}/communications`)).data
   });
+  const commissionMatrix = useQuery({
+    queryKey: ["policy-commission-matrix", policyId],
+    enabled: open && tab === 14 && !!policyId,
+    queryFn: async () => (await api.get<PolicyCommissionMatrix>(`/policies/${policyId}/commission-splits`)).data
+  });
 
   // Snapshot of the fields that support propagation to sibling policies —
   // captured BEFORE save so we can diff against the response and show the
@@ -322,6 +327,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
           <Tab label="Δόσεις" />
           <Tab label="Ιστορικό" />
           <Tab label="Επικοινωνία" />
+          <Tab label="Προμήθειες" />
         </Tabs>
 
         {/* Scrollable content */}
@@ -541,6 +547,13 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                   loading={communications.isLoading}
                   rows={communications.data ?? []}
                   onSaved={() => void qc.invalidateQueries({ queryKey: ["policy-communications", p.id] })}
+                />
+              )}
+              {tab === 14 && (
+                <PolicyCommissionMatrixTab
+                  loading={commissionMatrix.isLoading}
+                  matrix={commissionMatrix.data}
+                  currency={p.currency}
                 />
               )}
             </>
@@ -1577,6 +1590,110 @@ function PolicyCommunicationsTab({ policyId, loading, rows, onSaved }: {
           ))}
         </Stack>
       )}
+    </Stack>
+  );
+}
+
+/* ============================================================================
+   ALIS-parity commissions matrix — the F9 «Προμήθειες» view. Backend
+   materialises one PolicyCommissionSplit row per hierarchy level for which
+   the matched CommissionRule defines a percent; this tab renders them as
+   a table with %, €, tax withholding, and net columns plus a totals row.
+   Read-only in v1 — per-level overrides ship in a follow-up.
+   ============================================================================ */
+
+interface PolicyCommissionSplitRow {
+  id: string;
+  hierarchyLevel: string;      // Producer / Manager / Unit / Assistant / Agency
+  hierarchyLevelLabel: string; // Greek label from the backend
+  producerId: string | null;
+  producerName: string | null;
+  percent: number;
+  grossAmount: number;
+  taxWithholdingAmount: number;
+  netAmount: number;
+  currency: string;
+}
+
+interface PolicyCommissionMatrix {
+  rows: PolicyCommissionSplitRow[];
+  totalGross: number;
+  totalTaxWithholding: number;
+  totalNet: number;
+  currency: string;
+}
+
+function PolicyCommissionMatrixTab({ loading, matrix, currency }: {
+  loading: boolean;
+  matrix: PolicyCommissionMatrix | undefined;
+  currency: string;
+}) {
+  if (loading) {
+    return <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}><CircularProgress /></Box>;
+  }
+  if (!matrix || matrix.rows.length === 0) {
+    return (
+      <Stack spacing={2}>
+        <Alert severity="info">
+          Δεν έχει οριστεί ιεραρχική κατανομή προμηθειών για αυτό το συμβόλαιο.
+          Ρυθμίστε ποσοστά ανά επίπεδο στην «Παραμετροποίηση Προμηθειών» ή αντιστοιχίστε
+          τον συνεργάτη σε ιεραρχία (Παραγωγός → Manager → Unit → Assistant → Γραφείο).
+        </Alert>
+        <Typography variant="body2" color="text.secondary">
+          Ο πίνακας δείχνει, για κάθε επίπεδο ιεραρχίας που πληρώνεται σε αυτό το συμβόλαιο,
+          το ποσοστό, το μεικτό ποσό, την παρακράτηση φόρου και την καθαρή προμήθεια — όπως στην
+          οθόνη F9 της ALIS.
+        </Typography>
+      </Stack>
+    );
+  }
+  return (
+    <Stack spacing={2}>
+      <Typography variant="body2" color="text.secondary">
+        Ιεραρχική κατανομή προμηθειών όπως προκύπτει από την παραμετροποίηση του γραφείου
+        και το ασφάλιστρο του συμβολαίου. Η παρακράτηση φόρου εφαρμόζεται σε όλα τα επίπεδα
+        εκτός του Γραφείου.
+      </Typography>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Επίπεδο</TableCell>
+            <TableCell>Συνεργάτης</TableCell>
+            <TableCell align="right">%</TableCell>
+            <TableCell align="right">Μεικτό</TableCell>
+            <TableCell align="right">Παρακρ. φόρου</TableCell>
+            <TableCell align="right">Καθαρή προμήθεια</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {matrix.rows.map(r => (
+            <TableRow key={r.id} hover>
+              <TableCell>
+                <Chip size="small" label={r.hierarchyLevelLabel}
+                  color={r.hierarchyLevel === "Agency" ? "primary" : "default"}
+                  variant={r.hierarchyLevel === "Agency" ? "filled" : "outlined"} />
+              </TableCell>
+              <TableCell>{r.producerName ?? <Typography color="text.secondary" component="span" fontStyle="italic">—</Typography>}</TableCell>
+              <TableCell align="right"><Typography fontWeight={700}>{r.percent.toFixed(2)}%</Typography></TableCell>
+              <TableCell align="right">{r.grossAmount.toFixed(2)} {r.currency}</TableCell>
+              <TableCell align="right" sx={{ color: r.taxWithholdingAmount > 0 ? "warning.main" : "text.secondary" }}>
+                {r.taxWithholdingAmount > 0 ? `−${r.taxWithholdingAmount.toFixed(2)}` : "—"}
+              </TableCell>
+              <TableCell align="right">
+                <Typography fontWeight={800} color="success.main">
+                  {r.netAmount.toFixed(2)} {r.currency}
+                </Typography>
+              </TableCell>
+            </TableRow>
+          ))}
+          <TableRow sx={{ bgcolor: "action.hover" }}>
+            <TableCell colSpan={3}><Typography fontWeight={800}>Σύνολο</Typography></TableCell>
+            <TableCell align="right"><Typography fontWeight={800}>{matrix.totalGross.toFixed(2)} {matrix.currency || currency}</Typography></TableCell>
+            <TableCell align="right"><Typography fontWeight={800} color="warning.main">−{matrix.totalTaxWithholding.toFixed(2)}</Typography></TableCell>
+            <TableCell align="right"><Typography fontWeight={800} color="success.main">{matrix.totalNet.toFixed(2)} {matrix.currency || currency}</Typography></TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
     </Stack>
   );
 }

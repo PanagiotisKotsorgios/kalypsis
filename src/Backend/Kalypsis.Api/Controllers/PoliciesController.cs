@@ -111,6 +111,18 @@ public class PoliciesController : ControllerBase
         => Ok(await _mediator.Send(new GetPolicyPaymentSummaryQuery(id), ct));
 
     /// <summary>
+    /// ALIS-style «Προμήθειες» matrix — one row per hierarchy level that gets
+    /// paid on this policy, with %, €, tax withholding and net columns plus
+    /// a totals footer. Auto-heals: if the policy has no splits on file yet
+    /// (legacy row, never re-saved) we recompute on read so the tab always
+    /// shows something meaningful.
+    /// </summary>
+    [HttpGet("{id:guid}/commission-splits")]
+    public async Task<ActionResult<PolicyCommissionMatrixDto>> CommissionSplits(
+        Guid id, CancellationToken ct)
+        => Ok(await _mediator.Send(new GetPolicyCommissionSplitsQuery(id), ct));
+
+    /// <summary>
     /// Επικοινωνία ανά συμβόλαιο — every CommunicationLog whose RelatedPolicyId
     /// points at this policy. Sidesteps the customer-scoped list handler so
     /// the drawer doesn't over-fetch every note across the customer's history.

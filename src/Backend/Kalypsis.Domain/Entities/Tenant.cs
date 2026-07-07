@@ -20,6 +20,14 @@ public class Tenant : BaseEntity
     public string DefaultCurrency { get; set; } = "EUR";
     public int DefaultPolicyDurationMonths { get; set; } = 12;
 
+    /// <summary>
+    /// Παρακράτηση φόρου (%) που εφαρμόζεται σε προμήθειες συνεργατών —
+    /// τυπικά 20% στην Ελλάδα. Ο calculator το χρησιμοποιεί ως προεπιλογή
+    /// για όλα τα επίπεδα εκτός Agency (τα γραφεία δεν παρακρατούν από τον
+    /// εαυτό τους). Per-rule override θα έρθει σε επόμενο batch.
+    /// </summary>
+    public decimal DefaultTaxWithholdingPercent { get; set; } = 20m;
+
     /// <summary>Set when the agency admin completes the onboarding wizard. Null = still onboarding.</summary>
     public DateTime? OnboardingCompletedAt { get; set; }
 

@@ -199,11 +199,14 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
 {
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _current;
+    private readonly PolicyCommissionCalculator _commissionCalc;
 
-    public CreatePolicyCommandHandler(IAppDbContext db, ICurrentUser current)
+    public CreatePolicyCommandHandler(IAppDbContext db, ICurrentUser current,
+        PolicyCommissionCalculator commissionCalc)
     {
         _db = db;
         _current = current;
+        _commissionCalc = commissionCalc;
     }
 
     public async Task<PolicyDto> Handle(CreatePolicyCommand request, CancellationToken ct)
@@ -303,6 +306,16 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
 
         await _db.SaveChangesAsync(ct);
 
+        // Materialise commission splits so the ALIS-style matrix has data
+        // to show. Best-effort: any exception here is swallowed so a partial
+        // deploy without the paired migration doesn't fail policy creation.
+        try
+        {
+            await _commissionCalc.RecomputeAsync(p, ct);
+            await _db.SaveChangesAsync(ct);
+        }
+        catch { /* splits are a read-side convenience — never block the write */ }
+
         // Re-fetch with includes for display fields.
         var saved = await _db.Policies.IgnoreQueryFilters()
             .Include(x => x.Customer).Include(x => x.InsuranceCompany).Include(x => x.Producer)
@@ -329,11 +342,14 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
 {
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _current;
+    private readonly PolicyCommissionCalculator _commissionCalc;
 
-    public UpdatePolicyCommandHandler(IAppDbContext db, ICurrentUser current)
+    public UpdatePolicyCommandHandler(IAppDbContext db, ICurrentUser current,
+        PolicyCommissionCalculator commissionCalc)
     {
         _db = db;
         _current = current;
+        _commissionCalc = commissionCalc;
     }
 
     public async Task<PolicyDto> Handle(UpdatePolicyCommand request, CancellationToken ct)
@@ -370,6 +386,15 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
         PolicyPremiumMath.TrySyncPolicyPremiumFromCovers(p, covers);
 
         await _db.SaveChangesAsync(ct);
+
+        // Rebuild the commission matrix — premium, producer, or scope may
+        // have shifted enough to change which rule matches and by how much.
+        try
+        {
+            await _commissionCalc.RecomputeAsync(p, ct);
+            await _db.SaveChangesAsync(ct);
+        }
+        catch { /* splits are a read-side convenience — never block the write */ }
 
         var saved = await _db.Policies.IgnoreQueryFilters()
             .Include(x => x.Customer).Include(x => x.InsuranceCompany).Include(x => x.Producer)

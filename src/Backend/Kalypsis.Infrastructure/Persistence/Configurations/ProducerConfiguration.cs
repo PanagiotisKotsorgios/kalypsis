@@ -15,6 +15,13 @@ public class ProducerConfiguration : IEntityTypeConfiguration<Producer>
         b.Property(x => x.Email).HasMaxLength(256);
         b.Property(x => x.Phone).HasMaxLength(40);
         b.Property(x => x.Status).HasConversion<int>();
+        b.Property(x => x.HierarchyLevel).HasConversion<int>().HasDefaultValue(Kalypsis.Domain.Enums.HierarchyLevel.Producer);
+        // Self-referencing FK for the commission hierarchy. Restrict on delete
+        // so we don't accidentally cascade-nuke a whole team when a manager is
+        // removed — the application layer should reassign children first.
+        b.HasOne(x => x.ParentProducer).WithMany()
+            .HasForeignKey(x => x.ParentProducerId).OnDelete(DeleteBehavior.Restrict);
         b.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+        b.HasIndex(x => new { x.TenantId, x.ParentProducerId });
     }
 }

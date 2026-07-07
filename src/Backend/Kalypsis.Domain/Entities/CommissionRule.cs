@@ -45,6 +45,18 @@ public class CommissionRule : TenantEntity
     /// <summary>Percentage paid through to the producer.</summary>
     public decimal? ProducerPercent { get; set; }
 
+    /// <summary>
+    /// Optional per-hierarchy-level percentages, as a JSON map like
+    ///   {"Producer":12,"Manager":3,"Unit":2,"Assistant":1,"Agency":40}
+    /// When populated, the calculator materialises a PolicyCommissionSplit
+    /// row per level whose producer node exists in the chain. When null we
+    /// fall back to the two-level <see cref="AgencyPercent"/> /
+    /// <see cref="ProducerPercent"/> split so existing tenants stay working
+    /// without touching a single rule. Kept as JSON so we can add new levels
+    /// later without a schema change.
+    /// </summary>
+    public string? LevelPercentsJson { get; set; }
+
     public DateOnly EffectiveFrom { get; set; }
     public DateOnly? EffectiveTo { get; set; }
 

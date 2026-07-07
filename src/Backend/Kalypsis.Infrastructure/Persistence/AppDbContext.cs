@@ -36,6 +36,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<Claim> Claims => Set<Claim>();
     public DbSet<CommissionRule> CommissionRules => Set<CommissionRule>();
     public DbSet<CommissionTransaction> CommissionTransactions => Set<CommissionTransaction>();
+    public DbSet<PolicyCommissionSplit> PolicyCommissionSplits => Set<PolicyCommissionSplit>();
     public DbSet<AgencyTask> AgencyTasks => Set<AgencyTask>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NewsletterSubscriber> NewsletterSubscribers => Set<NewsletterSubscriber>();

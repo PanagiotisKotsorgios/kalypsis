@@ -529,6 +529,54 @@ public static class DataSeeder
             table: "customers", column: "ActivityCode",
             addSql: "ALTER TABLE `customers` ADD COLUMN `ActivityCode` varchar(20) NULL", ct);
 
+        // --- ALIS-parity batch D: broker hierarchy + commission matrix ---
+        // Ship 2026-07-07. Adds the columns / table needed for ALIS's F9
+        // «Προμήθειες» matrix — five hierarchy levels (Producer / Manager /
+        // Unit / Assistant / Agency), per-rule multi-level percents in a JSON
+        // blob, tenant-level tax withholding default, and a materialised
+        // audit ledger (policy_commission_splits) so we can render the matrix
+        // for any policy without re-running the calculator.
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "producers", column: "HierarchyLevel",
+            addSql: "ALTER TABLE `producers` ADD COLUMN `HierarchyLevel` int NOT NULL DEFAULT 1", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "producers", column: "ParentProducerId",
+            addSql: "ALTER TABLE `producers` ADD COLUMN `ParentProducerId` char(36) NULL", ct);
+        await EnsureIndexAsync(db, logger, dbName,
+            table: "producers", indexName: "IX_producers_ParentProducerId",
+            addSql: "CREATE INDEX `IX_producers_ParentProducerId` ON `producers` (`ParentProducerId`)", ct);
+
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "commission_rules", column: "LevelPercentsJson",
+            addSql: "ALTER TABLE `commission_rules` ADD COLUMN `LevelPercentsJson` longtext NULL", ct);
+
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "Tenants", column: "DefaultTaxWithholdingPercent",
+            addSql: "ALTER TABLE `Tenants` ADD COLUMN `DefaultTaxWithholdingPercent` decimal(6,3) NOT NULL DEFAULT 20", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "policy_commission_splits",
+            createSql: @"CREATE TABLE IF NOT EXISTS `policy_commission_splits` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `PolicyId` char(36) NOT NULL,
+                `HierarchyLevel` int NOT NULL,
+                `ProducerId` char(36) NULL,
+                `Percent` decimal(8,4) NOT NULL DEFAULT 0,
+                `GrossAmount` decimal(14,2) NOT NULL DEFAULT 0,
+                `TaxWithholdingAmount` decimal(14,2) NOT NULL DEFAULT 0,
+                `NetAmount` decimal(14,2) NOT NULL DEFAULT 0,
+                `Currency` varchar(3) NOT NULL DEFAULT 'EUR',
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_policy_commission_splits_Tenant_Policy` (`TenantId`, `PolicyId`),
+                KEY `IX_policy_commission_splits_Tenant_Producer` (`TenantId`, `ProducerId`),
+                CONSTRAINT `FK_policy_commission_splits_policies` FOREIGN KEY (`PolicyId`) REFERENCES `policies` (`Id`) ON DELETE CASCADE,
+                CONSTRAINT `FK_policy_commission_splits_producers` FOREIGN KEY (`ProducerId`) REFERENCES `producers` (`Id`) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
         // platform_settings: email-code login toggle
         await EnsureColumnAsync(db, logger, dbName,
             table: "platform_settings", column: "RequireEmailLoginCode",

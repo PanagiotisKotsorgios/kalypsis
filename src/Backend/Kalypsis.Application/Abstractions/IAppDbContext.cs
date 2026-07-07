@@ -23,6 +23,7 @@ public interface IAppDbContext
     DbSet<Claim> Claims { get; }
     DbSet<CommissionRule> CommissionRules { get; }
     DbSet<CommissionTransaction> CommissionTransactions { get; }
+    DbSet<PolicyCommissionSplit> PolicyCommissionSplits { get; }
     DbSet<AgencyTask> AgencyTasks { get; }
     DbSet<Notification> Notifications { get; }
     DbSet<NewsletterSubscriber> NewsletterSubscribers { get; }
