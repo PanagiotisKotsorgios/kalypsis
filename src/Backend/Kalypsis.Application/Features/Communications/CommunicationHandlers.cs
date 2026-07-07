@@ -65,6 +65,58 @@ public class ListCommunicationsHandler : IRequestHandler<ListCommunicationsQuery
     }
 }
 
+/* ============= List by policy ============= */
+
+public record ListPolicyCommunicationsQuery(Guid PolicyId) : IRequest<IReadOnlyList<CommunicationDto>>;
+
+public class ListPolicyCommunicationsHandler : IRequestHandler<ListPolicyCommunicationsQuery, IReadOnlyList<CommunicationDto>>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public ListPolicyCommunicationsHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
+
+    public async Task<IReadOnlyList<CommunicationDto>> Handle(ListPolicyCommunicationsQuery request, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        return await _db.CommunicationLogs
+            .Where(c => c.TenantId == tenantId && c.RelatedPolicyId == request.PolicyId && c.DeletedAt == null)
+            .OrderByDescending(c => c.OccurredAt)
+            .Select(c => new CommunicationDto(c.Id, c.CustomerId, c.UserId, c.Kind, c.Direction, c.Outcome,
+                c.OccurredAt, c.DurationSeconds, c.Subject, c.Body,
+                c.RelatedPolicyNumber, c.RelatedPolicyId))
+            .ToListAsync(ct);
+    }
+}
+
+/* ============= Create for policy ============= */
+
+public record CreatePolicyCommunicationCommand(Guid PolicyId, CreateCommunicationBody Body) : IRequest<CommunicationDto>;
+
+public class CreatePolicyCommunicationHandler : IRequestHandler<CreatePolicyCommunicationCommand, CommunicationDto>
+{
+    private readonly IMediator _mediator;
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public CreatePolicyCommunicationHandler(IMediator mediator, IAppDbContext db, ICurrentUser current)
+    { _mediator = mediator; _db = db; _current = current; }
+
+    public async Task<CommunicationDto> Handle(CreatePolicyCommunicationCommand request, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        // Resolve the policy's customer so we can reuse CreateCommunicationCommand
+        // (which is scoped by customer). We also force RelatedPolicyId to this
+        // policy — safer than trusting whatever the client sent.
+        var policyCustomer = await _db.Policies
+            .Where(p => p.TenantId == tenantId && p.Id == request.PolicyId && p.DeletedAt == null)
+            .Select(p => (Guid?)p.CustomerId)
+            .FirstOrDefaultAsync(ct)
+            ?? throw AppException.NotFound("Συμβόλαιο");
+
+        var body = request.Body with { RelatedPolicyId = request.PolicyId };
+        return await _mediator.Send(new CreateCommunicationCommand(policyCustomer, body), ct);
+    }
+}
+
 /* ============= Create ============= */
 
 public record CreateCommunicationCommand(Guid CustomerId, CreateCommunicationBody Body) : IRequest<CommunicationDto>;

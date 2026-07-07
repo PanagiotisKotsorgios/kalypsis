@@ -1,3 +1,4 @@
+using Kalypsis.Application.Features.Communications;
 using Kalypsis.Application.Features.Policies;
 using Kalypsis.Domain.Enums;
 using MediatR;
@@ -108,6 +109,26 @@ public class PoliciesController : ControllerBase
     [HttpGet("{id:guid}/payment-summary")]
     public async Task<ActionResult<PolicyPaymentSummaryDto>> PaymentSummary(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetPolicyPaymentSummaryQuery(id), ct));
+
+    /// <summary>
+    /// Επικοινωνία ανά συμβόλαιο — every CommunicationLog whose RelatedPolicyId
+    /// points at this policy. Sidesteps the customer-scoped list handler so
+    /// the drawer doesn't over-fetch every note across the customer's history.
+    /// </summary>
+    [HttpGet("{id:guid}/communications")]
+    public async Task<ActionResult<IReadOnlyList<CommunicationDto>>> Communications(
+        Guid id, CancellationToken ct)
+        => Ok(await _mediator.Send(new ListPolicyCommunicationsQuery(id), ct));
+
+    /// <summary>
+    /// Record a new communication attached to this policy. RelatedPolicyId is
+    /// forced server-side — client-supplied values on the body are ignored.
+    /// </summary>
+    [HttpPost("{id:guid}/communications")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<CommunicationDto>> CreateCommunication(
+        Guid id, [FromBody] CreateCommunicationBody body, CancellationToken ct)
+        => Ok(await _mediator.Send(new CreatePolicyCommunicationCommand(id, body), ct));
 }
 
 [ApiController]

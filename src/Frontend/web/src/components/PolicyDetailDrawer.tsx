@@ -182,6 +182,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
     enabled: open && tab === 7 && !!policyId,
     queryFn: async () => (await api.get<any[]>("/receipts")).data.filter((r: any) => r.policyId === policyId)
   });
+  const communications = useQuery({
+    queryKey: ["policy-communications", policyId],
+    enabled: open && tab === 13 && !!policyId,
+    queryFn: async () => (await api.get<PolicyCommunicationRow[]>(`/policies/${policyId}/communications`)).data
+  });
 
   // Snapshot of the fields that support propagation to sibling policies —
   // captured BEFORE save so we can diff against the response and show the
@@ -316,6 +321,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
           <Tab label="Καλύψεις" />
           <Tab label="Δόσεις" />
           <Tab label="Ιστορικό" />
+          <Tab label="Επικοινωνία" />
         </Tabs>
 
         {/* Scrollable content */}
@@ -529,6 +535,14 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
               {tab === 10 && <PolicyCoversTab policyId={p.id} />}
               {tab === 11 && <PolicyInstallmentsTab policyId={p.id} />}
               {tab === 12 && <EntityAuditTimeline entityName="Policy" entityId={p.id} />}
+              {tab === 13 && (
+                <PolicyCommunicationsTab
+                  policyId={p.id}
+                  loading={communications.isLoading}
+                  rows={communications.data ?? []}
+                  onSaved={() => void qc.invalidateQueries({ queryKey: ["policy-communications", p.id] })}
+                />
+              )}
             </>
           )}
         </Box>
@@ -1410,6 +1424,158 @@ function PolicyInstallmentsTab({ policyId }: { policyId: string }) {
             ))}
           </TableBody>
         </Table>
+      )}
+    </Stack>
+  );
+}
+
+/* ============================================================================
+   Per-policy communication log — ALIS parity item #12. Each entry captures
+   a phone / email / meeting / SMS / note tied to this policy so brokers can
+   track «γιατί άλλαξε αυτό το συμβόλαιο» without digging through the
+   customer-level timeline.
+   ============================================================================ */
+
+interface PolicyCommunicationRow {
+  id: string;
+  customerId: string;
+  kind: string;              // Note / Phone / Email / Meeting / Sms / WalkIn
+  direction: string;         // Internal / Inbound / Outbound
+  outcome: string;           // None / Resolved / FollowUpRequired / NoAnswer / Cancelled
+  occurredAt: string;
+  durationSeconds: number | null;
+  subject: string;
+  body: string | null;
+  relatedPolicyNumber: string | null;
+  relatedPolicyId: string | null;
+}
+
+const COMM_KIND_LABEL: Record<string, string> = {
+  Note: "Σημείωση", Phone: "Τηλέφωνο", Email: "Email",
+  Meeting: "Συνάντηση", Sms: "SMS", WalkIn: "Επίσκεψη"
+};
+const COMM_DIRECTION_LABEL: Record<string, string> = {
+  Internal: "Εσωτερικά", Inbound: "Εισερχόμενο", Outbound: "Εξερχόμενο"
+};
+const COMM_OUTCOME_LABEL: Record<string, string> = {
+  None: "—", Resolved: "Ολοκληρώθηκε", FollowUpRequired: "Χρειάζεται επανάληψη",
+  NoAnswer: "Χωρίς απάντηση", Cancelled: "Ακυρώθηκε"
+};
+
+function PolicyCommunicationsTab({ policyId, loading, rows, onSaved }: {
+  policyId: string;
+  loading: boolean;
+  rows: PolicyCommunicationRow[];
+  onSaved: () => void;
+}) {
+  const [creating, setCreating] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    kind: "Note",
+    direction: "Internal",
+    outcome: "None",
+    subject: "",
+    body: ""
+  });
+  const save = useMutation({
+    mutationFn: async () => (await api.post(`/policies/${policyId}/communications`, {
+      kind: form.kind,
+      direction: form.direction,
+      outcome: form.outcome,
+      subject: form.subject.trim(),
+      body: form.body.trim() || null,
+      occurredAt: new Date().toISOString(),
+      durationSeconds: null,
+      relatedPolicyId: null // server forces this to the policy id anyway
+    })).data,
+    onSuccess: () => {
+      setCreating(false);
+      setForm({ kind: "Note", direction: "Internal", outcome: "None", subject: "", body: "" });
+      onSaved();
+    },
+    onError: (e) => setErr(extractErrorMessage(e))
+  });
+
+  return (
+    <Stack spacing={2}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Typography variant="body2" color="text.secondary">
+          Καταγραφές επικοινωνίας για αυτό το συμβόλαιο. Οι εγγραφές εμφανίζονται και στο ενοποιημένο timeline του πελάτη.
+        </Typography>
+        <Button size="small" variant="contained" onClick={() => setCreating(true)} disabled={creating}>
+          Νέα καταγραφή
+        </Button>
+      </Stack>
+
+      {err && <Alert severity="error" onClose={() => setErr(null)}>{err}</Alert>}
+
+      {creating && (
+        <Box sx={{ p: 2, border: "1px solid", borderColor: "divider", borderRadius: 1.5 }}>
+          <Stack spacing={1.5}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <TextField select size="small" fullWidth label="Είδος"
+                value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })}>
+                {Object.entries(COMM_KIND_LABEL).map(([k, v]) =>
+                  <MenuItem key={k} value={k}>{v}</MenuItem>)}
+              </TextField>
+              <TextField select size="small" fullWidth label="Κατεύθυνση"
+                value={form.direction} onChange={e => setForm({ ...form, direction: e.target.value })}>
+                {Object.entries(COMM_DIRECTION_LABEL).map(([k, v]) =>
+                  <MenuItem key={k} value={k}>{v}</MenuItem>)}
+              </TextField>
+              <TextField select size="small" fullWidth label="Αποτέλεσμα"
+                value={form.outcome} onChange={e => setForm({ ...form, outcome: e.target.value })}>
+                {Object.entries(COMM_OUTCOME_LABEL).map(([k, v]) =>
+                  <MenuItem key={k} value={k}>{v}</MenuItem>)}
+              </TextField>
+            </Stack>
+            <TextField size="small" fullWidth required label="Θέμα"
+              value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })}
+              placeholder="π.χ. «Ενημέρωση για λήξη — κ. Παπαδοπούλου»" />
+            <TextField size="small" fullWidth multiline rows={3} label="Λεπτομέρειες"
+              value={form.body} onChange={e => setForm({ ...form, body: e.target.value })} />
+            <Stack direction="row" spacing={1} justifyContent="flex-end">
+              <Button onClick={() => setCreating(false)}>Ακύρωση</Button>
+              <Button variant="contained" onClick={() => save.mutate()}
+                disabled={save.isPending || !form.subject.trim()}>
+                {save.isPending ? <CircularProgress size={18} /> : "Καταχώρηση"}
+              </Button>
+            </Stack>
+          </Stack>
+        </Box>
+      )}
+
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}><CircularProgress /></Box>
+      ) : rows.length === 0 ? (
+        <Typography color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+          Δεν υπάρχει καμία καταγραφή επικοινωνίας για αυτό το συμβόλαιο ακόμα.
+        </Typography>
+      ) : (
+        <Stack spacing={1}>
+          {rows.map(r => (
+            <Box key={r.id} sx={{ p: 1.75, border: "1px solid", borderColor: "divider", borderRadius: 1.5 }}>
+              <Stack direction="row" spacing={1} alignItems="center" mb={0.5}>
+                <Chip size="small" label={COMM_KIND_LABEL[r.kind] ?? r.kind} />
+                <Chip size="small" variant="outlined" label={COMM_DIRECTION_LABEL[r.direction] ?? r.direction} />
+                {r.outcome !== "None" && (
+                  <Chip size="small" variant="outlined" color="info"
+                    label={COMM_OUTCOME_LABEL[r.outcome] ?? r.outcome} />
+                )}
+                <Box sx={{ flex: 1 }} />
+                <Typography variant="caption" color="text.secondary">
+                  {new Date(r.occurredAt).toLocaleString("el-GR")}
+                </Typography>
+              </Stack>
+              <Typography fontWeight={700}>{r.subject}</Typography>
+              {r.body && (
+                <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-wrap", mt: 0.5 }}>
+                  {r.body}
+                </Typography>
+              )}
+            </Box>
+          ))}
+        </Stack>
       )}
     </Stack>
   );
