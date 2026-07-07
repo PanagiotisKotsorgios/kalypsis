@@ -86,7 +86,13 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             PostalCode = r.PostalCode?.Trim(),
             BirthDate = r.BirthDate,
             Occupation = r.Occupation?.Trim(),
-            Notes = r.Notes?.Trim()
+            Notes = r.Notes?.Trim(),
+            FatherName = r.FatherName?.Trim(),
+            MotherName = r.MotherName?.Trim(),
+            SpouseName = r.SpouseName?.Trim(),
+            Nationality = r.Nationality?.Trim(),
+            Zone = r.Zone?.Trim(),
+            ActivityCode = r.ActivityCode?.Trim()
         };
         _db.Customers.Add(customer);
 

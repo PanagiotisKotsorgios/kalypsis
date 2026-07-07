@@ -30,7 +30,14 @@ public record CreateCustomerRequest(
     DateOnly? BirthDate,
     string? Notes,
     bool CreatePortalAccount,
-    string? Occupation = null);
+    string? Occupation = null,
+    // ALIS-parity KYC fields
+    string? FatherName = null,
+    string? MotherName = null,
+    string? SpouseName = null,
+    string? Nationality = null,
+    string? Zone = null,
+    string? ActivityCode = null);
 
 public record CreateCustomerResponse(
     CustomerDto Customer,

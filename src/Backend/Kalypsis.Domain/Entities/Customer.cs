@@ -12,6 +12,24 @@ public class Customer : TenantEntity
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
 
+    /// <summary>Πατρώνυμο — παραδοσιακό στοιχείο KYC στην Ελλάδα, εμφανίζεται
+    /// σε πολλά ασφαλιστικά έντυπα και είναι απαραίτητο για MyDATA/υποβολές.
+    /// Παραμένει nullable για εταιρείες και οργανισμούς.</summary>
+    public string? FatherName { get; set; }
+    /// <summary>Μητρώνυμο — αντιστοίχως nullable.</summary>
+    public string? MotherName { get; set; }
+    /// <summary>Όνομα συζύγου — free text (όχι σχέση σε άλλο Customer record).
+    /// Για δομημένο household χρησιμοποιήστε τη CustomerRelationship.</summary>
+    public string? SpouseName { get; set; }
+    /// <summary>Εθνικότητα — ISO code ή ελεύθερο κείμενο (π.χ. «Ελληνική»).</summary>
+    public string? Nationality { get; set; }
+    /// <summary>Ζώνη — γεωγραφική / εμπορική ζώνη για πολιτικές τιμολόγησης
+    /// και reporting. Ελεύθερο κείμενο ώστε κάθε γραφείο να ορίζει τις δικές του.</summary>
+    public string? Zone { get; set; }
+    /// <summary>Κωδικός δραστηριότητας — π.χ. ΚΑΔ ή εσωτερικός κωδικός.
+    /// Διακριτός από <see cref="Occupation"/> (ελεύθερο κείμενο).</summary>
+    public string? ActivityCode { get; set; }
+
     public string? CompanyName { get; set; }
     public string? VatNumber { get; set; }
     public string? TaxOffice { get; set; }            // ΔΟΥ

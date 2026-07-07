@@ -30,10 +30,24 @@ public static class CustomerNeedCatalog
 public record CustomerProfileDto(
     Guid Id, string CustomerNumber, CustomerType Type, string DisplayName,
     string? MaritalStatus, string? Occupation, string? Employer, string? MobilePhone,
-    string? Email, string? Phone, string? Notes);
+    string? Email, string? Phone, string? Notes,
+    // ALIS-parity KYC fields (all nullable)
+    string? FatherName = null,
+    string? MotherName = null,
+    string? SpouseName = null,
+    string? Nationality = null,
+    string? Zone = null,
+    string? ActivityCode = null);
 
 public record CustomerProfileBody(
-    string? MaritalStatus, string? Occupation, string? Employer, string? MobilePhone, string? Notes);
+    string? MaritalStatus, string? Occupation, string? Employer, string? MobilePhone, string? Notes,
+    // ALIS-parity KYC fields (all nullable — omit or send null to clear)
+    string? FatherName = null,
+    string? MotherName = null,
+    string? SpouseName = null,
+    string? Nationality = null,
+    string? Zone = null,
+    string? ActivityCode = null);
 
 public record CustomerNeedDto(
     Guid Id, string Kind, string Title, bool HasAsset, bool IsInsured,
@@ -178,6 +192,12 @@ public class UpdateCustomerProfileHandler : IRequestHandler<UpdateCustomerProfil
         customer.Employer = CustomerFamilyQueries.TrimOrNull(request.Body.Employer);
         customer.MobilePhone = CustomerFamilyQueries.TrimOrNull(request.Body.MobilePhone);
         customer.Notes = CustomerFamilyQueries.TrimOrNull(request.Body.Notes);
+        customer.FatherName = CustomerFamilyQueries.TrimOrNull(request.Body.FatherName);
+        customer.MotherName = CustomerFamilyQueries.TrimOrNull(request.Body.MotherName);
+        customer.SpouseName = CustomerFamilyQueries.TrimOrNull(request.Body.SpouseName);
+        customer.Nationality = CustomerFamilyQueries.TrimOrNull(request.Body.Nationality);
+        customer.Zone = CustomerFamilyQueries.TrimOrNull(request.Body.Zone);
+        customer.ActivityCode = CustomerFamilyQueries.TrimOrNull(request.Body.ActivityCode);
         await _db.SaveChangesAsync(ct);
         return CustomerFamilyQueries.MapProfile(customer);
     }
@@ -340,7 +360,9 @@ internal static class CustomerFamilyQueries
     public static CustomerProfileDto MapProfile(Customer customer) => new(
         customer.Id, customer.CustomerNumber, customer.Type, DisplayName(customer),
         customer.MaritalStatus, customer.Occupation, customer.Employer, customer.MobilePhone,
-        customer.Email, customer.Phone, customer.Notes);
+        customer.Email, customer.Phone, customer.Notes,
+        customer.FatherName, customer.MotherName, customer.SpouseName,
+        customer.Nationality, customer.Zone, customer.ActivityCode);
 
     public static CustomerNeedDto MapNeed(CustomerInsuranceNeed need) => new(
         need.Id, need.Kind, need.Title, need.HasAsset, need.IsInsured,

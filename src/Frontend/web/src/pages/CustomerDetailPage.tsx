@@ -102,6 +102,13 @@ interface FamilyProfile {
     id: string; customerNumber: string; type: string; displayName: string;
     maritalStatus: string | null; occupation: string | null; employer: string | null;
     mobilePhone: string | null; email: string | null; phone: string | null; notes: string | null;
+    // ALIS-parity KYC fields (all nullable)
+    fatherName: string | null;
+    motherName: string | null;
+    spouseName: string | null;
+    nationality: string | null;
+    zone: string | null;
+    activityCode: string | null;
   };
   needs: CustomerNeed[];
   family: FamilyMember[];
@@ -1083,11 +1090,17 @@ function DriverLicenseCard({ customerId }: { customerId: string }) {
 function CustomerProfileCard({ customerId, profile }: { customerId: string; profile: FamilyProfile["profile"] }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ maritalStatus: "", occupation: "", employer: "", mobilePhone: "", notes: "" });
+  const [form, setForm] = useState({
+    maritalStatus: "", occupation: "", employer: "", mobilePhone: "", notes: "",
+    fatherName: "", motherName: "", spouseName: "",
+    nationality: "", zone: "", activityCode: ""
+  });
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => setForm({
     maritalStatus: profile.maritalStatus ?? "", occupation: profile.occupation ?? "", employer: profile.employer ?? "",
-    mobilePhone: profile.mobilePhone ?? "", notes: profile.notes ?? ""
+    mobilePhone: profile.mobilePhone ?? "", notes: profile.notes ?? "",
+    fatherName: profile.fatherName ?? "", motherName: profile.motherName ?? "", spouseName: profile.spouseName ?? "",
+    nationality: profile.nationality ?? "", zone: profile.zone ?? "", activityCode: profile.activityCode ?? ""
   }), [profile]);
   const save = useMutation({
     mutationFn: async () => api.put(`/customers/${customerId}/family/profile`, form),
@@ -1099,7 +1112,7 @@ function CustomerProfileCard({ customerId, profile }: { customerId: string; prof
     <Card variant="outlined" sx={{ p: 2.5 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
         <Box><Typography variant="h6">Προφίλ και οικογενειακή κατάσταση</Typography>
-          <Typography variant="body2" color="text.secondary">Τα στοιχεία αυτά χρησιμοποιούνται στα φίλτρα πελατών και στις προτάσεις κάλυψης.</Typography></Box>
+          <Typography variant="body2" color="text.secondary">Τα στοιχεία αυτά χρησιμοποιούνται στα φίλτρα πελατών, στα ασφαλιστικά έντυπα και στις προτάσεις κάλυψης.</Typography></Box>
         <Button startIcon={<EditIcon />} onClick={() => setEditing(!editing)}>{editing ? "Ακύρωση" : "Επεξεργασία"}</Button>
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
@@ -1113,6 +1126,21 @@ function CustomerProfileCard({ customerId, profile }: { customerId: string; prof
             <TextField label="Επάγγελμα / κλάδος" value={form.occupation} onChange={e => setForm({ ...form, occupation: e.target.value })} fullWidth />
             <TextField label="Εργοδότης / επιχείρηση" value={form.employer} onChange={e => setForm({ ...form, employer: e.target.value })} fullWidth />
           </Stack>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+            <TextField label="Πατρώνυμο" value={form.fatherName} onChange={e => setForm({ ...form, fatherName: e.target.value })} fullWidth
+              helperText="Απαιτείται για MyDATA και ασφαλιστικά έντυπα." />
+            <TextField label="Μητρώνυμο" value={form.motherName} onChange={e => setForm({ ...form, motherName: e.target.value })} fullWidth />
+            <TextField label="Όνομα συζύγου" value={form.spouseName} onChange={e => setForm({ ...form, spouseName: e.target.value })} fullWidth
+              helperText="Ελεύθερο κείμενο. Για δομημένη σχέση χρησιμοποιήστε την ενότητα Οικογένεια." />
+          </Stack>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+            <TextField label="Εθνικότητα" value={form.nationality} onChange={e => setForm({ ...form, nationality: e.target.value })} fullWidth
+              placeholder="π.χ. Ελληνική" />
+            <TextField label="Ζώνη" value={form.zone} onChange={e => setForm({ ...form, zone: e.target.value })} fullWidth
+              helperText="Γεωγραφική ή εμπορική ζώνη για πολιτικές τιμολόγησης." />
+            <TextField label="Κωδικός δραστηριότητας" value={form.activityCode} onChange={e => setForm({ ...form, activityCode: e.target.value })} fullWidth
+              placeholder="π.χ. ΚΑΔ" />
+          </Stack>
           <TextField label="Κινητό" value={form.mobilePhone} onChange={e => setForm({ ...form, mobilePhone: e.target.value })} fullWidth />
           <TextField label="Σημειώσεις πελάτη" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} multiline rows={3} fullWidth />
           <Stack direction="row" justifyContent="flex-end"><Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>Αποθήκευση</Button></Stack>
@@ -1123,6 +1151,12 @@ function CustomerProfileCard({ customerId, profile }: { customerId: string; prof
           <ProfileValue label="Επάγγελμα / κλάδος" value={profile.occupation} />
           <ProfileValue label="Εργοδότης / επιχείρηση" value={profile.employer} />
           <ProfileValue label="Κινητό" value={profile.mobilePhone ?? profile.phone} />
+          <ProfileValue label="Πατρώνυμο" value={profile.fatherName} />
+          <ProfileValue label="Μητρώνυμο" value={profile.motherName} />
+          <ProfileValue label="Όνομα συζύγου" value={profile.spouseName} />
+          <ProfileValue label="Εθνικότητα" value={profile.nationality} />
+          <ProfileValue label="Ζώνη" value={profile.zone} />
+          <ProfileValue label="Κωδ. δραστηριότητας" value={profile.activityCode} />
           {profile.notes && <Box sx={{ gridColumn: "1/-1" }}><ProfileValue label="Σημειώσεις" value={profile.notes} /></Box>}
         </Box>
       )}

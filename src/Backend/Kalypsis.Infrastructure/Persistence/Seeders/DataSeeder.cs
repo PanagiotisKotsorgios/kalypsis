@@ -506,6 +506,29 @@ public static class DataSeeder
             table: "policies", indexName: "IX_policies_PreviousInsuranceCompanyId",
             addSql: "CREATE INDEX `IX_policies_PreviousInsuranceCompanyId` ON `policies` (`PreviousInsuranceCompanyId`)", ct);
 
+        // --- ALIS-parity batch B: customer KYC enrichment -----------------
+        // Ship 2026-07-07. Six nullable string columns covering ALIS's F2
+        // «Γενικά στοιχεία» view — the ones brokers actually fill in every
+        // day. All safe to leave null on legacy rows.
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "customers", column: "FatherName",
+            addSql: "ALTER TABLE `customers` ADD COLUMN `FatherName` varchar(120) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "customers", column: "MotherName",
+            addSql: "ALTER TABLE `customers` ADD COLUMN `MotherName` varchar(120) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "customers", column: "SpouseName",
+            addSql: "ALTER TABLE `customers` ADD COLUMN `SpouseName` varchar(160) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "customers", column: "Nationality",
+            addSql: "ALTER TABLE `customers` ADD COLUMN `Nationality` varchar(80) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "customers", column: "Zone",
+            addSql: "ALTER TABLE `customers` ADD COLUMN `Zone` varchar(80) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "customers", column: "ActivityCode",
+            addSql: "ALTER TABLE `customers` ADD COLUMN `ActivityCode` varchar(20) NULL", ct);
+
         // platform_settings: email-code login toggle
         await EnsureColumnAsync(db, logger, dbName,
             table: "platform_settings", column: "RequireEmailLoginCode",
