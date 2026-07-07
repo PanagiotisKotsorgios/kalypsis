@@ -22,8 +22,14 @@ public class PoliciesController : ControllerBase
         [FromQuery] PolicyType? type,
         [FromQuery] Guid? customerId,
         [FromQuery] Guid? insuranceCompanyId,
+        [FromQuery] string? plate,
+        [FromQuery] string? applicationNumber,
+        [FromQuery] decimal? premiumMin,
+        [FromQuery] decimal? premiumMax,
         CancellationToken cancellationToken)
-        => Ok(await _mediator.Send(new ListPoliciesQuery(search, status, type, customerId, insuranceCompanyId), cancellationToken));
+        => Ok(await _mediator.Send(new ListPoliciesQuery(
+            search, status, type, customerId, insuranceCompanyId,
+            plate, applicationNumber, premiumMin, premiumMax), cancellationToken));
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<PolicyDto>> Get(Guid id, CancellationToken cancellationToken)

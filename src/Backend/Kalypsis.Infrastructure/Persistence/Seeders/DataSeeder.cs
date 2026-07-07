@@ -465,6 +465,47 @@ public static class DataSeeder
             table: "policies", column: "PaymentCollectionMethod",
             addSql: "ALTER TABLE `policies` ADD COLUMN `PaymentCollectionMethod` varchar(64) NULL", ct);
 
+        // --- ALIS-parity batch A: policy schema enrichment ----------------
+        // Ship 2026-07-07. Four low-risk nullable columns that close big gaps
+        // for Greek brokerage:
+        //   • ApplicationNumber          — αρ. αίτησης, tracked before the
+        //     insurer issues the actual policy number.
+        //   • ContractPartyCustomerId    — συμβαλλόμενος ≠ ασφαλιζόμενος
+        //     (parent pays for child, company pays for employee, etc.).
+        //   • PreviousInsuranceCompanyId — από πού μεταφέρθηκε το συμβόλαιο
+        //     για churn / win-back analytics.
+        //   • IssuedAt                    — ημερομηνία έκδοσης από την
+        //     εταιρεία, distinct from row CreatedAt / policy StartDate.
+        //   • VehicleRegistrationPlate    — πινακίδα προωθημένη από SpecsJson
+        //     σε first-class στήλη ώστε το search να μπορεί να την ευρετηριάσει.
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "ApplicationNumber",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `ApplicationNumber` varchar(64) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "ContractPartyCustomerId",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `ContractPartyCustomerId` char(36) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "PreviousInsuranceCompanyId",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `PreviousInsuranceCompanyId` char(36) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "IssuedAt",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `IssuedAt` date NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "VehicleRegistrationPlate",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `VehicleRegistrationPlate` varchar(20) NULL", ct);
+        await EnsureIndexAsync(db, logger, dbName,
+            table: "policies", indexName: "IX_policies_VehicleRegistrationPlate",
+            addSql: "CREATE INDEX `IX_policies_VehicleRegistrationPlate` ON `policies` (`VehicleRegistrationPlate`)", ct);
+        await EnsureIndexAsync(db, logger, dbName,
+            table: "policies", indexName: "IX_policies_ApplicationNumber",
+            addSql: "CREATE INDEX `IX_policies_ApplicationNumber` ON `policies` (`ApplicationNumber`)", ct);
+        await EnsureIndexAsync(db, logger, dbName,
+            table: "policies", indexName: "IX_policies_ContractPartyCustomerId",
+            addSql: "CREATE INDEX `IX_policies_ContractPartyCustomerId` ON `policies` (`ContractPartyCustomerId`)", ct);
+        await EnsureIndexAsync(db, logger, dbName,
+            table: "policies", indexName: "IX_policies_PreviousInsuranceCompanyId",
+            addSql: "CREATE INDEX `IX_policies_PreviousInsuranceCompanyId` ON `policies` (`PreviousInsuranceCompanyId`)", ct);
+
         // platform_settings: email-code login toggle
         await EnsureColumnAsync(db, logger, dbName,
             table: "platform_settings", column: "RequireEmailLoginCode",

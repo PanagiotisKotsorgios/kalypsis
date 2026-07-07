@@ -132,6 +132,12 @@ export function PoliciesPage() {
   const [producerFilter, setProducerFilter] = useState<string>("");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
+  // ALIS-parity search filters — plate + application number + premium range
+  // are the three daily-driver lookups brokers do multiple times a day.
+  const [plateFilter, setPlateFilter] = useState<string>("");
+  const [appNumberFilter, setAppNumberFilter] = useState<string>("");
+  const [premiumMin, setPremiumMin] = useState<string>("");
+  const [premiumMax, setPremiumMax] = useState<string>("");
 
   // Carrier-driven Κλάδος options — empty when no carrier is selected.
   const filterCatalogue = useCarrierCatalogue(carrierFilter, subCarrierFilter);
@@ -152,12 +158,16 @@ export function PoliciesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const policiesQuery = useQuery({
-    queryKey: ["policies", search, statusFilter, typeFilter],
+    queryKey: ["policies", search, statusFilter, typeFilter, plateFilter, appNumberFilter, premiumMin, premiumMax],
     queryFn: async () => {
       const params: Record<string, string> = {};
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
       if (typeFilter) params.type = typeFilter;
+      if (plateFilter.trim()) params.plate = plateFilter.trim();
+      if (appNumberFilter.trim()) params.applicationNumber = appNumberFilter.trim();
+      if (premiumMin.trim()) params.premiumMin = premiumMin.trim();
+      if (premiumMax.trim()) params.premiumMax = premiumMax.trim();
       return (await api.get<PolicyDto[]>("/policies", { params })).data;
     }
   });
@@ -404,7 +414,37 @@ export function PoliciesPage() {
               <Button size="small" onClick={() => {
                 setCarrierFilter(""); setSubCarrierFilter([]); setProducerFilter("");
                 setFromDate(""); setToDate(""); setStatusFilter(""); setTypeFilter(""); setSearch("");
+                setPlateFilter(""); setAppNumberFilter(""); setPremiumMin(""); setPremiumMax("");
               }}>Καθαρισμός</Button>
+            </Stack>
+            {/* ALIS-parity row — plate / application number / premium range.
+                Kept as a separate Stack so it wraps cleanly on medium widths
+                without pushing the primary filters below the fold. */}
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
+              <FilterFieldWrap tip="Αναζήτηση με πινακίδα οχήματος. Ταιριάζει και μερική συμπλήρωση (π.χ. «ΥΗΜ» βρίσκει «ΥΗΜ-1234»).">
+                <TextField size="small" label="Αρ. κυκλοφορίας"
+                  value={plateFilter}
+                  onChange={(e) => setPlateFilter(e.target.value.toUpperCase())}
+                  sx={{ minWidth: 180, width: "100%" }} />
+              </FilterFieldWrap>
+              <FilterFieldWrap tip="Αναζήτηση με αριθμό αίτησης (τον προσωρινό αριθμό πριν εκδοθεί το οριστικό συμβόλαιο).">
+                <TextField size="small" label="Αρ. αίτησης"
+                  value={appNumberFilter}
+                  onChange={(e) => setAppNumberFilter(e.target.value)}
+                  sx={{ minWidth: 160, width: "100%" }} />
+              </FilterFieldWrap>
+              <FilterFieldWrap tip="Ελάχιστο μικτό ασφάλιστρο — εμφανίζει συμβόλαια από αυτό το ποσό και πάνω.">
+                <TextField size="small" type="number" label="Μικτά από"
+                  value={premiumMin}
+                  onChange={(e) => setPremiumMin(e.target.value)}
+                  sx={{ minWidth: 140, width: "100%" }} />
+              </FilterFieldWrap>
+              <FilterFieldWrap tip="Μέγιστο μικτό ασφάλιστρο — εμφανίζει συμβόλαια μέχρι αυτό το ποσό.">
+                <TextField size="small" type="number" label="Μικτά έως"
+                  value={premiumMax}
+                  onChange={(e) => setPremiumMax(e.target.value)}
+                  sx={{ minWidth: 140, width: "100%" }} />
+              </FilterFieldWrap>
             </Stack>
           </Stack>
         </Card>

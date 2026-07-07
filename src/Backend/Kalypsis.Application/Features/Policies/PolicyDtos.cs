@@ -17,7 +17,15 @@ public record PolicyDto(
     DateOnly EndDate,
     decimal Premium,
     string Currency,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    // ALIS-parity fields (nullable — safe to omit)
+    string? ApplicationNumber = null,
+    Guid? ContractPartyCustomerId = null,
+    string? ContractPartyDisplay = null,
+    Guid? PreviousInsuranceCompanyId = null,
+    string? PreviousInsuranceCompanyName = null,
+    DateOnly? IssuedAt = null,
+    string? VehicleRegistrationPlate = null);
 
 public record CreatePolicyBody(
     Guid CustomerId,
@@ -31,7 +39,13 @@ public record CreatePolicyBody(
     PolicyStatus Status = PolicyStatus.Active,
     VehicleUseCategory? VehicleUseCategory = null,
     string? CoverCode = null,
-    string? PackageCode = null);
+    string? PackageCode = null,
+    // ALIS-parity fields
+    string? ApplicationNumber = null,
+    Guid? ContractPartyCustomerId = null,
+    Guid? PreviousInsuranceCompanyId = null,
+    DateOnly? IssuedAt = null,
+    string? VehicleRegistrationPlate = null);
 
 public record UpdatePolicyBody(
     Guid InsuranceCompanyId,
@@ -44,7 +58,13 @@ public record UpdatePolicyBody(
     PolicyStatus Status,
     VehicleUseCategory? VehicleUseCategory = null,
     string? CoverCode = null,
-    string? PackageCode = null);
+    string? PackageCode = null,
+    // ALIS-parity fields
+    string? ApplicationNumber = null,
+    Guid? ContractPartyCustomerId = null,
+    Guid? PreviousInsuranceCompanyId = null,
+    DateOnly? IssuedAt = null,
+    string? VehicleRegistrationPlate = null);
 
 public record RenewPolicyBody(
     DateOnly StartDate,

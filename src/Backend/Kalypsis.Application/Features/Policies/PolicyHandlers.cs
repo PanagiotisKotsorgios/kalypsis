@@ -15,7 +15,12 @@ public record ListPoliciesQuery(
     PolicyStatus? Status,
     PolicyType? Type,
     Guid? CustomerId,
-    Guid? InsuranceCompanyId = null) : IRequest<IReadOnlyList<PolicyDto>>;
+    Guid? InsuranceCompanyId = null,
+    // ALIS-parity filters (all optional)
+    string? Plate = null,
+    string? ApplicationNumber = null,
+    decimal? PremiumMin = null,
+    decimal? PremiumMax = null) : IRequest<IReadOnlyList<PolicyDto>>;
 
 public class ListPoliciesQueryHandler : IRequestHandler<ListPoliciesQuery, IReadOnlyList<PolicyDto>>
 {
@@ -64,13 +69,35 @@ public class ListPoliciesQueryHandler : IRequestHandler<ListPoliciesQuery, IRead
         if (request.Type.HasValue) q = q.Where(p => p.PolicyType == request.Type.Value);
         if (request.InsuranceCompanyId.HasValue)
             q = q.Where(p => p.InsuranceCompanyId == request.InsuranceCompanyId.Value);
+        if (request.PremiumMin.HasValue) q = q.Where(p => p.Premium >= request.PremiumMin.Value);
+        if (request.PremiumMax.HasValue) q = q.Where(p => p.Premium <= request.PremiumMax.Value);
+        if (!string.IsNullOrWhiteSpace(request.Plate))
+        {
+            var plate = $"%{request.Plate.Trim()}%";
+            q = q.Where(p => p.VehicleRegistrationPlate != null
+                             && EF.Functions.Like(p.VehicleRegistrationPlate, plate));
+        }
+        if (!string.IsNullOrWhiteSpace(request.ApplicationNumber))
+        {
+            var app = $"%{request.ApplicationNumber.Trim()}%";
+            q = q.Where(p => p.ApplicationNumber != null
+                             && EF.Functions.Like(p.ApplicationNumber, app));
+        }
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var s = $"%{request.Search.Trim()}%";
-            q = q.Where(p => EF.Functions.Like(p.PolicyNumber, s));
+            // Free-text search now covers policy number + application number +
+            // plate so a single search box matches the daily-driver ergonomics
+            // brokers expect from ALIS.
+            q = q.Where(p => EF.Functions.Like(p.PolicyNumber, s)
+                          || (p.ApplicationNumber != null && EF.Functions.Like(p.ApplicationNumber, s))
+                          || (p.VehicleRegistrationPlate != null && EF.Functions.Like(p.VehicleRegistrationPlate, s)));
         }
 
-        var rows = await q.OrderByDescending(p => p.CreatedAt).Take(500).ToListAsync(ct);
+        var rows = await q
+            .Include(p => p.ContractPartyCustomer)
+            .Include(p => p.PreviousInsuranceCompany)
+            .OrderByDescending(p => p.CreatedAt).Take(500).ToListAsync(ct);
         return rows.Select(ToDto).ToList();
     }
 
@@ -81,6 +108,14 @@ public class ListPoliciesQueryHandler : IRequestHandler<ListPoliciesQuery, IRead
             : p.Customer.Type == CustomerType.Individual
                 ? $"{p.Customer.FirstName} {p.Customer.LastName}".Trim()
                 : p.Customer.CompanyName ?? "—";
+
+        string? contractPartyDisplay = null;
+        if (p.ContractPartyCustomer is not null)
+        {
+            contractPartyDisplay = p.ContractPartyCustomer.Type == CustomerType.Individual
+                ? $"{p.ContractPartyCustomer.FirstName} {p.ContractPartyCustomer.LastName}".Trim()
+                : p.ContractPartyCustomer.CompanyName ?? "—";
+        }
 
         return new PolicyDto(
             p.Id,
@@ -97,7 +132,14 @@ public class ListPoliciesQueryHandler : IRequestHandler<ListPoliciesQuery, IRead
             p.EndDate,
             p.Premium,
             p.Currency,
-            p.CreatedAt);
+            p.CreatedAt,
+            p.ApplicationNumber,
+            p.ContractPartyCustomerId,
+            contractPartyDisplay,
+            p.PreviousInsuranceCompanyId,
+            p.PreviousInsuranceCompany?.Name,
+            p.IssuedAt,
+            p.VehicleRegistrationPlate);
     }
 }
 
@@ -121,6 +163,7 @@ public class GetPolicyQueryHandler : IRequestHandler<GetPolicyQuery, PolicyDto>
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var p = await _db.Policies.IgnoreQueryFilters()
             .Include(x => x.Customer).Include(x => x.InsuranceCompany).Include(x => x.Producer)
+            .Include(x => x.ContractPartyCustomer).Include(x => x.PreviousInsuranceCompany)
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Συμβόλαιο");
 
@@ -207,7 +250,13 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
             Premium = r.Premium,
             Currency = string.IsNullOrWhiteSpace(r.Currency) ? "EUR" : r.Currency.Trim().ToUpperInvariant(),
             SpecsJson = PolicySpecsJsonHelper.MergeCodes(null, r.CoverCode, r.PackageCode),
-            CreatedByUserId = _current.UserId
+            CreatedByUserId = _current.UserId,
+            ApplicationNumber = string.IsNullOrWhiteSpace(r.ApplicationNumber) ? null : r.ApplicationNumber.Trim(),
+            ContractPartyCustomerId = r.ContractPartyCustomerId,
+            PreviousInsuranceCompanyId = r.PreviousInsuranceCompanyId,
+            IssuedAt = r.IssuedAt,
+            VehicleRegistrationPlate = string.IsNullOrWhiteSpace(r.VehicleRegistrationPlate)
+                ? null : r.VehicleRegistrationPlate.Trim().ToUpperInvariant()
         };
         _db.Policies.Add(p);
 
@@ -257,6 +306,7 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
         // Re-fetch with includes for display fields.
         var saved = await _db.Policies.IgnoreQueryFilters()
             .Include(x => x.Customer).Include(x => x.InsuranceCompany).Include(x => x.Producer)
+            .Include(x => x.ContractPartyCustomer).Include(x => x.PreviousInsuranceCompany)
             .FirstAsync(x => x.Id == p.Id, ct);
         return ListPoliciesQueryHandler.ToDto(saved);
     }
@@ -304,6 +354,12 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
         p.Currency = string.IsNullOrWhiteSpace(b.Currency) ? "EUR" : b.Currency.Trim().ToUpperInvariant();
         p.Status = b.Status;
         p.SpecsJson = PolicySpecsJsonHelper.MergeCodes(p.SpecsJson, b.CoverCode, b.PackageCode);
+        p.ApplicationNumber = string.IsNullOrWhiteSpace(b.ApplicationNumber) ? null : b.ApplicationNumber.Trim();
+        p.ContractPartyCustomerId = b.ContractPartyCustomerId;
+        p.PreviousInsuranceCompanyId = b.PreviousInsuranceCompanyId;
+        p.IssuedAt = b.IssuedAt;
+        p.VehicleRegistrationPlate = string.IsNullOrWhiteSpace(b.VehicleRegistrationPlate)
+            ? null : b.VehicleRegistrationPlate.Trim().ToUpperInvariant();
 
         // Cover-driven premium sync — if the policy has PolicyCover rows on
         // file, its Premium column becomes read-only and always equals the
@@ -317,6 +373,7 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
 
         var saved = await _db.Policies.IgnoreQueryFilters()
             .Include(x => x.Customer).Include(x => x.InsuranceCompany).Include(x => x.Producer)
+            .Include(x => x.ContractPartyCustomer).Include(x => x.PreviousInsuranceCompany)
             .FirstAsync(x => x.Id == p.Id, ct);
         return ListPoliciesQueryHandler.ToDto(saved);
     }
@@ -349,6 +406,7 @@ public class CancelPolicyCommandHandler : IRequestHandler<CancelPolicyCommand, P
 
         var saved = await _db.Policies.IgnoreQueryFilters()
             .Include(x => x.Customer).Include(x => x.InsuranceCompany).Include(x => x.Producer)
+            .Include(x => x.ContractPartyCustomer).Include(x => x.PreviousInsuranceCompany)
             .FirstAsync(x => x.Id == p.Id, ct);
         return ListPoliciesQueryHandler.ToDto(saved);
     }

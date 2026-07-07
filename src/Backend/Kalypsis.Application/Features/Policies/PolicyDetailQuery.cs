@@ -75,7 +75,16 @@ public record PolicyDetailDto(
     // CoversGrossTotal is provided pre-summed so the frontend can
     // display it prominently as "Σύνολο από καλύψεις".
     IReadOnlyList<PolicyCoverDto> Covers,
-    decimal CoversGrossTotal);
+    decimal CoversGrossTotal,
+
+    // ALIS-parity fields — nullable, safe to omit for legacy rows.
+    string? ApplicationNumber = null,
+    Guid? ContractPartyCustomerId = null,
+    string? ContractPartyDisplay = null,
+    Guid? PreviousInsuranceCompanyId = null,
+    string? PreviousInsuranceCompanyName = null,
+    DateOnly? IssuedAt = null,
+    string? VehicleRegistrationPlate = null);
 
 public record GetPolicyDetailQuery(Guid Id) : IRequest<PolicyDetailDto>;
 
@@ -98,6 +107,8 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             .Include(x => x.InsuranceCompany)
             .Include(x => x.Producer)
             .Include(x => x.CreatedByUser)
+            .Include(x => x.ContractPartyCustomer)
+            .Include(x => x.PreviousInsuranceCompany)
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Συμβόλαιο");
 
@@ -167,6 +178,13 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
         var customerDisplay = p.Customer.Type == CustomerType.Individual
             ? $"{p.Customer.FirstName} {p.Customer.LastName}".Trim()
             : p.Customer.CompanyName ?? "—";
+        string? contractPartyDisplay = null;
+        if (p.ContractPartyCustomer is not null)
+        {
+            contractPartyDisplay = p.ContractPartyCustomer.Type == CustomerType.Individual
+                ? $"{p.ContractPartyCustomer.FirstName} {p.ContractPartyCustomer.LastName}".Trim()
+                : p.ContractPartyCustomer.CompanyName ?? "—";
+        }
         var createdByName = p.CreatedByUser is null ? null : $"{p.CreatedByUser.FirstName} {p.CreatedByUser.LastName}".Trim();
 
         return new PolicyDetailDto(
@@ -191,7 +209,12 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             documentCount, receiptCount,
             totalReceived, p.Premium - totalReceived,
             totalCommissions,
-            covers, coversGrossTotal);
+            covers, coversGrossTotal,
+            p.ApplicationNumber,
+            p.ContractPartyCustomerId, contractPartyDisplay,
+            p.PreviousInsuranceCompanyId, p.PreviousInsuranceCompany?.Name,
+            p.IssuedAt,
+            p.VehicleRegistrationPlate);
     }
 }
 
@@ -212,7 +235,15 @@ public record UpdatePolicyExtendedBody(
     decimal? VatAmount = null,
     decimal? StampDutyAmount = null,
     decimal? InsuranceContributionAmount = null,
-    decimal? OtherChargesAmount = null);
+    decimal? OtherChargesAmount = null,
+    // ALIS-parity fields — all optional. Null clears; missing = unchanged
+    // isn't distinguishable from null on a record, but the drawer always
+    // sends the full body, so the round-trip preserves what the user typed.
+    string? ApplicationNumber = null,
+    Guid? ContractPartyCustomerId = null,
+    Guid? PreviousInsuranceCompanyId = null,
+    DateOnly? IssuedAt = null,
+    string? VehicleRegistrationPlate = null);
 
 public record UpdatePolicyExtendedCommand(Guid Id, UpdatePolicyExtendedBody Body) : IRequest<PolicyDetailDto>;
 
@@ -255,6 +286,12 @@ public class UpdatePolicyExtendedHandler : IRequestHandler<UpdatePolicyExtendedC
         p.StampDutyAmount = b.StampDutyAmount;
         p.InsuranceContributionAmount = b.InsuranceContributionAmount;
         p.OtherChargesAmount = b.OtherChargesAmount;
+        p.ApplicationNumber = string.IsNullOrWhiteSpace(b.ApplicationNumber) ? null : b.ApplicationNumber.Trim();
+        p.ContractPartyCustomerId = b.ContractPartyCustomerId;
+        p.PreviousInsuranceCompanyId = b.PreviousInsuranceCompanyId;
+        p.IssuedAt = b.IssuedAt;
+        p.VehicleRegistrationPlate = string.IsNullOrWhiteSpace(b.VehicleRegistrationPlate)
+            ? null : b.VehicleRegistrationPlate.Trim().ToUpperInvariant();
 
         await _db.SaveChangesAsync(ct);
         return await _mediator.Send(new GetPolicyDetailQuery(p.Id), ct);

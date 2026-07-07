@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { EntityAuditTimeline } from "./EntityAuditTimeline";
 import { PropagateChangesDialog, type PropagatableChanges } from "./PropagateChangesDialog";
+import { SearchableSelect } from "./SearchableSelect";
 
 // Mirrors PolicyDetailDto from the backend (see PolicyDetailQuery.cs).
 export interface PolicyDetail {
@@ -43,6 +44,14 @@ export interface PolicyDetail {
   stampDutyAmount: number | null;
   insuranceContributionAmount: number | null;
   otherChargesAmount: number | null;
+  // ALIS-parity fields
+  applicationNumber: string | null;
+  contractPartyCustomerId: string | null;
+  contractPartyDisplay: string | null;
+  previousInsuranceCompanyId: string | null;
+  previousInsuranceCompanyName: string | null;
+  issuedAt: string | null;
+  vehicleRegistrationPlate: string | null;
 }
 
 export interface PolicyCoverRow {
@@ -109,7 +118,13 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
     deliveredAt: "",
     deliveredTo: "",
     deliveryMethod: "",
-    paymentCollectionMethod: ""
+    paymentCollectionMethod: "",
+    // ALIS-parity fields
+    applicationNumber: "",
+    contractPartyCustomerId: "",
+    previousInsuranceCompanyId: "",
+    issuedAt: "",
+    vehicleRegistrationPlate: ""
   });
   useEffect(() => {
     if (q.data) {
@@ -128,10 +143,28 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
         deliveredAt: q.data.deliveredAt ?? "",
         deliveredTo: q.data.deliveredTo ?? "",
         deliveryMethod: q.data.deliveryMethod ?? "",
-        paymentCollectionMethod: q.data.paymentCollectionMethod ?? ""
+        paymentCollectionMethod: q.data.paymentCollectionMethod ?? "",
+        applicationNumber: q.data.applicationNumber ?? "",
+        contractPartyCustomerId: q.data.contractPartyCustomerId ?? "",
+        previousInsuranceCompanyId: q.data.previousInsuranceCompanyId ?? "",
+        issuedAt: q.data.issuedAt ?? "",
+        vehicleRegistrationPlate: q.data.vehicleRegistrationPlate ?? ""
       });
     }
   }, [q.data]);
+
+  // Lookups for the SUMMARY tab's ALIS-parity fields — loaded once when the
+  // drawer opens, cached across every policy the user opens in this session.
+  const customersLookup = useQuery({
+    queryKey: ["customers-lookup"],
+    enabled: open,
+    queryFn: async () => (await api.get<Array<{ id: string; firstName?: string; lastName?: string; companyName?: string; vatNumber?: string }>>("/customers")).data
+  });
+  const carriersLookup = useQuery({
+    queryKey: ["carriers-lookup"],
+    enabled: open,
+    queryFn: async () => (await api.get<Array<{ id: string; name: string; code?: string }>>("/insurance-companies")).data
+  });
 
   // Tab-specific data sources (loaded only when the tab is opened).
   const endorsements = useQuery({
@@ -178,7 +211,12 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
         deliveredAt: form.deliveredAt || null,
         deliveredTo: form.deliveredTo || null,
         deliveryMethod: form.deliveryMethod || null,
-        paymentCollectionMethod: form.paymentCollectionMethod || null
+        paymentCollectionMethod: form.paymentCollectionMethod || null,
+        applicationNumber: form.applicationNumber.trim() || null,
+        contractPartyCustomerId: form.contractPartyCustomerId || null,
+        previousInsuranceCompanyId: form.previousInsuranceCompanyId || null,
+        issuedAt: form.issuedAt || null,
+        vehicleRegistrationPlate: form.vehicleRegistrationPlate.trim() || null
       })).data;
       // Diff the fields that map to propagatable ones.
       const diff: PropagatableChanges = {};
@@ -302,6 +340,45 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                   {p.renewedFromPolicyNumber && (
                     <KV label={t("policyDetail.renewedFrom")} value={p.renewedFromPolicyNumber} mono />
                   )}
+
+                  <Divider />
+                  <Typography variant="overline" color="text.secondary" fontWeight={700}>
+                    Πρόσθετα στοιχεία
+                  </Typography>
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                    <TextField fullWidth label="Αρ. αίτησης"
+                      value={form.applicationNumber}
+                      onChange={e => setForm({ ...form, applicationNumber: e.target.value })}
+                      helperText="Ο αριθμός αίτησης που εκδίδει η εταιρεία πριν το οριστικό policy number." />
+                    <TextField fullWidth type="date" label="Ημ. έκδοσης" InputLabelProps={{ shrink: true }}
+                      value={form.issuedAt}
+                      onChange={e => setForm({ ...form, issuedAt: e.target.value })}
+                      helperText="Πότε εκδόθηκε το συμβόλαιο από την εταιρεία." />
+                  </Stack>
+                  <TextField fullWidth label="Αρ. κυκλοφορίας"
+                    value={form.vehicleRegistrationPlate}
+                    onChange={e => setForm({ ...form, vehicleRegistrationPlate: e.target.value.toUpperCase() })}
+                    helperText="Πινακίδα οχήματος (μόνο για κλάδο αυτοκινήτου)." />
+                  <SearchableSelect
+                    label="Συμβαλλόμενος (αν διαφέρει από τον ασφαλιζόμενο)"
+                    value={form.contractPartyCustomerId}
+                    onChange={(v) => setForm({ ...form, contractPartyCustomerId: v })}
+                    emptyLabel="— Ίδιος με τον ασφαλιζόμενο —"
+                    options={(customersLookup.data ?? []).map(c => ({
+                      value: c.id,
+                      label: c.companyName || `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() || "—",
+                      hint: c.vatNumber ?? undefined
+                    }))}
+                    helperText="Το πρόσωπο που υπογράφει τη σύμβαση και έχει την υποχρέωση καταβολής." />
+                  <SearchableSelect
+                    label="Προηγούμενη ασφαλιστική εταιρεία"
+                    value={form.previousInsuranceCompanyId}
+                    onChange={(v) => setForm({ ...form, previousInsuranceCompanyId: v })}
+                    emptyLabel="— Δεν αναφέρεται —"
+                    options={(carriersLookup.data ?? []).map(c => ({
+                      value: c.id, label: c.name, hint: c.code
+                    }))}
+                    helperText="Από πού μεταφέρθηκε το συμβόλαιο. Χρησιμοποιείται για churn / win-back analytics." />
                 </Stack>
               )}
 
@@ -456,8 +533,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
           )}
         </Box>
 
-        {/* Sticky footer with save (only on editable tabs) */}
-        {(tab >= 1 && tab <= 4) && (
+        {/* Sticky footer with save (Summary now editable via ALIS-parity fields). */}
+        {(tab >= 0 && tab <= 4) && (
           <Box sx={{ p: 2, borderTop: "1px solid", borderColor: "divider" }}>
             <Stack direction="row" spacing={1} justifyContent="flex-end">
               <Button onClick={onClose}>{t("common.cancel")}</Button>

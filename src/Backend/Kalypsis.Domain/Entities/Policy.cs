@@ -7,11 +7,36 @@ public class Policy : TenantEntity
 {
     public string PolicyNumber { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Ο αριθμός αίτησης (application number) που εκδίδει η ασφαλιστική
+    /// πριν το συμβόλαιο πάρει οριστικό policy number. Παραμένει null όταν
+    /// η αίτηση εκδόθηκε ταυτόχρονα με το συμβόλαιο.
+    /// </summary>
+    public string? ApplicationNumber { get; set; }
+
     public Guid CustomerId { get; set; }
+    /// <summary>Ασφαλιζόμενος — το πρόσωπο για το οποίο ισχύει η κάλυψη.</summary>
     public Customer Customer { get; set; } = null!;
+
+    /// <summary>
+    /// Συμβαλλόμενος — το πρόσωπο που υπογράφει τη σύμβαση και έχει την
+    /// υποχρέωση καταβολής των ασφαλίστρων. Συχνά συμπίπτει με τον
+    /// ασφαλιζόμενο (γι' αυτό nullable), αλλά διαφέρει π.χ. όταν ο γονέας
+    /// συμβάλλεται για ανήλικο τέκνο ή εταιρεία για εργαζόμενο.
+    /// </summary>
+    public Guid? ContractPartyCustomerId { get; set; }
+    public Customer? ContractPartyCustomer { get; set; }
 
     public Guid InsuranceCompanyId { get; set; }
     public InsuranceCompany InsuranceCompany { get; set; } = null!;
+
+    /// <summary>
+    /// Προηγούμενη ασφαλιστική εταιρεία — από πού μεταφέρθηκε το συμβόλαιο
+    /// (π.χ. renewal-with-carrier-switch, ή win-back). Χρησιμοποιείται
+    /// για churn analytics.
+    /// </summary>
+    public Guid? PreviousInsuranceCompanyId { get; set; }
+    public InsuranceCompany? PreviousInsuranceCompany { get; set; }
 
     public Guid? ProducerId { get; set; }
     public Producer? Producer { get; set; }
@@ -24,6 +49,23 @@ public class Policy : TenantEntity
 
     public DateOnly StartDate { get; set; }
     public DateOnly EndDate { get; set; }
+
+    /// <summary>
+    /// Ημερομηνία έκδοσης του συμβολαίου από την ασφαλιστική εταιρεία
+    /// (distinct from <see cref="CreatedAt"/>, which is the DB row timestamp,
+    /// and <see cref="StartDate"/>, which is when the cover begins). Enables
+    /// the operator to record «η εταιρεία εξέδωσε το συμβόλαιο στις X» even
+    /// αν το καταχώρησαν στο σύστημα μια εβδομάδα αργότερα.
+    /// </summary>
+    public DateOnly? IssuedAt { get; set; }
+
+    /// <summary>
+    /// Αριθμός κυκλοφορίας οχήματος (για κλάδο αυτοκινήτου). Το ίδιο πεδίο
+    /// διατηρείται και στο SpecsJson για ιστορικούς λόγους, αλλά προωθείται
+    /// σε κανονική στήλη ώστε να μπορεί να ευρετηριαστεί και να αναζητηθεί
+    /// άμεσα (search-by-plate ήταν το Νο 1 daily-driver missing filter).
+    /// </summary>
+    public string? VehicleRegistrationPlate { get; set; }
 
     public decimal Premium { get; set; }
     public string Currency { get; set; } = "EUR";
