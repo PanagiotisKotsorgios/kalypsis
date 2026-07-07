@@ -57,6 +57,13 @@ public class CommissionRule : TenantEntity
     /// </summary>
     public string? LevelPercentsJson { get; set; }
 
+    /// <summary>
+    /// Override the tenant-level <c>DefaultTaxWithholdingPercent</c> for this
+    /// specific rule scope. Useful when a specific carrier or branch has
+    /// a different παρακράτηση φόρου rate. Null = use tenant default.
+    /// </summary>
+    public decimal? TaxWithholdingPercent { get; set; }
+
     public DateOnly EffectiveFrom { get; set; }
     public DateOnly? EffectiveTo { get; set; }
 

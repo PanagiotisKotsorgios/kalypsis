@@ -39,6 +39,11 @@ interface CommissionRuleDto {
   producerPercent: number | null;
   legacyValue: number | null;
   effectiveFrom: string; effectiveTo: string | null;
+  // ALIS-parity multi-level fields
+  managerPercent: number | null;
+  unitPercent: number | null;
+  assistantPercent: number | null;
+  taxWithholdingPercent: number | null;
 }
 
 const USE_LABEL: Record<VehicleUse, string> = {
@@ -459,6 +464,12 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
     producerTier: "None" as ProducerTier,
     agencyPercent: 0,
     producerPercent: 15,
+    // ALIS-parity multi-level extensions — kept as "" so a blank input
+    // deserialises to null instead of accidentally overwriting Manager=0.
+    managerPercent: "" as number | "",
+    unitPercent: "" as number | "",
+    assistantPercent: "" as number | "",
+    taxWithholdingPercent: "" as number | "",
     effectiveFrom: today,
     effectiveTo: ""
   });
@@ -595,6 +606,10 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         producerTier: rule.producerTier ?? "None",
         agencyPercent: rule.agencyPercent ?? 0,
         producerPercent: rule.producerPercent ?? rule.legacyValue ?? 15,
+        managerPercent:   rule.managerPercent   ?? "",
+        unitPercent:      rule.unitPercent      ?? "",
+        assistantPercent: rule.assistantPercent ?? "",
+        taxWithholdingPercent: rule.taxWithholdingPercent ?? "",
         effectiveFrom: rule.effectiveFrom,
         effectiveTo: rule.effectiveTo ?? ""
       });
@@ -610,6 +625,10 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         producerTier: "None",
         agencyPercent: 0,
         producerPercent: 15,
+        managerPercent: "",
+        unitPercent: "",
+        assistantPercent: "",
+        taxWithholdingPercent: "",
         effectiveFrom: today,
         effectiveTo: ""
       });
@@ -642,6 +661,9 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
 
   const save = useMutation({
     mutationFn: async () => {
+      // Convert form's blank-or-number levels to nullable numbers.
+      const nn = (v: number | "") => (v === "" || v === null || Number.isNaN(Number(v))) ? null : Number(v);
+
       const singleBody = {
         producerId: form.scope === "producer" ? (form.producerId || null) : null,
         producerTier: form.scope === "tier" && form.producerTier !== "None" ? form.producerTier : null,
@@ -651,6 +673,10 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         coverCode: form.coverCodes[0] || null,
         agencyPercent: Number.isFinite(form.agencyPercent) ? Number(form.agencyPercent) : null,
         producerPercent: Number.isFinite(form.producerPercent) ? Number(form.producerPercent) : null,
+        managerPercent:   nn(form.managerPercent),
+        unitPercent:      nn(form.unitPercent),
+        assistantPercent: nn(form.assistantPercent),
+        taxWithholdingPercent: nn(form.taxWithholdingPercent),
         effectiveFrom: form.effectiveFrom,
         effectiveTo: form.effectiveTo || null
       };
@@ -668,6 +694,10 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         coverCodes: form.coverCodes,
         agencyPercent: singleBody.agencyPercent,
         producerPercent: singleBody.producerPercent,
+        managerPercent:   singleBody.managerPercent,
+        unitPercent:      singleBody.unitPercent,
+        assistantPercent: singleBody.assistantPercent,
+        taxWithholdingPercent: singleBody.taxWithholdingPercent,
         effectiveFrom: form.effectiveFrom,
         effectiveTo: form.effectiveTo || null,
         replaceExisting: true
@@ -879,6 +909,37 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
               inputProps={{ step: 0.1, min: 0, max: 100 }} fullWidth required
               helperText="Χρησιμοποιείται αυτόματα σε παραγωγή και εκκαθαρίσεις." />
           </Stack>
+
+          {/* ALIS-parity multi-level percents. Optional — leave blank to keep
+              the two-level model (Παραγωγός + Έδρα). When any of these is
+              filled the drawer's «Προμήθειες» matrix shows the full chain. */}
+          <Card variant="outlined" sx={{ p: 2, bgcolor: "rgba(31,123,179,0.04)" }}>
+            <Typography fontWeight={700} sx={{ mb: 0.5 }}>Ενδιάμεσα επίπεδα ιεραρχίας (προαιρετικά)</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Συμπληρώστε ποσοστά μόνο για τα επίπεδα που πληρώνονται σε αυτό το scope. Οι Παραγωγοί
+              πρέπει να έχουν αντιστοιχηθεί σε ιεραρχία (Παραγωγός → Manager → Unit → Assistant → Γραφείο)
+              για να εντοπίσει ο υπολογιστής τους δικαιούχους σε κάθε επίπεδο.
+            </Typography>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+              <TextField type="number" label="Manager %" value={form.managerPercent}
+                onChange={e => setForm({ ...form, managerPercent: e.target.value === "" ? "" : Number(e.target.value) })}
+                inputProps={{ step: 0.1, min: 0, max: 100 }} fullWidth
+                helperText="% στον προϊστάμενο του παραγωγού." />
+              <TextField type="number" label="Unit %" value={form.unitPercent}
+                onChange={e => setForm({ ...form, unitPercent: e.target.value === "" ? "" : Number(e.target.value) })}
+                inputProps={{ step: 0.1, min: 0, max: 100 }} fullWidth
+                helperText="% στον Unit lead." />
+              <TextField type="number" label="Assistant %" value={form.assistantPercent}
+                onChange={e => setForm({ ...form, assistantPercent: e.target.value === "" ? "" : Number(e.target.value) })}
+                inputProps={{ step: 0.1, min: 0, max: 100 }} fullWidth
+                helperText="% στον assistant (αν προβλέπεται)." />
+            </Stack>
+            <TextField type="number" label="Παρακράτηση φόρου % (προαιρετικό)"
+              value={form.taxWithholdingPercent}
+              onChange={e => setForm({ ...form, taxWithholdingPercent: e.target.value === "" ? "" : Number(e.target.value) })}
+              inputProps={{ step: 0.1, min: 0, max: 100 }} fullWidth sx={{ mt: 2 }}
+              helperText="Αν κενό, ισχύει η προεπιλογή του γραφείου (τυπικά 20%)." />
+          </Card>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField type="date" label="Ισχύει από" InputLabelProps={{ shrink: true }} value={form.effectiveFrom}

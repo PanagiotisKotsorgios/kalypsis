@@ -10,10 +10,20 @@ namespace Kalypsis.Application.Features.Producers;
 
 public record ProducerDto(
     Guid Id, string Code, string Name, string? Email, string? Phone,
-    ProducerStatus Status, ProducerTier Tier, int PolicyCount, DateTime CreatedAt);
+    ProducerStatus Status, ProducerTier Tier, int PolicyCount, DateTime CreatedAt,
+    // ALIS-parity hierarchy fields
+    HierarchyLevel HierarchyLevel = HierarchyLevel.Producer,
+    Guid? ParentProducerId = null,
+    string? ParentProducerName = null);
 
-public record CreateProducerBody(string Code, string Name, string? Email, string? Phone, ProducerStatus Status, ProducerTier Tier = ProducerTier.None);
-public record UpdateProducerBody(string Code, string Name, string? Email, string? Phone, ProducerStatus Status, ProducerTier Tier = ProducerTier.None);
+public record CreateProducerBody(string Code, string Name, string? Email, string? Phone, ProducerStatus Status,
+    ProducerTier Tier = ProducerTier.None,
+    HierarchyLevel HierarchyLevel = HierarchyLevel.Producer,
+    Guid? ParentProducerId = null);
+public record UpdateProducerBody(string Code, string Name, string? Email, string? Phone, ProducerStatus Status,
+    ProducerTier Tier = ProducerTier.None,
+    HierarchyLevel HierarchyLevel = HierarchyLevel.Producer,
+    Guid? ParentProducerId = null);
 
 /* ========= List ========= */
 
@@ -29,12 +39,16 @@ public class ListProducersQueryHandler : IRequestHandler<ListProducersQuery, IRe
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var rows = await _db.Producers.IgnoreQueryFilters()
+            .Include(p => p.ParentProducer)
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null)
             .OrderBy(p => p.Name)
             .Select(p => new ProducerDto(
                 p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, p.Tier,
                 _db.Policies.IgnoreQueryFilters().Count(x => x.ProducerId == p.Id && x.DeletedAt == null),
-                p.CreatedAt))
+                p.CreatedAt,
+                p.HierarchyLevel,
+                p.ParentProducerId,
+                p.ParentProducer != null ? p.ParentProducer.Name : null))
             .ToListAsync(ct);
         return rows;
     }
@@ -77,7 +91,9 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
             Id = Guid.NewGuid(), TenantId = tenantId,
             Code = code, Name = b.Name.Trim(),
             Email = b.Email?.Trim().ToLowerInvariant(), Phone = b.Phone?.Trim(),
-            Status = b.Status, Tier = b.Tier
+            Status = b.Status, Tier = b.Tier,
+            HierarchyLevel = b.HierarchyLevel,
+            ParentProducerId = b.ParentProducerId
         };
         _db.Producers.Add(p);
 
@@ -120,7 +136,15 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
         }
 
         await _db.SaveChangesAsync(ct);
-        return new ProducerDto(p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, p.Tier, 0, p.CreatedAt);
+        string? parentName = null;
+        if (p.ParentProducerId.HasValue)
+        {
+            parentName = await _db.Producers.IgnoreQueryFilters()
+                .Where(x => x.Id == p.ParentProducerId.Value)
+                .Select(x => x.Name).FirstOrDefaultAsync(ct);
+        }
+        return new ProducerDto(p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, p.Tier, 0, p.CreatedAt,
+            p.HierarchyLevel, p.ParentProducerId, parentName);
     }
 }
 
@@ -150,6 +174,14 @@ public class UpdateProducerCommandHandler : IRequestHandler<UpdateProducerComman
         p.Phone = b.Phone?.Trim();
         p.Status = b.Status;
         p.Tier   = b.Tier;
+        // Guard against self-parenting and trivial 2-node cycles. Deeper
+        // cycles are caught by the calculator's depth-8 loop breaker; here
+        // we just reject the obvious misuse so the UI's error is clear.
+        if (b.ParentProducerId.HasValue && b.ParentProducerId.Value == p.Id)
+            throw new AppException("producer_self_parent",
+                "Ένας συνεργάτης δεν μπορεί να είναι προϊστάμενος του εαυτού του.", 400);
+        p.HierarchyLevel = b.HierarchyLevel;
+        p.ParentProducerId = b.ParentProducerId;
 
         // Re-run the email-based user linking every time the email changes.
         // Existing User with that email → set User.ProducerId = p.Id. No
@@ -193,7 +225,15 @@ public class UpdateProducerCommandHandler : IRequestHandler<UpdateProducerComman
 
         var count = await _db.Policies.IgnoreQueryFilters()
             .CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct);
-        return new ProducerDto(p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, p.Tier, count, p.CreatedAt);
+        string? parentName = null;
+        if (p.ParentProducerId.HasValue)
+        {
+            parentName = await _db.Producers.IgnoreQueryFilters()
+                .Where(x => x.Id == p.ParentProducerId.Value)
+                .Select(x => x.Name).FirstOrDefaultAsync(ct);
+        }
+        return new ProducerDto(p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, p.Tier, count, p.CreatedAt,
+            p.HierarchyLevel, p.ParentProducerId, parentName);
     }
 }
 

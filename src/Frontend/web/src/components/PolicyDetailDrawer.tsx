@@ -52,6 +52,9 @@ export interface PolicyDetail {
   previousInsuranceCompanyName: string | null;
   issuedAt: string | null;
   vehicleRegistrationPlate: string | null;
+  // Motor-only extras
+  driverVatNumber: string | null;
+  reasonForCirculation: string | null;
 }
 
 export interface PolicyCoverRow {
@@ -124,7 +127,9 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
     contractPartyCustomerId: "",
     previousInsuranceCompanyId: "",
     issuedAt: "",
-    vehicleRegistrationPlate: ""
+    vehicleRegistrationPlate: "",
+    driverVatNumber: "",
+    reasonForCirculation: ""
   });
   useEffect(() => {
     if (q.data) {
@@ -148,7 +153,9 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
         contractPartyCustomerId: q.data.contractPartyCustomerId ?? "",
         previousInsuranceCompanyId: q.data.previousInsuranceCompanyId ?? "",
         issuedAt: q.data.issuedAt ?? "",
-        vehicleRegistrationPlate: q.data.vehicleRegistrationPlate ?? ""
+        vehicleRegistrationPlate: q.data.vehicleRegistrationPlate ?? "",
+        driverVatNumber: q.data.driverVatNumber ?? "",
+        reasonForCirculation: q.data.reasonForCirculation ?? ""
       });
     }
   }, [q.data]);
@@ -226,7 +233,9 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
         contractPartyCustomerId: form.contractPartyCustomerId || null,
         previousInsuranceCompanyId: form.previousInsuranceCompanyId || null,
         issuedAt: form.issuedAt || null,
-        vehicleRegistrationPlate: form.vehicleRegistrationPlate.trim() || null
+        vehicleRegistrationPlate: form.vehicleRegistrationPlate.trim() || null,
+        driverVatNumber: form.driverVatNumber.trim() || null,
+        reasonForCirculation: form.reasonForCirculation.trim() || null
       })).data;
       // Diff the fields that map to propagatable ones.
       const diff: PropagatableChanges = {};
@@ -254,6 +263,37 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
     },
     onError: (e) => setErr(extractErrorMessage(e))
   });
+
+  // ALIS-parity function-key shortcuts. F2 = Summary, F5 = Renewal,
+  // F6 = Financials, F8 = Delivery, F9 = Commissions matrix, F12 = History.
+  // Ignore while the operator is typing in an editable element so keyboard
+  // shortcuts never eat form input.
+  useEffect(() => {
+    if (!open) return;
+    const isEditable = (el: EventTarget | null) => {
+      if (!(el instanceof HTMLElement)) return false;
+      const tag = el.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+      return el.isContentEditable;
+    };
+    const map: Record<string, number> = {
+      F2: 0,   // Summary («Γενικά»)
+      F6: 1,   // Financials («Οικονομικά»)
+      F5: 3,   // Renewal («Αίτηση ανανέωσης»)
+      F8: 4,   // Delivery («Παράδοση»)
+      F9: 14,  // Commissions matrix («Προμήθειες»)
+      F12: 12, // History («Ιστορικό»)
+    };
+    const onKey = (e: KeyboardEvent) => {
+      const target = map[e.key];
+      if (target === undefined) return;
+      if (isEditable(e.target)) return;
+      e.preventDefault();
+      setTab(target);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   const p = q.data;
 
@@ -371,6 +411,17 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                     value={form.vehicleRegistrationPlate}
                     onChange={e => setForm({ ...form, vehicleRegistrationPlate: e.target.value.toUpperCase() })}
                     helperText="Πινακίδα οχήματος (μόνο για κλάδο αυτοκινήτου)." />
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                    <TextField fullWidth label="ΑΦΜ οδηγού"
+                      value={form.driverVatNumber}
+                      onChange={e => setForm({ ...form, driverVatNumber: e.target.value })}
+                      helperText="Όταν ο οδηγός διαφέρει από τον ασφαλιζόμενο (π.χ. παιδί οδηγεί όχημα γονέα)." />
+                    <TextField fullWidth label="Λόγος κυκλοφορίας"
+                      value={form.reasonForCirculation}
+                      onChange={e => setForm({ ...form, reasonForCirculation: e.target.value })}
+                      placeholder="π.χ. Ιδιωτική, Επαγγελματική, Ταξί, Ασθενοφόρο"
+                      helperText="Distinct από τη χρήση οχήματος (ΕΙΧ/ΦΔΧ) — αφορά τον σκοπό χρήσης." />
+                  </Stack>
                   <SearchableSelect
                     label="Συμβαλλόμενος (αν διαφέρει από τον ασφαλιζόμενο)"
                     value={form.contractPartyCustomerId}

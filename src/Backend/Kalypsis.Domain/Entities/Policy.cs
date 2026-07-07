@@ -67,6 +67,22 @@ public class Policy : TenantEntity
     /// </summary>
     public string? VehicleRegistrationPlate { get; set; }
 
+    /// <summary>
+    /// ΑΦΜ του κύριου οδηγού του οχήματος. Διαφέρει από τον <c>CustomerId</c>
+    /// (ασφαλιζόμενο) όταν οδηγεί άλλο μέλος της οικογένειας — π.χ. γονέας
+    /// συμβάλλεται, παιδί οδηγεί. Πεδίο πρώτης γραμμής ώστε να φιλτράρεται
+    /// άμεσα (search-by-driver-ΑΦΜ) και να εμφανίζεται σε reports χωρίς JSON.
+    /// </summary>
+    public string? DriverVatNumber { get; set; }
+
+    /// <summary>
+    /// Λόγος κυκλοφορίας (Ιδιωτική, Επαγγελματική, Ταξί, Ασθενοφόρο κ.λπ.) —
+    /// distinct from <see cref="VehicleUseCategory"/>, which describes the
+    /// vehicle class (ΕΙΧ/ΦΔΧ/…). Το reason για κάθε τιμολογιακό tier ζητά
+    /// να το βλέπει ξεχωριστά η ασφαλιστική.
+    /// </summary>
+    public string? ReasonForCirculation { get; set; }
+
     public decimal Premium { get; set; }
     public string Currency { get; set; } = "EUR";
 

@@ -63,13 +63,16 @@ public class PolicyCommissionCalculator
         var percents = ResolvePercents(rule);
         if (percents.Count == 0) return;
 
-        // Tenant default withholding rate. If Tenants table is missing the
-        // column on a partial deploy we fall back to 20% — matches the seeded
-        // default and avoids a 500 during boot.
-        var withholdPct = await _db.Tenants
+        // Withholding rate: per-rule override → tenant default → 20% floor.
+        // If Tenants table is missing the column on a partial deploy we fall
+        // back to 20% — matches the seeded default and avoids a 500 during boot.
+        var tenantWithholdPct = await _db.Tenants
             .Where(t => t.Id == tenantId)
             .Select(t => (decimal?)t.DefaultTaxWithholdingPercent)
             .FirstOrDefaultAsync(ct) ?? 20m;
+        // At this point rule cannot be null — ResolvePercents(null) returns
+        // an empty list which triggers the early return above.
+        var withholdPct = rule!.TaxWithholdingPercent ?? tenantWithholdPct;
 
         foreach (var (level, percent) in percents)
         {

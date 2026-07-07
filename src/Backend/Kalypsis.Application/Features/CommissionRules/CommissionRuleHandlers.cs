@@ -27,7 +27,13 @@ public record CommissionRuleDto(
     decimal? ProducerPercent,
     decimal? LegacyValue,
     DateOnly EffectiveFrom,
-    DateOnly? EffectiveTo);
+    DateOnly? EffectiveTo,
+    // Multi-level ALIS-parity fields — projected out of LevelPercentsJson
+    // so the frontend gets 5 discrete inputs instead of a raw JSON blob.
+    decimal? ManagerPercent = null,
+    decimal? UnitPercent = null,
+    decimal? AssistantPercent = null,
+    decimal? TaxWithholdingPercent = null);
 
 public record CommissionRuleBody(
     Guid? ProducerId,
@@ -39,7 +45,12 @@ public record CommissionRuleBody(
     decimal? AgencyPercent,
     decimal? ProducerPercent,
     DateOnly EffectiveFrom,
-    DateOnly? EffectiveTo);
+    DateOnly? EffectiveTo,
+    // Multi-level ALIS-parity fields
+    decimal? ManagerPercent = null,
+    decimal? UnitPercent = null,
+    decimal? AssistantPercent = null,
+    decimal? TaxWithholdingPercent = null);
 
 public record CommissionRuleBatchBody(
     Guid? ProducerId,
@@ -52,9 +63,86 @@ public record CommissionRuleBatchBody(
     decimal? ProducerPercent,
     DateOnly EffectiveFrom,
     DateOnly? EffectiveTo,
-    bool ReplaceExisting = true);
+    bool ReplaceExisting = true,
+    // Multi-level ALIS-parity fields — applied identically to every rule
+    // created by the batch. Bulk hierarchy setup usually shares the same
+    // Manager/Unit/Assistant % across the whole carrier scope.
+    decimal? ManagerPercent = null,
+    decimal? UnitPercent = null,
+    decimal? AssistantPercent = null,
+    decimal? TaxWithholdingPercent = null);
 
 public record CommissionRuleBatchResult(int Created, int Updated, IReadOnlyList<CommissionRuleDto> Rules);
+
+// --- Shared serialisation helpers for the ALIS-parity multi-level percents.
+// Keeps every read/write path aligned without adding a whole abstraction.
+internal static class CommissionRuleMultiLevel
+{
+    public static CommissionRuleDto ToDto(CommissionRule r)
+    {
+        var levels = ReadLevels(r.LevelPercentsJson);
+        return new CommissionRuleDto(
+            r.Id, r.ProducerId, r.Producer?.Name,
+            r.ProducerTier,
+            r.InsuranceCompanyId, r.InsuranceCompany?.Name,
+            r.PolicyType, r.CoverCode, r.VehicleUseCategory,
+            r.AgencyPercent, r.ProducerPercent,
+            r.AgencyPercent.HasValue || r.ProducerPercent.HasValue ? null : r.Value,
+            r.EffectiveFrom, r.EffectiveTo,
+            levels.TryGetValue("Manager",   out var m) ? m : null,
+            levels.TryGetValue("Unit",      out var u) ? u : null,
+            levels.TryGetValue("Assistant", out var a) ? a : null,
+            r.TaxWithholdingPercent);
+    }
+
+    /// <summary>
+    /// Apply the ALIS-parity fields on the body to the entity. When any of
+    /// Producer/Manager/Unit/Assistant/Agency percent is set we materialise
+    /// <see cref="CommissionRule.LevelPercentsJson"/>; when they're all null
+    /// we clear it so the legacy two-column fallback stays in charge.
+    /// </summary>
+    public static void ApplyLevels(CommissionRule r, CommissionRuleBody b)
+    {
+        var hasMultiLevel = b.ManagerPercent.HasValue || b.UnitPercent.HasValue || b.AssistantPercent.HasValue;
+        var hasTwoLevel   = b.AgencyPercent.HasValue  || b.ProducerPercent.HasValue;
+
+        if (hasMultiLevel || (hasTwoLevel && (b.ProducerPercent.HasValue || b.AgencyPercent.HasValue)))
+        {
+            // Assemble the full ordered map so downstream consumers can rely on
+            // insertion order matching the display order.
+            var map = new Dictionary<string, decimal>();
+            if (b.ProducerPercent.HasValue)  map["Producer"]  = b.ProducerPercent.Value;
+            if (b.ManagerPercent.HasValue)   map["Manager"]   = b.ManagerPercent.Value;
+            if (b.UnitPercent.HasValue)      map["Unit"]      = b.UnitPercent.Value;
+            if (b.AssistantPercent.HasValue) map["Assistant"] = b.AssistantPercent.Value;
+            if (b.AgencyPercent.HasValue)    map["Agency"]    = b.AgencyPercent.Value;
+            // Only persist JSON when at least one *extra* level is defined;
+            // pure Producer+Agency rows stay JSON-less so the calculator's
+            // legacy fallback path picks them up untouched. That preserves
+            // existing behaviour for every tenant that hasn't opted in.
+            r.LevelPercentsJson = hasMultiLevel
+                ? System.Text.Json.JsonSerializer.Serialize(map)
+                : null;
+        }
+        else
+        {
+            r.LevelPercentsJson = null;
+        }
+
+        r.TaxWithholdingPercent = b.TaxWithholdingPercent;
+    }
+
+    private static Dictionary<string, decimal> ReadLevels(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return new();
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, decimal>>(json)
+                ?? new();
+        }
+        catch { return new(); }
+    }
+}
 
 /* ========= List ========= */
 
@@ -82,14 +170,7 @@ public class ListCommissionRulesHandler : IRequestHandler<ListCommissionRulesQue
                 .ThenByDescending(r => r.EffectiveFrom)
             .ToListAsync(ct);
 
-        return rules.Select(r => new CommissionRuleDto(
-            r.Id, r.ProducerId, r.Producer?.Name,
-            r.ProducerTier,
-            r.InsuranceCompanyId, r.InsuranceCompany?.Name,
-            r.PolicyType, r.CoverCode, r.VehicleUseCategory,
-            r.AgencyPercent, r.ProducerPercent,
-            r.AgencyPercent.HasValue || r.ProducerPercent.HasValue ? null : r.Value,
-            r.EffectiveFrom, r.EffectiveTo)).ToList();
+        return rules.Select(CommissionRuleMultiLevel.ToDto).ToList();
     }
 }
 
@@ -143,6 +224,7 @@ public class CreateCommissionRuleHandler : IRequestHandler<CreateCommissionRuleC
             EffectiveFrom = c.Body.EffectiveFrom,
             EffectiveTo = c.Body.EffectiveTo
         };
+        CommissionRuleMultiLevel.ApplyLevels(r, c.Body);
         _db.CommissionRules.Add(r);
         await _db.SaveChangesAsync(ct);
         return await ReloadAsync(r.Id, ct);
@@ -153,14 +235,7 @@ public class CreateCommissionRuleHandler : IRequestHandler<CreateCommissionRuleC
         var r = await _db.CommissionRules.IgnoreQueryFilters()
             .Include(x => x.Producer).Include(x => x.InsuranceCompany)
             .FirstAsync(x => x.Id == id, ct);
-        return new CommissionRuleDto(
-            r.Id, r.ProducerId, r.Producer?.Name,
-            r.ProducerTier,
-            r.InsuranceCompanyId, r.InsuranceCompany?.Name,
-            r.PolicyType, r.CoverCode, r.VehicleUseCategory,
-            r.AgencyPercent, r.ProducerPercent,
-            r.AgencyPercent.HasValue || r.ProducerPercent.HasValue ? null : r.Value,
-            r.EffectiveFrom, r.EffectiveTo);
+        return CommissionRuleMultiLevel.ToDto(r);
     }
 }
 
@@ -259,6 +334,14 @@ public class UpsertCommissionRuleBatchHandler : IRequestHandler<UpsertCommission
                 rule.CommissionType = CommissionType.Percentage;
                 rule.EffectiveFrom = b.EffectiveFrom;
                 rule.EffectiveTo = b.EffectiveTo;
+                // Reuse the single-write helper via a lightweight body shim so
+                // the batch path never diverges from Create/Update mapping.
+                CommissionRuleMultiLevel.ApplyLevels(rule, new CommissionRuleBody(
+                    b.ProducerId, b.ProducerTier, b.InsuranceCompanyId,
+                    policyType, cover, use,
+                    b.AgencyPercent, b.ProducerPercent,
+                    b.EffectiveFrom, b.EffectiveTo,
+                    b.ManagerPercent, b.UnitPercent, b.AssistantPercent, b.TaxWithholdingPercent));
                 changedIds.Add(rule.Id);
             }
         }
@@ -271,17 +354,8 @@ public class UpsertCommissionRuleBatchHandler : IRequestHandler<UpsertCommission
             .Where(x => changedIds.Contains(x.Id))
             .ToListAsync(ct);
 
-        return new CommissionRuleBatchResult(created, updated, saved.Select(ToDto).ToList());
+        return new CommissionRuleBatchResult(created, updated, saved.Select(CommissionRuleMultiLevel.ToDto).ToList());
     }
-
-    private static CommissionRuleDto ToDto(CommissionRule r) => new(
-        r.Id, r.ProducerId, r.Producer?.Name,
-        r.ProducerTier,
-        r.InsuranceCompanyId, r.InsuranceCompany?.Name,
-        r.PolicyType, r.CoverCode, r.VehicleUseCategory,
-        r.AgencyPercent, r.ProducerPercent,
-        r.AgencyPercent.HasValue || r.ProducerPercent.HasValue ? null : r.Value,
-        r.EffectiveFrom, r.EffectiveTo);
 }
 
 public class UpdateCommissionRuleHandler : IRequestHandler<UpdateCommissionRuleCommand, CommissionRuleDto>
@@ -311,19 +385,13 @@ public class UpdateCommissionRuleHandler : IRequestHandler<UpdateCommissionRuleC
         r.CommissionType = CommissionType.Percentage;
         r.EffectiveFrom = c.Body.EffectiveFrom;
         r.EffectiveTo = c.Body.EffectiveTo;
+        CommissionRuleMultiLevel.ApplyLevels(r, c.Body);
         await _db.SaveChangesAsync(ct);
 
         var reloaded = await _db.CommissionRules.IgnoreQueryFilters()
             .Include(x => x.Producer).Include(x => x.InsuranceCompany)
             .FirstAsync(x => x.Id == r.Id, ct);
-        return new CommissionRuleDto(
-            reloaded.Id, reloaded.ProducerId, reloaded.Producer?.Name,
-            reloaded.ProducerTier,
-            reloaded.InsuranceCompanyId, reloaded.InsuranceCompany?.Name,
-            reloaded.PolicyType, reloaded.CoverCode, reloaded.VehicleUseCategory,
-            reloaded.AgencyPercent, reloaded.ProducerPercent,
-            reloaded.AgencyPercent.HasValue || reloaded.ProducerPercent.HasValue ? null : reloaded.Value,
-            reloaded.EffectiveFrom, reloaded.EffectiveTo);
+        return CommissionRuleMultiLevel.ToDto(reloaded);
     }
 }
 

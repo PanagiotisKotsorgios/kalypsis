@@ -84,7 +84,10 @@ public record PolicyDetailDto(
     Guid? PreviousInsuranceCompanyId = null,
     string? PreviousInsuranceCompanyName = null,
     DateOnly? IssuedAt = null,
-    string? VehicleRegistrationPlate = null);
+    string? VehicleRegistrationPlate = null,
+    // Motor-only extras (nullable for non-motor policies)
+    string? DriverVatNumber = null,
+    string? ReasonForCirculation = null);
 
 public record GetPolicyDetailQuery(Guid Id) : IRequest<PolicyDetailDto>;
 
@@ -214,7 +217,9 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             p.ContractPartyCustomerId, contractPartyDisplay,
             p.PreviousInsuranceCompanyId, p.PreviousInsuranceCompany?.Name,
             p.IssuedAt,
-            p.VehicleRegistrationPlate);
+            p.VehicleRegistrationPlate,
+            p.DriverVatNumber,
+            p.ReasonForCirculation);
     }
 }
 
@@ -243,7 +248,10 @@ public record UpdatePolicyExtendedBody(
     Guid? ContractPartyCustomerId = null,
     Guid? PreviousInsuranceCompanyId = null,
     DateOnly? IssuedAt = null,
-    string? VehicleRegistrationPlate = null);
+    string? VehicleRegistrationPlate = null,
+    // Motor-only extras
+    string? DriverVatNumber = null,
+    string? ReasonForCirculation = null);
 
 public record UpdatePolicyExtendedCommand(Guid Id, UpdatePolicyExtendedBody Body) : IRequest<PolicyDetailDto>;
 
@@ -292,6 +300,10 @@ public class UpdatePolicyExtendedHandler : IRequestHandler<UpdatePolicyExtendedC
         p.IssuedAt = b.IssuedAt;
         p.VehicleRegistrationPlate = string.IsNullOrWhiteSpace(b.VehicleRegistrationPlate)
             ? null : b.VehicleRegistrationPlate.Trim().ToUpperInvariant();
+        p.DriverVatNumber = string.IsNullOrWhiteSpace(b.DriverVatNumber)
+            ? null : b.DriverVatNumber.Trim();
+        p.ReasonForCirculation = string.IsNullOrWhiteSpace(b.ReasonForCirculation)
+            ? null : b.ReasonForCirculation.Trim();
 
         await _db.SaveChangesAsync(ct);
         return await _mediator.Send(new GetPolicyDetailQuery(p.Id), ct);

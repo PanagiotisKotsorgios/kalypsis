@@ -1294,7 +1294,8 @@
     },
     "statuses": {
       "Draft": "Πρόχειρο", "Active": "Ενεργό", "Expired": "Έληξε",
-      "Cancelled": "Ακυρώθηκε", "Renewed": "Ανανεώθηκε", "PendingRenewal": "Εκκρεμεί ανανέωση"
+      "Cancelled": "Ακυρώθηκε", "Renewed": "Ανανεώθηκε", "PendingRenewal": "Εκκρεμεί ανανέωση",
+      "Undelivered": "Απαράδοτο", "AwaitingIssue": "Εν αναμονή έκδοσης"
     },
     "actions": { "renew": "Ανανέωση", "cancel": "Ακύρωση" },
     "form": {

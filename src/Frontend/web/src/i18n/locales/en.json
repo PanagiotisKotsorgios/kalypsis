@@ -1241,7 +1241,8 @@
     },
     "statuses": {
       "Draft": "Draft", "Active": "Active", "Expired": "Expired",
-      "Cancelled": "Cancelled", "Renewed": "Renewed", "PendingRenewal": "Pending renewal"
+      "Cancelled": "Cancelled", "Renewed": "Renewed", "PendingRenewal": "Pending renewal",
+      "Undelivered": "Undelivered", "AwaitingIssue": "Awaiting issue"
     },
     "actions": { "renew": "Renew", "cancel": "Cancel" },
     "form": {

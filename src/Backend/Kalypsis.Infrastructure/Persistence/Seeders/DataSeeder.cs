@@ -549,6 +549,22 @@ public static class DataSeeder
         await EnsureColumnAsync(db, logger, dbName,
             table: "commission_rules", column: "LevelPercentsJson",
             addSql: "ALTER TABLE `commission_rules` ADD COLUMN `LevelPercentsJson` longtext NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "commission_rules", column: "TaxWithholdingPercent",
+            addSql: "ALTER TABLE `commission_rules` ADD COLUMN `TaxWithholdingPercent` decimal(6,3) NULL", ct);
+
+        // --- ALIS-parity batch F: motor policy first-class fields ---------
+        // Driver ΑΦΜ + λόγος κυκλοφορίας promoted out of SpecsJson so they can
+        // be searched, exported and rendered without touching JSON on every read.
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "DriverVatNumber",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `DriverVatNumber` varchar(20) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "ReasonForCirculation",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `ReasonForCirculation` varchar(120) NULL", ct);
+        await EnsureIndexAsync(db, logger, dbName,
+            table: "policies", indexName: "IX_policies_DriverVatNumber",
+            addSql: "CREATE INDEX `IX_policies_DriverVatNumber` ON `policies` (`DriverVatNumber`)", ct);
 
         await EnsureColumnAsync(db, logger, dbName,
             table: "Tenants", column: "DefaultTaxWithholdingPercent",

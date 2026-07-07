@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
@@ -27,15 +27,30 @@ import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { useTableState } from "../components/useTableState";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 type ProducerStatus = "Active" | "Suspended" | "Terminated";
 type ProducerTier = "None" | "A" | "B" | "C" | "D" | "E";
+
+type HierarchyLevel = "Producer" | "Manager" | "Unit" | "Assistant" | "Agency";
+
+const HIERARCHY_LABEL: Record<HierarchyLevel, string> = {
+  Producer:  "Παραγωγός",
+  Manager:   "Manager",
+  Unit:      "Unit",
+  Assistant: "Assistant",
+  Agency:    "Γραφείο"
+};
 
 interface ProducerDto {
   id: string; code: string; name: string;
   email: string | null; phone: string | null;
   status: ProducerStatus; tier: ProducerTier;
   policyCount: number; createdAt: string;
+  // ALIS-parity hierarchy
+  hierarchyLevel: HierarchyLevel;
+  parentProducerId: string | null;
+  parentProducerName: string | null;
 }
 
 const STATUS_COLOR: Record<ProducerStatus, "success" | "warning" | "default"> = {
@@ -297,20 +312,38 @@ function ProducerDialog({ open, onClose, producer, onSaved }: {
   const [form, setForm] = useState({
     code: "", name: "", email: "", phone: "",
     status: "Active" as ProducerStatus,
-    tier: "None" as ProducerTier
+    tier: "None" as ProducerTier,
+    hierarchyLevel: "Producer" as HierarchyLevel,
+    parentProducerId: "" as string
   });
   const [error, setError] = useState<string | null>(null);
   const [verifyOpen, setVerifyOpen] = useState(false);
+
+  // Load the tenant's producer list so we can offer parents in a searchable
+  // dropdown. Excludes the current producer (no self-parent) and defers to
+  // the calculator for deeper cycles.
+  const producersQ = useQuery({
+    queryKey: ["producers-for-hierarchy"],
+    enabled: open,
+    queryFn: async () => (await api.get<ProducerDto[]>("/producers")).data
+  });
+  const parentOptions = useMemo(() => {
+    const all = producersQ.data ?? [];
+    return all.filter(p => !producer || p.id !== producer.id);
+  }, [producersQ.data, producer]);
 
   useEffect(() => {
     if (producer) {
       setForm({
         code: producer.code, name: producer.name,
         email: producer.email ?? "", phone: producer.phone ?? "",
-        status: producer.status, tier: producer.tier ?? "None"
+        status: producer.status, tier: producer.tier ?? "None",
+        hierarchyLevel: producer.hierarchyLevel ?? "Producer",
+        parentProducerId: producer.parentProducerId ?? ""
       });
     } else if (open) {
-      setForm({ code: "", name: "", email: "", phone: "", status: "Active", tier: "None" });
+      setForm({ code: "", name: "", email: "", phone: "", status: "Active", tier: "None",
+        hierarchyLevel: "Producer", parentProducerId: "" });
     }
   }, [producer, open]);
 
@@ -342,8 +375,9 @@ function ProducerDialog({ open, onClose, producer, onSaved }: {
 
   const save = useMutation({
     mutationFn: async () => {
-      if (editing) return (await api.put(`/producers/${producer!.id}`, form)).data;
-      return (await api.post("/producers", form)).data;
+      const body = { ...form, parentProducerId: form.parentProducerId || null };
+      if (editing) return (await api.put(`/producers/${producer!.id}`, body)).data;
+      return (await api.post("/producers", body)).data;
     },
     onSuccess: onSaved,
     onError: (err) => setError(extractErrorMessage(err))
@@ -375,6 +409,28 @@ function ProducerDialog({ open, onClose, producer, onSaved }: {
                 <MenuItem key={tier} value={tier}>{TIER_LABEL[tier as ProducerTier]}</MenuItem>)}
             </SearchableTextField>
           </FilterFieldWrap>
+          {/* ALIS-parity hierarchy — determines who gets paid at each level of
+              the commission matrix. Leaf sales agents keep the default
+              "Παραγωγός" level; supervisors move up the chain. */}
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <FilterFieldWrap tip="Θέση στην ιεραρχία προμηθειών. Ένας απλός Παραγωγός έχει έναν Manager ως γονέα, ο Manager έναν Unit, κ.ο.κ.">
+              <SearchableTextField label="Επίπεδο ιεραρχίας" value={form.hierarchyLevel}
+                onChange={(e) => setForm({ ...form, hierarchyLevel: e.target.value as HierarchyLevel })} fullWidth>
+                {(["Producer","Manager","Unit","Assistant","Agency"] as const).map(lvl =>
+                  <MenuItem key={lvl} value={lvl}>{HIERARCHY_LABEL[lvl]}</MenuItem>)}
+              </SearchableTextField>
+            </FilterFieldWrap>
+            <SearchableSelect
+              label="Προϊστάμενος"
+              value={form.parentProducerId}
+              onChange={(v) => setForm({ ...form, parentProducerId: v })}
+              emptyLabel="— Κανένας —"
+              options={parentOptions.map(p => ({
+                value: p.id, label: p.name,
+                hint: HIERARCHY_LABEL[p.hierarchyLevel ?? "Producer"]
+              }))}
+              helperText="Ο συνεργάτης που πληρώνεται στο επόμενο επίπεδο της ιεραρχίας." />
+          </Stack>
           <TextField label={t("producers.col.name")} value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth required
             InputProps={{ endAdornment: <FilterHelp title="Πλήρες ονοματεπώνυμο συνεργάτη όπως εμφανίζεται σε λίστες, έγγραφα και reports." /> }} />

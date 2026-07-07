@@ -58,7 +58,7 @@ import { useColumnPreferences } from "../hooks/useColumnPreferences";
 import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
-type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal";
+type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal" | "Undelivered" | "AwaitingIssue";
 
 interface PolicyDto {
   id: string;
@@ -104,7 +104,11 @@ const STATUS_COLOR: Record<PolicyStatus, "default" | "success" | "warning" | "in
   Expired: "warning",
   Cancelled: "error",
   Renewed: "info",
-  Draft: "default"
+  Draft: "default",
+  // ALIS-parity — awaiting-issue reads as "in progress", undelivered as
+  // "waiting on us" so the color scheme still gives operators a signal.
+  AwaitingIssue: "info",
+  Undelivered: "warning"
 };
 
 export function PoliciesPage() {
@@ -345,7 +349,7 @@ export function PoliciesPage() {
                   value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as PolicyStatus | "")}
                   sx={{ minWidth: 150, width: "100%" }}>
                   <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
-                  {(["Draft","Active","Expired","Cancelled","Renewed","PendingRenewal"] as const).map(s =>
+                  {(["Draft","Active","Expired","Cancelled","Renewed","PendingRenewal","Undelivered","AwaitingIssue"] as const).map(s =>
                     <MenuItem key={s} value={s}>{t(`policies.statuses.${s}`)}</MenuItem>)}
                 </SearchableTextField>
               </FilterFieldWrap>
@@ -979,7 +983,7 @@ function PolicyFormDialog({
               onChange={(e) => setForm({ ...form, status: e.target.value as PolicyStatus })}
               fullWidth
             >
-              {(["Draft","Active","PendingRenewal","Expired","Cancelled","Renewed"] as const).map(s =>
+              {(["Draft","AwaitingIssue","Active","Undelivered","PendingRenewal","Expired","Cancelled","Renewed"] as const).map(s =>
                 <MenuItem key={s} value={s}>{t(`policies.statuses.${s}`)}</MenuItem>
               )}
             </SearchableTextField>
