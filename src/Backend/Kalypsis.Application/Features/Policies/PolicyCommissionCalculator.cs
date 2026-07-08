@@ -60,7 +60,11 @@ public class PolicyCommissionCalculator
         // per-carrier > wildcard, per-branch > wildcard, per-cover > wildcard,
         // per-vehicle-use > wildcard).
         var rule = await PickBestRuleAsync(tenantId, policy, chain, ct);
-        var percents = ResolvePercents(rule);
+
+        // A per-policy override wins over every rule. Applied identically to
+        // the rule-level JSON — same shape, same level keys.
+        var percents = ResolveOverrideLevels(policy.SpecialLevelPercentsJson);
+        if (percents.Count == 0) percents = ResolvePercents(rule);
         if (percents.Count == 0) return;
 
         // Withholding rate: per-rule override → tenant default → 20% floor.
@@ -70,9 +74,10 @@ public class PolicyCommissionCalculator
             .Where(t => t.Id == tenantId)
             .Select(t => (decimal?)t.DefaultTaxWithholdingPercent)
             .FirstOrDefaultAsync(ct) ?? 20m;
-        // At this point rule cannot be null — ResolvePercents(null) returns
-        // an empty list which triggers the early return above.
-        var withholdPct = rule!.TaxWithholdingPercent ?? tenantWithholdPct;
+        // Withholding rate: per-rule override → tenant default. A pure
+        // per-policy override with no matched rule falls back to the tenant
+        // default (rule is null in that case).
+        var withholdPct = rule?.TaxWithholdingPercent ?? tenantWithholdPct;
 
         foreach (var (level, percent) in percents)
         {
@@ -169,6 +174,29 @@ public class PolicyCommissionCalculator
     /// to the legacy two-level <c>ProducerPercent</c> / <c>AgencyPercent</c>
     /// so tenants that haven't opted in still see a matrix.
     /// </summary>
+    /// <summary>
+    /// Parse the same LevelPercentsJson shape when it's stored on the policy
+    /// itself as a per-contract override. Returns an empty list when the
+    /// blob is null/empty/malformed so the caller falls back to the rule.
+    /// </summary>
+    internal static List<(HierarchyLevel Level, decimal Percent)> ResolveOverrideLevels(string? json)
+    {
+        var result = new List<(HierarchyLevel, decimal)>();
+        if (string.IsNullOrWhiteSpace(json)) return result;
+        try
+        {
+            var raw = JsonSerializer.Deserialize<Dictionary<string, decimal>>(json);
+            if (raw is null) return result;
+            foreach (var level in Enum.GetValues<HierarchyLevel>())
+            {
+                if (raw.TryGetValue(level.ToString(), out var pct) && pct > 0m)
+                    result.Add((level, pct));
+            }
+        }
+        catch { /* malformed override — silently ignore, fall back to rule */ }
+        return result;
+    }
+
     internal static List<(HierarchyLevel Level, decimal Percent)> ResolvePercents(CommissionRule? rule)
     {
         var result = new List<(HierarchyLevel, decimal)>();

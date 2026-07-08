@@ -83,6 +83,15 @@ public class Policy : TenantEntity
     /// </summary>
     public string? ReasonForCirculation { get; set; }
 
+    /// <summary>
+    /// Per-policy override του <c>LevelPercentsJson</c> στο <see cref="CommissionRule"/>.
+    /// Ίδιο shape, JSON: <c>{"Producer":15,"Manager":3,"Agency":40}</c>.
+    /// Όταν είναι set, ο <c>PolicyCommissionCalculator</c> τον προτιμά αντί
+    /// για τον κανόνα — για συμβόλαια όπου συμφωνήθηκαν ιδιαίτερα ποσοστά.
+    /// Null = εφαρμόζεται κανονικά ο μηχανισμός επιλογής κανόνα.
+    /// </summary>
+    public string? SpecialLevelPercentsJson { get; set; }
+
     public decimal Premium { get; set; }
     public string Currency { get; set; } = "EUR";
 

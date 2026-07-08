@@ -55,6 +55,8 @@ export interface PolicyDetail {
   // Motor-only extras
   driverVatNumber: string | null;
   reasonForCirculation: string | null;
+  // Per-policy commission override (JSON blob {"Producer":15,"Manager":3,...})
+  specialLevelPercentsJson: string | null;
 }
 
 export interface PolicyCoverRow {
@@ -129,7 +131,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
     issuedAt: "",
     vehicleRegistrationPlate: "",
     driverVatNumber: "",
-    reasonForCirculation: ""
+    reasonForCirculation: "",
+    specialLevelPercentsJson: ""
   });
   useEffect(() => {
     if (q.data) {
@@ -155,7 +158,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
         issuedAt: q.data.issuedAt ?? "",
         vehicleRegistrationPlate: q.data.vehicleRegistrationPlate ?? "",
         driverVatNumber: q.data.driverVatNumber ?? "",
-        reasonForCirculation: q.data.reasonForCirculation ?? ""
+        reasonForCirculation: q.data.reasonForCirculation ?? "",
+        specialLevelPercentsJson: q.data.specialLevelPercentsJson ?? ""
       });
     }
   }, [q.data]);
@@ -235,7 +239,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
         issuedAt: form.issuedAt || null,
         vehicleRegistrationPlate: form.vehicleRegistrationPlate.trim() || null,
         driverVatNumber: form.driverVatNumber.trim() || null,
-        reasonForCirculation: form.reasonForCirculation.trim() || null
+        reasonForCirculation: form.reasonForCirculation.trim() || null,
+        specialLevelPercentsJson: form.specialLevelPercentsJson.trim() || null
       })).data;
       // Diff the fields that map to propagatable ones.
       const diff: PropagatableChanges = {};
@@ -605,6 +610,10 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                   loading={commissionMatrix.isLoading}
                   matrix={commissionMatrix.data}
                   currency={p.currency}
+                  overrideJson={form.specialLevelPercentsJson}
+                  onOverrideChange={(next) => setForm({ ...form, specialLevelPercentsJson: next })}
+                  onSave={() => save.mutate()}
+                  saving={save.isPending}
                 />
               )}
             </>
@@ -1674,10 +1683,14 @@ interface PolicyCommissionMatrix {
   currency: string;
 }
 
-function PolicyCommissionMatrixTab({ loading, matrix, currency }: {
+function PolicyCommissionMatrixTab({ loading, matrix, currency, overrideJson, onOverrideChange, onSave, saving }: {
   loading: boolean;
   matrix: PolicyCommissionMatrix | undefined;
   currency: string;
+  overrideJson: string;
+  onOverrideChange: (nextJson: string) => void;
+  onSave: () => void;
+  saving: boolean;
 }) {
   if (loading) {
     return <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}><CircularProgress /></Box>;
@@ -1745,6 +1758,117 @@ function PolicyCommissionMatrixTab({ loading, matrix, currency }: {
           </TableRow>
         </TableBody>
       </Table>
+      <PolicyCommissionOverrideEditor
+        overrideJson={overrideJson}
+        onChange={onOverrideChange}
+        onSave={onSave}
+        saving={saving}
+      />
     </Stack>
   );
 }
+
+/* Per-policy commission override — 5 editable percent inputs that get
+   serialised into SpecialLevelPercentsJson and beat the rule at compute
+   time. Only affects THIS specific policy. Empty inputs mean "don't
+   override that level" — the rule takes over. Clear button wipes the
+   whole blob. */
+function PolicyCommissionOverrideEditor({ overrideJson, onChange, onSave, saving }: {
+  overrideJson: string;
+  onChange: (nextJson: string) => void;
+  onSave: () => void;
+  saving: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const parsed = useMemo(() => {
+    if (!overrideJson.trim()) return {} as Record<string, number>;
+    try { return JSON.parse(overrideJson) as Record<string, number>; } catch { return {}; }
+  }, [overrideJson]);
+  const [draft, setDraft] = useState<Record<string, string>>(() => ({
+    Producer:  parsed.Producer  != null ? String(parsed.Producer)  : "",
+    Manager:   parsed.Manager   != null ? String(parsed.Manager)   : "",
+    Unit:      parsed.Unit      != null ? String(parsed.Unit)      : "",
+    Assistant: parsed.Assistant != null ? String(parsed.Assistant) : "",
+    Agency:    parsed.Agency    != null ? String(parsed.Agency)    : "",
+  }));
+  useEffect(() => {
+    if (!editing) return;
+    setDraft({
+      Producer:  parsed.Producer  != null ? String(parsed.Producer)  : "",
+      Manager:   parsed.Manager   != null ? String(parsed.Manager)   : "",
+      Unit:      parsed.Unit      != null ? String(parsed.Unit)      : "",
+      Assistant: parsed.Assistant != null ? String(parsed.Assistant) : "",
+      Agency:    parsed.Agency    != null ? String(parsed.Agency)    : "",
+    });
+  }, [editing, parsed]);
+
+  const commit = () => {
+    const map: Record<string, number> = {};
+    for (const [k, v] of Object.entries(draft)) {
+      const n = Number(v);
+      if (v.trim() !== "" && Number.isFinite(n) && n > 0) map[k] = n;
+    }
+    onChange(Object.keys(map).length > 0 ? JSON.stringify(map) : "");
+    onSave();
+    setEditing(false);
+  };
+  const clearOverride = () => {
+    onChange("");
+    onSave();
+    setEditing(false);
+  };
+
+  const hasOverride = Object.keys(parsed).length > 0;
+  return (
+    <Box sx={{ mt: 2, p: 2, border: "1px solid", borderColor: "divider", borderRadius: 1.5, bgcolor: hasOverride ? "rgba(31,123,179,0.05)" : undefined }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
+        <Box>
+          <Typography fontWeight={700}>Ειδικά ποσοστά για αυτό το συμβόλαιο</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {hasOverride
+              ? "Ενεργό — τα ποσοστά κάτω αντικαθιστούν τους κανόνες του γραφείου για το συγκεκριμένο συμβόλαιο."
+              : "Προαιρετικό — ορίστε ποσοστά μόνο για συμβόλαια με ειδική συμφωνία. Αλλιώς εφαρμόζονται οι κανόνες του γραφείου."}
+          </Typography>
+        </Box>
+        {!editing ? (
+          <Button size="small" variant={hasOverride ? "outlined" : "contained"} onClick={() => setEditing(true)}>
+            {hasOverride ? "Επεξεργασία" : "Προσθήκη"}
+          </Button>
+        ) : (
+          <Button size="small" onClick={() => setEditing(false)}>Άκυρο</Button>
+        )}
+      </Stack>
+
+      {editing && (
+        <>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} mt={1.5} flexWrap="wrap" useFlexGap>
+            {(["Producer", "Manager", "Unit", "Assistant", "Agency"] as const).map(level => (
+              <TextField key={level}
+                size="small" type="number" label={`${LEVEL_LABEL[level]} %`}
+                value={draft[level]}
+                onChange={e => setDraft({ ...draft, [level]: e.target.value })}
+                inputProps={{ step: 0.1, min: 0, max: 100 }}
+                sx={{ minWidth: 130, flex: 1 }} />
+            ))}
+          </Stack>
+          <Stack direction="row" spacing={1} justifyContent="flex-end" mt={2}>
+            {hasOverride && (
+              <Button color="error" onClick={clearOverride} disabled={saving}>Κατάργηση</Button>
+            )}
+            <Button variant="contained" onClick={commit} disabled={saving}>
+              {saving ? <CircularProgress size={18} /> : "Αποθήκευση"}
+            </Button>
+          </Stack>
+        </>
+      )}
+    </Box>
+  );
+}
+
+const LEVEL_LABEL: Record<string, string> = {
+  Producer: "Παραγωγός",
+  Manager: "Manager",
+  Unit: "Unit",
+  Assistant: "Assistant",
+  Agency: "Γραφείο"
+};

@@ -567,6 +567,10 @@ public static class DataSeeder
             addSql: "CREATE INDEX `IX_policies_DriverVatNumber` ON `policies` (`DriverVatNumber`)", ct);
 
         await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "SpecialLevelPercentsJson",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `SpecialLevelPercentsJson` longtext NULL", ct);
+
+        await EnsureColumnAsync(db, logger, dbName,
             table: "Tenants", column: "DefaultTaxWithholdingPercent",
             addSql: "ALTER TABLE `Tenants` ADD COLUMN `DefaultTaxWithholdingPercent` decimal(6,3) NOT NULL DEFAULT 20", ct);
 

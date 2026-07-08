@@ -87,7 +87,9 @@ public record PolicyDetailDto(
     string? VehicleRegistrationPlate = null,
     // Motor-only extras (nullable for non-motor policies)
     string? DriverVatNumber = null,
-    string? ReasonForCirculation = null);
+    string? ReasonForCirculation = null,
+    // Per-policy commission override (v2 of ALIS #1)
+    string? SpecialLevelPercentsJson = null);
 
 public record GetPolicyDetailQuery(Guid Id) : IRequest<PolicyDetailDto>;
 
@@ -219,7 +221,8 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             p.IssuedAt,
             p.VehicleRegistrationPlate,
             p.DriverVatNumber,
-            p.ReasonForCirculation);
+            p.ReasonForCirculation,
+            p.SpecialLevelPercentsJson);
     }
 }
 
@@ -251,7 +254,9 @@ public record UpdatePolicyExtendedBody(
     string? VehicleRegistrationPlate = null,
     // Motor-only extras
     string? DriverVatNumber = null,
-    string? ReasonForCirculation = null);
+    string? ReasonForCirculation = null,
+    // Per-policy commission override
+    string? SpecialLevelPercentsJson = null);
 
 public record UpdatePolicyExtendedCommand(Guid Id, UpdatePolicyExtendedBody Body) : IRequest<PolicyDetailDto>;
 
@@ -260,10 +265,12 @@ public class UpdatePolicyExtendedHandler : IRequestHandler<UpdatePolicyExtendedC
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _current;
     private readonly IMediator _mediator;
+    private readonly PolicyCommissionCalculator _commissionCalc;
 
-    public UpdatePolicyExtendedHandler(IAppDbContext db, ICurrentUser current, IMediator mediator)
+    public UpdatePolicyExtendedHandler(IAppDbContext db, ICurrentUser current, IMediator mediator,
+        PolicyCommissionCalculator commissionCalc)
     {
-        _db = db; _current = current; _mediator = mediator;
+        _db = db; _current = current; _mediator = mediator; _commissionCalc = commissionCalc;
     }
 
     public async Task<PolicyDetailDto> Handle(UpdatePolicyExtendedCommand r, CancellationToken ct)
@@ -304,8 +311,24 @@ public class UpdatePolicyExtendedHandler : IRequestHandler<UpdatePolicyExtendedC
             ? null : b.DriverVatNumber.Trim();
         p.ReasonForCirculation = string.IsNullOrWhiteSpace(b.ReasonForCirculation)
             ? null : b.ReasonForCirculation.Trim();
+        // Empty-string is treated as "clear the override" so the drawer's
+        // "Reset override" button just sends null.
+        p.SpecialLevelPercentsJson = string.IsNullOrWhiteSpace(b.SpecialLevelPercentsJson)
+            ? null : b.SpecialLevelPercentsJson.Trim();
 
         await _db.SaveChangesAsync(ct);
+
+        // Recompute the matrix after the extended save — the override might
+        // have changed, and even when it didn't, the tax breakdown could
+        // move if NetPremium was edited. Best-effort so a partial deploy
+        // never blocks the write.
+        try
+        {
+            await _commissionCalc.RecomputeAsync(p, ct);
+            await _db.SaveChangesAsync(ct);
+        }
+        catch { /* splits are a read-side convenience */ }
+
         return await _mediator.Send(new GetPolicyDetailQuery(p.Id), ct);
     }
 }
