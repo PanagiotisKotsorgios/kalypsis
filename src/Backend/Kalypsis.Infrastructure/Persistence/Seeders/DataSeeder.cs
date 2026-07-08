@@ -604,9 +604,14 @@ public static class DataSeeder
                 KEY `IX_claim_involved_parties_Tenant_Claim` (`TenantId`, `ClaimId`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
 
+        // NOTE the table name — lowercase `tenants` matches what EF creates.
+        // On MySQL 8 Linux with `lower_case_table_names=0` (the container
+        // default), `ALTER TABLE Tenants` would target a non-existent table
+        // and silently fail (caught by the wrapped helper), leaving the
+        // column missing and every subsequent Tenants read broken.
         await EnsureColumnAsync(db, logger, dbName,
-            table: "Tenants", column: "DefaultTaxWithholdingPercent",
-            addSql: "ALTER TABLE `Tenants` ADD COLUMN `DefaultTaxWithholdingPercent` decimal(6,3) NOT NULL DEFAULT 20", ct);
+            table: "tenants", column: "DefaultTaxWithholdingPercent",
+            addSql: "ALTER TABLE `tenants` ADD COLUMN `DefaultTaxWithholdingPercent` decimal(6,3) NOT NULL DEFAULT 20", ct);
 
         await EnsureTableAsync(db, logger, dbName,
             table: "policy_commission_splits",
