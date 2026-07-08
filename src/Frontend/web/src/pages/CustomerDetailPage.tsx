@@ -29,6 +29,8 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import DownloadIcon from "@mui/icons-material/Download";
 import HistoryIcon from "@mui/icons-material/History";
 import EditIcon from "@mui/icons-material/Edit";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import FamilyRestroomIcon from "@mui/icons-material/FamilyRestroom";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
@@ -190,6 +192,7 @@ export function CustomerDetailPage() {
         <Tab label="Επισκόπηση" />
         <Tab label="Συμβόλαια" />
         <Tab label="Ζημίες" />
+        <Tab label="Εμπλεκόμενοι" />
         <Tab label="Επικοινωνία" />
         <Tab label="Ειδοποιήσεις" />
         <Tab label="Συγκαταθέσεις (GDPR)" />
@@ -202,13 +205,14 @@ export function CustomerDetailPage() {
       {tab === 0 && <OverviewTab customer={customer} />}
       {tab === 1 && <CustomerPoliciesTab customerId={id} />}
       {tab === 2 && <CustomerClaimsTab customerId={id} />}
-      {tab === 3 && <CommunicationsTab customerId={id} />}
-      {tab === 4 && <CustomerNotificationsTab customerId={id} />}
-      {tab === 5 && <ConsentsTab customerId={id} />}
-      {tab === 6 && <ContactsTab customerId={id} customerType={customer.type} />}
-      {tab === 7 && <GdprActionsTab customerId={id} />}
-      {tab === 8 && <FamilyNeedsTab customerId={id} />}
-      {tab === 9 && <InsuranceOpportunitiesTab customerId={id} />}
+      {tab === 3 && <ClaimInvolvedPartiesTab customerId={id} />}
+      {tab === 4 && <CommunicationsTab customerId={id} />}
+      {tab === 5 && <CustomerNotificationsTab customerId={id} />}
+      {tab === 6 && <ConsentsTab customerId={id} />}
+      {tab === 7 && <ContactsTab customerId={id} customerType={customer.type} />}
+      {tab === 8 && <GdprActionsTab customerId={id} />}
+      {tab === 9 && <FamilyNeedsTab customerId={id} />}
+      {tab === 10 && <InsuranceOpportunitiesTab customerId={id} />}
     </Box>
   );
 }
@@ -1345,4 +1349,325 @@ function GdprActionsTab({ customerId }: { customerId: string }) {
 function formatDate(iso?: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("el-GR", { dateStyle: "medium", timeStyle: "short" });
+}
+
+/* ============================================================================
+   Ζημιάδες Εμπλεκόμενοι — ALIS parity item #29. One row per person / entity
+   involved in a claim beyond the policyholder. Aggregated across every claim
+   tied to this customer's policies, grouped by claim, edit + delete inline,
+   add via a claim picker.
+   ============================================================================ */
+interface ClaimInvolvedParty {
+  id: string;
+  claimId: string;
+  claimNumber: string;
+  claimIncidentDate: string | null;
+  policyId: string;
+  policyNumber: string;
+  role: string;
+  fullName: string;
+  phone: string | null;
+  email: string | null;
+  vatNumber: string | null;
+  vehiclePlate: string | null;
+  insuranceCompany: string | null;
+  policyNumberOther: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+interface ClaimLite {
+  id: string;
+  claimNumber: string;
+  incidentDate: string;
+  policyNumber: string;
+}
+
+const INVOLVED_ROLES = [
+  "Driver", "Passenger", "Pedestrian", "Cyclist", "Witness",
+  "OwnerOfOther", "Garage", "Attorney", "Expert", "Other"
+];
+const INVOLVED_ROLE_LABEL: Record<string, string> = {
+  Driver: "Οδηγός", Passenger: "Επιβάτης", Pedestrian: "Πεζός",
+  Cyclist: "Ποδηλάτης", Witness: "Μάρτυρας",
+  OwnerOfOther: "Ιδιοκτήτης άλλου οχήματος",
+  Garage: "Συνεργείο", Attorney: "Δικηγόρος",
+  Expert: "Πραγματογνώμονας", Other: "Άλλο"
+};
+
+function ClaimInvolvedPartiesTab({ customerId }: { customerId: string }) {
+  const qc = useQueryClient();
+  const [err, setErr] = useState<string | null>(null);
+  const [editing, setEditing] = useState<ClaimInvolvedParty | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  const q = useQuery({
+    queryKey: ["customer-involved-parties", customerId],
+    queryFn: async () =>
+      (await api.get<ClaimInvolvedParty[]>(`/customers/${customerId}/claim-involved-parties`)).data
+  });
+
+  // Customer's claims — needed for the "which claim?" picker in the add dialog.
+  const claimsQ = useQuery({
+    queryKey: ["customer-claims-lite", customerId],
+    enabled: creating,
+    queryFn: async () => {
+      const rows = (await api.get<any[]>("/claims")).data;
+      // Filter to this customer's claims via their policies.
+      const policies = (await api.get<any[]>("/policies", { params: { customerId } })).data;
+      const policyIds = new Set(policies.map((p: any) => p.id));
+      return rows
+        .filter((c: any) => policyIds.has(c.policyId))
+        .map((c: any): ClaimLite => ({
+          id: c.id, claimNumber: c.claimNumber,
+          incidentDate: c.incidentDate,
+          policyNumber: c.policyNumber ?? ""
+        }));
+    }
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => api.delete(`/claim-involved-parties/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["customer-involved-parties", customerId] }),
+    onError: (e) => setErr(extractErrorMessage(e))
+  });
+
+  const grouped = useMemo(() => {
+    const rows = q.data ?? [];
+    const byClaim = new Map<string, { claimNumber: string; incidentDate: string | null; policyNumber: string; rows: ClaimInvolvedParty[] }>();
+    for (const r of rows) {
+      let bucket = byClaim.get(r.claimId);
+      if (!bucket) {
+        bucket = { claimNumber: r.claimNumber, incidentDate: r.claimIncidentDate, policyNumber: r.policyNumber, rows: [] };
+        byClaim.set(r.claimId, bucket);
+      }
+      bucket.rows.push(r);
+    }
+    return Array.from(byClaim.entries());
+  }, [q.data]);
+
+  return (
+    <Box>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+        <Box>
+          <Typography variant="h6">Ζημιάδες Εμπλεκόμενοι</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Άλλοι οδηγοί, επιβάτες, μάρτυρες, συνεργεία και όσοι εμπλέκονται σε ζημιές του πελάτη.
+          </Typography>
+        </Box>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreating(true)}>
+          Νέος εμπλεκόμενος
+        </Button>
+      </Stack>
+
+      {err && <Alert severity="error" onClose={() => setErr(null)} sx={{ mb: 2 }}>{err}</Alert>}
+
+      {q.isLoading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
+      ) : grouped.length === 0 ? (
+        <Card variant="outlined">
+          <Box sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
+            <Typography>Δεν έχουν καταχωρηθεί εμπλεκόμενοι σε καμία ζημιά του πελάτη.</Typography>
+          </Box>
+        </Card>
+      ) : (
+        <Stack spacing={2}>
+          {grouped.map(([claimId, group]) => (
+            <Card key={claimId} variant="outlined">
+              <Box sx={{ p: 2, bgcolor: "rgba(11,37,69,0.03)", borderBottom: "1px solid", borderColor: "divider" }}>
+                <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap">
+                  <Chip size="small" label={group.claimNumber} sx={{ fontFamily: "monospace", fontWeight: 700 }} />
+                  <Typography variant="body2" color="text.secondary">
+                    Ημ. συμβάντος: {group.incidentDate ?? "—"} · Συμβόλαιο: <b>{group.policyNumber || "—"}</b>
+                  </Typography>
+                </Stack>
+              </Box>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Ρόλος</TableCell>
+                    <TableCell>Ονοματεπώνυμο</TableCell>
+                    <TableCell>Στοιχεία επικοινωνίας</TableCell>
+                    <TableCell>Ασφαλιστική / Συμβόλαιο</TableCell>
+                    <TableCell align="right" />
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {group.rows.map(r => (
+                    <TableRow key={r.id} hover>
+                      <TableCell><Chip size="small" label={INVOLVED_ROLE_LABEL[r.role] ?? r.role} /></TableCell>
+                      <TableCell>
+                        <Typography fontWeight={700}>{r.fullName}</Typography>
+                        {(r.vatNumber || r.vehiclePlate) && (
+                          <Typography variant="caption" color="text.secondary">
+                            {r.vatNumber && <>ΑΦΜ: {r.vatNumber}</>}
+                            {r.vatNumber && r.vehiclePlate && " · "}
+                            {r.vehiclePlate && <>Πινακίδα: {r.vehiclePlate}</>}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {r.phone && <div>{r.phone}</div>}
+                        {r.email && <div><a href={`mailto:${r.email}`}>{r.email}</a></div>}
+                        {!r.phone && !r.email && "—"}
+                      </TableCell>
+                      <TableCell>
+                        {r.insuranceCompany || r.policyNumberOther
+                          ? <>
+                              {r.insuranceCompany}
+                              {r.policyNumberOther && <Typography variant="caption" color="text.secondary" display="block">
+                                Αρ. συμβολαίου: {r.policyNumberOther}
+                              </Typography>}
+                            </>
+                          : "—"}
+                      </TableCell>
+                      <TableCell align="right">
+                        <IconButton size="small" onClick={() => setEditing(r)}><EditIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" color="error" onClick={() => {
+                          if (confirm("Διαγραφή εμπλεκόμενου;")) del.mutate(r.id);
+                        }}><DeleteIcon fontSize="small" /></IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          ))}
+        </Stack>
+      )}
+
+      <InvolvedPartyDialog
+        open={creating || !!editing}
+        onClose={() => { setCreating(false); setEditing(null); }}
+        editing={editing}
+        claims={claimsQ.data ?? []}
+        onSaved={() => {
+          setCreating(false);
+          setEditing(null);
+          void qc.invalidateQueries({ queryKey: ["customer-involved-parties", customerId] });
+        }}
+      />
+    </Box>
+  );
+}
+
+function InvolvedPartyDialog({ open, onClose, editing, claims, onSaved }: {
+  open: boolean;
+  onClose: () => void;
+  editing: ClaimInvolvedParty | null;
+  claims: ClaimLite[];
+  onSaved: () => void;
+}) {
+  const [claimId, setClaimId] = useState("");
+  const [form, setForm] = useState({
+    role: "Driver",
+    fullName: "",
+    phone: "",
+    email: "",
+    vatNumber: "",
+    vehiclePlate: "",
+    insuranceCompany: "",
+    policyNumberOther: "",
+    notes: ""
+  });
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (editing) {
+      setClaimId(editing.claimId);
+      setForm({
+        role: editing.role,
+        fullName: editing.fullName,
+        phone: editing.phone ?? "",
+        email: editing.email ?? "",
+        vatNumber: editing.vatNumber ?? "",
+        vehiclePlate: editing.vehiclePlate ?? "",
+        insuranceCompany: editing.insuranceCompany ?? "",
+        policyNumberOther: editing.policyNumberOther ?? "",
+        notes: editing.notes ?? ""
+      });
+    } else if (open) {
+      setClaimId("");
+      setForm({
+        role: "Driver", fullName: "", phone: "", email: "",
+        vatNumber: "", vehiclePlate: "", insuranceCompany: "",
+        policyNumberOther: "", notes: ""
+      });
+    }
+    setErr(null);
+  }, [editing, open]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const body = {
+        role: form.role,
+        fullName: form.fullName.trim(),
+        phone: form.phone.trim() || null,
+        email: form.email.trim() || null,
+        vatNumber: form.vatNumber.trim() || null,
+        vehiclePlate: form.vehiclePlate.trim() || null,
+        insuranceCompany: form.insuranceCompany.trim() || null,
+        policyNumberOther: form.policyNumberOther.trim() || null,
+        notes: form.notes.trim() || null
+      };
+      if (editing) return (await api.put(`/claim-involved-parties/${editing.id}`, body)).data;
+      return (await api.post(`/claims/${claimId}/involved-parties`, body)).data;
+    },
+    onSuccess: onSaved,
+    onError: (e) => setErr(extractErrorMessage(e))
+  });
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>{editing ? "Επεξεργασία εμπλεκόμενου" : "Νέος εμπλεκόμενος σε ζημιά"}</DialogTitle>
+      <DialogContent>
+        {err && <Alert severity="error" onClose={() => setErr(null)} sx={{ mb: 2 }}>{err}</Alert>}
+        <Stack spacing={2} mt={1}>
+          {!editing && (
+            <SearchableTextField label="Ζημιά" value={claimId} onChange={e => setClaimId(e.target.value)} fullWidth required
+              helperText="Επιλέξτε τη ζημιά στην οποία εμπλέκεται.">
+              <MenuItem value="">— Επιλέξτε ζημιά —</MenuItem>
+              {claims.map(c => (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.claimNumber} · {c.incidentDate} · Συμβόλαιο {c.policyNumber}
+                </MenuItem>
+              ))}
+            </SearchableTextField>
+          )}
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <SearchableTextField label="Ρόλος" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} fullWidth>
+              {INVOLVED_ROLES.map(r => <MenuItem key={r} value={r}>{INVOLVED_ROLE_LABEL[r] ?? r}</MenuItem>)}
+            </SearchableTextField>
+            <TextField required label="Ονοματεπώνυμο" value={form.fullName}
+              onChange={e => setForm({ ...form, fullName: e.target.value })} fullWidth />
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <TextField label="Τηλέφωνο" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} fullWidth />
+            <TextField label="Email" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} fullWidth />
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <TextField label="ΑΦΜ" value={form.vatNumber} onChange={e => setForm({ ...form, vatNumber: e.target.value })} fullWidth />
+            <TextField label="Πινακίδα οχήματος" value={form.vehiclePlate}
+              onChange={e => setForm({ ...form, vehiclePlate: e.target.value.toUpperCase() })} fullWidth />
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <TextField label="Ασφαλιστική εταιρεία" value={form.insuranceCompany}
+              onChange={e => setForm({ ...form, insuranceCompany: e.target.value })} fullWidth />
+            <TextField label="Αρ. συμβολαίου (τρίτου)" value={form.policyNumberOther}
+              onChange={e => setForm({ ...form, policyNumberOther: e.target.value })} fullWidth />
+          </Stack>
+          <TextField label="Σημειώσεις" multiline rows={3} value={form.notes}
+            onChange={e => setForm({ ...form, notes: e.target.value })} fullWidth
+            placeholder="π.χ. σοβαρότητα τραυματισμού, μαρτυρίες, εκκρεμότητες…" />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Άκυρο</Button>
+        <Button variant="contained" onClick={() => save.mutate()}
+          disabled={save.isPending || !form.fullName.trim() || (!editing && !claimId)}>
+          {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 }

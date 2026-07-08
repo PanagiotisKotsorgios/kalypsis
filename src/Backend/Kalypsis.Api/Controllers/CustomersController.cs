@@ -1,3 +1,4 @@
+using Kalypsis.Application.Features.ClaimInvolvedParties;
 using Kalypsis.Application.Features.Customers;
 using Kalypsis.Application.Features.Producers;
 using MediatR;
@@ -39,6 +40,15 @@ public class CustomersController : ControllerBase
     [Authorize(Policy = "AgencyStaff")]
     public async Task<ActionResult<IReadOnlyList<CustomerProducerLineDto>>> Producers(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new ListCustomerProducersQuery(id), ct));
+
+    // «Ζημιάδες Εμπλεκόμενοι» — everyone recorded on any claim tied to this
+    // customer's policies. One row per party, joined with claim + policy
+    // context so the frontend can group by claim without a second fetch.
+    [HttpGet("{id:guid}/claim-involved-parties")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<IReadOnlyList<ClaimInvolvedPartyDto>>> ClaimInvolvedParties(
+        Guid id, CancellationToken ct)
+        => Ok(await _mediator.Send(new ListInvolvedPartiesByCustomerQuery(id), ct));
 
     [HttpPost]
     [Authorize(Policy = "AgencyStaff")]

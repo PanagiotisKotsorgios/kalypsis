@@ -1,4 +1,5 @@
 using Kalypsis.Application.Features.Claims;
+using Kalypsis.Application.Features.ClaimInvolvedParties;
 using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -38,4 +39,36 @@ public class ClaimsController : ControllerBase
     [Authorize(Policy = "AgencyStaff")]
     public async Task<ActionResult<ClaimDto>> UpdateStatus(Guid id, [FromBody] UpdateClaimStatusBody body, CancellationToken cancellationToken)
         => Ok(await _mediator.Send(new UpdateClaimStatusCommand(id, body), cancellationToken));
+
+    // «Ζημιάδες Εμπλεκόμενοι» — one row per person / entity involved in a
+    // claim beyond the policyholder. Aggregated per-customer for the tab
+    // view; writes are always claim-scoped.
+    [HttpPost("{claimId:guid}/involved-parties")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<ClaimInvolvedPartyDto>> CreateInvolvedParty(
+        Guid claimId, [FromBody] ClaimInvolvedPartyBody body, CancellationToken ct)
+        => Ok(await _mediator.Send(new CreateInvolvedPartyCommand(claimId, body), ct));
+}
+
+[ApiController]
+[Route("api/claim-involved-parties")]
+[Authorize]
+public class ClaimInvolvedPartiesController : ControllerBase
+{
+    private readonly IMediator _mediator;
+    public ClaimInvolvedPartiesController(IMediator mediator) => _mediator = mediator;
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<ClaimInvolvedPartyDto>> Update(
+        Guid id, [FromBody] ClaimInvolvedPartyBody body, CancellationToken ct)
+        => Ok(await _mediator.Send(new UpdateInvolvedPartyCommand(id, body), ct));
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        await _mediator.Send(new DeleteInvolvedPartyCommand(id), ct);
+        return NoContent();
+    }
 }

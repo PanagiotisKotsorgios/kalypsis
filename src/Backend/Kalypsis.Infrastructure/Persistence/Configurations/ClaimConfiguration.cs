@@ -21,3 +21,24 @@ public class ClaimConfiguration : IEntityTypeConfiguration<Claim>
         b.HasIndex(x => new { x.TenantId, x.PolicyId });
     }
 }
+
+public class ClaimInvolvedPartyConfiguration : IEntityTypeConfiguration<ClaimInvolvedParty>
+{
+    public void Configure(EntityTypeBuilder<ClaimInvolvedParty> b)
+    {
+        b.ToTable("claim_involved_parties");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Role).HasMaxLength(40).IsRequired();
+        b.Property(x => x.FullName).HasMaxLength(160).IsRequired();
+        b.Property(x => x.Phone).HasMaxLength(40);
+        b.Property(x => x.Email).HasMaxLength(160);
+        b.Property(x => x.VatNumber).HasMaxLength(20);
+        b.Property(x => x.VehiclePlate).HasMaxLength(20);
+        b.Property(x => x.InsuranceCompany).HasMaxLength(160);
+        b.Property(x => x.PolicyNumber).HasMaxLength(64);
+        b.Property(x => x.Notes).HasMaxLength(2000);
+
+        b.HasOne(x => x.Claim).WithMany().HasForeignKey(x => x.ClaimId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.TenantId, x.ClaimId });
+    }
+}

@@ -570,6 +570,32 @@ public static class DataSeeder
             table: "policies", column: "SpecialLevelPercentsJson",
             addSql: "ALTER TABLE `policies` ADD COLUMN `SpecialLevelPercentsJson` longtext NULL", ct);
 
+        // --- ALIS-parity batch G: claim involved parties -----------------
+        // «F5 Ζημιάδες Εμπλεκόμενοι» — everyone involved in a claim beyond
+        // the policyholder (other driver, passenger, witness, garage…).
+        await EnsureTableAsync(db, logger, dbName,
+            table: "claim_involved_parties",
+            createSql: @"CREATE TABLE IF NOT EXISTS `claim_involved_parties` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `ClaimId` char(36) NOT NULL,
+                `Role` varchar(40) NOT NULL,
+                `FullName` varchar(160) NOT NULL,
+                `Phone` varchar(40) NULL,
+                `Email` varchar(160) NULL,
+                `VatNumber` varchar(20) NULL,
+                `VehiclePlate` varchar(20) NULL,
+                `InsuranceCompany` varchar(160) NULL,
+                `PolicyNumber` varchar(64) NULL,
+                `Notes` varchar(2000) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_claim_involved_parties_Tenant_Claim` (`TenantId`, `ClaimId`),
+                CONSTRAINT `FK_claim_involved_parties_claims` FOREIGN KEY (`ClaimId`) REFERENCES `claims` (`Id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
         await EnsureColumnAsync(db, logger, dbName,
             table: "Tenants", column: "DefaultTaxWithholdingPercent",
             addSql: "ALTER TABLE `Tenants` ADD COLUMN `DefaultTaxWithholdingPercent` decimal(6,3) NOT NULL DEFAULT 20", ct);

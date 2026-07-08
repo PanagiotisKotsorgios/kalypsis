@@ -21,6 +21,7 @@ public interface IAppDbContext
     DbSet<PolicyInstallment> PolicyInstallments { get; }
     DbSet<SavedReport> SavedReports { get; }
     DbSet<Claim> Claims { get; }
+    DbSet<ClaimInvolvedParty> ClaimInvolvedParties { get; }
     DbSet<CommissionRule> CommissionRules { get; }
     DbSet<CommissionTransaction> CommissionTransactions { get; }
     DbSet<PolicyCommissionSplit> PolicyCommissionSplits { get; }
