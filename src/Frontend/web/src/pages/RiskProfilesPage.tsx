@@ -7,6 +7,7 @@ import DriveEtaIcon from "@mui/icons-material/DriveEta";
 import SearchIcon from "@mui/icons-material/Search";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { date } from "../utils/format";
 import { SearchableTextField } from "../components/SearchableTextField";
@@ -40,6 +41,7 @@ interface PlateLookupResult {
 }
 
 export function RiskProfilesPage() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [productType, setProductType] = useState<ProductType>("Auto");
   const [search, setSearch] = useState("");
@@ -144,7 +146,7 @@ export function RiskProfilesPage() {
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mb={2}>
             <SearchableTextField label="Τύπος προϊόντος" value={productType}
               onChange={(e) => setProductType(e.target.value as ProductType)} sx={{ minWidth: 200 }}>
-              {PRODUCT_TYPES.map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+              {PRODUCT_TYPES.map((p) => <MenuItem key={p} value={p}>{String(t(`policyType.${p}`, p))}</MenuItem>)}
             </SearchableTextField>
             <TextField fullWidth size="small" label="Αναζήτηση" value={search}
               onChange={(e) => setSearch(e.target.value)} placeholder="πινακίδα ή ετικέτα" />

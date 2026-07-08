@@ -125,7 +125,7 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
         <Stack spacing={2} mt={1}>
           <SearchableTextField label={t("mydata.kind")} value={form.transmissionKind}
             onChange={e => setForm({ ...form, transmissionKind: e.target.value })} fullWidth>
-            {KINDS.map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
+            {KINDS.map(k => <MenuItem key={k} value={k}>{String(t(`myDataKind.${k}`, k))}</MenuItem>)}
           </SearchableTextField>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField type="date" label={t("mydata.periodFrom")} InputLabelProps={{ shrink: true }}

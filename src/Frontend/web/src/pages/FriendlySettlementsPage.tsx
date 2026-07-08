@@ -183,7 +183,7 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
               value={form.settlementDate} onChange={e => setForm({ ...form, settlementDate: e.target.value })} fullWidth />
             <SearchableTextField label={t("common.status")} value={form.status}
               onChange={e => setForm({ ...form, status: e.target.value })} sx={{ width: 160 }}>
-              {STATUSES.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+              {STATUSES.map(s => <MenuItem key={s} value={s}>{String(t(`friendlyStatus.${s}`, s))}</MenuItem>)}
             </SearchableTextField>
           </Stack>
           <TextField label={t("friendly.authority")} value={form.settlementAuthority}
@@ -309,7 +309,7 @@ function VictimsDialog({ settlement, onClose }: { settlement: SettlementDto | nu
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField required label={t("friendly.victimName")} value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} fullWidth />
               <SearchableTextField label={t("friendly.victimType")} value={form.victimType} onChange={e => setForm({ ...form, victimType: e.target.value })} sx={{ width: 160 }}>
-                {VICTIM_TYPES.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}
+                {VICTIM_TYPES.map(v => <MenuItem key={v} value={v}>{String(t(`friendlyVictimType.${v}`, v))}</MenuItem>)}
               </SearchableTextField>
             </Stack>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>

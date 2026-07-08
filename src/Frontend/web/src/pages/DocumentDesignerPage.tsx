@@ -159,13 +159,13 @@ function TemplateDialog({ open, onClose, item, onSaved }: { open: boolean; onClo
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <SearchableTextField label={t("docDesigner.kind")} value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })} fullWidth>
-              {KINDS.map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
+              {KINDS.map(k => <MenuItem key={k} value={k}>{String(t(`documentTemplateKind.${k}`, k))}</MenuItem>)}
             </SearchableTextField>
             <SearchableTextField label={t("docDesigner.pageSize")} value={form.pageSize} onChange={e => setForm({ ...form, pageSize: e.target.value })} fullWidth>
-              {PAGES.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+              {PAGES.map(p => <MenuItem key={p} value={p}>{String(t(`pageSize.${p}`, p))}</MenuItem>)}
             </SearchableTextField>
             <SearchableTextField label={t("docDesigner.orientation")} value={form.orientation} onChange={e => setForm({ ...form, orientation: e.target.value })} fullWidth>
-              {ORIENTATIONS.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+              {ORIENTATIONS.map(o => <MenuItem key={o} value={o}>{String(t(`pageOrientation.${o}`, o))}</MenuItem>)}
             </SearchableTextField>
           </Stack>
           <TextField label={t("docDesigner.headerHtml")} value={form.headerHtml} onChange={e => setForm({ ...form, headerHtml: e.target.value })} fullWidth multiline rows={3} placeholder='<div><img src="{{logo}}" /></div>' />
@@ -284,7 +284,7 @@ function RuleDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2} mt={1}>
           <SearchableTextField label={t("docDesigner.documentKind")} value={form.documentKind} onChange={e => setForm({ ...form, documentKind: e.target.value })} fullWidth disabled={editing}>
-            {KINDS.map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
+            {KINDS.map(k => <MenuItem key={k} value={k}>{String(t(`documentTemplateKind.${k}`, k))}</MenuItem>)}
           </SearchableTextField>
           <Stack direction="row" spacing={2}>
             <TextField label={t("docDesigner.prefix")} value={form.prefix} onChange={e => setForm({ ...form, prefix: e.target.value })} fullWidth placeholder="ΑΠ-" />

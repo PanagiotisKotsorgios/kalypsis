@@ -273,7 +273,7 @@ export function ProductionListsPage() {
           <SearchableTextField size="small" label={t("productionList.status")} value={f.status}
             onChange={e => setF({ ...f, status: e.target.value })}>
             <MenuItem value="">{t("common.all")}</MenuItem>
-            {STATUSES.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+            {STATUSES.map(s => <MenuItem key={s} value={s}>{String(t(`policies.statuses.${s}`, s))}</MenuItem>)}
           </SearchableTextField>
           <SearchableTextField size="small" label={t("productionList.groupBy")} value={f.groupBy}
             onChange={e => setF({ ...f, groupBy: e.target.value })}>

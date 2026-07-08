@@ -38,6 +38,7 @@ import { CustomerProducersDialog } from "../components/CustomerProducersDialog";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useParams, Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 
@@ -500,6 +501,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 /* ---------- Communications ---------- */
 
 function CommunicationsTab({ customerId }: { customerId: string }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -577,10 +579,10 @@ function CommunicationsTab({ customerId }: { customerId: string }) {
         <DialogContent>
           <Stack spacing={2} mt={1}>
             <SearchableTextField label="Τύπος" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
-              {COMMUNICATION_KINDS.map((k) => <MenuItem key={k} value={k}>{k}</MenuItem>)}
+              {COMMUNICATION_KINDS.map((k) => <MenuItem key={k} value={k}>{String(t(`communicationKind.${k}`, k))}</MenuItem>)}
             </SearchableTextField>
             <SearchableTextField label="Κατεύθυνση" value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value })}>
-              {["Internal", "Inbound", "Outbound"].map((d) => <MenuItem key={d} value={d}>{d}</MenuItem>)}
+              {["Internal", "Inbound", "Outbound"].map((d) => <MenuItem key={d} value={d}>{String(t(`communicationDirection.${d}`, d))}</MenuItem>)}
             </SearchableTextField>
             <TextField required label="Θέμα" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
             <TextField multiline rows={4} label="Σώμα / σημειώσεις" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
@@ -898,6 +900,7 @@ function FamilyNeedsTab({ customerId }: { customerId: string }) {
 }
 
 function ConsentsCard({ customerId }: { customerId: string }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["consents", customerId],
@@ -946,11 +949,11 @@ function ConsentsCard({ customerId }: { customerId: string }) {
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} mt={1}>
           <SearchableTextField size="small" label="Είδος" value={form.kind}
             onChange={e => setForm({ ...form, kind: e.target.value })} sx={{ minWidth: 160 }}>
-            {["Marketing", "Communication", "DataSharing", "Other"].map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
+            {["Marketing", "Communication", "DataSharing", "Other"].map(k => <MenuItem key={k} value={k}>{String(t(`consentKind.${k}`, k))}</MenuItem>)}
           </SearchableTextField>
           <SearchableTextField size="small" label="Κανάλι" value={form.channel}
             onChange={e => setForm({ ...form, channel: e.target.value })} sx={{ minWidth: 140 }}>
-            {["Email", "Sms", "Phone", "Postal", "All"].map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+            {["Email", "Sms", "Phone", "Postal", "All"].map(c => <MenuItem key={c} value={c}>{String(t(`consentChannel.${c}`, c))}</MenuItem>)}
           </SearchableTextField>
           <Button variant="contained" onClick={() => grant.mutate()} disabled={grant.isPending}>
             {grant.isPending ? <CircularProgress size={18} /> : "Καταγραφή συγκατάθεσης"}
@@ -962,6 +965,7 @@ function ConsentsCard({ customerId }: { customerId: string }) {
 }
 
 function CommunicationsCard({ customerId }: { customerId: string }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["communications", customerId],
@@ -1004,7 +1008,7 @@ function CommunicationsCard({ customerId }: { customerId: string }) {
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
             <SearchableTextField size="small" label="Είδος" value={form.kind}
               onChange={e => setForm({ ...form, kind: e.target.value })} sx={{ minWidth: 140 }}>
-              {["Call", "Email", "Sms", "Postal", "Meeting", "Note"].map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
+              {["Call", "Email", "Sms", "Postal", "Meeting", "Note"].map(k => <MenuItem key={k} value={k}>{String(t(`communicationKind.${k}`, k))}</MenuItem>)}
             </SearchableTextField>
             <TextField size="small" label="Θέμα" value={form.subject}
               onChange={e => setForm({ ...form, subject: e.target.value })} sx={{ flex: 1 }} />

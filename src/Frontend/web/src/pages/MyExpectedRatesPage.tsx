@@ -11,6 +11,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import TuneIcon from "@mui/icons-material/Tune";
 import PercentIcon from "@mui/icons-material/Percent";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { SearchableTextField } from "../components/SearchableTextField";
 
@@ -156,6 +157,7 @@ function ExpectedRateDialog({ open, onClose, row, carriers, onSaved }: {
   open: boolean; onClose: () => void; row: ExpectedRateDto | null;
   carriers: CarrierDto[]; onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     insuranceCompanyId: "" as string,
     policyType: "" as string,
@@ -238,7 +240,7 @@ function ExpectedRateDialog({ open, onClose, row, carriers, onSaved }: {
               fullWidth
             >
               <MenuItem value="">— Οποιαδήποτε —</MenuItem>
-              {USE_CATS.map(u => <MenuItem key={u} value={u}>{u}</MenuItem>)}
+              {USE_CATS.map(u => <MenuItem key={u} value={u}>{String(t(`vehicleUse.${u}`, u))}</MenuItem>)}
             </SearchableTextField>
           </FilterFieldWrap>
           <TextField

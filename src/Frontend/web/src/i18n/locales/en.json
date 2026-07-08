@@ -2055,6 +2055,101 @@
     "Customers": "Customers",
     "Policies": "Policies"
   },
+  "subscriptionPlan": {
+    "Trial": "Trial", "Basic": "Basic", "Pro": "Pro", "Enterprise": "Enterprise"
+  },
+  "financialMovement": {
+    "Charge": "Charge", "Receipt": "Receipt", "Payment": "Payment",
+    "Commission": "Commission", "Prepayment": "Prepayment", "Reversal": "Reversal"
+  },
+  "partyKind": {
+    "Customer": "Customer", "Producer": "Producer", "Carrier": "Carrier", "Vendor": "Vendor"
+  },
+  "documentEntity": {
+    "Customer": "Customer", "Producer": "Producer", "Policy": "Policy",
+    "Claim": "Claim", "Vehicle": "Vehicle"
+  },
+  "fieldKind": {
+    "Text": "Text", "Number": "Number", "Date": "Date",
+    "Boolean": "Yes/No", "Select": "Select", "Lookup": "Lookup"
+  },
+  "workflowScope": {
+    "All": "All", "Policies": "Policies", "Receipts": "Receipts", "Claims": "Claims"
+  },
+  "premiumScope": {
+    "Premium": "Premium", "Commission": "Commission", "Both": "Both"
+  },
+  "fuel": {
+    "Petrol": "Petrol", "Diesel": "Diesel", "Hybrid": "Hybrid",
+    "Electric": "Electric", "LPG": "LPG", "CNG": "CNG"
+  },
+  "vehicleClass": {
+    "passenger": "Passenger", "van": "Van", "truck": "Truck",
+    "motorcycle": "Motorcycle", "bus": "Bus", "tractor": "Tractor"
+  },
+  "vehicleUse": {
+    "None": "—",
+    "EIX": "EIX — Private passenger",
+    "EDX": "EDX — Taxi / For hire",
+    "FIX": "FIX — Private truck",
+    "FDX": "FDX — For-hire truck",
+    "LIX": "LIX — Private bus",
+    "LDX": "LDX — For-hire bus",
+    "Motorcycle": "Motorcycle",
+    "Agricultural": "Agricultural",
+    "Construction": "Construction",
+    "Private": "Private",
+    "Public": "Public",
+    "Taxi": "Taxi",
+    "RentACar": "Rent-a-car",
+    "Commercial": "Commercial"
+  },
+  "communicationKind": {
+    "Note": "Note", "Phone": "Phone", "Email": "Email",
+    "Meeting": "Meeting", "Sms": "SMS", "WalkIn": "Walk-in"
+  },
+  "communicationDirection": {
+    "Internal": "Internal", "Inbound": "Inbound", "Outbound": "Outbound"
+  },
+  "consentKind": {
+    "Marketing": "Marketing", "Communication": "Communication",
+    "DataSharing": "Data sharing", "Other": "Other"
+  },
+  "consentChannel": {
+    "Email": "Email", "Sms": "SMS", "Phone": "Phone", "Postal": "Postal", "All": "All"
+  },
+  "documentTemplateKind": {
+    "Receipt": "Receipt", "Payment": "Payment", "CreditNote": "Credit note",
+    "Policy": "Policy", "Letter": "Letter", "Other": "Other"
+  },
+  "pageSize": {
+    "A4": "A4", "A5": "A5", "Thermal80mm": "Thermal 80mm"
+  },
+  "pageOrientation": {
+    "Portrait": "Portrait", "Landscape": "Landscape"
+  },
+  "myDataKind": {
+    "Income": "Income", "Expense": "Expense", "Cancel": "Cancel"
+  },
+  "productionStatus": {
+    "Pending": "Pending", "Approved": "Approved", "Rejected": "Rejected", "Delivered": "Delivered"
+  },
+  "familyRelation": {
+    "self": "Self", "spouse": "Spouse", "child": "Child", "parent": "Parent", "other": "Other"
+  },
+  "victimKind": {
+    "Driver": "Driver", "Passenger": "Passenger", "Pedestrian": "Pedestrian",
+    "Cyclist": "Cyclist", "PropertyOwner": "Property owner", "Other": "Other"
+  },
+  "groupPolicyStatus": {
+    "Active": "Active", "Suspended": "Suspended", "Expired": "Expired"
+  },
+  "friendlyStatus": {
+    "Open": "Open", "InProgress": "In progress", "Closed": "Closed", "Disputed": "Disputed"
+  },
+  "friendlyVictimType": {
+    "Person": "Person", "Vehicle": "Vehicle", "Property": "Property"
+  },
   "claimStatus": {
     "Open": "Open",
     "InProgress": "In progress",

@@ -491,7 +491,7 @@ function EditTenantDialog({ tenant, onClose, onSaved }: {
             onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth required />
           <SearchableTextField label={t("tenants.subscriptionPlan")} value={form.subscriptionPlan}
             onChange={(e) => setForm({ ...form, subscriptionPlan: e.target.value })} fullWidth>
-            {["Trial","Basic","Pro","Enterprise"].map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+            {["Trial","Basic","Pro","Enterprise"].map(p => <MenuItem key={p} value={p}>{String(t(`subscriptionPlan.${p}`, p))}</MenuItem>)}
           </SearchableTextField>
           <FormControlLabel
             control={<Switch checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />}

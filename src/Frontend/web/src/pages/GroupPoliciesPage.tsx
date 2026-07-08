@@ -210,7 +210,7 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
               onChange={e => setForm({ ...form, currency: e.target.value.toUpperCase().slice(0, 3) })} sx={{ width: 100 }} />
             <SearchableTextField label={t("common.status")} value={form.status}
               onChange={e => setForm({ ...form, status: e.target.value })} sx={{ width: 160 }}>
-              {STATUSES.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+              {STATUSES.map(s => <MenuItem key={s} value={s}>{String(t(`groupPolicyStatus.${s}`, s))}</MenuItem>)}
             </SearchableTextField>
           </Stack>
           <TextField label={t("common.notes")} multiline rows={2} value={form.notes}
@@ -311,7 +311,7 @@ function MembersDialog({ group, onClose }: { group: GroupPolicyDto | null; onClo
                 value={form.birthDate} onChange={e => setForm({ ...form, birthDate: e.target.value })} fullWidth />
               <SearchableTextField label={t("groupPolicies.relationship")} value={form.relationship}
                 onChange={e => setForm({ ...form, relationship: e.target.value })} fullWidth>
-                {["self", "spouse", "child", "parent", "other"].map(r => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+                {["self", "spouse", "child", "parent", "other"].map(r => <MenuItem key={r} value={r}>{String(t(`familyRelation.${r}`, r))}</MenuItem>)}
               </SearchableTextField>
             </Stack>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>

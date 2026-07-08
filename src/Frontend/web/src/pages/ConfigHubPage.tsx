@@ -133,10 +133,10 @@ function MovementTypeDialog({ item, onClose, onSaved }: { item: any | null; onCl
           </Stack>
           <Stack direction="row" spacing={2}>
             <SearchableTextField label={t("configHub.category")} value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} fullWidth>
-              {["Charge", "Receipt", "Payment", "Commission", "Prepayment", "Reversal"].map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+              {["Charge", "Receipt", "Payment", "Commission", "Prepayment", "Reversal"].map(c => <MenuItem key={c} value={c}>{String(t(`financialMovement.${c}`, c))}</MenuItem>)}
             </SearchableTextField>
             <SearchableTextField label={t("configHub.party")} value={form.party} onChange={e => setForm({ ...form, party: e.target.value })} fullWidth>
-              {["Customer", "Producer", "Carrier", "Vendor"].map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+              {["Customer", "Producer", "Carrier", "Vendor"].map(p => <MenuItem key={p} value={p}>{String(t(`partyKind.${p}`, p))}</MenuItem>)}
             </SearchableTextField>
           </Stack>
           <Stack direction="row" spacing={2}>
@@ -253,10 +253,10 @@ function BonusMalusDialog({ item, onClose, onSaved }: { item: any | null; onClos
           <TextField required label={t("configHub.name")} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} fullWidth placeholder="π.χ. 0 ζημίες = 15% έκπτωση" />
           <Stack direction="row" spacing={2}>
             <SearchableTextField label={t("configHub.policyType")} value={form.policyTypeFilter} onChange={e => setForm({ ...form, policyTypeFilter: e.target.value })} fullWidth>
-              {["Auto", "Home", "Health", "Life", "Business", "Travel"].map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+              {["Auto", "Home", "Health", "Life", "Business", "Travel"].map(p => <MenuItem key={p} value={p}>{String(t(`policyType.${p}`, p))}</MenuItem>)}
             </SearchableTextField>
             <SearchableTextField label={t("configHub.direction")} value={form.adjustmentDirection} onChange={e => setForm({ ...form, adjustmentDirection: e.target.value })} fullWidth>
-              {["Premium", "Commission", "Both"].map(d => <MenuItem key={d} value={d}>{d}</MenuItem>)}
+              {["Premium", "Commission", "Both"].map(d => <MenuItem key={d} value={d}>{String(t(`premiumScope.${d}`, d))}</MenuItem>)}
             </SearchableTextField>
           </Stack>
           <Stack direction="row" spacing={2}>
@@ -467,7 +467,7 @@ function CustomFieldsPanel() {
     <Box>
       <Stack direction="row" spacing={2} mb={2} alignItems="center">
         <SearchableTextField label={t("configHub.entityType")} value={entityType} onChange={e => setEntityType(e.target.value)} sx={{ width: 200 }}>
-          {["Customer", "Producer", "Policy", "Claim", "Vehicle"].map(e => <MenuItem key={e} value={e}>{e}</MenuItem>)}
+          {["Customer", "Producer", "Policy", "Claim", "Vehicle"].map(e => <MenuItem key={e} value={e}>{String(t(`documentEntity.${e}`, e))}</MenuItem>)}
         </SearchableTextField>
         <Box sx={{ flex: 1 }} />
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen({ entityType })}>{t("configHub.newCustomField")}</Button>
@@ -535,7 +535,7 @@ function CustomFieldDialog({ item, onClose, onSaved }: { item: any | null; onClo
           </Stack>
           <Stack direction="row" spacing={2}>
             <SearchableTextField label={t("configHub.fieldKind")} value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })} fullWidth>
-              {["Text", "Number", "Date", "Boolean", "Select", "Lookup"].map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
+              {["Text", "Number", "Date", "Boolean", "Select", "Lookup"].map(k => <MenuItem key={k} value={k}>{String(t(`fieldKind.${k}`, k))}</MenuItem>)}
             </SearchableTextField>
             <TextField type="number" label={t("configHub.displayOrder")} value={form.displayOrder} onChange={e => setForm({ ...form, displayOrder: Number(e.target.value) })} sx={{ width: 140 }} />
           </Stack>
@@ -674,7 +674,7 @@ function PeriodLocksPanel() {
         <Typography fontWeight={700} mb={2}>{t("configHub.newPeriodLock")}</Typography>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
           <SearchableTextField label={t("configHub.scope")} value={scope} onChange={e => setScope(e.target.value)} sx={{ width: 180 }}>
-            {["All", "Policies", "Receipts", "Claims"].map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+            {["All", "Policies", "Receipts", "Claims"].map(s => <MenuItem key={s} value={s}>{String(t(`workflowScope.${s}`, s))}</MenuItem>)}
           </SearchableTextField>
           <TextField type="date" label={t("configHub.lockedBefore")} InputLabelProps={{ shrink: true }} value={lockDate} onChange={e => setLockDate(e.target.value)} />
           <Stack direction="row" alignItems="center" spacing={1}>

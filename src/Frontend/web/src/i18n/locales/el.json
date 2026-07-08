@@ -2157,6 +2157,170 @@
     "Customers": "Πελάτες",
     "Policies": "Συμβόλαια"
   },
+  "subscriptionPlan": {
+    "Trial": "Δοκιμή",
+    "Basic": "Βασικό",
+    "Pro": "Επαγγελματικό",
+    "Enterprise": "Επιχείρηση"
+  },
+  "financialMovement": {
+    "Charge": "Χρέωση",
+    "Receipt": "Είσπραξη",
+    "Payment": "Πληρωμή",
+    "Commission": "Προμήθεια",
+    "Prepayment": "Προκαταβολή",
+    "Reversal": "Αντιλογισμός"
+  },
+  "partyKind": {
+    "Customer": "Πελάτης",
+    "Producer": "Συνεργάτης",
+    "Carrier": "Εταιρεία",
+    "Vendor": "Προμηθευτής"
+  },
+  "documentEntity": {
+    "Customer": "Πελάτης",
+    "Producer": "Συνεργάτης",
+    "Policy": "Συμβόλαιο",
+    "Claim": "Ζημιά",
+    "Vehicle": "Όχημα"
+  },
+  "fieldKind": {
+    "Text": "Κείμενο",
+    "Number": "Αριθμός",
+    "Date": "Ημερομηνία",
+    "Boolean": "Ναι/Όχι",
+    "Select": "Επιλογή",
+    "Lookup": "Αναζήτηση"
+  },
+  "workflowScope": {
+    "All": "Όλα",
+    "Policies": "Συμβόλαια",
+    "Receipts": "Εισπράξεις",
+    "Claims": "Ζημιές"
+  },
+  "premiumScope": {
+    "Premium": "Ασφάλιστρο",
+    "Commission": "Προμήθεια",
+    "Both": "Και τα δύο"
+  },
+  "fuel": {
+    "Petrol": "Βενζίνη",
+    "Diesel": "Πετρέλαιο",
+    "Hybrid": "Υβριδικό",
+    "Electric": "Ηλεκτρικό",
+    "LPG": "Υγραέριο",
+    "CNG": "CNG"
+  },
+  "vehicleClass": {
+    "passenger": "Επιβατικό",
+    "van": "Van",
+    "truck": "Φορτηγό",
+    "motorcycle": "Μοτοσικλέτα",
+    "bus": "Λεωφορείο",
+    "tractor": "Τρακτέρ"
+  },
+  "vehicleUse": {
+    "None": "—",
+    "EIX": "ΕΙΧ — Επιβατικό Ι.Χ.",
+    "EDX": "ΕΔΧ — Ταξί / Δημ.Χρ.",
+    "FIX": "ΦΙΧ — Φορτηγό Ι.Χ.",
+    "FDX": "ΦΔΧ — Φορτηγό Δ.Χ.",
+    "LIX": "ΛΙΧ — Λεωφορείο Ι.Χ.",
+    "LDX": "ΛΔΧ — Λεωφορείο Δ.Χ.",
+    "Motorcycle": "ΜΟΤ — Μοτοσικλέτα",
+    "Agricultural": "ΑΓΡ — Αγροτικό",
+    "Construction": "ΕΡΓ — Εργοταξιακό",
+    "Private": "Ιδιωτική",
+    "Public": "Δημόσια",
+    "Taxi": "Ταξί",
+    "RentACar": "Rent-a-car",
+    "Commercial": "Επαγγελματική"
+  },
+  "communicationKind": {
+    "Note": "Σημείωση",
+    "Phone": "Τηλέφωνο",
+    "Email": "Email",
+    "Meeting": "Συνάντηση",
+    "Sms": "SMS",
+    "WalkIn": "Επίσκεψη"
+  },
+  "communicationDirection": {
+    "Internal": "Εσωτερικό",
+    "Inbound": "Εισερχόμενο",
+    "Outbound": "Εξερχόμενο"
+  },
+  "consentKind": {
+    "Marketing": "Marketing",
+    "Communication": "Επικοινωνία",
+    "DataSharing": "Κοινοποίηση δεδομένων",
+    "Other": "Άλλο"
+  },
+  "consentChannel": {
+    "Email": "Email",
+    "Sms": "SMS",
+    "Phone": "Τηλέφωνο",
+    "Postal": "Ταχυδρομείο",
+    "All": "Όλα"
+  },
+  "documentTemplateKind": {
+    "Receipt": "Απόδειξη",
+    "Payment": "Πληρωμή",
+    "CreditNote": "Πιστωτικό",
+    "Policy": "Συμβόλαιο",
+    "Letter": "Επιστολή",
+    "Other": "Άλλο"
+  },
+  "pageSize": {
+    "A4": "A4",
+    "A5": "A5",
+    "Thermal80mm": "Θερμικό 80mm"
+  },
+  "pageOrientation": {
+    "Portrait": "Κάθετος",
+    "Landscape": "Οριζόντιος"
+  },
+  "myDataKind": {
+    "Income": "Έσοδο",
+    "Expense": "Έξοδο",
+    "Cancel": "Ακύρωση"
+  },
+  "productionStatus": {
+    "Pending": "Εκκρεμεί",
+    "Approved": "Εγκεκριμένο",
+    "Rejected": "Απορρίφθηκε",
+    "Delivered": "Παραδοθέν"
+  },
+  "familyRelation": {
+    "self": "Ο ίδιος",
+    "spouse": "Σύζυγος",
+    "child": "Τέκνο",
+    "parent": "Γονέας",
+    "other": "Άλλο"
+  },
+  "victimKind": {
+    "Driver": "Οδηγός",
+    "Passenger": "Επιβάτης",
+    "Pedestrian": "Πεζός",
+    "Cyclist": "Ποδηλάτης",
+    "PropertyOwner": "Ιδιοκτήτης",
+    "Other": "Άλλο"
+  },
+  "groupPolicyStatus": {
+    "Active": "Ενεργό",
+    "Suspended": "Σε αναστολή",
+    "Expired": "Έληξε"
+  },
+  "friendlyStatus": {
+    "Open": "Ανοιχτό",
+    "InProgress": "Σε εξέλιξη",
+    "Closed": "Κλειστό",
+    "Disputed": "Σε αμφισβήτηση"
+  },
+  "friendlyVictimType": {
+    "Person": "Πρόσωπο",
+    "Vehicle": "Όχημα",
+    "Property": "Περιουσία"
+  },
   "claimStatus": {
     "Open": "Ανοιχτή",
     "InProgress": "Σε επεξεργασία",

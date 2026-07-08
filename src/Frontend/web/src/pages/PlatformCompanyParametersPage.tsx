@@ -12,6 +12,7 @@ import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { SearchableTextField } from "../components/SearchableTextField";
@@ -385,6 +386,7 @@ function ParameterDialog({ open, item, companies, companyOptions, defaultCompany
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [err, setErr] = useState<string | null>(null);
   const [form, setForm] = useState({
     insuranceCompanyId: "",
@@ -542,7 +544,7 @@ function ParameterDialog({ open, item, companies, companyOptions, defaultCompany
             <SearchableTextField label="Χρήση" value={form.vehicleUseCategory}
               onChange={(e) => setForm({ ...form, vehicleUseCategory: e.target.value as VehicleUse | "" })} fullWidth>
               <MenuItem value="">—</MenuItem>
-              {VEHICLE_USES.map(u => <MenuItem key={u} value={u}>{u}</MenuItem>)}
+              {VEHICLE_USES.map(u => <MenuItem key={u} value={u}>{String(t(`vehicleUse.${u}`, u))}</MenuItem>)}
             </SearchableTextField>
           </Stack>
           <TextField label="Parent code" value={form.parentCode}

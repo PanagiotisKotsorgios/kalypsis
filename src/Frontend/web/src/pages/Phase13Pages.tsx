@@ -492,10 +492,10 @@ function CreateVehicleDialog({ open, onClose, onSaved }: { open: boolean; onClos
           </Stack>
           <Stack direction="row" spacing={2}>
             <SearchableTextField label={t("vehicles.fuel")} value={form.fuelType} onChange={e => setForm({ ...form, fuelType: e.target.value })} fullWidth>
-              {["Petrol", "Diesel", "Hybrid", "Electric", "LPG", "CNG"].map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
+              {["Petrol", "Diesel", "Hybrid", "Electric", "LPG", "CNG"].map(f => <MenuItem key={f} value={f}>{String(t(`fuel.${f}`, f))}</MenuItem>)}
             </SearchableTextField>
             <SearchableTextField label={t("vehicles.category")} value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} fullWidth>
-              {["passenger", "van", "truck", "motorcycle", "bus", "tractor"].map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+              {["passenger", "van", "truck", "motorcycle", "bus", "tractor"].map(c => <MenuItem key={c} value={c}>{String(t(`vehicleClass.${c}`, c))}</MenuItem>)}
             </SearchableTextField>
           </Stack>
         </Stack>
