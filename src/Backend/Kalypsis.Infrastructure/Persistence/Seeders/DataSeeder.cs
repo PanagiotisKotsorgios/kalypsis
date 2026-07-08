@@ -573,6 +573,15 @@ public static class DataSeeder
         // --- ALIS-parity batch G: claim involved parties -----------------
         // «F5 Ζημιάδες Εμπλεκόμενοι» — everyone involved in a claim beyond
         // the policyholder (other driver, passenger, witness, garage…).
+        // NOTE: the FK from claim_involved_parties.ClaimId → claims.Id is
+        // intentionally omitted here. MySQL 8 rejects the constraint because
+        // the `claims.Id` column was originally created by an EF migration
+        // that used `utf8mb4_unicode_ci`, and this bare CREATE TABLE would
+        // default to `utf8mb4_0900_ai_ci`. Explicit COLLATE tokens in the
+        // CREATE would work but the FK isn't load-bearing — the app never
+        // hard-deletes a claim (soft-delete via DeletedAt is the whole
+        // deletion flow), so cascade behaviour never fires in practice. EF
+        // still tracks the relationship via ClaimInvolvedPartyConfiguration.
         await EnsureTableAsync(db, logger, dbName,
             table: "claim_involved_parties",
             createSql: @"CREATE TABLE IF NOT EXISTS `claim_involved_parties` (
@@ -592,8 +601,7 @@ public static class DataSeeder
                 `UpdatedAt` datetime(6) NULL,
                 `DeletedAt` datetime(6) NULL,
                 PRIMARY KEY (`Id`),
-                KEY `IX_claim_involved_parties_Tenant_Claim` (`TenantId`, `ClaimId`),
-                CONSTRAINT `FK_claim_involved_parties_claims` FOREIGN KEY (`ClaimId`) REFERENCES `claims` (`Id`) ON DELETE CASCADE
+                KEY `IX_claim_involved_parties_Tenant_Claim` (`TenantId`, `ClaimId`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
 
         await EnsureColumnAsync(db, logger, dbName,
@@ -993,10 +1001,21 @@ public static class DataSeeder
 
     private static async Task EnsureColumnAsync(AppDbContext db, ILogger logger, string dbName, string table, string column, string addSql, CancellationToken ct)
     {
-        if (!await ColumnExistsAsync(db, dbName, table, column, ct))
+        try
         {
-            await db.Database.ExecuteSqlRawAsync(addSql, ct);
-            logger.LogWarning("Schema safety net: added {Table}.{Column}", table, column);
+            if (!await ColumnExistsAsync(db, dbName, table, column, ct))
+            {
+                await db.Database.ExecuteSqlRawAsync(addSql, ct);
+                logger.LogWarning("Schema safety net: added {Table}.{Column}", table, column);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Belt-and-braces: swallow per-statement failures so a single bad
+            // ALTER can't abort the whole schema safety net (which used to
+            // cascade — one FK collation mismatch would skip every later
+            // migration and leave subsequent columns unknown to the code).
+            logger.LogError(ex, "Schema safety: adding {Table}.{Column} failed, continuing.", table, column);
         }
     }
 
@@ -1018,13 +1037,23 @@ public static class DataSeeder
 
     private static async Task EnsureTableAsync(AppDbContext db, ILogger logger, string dbName, string table, string createSql, CancellationToken ct)
     {
-        var sql = "SELECT COUNT(*) FROM information_schema.TABLES " +
-                  "WHERE TABLE_SCHEMA = {0} AND TABLE_NAME = {1}";
-        var count = await db.Database.SqlQueryRaw<long>(sql, dbName, table).ToListAsync(ct);
-        if ((count.FirstOrDefault()) == 0)
+        try
         {
-            await db.Database.ExecuteSqlRawAsync(createSql, ct);
-            logger.LogWarning("Schema safety net: created table {Table}", table);
+            var sql = "SELECT COUNT(*) FROM information_schema.TABLES " +
+                      "WHERE TABLE_SCHEMA = {0} AND TABLE_NAME = {1}";
+            var count = await db.Database.SqlQueryRaw<long>(sql, dbName, table).ToListAsync(ct);
+            if ((count.FirstOrDefault()) == 0)
+            {
+                await db.Database.ExecuteSqlRawAsync(createSql, ct);
+                logger.LogWarning("Schema safety net: created table {Table}", table);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Same defense as EnsureColumnAsync — a per-CREATE failure (usually
+            // a collation-mismatched FK constraint on MySQL 8) must not skip
+            // later migrations in the same run.
+            logger.LogError(ex, "Schema safety: creating table {Table} failed, continuing.", table);
         }
     }
 }

@@ -15,7 +15,10 @@ public class ProducerConfiguration : IEntityTypeConfiguration<Producer>
         b.Property(x => x.Email).HasMaxLength(256);
         b.Property(x => x.Phone).HasMaxLength(40);
         b.Property(x => x.Status).HasConversion<int>();
-        b.Property(x => x.HierarchyLevel).HasConversion<int>().HasDefaultValue(Kalypsis.Domain.Enums.HierarchyLevel.Producer);
+        // Producer entity's C# initializer already sets HierarchyLevel = Producer,
+        // so no DB-generated default is needed. Removing HasDefaultValue also
+        // silences EF's sentinel-value warning (CLR 0 vs enum default) on boot.
+        b.Property(x => x.HierarchyLevel).HasConversion<int>();
         // Self-referencing FK for the commission hierarchy. Restrict on delete
         // so we don't accidentally cascade-nuke a whole team when a manager is
         // removed — the application layer should reassign children first.
