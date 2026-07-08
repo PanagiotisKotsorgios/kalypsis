@@ -123,6 +123,19 @@ public class PoliciesController : ControllerBase
         => Ok(await _mediator.Send(new GetPolicyCommissionSplitsQuery(id), ct));
 
     /// <summary>
+    /// Iterate every policy in the current tenant and (re)materialise its
+    /// commission-splits matrix. Idempotent — safe to run repeatedly after
+    /// a LevelPercentsJson rollout or a Producer hierarchy reshuffle.
+    /// Restricted to agency admins because a bulk write of this scale
+    /// shouldn't be doable by a regular operator.
+    /// </summary>
+    [HttpPost("backfill-commission-splits")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<BackfillCommissionSplitsResult>> BackfillCommissionSplits(
+        CancellationToken ct)
+        => Ok(await _mediator.Send(new BackfillCommissionSplitsCommand(), ct));
+
+    /// <summary>
     /// Επικοινωνία ανά συμβόλαιο — every CommunicationLog whose RelatedPolicyId
     /// points at this policy. Sidesteps the customer-scoped list handler so
     /// the drawer doesn't over-fetch every note across the customer's history.

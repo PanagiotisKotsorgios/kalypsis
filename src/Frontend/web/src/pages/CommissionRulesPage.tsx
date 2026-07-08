@@ -248,6 +248,7 @@ export function CommissionRulesPage() {
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>
           Νέος κανόνας γραφείου/συνεργάτη
           </Button>
+          <BackfillCommissionsButton />
           <DataExportButton entity="commission-rules" />
         </Stack>
       </Stack>
@@ -1046,5 +1047,70 @@ function RuleImpactPreview({ form }: { form: any }) {
         Εκτίμηση βασισμένη στα τελευταία 12 μήνες, στον πρώτο συνδυασμό κλάδου/χρήσης/κάλυψης.
       </Typography>
     </Stack>
+  );
+}
+
+/* ============================================================================
+   Bulk-backfill the commissions matrix across every policy in the tenant.
+   After a LevelPercentsJson rollout, existing policies still show a two-row
+   matrix until they're saved again — this button forces the recompute in
+   one operation.
+   ============================================================================ */
+function BackfillCommissionsButton() {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<null | { scanned: number; withSplits: number; created: number }>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const run = async () => {
+    if (!window.confirm(
+      "Θα ξαναϋπολογίσουμε τον πίνακα προμηθειών για κάθε συμβόλαιο του γραφείου. "
+      + "Η ενέργεια δεν χαλάει τίποτα — ασφαλής και επαναληπτική. Να συνεχίσουμε;"
+    )) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = (await api.post<{
+        policiesScanned: number;
+        policiesWithSplits: number;
+        splitsCreated: number;
+      }>("/policies/backfill-commission-splits", {})).data;
+      setResult({ scanned: r.policiesScanned, withSplits: r.policiesWithSplits, created: r.splitsCreated });
+    } catch (e) {
+      setErr(extractErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Button variant="outlined" onClick={run} disabled={busy} size="large">
+        {busy ? <CircularProgress size={18} /> : "Ξαναϋπολογισμός matrix"}
+      </Button>
+      {result && (
+        <Dialog open={!!result} onClose={() => setResult(null)} maxWidth="xs">
+          <DialogTitle>Ολοκληρώθηκε</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Σαρώθηκαν <b>{result.scanned}</b> συμβόλαια. Ο πίνακας υπολογίστηκε
+              για <b>{result.withSplits}</b> από αυτά και δημιουργήθηκαν
+              συνολικά <b>{result.created}</b> νέες γραμμές.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button variant="contained" onClick={() => setResult(null)}>Εντάξει</Button>
+          </DialogActions>
+        </Dialog>
+      )}
+      {err && (
+        <Dialog open={!!err} onClose={() => setErr(null)} maxWidth="xs">
+          <DialogTitle>Αποτυχία</DialogTitle>
+          <DialogContent><Typography color="error">{err}</Typography></DialogContent>
+          <DialogActions>
+            <Button onClick={() => setErr(null)}>Κλείσιμο</Button>
+          </DialogActions>
+        </Dialog>
+      )}
+    </>
   );
 }
