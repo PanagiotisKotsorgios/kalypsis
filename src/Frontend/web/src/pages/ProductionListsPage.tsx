@@ -9,6 +9,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import TableChartIcon from "@mui/icons-material/TableChart";
 import GridOnIcon from "@mui/icons-material/GridOn";
+import PrintIcon from "@mui/icons-material/Print";
 import CalculateIcon from "@mui/icons-material/Calculate";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -19,6 +20,12 @@ import { money, date } from "../utils/format";
 import { SavedReportsButton } from "../components/SavedReportsButton";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
+import {
+  ExportColumnPicker,
+  useExportColumnSelection,
+  type ExportColumnDescriptor,
+} from "../components/ExportColumnPicker";
+import { printTable } from "../utils/printableTable";
 
 interface Carrier { id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null; }
 interface Producer { id: string; name: string; }
@@ -133,9 +140,55 @@ export function ProductionListsPage() {
     queryFn: async () => (await api.get<Result>("/production-lists", { params })).data
   });
 
+  // Single source of truth for the production-lists table columns. Every
+  // column carries a display renderer, a plain-text extractor (for Print &
+  // client-side export), a header label, and an optional align hint. The
+  // export-column picker below is driven by this list, and the on-screen
+  // table skips any column the user has unchecked.
+  interface ProductionColumn {
+    key: string;
+    label: string;
+    align?: "left" | "right";
+    render: (r: Row) => React.ReactNode;
+    text: (r: Row) => string;
+    defaultOff?: boolean;
+  }
+  const columns: ProductionColumn[] = [
+    { key: "policyNumber",   label: t("productionList.col.policy"),   render: r => <Box component="span" sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.policyNumber}</Box>, text: r => r.policyNumber },
+    { key: "startDate",      label: t("productionList.col.start"),    render: r => <Box component="span" sx={{ fontSize: 12 }}>{date(r.startDate)}</Box>, text: r => date(r.startDate) },
+    { key: "endDate",        label: "Λήξη",                            render: r => <Box component="span" sx={{ fontSize: 12 }}>{date(r.endDate)}</Box>,   text: r => date(r.endDate), defaultOff: true },
+    { key: "customerName",   label: t("productionList.col.customer"), render: r => r.customerName,      text: r => r.customerName },
+    { key: "carrier",        label: t("productionList.col.carrier"),  render: r => r.insuranceCompany, text: r => r.insuranceCompany },
+    { key: "producer",       label: t("productionList.col.producer"), render: r => r.producer ?? "—",  text: r => r.producer ?? "" },
+    { key: "type",           label: t("productionList.col.type"),     render: r => <Chip size="small" variant="outlined" label={r.policyType} />, text: r => r.policyType },
+    { key: "use",            label: "Χρήση",                           render: r => r.vehicleUseCategory ? <Chip size="small" label={r.vehicleUseCategory} /> : "—", text: r => r.vehicleUseCategory ?? "" },
+    { key: "cover",          label: "Κάλυψη",                          render: r => r.coverCode ? <Chip size="small" variant="outlined" label={r.coverCode} /> : "—", text: r => r.coverCode ?? "" },
+    { key: "status",         label: t("productionList.status"),        render: r => r.status, text: r => r.status, defaultOff: true },
+    { key: "gross",          label: t("productionList.col.gross"),    align: "right", render: r => <Box component="span" sx={{ fontWeight: 700 }}>{money(r.gross)}</Box>, text: r => money(r.gross) },
+    { key: "net",            label: t("productionList.col.net"),      align: "right", render: r => money(r.net),  text: r => money(r.net) },
+    { key: "vat",            label: t("productionList.kpi.vat"),      align: "right", render: r => money(r.vat), text: r => money(r.vat), defaultOff: true },
+    { key: "bridgeComm",     label: "Προμ. γέφυρας/έδρας",             align: "right", render: r => <Box component="span" sx={{ color: "info.main" }}>{money(r.incomingAgencyCommission)} ({r.incomingAgencyCommissionPercent.toFixed(1)}%)</Box>, text: r => `${money(r.incomingAgencyCommission)} (${r.incomingAgencyCommissionPercent.toFixed(1)}%)` },
+    { key: "partnerPct",     label: t("productionList.col.partnerPct"), align: "right", render: r => <Box component="span" sx={{ color: "text.secondary" }}>{r.partnerCommissionPercent.toFixed(1)}%</Box>, text: r => `${r.partnerCommissionPercent.toFixed(1)}%` },
+    { key: "partner",        label: t("productionList.col.partner"),  align: "right", render: r => <Box component="span" sx={{ color: "warning.main" }}>{money(r.partnerCommission)}</Box>, text: r => money(r.partnerCommission) },
+    { key: "agency",         label: t("productionList.col.agency"),   align: "right", render: r => <Box component="span" sx={{ color: "success.main", fontWeight: 700 }}>{money(r.agencyCommission)}</Box>, text: r => money(r.agencyCommission) },
+    { key: "check",          label: "Έλεγχος",                         render: r => r.commissionWarning ? <Chip size="small" color="warning" label="Έλεγχος σύμβασης" title={r.commissionWarning} /> : <Chip size="small" color="success" variant="outlined" label="OK" />, text: r => r.commissionWarning ?? "OK" },
+  ];
+
+  const pickerDescriptors: ExportColumnDescriptor[] = columns.map((c, i) => ({
+    key: c.key, label: c.label,
+    alwaysOn: i === 0,
+    defaultOff: c.defaultOff,
+  }));
+  const selection = useExportColumnSelection("production-lists", pickerDescriptors);
+  const visibleColumns = columns.filter(c => selection.activeKeys.includes(c.key));
+
   async function downloadExport(fmt: "csv" | "xlsx" | "pdf") {
+    const activeKeys = selection.activeKeys;
+    const columnsParam = activeKeys.length > 0 && activeKeys.length < columns.length
+      ? activeKeys.join(",")
+      : undefined;
     const res = await api.get("/production-lists/export", {
-      params: { ...params, format: fmt },
+      params: { ...params, format: fmt, columns: columnsParam },
       responseType: "blob"
     });
     const mime = fmt === "csv"  ? "text/csv"
@@ -149,6 +202,29 @@ export function ProductionListsPage() {
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+
+  // Client-side Print — always uses the currently loaded (filtered) rows
+  // and the current column-picker selection so the printed sheet mirrors
+  // exactly what's on screen.
+  const openPrint = () => {
+    const rows = q.data?.rows ?? [];
+    const filterBits: string[] = [];
+    if (f.from) filterBits.push(`Από: ${f.from}`);
+    if (f.to)   filterBits.push(`Έως: ${f.to}`);
+    const selectedCarrier = (carriers.data ?? []).find(c => c.id === f.insuranceCompanyId);
+    if (selectedCarrier) filterBits.push(`Εταιρία: ${selectedCarrier.name}`);
+    const selectedProducer = (producers.data ?? []).find(p => p.id === f.producerId);
+    if (selectedProducer) filterBits.push(`Συνεργάτης: ${selectedProducer.name}`);
+    if (f.status) filterBits.push(`Κατάσταση: ${f.status}`);
+
+    printTable<Row>({
+      title: t("productionList.title"),
+      subtitle: filterBits.join(" · "),
+      columns: visibleColumns.map(c => ({ key: c.key, label: c.label, map: c.text })),
+      rows,
+      orientation: "landscape",
+    });
+  };
 
   return (
     <Box>
@@ -164,14 +240,24 @@ export function ProductionListsPage() {
           </Box>
         </Stack>
         <Box sx={{ flex: 1 }} />
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} alignItems="center">
           <SavedReportsButton entity="production-lists" currentFilters={f} onLoad={(next) => setF({ ...f, ...next })} />
           <Button component={RouterLink} to="/app/commission-runs" variant="outlined" color="secondary" startIcon={<CalculateIcon />}>
             Εκκαθαρίσεις προμηθειών
           </Button>
+          <ExportColumnPicker
+            columns={pickerDescriptors}
+            off={selection.off}
+            toggle={selection.toggle}
+            setAll={selection.setAll}
+            reset={selection.reset}
+          />
           <Button variant="outlined" startIcon={<TableChartIcon />} onClick={() => downloadExport("csv")}>CSV</Button>
           <Button variant="outlined" startIcon={<GridOnIcon />} onClick={() => downloadExport("xlsx")}>Excel</Button>
-          <Button variant="contained" startIcon={<PictureAsPdfIcon />} onClick={() => downloadExport("pdf")}>PDF</Button>
+          <Button variant="outlined" color="error" startIcon={<PictureAsPdfIcon />} onClick={() => downloadExport("pdf")}>PDF</Button>
+          <Button variant="outlined" startIcon={<PrintIcon />} onClick={openPrint}>
+            {t("common.print", "Εκτύπωση")}
+          </Button>
         </Stack>
       </Stack>
 
@@ -340,53 +426,29 @@ export function ProductionListsPage() {
             </Card>
           )}
 
-          {/* Detailed rows */}
+          {/* Detailed rows — headers & cells driven by the column-picker
+              selection above, so unchecking a column also removes it from
+              the on-screen view (not just the export/print). */}
           <Card variant="outlined" sx={{ overflowX: "auto" }}>
             <Table size="small">
               <TableHead><TableRow>
-                <TableCell>{t("productionList.col.policy")}</TableCell>
-                <TableCell>{t("productionList.col.start")}</TableCell>
-                <TableCell>{t("productionList.col.customer")}</TableCell>
-                <TableCell>{t("productionList.col.carrier")}</TableCell>
-                <TableCell>{t("productionList.col.producer")}</TableCell>
-                <TableCell>{t("productionList.col.type")}</TableCell>
-                <TableCell>Χρήση</TableCell>
-                <TableCell>Κάλυψη</TableCell>
-                <TableCell align="right">{t("productionList.col.gross")}</TableCell>
-                <TableCell align="right">{t("productionList.col.net")}</TableCell>
-                <TableCell align="right">Προμ. γέφυρας/έδρας</TableCell>
-                <TableCell align="right">{t("productionList.col.partnerPct")}</TableCell>
-                <TableCell align="right">{t("productionList.col.partner")}</TableCell>
-                <TableCell align="right">{t("productionList.col.agency")}</TableCell>
-                <TableCell>Έλεγχος</TableCell>
+                {visibleColumns.map(c => (
+                  <TableCell key={c.key} align={c.align}>{c.label}</TableCell>
+                ))}
               </TableRow></TableHead>
               <TableBody>
                 {q.data.rows.length === 0 && (
-                  <TableRow><TableCell colSpan={15} align="center" sx={{ py: 4, color: "text.secondary" }}>{t("productionList.empty")}</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={visibleColumns.length} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                      {t("productionList.empty")}
+                    </TableCell>
+                  </TableRow>
                 )}
                 {q.data.rows.map(r => (
                   <TableRow key={r.policyId} hover>
-                    <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.policyNumber}</TableCell>
-                    <TableCell sx={{ fontSize: 12 }}>{date(r.startDate)}</TableCell>
-                    <TableCell>{r.customerName}</TableCell>
-                    <TableCell>{r.insuranceCompany}</TableCell>
-                    <TableCell>{r.producer ?? "—"}</TableCell>
-                    <TableCell><Chip size="small" variant="outlined" label={r.policyType} /></TableCell>
-                    <TableCell>{r.vehicleUseCategory ? <Chip size="small" label={r.vehicleUseCategory} /> : "—"}</TableCell>
-                    <TableCell>{r.coverCode ? <Chip size="small" variant="outlined" label={r.coverCode} /> : "—"}</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700 }}>{money(r.gross)}</TableCell>
-                    <TableCell align="right">{money(r.net)}</TableCell>
-                    <TableCell align="right" sx={{ color: "info.main" }}>
-                      {money(r.incomingAgencyCommission)} ({r.incomingAgencyCommissionPercent.toFixed(1)}%)
-                    </TableCell>
-                    <TableCell align="right" sx={{ color: "text.secondary" }}>{r.partnerCommissionPercent.toFixed(1)}%</TableCell>
-                    <TableCell align="right" sx={{ color: "warning.main" }}>{money(r.partnerCommission)}</TableCell>
-                    <TableCell align="right" sx={{ color: "success.main", fontWeight: 700 }}>{money(r.agencyCommission)}</TableCell>
-                    <TableCell>
-                      {r.commissionWarning
-                        ? <Chip size="small" color="warning" label="Έλεγχος σύμβασης" title={r.commissionWarning} />
-                        : <Chip size="small" color="success" variant="outlined" label="OK" />}
-                    </TableCell>
+                    {visibleColumns.map(c => (
+                      <TableCell key={c.key} align={c.align}>{c.render(r)}</TableCell>
+                    ))}
                   </TableRow>
                 ))}
               </TableBody>
