@@ -9,9 +9,12 @@ import LastPageIcon from "@mui/icons-material/LastPage";
 import GridOnIcon from "@mui/icons-material/GridOn";
 import TableChartIcon from "@mui/icons-material/TableChart";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import PrintIcon from "@mui/icons-material/Print";
 import { useTranslation } from "react-i18next";
 import * as XLSX from "xlsx";
 import { api } from "../api/client";
+import { printTable } from "../utils/printableTable";
+import { ExportColumnPicker, useExportColumnSelection, type ExportColumnDescriptor } from "./ExportColumnPicker";
 
 /* ============================================================================
    Numbered pager — renders 1, 2, … current ±2, … last, with prev/next/jumpers.
@@ -66,13 +69,21 @@ export function NumberedPager({ page, totalPages, onPage }: {
 }
 
 /* ============================================================================
-   Toolbar — search + page-size selector + CSV/Excel export buttons.
+   Toolbar — search + page-size selector + CSV/Excel/PDF/Print buttons.
+   Honors an optional visibleColumnKeys filter (from useColumnPreferences) so
+   the picker on the table also drives what gets exported and printed.
    ========================================================================= */
 export function TableToolbar<T>({
   query, onQuery, count, filteredCount,
   pageSize, onPageSize,
   exportRows, exportFileName, exportColumns,
   serverEntity, serverParams,
+  visibleColumnKeys,
+  printTitle,
+  printSubtitle,
+  columnSelectionId,
+  hideColumnPicker,
+  extraExportColumns,
   rightSlot
 }: {
   query: string;
@@ -92,13 +103,67 @@ export function TableToolbar<T>({
     | "tasks" | "receipts" | "payments" | "appointments"
     | "cover-notes" | "email-templates" | "notifications";
   serverParams?: Record<string, string | number | undefined | null>;
+  /** Subset of column keys currently visible. When set, CSV/Excel/PDF/Print
+   *  emit only those columns — so the on-screen column picker also drives
+   *  what leaves the app. Undefined => export every declared column. */
+  visibleColumnKeys?: string[];
+  /** Title printed at the top of the print output. Defaults to exportFileName. */
+  printTitle?: string;
+  /** Optional subtitle line (e.g. "Filtered by ‹something›"). */
+  printSubtitle?: string;
+  /** localStorage bucket for the export-column selector. Defaults to
+   *  `serverEntity ?? exportFileName` — pass an explicit id to share the
+   *  selection across multiple toolbars on the same page. */
+  columnSelectionId?: string;
+  /** Hide the export-column picker even when exportColumns is provided
+   *  (useful for very small/synthetic column sets). */
+  hideColumnPicker?: boolean;
+  /** Columns that are NOT rendered on-screen but can be opted into the
+   *  export. Useful for internal ids, audit fields, and similar. */
+  extraExportColumns?: { key: keyof T | string; label: string; map?: (r: T) => any; defaultOff?: boolean }[];
   rightSlot?: React.ReactNode;
 }) {
   const { t } = useTranslation();
 
+  // Merge the base + extra columns into the export universe. Extras are
+  // marked `defaultOff` so the export behaves identically to before unless
+  // the user explicitly ticks them.
+  const allExportColumns = [
+    ...exportColumns.map(c => ({ ...c, defaultOff: false as boolean | undefined })),
+    ...(extraExportColumns ?? []).map(c => ({ ...c, defaultOff: c.defaultOff ?? true })),
+  ];
+
+  const pickerDescriptors: ExportColumnDescriptor[] = allExportColumns.map((c, i) => ({
+    key: String(c.key),
+    label: c.label,
+    defaultOff: c.defaultOff,
+    // First column locks by default — it's usually the primary id that
+    // makes the export interpretable.
+    alwaysOn: i === 0,
+  }));
+
+  const pickerId = columnSelectionId ?? serverEntity ?? exportFileName;
+  const selection = useExportColumnSelection(pickerId, pickerDescriptors);
+  const selectedKeys = new Set(selection.activeKeys);
+
+  // Filter export columns by (a) the display-column whitelist if the caller
+  // passed one, and (b) the export-column picker selection. Preserves the
+  // caller's declared order.
+  const effectiveColumns = allExportColumns.filter(c => {
+    const k = String(c.key);
+    if (!selectedKeys.has(k)) return false;
+    if (visibleColumnKeys && visibleColumnKeys.length > 0 && !visibleColumnKeys.includes(k)) {
+      // Display-picker also weighs in — only exclude keys the display picker
+      // KNOWS about; unknown keys (e.g. extras) stay based on export selection.
+      const known = exportColumns.some(ec => String(ec.key) === k);
+      if (known) return false;
+    }
+    return true;
+  });
+
   const buildSheetRows = () => exportRows.map(r => {
     const o: Record<string, any> = {};
-    for (const c of exportColumns) {
+    for (const c of effectiveColumns) {
       o[c.label] = c.map ? c.map(r) : (r as any)[c.key];
     }
     return o;
@@ -121,11 +186,35 @@ export function TableToolbar<T>({
   };
   const downloadPdf = () => { if (serverEntity) void downloadFromServer("pdf"); };
 
+  // Print is always client-side — even when a serverEntity is defined we
+  // don't round-trip to the backend, because the visible column selection
+  // and any pending filters live only in the browser.
+  const openPrint = () => {
+    printTable({
+      title: printTitle ?? exportFileName,
+      subtitle: printSubtitle,
+      columns: effectiveColumns.map(c => ({
+        key: String(c.key),
+        label: c.label,
+        map: c.map ? (r: T) => c.map!(r) : undefined,
+      })),
+      rows: exportRows,
+    });
+  };
+
   async function downloadFromServer(format: "csv" | "xlsx" | "pdf") {
     if (!serverEntity) return;
     const params: Record<string, string> = { format };
     for (const [k, v] of Object.entries(serverParams ?? {})) {
       if (v !== null && v !== undefined && v !== "") params[k] = String(v);
+    }
+    // Pass the effective column whitelist so a backend that supports it can
+    // trim the response. Backends that ignore the parameter still work —
+    // they'll just emit every column and the on-screen ones will be a
+    // superset of what the user selected.
+    const effectiveKeys = effectiveColumns.map(c => String(c.key));
+    if (effectiveKeys.length > 0 && effectiveKeys.length < allExportColumns.length) {
+      params.columns = effectiveKeys.join(",");
     }
     const res = await api.get(`/data-exports/${serverEntity}`, { params, responseType: "blob" });
     const mime = format === "csv" ? "text/csv"
@@ -152,12 +241,24 @@ export function TableToolbar<T>({
         onChange={(e) => onPageSize(Number(e.target.value))} sx={{ width: 110 }}>
         {[10, 25, 50, 100, 250].map(n => <MenuItem key={n} value={n}>{n}</MenuItem>)}
       </TextField>
-      <Stack direction="row" spacing={1}>
+      <Stack direction="row" spacing={1} alignItems="center">
+        {!hideColumnPicker && pickerDescriptors.length > 1 && (
+          <ExportColumnPicker
+            columns={pickerDescriptors}
+            off={selection.off}
+            toggle={selection.toggle}
+            setAll={selection.setAll}
+            reset={selection.reset}
+          />
+        )}
         <Button size="small" variant="outlined" startIcon={<TableChartIcon />} onClick={downloadCsv}>CSV</Button>
         <Button size="small" variant="outlined" startIcon={<GridOnIcon />} onClick={downloadXlsx}>Excel</Button>
         {serverEntity && (
           <Button size="small" variant="outlined" color="error" startIcon={<PictureAsPdfIcon />} onClick={downloadPdf}>PDF</Button>
         )}
+        <Button size="small" variant="outlined" startIcon={<PrintIcon />} onClick={openPrint}>
+          {t("common.print", "Εκτύπωση")}
+        </Button>
       </Stack>
       {rightSlot}
     </Stack>

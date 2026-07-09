@@ -1,0 +1,72 @@
+/*
+ * Global print stylesheet. Kicks in when the user hits Ctrl+P or the Print
+ * fallback in DataExportButton. Strips app chrome (side nav, top bar, help
+ * widgets) so the printed sheet contains only the main table area.
+ *
+ * The dedicated `printTable()` helper opens its own window with its own
+ * inline styles — this stylesheet is only for pages that print themselves.
+ */
+@media print {
+  /* Kill accessibility / help / cookie / floating widgets. */
+  [data-tour="accessibility-widget"],
+  [data-tour="cookie-preferences"],
+  [data-print-hide],
+  .no-print,
+  .MuiAppBar-root,
+  .MuiDrawer-root,
+  .MuiSpeedDial-root,
+  .MuiTooltip-popper,
+  .MuiPopover-root,
+  .MuiSnackbar-root {
+    display: none !important;
+  }
+
+  html, body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 11pt;
+  }
+
+  /* Give the main content area the full page width. */
+  main, .kalypsis-main, [data-print-main] {
+    margin: 0 !important;
+    padding: 8mm !important;
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+  /* Card shadows and rounded borders don't print well. */
+  .MuiCard-root, .MuiPaper-root {
+    box-shadow: none !important;
+    border: 1px solid #e0e0e0 !important;
+    break-inside: avoid;
+  }
+
+  /* Tables — force borders and readable colors. */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+  thead th {
+    background: #f0f4fa !important;
+    color: #0d47a1 !important;
+    border-bottom: 1.5px solid #b6c8e0 !important;
+  }
+  tbody td, thead th {
+    padding: 5px 8px !important;
+    border: 1px solid #e5e7eb !important;
+  }
+  tr { break-inside: avoid; }
+
+  /* Buttons, search inputs, page-size selectors — irrelevant on paper. */
+  .MuiButton-root, .MuiIconButton-root, .MuiButtonGroup-root,
+  .MuiInputBase-root:not(td .MuiInputBase-root),
+  .MuiPagination-root {
+    display: none !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 12mm 10mm;
+  }
+}
