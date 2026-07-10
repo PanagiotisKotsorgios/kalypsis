@@ -88,17 +88,10 @@ export function printTable<T>(opts: PrintOptions<T>): void {
   @media print {
     header { break-after: avoid; }
     tr { break-inside: avoid; }
-    .no-print { display: none; }
   }
-  .no-print { position: fixed; top: 12px; right: 16px; }
-  .no-print button { padding: 6px 12px; font-size: 12px; background: #0d47a1; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
-  .no-print button:hover { background: #093373; }
 </style>
 </head>
 <body>
-<div class="no-print">
-  <button onclick="window.print()">Εκτύπωση</button>
-</div>
 <div class="kalypsis-print-shell">
   <header>
     <h1>${escapeHtml(opts.title)}</h1>
@@ -113,31 +106,50 @@ export function printTable<T>(opts: PrintOptions<T>): void {
     <span>${escapeHtml(now)}</span>
   </footer>
 </div>
-<script>
-  // Fire the native print dialog once the DOM has settled, but leave the
-  // window open afterwards so the user can review / re-print if they want.
-  window.addEventListener("load", function () {
-    setTimeout(function () { window.print(); }, 250);
-  });
-</script>
 </body>
 </html>`;
 
-  const win = window.open("", "_blank", "noopener,noreferrer,width=1024,height=768");
-  if (!win) {
-    // Popup blocked — fall back to a downloadable HTML so the user isn't stuck.
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${opts.title.replace(/[^\w\-]+/g, "_")}.html`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    return;
-  }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
+  // Print via a hidden iframe rendered in the current window. This avoids
+  // popup blockers, avoids downloading anything, and hands the browser a
+  // clean document so the native print dialog opens straight away. When
+  // the print dialog closes we clean the iframe up.
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.setAttribute("title", "kalypsis-print");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.style.opacity = "0";
+  iframe.style.pointerEvents = "none";
+
+  const cleanup = () => {
+    // Give Chrome a moment to actually reach the "print job spooled" state
+    // before we yank the frame out from under it.
+    setTimeout(() => { iframe.remove(); }, 500);
+  };
+
+  iframe.addEventListener("load", () => {
+    const win = iframe.contentWindow;
+    if (!win) { cleanup(); return; }
+    try {
+      // afterprint fires whether the user prints or cancels.
+      win.addEventListener("afterprint", cleanup, { once: true });
+      // Focus is required in Safari and some Firefox builds for the print
+      // dialog to appear against the iframe's document.
+      win.focus();
+      win.print();
+    } catch {
+      cleanup();
+    }
+  });
+
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument;
+  if (!doc) { iframe.remove(); return; }
+  doc.open();
+  doc.write(html);
+  doc.close();
 }
