@@ -141,7 +141,6 @@ import { DocumentDesignerPage } from "./pages/DocumentDesignerPage";
 import { FriendlySettlementsPage } from "./pages/FriendlySettlementsPage";
 import { CustomerMergePage } from "./pages/CustomerMergePage";
 import { PersistencyPage } from "./pages/PersistencyPage";
-import { CallerIdPage } from "./pages/CallerIdPage";
 import { UsaeSubmissionsPage } from "./pages/UsaeSubmissionsPage";
 import { IntegrationSettingsPage } from "./pages/IntegrationSettingsPage";
 import { NamedReportsPage } from "./pages/NamedReportsPage";
@@ -175,7 +174,6 @@ import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import GavelOutlinedIcon from "@mui/icons-material/GavelOutlined";
 import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import CakeIcon from "@mui/icons-material/Cake";
-import PhoneCallbackIcon from "@mui/icons-material/PhoneCallback";
 import MergeIcon from "@mui/icons-material/Merge";
 // DirectionsCarIcon was the vehicle-models entry — removed from sidebar.
 import InventoryIcon from "@mui/icons-material/Inventory";
@@ -267,7 +265,6 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/appointments", labelKey: "nav.appointments", icon: <EventIcon />, package: "Crm" },
     { to: "/marketing", labelKey: "nav.marketing", icon: <MailOutlineIcon />, package: "Crm", group: "crm" },
     { to: "/name-days", labelKey: "nav.nameDays", icon: <CakeIcon />, package: "Crm", group: "crm" },
-    { to: "/caller-id", labelKey: "nav.callerId", icon: <PhoneCallbackIcon />, package: "Crm", group: "crm" },
     { to: "/document-manager", labelKey: "nav.documentManager", icon: <FolderSpecialIcon />, package: "Crm", group: "crm" },
     { to: "/delivery-tracking", labelKey: "nav.deliveryTracking", icon: <LocalShippingIcon />, package: "Crm", group: "crm" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Crm" },
@@ -553,7 +550,7 @@ export default function App() {
                   <Route path="customer-merge" element={<CustomerMergePage />} />
                   <Route path="persistency" element={<PersistencyPage />} />
                   <Route path="policy-delivery" element={<Navigate to="/app/policies?view=delivery" replace />} />
-                  <Route path="caller-id" element={<CallerIdPage />} />
+                  <Route path="caller-id" element={<Navigate to="/app" replace />} />
                   <Route path="usae" element={<UsaeSubmissionsPage />} />
                   <Route path="all-tools" element={<AllToolsPage />} />
                   <Route path="default-value-rules" element={<Navigate to="/app/commission-rules" replace />} />

@@ -94,7 +94,7 @@ export function PolicyDeliveryPage({ embedded = false }: PolicyDeliveryPageProps
             </TableRow></TableHead>
             <TableBody>
               {(q.data ?? []).length === 0 && (
-                <TableRow><TableCell colSpan={5} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("delivery.empty")}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("delivery.pendingEmpty")}</TableCell></TableRow>
               )}
               {(q.data ?? []).map(r => (
                 <TableRow key={r.policyId} hover selected={selected.has(r.policyId)} onClick={() => toggle(r.policyId)} sx={{ cursor: "pointer" }}>
