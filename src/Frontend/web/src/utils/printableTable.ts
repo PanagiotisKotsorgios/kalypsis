@@ -111,8 +111,18 @@ export function printTable<T>(opts: PrintOptions<T>): void {
 
   // Print via a hidden iframe rendered in the current window. This avoids
   // popup blockers, avoids downloading anything, and hands the browser a
-  // clean document so the native print dialog opens straight away. When
-  // the print dialog closes we clean the iframe up.
+  // clean document so the native print dialog opens straight away.
+  //
+  // Two subtleties matter here and both used to cause a double-print:
+  //   1) An iframe appended with no src fires a `load` event for its
+  //      initial about:blank BEFORE `document.write` writes anything —
+  //      so calling print() in that first load hits an empty document,
+  //      and the second write triggers a *second* load + a second print.
+  //      The fix: use `srcdoc`, which navigates once, straight to our
+  //      content, and fires load exactly once.
+  //   2) Even with srcdoc, we guard the load handler with a `printed`
+  //      flag as belt-and-braces, and verify the document has a body
+  //      with children before firing the dialog.
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
   iframe.setAttribute("title", "kalypsis-print");
@@ -125,6 +135,7 @@ export function printTable<T>(opts: PrintOptions<T>): void {
   iframe.style.opacity = "0";
   iframe.style.pointerEvents = "none";
 
+  let printed = false;
   const cleanup = () => {
     // Give Chrome a moment to actually reach the "print job spooled" state
     // before we yank the frame out from under it.
@@ -132,8 +143,13 @@ export function printTable<T>(opts: PrintOptions<T>): void {
   };
 
   iframe.addEventListener("load", () => {
+    if (printed) return;
     const win = iframe.contentWindow;
-    if (!win) { cleanup(); return; }
+    const doc = win?.document;
+    // Skip any spurious empty-document load — only fire print once the
+    // real body has been rendered.
+    if (!win || !doc?.body || doc.body.children.length === 0) return;
+    printed = true;
     try {
       // afterprint fires whether the user prints or cancels.
       win.addEventListener("afterprint", cleanup, { once: true });
@@ -146,10 +162,8 @@ export function printTable<T>(opts: PrintOptions<T>): void {
     }
   });
 
+  // Set srcdoc BEFORE appending so the iframe navigates straight to our
+  // content instead of loading about:blank first.
+  iframe.srcdoc = html;
   document.body.appendChild(iframe);
-  const doc = iframe.contentDocument;
-  if (!doc) { iframe.remove(); return; }
-  doc.open();
-  doc.write(html);
-  doc.close();
 }
