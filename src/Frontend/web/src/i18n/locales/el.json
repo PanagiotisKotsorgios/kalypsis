@@ -2352,7 +2352,18 @@
     "assignedTo": "Ανατίθεται σε",
     "customer": "Πελάτης",
     "notes": "Σημειώσεις",
+    "viewMode": "Προβολή",
+    "viewCalendar": "Ημερολόγιο",
+    "viewList": "Λίστα",
     "status": { "Scheduled": "Προγραμματισμένο", "Done": "Ολοκληρώθηκε", "Cancelled": "Ακυρωμένο" }
+  },
+  "calendar": {
+    "prevMonth": "Προηγούμενος μήνας",
+    "nextMonth": "Επόμενος μήνας",
+    "today": "Σήμερα",
+    "appointments": "Ραντεβού",
+    "tasks": "Εργασίες",
+    "more": "ακόμη"
   },
   "tariffs": {
     "title": "Τιμοκατάλογοι",

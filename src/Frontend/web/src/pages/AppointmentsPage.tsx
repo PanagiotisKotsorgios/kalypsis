@@ -1,19 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog,
-  DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField, Typography
+  DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField,
+  ToggleButton, ToggleButtonGroup, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EventIcon from "@mui/icons-material/Event";
+import ViewListIcon from "@mui/icons-material/ViewList";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { AppointmentsCalendar, type CalendarEvent } from "../components/AppointmentsCalendar";
 
 type Status = "Scheduled" | "Done" | "Cancelled";
 interface AppointmentDto {
@@ -26,16 +30,52 @@ interface AppointmentDto {
 interface UserLite { id: string; firstName: string; lastName: string }
 interface CustomerLite { id: string; type: "Individual" | "Company"; firstName?: string; lastName?: string; companyName?: string }
 
+// Lightweight task shape — only the fields the calendar cares about.
+// Full task management still lives on the Tasks page; the appointments
+// calendar just overlays them as blue dots so operators can see the
+// day's full workload at a glance.
+type TaskStatusLite = "Open" | "InProgress" | "Completed" | "Cancelled";
+interface TaskLite {
+  id: string;
+  title: string;
+  status: TaskStatusLite;
+  dueAt: string | null;
+  assignedToUserName: string | null;
+  customerDisplay: string | null;
+  policyNumber: string | null;
+  description: string | null;
+}
+
 const STATUS_COLOR: Record<Status, "default" | "info" | "success" | "error"> = { Scheduled: "info", Done: "success", Cancelled: "error" };
+const TASK_STATUS_COLOR: Record<TaskStatusLite, "default" | "primary" | "success" | "error"> = {
+  Open: "primary", InProgress: "primary", Completed: "success", Cancelled: "error",
+};
+
+type ViewMode = "list" | "calendar";
+const VIEW_STORAGE_KEY = "kalypsis:appointments:view";
 
 export function AppointmentsPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createPrefillDate, setCreatePrefillDate] = useState<string | null>(null);
   const [editing, setEditing] = useState<AppointmentDto | null>(null);
+  const [view, setView] = useState<ViewMode>(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_STORAGE_KEY);
+      return saved === "list" || saved === "calendar" ? saved : "calendar";
+    } catch { return "calendar"; }
+  });
 
   const q = useQuery({ queryKey: ["appointments"], queryFn: async () => (await api.get<AppointmentDto[]>("/appointments")).data });
+  // Tasks are only fetched when the calendar is up — the list view never
+  // rendered them and shouldn't pay the network hit.
+  const tasksQ = useQuery({
+    queryKey: ["appointments-calendar-tasks"],
+    enabled: view === "calendar",
+    queryFn: async () => (await api.get<TaskLite[]>("/tasks")).data,
+  });
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/appointments/${id}`),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["appointments"] }),
@@ -49,6 +89,51 @@ export function AppointmentsPage() {
     return acc;
   }, {} as Record<string, AppointmentDto[]>);
 
+  // Map the two entity types into the calendar's shared event shape. Doing
+  // this once here keeps the calendar component decoupled from our DTOs.
+  const calendarEvents: CalendarEvent[] = useMemo(() => {
+    const appts: CalendarEvent[] = items.map(a => ({
+      id: `appt:${a.id}`,
+      bucket: "appointment",
+      title: a.title,
+      at: a.startsAt,
+      until: a.endsAt,
+      meta: [a.assignedToUserName, a.customerName, a.policyNumber].filter(Boolean).join(" · ") || undefined,
+      detail: [a.location ? `📍 ${a.location}` : null, a.description].filter(Boolean).join("\n") || undefined,
+      statusLabel: t(`appointments.status.${a.status}`, a.status) as string,
+      statusColor: STATUS_COLOR[a.status],
+    }));
+    const tasks: CalendarEvent[] = (tasksQ.data ?? [])
+      .filter(t => !!t.dueAt)
+      .map(tk => ({
+        id: `task:${tk.id}`,
+        bucket: "task",
+        title: tk.title,
+        at: tk.dueAt!,
+        meta: [tk.assignedToUserName, tk.customerDisplay, tk.policyNumber].filter(Boolean).join(" · ") || undefined,
+        detail: tk.description ?? undefined,
+        statusLabel: t(`tasks.statuses.${tk.status}`, tk.status) as string,
+        statusColor: TASK_STATUS_COLOR[tk.status],
+      }));
+    return [...appts, ...tasks];
+  }, [items, tasksQ.data, t]);
+
+  const persistView = (v: ViewMode) => {
+    setView(v);
+    try { localStorage.setItem(VIEW_STORAGE_KEY, v); } catch { /* quota */ }
+  };
+
+  const openCreateForDay = (dayIso: string) => {
+    setCreatePrefillDate(dayIso);
+    setCreateOpen(true);
+  };
+
+  const openEventEdit = (e: CalendarEvent) => {
+    if (e.bucket !== "appointment") return; // tasks stay on the Tasks page
+    const raw = items.find(a => `appt:${a.id}` === e.id);
+    if (raw) setEditing(raw);
+  };
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
@@ -60,8 +145,24 @@ export function AppointmentsPage() {
           <Typography color="text.secondary">{t("appointments.subtitle")}</Typography>
         </Box>
         <Stack direction="row" spacing={1} alignItems="center">
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={view}
+            onChange={(_, next) => next && persistView(next)}
+            aria-label={String(t("appointments.viewMode", "Προβολή"))}
+          >
+            <ToggleButton value="calendar" aria-label="calendar" sx={{ px: 1.5 }}>
+              <CalendarMonthIcon fontSize="small" sx={{ mr: 0.5 }} />
+              {t("appointments.viewCalendar", "Ημερολόγιο")}
+            </ToggleButton>
+            <ToggleButton value="list" aria-label="list" sx={{ px: 1.5 }}>
+              <ViewListIcon fontSize="small" sx={{ mr: 0.5 }} />
+              {t("appointments.viewList", "Λίστα")}
+            </ToggleButton>
+          </ToggleButtonGroup>
           <DataExportButton entity="appointments" />
-          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>
+          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setCreatePrefillDate(null); setCreateOpen(true); }}>
             {t("appointments.create")}
           </Button>
         </Stack>
@@ -69,7 +170,17 @@ export function AppointmentsPage() {
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
 
-      {q.isLoading ? (
+      {view === "calendar" ? (
+        q.isLoading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
+        ) : (
+          <AppointmentsCalendar
+            events={calendarEvents}
+            onCreateForDay={openCreateForDay}
+            onEventClick={openEventEdit}
+          />
+        )
+      ) : q.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
       ) : items.length === 0 ? (
         <Card variant="outlined" sx={{ p: 4, textAlign: "center", color: "text.secondary", borderStyle: "dashed" }}>
@@ -120,15 +231,15 @@ export function AppointmentsPage() {
         </Stack>
       )}
 
-      <FormDialog open={createOpen} onClose={() => setCreateOpen(false)} item={null}
-        onSaved={() => { void qc.invalidateQueries({ queryKey: ["appointments"] }); setCreateOpen(false); }} />
-      <FormDialog open={!!editing} onClose={() => setEditing(null)} item={editing}
+      <FormDialog open={createOpen} onClose={() => setCreateOpen(false)} item={null} prefillDate={createPrefillDate}
+        onSaved={() => { void qc.invalidateQueries({ queryKey: ["appointments"] }); setCreateOpen(false); setCreatePrefillDate(null); }} />
+      <FormDialog open={!!editing} onClose={() => setEditing(null)} item={editing} prefillDate={null}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["appointments"] }); setEditing(null); }} />
     </Box>
   );
 }
 
-function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: () => void; item: AppointmentDto | null; onSaved: () => void; }) {
+function FormDialog({ open, onClose, item, prefillDate, onSaved }: { open: boolean; onClose: () => void; item: AppointmentDto | null; prefillDate?: string | null; onSaved: () => void; }) {
   const { t } = useTranslation();
   const editing = !!item;
 
@@ -151,16 +262,21 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
         customerId: item.customerId ?? "", policyId: item.policyId ?? ""
       });
     } else if (open) {
+      // If the user clicked a day in the calendar, honor that date and set
+      // the start to 09:00 local — most agencies book from morning first.
       const now = new Date();
-      const plusHour = new Date(now.getTime() + 60 * 60 * 1000);
+      const base = prefillDate
+        ? (() => { const d = new Date(`${prefillDate}T09:00:00`); return Number.isNaN(d.getTime()) ? now : d; })()
+        : now;
+      const plusHour = new Date(base.getTime() + 60 * 60 * 1000);
       const fmt = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
       setForm({
         title: "", description: "", location: "",
-        startsAt: fmt(now), endsAt: fmt(plusHour),
+        startsAt: fmt(base), endsAt: fmt(plusHour),
         status: "Scheduled", assignedToUserId: "", customerId: "", policyId: ""
       });
     }
-  }, [item, open]);
+  }, [item, open, prefillDate]);
 
   const save = useMutation({
     mutationFn: async () => {

@@ -2175,7 +2175,16 @@
     "empty": "No appointments.",
     "titleField": "Title", "location": "Location", "startsAt": "Starts", "endsAt": "Ends",
     "status_": "Status", "assignedTo": "Assigned to", "customer": "Customer", "notes": "Notes",
+    "viewMode": "View", "viewCalendar": "Calendar", "viewList": "List",
     "status": { "Scheduled": "Scheduled", "Done": "Done", "Cancelled": "Cancelled" }
+  },
+  "calendar": {
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "today": "Today",
+    "appointments": "Appointments",
+    "tasks": "Tasks",
+    "more": "more"
   },
   "tariffs": {
     "title": "Tariffs",
