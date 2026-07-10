@@ -312,7 +312,7 @@ public static class DataSeeder
         // its subs, or a *whitelisted standalone carrier we ship a bridge
         // parser for*. This kills the demo carriers and duplicate Grand
         // Cover broker copies while keeping ERGO alive alongside GC.
-        var carrierWhitelistCsv = "'ERGO','ATLANTIC'"; // extend when a new bridge lands
+        var carrierWhitelistCsv = "'ERGO','ATLANTIC','INTERLIFE'"; // extend when a new bridge lands
         var deletedCarriers = await db.Database.ExecuteSqlRawAsync($@"
             UPDATE `insurance_companies`
             SET `DeletedAt` = UTC_TIMESTAMP(6), `IsActive` = 0
@@ -330,7 +330,7 @@ public static class DataSeeder
         // IsBroker=0), then soft-delete every other row with the same Code
         // and re-route their CompanyParameterItems to the canonical row.
         // This is idempotent — running twice yields the same single row.
-        var whitelistedCodes = new[] { "ERGO", "ATLANTIC" };
+        var whitelistedCodes = new[] { "ERGO", "ATLANTIC", "INTERLIFE" };
         foreach (var wcode in whitelistedCodes)
         {
             var canonicalWlId = await db.InsuranceCompanies.IgnoreQueryFilters()
@@ -345,9 +345,10 @@ public static class DataSeeder
                 // No row exists at all — seed a fresh one.
                 var displayName = wcode switch
                 {
-                    "ERGO"     => "ERGO Hellas",
-                    "ATLANTIC" => "Ατλαντική Ένωση",
-                    _          => wcode
+                    "ERGO"      => "ERGO Hellas",
+                    "ATLANTIC"  => "Ατλαντική Ένωση",
+                    "INTERLIFE" => "Interlife",
+                    _           => wcode
                 };
                 db.InsuranceCompanies.Add(new InsuranceCompany
                 {

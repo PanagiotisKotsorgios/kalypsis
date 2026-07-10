@@ -68,7 +68,15 @@ public class ListAvailableCarrierBridgesHandler : IRequestHandler<ListAvailableC
         // text. See the Description spreadsheet in ΠΑΡΑΜΕΤΡΙΚΑ.zip.
         "ATLANTIC",
         "ATLANTIKI",
-        "ΑΤΛΑΝΤΙΚΗ"
+        "ΑΤΛΑΝΤΙΚΗ",
+        // Interlife ships two XLSX files per producer per period:
+        //   MOTOR_<producerCode>_From_YYYY_MM_DD_To_YYYY_MM_DD.XLSX   (36 cols)
+        //   LOIPOI_<producerCode>_From_YYYY_MM_DD_To_YYYY_MM_DD.XLSX  (43 cols)
+        // The parser auto-detects which by column signature and normalises
+        // both into the same BridgeImportRow shape.
+        "INTERLIFE",
+        "ΙΝΤΕΡΛΑΪΦ",
+        "ΙΝΤΕΡΛΑΙΦ"
     };
 
     public async Task<IReadOnlyList<AvailableCarrierDto>> Handle(ListAvailableCarrierBridgesQuery _, CancellationToken ct)
@@ -129,12 +137,14 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         var isGrandCover = carrierKey.Contains("GRAND COVER") || carrierKey.Contains("GRANDCOVER");
         var isAtlantic = carrierKey.Contains("ATLANTIC") || carrierKey.Contains("ATLANTIKI")
             || carrierKey.Contains("ΑΤΛΑΝΤΙΚΗ");
-        if (!isErgo && !isGrandCover && !isAtlantic)
+        var isInterlife = carrierKey.Contains("INTERLIFE")
+            || carrierKey.Contains("ΙΝΤΕΡΛΑΪΦ") || carrierKey.Contains("ΙΝΤΕΡΛΑΙΦ");
+        if (!isErgo && !isGrandCover && !isAtlantic && !isInterlife)
             throw new AppException("bridge_format_not_supported",
                 "Δεν υπάρχει διαθέσιμος αναλυτής για αυτή την εταιρία ακόμη.", 400,
                 title: "Μη υποστηριζόμενος αναλυτής",
-                why: "Κάθε εταιρία στέλνει το αρχείο της σε διαφορετική μορφή. Έχουμε υλοποιήσει μέχρι στιγμής ERGO, Grand Cover και Ατλαντική Ένωση.",
-                fix: "Επιλέξτε ERGO, Grand Cover ή Ατλαντική Ένωση, ή ζητήστε υποστήριξη για τη συγκεκριμένη εταιρία.");
+                why: "Κάθε εταιρία στέλνει το αρχείο της σε διαφορετική μορφή. Έχουμε υλοποιήσει μέχρι στιγμής ERGO, Grand Cover, Ατλαντική Ένωση και Interlife.",
+                fix: "Επιλέξτε μία από τις υποστηριζόμενες εταιρίες ή ζητήστε υποστήριξη για τη συγκεκριμένη εταιρία.");
 
         // File-shape detection. ERGO ships one .xlsx; Grand Cover ships a
         // .zip with the CSV pack. We sniff the magic bytes so an admin can
@@ -170,6 +180,25 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                     fix: "Ανεβάστε τον φάκελο Producer_ .zip αυτούσιο, χωρίς αποσυμπίεση.");
             rows = ParseAtlanticZip(r.FileContent);
             format = "ATLANTIC";
+        }
+        else if (isInterlife)
+        {
+            // Interlife ships one .xlsx per LOB. The parser detects which of
+            // the two column signatures the file has and normalises both to
+            // the same BridgeImportRow shape.
+            using var stream = new MemoryStream(r.FileContent);
+            XLWorkbook wb;
+            try { wb = new XLWorkbook(stream); }
+            catch (Exception ex)
+            {
+                throw new AppException("xlsx_invalid",
+                    "Δεν είναι έγκυρο αρχείο Excel.", 400,
+                    title: "Ακατάλληλο αρχείο",
+                    why: ex.Message,
+                    fix: "Ανεβάστε το αρχείο .xlsx που κατέβηκε από το portal της Interlife (MOTOR_… ή LOIPOI_…).");
+            }
+            rows = ParseInterlife(wb, r.FileName);
+            format = "INTERLIFE";
         }
         else
         {
@@ -363,6 +392,216 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 gross, net, partnerComm, agencyComm,
                 carrierName, partnerCodeFromHeader,
                 raw, notes, status, rowType, null, null, plate));
+        }
+
+        return rows;
+    }
+
+    // ========================================================================
+    // INTERLIFE format: a single XLSX per LOB, per producer, per period.
+    //
+    // The file name (which we DO receive on upload) follows one of:
+    //   MOTOR_<producerCode>_From_YYYY_MM_DD_To_YYYY_MM_DD.XLSX     (36 cols)
+    //   LOIPOI_<producerCode>_From_YYYY_MM_DD_To_YYYY_MM_DD.XLSX    (43 cols)
+    //
+    // MOTOR columns (1-indexed as used by ClosedXML):
+    //   1  Κωδ.Πελ.                     19 Τρόπος Πληρωμής
+    //   2  Επωνυμία πελ.                 20 Ημ. Ισχύος Πρ.Πρ. Από
+    //   3  Διεύθυνση                    21 Ημ. Ισχύος Πρ.Πρ. Έως
+    //   4  Πόλη                         22 Ζώνη
+    //   5  ΤΚ                           23 Πινακίδα
+    //   6  Α.Φ.Μ. (customer VAT)        24 Μάρκα
+    //   7  Τηλ. Εργασίας                25 Χρήση
+    //   8  Τηλ. Επικοιν.                26 Ίπποι
+    //   9  Κωδ. παραγωγού               27 Θέσεις
+    //  10  Ασφαλιζόμενος                28 Έτος κατασκ.
+    //  11  Α.Φ.Μ. ασφαλιζομένου         29 ΒΜ
+    //  12  Τίτλος συμβολαίου            30 Καθάρα ασφ.
+    //  13  No. Συμβ.                    31 Μικτά ασφάλιστρα
+    //  14  No. Αναν.                    32 Προμήθειες συνεργάτη
+    //  15  No. ΠρΠρ.                    33 Άκυρο                   ("FALSE"/"TRUE")
+    //  16  Ημ. έκδοσης                  34 key0
+    //  17  Ισχύς συμβ. από              35 Συνεργ. γραφείου
+    //  18  Ισχύς συμβ. μέχρι            36 Κωδικός διανομέα
+    //                                   37 ΑΦΜ διανομέα
+    //
+    // LOIPOI columns:
+    //   1  Κωδ.Πελ.                     23 Ισχύς μέχρι
+    //   2  Επωνυμία πελ.                24 Τρόπος Πληρωμής
+    //   3..6 Διεύθυνση/Πόλη/ΤΚ/Α.Φ.Μ.   25..29 Διεύθυνση/Πόλη κινδύνου, χρήση, στοιχεία, κωδικός
+    //   7  Α.Δ.Τ.                       30..33 Καθαρά/Μικτά/Έκπτωση/Προμήθειες
+    //   8  Τηλ. Εργασίας                34 Ασφαλιζόμενη Αξία
+    //   9  Τηλ. Οικίας                  35 key0
+    //  10  Κωδ. παραγωγού               36 Άκυρο                    ("ΝΑΙ"/"ΟΧΙ" or bool)
+    //  11  Κλάδος                       37 Διατραπεζικός Κωδικός Πληρωμής
+    //  12  Τίτλος συμβολαίου            38 Κωδικός διανομέα
+    //  13  Ασφαλιζόμενος                39 ΑΦΜ διανομέα
+    //  14..17 Διεύθυνση/Πόλη/ΤΚ/Α.Φ.Μ. ασφαλιζομένου
+    //  18  No. Συμβ.                    40..43 Χρεωμένο/Συνεργάτης/Τετραγωνικά
+    //  19  No. Αναν.
+    //  20  No. ΠρΠρ.
+    //  21  Ημ. έκδοσης
+    //  22  Ισχύς από
+    // ========================================================================
+    private static List<BridgeImportRow> ParseInterlife(XLWorkbook wb, string? fileName)
+    {
+        var ws = wb.Worksheets.First();
+        var rows = new List<BridgeImportRow>();
+        var lastRow = ws.LastRowUsed();
+        if (lastRow is null) return rows;
+
+        var lastRowNum = lastRow.RowNumber();
+        var lastColNum = ws.LastColumnUsed()?.ColumnNumber() ?? 1;
+
+        // Signature-based LOB detection — we look at header row 1. MOTOR has
+        // "Πινακίδα" at col 23 and no "Κλάδος" column; LOIPOI has "Κλάδος"
+        // and no "Πινακίδα". Fall back to the file name only if the signature
+        // is ambiguous (defensive; every real Interlife export we've seen
+        // matches the signature).
+        var headers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (int col = 1; col <= lastColNum; col++)
+        {
+            var h = ws.Cell(1, col).GetString().Trim();
+            if (!string.IsNullOrEmpty(h) && !headers.ContainsKey(h)) headers[h] = col;
+        }
+        bool isMotor;
+        if (headers.ContainsKey("Πινακίδα")) isMotor = true;
+        else if (headers.ContainsKey("Κλάδος")) isMotor = false;
+        else isMotor = (fileName ?? "").StartsWith("MOTOR", StringComparison.OrdinalIgnoreCase);
+
+        int ColOr(int fallback, params string[] names)
+        {
+            foreach (var n in names)
+                if (headers.TryGetValue(n, out var c)) return c;
+            return fallback;
+        }
+
+        // Column indexes we actually read. Falling back to the documented
+        // positions if a header rename ever hits us.
+        int cCustName   = ColOr(2,  "Επωνυμία πελ.");
+        int cCustVat    = ColOr(6,  "Α.Φ.Μ.");
+        int cProducer   = ColOr(isMotor ? 9 : 10, "Κωδ. παραγωγού");
+        int cPolicyTtl  = ColOr(isMotor ? 12 : 12, "Τίτλος συμβολαίου");
+        int cPolicyNum  = ColOr(isMotor ? 13 : 18, "No. Συμβ.");
+        int cRenewalNum = ColOr(isMotor ? 14 : 19, "No. Αναν.");
+        int cProposal   = ColOr(isMotor ? 15 : 20, "No. ΠρΠρ.");
+        int cIssueDate  = ColOr(isMotor ? 16 : 21, "Ημ. έκδοσης");
+        int cStartDate  = ColOr(isMotor ? 17 : 22, "Ισχύς συμβ. από", "Ισχύς από");
+        int cEndDate    = ColOr(isMotor ? 18 : 23, "Ισχύς συμβ. μέχρι", "Ισχύς μέχρι");
+        int cPlate      = ColOr(isMotor ? 23 : 0,  "Πινακίδα");
+        int cNetPrem    = ColOr(isMotor ? 30 : 31, "Καθάρα ασφ.");
+        int cGrossPrem  = ColOr(isMotor ? 31 : 32, "Μικτά ασφάλιστρα");
+        int cPartnerCom = ColOr(isMotor ? 32 : 34, "Προμήθειες συνεργάτη");
+        int cCancelled  = ColOr(isMotor ? 33 : 37, "Άκυρο");
+
+        for (int rn = 2; rn <= lastRowNum; rn++)
+        {
+            var notes = new List<BridgeImportNote>();
+            var raw = new Dictionary<string, string>();
+            for (int col = 1; col <= lastColNum; col++)
+            {
+                var header = ws.Cell(1, col).GetString().Trim();
+                raw[string.IsNullOrWhiteSpace(header) ? $"col{col}" : header] = ws.Cell(rn, col).GetString();
+            }
+
+            var customerName = ws.Cell(rn, cCustName).GetString().Trim();
+            var customerVat  = ws.Cell(rn, cCustVat).GetString().Trim();
+            var policyNumber = ws.Cell(rn, cPolicyNum).GetString().Trim();
+            var proposal     = cProposal   > 0 ? ws.Cell(rn, cProposal).GetString().Trim()   : null;
+            var partnerCode  = cProducer   > 0 ? ws.Cell(rn, cProducer).GetString().Trim()   : null;
+            var plate        = isMotor && cPlate > 0 ? ws.Cell(rn, cPlate).GetString().Trim() : null;
+
+            // Skip empty separator/footer rows.
+            if (string.IsNullOrWhiteSpace(customerName) && string.IsNullOrWhiteSpace(policyNumber))
+                continue;
+
+            DateOnly? issue = ParseDate(ws.Cell(rn, cIssueDate).Value);
+            DateOnly? start = ParseDate(ws.Cell(rn, cStartDate).Value);
+            DateOnly? end   = ParseDate(ws.Cell(rn, cEndDate).Value);
+            decimal? net    = ParseAmount(ws.Cell(rn, cNetPrem).Value);
+            decimal? gross  = ParseAmount(ws.Cell(rn, cGrossPrem).Value);
+            decimal? partnerComm = ParseAmount(ws.Cell(rn, cPartnerCom).Value);
+            decimal? agencyComm  = null; // Interlife does not export γεφύρας/έδρας separately.
+
+            // "Άκυρο" flags an already-cancelled row on the carrier side.
+            var cancelledRaw = cCancelled > 0 ? ws.Cell(rn, cCancelled).GetString().Trim() : "";
+            var isCancelled = cancelledRaw.Equals("TRUE", StringComparison.OrdinalIgnoreCase)
+                           || cancelledRaw.Equals("ΝΑΙ",  StringComparison.OrdinalIgnoreCase)
+                           || cancelledRaw.Equals("YES",  StringComparison.OrdinalIgnoreCase)
+                           || cancelledRaw == "1";
+
+            // Validations (mirror ERGO's rules — same downstream expectations).
+            var status = "Ready";
+            if (string.IsNullOrWhiteSpace(policyNumber))
+            {
+                status = "Error";
+                notes.Add(new BridgeImportNote("Ασφαλιστήριο", "error", "Αριθμός ασφαλιστηρίου λείπει"));
+            }
+            if (string.IsNullOrWhiteSpace(customerName))
+            {
+                status = "Error";
+                notes.Add(new BridgeImportNote("Συμβαλλόμενος", "error", "Όνομα/Επωνυμία λείπει"));
+            }
+            if (!gross.HasValue)
+            {
+                status = "Error";
+                notes.Add(new BridgeImportNote("Μεικτό", "error", "Μη έγκυρο μεικτό ποσό"));
+            }
+            else if (gross.Value == 0m)
+            {
+                notes.Add(new BridgeImportNote("Μεικτό", "warn", "Μηδενικό ασφάλιστρο"));
+            }
+
+            // Row-type detection: renewal vs new vs cancellation.
+            string rowType = "New";
+            if (isCancelled || (gross.HasValue && gross.Value < 0))
+            {
+                rowType = "Cancellation";
+                notes.Add(new BridgeImportNote("Τύπος", "info", "Ακυρωτική κίνηση"));
+            }
+            else if (cRenewalNum > 0)
+            {
+                var renewalNum = ws.Cell(rn, cRenewalNum).GetString().Trim();
+                // Interlife uses "0000000000" (or blank) when the row is a
+                // brand-new contract, and a real renewal id otherwise.
+                var isRenewal = !string.IsNullOrWhiteSpace(renewalNum)
+                             && renewalNum.Trim('0').Length > 0;
+                if (isRenewal)
+                {
+                    rowType = "Renewal";
+                    notes.Add(new BridgeImportNote("Τύπος", "info", "Ανανέωση συμβολαίου"));
+                }
+            }
+            // Short-duration heuristic for endorsements — same as ERGO.
+            if (rowType == "New" && start.HasValue && end.HasValue)
+            {
+                var durationDays = end.Value.DayNumber - start.Value.DayNumber;
+                if (durationDays is >= 10 and <= 45 && gross.HasValue && gross.Value > 0 && gross.Value <= 80)
+                {
+                    rowType = "GreenCard";
+                    notes.Add(new BridgeImportNote("Τύπος", "info",
+                        $"Διάρκεια {durationDays} ημέρες & μικρό ποσό ({gross.Value:0.00} €) → πιθανή Πράσινη Κάρτα"));
+                }
+                else if (durationDays > 0 && durationDays < 60)
+                {
+                    rowType = "Endorsement";
+                    notes.Add(new BridgeImportNote("Τύπος", "info", $"Διάρκεια {durationDays} ημέρες → πρόσθετη πράξη"));
+                }
+            }
+
+            if (start.HasValue && end.HasValue && end.Value <= start.Value)
+                notes.Add(new BridgeImportNote("Λήξη", "warn", "Λήξη πριν την έναρξη"));
+
+            rows.Add(new BridgeImportRow(
+                rn - 1, policyNumber,
+                string.IsNullOrWhiteSpace(proposal) ? null : proposal,
+                customerName,
+                string.IsNullOrWhiteSpace(customerVat) ? null : customerVat,
+                issue, start, end,
+                gross, net, partnerComm, agencyComm,
+                "Interlife", partnerCode,
+                raw, notes, status, rowType, null, null,
+                string.IsNullOrWhiteSpace(plate) ? null : plate));
         }
 
         return rows;
