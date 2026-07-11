@@ -13,6 +13,8 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { money } from "../utils/format";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { InlineCreateCustomerDialog } from "../components/InlineCreateCustomerDialog";
+import { InlineCreateInsuranceCompanyDialog } from "../components/InlineCreateInsuranceCompanyDialog";
 import { SearchableTextField } from "../components/SearchableTextField";
 
 const TYPES = ["Auto","Home","Health","Life","Business","Travel","Other"] as const;
@@ -176,6 +178,8 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
     subject: "", notes: ""
   });
   const [error, setError] = useState<string | null>(null);
+  const [inlineCustomerCreate, setInlineCustomerCreate] = useState<string | null>(null);
+  const [inlineCarrierCreate, setInlineCarrierCreate] = useState<string | null>(null);
 
   useEffect(() => {
     if (item) setForm({
@@ -227,6 +231,14 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
                 ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim()
                 : (c.companyName ?? ""),
             }))}
+            createNewLabel="+ Νέος πελάτης"
+            onCreateNew={editing ? undefined : (input) => setInlineCustomerCreate(input || "")}
+          />
+          <InlineCreateCustomerDialog
+            open={inlineCustomerCreate !== null}
+            prefillText={inlineCustomerCreate ?? ""}
+            onClose={() => setInlineCustomerCreate(null)}
+            onCreated={(c) => { setForm(prev => ({ ...prev, customerId: c.id })); setInlineCustomerCreate(null); }}
           />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <SearchableTextField label={t("coverNotes.type")} value={form.policyType}
@@ -239,6 +251,14 @@ function FormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: 
               onChange={(v) => setForm({ ...form, insuranceCompanyId: v })}
               emptyLabel="—"
               options={(companies.data ?? []).map(c => ({ value: c.id, label: c.name }))}
+              createNewLabel="+ Νέα ασφαλιστική"
+              onCreateNew={editing ? undefined : (input) => setInlineCarrierCreate(input || "")}
+            />
+            <InlineCreateInsuranceCompanyDialog
+              open={inlineCarrierCreate !== null}
+              prefillText={inlineCarrierCreate ?? ""}
+              onClose={() => setInlineCarrierCreate(null)}
+              onCreated={(c) => { setForm(prev => ({ ...prev, insuranceCompanyId: c.id })); setInlineCarrierCreate(null); }}
             />
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>

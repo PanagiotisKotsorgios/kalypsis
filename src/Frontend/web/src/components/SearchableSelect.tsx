@@ -1,7 +1,8 @@
-import { useMemo } from "react";
-import { Autocomplete, Box, Chip, InputAdornment, Stack, TextField, Typography } from "@mui/material";
+import { useMemo, useState } from "react";
+import { Autocomplete, Box, Chip, InputAdornment, Stack, TextField, Typography, Button, Divider } from "@mui/material";
 import type { TextFieldProps, AutocompleteProps } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import AddIcon from "@mui/icons-material/Add";
 
 /**
  * Option shape for SearchableSelect. `hint` is shown as secondary text
@@ -43,6 +44,15 @@ type Props<V> = {
   sx?: TextFieldProps["sx"];
   /** Free-text callback so the caller can debounce a server search. */
   onInputChange?: (input: string) => void;
+  /**
+   * When set, the dropdown shows a "+ Νέος/α/ο …" row below the results that
+   * calls this handler with the current query. Meant for inline creation of
+   * a customer / policy / producer etc. without leaving the popup you're in.
+   * Receives the current input so the caller can prefill the create dialog.
+   */
+  onCreateNew?: (currentInput: string) => void;
+  /** Label for the create row. Defaults to `+ Νέος πελάτης` when onCreateNew is set. */
+  createNewLabel?: string;
 };
 
 /**
@@ -98,7 +108,12 @@ export function SearchableSelect<V = string>({
   placeholder, helperText, required, fullWidth = true, size = "small", disabled,
   showSearchIcon = true, emptyLabel, fuzzyMinChars = 3, maxShown = 400,
   autocompleteProps, textFieldProps, sx, onInputChange,
+  onCreateNew, createNewLabel,
 }: Props<V>) {
+  // Track the current input so the "+ Νέο …" row can hand it back to the
+  // caller as a prefill (e.g. the user typed "Παπαδόπουλος" but no such
+  // customer existed → open the create dialog with lastName pre-filled).
+  const [currentInput, setCurrentInput] = useState("");
   // Prepend an empty row when the caller asks for one.
   const augmented = useMemo(() => {
     if (!emptyLabel) return options;
@@ -146,7 +161,7 @@ export function SearchableSelect<V = string>({
       options={augmented}
       value={current}
       onChange={(_, v) => onChange((v?.value ?? "") as V | "")}
-      onInputChange={(_, input) => onInputChange?.(input)}
+      onInputChange={(_, input) => { setCurrentInput(input); onInputChange?.(input); }}
       isOptionEqualToValue={(a, b) => a.value === b.value}
       getOptionLabel={(o) => o.label}
       getOptionDisabled={(o) => !!o.disabled}
@@ -187,6 +202,44 @@ export function SearchableSelect<V = string>({
           </Stack>
         </li>
       )}
+      // When onCreateNew is set we wrap the results paper in a small strip
+      // that renders a "+ Νέο …" button at the bottom. Clicking it fires
+      // the callback with the current text so the create dialog can prefill.
+      PaperComponent={onCreateNew ? (paperProps) => (
+        <Box {...paperProps} sx={{
+          bgcolor: "background.paper",
+          boxShadow: 3,
+          borderRadius: 1,
+          overflow: "hidden",
+          ...(paperProps as any).sx,
+        }}>
+          {(paperProps as any).children}
+          <Divider />
+          <Box
+            onMouseDown={(e) => {
+              // MouseDown fires BEFORE the Autocomplete's blur handler that
+              // would otherwise close the dropdown before our click lands.
+              e.preventDefault();
+            }}
+            sx={{ p: 0.5, bgcolor: "action.hover" }}
+          >
+            <Button
+              fullWidth
+              startIcon={<AddIcon fontSize="small" />}
+              size="small"
+              onClick={() => onCreateNew(currentInput)}
+              sx={{
+                justifyContent: "flex-start",
+                fontWeight: 700,
+                color: "primary.main",
+                py: 0.75,
+              }}
+            >
+              {createNewLabel ?? `Νέο${currentInput ? ` «${currentInput}»` : ""}`}
+            </Button>
+          </Box>
+        </Box>
+      ) : undefined}
       renderInput={(params) => (
         <TextField
           {...params}

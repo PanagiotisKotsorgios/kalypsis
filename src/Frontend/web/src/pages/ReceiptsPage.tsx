@@ -17,6 +17,7 @@ import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../com
 import { NumberedPager } from "../components/TableToolbar";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { InlineCreateCustomerDialog } from "../components/InlineCreateCustomerDialog";
 import { useUndoable } from "../components/UndoToast";
 import { useColumnPreferences } from "../hooks/useColumnPreferences";
 import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
@@ -303,6 +304,7 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
     transactionReference: ""
   });
   const [err, setErr] = useState<string | null>(null);
+  const [inlineCustomerCreate, setInlineCustomerCreate] = useState<string | null>(null);
 
   // When customer is picked, fetch their open policies so the user can attach
   // the receipt and auto-mark the contract as paid/partial.
@@ -374,6 +376,14 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
                 ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim()
                 : (c.companyName ?? ""),
             }))}
+            createNewLabel="+ Νέος πελάτης"
+            onCreateNew={(input) => setInlineCustomerCreate(input || "")}
+          />
+          <InlineCreateCustomerDialog
+            open={inlineCustomerCreate !== null}
+            prefillText={inlineCustomerCreate ?? ""}
+            onClose={() => setInlineCustomerCreate(null)}
+            onCreated={(c) => { setForm(prev => ({ ...prev, customerId: c.id, policyId: "" })); setInlineCustomerCreate(null); }}
           />
           {form.customerId && (
             <SearchableSelect

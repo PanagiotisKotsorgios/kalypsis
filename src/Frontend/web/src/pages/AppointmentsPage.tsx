@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { InlineCreateCustomerDialog } from "../components/InlineCreateCustomerDialog";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { AppointmentsCalendar, type CalendarEvent } from "../components/AppointmentsCalendar";
 
@@ -252,6 +253,7 @@ function FormDialog({ open, onClose, item, prefillDate, onSaved }: { open: boole
     assignedToUserId: "", customerId: "", policyId: ""
   });
   const [error, setError] = useState<string | null>(null);
+  const [inlineCustomerCreate, setInlineCustomerCreate] = useState<string | null>(null);
 
   useEffect(() => {
     if (item) {
@@ -340,6 +342,14 @@ function FormDialog({ open, onClose, item, prefillDate, onSaved }: { open: boole
                 ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim()
                 : (c.companyName ?? ""),
             }))}
+            createNewLabel="+ Νέος πελάτης"
+            onCreateNew={(input) => setInlineCustomerCreate(input || "")}
+          />
+          <InlineCreateCustomerDialog
+            open={inlineCustomerCreate !== null}
+            prefillText={inlineCustomerCreate ?? ""}
+            onClose={() => setInlineCustomerCreate(null)}
+            onCreated={(c) => { setForm(prev => ({ ...prev, customerId: c.id })); setInlineCustomerCreate(null); }}
           />
           <TextField label={t("appointments.notes")} multiline rows={3} value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })} fullWidth />

@@ -12,6 +12,8 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { InlineCreateInsuranceCompanyDialog } from "../components/InlineCreateInsuranceCompanyDialog";
+import { InlineCreateProducerDialog } from "../components/InlineCreateProducerDialog";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { money, date } from "../utils/format";
 import { useColumnPreferences } from "../hooks/useColumnPreferences";
@@ -289,6 +291,8 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
     transactionReference: "", policyId: ""
   });
   const [err, setErr] = useState<string | null>(null);
+  const [inlineCarrierCreate, setInlineCarrierCreate] = useState<string | null>(null);
+  const [inlineProducerCreate, setInlineProducerCreate] = useState<string | null>(null);
   useEffect(() => { if (open) setForm(f => ({ ...f, number: `P-${Date.now().toString().slice(-6)}`, paidOn: today, amount: 0, commissionsNetted: 0, transactionReference: "", policyId: "" })); /* eslint-disable-next-line */ }, [open]);
 
   // Policies list for the current beneficiary carrier — used when the operator
@@ -341,8 +345,16 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
               value={form.beneficiaryInsuranceCompanyId}
               onChange={(v) => setForm({ ...form, beneficiaryInsuranceCompanyId: v, policyId: "" })}
               options={(companies.data ?? []).map(c => ({ value: c.id, label: c.name }))}
+              createNewLabel="+ Νέα ασφαλιστική"
+              onCreateNew={(input) => setInlineCarrierCreate(input || "")}
             />
           )}
+          <InlineCreateInsuranceCompanyDialog
+            open={inlineCarrierCreate !== null}
+            prefillText={inlineCarrierCreate ?? ""}
+            onClose={() => setInlineCarrierCreate(null)}
+            onCreated={(c) => { setForm(prev => ({ ...prev, beneficiaryInsuranceCompanyId: c.id, policyId: "" })); setInlineCarrierCreate(null); }}
+          />
           {form.beneficiaryType === "InsuranceCompany" && form.beneficiaryInsuranceCompanyId && (
             <SearchableSelect
               label="Συμβόλαιο (προαιρετικό)"
@@ -362,8 +374,16 @@ function FormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => 
               value={form.beneficiaryProducerId}
               onChange={(v) => setForm({ ...form, beneficiaryProducerId: v })}
               options={(producers.data ?? []).map(p => ({ value: p.id, label: p.name }))}
+              createNewLabel="+ Νέος συνεργάτης"
+              onCreateNew={(input) => setInlineProducerCreate(input || "")}
             />
           )}
+          <InlineCreateProducerDialog
+            open={inlineProducerCreate !== null}
+            prefillText={inlineProducerCreate ?? ""}
+            onClose={() => setInlineProducerCreate(null)}
+            onCreated={(p) => { setForm(prev => ({ ...prev, beneficiaryProducerId: p.id })); setInlineProducerCreate(null); }}
+          />
           {form.beneficiaryType === "Vendor" && (
             <TextField label={t("payments.vendorName")} value={form.beneficiaryName} onChange={e => setForm({ ...form, beneficiaryName: e.target.value })} fullWidth />
           )}

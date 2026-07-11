@@ -34,6 +34,7 @@ import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { NumberedPager, TableToolbar } from "../components/TableToolbar";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
+import { InlineCreateCustomerDialog } from "../components/InlineCreateCustomerDialog";
 import { date, dateTime } from "../utils/format";
 import { useAuth } from "../auth/AuthContext";
 
@@ -1009,6 +1010,7 @@ function TaskFormDialog({ open, onClose, task, onSaved }: {
     assignedToUserId: "", customerId: "", policyId: "", dueAt: ""
   });
   const [error, setError] = useState<string | null>(null);
+  const [inlineCustomerCreate, setInlineCustomerCreate] = useState<string | null>(null);
 
   useEffect(() => {
     if (task) {
@@ -1098,6 +1100,14 @@ function TaskFormDialog({ open, onClose, task, onSaved }: {
                 : (c.companyName ?? ""),
               hint: c.customerNumber,
             }))}
+            createNewLabel="+ Νέος πελάτης"
+            onCreateNew={(input) => setInlineCustomerCreate(input || "")}
+          />
+          <InlineCreateCustomerDialog
+            open={inlineCustomerCreate !== null}
+            prefillText={inlineCustomerCreate ?? ""}
+            onClose={() => setInlineCustomerCreate(null)}
+            onCreated={(c) => { setForm(prev => ({ ...prev, customerId: c.id })); setInlineCustomerCreate(null); }}
           />
         </Stack>
       </DialogContent>

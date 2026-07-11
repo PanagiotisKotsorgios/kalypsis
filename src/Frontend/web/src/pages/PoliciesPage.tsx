@@ -31,6 +31,8 @@ import {
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 import { useDraftPersistence } from "../hooks/useDraftPersistence";
 import { useCustomerSearch } from "../hooks/useCustomerSearch";
+import { InlineCreateCustomerDialog } from "../components/InlineCreateCustomerDialog";
+import { InlineCreateInsuranceCompanyDialog } from "../components/InlineCreateInsuranceCompanyDialog";
 import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
@@ -793,6 +795,11 @@ function PolicyFormDialog({
   // no more «τα πρώτα 500» wall. See useCustomerSearch for the debounce +
   // selected-customer inclusion logic.
   const customerSearch = useCustomerSearch(null);
+  // Non-null string = inline "new customer" dialog open (with that string
+  // as the prefill). Null = closed. Kept as a separate state so the parent
+  // dialog stays interactive underneath.
+  const [inlineCustomerCreate, setInlineCustomerCreate] = useState<string | null>(null);
+  const [inlineCarrierCreate, setInlineCarrierCreate] = useState<string | null>(null);
   const carriersQuery = useQuery({
     queryKey: ["insurance-companies-used"],
     queryFn: async () => (await api.get<CarrierDto[]>("/insurance-companies", { params: { onlyUsed: true } })).data,
@@ -901,6 +908,20 @@ function PolicyFormDialog({
             required disabled={editing}
             helperText={editing ? t("policies.form.customerLocked") : "Πληκτρολογήστε ΑΦΜ, όνομα, κινητό ή email"}
             options={customerSearch.options}
+            createNewLabel="+ Νέος πελάτης"
+            onCreateNew={editing ? undefined : (input) => setInlineCustomerCreate(input || "")}
+          />
+          <InlineCreateCustomerDialog
+            open={inlineCustomerCreate !== null}
+            prefillText={inlineCustomerCreate ?? ""}
+            onClose={() => setInlineCustomerCreate(null)}
+            onCreated={(c) => {
+              // Feed the new id into the parent form so it's already selected
+              // the moment the dropdown re-reads its options.
+              setForm(prev => ({ ...prev, customerId: c.id }));
+              customerSearch.setInput(c.displayName);
+              setInlineCustomerCreate(null);
+            }}
           />
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -914,6 +935,14 @@ function PolicyFormDialog({
                 label: c.name,
                 hint: c.isBroker ? "πρακτορείο" : undefined,
               }))}
+              createNewLabel="+ Νέα ασφαλιστική"
+              onCreateNew={editing ? undefined : (input) => setInlineCarrierCreate(input || "")}
+            />
+            <InlineCreateInsuranceCompanyDialog
+              open={inlineCarrierCreate !== null}
+              prefillText={inlineCarrierCreate ?? ""}
+              onClose={() => setInlineCarrierCreate(null)}
+              onCreated={(c) => { setForm(prev => ({ ...prev, insuranceCompanyId: c.id, policyType: "Auto", vehicleUseCategory: "", coverCode: "", packageCode: "" })); setInlineCarrierCreate(null); }}
             />
             {(() => {
               const carrierData = carriersQuery.data ?? [];
