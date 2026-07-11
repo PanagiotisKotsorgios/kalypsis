@@ -99,6 +99,10 @@ interface AppLayoutProps {
 const DRAWER_WIDTH = 408;
 const DRAWER_RAIL_WIDTH = 64;
 const MOBILE_DRAWER_WIDTH = "min(88vw, 360px)";
+// User-resizable sidebar bounds. Below MIN the rail mode kicks in;
+// above MAX we cap so a stray drag can't cover the whole viewport.
+const DRAWER_MIN_WIDTH = 220;
+const DRAWER_MAX_WIDTH = 620;
 
 export function AppLayout({ navItems, children }: AppLayoutProps) {
   const { t } = useTranslation();
@@ -116,6 +120,46 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
     if (typeof window === "undefined" || isMobile) return;
     localStorage.setItem("nav.sidebarOpen", String(open));
   }, [open, isMobile]);
+
+  // User-resizable sidebar width. Persists per browser so a narrower drag
+  // for smaller monitors sticks across sessions. Guarded to the desktop
+  // path only — mobile keeps the fixed `min(88vw, 360px)` value.
+  const [drawerWidth, setDrawerWidth] = useState<number>(() => {
+    if (typeof window === "undefined") return DRAWER_WIDTH;
+    const stored = Number(localStorage.getItem("nav.sidebarWidth"));
+    if (Number.isFinite(stored) && stored >= DRAWER_MIN_WIDTH && stored <= DRAWER_MAX_WIDTH) return stored;
+    return DRAWER_WIDTH;
+  });
+  useEffect(() => {
+    if (typeof window === "undefined" || isMobile) return;
+    localStorage.setItem("nav.sidebarWidth", String(drawerWidth));
+  }, [drawerWidth, isMobile]);
+
+  // Drag handling — pointer events give consistent behaviour across mouse
+  // + touch + pen. We start listening globally on pointerdown against the
+  // handle and stop on pointerup so a fast drag past the edge still
+  // finalises correctly instead of getting stuck.
+  const [resizing, setResizing] = useState(false);
+  useEffect(() => {
+    if (!resizing) return;
+    const onMove = (e: PointerEvent) => {
+      const next = Math.min(DRAWER_MAX_WIDTH, Math.max(DRAWER_MIN_WIDTH, e.clientX));
+      setDrawerWidth(next);
+    };
+    const onUp = () => setResizing(false);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [resizing]);
 
   const { tenantId: impersonatedTenantId } = useImpersonation();
   const { has: hasPackage } = usePackages();
@@ -583,14 +627,21 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
         onClose={() => setOpen(false)}
         ModalProps={{ keepMounted: true }}
         sx={{
-          width: isMobile ? 0 : (open ? DRAWER_WIDTH : DRAWER_RAIL_WIDTH),
+          width: isMobile ? 0 : (open ? drawerWidth : DRAWER_RAIL_WIDTH),
           flexShrink: 0,
-          transition: (theme) => theme.transitions.create("width", { duration: 200 }),
+          transition: (theme) => resizing
+            ? "none"
+            : theme.transitions.create("width", { duration: 200 }),
           "& .MuiDrawer-paper": {
-            width: isMobile ? MOBILE_DRAWER_WIDTH : (open ? DRAWER_WIDTH : DRAWER_RAIL_WIDTH),
+            width: isMobile ? MOBILE_DRAWER_WIDTH : (open ? drawerWidth : DRAWER_RAIL_WIDTH),
             maxWidth: isMobile ? "calc(100vw - 20px)" : undefined,
             overflowX: "hidden",
-            transition: (theme) => theme.transitions.create("width", { duration: 200 }),
+            // Disable the smooth transition while the user is actively
+            // dragging — otherwise the drawer chases the pointer with a
+            // 200ms lag.
+            transition: (theme) => resizing
+              ? "none"
+              : theme.transitions.create("width", { duration: 200 }),
             boxSizing: "border-box",
             borderRight: "1px solid",
             borderColor: "divider",
@@ -604,6 +655,47 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
         }}
       >
         {drawerContent}
+        {/* Vertical drag handle on the right edge of the desktop drawer.
+            Hidden on mobile (temporary drawer covers the whole area) and
+            when the sidebar is collapsed to rail mode (no point resizing
+            a rail). Double-click resets to the built-in default width. */}
+        {!isMobile && open && (
+          <Box
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Αλλαγή πλάτους μενού"
+            onPointerDown={(e) => { e.preventDefault(); setResizing(true); }}
+            onDoubleClick={() => setDrawerWidth(DRAWER_WIDTH)}
+            sx={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              width: 6,
+              height: "100%",
+              cursor: "col-resize",
+              zIndex: 1,
+              // A subtle default hue lifts under hover so users can see
+              // there's a grab affordance without cluttering the header.
+              bgcolor: "transparent",
+              transition: "background-color 120ms",
+              "&:hover, &:focus": { bgcolor: "primary.light" },
+              // The middle indicator dot is a small visual cue that this
+              // is grabbable, not a decorative border.
+              "&::after": {
+                content: "\"\"",
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                width: 3,
+                height: 36,
+                borderRadius: 2,
+                bgcolor: "divider",
+              },
+              "&:hover::after": { bgcolor: "primary.main" },
+            }}
+          />
+        )}
       </Drawer>
 
       <Box

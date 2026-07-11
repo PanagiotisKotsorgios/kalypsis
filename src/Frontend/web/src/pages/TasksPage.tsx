@@ -33,6 +33,7 @@ import { DataExportButton } from "../components/DataExportButton";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { NumberedPager, TableToolbar } from "../components/TableToolbar";
+import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { date, dateTime } from "../utils/format";
 import { useAuth } from "../auth/AuthContext";
 
@@ -759,6 +760,22 @@ function TableView({
   const [innerSearch, setInnerSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+
+  // Right-click on a header opens sort A→Z / Z→A + Hide column.
+  // Right-click on a body row opens Επεξεργασία / Διαγραφή.
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => { setSortKey(key as keyof TaskDto); setSortDir(dir); },
+    onHide: (key) => { const s = new Set(hiddenCols); s.add(key); setHiddenCols(s); },
+  });
+  const rowMenu = useRowContextMenu<TaskDto>({
+    entityLabel: "εργασίας",
+    onEdit,
+    onDelete: (t) => { if (confirm("Διαγραφή εργασίας;")) onDelete(t.id); },
+  });
+
+  const openHeader = (e: React.MouseEvent, key: string, label: string, type: ColumnType) =>
+    headerMenu.open(e, { key, label, type, canHide: true });
 
   const searchable = (t: TaskDto) =>
     `${t.title} ${t.description ?? ""} ${t.customerDisplay ?? ""} ${t.policyNumber ?? ""} ${t.assignedToUserName ?? ""}`;
@@ -832,6 +849,16 @@ function TableView({
         ]}
       />
 
+      {hiddenCols.size > 0 && (
+        <Alert
+          severity="info"
+          sx={{ mb: 1 }}
+          action={<Button size="small" onClick={() => setHiddenCols(new Set())}>Επαναφορά</Button>}
+        >
+          Απόκρυψη {hiddenCols.size} στήλης/-ων μέσω δεξιού κλικ.
+        </Alert>
+      )}
+
       <Card variant="outlined" sx={{ overflowX: "auto" }}>
         <Table size="small" stickyHeader>
           <TableHead>
@@ -839,30 +866,64 @@ function TableView({
               <TableCell padding="checkbox">
                 <Checkbox size="small" checked={allSelected} indeterminate={!allSelected && pageItems.some(t => selectedIds.has(t.id))} onChange={toggleAll} />
               </TableCell>
-              <TableCell onClick={() => toggleSort("title")} sx={{ cursor: "pointer", fontWeight: 700 }}>
-                Τίτλος{sortIcon("title")}
-              </TableCell>
-              <TableCell onClick={() => toggleSort("status")} sx={{ cursor: "pointer", fontWeight: 700 }}>
-                Κατάσταση{sortIcon("status")}
-              </TableCell>
-              <TableCell onClick={() => toggleSort("priority")} sx={{ cursor: "pointer", fontWeight: 700 }}>
-                Προτ.{sortIcon("priority")}
-              </TableCell>
-              <TableCell onClick={() => toggleSort("dueAt")} sx={{ cursor: "pointer", fontWeight: 700 }}>
-                Προθεσμία{sortIcon("dueAt")}
-              </TableCell>
-              <TableCell onClick={() => toggleSort("assignedToUserName")} sx={{ cursor: "pointer", fontWeight: 700 }}>
-                Ανάθεση{sortIcon("assignedToUserName")}
-              </TableCell>
-              <TableCell>Πελάτης</TableCell>
-              <TableCell>Συμβόλαιο</TableCell>
+              {!hiddenCols.has("title") && (
+                <TableCell
+                  onClick={() => toggleSort("title")}
+                  onContextMenu={(e) => openHeader(e, "title", "Τίτλος", "string")}
+                  sx={{ cursor: "pointer", fontWeight: 700 }}
+                >
+                  Τίτλος{sortIcon("title")}
+                </TableCell>
+              )}
+              {!hiddenCols.has("status") && (
+                <TableCell
+                  onClick={() => toggleSort("status")}
+                  onContextMenu={(e) => openHeader(e, "status", "Κατάσταση", "string")}
+                  sx={{ cursor: "pointer", fontWeight: 700 }}
+                >
+                  Κατάσταση{sortIcon("status")}
+                </TableCell>
+              )}
+              {!hiddenCols.has("priority") && (
+                <TableCell
+                  onClick={() => toggleSort("priority")}
+                  onContextMenu={(e) => openHeader(e, "priority", "Προτεραιότητα", "string")}
+                  sx={{ cursor: "pointer", fontWeight: 700 }}
+                >
+                  Προτ.{sortIcon("priority")}
+                </TableCell>
+              )}
+              {!hiddenCols.has("dueAt") && (
+                <TableCell
+                  onClick={() => toggleSort("dueAt")}
+                  onContextMenu={(e) => openHeader(e, "dueAt", "Προθεσμία", "date")}
+                  sx={{ cursor: "pointer", fontWeight: 700 }}
+                >
+                  Προθεσμία{sortIcon("dueAt")}
+                </TableCell>
+              )}
+              {!hiddenCols.has("assignedToUserName") && (
+                <TableCell
+                  onClick={() => toggleSort("assignedToUserName")}
+                  onContextMenu={(e) => openHeader(e, "assignedToUserName", "Ανάθεση", "string")}
+                  sx={{ cursor: "pointer", fontWeight: 700 }}
+                >
+                  Ανάθεση{sortIcon("assignedToUserName")}
+                </TableCell>
+              )}
+              {!hiddenCols.has("customerDisplay") && (
+                <TableCell onContextMenu={(e) => openHeader(e, "customerDisplay", "Πελάτης", "string")}>Πελάτης</TableCell>
+              )}
+              {!hiddenCols.has("policyNumber") && (
+                <TableCell onContextMenu={(e) => openHeader(e, "policyNumber", "Συμβόλαιο", "string")}>Συμβόλαιο</TableCell>
+              )}
               <TableCell align="right" />
             </TableRow>
           </TableHead>
           <TableBody>
             {pageItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                <TableCell colSpan={9 - hiddenCols.size} align="center" sx={{ py: 4, color: "text.secondary" }}>
                   Κανένα αποτέλεσμα.
                 </TableCell>
               </TableRow>
@@ -875,29 +936,36 @@ function TableView({
                   key={t.id}
                   hover
                   selected={selectedIds.has(t.id)}
+                  onContextMenu={(e) => rowMenu.open(e, t)}
                   sx={overdue ? { bgcolor: "rgba(211, 47, 47, 0.05)" } : undefined}
                 >
                   <TableCell padding="checkbox">
                     <Checkbox size="small" checked={selectedIds.has(t.id)} onChange={() => toggle(t.id)} />
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>{t.title}</TableCell>
-                  <TableCell>
-                    <Chip size="small" icon={STATUS_ICON[t.status] as React.ReactElement} color={STATUS_COLOR[t.status]} label={statusLabel(t.status)} />
-                  </TableCell>
-                  <TableCell>
-                    <Chip size="small" icon={<FlagIcon />} color={PRIORITY_COLOR[t.priority]} label={priorityLabel(t.priority)} />
-                  </TableCell>
-                  <TableCell>
-                    {t.dueAt ? (
-                      <Chip
-                        size="small" icon={<EventIcon />} label={date(t.dueAt)}
-                        color={overdue ? "error" : "default"} variant={overdue ? "filled" : "outlined"}
-                      />
-                    ) : "—"}
-                  </TableCell>
-                  <TableCell>{t.assignedToUserName ?? "—"}</TableCell>
-                  <TableCell>{t.customerDisplay ?? "—"}</TableCell>
-                  <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{t.policyNumber ?? "—"}</TableCell>
+                  {!hiddenCols.has("title") && <TableCell sx={{ fontWeight: 600 }}>{t.title}</TableCell>}
+                  {!hiddenCols.has("status") && (
+                    <TableCell>
+                      <Chip size="small" icon={STATUS_ICON[t.status] as React.ReactElement} color={STATUS_COLOR[t.status]} label={statusLabel(t.status)} />
+                    </TableCell>
+                  )}
+                  {!hiddenCols.has("priority") && (
+                    <TableCell>
+                      <Chip size="small" icon={<FlagIcon />} color={PRIORITY_COLOR[t.priority]} label={priorityLabel(t.priority)} />
+                    </TableCell>
+                  )}
+                  {!hiddenCols.has("dueAt") && (
+                    <TableCell>
+                      {t.dueAt ? (
+                        <Chip
+                          size="small" icon={<EventIcon />} label={date(t.dueAt)}
+                          color={overdue ? "error" : "default"} variant={overdue ? "filled" : "outlined"}
+                        />
+                      ) : "—"}
+                    </TableCell>
+                  )}
+                  {!hiddenCols.has("assignedToUserName") && <TableCell>{t.assignedToUserName ?? "—"}</TableCell>}
+                  {!hiddenCols.has("customerDisplay") && <TableCell>{t.customerDisplay ?? "—"}</TableCell>}
+                  {!hiddenCols.has("policyNumber") && <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{t.policyNumber ?? "—"}</TableCell>}
                   <TableCell align="right">
                     <IconButton size="small" onClick={() => onEdit(t)}><EditIcon fontSize="small" /></IconButton>
                     <IconButton size="small" color="error" onClick={() => onDelete(t.id)}><DeleteIcon fontSize="small" /></IconButton>
@@ -908,6 +976,8 @@ function TableView({
           </TableBody>
         </Table>
       </Card>
+      {headerMenu.menu}
+      {rowMenu.menu}
 
       <Box sx={{ mt: 2, display: "flex", justifyContent: "center" }}>
         <NumberedPager page={safePage} totalPages={totalPages} onPage={setPage} />

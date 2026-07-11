@@ -26,6 +26,7 @@ import {
   type ExportColumnDescriptor,
 } from "../components/ExportColumnPicker";
 import { printTable } from "../utils/printableTable";
+import { useHeaderContextMenu, type ColumnType } from "../components/TableContextMenu";
 
 interface Carrier { id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null; }
 interface Producer { id: string; name: string; }
@@ -180,7 +181,23 @@ export function ProductionListsPage() {
     defaultOff: c.defaultOff,
   }));
   const selection = useExportColumnSelection("production-lists", pickerDescriptors);
+
+  // Client-side sort surfaced through the right-click header menu.
+  // The report data is already loaded in-memory so we sort locally rather
+  // than round-tripping to the backend for every column tick.
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const visibleColumns = columns.filter(c => selection.activeKeys.includes(c.key));
+
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => { setSortKey(key); setSortDir(dir); },
+    onHide: (key) => selection.toggle(key),
+  });
+  const inferColumnType = (key: string): ColumnType => {
+    if (key === "startDate" || key === "endDate") return "date";
+    if (["gross", "net", "vat", "bridgeComm", "partnerPct", "partner", "agency"].includes(key)) return "number";
+    return "string";
+  };
 
   async function downloadExport(fmt: "csv" | "xlsx" | "pdf") {
     const activeKeys = selection.activeKeys;
@@ -428,12 +445,27 @@ export function ProductionListsPage() {
 
           {/* Detailed rows — headers & cells driven by the column-picker
               selection above, so unchecking a column also removes it from
-              the on-screen view (not just the export/print). */}
+              the on-screen view (not just the export/print). Right-click a
+              header for sort A→Z / Z→A and «Απόκρυψη στήλης». */}
           <Card variant="outlined" sx={{ overflowX: "auto" }}>
             <Table size="small">
               <TableHead><TableRow>
                 {visibleColumns.map(c => (
-                  <TableCell key={c.key} align={c.align}>{c.label}</TableCell>
+                  <TableCell
+                    key={c.key}
+                    align={c.align}
+                    onContextMenu={(e) => headerMenu.open(e, {
+                      key: c.key, label: c.label, type: inferColumnType(c.key), canHide: c.key !== visibleColumns[0].key,
+                    })}
+                    sx={{ cursor: "context-menu", userSelect: "none" }}
+                  >
+                    {c.label}
+                    {sortKey === c.key && (
+                      <Box component="span" sx={{ ml: 0.5, fontSize: 10, color: "primary.main" }}>
+                        {sortDir === "asc" ? "▲" : "▼"}
+                      </Box>
+                    )}
+                  </TableCell>
                 ))}
               </TableRow></TableHead>
               <TableBody>
@@ -444,7 +476,26 @@ export function ProductionListsPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {q.data.rows.map(r => (
+                {(() => {
+                  if (!sortKey) return q.data.rows;
+                  const col = columns.find(c => c.key === sortKey);
+                  if (!col) return q.data.rows;
+                  const type = inferColumnType(sortKey);
+                  const sorted = q.data.rows.slice();
+                  sorted.sort((a, b) => {
+                    const va: string = col.text(a) ?? "";
+                    const vb: string = col.text(b) ?? "";
+                    let cmp = 0;
+                    if (type === "number") {
+                      const parse = (s: string) => Number.parseFloat(s.replace(/[^\d.\-]/g, "")) || 0;
+                      cmp = parse(va) - parse(vb);
+                    } else {
+                      cmp = va.localeCompare(vb, "el");
+                    }
+                    return sortDir === "asc" ? cmp : -cmp;
+                  });
+                  return sorted;
+                })().map(r => (
                   <TableRow key={r.policyId} hover>
                     {visibleColumns.map(c => (
                       <TableCell key={c.key} align={c.align}>{c.render(r)}</TableCell>
@@ -454,6 +505,7 @@ export function ProductionListsPage() {
               </TableBody>
             </Table>
           </Card>
+          {headerMenu.menu}
 
           <Alert severity="info" icon={<DownloadIcon />} sx={{ mt: 2 }}>
             {t("productionList.note")}
