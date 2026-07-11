@@ -221,6 +221,12 @@ public interface IAppDbContext
     // to every staff member of the same γραφείο.
     DbSet<AgencyInstruction> AgencyInstructions { get; }
 
+    // Per-tenant backup archives + policy for scheduled backups + GDPR
+    // right-to-erasure request log.
+    DbSet<TenantBackup> TenantBackups { get; }
+    DbSet<TenantBackupPolicy> TenantBackupPolicies { get; }
+    DbSet<GdprErasureRequest> GdprErasureRequests { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
     /// Escape hatch for the raw-SQL wipe path in

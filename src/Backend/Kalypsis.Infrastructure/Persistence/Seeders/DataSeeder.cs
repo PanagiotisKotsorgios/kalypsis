@@ -950,6 +950,69 @@ public static class DataSeeder
                 UNIQUE KEY `UX_agency_instructions_TenantId` (`TenantId`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
 
+        // --- tenant_backups table -----------------------------------------
+        // Manifest of every full JSON backup we've written for a tenant.
+        // The compressed archive itself lives on disk (Storage__LocalRoot/backups/…).
+        await EnsureTableAsync(db, logger, dbName,
+            table: "tenant_backups",
+            createSql: @"CREATE TABLE IF NOT EXISTS `tenant_backups` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `FileName` varchar(300) NOT NULL,
+                `StoragePath` varchar(800) NOT NULL,
+                `SizeBytes` bigint NOT NULL DEFAULT 0,
+                `Kind` varchar(20) NOT NULL DEFAULT 'Manual',
+                `SummaryJson` text NULL,
+                `CreatedByUserId` char(36) NULL,
+                `CreatedByName` varchar(200) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_tenant_backups_TenantId_CreatedAt` (`TenantId`, `CreatedAt`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        // --- tenant_backup_policies table --------------------------------
+        await EnsureTableAsync(db, logger, dbName,
+            table: "tenant_backup_policies",
+            createSql: @"CREATE TABLE IF NOT EXISTS `tenant_backup_policies` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `Enabled` tinyint(1) NOT NULL DEFAULT 0,
+                `FrequencyDays` int NOT NULL DEFAULT 7,
+                `RetentionCount` int NOT NULL DEFAULT 8,
+                `LastAutoBackupAt` datetime(6) NULL,
+                `LastEditedByUserId` char(36) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_tenant_backup_policies_TenantId` (`TenantId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        // --- gdpr_erasure_requests table ---------------------------------
+        await EnsureTableAsync(db, logger, dbName,
+            table: "gdpr_erasure_requests",
+            createSql: @"CREATE TABLE IF NOT EXISTS `gdpr_erasure_requests` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `RequesterName` varchar(200) NOT NULL,
+                `RequesterEmail` varchar(200) NOT NULL,
+                `RequesterPhone` varchar(40) NULL,
+                `CustomerId` char(36) NULL,
+                `Reason` text NOT NULL,
+                `Status` varchar(20) NOT NULL DEFAULT 'Pending',
+                `Notes` text NULL,
+                `HandledByUserId` char(36) NULL,
+                `HandledByName` varchar(200) NULL,
+                `HandledAt` datetime(6) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_gdpr_erasure_requests_TenantId_Status_CreatedAt` (`TenantId`, `Status`, `CreatedAt`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         // --- saved_reports table ------------------------------------------
         await EnsureTableAsync(db, logger, dbName,
             table: "saved_reports",

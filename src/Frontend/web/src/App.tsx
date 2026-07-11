@@ -146,6 +146,7 @@ import { UsaeSubmissionsPage } from "./pages/UsaeSubmissionsPage";
 import { IntegrationSettingsPage } from "./pages/IntegrationSettingsPage";
 import { NamedReportsPage } from "./pages/NamedReportsPage";
 import { AgencyInstructionsPage } from "./pages/AgencyInstructionsPage";
+import { BackupsPage } from "./pages/BackupsPage";
 import { ConfigHubPage } from "./pages/ConfigHubPage";
 import { RecycleBinPage } from "./pages/RecycleBinPage";
 import { ProducerReconciliationPage } from "./pages/ProducerReconciliationPage";
@@ -164,6 +165,7 @@ import EditNoteIcon from "@mui/icons-material/EditNote";
 import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
+import BackupIcon from "@mui/icons-material/Backup";
 import DesignServicesIcon from "@mui/icons-material/DesignServices";
 // ΖΗΜΙΕΣ ΚΑΙ ΔΙΑΚΑΝΟΝΙΣΜΟΙ group icons (Build/Savings/PaymentsOutlined/HandshakeOutlined)
 // were removed from the sidebar; their imports are no longer needed.
@@ -264,6 +266,9 @@ const navByRole: Record<Role, NavItem[]> = {
     // Per-tenant handbook — visible to every staff member of the γραφείο,
     // editable only by AgencyAdmin. No package gate (kept always visible).
     { to: "/instructions", labelKey: "nav.instructions", icon: <MenuBookIcon /> },
+
+    // Per-tenant backups + GDPR — always visible.
+    { to: "/backups", labelKey: "nav.backups", icon: <BackupIcon /> },
 
     // ===== CRM — top-level (3) + grouped (5) =====
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
@@ -551,6 +556,7 @@ export default function App() {
                   <Route path="indemnities" element={<ClaimIndemnitiesPage />} />
                   <Route path="name-days" element={<PackageGate package="Crm"><NameDaysPage /></PackageGate>} />
                   <Route path="instructions" element={<AgencyInstructionsPage />} />
+                  <Route path="backups" element={<BackupsPage />} />
                   <Route path="mydata" element={<MyDataSubmissionsPage />} />
                   <Route path="document-designer" element={<DocumentDesignerPage />} />
                   <Route path="friendly-settlements" element={<FriendlySettlementsPage />} />

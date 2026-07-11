@@ -219,6 +219,10 @@ public class AppDbContext : DbContext, IAppDbContext
 
     public DbSet<AgencyInstruction> AgencyInstructions => Set<AgencyInstruction>();
 
+    public DbSet<TenantBackup> TenantBackups => Set<TenantBackup>();
+    public DbSet<TenantBackupPolicy> TenantBackupPolicies => Set<TenantBackupPolicy>();
+    public DbSet<GdprErasureRequest> GdprErasureRequests => Set<GdprErasureRequest>();
+
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
 
     // PlatformAdmin / PlatformEmployee normally bypass the tenant filter, but
