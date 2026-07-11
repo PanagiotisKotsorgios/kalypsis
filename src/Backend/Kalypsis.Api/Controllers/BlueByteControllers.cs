@@ -19,6 +19,7 @@ namespace Kalypsis.Api.Controllers;
 [Route("api/appointments")]
 [Authorize(Policy = "AgencyStaff")]
 [RequiresPackage(PackageCode.Crm)]
+[RequirePermission("appointments.read")]
 public class AppointmentsController : ControllerBase
 {
     private readonly IMediator _m;
@@ -30,15 +31,15 @@ public class AppointmentsController : ControllerBase
         [FromQuery] Guid? userId, [FromQuery] Guid? customerId, CancellationToken ct)
         => Ok(await _m.Send(new ListAppointmentsQuery(from, to, userId, customerId), ct));
 
-    [HttpPost]
+    [HttpPost] [RequirePermission("appointments.write")]
     public async Task<ActionResult<AppointmentDto>> Create([FromBody] AppointmentBody body, CancellationToken ct)
         => Ok(await _m.Send(new CreateAppointmentCommand(body), ct));
 
-    [HttpPut("{id:guid}")]
+    [HttpPut("{id:guid}")] [RequirePermission("appointments.write")]
     public async Task<ActionResult<AppointmentDto>> Update(Guid id, [FromBody] AppointmentBody body, CancellationToken ct)
         => Ok(await _m.Send(new UpdateAppointmentCommand(id, body), ct));
 
-    [HttpDelete("{id:guid}")]
+    [HttpDelete("{id:guid}")] [RequirePermission("appointments.write")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     { await _m.Send(new DeleteAppointmentCommand(id), ct); return NoContent(); }
 }
@@ -47,26 +48,28 @@ public class AppointmentsController : ControllerBase
 [Route("api/tariffs")]
 [Authorize(Policy = "AgencyStaff")]
 [RequiresPackage(PackageCode.BackOffice)]
+[RequirePermission("tariffs.read")]
 public class TariffsController : ControllerBase
 {
     private readonly IMediator _m; public TariffsController(IMediator m) => _m = m;
     [HttpGet] public async Task<ActionResult<IReadOnlyList<TariffDto>>> List(CancellationToken ct) => Ok(await _m.Send(new ListTariffsQuery(), ct));
-    [HttpPost] public async Task<ActionResult<TariffDto>> Create([FromBody] TariffBody body, CancellationToken ct) => Ok(await _m.Send(new CreateTariffCommand(body), ct));
-    [HttpPut("{id:guid}")] public async Task<ActionResult<TariffDto>> Update(Guid id, [FromBody] TariffBody body, CancellationToken ct) => Ok(await _m.Send(new UpdateTariffCommand(id, body), ct));
-    [HttpDelete("{id:guid}")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteTariffCommand(id), ct); return NoContent(); }
+    [HttpPost] [RequirePermission("tariffs.write")] public async Task<ActionResult<TariffDto>> Create([FromBody] TariffBody body, CancellationToken ct) => Ok(await _m.Send(new CreateTariffCommand(body), ct));
+    [HttpPut("{id:guid}")] [RequirePermission("tariffs.write")] public async Task<ActionResult<TariffDto>> Update(Guid id, [FromBody] TariffBody body, CancellationToken ct) => Ok(await _m.Send(new UpdateTariffCommand(id, body), ct));
+    [HttpDelete("{id:guid}")] [RequirePermission("tariffs.write")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteTariffCommand(id), ct); return NoContent(); }
 }
 
 [ApiController]
 [Route("api/cover-notes")]
 [Authorize(Policy = "AgencyStaff")]
 [RequiresPackage(PackageCode.FrontOffice)]
+[RequirePermission("covernotes.read")]
 public class CoverNotesController : ControllerBase
 {
     private readonly IMediator _m; public CoverNotesController(IMediator m) => _m = m;
     [HttpGet] public async Task<ActionResult<IReadOnlyList<CoverNoteDto>>> List([FromQuery] CoverNoteStatus? status, CancellationToken ct) => Ok(await _m.Send(new ListCoverNotesQuery(status), ct));
-    [HttpPost] public async Task<ActionResult<CoverNoteDto>> Create([FromBody] CoverNoteBody body, CancellationToken ct) => Ok(await _m.Send(new CreateCoverNoteCommand(body), ct));
-    [HttpPut("{id:guid}")] public async Task<ActionResult<CoverNoteDto>> Update(Guid id, [FromBody] CoverNoteBody body, CancellationToken ct) => Ok(await _m.Send(new UpdateCoverNoteCommand(id, body), ct));
-    [HttpDelete("{id:guid}")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteCoverNoteCommand(id), ct); return NoContent(); }
+    [HttpPost] [RequirePermission("covernotes.write")] public async Task<ActionResult<CoverNoteDto>> Create([FromBody] CoverNoteBody body, CancellationToken ct) => Ok(await _m.Send(new CreateCoverNoteCommand(body), ct));
+    [HttpPut("{id:guid}")] [RequirePermission("covernotes.write")] public async Task<ActionResult<CoverNoteDto>> Update(Guid id, [FromBody] CoverNoteBody body, CancellationToken ct) => Ok(await _m.Send(new UpdateCoverNoteCommand(id, body), ct));
+    [HttpDelete("{id:guid}")] [RequirePermission("covernotes.write")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteCoverNoteCommand(id), ct); return NoContent(); }
 }
 
 [ApiController]
@@ -86,45 +89,49 @@ public class BranchesController : ControllerBase
 [Route("api/receipts")]
 [Authorize(Policy = "AgencyStaff")]
 [RequiresPackage(PackageCode.BackOffice)]
+[RequirePermission("receipts.read")]
 public class ReceiptsController : ControllerBase
 {
     private readonly IMediator _m; public ReceiptsController(IMediator m) => _m = m;
     [HttpGet] public async Task<ActionResult<IReadOnlyList<ReceiptDto>>> List([FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] Guid? customerId, CancellationToken ct)
         => Ok(await _m.Send(new ListReceiptsQuery(from, to, customerId), ct));
-    [HttpPost] public async Task<ActionResult<ReceiptDto>> Create([FromBody] ReceiptBody body, CancellationToken ct) => Ok(await _m.Send(new CreateReceiptCommand(body), ct));
-    [HttpDelete("{id:guid}")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteReceiptCommand(id), ct); return NoContent(); }
+    [HttpPost] [RequirePermission("receipts.write")] public async Task<ActionResult<ReceiptDto>> Create([FromBody] ReceiptBody body, CancellationToken ct) => Ok(await _m.Send(new CreateReceiptCommand(body), ct));
+    [HttpDelete("{id:guid}")] [RequirePermission("receipts.write")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteReceiptCommand(id), ct); return NoContent(); }
 }
 
 [ApiController]
 [Route("api/payments")]
 [Authorize(Policy = "AgencyStaff")]
 [RequiresPackage(PackageCode.BackOffice)]
+[RequirePermission("payments.read")]
 public class PaymentsController : ControllerBase
 {
     private readonly IMediator _m; public PaymentsController(IMediator m) => _m = m;
     [HttpGet] public async Task<ActionResult<IReadOnlyList<PaymentDto>>> List([FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] BeneficiaryType? type, CancellationToken ct)
         => Ok(await _m.Send(new ListPaymentsQuery(from, to, type), ct));
-    [HttpPost] public async Task<ActionResult<PaymentDto>> Create([FromBody] PaymentBody body, CancellationToken ct) => Ok(await _m.Send(new CreatePaymentCommand(body), ct));
-    [HttpDelete("{id:guid}")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeletePaymentCommand(id), ct); return NoContent(); }
+    [HttpPost] [RequirePermission("payments.write")] public async Task<ActionResult<PaymentDto>> Create([FromBody] PaymentBody body, CancellationToken ct) => Ok(await _m.Send(new CreatePaymentCommand(body), ct));
+    [HttpDelete("{id:guid}")] [RequirePermission("payments.write")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeletePaymentCommand(id), ct); return NoContent(); }
 }
 
 [ApiController]
 [Route("api/securities")]
 [Authorize(Policy = "AgencyStaff")]
 [RequiresPackage(PackageCode.BackOffice)]
+[RequirePermission("securities.read")]
 public class SecuritiesController : ControllerBase
 {
     private readonly IMediator _m; public SecuritiesController(IMediator m) => _m = m;
     [HttpGet] public async Task<ActionResult<IReadOnlyList<SecurityDto>>> List([FromQuery] SecurityStatus? status, CancellationToken ct) => Ok(await _m.Send(new ListSecuritiesQuery(status), ct));
-    [HttpPost] public async Task<ActionResult<SecurityDto>> Create([FromBody] SecurityBody body, CancellationToken ct) => Ok(await _m.Send(new CreateSecurityCommand(body), ct));
-    [HttpPut("{id:guid}")] public async Task<ActionResult<SecurityDto>> Update(Guid id, [FromBody] SecurityBody body, CancellationToken ct) => Ok(await _m.Send(new UpdateSecurityCommand(id, body), ct));
-    [HttpDelete("{id:guid}")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteSecurityCommand(id), ct); return NoContent(); }
+    [HttpPost] [RequirePermission("securities.write")] public async Task<ActionResult<SecurityDto>> Create([FromBody] SecurityBody body, CancellationToken ct) => Ok(await _m.Send(new CreateSecurityCommand(body), ct));
+    [HttpPut("{id:guid}")] [RequirePermission("securities.write")] public async Task<ActionResult<SecurityDto>> Update(Guid id, [FromBody] SecurityBody body, CancellationToken ct) => Ok(await _m.Send(new UpdateSecurityCommand(id, body), ct));
+    [HttpDelete("{id:guid}")] [RequirePermission("securities.write")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteSecurityCommand(id), ct); return NoContent(); }
 }
 
 [ApiController]
 [Route("api/financial-movements")]
 [Authorize(Policy = "AgencyStaff")]
 [RequiresPackage(PackageCode.BackOffice)]
+[RequirePermission("financials.read")]
 public class FinancialMovementsController : ControllerBase
 {
     private readonly IMediator _m; public FinancialMovementsController(IMediator m) => _m = m;
@@ -171,25 +178,27 @@ public class MarketingCampaignsController : ControllerBase
 [Route("api/delivery-records")]
 [Authorize(Policy = "AgencyStaff")]
 [RequiresPackage(PackageCode.Crm)]
+[RequirePermission("delivery.read")]
 public class DeliveryRecordsController : ControllerBase
 {
     private readonly IMediator _m; public DeliveryRecordsController(IMediator m) => _m = m;
     [HttpGet] public async Task<ActionResult<IReadOnlyList<DeliveryRecordDto>>> List([FromQuery] DeliveryStatus? status, CancellationToken ct) => Ok(await _m.Send(new ListDeliveryRecordsQuery(status), ct));
-    [HttpPost] public async Task<ActionResult<DeliveryRecordDto>> Upsert([FromBody] DeliveryRecordBody body, CancellationToken ct) => Ok(await _m.Send(new UpsertDeliveryRecordCommand(null, body), ct));
-    [HttpPut("{id:guid}")] public async Task<ActionResult<DeliveryRecordDto>> Update(Guid id, [FromBody] DeliveryRecordBody body, CancellationToken ct) => Ok(await _m.Send(new UpsertDeliveryRecordCommand(id, body), ct));
-    [HttpDelete("{id:guid}")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteDeliveryRecordCommand(id), ct); return NoContent(); }
+    [HttpPost] [RequirePermission("delivery.write")] public async Task<ActionResult<DeliveryRecordDto>> Upsert([FromBody] DeliveryRecordBody body, CancellationToken ct) => Ok(await _m.Send(new UpsertDeliveryRecordCommand(null, body), ct));
+    [HttpPut("{id:guid}")] [RequirePermission("delivery.write")] public async Task<ActionResult<DeliveryRecordDto>> Update(Guid id, [FromBody] DeliveryRecordBody body, CancellationToken ct) => Ok(await _m.Send(new UpsertDeliveryRecordCommand(id, body), ct));
+    [HttpDelete("{id:guid}")] [RequirePermission("delivery.write")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteDeliveryRecordCommand(id), ct); return NoContent(); }
 }
 
 [ApiController]
 [Route("api/document-folders")]
 [Authorize(Policy = "AgencyStaff")]
 [RequiresPackage(PackageCode.Crm)]
+[RequirePermission("documents.read")]
 public class DocumentFoldersController : ControllerBase
 {
     private readonly IMediator _m; public DocumentFoldersController(IMediator m) => _m = m;
     [HttpGet] public async Task<ActionResult<IReadOnlyList<DocumentFolderDto>>> List([FromQuery] Guid? customerId, CancellationToken ct) => Ok(await _m.Send(new ListDocumentFoldersQuery(customerId), ct));
-    [HttpPost] public async Task<ActionResult<Guid>> Create([FromBody] DocumentFolderBody body, CancellationToken ct) => Ok(await _m.Send(new CreateDocumentFolderCommand(body), ct));
-    [HttpDelete("{id:guid}")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteDocumentFolderCommand(id), ct); return NoContent(); }
+    [HttpPost] [RequirePermission("documents.write")] public async Task<ActionResult<Guid>> Create([FromBody] DocumentFolderBody body, CancellationToken ct) => Ok(await _m.Send(new CreateDocumentFolderCommand(body), ct));
+    [HttpDelete("{id:guid}")] [RequirePermission("documents.write")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteDocumentFolderCommand(id), ct); return NoContent(); }
 }
 
 [ApiController]
@@ -280,32 +289,35 @@ public class MagneticImportsController : ControllerBase
 [Route("api/over-commission-rules")]
 [Authorize(Policy = "AgencyAdmin")]
 [RequiresPackage(PackageCode.BackOffice)]
+[RequirePermission("overcommissions.read")]
 public class OverCommissionRulesController : ControllerBase
 {
     private readonly IMediator _m; public OverCommissionRulesController(IMediator m) => _m = m;
     [HttpGet] public async Task<ActionResult<IReadOnlyList<OverCommissionRuleDto>>> List(CancellationToken ct) => Ok(await _m.Send(new ListOverCommissionRulesQuery(), ct));
-    [HttpPost] public async Task<ActionResult<Guid>> Upsert([FromBody] OverCommissionRuleBody body, CancellationToken ct) => Ok(await _m.Send(new UpsertOverCommissionRuleCommand(null, body), ct));
-    [HttpPut("{id:guid}")] public async Task<ActionResult<Guid>> Update(Guid id, [FromBody] OverCommissionRuleBody body, CancellationToken ct) => Ok(await _m.Send(new UpsertOverCommissionRuleCommand(id, body), ct));
-    [HttpDelete("{id:guid}")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteOverCommissionRuleCommand(id), ct); return NoContent(); }
+    [HttpPost] [RequirePermission("overcommissions.write")] public async Task<ActionResult<Guid>> Upsert([FromBody] OverCommissionRuleBody body, CancellationToken ct) => Ok(await _m.Send(new UpsertOverCommissionRuleCommand(null, body), ct));
+    [HttpPut("{id:guid}")] [RequirePermission("overcommissions.write")] public async Task<ActionResult<Guid>> Update(Guid id, [FromBody] OverCommissionRuleBody body, CancellationToken ct) => Ok(await _m.Send(new UpsertOverCommissionRuleCommand(id, body), ct));
+    [HttpDelete("{id:guid}")] [RequirePermission("overcommissions.write")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteOverCommissionRuleCommand(id), ct); return NoContent(); }
 }
 
 [ApiController]
 [Route("api/production-goals")]
 [Authorize(Policy = "AgencyStaff")]
 [RequiresPackage(PackageCode.Intelligence)]
+[RequirePermission("goals.read")]
 public class ProductionGoalsController : ControllerBase
 {
     private readonly IMediator _m; public ProductionGoalsController(IMediator m) => _m = m;
     [HttpGet] public async Task<ActionResult<IReadOnlyList<ProductionGoalDto>>> List([FromQuery] int? year, CancellationToken ct) => Ok(await _m.Send(new ListProductionGoalsQuery(year), ct));
-    [HttpPost] public async Task<ActionResult<Guid>> Upsert([FromBody] ProductionGoalBody body, CancellationToken ct) => Ok(await _m.Send(new UpsertProductionGoalCommand(null, body), ct));
-    [HttpPut("{id:guid}")] public async Task<ActionResult<Guid>> Update(Guid id, [FromBody] ProductionGoalBody body, CancellationToken ct) => Ok(await _m.Send(new UpsertProductionGoalCommand(id, body), ct));
-    [HttpDelete("{id:guid}")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteProductionGoalCommand(id), ct); return NoContent(); }
+    [HttpPost] [RequirePermission("goals.write")] public async Task<ActionResult<Guid>> Upsert([FromBody] ProductionGoalBody body, CancellationToken ct) => Ok(await _m.Send(new UpsertProductionGoalCommand(null, body), ct));
+    [HttpPut("{id:guid}")] [RequirePermission("goals.write")] public async Task<ActionResult<Guid>> Update(Guid id, [FromBody] ProductionGoalBody body, CancellationToken ct) => Ok(await _m.Send(new UpsertProductionGoalCommand(id, body), ct));
+    [HttpDelete("{id:guid}")] [RequirePermission("goals.write")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteProductionGoalCommand(id), ct); return NoContent(); }
 }
 
 [ApiController]
 [Route("api/production-stats")]
 [Authorize(Policy = "AgencyStaff")]
 [RequiresPackage(PackageCode.Intelligence)]
+[RequirePermission("production.read")]
 public class ProductionStatsController : ControllerBase
 {
     private readonly IMediator _m; public ProductionStatsController(IMediator m) => _m = m;

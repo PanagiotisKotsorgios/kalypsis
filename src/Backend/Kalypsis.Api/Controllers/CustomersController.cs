@@ -1,3 +1,4 @@
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Features.ClaimInvolvedParties;
 using Kalypsis.Application.Features.Customers;
 using Kalypsis.Application.Features.Producers;
@@ -15,9 +16,11 @@ public class CustomersController : ControllerBase
     private readonly IMediator _mediator;
     public CustomersController(IMediator mediator) => _mediator = mediator;
 
-    // GET is open to any authed user — the handler scopes Customer and Producer
-    // roles to their own slice; AgencyStaff sees the full tenant.
+    // GET is open to any authed user with customers.read — the handler
+    // scopes Customer and Producer roles to their own slice; AgencyStaff
+    // sees the full tenant.
     [HttpGet]
+    [RequirePermission("customers.read")]
     public async Task<ActionResult<IReadOnlyList<CustomerDto>>> List(
         [FromQuery] string? search,
         [FromQuery] string? occupation,
@@ -27,10 +30,12 @@ public class CustomersController : ControllerBase
         => Ok(await _mediator.Send(new ListCustomersQuery(search, occupation, needKind, onlyUninsuredNeeds), cancellationToken));
 
     [HttpGet("{id:guid}")]
+    [RequirePermission("customers.read")]
     public async Task<ActionResult<CustomerDto>> Get(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetCustomerQuery(id), ct));
 
     [HttpGet("{id:guid}/summary")]
+    [RequirePermission("customers.read")]
     public async Task<ActionResult<CustomerSummaryDto>> Summary(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetCustomerSummaryQuery(id), ct));
 
@@ -38,6 +43,7 @@ public class CustomersController : ControllerBase
     // /producers/{id}/customers — useful when investigating commission disputes.
     [HttpGet("{id:guid}/producers")]
     [Authorize(Policy = "AgencyStaff")]
+    [RequirePermission("customers.read")]
     public async Task<ActionResult<IReadOnlyList<CustomerProducerLineDto>>> Producers(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new ListCustomerProducersQuery(id), ct));
 
@@ -46,12 +52,14 @@ public class CustomersController : ControllerBase
     // context so the frontend can group by claim without a second fetch.
     [HttpGet("{id:guid}/claim-involved-parties")]
     [Authorize(Policy = "AgencyStaff")]
+    [RequirePermission("claims.read")]
     public async Task<ActionResult<IReadOnlyList<ClaimInvolvedPartyDto>>> ClaimInvolvedParties(
         Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new ListInvolvedPartiesByCustomerQuery(id), ct));
 
     [HttpPost]
     [Authorize(Policy = "AgencyStaff")]
+    [RequirePermission("customers.write")]
     public async Task<ActionResult<CreateCustomerResponse>> Create([FromBody] CreateCustomerRequest request, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new CreateCustomerCommand(request), cancellationToken);

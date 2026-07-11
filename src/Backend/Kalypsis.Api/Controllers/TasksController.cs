@@ -1,3 +1,4 @@
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Features.Tasks;
 using Kalypsis.Domain.Enums;
 using MediatR;
@@ -9,6 +10,7 @@ namespace Kalypsis.Api.Controllers;
 [ApiController]
 [Route("api/tasks")]
 [Authorize(Policy = "AgencyStaff")]
+[RequirePermission("tasks.read")]
 public class TasksController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -22,6 +24,7 @@ public class TasksController : ControllerBase
         => Ok(await _mediator.Send(new ListTasksQuery(status, assignedToUserId), cancellationToken));
 
     [HttpPost]
+    [RequirePermission("tasks.write")]
     public async Task<ActionResult<AgencyTaskDto>> Create([FromBody] CreateAgencyTaskBody body, CancellationToken cancellationToken)
     {
         var r = await _mediator.Send(new CreateAgencyTaskCommand(body), cancellationToken);
@@ -29,10 +32,12 @@ public class TasksController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [RequirePermission("tasks.write")]
     public async Task<ActionResult<AgencyTaskDto>> Update(Guid id, [FromBody] UpdateAgencyTaskBody body, CancellationToken cancellationToken)
         => Ok(await _mediator.Send(new UpdateAgencyTaskCommand(id, body), cancellationToken));
 
     [HttpDelete("{id:guid}")]
+    [RequirePermission("tasks.write")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await _mediator.Send(new DeleteAgencyTaskCommand(id), cancellationToken);

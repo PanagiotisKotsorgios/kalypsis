@@ -1,3 +1,4 @@
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Features.CommissionRules;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -8,6 +9,8 @@ namespace Kalypsis.Api.Controllers;
 [ApiController]
 [Route("api/commission-rules")]
 [Authorize(Policy = "AgencyStaff")]
+// Read is part of ΠΑΡΑΜΕΤΡΟΠΟΙΗΣΗ; write is fine-grained via commissionRules.write.
+[RequirePermission("params.read")]
 public class CommissionRulesController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -19,6 +22,7 @@ public class CommissionRulesController : ControllerBase
 
     [HttpPost]
     [Authorize(Policy = "AgencyAdmin")]
+    [RequirePermission("commissionRules.write")]
     public async Task<ActionResult<CommissionRuleDto>> Create([FromBody] CommissionRuleBody body, CancellationToken ct)
         => Ok(await _mediator.Send(new CreateCommissionRuleCommand(body), ct));
 

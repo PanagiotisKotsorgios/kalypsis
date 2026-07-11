@@ -1,3 +1,4 @@
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Features.Communications;
 using Kalypsis.Application.Features.Policies;
 using Kalypsis.Domain.Enums;
@@ -17,6 +18,7 @@ public class PoliciesController : ControllerBase
     public PoliciesController(IMediator mediator) => _mediator = mediator;
 
     [HttpGet]
+    [RequirePermission("policies.read")]
     public async Task<ActionResult<IReadOnlyList<PolicyDto>>> List(
         [FromQuery] string? search,
         [FromQuery] PolicyStatus? status,
@@ -33,21 +35,25 @@ public class PoliciesController : ControllerBase
             plate, applicationNumber, premiumMin, premiumMax), cancellationToken));
 
     [HttpGet("{id:guid}")]
+    [RequirePermission("policies.read")]
     public async Task<ActionResult<PolicyDto>> Get(Guid id, CancellationToken cancellationToken)
         => Ok(await _mediator.Send(new GetPolicyQuery(id), cancellationToken));
 
     [HttpGet("{id:guid}/detail")]
+    [RequirePermission("policies.read")]
     public async Task<ActionResult<PolicyDetailDto>> Detail(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetPolicyDetailQuery(id), ct));
 
     [HttpPut("{id:guid}/extended")]
     [Authorize(Policy = "AgencyStaff")]
+    [RequirePermission("policies.write")]
     public async Task<ActionResult<PolicyDetailDto>> UpdateExtended(
         Guid id, [FromBody] UpdatePolicyExtendedBody body, CancellationToken ct)
         => Ok(await _mediator.Send(new UpdatePolicyExtendedCommand(id, body), ct));
 
     [HttpPost]
     [Authorize(Policy = "AgencyStaff")]
+    [RequirePermission("policies.write")]
     public async Task<ActionResult<PolicyDto>> Create(
         [FromBody] CreatePolicyBody body, CancellationToken cancellationToken)
     {
@@ -57,24 +63,28 @@ public class PoliciesController : ControllerBase
 
     [HttpPut("{id:guid}")]
     [Authorize(Policy = "AgencyStaff")]
+    [RequirePermission("policies.write")]
     public async Task<ActionResult<PolicyDto>> Update(
         Guid id, [FromBody] UpdatePolicyBody body, CancellationToken cancellationToken)
         => Ok(await _mediator.Send(new UpdatePolicyCommand(id, body), cancellationToken));
 
     [HttpPost("{id:guid}/cancel")]
     [Authorize(Policy = "AgencyStaff")]
+    [RequirePermission("policies.write")]
     public async Task<ActionResult<PolicyDto>> Cancel(
         Guid id, [FromBody] CancelPolicyBody body, CancellationToken cancellationToken)
         => Ok(await _mediator.Send(new CancelPolicyCommand(id, body), cancellationToken));
 
     [HttpPost("{id:guid}/renew")]
     [Authorize(Policy = "AgencyStaff")]
+    [RequirePermission("policies.write")]
     public async Task<ActionResult<PolicyDto>> Renew(
         Guid id, [FromBody] RenewPolicyBody body, CancellationToken cancellationToken)
         => Ok(await _mediator.Send(new RenewPolicyCommand(id, body), cancellationToken));
 
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = "AgencyAdmin")]
+    [RequirePermission("policies.delete")]
     public async Task<ActionResult<DeletePolicyResultDto>> Delete(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new DeletePolicyCommand(id), ct));
 
@@ -86,6 +96,7 @@ public class PoliciesController : ControllerBase
     /// </summary>
     [HttpPost("bulk-update")]
     [Authorize(Policy = "AgencyAdmin")]
+    [RequirePermission("policies.write")]
     public async Task<ActionResult<BulkUpdatePoliciesResult>> BulkUpdate(
         [FromBody] BulkUpdatePoliciesBody body, CancellationToken ct)
         => Ok(await _mediator.Send(new BulkUpdatePoliciesCommand(body), ct));
@@ -94,6 +105,7 @@ public class PoliciesController : ControllerBase
     /// the «do you also want to apply this change to their older contracts?»
     /// prompt after a save.</summary>
     [HttpGet("{id:guid}/related")]
+    [RequirePermission("policies.read")]
     public async Task<ActionResult<IReadOnlyList<RelatedPolicySummary>>> Related(
         Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new ListRelatedPoliciesQuery(id), ct));
@@ -102,11 +114,13 @@ public class PoliciesController : ControllerBase
     /// customer's other policies (the ones the operator ticked in the
     /// propagation dialog).</summary>
     [HttpPost("propagate-changes")]
+    [RequirePermission("policies.write")]
     public async Task<ActionResult<PropagatePolicyChangesResult>> PropagateChanges(
         [FromBody] PropagatePolicyChangesBody body, CancellationToken ct)
         => Ok(await _mediator.Send(new PropagatePolicyChangesCommand(body), ct));
 
     [HttpGet("{id:guid}/payment-summary")]
+    [RequirePermission("policies.read")]
     public async Task<ActionResult<PolicyPaymentSummaryDto>> PaymentSummary(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetPolicyPaymentSummaryQuery(id), ct));
 
@@ -118,6 +132,7 @@ public class PoliciesController : ControllerBase
     /// shows something meaningful.
     /// </summary>
     [HttpGet("{id:guid}/commission-splits")]
+    [RequirePermission("commissions.read")]
     public async Task<ActionResult<PolicyCommissionMatrixDto>> CommissionSplits(
         Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetPolicyCommissionSplitsQuery(id), ct));
@@ -131,6 +146,7 @@ public class PoliciesController : ControllerBase
     /// </summary>
     [HttpPost("backfill-commission-splits")]
     [Authorize(Policy = "AgencyAdmin")]
+    [RequirePermission("commissions.run")]
     public async Task<ActionResult<BackfillCommissionSplitsResult>> BackfillCommissionSplits(
         CancellationToken ct)
         => Ok(await _mediator.Send(new BackfillCommissionSplitsCommand(), ct));
@@ -141,6 +157,7 @@ public class PoliciesController : ControllerBase
     /// the drawer doesn't over-fetch every note across the customer's history.
     /// </summary>
     [HttpGet("{id:guid}/communications")]
+    [RequirePermission("policies.read")]
     public async Task<ActionResult<IReadOnlyList<CommunicationDto>>> Communications(
         Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new ListPolicyCommunicationsQuery(id), ct));
@@ -151,6 +168,7 @@ public class PoliciesController : ControllerBase
     /// </summary>
     [HttpPost("{id:guid}/communications")]
     [Authorize(Policy = "AgencyStaff")]
+    [RequirePermission("policies.write")]
     public async Task<ActionResult<CommunicationDto>> CreateCommunication(
         Guid id, [FromBody] CreateCommunicationBody body, CancellationToken ct)
         => Ok(await _mediator.Send(new CreatePolicyCommunicationCommand(id, body), ct));

@@ -1,3 +1,4 @@
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Features.CarrierBridges;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -8,6 +9,7 @@ namespace Kalypsis.Api.Controllers;
 [ApiController]
 [Route("api/carrier-bridges")]
 [Authorize(Policy = "AgencyStaff")]
+[RequirePermission("bridges.read")]
 public class CarrierBridgesController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -20,6 +22,7 @@ public class CarrierBridgesController : ControllerBase
 
     /// <summary>Parse an xlsx and return preview rows (no DB writes).</summary>
     [HttpPost("preview")]
+    [RequirePermission("bridges.sync")]
     public async Task<ActionResult<BridgeImportPreviewResult>> Preview(
         [FromForm] Guid insuranceCompanyId,
         [FromForm] string? lob,
@@ -34,6 +37,7 @@ public class CarrierBridgesController : ControllerBase
 
     /// <summary>Commit the previewed rows after user confirmation.</summary>
     [HttpPost("commit")]
+    [RequirePermission("bridges.sync")]
     public async Task<ActionResult<CompanyBridgeRunSummary>> Commit(
         [FromBody] CommitBridgeImportCommand body, CancellationToken ct)
         => Ok(await _mediator.Send(body, ct));

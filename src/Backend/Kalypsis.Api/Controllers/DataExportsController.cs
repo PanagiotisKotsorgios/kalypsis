@@ -1,3 +1,4 @@
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Features.Exports;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -11,6 +12,7 @@ namespace Kalypsis.Api.Controllers;
 [ApiController]
 [Route("api/data-exports")]
 [Authorize(Policy = "AgencyStaff")]
+[RequirePermission("exports.run")]
 public class DataExportsController : ControllerBase
 {
     private readonly IMediator _mediator;

@@ -1,3 +1,4 @@
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Features.ProductionLists;
 using Kalypsis.Domain.Enums;
 using MediatR;
@@ -9,6 +10,7 @@ namespace Kalypsis.Api.Controllers;
 [ApiController]
 [Route("api/production-lists")]
 [Authorize(Policy = "AgencyStaff")]
+[RequirePermission("production.read")]
 public class ProductionListsController : ControllerBase
 {
     private readonly IMediator _mediator;
