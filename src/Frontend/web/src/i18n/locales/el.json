@@ -113,6 +113,7 @@
     "dvr": "Προεπιλογές συμβολαίων",
     "bridgeImport": "Εισαγωγή από Γέφυρες",
     "carrierBridges": "Γέφυρες Εταιριών",
+    "bridgeCodeMappings": "Αντιστοιχίσεις γεφυρών",
     "productionLists": "Λίστες Παραγωγής",
     "group": {
       "operations": "Εργασίες Συμβολαίων",

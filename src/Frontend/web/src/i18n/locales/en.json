@@ -112,6 +112,7 @@
     "dvr": "Policy Defaults",
     "bridgeImport": "Bridge Import",
     "carrierBridges": "Carrier Bridges",
+    "bridgeCodeMappings": "Bridge Code Mappings",
     "productionLists": "Production Reports",
     "group": {
       "operations": "Policy Operations",

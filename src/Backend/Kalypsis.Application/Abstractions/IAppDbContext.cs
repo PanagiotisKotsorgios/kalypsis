@@ -58,6 +58,7 @@ public interface IAppDbContext
     DbSet<CommissionRun> CommissionRuns { get; }
     DbSet<CommissionRunLine> CommissionRunLines { get; }
     DbSet<CompanyBridge> CompanyBridges { get; }
+    DbSet<BridgeCodeMapping> BridgeCodeMappings { get; }
     DbSet<PlatformPartner> PlatformPartners { get; }
     DbSet<ConsentRecord> ConsentRecords { get; }
     DbSet<CommunicationLog> CommunicationLogs { get; }

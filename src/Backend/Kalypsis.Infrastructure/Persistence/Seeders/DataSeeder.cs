@@ -1077,6 +1077,36 @@ public static class DataSeeder
                 KEY `IX_pcd_policy` (`PolicyId`),
                 KEY `IX_pcd_tenant_producer` (`TenantId`,`ProducerId`)
             ) CHARACTER SET=utf8mb4", ct);
+
+        // --- bridge_code_mappings table -----------------------------------
+        // Per-tenant link from a raw carrier bridge code (e.g. "1003" arriving
+        // on an INTERLIFE feed) to the agency's own parametric — an insurance
+        // company copy for Kind=Company, or a company_parameter_items row for
+        // Branch / Coverage / Use / Package. Consulted by the bridge importer
+        // before falling back to the platform's built-in code table.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "bridge_code_mappings",
+            createSql: @"CREATE TABLE IF NOT EXISTS `bridge_code_mappings` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `Kind` int NOT NULL,
+                `SourceCarrier` varchar(120) NULL,
+                `RawCode` varchar(200) NOT NULL,
+                `RawLabel` varchar(400) NULL,
+                `TargetInsuranceCompanyId` char(36) NULL,
+                `TargetParameterItemId` char(36) NULL,
+                `Notes` varchar(2000) NULL,
+                `ConfirmedByUserId` char(36) NULL,
+                `ConfirmedAt` datetime(6) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `IX_bcm_tenant_kind_carrier_raw` (`TenantId`,`Kind`,`SourceCarrier`,`RawCode`),
+                KEY `IX_bcm_tenant_carrier` (`TenantId`,`SourceCarrier`),
+                KEY `IX_bcm_target_company` (`TargetInsuranceCompanyId`),
+                KEY `IX_bcm_target_param` (`TargetParameterItemId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
     }
 
     private static async Task<bool> ColumnExistsAsync(AppDbContext db, string dbName, string table, string column, CancellationToken ct)

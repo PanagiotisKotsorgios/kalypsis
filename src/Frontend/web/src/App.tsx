@@ -188,6 +188,7 @@ import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import { AllToolsPage } from "./pages/AllToolsPage";
 import { CarrierBridgesPage } from "./pages/CarrierBridgesPage";
+import { BridgeCodeMappingsPage } from "./pages/BridgeCodeMappingsPage";
 import { ProductionListsPage } from "./pages/ProductionListsPage";
 import { RenewalsPage } from "./pages/RenewalsPage";
 import { FinancialsPage } from "./pages/FinancialsPage";
@@ -215,6 +216,7 @@ const navByRole: Record<Role, NavItem[]> = {
 
     // ===== BackOffice — Standalone "Γέφυρες Εταιριών" (carrier xlsx/csv import) =====
     { to: "/carrier-bridges", labelKey: "nav.carrierBridges", icon: <CloudUploadIcon />, package: "BackOffice" },
+    { to: "/bridge-code-mappings", labelKey: "nav.bridgeCodeMappings", icon: <CloudUploadIcon />, package: "BackOffice" },
 
     // ===== BackOffice — ΠΑΡΑΓΩΓΗ (core production records: customers, policies, claims) =====
     { to: "/production-lists", labelKey: "nav.productionLists", icon: <LeaderboardIcon />, package: "BackOffice", group: "production" },
@@ -572,6 +574,7 @@ export default function App() {
                   <Route path="all-tools" element={<AllToolsPage />} />
                   <Route path="default-value-rules" element={<Navigate to="/app/commission-rules" replace />} />
                   <Route path="carrier-bridges" element={<CarrierBridgesPage />} />
+                  <Route path="bridge-code-mappings" element={<BridgeCodeMappingsPage />} />
                   <Route path="production-lists" element={<ProductionListsPage />} />
                   <Route path="renewals" element={<RenewalsPage />} />
                   <Route path="financials" element={<FinancialsPage />} />
