@@ -85,6 +85,7 @@ import { ProducersPage } from "./pages/ProducersPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { AgencySettingsPage } from "./pages/AgencySettingsPage";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
+import { PackageGate } from "./pages/PackageLockedPage";
 import { CustomerContractDetailsPage } from "./pages/CustomerContractDetailsPage";
 import { NewContractWizardPage } from "./pages/NewContractWizardPage";
 import { AppointmentsPage } from "./pages/AppointmentsPage";
@@ -144,6 +145,7 @@ import { PersistencyPage } from "./pages/PersistencyPage";
 import { UsaeSubmissionsPage } from "./pages/UsaeSubmissionsPage";
 import { IntegrationSettingsPage } from "./pages/IntegrationSettingsPage";
 import { NamedReportsPage } from "./pages/NamedReportsPage";
+import { AgencyInstructionsPage } from "./pages/AgencyInstructionsPage";
 import { ConfigHubPage } from "./pages/ConfigHubPage";
 import { RecycleBinPage } from "./pages/RecycleBinPage";
 import { ProducerReconciliationPage } from "./pages/ProducerReconciliationPage";
@@ -258,6 +260,10 @@ const navByRole: Record<Role, NavItem[]> = {
 
     // Standalone top-level — agency-wide backup & document archive
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
+
+    // Per-tenant handbook — visible to every staff member of the γραφείο,
+    // editable only by AgencyAdmin. No package gate (kept always visible).
+    { to: "/instructions", labelKey: "nav.instructions", icon: <MenuBookIcon /> },
 
     // ===== CRM — top-level (3) + grouped (5) =====
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
@@ -501,15 +507,15 @@ export default function App() {
                   <Route path="platform/*" element={<ComingSoonPage />} />
                   <Route path="agency/*" element={<ComingSoonPage />} />
 
-                  <Route path="appointments" element={<AppointmentsPage />} />
+                  <Route path="appointments" element={<PackageGate package="Crm"><AppointmentsPage /></PackageGate>} />
                   <Route path="tariffs" element={<TariffsPage />} />
                   <Route path="cover-notes" element={<CoverNotesPage />} />
                   <Route path="branches" element={<BranchesPage />} />
                   <Route path="securities" element={<SecuritiesPage />} />
                   <Route path="bank-connections" element={<BankConnectionsPage />} />
-                  <Route path="marketing" element={<MarketingCampaignsPage />} />
-                  <Route path="delivery-tracking" element={<DeliveryTrackingPage />} />
-                  <Route path="document-manager" element={<DocumentManagerPage />} />
+                  <Route path="marketing" element={<PackageGate package="Crm"><MarketingCampaignsPage /></PackageGate>} />
+                  <Route path="delivery-tracking" element={<PackageGate package="Crm"><DeliveryTrackingPage /></PackageGate>} />
+                  <Route path="document-manager" element={<PackageGate package="Crm"><DocumentManagerPage /></PackageGate>} />
                   <Route path="partner-portals" element={<PartnerPortalsPage />} />
                   <Route path="api-keys" element={<ApiKeysPage />} />
                   <Route path="dias" element={<DiasCodesPage />} />
@@ -543,7 +549,8 @@ export default function App() {
                   <Route path="garages" element={<GaragesPage />} />
                   <Route path="claim-provisions" element={<ClaimProvisionsPage />} />
                   <Route path="indemnities" element={<ClaimIndemnitiesPage />} />
-                  <Route path="name-days" element={<NameDaysPage />} />
+                  <Route path="name-days" element={<PackageGate package="Crm"><NameDaysPage /></PackageGate>} />
+                  <Route path="instructions" element={<AgencyInstructionsPage />} />
                   <Route path="mydata" element={<MyDataSubmissionsPage />} />
                   <Route path="document-designer" element={<DocumentDesignerPage />} />
                   <Route path="friendly-settlements" element={<FriendlySettlementsPage />} />

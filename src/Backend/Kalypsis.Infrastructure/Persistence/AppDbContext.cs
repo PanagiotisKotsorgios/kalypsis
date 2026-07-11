@@ -217,6 +217,8 @@ public class AppDbContext : DbContext, IAppDbContext
 
     public DbSet<PolicyCoverAdjustment> PolicyCoverAdjustments => Set<PolicyCoverAdjustment>();
 
+    public DbSet<AgencyInstruction> AgencyInstructions => Set<AgencyInstruction>();
+
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
 
     // PlatformAdmin / PlatformEmployee normally bypass the tenant filter, but

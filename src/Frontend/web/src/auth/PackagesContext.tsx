@@ -58,6 +58,27 @@ export function PackagesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { void refresh(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user?.userId, accessToken]);
 
+  // Auto-refresh whenever the user returns to the tab or the browser
+  // reconnects. Ensures that a package removed from the superadmin panel
+  // (e.g. CRM disabled for a tenant) takes effect on the next interaction
+  // instead of only after a full logout / login cycle.
+  useEffect(() => {
+    if (!user || !accessToken) return;
+    const onFocus = () => { void refresh(); };
+    const onOnline = () => { void refresh(); };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("online", onOnline);
+    // Also poll every 5 minutes for users who leave the tab open. Cheap
+    // (~200-byte GET) and beats stale UI for hours.
+    const iv = window.setInterval(onFocus, 5 * 60 * 1000);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("online", onOnline);
+      window.clearInterval(iv);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.userId, accessToken]);
+
   const value = useMemo<PackagesContextValue>(() => ({
     packages,
     isPlatformBypass,

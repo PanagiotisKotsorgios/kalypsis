@@ -217,6 +217,10 @@ public interface IAppDbContext
     // by bridge imports; read by the drawer's «Ιστορικό προμηθειών» tab.
     DbSet<PolicyCoverAdjustment> PolicyCoverAdjustments { get; }
 
+    // Per-tenant handbook / instructions edited by the AgencyAdmin, visible
+    // to every staff member of the same γραφείο.
+    DbSet<AgencyInstruction> AgencyInstructions { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
     /// Escape hatch for the raw-SQL wipe path in

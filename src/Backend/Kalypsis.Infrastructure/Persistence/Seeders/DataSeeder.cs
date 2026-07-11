@@ -931,6 +931,25 @@ public static class DataSeeder
                 KEY `IX_policy_cover_adjustments_TenantId_PolicyId` (`TenantId`, `PolicyId`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
 
+        // --- agency_instructions table ------------------------------------
+        // Per-tenant handbook maintained by AgencyAdmin, readable by every
+        // staff member. Singleton per tenant enforced by the unique index.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "agency_instructions",
+            createSql: @"CREATE TABLE IF NOT EXISTS `agency_instructions` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `Title` varchar(200) NOT NULL,
+                `ContentHtml` mediumtext NOT NULL,
+                `UpdatedByUserId` char(36) NULL,
+                `UpdatedByName` varchar(200) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_agency_instructions_TenantId` (`TenantId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         // --- saved_reports table ------------------------------------------
         await EnsureTableAsync(db, logger, dbName,
             table: "saved_reports",
