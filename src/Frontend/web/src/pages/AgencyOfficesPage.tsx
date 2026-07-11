@@ -9,6 +9,8 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import StarIcon from "@mui/icons-material/Star";
+import PhoneIcon from "@mui/icons-material/Phone";
+import EmailIcon from "@mui/icons-material/Email";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 
@@ -110,8 +112,18 @@ export function AgencyOfficesPage() {
                     {o.postalCode && <Typography variant="caption" color="text.secondary" display="block">{o.postalCode}</Typography>}
                   </TableCell>
                   <TableCell sx={{ fontSize: 12.5 }}>
-                    {o.phone && <div>📞 {o.phone}</div>}
-                    {o.email && <div style={{ color: "var(--ink-soft, #777)" }}>{o.email}</div>}
+                    {o.phone && (
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <PhoneIcon fontSize="inherit" sx={{ color: "text.secondary" }} />
+                        <span>{o.phone}</span>
+                      </Box>
+                    )}
+                    {o.email && (
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color: "var(--ink-soft, #777)" }}>
+                        <EmailIcon fontSize="inherit" />
+                        <span>{o.email}</span>
+                      </Box>
+                    )}
                     {!o.phone && !o.email && "—"}
                   </TableCell>
                   <TableCell align="right">{o.userCount}</TableCell>

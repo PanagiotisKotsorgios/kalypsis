@@ -24,6 +24,14 @@ import BoltIcon from "@mui/icons-material/Bolt";
 import ReplayIcon from "@mui/icons-material/Replay";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
+import CakeIcon from "@mui/icons-material/Cake";
+import CelebrationIcon from "@mui/icons-material/Celebration";
+import HourglassBottomIcon from "@mui/icons-material/HourglassBottom";
+import CreditCardIcon from "@mui/icons-material/CreditCard";
+import WavingHandIcon from "@mui/icons-material/WavingHand";
+import StarIcon from "@mui/icons-material/Star";
+import BedtimeIcon from "@mui/icons-material/Bedtime";
+import DescriptionIcon from "@mui/icons-material/Description";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -887,15 +895,15 @@ function TemplateEditor({
 // -----------------------------------------------------------------------------
 // Tab 3 — Automation rules.
 // -----------------------------------------------------------------------------
-const TRIGGER_LABELS: Record<RuleTrigger, { label: string; help: string; icon: string }> = {
-  birthday:               { label: "Γενέθλια πελάτη",               help: "Στέλνει ευχές την ημέρα των γενεθλίων.",              icon: "🎂" },
-  nameDay:                { label: "Ονομαστική εορτή",              help: "Στέλνει ευχές στην ονομαστική εορτή του πελάτη.",     icon: "🎉" },
-  policyExpiring:         { label: "Λήξη συμβολαίου σε N ημέρες",  help: "Ενημέρωση για επικείμενη λήξη.",                     icon: "⏳" },
-  installmentDue:         { label: "Δόση συμβολαίου σε N ημέρες",  help: "Υπενθύμιση για επόμενη δόση.",                       icon: "💳" },
-  welcome:                { label: "Καλωσόρισμα νέου πελάτη",       help: "Ενεργοποιείται με τη δημιουργία νέου πελάτη.",        icon: "👋" },
-  cooperationAnniversary: { label: "Επέτειος συνεργασίας",           help: "Στέλνεται στην ετήσια επέτειο έναρξης συνεργασίας.", icon: "🌟" },
-  inactiveCustomer:       { label: "Ανενεργός πελάτης για N μήνες", help: "Επανενεργοποίηση πελατών που δεν έχουν συναλλαγή.",  icon: "😴" },
-  policyIssued:           { label: "Νέο συμβόλαιο εκδόθηκε",         help: "Ευχαριστήριο μετά την έκδοση συμβολαίου.",           icon: "📄" },
+const TRIGGER_LABELS: Record<RuleTrigger, { label: string; help: string; Icon: React.ComponentType<{ fontSize?: "small" | "medium" | "large" }>; color: string }> = {
+  birthday:               { label: "Γενέθλια πελάτη",               help: "Στέλνει ευχές την ημέρα των γενεθλίων.",              Icon: CakeIcon,             color: "#d6336c" },
+  nameDay:                { label: "Ονομαστική εορτή",              help: "Στέλνει ευχές στην ονομαστική εορτή του πελάτη.",     Icon: CelebrationIcon,      color: "#ec407a" },
+  policyExpiring:         { label: "Λήξη συμβολαίου σε N ημέρες",  help: "Ενημέρωση για επικείμενη λήξη.",                     Icon: HourglassBottomIcon,  color: "#ed6c02" },
+  installmentDue:         { label: "Δόση συμβολαίου σε N ημέρες",  help: "Υπενθύμιση για επόμενη δόση.",                       Icon: CreditCardIcon,       color: "#1976d2" },
+  welcome:                { label: "Καλωσόρισμα νέου πελάτη",       help: "Ενεργοποιείται με τη δημιουργία νέου πελάτη.",        Icon: WavingHandIcon,       color: "#2e7d32" },
+  cooperationAnniversary: { label: "Επέτειος συνεργασίας",           help: "Στέλνεται στην ετήσια επέτειο έναρξης συνεργασίας.", Icon: StarIcon,             color: "#fbc02d" },
+  inactiveCustomer:       { label: "Ανενεργός πελάτης για N μήνες", help: "Επανενεργοποίηση πελατών που δεν έχουν συναλλαγή.",  Icon: BedtimeIcon,          color: "#5d4037" },
+  policyIssued:           { label: "Νέο συμβόλαιο εκδόθηκε",         help: "Ευχαριστήριο μετά την έκδοση συμβολαίου.",           Icon: DescriptionIcon,      color: "#0288d1" },
 };
 
 function RulesTab() {
@@ -942,7 +950,9 @@ function RulesTab() {
               <CardContent>
                 <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
                   <Stack direction="row" alignItems="center" spacing={1}>
-                    <Typography sx={{ fontSize: 22 }}>{meta.icon}</Typography>
+                    <Avatar sx={{ bgcolor: meta.color, width: 32, height: 32 }}>
+                      <meta.Icon fontSize="small" />
+                    </Avatar>
                     <Box>
                       <Typography sx={{ fontWeight: 700 }}>{r.name}</Typography>
                       <Typography variant="caption" color="text.secondary">{meta.label}</Typography>
@@ -1028,7 +1038,8 @@ function RuleEditor({
             helperText={meta.help}>
             {Object.entries(TRIGGER_LABELS).map(([k, v]) => (
               <MenuItem key={k} value={k}>
-                <span style={{ marginRight: 8 }}>{v.icon}</span>{v.label}
+                <v.Icon fontSize="small" />
+                <Box component="span" sx={{ ml: 1 }}>{v.label}</Box>
               </MenuItem>
             ))}
           </SearchableTextField>

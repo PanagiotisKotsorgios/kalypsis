@@ -169,9 +169,23 @@ export function TableToolbar<T>({
     return o;
   });
 
+  // Trailer rows appended to every client-side CSV / Excel export so the
+  // reader can always trace the file back to Kalypsis. Two empty rows
+  // separate the trailer from the data body.
+  const buildBrandingTrailer = (): any[][] => {
+    const stamp = new Date().toLocaleString("el-GR");
+    return [
+      [],
+      [],
+      [`© ${new Date().getFullYear()} Kalypsis — Πλατφόρμα Διαχείρισης Ασφαλιστικού Γραφείου`],
+      [`Δημιουργήθηκε αυτόματα από το Kalypsis · https://mykalypsis.gr · ${stamp}`],
+    ];
+  };
+
   const downloadCsv = () => {
     if (serverEntity) return void downloadFromServer("csv");
     const ws = XLSX.utils.json_to_sheet(buildSheetRows());
+    XLSX.utils.sheet_add_aoa(ws, buildBrandingTrailer(), { origin: -1 });
     const csv = XLSX.utils.sheet_to_csv(ws);
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
     triggerDownload(blob, `${exportFileName}.csv`);
@@ -179,7 +193,17 @@ export function TableToolbar<T>({
   const downloadXlsx = () => {
     if (serverEntity) return void downloadFromServer("xlsx");
     const ws = XLSX.utils.json_to_sheet(buildSheetRows());
+    XLSX.utils.sheet_add_aoa(ws, buildBrandingTrailer(), { origin: -1 });
     const wb = XLSX.utils.book_new();
+    // Custom document properties surface Kalypsis in the file's Info pane
+    // when opened in Excel — useful even if the trailer row is trimmed.
+    wb.Props = {
+      Title:    exportFileName,
+      Subject:  "Kalypsis — Πλατφόρμα Διαχείρισης Ασφαλιστικού Γραφείου",
+      Author:   "Kalypsis",
+      Company:  "Kalypsis · https://mykalypsis.gr",
+      CreatedDate: new Date(),
+    };
     XLSX.utils.book_append_sheet(wb, ws, "Data");
     const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
     triggerDownload(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${exportFileName}.xlsx`);

@@ -83,7 +83,10 @@ export function printTable<T>(opts: PrintOptions<T>): void {
   thead th { background: #f0f4fa; color: #0d47a1; text-align: left; padding: 6px 8px; border-bottom: 1.5px solid #b6c8e0; font-weight: 700; }
   tbody td { padding: 5px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
   tbody tr:nth-child(even) td { background: #fafbfd; }
-  footer { margin-top: 18px; font-size: 10px; color: #888; display: flex; justify-content: space-between; border-top: 1px solid #e5e7eb; padding-top: 6px; }
+  footer { margin-top: 18px; font-size: 10px; color: #888; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e5e7eb; padding-top: 6px; }
+  footer .brand { display: flex; align-items: center; gap: 6px; font-weight: 600; color: #0d47a1; }
+  footer .brand a { color: inherit; text-decoration: none; }
+  .watermark { position: fixed; bottom: 6mm; left: 0; right: 0; text-align: center; font-size: 9px; color: #bbb; }
   .empty { text-align: center; padding: 24px; color: #888; font-style: italic; }
   @media print {
     header { break-after: avoid; }
@@ -102,9 +105,13 @@ export function printTable<T>(opts: PrintOptions<T>): void {
       ? `<div class="empty">Δεν υπάρχουν εγγραφές για εκτύπωση.</div>`
       : `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`}
   <footer>
-    <span>Kalypsis</span>
-    <span>${escapeHtml(now)}</span>
+    <span class="brand">
+      Kalypsis — Πλατφόρμα Διαχείρισης Ασφαλιστικού Γραφείου
+      · <a href="https://mykalypsis.gr">mykalypsis.gr</a>
+    </span>
+    <span>© ${new Date().getFullYear()} Kalypsis · ${escapeHtml(now)}</span>
   </footer>
+  <div class="watermark">Δημιουργήθηκε από το Kalypsis · https://mykalypsis.gr</div>
 </div>
 </body>
 </html>`;

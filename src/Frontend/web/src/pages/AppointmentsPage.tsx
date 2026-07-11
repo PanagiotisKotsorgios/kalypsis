@@ -99,7 +99,7 @@ export function AppointmentsPage() {
       at: a.startsAt,
       until: a.endsAt,
       meta: [a.assignedToUserName, a.customerName, a.policyNumber].filter(Boolean).join(" · ") || undefined,
-      detail: [a.location ? `📍 ${a.location}` : null, a.description].filter(Boolean).join("\n") || undefined,
+      detail: [a.location, a.description].filter(Boolean).join("\n") || undefined,
       statusLabel: t(`appointments.status.${a.status}`, a.status) as string,
       statusColor: STATUS_COLOR[a.status],
     }));
