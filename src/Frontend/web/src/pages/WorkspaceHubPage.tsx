@@ -109,13 +109,23 @@ export function WorkspaceHubPage() {
 
       <DashboardSummary />
 
-      {/* Grid */}
+      {/* Grid — only rendered when the tenant actually has ≥ 2 packages
+          enabled. Tenants on a single package see the dashboard summary
+          above and nothing else: no workspace picker, no "locked" cards
+          for packages they haven't bought. PlatformAdmin/Employee always
+          get every card via the bypass flag so they can still preview
+          each workspace. */}
+      {(() => {
+        const enabledPackages = PACKAGES.filter(p => isPlatformBypass || has(p.code));
+        // Hide the grid entirely when only 0 or 1 package is enabled.
+        if (enabledPackages.length < 2) return null;
+        return (
       <Box sx={{
         display: "grid",
         gap: { xs: 2, md: 2.5 },
         gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }
       }}>
-        {PACKAGES.map((pkg) => {
+        {enabledPackages.map((pkg) => {
           const enabled = isPlatformBypass || has(pkg.code);
           return (
             <Card
@@ -227,6 +237,8 @@ export function WorkspaceHubPage() {
           );
         })}
       </Box>
+        );
+      })()}
 
       {/* Footnote */}
       <Box sx={{ mt: { xs: 5, md: 6 }, pt: 3, borderTop: "1px solid", borderColor: "divider" }}>
