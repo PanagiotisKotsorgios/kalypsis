@@ -37,6 +37,7 @@ import { useTableState } from "../components/useTableState";
 import { useColumnPreferences } from "../hooks/useColumnPreferences";
 import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
+import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { SearchableTextField } from "../components/SearchableTextField";
 
 type CustomerType = "Individual" | "Company";
@@ -130,6 +131,35 @@ export function CustomersPage() {
     { key: "portal", label: "Πρόσβαση Portal" },
   ]);
 
+  // Right-click on a header → sort (Α→Ω / Ω→Α) + «Απόκρυψη στήλης» (via
+  // the existing column-preferences hook). Right-click on a row → open
+  // the customer detail page in a new tab or delete the customer.
+  const inferColumnType = (key: string): ColumnType => {
+    if (key === "number") return "string";
+    return "string";
+  };
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      // useTableState only supports keys that exist on the DTO; map friendly
+      // column keys back to the underlying field so sorting works everywhere.
+      const map: Record<string, keyof CustomerDto> = {
+        number: "customerNumber", type: "type", name: "lastName",
+        email: "email", phone: "phone", city: "city",
+      };
+      const dtoKey = map[key];
+      if (dtoKey) {
+        table.toggleSort(dtoKey);
+        // toggleSort only alternates dir; force the direction picked from the menu.
+        if (table.sortDir !== dir) table.toggleSort(dtoKey);
+      }
+    },
+    onHide: (key) => customerCols.toggleVisibility(key),
+  });
+  const rowMenu = useRowContextMenu<CustomerDto>({
+    entityLabel: "πελάτη",
+    onEdit: (c) => { window.location.href = `/app/customers/${c.id}`; },
+  });
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} gap={2} flexWrap="wrap">
@@ -214,7 +244,15 @@ export function CustomersPage() {
               <TableHead>
                 <TableRow>
                   {customerCols.visibleColumns.map(c => (
-                    <TableCell key={c.key}>{c.label}</TableCell>
+                    <TableCell
+                      key={c.key}
+                      onContextMenu={(e) => headerMenu.open(e, {
+                        key: c.key, label: c.label, type: inferColumnType(c.key), canHide: !c.alwaysVisible,
+                      })}
+                      sx={{ userSelect: "none" }}
+                    >
+                      {c.label}
+                    </TableCell>
                   ))}
                   <TableCell align="right" padding="checkbox">
                     <ColumnPreferencesButton
@@ -234,6 +272,7 @@ export function CustomersPage() {
                     hover
                     sx={{ cursor: "pointer" }}
                     onClick={() => { window.location.href = `/app/customers/${c.id}`; }}
+                    onContextMenu={(e) => rowMenu.open(e, c)}
                   >
                     {customerCols.visibleColumns.map(col => {
                       switch (col.key) {
@@ -295,6 +334,8 @@ export function CustomersPage() {
           </Box>
         </Card>
       )}
+      {headerMenu.menu}
+      {rowMenu.menu}
 
       <CreateCustomerDialog
         open={open}

@@ -49,6 +49,7 @@ import { ExportButton } from "../components/ExportButton";
 import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
 import { useTableState } from "../components/useTableState";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
+import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { PolicyDeliveryPage } from "./PolicyDeliveryPage";
 import { GroupPoliciesPage } from "./GroupPoliciesPage";
 import { SearchableSelect } from "../components/SearchableSelect";
@@ -204,6 +205,11 @@ export function PoliciesPage() {
     { key: "premium",  label: "Ασφάλιστρο" },
     { key: "status",   label: "Κατάσταση" },
   ]);
+
+  // Column semantic type — used by useHeaderContextMenu below for the sort
+  // labels («Α→Ω», «Παλιότερα → Νεότερα», «Χαμηλότερα → Υψηλότερα»).
+  const inferType = (key: string): ColumnType =>
+    key === "dates" ? "date" : key === "premium" ? "number" : "string";
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = (await api.delete<{ deleted: boolean; blockers: { kind: string; count: number; message: string }[] }>(`/policies/${id}`)).data;
@@ -271,6 +277,31 @@ export function PoliciesPage() {
     initialSortDir: "desc"
   });
   const rows = table.paged;
+
+  // Right-click on a header → sort + hide column; right-click on a row →
+  // open detail + delete. Placed here so `table` (defined just above) is
+  // in scope for the callbacks.
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      const map: Record<string, keyof PolicyDto> = {
+        number: "policyNumber", type: "policyType", customer: "customerDisplay",
+        carrier: "insuranceCompanyName", producer: "producerName",
+        dates: "startDate", premium: "premium", status: "status",
+      };
+      const dtoKey = map[key];
+      if (!dtoKey) return;
+      table.toggleSort(dtoKey);
+      if (table.sortDir !== dir) table.toggleSort(dtoKey);
+    },
+    onHide: (key) => columnPrefs.toggleVisibility(key),
+  });
+  const rowMenu = useRowContextMenu<PolicyDto>({
+    entityLabel: "συμβολαίου",
+    onEdit: (p) => { window.location.href = `/app/policies/${p.id}`; },
+    onDelete: (p) => {
+      if (canEdit && confirm(`Διαγραφή συμβολαίου ${p.policyNumber};`)) deleteMutation.mutate(p.id);
+    },
+  });
 
   return (
     <Box>
@@ -517,7 +548,14 @@ export function PoliciesPage() {
                     if (c.key === "customer" && isCustomer) return null;
                     const isRight = c.key === "premium";
                     return (
-                      <TableCell key={c.key} align={isRight ? "right" : "left"}>
+                      <TableCell
+                        key={c.key}
+                        align={isRight ? "right" : "left"}
+                        onContextMenu={(e) => headerMenu.open(e, {
+                          key: c.key, label: c.label, type: inferType(c.key), canHide: !c.alwaysVisible,
+                        })}
+                        sx={{ userSelect: "none" }}
+                      >
                         {c.label}
                       </TableCell>
                     );
@@ -546,7 +584,8 @@ export function PoliciesPage() {
                       onClick={(e) => {
                         if ((e.target as HTMLElement).closest("button, a, .MuiIconButton-root, .MuiCheckbox-root")) return;
                         setDetailId(p.id);
-                      }}>
+                      }}
+                      onContextMenu={(e) => rowMenu.open(e, p)}>
                       {canEdit && (
                         <TableCell padding="checkbox">
                           <Checkbox
@@ -713,6 +752,8 @@ export function PoliciesPage() {
       </Dialog>
         </>
       )}
+      {headerMenu.menu}
+      {rowMenu.menu}
     </Box>
   );
 }

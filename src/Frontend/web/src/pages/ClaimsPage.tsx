@@ -34,6 +34,7 @@ import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
 import { ClaimDetailDrawer } from "../components/ClaimDetailDrawer";
 import { useTableState } from "../components/useTableState";
+import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
@@ -188,6 +189,27 @@ export function ClaimsPage() {
   });
   const rows = table.paged;
 
+  // Right-click on a header → sort by that column. On a row → open edit.
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      const map: Record<string, keyof ClaimDto> = {
+        number: "claimNumber", policy: "policyNumber", customer: "customerDisplay",
+        incidentDate: "incidentDate", claimed: "claimedAmount", approved: "approvedAmount",
+        status: "status",
+      };
+      const dtoKey = map[key];
+      if (!dtoKey) return;
+      table.toggleSort(dtoKey);
+      if (table.sortDir !== dir) table.toggleSort(dtoKey);
+    },
+  });
+  const inferType = (key: string): ColumnType =>
+    key === "incidentDate" ? "date" : (key === "claimed" || key === "approved") ? "number" : "string";
+  const rowMenu = useRowContextMenu<ClaimDto>({
+    entityLabel: "ζημιάς",
+    onEdit: (c) => setEditing(c),
+  });
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} gap={2} flexWrap="wrap">
@@ -331,13 +353,36 @@ export function ClaimsPage() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>{t("claims.col.number")}</TableCell>
-                  <TableCell>{t("claims.col.policy")}</TableCell>
-                  {!isCustomer && <TableCell>{t("claims.col.customer")}</TableCell>}
-                  <TableCell>{t("claims.col.incidentDate")}</TableCell>
-                  <TableCell align="right">{t("claims.col.claimed")}</TableCell>
-                  <TableCell align="right">{t("claims.col.approved")}</TableCell>
-                  <TableCell>{t("claims.col.status")}</TableCell>
+                  <TableCell
+                    onContextMenu={(e) => headerMenu.open(e, { key: "number", label: t("claims.col.number"), type: inferType("number"), canHide: false })}
+                    sx={{ userSelect: "none" }}
+                  >{t("claims.col.number")}</TableCell>
+                  <TableCell
+                    onContextMenu={(e) => headerMenu.open(e, { key: "policy", label: t("claims.col.policy"), type: inferType("policy"), canHide: false })}
+                    sx={{ userSelect: "none" }}
+                  >{t("claims.col.policy")}</TableCell>
+                  {!isCustomer && (
+                    <TableCell
+                      onContextMenu={(e) => headerMenu.open(e, { key: "customer", label: t("claims.col.customer"), type: inferType("customer"), canHide: false })}
+                      sx={{ userSelect: "none" }}
+                    >{t("claims.col.customer")}</TableCell>
+                  )}
+                  <TableCell
+                    onContextMenu={(e) => headerMenu.open(e, { key: "incidentDate", label: t("claims.col.incidentDate"), type: inferType("incidentDate"), canHide: false })}
+                    sx={{ userSelect: "none" }}
+                  >{t("claims.col.incidentDate")}</TableCell>
+                  <TableCell align="right"
+                    onContextMenu={(e) => headerMenu.open(e, { key: "claimed", label: t("claims.col.claimed"), type: inferType("claimed"), canHide: false })}
+                    sx={{ userSelect: "none" }}
+                  >{t("claims.col.claimed")}</TableCell>
+                  <TableCell align="right"
+                    onContextMenu={(e) => headerMenu.open(e, { key: "approved", label: t("claims.col.approved"), type: inferType("approved"), canHide: false })}
+                    sx={{ userSelect: "none" }}
+                  >{t("claims.col.approved")}</TableCell>
+                  <TableCell
+                    onContextMenu={(e) => headerMenu.open(e, { key: "status", label: t("claims.col.status"), type: inferType("status"), canHide: false })}
+                    sx={{ userSelect: "none" }}
+                  >{t("claims.col.status")}</TableCell>
                   {canEdit && <TableCell />}
                 </TableRow>
               </TableHead>
@@ -348,7 +393,8 @@ export function ClaimsPage() {
                     onClick={(e) => {
                       if ((e.target as HTMLElement).closest("button, a, .MuiIconButton-root")) return;
                       setDetail(c);
-                    }}>
+                    }}
+                    onContextMenu={(e) => rowMenu.open(e, c)}>
                     <TableCell><Chip data-tour={idx === 0 ? "claims-status" : undefined} label={c.claimNumber} variant="outlined" size="small" /></TableCell>
                     <TableCell>
                       <Typography fontWeight={600}>{c.policyNumber}</Typography>
@@ -409,6 +455,8 @@ export function ClaimsPage() {
         </>
       )}
       <ClaimDetailDrawer claim={detail as any} open={!!detail} onClose={() => setDetail(null)} />
+      {headerMenu.menu}
+      {rowMenu.menu}
     </Box>
   );
 }
