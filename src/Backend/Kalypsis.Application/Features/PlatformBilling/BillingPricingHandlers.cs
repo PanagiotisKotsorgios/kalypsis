@@ -14,7 +14,12 @@ public record TenantPackagePriceDto(
     decimal? MonthlyPrice,
     string Currency,
     DateTime EnabledAt,
-    string? Notes);
+    string? Notes,
+    /// <summary>True when a TenantPackageGrant row exists for this
+    /// (tenant, package) — regardless of price. The frontend uses it to
+    /// distinguish "granted without a price" (bug case) from "not
+    /// granted" and to gate the revoke button.</summary>
+    bool Granted = false);
 
 public record TenantBillingRowDto(
     Guid TenantId, string TenantName, string TenantCode,
@@ -56,7 +61,8 @@ public class GetTenantBillingRowsQueryHandler
                     g.MonthlyPrice,
                     g.Currency,
                     g.EnabledAt == default ? g.CreatedAt : g.EnabledAt,
-                    g.Notes))
+                    g.Notes,
+                    Granted: true))
                 .ToList();
 
             var priced = tenantGrants.Where(g => g.MonthlyPrice.HasValue).ToList();
@@ -94,8 +100,9 @@ public class SetTenantPackagePriceCommandHandler
 {
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _currentUser;
-    public SetTenantPackagePriceCommandHandler(IAppDbContext db, ICurrentUser currentUser)
-    { _db = db; _currentUser = currentUser; }
+    private readonly IPackageService _packages;
+    public SetTenantPackagePriceCommandHandler(IAppDbContext db, ICurrentUser currentUser, IPackageService packages)
+    { _db = db; _currentUser = currentUser; _packages = packages; }
 
     public async Task<TenantPackagePriceDto> Handle(SetTenantPackagePriceCommand r, CancellationToken ct)
     {
@@ -103,12 +110,41 @@ public class SetTenantPackagePriceCommandHandler
             .FirstOrDefaultAsync(x => x.Id == r.TenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Tenant");
 
-        // Auto-create the grant if the price is set for a package the tenant
-        // doesn't have yet. Mirrors the superadmin's intent: "Pricing this
-        // package implies enabling it."
+        // Grants are pulled with IgnoreQueryFilters so we can revive a
+        // soft-deleted one instead of inserting a duplicate (there's a
+        // unique constraint on (TenantId, Package)).
         var grant = await _db.TenantPackageGrants.IgnoreQueryFilters()
-            .FirstOrDefaultAsync(g => g.TenantId == r.TenantId && g.Package == r.Package && g.DeletedAt == null, ct);
-        if (grant == null)
+            .FirstOrDefaultAsync(g => g.TenantId == r.TenantId && g.Package == r.Package, ct);
+
+        // ── Case A ── Clearing the price ("—") means "this package is no
+        // longer sold to this tenant" — revoke access. Previously we kept
+        // the grant alive with MonthlyPrice=null, which meant the tenant
+        // still saw the feature in their sidebar. That was the reported
+        // «Lanca IKE keeps having CRM even after I cleared its price» bug.
+        if (r.MonthlyPrice is null)
+        {
+            if (grant is not null && grant.DeletedAt is null)
+            {
+                grant.DeletedAt = DateTime.UtcNow;
+                grant.MonthlyPrice = null;
+                grant.Currency = r.Currency.ToUpperInvariant();
+                await _db.SaveChangesAsync(ct);
+            }
+            _packages.InvalidateCache(r.TenantId);
+
+            // Return a "no grant" DTO — MonthlyPrice=null, EnabledAt=epoch
+            // so the frontend renders «—».
+            return new TenantPackagePriceDto(
+                tenant.Id, tenant.Name, tenant.Code,
+                r.Package.ToString(), null, r.Currency.ToUpperInvariant(),
+                grant?.EnabledAt ?? default, grant?.Notes,
+                Granted: false);
+        }
+
+        // ── Case B ── Setting a non-null price implies enabling the
+        // package. If a soft-deleted grant is on file, revive it instead of
+        // inserting a duplicate; otherwise create fresh.
+        if (grant is null)
         {
             grant = new TenantPackageGrant
             {
@@ -121,15 +157,23 @@ public class SetTenantPackagePriceCommandHandler
             };
             _db.TenantPackageGrants.Add(grant);
         }
+        else if (grant.DeletedAt is not null)
+        {
+            grant.DeletedAt = null;
+            grant.EnabledAt = DateTime.UtcNow;
+            grant.EnabledByUserId = _currentUser.UserId;
+        }
 
         grant.MonthlyPrice = r.MonthlyPrice;
         grant.Currency = r.Currency.ToUpperInvariant();
         await _db.SaveChangesAsync(ct);
+        _packages.InvalidateCache(r.TenantId);
 
         return new TenantPackagePriceDto(
             tenant.Id, tenant.Name, tenant.Code,
             grant.Package.ToString(), grant.MonthlyPrice, grant.Currency,
-            grant.EnabledAt, grant.Notes);
+            grant.EnabledAt, grant.Notes,
+            Granted: true);
     }
 }
 

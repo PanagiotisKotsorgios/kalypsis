@@ -7,6 +7,7 @@ import PaymentsIcon from "@mui/icons-material/Payments";
 import EuroIcon from "@mui/icons-material/Euro";
 import SaveIcon from "@mui/icons-material/Save";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import BlockIcon from "@mui/icons-material/Block";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
@@ -22,6 +23,8 @@ interface PackagePrice {
   currency: string;
   enabledAt: string;
   notes: string | null;
+  /** True when the tenant has this package granted (regardless of price). */
+  granted: boolean;
 }
 interface TenantBillingRow {
   tenantId: string; tenantName: string; tenantCode: string;
@@ -145,6 +148,7 @@ export function PlatformBillingConfigPage() {
                           tenantId={row.tenantId}
                           packageCode={p}
                           value={existing?.monthlyPrice ?? null}
+                          granted={!!existing?.granted}
                           currency={existing?.currency ?? "EUR"}
                           onSaved={() => {
                             void qc.invalidateQueries({ queryKey: ["platform-billing"] });
@@ -181,9 +185,15 @@ function Kpi({ label, value, highlight }: { label: string; value: string | numbe
   );
 }
 
-function PriceCell({ tenantId, packageCode, value, currency, onSaved, onError }: {
+function PriceCell({ tenantId, packageCode, value, granted, currency, onSaved, onError }: {
   tenantId: string; packageCode: PackageCode;
-  value: number | null; currency: string;
+  value: number | null;
+  /** True when a TenantPackageGrant exists (even if its price is null).
+   *  Drives the "Ανάκληση" revoke button — otherwise the admin has no way
+   *  to tell a "price cleared but package still enabled" row apart from a
+   *  clean "package not granted" row. */
+  granted: boolean;
+  currency: string;
   onSaved: () => void; onError: (e: string) => void;
 }) {
   const { t } = useTranslation();
@@ -192,12 +202,7 @@ function PriceCell({ tenantId, packageCode, value, currency, onSaved, onError }:
   const dirty = draft !== (value?.toString() ?? "");
 
   const save = useMutation({
-    mutationFn: async () => {
-      const trimmed = draft.trim();
-      const monthlyPrice = trimmed === "" ? null : Number(trimmed.replace(",", "."));
-      if (monthlyPrice !== null && (Number.isNaN(monthlyPrice) || monthlyPrice < 0)) {
-        throw new Error(t("billing.errors.invalidPrice"));
-      }
+    mutationFn: async (monthlyPrice: number | null) => {
       return (await api.put(
         `/platform/billing/tenants/${tenantId}/package-price`,
         { package: packageCode, monthlyPrice, currency }
@@ -207,28 +212,61 @@ function PriceCell({ tenantId, packageCode, value, currency, onSaved, onError }:
     onError: (e) => onError(extractErrorMessage(e))
   });
 
+  const submitDraft = () => {
+    const trimmed = draft.trim();
+    const monthlyPrice = trimmed === "" ? null : Number(trimmed.replace(",", "."));
+    if (monthlyPrice !== null && (Number.isNaN(monthlyPrice) || monthlyPrice < 0)) {
+      onError(t("billing.errors.invalidPrice"));
+      return;
+    }
+    save.mutate(monthlyPrice);
+  };
+
   return (
-    <TextField
-      size="small"
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      placeholder="—"
-      sx={{ width: 130, "& input": { textAlign: "right", fontFamily: "monospace" } }}
-      InputProps={{
-        endAdornment: (
-          <InputAdornment position="end">
-            {dirty ? (
-              <Tooltip title={t("common.save")}>
-                <IconButton size="small" onClick={() => save.mutate()} disabled={save.isPending}>
-                  {save.isPending ? <CircularProgress size={14} /> : <SaveIcon fontSize="small" color="primary" />}
-                </IconButton>
-              </Tooltip>
-            ) : (
-              <EuroIcon fontSize="small" sx={{ color: "text.disabled" }} />
-            )}
-          </InputAdornment>
-        )
-      }}
-    />
+    <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
+      <TextField
+        size="small"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder="—"
+        sx={{ width: 130, "& input": { textAlign: "right", fontFamily: "monospace" } }}
+        InputProps={{
+          endAdornment: (
+            <InputAdornment position="end">
+              {dirty ? (
+                <Tooltip title={t("common.save")}>
+                  <IconButton size="small" onClick={submitDraft} disabled={save.isPending}>
+                    {save.isPending ? <CircularProgress size={14} /> : <SaveIcon fontSize="small" color="primary" />}
+                  </IconButton>
+                </Tooltip>
+              ) : (
+                <EuroIcon fontSize="small" sx={{ color: "text.disabled" }} />
+              )}
+            </InputAdornment>
+          )
+        }}
+      />
+      {/* Revoke button — visible whenever the tenant has this package
+          granted (with or without a price). Sends monthlyPrice=null which
+          the backend interprets as "soft-delete the grant". Guarded by a
+          native confirm because it removes access. */}
+      {granted && (
+        <Tooltip title={t("billing.revokePackage", "Ανάκληση πακέτου")}>
+          <IconButton
+            size="small"
+            color="error"
+            disabled={save.isPending}
+            onClick={() => {
+              if (confirm(t("billing.revokeConfirm",
+                "Το γραφείο θα χάσει άμεσα πρόσβαση σε αυτό το πακέτο. Συνέχεια;"))) {
+                save.mutate(null);
+              }
+            }}
+          >
+            <BlockIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
+    </Stack>
   );
 }
