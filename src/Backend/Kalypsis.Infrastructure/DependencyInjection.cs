@@ -67,6 +67,12 @@ public static class DependencyInjection
         services.AddHostedService<MarketingCampaignScheduler>();
         services.AddHostedService<ProducerMonthlySnapshotJob>();
 
+        // Auto-backup: polls TenantBackupPolicies hourly, creates snapshots
+        // when due, prunes older auto backups beyond retention count.
+        services.AddScoped<Kalypsis.Application.Abstractions.ITenantBackupService,
+            Kalypsis.Infrastructure.Scheduling.TenantBackupService>();
+        services.AddHostedService<Kalypsis.Infrastructure.Scheduling.AutoBackupJob>();
+
         // === Phase 3: pluggable integration surface ==========================
         // Every carrier we already seed in InsuranceCompanies gets a stub adapter.
         // Real adapters are dropped into Kalypsis.Carriers.{Code} and registered here.

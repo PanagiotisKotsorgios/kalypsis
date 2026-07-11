@@ -16,9 +16,11 @@ import GavelIcon from "@mui/icons-material/Gavel";
 import CloudDoneIcon from "@mui/icons-material/CloudDone";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
+import RestoreIcon from "@mui/icons-material/Restore";
+import WarningIcon from "@mui/icons-material/Warning";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { api, API_BASE_URL, extractErrorMessage } from "../api/client";
+import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { dateTime } from "../utils/format";
 import { HelpHint } from "../components/HelpHint";
@@ -105,6 +107,7 @@ export function BackupsPage() {
 // Tab 1 — Backups.
 // -----------------------------------------------------------------------------
 function BackupsTab({ isAdmin }: { isAdmin: boolean }) {
+
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);
@@ -123,12 +126,34 @@ function BackupsTab({ isAdmin }: { isAdmin: boolean }) {
     onError: e => setErr(extractErrorMessage(e)),
   });
 
+  const [restoring, setRestoring] = useState<BackupDto | null>(null);
+
   const items = q.data ?? [];
   const totalSize = items.reduce((s, b) => s + b.sizeBytes, 0);
   const latestManual = items.find(b => b.kind === "Manual");
   const latestAuto = items.find(b => b.kind === "Auto");
 
-  const downloadUrl = (id: string) => `${API_BASE_URL}/backups/${id}/download`;
+  // Backups download requires a Bearer token — a plain <a href> hits the
+  // API without an Authorization header and returns 401. Fetch as blob
+  // through the authenticated client, then trigger the download from an
+  // ephemeral object URL. Ends up in the browser's downloads folder just
+  // like a normal link, but the request carries the JWT.
+  const download = async (id: string, fileName: string) => {
+    try {
+      const res = await api.get(`/backups/${id}/download`, { responseType: "blob" });
+      const blob = new Blob([res.data], { type: "application/gzip" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      setErr(extractErrorMessage(e));
+    }
+  };
 
   return (
     <Box>
@@ -201,10 +226,17 @@ function BackupsTab({ isAdmin }: { isAdmin: boolean }) {
                   <TableCell>{b.createdByName ?? "—"}</TableCell>
                   <TableCell align="right">
                     <Tooltip title="Λήψη">
-                      <IconButton size="small" component="a" href={downloadUrl(b.id)}>
+                      <IconButton size="small" onClick={() => download(b.id, b.fileName)}>
                         <DownloadIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
+                    {isAdmin && (
+                      <Tooltip title="Επαναφορά από αυτό το αντίγραφο">
+                        <IconButton size="small" color="warning" onClick={() => setRestoring(b)}>
+                          <RestoreIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                     {isAdmin && (
                       <Tooltip title="Διαγραφή">
                         <IconButton size="small" color="error" onClick={() => {
@@ -221,7 +253,114 @@ function BackupsTab({ isAdmin }: { isAdmin: boolean }) {
           </Table>
         </Card>
       )}
+      <RestoreDialog backup={restoring} onClose={() => setRestoring(null)} />
     </Box>
+  );
+}
+
+interface RestorePreviewDto { summary: Record<string, number>; warning: string; }
+interface RestoreResultDto {
+  customers: number; policies: number; claims: number; receipts: number; payments: number;
+  tasks: number; appointments: number; producers: number; carriers: number; instructions: number;
+  totalRows: number; message: string;
+}
+
+function RestoreDialog({ backup, onClose }: { backup: BackupDto | null; onClose: () => void }) {
+  const [confirmText, setConfirmText] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [includeInstructions, setIncludeInstructions] = useState(true);
+  const [result, setResult] = useState<RestoreResultDto | null>(null);
+
+  const preview = useQuery({
+    queryKey: ["backup-preview", backup?.id],
+    enabled: !!backup,
+    queryFn: async () => (await api.post<RestorePreviewDto>(`/backups/${backup!.id}/restore-preview`)).data,
+  });
+
+  const restore = useMutation({
+    mutationFn: async () => (await api.post<RestoreResultDto>(`/backups/${backup!.id}/restore`, {
+      includeInstructions,
+    })).data,
+    onSuccess: (data) => { setResult(data); setErr(null); },
+    onError: e => setErr(extractErrorMessage(e)),
+  });
+
+  useState(() => {
+    if (!backup) { setConfirmText(""); setResult(null); setErr(null); }
+  });
+
+  if (!backup) return null;
+  const confirmPhrase = "ΕΠΑΝΑΦΟΡΑ";
+
+  return (
+    <Dialog open={!!backup} onClose={() => { setConfirmText(""); setResult(null); setErr(null); onClose(); }} fullWidth maxWidth="sm">
+      <DialogTitle>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <WarningIcon color="warning" />
+          <span>Επαναφορά από αντίγραφο</span>
+        </Stack>
+      </DialogTitle>
+      <DialogContent>
+        {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+        {result ? (
+          <Alert severity="success" icon={<CheckCircleIcon />}>
+            {result.message}
+          </Alert>
+        ) : (
+          <Stack spacing={2}>
+            <Alert severity="warning">
+              <b>Καταστροφική ενέργεια.</b> Οι υπάρχουσες εγγραφές με το ίδιο id θα ΑΝΤΙΚΑΤΑΣΤΑΘΟΥΝ από τις τιμές του αντιγράφου.
+              Οι εγγραφές που δεν υπάρχουν θα δημιουργηθούν. Δεν διαγράφονται νέες εγγραφές που δεν υπάρχουν στο αντίγραφο.
+            </Alert>
+            <Alert severity="info">Αρχείο: <b>{backup.fileName}</b> · {dateTime(backup.createdAt)}</Alert>
+            {preview.isLoading ? (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}><CircularProgress /></Box>
+            ) : preview.data && (
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>Περιεχόμενο αντιγράφου</Typography>
+                  <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5}>
+                    {Object.entries(preview.data.summary).map(([k, v]) => (
+                      <Chip key={k} size="small" variant="outlined" label={`${SUMMARY_LABELS[k] ?? k}: ${v.toLocaleString("el-GR")}`} />
+                    ))}
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                    {preview.data.warning}
+                  </Typography>
+                </CardContent>
+              </Card>
+            )}
+            <FormControlLabel
+              control={<Switch checked={includeInstructions} onChange={e => setIncludeInstructions(e.target.checked)} />}
+              label="Επαναφορά και Οδηγιών γραφείου"
+            />
+            <TextField
+              label={`Πληκτρολογήστε «${confirmPhrase}» για επιβεβαίωση`}
+              value={confirmText}
+              onChange={e => setConfirmText(e.target.value.toUpperCase())}
+              fullWidth
+              autoComplete="off"
+            />
+          </Stack>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => { setConfirmText(""); setResult(null); setErr(null); onClose(); }}>
+          {result ? "Κλείσιμο" : "Άκυρο"}
+        </Button>
+        {!result && (
+          <Button
+            variant="contained"
+            color="warning"
+            startIcon={restore.isPending ? <CircularProgress size={16} color="inherit" /> : <RestoreIcon />}
+            disabled={confirmText !== confirmPhrase || restore.isPending || preview.isLoading}
+            onClick={() => restore.mutate()}
+          >
+            Επαναφορά
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
   );
 }
 

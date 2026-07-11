@@ -1,9 +1,7 @@
-using System.IO.Compression;
 using System.Text.Json;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Domain.Entities;
-using Kalypsis.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -21,20 +19,32 @@ namespace Kalypsis.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/backups")]
-[Authorize(Policy = "AgencyAdmin")]
+[Authorize(Policy = "AgencyStaff")]
 public class BackupsController : ControllerBase
 {
+    // Read endpoints (list + download + GET policy) are open to every
+    // staff member of the γραφείο so employees can grab an ad-hoc copy of
+    // yesterday's data when the admin's off. Write endpoints (POST create,
+    // DELETE, PUT policy, POST restore) stay AgencyAdmin-only via the
+    // per-action [Authorize] attributes below.
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _current;
     private readonly IDateTimeProvider _clock;
     private readonly IFileStorage _storage;
+    private readonly ITenantBackupService _service;
 
-    public BackupsController(IAppDbContext db, ICurrentUser current, IDateTimeProvider clock, IFileStorage storage)
+    public BackupsController(
+        IAppDbContext db,
+        ICurrentUser current,
+        IDateTimeProvider clock,
+        IFileStorage storage,
+        ITenantBackupService service)
     {
         _db = db;
         _current = current;
         _clock = clock;
         _storage = storage;
+        _service = service;
     }
 
     public record BackupDto(
@@ -73,14 +83,65 @@ public class BackupsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "AgencyAdmin")]
     public async Task<ActionResult<BackupDto>> Create(CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var editorName = await ResolveEditorNameAsync(ct);
-        var (row, _) = await CreateBackupInternalAsync(tenantId, "Manual", _current.UserId, editorName, ct);
+        var row = await _service.CreateAsync(tenantId, "Manual", _current.UserId, editorName, ct);
         return Ok(new BackupDto(
             row.Id, row.FileName, row.SizeBytes, row.Kind, row.CreatedAt, row.CreatedByName,
             DeserializeSummary(row.SummaryJson)));
+    }
+
+    // -------------------------------------------------------------------------
+    // Restore
+    // -------------------------------------------------------------------------
+
+    public record RestorePreviewDto(Dictionary<string, int> Summary, string Warning);
+    public record RestoreConfirmBody(bool IncludeInstructions);
+
+    [HttpPost("{id:guid}/restore-preview")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<RestorePreviewDto>> RestorePreview(Guid id, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        try
+        {
+            var summary = await _service.ReadSummaryAsync(id, tenantId, ct);
+            var total = 0;
+            foreach (var v in summary.Values) total += v;
+            var warning = total > 0
+                ? $"Θα εισαχθούν / ενημερωθούν {total:N0} εγγραφές. Οι υπάρχουσες εγγραφές με το ίδιο id θα αντικατασταθούν."
+                : "Δεν βρέθηκαν εγγραφές στο αντίγραφο.";
+            return Ok(new RestorePreviewDto(summary, warning));
+        }
+        catch (InvalidOperationException e)
+        {
+            throw new AppException("backup_not_found", e.Message, 404);
+        }
+    }
+
+    [HttpPost("{id:guid}/restore")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<RestoreResult>> Restore(
+        Guid id,
+        [FromBody] RestoreConfirmBody body,
+        CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        try
+        {
+            var result = await _service.RestoreAsync(
+                id, tenantId,
+                new RestoreOptions(IncludeInstructions: body.IncludeInstructions),
+                ct);
+            return Ok(result);
+        }
+        catch (InvalidOperationException e)
+        {
+            throw new AppException("backup_restore_failed", e.Message, 400);
+        }
     }
 
     [HttpGet("{id:guid}/download")]
@@ -96,6 +157,7 @@ public class BackupsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "AgencyAdmin")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
@@ -127,6 +189,7 @@ public class BackupsController : ControllerBase
     }
 
     [HttpPut("policy")]
+    [Authorize(Policy = "AgencyAdmin")]
     public async Task<ActionResult<BackupPolicyDto>> UpsertPolicy(
         [FromBody] UpsertBackupPolicyBody body,
         CancellationToken ct)
@@ -162,107 +225,6 @@ public class BackupsController : ControllerBase
         }
         await _db.SaveChangesAsync(ct);
         return Ok(new BackupPolicyDto(row.Enabled, row.FrequencyDays, row.RetentionCount, row.LastAutoBackupAt));
-    }
-
-    // -------------------------------------------------------------------------
-    // Shared backup implementation used by both the controller and the hosted
-    // AutoBackupService (via reflection or a shared static helper). For now
-    // we keep it inline; the hosted service resolves it via DI.
-    // -------------------------------------------------------------------------
-
-    internal async Task<(TenantBackup row, byte[] bytes)> CreateBackupInternalAsync(
-        Guid tenantId, string kind, Guid? createdByUserId, string? createdByName, CancellationToken ct)
-    {
-        // Gather everything tenant-scoped in one pass. Each subquery is
-        // capped to a reasonable size — an insurance office pushing north
-        // of the caps would be a genuine surprise, and we log it.
-        const int CAP = 200_000;
-
-        var customers    = await _db.Customers   .Where(x => x.TenantId == tenantId && x.DeletedAt == null).Take(CAP).ToListAsync(ct);
-        var policies     = await _db.Policies    .Where(x => x.TenantId == tenantId && x.DeletedAt == null).Take(CAP).ToListAsync(ct);
-        var claims       = await _db.Claims      .Where(x => x.TenantId == tenantId && x.DeletedAt == null).Take(CAP).ToListAsync(ct);
-        var receipts     = await _db.Receipts    .Where(x => x.TenantId == tenantId && x.DeletedAt == null).Take(CAP).ToListAsync(ct);
-        var payments     = await _db.Payments    .Where(x => x.TenantId == tenantId && x.DeletedAt == null).Take(CAP).ToListAsync(ct);
-        var tasks        = await _db.AgencyTasks .Where(x => x.TenantId == tenantId && x.DeletedAt == null).Take(CAP).ToListAsync(ct);
-        var appointments = await _db.Appointments.Where(x => x.TenantId == tenantId && x.DeletedAt == null).Take(CAP).ToListAsync(ct);
-        var producers    = await _db.Producers   .Where(x => x.TenantId == tenantId && x.DeletedAt == null).Take(CAP).ToListAsync(ct);
-        var carriers     = await _db.InsuranceCompanies.Where(x => x.TenantId == tenantId && x.DeletedAt == null).Take(CAP).ToListAsync(ct);
-        var notes        = await _db.AgencyInstructions.Where(x => x.TenantId == tenantId && x.DeletedAt == null).Take(CAP).ToListAsync(ct);
-
-        var summary = new Dictionary<string, int>
-        {
-            ["customers"] = customers.Count,
-            ["policies"] = policies.Count,
-            ["claims"] = claims.Count,
-            ["receipts"] = receipts.Count,
-            ["payments"] = payments.Count,
-            ["tasks"] = tasks.Count,
-            ["appointments"] = appointments.Count,
-            ["producers"] = producers.Count,
-            ["carriers"] = carriers.Count,
-            ["instructions"] = notes.Count,
-        };
-
-        var payload = new
-        {
-            format = "kalypsis-tenant-backup",
-            version = 1,
-            tenantId,
-            createdAt = _clock.UtcNow,
-            createdBy = createdByName,
-            summary,
-            data = new
-            {
-                customers, policies, claims, receipts, payments,
-                tasks, appointments, producers, carriers, instructions = notes,
-            },
-        };
-
-        // Serialise + gzip in-memory. For very large tenants we'd stream this
-        // to disk instead — 200k rows across nine tables fits comfortably in
-        // RAM (~100-200 MB uncompressed, ~20 MB compressed).
-        var jsonOptions = new JsonSerializerOptions
-        {
-            WriteIndented = false,
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
-            ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
-        };
-        byte[] compressed;
-        using (var ms = new MemoryStream())
-        {
-            using (var gz = new GZipStream(ms, CompressionLevel.SmallestSize, leaveOpen: true))
-            {
-                await JsonSerializer.SerializeAsync(gz, payload, jsonOptions, ct);
-            }
-            compressed = ms.ToArray();
-        }
-
-        var stamp = _clock.UtcNow.ToString("yyyyMMdd_HHmmss");
-        var fileName = $"kalypsis-{tenantId:N}-{stamp}.json.gz";
-        var keyPrefix = $"backups/{tenantId:N}";
-        string storagePath;
-        await using (var upStream = new MemoryStream(compressed))
-        {
-            storagePath = await _storage.UploadAsync(keyPrefix, fileName, "application/gzip", upStream, ct);
-        }
-
-        var row = new TenantBackup
-        {
-            Id = Guid.NewGuid(),
-            TenantId = tenantId,
-            FileName = fileName,
-            StoragePath = storagePath,
-            SizeBytes = compressed.LongLength,
-            Kind = kind,
-            SummaryJson = JsonSerializer.Serialize(summary),
-            CreatedByUserId = createdByUserId,
-            CreatedByName = createdByName,
-            CreatedAt = _clock.UtcNow,
-            UpdatedAt = _clock.UtcNow,
-        };
-        _db.TenantBackups.Add(row);
-        await _db.SaveChangesAsync(ct);
-        return (row, compressed);
     }
 
     private async Task<string?> ResolveEditorNameAsync(CancellationToken ct)
