@@ -271,13 +271,17 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/backups", labelKey: "nav.backups", icon: <BackupIcon /> },
 
     // ===== CRM — top-level (3) + grouped (5) =====
+    // Every CRM item carries a `permission` code so an AgencyAdmin can hide
+    // it from individual employees without touching the tenant's package.
+    // Employees who don't hold the code see nothing in the sidebar AND get
+    // the locked screen if they hit the URL directly.
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
-    { to: "/appointments", labelKey: "nav.appointments", icon: <EventIcon />, package: "Crm" },
-    { to: "/marketing", labelKey: "nav.marketing", icon: <MailOutlineIcon />, package: "Crm", group: "crm" },
-    { to: "/name-days", labelKey: "nav.nameDays", icon: <CakeIcon />, package: "Crm", group: "crm" },
-    { to: "/document-manager", labelKey: "nav.documentManager", icon: <FolderSpecialIcon />, package: "Crm", group: "crm" },
-    { to: "/delivery-tracking", labelKey: "nav.deliveryTracking", icon: <LocalShippingIcon />, package: "Crm", group: "crm" },
+    { to: "/appointments", labelKey: "nav.appointments", icon: <EventIcon />, package: "Crm", permission: "appointments.read" },
+    { to: "/marketing", labelKey: "nav.marketing", icon: <MailOutlineIcon />, package: "Crm", group: "crm", permission: "marketing.read" },
+    { to: "/name-days", labelKey: "nav.nameDays", icon: <CakeIcon />, package: "Crm", group: "crm", permission: "customers.read" },
+    { to: "/document-manager", labelKey: "nav.documentManager", icon: <FolderSpecialIcon />, package: "Crm", group: "crm", permission: "documents.read" },
+    { to: "/delivery-tracking", labelKey: "nav.deliveryTracking", icon: <LocalShippingIcon />, package: "Crm", group: "crm", permission: "delivery.read" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Crm" },
 
     // ===== FrontOffice =====

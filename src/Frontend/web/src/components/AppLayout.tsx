@@ -89,6 +89,14 @@ export interface NavItem {
   group?: string;
   /** Optional icon next to the group header in the sidebar. */
   groupIcon?: ReactNode;
+  /**
+   * Phase 16: fine-grained permission code required to see this nav item.
+   * When set, the sidebar hides the entry unless the current user's
+   * `permissions` array includes the code. AgencyAdmin bypasses (they
+   * always get everything); PlatformAdmin / PlatformEmployee also bypass
+   * for support purposes. Omit to leave the item unrestricted.
+   */
+  permission?: string;
 }
 
 interface AppLayoutProps {
@@ -236,8 +244,18 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
       <Divider />
       <List id="app-sidebar-navigation" sx={{ flex: 1, py: 1, overflowY: "auto", overscrollBehavior: "contain", pb: "max(8px, env(safe-area-inset-bottom))" }} component="nav">
         {(() => {
+          // Per-user permission check. AgencyAdmin sees every item that
+          // passes the package/workspace filters; employees only see items
+          // whose `permission` code they hold (or items with no `permission`
+          // set at all). PlatformAdmin / PlatformEmployee always bypass.
+          const bypassPermissions = user?.role === "AgencyAdmin"
+            || user?.role === "PlatformAdmin"
+            || user?.role === "PlatformEmployee";
+          const heldPermissions = new Set(user?.permissions ?? []);
           const visible = navItems.filter(item => {
             if (item.package && !hasPackage(item.package)) return false;
+            if (item.permission && !bypassPermissions && !heldPermissions.has(item.permission))
+              return false;
             if (useWorkspaceUi && workspace) {
               if (item.workspaces && item.workspaces.length > 0)
                 return item.workspaces.includes(workspace);

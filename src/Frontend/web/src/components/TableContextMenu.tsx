@@ -17,18 +17,21 @@ import EventIcon from "@mui/icons-material/Event";
    Right-click context menus for exportable / printable tables.
 
    Two hooks + one Menu component:
-     * useHeaderContextMenu  — right-click on a <TableCell> header to sort or
-                               hide the column. Detects the semantic type
-                               (string / number / date) so the sort labels
-                               read naturally ("A→Z" vs "Παλιότερα → Νεότερα"
-                               vs "Χαμηλότερα → Υψηλότερα").
-     * useRowContextMenu     — right-click on a <TableRow> to trigger the
-                               common per-row actions (edit / duplicate /
-                               delete) via the callbacks the page passes in.
+     * useHeaderContextMenu  — right-click a header cell to sort or hide the
+                               column. Sort labels adapt to the column's
+                               semantic type (string / number / date).
+     * useRowContextMenu     — right-click a body row to fire common per-row
+                               actions (edit / duplicate / delete / pin).
 
    Both hooks return `{ open, close, menu }`. The consumer wires up
-   `onContextMenu={(e) => open(e, {key})}` on the target and drops `{menu}`
-   inside its render tree.
+   `onContextMenu={(e) => open(e, {key, …})}` on the target and drops
+   `{menu}` inside its render tree.
+
+   Positioning uses anchorPosition based on the ORIGINAL event's clientX/Y
+   (not currentTarget) so the menu opens exactly at the mouse cursor even
+   when the user right-clicks inside a nested span rather than the cell.
+   A ~2/6 px offset — the same one MUI uses in their docs — keeps the
+   menu from covering the pointer.
    ========================================================================= */
 
 export type ColumnType = "string" | "number" | "date";
@@ -41,65 +44,73 @@ interface ColumnMenuContext {
 }
 
 interface HeaderMenuOptions {
-  /** Called with (key, direction) when the user picks a sort option. */
   onSort?: (key: string, direction: "asc" | "desc") => void;
-  /** Called when the user picks "Hide column". */
   onHide?: (key: string) => void;
-  /** Optional extra items rendered above the sort/hide block. */
   extraItems?: React.ReactNode;
 }
 
 interface HeaderMenuState {
-  anchor: { x: number; y: number } | null;
+  position: { x: number; y: number } | null;
   ctx: ColumnMenuContext | null;
 }
 
 export function useHeaderContextMenu(options: HeaderMenuOptions) {
-  const [state, setState] = useState<HeaderMenuState>({ anchor: null, ctx: null });
+  const [state, setState] = useState<HeaderMenuState>({ position: null, ctx: null });
 
   const open = useCallback((e: React.MouseEvent, ctx: ColumnMenuContext) => {
     e.preventDefault();
-    setState({ anchor: { x: e.clientX, y: e.clientY }, ctx });
+    e.stopPropagation();
+    setState({
+      // MUI docs pattern — the small offset stops the menu from covering
+      // the cursor so the user can see what they're aiming at.
+      position: { x: e.clientX + 2, y: e.clientY - 6 },
+      ctx,
+    });
   }, []);
-  const close = useCallback(() => setState({ anchor: null, ctx: null }), []);
+  const close = useCallback(() => setState({ position: null, ctx: null }), []);
 
-  const menu = state.anchor && state.ctx ? (
+  const isOpen = state.position !== null && state.ctx !== null;
+
+  const menu = (
     <Menu
-      open
-      anchorReference="anchorPosition"
-      anchorPosition={{ top: state.anchor.y, left: state.anchor.x }}
+      open={isOpen}
       onClose={close}
-      slotProps={{ paper: { sx: { minWidth: 240 } } }}
+      anchorReference="anchorPosition"
+      anchorPosition={state.position ? { top: state.position.y, left: state.position.x } : undefined}
+      MenuListProps={{ dense: true, sx: { minWidth: 240 } }}
     >
       {options.extraItems}
-      {options.onSort && (
+      {options.onSort && state.ctx && (
         <MenuItem onClick={() => { options.onSort!(state.ctx!.key, "asc"); close(); }}>
           <ListItemIcon>{sortIconFor(state.ctx.type, "asc")}</ListItemIcon>
           <ListItemText primary={sortLabelFor(state.ctx.type, "asc")} secondary={state.ctx.label} />
         </MenuItem>
       )}
-      {options.onSort && (
+      {options.onSort && state.ctx && (
         <MenuItem onClick={() => { options.onSort!(state.ctx!.key, "desc"); close(); }}>
           <ListItemIcon>{sortIconFor(state.ctx.type, "desc")}</ListItemIcon>
           <ListItemText primary={sortLabelFor(state.ctx.type, "desc")} secondary={state.ctx.label} />
         </MenuItem>
       )}
       {options.onSort && options.onHide && <Divider />}
-      {options.onHide && state.ctx.canHide && (
+      {options.onHide && state.ctx?.canHide && (
         <MenuItem onClick={() => { options.onHide!(state.ctx!.key); close(); }}>
           <ListItemIcon><VisibilityOffIcon fontSize="small" /></ListItemIcon>
           <ListItemText primary="Απόκρυψη στήλης" secondary={state.ctx.label} />
         </MenuItem>
       )}
     </Menu>
-  ) : null;
+  );
 
-  return { open, close, menu };
+  return { open, close, menu, isOpen };
 }
 
 function sortIconFor(type: ColumnType, dir: "asc" | "desc"): React.ReactNode {
-  if (type === "string") return <SortByAlphaIcon fontSize="small" />;
-  if (type === "date")   return <EventIcon fontSize="small" />;
+  if (type === "string")
+    return dir === "asc"
+      ? <SortByAlphaIcon fontSize="small" />
+      : <SortByAlphaIcon fontSize="small" sx={{ transform: "scaleX(-1)" }} />;
+  if (type === "date") return <EventIcon fontSize="small" />;
   return dir === "asc"
     ? <ArrowUpwardIcon fontSize="small" />
     : <ArrowDownwardIcon fontSize="small" />;
@@ -111,7 +122,7 @@ function sortLabelFor(type: ColumnType, dir: "asc" | "desc"): string {
 }
 
 // -----------------------------------------------------------------------------
-// Row context menu.
+// Row context menu — same pattern.
 // -----------------------------------------------------------------------------
 
 interface RowMenuOptions<T> {
@@ -119,71 +130,73 @@ interface RowMenuOptions<T> {
   onDuplicate?: (row: T) => void;
   onDelete?: (row: T) => void;
   onPin?: (row: T) => void;
-  /** Optional label prefix, e.g. "Πελάτης" → "Επεξεργασία Πελάτη". */
   entityLabel?: string;
-  /** Extra items rendered at the top. */
   extraItems?: (row: T, close: () => void) => React.ReactNode;
 }
 
 interface RowMenuState<T> {
-  anchor: { x: number; y: number } | null;
+  position: { x: number; y: number } | null;
   row: T | null;
 }
 
 export function useRowContextMenu<T>(options: RowMenuOptions<T>) {
-  const [state, setState] = useState<RowMenuState<T>>({ anchor: null, row: null });
+  const [state, setState] = useState<RowMenuState<T>>({ position: null, row: null });
+
   const open = useCallback((e: React.MouseEvent, row: T) => {
     e.preventDefault();
-    setState({ anchor: { x: e.clientX, y: e.clientY }, row });
+    e.stopPropagation();
+    setState({
+      position: { x: e.clientX + 2, y: e.clientY - 6 },
+      row,
+    });
   }, []);
-  const close = useCallback(() => setState({ anchor: null, row: null }), []);
+  const close = useCallback(() => setState({ position: null, row: null }), []);
 
   const suffix = options.entityLabel ? ` ${options.entityLabel.toLowerCase()}` : "";
+  const isOpen = state.position !== null && state.row !== null;
 
-  const menu = state.anchor && state.row !== null ? (
+  const menu = (
     <Menu
-      open
-      anchorReference="anchorPosition"
-      anchorPosition={{ top: state.anchor.y, left: state.anchor.x }}
+      open={isOpen}
       onClose={close}
-      slotProps={{ paper: { sx: { minWidth: 220 } } }}
+      anchorReference="anchorPosition"
+      anchorPosition={state.position ? { top: state.position.y, left: state.position.x } : undefined}
+      MenuListProps={{ dense: true, sx: { minWidth: 220 } }}
     >
-      {options.extraItems?.(state.row, close)}
-      {options.onEdit && (
+      {state.row !== null && options.extraItems?.(state.row, close)}
+      {state.row !== null && options.onEdit && (
         <MenuItem onClick={() => { options.onEdit!(state.row as T); close(); }}>
           <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
           <ListItemText primary={`Επεξεργασία${suffix}`} />
         </MenuItem>
       )}
-      {options.onDuplicate && (
+      {state.row !== null && options.onDuplicate && (
         <MenuItem onClick={() => { options.onDuplicate!(state.row as T); close(); }}>
           <ListItemIcon><ContentCopyIcon fontSize="small" /></ListItemIcon>
           <ListItemText primary={`Αντιγραφή${suffix}`} />
         </MenuItem>
       )}
-      {options.onPin && (
+      {state.row !== null && options.onPin && (
         <MenuItem onClick={() => { options.onPin!(state.row as T); close(); }}>
           <ListItemIcon><PushPinIcon fontSize="small" /></ListItemIcon>
           <ListItemText primary="Καρφίτσωμα" />
         </MenuItem>
       )}
       {(options.onEdit || options.onDuplicate || options.onPin) && options.onDelete && <Divider />}
-      {options.onDelete && (
+      {state.row !== null && options.onDelete && (
         <MenuItem onClick={() => { options.onDelete!(state.row as T); close(); }} sx={{ color: "error.main" }}>
           <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
           <ListItemText primary={`Διαγραφή${suffix}`} />
         </MenuItem>
       )}
     </Menu>
-  ) : null;
+  );
 
-  return { open, close, menu };
+  return { open, close, menu, isOpen };
 }
 
 // -----------------------------------------------------------------------------
-// Convenience: a single hook that returns both menus wired for a filter
-// "clear" action. Callers pass `hasFilters` + `onClearFilters` when they
-// want a "Καθαρισμός φίλτρων" item to appear regardless of column.
+// Helper: a “Καθαρισμός φίλτρων” item to plug into extraItems.
 // -----------------------------------------------------------------------------
 
 export function useClearFiltersMenuItem(hasFilters: boolean, onClear: () => void, close: () => void): React.ReactNode {

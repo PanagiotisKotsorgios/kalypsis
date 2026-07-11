@@ -445,28 +445,45 @@ export function ProductionListsPage() {
 
           {/* Detailed rows — headers & cells driven by the column-picker
               selection above, so unchecking a column also removes it from
-              the on-screen view (not just the export/print). Right-click a
-              header for sort A→Z / Z→A and «Απόκρυψη στήλης». */}
+              the on-screen view (not just the export/print). Left-click a
+              header to toggle sort (asc → desc → off); right-click for the
+              full menu with «Απόκρυψη στήλης». */}
           <Card variant="outlined" sx={{ overflowX: "auto" }}>
             <Table size="small">
               <TableHead><TableRow>
-                {visibleColumns.map(c => (
-                  <TableCell
-                    key={c.key}
-                    align={c.align}
-                    onContextMenu={(e) => headerMenu.open(e, {
-                      key: c.key, label: c.label, type: inferColumnType(c.key), canHide: c.key !== visibleColumns[0].key,
-                    })}
-                    sx={{ cursor: "context-menu", userSelect: "none" }}
-                  >
-                    {c.label}
-                    {sortKey === c.key && (
-                      <Box component="span" sx={{ ml: 0.5, fontSize: 10, color: "primary.main" }}>
-                        {sortDir === "asc" ? "▲" : "▼"}
-                      </Box>
-                    )}
-                  </TableCell>
-                ))}
+                {visibleColumns.map(c => {
+                  const activeAsc = sortKey === c.key && sortDir === "asc";
+                  const activeDesc = sortKey === c.key && sortDir === "desc";
+                  const toggleSort = () => {
+                    if (activeAsc) { setSortDir("desc"); }
+                    else if (activeDesc) { setSortKey(null); }
+                    else { setSortKey(c.key); setSortDir("asc"); }
+                  };
+                  return (
+                    <TableCell
+                      key={c.key}
+                      align={c.align}
+                      onClick={toggleSort}
+                      onContextMenu={(e) => headerMenu.open(e, {
+                        key: c.key, label: c.label, type: inferColumnType(c.key), canHide: c.key !== visibleColumns[0].key,
+                      })}
+                      sx={{
+                        cursor: "pointer",
+                        userSelect: "none",
+                        fontWeight: 700,
+                        "&:hover": { bgcolor: "action.hover" },
+                        color: (activeAsc || activeDesc) ? "primary.main" : undefined,
+                      }}
+                    >
+                      {c.label}
+                      {(activeAsc || activeDesc) && (
+                        <Box component="span" sx={{ ml: 0.5, fontSize: 12, color: "primary.main" }}>
+                          {activeAsc ? "▲" : "▼"}
+                        </Box>
+                      )}
+                    </TableCell>
+                  );
+                })}
               </TableRow></TableHead>
               <TableBody>
                 {q.data.rows.length === 0 && (
