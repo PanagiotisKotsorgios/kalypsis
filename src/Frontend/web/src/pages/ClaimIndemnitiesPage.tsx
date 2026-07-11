@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import {
   Alert, Box, Button, Card, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
@@ -41,6 +42,39 @@ export function ClaimIndemnitiesPage() {
 
   const total = (q.data ?? []).reduce((s, i) => s + i.amount, 0);
 
+  const [sortKey, setSortKey] = useState<keyof IndemnityDto | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const sortedRows = useMemo(() => {
+    const rows = q.data ?? [];
+    if (!sortKey) return rows;
+    const arr = rows.slice();
+    arr.sort((a, b) => {
+      const va: any = a[sortKey] ?? "";
+      const vb: any = b[sortKey] ?? "";
+      const cmp = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb), "el");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [q.data, sortKey, sortDir]);
+  const inferType = (key: string): ColumnType =>
+    key === "paidOn" ? "date" : key === "amount" ? "number" : "string";
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      const map: Record<string, keyof IndemnityDto> = {
+        number: "paymentNumber", claim: "claimNumber", paidOn: "paidOn",
+        payee: "payeeName", method: "paymentMethod", amount: "amount",
+      };
+      const dtoKey = map[key];
+      if (!dtoKey) return;
+      setSortKey(dtoKey);
+      setSortDir(dir);
+    },
+  });
+  const rowMenu = useRowContextMenu<IndemnityDto>({
+    entityLabel: "αποζημίωσης",
+    onDelete: (i) => { if (confirm(t("common.confirmDelete"))) del.mutate(i.id); },
+  });
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
@@ -67,20 +101,26 @@ export function ClaimIndemnitiesPage() {
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
             <TableHead><TableRow>
-              <TableCell>{t("indemnities.number")}</TableCell>
-              <TableCell>{t("indemnities.claim")}</TableCell>
-              <TableCell>{t("indemnities.paidOn")}</TableCell>
-              <TableCell>{t("indemnities.payee")}</TableCell>
-              <TableCell>{t("indemnities.method")}</TableCell>
-              <TableCell align="right">{t("indemnities.amount")}</TableCell>
+              {[
+                ["number", t("indemnities.number"), "left"],
+                ["claim", t("indemnities.claim"), "left"],
+                ["paidOn", t("indemnities.paidOn"), "left"],
+                ["payee", t("indemnities.payee"), "left"],
+                ["method", t("indemnities.method"), "left"],
+                ["amount", t("indemnities.amount"), "right"],
+              ].map(([k, label, align]) => (
+                <TableCell key={k as string} align={align as "left" | "right"} sx={{ userSelect: "none" }}
+                  onContextMenu={(e) => headerMenu.open(e, { key: k as string, label: label as string, type: inferType(k as string), canHide: false })}
+                >{label}</TableCell>
+              ))}
               <TableCell align="right" />
             </TableRow></TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
+              {sortedRows.length === 0 && (
                 <TableRow><TableCell colSpan={7} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("indemnities.empty")}</TableCell></TableRow>
               )}
-              {(q.data ?? []).map(i => (
-                <TableRow key={i.id} hover>
+              {sortedRows.map(i => (
+                <TableRow key={i.id} hover onContextMenu={(e) => rowMenu.open(e, i)}>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{i.paymentNumber}</TableCell>
                   <TableCell>{i.claimNumber}</TableCell>
                   <TableCell>{i.paidOn}</TableCell>
@@ -101,6 +141,8 @@ export function ClaimIndemnitiesPage() {
           </Table>
         </Card>
       )}
+      {headerMenu.menu}
+      {rowMenu.menu}
       <CreateDialog open={createOpen} onClose={() => setCreateOpen(false)}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["indemnities"] }); setCreateOpen(false); }} />
     </Box>

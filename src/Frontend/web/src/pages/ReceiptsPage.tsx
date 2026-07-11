@@ -13,6 +13,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
 import { money, date } from "../utils/format";
 import { useTableState } from "../components/useTableState";
+import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { NumberedPager } from "../components/TableToolbar";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
@@ -132,6 +133,27 @@ export function ReceiptsPage() {
   ]);
   const total = filtered.reduce((s, r) => s + r.amount, 0);
 
+  const inferType = (key: string): ColumnType =>
+    key === "date" ? "date" : key === "amount" ? "number" : "string";
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      const map: Record<string, keyof ReceiptDto> = {
+        number: "number", date: "receivedOn", customer: "customerName",
+        policy: "policyNumber", method: "method", txRef: "transactionReference",
+        amount: "amount",
+      };
+      const dtoKey = map[key];
+      if (!dtoKey) return;
+      table.toggleSort(dtoKey);
+      if (table.sortDir !== dir) table.toggleSort(dtoKey);
+    },
+    onHide: (key) => receiptCols.toggleVisibility(key),
+  });
+  const rowMenu = useRowContextMenu<ReceiptDto>({
+    entityLabel: "απόδειξης",
+    onDelete: (r) => { if (confirm(t("common.confirmDelete"))) del.mutate(r.id); },
+  });
+
   useEffect(() => { table.setQuery(search); }, [search, table]);
 
   return (
@@ -195,7 +217,14 @@ export function ReceiptsPage() {
           <Table size="small">
             <TableHead><TableRow>
               {receiptCols.visibleColumns.map(c => (
-                <TableCell key={c.key} align={c.key === "amount" ? "right" : "left"}>{c.label}</TableCell>
+                <TableCell
+                  key={c.key}
+                  align={c.key === "amount" ? "right" : "left"}
+                  onContextMenu={(e) => headerMenu.open(e, { key: c.key, label: c.label, type: inferType(c.key), canHide: !c.alwaysVisible })}
+                  sx={{ userSelect: "none" }}
+                >
+                  {c.label}
+                </TableCell>
               ))}
               <TableCell align="right" padding="checkbox">
                 <ColumnPreferencesButton
@@ -212,7 +241,7 @@ export function ReceiptsPage() {
                 <TableRow><TableCell colSpan={receiptCols.visibleColumns.length + 1} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("receipts.empty")}</TableCell></TableRow>
               )}
               {rows.map(r => (
-                <TableRow key={r.id} hover>
+                <TableRow key={r.id} hover onContextMenu={(e) => rowMenu.open(e, r)}>
                   {receiptCols.visibleColumns.map(c => {
                     switch (c.key) {
                       case "number":
@@ -248,6 +277,8 @@ export function ReceiptsPage() {
           </Box>
         </Card>
       )}
+      {headerMenu.menu}
+      {rowMenu.menu}
 
       <FormDialog open={createOpen} onClose={() => setCreateOpen(false)}
         onSaved={() => {

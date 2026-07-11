@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import {
   Alert, Avatar, Box, Button, Card, CardContent, Checkbox, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, Divider, FormControlLabel, IconButton, LinearProgress, MenuItem, Paper, Stack,
@@ -407,10 +408,44 @@ function CampaignsTab() {
   const canWrite = user?.role === "AgencyAdmin" || user?.permissions.includes("marketing.write");
   const canSend = user?.role === "AgencyAdmin" || user?.permissions.includes("marketing.send");
 
-  const campaigns = q.data ?? [];
-  const drafts = campaigns.filter(c => c.status === "Draft").length;
-  const scheduled = campaigns.filter(c => c.status === "Scheduled").length;
-  const sent = campaigns.filter(c => c.status === "Sent").length;
+  const campaignsRaw = q.data ?? [];
+  const drafts = campaignsRaw.filter(c => c.status === "Draft").length;
+  const scheduled = campaignsRaw.filter(c => c.status === "Scheduled").length;
+  const sent = campaignsRaw.filter(c => c.status === "Sent").length;
+
+  const [sortKey, setSortKey] = useState<keyof CampaignDto | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const campaigns = useMemo(() => {
+    if (!sortKey) return campaignsRaw;
+    const arr = campaignsRaw.slice();
+    arr.sort((a, b) => {
+      const va: any = a[sortKey] ?? "";
+      const vb: any = b[sortKey] ?? "";
+      const cmp = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb), "el");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [campaignsRaw, sortKey, sortDir]);
+  const inferType = (key: string): ColumnType =>
+    key === "sentAt" ? "date" : key === "recipients" ? "number" : "string";
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      const map: Record<string, keyof CampaignDto> = {
+        name: "name", subject: "subject", segment: "segmentKey",
+        recipients: "recipients", sentAt: "sentAt", status: "status",
+      };
+      const dtoKey = map[key];
+      if (!dtoKey) return;
+      setSortKey(dtoKey);
+      setSortDir(dir);
+    },
+  });
+  const rowMenu = useRowContextMenu<CampaignDto>({
+    entityLabel: "καμπάνιας",
+    onEdit: canWrite ? (c) => setEditing(c) : undefined,
+    onDuplicate: canWrite ? (c) => duplicate.mutate(c) : undefined,
+    onDelete: canWrite ? (c) => { if (confirm(t("common.confirmDelete", "Επιβεβαίωση διαγραφής;"))) del.mutate(c.id); } : undefined,
+  });
 
   return (
     <Box>
@@ -433,13 +468,25 @@ function CampaignsTab() {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>{t("marketing.name", "Όνομα")}</TableCell>
-                <TableCell>{t("marketing.subject", "Θέμα")}</TableCell>
-                <TableCell>{t("marketing.segment", "Κοινό")}</TableCell>
+                {[
+                  ["name", t("marketing.name", "Όνομα"), "left"],
+                  ["subject", t("marketing.subject", "Θέμα"), "left"],
+                  ["segment", t("marketing.segment", "Κοινό"), "left"],
+                ].map(([k, label, align]) => (
+                  <TableCell key={k as string} align={align as "left" | "right"} sx={{ userSelect: "none" }}
+                    onContextMenu={(e) => headerMenu.open(e, { key: k as string, label: label as string, type: inferType(k as string), canHide: false })}
+                  >{label}</TableCell>
+                ))}
                 <TableCell>{t("marketing.channels", "Κανάλια")}</TableCell>
-                <TableCell align="right">{t("marketing.recipients", "Παραλήπτες")}</TableCell>
-                <TableCell>{t("marketing.sentAt", "Στάλθηκε")}</TableCell>
-                <TableCell>{t("common.status", "Κατάσταση")}</TableCell>
+                <TableCell align="right" sx={{ userSelect: "none" }}
+                  onContextMenu={(e) => headerMenu.open(e, { key: "recipients", label: t("marketing.recipients", "Παραλήπτες"), type: "number", canHide: false })}
+                >{t("marketing.recipients", "Παραλήπτες")}</TableCell>
+                <TableCell sx={{ userSelect: "none" }}
+                  onContextMenu={(e) => headerMenu.open(e, { key: "sentAt", label: t("marketing.sentAt", "Στάλθηκε"), type: "date", canHide: false })}
+                >{t("marketing.sentAt", "Στάλθηκε")}</TableCell>
+                <TableCell sx={{ userSelect: "none" }}
+                  onContextMenu={(e) => headerMenu.open(e, { key: "status", label: t("common.status", "Κατάσταση"), type: "string", canHide: false })}
+                >{t("common.status", "Κατάσταση")}</TableCell>
                 <TableCell align="right" />
               </TableRow>
             </TableHead>
@@ -452,7 +499,7 @@ function CampaignsTab() {
                 </TableRow>
               )}
               {campaigns.map(c => (
-                <TableRow key={c.id} hover>
+                <TableRow key={c.id} hover onContextMenu={(e) => rowMenu.open(e, c)}>
                   <TableCell><Typography fontWeight={700}>{c.name}</Typography></TableCell>
                   <TableCell sx={{ color: "text.secondary" }}>{c.subject}</TableCell>
                   <TableCell>{c.segmentKey ? t(`marketing.segmentLabel.${c.segmentKey}`, c.segmentKey) : "—"}</TableCell>
@@ -493,6 +540,8 @@ function CampaignsTab() {
           </Table>
         </Card>
       )}
+      {headerMenu.menu}
+      {rowMenu.menu}
       <CampaignFormDialog open={createOpen} onClose={() => setCreateOpen(false)} item={null}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["marketing-campaigns"] }); setCreateOpen(false); }} />
       <CampaignFormDialog open={!!editing} onClose={() => setEditing(null)} item={editing}

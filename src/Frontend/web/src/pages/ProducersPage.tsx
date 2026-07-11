@@ -25,6 +25,7 @@ import { ReassignProducerDialog } from "../components/ReassignProducerDialog";
 import PeopleIcon from "@mui/icons-material/People";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { useTableState } from "../components/useTableState";
+import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { SearchableSelect } from "../components/SearchableSelect";
@@ -109,6 +110,26 @@ export function ProducersPage() {
   });
   const rows = table.paged;
 
+  // Right-click on a header → sort by that column. Row menu → edit / delete.
+  const inferType = (key: string): ColumnType => key === "policies" ? "number" : "string";
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      const map: Record<string, keyof ProducerDto> = {
+        code: "code", name: "name", tier: "tier",
+        email: "email", phone: "phone", policies: "policyCount", status: "status",
+      };
+      const dtoKey = map[key];
+      if (!dtoKey) return;
+      table.toggleSort(dtoKey);
+      if (table.sortDir !== dir) table.toggleSort(dtoKey);
+    },
+  });
+  const rowMenu = useRowContextMenu<ProducerDto>({
+    entityLabel: "παραγωγού",
+    onEdit: (p) => setEditing(p),
+    onDelete: (p) => { if (confirm(t("producers.confirmDelete", { name: p.name }))) del.mutate(p.id); },
+  });
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
@@ -186,13 +207,27 @@ export function ProducersPage() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>{t("producers.col.code")}</TableCell>
-                  <TableCell>{t("producers.col.name")}</TableCell>
-                  <TableCell>Κατηγορία</TableCell>
-                  <TableCell>{t("producers.col.email")}</TableCell>
-                  <TableCell>{t("producers.col.phone")}</TableCell>
-                  <TableCell align="right">{t("producers.col.policies")}</TableCell>
-                  <TableCell>{t("producers.col.status")}</TableCell>
+                  <TableCell sx={{ userSelect: "none" }}
+                    onContextMenu={(e) => headerMenu.open(e, { key: "code", label: t("producers.col.code"), type: inferType("code"), canHide: false })}
+                  >{t("producers.col.code")}</TableCell>
+                  <TableCell sx={{ userSelect: "none" }}
+                    onContextMenu={(e) => headerMenu.open(e, { key: "name", label: t("producers.col.name"), type: inferType("name"), canHide: false })}
+                  >{t("producers.col.name")}</TableCell>
+                  <TableCell sx={{ userSelect: "none" }}
+                    onContextMenu={(e) => headerMenu.open(e, { key: "tier", label: "Κατηγορία", type: inferType("tier"), canHide: false })}
+                  >Κατηγορία</TableCell>
+                  <TableCell sx={{ userSelect: "none" }}
+                    onContextMenu={(e) => headerMenu.open(e, { key: "email", label: t("producers.col.email"), type: inferType("email"), canHide: false })}
+                  >{t("producers.col.email")}</TableCell>
+                  <TableCell sx={{ userSelect: "none" }}
+                    onContextMenu={(e) => headerMenu.open(e, { key: "phone", label: t("producers.col.phone"), type: inferType("phone"), canHide: false })}
+                  >{t("producers.col.phone")}</TableCell>
+                  <TableCell align="right" sx={{ userSelect: "none" }}
+                    onContextMenu={(e) => headerMenu.open(e, { key: "policies", label: t("producers.col.policies"), type: inferType("policies"), canHide: false })}
+                  >{t("producers.col.policies")}</TableCell>
+                  <TableCell sx={{ userSelect: "none" }}
+                    onContextMenu={(e) => headerMenu.open(e, { key: "status", label: t("producers.col.status"), type: inferType("status"), canHide: false })}
+                  >{t("producers.col.status")}</TableCell>
                   <TableCell align="right" />
                 </TableRow>
               </TableHead>
@@ -203,7 +238,8 @@ export function ProducersPage() {
                     onClick={(e) => {
                       if ((e.target as HTMLElement).closest("button, a, .MuiIconButton-root")) return;
                       setDetailId(p.id);
-                    }}>
+                    }}
+                    onContextMenu={(e) => rowMenu.open(e, p)}>
                     <TableCell><Chip label={p.code} size="small" variant="outlined" /></TableCell>
                     <TableCell><Typography fontWeight={600}>{p.name}</Typography></TableCell>
                     <TableCell>
@@ -251,6 +287,8 @@ export function ProducersPage() {
           </Box>
         </Card>
       )}
+      {headerMenu.menu}
+      {rowMenu.menu}
 
       <ProducerDialog
         open={createOpen} onClose={() => setCreateOpen(false)} producer={null}

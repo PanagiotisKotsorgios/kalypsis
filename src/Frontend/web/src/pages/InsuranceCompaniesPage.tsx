@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import {
   Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControlLabel, IconButton, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Tooltip, Typography
@@ -210,8 +211,46 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn }: {
       subCountByBroker.set(r.parentCompanyId, (subCountByBroker.get(r.parentCompanyId) ?? 0) + 1);
     }
   }
+  // Client-side sort via the right-click header menu. Broker rows keep
+  // their expansion state independent of the sort — we sort in-place then
+  // still filter subs by expanded state.
+  const [sortKey, setSortKey] = useState<keyof CompanyDto | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const sortedRows = useMemo(() => {
+    if (!sortKey) return rows;
+    const arr = rows.slice();
+    arr.sort((a, b) => {
+      const va: any = a[sortKey] ?? "";
+      const vb: any = b[sortKey] ?? "";
+      const cmp = typeof va === "number" && typeof vb === "number"
+        ? va - vb
+        : String(va).localeCompare(String(vb), "el");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [rows, sortKey, sortDir]);
+  const inferType = (key: string): ColumnType =>
+    (key === "params" || key === "rules") ? "number" : "string";
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      const map: Record<string, keyof CompanyDto> = {
+        code: "code", name: "name", agentCode: "agentCode",
+        status: "isActive", params: "parameterItemCount", rules: "commissionDefaultCount",
+      };
+      const dtoKey = map[key];
+      if (!dtoKey) return;
+      setSortKey(dtoKey);
+      setSortDir(dir);
+    },
+  });
+  const rowMenu = useRowContextMenu<CompanyDto>({
+    entityLabel: "ασφαλιστικής",
+    onEdit: onEdit ? (c) => onEdit(c) : undefined,
+    onDelete: onDelete && !readonly ? (c) => { if (confirm("Διαγραφή;")) onDelete(c.id); } : undefined,
+  });
+
   // Filter: sub rows are hidden unless their broker is expanded.
-  const visibleRows = rows.filter(r =>
+  const visibleRows = sortedRows.filter(r =>
     !r.parentCompanyId || expandedBrokerIds.has(r.parentCompanyId)
   );
 
@@ -228,14 +267,26 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn }: {
                 </Tooltip>
               </TableCell>
             )}
-            <TableCell>Κωδικός</TableCell>
-            <TableCell>Όνομα</TableCell>
-            <TableCell>Κωδικός συνεργασίας</TableCell>
+            <TableCell sx={{ userSelect: "none" }}
+              onContextMenu={(e) => headerMenu.open(e, { key: "code", label: "Κωδικός", type: inferType("code"), canHide: false })}
+            >Κωδικός</TableCell>
+            <TableCell sx={{ userSelect: "none" }}
+              onContextMenu={(e) => headerMenu.open(e, { key: "name", label: "Όνομα", type: inferType("name"), canHide: false })}
+            >Όνομα</TableCell>
+            <TableCell sx={{ userSelect: "none" }}
+              onContextMenu={(e) => headerMenu.open(e, { key: "agentCode", label: "Κωδικός συνεργασίας", type: inferType("agentCode"), canHide: false })}
+            >Κωδικός συνεργασίας</TableCell>
             <TableCell>Επικοινωνία</TableCell>
-            <TableCell>Κατάσταση</TableCell>
+            <TableCell sx={{ userSelect: "none" }}
+              onContextMenu={(e) => headerMenu.open(e, { key: "status", label: "Κατάσταση", type: inferType("status"), canHide: false })}
+            >Κατάσταση</TableCell>
             <TableCell>Γέφυρα</TableCell>
-            <TableCell align="right">Παραμετρικά</TableCell>
-            <TableCell align="right">Κανόνες</TableCell>
+            <TableCell align="right" sx={{ userSelect: "none" }}
+              onContextMenu={(e) => headerMenu.open(e, { key: "params", label: "Παραμετρικά", type: inferType("params"), canHide: false })}
+            >Παραμετρικά</TableCell>
+            <TableCell align="right" sx={{ userSelect: "none" }}
+              onContextMenu={(e) => headerMenu.open(e, { key: "rules", label: "Κανόνες", type: inferType("rules"), canHide: false })}
+            >Κανόνες</TableCell>
             <TableCell align="right" />
           </TableRow>
         </TableHead>
@@ -245,6 +296,7 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn }: {
             const expanded = expandedBrokerIds.has(r.id);
             return (
             <TableRow key={r.id} hover
+              onContextMenu={(e) => rowMenu.open(e, r)}
               sx={r.parentCompanyId ? { bgcolor: "rgba(11,37,69,0.02)" } : undefined}>
               <TableCell sx={{ width: 32, p: 0.5 }}>
                 {r.isBroker && subCount > 0 && (
@@ -355,6 +407,8 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn }: {
           })}
         </TableBody>
       </Table>
+      {headerMenu.menu}
+      {rowMenu.menu}
     </Box>
   );
 }

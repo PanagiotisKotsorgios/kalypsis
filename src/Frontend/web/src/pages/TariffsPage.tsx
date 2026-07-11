@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
+import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
@@ -40,6 +41,43 @@ export function TariffsPage() {
     onError: (err) => setError(extractErrorMessage(err))
   });
 
+  // Client-side sort surfaced through the right-click header menu.
+  const [sortKey, setSortKey] = useState<keyof TariffDto | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const sortedRows = useMemo(() => {
+    const rows = q.data ?? [];
+    if (!sortKey) return rows;
+    const arr = rows.slice();
+    arr.sort((a, b) => {
+      const va: any = a[sortKey] ?? "";
+      const vb: any = b[sortKey] ?? "";
+      const cmp = typeof va === "number" && typeof vb === "number"
+        ? va - vb
+        : String(va).localeCompare(String(vb), "el");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [q.data, sortKey, sortDir]);
+  const inferType = (key: string): ColumnType =>
+    (key === "premium" || key === "commission") ? "number" : "string";
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      const map: Record<string, keyof TariffDto> = {
+        name: "name", type: "policyType", company: "insuranceCompanyName",
+        premium: "basePremium", commission: "commissionPercent", status: "isActive",
+      };
+      const dtoKey = map[key];
+      if (!dtoKey) return;
+      setSortKey(dtoKey);
+      setSortDir(dir);
+    },
+  });
+  const rowMenu = useRowContextMenu<TariffDto>({
+    entityLabel: "τιμοκαταλόγου",
+    onEdit: (r) => setEditing(r),
+    onDelete: (r) => { if (confirm(t("common.confirmDelete"))) del.mutate(r.id); },
+  });
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
@@ -60,21 +98,30 @@ export function TariffsPage() {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>{t("tariffs.col.name")}</TableCell>
-                <TableCell>{t("tariffs.col.type")}</TableCell>
-                <TableCell>{t("tariffs.col.company")}</TableCell>
-                <TableCell align="right">{t("tariffs.col.premium")}</TableCell>
-                <TableCell align="right">{t("tariffs.col.commission")}</TableCell>
-                <TableCell>{t("tariffs.col.status")}</TableCell>
+                {[
+                  ["name", t("tariffs.col.name"), "left"],
+                  ["type", t("tariffs.col.type"), "left"],
+                  ["company", t("tariffs.col.company"), "left"],
+                  ["premium", t("tariffs.col.premium"), "right"],
+                  ["commission", t("tariffs.col.commission"), "right"],
+                  ["status", t("tariffs.col.status"), "left"],
+                ].map(([k, label, align]) => (
+                  <TableCell
+                    key={k as string}
+                    align={align as "left" | "right"}
+                    onContextMenu={(e) => headerMenu.open(e, { key: k as string, label: label as string, type: inferType(k as string), canHide: false })}
+                    sx={{ userSelect: "none" }}
+                  >{label}</TableCell>
+                ))}
                 <TableCell align="right" />
               </TableRow>
             </TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
+              {sortedRows.length === 0 && (
                 <TableRow><TableCell colSpan={7} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("tariffs.empty")}</TableCell></TableRow>
               )}
-              {(q.data ?? []).map(r => (
-                <TableRow key={r.id} hover>
+              {sortedRows.map(r => (
+                <TableRow key={r.id} hover onContextMenu={(e) => rowMenu.open(e, r)}>
                   <TableCell><Typography fontWeight={600}>{r.name}</Typography></TableCell>
                   <TableCell>{t(`policyType.${r.policyType}`)}</TableCell>
                   <TableCell>{r.insuranceCompanyName ?? "—"}</TableCell>
@@ -96,6 +143,8 @@ export function TariffsPage() {
         </Card>
       )}
 
+      {headerMenu.menu}
+      {rowMenu.menu}
       <FormDialog open={createOpen} onClose={() => setCreateOpen(false)} item={null}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["tariffs"] }); setCreateOpen(false); }} />
       <FormDialog open={!!editing} onClose={() => setEditing(null)} item={editing}

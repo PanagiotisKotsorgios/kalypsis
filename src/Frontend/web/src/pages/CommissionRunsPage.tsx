@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 import { money } from "../utils/format";
+import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 
 const STATUS_COLOR: Record<string, "default"|"success"|"error"> = { Draft: "default", Finalised: "success", Cancelled: "error" };
 
@@ -88,7 +89,39 @@ export function CommissionRunsPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   useEffect(() => { if (page > totalPages) setPage(1); }, [totalPages, page]);
-  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const [sortKey, setSortKey] = useState<keyof RunDto | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const sortedFiltered = useMemo(() => {
+    if (!sortKey) return filtered;
+    const arr = filtered.slice();
+    arr.sort((a, b) => {
+      const va: any = a[sortKey] ?? "";
+      const vb: any = b[sortKey] ?? "";
+      const cmp = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb), "el");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [filtered, sortKey, sortDir]);
+  const paged = sortedFiltered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const inferType = (key: string): ColumnType =>
+    (key === "lines" || key === "totalPremium" || key === "totalCommission") ? "number" : "string";
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      const map: Record<string, keyof RunDto> = {
+        period: "year", title: "title",
+        lines: "lineCount", totalPremium: "totalPremium", totalCommission: "totalCommission",
+        status: "status",
+      };
+      const dtoKey = map[key];
+      if (!dtoKey) return;
+      setSortKey(dtoKey);
+      setSortDir(dir);
+    },
+  });
+  const rowMenu = useRowContextMenu<RunDto>({
+    entityLabel: "εκκαθάρισης",
+    onDelete: (r) => { if (confirm("Διαγραφή;")) del.mutate(r.id); },
+  });
 
   const totalCommission = filtered.reduce((s, r) => s + r.totalCommission, 0);
   const totalPremium    = filtered.reduce((s, r) => s + r.totalPremium, 0);
@@ -214,13 +247,25 @@ export function CommissionRunsPage() {
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
             <TableHead><TableRow>
-              <TableCell>{t("commissionRuns.period")}</TableCell>
-              <TableCell>{t("commissionRuns.titleCol")}</TableCell>
+              <TableCell sx={{ userSelect: "none" }}
+                onContextMenu={(e) => headerMenu.open(e, { key: "period", label: t("commissionRuns.period"), type: inferType("period"), canHide: false })}
+              >{t("commissionRuns.period")}</TableCell>
+              <TableCell sx={{ userSelect: "none" }}
+                onContextMenu={(e) => headerMenu.open(e, { key: "title", label: t("commissionRuns.titleCol"), type: inferType("title"), canHide: false })}
+              >{t("commissionRuns.titleCol")}</TableCell>
               <TableCell>{t("commissionRuns.filters")}</TableCell>
-              <TableCell align="right">{t("commissionRuns.lines")}</TableCell>
-              <TableCell align="right">{t("commissionRuns.totalPremium")}</TableCell>
-              <TableCell align="right">{t("commissionRuns.totalCommission")}</TableCell>
-              <TableCell>{t("common.status")}</TableCell>
+              <TableCell align="right" sx={{ userSelect: "none" }}
+                onContextMenu={(e) => headerMenu.open(e, { key: "lines", label: t("commissionRuns.lines"), type: inferType("lines"), canHide: false })}
+              >{t("commissionRuns.lines")}</TableCell>
+              <TableCell align="right" sx={{ userSelect: "none" }}
+                onContextMenu={(e) => headerMenu.open(e, { key: "totalPremium", label: t("commissionRuns.totalPremium"), type: inferType("totalPremium"), canHide: false })}
+              >{t("commissionRuns.totalPremium")}</TableCell>
+              <TableCell align="right" sx={{ userSelect: "none" }}
+                onContextMenu={(e) => headerMenu.open(e, { key: "totalCommission", label: t("commissionRuns.totalCommission"), type: inferType("totalCommission"), canHide: false })}
+              >{t("commissionRuns.totalCommission")}</TableCell>
+              <TableCell sx={{ userSelect: "none" }}
+                onContextMenu={(e) => headerMenu.open(e, { key: "status", label: t("common.status"), type: inferType("status"), canHide: false })}
+              >{t("common.status")}</TableCell>
               <TableCell align="right" />
             </TableRow></TableHead>
             <TableBody>
@@ -228,7 +273,7 @@ export function CommissionRunsPage() {
                 <TableRow><TableCell colSpan={8} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("commissionRuns.empty")}</TableCell></TableRow>
               )}
               {paged.map(r => (
-                <TableRow key={r.id} hover>
+                <TableRow key={r.id} hover onContextMenu={(e) => rowMenu.open(e, r)}>
                   <TableCell><Typography fontWeight={700}>{r.year}-{r.month.toString().padStart(2, "0")}</Typography></TableCell>
                   <TableCell>{r.title}</TableCell>
                   <TableCell>
@@ -267,6 +312,8 @@ export function CommissionRunsPage() {
           </Box>
         </Card>
       )}
+      {headerMenu.menu}
+      {rowMenu.menu}
 
       <CreateDialog open={createOpen} onClose={() => setCreateOpen(false)}
         onCreated={(id) => { void qc.invalidateQueries({ queryKey: ["commission-runs"] }); setCreateOpen(false); setDetailId(id); }} />

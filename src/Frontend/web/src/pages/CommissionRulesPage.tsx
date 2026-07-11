@@ -22,6 +22,7 @@ import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import SettingsIcon from "@mui/icons-material/Settings";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
+import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 
 type ProducerTier = "None" | "A" | "B" | "C" | "D" | "E";
 type PolicyType   = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
@@ -203,7 +204,44 @@ export function CommissionRulesPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   useEffect(() => { if (page > totalPages) setPage(1); }, [totalPages, page]);
-  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  // Client-side sort via the right-click header menu — applied BEFORE
+  // paging so sort works across pages, not just within one.
+  const [sortKey, setSortKey] = useState<keyof CommissionRuleDto | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const sortedFiltered = useMemo(() => {
+    if (!sortKey) return filtered;
+    const arr = filtered.slice();
+    arr.sort((a, b) => {
+      const va: any = a[sortKey] ?? "";
+      const vb: any = b[sortKey] ?? "";
+      const cmp = typeof va === "number" && typeof vb === "number"
+        ? va - vb
+        : String(va).localeCompare(String(vb), "el");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [filtered, sortKey, sortDir]);
+  const paged = sortedFiltered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const inferType = (key: string): ColumnType =>
+    (key === "agencyPercent" || key === "producerPercent") ? "number" : "string";
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      const map: Record<string, keyof CommissionRuleDto> = {
+        carrier: "insuranceCompanyName", branch: "policyType", vehicleUse: "vehicleUseCategory",
+        target: "producerName", agencyPercent: "agencyPercent", producerPercent: "producerPercent",
+        cover: "coverCode",
+      };
+      const dtoKey = map[key];
+      if (!dtoKey) return;
+      setSortKey(dtoKey);
+      setSortDir(dir);
+    },
+  });
+  const rowMenu = useRowContextMenu<CommissionRuleDto>({
+    entityLabel: "κανόνα",
+    onEdit: (r) => setEditing(r),
+    onDelete: (r) => { if (confirm("Διαγραφή κανόνα;")) del.mutate(r.id); },
+  });
 
   return (
     <Box>
@@ -349,14 +387,28 @@ export function CommissionRulesPage() {
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
             <TableHead><TableRow>
-              <TableCell>Εταιρία</TableCell>
-              <TableCell>Κλάδος</TableCell>
-              <TableCell>Χρήση</TableCell>
-              <TableCell>Στόχος</TableCell>
-              <TableCell align="right">Προμ. Έδρας %</TableCell>
-              <TableCell align="right">Προμ. Συνεργάτη %</TableCell>
+              <TableCell sx={{ userSelect: "none" }}
+                onContextMenu={(e) => headerMenu.open(e, { key: "carrier", label: "Εταιρία", type: inferType("carrier"), canHide: false })}
+              >Εταιρία</TableCell>
+              <TableCell sx={{ userSelect: "none" }}
+                onContextMenu={(e) => headerMenu.open(e, { key: "branch", label: "Κλάδος", type: inferType("branch"), canHide: false })}
+              >Κλάδος</TableCell>
+              <TableCell sx={{ userSelect: "none" }}
+                onContextMenu={(e) => headerMenu.open(e, { key: "vehicleUse", label: "Χρήση", type: inferType("vehicleUse"), canHide: false })}
+              >Χρήση</TableCell>
+              <TableCell sx={{ userSelect: "none" }}
+                onContextMenu={(e) => headerMenu.open(e, { key: "target", label: "Στόχος", type: inferType("target"), canHide: false })}
+              >Στόχος</TableCell>
+              <TableCell align="right" sx={{ userSelect: "none" }}
+                onContextMenu={(e) => headerMenu.open(e, { key: "agencyPercent", label: "Προμ. Έδρας %", type: inferType("agencyPercent"), canHide: false })}
+              >Προμ. Έδρας %</TableCell>
+              <TableCell align="right" sx={{ userSelect: "none" }}
+                onContextMenu={(e) => headerMenu.open(e, { key: "producerPercent", label: "Προμ. Συνεργάτη %", type: inferType("producerPercent"), canHide: false })}
+              >Προμ. Συνεργάτη %</TableCell>
               <TableCell>Ισχύς</TableCell>
-              <TableCell>Κάλυψη</TableCell>
+              <TableCell sx={{ userSelect: "none" }}
+                onContextMenu={(e) => headerMenu.open(e, { key: "cover", label: "Κάλυψη", type: inferType("cover"), canHide: false })}
+              >Κάλυψη</TableCell>
               <TableCell align="right" />
             </TableRow></TableHead>
             <TableBody>
@@ -368,7 +420,8 @@ export function CommissionRulesPage() {
                 </TableCell></TableRow>
               )}
               {paged.map(r => (
-                <TableRow key={r.id} hover sx={{ cursor: "pointer" }}>
+                <TableRow key={r.id} hover sx={{ cursor: "pointer" }}
+                  onContextMenu={(e) => rowMenu.open(e, r)}>
                   <TableCell>{r.insuranceCompanyName ?? <Chip size="small" label="Όλες" variant="outlined" />}</TableCell>
                   <TableCell>{r.policyType ? TYPE_LABEL[r.policyType] : <Chip size="small" label="Όλοι" variant="outlined" />}</TableCell>
                   <TableCell>
@@ -415,6 +468,8 @@ export function CommissionRulesPage() {
           </Box>
         </Card>
       )}
+      {headerMenu.menu}
+      {rowMenu.menu}
 
       <Dialog open={bulkOpen} onClose={() => setBulkOpen(false)} fullWidth maxWidth="xl">
         <DialogTitle sx={{ fontWeight: 800 }}>Μαζική επεξεργασία προμηθειών</DialogTitle>

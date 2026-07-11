@@ -18,6 +18,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, Legend
 } from "recharts";
+import { useHeaderContextMenu, type ColumnType } from "../components/TableContextMenu";
 
 const REASON_PRESETS = [
   "Είσπραξη ασφαλίστρου", "Πληρωμή προμήθειας συνεργάτη",
@@ -90,8 +91,35 @@ export function CashPositionPage() {
   }, [filteredMovements]);
 
   const totalPages  = Math.max(1, Math.ceil(filteredMovements.length / PAGE_SIZE));
-  const pagedMovements = filteredMovements.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const [sortKey, setSortKey] = useState<keyof MovementDto | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const sortedMovements = useMemo(() => {
+    if (!sortKey) return filteredMovements;
+    const arr = filteredMovements.slice();
+    arr.sort((a, b) => {
+      const va: any = a[sortKey] ?? "";
+      const vb: any = b[sortKey] ?? "";
+      const cmp = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb), "el");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [filteredMovements, sortKey, sortDir]);
+  const pagedMovements = sortedMovements.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   useEffect(() => { if (page > totalPages) setPage(1); }, [totalPages, page]);
+  const inferType = (key: string): ColumnType =>
+    key === "movementDate" ? "date" : key === "amount" ? "number" : "string";
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      const map: Record<string, keyof MovementDto> = {
+        movementDate: "movementDate", account: "cashAccountName",
+        direction: "direction", reason: "reason", reference: "reference", amount: "amount",
+      };
+      const dtoKey = map[key];
+      if (!dtoKey) return;
+      setSortKey(dtoKey);
+      setSortDir(dir);
+    },
+  });
 
   return (
     <Box>
@@ -216,12 +244,24 @@ export function CashPositionPage() {
       <Card variant="outlined" sx={{ overflowX: "auto" }}>
         <Table size="small">
           <TableHead><TableRow>
-            <TableCell>{t("cash.movementDate")}</TableCell>
-            <TableCell>{t("cash.account")}</TableCell>
-            <TableCell>{t("cash.direction")}</TableCell>
-            <TableCell>{t("cash.reason")}</TableCell>
-            <TableCell>{t("cash.reference")}</TableCell>
-            <TableCell align="right">{t("cash.amount")}</TableCell>
+            <TableCell sx={{ userSelect: "none" }}
+              onContextMenu={(e) => headerMenu.open(e, { key: "movementDate", label: t("cash.movementDate"), type: inferType("movementDate"), canHide: false })}
+            >{t("cash.movementDate")}</TableCell>
+            <TableCell sx={{ userSelect: "none" }}
+              onContextMenu={(e) => headerMenu.open(e, { key: "account", label: t("cash.account"), type: inferType("account"), canHide: false })}
+            >{t("cash.account")}</TableCell>
+            <TableCell sx={{ userSelect: "none" }}
+              onContextMenu={(e) => headerMenu.open(e, { key: "direction", label: t("cash.direction"), type: inferType("direction"), canHide: false })}
+            >{t("cash.direction")}</TableCell>
+            <TableCell sx={{ userSelect: "none" }}
+              onContextMenu={(e) => headerMenu.open(e, { key: "reason", label: t("cash.reason"), type: inferType("reason"), canHide: false })}
+            >{t("cash.reason")}</TableCell>
+            <TableCell sx={{ userSelect: "none" }}
+              onContextMenu={(e) => headerMenu.open(e, { key: "reference", label: t("cash.reference"), type: inferType("reference"), canHide: false })}
+            >{t("cash.reference")}</TableCell>
+            <TableCell align="right" sx={{ userSelect: "none" }}
+              onContextMenu={(e) => headerMenu.open(e, { key: "amount", label: t("cash.amount"), type: inferType("amount"), canHide: false })}
+            >{t("cash.amount")}</TableCell>
           </TableRow></TableHead>
           <TableBody>
             {movements.isLoading && <TableRow><TableCell colSpan={6} align="center"><CircularProgress size={20} /></TableCell></TableRow>}
@@ -247,6 +287,7 @@ export function CashPositionPage() {
           <NumberedPager page={page} totalPages={totalPages} onPage={setPage} />
         </Box>
       </Card>
+      {headerMenu.menu}
 
       <AccountDialog open={newAccountOpen} onClose={() => setNewAccountOpen(false)}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["cash-accounts"] }); setNewAccountOpen(false); }} />

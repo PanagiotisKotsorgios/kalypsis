@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import {
   Alert, Box, Button, Card, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
@@ -36,6 +37,39 @@ export function ClaimProvisionsPage() {
   const totalReserve = (q.data ?? []).reduce((s, p) => s + p.reserveAmount, 0);
   const totalIbnr = (q.data ?? []).reduce((s, p) => s + (p.incurredButNotReported ?? 0), 0);
 
+  const [sortKey, setSortKey] = useState<keyof ProvisionDto | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const sortedRows = useMemo(() => {
+    const rows = q.data ?? [];
+    if (!sortKey) return rows;
+    const arr = rows.slice();
+    arr.sort((a, b) => {
+      const va: any = a[sortKey] ?? "";
+      const vb: any = b[sortKey] ?? "";
+      const cmp = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb), "el");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [q.data, sortKey, sortDir]);
+  const inferType = (key: string): ColumnType =>
+    key === "evaluationDate" ? "date" : (key === "reserve" || key === "ibnr") ? "number" : "string";
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      const map: Record<string, keyof ProvisionDto> = {
+        claim: "claimNumber", evaluationDate: "evaluationDate",
+        assessor: "assessorName", reserve: "reserveAmount", ibnr: "incurredButNotReported",
+      };
+      const dtoKey = map[key];
+      if (!dtoKey) return;
+      setSortKey(dtoKey);
+      setSortDir(dir);
+    },
+  });
+  const rowMenu = useRowContextMenu<ProvisionDto>({
+    entityLabel: "εκτίμησης",
+    onDelete: (p) => { if (confirm(t("common.confirmDelete"))) del.mutate(p.id); },
+  });
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
@@ -64,19 +98,25 @@ export function ClaimProvisionsPage() {
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
             <TableHead><TableRow>
-              <TableCell>{t("provisions.claim")}</TableCell>
-              <TableCell>{t("provisions.evaluationDate")}</TableCell>
-              <TableCell>{t("provisions.assessor")}</TableCell>
-              <TableCell align="right">{t("provisions.reserve")}</TableCell>
-              <TableCell align="right">IBNR</TableCell>
+              {[
+                ["claim", t("provisions.claim"), "left"],
+                ["evaluationDate", t("provisions.evaluationDate"), "left"],
+                ["assessor", t("provisions.assessor"), "left"],
+                ["reserve", t("provisions.reserve"), "right"],
+                ["ibnr", "IBNR", "right"],
+              ].map(([k, label, align]) => (
+                <TableCell key={k as string} align={align as "left" | "right"} sx={{ userSelect: "none" }}
+                  onContextMenu={(e) => headerMenu.open(e, { key: k as string, label: label as string, type: inferType(k as string), canHide: false })}
+                >{label}</TableCell>
+              ))}
               <TableCell align="right" />
             </TableRow></TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
+              {sortedRows.length === 0 && (
                 <TableRow><TableCell colSpan={6} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("provisions.empty")}</TableCell></TableRow>
               )}
-              {(q.data ?? []).map(p => (
-                <TableRow key={p.id} hover>
+              {sortedRows.map(p => (
+                <TableRow key={p.id} hover onContextMenu={(e) => rowMenu.open(e, p)}>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{p.claimNumber}</TableCell>
                   <TableCell>{p.evaluationDate}</TableCell>
                   <TableCell>{p.assessorName ?? "—"}</TableCell>
@@ -93,6 +133,8 @@ export function ClaimProvisionsPage() {
           </Table>
         </Card>
       )}
+      {headerMenu.menu}
+      {rowMenu.menu}
       <CreateDialog open={createOpen} onClose={() => setCreateOpen(false)}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["provisions"] }); setCreateOpen(false); }} />
     </Box>

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
@@ -41,6 +42,40 @@ export function CoverNotesPage() {
 
   const colors: Record<Status, "info" | "success" | "warning" | "default"> = { Active: "info", Converted: "success", Expired: "warning", Cancelled: "default" };
 
+  const [sortKey, setSortKey] = useState<keyof CoverNoteDto | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const sortedRows = useMemo(() => {
+    const rows = q.data ?? [];
+    if (!sortKey) return rows;
+    const arr = rows.slice();
+    arr.sort((a, b) => {
+      const va: any = a[sortKey] ?? "";
+      const vb: any = b[sortKey] ?? "";
+      const cmp = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb), "el");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [q.data, sortKey, sortDir]);
+  const inferType = (key: string): ColumnType =>
+    key === "validity" ? "date" : key === "premium" ? "number" : "string";
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      const map: Record<string, keyof CoverNoteDto> = {
+        number: "number", customer: "customerName", type: "policyType",
+        validity: "validFrom", premium: "estimatedPremium", status: "status",
+      };
+      const dtoKey = map[key];
+      if (!dtoKey) return;
+      setSortKey(dtoKey);
+      setSortDir(dir);
+    },
+  });
+  const rowMenu = useRowContextMenu<CoverNoteDto>({
+    entityLabel: "cover note",
+    onEdit: (n) => setEditing(n),
+    onDelete: (n) => { if (confirm(t("common.confirmDelete"))) del.mutate(n.id); },
+  });
+
   const printNote = (n: CoverNoteDto) => {
     const w = window.open("", "_blank", "width=700,height=900");
     if (!w) return;
@@ -73,20 +108,27 @@ export function CoverNotesPage() {
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
             <TableHead><TableRow>
-              <TableCell>{t("coverNotes.number")}</TableCell>
-              <TableCell>{t("coverNotes.customer")}</TableCell>
-              <TableCell>{t("coverNotes.type")}</TableCell>
-              <TableCell>{t("coverNotes.validity")}</TableCell>
-              <TableCell align="right">{t("coverNotes.premium")}</TableCell>
-              <TableCell>{t("common.status")}</TableCell>
+              {[
+                ["number", t("coverNotes.number"), "left"],
+                ["customer", t("coverNotes.customer"), "left"],
+                ["type", t("coverNotes.type"), "left"],
+                ["validity", t("coverNotes.validity"), "left"],
+                ["premium", t("coverNotes.premium"), "right"],
+                ["status", t("common.status"), "left"],
+              ].map(([k, label, align]) => (
+                <TableCell key={k as string} align={align as "left" | "right"}
+                  sx={{ userSelect: "none" }}
+                  onContextMenu={(e) => headerMenu.open(e, { key: k as string, label: label as string, type: inferType(k as string), canHide: false })}
+                >{label}</TableCell>
+              ))}
               <TableCell align="right" />
             </TableRow></TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
+              {sortedRows.length === 0 && (
                 <TableRow><TableCell colSpan={7} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("coverNotes.empty")}</TableCell></TableRow>
               )}
-              {(q.data ?? []).map(n => (
-                <TableRow key={n.id} hover>
+              {sortedRows.map(n => (
+                <TableRow key={n.id} hover onContextMenu={(e) => rowMenu.open(e, n)}>
                   <TableCell><Typography fontWeight={700}>{n.number}</Typography></TableCell>
                   <TableCell>{n.customerName}</TableCell>
                   <TableCell>{t(`policyType.${n.policyType}`)}</TableCell>
@@ -106,6 +148,8 @@ export function CoverNotesPage() {
           </Table>
         </Card>
       )}
+      {headerMenu.menu}
+      {rowMenu.menu}
 
       <FormDialog open={createOpen} onClose={() => setCreateOpen(false)} item={null}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["cover-notes"] }); setCreateOpen(false); }} />

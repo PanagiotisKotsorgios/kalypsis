@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useHeaderContextMenu, type ColumnType } from "../components/TableContextMenu";
 import {
   Alert,
   Box,
@@ -315,22 +316,62 @@ function RuleTable({ rows, onExplain }: {
   rows: RuleReconciliationDto[];
   onExplain: (r: RuleReconciliationDto) => void;
 }) {
+  const [sortKey, setSortKey] = useState<keyof RuleReconciliationDto | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const sortedRows = useMemo(() => {
+    if (!sortKey) return rows;
+    const arr = rows.slice();
+    arr.sort((a, b) => {
+      const va: any = a[sortKey] ?? "";
+      const vb: any = b[sortKey] ?? "";
+      const cmp = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb), "el");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [rows, sortKey, sortDir]);
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      const map: Record<string, keyof RuleReconciliationDto> = {
+        producer: "producerName", pct: "configuredPercent",
+        declared: "producerDeclaredTotal", office: "agencyExpectedTotal",
+        diff: "differenceAmount", status: "status",
+      };
+      const dtoKey = map[key];
+      if (!dtoKey) return;
+      setSortKey(dtoKey);
+      setSortDir(dir);
+    },
+  });
+  const inferType = (key: string): ColumnType =>
+    (key === "pct" || key === "declared" || key === "office" || key === "diff") ? "number" : "string";
   return (
     <Table size="small">
       <TableHead>
         <TableRow>
-          <TableCell>Συνεργάτης</TableCell>
+          <TableCell sx={{ userSelect: "none" }}
+            onContextMenu={(e) => headerMenu.open(e, { key: "producer", label: "Συνεργάτης", type: inferType("producer"), canHide: false })}
+          >Συνεργάτης</TableCell>
           <TableCell>Παραμετροποίηση</TableCell>
-          <TableCell align="right">Ρυθμιστ. %</TableCell>
-          <TableCell align="right">Δηλωμένο (συν.)</TableCell>
-          <TableCell align="right">Γραφείο (συν.)</TableCell>
-          <TableCell align="right">Διαφορά</TableCell>
-          <TableCell>Κατάσταση</TableCell>
+          <TableCell align="right" sx={{ userSelect: "none" }}
+            onContextMenu={(e) => headerMenu.open(e, { key: "pct", label: "Ρυθμιστ. %", type: inferType("pct"), canHide: false })}
+          >Ρυθμιστ. %</TableCell>
+          <TableCell align="right" sx={{ userSelect: "none" }}
+            onContextMenu={(e) => headerMenu.open(e, { key: "declared", label: "Δηλωμένο (συν.)", type: inferType("declared"), canHide: false })}
+          >Δηλωμένο (συν.)</TableCell>
+          <TableCell align="right" sx={{ userSelect: "none" }}
+            onContextMenu={(e) => headerMenu.open(e, { key: "office", label: "Γραφείο (συν.)", type: inferType("office"), canHide: false })}
+          >Γραφείο (συν.)</TableCell>
+          <TableCell align="right" sx={{ userSelect: "none" }}
+            onContextMenu={(e) => headerMenu.open(e, { key: "diff", label: "Διαφορά", type: inferType("diff"), canHide: false })}
+          >Διαφορά</TableCell>
+          <TableCell sx={{ userSelect: "none" }}
+            onContextMenu={(e) => headerMenu.open(e, { key: "status", label: "Κατάσταση", type: inferType("status"), canHide: false })}
+          >Κατάσταση</TableCell>
           <TableCell align="center">Επεξήγηση</TableCell>
         </TableRow>
       </TableHead>
       <TableBody>
-        {rows.map(r => {
+        {sortedRows.map(r => {
           const statusKey = r.status;
           const color = STATUS_COLOR[statusKey] ?? "default";
           return (
@@ -377,22 +418,57 @@ function ContractTable({ rows, onExplain }: {
   rows: ProducerDeclarationDto[];
   onExplain: (r: ProducerDeclarationDto) => void;
 }) {
+  const [sortKey, setSortKey] = useState<keyof ProducerDeclarationDto | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const sortedRows = useMemo(() => {
+    if (!sortKey) return rows;
+    const arr = rows.slice();
+    arr.sort((a, b) => {
+      const va: any = a[sortKey] ?? "";
+      const vb: any = b[sortKey] ?? "";
+      const cmp = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb), "el");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [rows, sortKey, sortDir]);
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      const map: Record<string, keyof ProducerDeclarationDto> = {
+        date: "declaredAt", producer: "producerName", policy: "policyNumber",
+        declared: "expectedAmount", office: "recordedAmount",
+      };
+      const dtoKey = map[key];
+      if (!dtoKey) return;
+      setSortKey(dtoKey);
+      setSortDir(dir);
+    },
+  });
   return (
     <Table size="small">
       <TableHead>
         <TableRow>
-          <TableCell>Ημ/νία</TableCell>
-          <TableCell>Συνεργάτης</TableCell>
-          <TableCell>Συμβόλαιο</TableCell>
-          <TableCell align="right">Δηλωμένο (συνεργάτης)</TableCell>
-          <TableCell align="right">Παραμετροποίηση (γραφείο)</TableCell>
+          <TableCell sx={{ userSelect: "none" }}
+            onContextMenu={(e) => headerMenu.open(e, { key: "date", label: "Ημ/νία", type: "date", canHide: false })}
+          >Ημ/νία</TableCell>
+          <TableCell sx={{ userSelect: "none" }}
+            onContextMenu={(e) => headerMenu.open(e, { key: "producer", label: "Συνεργάτης", type: "string", canHide: false })}
+          >Συνεργάτης</TableCell>
+          <TableCell sx={{ userSelect: "none" }}
+            onContextMenu={(e) => headerMenu.open(e, { key: "policy", label: "Συμβόλαιο", type: "string", canHide: false })}
+          >Συμβόλαιο</TableCell>
+          <TableCell align="right" sx={{ userSelect: "none" }}
+            onContextMenu={(e) => headerMenu.open(e, { key: "declared", label: "Δηλωμένο", type: "number", canHide: false })}
+          >Δηλωμένο (συνεργάτης)</TableCell>
+          <TableCell align="right" sx={{ userSelect: "none" }}
+            onContextMenu={(e) => headerMenu.open(e, { key: "office", label: "Γραφείο", type: "number", canHide: false })}
+          >Παραμετροποίηση (γραφείο)</TableCell>
           <TableCell align="right">Διαφορά</TableCell>
           <TableCell>Κατάσταση</TableCell>
           <TableCell align="center">Επεξήγηση</TableCell>
         </TableRow>
       </TableHead>
       <TableBody>
-        {rows.map(r => {
+        {sortedRows.map(r => {
           const statusKey = r.reconciliationStatus in STATUS_LABEL ? r.reconciliationStatus : "missing";
           const color = STATUS_COLOR[statusKey] ?? "default";
           return (

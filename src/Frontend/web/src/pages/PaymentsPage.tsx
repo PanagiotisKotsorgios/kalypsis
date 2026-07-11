@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
@@ -16,6 +16,7 @@ import { SearchableTextField } from "../components/SearchableTextField";
 import { money, date } from "../utils/format";
 import { useColumnPreferences } from "../hooks/useColumnPreferences";
 import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
+import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 
 const METHODS = ["Cash","Card","BankTransfer","Cheque","PromissoryNote","Other"] as const;
 type Method = typeof METHODS[number];
@@ -93,6 +94,43 @@ export function PaymentsPage() {
   ]);
   const cashOutTotal = filteredRows.reduce((s, p) => s + (p.amount - p.commissionsNetted), 0);
 
+  // Right-click sort + hide. Client-side against the already-filtered rows.
+  const [sortKey, setSortKey] = useState<keyof PaymentDto | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const sortedRows = useMemo(() => {
+    if (!sortKey) return filteredRows;
+    const arr = filteredRows.slice();
+    arr.sort((a, b) => {
+      const va: any = a[sortKey] ?? "";
+      const vb: any = b[sortKey] ?? "";
+      const cmp = typeof va === "number" && typeof vb === "number"
+        ? va - vb
+        : String(va).localeCompare(String(vb), "el");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [filteredRows, sortKey, sortDir]);
+  const inferType = (key: string): ColumnType =>
+    key === "date" ? "date" : (key === "amount" || key === "netted") ? "number" : "string";
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      const map: Record<string, keyof PaymentDto> = {
+        number: "number", date: "paidOn", beneficiary: "beneficiaryName",
+        method: "method", policy: "policyNumber", txRef: "transactionReference",
+        amount: "amount", netted: "commissionsNetted",
+      };
+      const dtoKey = map[key];
+      if (!dtoKey) return;
+      setSortKey(dtoKey);
+      setSortDir(dir);
+    },
+    onHide: (key) => paymentCols.toggleVisibility(key),
+  });
+  const rowMenu = useRowContextMenu<PaymentDto>({
+    entityLabel: "πληρωμής",
+    onDelete: (p) => { if (confirm(t("common.confirmDelete"))) del.mutate(p.id); },
+  });
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
@@ -153,7 +191,12 @@ export function PaymentsPage() {
           <Table size="small">
             <TableHead><TableRow>
               {paymentCols.visibleColumns.map(c => (
-                <TableCell key={c.key} align={c.key === "amount" || c.key === "netted" ? "right" : "left"}>
+                <TableCell
+                  key={c.key}
+                  align={c.key === "amount" || c.key === "netted" ? "right" : "left"}
+                  onContextMenu={(e) => headerMenu.open(e, { key: c.key, label: c.label, type: inferType(c.key), canHide: !c.alwaysVisible })}
+                  sx={{ userSelect: "none" }}
+                >
                   {c.label}
                 </TableCell>
               ))}
@@ -168,14 +211,14 @@ export function PaymentsPage() {
               </TableCell>
             </TableRow></TableHead>
             <TableBody>
-              {filteredRows.length === 0 && (
+              {sortedRows.length === 0 && (
                 <TableRow><TableCell colSpan={paymentCols.visibleColumns.length + 1} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("payments.empty")}</TableCell></TableRow>
               )}
-              {filteredRows.map(p => {
+              {sortedRows.map(p => {
                 const cashOut = p.amount - p.commissionsNetted;
                 const fullyNetted = p.amount > 0 && p.commissionsNetted >= p.amount;
                 return (
-                <TableRow key={p.id} hover>
+                <TableRow key={p.id} hover onContextMenu={(e) => rowMenu.open(e, p)}>
                   {paymentCols.visibleColumns.map(c => {
                     switch (c.key) {
                       case "number":
@@ -223,6 +266,8 @@ export function PaymentsPage() {
           </Table>
         </Card>
       )}
+      {headerMenu.menu}
+      {rowMenu.menu}
       <FormDialog open={createOpen} onClose={() => setCreateOpen(false)}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["payments"] }); setCreateOpen(false); }} />
     </Box>

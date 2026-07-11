@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   Divider, IconButton, LinearProgress, MenuItem, Paper, Stack, Switch, Tab, Table, TableBody, TableCell, TableHead,
@@ -171,6 +172,41 @@ function RecordsTab() {
     Pending: "default", InTransit: "info", Delivered: "success", Failed: "error"
   };
 
+  const [sortKey, setSortKey] = useState<keyof DeliveryDto | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const sortedRows = useMemo(() => {
+    const rows = q.data ?? [];
+    if (!sortKey) return rows;
+    const arr = rows.slice();
+    arr.sort((a, b) => {
+      const va: any = a[sortKey] ?? "";
+      const vb: any = b[sortKey] ?? "";
+      const cmp = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb), "el");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [q.data, sortKey, sortDir]);
+  const inferType = (key: string): ColumnType =>
+    (key === "dispatched" || key === "delivered" || key === "acknowledged") ? "date" : "string";
+  const headerMenu = useHeaderContextMenu({
+    onSort: (key, dir) => {
+      const map: Record<string, keyof DeliveryDto> = {
+        policy: "policyNumber", channel: "channel", dispatched: "dispatchedAt",
+        delivered: "deliveredAt", acknowledged: "acknowledgedAt", reference: "reference",
+        status: "status",
+      };
+      const dtoKey = map[key];
+      if (!dtoKey) return;
+      setSortKey(dtoKey);
+      setSortDir(dir);
+    },
+  });
+  const rowMenu = useRowContextMenu<DeliveryDto>({
+    entityLabel: "παράδοσης",
+    onEdit: (d) => setEditing(d),
+    onDelete: (d) => { if (confirm(t("common.confirmDelete"))) del.mutate(d.id); },
+  });
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2} flexWrap="wrap" gap={2}>
@@ -189,26 +225,32 @@ function RecordsTab() {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>{t("delivery.policy")}</TableCell>
-                <TableCell>{t("delivery.channel")}</TableCell>
-                <TableCell>{t("delivery.dispatched")}</TableCell>
-                <TableCell>{t("delivery.delivered")}</TableCell>
-                <TableCell>{t("delivery.acknowledged")}</TableCell>
-                <TableCell>{t("delivery.reference")}</TableCell>
-                <TableCell>{t("common.status")}</TableCell>
+                {[
+                  ["policy", t("delivery.policy")],
+                  ["channel", t("delivery.channel")],
+                  ["dispatched", t("delivery.dispatched")],
+                  ["delivered", t("delivery.delivered")],
+                  ["acknowledged", t("delivery.acknowledged")],
+                  ["reference", t("delivery.reference")],
+                  ["status", t("common.status")],
+                ].map(([k, label]) => (
+                  <TableCell key={k as string} sx={{ userSelect: "none" }}
+                    onContextMenu={(e) => headerMenu.open(e, { key: k as string, label: label as string, type: inferType(k as string), canHide: false })}
+                  >{label}</TableCell>
+                ))}
                 <TableCell align="right" />
               </TableRow>
             </TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
+              {sortedRows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} align="center" sx={{ color: "text.secondary", py: 4 }}>
                     {t("delivery.empty")}
                   </TableCell>
                 </TableRow>
               )}
-              {(q.data ?? []).map(d => (
-                <TableRow key={d.id} hover>
+              {sortedRows.map(d => (
+                <TableRow key={d.id} hover onContextMenu={(e) => rowMenu.open(e, d)}>
                   <TableCell><Typography fontWeight={700} sx={{ fontFamily: "monospace" }}>{d.policyNumber}</Typography></TableCell>
                   <TableCell>{t(`delivery.channelLabel.${d.channel}`, d.channel)}</TableCell>
                   <TableCell>{d.dispatchedAt ? date(d.dispatchedAt) : "—"}</TableCell>
@@ -232,6 +274,8 @@ function RecordsTab() {
           </Table>
         </Card>
       )}
+      {headerMenu.menu}
+      {rowMenu.menu}
       <RecordFormDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
