@@ -365,13 +365,19 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             .Where(x => x.TenantId == tenantId && x.DeletedAt == null)
             .ToListAsync(ct);
         var todayForParams = DateOnly.FromDateTime(DateTime.UtcNow);
-        var agencyParams = string.IsNullOrEmpty(carrier.Code) ? new List<CompanyParameterItem>()
-            : await _db.CompanyParameterItems.IgnoreQueryFilters()
-                .Include(p => p.InsuranceCompany)
-                .Where(p => p.DeletedAt == null && p.IsActive && p.InsuranceCompany.Code == carrier.Code
-                    && (!p.EffectiveFrom.HasValue || p.EffectiveFrom <= todayForParams)
-                    && (!p.EffectiveTo.HasValue || p.EffectiveTo >= todayForParams))
-                .ToListAsync(ct);
+        // "Already-known" catalog for the resolver — ONLY the office's own
+        // parametrics. Was filtered by carrier.Code, which folded in the
+        // Kalypsis-global ERGO seed (~450 rows) as if the office had authored
+        // them; every ERGO cover then showed as "already known" and never
+        // surfaced in the Απαιτούμενες αντιστοιχίσεις panel, so the operator
+        // never saw Α1001 / Α1002 / etc. and had no way to link them.
+        var agencyParams = await _db.CompanyParameterItems.IgnoreQueryFilters()
+            .Include(p => p.InsuranceCompany)
+            .Where(p => p.DeletedAt == null && p.IsActive
+                && p.InsuranceCompany.TenantId == tenantId
+                && (!p.EffectiveFrom.HasValue || p.EffectiveFrom <= todayForParams)
+                && (!p.EffectiveTo.HasValue || p.EffectiveTo >= todayForParams))
+            .ToListAsync(ct);
         var agencyProducers = await _db.Producers.IgnoreQueryFilters()
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null)
             .ToListAsync(ct);
@@ -2083,18 +2089,16 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 && (x.EffectiveTo == null || x.EffectiveTo >= today)
                 && (!x.InsuranceCompanyId.HasValue || x.InsuranceCompanyId == carrierId))
             .ToListAsync(ct);
-        var carrierCode = await _db.InsuranceCompanies.IgnoreQueryFilters()
-            .Where(c => c.Id == carrierId && c.DeletedAt == null)
-            .Select(c => c.Code)
-            .FirstOrDefaultAsync(ct);
-        var companyParams = string.IsNullOrWhiteSpace(carrierCode)
-            ? new List<CompanyParameterItem>()
-            : await _db.CompanyParameterItems.IgnoreQueryFilters()
-                .Include(p => p.InsuranceCompany)
-                .Where(p => p.DeletedAt == null && p.IsActive && p.InsuranceCompany.Code == carrierCode
-                    && (!p.EffectiveFrom.HasValue || p.EffectiveFrom <= today)
-                    && (!p.EffectiveTo.HasValue || p.EffectiveTo >= today))
-                .ToListAsync(ct);
+        // Same code-vs-tenant fix as the mapping-resolver pass above — scope
+        // parametrics strictly to the office's own catalogue so ApplyDiffs
+        // doesn't quietly consult Kalypsis-global rows.
+        var companyParams = await _db.CompanyParameterItems.IgnoreQueryFilters()
+            .Include(p => p.InsuranceCompany)
+            .Where(p => p.DeletedAt == null && p.IsActive
+                && p.InsuranceCompany.TenantId == tenantId
+                && (!p.EffectiveFrom.HasValue || p.EffectiveFrom <= today)
+                && (!p.EffectiveTo.HasValue || p.EffectiveTo >= today))
+            .ToListAsync(ct);
         var configuredBranches = companyParams
             .Where(p => p.Kind == CompanyParameterItemKind.Branch && p.PolicyType.HasValue)
             .Select(p => p.PolicyType!.Value)
