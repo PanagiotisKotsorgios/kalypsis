@@ -204,7 +204,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
     // Also enabled on the Οικονομικά tab (index 1) so its summary card can
     // show the parametrization-computed producer / agency totals alongside
     // the bridge-supplied premiums.
-    enabled: open && (tab === 1 || tab === 14) && !!policyId,
+    enabled: open && tab === 1 && !!policyId,
     queryFn: async () => (await api.get<PolicyCommissionMatrix>(`/policies/${policyId}/commission-splits`)).data
   });
 
@@ -376,7 +376,9 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
           <Tab label="Δόσεις" />
           <Tab label="Ιστορικό" />
           <Tab label="Επικοινωνία" />
-          <Tab label="Προμήθειες" />
+          {/* "Προμήθειες" tab removed — the commission matrix now lives at
+              the bottom of the Οικονομικά tab so the operator has fewer
+              tabs to scan through. */}
         </Tabs>
 
         {/* Scrollable content */}
@@ -469,7 +471,6 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                     matrix={commissionMatrix.data}
                     matrixLoading={commissionMatrix.isLoading}
                     onCompute={() => commissionMatrix.refetch()}
-                    onOpenFullMatrix={() => setTab(14)}
                   />
 
                   <KV label={t("policyDetail.premium")} value={`${p.premium.toFixed(2)} ${p.currency}`} />
@@ -509,6 +510,29 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                   <KV label={t("policyDetail.totalReceived")} value={`${p.totalReceived.toFixed(2)} ${p.currency}`} />
                   <KV label={t("policyDetail.outstanding")} value={`${p.outstanding.toFixed(2)} ${p.currency}`} />
                   <KV label={t("policyDetail.totalCommissions")} value={`${p.totalCommissions.toFixed(2)} ${p.currency}`} />
+
+                  {/* ---------- Πίνακας προμηθειών (πρώην tab «Προμήθειες») ---------- */}
+                  {/* Full ALIS-style matrix — one row per hierarchy level
+                      (Producer / Manager / Unit / Assistant / Agency) with
+                      %, €, tax-withholding and net columns plus a totals
+                      footer. Was on its own tab; folded into Οικονομικά so
+                      the operator has one place for every money-related
+                      field. Overrides are edited via specialLevelPercentsJson
+                      and persist through the same save handler as the rest
+                      of the tab. */}
+                  <Divider sx={{ my: 1 }} />
+                  <Typography variant="overline" color="text.secondary" fontWeight={700}>
+                    Πίνακας προμηθειών
+                  </Typography>
+                  <PolicyCommissionMatrixTab
+                    loading={commissionMatrix.isLoading}
+                    matrix={commissionMatrix.data}
+                    currency={p.currency}
+                    overrideJson={form.specialLevelPercentsJson}
+                    onOverrideChange={(next) => setForm({ ...form, specialLevelPercentsJson: next })}
+                    onSave={() => save.mutate()}
+                    saving={save.isPending}
+                  />
                 </Stack>
               )}
 
@@ -629,17 +653,9 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                   onSaved={() => void qc.invalidateQueries({ queryKey: ["policy-communications", p.id] })}
                 />
               )}
-              {tab === 14 && (
-                <PolicyCommissionMatrixTab
-                  loading={commissionMatrix.isLoading}
-                  matrix={commissionMatrix.data}
-                  currency={p.currency}
-                  overrideJson={form.specialLevelPercentsJson}
-                  onOverrideChange={(next) => setForm({ ...form, specialLevelPercentsJson: next })}
-                  onSave={() => save.mutate()}
-                  saving={save.isPending}
-                />
-              )}
+              {/* The former Προμήθειες tab (index 14) is now inline at the
+                  bottom of the Οικονομικά tab (index 1). Nothing renders
+                  here anymore — the tab is gone from the Tabs list too. */}
             </>
           )}
         </Box>
@@ -2007,7 +2023,7 @@ const LEVEL_LABEL: Record<string, string> = {
  *     από παραμετροποίηση". A footer button jumps to the full commission
  *     matrix tab (index 14) for editing.
  */
-function BridgeVsParametrizationCard({ policy, matrix, matrixLoading, onCompute, onOpenFullMatrix }: {
+function BridgeVsParametrizationCard({ policy, matrix, matrixLoading, onCompute }: {
   policy: {
     premium: number;
     netPremium: number | null;
@@ -2017,7 +2033,6 @@ function BridgeVsParametrizationCard({ policy, matrix, matrixLoading, onCompute,
   matrix: PolicyCommissionMatrix | undefined;
   matrixLoading: boolean;
   onCompute: () => void;
-  onOpenFullMatrix: () => void;
 }) {
   const fmt = (n: number) => `${n.toFixed(2)} ${policy.currency}`;
   // Split matrix rows into "agency" (office cut) and "producer" (per-tier
@@ -2086,9 +2101,8 @@ function BridgeVsParametrizationCard({ policy, matrix, matrixLoading, onCompute,
       {hasMatrix && (
         <Stack direction="row" spacing={1} mt={2} justifyContent="flex-end">
           <Button size="small" onClick={onCompute}>Επανυπολογισμός</Button>
-          <Button size="small" variant="outlined" onClick={onOpenFullMatrix}>
-            Άνοιγμα πλήρους πίνακα προμηθειών
-          </Button>
+          {/* The full matrix now sits directly below on the same tab — no
+              need for a jump button. */}
         </Stack>
       )}
     </Box>
