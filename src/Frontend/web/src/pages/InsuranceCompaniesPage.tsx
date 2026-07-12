@@ -66,22 +66,9 @@ export function InsuranceCompaniesPage() {
     onError: (e) => setError(extractErrorMessage(e))
   });
 
-  // Toggle the tenant's opt-in for a universal (Kalypsis-managed) carrier.
-  // Invalidates every other "insurance-companies*" query so filters elsewhere
-  // (γέφυρες dropdowns, policy pickers) pick up the change without a hard
-  // reload.
-  const toggleOptIn = useMutation({
-    mutationFn: async (args: { id: string; enable: boolean }) =>
-      args.enable
-        ? api.post(`/insurance-companies/${args.id}/opt-in`)
-        : api.delete(`/insurance-companies/${args.id}/opt-in`),
-    onSuccess: () => {
-      void qc.invalidateQueries({ predicate: (q) =>
-        typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("insurance-companies") });
-    },
-    onError: (e) => setError(extractErrorMessage(e))
-  });
-
+  // Opt-in toggle removed with the "Καθολικός κατάλογος" section — tenant-
+  // owned carriers are implicitly used, so there's nothing for the operator
+  // to tick.
 
   // "Δικές μου ασφαλιστικές" lists tenant-owned rows + universal rows the
   // tenant has opted-in to. The catalog section below keeps showing the FULL
@@ -185,7 +172,7 @@ export function InsuranceCompaniesPage() {
             ) : (
               <CompanyTable rows={ownRows} onEdit={setEditing} onDelete={(id) => {
                 if (confirm("Διαγραφή ασφαλιστικής;")) del.mutate(id);
-              }} onToggleOptIn={(id, enable) => toggleOptIn.mutate({ id, enable })} />
+              }} />
             )}
           </Card>
         </Stack>

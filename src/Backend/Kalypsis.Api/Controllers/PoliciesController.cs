@@ -304,8 +304,14 @@ public class InsuranceCompaniesController : ControllerBase
             ?? throw Kalypsis.Application.Common.AppException.Forbidden();
         var code = NormalizeCode(body.Code);
         ValidateCompanyBody(body.Name, code);
-        if (await _db.InsuranceCompanies.IgnoreQueryFilters()
-            .AnyAsync(x => x.TenantId == tenantId && x.DeletedAt == null && x.Code == code, ct))
+        // A live row with this code blocks; a soft-deleted one is silently
+        // restored instead of hard-inserting a duplicate (MySQL's unique
+        // index on (TenantId, Code) doesn't respect DeletedAt, so a second
+        // insert on the same code would throw a raw duplicate-key error and
+        // the operator would just see "Παρουσιάστηκε εσωτερικό σφάλμα").
+        var existing = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Code == code, ct);
+        if (existing is not null && existing.DeletedAt is null)
             throw new Kalypsis.Application.Common.AppException("company_code_exists",
                 "Υπάρχει ήδη ασφαλιστική εταιρεία με αυτόν τον κωδικό στο γραφείο.", 400,
                 title: "Διπλός κωδικός εταιρείας",
@@ -317,24 +323,46 @@ public class InsuranceCompaniesController : ControllerBase
         // every list the agency sees, and bridge routing already goes through
         // BridgeCodeMappings per tenant.
 
-        var c = new Kalypsis.Domain.Entities.InsuranceCompany
+        Kalypsis.Domain.Entities.InsuranceCompany c;
+        if (existing is not null)
         {
-            Id = Guid.NewGuid(),
-            TenantId = tenantId,
-            Name = body.Name.Trim(),
-            Code = code,
-            Country = Clean(body.Country),
-            Website = Clean(body.Website),
-            IsActive = body.IsActive,
-            AgentCode = Clean(body.AgentCode),
-            ContactName = Clean(body.ContactName),
-            ContactEmail = Clean(body.ContactEmail),
-            ContactPhone = Clean(body.ContactPhone),
-            AfmVat = Clean(body.AfmVat),
-            Notes = Clean(body.Notes),
-            CreatedAt = _clock.UtcNow
-        };
-        _db.InsuranceCompanies.Add(c);
+            // Resurrect the soft-deleted row and overwrite with the new form.
+            existing.DeletedAt = null;
+            existing.Name = body.Name.Trim();
+            existing.Code = code;
+            existing.Country = Clean(body.Country);
+            existing.Website = Clean(body.Website);
+            existing.IsActive = body.IsActive;
+            existing.AgentCode = Clean(body.AgentCode);
+            existing.ContactName = Clean(body.ContactName);
+            existing.ContactEmail = Clean(body.ContactEmail);
+            existing.ContactPhone = Clean(body.ContactPhone);
+            existing.AfmVat = Clean(body.AfmVat);
+            existing.Notes = Clean(body.Notes);
+            existing.UpdatedAt = _clock.UtcNow;
+            c = existing;
+        }
+        else
+        {
+            c = new Kalypsis.Domain.Entities.InsuranceCompany
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                Name = body.Name.Trim(),
+                Code = code,
+                Country = Clean(body.Country),
+                Website = Clean(body.Website),
+                IsActive = body.IsActive,
+                AgentCode = Clean(body.AgentCode),
+                ContactName = Clean(body.ContactName),
+                ContactEmail = Clean(body.ContactEmail),
+                ContactPhone = Clean(body.ContactPhone),
+                AfmVat = Clean(body.AfmVat),
+                Notes = Clean(body.Notes),
+                CreatedAt = _clock.UtcNow
+            };
+            _db.InsuranceCompanies.Add(c);
+        }
         await _db.SaveChangesAsync(ct);
 
         // Best-effort bridge + zero-commission bootstrap. Their previous
