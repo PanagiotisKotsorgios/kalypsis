@@ -207,25 +207,43 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         }
         else
         {
-            using var stream = new MemoryStream(r.FileContent);
-            XLWorkbook wb;
-            try { wb = new XLWorkbook(stream); }
-            catch (Exception ex)
+            // ERGO ships two shapes in the wild:
+            //   (a) legacy .xlsx portfolio movement sheet, one row per policy.
+            //   (b) newer quoted-CSV export — a HEADER and DETAIL .txt pair
+            //       per LOB, UTF-8 BOM, sometimes bundled in a .zip together.
+            // We auto-detect: xlsx is a zip whose first entry is xl/_rels;
+            // the newer txt exports are either plain UTF-8 files or a small
+            // zip of them.
+            var looksErgoTxt = r.FileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)
+                || (isZip && ZipContainsErgoTxt(r.FileContent));
+            if (looksErgoTxt)
             {
-                throw new AppException("xlsx_invalid",
-                    "Δεν είναι έγκυρο αρχείο Excel.", 400,
-                    title: "Ακατάλληλο αρχείο",
-                    why: ex.Message,
-                    fix: "Σιγουρευτείτε ότι ανεβάζετε .xlsx από ERGO χωρίς αλλαγές.");
+                rows = ParseErgoTxt(r.FileContent, isZip, r.FileName);
+                format = "ERGO_TXT";
             }
-            rows = ParseErgo(wb);
-            format = "ERGO";
+            else
+            {
+                using var stream = new MemoryStream(r.FileContent);
+                XLWorkbook wb;
+                try { wb = new XLWorkbook(stream); }
+                catch (Exception ex)
+                {
+                    throw new AppException("xlsx_invalid",
+                        "Δεν είναι έγκυρο αρχείο Excel.", 400,
+                        title: "Ακατάλληλο αρχείο",
+                        why: ex.Message,
+                        fix: "Σιγουρευτείτε ότι ανεβάζετε .xlsx από ERGO χωρίς αλλαγές.");
+                }
+                rows = ParseErgo(wb);
+                format = "ERGO";
+            }
         }
 
         // LOB sanity check — refuse a mis-routed upload (auto file into fire
-        // slot or the other way around). Only ERGO ships two separate
-        // .xlsx (one per LOB) so this only applies there; Grand Cover's
-        // .zip is mixed by design.
+        // slot or the other way around). Only the legacy ERGO xlsx export
+        // needs this; the newer ERGO txt format encodes the LOB in the file
+        // name itself (AUTO / FIRE / LIABILITY / PROS) and each row carries
+        // its own branch code, so the check is redundant there.
         if (format == "ERGO")
         {
             var sample = rows.Take(20).ToList();
@@ -414,6 +432,294 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 issue, start, end,
                 gross, net, partnerComm, agencyComm,
                 carrierName, partnerCodeFromHeader,
+                raw, notes, status, rowType, null, null, plate));
+        }
+
+        return rows;
+    }
+
+    // ========================================================================
+    // ERGO — newer quoted-CSV export. Two .txt files per LOB per period:
+    //   "… AUTO 01_06_2026-30_06_2026 (HEADER).txt"
+    //   "… AUTO 01_06_2026-30_06_2026 (DETAIL).txt"
+    // Both are UTF-8-BOM, comma-delimited, double-quoted fields. LOB is
+    // encoded in the filename: AUTO / FIRE / LIABILITY / PROS.
+    //
+    // Common fields (both HEADER and DETAIL rows share the first three):
+    //   0  Contract/Ergo internal id (11 digits)
+    //   1  Producer code (4 digits, "0001" / "0024" / …)
+    //   2  Policy number (10 digits, "2606122448")
+    //
+    // HEADER (one row per policy):
+    //   3  numeric row-type (1 / 2 / 6 — new / renewal / cancellation)
+    //   4  Issue date DD/MM/YYYY
+    //   5  Start date
+    //   6  End date
+    //   7  Previous end date (or 00/00/0000)
+    //   8  Description — plate + VIN + make for AUTO; address for FIRE;
+    //      long text for LIABILITY; product name for PROS
+    //   9  Gross premium
+    //  10  Net premium
+    //  11  Contract/receipt id
+    //  12  Customer name (full name / company name)
+    //  13  Address
+    //  14  ΤΚ
+    //  15  City
+    //  16  Phone
+    //  17  Alt phone
+    //  18  DOB
+    //  19  Profession
+    //  20  Customer AFM (9 digits)
+    //
+    // DETAIL (one row per cover — 12 fields):
+    //  3  Branch label (AUTO="ΑΥΤΟ"; FIRE="ΕΜΚΠ"/"ΕΝΟΙΚ"; LIAB="ΕΑΕΕ";
+    //     PROS="ΟΜΑΔ"/"ΠΤΑΞΔ")
+    //  4  For AUTO: cover code ("Α1001"). For FIRE/LIAB/PROS: customer AFM.
+    //  5  For AUTO: sum insured. For FIRE/LIAB/PROS: cover code
+    //     ("Φ1701" / "Ε5102" / "Π1001").
+    //  6  Sum insured (only when col 5 was the cover code)
+    //  7  Net premium
+    //  8  Tax
+    //  9  0,00
+    //  10 0,00000
+    //  11 0,00
+    // ========================================================================
+    private static bool ZipContainsErgoTxt(byte[] zipBytes)
+    {
+        try
+        {
+            using var ms = new MemoryStream(zipBytes);
+            using var arc = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Read);
+            return arc.Entries.Any(e => e.Name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)
+                && (e.Name.Contains("(HEADER)", StringComparison.OrdinalIgnoreCase)
+                 || e.Name.Contains("(DETAIL)", StringComparison.OrdinalIgnoreCase)));
+        }
+        catch { return false; }
+    }
+
+    /// <summary>Parse a comma-separated line with double-quoted fields. No CR/LF handling needed;
+    /// we've already split on newline. Handles the trivial "" escape.</summary>
+    private static string[] ParseQuotedCsvLine(string line)
+    {
+        var result = new List<string>(20);
+        var sb = new System.Text.StringBuilder();
+        bool inQuotes = false;
+        for (int i = 0; i < line.Length; i++)
+        {
+            var c = line[i];
+            if (inQuotes)
+            {
+                if (c == '"')
+                {
+                    if (i + 1 < line.Length && line[i + 1] == '"') { sb.Append('"'); i++; }
+                    else inQuotes = false;
+                }
+                else sb.Append(c);
+            }
+            else
+            {
+                if (c == '"') inQuotes = true;
+                else if (c == ',') { result.Add(sb.ToString()); sb.Clear(); }
+                else sb.Append(c);
+            }
+        }
+        result.Add(sb.ToString());
+        return result.ToArray();
+    }
+
+    /// <summary>ERGO uses DD/MM/YYYY across the txt export.</summary>
+    private static DateOnly? ParseErgoTxtDate(string s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        var t = s.Trim();
+        if (t == "00/00/0000") return null;
+        if (DateOnly.TryParseExact(t, "d/M/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
+            return d;
+        if (DateOnly.TryParseExact(t, "dd/MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out d))
+            return d;
+        return null;
+    }
+
+    /// <summary>Greek locale comma-decimal amount (may be negative). Empty → null.</summary>
+    private static decimal? ParseErgoAmount(string s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        var t = s.Trim().Replace(".", "").Replace(",", ".");
+        return decimal.TryParse(t, NumberStyles.Any, CultureInfo.InvariantCulture, out var d) ? d : null;
+    }
+
+    private static List<BridgeImportRow> ParseErgoTxt(byte[] content, bool isZip, string fileName)
+    {
+        // Collect file → line list. When the operator uploads a bare .txt we
+        // treat it as either a HEADER or DETAIL depending on the filename.
+        var utf8 = new System.Text.UTF8Encoding(false);
+        var headerLines = new List<(string src, string[] fields)>();
+        var detailLines = new List<(string src, string[] fields)>();
+        string? loneLob = null;
+
+        void AbsorbFile(string name, byte[] bytes)
+        {
+            var text = new System.Text.UTF8Encoding(true).GetString(bytes).TrimStart('﻿');
+            var lines = text.Split('\n').Select(l => l.TrimEnd('\r')).Where(l => l.Length > 0);
+            var isHeader = name.Contains("(HEADER)", StringComparison.OrdinalIgnoreCase);
+            var isDetail = name.Contains("(DETAIL)", StringComparison.OrdinalIgnoreCase);
+            foreach (var line in lines)
+            {
+                var f = ParseQuotedCsvLine(line);
+                if (f.Length < 3) continue;
+                if (isDetail) detailLines.Add((name, f));
+                else if (isHeader) headerLines.Add((name, f));
+                else
+                {
+                    // Unmarked file — sniff by field count. HEADER rows have
+                    // ≥30 fields; DETAIL rows are exactly 12.
+                    if (f.Length == 12) detailLines.Add((name, f));
+                    else headerLines.Add((name, f));
+                }
+            }
+        }
+
+        if (isZip)
+        {
+            using var ms = new MemoryStream(content);
+            using var arc = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Read);
+            foreach (var entry in arc.Entries)
+            {
+                if (!entry.Name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)) continue;
+                using var es = entry.Open();
+                using var mem = new MemoryStream();
+                es.CopyTo(mem);
+                AbsorbFile(entry.Name, mem.ToArray());
+            }
+        }
+        else
+        {
+            AbsorbFile(fileName ?? "ergo.txt", content);
+        }
+
+        // LOB from any filename we saw (AUTO / FIRE / LIABILITY / PROS).
+        static string? DetectLob(string s)
+        {
+            var u = s.ToUpperInvariant();
+            if (u.Contains(" AUTO ")   || u.Contains("AUTO."))       return "AUTO";
+            if (u.Contains(" FIRE ")   || u.Contains("FIRE."))       return "FIRE";
+            if (u.Contains("LIABILITY"))                             return "LIABILITY";
+            if (u.Contains(" PROS ")   || u.Contains("PROS."))       return "PROS";
+            return null;
+        }
+        loneLob = headerLines.Select(x => DetectLob(x.src)).FirstOrDefault(x => x != null)
+               ?? detailLines.Select(x => DetectLob(x.src)).FirstOrDefault(x => x != null)
+               ?? DetectLob(fileName ?? "");
+
+        // Group DETAIL by (Producer, PolicyNumber) so we can attach covers to
+        // the right header row.
+        var coversByKey = new Dictionary<string, List<string[]>>(StringComparer.Ordinal);
+        foreach (var (_, f) in detailLines)
+        {
+            if (f.Length < 6) continue;
+            var key = $"{f[1].Trim()}|{f[2].Trim()}";
+            if (!coversByKey.TryGetValue(key, out var list)) coversByKey[key] = list = new List<string[]>();
+            list.Add(f);
+        }
+
+        // If we have DETAIL but no HEADER (bare detail upload) synthesise one
+        // row per policy so the mapping resolver still has something to walk.
+        if (headerLines.Count == 0 && detailLines.Count > 0)
+        {
+            var uniq = detailLines
+                .Where(d => d.fields.Length >= 4)
+                .GroupBy(d => $"{d.fields[1]}|{d.fields[2]}")
+                .Select(g => g.First().fields)
+                .ToList();
+            foreach (var f in uniq)
+            {
+                var synth = new string[21];
+                for (int i = 0; i < f.Length && i < 3; i++) synth[i] = f[i];
+                headerLines.Add(($"synth-{f[2]}", synth));
+            }
+        }
+
+        var rows = new List<BridgeImportRow>();
+        int idx = 0;
+        foreach (var (src, h) in headerLines)
+        {
+            idx++;
+            var notes = new List<BridgeImportNote>();
+            var raw = new Dictionary<string, string>(StringComparer.Ordinal);
+            raw["ergo.header.raw"] = string.Join(" | ", h);
+
+            var producer = h.Length > 1 ? h[1].Trim() : "";
+            var policyNumber = h.Length > 2 ? h[2].Trim() : "";
+            var contractId = h.Length > 0 ? h[0].Trim() : "";
+            var typeCode = h.Length > 3 ? h[3].Trim() : "";
+            var issue = h.Length > 4 ? ParseErgoTxtDate(h[4]) : null;
+            var start = h.Length > 5 ? ParseErgoTxtDate(h[5]) : null;
+            var end   = h.Length > 6 ? ParseErgoTxtDate(h[6]) : null;
+            var description = h.Length > 8 ? h[8].Trim() : "";
+            var gross = h.Length > 9 ? ParseErgoAmount(h[9]) : null;
+            var net   = h.Length > 10 ? ParseErgoAmount(h[10]) : null;
+            var customerName = h.Length > 12 ? h[12].Trim() : "";
+            var customerVat = h.Length > 20 ? h[20].Trim() : "";
+            if (customerVat.Length > 0 && !customerVat.All(char.IsDigit)) customerVat = "";
+
+            if (!string.IsNullOrEmpty(contractId))   raw["ergo.contractId"] = contractId;
+            if (!string.IsNullOrEmpty(policyNumber)) raw["ergo.policyNumber"] = policyNumber;
+            if (!string.IsNullOrEmpty(producer))     raw["ergo.producer"] = producer;
+            if (!string.IsNullOrEmpty(description))  raw["ergo.description"] = description;
+            if (loneLob is not null) raw["ergo.lob"] = loneLob;
+
+            // Extract vehicle plate from the description (AUTO files start
+            // with the plate). Greek plates: 2–3 letters + 3–4 digits.
+            string? plate = null;
+            if (loneLob == "AUTO" && !string.IsNullOrEmpty(description))
+            {
+                var m = System.Text.RegularExpressions.Regex.Match(description,
+                    "^([A-ZΑ-Ω]{2,3}\\d{3,4})");
+                if (m.Success) plate = m.Groups[1].Value;
+            }
+
+            // Attach cover codes from the DETAIL rows for the mapping resolver.
+            var covers = new List<string>();
+            string? branchLabel = null;
+            if (coversByKey.TryGetValue($"{producer}|{policyNumber}", out var detail))
+            {
+                foreach (var d in detail)
+                {
+                    if (d.Length < 5) continue;
+                    branchLabel ??= d.Length > 3 ? d[3].Trim() : null;
+                    // Cover code lives at either field 4 (AUTO) or 5 (others).
+                    var candidates = new[] { d.Length > 4 ? d[4].Trim() : "", d.Length > 5 ? d[5].Trim() : "" };
+                    foreach (var c in candidates)
+                    {
+                        if (string.IsNullOrEmpty(c)) continue;
+                        // Skip pure-digit AFM tokens.
+                        if (c.Length >= 8 && c.All(char.IsDigit)) continue;
+                        if (!covers.Contains(c)) covers.Add(c);
+                    }
+                }
+            }
+            if (!string.IsNullOrEmpty(branchLabel)) raw["Κλάδος.Code"] = branchLabel;
+            if (covers.Count > 0) raw["Καλύψεις"] = string.Join(", ", covers);
+
+            var status = "Ready";
+            if (string.IsNullOrWhiteSpace(policyNumber))
+            { status = "Error"; notes.Add(new BridgeImportNote("Ασφαλιστήριο", "error", "Αριθμός ασφαλιστηρίου λείπει")); }
+            if (string.IsNullOrWhiteSpace(customerName))
+            { status = "Error"; notes.Add(new BridgeImportNote("Συμβαλλόμενος", "error", "Όνομα/Επωνυμία λείπει")); }
+            if (!gross.HasValue)
+            { status = "Error"; notes.Add(new BridgeImportNote("Μεικτό", "error", "Μη έγκυρο μεικτό ποσό")); }
+
+            string rowType = "New";
+            if (typeCode == "6") { rowType = "Cancellation"; notes.Add(new BridgeImportNote("Τύπος", "info", "Τύπος γραμμής 6 → ακυρωτική/επιστροφή")); }
+            else if (typeCode == "2") { rowType = "Renewal"; notes.Add(new BridgeImportNote("Τύπος", "info", "Τύπος γραμμής 2 → ανανέωση")); }
+            if (gross.HasValue && gross.Value < 0 && rowType != "Cancellation") { rowType = "Cancellation"; notes.Add(new BridgeImportNote("Τύπος", "info", "Αρνητικό ποσό → ακυρωτική κίνηση")); }
+
+            rows.Add(new BridgeImportRow(
+                idx, policyNumber, null,
+                customerName, string.IsNullOrEmpty(customerVat) ? null : customerVat,
+                issue, start, end,
+                gross, net, null, null,
+                "ERGO", producer,
                 raw, notes, status, rowType, null, null, plate));
         }
 

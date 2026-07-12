@@ -334,7 +334,7 @@ export function CarrierBridgesPage() {
             })()}
           </Alert>
           <input ref={fileRef} type="file"
-            accept=".xlsx,.zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,application/x-zip-compressed" hidden
+            accept=".xlsx,.zip,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,application/x-zip-compressed,text/plain" hidden
             onChange={e => { const f = e.target.files?.[0]; if (f) uploadAndPreview.mutate({ file: f, lob: pendingLob }); }} />
           {(() => {
             // Each carrier's export shape drives which tiles we show.
