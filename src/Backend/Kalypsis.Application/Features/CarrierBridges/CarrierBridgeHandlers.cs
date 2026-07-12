@@ -943,8 +943,14 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             DateOnly? end   = ParseDate(ws.Cell(rn, cEndDate).Value);
             decimal? net    = ParseAmount(ws.Cell(rn, cNetPrem).Value);
             decimal? gross  = ParseAmount(ws.Cell(rn, cGrossPrem).Value);
-            decimal? partnerComm = ParseAmount(ws.Cell(rn, cPartnerCom).Value);
-            decimal? agencyComm  = null; // Interlife does not export γεφύρας/έδρας separately.
+            // Interlife exports a single "Προμήθειες συνεργάτη" column. From
+            // the CARRIER's perspective the OFFICE is their συνεργάτης, so
+            // the value is the office's take — landing in AgencyCommission
+            // (προμήθεια γραφείου). PartnerCommission is left null; the
+            // office splits its take among its own producers via the
+            // commission-rules matrix downstream, not from the bridge file.
+            decimal? partnerComm = null;
+            decimal? agencyComm  = ParseAmount(ws.Cell(rn, cPartnerCom).Value);
 
             // "Άκυρο" flags an already-cancelled row on the carrier side.
             var cancelledRaw = cCancelled > 0 ? ws.Cell(rn, cCancelled).GetString().Trim() : "";
@@ -1320,8 +1326,8 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 end,
                 gross,
                 net,
-                partnerComm,
-                null,                 // Grand Cover exports partner tax, not agency commission — leave agency null
+                null,                 // GRAND COVER ships one commission column "ΠρομΣυνεργάτη"
+                partnerComm,          // which is the office's take → AgencyCommission
                 null,                 // CarrierName resolved at commit time via Sub.Carrier.Id mapping
                 producerCode,
                 raw,
