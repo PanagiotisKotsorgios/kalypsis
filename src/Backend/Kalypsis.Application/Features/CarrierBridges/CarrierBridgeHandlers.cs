@@ -1521,6 +1521,31 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         var vehcl   = Read("Filvehcl.txt");
         var poldt   = Read("Filpoldt.txt");
         var rechd   = Read("Filrechd.txt");
+        var comis   = Read("Filcomis.txt");
+
+        // ---- Commissions per policy from Filcomis.txt --------------------
+        // Filcomis carries a per-receipt-line breakdown: one line per (policy
+        // number, receipt id, cover code, movement type). The office's take
+        // sits in the 4th-from-last token — the layout is right-padded so
+        // whitespace tokenisation is safe even when the type field jams into
+        // the preceding zero (e.g. "0AUTO", "0RID3"). We sum every line for a
+        // given POLNUM, including refund rows (RID3 tokens) so a partial
+        // reversal actually reduces the total the office is credited. The
+        // result populates AgencyCommission on the imported policy — same
+        // slot INTERLIFE / GRAND-COVER land in.
+        var commissionsByPolicy = new Dictionary<string, decimal>(StringComparer.Ordinal);
+        foreach (var line in comis)
+        {
+            var toks = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (toks.Length < 8) continue;
+            var polnum = toks[1];
+            if (string.IsNullOrEmpty(polnum) || !polnum.All(char.IsDigit)) continue;
+            var commTok = toks[^4];
+            var amt = ParseGcAmount(commTok);
+            if (!amt.HasValue) continue;
+            commissionsByPolicy.TryGetValue(polnum, out var acc);
+            commissionsByPolicy[polnum] = acc + amt.Value;
+        }
 
         // ---- Customer master → id → (name, afm) -----------------------------
         // The real Filcusdt.txt uses fixed-width blocks (CUSCOD 7 + BDATE 8 +
@@ -1756,6 +1781,14 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             if (!gross.HasValue)
             { notes.Add(new BridgeImportNote("Ασφάλιστρο", "warn", "Δεν εντοπίστηκε ποσό ασφαλίστρου")); }
 
+            // Office's commission from Filcomis.txt — summed per POLNUM
+            // above. Null when Filcomis is absent from the zip or the policy
+            // has no lines in it.
+            decimal? atlanticAgencyComm = null;
+            if (!string.IsNullOrEmpty(policyNumber)
+                && commissionsByPolicy.TryGetValue(policyNumber, out var totalComm))
+                atlanticAgencyComm = decimal.Round(totalComm, 2);
+
             rows.Add(new BridgeImportRow(
                 index,
                 policyNumber,
@@ -1767,8 +1800,8 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 end,
                 gross,
                 gross.HasValue && fee.HasValue ? gross.Value - fee.Value : null, // net = gross - fee
-                null,
-                null,
+                null,                    // PartnerCommission — office splits its take downstream
+                atlanticAgencyComm,      // AgencyCommission from Filcomis.txt Σ per POLNUM
                 null,
                 null,
                 raw,
