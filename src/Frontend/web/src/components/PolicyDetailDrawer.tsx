@@ -201,7 +201,10 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
   });
   const commissionMatrix = useQuery({
     queryKey: ["policy-commission-matrix", policyId],
-    enabled: open && tab === 14 && !!policyId,
+    // Also enabled on the Οικονομικά tab (index 1) so its summary card can
+    // show the parametrization-computed producer / agency totals alongside
+    // the bridge-supplied premiums.
+    enabled: open && (tab === 1 || tab === 14) && !!policyId,
     queryFn: async () => (await api.get<PolicyCommissionMatrix>(`/policies/${policyId}/commission-splits`)).data
   });
 
@@ -305,7 +308,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
 
   return (
     <Drawer anchor="right" open={open} onClose={onClose}
-      PaperProps={{ sx: { width: { xs: "100%", md: 720 } } }}>
+      PaperProps={{ sx: { width: { xs: "100%", md: "min(1200px, 92vw)" } } }}>
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
         {/* Sticky header */}
         <Box sx={{ p: 2.5, borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.paper" }}>
@@ -454,6 +457,21 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
               {/* FINANCIALS */}
               {tab === 1 && (
                 <Stack spacing={2.5}>
+                  {/* ---------- Πηγή τιμών ---------- */}
+                  {/* Bridge-imported vs Kalypsis-computed values at a glance.
+                      Gross / Net come from the policy row itself (populated
+                      by the bridge parser on import, or manually entered).
+                      Producer / Agency commissions are computed on demand
+                      from the office's commission-rules matrix — the button
+                      below fetches / refreshes them. */}
+                  <BridgeVsParametrizationCard
+                    policy={p}
+                    matrix={commissionMatrix.data}
+                    matrixLoading={commissionMatrix.isLoading}
+                    onCompute={() => commissionMatrix.refetch()}
+                    onOpenFullMatrix={() => setTab(14)}
+                  />
+
                   <KV label={t("policyDetail.premium")} value={`${p.premium.toFixed(2)} ${p.currency}`} />
 
                   {/* Tax / duty breakdown: rendered only when at least one
@@ -1979,3 +1997,109 @@ const LEVEL_LABEL: Record<string, string> = {
   Assistant: "Assistant",
   Agency: "Γραφείο"
 };
+
+/**
+ * Compact side-by-side card that renders at the top of the Οικονομικά tab:
+ *   • Left column  — Πηγή γέφυρας: gross + net premium from the policy row.
+ *   • Right column — Από παραμετροποίηση: agency + producer commissions
+ *     computed on demand from the office's commission-rules matrix. Loads
+ *     once when the tab opens, refetches when the operator hits "Υπολογισμός
+ *     από παραμετροποίηση". A footer button jumps to the full commission
+ *     matrix tab (index 14) for editing.
+ */
+function BridgeVsParametrizationCard({ policy, matrix, matrixLoading, onCompute, onOpenFullMatrix }: {
+  policy: {
+    premium: number;
+    netPremium: number | null;
+    currency: string;
+    producerName: string | null;
+  };
+  matrix: PolicyCommissionMatrix | undefined;
+  matrixLoading: boolean;
+  onCompute: () => void;
+  onOpenFullMatrix: () => void;
+}) {
+  const fmt = (n: number) => `${n.toFixed(2)} ${policy.currency}`;
+  // Split matrix rows into "agency" (office cut) and "producer" (per-tier
+  // producers). Sum each side so the operator sees one number per bucket
+  // even when the office has a multi-level hierarchy.
+  const agencyTotal = (matrix?.rows ?? [])
+    .filter(r => r.hierarchyLevel === "Agency")
+    .reduce((a, r) => a + r.grossAmount, 0);
+  const producerTotal = (matrix?.rows ?? [])
+    .filter(r => r.hierarchyLevel !== "Agency")
+    .reduce((a, r) => a + r.grossAmount, 0);
+  const hasMatrix = (matrix?.rows ?? []).length > 0;
+
+  return (
+    <Box sx={{
+      p: 2, borderRadius: 1,
+      border: 1, borderColor: "divider",
+      bgcolor: "background.paper"
+    }}>
+      <Stack direction="row" spacing={2} sx={{
+        display: "grid",
+        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+        gap: 2,
+      }}>
+        {/* Bridge column */}
+        <Box>
+          <Typography variant="overline" color="text.secondary" fontWeight={700}>
+            Από τη γέφυρα
+          </Typography>
+          <Stack spacing={0.5} mt={1}>
+            <Row label="Μικτά" value={fmt(policy.premium)} bold />
+            <Row label="Καθαρά" value={policy.netPremium != null ? fmt(policy.netPremium) : "—"} />
+          </Stack>
+        </Box>
+
+        {/* Parametrization column */}
+        <Box>
+          <Typography variant="overline" color="text.secondary" fontWeight={700}>
+            Από παραμετροποίηση
+          </Typography>
+          {matrixLoading ? (
+            <Box sx={{ py: 2, display: "flex", justifyContent: "center" }}>
+              <CircularProgress size={18} />
+            </Box>
+          ) : !hasMatrix ? (
+            <Stack spacing={1} mt={1}>
+              <Typography variant="caption" color="text.secondary">
+                Δεν έχουν υπολογιστεί προμήθειες ακόμη.
+              </Typography>
+              <Button size="small" variant="outlined" onClick={onCompute}>
+                Υπολογισμός από παραμετροποίηση
+              </Button>
+            </Stack>
+          ) : (
+            <Stack spacing={0.5} mt={1}>
+              <Row label="Προμήθεια γραφείου" value={fmt(agencyTotal)} bold />
+              <Row
+                label={policy.producerName ? `Προμήθεια συνεργάτη · ${policy.producerName}` : "Προμήθεια συνεργάτη"}
+                value={fmt(producerTotal)}
+              />
+            </Stack>
+          )}
+        </Box>
+      </Stack>
+
+      {hasMatrix && (
+        <Stack direction="row" spacing={1} mt={2} justifyContent="flex-end">
+          <Button size="small" onClick={onCompute}>Επανυπολογισμός</Button>
+          <Button size="small" variant="outlined" onClick={onOpenFullMatrix}>
+            Άνοιγμα πλήρους πίνακα προμηθειών
+          </Button>
+        </Stack>
+      )}
+    </Box>
+  );
+}
+
+function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+      <Typography variant="body2" color="text.secondary">{label}</Typography>
+      <Typography sx={{ fontWeight: bold ? 700 : 500 }}>{value}</Typography>
+    </Stack>
+  );
+}
