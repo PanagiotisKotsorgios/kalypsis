@@ -117,7 +117,12 @@ public record PreviewBridgeImportCommand(
 public record BridgeImportPreviewResult(
     string Carrier, string Format, int RowCount,
     IReadOnlyList<BridgeImportRow> Rows,
-    int ReadyCount, int WarnCount, int ErrorCount, int DuplicateCount);
+    int ReadyCount, int WarnCount, int ErrorCount, int DuplicateCount,
+    // Raw codes appearing in the feed that don't yet resolve to any agency
+    // parametric or bridge mapping. The commit is blocked until each entry
+    // is either linked to an existing agency parametric or has a new one
+    // created inline (which also creates the mapping).
+    IReadOnlyList<UnmappedBridgeCode> UnmappedCodes);
 
 public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCommand, BridgeImportPreviewResult>
 {
@@ -242,13 +247,31 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
 
         await ApplyDiffsAsync(rows, carrier.Id, ct);
 
+        // Bridge code mapping pass — surface every raw code (branch, coverage,
+        // use, package, sub-carrier) that the parsed rows carry but the tenant
+        // has never linked to one of its own parametrics. The frontend renders
+        // the resulting list as a "link before commit" checklist.
+        var mappings = await _db.BridgeCodeMappings.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null)
+            .ToListAsync(ct);
+        var todayForParams = DateOnly.FromDateTime(DateTime.UtcNow);
+        var agencyParams = string.IsNullOrEmpty(carrier.Code) ? new List<CompanyParameterItem>()
+            : await _db.CompanyParameterItems.IgnoreQueryFilters()
+                .Include(p => p.InsuranceCompany)
+                .Where(p => p.DeletedAt == null && p.IsActive && p.InsuranceCompany.Code == carrier.Code
+                    && (!p.EffectiveFrom.HasValue || p.EffectiveFrom <= todayForParams)
+                    && (!p.EffectiveTo.HasValue || p.EffectiveTo >= todayForParams))
+                .ToListAsync(ct);
+        var unmapped = BridgeMappingResolver.Resolve(rows, carrier.Name, mappings, agencyParams);
+
         return new BridgeImportPreviewResult(
             carrier.Name, format,
             rows.Count, rows,
             rows.Count(x => x.Status == "Ready"),
             rows.Count(x => x.Status == "WarnDiff"),
             rows.Count(x => x.Status == "Error"),
-            rows.Count(x => x.Status == "Duplicate"));
+            rows.Count(x => x.Status == "Duplicate"),
+            unmapped);
     }
 
     // ========================================================================
@@ -1773,7 +1796,25 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
 
 public record CommitBridgeImportCommand(
     Guid InsuranceCompanyId, string SourceFile,
-    IReadOnlyList<BridgeImportRow> Rows) : IRequest<CompanyBridgeRunSummary>;
+    IReadOnlyList<BridgeImportRow> Rows,
+    // Pending bridge-code mappings the operator resolved during preview.
+    // Each is materialised as a BridgeCodeMapping row BEFORE the import
+    // proceeds so subsequent runs auto-route the same raw codes.
+    IReadOnlyList<PendingBridgeMapping>? PendingMappings = null) : IRequest<CompanyBridgeRunSummary>;
+
+public record PendingBridgeMapping(
+    BridgeMappingKind Kind,
+    string? SourceCarrier,
+    string RawCode,
+    string? RawLabel,
+    Guid? TargetInsuranceCompanyId,
+    Guid? TargetParameterItemId,
+    // Optional inline "+ create new" — when set the handler creates the
+    // parametric first (with this code + name) and links the mapping to it.
+    string? CreateParametricCode = null,
+    string? CreateParametricName = null,
+    PolicyType? CreateParametricPolicyType = null,
+    string? CreateParametricParentCode = null);
 
 public record CompanyBridgeRunSummary(
     Guid RunId,
@@ -1796,6 +1837,13 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
         var carrier = await _db.InsuranceCompanies.IgnoreQueryFilters()
             .FirstOrDefaultAsync(c => c.Id == r.InsuranceCompanyId && c.DeletedAt == null && (c.TenantId == null || c.TenantId == tenantId), ct)
             ?? throw AppException.NotFound("Ασφαλιστική εταιρία");
+
+        // Materialise any pending bridge-code mappings the operator resolved
+        // during preview. Each may include an inline "+ create new" parametric
+        // — we create that first, then point the mapping at it. Existing
+        // (tenant, kind, sourceCarrier, rawCode) mappings are updated in place.
+        if (r.PendingMappings is { Count: > 0 })
+            await ApplyPendingMappingsAsync(tenantId, carrier, r.PendingMappings, ct);
 
         // Ensure a CompanyBridge row exists for this carrier so we can track runs.
         var bridge = await _db.CompanyBridges
@@ -2297,5 +2345,100 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
         });
         var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(payload));
         return $"BRG-{Convert.ToHexString(bytes)[..16]}";
+    }
+
+    /// <summary>
+    /// Materialises the pending bridge-code mappings the operator resolved in
+    /// the preview dialog. For each row: (a) create the target parametric if
+    /// the operator asked for inline creation, then (b) upsert the
+    /// BridgeCodeMapping so subsequent imports auto-route this code.
+    /// </summary>
+    private async Task ApplyPendingMappingsAsync(Guid tenantId, InsuranceCompany carrier,
+        IReadOnlyList<PendingBridgeMapping> pending, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        foreach (var p in pending)
+        {
+            if (string.IsNullOrWhiteSpace(p.RawCode)) continue;
+
+            Guid? targetParamId = p.TargetParameterItemId;
+            Guid? targetCompanyId = p.TargetInsuranceCompanyId;
+
+            // Inline "+ Νέο παραμετρικό" — the operator typed a code + name in
+            // the preview instead of picking one, so we materialise it here so
+            // the mapping has something to point at. Company kind never uses
+            // this path; it links to an existing InsuranceCompany or nothing.
+            if (p.Kind != BridgeMappingKind.Company
+                && !targetParamId.HasValue
+                && !string.IsNullOrWhiteSpace(p.CreateParametricCode)
+                && !string.IsNullOrWhiteSpace(p.CreateParametricName))
+            {
+                var kind = p.Kind switch
+                {
+                    BridgeMappingKind.Branch   => CompanyParameterItemKind.Branch,
+                    BridgeMappingKind.Coverage => CompanyParameterItemKind.Coverage,
+                    BridgeMappingKind.Use      => CompanyParameterItemKind.Use,
+                    BridgeMappingKind.Package  => CompanyParameterItemKind.Package,
+                    _ => CompanyParameterItemKind.Other
+                };
+                var code = p.CreateParametricCode.Trim().ToUpperInvariant();
+                var existing = await _db.CompanyParameterItems.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(x => x.DeletedAt == null
+                        && x.InsuranceCompanyId == carrier.Id
+                        && x.Kind == kind
+                        && x.Code == code, ct);
+                if (existing is not null)
+                {
+                    targetParamId = existing.Id;
+                }
+                else
+                {
+                    var item = new CompanyParameterItem
+                    {
+                        Id = Guid.NewGuid(),
+                        InsuranceCompanyId = carrier.Id,
+                        Kind = kind,
+                        Code = code,
+                        Name = p.CreateParametricName.Trim(),
+                        PolicyType = p.CreateParametricPolicyType,
+                        ParentCode = string.IsNullOrWhiteSpace(p.CreateParametricParentCode) ? null : p.CreateParametricParentCode.Trim().ToUpperInvariant(),
+                        IsActive = true,
+                        Source = "BridgePreview",
+                        CreatedAt = now,
+                    };
+                    _db.CompanyParameterItems.Add(item);
+                    await _db.SaveChangesAsync(ct);
+                    targetParamId = item.Id;
+                }
+            }
+
+            var carrierName = string.IsNullOrWhiteSpace(p.SourceCarrier) ? null : p.SourceCarrier.Trim();
+            var raw = p.RawCode.Trim();
+            var mapping = await _db.BridgeCodeMappings.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.DeletedAt == null
+                    && x.Kind == p.Kind
+                    && x.SourceCarrier == carrierName
+                    && x.RawCode == raw, ct);
+            if (mapping is null)
+            {
+                mapping = new BridgeCodeMapping
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    Kind = p.Kind,
+                    SourceCarrier = carrierName,
+                    RawCode = raw,
+                    CreatedAt = now,
+                };
+                _db.BridgeCodeMappings.Add(mapping);
+            }
+            mapping.RawLabel = string.IsNullOrWhiteSpace(p.RawLabel) ? mapping.RawLabel : p.RawLabel.Trim();
+            mapping.TargetInsuranceCompanyId = targetCompanyId;
+            mapping.TargetParameterItemId = targetParamId;
+            mapping.ConfirmedByUserId = _current.UserId;
+            mapping.ConfirmedAt = now;
+            mapping.UpdatedAt = now;
+        }
+        await _db.SaveChangesAsync(ct);
     }
 }

@@ -52,7 +52,35 @@ interface PreviewResult {
   carrier: string; format: string; rowCount: number;
   rows: ImportRow[];
   readyCount: number; warnCount: number; errorCount: number; duplicateCount: number;
+  unmappedCodes: UnmappedCode[];
 }
+type MappingKind = "Company" | "Branch" | "Coverage" | "Use" | "Package";
+interface UnmappedCode {
+  kind: MappingKind;
+  sourceCarrier: string | null;
+  rawCode: string;
+  rawLabel: string | null;
+  occurrences: number;
+  rows: number[];
+}
+/** Operator's resolution for a single unmapped code in the preview UI. */
+interface MappingResolution {
+  targetParameterItemId?: string;
+  targetInsuranceCompanyId?: string;
+  createParametricCode?: string;
+  createParametricName?: string;
+}
+/** Company-parametric row as returned by /api/company-parameters. */
+interface CompanyParameterItemLite {
+  id: string;
+  kind: string;
+  code: string;
+  name: string;
+  insuranceCompanyName: string;
+}
+const KIND_LABEL: Record<MappingKind, string> = {
+  Company: "Εταιρεία", Branch: "Κλάδος", Coverage: "Κάλυψη", Use: "Χρήση", Package: "Πακέτο",
+};
 
 const STATUS_COLOR: Record<string, "default" | "success" | "warning" | "error" | "info"> = {
   Ready: "success", WarnDiff: "warning", Error: "error", Duplicate: "info"
@@ -124,15 +152,59 @@ export function CarrierBridgesPage() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 25;
 
+  // Operator's per-code decisions in the "Απαιτούμενες αντιστοιχίσεις" panel.
+  // Keyed by `${kind}|${rawCode}` so a code that appears with multiple kinds
+  // (e.g. "01" as both a Branch and a Coverage) gets one row per kind.
+  const [resolutions, setResolutions] = useState<Record<string, MappingResolution>>({});
+  useEffect(() => { setResolutions({}); }, [preview]);
+  const unmapKey = (u: UnmappedCode) => `${u.kind}|${u.rawCode}`;
+  const isResolved = (u: UnmappedCode) => {
+    const r = resolutions[unmapKey(u)] ?? {};
+    if (u.kind === "Company") return !!r.targetInsuranceCompanyId;
+    return !!r.targetParameterItemId || (!!r.createParametricCode?.trim() && !!r.createParametricName?.trim());
+  };
+  const allResolved = !preview
+    || (preview.unmappedCodes ?? []).length === 0
+    || (preview.unmappedCodes ?? []).every(isResolved);
+
+  // Load agency's own parametrics and carrier list once the preview is up, so
+  // the picker under each unmapped row has options to link against.
+  const parametrics = useQuery({
+    queryKey: ["company-parameters", "for-bridge-mapping"],
+    enabled: !!preview,
+    queryFn: async () => (await api.get<CompanyParameterItemLite[]>("/company-parameters")).data
+  });
+  const insuranceCompanies = useQuery({
+    queryKey: ["insurance-companies-lite"],
+    enabled: !!preview,
+    queryFn: async () => (await api.get<{ id: string; name: string; code: string; }[]>("/insurance-companies")).data
+  });
+
   const commit = useMutation({
-    mutationFn: async () => (await api.post<{
-      rowsCreated: number; rowsSkipped: number; rowsFailed: number;
-      lifecycleRowsApplied: number; financialMovementsCreated: number; documentWarnings: number;
-    }>("/carrier-bridges/commit", {
-      insuranceCompanyId: selected!.insuranceCompanyId,
-      sourceFile: fileName ?? "import.xlsx",
-      rows: preview!.rows
-    })).data,
+    mutationFn: async () => {
+      const pendingMappings = (preview?.unmappedCodes ?? []).map(u => {
+        const r = resolutions[unmapKey(u)] ?? {};
+        return {
+          kind: u.kind,
+          sourceCarrier: u.sourceCarrier,
+          rawCode: u.rawCode,
+          rawLabel: u.rawLabel,
+          targetInsuranceCompanyId: r.targetInsuranceCompanyId ?? null,
+          targetParameterItemId: r.targetParameterItemId ?? null,
+          createParametricCode: r.createParametricCode?.trim() || null,
+          createParametricName: r.createParametricName?.trim() || null,
+        };
+      });
+      return (await api.post<{
+        rowsCreated: number; rowsSkipped: number; rowsFailed: number;
+        lifecycleRowsApplied: number; financialMovementsCreated: number; documentWarnings: number;
+      }>("/carrier-bridges/commit", {
+        insuranceCompanyId: selected!.insuranceCompanyId,
+        sourceFile: fileName ?? "import.xlsx",
+        rows: preview!.rows,
+        pendingMappings: pendingMappings.length ? pendingMappings : null,
+      })).data;
+    },
     onSuccess: r => {
       setCommitted({
         created: r.rowsCreated,
@@ -412,7 +484,9 @@ export function CarrierBridgesPage() {
               </Stack>
               <Stack direction="row" spacing={1}>
                 <Button onClick={() => { setPreview(null); setSelected(null); setCommitted(null); }}>{t("common.cancel")}</Button>
-                <Button variant="contained" disabled={commit.isPending || revealedIndex < preview.rows.length || !!committed}
+                <Tooltip title={allResolved ? "" : "Αντιστοιχίστε πρώτα όλους τους κωδικούς πιο κάτω"}>
+                  <span>
+                <Button variant="contained" disabled={!allResolved || commit.isPending || revealedIndex < preview.rows.length || !!committed}
                   onClick={() => commit.mutate()}>
                   {commit.isPending
                     ? <CircularProgress size={18} />
@@ -420,6 +494,8 @@ export function CarrierBridgesPage() {
                       ? t("carrierBridges.imported")
                       : t("carrierBridges.confirmImport", { count: preview.rows.filter(isImportable).length })}
                 </Button>
+                  </span>
+                </Tooltip>
               </Stack>
             </Stack>
             {revealedIndex < preview.rows.length && (
@@ -447,6 +523,19 @@ export function CarrierBridgesPage() {
               </Stack>
             )}
           </Card>
+
+          {(preview.unmappedCodes ?? []).length > 0 && (
+            <UnmappedCodesPanel
+              unmapped={preview.unmappedCodes}
+              resolutions={resolutions}
+              onChange={setResolutions}
+              parametrics={parametrics.data ?? []}
+              parametricsLoading={parametrics.isLoading}
+              insuranceCompanies={insuranceCompanies.data ?? []}
+              unmapKey={unmapKey}
+              isResolved={isResolved}
+            />
+          )}
 
           {/* Filter chips + search */}
           <Card sx={{ p: 1.5, mb: 1.5 }}>
@@ -974,5 +1063,123 @@ function Kpi({ label, value, color }: { label: string; value: number; color?: "s
       <Typography variant="caption" color="text.secondary">{label}</Typography>
       <Typography variant="h6" fontWeight={800} color={color ? `${color}.main` : "text.primary"}>{value}</Typography>
     </Box>
+  );
+}
+
+/**
+ * Renders the "Απαιτούμενες αντιστοιχίσεις" checklist. Each unmapped raw code
+ * gets a row with either (a) a searchable dropdown of the agency's own
+ * parametrics (for Branch / Coverage / Use / Package) or a carrier picker (for
+ * Company), plus a compact "+ νέο" affordance that captures a code + name and
+ * defers actual creation to the commit endpoint. Once every entry is
+ * resolved, the "Εισαγωγή" button in the KPI card above unblocks.
+ */
+function UnmappedCodesPanel({ unmapped, resolutions, onChange, parametrics, parametricsLoading, insuranceCompanies, unmapKey, isResolved }: {
+  unmapped: UnmappedCode[];
+  resolutions: Record<string, MappingResolution>;
+  onChange: (r: Record<string, MappingResolution>) => void;
+  parametrics: CompanyParameterItemLite[];
+  parametricsLoading: boolean;
+  insuranceCompanies: { id: string; name: string; code: string; }[];
+  unmapKey: (u: UnmappedCode) => string;
+  isResolved: (u: UnmappedCode) => boolean;
+}) {
+  const paramsByKind: Record<MappingKind, CompanyParameterItemLite[]> = {
+    Company: [], Branch: [], Coverage: [], Use: [], Package: []
+  };
+  for (const p of parametrics) {
+    const k = p.kind as MappingKind;
+    if (k in paramsByKind) paramsByKind[k].push(p);
+  }
+  const patch = (key: string, next: MappingResolution) =>
+    onChange({ ...resolutions, [key]: next });
+
+  const unresolvedCount = unmapped.filter(u => !isResolved(u)).length;
+  return (
+    <Card sx={{ p: 2.5, mb: 2, borderLeft: 4, borderLeftColor: unresolvedCount > 0 ? "warning.main" : "success.main" }}>
+      <Stack direction="row" spacing={1.5} alignItems="center" mb={1.5}>
+        <LinkIcon color={unresolvedCount > 0 ? "warning" : "success"} />
+        <Typography fontWeight={800}>
+          {unresolvedCount > 0
+            ? `Απαιτούμενες αντιστοιχίσεις — ${unresolvedCount} / ${unmapped.length}`
+            : `Όλες οι αντιστοιχίσεις έτοιμες — ${unmapped.length}`}
+        </Typography>
+      </Stack>
+      <Typography variant="body2" color="text.secondary" mb={1.5}>
+        Η γέφυρα έφερε κωδικούς που το γραφείο δεν έχει ξανασυναντήσει.
+        Αντιστοιχίστε καθέναν με ένα δικό σας παραμετρικό, ή δημιουργήστε
+        νέο επί τόπου (θα σωθεί στην εισαγωγή και οι επόμενες γέφυρες θα
+        χτυπάνε αυτόματα εκεί).
+      </Typography>
+      <Stack spacing={1.25}>
+        {unmapped.map(u => {
+          const key = unmapKey(u);
+          const r = resolutions[key] ?? {};
+          const options = paramsByKind[u.kind] ?? [];
+          const done = isResolved(u);
+          return (
+            <Box key={key} sx={{
+              p: 1.25, borderRadius: 1,
+              border: 1, borderColor: done ? "success.light" : "divider",
+              bgcolor: done ? "success.lighter" : "background.paper"
+            }}>
+              <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }}>
+                <Chip size="small" label={KIND_LABEL[u.kind]} color={done ? "success" : "default"} />
+                <Box sx={{ minWidth: 120 }}>
+                  <Typography variant="caption" color="text.secondary">Raw κωδικός</Typography>
+                  <Typography sx={{ fontFamily: "monospace", fontWeight: 700 }}>{u.rawCode}</Typography>
+                  {u.rawLabel && <Typography variant="caption" color="text.secondary">{u.rawLabel}</Typography>}
+                </Box>
+                <Chip size="small" variant="outlined" label={`${u.occurrences}×`} />
+                <Box sx={{ flex: 1 }}>
+                  {u.kind === "Company" ? (
+                    <Autocomplete
+                      size="small"
+                      options={insuranceCompanies}
+                      getOptionLabel={o => `${o.name} · ${o.code}`}
+                      value={insuranceCompanies.find(c => c.id === r.targetInsuranceCompanyId) ?? null}
+                      onChange={(_, v) => patch(key, { ...r, targetInsuranceCompanyId: v?.id ?? undefined, targetParameterItemId: undefined })}
+                      renderInput={params => <TextField {...params} label="Αντιστοίχιση σε ασφαλιστική" />}
+                    />
+                  ) : (
+                    <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
+                      <Autocomplete
+                        sx={{ flex: 1 }}
+                        size="small"
+                        options={options}
+                        loading={parametricsLoading}
+                        getOptionLabel={o => `${o.code} · ${o.name}`}
+                        value={options.find(o => o.id === r.targetParameterItemId) ?? null}
+                        onChange={(_, v) => patch(key, {
+                          ...r,
+                          targetParameterItemId: v?.id ?? undefined,
+                          createParametricCode: v ? undefined : r.createParametricCode,
+                          createParametricName: v ? undefined : r.createParametricName,
+                        })}
+                        renderInput={params => <TextField {...params} label={`Αντιστοίχιση σε ${KIND_LABEL[u.kind]}`} />}
+                      />
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="caption" color="text.secondary">ή νέο →</Typography>
+                        <TextField
+                          size="small" label="Κωδικός" sx={{ width: 110 }}
+                          value={r.createParametricCode ?? ""}
+                          onChange={e => patch(key, { ...r, createParametricCode: e.target.value.toUpperCase(), targetParameterItemId: undefined })}
+                        />
+                        <TextField
+                          size="small" label="Όνομα" sx={{ minWidth: 180 }}
+                          value={r.createParametricName ?? ""}
+                          onChange={e => patch(key, { ...r, createParametricName: e.target.value, targetParameterItemId: undefined })}
+                        />
+                      </Stack>
+                    </Stack>
+                  )}
+                </Box>
+                {done && <CheckCircleIcon color="success" />}
+              </Stack>
+            </Box>
+          );
+        })}
+      </Stack>
+    </Card>
   );
 }
