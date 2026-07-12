@@ -104,37 +104,59 @@ public class BridgeCodeMappingsController : ControllerBase
         var carrier = string.IsNullOrWhiteSpace(body.SourceCarrier) ? null : body.SourceCarrier.Trim();
         var raw = body.RawCode.Trim();
 
-        // Unique per (tenant, kind, carrier, raw code) — mirrors the DB
-        // constraint, but surfacing a friendly error is better than a raw 500.
-        var dup = await _db.BridgeCodeMappings.IgnoreQueryFilters()
-            .AnyAsync(x => x.TenantId == tenantId && x.DeletedAt == null
+        // Look up ANY row (live OR soft-deleted) with the same (tenant, kind,
+        // carrier, raw code) tuple. Live one blocks with a friendly 400 —
+        // soft-deleted one gets resurrected and overwritten in place. MySQL's
+        // unique index on (TenantId, Kind, SourceCarrier, RawCode) doesn't
+        // respect DeletedAt so a plain INSERT with a soft-deleted twin would
+        // throw a raw duplicate-key exception and the operator would just see
+        // "Παρουσιάστηκε εσωτερικό σφάλμα".
+        var existing = await _db.BridgeCodeMappings.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.TenantId == tenantId
                 && x.Kind == body.Kind
                 && x.SourceCarrier == carrier
                 && x.RawCode == raw, ct);
-        if (dup)
+        if (existing is not null && existing.DeletedAt is null)
             throw new AppException("bridge_mapping_duplicate",
                 "Υπάρχει ήδη αντιστοίχιση για αυτόν τον κωδικό γέφυρας.", 400,
                 title: "Διπλή αντιστοίχιση",
                 why: "Ο ίδιος τύπος + πάροχος + raw κωδικός θα δημιουργούσε αμφισημία κατά την εισαγωγή.",
                 fix: "Επεξεργαστείτε την υπάρχουσα εγγραφή ή δηλώστε διαφορετικό raw κωδικό.");
 
-        var item = new BridgeCodeMapping
+        BridgeCodeMapping item;
+        if (existing is not null)
         {
-            Id = Guid.NewGuid(),
-            TenantId = tenantId,
-            Kind = body.Kind,
-            SourceCarrier = carrier,
-            RawCode = raw,
-            RawLabel = Clean(body.RawLabel),
-            TargetInsuranceCompanyId = body.TargetInsuranceCompanyId,
-            TargetParameterItemId = body.TargetParameterItemId,
-            TargetProducerId = body.TargetProducerId,
-            Notes = Clean(body.Notes),
-            ConfirmedByUserId = _current.UserId,
-            ConfirmedAt = _clock.UtcNow,
-            CreatedAt = _clock.UtcNow,
-        };
-        _db.BridgeCodeMappings.Add(item);
+            existing.DeletedAt = null;
+            existing.RawLabel = Clean(body.RawLabel);
+            existing.TargetInsuranceCompanyId = body.TargetInsuranceCompanyId;
+            existing.TargetParameterItemId = body.TargetParameterItemId;
+            existing.TargetProducerId = body.TargetProducerId;
+            existing.Notes = Clean(body.Notes);
+            existing.ConfirmedByUserId = _current.UserId;
+            existing.ConfirmedAt = _clock.UtcNow;
+            existing.UpdatedAt = _clock.UtcNow;
+            item = existing;
+        }
+        else
+        {
+            item = new BridgeCodeMapping
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                Kind = body.Kind,
+                SourceCarrier = carrier,
+                RawCode = raw,
+                RawLabel = Clean(body.RawLabel),
+                TargetInsuranceCompanyId = body.TargetInsuranceCompanyId,
+                TargetParameterItemId = body.TargetParameterItemId,
+                TargetProducerId = body.TargetProducerId,
+                Notes = Clean(body.Notes),
+                ConfirmedByUserId = _current.UserId,
+                ConfirmedAt = _clock.UtcNow,
+                CreatedAt = _clock.UtcNow,
+            };
+            _db.BridgeCodeMappings.Add(item);
+        }
         await _db.SaveChangesAsync(ct);
 
         var saved = await _db.BridgeCodeMappings.IgnoreQueryFilters()

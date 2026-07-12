@@ -39,7 +39,7 @@ interface Mapping {
   createdAt: string;
 }
 
-interface CarrierLite { id: string; name: string; code: string; }
+interface CarrierLite { id: string; name: string; code: string; isGlobal?: boolean; isUsedByTenant?: boolean; }
 interface ParameterItem { id: string; kind: string; code: string; name: string; insuranceCompanyName: string; }
 
 export function BridgeCodeMappingsPage() {
@@ -62,10 +62,18 @@ export function BridgeCodeMappingsPage() {
     })).data
   });
 
-  const carriers = useQuery({
+  const carriersRaw = useQuery({
     queryKey: ["insurance-companies-lite"],
     queryFn: async () => (await api.get<CarrierLite[]>("/insurance-companies", { params: { onlyUsed: false } })).data
   });
+  // Only the office's own carriers are valid link targets — a Kalypsis-global
+  // is never one (we'd loop right back to the "please link" gate on the
+  // bridges page). Legacy globals the tenant opted into stay for backward
+  // compat so historical mappings keep resolving.
+  const carriers = useMemo(
+    () => (carriersRaw.data ?? []).filter(c => !c.isGlobal || c.isUsedByTenant),
+    [carriersRaw.data]
+  );
 
   const distinctCarrierSources = useMemo(() => {
     const set = new Set<string>();
@@ -182,7 +190,7 @@ export function BridgeCodeMappingsPage() {
         <EditDialog
           open={true}
           item={editing}
-          carriers={carriers.data ?? []}
+          carriers={carriers}
           onClose={() => { setCreating(false); setEditing(null); }}
           onSaved={() => {
             setCreating(false); setEditing(null);
