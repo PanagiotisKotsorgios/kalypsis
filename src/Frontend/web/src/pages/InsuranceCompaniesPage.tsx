@@ -195,7 +195,7 @@ export function InsuranceCompaniesPage() {
                 onDelete={(id) => { if (confirm("Διαγραφή ασφαλιστικής;")) del.mutate(id); }}
                 onRowClick={setProfileFor}
                 onClearRules={(id, count) => {
-                  if (!confirm(`Καθαρισμός ${count} αυτόματων κανόνων προμηθειών από αυτή την εταιρεία;\n\nΘα διαγραφούν οριστικά. Οι δικοί σας κανόνες μπορούν να δημιουργηθούν εκ νέου από τη σελίδα Κανόνες Προμηθειών.`)) return;
+                  if (!confirm(`Καθαρισμός ${count} κανόνων προμηθειών από αυτή την εταιρεία;\n\nΘα διαγραφούν οριστικά. Οι δικοί σας κανόνες μπορούν να δημιουργηθούν εκ νέου από τη σελίδα «Παραμετροποίηση προμηθειών».`)) return;
                   void (async () => {
                     try {
                       const r = await api.post<{ rulesDeleted: number }>(`/insurance-companies/${id}/clear-commission-rules`);
@@ -444,7 +444,7 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
                 ) : (
                   <>
                     {onClearRules && r.commissionDefaultCount > 0 && (
-                      <Tooltip title={`Καθαρισμός των ${r.commissionDefaultCount} αυτόματων κανόνων`}>
+                      <Tooltip title={`Καθαρισμός των ${r.commissionDefaultCount} κανόνων προμηθειών`}>
                         <IconButton size="small" color="warning" onClick={() => onClearRules(r.id, r.commissionDefaultCount)}>
                           <LayersClearIcon fontSize="small" />
                         </IconButton>

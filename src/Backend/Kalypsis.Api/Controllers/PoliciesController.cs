@@ -247,9 +247,19 @@ public class InsuranceCompaniesController : ControllerBase
                 .GroupBy(b => b.InsuranceCompanyId)
                 .ToDictionaryAsync(g => g.Key, g => g.First(), ct)
             : new Dictionary<Guid, Kalypsis.Domain.Entities.CompanyBridge>();
+        // Only count rules the operator actually *authored* — any row with
+        // a non-zero agency or producer percent. The zero-value safety-net
+        // seeds we install per (carrier × cover) exist so the calculator has
+        // something to look up when no rule matches, but they are not
+        // "κανόνες" from the office's point of view. Surfacing them as e.g.
+        // "2170 κανόνες" on a carrier the operator never parametrised was
+        // outright confusing.
         var ruleCounts = tenantId.HasValue && tenantCompanyIds.Count > 0
             ? await _db.CommissionRules.IgnoreQueryFilters()
-                .Where(r => r.TenantId == tenantId.Value && r.DeletedAt == null && r.InsuranceCompanyId.HasValue && tenantCompanyIds.Contains(r.InsuranceCompanyId.Value))
+                .Where(r => r.TenantId == tenantId.Value && r.DeletedAt == null
+                    && r.InsuranceCompanyId.HasValue
+                    && tenantCompanyIds.Contains(r.InsuranceCompanyId.Value)
+                    && ((r.AgencyPercent ?? 0m) != 0m || (r.ProducerPercent ?? r.Value) != 0m))
                 .GroupBy(r => r.InsuranceCompanyId!.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Count(), ct)
             : new Dictionary<Guid, int>();
