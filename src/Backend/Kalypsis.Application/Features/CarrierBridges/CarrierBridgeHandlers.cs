@@ -823,8 +823,48 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         int cPartnerCom = ColOr(isMotor ? 32 : 34, "Προμήθειες συνεργάτη");
         int cCancelled  = ColOr(isMotor ? 33 : 37, "Άκυρο");
 
-        for (int rn = 2; rn <= lastRowNum; rn++)
+        // INTERLIFE MOTOR / LOIPOI files interleave three row shapes per
+        // policy: (a) the policy header row, (b) an empty separator, (c) a
+        // sub-header ("Κλάδος / Κωδ. Κάλ. / Κάλυψη / …"), then (d) N cover
+        // rows, then (e) another empty, and for MOTOR an "ΕΛΟΑ / ΕΛΙΜ / …"
+        // tax sub-block. Old code walked every row and produced Error rows
+        // for everything except (a). Now we identify the policy rows first,
+        // then walk the block immediately below each one to harvest cover
+        // codes into the policy's Raw dictionary — the mapping resolver
+        // surfaces them all at once instead of the operator seeing hundreds
+        // of ghost rows.
+        bool IsPolicyRow(int rn)
         {
+            var pn = ws.Cell(rn, cPolicyNum).GetString().Trim();
+            if (string.IsNullOrWhiteSpace(pn)) return false;
+            // Interlife policy numbers are dotted ("19.23589490", "21.174981")
+            // OR plain digit strings of 4+ characters. Sub-block rows have
+            // only col1/col2 filled (branch / cover code) so this column is
+            // always empty for them.
+            var t = pn.TrimStart('0');
+            if (pn.Contains('.') && pn.Any(char.IsDigit)) return true;
+            return t.Length >= 4 && t.All(char.IsDigit);
+        }
+
+        // Column that holds the cover code inside the sub-block. MOTOR keeps
+        // the cover code in col 2 ("Κωδ. Κάλ."); LOIPOI stores a broader
+        // "Κωδικός κάλυψης" in col 3 (col 2 is "Κωδ. προμηθειών", the
+        // commission bucket — noisier and mostly duplicates).
+        int subCoverCol = isMotor ? 2 : 3;
+        // Branch code in the sub-block sits at col 1 in both formats.
+        const int subBranchCol = 1;
+
+        // Precompute the ordered list of policy-row line numbers so we can
+        // slice the sub-block between one policy and the next.
+        var policyRowNumbers = new List<int>();
+        for (int rn = 2; rn <= lastRowNum; rn++)
+            if (IsPolicyRow(rn)) policyRowNumbers.Add(rn);
+
+        for (int p = 0; p < policyRowNumbers.Count; p++)
+        {
+            int rn = policyRowNumbers[p];
+            int nextPolicyRn = p + 1 < policyRowNumbers.Count ? policyRowNumbers[p + 1] : lastRowNum + 1;
+
             var notes = new List<BridgeImportNote>();
             var raw = new Dictionary<string, string>();
             for (int col = 1; col <= lastColNum; col++)
@@ -833,16 +873,48 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 raw[string.IsNullOrWhiteSpace(header) ? $"col{col}" : header] = ws.Cell(rn, col).GetString();
             }
 
+            // Sub-block scan — collect distinct cover codes + a single
+            // branch code (they're all the same branch inside one policy).
+            var coverCodes = new List<string>();
+            string? branchCode = null;
+            for (int subRn = rn + 1; subRn < nextPolicyRn; subRn++)
+            {
+                var branchTok = ws.Cell(subRn, subBranchCol).GetString().Trim();
+                var coverTok  = ws.Cell(subRn, subCoverCol).GetString().Trim();
+                if (string.IsNullOrEmpty(branchTok) && string.IsNullOrEmpty(coverTok)) continue;
+                // Skip the "Κλάδος / Κωδ. Κάλ. / …" sub-header row and the
+                // MOTOR "ΕΛΟΑ / ΕΛΙΜ / …" tax header row.
+                if (branchTok.Equals("Κλάδος", StringComparison.OrdinalIgnoreCase)) continue;
+                if (branchTok.StartsWith("ΕΛ", StringComparison.OrdinalIgnoreCase)
+                    && branchTok.Length <= 6) continue;
+                // Real branch/cover rows have short numeric tokens in both
+                // columns. Bail out for anything else — that's usually a
+                // repeated policy-header row we already handled.
+                if (!branchTok.All(c => char.IsDigit(c) || c == '.')) continue;
+                if (!string.IsNullOrEmpty(coverTok)
+                    && (coverTok.All(c => char.IsLetterOrDigit(c)) && coverTok.Length <= 8))
+                {
+                    if (!coverCodes.Contains(coverTok)) coverCodes.Add(coverTok);
+                }
+                branchCode ??= branchTok;
+            }
+            if (!string.IsNullOrEmpty(branchCode)) raw["Κλάδος.Code"] = branchCode;
+            if (coverCodes.Count > 0)              raw["Καλύψεις"]     = string.Join(", ", coverCodes);
+            // MOTOR files also carry a raw vehicle-use code in column
+            // "Χρήση" (e.g. "000" — private car). Feed the resolver so the
+            // office can link INTERLIFE's use codes to their own catalogue.
+            if (isMotor && headers.TryGetValue("Χρήση", out var useCol))
+            {
+                var useTok = ws.Cell(rn, useCol).GetString().Trim();
+                if (!string.IsNullOrEmpty(useTok)) raw["Χρήση.Code"] = useTok;
+            }
+
             var customerName = ws.Cell(rn, cCustName).GetString().Trim();
             var customerVat  = ws.Cell(rn, cCustVat).GetString().Trim();
             var policyNumber = ws.Cell(rn, cPolicyNum).GetString().Trim();
             var proposal     = cProposal   > 0 ? ws.Cell(rn, cProposal).GetString().Trim()   : null;
             var partnerCode  = cProducer   > 0 ? ws.Cell(rn, cProducer).GetString().Trim()   : null;
             var plate        = isMotor && cPlate > 0 ? ws.Cell(rn, cPlate).GetString().Trim() : null;
-
-            // Skip empty separator/footer rows.
-            if (string.IsNullOrWhiteSpace(customerName) && string.IsNullOrWhiteSpace(policyNumber))
-                continue;
 
             DateOnly? issue = ParseDate(ws.Cell(rn, cIssueDate).Value);
             DateOnly? start = ParseDate(ws.Cell(rn, cStartDate).Value);
@@ -922,7 +994,7 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 notes.Add(new BridgeImportNote("Λήξη", "warn", "Λήξη πριν την έναρξη"));
 
             rows.Add(new BridgeImportRow(
-                rn - 1, policyNumber,
+                p + 1, policyNumber,
                 string.IsNullOrWhiteSpace(proposal) ? null : proposal,
                 customerName,
                 string.IsNullOrWhiteSpace(customerVat) ? null : customerVat,
