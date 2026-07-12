@@ -60,6 +60,23 @@ export function InsuranceCompaniesPage() {
     queryKey: ["insurance-companies"],
     queryFn: async () => (await api.get<CompanyDto[]>("/insurance-companies")).data
   });
+  // Per-tenant Company-kind bridge links. Powers the Γέφυρα column: a
+  // carrier only shows "συνδεδεμένη" when the operator has actually linked
+  // it to a raw bridge source from the CarrierBridges page. Otherwise the
+  // chip says "Χωρίς σύνδεση" regardless of whether the platform ships an
+  // analyzer for the code — the analyzer alone isn't useful until the
+  // office maps it explicitly.
+  const bridgeLinksQ = useQuery({
+    queryKey: ["bridge-code-mappings", "company-links"],
+    queryFn: async () => (await api.get<Array<{ targetInsuranceCompanyId: string | null }>>("/bridge-code-mappings", {
+      params: { kind: "Company" }
+    })).data
+  });
+  const linkedCarrierIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const m of bridgeLinksQ.data ?? []) if (m.targetInsuranceCompanyId) s.add(m.targetInsuranceCompanyId);
+    return s;
+  }, [bridgeLinksQ.data]);
 
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/insurance-companies/${id}`),
@@ -112,30 +129,6 @@ export function InsuranceCompaniesPage() {
         </Stack>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
           <DataExportButton entity="insurance-companies" />
-          <Button
-            variant="outlined"
-            color="warning"
-            onClick={() => {
-              if (!confirm(
-                "Καθαρισμός σβησμένων εταιρειών του γραφείου;\n\n" +
-                "Θα διαγραφούν οριστικά οι σβησμένες εταιρείες που δεν έχουν κανένα συμβόλαιο συνδεδεμένο, μαζί με τις γέφυρες και τους κανόνες προμηθειών τους."
-              )) return;
-              void (async () => {
-                try {
-                  const r = await api.post<{ carriersDeleted: number; bridgesDeleted: number; commissionRulesDeleted: number; skipped: number }>("/insurance-companies/purge-soft-deleted");
-                  setSuccess(
-                    `Διαγράφηκαν οριστικά ${r.data.carriersDeleted} εταιρείες, ${r.data.bridgesDeleted} γέφυρες και ${r.data.commissionRulesDeleted} κανόνες προμηθειών.`
-                    + (r.data.skipped > 0 ? ` Παραλείφθηκαν ${r.data.skipped} με ενεργά συμβόλαια.` : "")
-                  );
-                  void qc.invalidateQueries({ queryKey: ["insurance-companies"] });
-                } catch (e) {
-                  setError(extractErrorMessage(e));
-                }
-              })();
-            }}
-          >
-            Καθαρισμός σβησμένων
-          </Button>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
             Νέα ασφαλιστική
           </Button>
@@ -172,6 +165,7 @@ export function InsuranceCompaniesPage() {
               </Box>
             ) : (
               <CompanyTable rows={ownRows}
+                linkedCarrierIds={linkedCarrierIds}
                 onEdit={setEditing}
                 onDelete={(id) => { if (confirm("Διαγραφή ασφαλιστικής;")) del.mutate(id); }}
                 onClearRules={(id, count) => {
@@ -198,7 +192,7 @@ export function InsuranceCompaniesPage() {
   );
 }
 
-function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClearRules }: {
+function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClearRules, linkedCarrierIds }: {
   rows: CompanyDto[];
   onEdit?: (c: CompanyDto) => void;
   onDelete?: (id: string) => void;
@@ -208,6 +202,10 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
   /** Wipes commission rules attached to a carrier — one-shot cleanup for
    * rows the old auto-seed populated with ~2000 zero-percent scaffolding. */
   onClearRules?: (id: string, count: number) => void;
+  /** Carriers that already have a Company-kind BridgeCodeMapping pointing
+   * at them — they show "Γέφυρα συνδεδεμένη" in the bridge column instead
+   * of the generic "Χωρίς σύνδεση". */
+  linkedCarrierIds?: Set<string>;
 }) {
   // Track which brokers are expanded. Collapsed by default so the table
   // doesn't dump 56 rows of subs onto the user; clicking the chevron on a
@@ -371,26 +369,14 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
                 {r.parentCompanyId ? (
                   // Subs share the broker's bridge — they don't have their own.
                   <Chip size="small" variant="outlined" label="Μέσω πρακτορείου" sx={{ color: "text.secondary" }} />
-                ) : (() => {
-                  // Three tiers of availability:
-                  //   1. Συνδεδεμένη — tenant already has a CompanyBridge row
-                  //      (usually created on first commit).
-                  //   2. Αναλυτής διαθέσιμος — the platform ships a parser
-                  //      for this carrier, so the operator can upload today.
-                  //   3. Χωρίς γέφυρα — no parser exists yet.
-                  const code = (r.code ?? "").toUpperCase();
-                  const analyzerAvailable =
-                    code.includes("ERGO") ||
-                    code.includes("GRAND_COVER") || code.includes("GRANDCOVER") ||
-                    code.includes("ATLANTIC");
-                  if (r.bridgeLinked) {
-                    return <Chip size="small" color="primary" label="Συνδεδεμένη" />;
-                  }
-                  if (analyzerAvailable) {
-                    return <Chip size="small" color="info" variant="outlined" label="Αναλυτής διαθέσιμος" />;
-                  }
-                  return <Chip size="small" color="warning" variant="outlined" label="Χωρίς γέφυρα" />;
-                })()}
+                ) : linkedCarrierIds?.has(r.id) ? (
+                  // Only after the operator explicitly links this carrier to a
+                  // raw bridge source from the CarrierBridges page — the
+                  // platform shipping an analyzer doesn't count on its own.
+                  <Chip size="small" color="primary" label="Γέφυρα συνδεδεμένη" />
+                ) : (
+                  <Chip size="small" color="warning" variant="outlined" label="Χωρίς σύνδεση" />
+                )}
               </TableCell>
               <TableCell align="right">
                 <Chip size="small" color={r.parameterItemCount > 0 ? "success" : "warning"} variant="outlined" label={r.parameterItemCount} />
