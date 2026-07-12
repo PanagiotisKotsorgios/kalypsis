@@ -18,6 +18,7 @@ using Kalypsis.Application.Features.Tariffs;
 using Kalypsis.Application.Features.Tasks;
 using Kalypsis.Domain.Enums;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kalypsis.Application.Features.Exports;
 
@@ -34,11 +35,13 @@ public class UniversalExportHandler : IRequestHandler<UniversalExportQuery, Expo
 {
     private readonly IMediator _mediator;
     private readonly ICurrentUser _current;
+    private readonly IAppDbContext _db;
 
-    public UniversalExportHandler(IMediator mediator, ICurrentUser current)
+    public UniversalExportHandler(IMediator mediator, ICurrentUser current, IAppDbContext db)
     {
         _mediator = mediator;
         _current = current;
+        _db = db;
     }
 
     public async Task<ExportResult> Handle(UniversalExportQuery q, CancellationToken ct)
@@ -179,21 +182,52 @@ public class UniversalExportHandler : IRequestHandler<UniversalExportQuery, Expo
     // ---------------- Insurance Companies ----------------
     private async Task<Sheet> BuildInsuranceCompaniesAsync(string? search, CancellationToken ct)
     {
-        var rows = await _mediator.Send(new ListInsuranceCompaniesQuery(), ct);
+        // Tenant-scope only — the office's own carrier catalogue. The previous
+        // implementation went through ListInsuranceCompaniesQuery which
+        // returns EVERY row in the table (Kalypsis globals + tenant rows) and
+        // the resulting csv/xlsx/pdf dumped the whole platform catalogue. Now
+        // we hit the DB directly and pull the fields the office actually
+        // cares about — same shape as the InsuranceCompaniesPage table.
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var q = _db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(c => c.DeletedAt == null && c.TenantId == tenantId)
+            .OrderBy(c => c.Name);
+        var rows = await q.Select(c => new
+        {
+            c.Code, c.Name, c.Country, c.Website, c.IsActive,
+            c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone,
+            c.AfmVat, c.Notes
+        }).ToListAsync(ct);
         if (!string.IsNullOrWhiteSpace(search))
         {
             var s = search.Trim();
-            rows = rows.Where(c => Match(c.Name, s) || Match(c.Code, s) || Match(c.Country, s)).ToList();
+            rows = rows.Where(c =>
+                Match(c.Name, s) || Match(c.Code, s) || Match(c.Country, s)
+                || Match(c.AgentCode, s) || Match(c.ContactName, s)
+                || Match(c.ContactEmail, s) || Match(c.AfmVat, s)).ToList();
         }
         return new Sheet(
             "Ασφαλιστικές Εταιρίες",
-            new[] { "Κωδικός", "Επωνυμία", "Χώρα", "Ενεργή" },
+            new[]
+            {
+                "Κωδικός", "Επωνυμία", "Χώρα", "Website", "Ενεργή",
+                "Κωδικός συνεργασίας", "ΑΦΜ",
+                "Όνομα επαφής", "Email επαφής", "Τηλέφωνο επαφής",
+                "Σημειώσεις"
+            },
             rows.Select(c => (IReadOnlyList<string>)new[]
             {
                 c.Code,
                 c.Name,
                 c.Country ?? "",
-                ExportFormatter.FormatBool(c.IsActive)
+                c.Website ?? "",
+                ExportFormatter.FormatBool(c.IsActive),
+                c.AgentCode ?? "",
+                c.AfmVat ?? "",
+                c.ContactName ?? "",
+                c.ContactEmail ?? "",
+                c.ContactPhone ?? "",
+                c.Notes ?? ""
             }).ToList());
     }
 
