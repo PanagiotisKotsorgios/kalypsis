@@ -335,9 +335,25 @@ public class InsuranceCompaniesController : ControllerBase
             CreatedAt = _clock.UtcNow
         };
         _db.InsuranceCompanies.Add(c);
-        if (body.CreateBridge) await EnsureBridgeAsync(tenantId, c, body, ct);
-        if (body.InstallZeroCommissionDefaults) await SeedZeroCommissionDefaultsAsync(tenantId, c.Id, ct);
         await _db.SaveChangesAsync(ct);
+
+        // Best-effort bridge + zero-commission bootstrap. Their previous
+        // shape (throw-on-failure) made a broken parametric or a stray
+        // legacy row 500 the entire "Νέα ασφαλιστική" flow — the operator
+        // hit "internal server error" every time. Under the new model these
+        // are conveniences, not prerequisites (bridge auto-provisions on
+        // first import, commission rules are edited from the CommissionRules
+        // page), so we swallow failures and keep the carrier row.
+        if (body.CreateBridge)
+        {
+            try { await EnsureBridgeAsync(tenantId, c, body, ct); await _db.SaveChangesAsync(ct); }
+            catch { /* first-import upload will materialise the bridge */ }
+        }
+        if (body.InstallZeroCommissionDefaults)
+        {
+            try { await SeedZeroCommissionDefaultsAsync(tenantId, c.Id, ct); await _db.SaveChangesAsync(ct); }
+            catch { /* commission rules can be filled in later from the ProductionLists page */ }
+        }
         var bridge = await _db.CompanyBridges.IgnoreQueryFilters()
             .FirstOrDefaultAsync(b => b.TenantId == tenantId && b.DeletedAt == null && b.InsuranceCompanyId == c.Id, ct);
         var ruleCount = await _db.CommissionRules.IgnoreQueryFilters()
@@ -372,9 +388,17 @@ public class InsuranceCompaniesController : ControllerBase
         c.ContactEmail = Clean(body.ContactEmail); c.ContactPhone = Clean(body.ContactPhone);
         c.AfmVat = Clean(body.AfmVat); c.Notes = Clean(body.Notes);
         c.UpdatedAt = _clock.UtcNow;
-        if (body.CreateBridge) await EnsureBridgeAsync(c.TenantId.Value, c, body, ct);
-        if (body.InstallZeroCommissionDefaults) await SeedZeroCommissionDefaultsAsync(c.TenantId.Value, c.Id, ct);
         await _db.SaveChangesAsync(ct);
+        if (body.CreateBridge)
+        {
+            try { await EnsureBridgeAsync(c.TenantId.Value, c, body, ct); await _db.SaveChangesAsync(ct); }
+            catch { /* best-effort — the carrier update itself already persisted */ }
+        }
+        if (body.InstallZeroCommissionDefaults)
+        {
+            try { await SeedZeroCommissionDefaultsAsync(c.TenantId.Value, c.Id, ct); await _db.SaveChangesAsync(ct); }
+            catch { }
+        }
         var bridge = await _db.CompanyBridges.IgnoreQueryFilters()
             .FirstOrDefaultAsync(b => b.TenantId == c.TenantId && b.DeletedAt == null && b.InsuranceCompanyId == c.Id, ct);
         var ruleCount = await _db.CommissionRules.IgnoreQueryFilters()
