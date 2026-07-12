@@ -111,17 +111,34 @@ public class CompanyParametersController : ControllerBase
         CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var accessibleCodes = await _db.InsuranceCompanies.IgnoreQueryFilters()
-            .Where(c => c.DeletedAt == null && (c.TenantId == null || c.TenantId == tenantId))
-            .Select(c => c.Code)
-            .Distinct()
-            .ToListAsync(ct);
 
-        var q = _db.CompanyParameterItems.IgnoreQueryFilters()
-            .Include(x => x.InsuranceCompany)
-            .Where(x => x.DeletedAt == null && x.IsActive && accessibleCodes.Contains(x.InsuranceCompany.Code));
+        IQueryable<CompanyParameterItem> q;
+        if (insuranceCompanyId.HasValue)
+        {
+            // Strict per-carrier fetch. The old "look up by code and then
+            // pull every matching row" path folded the Kalypsis-global
+            // catalogue (461 rows for ERGO) into the tenant's own ERGO
+            // Hellas — the office looked at Παραμετρικά and saw a wall of
+            // rows they never authored. Now the endpoint returns only rows
+            // attached to THIS carrier row.
+            q = _db.CompanyParameterItems.IgnoreQueryFilters()
+                .Include(x => x.InsuranceCompany)
+                .Where(x => x.DeletedAt == null && x.IsActive
+                    && x.InsuranceCompanyId == insuranceCompanyId.Value);
+        }
+        else
+        {
+            // Unscoped list — still bounded to carriers the tenant can see.
+            var accessibleCodes = await _db.InsuranceCompanies.IgnoreQueryFilters()
+                .Where(c => c.DeletedAt == null && (c.TenantId == null || c.TenantId == tenantId))
+                .Select(c => c.Code)
+                .Distinct()
+                .ToListAsync(ct);
+            q = _db.CompanyParameterItems.IgnoreQueryFilters()
+                .Include(x => x.InsuranceCompany)
+                .Where(x => x.DeletedAt == null && x.IsActive && accessibleCodes.Contains(x.InsuranceCompany.Code));
+        }
 
-        q = await ApplyCompanyCodeFilterAsync(q, insuranceCompanyId, ct);
         q = ApplyCommonFilters(q, kind, search);
 
         var today = DateOnly.FromDateTime(_clock.UtcNow);

@@ -35,7 +35,10 @@ interface ParameterDto {
   notes: string | null;
 }
 
-const KINDS: ParameterKind[] = ["Branch", "Coverage", "Use", "Package"];
+// Tab order the office uses when they build up a carrier: first the top
+// hierarchy (Κλάδοι → Πακέτα), then the axes that specialise a policy
+// (Χρήσεις for motor use categories), and finally the leaf-level Καλύψεις.
+const KINDS: ParameterKind[] = ["Branch", "Package", "Use", "Coverage"];
 const KIND_LABEL: Record<ParameterKind, string> = {
   Branch: "Κλάδοι",
   Coverage: "Καλύψεις",
