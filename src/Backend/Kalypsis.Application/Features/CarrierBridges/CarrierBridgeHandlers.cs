@@ -81,13 +81,20 @@ public class ListAvailableCarrierBridgesHandler : IRequestHandler<ListAvailableC
 
     public async Task<IReadOnlyList<AvailableCarrierDto>> Handle(ListAvailableCarrierBridgesQuery _, CancellationToken ct)
     {
-        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        // Subcompanies of a broker share the broker's bridge — they don't get
-        // their own slot here. So we exclude any row with a ParentCompanyId.
-        // Top-level brokers (πρακτορεία) and standalone carriers only.
+        // Bridges are a Kalypsis-provided catalogue. The office does NOT
+        // create γεφύρες carriers — they only create their own carrier
+        // records inside "Ασφαλιστικές Εταιρείες" and then link a
+        // Kalypsis-provided bridge source to one of them via
+        // BridgeCodeMapping(Kind=Company). Consequence: this list must
+        // return ONLY globals (TenantId == null). If a tenant owns an
+        // "ERGO HELLAS" it MUST NOT appear alongside the global "ERGO
+        // Ασφαλιστική" on the bridges page — the operator picks the
+        // global, walks through the link gate, and their own carrier is
+        // where the imported policies land.
+        if (!_current.TenantId.HasValue) throw AppException.Forbidden();
         var carriers = await _db.InsuranceCompanies.IgnoreQueryFilters()
             .Where(c => c.DeletedAt == null
-                && (c.TenantId == null || c.TenantId == tenantId)
+                && c.TenantId == null
                 && c.ParentCompanyId == null)
             .OrderBy(c => c.Name)
             .ToListAsync(ct);
