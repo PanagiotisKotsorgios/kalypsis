@@ -222,30 +222,11 @@ public class InsuranceCompaniesController : ControllerBase
     {
         var tenantId = _current.TenantId;
 
-        // Auto-heal: silently soft-delete any tenant-scoped carrier whose Code
-        // duplicates a global carrier. Earlier deploys created these via the
-        // (now-disabled) "Εισαγωγή στο γραφείο" button and they show as
-        // duplicates everywhere. Runs only when a tenant copy exists, so the
-        // hot path stays fast for tenants with clean data.
-        if (tenantId.HasValue)
-        {
-            var globalCodes = await _db.InsuranceCompanies.IgnoreQueryFilters()
-                .Where(c => c.TenantId == null && c.DeletedAt == null)
-                .Select(c => c.Code)
-                .ToListAsync(ct);
-            var dupes = await _db.InsuranceCompanies.IgnoreQueryFilters()
-                .Where(c => c.TenantId == tenantId.Value && c.DeletedAt == null && globalCodes.Contains(c.Code))
-                .ToListAsync(ct);
-            if (dupes.Count > 0)
-            {
-                foreach (var d in dupes)
-                {
-                    d.DeletedAt = _clock.UtcNow;
-                    d.IsActive = false;
-                }
-                await _db.SaveChangesAsync(ct);
-            }
-        }
+        // The old auto-heal used to soft-delete tenant carriers whose code
+        // duplicated a Kalypsis-global. Under the new "each office runs its
+        // own catalogue" model that's exactly the case we EXPECT — a fresh
+        // "ERGO Hellas" the office just created must not disappear on the
+        // next list refresh because a legacy global "ERGO" exists.
 
         var rows = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
             .ToListAsync(_db.InsuranceCompanies.IgnoreQueryFilters()
