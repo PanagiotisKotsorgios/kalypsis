@@ -499,6 +499,55 @@ public class InsuranceCompaniesController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Hard-deletes soft-deleted tenant carriers (and their attached
+    /// CompanyBridges / CommissionRules) for the current tenant, so the
+    /// office can re-use a code that was previously nuked by the old
+    /// auto-heal. Only touches rows with NO policies attached — anything
+    /// with a live policy trail stays put so history isn't lost.
+    /// </summary>
+    public record PurgeResult(int CarriersDeleted, int BridgesDeleted, int CommissionRulesDeleted, int Skipped);
+
+    [HttpPost("purge-soft-deleted")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<PurgeResult>> PurgeSoftDeleted(CancellationToken ct)
+    {
+        var tenantId = _current.TenantId
+            ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+
+        var softDeleted = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt != null)
+            .ToListAsync(ct);
+        if (softDeleted.Count == 0)
+            return Ok(new PurgeResult(0, 0, 0, 0));
+
+        var ids = softDeleted.Select(x => x.Id).ToList();
+        var withPolicies = await _db.Policies.IgnoreQueryFilters()
+            .Where(p => ids.Contains(p.InsuranceCompanyId))
+            .Select(p => p.InsuranceCompanyId)
+            .Distinct()
+            .ToListAsync(ct);
+        var withPoliciesSet = new HashSet<Guid>(withPolicies);
+        var purgeIds = ids.Where(id => !withPoliciesSet.Contains(id)).ToList();
+        if (purgeIds.Count == 0)
+            return Ok(new PurgeResult(0, 0, 0, softDeleted.Count));
+
+        var bridges = await _db.CompanyBridges.IgnoreQueryFilters()
+            .Where(b => purgeIds.Contains(b.InsuranceCompanyId))
+            .ToListAsync(ct);
+        var rules = await _db.CommissionRules.IgnoreQueryFilters()
+            .Where(r => r.InsuranceCompanyId.HasValue && purgeIds.Contains(r.InsuranceCompanyId.Value))
+            .ToListAsync(ct);
+        var carriers = softDeleted.Where(c => purgeIds.Contains(c.Id)).ToList();
+
+        _db.CompanyBridges.RemoveRange(bridges);
+        _db.CommissionRules.RemoveRange(rules);
+        _db.InsuranceCompanies.RemoveRange(carriers);
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new PurgeResult(carriers.Count, bridges.Count, rules.Count, softDeleted.Count - carriers.Count));
+    }
+
     public record OptInToggleResult(Guid InsuranceCompanyId, bool IsUsedByTenant);
 
     /// Flips the "Χρησιμοποιώ" mark on a universal (Kalypsis-managed) carrier

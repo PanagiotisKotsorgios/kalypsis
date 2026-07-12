@@ -124,6 +124,30 @@ export function InsuranceCompaniesPage() {
         </Stack>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
           <DataExportButton entity="insurance-companies" />
+          <Button
+            variant="outlined"
+            color="warning"
+            onClick={() => {
+              if (!confirm(
+                "Καθαρισμός σβησμένων εταιρειών του γραφείου;\n\n" +
+                "Θα διαγραφούν οριστικά οι σβησμένες εταιρείες που δεν έχουν κανένα συμβόλαιο συνδεδεμένο, μαζί με τις γέφυρες και τους κανόνες προμηθειών τους."
+              )) return;
+              void (async () => {
+                try {
+                  const r = await api.post<{ carriersDeleted: number; bridgesDeleted: number; commissionRulesDeleted: number; skipped: number }>("/insurance-companies/purge-soft-deleted");
+                  setSuccess(
+                    `Διαγράφηκαν οριστικά ${r.data.carriersDeleted} εταιρείες, ${r.data.bridgesDeleted} γέφυρες και ${r.data.commissionRulesDeleted} κανόνες προμηθειών.`
+                    + (r.data.skipped > 0 ? ` Παραλείφθηκαν ${r.data.skipped} με ενεργά συμβόλαια.` : "")
+                  );
+                  void qc.invalidateQueries({ queryKey: ["insurance-companies"] });
+                } catch (e) {
+                  setError(extractErrorMessage(e));
+                }
+              })();
+            }}
+          >
+            Καθαρισμός σβησμένων
+          </Button>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
             Νέα ασφαλιστική
           </Button>
