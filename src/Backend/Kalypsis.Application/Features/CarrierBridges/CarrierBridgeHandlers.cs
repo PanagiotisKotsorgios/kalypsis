@@ -164,6 +164,91 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         var isZip = r.FileContent.Length >= 4
             && r.FileContent[0] == 0x50 && r.FileContent[1] == 0x4B
             && (r.FileContent[2] == 0x03 || r.FileContent[2] == 0x05 || r.FileContent[2] == 0x07);
+
+        // ------------------------------------------------------------------
+        // Wrong-carrier pre-flight. Sniff the actual file contents against
+        // the carrier the operator picked in the tile grid. Every carrier
+        // has a fingerprint no other one produces:
+        //   - GRAND-COVER  → zip with Policies.csv + Customers.csv at root
+        //   - ATLANTIKI    → zip with Filpolhd.txt at root
+        //   - ERGO_TXT     → filename contains (HEADER)/(DETAIL) OR body is
+        //                    UTF-8-BOM quoted-CSV
+        //   - INTERLIFE    → xlsx with "MOTOR_"/"LOIPOI_" in filename OR
+        //                    header row containing "Επωνυμία πελ." or
+        //                    "No. Συμβ."
+        //   - ERGO (xlsx)  → legacy xlsx with "ERGO" header at cell A2
+        // If the sniffed fingerprint disagrees with the operator's selection
+        // we throw a friendly "Λάθος αρχείο" error before touching the
+        // parser — the parser used to silently return garbage rows.
+        var suspectedFormat = SniffFormat(r.FileContent, r.FileName, isZip);
+        var expectedFormat = isErgo ? "ERGO"
+                           : isGrandCover ? "GRAND_COVER"
+                           : isAtlantic ? "ATLANTIC"
+                           : isInterlife ? "INTERLIFE"
+                           : "?";
+        // ERGO carrier accepts both ERGO_XLSX and ERGO_TXT — treat both as
+        // matching. Anything else is a hard mismatch.
+        bool CarrierMatchesFile()
+        {
+            if (suspectedFormat == "UNKNOWN") return true; // sniffer couldn't decide, let the parser try
+            if (isErgo && (suspectedFormat == "ERGO_XLSX" || suspectedFormat == "ERGO_TXT")) return true;
+            if (isGrandCover && suspectedFormat == "GRAND_COVER") return true;
+            if (isAtlantic && suspectedFormat == "ATLANTIC") return true;
+            if (isInterlife && suspectedFormat == "INTERLIFE") return true;
+            return false;
+        }
+        if (!CarrierMatchesFile())
+        {
+            var friendly = suspectedFormat switch
+            {
+                "ERGO_TXT"    => "αρχείο ERGO (.txt / .zip)",
+                "ERGO_XLSX"   => "αρχείο ERGO (.xlsx)",
+                "INTERLIFE"   => "αρχείο Interlife (.xlsx)",
+                "GRAND_COVER" => "αρχείο Grand Cover (.zip)",
+                "ATLANTIC"    => "αρχείο Ατλαντικής Ένωσης (Producer_ .zip)",
+                _ => "άγνωστου τύπου αρχείο"
+            };
+            var expectedFriendly = isErgo ? "ERGO Ασφαλιστική"
+                                 : isGrandCover ? "Grand Cover"
+                                 : isAtlantic ? "Ατλαντική Ένωση"
+                                 : isInterlife ? "Interlife"
+                                 : carrier.Name;
+            throw new AppException("bridge_wrong_carrier",
+                $"Το αρχείο μοιάζει με {friendly}, αλλά το εισάγετε στη γέφυρα «{expectedFriendly}».", 400,
+                title: "Λάθος αρχείο",
+                why: "Κάθε ασφαλιστική στέλνει τα δεδομένα της σε διαφορετική μορφή. Ο αναλυτής θα διάβαζε λάθος στήλες αν συνεχίζαμε.",
+                fix: $"Ανεβάστε το αρχείο της {expectedFriendly}, ή αλλάξτε την επιλεγμένη ασφαλιστική από το πάνω πλέγμα.");
+        }
+
+        // ERGO_TXT LOB check — the tile the operator picked encodes the
+        // LOB in `Lob` ("auto"/"fire"/"liability"/"pros"). The parser
+        // detects the LOB from the filename after this point. Cross-check
+        // them here so an operator who dropped a FIRE file into the AUTO
+        // tile gets a clear "wrong LOB" rather than an import full of
+        // mis-branded rows.
+        if (isErgo && suspectedFormat == "ERGO_TXT")
+        {
+            var fileLob = DetectErgoLobFromName(r.FileName)
+                ?? DetectErgoLobFromZipEntries(r.FileContent, isZip);
+            var tileLob = (r.Lob ?? "").ToUpperInvariant() switch
+            {
+                "AUTO" => "AUTO",
+                "FIRE" => "FIRE",
+                "LIABILITY" => "LIABILITY",
+                "PROS" => "PROS",
+                _ => null
+            };
+            if (fileLob is not null && tileLob is not null && fileLob != tileLob)
+            {
+                throw new AppException("bridge_wrong_lob",
+                    $"Το αρχείο ERGO αφορά τον κλάδο {fileLob}, αλλά το ανεβάσατε στο πλακίδιο «{tileLob}».", 400,
+                    title: "Λάθος κλάδος",
+                    why: "Το ERGO στέλνει διαφορετικό αρχείο ανά κλάδο (AUTO / FIRE / LIABILITY / PROS). Ο αναλυτής θα διάβαζε λάθος στήλες.",
+                    fix: $"Επιλέξτε το πλακίδιο «{fileLob}» και ανεβάστε το ίδιο αρχείο.");
+            }
+        }
+        // ------------------------------------------------------------------
+
         // xlsx is technically a zip too, but its central directory has an
         // [Content_Types].xml. We treat as zip-pack only when the archive
         // contains a Policies.csv entry at root.
@@ -506,6 +591,94 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                  || e.Name.Contains("(DETAIL)", StringComparison.OrdinalIgnoreCase)));
         }
         catch { return false; }
+    }
+
+    /// <summary>Best-guess carrier format from filename + first bytes. Powers
+    /// the wrong-carrier / wrong-LOB guard rails before the parser runs.</summary>
+    private static string SniffFormat(byte[] content, string fileName, bool isZip)
+    {
+        var name = (fileName ?? "").ToUpperInvariant();
+
+        // Zip fingerprints first — they're cheapest and unambiguous.
+        if (isZip)
+        {
+            try
+            {
+                using var ms = new MemoryStream(content);
+                using var arc = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Read);
+                var entryNames = arc.Entries.Select(e => e.Name).ToList();
+                if (entryNames.Any(n => n.Equals("Filpolhd.txt", StringComparison.OrdinalIgnoreCase))) return "ATLANTIC";
+                if (entryNames.Any(n => n.Equals("Policies.csv", StringComparison.OrdinalIgnoreCase))
+                    && entryNames.Any(n => n.Equals("Customers.csv", StringComparison.OrdinalIgnoreCase))) return "GRAND_COVER";
+                if (entryNames.Any(n => n.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)
+                    && (n.Contains("(HEADER)", StringComparison.OrdinalIgnoreCase)
+                     || n.Contains("(DETAIL)", StringComparison.OrdinalIgnoreCase)))) return "ERGO_TXT";
+                // xlsx also has a zip signature; the archive contains
+                // [Content_Types].xml + xl/ folder. If we're here, the
+                // caller already treated it as xlsx via isZip=true (which
+                // it did NOT for .xlsx files — see the strict signature
+                // check). So a zip with only [Content_Types].xml is the
+                // xlsx path.
+                if (entryNames.Any(n => n.Equals("[Content_Types].xml", StringComparison.OrdinalIgnoreCase)))
+                {
+                    // Fall through to xlsx sniff below.
+                }
+                else return "UNKNOWN";
+            }
+            catch { return "UNKNOWN"; }
+        }
+
+        // Filename shortcuts (before touching xlsx parsing which is heavy).
+        if (name.StartsWith("MOTOR_") || name.StartsWith("LOIPOI_")) return "INTERLIFE";
+        if (name.EndsWith(".TXT") && (name.Contains("(HEADER)") || name.Contains("(DETAIL)"))) return "ERGO_TXT";
+
+        // XLSX peek — top-left cell + row 1 header.
+        try
+        {
+            using var s = new MemoryStream(content);
+            using var wb = new XLWorkbook(s);
+            var ws = wb.Worksheets.First();
+            var a2 = ws.Cell(2, 1).GetString().Trim().ToUpperInvariant();
+            var hdrRow = new List<string>();
+            var lastCol = Math.Min(ws.LastColumnUsed()?.ColumnNumber() ?? 1, 50);
+            for (int c = 1; c <= lastCol; c++) hdrRow.Add(ws.Cell(1, c).GetString().Trim());
+            var hdr = string.Join("|", hdrRow).ToUpperInvariant();
+            if (hdr.Contains("ΕΠΩΝΥΜΊΑ ΠΕΛ.") || hdr.Contains("ΕΠΩΝΥΜΙΑ ΠΕΛ") || hdr.Contains("NO. ΣΥΜΒ")) return "INTERLIFE";
+            if (a2.Contains("ERGO")) return "ERGO_XLSX";
+            return "UNKNOWN";
+        }
+        catch { return "UNKNOWN"; }
+    }
+
+    /// <summary>ERGO_TXT LOB from the file name — matches AUTO / FIRE /
+    /// LIABILITY / PROS as a token, case-insensitive.</summary>
+    private static string? DetectErgoLobFromName(string fileName)
+    {
+        var u = (fileName ?? "").ToUpperInvariant();
+        if (u.Contains(" AUTO ")   || u.Contains("AUTO.")) return "AUTO";
+        if (u.Contains(" FIRE ")   || u.Contains("FIRE.")) return "FIRE";
+        if (u.Contains("LIABILITY")) return "LIABILITY";
+        if (u.Contains(" PROS ")   || u.Contains("PROS.")) return "PROS";
+        return null;
+    }
+
+    /// <summary>Fallback: peek into the zip's entry names when the outer
+    /// filename doesn't reveal the LOB.</summary>
+    private static string? DetectErgoLobFromZipEntries(byte[] content, bool isZip)
+    {
+        if (!isZip) return null;
+        try
+        {
+            using var ms = new MemoryStream(content);
+            using var arc = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Read);
+            foreach (var e in arc.Entries)
+            {
+                var lob = DetectErgoLobFromName(e.Name);
+                if (lob is not null) return lob;
+            }
+            return null;
+        }
+        catch { return null; }
     }
 
     /// <summary>Parse a comma-separated line with double-quoted fields. No CR/LF handling needed;
