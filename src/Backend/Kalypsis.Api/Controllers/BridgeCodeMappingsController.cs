@@ -104,6 +104,8 @@ public class BridgeCodeMappingsController : ControllerBase
         var carrier = string.IsNullOrWhiteSpace(body.SourceCarrier) ? null : body.SourceCarrier.Trim();
         var raw = body.RawCode.Trim();
 
+        await EnsureSingleCompanyTargetAsync(tenantId, body, editingId: null, ct);
+
         // Look up ANY row (live OR soft-deleted) with the same (tenant, kind,
         // carrier, raw code) tuple. Live one blocks with a friendly 400 —
         // soft-deleted one gets resurrected and overwritten in place. MySQL's
@@ -174,6 +176,7 @@ public class BridgeCodeMappingsController : ControllerBase
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         Validate(body);
         await EnsureTargetsAsync(tenantId, body, ct);
+        await EnsureSingleCompanyTargetAsync(tenantId, body, editingId: id, ct);
 
         var item = await _db.BridgeCodeMappings.IgnoreQueryFilters()
             .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId && x.DeletedAt == null, ct)
@@ -264,6 +267,42 @@ public class BridgeCodeMappingsController : ControllerBase
                     && x.TenantId == tenantId, ct);
             if (!exists) throw AppException.NotFound("Συνεργάτης");
         }
+    }
+
+    /// <summary>
+    /// Each tenant carrier is allowed AT MOST ONE Kind=Company bridge
+    /// mapping. Without this guard an operator could point ERGO HELLAS at
+    /// both the ERGO bridge AND the INTERLIFE bridge and imports would
+    /// silently collide — the carrier "belongs" to whichever bridge parses
+    /// last. Enforced on Create + Update. Ignored when
+    /// TargetInsuranceCompanyId is null or Kind != Company.
+    /// </summary>
+    private async Task EnsureSingleCompanyTargetAsync(Guid tenantId, UpsertBody body, Guid? editingId, CancellationToken ct)
+    {
+        if (body.Kind != BridgeMappingKind.Company) return;
+        if (!body.TargetInsuranceCompanyId.HasValue) return;
+
+        var targetId = body.TargetInsuranceCompanyId.Value;
+        var conflict = await _db.BridgeCodeMappings.IgnoreQueryFilters()
+            .Include(x => x.TargetInsuranceCompany)
+            .Where(x => x.TenantId == tenantId
+                && x.DeletedAt == null
+                && x.Kind == BridgeMappingKind.Company
+                && x.TargetInsuranceCompanyId == targetId
+                && (!editingId.HasValue || x.Id != editingId.Value))
+            .Select(x => new { x.SourceCarrier, x.TargetInsuranceCompany!.Name })
+            .FirstOrDefaultAsync(ct);
+        if (conflict is null) return;
+
+        var conflictSource = string.IsNullOrWhiteSpace(conflict.SourceCarrier)
+            ? "άλλη γέφυρα"
+            : conflict.SourceCarrier;
+        throw new AppException("carrier_already_linked",
+            $"Η ασφαλιστική «{conflict.Name}» είναι ήδη συνδεδεμένη με τη γέφυρα «{conflictSource}».",
+            400,
+            title: "Ήδη συνδεδεμένη ασφαλιστική",
+            why: "Κάθε δική σας ασφαλιστική μπορεί να συνδεθεί μόνο με ΜΙΑ γέφυρα κάθε φορά. Αν επιτρεπόταν δεύτερη, οι εισαγωγές από την νέα γέφυρα θα άλλαζαν αθόρυβα τα συμβόλαια που δημιούργησε η πρώτη.",
+            fix: $"Αν θέλετε να αλλάξετε γέφυρα, διαγράψτε πρώτα την υπάρχουσα αντιστοίχιση με τη «{conflictSource}» — ή δημιουργήστε ξεχωριστή δική σας ασφαλιστική για την «{body.SourceCarrier ?? "νέα γέφυρα"}».");
     }
 
     private static BridgeCodeMappingDto Map(BridgeCodeMapping x) => new(
