@@ -196,7 +196,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
   });
   const communications = useQuery({
     queryKey: ["policy-communications", policyId],
-    enabled: open && tab === 13 && !!policyId,
+    // Communications lazy-load moved to the merged Δραστηριότητα tab (index 11).
+    enabled: open && tab === 11 && !!policyId,
     queryFn: async () => (await api.get<PolicyCommunicationRow[]>(`/policies/${policyId}/communications`)).data
   });
   const commissionMatrix = useQuery({
@@ -361,6 +362,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
           ) : null}
         </Box>
 
+        {/* Tab consolidation pass — Αντικείμενα + Καλύψεις collapsed into
+            a single "Δεδομένα συμβολαίου" tab (renders both sub-sections
+            stacked), Ιστορικό + Επικοινωνία collapsed into "Δραστηριότητα"
+            (audit timeline + comms feed one under the other). Fewer tabs
+            = less mental load per policy for the operator. */}
         <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" sx={{ px: 1, borderBottom: "1px solid", borderColor: "divider" }}>
           <Tab label={t("policyDetail.tab.summary")} />
           <Tab label={t("policyDetail.tab.financials")} />
@@ -371,14 +377,9 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
           <Tab label={`${t("policyDetail.tab.claims")} (${p?.claimCount ?? 0})`} />
           <Tab label={`${t("policyDetail.tab.receipts")} (${p?.receiptCount ?? 0})`} />
           <Tab label={`PDF Συμβολαίου (${p?.documentCount ?? 0})`} />
-          <Tab label="Αντικείμενα" />
-          <Tab label="Καλύψεις" />
+          <Tab label="Δεδομένα συμβολαίου" />
           <Tab label="Δόσεις" />
-          <Tab label="Ιστορικό" />
-          <Tab label="Επικοινωνία" />
-          {/* "Προμήθειες" tab removed — the commission matrix now lives at
-              the bottom of the Οικονομικά tab so the operator has fewer
-              tabs to scan through. */}
+          <Tab label="Δραστηριότητα" />
         </Tabs>
 
         {/* Scrollable content */}
@@ -532,6 +533,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                     onOverrideChange={(next) => setForm({ ...form, specialLevelPercentsJson: next })}
                     onSave={() => save.mutate()}
                     saving={save.isPending}
+                    fallback={{
+                      premium: p.premium,
+                      totalCommissions: p.totalCommissions,
+                      currency: p.currency,
+                    }}
                   />
                 </Stack>
               )}
@@ -641,21 +647,53 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                   emptyKey="policyDetail.noReceipts" />
               )}
               {tab === 8 && <PolicyContractPdf policyId={p.id} />}
-              {tab === 9 && <PolicyObjectsTab policyId={p.id} />}
-              {tab === 10 && <PolicyCoversTab policyId={p.id} />}
-              {tab === 11 && <PolicyInstallmentsTab policyId={p.id} />}
-              {tab === 12 && <EntityAuditTimeline entityName="Policy" entityId={p.id} />}
-              {tab === 13 && (
-                <PolicyCommunicationsTab
-                  policyId={p.id}
-                  loading={communications.isLoading}
-                  rows={communications.data ?? []}
-                  onSaved={() => void qc.invalidateQueries({ queryKey: ["policy-communications", p.id] })}
-                />
+              {/* Merged "Δεδομένα συμβολαίου": objects (insured items) on
+                  top, covers table below, one Divider between them so the
+                  operator sees the shape of the contract in a single glance
+                  instead of jumping between two tabs. */}
+              {tab === 9 && (
+                <Stack spacing={3}>
+                  <Box>
+                    <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ mb: 1, display: "block" }}>
+                      Αντικείμενα
+                    </Typography>
+                    <PolicyObjectsTab policyId={p.id} />
+                  </Box>
+                  <Divider />
+                  <Box>
+                    <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ mb: 1, display: "block" }}>
+                      Καλύψεις
+                    </Typography>
+                    <PolicyCoversTab policyId={p.id} />
+                  </Box>
+                </Stack>
               )}
-              {/* The former Προμήθειες tab (index 14) is now inline at the
-                  bottom of the Οικονομικά tab (index 1). Nothing renders
-                  here anymore — the tab is gone from the Tabs list too. */}
+              {tab === 10 && <PolicyInstallmentsTab policyId={p.id} />}
+              {/* Merged "Δραστηριότητα": audit trail (created / edited /
+                  fields changed) on top, communications log (emails /
+                  calls / notes) below. */}
+              {tab === 11 && (
+                <Stack spacing={3}>
+                  <Box>
+                    <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ mb: 1, display: "block" }}>
+                      Ιστορικό αλλαγών
+                    </Typography>
+                    <EntityAuditTimeline entityName="Policy" entityId={p.id} />
+                  </Box>
+                  <Divider />
+                  <Box>
+                    <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ mb: 1, display: "block" }}>
+                      Επικοινωνία
+                    </Typography>
+                    <PolicyCommunicationsTab
+                      policyId={p.id}
+                      loading={communications.isLoading}
+                      rows={communications.data ?? []}
+                      onSaved={() => void qc.invalidateQueries({ queryKey: ["policy-communications", p.id] })}
+                    />
+                  </Box>
+                </Stack>
+              )}
             </>
           )}
         </Box>
@@ -1824,7 +1862,13 @@ interface PolicyCommissionMatrix {
   currency: string;
 }
 
-function PolicyCommissionMatrixTab({ loading, matrix, currency, overrideJson, onOverrideChange, onSave, saving }: {
+interface BridgeFallbackCommissions {
+  premium: number;
+  totalCommissions: number;
+  currency: string;
+}
+
+function PolicyCommissionMatrixTab({ loading, matrix, currency, overrideJson, onOverrideChange, onSave, saving, fallback }: {
   loading: boolean;
   matrix: PolicyCommissionMatrix | undefined;
   currency: string;
@@ -1832,23 +1876,65 @@ function PolicyCommissionMatrixTab({ loading, matrix, currency, overrideJson, on
   onOverrideChange: (nextJson: string) => void;
   onSave: () => void;
   saving: boolean;
+  // Only consulted when the calculated matrix is empty — used to surface
+  // the bridge-imported agency-commission total.
+  fallback?: BridgeFallbackCommissions;
 }) {
   if (loading) {
     return <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}><CircularProgress /></Box>;
   }
   if (!matrix || matrix.rows.length === 0) {
+    // Fallback view — the office hasn't set up its commission rules yet
+    // so the calculated matrix is empty. If the bridge brought a total
+    // commission for this policy we surface it as a single "Προμήθεια
+    // γραφείου (από γέφυρα)" figure so nothing is hidden. Once rules exist
+    // the full ALIS-style matrix takes over.
+    const bridgeTotal = fallback?.totalCommissions ?? 0;
     return (
       <Stack spacing={2}>
+        {bridgeTotal !== 0 && (
+          <Box sx={{
+            p: 2, border: 1, borderColor: "success.light", borderRadius: 1,
+            bgcolor: "success.lighter"
+          }}>
+            <Typography variant="overline" color="success.dark" fontWeight={700}>
+              Προμήθεια Γραφείου (από γέφυρα)
+            </Typography>
+            <Typography variant="h6" sx={{ mt: 0.5, fontWeight: 800 }}>
+              {bridgeTotal.toFixed(2)} {fallback?.currency ?? currency}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Το ποσό ήρθε από το αρχείο της ασφαλιστικής. Είναι το σύνολο που δικαιούται
+              το γραφείο — δεν έχει διαχωριστεί σε παραγωγό / manager / unit / assistant
+              γιατί δεν έχει οριστεί κατανομή.
+            </Typography>
+          </Box>
+        )}
         <Alert severity="info">
-          Δεν έχει οριστεί ιεραρχική κατανομή προμηθειών για αυτό το συμβόλαιο.
-          Ρυθμίστε ποσοστά ανά επίπεδο στην «Παραμετροποίηση Προμηθειών» ή αντιστοιχίστε
-          τον συνεργάτη σε ιεραρχία (Παραγωγός → Manager → Unit → Assistant → Γραφείο).
+          <Typography fontWeight={700} sx={{ mb: 0.5 }}>
+            Δεν έχουν οριστεί κανόνες προμηθειών για αυτό το συμβόλαιο
+          </Typography>
+          <Typography variant="body2">
+            Το γραφείο μπορεί να μοιράσει την προμήθεια σε επίπεδα (παραγωγός,
+            manager, unit, assistant, γραφείο) — αλλά καμία τέτοια κατανομή δεν
+            βρέθηκε για αυτόν τον κλάδο / κάλυψη / συνεργάτη. Δείτε πώς να
+            προσθέσετε κανόνες:
+          </Typography>
+          <Box component="ul" sx={{ pl: 2.5, mb: 0, mt: 1 }}>
+            <Typography component="li" variant="body2">
+              Παραμετροποίηση → Κανόνες Προμηθειών: ορίστε ποσοστά ανά κλάδο /
+              κάλυψη ή ανά κατηγορία συνεργάτη.
+            </Typography>
+            <Typography component="li" variant="body2">
+              Καρτέλα συνεργάτη: ορίστε ιεραρχία (π.χ. ο παραγωγός X αναφέρει
+              στον manager Y) αν χρησιμοποιείτε δίκτυο υποσυνεργατών.
+            </Typography>
+            <Typography component="li" variant="body2">
+              Αν το γραφείο δεν χρησιμοποιεί ιεραρχία, αγνοήστε το μήνυμα — η
+              συνολική προμήθεια από τη γέφυρα ισχύει ως έχει.
+            </Typography>
+          </Box>
         </Alert>
-        <Typography variant="body2" color="text.secondary">
-          Ο πίνακας δείχνει, για κάθε επίπεδο ιεραρχίας που πληρώνεται σε αυτό το συμβόλαιο,
-          το ποσοστό, το μεικτό ποσό, την παρακράτηση φόρου και την καθαρή προμήθεια — όπως στην
-          οθόνη F9 της ALIS.
-        </Typography>
       </Stack>
     );
   }
