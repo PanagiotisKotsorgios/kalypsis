@@ -182,7 +182,15 @@ export function CarrierBridgesPage() {
       fd.append("file", file);
       return (await api.post<PreviewResult>("/carrier-bridges/preview", fd, { headers: { "Content-Type": "multipart/form-data" } })).data;
     },
-    onSuccess: r => { setPreview(r); setFileName(fileRef.current?.files?.[0]?.name ?? null); },
+    onSuccess: r => {
+      // Reset resolutions ONLY on a fresh upload — otherwise every row-detail
+      // "Δημιουργία και σύνδεση" (which re-`setPreview`s with the updated
+      // rows array) would wipe every mapping the operator has entered so far.
+      setResolutions({});
+      setBulkPanelOpen(false);
+      setPreview(r);
+      setFileName(fileRef.current?.files?.[0]?.name ?? null);
+    },
     onError: e => setErr(extractErrorMessage(e))
   });
   const [pendingLob, setPendingLob] = useState<string>("auto");
@@ -196,7 +204,13 @@ export function CarrierBridgesPage() {
   // (e.g. "01" as both a Branch and a Coverage) gets one row per kind.
   const [resolutions, setResolutions] = useState<Record<string, MappingResolution>>({});
   const [bulkPanelOpen, setBulkPanelOpen] = useState(false);
-  useEffect(() => { setResolutions({}); setBulkPanelOpen(false); }, [preview]);
+  // Resolutions used to reset every time `preview` changed — but preview
+  // changes on every row-detail edit too (manual-link create, prior-policy
+  // create, etc.), so the operator would lose every mapping they'd entered
+  // whenever they touched a row. The reset now happens ONLY when a fresh
+  // upload starts (see uploadAndPreview.onSuccess above) and when the
+  // operator explicitly cancels the whole preview (Cancel button in the
+  // header). Manual page reload still clears them — that's expected.
   const unmapKey = (u: UnmappedCode) => `${u.kind}|${u.rawCode}`;
   const isResolved = (u: UnmappedCode) => {
     const r = resolutions[unmapKey(u)] ?? {};
@@ -587,7 +601,7 @@ export function CarrierBridgesPage() {
                 <Kpi label={t("carrierBridges.duplicates")} value={preview.duplicateCount} color="info" />
               </Stack>
               <Stack direction="row" spacing={1}>
-                <Button onClick={() => { setPreview(null); setSelected(null); setCommitted(null); }}>{t("common.cancel")}</Button>
+                <Button onClick={() => { setPreview(null); setSelected(null); setCommitted(null); setResolutions({}); setBulkPanelOpen(false); }}>{t("common.cancel")}</Button>
                 <Tooltip title={allResolved ? "" : "Αντιστοιχίστε πρώτα όλους τους κωδικούς πιο κάτω"}>
                   <span>
                 <Button variant="contained" disabled={!allResolved || commit.isPending || revealedIndex < preview.rows.length || !!committed}
