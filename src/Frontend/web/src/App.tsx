@@ -133,6 +133,7 @@ import { ReferenceCatalogsPage } from "./pages/ReferenceCatalogsPage";
 import { ParametricFilesPage } from "./pages/ParametricFilesPage";
 import { PlatformParametricFilesPage } from "./pages/PlatformParametricFilesPage";
 import { PlatformCompanyParametersPage } from "./pages/PlatformCompanyParametersPage";
+import { AgencyCompanyParametricsPage } from "./pages/AgencyCompanyParametricsPage";
 import { GaragesPage } from "./pages/GaragesPage";
 import { ClaimProvisionsPage } from "./pages/ClaimProvisionsPage";
 import { ClaimIndemnitiesPage } from "./pages/ClaimIndemnitiesPage";
@@ -246,6 +247,7 @@ const navByRole: Record<Role, NavItem[]> = {
     // BackOffice → ΠΑΡΑΜΕΤΡΟΠΟΙΗΣΗ — fewer sidebar entries:
     // Εταιρείες → Κλάδοι/Πακέτα/Καλύψεις → ενιαία παραμετροποίηση προμηθειών/προεπιλογών.
     { to: "/insurance-companies", labelKey: "nav.insuranceCompanies", icon: <BusinessIcon />,           package: "BackOffice", group: "params" },
+    { to: "/company-parametrics", labelKey: "nav.companyParametrics", icon: <TuneOutlinedIcon />,       package: "BackOffice", group: "params" },
     { to: "/lookups",             labelKey: "nav.lookups",            icon: <MenuBookIcon />,           package: "BackOffice", group: "params" },
     { to: "/commission-rules",    labelKey: "nav.commissionRules",    icon: <StackedLineChartIcon />,   package: "BackOffice", group: "params" },
     // — secondary configuration tools below the four primary items —
@@ -548,6 +550,7 @@ export default function App() {
                   <Route path="parametric-files" element={<ParametricFilesPage />} />
                   <Route path="platform/parametric-files" element={<PlatformParametricFilesPage />} />
                   <Route path="platform/company-parameters" element={<PlatformCompanyParametersPage />} />
+                  <Route path="company-parametrics" element={<AgencyCompanyParametricsPage />} />
                   <Route path="quote-builder" element={<QuoteBuilderPage />} />
                   <Route path="workflows" element={<WorkflowRulesPage />} />
                   <Route path="churn" element={<ChurnDashboardPage />} />

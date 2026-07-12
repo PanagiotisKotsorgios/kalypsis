@@ -7,9 +7,9 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import BusinessIcon from "@mui/icons-material/Business";
-import PublicIcon from "@mui/icons-material/Public";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import AddIcon from "@mui/icons-material/Add";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
@@ -103,11 +103,12 @@ export function InsuranceCompaniesPage() {
     }
     return out;
   };
-  const allGlobalGrouped = groupByBroker(allGlobal);
   const usedGlobalGrouped = groupByBroker(usedGlobal);
   const ownTenantRows = allData.filter(c => !c.isGlobal);
+  // Agencies see their own catalogue plus any legacy global carriers they had
+  // already opted-in to (so existing policies keep resolving). Every other
+  // Kalypsis-global row is intentionally hidden — new agencies never see them.
   const ownRows = [...ownTenantRows, ...usedGlobalGrouped];
-  const globalRows = allGlobalGrouped;
 
   return (
     <Box>
@@ -123,23 +124,28 @@ export function InsuranceCompaniesPage() {
         </Stack>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
           <DataExportButton entity="insurance-companies" />
-          {/* "Νέα ασφαλιστική" removed — every duplicate of a global was being
-              rejected anyway. New carriers are added by the platform admin
-              from /platform/carriers. */}
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
+            Νέα ασφαλιστική
+          </Button>
         </Stack>
       </Stack>
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}
       <Alert severity="info" sx={{ mb: 2 }}>
-        Οι καθολικές εταιρείες Kalypsis είναι ήδη ορατές σε όλα τα γραφεία — δεν χρειάζεται εισαγωγή. Δουλέψτε απευθείας με τις καθολικές εγγραφές.
+        Δημιουργήστε τις δικές σας ασφαλιστικές και ορίστε δικά σας παραμετρικά (κλάδους / καλύψεις / χρήσεις / πακέτα).
+        Οι γέφυρες συνδέουν raw κωδικούς κάθε εταιρείας με τα δικά σας παραμετρικά.
       </Alert>
 
       {q.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
       ) : (
         <Stack spacing={3}>
-          {/* Tenant-owned section */}
+          {/* Tenant-owned section — the only view agencies see. Legacy
+              global-carrier rows are still returned by the API but rendered
+              only when the tenant has opted-in to at least one; the rest of
+              the platform catalogue is intentionally hidden — agencies work
+              exclusively with their own catalogue now. */}
           <Card variant="outlined">
             <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <Stack direction="row" alignItems="center" spacing={1.5}>
@@ -150,29 +156,13 @@ export function InsuranceCompaniesPage() {
             </Box>
             {ownRows.length === 0 ? (
               <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
-                Δεν υπάρχουν δικές σας ασφαλιστικές. Τσεκάρετε από τον καθολικό κατάλογο παρακάτω όσες χρησιμοποιείτε.
+                Δεν υπάρχουν ασφαλιστικές ακόμη — πατήστε «Νέα ασφαλιστική» για να δημιουργήσετε την πρώτη.
               </Box>
             ) : (
               <CompanyTable rows={ownRows} onEdit={setEditing} onDelete={(id) => {
                 if (confirm("Διαγραφή ασφαλιστικής;")) del.mutate(id);
               }} onToggleOptIn={(id, enable) => toggleOptIn.mutate({ id, enable })} />
             )}
-          </Card>
-
-          {/* Global section */}
-          <Card variant="outlined">
-            <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Stack direction="row" alignItems="center" spacing={1.5}>
-                <PublicIcon sx={{ color: "text.secondary" }} />
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>Καθολικός κατάλογος Kalypsis</Typography>
-                <Chip size="small" label={globalRows.length} variant="outlined" />
-              </Stack>
-              <Typography variant="caption" color="text.secondary">
-                Διαχειρίζεται από την Kalypsis · κοινός σε όλα τα γραφεία
-              </Typography>
-            </Box>
-            <CompanyTable rows={globalRows} readonly
-              onToggleOptIn={(id, enable) => toggleOptIn.mutate({ id, enable })} />
           </Card>
         </Stack>
       )}

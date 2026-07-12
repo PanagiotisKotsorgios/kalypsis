@@ -559,12 +559,9 @@ public class CompanyParametersController : ControllerBase
             .FirstOrDefaultAsync(c => c.Id == body.InsuranceCompanyId && c.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Ασφαλιστική εταιρεία");
 
-        if (company.TenantId != null)
-            throw new AppException("tenant_company_parameters_not_allowed",
-                "Τα κεντρικά παραμετρικά ορίζονται μόνο σε καθολικές ασφαλιστικές εταιρείες Kalypsis.", 400,
-                title: "Λάθος εταιρεία",
-                why: "Αν οριστούν πάνω σε εταιρεία γραφείου, τα υπόλοιπα γραφεία δεν θα τα κληρονομήσουν.",
-                fix: "Επιλέξτε την καθολική εταιρεία από τον κατάλογο Kalypsis.");
+        // Agency-owned carriers can carry their own parametric catalogue.
+        // (Legacy platform-scoped carriers still work — no check on TenantId
+        // needed here.)
 
         if (body.EffectiveFrom.HasValue && body.EffectiveTo.HasValue && body.EffectiveTo.Value < body.EffectiveFrom.Value)
             throw new AppException("invalid_effective_period", "Η ισχύς έως δεν μπορεί να είναι πριν την ισχύ από.", 400);

@@ -331,17 +331,10 @@ public class InsuranceCompaniesController : ControllerBase
                 why: "Ο κωδικός εταιρείας χρησιμοποιείται για γέφυρες, παραμετρικά και προμήθειες.",
                 fix: "Επιλέξτε την υπάρχουσα εταιρεία ή αλλάξτε τον κωδικό πριν αποθηκεύσετε.");
 
-        // Block agencies from creating a tenant-scoped copy of a carrier that
-        // is already global. Global carriers ARE already visible to every
-        // agency — creating a tenant copy would just produce a duplicate.
-        if (await _db.InsuranceCompanies.IgnoreQueryFilters()
-            .AnyAsync(x => x.TenantId == null && x.DeletedAt == null && x.Code == code, ct))
-            throw new Kalypsis.Application.Common.AppException("global_company_exists",
-                "Υπάρχει ήδη καθολική ασφαλιστική με αυτόν τον κωδικό — δεν χρειάζεται να την προσθέσετε ξανά.",
-                400,
-                title: "Καθολική εταιρεία",
-                why: "Καθολικές εταιρείες είναι ήδη ορατές σε όλα τα γραφεία. Αν τη δημιουργούσατε εδώ, θα εμφανιζόταν δύο φορές παντού.",
-                fix: "Χρησιμοποιήστε την υπάρχουσα από τη λίστα ή ζητήστε από τον superadmin να δημιουργήσει νέα καθολική.");
+        // Agencies own their own carrier catalogue. A code colliding with a
+        // legacy Kalypsis-global row is fine — the tenant copy shadows it in
+        // every list the agency sees, and bridge routing already goes through
+        // BridgeCodeMappings per tenant.
 
         var c = new Kalypsis.Domain.Entities.InsuranceCompany
         {
