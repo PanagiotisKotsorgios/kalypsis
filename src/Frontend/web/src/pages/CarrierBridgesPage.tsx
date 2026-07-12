@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FilterHelp } from "../components/FilterHelp";
 import {
-  Alert, Autocomplete, Box, Button, Card, Chip, CircularProgress, Dialog, DialogContent, DialogTitle,
+  Alert, Autocomplete, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   Divider, IconButton, LinearProgress, Stack, Tab, Tabs, Table, TableBody, TableCell, TableHead, TableRow,
   TextField, Tooltip, Typography
 } from "@mui/material";
@@ -26,6 +26,8 @@ import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { NumberedPager } from "../components/TableToolbar";
 import { num } from "../utils/format";
+import { InlineCreateInsuranceCompanyDialog } from "../components/InlineCreateInsuranceCompanyDialog";
+import { SearchableSelect } from "../components/SearchableSelect";
 
 interface AvailableCarrier {
   insuranceCompanyId: string; name: string; code: string;
@@ -134,11 +136,44 @@ export function CarrierBridgesPage() {
     queryFn: async () => (await api.get<AvailableCarrier[]>("/carrier-bridges/available")).data
   });
 
+  // Standard-bridge → tenant carrier link check. When the operator clicks a
+  // Kalypsis-provided carrier (ERGO, INTERLIFE, GRAND_COVER, ATLANTIC) we
+  // demand a BridgeCodeMapping (Kind=Company) that routes it to one of the
+  // office's own carriers. Uploads use that mapped tenant carrier as the
+  // insuranceCompanyId, so imported policies live under the office's own
+  // catalogue instead of the shared global.
+  const companyMappings = useQuery({
+    queryKey: ["bridge-code-mappings", "company", selected?.name],
+    enabled: !!selected,
+    queryFn: async () => (await api.get<Array<{
+      id: string; kind: string; sourceCarrier: string | null;
+      targetInsuranceCompanyId: string | null; targetInsuranceCompanyName: string | null;
+    }>>("/bridge-code-mappings", {
+      params: { kind: "Company", sourceCarrier: selected!.name }
+    })).data
+  });
+  const companyLink = (companyMappings.data ?? []).find(m => !!m.targetInsuranceCompanyId);
+  const [linkCarrierOpen, setLinkCarrierOpen] = useState(false);
+  // Force-open the link dialog when the operator selected a carrier but no
+  // mapping resolves to a tenant carrier yet. If the operator picked one of
+  // their own carriers (not a global), the mapping check may still be empty —
+  // in that case we auto-materialise a self-link so the upload proceeds.
+  useEffect(() => {
+    if (!selected) return;
+    if (companyMappings.isLoading) return;
+    if (companyLink) return;
+    setLinkCarrierOpen(true);
+  }, [selected, companyMappings.isLoading, companyLink]);
+
   const uploadAndPreview = useMutation({
-    mutationFn: async ({ file, lob }: { file: File; lob: "auto" | "fire" }) => {
+    mutationFn: async ({ file, lob }: { file: File; lob: string }) => {
       setErr(null); setPreview(null); setRevealedIndex(0); setCommitted(null);
       const fd = new FormData();
-      fd.append("insuranceCompanyId", selected!.insuranceCompanyId);
+      // Prefer the mapped tenant carrier when the bridge has been linked —
+      // the imported policies will land under the agency's own catalog. Fall
+      // back to selected.insuranceCompanyId for legacy single-tenant cases.
+      const effectiveCarrierId = companyLink?.targetInsuranceCompanyId ?? selected!.insuranceCompanyId;
+      fd.append("insuranceCompanyId", effectiveCarrierId);
       fd.append("lob", lob);
       fd.append("file", file);
       return (await api.post<PreviewResult>("/carrier-bridges/preview", fd, { headers: { "Content-Type": "multipart/form-data" } })).data;
@@ -146,7 +181,7 @@ export function CarrierBridgesPage() {
     onSuccess: r => { setPreview(r); setFileName(fileRef.current?.files?.[0]?.name ?? null); },
     onError: e => setErr(extractErrorMessage(e))
   });
-  const [pendingLob, setPendingLob] = useState<"auto" | "fire">("auto");
+  const [pendingLob, setPendingLob] = useState<string>("auto");
   const [filter, setFilter] = useState<"all" | "unlinked" | "renewal" | "new" | "cancellation" | "greencard" | "duplicate">("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -195,11 +230,12 @@ export function CarrierBridgesPage() {
           createParametricName: r.createParametricName?.trim() || null,
         };
       });
+      const effectiveCarrierId = companyLink?.targetInsuranceCompanyId ?? selected!.insuranceCompanyId;
       return (await api.post<{
         rowsCreated: number; rowsSkipped: number; rowsFailed: number;
         lifecycleRowsApplied: number; financialMovementsCreated: number; documentWarnings: number;
       }>("/carrier-bridges/commit", {
-        insuranceCompanyId: selected!.insuranceCompanyId,
+        insuranceCompanyId: effectiveCarrierId,
         sourceFile: fileName ?? "import.xlsx",
         rows: preview!.rows,
         pendingMappings: pendingMappings.length ? pendingMappings : null,
@@ -310,11 +346,31 @@ export function CarrierBridgesPage() {
         </Card>
       )}
 
-      {/* Step 2 — upload file (separate slots for Auto vs Fire — only one allowed at a time) */}
-      {selected && !preview && !uploadAndPreview.isPending && (
+      {/* Link-carrier gate — dispatched from Step 2 the moment the operator
+          selects a carrier that isn't yet linked to one of their own. */}
+      {selected && (
+        <LinkCarrierDialog
+          open={linkCarrierOpen}
+          sourceCarrierName={selected.name}
+          sourceCarrierCode={selected.code}
+          onClose={() => { setLinkCarrierOpen(false); setSelected(null); }}
+          onLinked={() => {
+            setLinkCarrierOpen(false);
+            void qc.invalidateQueries({ queryKey: ["bridge-code-mappings"] });
+          }}
+        />
+      )}
+
+      {/* Step 2 — upload file. Blocked behind the link gate above. */}
+      {selected && companyLink && !preview && !uploadAndPreview.isPending && (
         <Card sx={{ p: 3 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography fontWeight={700}>{t("carrierBridges.uploadFor")} <strong>{selected.name}</strong></Typography>
+            <Box>
+              <Typography fontWeight={700}>{t("carrierBridges.uploadFor")} <strong>{selected.name}</strong></Typography>
+              <Typography variant="caption" color="text.secondary">
+                Οι εγγραφές θα δημιουργηθούν στο δικό σας γραφείο: <strong>{companyLink.targetInsuranceCompanyName}</strong>
+              </Typography>
+            </Box>
             <Button onClick={() => setSelected(null)}>{t("carrierBridges.changeCarrier")}</Button>
           </Stack>
           <Alert severity="info" sx={{ mb: 2 }}>
@@ -394,44 +450,61 @@ export function CarrierBridgesPage() {
               );
             }
             if (fmt.includes("ERGO")) {
+              // ERGO ships one zip per LOB (or the .txt HEADER+DETAIL pair
+              // outside a zip). All four LOBs use the same parser — the
+              // backend derives which LOB by sniffing the filename inside
+              // the .zip, so the LOB the operator picked here is just a
+              // hint that helps the legacy xlsx path when it can't tell.
+              const tiles: { lob: string; label: string; help: string; Icon: typeof DirectionsCarIcon; color: "primary" | "error" | "info" | "success" }[] = [
+                { lob: "auto", label: "Αυτοκίνητο",
+                  help: "AUTO zip ή txt (HEADER + DETAIL). Συμβόλαια οχημάτων με πινακίδα.",
+                  Icon: DirectionsCarIcon, color: "primary" },
+                { lob: "fire", label: "Πυρός / Περιουσίας",
+                  help: "FIRE zip ή txt. Κατοικίες, επιχειρήσεις, ζημιές περιουσίας.",
+                  Icon: LocalFireDepartmentIcon, color: "error" },
+                { lob: "liability", label: "Ευθύνη",
+                  help: "LIABILITY zip ή txt. Επαγγελματικές και γενικές ευθύνες.",
+                  Icon: ShieldOutlinedIcon, color: "info" },
+                { lob: "pros", label: "Προσωπικό ατύχημα",
+                  help: "PROS zip ή txt. Ασφαλιστήρια προσώπων και ταξιδιωτικά.",
+                  Icon: HelpOutlineIcon, color: "success" },
+              ];
               return (
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                  <Card variant="outlined" sx={{
-                    p: 2.5, flex: 1, cursor: "pointer",
-                    "&:hover": { borderColor: "primary.main", bgcolor: "action.hover" }
-                  }}
-                    onClick={() => { setPendingLob("auto"); fileRef.current?.click(); }}>
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      <DirectionsCarIcon color="primary" sx={{ fontSize: 36 }} />
-                      <Box sx={{ flex: 1 }}>
-                        <Typography fontWeight={700}>
-                          {t("carrierBridges.lob.auto", "Αυτοκίνητο")}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {t("carrierBridges.lob.autoHelp", "Συμβόλαια οχημάτων με πινακίδα.")}
-                        </Typography>
-                      </Box>
-                      <CloudUploadIcon color="action" />
-                    </Stack>
-                  </Card>
-                  <Card variant="outlined" sx={{
-                    p: 2.5, flex: 1, cursor: "pointer",
-                    "&:hover": { borderColor: "error.main", bgcolor: "action.hover" }
-                  }}
-                    onClick={() => { setPendingLob("fire"); fileRef.current?.click(); }}>
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      <LocalFireDepartmentIcon color="error" sx={{ fontSize: 36 }} />
-                      <Box sx={{ flex: 1 }}>
-                        <Typography fontWeight={700}>
-                          {t("carrierBridges.lob.fire", "Πυρός / Περιουσίας")}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {t("carrierBridges.lob.fireHelp", "Κατοικίες, επιχειρήσεις, ζημιές περιουσίας.")}
-                        </Typography>
-                      </Box>
-                      <CloudUploadIcon color="action" />
-                    </Stack>
-                  </Card>
+                <Stack spacing={2}>
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                    {tiles.slice(0, 2).map(({ lob, label, help, Icon, color }) => (
+                      <Card key={lob} variant="outlined" sx={{
+                        p: 2.5, flex: 1, cursor: "pointer",
+                        "&:hover": { borderColor: `${color}.main`, bgcolor: "action.hover" }
+                      }} onClick={() => { setPendingLob(lob); fileRef.current?.click(); }}>
+                        <Stack direction="row" spacing={2} alignItems="center">
+                          <Icon color={color} sx={{ fontSize: 36 }} />
+                          <Box sx={{ flex: 1 }}>
+                            <Typography fontWeight={700}>{label}</Typography>
+                            <Typography variant="caption" color="text.secondary">{help}</Typography>
+                          </Box>
+                          <CloudUploadIcon color="action" />
+                        </Stack>
+                      </Card>
+                    ))}
+                  </Stack>
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                    {tiles.slice(2).map(({ lob, label, help, Icon, color }) => (
+                      <Card key={lob} variant="outlined" sx={{
+                        p: 2.5, flex: 1, cursor: "pointer",
+                        "&:hover": { borderColor: `${color}.main`, bgcolor: "action.hover" }
+                      }} onClick={() => { setPendingLob(lob); fileRef.current?.click(); }}>
+                        <Stack direction="row" spacing={2} alignItems="center">
+                          <Icon color={color} sx={{ fontSize: 36 }} />
+                          <Box sx={{ flex: 1 }}>
+                            <Typography fontWeight={700}>{label}</Typography>
+                            <Typography variant="caption" color="text.secondary">{help}</Typography>
+                          </Box>
+                          <CloudUploadIcon color="action" />
+                        </Stack>
+                      </Card>
+                    ))}
+                  </Stack>
                 </Stack>
               );
             }
@@ -1181,5 +1254,92 @@ function UnmappedCodesPanel({ unmapped, resolutions, onChange, parametrics, para
         })}
       </Stack>
     </Card>
+  );
+}
+
+/**
+ * "Link the bridge to one of your carriers" gate — shows up the moment the
+ * operator picks a Kalypsis-provided carrier (ERGO / INTERLIFE / …) that has
+ * no BridgeCodeMapping (Kind=Company) pointing at one of their own carriers
+ * yet. The link is a hard prerequisite: imported policies always land under
+ * the office's own carrier, never under a shared global. The dialog also
+ * offers an inline "+ Νέα ασφαλιστική" so an office setting up its first
+ * bridge doesn't have to leave the flow.
+ */
+function LinkCarrierDialog({ open, sourceCarrierName, sourceCarrierCode, onClose, onLinked }: {
+  open: boolean;
+  sourceCarrierName: string;
+  sourceCarrierCode: string;
+  onClose: () => void;
+  onLinked: () => void;
+}) {
+  const [targetId, setTargetId] = useState<string>("");
+  const [err, setErr] = useState<string | null>(null);
+  const [inlineCreate, setInlineCreate] = useState<string | null>(null);
+
+  const carriers = useQuery({
+    queryKey: ["insurance-companies", "for-bridge-link"],
+    enabled: open,
+    queryFn: async () => (await api.get<Array<{
+      id: string; name: string; code: string; isGlobal: boolean; isUsedByTenant?: boolean;
+    }>>("/insurance-companies")).data
+  });
+  const tenantCarriers = useMemo(() => {
+    // Only show the office's own carriers as valid link targets — a global
+    // is never a valid "own catalogue" target (we'd loop right back to the
+    // gate). Legacy globals the tenant opted into are kept, so historical
+    // carriers keep working.
+    return (carriers.data ?? []).filter(c => !c.isGlobal || c.isUsedByTenant);
+  }, [carriers.data]);
+
+  const link = useMutation({
+    mutationFn: async () => {
+      return (await api.post("/bridge-code-mappings", {
+        kind: "Company",
+        sourceCarrier: sourceCarrierName,
+        rawCode: sourceCarrierCode || sourceCarrierName,
+        rawLabel: sourceCarrierName,
+        targetInsuranceCompanyId: targetId,
+        targetParameterItemId: null,
+        notes: null,
+      })).data;
+    },
+    onSuccess: onLinked,
+    onError: e => setErr(extractErrorMessage(e))
+  });
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Σύνδεση γέφυρας με το γραφείο σας</DialogTitle>
+      <DialogContent>
+        {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Πριν εισάγετε δεδομένα από τη γέφυρα <strong>{sourceCarrierName}</strong>, συνδέστε τη
+          με μία δική σας ασφαλιστική. Τα εισαγόμενα συμβόλαια θα καταχωρηθούν εκεί, με τη δική σας κωδικοποίηση.
+        </Alert>
+        <Stack spacing={2}>
+          <SearchableSelect
+            label="Δική σας ασφαλιστική εταιρεία"
+            value={targetId}
+            onChange={(v: string | "") => setTargetId(v as string)}
+            options={tenantCarriers.map(c => ({ value: c.id, label: c.name, hint: c.code }))}
+            createNewLabel="+ Νέα ασφαλιστική"
+            onCreateNew={(input: string) => setInlineCreate(input || sourceCarrierName)}
+          />
+          <InlineCreateInsuranceCompanyDialog
+            open={inlineCreate !== null}
+            prefillText={inlineCreate ?? ""}
+            onClose={() => setInlineCreate(null)}
+            onCreated={c => { setTargetId(c.id); setInlineCreate(null); void carriers.refetch(); }}
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Άκυρο</Button>
+        <Button variant="contained" disabled={!targetId || link.isPending} onClick={() => link.mutate()}>
+          {link.isPending ? <CircularProgress size={18} /> : "Σύνδεση"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
