@@ -65,4 +65,19 @@ public class CustomersController : ControllerBase
         var result = await _mediator.Send(new CreateCustomerCommand(request), cancellationToken);
         return CreatedAtAction(nameof(List), null, result);
     }
+
+    /// <summary>
+    /// Soft-delete a customer. Refuses if the customer has any policies,
+    /// claims or receipts attached — anonymize / merge those first via the
+    /// GDPR endpoint. Restricted to AgencyAdmin so a regular operator can't
+    /// accidentally wipe a rolodex row that turns out to still be used.
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "AgencyAdmin")]
+    [RequirePermission("customers.delete")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        await _mediator.Send(new DeleteCustomerCommand(id), ct);
+        return NoContent();
+    }
 }

@@ -27,6 +27,9 @@ import {
   Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/DeleteOutline";
+import { IconButton, Tooltip } from "@mui/material";
 import { ExportButton } from "../components/ExportButton";
 import SearchIcon from "@mui/icons-material/Search";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -155,9 +158,25 @@ export function CustomersPage() {
     },
     onHide: (key) => customerCols.toggleVisibility(key),
   });
+  // Explicit deleter — the delete endpoint refuses if the customer has
+  // policies / receipts attached; the API's friendly why/fix bubbles up
+  // through extractErrorMessage so the operator sees "Ο πελάτης έχει N
+  // ενεργά συμβόλαια — δεν διαγράφεται." instead of a generic 400.
+  const del = useMutation({
+    mutationFn: async (id: string) => api.delete(`/customers/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["customers"] }),
+    onError: e => setError(extractErrorMessage(e))
+  });
+
   const rowMenu = useRowContextMenu<CustomerDto>({
     entityLabel: "πελάτη",
     onEdit: (c) => { window.location.href = `/app/customers/${c.id}`; },
+    onDelete: (c) => {
+      const label = c.type === "Individual"
+        ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() || c.customerNumber
+        : c.companyName || c.customerNumber;
+      if (confirm(`Διαγραφή πελάτη «${label}»;\n\nΘα αποτύχει αν έχει συμβόλαια ή αποδείξεις.`)) del.mutate(c.id);
+    },
   });
 
   return (
@@ -314,7 +333,25 @@ export function CustomersPage() {
                         default: return <TableCell key={col.key}>—</TableCell>;
                       }
                     })}
-                    <TableCell />
+                    <TableCell align="right" sx={{ whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
+                      <Tooltip title="Επεξεργασία">
+                        <IconButton size="small"
+                          onClick={() => { window.location.href = `/app/customers/${c.id}`; }}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Διαγραφή">
+                        <IconButton size="small" color="error"
+                          onClick={() => {
+                            const label = c.type === "Individual"
+                              ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() || c.customerNumber
+                              : c.companyName || c.customerNumber;
+                            if (confirm(`Διαγραφή πελάτη «${label}»;\n\nΘα αποτύχει αν έχει συμβόλαια ή αποδείξεις.`)) del.mutate(c.id);
+                          }}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {customers.length === 0 && (

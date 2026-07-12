@@ -94,7 +94,9 @@ export function BridgeCodeMappingsPage() {
         <Box sx={{ flex: 1 }}>
           <Typography variant="h4" sx={{ fontWeight: 800 }}>Αντιστοιχίσεις γεφυρών</Typography>
           <Typography color="text.secondary">
-            Συνδέστε τους κωδικούς που έρχονται από τις γέφυρες με τα δικά σας παραμετρικά.
+            Κάθε ασφαλιστική στέλνει κωδικούς με τη δική της ονομασία (π.χ. «ΑΥΤΟ», «Α1001»).
+            Εδώ λέτε πώς λέγονται τα ίδια πράγματα στο δικό σας γραφείο.
+            Μία φορά τα συνδέετε — από εκεί και πέρα κάθε αρχείο γέφυρας βρίσκει μόνο του πού πάει.
           </Typography>
         </Box>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreating(true)}>
@@ -135,9 +137,9 @@ export function BridgeCodeMappingsPage() {
             <TableRow>
               <TableCell>Τύπος</TableCell>
               <TableCell>Πάροχος (πηγή)</TableCell>
-              <TableCell>Raw κωδικός</TableCell>
-              <TableCell>Raw label</TableCell>
-              <TableCell>Αντιστοιχεί σε</TableCell>
+              <TableCell>Κωδικός γέφυρας</TableCell>
+              <TableCell>Ονομασία γέφυρας</TableCell>
+              <TableCell>Στο γραφείο σας το λέτε</TableCell>
               <TableCell width={90} />
             </TableRow>
           </TableHead>
@@ -160,7 +162,7 @@ export function BridgeCodeMappingsPage() {
                 <TableCell>{m.rawLabel ?? ""}</TableCell>
                 <TableCell>
                   {m.kind === "Company"
-                    ? (m.targetInsuranceCompanyName ?? <Chip size="small" color="warning" label="χωρίς στόχο" />)
+                    ? (m.targetInsuranceCompanyName ?? <Chip size="small" color="warning" label="δεν έχει συνδεθεί ακόμη" />)
                     : (m.targetParameterItemCode
                       ? <>
                           <Typography component="span" sx={{ fontFamily: "monospace", fontWeight: 700 }}>
@@ -168,7 +170,7 @@ export function BridgeCodeMappingsPage() {
                           </Typography>
                           {m.targetParameterItemName && <> · {m.targetParameterItemName}</>}
                         </>
-                      : <Chip size="small" color="warning" label="χωρίς στόχο" />)}
+                      : <Chip size="small" color="warning" label="δεν έχει συνδεθεί ακόμη" />)}
                 </TableCell>
                 <TableCell align="right">
                   <Tooltip title="Επεξεργασία">
@@ -258,7 +260,8 @@ function EditDialog({ open, item, carriers, onClose, onSaved }: {
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2} mt={0.5}>
           <TextField
-            select label="Τύπος αντιστοίχισης" value={form.kind}
+            select label="Τι είναι αυτός ο κωδικός;" value={form.kind}
+            helperText="Επιλέξτε αν ο κωδικός αντιστοιχεί σε εταιρεία, κλάδο, κάλυψη, χρήση, πακέτο ή συνεργάτη."
             onChange={e => setForm({ ...form, kind: e.target.value as Kind, targetInsuranceCompanyId: "", targetParameterItemId: "" })}
             fullWidth
           >
@@ -267,27 +270,30 @@ function EditDialog({ open, item, carriers, onClose, onSaved }: {
           </TextField>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField
-              label="Πάροχος (γέφυρα)" value={form.sourceCarrier}
+              label="Ασφαλιστική εταιρεία (από τη γέφυρα)" value={form.sourceCarrier}
               onChange={e => setForm({ ...form, sourceCarrier: e.target.value })}
-              fullWidth placeholder="π.χ. INTERLIFE"
+              fullWidth placeholder="π.χ. ERGO Ασφαλιστική"
+              helperText="Ποιας εταιρείας τα αρχεία θα διαβάζουμε."
             />
             <TextField
-              label="Raw κωδικός" value={form.rawCode}
+              label="Κωδικός στη γέφυρα" value={form.rawCode}
               onChange={e => setForm({ ...form, rawCode: e.target.value })}
-              fullWidth required placeholder="π.χ. 1003"
+              fullWidth required placeholder="π.χ. Α1001 ή 1003"
+              helperText="Ο κωδικός όπως έρχεται στο αρχείο."
             />
           </Stack>
           <TextField
-            label="Raw label (όπως εμφανίζεται στη γέφυρα)"
+            label="Ονομασία στη γέφυρα (προαιρετικά)"
             value={form.rawLabel}
             onChange={e => setForm({ ...form, rawLabel: e.target.value })}
             fullWidth
+            helperText="Ο τίτλος όπως εμφανίζεται δίπλα στον κωδικό — βοηθάει να θυμάστε τι είναι."
           />
 
           {form.kind === "Company" ? (
             <>
               <SearchableSelect
-                label="Αντιστοίχιση σε ασφαλιστική"
+                label="Δική σας ασφαλιστική εταιρεία"
                 value={form.targetInsuranceCompanyId}
                 onChange={v => setForm({ ...form, targetInsuranceCompanyId: v })}
                 options={carriers.map(c => ({ value: c.id, label: c.name, hint: c.code }))}
@@ -303,7 +309,7 @@ function EditDialog({ open, item, carriers, onClose, onSaved }: {
             </>
           ) : (
             <SearchableSelect
-              label={`Αντιστοίχιση σε παραμετρικό (${KIND_LABELS[form.kind]})`}
+              label={`Το αντίστοιχο ${KIND_LABELS[form.kind].toLowerCase()} στο δικό σας γραφείο`}
               value={form.targetParameterItemId}
               onChange={v => setForm({ ...form, targetParameterItemId: v })}
               options={(params.data ?? []).map(p => ({
