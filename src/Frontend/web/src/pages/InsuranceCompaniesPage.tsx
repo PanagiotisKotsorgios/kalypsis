@@ -10,6 +10,7 @@ import BusinessIcon from "@mui/icons-material/Business";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import AddIcon from "@mui/icons-material/Add";
+import LayersClearIcon from "@mui/icons-material/LayersClear";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
@@ -170,9 +171,20 @@ export function InsuranceCompaniesPage() {
                 Δεν υπάρχουν ασφαλιστικές ακόμη — πατήστε «Νέα ασφαλιστική» για να δημιουργήσετε την πρώτη.
               </Box>
             ) : (
-              <CompanyTable rows={ownRows} onEdit={setEditing} onDelete={(id) => {
-                if (confirm("Διαγραφή ασφαλιστικής;")) del.mutate(id);
-              }} />
+              <CompanyTable rows={ownRows}
+                onEdit={setEditing}
+                onDelete={(id) => { if (confirm("Διαγραφή ασφαλιστικής;")) del.mutate(id); }}
+                onClearRules={(id, count) => {
+                  if (!confirm(`Καθαρισμός ${count} αυτόματων κανόνων προμηθειών από αυτή την εταιρεία;\n\nΘα διαγραφούν οριστικά. Οι δικοί σας κανόνες μπορούν να δημιουργηθούν εκ νέου από τη σελίδα Κανόνες Προμηθειών.`)) return;
+                  void (async () => {
+                    try {
+                      const r = await api.post<{ rulesDeleted: number }>(`/insurance-companies/${id}/clear-commission-rules`);
+                      setSuccess(`Διαγράφηκαν ${r.data.rulesDeleted} κανόνες προμηθειών.`);
+                      void qc.invalidateQueries({ queryKey: ["insurance-companies"] });
+                    } catch (e) { setError(extractErrorMessage(e)); }
+                  })();
+                }}
+              />
             )}
           </Card>
         </Stack>
@@ -186,13 +198,16 @@ export function InsuranceCompaniesPage() {
   );
 }
 
-function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn }: {
+function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClearRules }: {
   rows: CompanyDto[];
   onEdit?: (c: CompanyDto) => void;
   onDelete?: (id: string) => void;
   readonly?: boolean;
   // Only wired for the universal-catalog table — flips the tenant's opt-in.
   onToggleOptIn?: (id: string, enable: boolean) => void;
+  /** Wipes commission rules attached to a carrier — one-shot cleanup for
+   * rows the old auto-seed populated with ~2000 zero-percent scaffolding. */
+  onClearRules?: (id: string, count: number) => void;
 }) {
   // Track which brokers are expanded. Collapsed by default so the table
   // doesn't dump 56 rows of subs onto the user; clicking the chevron on a
@@ -396,6 +411,13 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn }: {
                   )
                 ) : (
                   <>
+                    {onClearRules && r.commissionDefaultCount > 0 && (
+                      <Tooltip title={`Καθαρισμός των ${r.commissionDefaultCount} αυτόματων κανόνων`}>
+                        <IconButton size="small" color="warning" onClick={() => onClearRules(r.id, r.commissionDefaultCount)}>
+                          <LayersClearIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                     <IconButton size="small" onClick={() => onEdit?.(r)}><EditIcon fontSize="small" /></IconButton>
                     <IconButton size="small" color="error" onClick={() => onDelete?.(r.id)}>
                       <DeleteIcon fontSize="small" />
@@ -417,19 +439,19 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn }: {
 function CompanyDialog({ open, onClose, item, onSaved }: {
   open: boolean; onClose: () => void; item: CompanyDto | null; onSaved: () => void;
 }) {
-  // Bridge + zero-commission-rule bootstrap is always on and always uses safe
-  // defaults — used to be exposed to end users as three switches + a raw JSON
-  // textarea which confused everyone. Now the API call carries the same
-  // defaults silently; nothing shows in the UI.
+  // A fresh carrier starts EMPTY: no auto-provisioned bridge, no zero-
+  // commission scaffolding. The office builds its own parametrics, sets its
+  // own commission rules, and links the raw bridge codes via
+  // BridgeCodeMappings on first import.
   const [form, setForm] = useState<UpsertBody>({
     name: "", code: "", country: "Ελλάδα", website: null, isActive: true,
     agentCode: null, contactName: null, contactEmail: null, contactPhone: null,
     afmVat: null, notes: null,
-    createBridge: true,
+    createBridge: false,
     bridgeName: null,
     bridgeAutoSync: false,
     bridgeConfigJson: null,
-    installZeroCommissionDefaults: true
+    installZeroCommissionDefaults: false
   });
   const [err, setErr] = useState<string | null>(null);
 
@@ -439,22 +461,22 @@ function CompanyDialog({ open, onClose, item, onSaved }: {
         name: item.name, code: item.code, country: item.country, website: item.website, isActive: item.isActive,
         agentCode: item.agentCode, contactName: item.contactName, contactEmail: item.contactEmail,
         contactPhone: item.contactPhone, afmVat: item.afmVat, notes: item.notes,
-        createBridge: !item.bridgeLinked,
-        bridgeName: item.bridgeLinked ? null : `${item.name} bridge`,
+        createBridge: false,
+        bridgeName: null,
         bridgeAutoSync: false,
         bridgeConfigJson: null,
-        installZeroCommissionDefaults: item.commissionDefaultCount === 0
+        installZeroCommissionDefaults: false
       });
     } else if (open) {
       setForm({
         name: "", code: "", country: "Ελλάδα", website: null, isActive: true,
         agentCode: null, contactName: null, contactEmail: null, contactPhone: null,
         afmVat: null, notes: null,
-        createBridge: true,
+        createBridge: false,
         bridgeName: null,
         bridgeAutoSync: false,
         bridgeConfigJson: null,
-        installZeroCommissionDefaults: true
+        installZeroCommissionDefaults: false
       });
     }
   }, [item, open]);

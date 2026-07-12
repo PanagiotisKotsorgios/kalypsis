@@ -253,16 +253,20 @@ public class InsuranceCompaniesController : ControllerBase
                 .GroupBy(r => r.InsuranceCompanyId!.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Count(), ct)
             : new Dictionary<Guid, int>();
-        var companyCodes = rows.Select(c => c.Code).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var parameterCounts = companyCodes.Count > 0
-            ? (await _db.CompanyParameterItems.IgnoreQueryFilters()
-                .Include(p => p.InsuranceCompany)
-                .Where(p => p.DeletedAt == null && p.IsActive && companyCodes.Contains(p.InsuranceCompany.Code))
-                .Select(p => new { p.InsuranceCompany.Code, p.Id })
-                .ToListAsync(ct))
-                .GroupBy(p => p.Code, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        // Parametric count per carrier ID (NOT per code). Keying by code used
+        // to fold the Kalypsis-global catalogue (461 rows for code=ERGO) into
+        // every tenant's own ERGO row, which was misleading — the tenant
+        // hadn't authored any of those. We now count only rows attached to
+        // this specific carrier row, so tenant-owned carriers show zero
+        // until the operator builds their own catalogue.
+        var allCarrierIds = rows.Select(c => c.Id).ToList();
+        var parameterCounts = allCarrierIds.Count > 0
+            ? await _db.CompanyParameterItems.IgnoreQueryFilters()
+                .Where(p => p.DeletedAt == null && p.IsActive
+                    && allCarrierIds.Contains(p.InsuranceCompanyId))
+                .GroupBy(p => p.InsuranceCompanyId)
+                .ToDictionaryAsync(g => g.Key, g => g.Count(), ct)
+            : new Dictionary<Guid, int>();
 
         // Which universal carriers the tenant has explicitly opted-in to. Empty
         // for platform-level users (no tenant context). Wrapped in a try/catch
@@ -387,7 +391,7 @@ public class InsuranceCompaniesController : ControllerBase
         var ruleCount = await _db.CommissionRules.IgnoreQueryFilters()
             .CountAsync(r => r.TenantId == tenantId && r.DeletedAt == null && r.InsuranceCompanyId == c.Id, ct);
         return Ok(new InsuranceCompanyExtendedDto(c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
-            c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(c.Code, ct),
+            c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(c.Id, ct),
             c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes,
             IsUsedByTenant: true));
     }
@@ -432,7 +436,7 @@ public class InsuranceCompaniesController : ControllerBase
         var ruleCount = await _db.CommissionRules.IgnoreQueryFilters()
             .CountAsync(r => r.TenantId == c.TenantId && r.DeletedAt == null && r.InsuranceCompanyId == c.Id, ct);
         return Ok(new InsuranceCompanyExtendedDto(c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
-            c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(c.Code, ct),
+            c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(c.Id, ct),
             c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes,
             IsUsedByTenant: true));
     }
@@ -479,7 +483,7 @@ public class InsuranceCompaniesController : ControllerBase
         var ruleCount = await _db.CommissionRules.IgnoreQueryFilters()
             .CountAsync(r => r.TenantId == tenantId && r.DeletedAt == null && r.InsuranceCompanyId == tenantCompany.Id, ct);
         return Ok(new InsuranceCompanyExtendedDto(tenantCompany.Id, tenantCompany.Name, tenantCompany.Code, tenantCompany.Country, tenantCompany.Website, tenantCompany.IsActive,
-            tenantCompany.TenantId, false, tenantCompany.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(tenantCompany.Code, ct),
+            tenantCompany.TenantId, false, tenantCompany.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(tenantCompany.Id, ct),
             tenantCompany.AgentCode, tenantCompany.ContactName, tenantCompany.ContactEmail, tenantCompany.ContactPhone, tenantCompany.AfmVat, tenantCompany.Notes,
             IsUsedByTenant: true));
     }
@@ -525,6 +529,31 @@ public class InsuranceCompaniesController : ControllerBase
         c.DeletedAt = _clock.UtcNow;
         await _db.SaveChangesAsync(ct);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Wipes commission rules attached to a specific tenant-owned carrier.
+    /// Used to clear the ~2000-row zero-commission scaffolding that the old
+    /// auto-seed installed the moment a carrier was created — under the new
+    /// "empty by default" model the office must build these themselves.
+    /// </summary>
+    public record ClearRulesResult(int RulesDeleted);
+
+    [HttpPost("{id:guid}/clear-commission-rules")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<ClearRulesResult>> ClearCommissionRules(Guid id, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId
+            ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        var carrier = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw Kalypsis.Application.Common.AppException.NotFound("Ασφαλιστική");
+        var rules = await _db.CommissionRules.IgnoreQueryFilters()
+            .Where(r => r.TenantId == tenantId && r.InsuranceCompanyId == carrier.Id)
+            .ToListAsync(ct);
+        _db.CommissionRules.RemoveRange(rules);
+        await _db.SaveChangesAsync(ct);
+        return Ok(new ClearRulesResult(rules.Count));
     }
 
     /// <summary>
@@ -747,14 +776,14 @@ public class InsuranceCompaniesController : ControllerBase
         IReadOnlyDictionary<string, Kalypsis.Domain.Entities.InsuranceCompany> tenantByCode,
         IReadOnlyDictionary<Guid, Kalypsis.Domain.Entities.CompanyBridge> bridges,
         IReadOnlyDictionary<Guid, int> ruleCounts,
-        IReadOnlyDictionary<string, int> parameterCounts,
+        IReadOnlyDictionary<Guid, int> parameterCounts,
         HashSet<Guid> optInSet)
     {
         var tenantCopy = c.TenantId == null && tenantByCode.TryGetValue(c.Code, out var copy) ? copy : c.TenantId != null ? c : null;
         var bridgeCompanyId = tenantCopy?.Id ?? c.Id;
         bridges.TryGetValue(bridgeCompanyId, out var bridge);
         ruleCounts.TryGetValue(bridgeCompanyId, out var ruleCount);
-        parameterCounts.TryGetValue(c.Code, out var parameterCount);
+        parameterCounts.TryGetValue(c.Id, out var parameterCount);
         // Universal rows opt-in through TenantCarrierOptIn; tenant-scoped rows
         // are implicitly used (the tenant created them).
         var isUsedByTenant = c.TenantId != null || optInSet.Contains(c.Id);
@@ -768,10 +797,12 @@ public class InsuranceCompaniesController : ControllerBase
             isUsedByTenant);
     }
 
-    private async Task<int> CountParameterItemsAsync(string companyCode, CancellationToken ct) =>
+    // Count parametrics attached to this specific carrier row (not to every
+    // row that happens to share the same code). See the tenant-facing List
+    // handler's parameterCounts comment for why.
+    private async Task<int> CountParameterItemsAsync(Guid companyId, CancellationToken ct) =>
         await _db.CompanyParameterItems.IgnoreQueryFilters()
-            .Include(p => p.InsuranceCompany)
-            .CountAsync(p => p.DeletedAt == null && p.IsActive && p.InsuranceCompany.Code == companyCode, ct);
+            .CountAsync(p => p.DeletedAt == null && p.IsActive && p.InsuranceCompanyId == companyId, ct);
 
     private async Task<Kalypsis.Domain.Entities.InsuranceCompany> InstallDefaultCompanyAsync(
         Guid tenantId,

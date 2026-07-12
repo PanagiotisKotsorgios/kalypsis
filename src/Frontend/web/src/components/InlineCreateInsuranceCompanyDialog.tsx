@@ -53,7 +53,7 @@ function seedFromPrefill(prefill: string): CreateBody {
     country: null,
     website: null,
     isActive: true,
-    createBridge: true,
+    createBridge: false,
   };
 }
 
