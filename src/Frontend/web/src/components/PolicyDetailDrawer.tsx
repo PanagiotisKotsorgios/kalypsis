@@ -57,6 +57,9 @@ export interface PolicyDetail {
   reasonForCirculation: string | null;
   // Per-policy commission override (JSON blob {"Producer":15,"Manager":3,...})
   specialLevelPercentsJson: string | null;
+  // Bridge-supplied Προμήθεια Γραφείου — summed from FinancialMovements
+  // created at import time. Null on policies that never touched a bridge.
+  bridgeAgencyCommissionAmount: number | null;
 }
 
 export interface PolicyCoverRow {
@@ -2115,6 +2118,7 @@ function BridgeVsParametrizationCard({ policy, matrix, matrixLoading, onCompute 
     netPremium: number | null;
     currency: string;
     producerName: string | null;
+    bridgeAgencyCommissionAmount: number | null;
   };
   matrix: PolicyCommissionMatrix | undefined;
   matrixLoading: boolean;
@@ -2151,6 +2155,15 @@ function BridgeVsParametrizationCard({ policy, matrix, matrixLoading, onCompute 
           <Stack spacing={0.5} mt={1}>
             <Row label="Μικτά" value={fmt(policy.premium)} bold />
             <Row label="Καθαρά" value={policy.netPremium != null ? fmt(policy.netPremium) : "—"} />
+            {/* Bridge-imported agency commission — shown only for policies
+                that actually landed through a carrier bridge. */}
+            <Row
+              label="Προμήθεια Γραφείου"
+              value={policy.bridgeAgencyCommissionAmount != null
+                ? fmt(policy.bridgeAgencyCommissionAmount)
+                : "—"}
+              bold
+            />
           </Stack>
         </Box>
 

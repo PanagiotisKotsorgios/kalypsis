@@ -2163,7 +2163,14 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 else
                 {
                     status = "Duplicate";
-                    r.Notes.Add(new BridgeImportNote("Συμβόλαιο", "warn", "Υπάρχει ήδη συμβόλαιο με αυτόν τον αριθμό — θα παραλειφθεί"));
+                    // Point the row at the existing policy so the row-detail
+                    // dialog can render an "Άνοιγμα υπάρχοντος" affordance
+                    // instead of just saying "θα παραλειφθεί" and leaving
+                    // the operator to hunt the record down manually.
+                    linkedId = existingPolicyId;
+                    linkedNumber = r.PolicyNumber;
+                    r.Notes.Add(new BridgeImportNote("Συμβόλαιο", "info",
+                        $"Έχει ήδη εισαχθεί ως {r.PolicyNumber} — δεν θα δημιουργηθεί ξανά. Ανοίξτε την υπάρχουσα καρτέλα από τη σύνδεση παρακάτω."));
                 }
             }
             else if (!string.IsNullOrEmpty(r.PolicyNumber) && inFileDups.Contains($"{r.Index}|{r.PolicyNumber}") && !IsLifecycle(rowType))
@@ -2223,7 +2230,10 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             }
             // Renewal flag for unlinked: ERGO sheets are portfolio movements — anything
             // we couldn't link is still treated as a renewal pending manual link.
-            if (rowType == "New" && r.GrossPremium.HasValue && r.GrossPremium.Value > 0)
+            // Duplicates are NOT relabelled — the policy already exists, so calling
+            // it "ανανέωση χωρίς σύνδεση" would contradict the "έχει ήδη εισαχθεί"
+            // note we just wrote above.
+            if (rowType == "New" && r.GrossPremium.HasValue && r.GrossPremium.Value > 0 && status != "Duplicate")
             {
                 rowType = "Renewal";
                 r.Notes.Add(new BridgeImportNote("Τύπος", "warn",

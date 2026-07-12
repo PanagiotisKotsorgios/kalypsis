@@ -89,7 +89,12 @@ public record PolicyDetailDto(
     string? DriverVatNumber = null,
     string? ReasonForCirculation = null,
     // Per-policy commission override (v2 of ALIS #1)
-    string? SpecialLevelPercentsJson = null);
+    string? SpecialLevelPercentsJson = null,
+    // Bridge-supplied agency commission for this policy — summed from the
+    // FinancialMovements that were created when the bridge import ran.
+    // Non-null only for policies that landed via a carrier bridge; manual
+    // policies stay at null (they never had a bridge posting).
+    decimal? BridgeAgencyCommissionAmount = null);
 
 public record GetPolicyDetailQuery(Guid Id) : IRequest<PolicyDetailDto>;
 
@@ -146,6 +151,23 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
         var totalCommissions = await _db.CommissionTransactions.IgnoreQueryFilters()
             .Where(x => x.PolicyId == p.Id && x.DeletedAt == null)
             .SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
+
+        // Bridge-supplied agency commission — summed from every
+        // FinancialMovement the carrier-bridge commit wrote for this
+        // policy with kind = CommissionEarned. Wrapped so a missing FK
+        // (legacy DBs where the FinancialMovement.PolicyId column was
+        // added by the safety net after the row) doesn't fail the load.
+        decimal? bridgeAgencyCommission = null;
+        try
+        {
+            var raw = await _db.FinancialMovements.IgnoreQueryFilters()
+                .Where(fm => fm.PolicyId == p.Id
+                    && fm.DeletedAt == null
+                    && fm.Kind == FinancialMovementKind.CommissionEarned)
+                .SumAsync(fm => (decimal?)fm.Amount, ct);
+            if (raw is not null) bridgeAgencyCommission = raw;
+        }
+        catch { /* best-effort */ }
 
         // Cover breakdown. Wrapped so a missing table (partial deploy on an
         // old DB) doesn't fail the whole detail load — the safety net will
@@ -222,7 +244,8 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             p.VehicleRegistrationPlate,
             p.DriverVatNumber,
             p.ReasonForCirculation,
-            p.SpecialLevelPercentsJson);
+            p.SpecialLevelPercentsJson,
+            bridgeAgencyCommission);
     }
 }
 
