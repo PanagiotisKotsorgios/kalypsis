@@ -169,21 +169,12 @@ export function CommissionRulesPage() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["commission-rules"] }),
     onError: (e) => setErr(extractErrorMessage(e))
   });
-  const seedZero = useMutation({
-    mutationFn: async () => (await api.post<{ companiesProcessed: number; rulesCreated: number }>(
-      "/commission-rules/seed-zero-defaults",
-      { insuranceCompanyId: carrierFilter || null }
-    )).data,
-    onSuccess: (res) => {
-      setSuccess(`Δημιουργήθηκαν ${res.rulesCreated} μηδενικοί κανόνες για ${res.companiesProcessed} εταιρείες.`);
-      void qc.invalidateQueries({ queryKey: ["commission-rules"] });
-      void qc.invalidateQueries({ queryKey: ["insurance-companies"] });
-    },
-    onError: (e) => setErr(extractErrorMessage(e))
-  });
+  // seedZero mutation + the visible-count chip that reported "N μηδενικοί
+  // κανόνες κρυφοί" both removed with the "Μηδενικοί κανόνες" button.
 
   const rawRows = q.data ?? [];
-  const seededZeroCount = useMemo(() => rawRows.filter(isZeroCommissionRule).length, [rawRows]);
+  // Zero-value safety-net rows are still filtered out of the visible table
+  // so the operator only sees rules that actually pay something.
   const visibleRows = useMemo(
     () => rawRows.filter(r => !isZeroCommissionRule(r)),
     [rawRows]
@@ -261,13 +252,6 @@ export function CommissionRulesPage() {
         </Stack>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
           <Button
-            variant="outlined"
-            size="large"
-            onClick={() => setDefaultsOpen(true)}
-          >
-            Προεπιλογές συμβολαίων
-          </Button>
-          <Button
             startIcon={<TuneIcon />}
             variant="outlined"
             size="large"
@@ -275,18 +259,9 @@ export function CommissionRulesPage() {
           >
             Μαζική επεξεργασία
           </Button>
-          <Button
-            variant="outlined"
-            size="large"
-            onClick={() => seedZero.mutate()}
-            disabled={seedZero.isPending}
-          >
-            {seedZero.isPending ? <CircularProgress size={18} /> : "Μηδενικοί κανόνες"}
-          </Button>
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>
-          Νέος κανόνας γραφείου/συνεργάτη
+            Νέος κανόνας
           </Button>
-          <BackfillCommissionsButton />
           <DataExportButton entity="commission-rules" />
         </Stack>
       </Stack>
@@ -294,7 +269,8 @@ export function CommissionRulesPage() {
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}
       <Alert severity="info" sx={{ mb: 2 }}>
-        Η παραμετροποίηση είναι πλέον σε ένα σημείο. Οι κανόνες προμηθειών αφορούν πληρωμές γραφείου/συνεργατών. Οι «Προεπιλογές συμβολαίων» αφορούν μόνο αυτόματη συμπλήρωση πεδίων όταν καταχωρείται χειροκίνητα νέο συμβόλαιο.
+        Ορίζετε πόσο πληρώνεται το γραφείο και ο συνεργάτης ανά κλάδο / κάλυψη / πακέτο / χρήση.
+        Μπορείτε να επιλέξετε αν ο νέος κανόνας θα ισχύει και στα υπάρχοντα συμβόλαια ή μόνο σε νέα από εδώ και πέρα.
       </Alert>
 
       <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
@@ -375,9 +351,8 @@ export function CommissionRulesPage() {
           <Button size="small" onClick={() => {
             setSearch(""); setCarrierFilter(""); setSubCarrierFilter([]); setTierFilter(""); setTypeFilter(""); setUseFilter(""); setCoverFilter("");
           }}>Καθαρισμός</Button>
-          {seededZeroCount > 0 && (
-            <Chip size="small" variant="outlined" label={`${seededZeroCount} μηδενικοί κανόνες κρυφοί`} />
-          )}
+          {/* Zero-rule seed chip removed — the operator doesn't need to
+              see internal safety-net rows in the filters bar. */}
         </Stack>
       </Card>
 
@@ -414,9 +389,7 @@ export function CommissionRulesPage() {
             <TableBody>
               {filtered.length === 0 && (
                 <TableRow><TableCell colSpan={9} align="center" sx={{ color: "text.secondary", py: 4 }}>
-                  {seededZeroCount > 0
-                    ? "Δεν υπάρχουν ενεργοί/χειροκίνητοι κανόνες στα φίλτρα. Οι μηδενικοί κανόνες ασφαλείας είναι κρυφοί."
-                    : "Δεν έχουν οριστεί κανόνες — δημιουργήστε τον πρώτο για να αρχίσει η αυτόματη ανάθεση προμηθειών."}
+                  Δεν έχουν οριστεί κανόνες — δημιουργήστε τον πρώτο για να αρχίσει η αυτόματη ανάθεση προμηθειών.
                 </TableCell></TableRow>
               )}
               {paged.map(r => (
@@ -527,7 +500,12 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
     assistantPercent: "" as number | "",
     taxWithholdingPercent: "" as number | "",
     effectiveFrom: today,
-    effectiveTo: ""
+    effectiveTo: "",
+    // "future" (default, safe) = only new policies + renewals from now on
+    // pick up the new rule. "existing" = we also retro-recompute the
+    // commission splits of policies already in the DB that fall within
+    // the effective period.
+    applyScope: "future" as "future" | "existing"
   });
   const [manualCode, setManualCode] = useState("");
   const [catalogueOpen, setCatalogueOpen] = useState(false);
@@ -667,7 +645,10 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         assistantPercent: rule.assistantPercent ?? "",
         taxWithholdingPercent: rule.taxWithholdingPercent ?? "",
         effectiveFrom: rule.effectiveFrom,
-        effectiveTo: rule.effectiveTo ?? ""
+        effectiveTo: rule.effectiveTo ?? "",
+        // Editing an existing rule defaults to "future" — the operator has
+        // to explicitly opt back into a retroactive recompute.
+        applyScope: "future"
       });
     } else if (open) {
       setForm({
@@ -686,7 +667,8 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         assistantPercent: "",
         taxWithholdingPercent: "",
         effectiveFrom: today,
-        effectiveTo: ""
+        effectiveTo: "",
+        applyScope: "future"
       });
       setManualCode("");
     }
@@ -737,27 +719,39 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         effectiveTo: form.effectiveTo || null
       };
 
-      if (editing && combos <= 1) {
-        return (await api.put<CommissionRuleDto>(`/commission-rules/${rule!.id}`, singleBody)).data;
-      }
+      // Persist the rule(s) first. Two paths — single PUT when we're editing
+      // exactly one row, otherwise the batch endpoint that materialises
+      // every combination in one shot.
+      const saved = editing && combos <= 1
+        ? (await api.put<CommissionRuleDto>(`/commission-rules/${rule!.id}`, singleBody)).data
+        : (await api.post("/commission-rules/batch", {
+            producerId: singleBody.producerId,
+            producerTier: singleBody.producerTier,
+            insuranceCompanyId: singleBody.insuranceCompanyId,
+            policyTypes: selectedPolicyTypes,
+            vehicleUseCategories: selectedUseCategories,
+            coverCodes: form.coverCodes,
+            agencyPercent: singleBody.agencyPercent,
+            producerPercent: singleBody.producerPercent,
+            managerPercent:   singleBody.managerPercent,
+            unitPercent:      singleBody.unitPercent,
+            assistantPercent: singleBody.assistantPercent,
+            taxWithholdingPercent: singleBody.taxWithholdingPercent,
+            effectiveFrom: form.effectiveFrom,
+            effectiveTo: form.effectiveTo || null,
+            replaceExisting: true
+          })).data;
 
-      return (await api.post("/commission-rules/batch", {
-        producerId: singleBody.producerId,
-        producerTier: singleBody.producerTier,
-        insuranceCompanyId: singleBody.insuranceCompanyId,
-        policyTypes: selectedPolicyTypes,
-        vehicleUseCategories: selectedUseCategories,
-        coverCodes: form.coverCodes,
-        agencyPercent: singleBody.agencyPercent,
-        producerPercent: singleBody.producerPercent,
-        managerPercent:   singleBody.managerPercent,
-        unitPercent:      singleBody.unitPercent,
-        assistantPercent: singleBody.assistantPercent,
-        taxWithholdingPercent: singleBody.taxWithholdingPercent,
-        effectiveFrom: form.effectiveFrom,
-        effectiveTo: form.effectiveTo || null,
-        replaceExisting: true
-      })).data;
+      // When the operator picked "Εφαρμογή σε υπάρχοντα συμβόλαια" we
+      // trigger the backfill endpoint the old standalone
+      // «Επανυπολογισμός matrix» button called. Best-effort — a failure
+      // here doesn't roll back the rule save, we just surface the error.
+      if (form.applyScope === "existing") {
+        try {
+          await api.post("/policies/backfill-commission-splits", {});
+        } catch { /* the rule was saved; the recompute is a separate concern */ }
+      }
+      return saved;
     },
     onSuccess: onSaved,
     onError: (e) => setErr(extractErrorMessage(e))
@@ -1004,6 +998,28 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
               onChange={e => setForm({ ...form, effectiveTo: e.target.value })} fullWidth />
           </Stack>
 
+          {/* Σε ποια συμβόλαια θα εφαρμοστεί ο κανόνας. Παλαιότερα ο κανόνας
+              ίσχυε ΠΑΝΤΑ από την «Ισχύει από» ημερομηνία και οι υπάρχουσες
+              splits παρέμεναν αγγιχτες μέχρι κάποιος να πατήσει τον
+              «Επανυπολογισμός matrix» (το κουμπί που πήραμε). Τώρα ο
+              χρήστης επιλέγει άμεσα: μόνο σε νέα εγγραφές από εδώ και
+              πέρα (default — ασφαλές, καμία retroactive αλλαγή) ή και
+              στα υπάρχοντα συμβόλαια της περιόδου ισχύος (εφαρμογή
+              απευθείας — retroactive recompute των splits). */}
+          <Card variant="outlined" sx={{ p: 2 }}>
+            <Typography fontWeight={700} sx={{ mb: 1 }}>Σε ποια συμβόλαια θα ισχύσει;</Typography>
+            <SearchableTextField select label="Εφαρμογή" fullWidth
+              value={form.applyScope} onChange={e => setForm({ ...form, applyScope: e.target.value as "future" | "existing" })}>
+              <MenuItem value="future">Μόνο σε νέα συμβόλαια από εδώ και πέρα</MenuItem>
+              <MenuItem value="existing">Και σε υπάρχοντα συμβόλαια της περιόδου ισχύος</MenuItem>
+            </SearchableTextField>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+              {form.applyScope === "existing"
+                ? "Θα ξαναϋπολογιστούν οι splits όλων των συμβολαίων που πληρούν τους κανόνες αυτής της παραμετροποίησης."
+                : "Παλαιότερα συμβόλαια δεν αλλάζουν. Ισχύει μόνο σε ανανεωτήρια / νέες εγγραφές από εδώ και μπρος."}
+            </Typography>
+          </Card>
+
           <Card variant="outlined" sx={{ p: 2, bgcolor: "rgba(11,37,69,0.03)" }}>
             <Typography fontWeight={700}>Προεπισκόπηση</Typography>
             <Typography variant="body2" color="text.secondary">
@@ -1105,67 +1121,7 @@ function RuleImpactPreview({ form }: { form: any }) {
   );
 }
 
-/* ============================================================================
-   Bulk-backfill the commissions matrix across every policy in the tenant.
-   After a LevelPercentsJson rollout, existing policies still show a two-row
-   matrix until they're saved again — this button forces the recompute in
-   one operation.
-   ============================================================================ */
-function BackfillCommissionsButton() {
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<null | { scanned: number; withSplits: number; created: number }>(null);
-  const [err, setErr] = useState<string | null>(null);
-
-  const run = async () => {
-    if (!window.confirm(
-      "Θα ξαναϋπολογίσουμε τον πίνακα προμηθειών για κάθε συμβόλαιο του γραφείου. "
-      + "Η ενέργεια δεν χαλάει τίποτα — ασφαλής και επαναληπτική. Να συνεχίσουμε;"
-    )) return;
-    setBusy(true);
-    setErr(null);
-    try {
-      const r = (await api.post<{
-        policiesScanned: number;
-        policiesWithSplits: number;
-        splitsCreated: number;
-      }>("/policies/backfill-commission-splits", {})).data;
-      setResult({ scanned: r.policiesScanned, withSplits: r.policiesWithSplits, created: r.splitsCreated });
-    } catch (e) {
-      setErr(extractErrorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <>
-      <Button variant="outlined" onClick={run} disabled={busy} size="large">
-        {busy ? <CircularProgress size={18} /> : "Ξαναϋπολογισμός matrix"}
-      </Button>
-      {result && (
-        <Dialog open={!!result} onClose={() => setResult(null)} maxWidth="xs">
-          <DialogTitle>Ολοκληρώθηκε</DialogTitle>
-          <DialogContent>
-            <Typography>
-              Σαρώθηκαν <b>{result.scanned}</b> συμβόλαια. Ο πίνακας υπολογίστηκε
-              για <b>{result.withSplits}</b> από αυτά και δημιουργήθηκαν
-              συνολικά <b>{result.created}</b> νέες γραμμές.
-            </Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button variant="contained" onClick={() => setResult(null)}>Εντάξει</Button>
-          </DialogActions>
-        </Dialog>
-      )}
-      {err && (
-        <Dialog open={!!err} onClose={() => setErr(null)} maxWidth="xs">
-          <DialogTitle>Αποτυχία</DialogTitle>
-          <DialogContent><Typography color="error">{err}</Typography></DialogContent>
-          <DialogActions>
-            <Button onClick={() => setErr(null)}>Κλείσιμο</Button>
-          </DialogActions>
-        </Dialog>
-      )}
-    </>
-  );
-}
+// The standalone BackfillCommissionsButton was folded into the "Εφαρμογή"
+// toggle inside the create/edit dialog — saving a rule with
+// applyScope === "existing" now calls /policies/backfill-commission-splits
+// on its own, so this button is no longer needed.
