@@ -113,7 +113,25 @@ export function InsuranceCompaniesPage() {
   // Agencies see their own catalogue plus any legacy global carriers they had
   // already opted-in to (so existing policies keep resolving). Every other
   // Kalypsis-global row is intentionally hidden — new agencies never see them.
-  const ownRows = [...ownTenantRows, ...usedGlobalGrouped];
+  const allOwnRows = [...ownTenantRows, ...usedGlobalGrouped];
+
+  const [search, setSearch] = useState("");
+  const ownRows = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    if (!s) return allOwnRows;
+    return allOwnRows.filter(c =>
+      (c.code ?? "").toLowerCase().includes(s)
+      || (c.name ?? "").toLowerCase().includes(s)
+      || (c.agentCode ?? "").toLowerCase().includes(s)
+      || (c.contactName ?? "").toLowerCase().includes(s)
+      || (c.contactEmail ?? "").toLowerCase().includes(s)
+      || (c.afmVat ?? "").toLowerCase().includes(s)
+    );
+  // allOwnRows is derived every render but stable in shape — safe to depend on.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, JSON.stringify(allOwnRows.map(c => c.id))]);
+
+  const [profileFor, setProfileFor] = useState<CompanyDto | null>(null);
 
   return (
     <Box>
@@ -128,6 +146,13 @@ export function InsuranceCompaniesPage() {
           </Box>
         </Stack>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+          <TextField
+            size="small"
+            placeholder="Αναζήτηση κωδικού, ονόματος, ΑΦΜ, επαφής…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            sx={{ minWidth: 280 }}
+          />
           <DataExportButton entity="insurance-companies" />
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
             Νέα ασφαλιστική
@@ -168,6 +193,7 @@ export function InsuranceCompaniesPage() {
                 linkedCarrierIds={linkedCarrierIds}
                 onEdit={setEditing}
                 onDelete={(id) => { if (confirm("Διαγραφή ασφαλιστικής;")) del.mutate(id); }}
+                onRowClick={setProfileFor}
                 onClearRules={(id, count) => {
                   if (!confirm(`Καθαρισμός ${count} αυτόματων κανόνων προμηθειών από αυτή την εταιρεία;\n\nΘα διαγραφούν οριστικά. Οι δικοί σας κανόνες μπορούν να δημιουργηθούν εκ νέου από τη σελίδα Κανόνες Προμηθειών.`)) return;
                   void (async () => {
@@ -188,11 +214,17 @@ export function InsuranceCompaniesPage() {
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); setCreateOpen(false); }} />
       <CompanyDialog open={!!editing} onClose={() => setEditing(null)} item={editing}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); setEditing(null); }} />
+      <CarrierProfileDialog
+        open={!!profileFor}
+        carrier={profileFor}
+        onClose={() => setProfileFor(null)}
+        onEdit={(c) => { setProfileFor(null); setEditing(c); }}
+      />
     </Box>
   );
 }
 
-function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClearRules, linkedCarrierIds }: {
+function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClearRules, linkedCarrierIds, onRowClick }: {
   rows: CompanyDto[];
   onEdit?: (c: CompanyDto) => void;
   onDelete?: (id: string) => void;
@@ -206,6 +238,9 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
    * at them — they show "Γέφυρα συνδεδεμένη" in the bridge column instead
    * of the generic "Χωρίς σύνδεση". */
   linkedCarrierIds?: Set<string>;
+  /** Fired when the operator clicks anywhere on a row (except the action
+   * buttons) — opens the full carrier profile popup. */
+  onRowClick?: (c: CompanyDto) => void;
 }) {
   // Track which brokers are expanded. Collapsed by default so the table
   // doesn't dump 56 rows of subs onto the user; clicking the chevron on a
@@ -311,7 +346,18 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
             return (
             <TableRow key={r.id} hover
               onContextMenu={(e) => rowMenu.open(e, r)}
-              sx={r.parentCompanyId ? { bgcolor: "rgba(11,37,69,0.02)" } : undefined}>
+              onClick={onRowClick ? (e) => {
+                // Ignore clicks that originated on an action button/link/input
+                // — those have their own handlers and we don't want to open the
+                // profile popup as a side-effect.
+                const t = e.target as HTMLElement;
+                if (t.closest("button,a,input,[role='button']")) return;
+                onRowClick(r);
+              } : undefined}
+              sx={{
+                cursor: onRowClick ? "pointer" : undefined,
+                ...(r.parentCompanyId ? { bgcolor: "rgba(11,37,69,0.02)" } : {})
+              }}>
               <TableCell sx={{ width: 32, p: 0.5 }}>
                 {r.isBroker && subCount > 0 && (
                   <IconButton size="small" onClick={() => toggleBroker(r.id)} aria-label={expanded ? "Σύμπτυξη" : "Επέκταση"}>
@@ -540,5 +586,216 @@ function CompanyDialog({ open, onClose, item, onSaved }: {
         </Button>
       </DialogActions>
     </Dialog>
+  );
+}
+
+/* ============================================================================
+   Carrier profile popup — opens when the operator clicks anywhere on a row
+   in the "Δικές μου ασφαλιστικές" table. Reads /insurance-companies/{id}/profile
+   which returns the base fields + per-tenant stats (policies, premium totals,
+   claims, commission rules, parametric counts by kind, bridge link status) and
+   a "recent policies" sample. Fires "Επεξεργασία" from the header so the
+   operator can jump straight into the edit dialog.
+   ========================================================================= */
+interface CarrierProfile {
+  id: string; code: string; name: string;
+  country: string | null; website: string | null;
+  agentCode: string | null; afmVat: string | null;
+  contactName: string | null; contactEmail: string | null; contactPhone: string | null;
+  notes: string | null; isActive: boolean; createdAt: string;
+  totalPolicies: number; activePolicies: number;
+  activePremiumTotal: number; activeNetPremiumTotal: number;
+  totalClaims: number; openClaims: number;
+  commissionRuleCount: number;
+  branchCount: number; coverageCount: number; useCount: number; packageCount: number;
+  bridgeLinked: boolean; bridgeLinkedSourceCarrier: string | null;
+  recentPolicies: Array<{
+    id: string; policyNumber: string; customerName: string | null;
+    startDate: string | null; endDate: string | null; premium: number;
+    policyType: string; status: string;
+  }>;
+}
+
+function CarrierProfileDialog({ open, carrier, onClose, onEdit }: {
+  open: boolean;
+  carrier: CompanyDto | null;
+  onClose: () => void;
+  onEdit: (c: CompanyDto) => void;
+}) {
+  const q = useQuery({
+    queryKey: ["insurance-company-profile", carrier?.id],
+    enabled: open && !!carrier,
+    queryFn: async () => (await api.get<CarrierProfile>(`/insurance-companies/${carrier!.id}/profile`)).data
+  });
+  const p = q.data;
+  const fmtEur = (n: number) => n.toLocaleString("el-GR", { style: "currency", currency: "EUR" });
+  const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("el-GR") : "—";
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
+      <DialogTitle sx={{ pr: 6 }}>
+        <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap">
+          <BusinessIcon color="primary" />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>
+              {carrier?.name ?? "…"}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace", fontWeight: 700 }}>
+              {carrier?.code}
+            </Typography>
+          </Box>
+          {carrier?.isActive ? <Chip size="small" color="success" label="Ενεργή" /> : <Chip size="small" label="Ανενεργή" />}
+          {carrier && <Button startIcon={<EditIcon />} size="small" onClick={() => onEdit(carrier)}>Επεξεργασία</Button>}
+        </Stack>
+      </DialogTitle>
+      <DialogContent dividers>
+        {q.isLoading && (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
+        )}
+        {q.error && <Alert severity="error">Δεν φορτώθηκε το προφίλ.</Alert>}
+        {p && (
+          <Stack spacing={3}>
+            <Box sx={{
+              display: "grid", gap: 1.5,
+              gridTemplateColumns: { xs: "repeat(2,1fr)", sm: "repeat(3,1fr)", md: "repeat(6,1fr)" }
+            }}>
+              <ProfileKpi label="Ενεργά συμβόλαια" value={p.activePolicies} sub={`${p.totalPolicies} σύνολο`} />
+              <ProfileKpi label="Ασφάλιστρα (μικτά)" value={fmtEur(p.activePremiumTotal)} />
+              <ProfileKpi label="Ασφάλιστρα (καθαρά)" value={fmtEur(p.activeNetPremiumTotal)} />
+              <ProfileKpi label="Ζημιές" value={p.totalClaims} sub={`${p.openClaims} ανοιχτές`} color={p.openClaims > 0 ? "warning" : undefined} />
+              <ProfileKpi label="Κανόνες προμηθειών" value={p.commissionRuleCount} />
+              <ProfileKpi label="Γέφυρα" value={p.bridgeLinked ? "Συνδεδεμένη" : "Χωρίς σύνδεση"}
+                sub={p.bridgeLinkedSourceCarrier ?? undefined}
+                color={p.bridgeLinked ? "success" : "warning"} />
+            </Box>
+
+            <Card variant="outlined" sx={{ p: 2 }}>
+              <Typography fontSize={13} sx={{ letterSpacing: "0.08em", textTransform: "uppercase", color: "text.secondary", mb: 1 }}>
+                Παραμετρικά
+              </Typography>
+              <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                <ProfileMiniStat label="Κλάδοι" value={p.branchCount} />
+                <ProfileMiniStat label="Πακέτα" value={p.packageCount} />
+                <ProfileMiniStat label="Χρήσεις" value={p.useCount} />
+                <ProfileMiniStat label="Καλύψεις" value={p.coverageCount} />
+              </Stack>
+            </Card>
+
+            <Box sx={{
+              display: "grid", gap: 2,
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }
+            }}>
+              <Card variant="outlined" sx={{ p: 2 }}>
+                <Typography fontSize={13} sx={{ letterSpacing: "0.08em", textTransform: "uppercase", color: "text.secondary", mb: 1.5 }}>
+                  Ταυτότητα
+                </Typography>
+                <ProfileField label="ΑΦΜ" value={p.afmVat} />
+                <ProfileField label="Χώρα" value={p.country} />
+                <ProfileField label="Website" value={p.website} link={p.website ? (p.website.startsWith("http") ? p.website : `https://${p.website}`) : null} />
+                <ProfileField label="Κωδικός συνεργασίας" value={p.agentCode} mono />
+                <ProfileField label="Δημιουργήθηκε" value={fmtDate(p.createdAt)} />
+              </Card>
+              <Card variant="outlined" sx={{ p: 2 }}>
+                <Typography fontSize={13} sx={{ letterSpacing: "0.08em", textTransform: "uppercase", color: "text.secondary", mb: 1.5 }}>
+                  Επικοινωνία
+                </Typography>
+                <ProfileField label="Όνομα επαφής" value={p.contactName} />
+                <ProfileField label="Email" value={p.contactEmail} link={p.contactEmail ? `mailto:${p.contactEmail}` : null} />
+                <ProfileField label="Τηλέφωνο" value={p.contactPhone} link={p.contactPhone ? `tel:${p.contactPhone}` : null} />
+                {p.notes && (
+                  <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="caption" color="text.secondary">Σημειώσεις</Typography>
+                    <Typography sx={{ whiteSpace: "pre-wrap" }}>{p.notes}</Typography>
+                  </Box>
+                )}
+              </Card>
+            </Box>
+
+            <Card variant="outlined">
+              <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+                <Typography fontWeight={700}>Πρόσφατα συμβόλαια</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Τα 10 πιο πρόσφατα συμβόλαια αυτής της εταιρείας.
+                </Typography>
+              </Box>
+              {p.recentPolicies.length === 0 ? (
+                <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
+                  Δεν υπάρχουν συμβόλαια συνδεδεμένα με αυτή την εταιρεία ακόμη.
+                </Box>
+              ) : (
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Αριθμός</TableCell>
+                      <TableCell>Πελάτης</TableCell>
+                      <TableCell>Είδος</TableCell>
+                      <TableCell>Έναρξη</TableCell>
+                      <TableCell>Λήξη</TableCell>
+                      <TableCell align="right">Ασφάλιστρο</TableCell>
+                      <TableCell>Κατάσταση</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {p.recentPolicies.map(row => (
+                      <TableRow key={row.id} hover>
+                        <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{row.policyNumber}</TableCell>
+                        <TableCell>{row.customerName ?? "—"}</TableCell>
+                        <TableCell>{row.policyType}</TableCell>
+                        <TableCell>{fmtDate(row.startDate)}</TableCell>
+                        <TableCell>{fmtDate(row.endDate)}</TableCell>
+                        <TableCell align="right">{fmtEur(row.premium)}</TableCell>
+                        <TableCell><Chip size="small" label={row.status} /></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </Card>
+          </Stack>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Κλείσιμο</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function ProfileKpi({ label, value, sub, color }: {
+  label: string; value: string | number; sub?: string;
+  color?: "success" | "warning" | "error" | "info";
+}) {
+  return (
+    <Box sx={{
+      p: 1.25, borderRadius: 1, border: "1px solid", borderColor: "divider",
+      bgcolor: color ? `${color}.lighter` : undefined
+    }}>
+      <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.06em", textTransform: "uppercase" }}>{label}</Typography>
+      <Typography fontWeight={800} sx={{ fontSize: 18, color: color ? `${color}.main` : "text.primary" }}>{value}</Typography>
+      {sub && <Typography variant="caption" color="text.secondary">{sub}</Typography>}
+    </Box>
+  );
+}
+
+function ProfileMiniStat({ label, value }: { label: string; value: number }) {
+  return (
+    <Box sx={{ minWidth: 100 }}>
+      <Typography variant="caption" color="text.secondary">{label}</Typography>
+      <Typography fontWeight={700} sx={{ fontSize: 20 }}>{value}</Typography>
+    </Box>
+  );
+}
+
+function ProfileField({ label, value, mono, link }: {
+  label: string; value: string | null | undefined; mono?: boolean; link?: string | null;
+}) {
+  const shown = value && value.trim() ? value : "—";
+  return (
+    <Box sx={{ mb: 1 }}>
+      <Typography variant="caption" color="text.secondary">{label}</Typography>
+      <Typography sx={{ fontFamily: mono ? "monospace" : undefined, fontWeight: mono ? 700 : 500 }}>
+        {link && value ? <a href={link} style={{ color: "inherit" }} target="_blank" rel="noreferrer">{shown}</a> : shown}
+      </Typography>
+    </Box>
   );
 }

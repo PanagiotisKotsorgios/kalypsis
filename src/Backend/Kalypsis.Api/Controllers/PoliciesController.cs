@@ -557,6 +557,116 @@ public class InsuranceCompaniesController : ControllerBase
     }
 
     /// <summary>
+    /// Full carrier profile — powers the click-through popup on the
+    /// InsuranceCompaniesPage. Combines the base fields with per-tenant
+    /// aggregates (policy counts + premium totals, claim counts,
+    /// commission-rule count, parametric counts by kind, bridge link
+    /// status) plus a small "recent policies" sample.
+    /// </summary>
+    public record CarrierProfileDto(
+        Guid Id, string Code, string Name,
+        string? Country, string? Website,
+        string? AgentCode, string? AfmVat,
+        string? ContactName, string? ContactEmail, string? ContactPhone,
+        string? Notes, bool IsActive, DateTime CreatedAt,
+        // stats
+        int TotalPolicies, int ActivePolicies,
+        decimal ActivePremiumTotal, decimal ActiveNetPremiumTotal,
+        int TotalClaims, int OpenClaims,
+        int CommissionRuleCount,
+        int BranchCount, int CoverageCount, int UseCount, int PackageCount,
+        bool BridgeLinked, string? BridgeLinkedSourceCarrier,
+        IReadOnlyList<CarrierProfileRecentPolicy> RecentPolicies);
+
+    public record CarrierProfileRecentPolicy(
+        Guid Id, string PolicyNumber, string? CustomerName,
+        DateOnly? StartDate, DateOnly? EndDate, decimal Premium,
+        string PolicyType, string Status);
+
+    [HttpGet("{id:guid}/profile")]
+    public async Task<ActionResult<CarrierProfileDto>> GetProfile(Guid id, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId
+            ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        var c = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null
+                && (x.TenantId == null || x.TenantId == tenantId), ct)
+            ?? throw Kalypsis.Application.Common.AppException.NotFound("Ασφαλιστική");
+
+        var today = DateOnly.FromDateTime(_clock.UtcNow);
+
+        var policyStats = await _db.Policies.IgnoreQueryFilters()
+            .Where(p => p.TenantId == tenantId && p.InsuranceCompanyId == id && p.DeletedAt == null)
+            .GroupBy(p => 1)
+            .Select(g => new
+            {
+                Total = g.Count(),
+                Active = g.Count(p => p.EndDate >= today && p.StartDate <= today),
+                PremActive = g.Where(p => p.EndDate >= today && p.StartDate <= today).Sum(p => (decimal?)p.Premium) ?? 0m,
+                NetActive  = g.Where(p => p.EndDate >= today && p.StartDate <= today).Sum(p => (decimal?)p.NetPremium) ?? 0m,
+            })
+            .FirstOrDefaultAsync(ct);
+
+        var policyIds = await _db.Policies.IgnoreQueryFilters()
+            .Where(p => p.TenantId == tenantId && p.InsuranceCompanyId == id && p.DeletedAt == null)
+            .Select(p => p.Id)
+            .ToListAsync(ct);
+        int claimsTotal = 0, claimsOpen = 0;
+        if (policyIds.Count > 0)
+        {
+            claimsTotal = await _db.Claims.IgnoreQueryFilters()
+                .CountAsync(cl => cl.TenantId == tenantId && cl.DeletedAt == null && policyIds.Contains(cl.PolicyId), ct);
+            claimsOpen = await _db.Claims.IgnoreQueryFilters()
+                .CountAsync(cl => cl.TenantId == tenantId && cl.DeletedAt == null && policyIds.Contains(cl.PolicyId)
+                    && cl.Status != ClaimStatus.Closed && cl.Status != ClaimStatus.Rejected, ct);
+        }
+
+        var ruleCount = await _db.CommissionRules.IgnoreQueryFilters()
+            .CountAsync(r => r.TenantId == tenantId && r.DeletedAt == null && r.InsuranceCompanyId == id, ct);
+
+        var paramCounts = await _db.CompanyParameterItems.IgnoreQueryFilters()
+            .Where(p => p.DeletedAt == null && p.IsActive && p.InsuranceCompanyId == id)
+            .GroupBy(p => p.Kind)
+            .Select(g => new { Kind = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+        int PC(CompanyParameterItemKind k) => paramCounts.FirstOrDefault(x => x.Kind == k)?.Count ?? 0;
+
+        var linkedMapping = await _db.BridgeCodeMappings.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(m => m.TenantId == tenantId && m.DeletedAt == null
+                && m.Kind == Kalypsis.Domain.Entities.BridgeMappingKind.Company
+                && m.TargetInsuranceCompanyId == id, ct);
+
+        var recent = await _db.Policies.IgnoreQueryFilters()
+            .Where(p => p.TenantId == tenantId && p.InsuranceCompanyId == id && p.DeletedAt == null)
+            .OrderByDescending(p => p.CreatedAt)
+            .Take(10)
+            .Select(p => new CarrierProfileRecentPolicy(
+                p.Id, p.PolicyNumber,
+                p.Customer != null ? (p.Customer.CompanyName ?? (p.Customer.FirstName + " " + p.Customer.LastName)) : null,
+                p.StartDate, p.EndDate, p.Premium,
+                p.PolicyType.ToString(),
+                p.Status.ToString()))
+            .ToListAsync(ct);
+
+        return Ok(new CarrierProfileDto(
+            c.Id, c.Code, c.Name, c.Country, c.Website,
+            c.AgentCode, c.AfmVat,
+            c.ContactName, c.ContactEmail, c.ContactPhone,
+            c.Notes, c.IsActive, c.CreatedAt,
+            policyStats?.Total ?? 0, policyStats?.Active ?? 0,
+            policyStats?.PremActive ?? 0m, policyStats?.NetActive ?? 0m,
+            claimsTotal, claimsOpen,
+            ruleCount,
+            PC(CompanyParameterItemKind.Branch),
+            PC(CompanyParameterItemKind.Coverage),
+            PC(CompanyParameterItemKind.Use),
+            PC(CompanyParameterItemKind.Package),
+            linkedMapping is not null,
+            linkedMapping?.SourceCarrier,
+            recent));
+    }
+
+    /// <summary>
     /// Hard-deletes soft-deleted tenant carriers (and their attached
     /// CompanyBridges / CommissionRules) for the current tenant, so the
     /// office can re-use a code that was previously nuked by the old
