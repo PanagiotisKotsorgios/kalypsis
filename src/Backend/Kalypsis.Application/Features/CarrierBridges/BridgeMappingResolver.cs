@@ -49,6 +49,7 @@ public static class BridgeMappingResolver
     private static readonly string[] PackageKeys    = { "Πακέτο.Code", "Πακέτο" };
     private static readonly string[] UseKeys        = { "Χρήση.Code", "Χρήση" };
     private static readonly string[] CoveragesKeys  = { "Καλύψεις" };
+    private static readonly string[] ProducerKeys   = { "Συνεργάτης.Code", "Κωδ. παραγωγού", "ergo.producer" };
 
     private static bool TryGetAny(IReadOnlyDictionary<string, string> raw, string[] keys, out string value)
     {
@@ -62,7 +63,8 @@ public static class BridgeMappingResolver
         IReadOnlyList<BridgeImportRow> rows,
         string carrierName,
         IReadOnlyList<BridgeCodeMapping> mappings,
-        IReadOnlyList<CompanyParameterItem> agencyParametrics)
+        IReadOnlyList<CompanyParameterItem> agencyParametrics,
+        IReadOnlyList<Producer>? agencyProducers = null)
     {
         // Fast lookup: for each (kind, raw code) is there a mapping?
         var mappedByKindRaw = new HashSet<(BridgeMappingKind, string)>();
@@ -87,6 +89,19 @@ public static class BridgeMappingResolver
             if (!paramCodesByKind.TryGetValue(kind.Value, out var set))
                 paramCodesByKind[kind.Value] = set = new HashSet<string>();
             set.Add(NormaliseCode(p.Code));
+        }
+        // Producer catalogue — same shape: if the office already has a
+        // producer with a code identical to the raw one, treat it as known
+        // (the commit step will lazily create the mapping).
+        if (agencyProducers is not null)
+        {
+            var producerSet = new HashSet<string>();
+            foreach (var pr in agencyProducers)
+            {
+                if (pr.DeletedAt is not null) continue;
+                if (!string.IsNullOrEmpty(pr.Code)) producerSet.Add(NormaliseCode(pr.Code));
+            }
+            if (producerSet.Count > 0) paramCodesByKind[BridgeMappingKind.Producer] = producerSet;
         }
 
         bool IsAlreadyKnown(BridgeMappingKind kind, string raw)
@@ -128,6 +143,8 @@ public static class BridgeMappingResolver
                 foreach (var c in covers.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                     Note(BridgeMappingKind.Coverage, c, null, r.Index);
             }
+            if (TryGetAny(r.Raw, ProducerKeys, out var producerCode))
+                Note(BridgeMappingKind.Producer, producerCode, null, r.Index);
         }
 
         return buckets

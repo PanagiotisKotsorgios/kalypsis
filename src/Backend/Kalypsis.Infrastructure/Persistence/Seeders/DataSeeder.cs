@@ -1107,6 +1107,17 @@ public static class DataSeeder
                 KEY `IX_bcm_target_company` (`TargetInsuranceCompanyId`),
                 KEY `IX_bcm_target_param` (`TargetParameterItemId`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        // Producer mapping column — added after v1 so existing tenant
+        // databases might not have it yet. The column stays nullable and
+        // untyped (SET NULL on producer delete) so a broken FK never
+        // blocks a mapping row from being read.
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "bridge_code_mappings", column: "TargetProducerId",
+            addSql: "ALTER TABLE `bridge_code_mappings` ADD COLUMN `TargetProducerId` char(36) NULL", ct);
+        await EnsureIndexAsync(db, logger, dbName,
+            table: "bridge_code_mappings", indexName: "IX_bcm_target_producer",
+            addSql: "CREATE INDEX `IX_bcm_target_producer` ON `bridge_code_mappings` (`TargetProducerId`)", ct);
     }
 
     private static async Task<bool> ColumnExistsAsync(AppDbContext db, string dbName, string table, string column, CancellationToken ct)

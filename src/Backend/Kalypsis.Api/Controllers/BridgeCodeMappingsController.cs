@@ -39,6 +39,9 @@ public class BridgeCodeMappingsController : ControllerBase
         Guid? TargetParameterItemId,
         string? TargetParameterItemCode,
         string? TargetParameterItemName,
+        Guid? TargetProducerId,
+        string? TargetProducerCode,
+        string? TargetProducerName,
         string? Notes,
         Guid? ConfirmedByUserId,
         DateTime? ConfirmedAt,
@@ -51,6 +54,7 @@ public class BridgeCodeMappingsController : ControllerBase
         string? RawLabel,
         Guid? TargetInsuranceCompanyId,
         Guid? TargetParameterItemId,
+        Guid? TargetProducerId,
         string? Notes);
 
     [HttpGet]
@@ -65,6 +69,7 @@ public class BridgeCodeMappingsController : ControllerBase
         var q = _db.BridgeCodeMappings.IgnoreQueryFilters()
             .Include(x => x.TargetInsuranceCompany)
             .Include(x => x.TargetParameterItem)
+            .Include(x => x.TargetProducer)
             .Where(x => x.TenantId == tenantId && x.DeletedAt == null);
 
         if (kind.HasValue) q = q.Where(x => x.Kind == kind.Value);
@@ -123,6 +128,7 @@ public class BridgeCodeMappingsController : ControllerBase
             RawLabel = Clean(body.RawLabel),
             TargetInsuranceCompanyId = body.TargetInsuranceCompanyId,
             TargetParameterItemId = body.TargetParameterItemId,
+            TargetProducerId = body.TargetProducerId,
             Notes = Clean(body.Notes),
             ConfirmedByUserId = _current.UserId,
             ConfirmedAt = _clock.UtcNow,
@@ -134,7 +140,8 @@ public class BridgeCodeMappingsController : ControllerBase
         var saved = await _db.BridgeCodeMappings.IgnoreQueryFilters()
             .Include(x => x.TargetInsuranceCompany)
             .Include(x => x.TargetParameterItem)
-            .FirstAsync(x => x.Id == item.Id, ct);
+            .Include(x => x.TargetProducer)
+            .FirstAsync(x => x.Id ==item.Id, ct);
         return Ok(Map(saved));
     }
 
@@ -156,6 +163,7 @@ public class BridgeCodeMappingsController : ControllerBase
         item.RawLabel = Clean(body.RawLabel);
         item.TargetInsuranceCompanyId = body.TargetInsuranceCompanyId;
         item.TargetParameterItemId = body.TargetParameterItemId;
+        item.TargetProducerId = body.TargetProducerId;
         item.Notes = Clean(body.Notes);
         item.ConfirmedByUserId = _current.UserId;
         item.ConfirmedAt = _clock.UtcNow;
@@ -165,7 +173,8 @@ public class BridgeCodeMappingsController : ControllerBase
         var saved = await _db.BridgeCodeMappings.IgnoreQueryFilters()
             .Include(x => x.TargetInsuranceCompany)
             .Include(x => x.TargetParameterItem)
-            .FirstAsync(x => x.Id == id, ct);
+            .Include(x => x.TargetProducer)
+            .FirstAsync(x => x.Id ==id, ct);
         return Ok(Map(saved));
     }
 
@@ -194,6 +203,12 @@ public class BridgeCodeMappingsController : ControllerBase
                 throw new AppException("target_company_required",
                     "Επιλέξτε την ασφαλιστική στην οποία θα αντιστοιχηθεί ο κωδικός.", 400);
         }
+        else if (body.Kind == BridgeMappingKind.Producer)
+        {
+            if (!body.TargetProducerId.HasValue)
+                throw new AppException("target_producer_required",
+                    "Επιλέξτε τον συνεργάτη στον οποίο θα αντιστοιχηθεί ο κωδικός.", 400);
+        }
         else
         {
             if (!body.TargetParameterItemId.HasValue)
@@ -219,6 +234,14 @@ public class BridgeCodeMappingsController : ControllerBase
                     && x.DeletedAt == null, ct);
             if (!exists) throw AppException.NotFound("Παραμετρικό");
         }
+        if (body.TargetProducerId.HasValue)
+        {
+            var exists = await _db.Producers.IgnoreQueryFilters()
+                .AnyAsync(x => x.Id == body.TargetProducerId.Value
+                    && x.DeletedAt == null
+                    && x.TenantId == tenantId, ct);
+            if (!exists) throw AppException.NotFound("Συνεργάτης");
+        }
     }
 
     private static BridgeCodeMappingDto Map(BridgeCodeMapping x) => new(
@@ -228,6 +251,9 @@ public class BridgeCodeMappingsController : ControllerBase
         x.TargetParameterItemId,
         x.TargetParameterItem?.Code,
         x.TargetParameterItem?.Name,
+        x.TargetProducerId,
+        x.TargetProducer?.Code,
+        x.TargetProducer?.Name,
         x.Notes, x.ConfirmedByUserId, x.ConfirmedAt, x.CreatedAt);
 
     private static string? Clean(string? value)

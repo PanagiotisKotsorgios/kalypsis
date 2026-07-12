@@ -29,6 +29,11 @@ public class BridgeCodeMappingConfiguration : IEntityTypeConfiguration<BridgeCod
             .HasForeignKey(x => x.TargetParameterItemId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        b.HasOne(x => x.TargetProducer)
+            .WithMany()
+            .HasForeignKey(x => x.TargetProducerId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         // Unique per (tenant, kind, source carrier, raw code) — two mappings
         // for the same raw code inside the same feed would race on import.
         b.HasIndex(x => new { x.TenantId, x.Kind, x.SourceCarrier, x.RawCode })

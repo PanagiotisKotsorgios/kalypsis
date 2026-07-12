@@ -287,7 +287,10 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                     && (!p.EffectiveFrom.HasValue || p.EffectiveFrom <= todayForParams)
                     && (!p.EffectiveTo.HasValue || p.EffectiveTo >= todayForParams))
                 .ToListAsync(ct);
-        var unmapped = BridgeMappingResolver.Resolve(rows, carrier.Name, mappings, agencyParams);
+        var agencyProducers = await _db.Producers.IgnoreQueryFilters()
+            .Where(p => p.TenantId == tenantId && p.DeletedAt == null)
+            .ToListAsync(ct);
+        var unmapped = BridgeMappingResolver.Resolve(rows, carrier.Name, mappings, agencyParams, agencyProducers);
 
         return new BridgeImportPreviewResult(
             carrier.Name, format,
@@ -349,6 +352,7 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 raw[string.IsNullOrWhiteSpace(header) ? $"col{col}" : header] = ws.Cell(rn, col).GetString();
             }
 
+            if (!string.IsNullOrEmpty(partnerCodeFromHeader)) raw["Συνεργάτης.Code"] = partnerCodeFromHeader;
             string? customerName = ws.Cell(rn, 3).GetString().Trim();
             string? policyNumber = ws.Cell(rn, 4).GetString().Trim();
             string? plateOrProposal = ws.Cell(rn, 5).GetString().Trim();
@@ -686,27 +690,37 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             }
 
             // Attach cover codes from the DETAIL rows for the mapping resolver.
+            // Real ERGO cover codes are always a Greek uppercase letter followed
+            // by 3–5 digits (Α1001, Φ1701, Ε5102, Π1001). The old parser also
+            // took field 5 unconditionally, so for AUTO — where field 5 is the
+            // capital sum (e.g. 15000,00) — those amounts leaked into the
+            // resolver as bogus "unmapped coverages". Now we regex-match every
+            // token in a DETAIL row and keep only the ones that look like a
+            // real cover code.
             var covers = new List<string>();
             string? branchLabel = null;
+            var coverCodeRx = new System.Text.RegularExpressions.Regex("^[Α-Ω]\\d{3,5}$");
             if (coversByKey.TryGetValue($"{producer}|{policyNumber}", out var detail))
             {
                 foreach (var d in detail)
                 {
                     if (d.Length < 5) continue;
                     branchLabel ??= d.Length > 3 ? d[3].Trim() : null;
-                    // Cover code lives at either field 4 (AUTO) or 5 (others).
-                    var candidates = new[] { d.Length > 4 ? d[4].Trim() : "", d.Length > 5 ? d[5].Trim() : "" };
-                    foreach (var c in candidates)
+                    for (int fi = 4; fi <= 6 && fi < d.Length; fi++)
                     {
+                        var c = d[fi].Trim();
                         if (string.IsNullOrEmpty(c)) continue;
-                        // Skip pure-digit AFM tokens.
-                        if (c.Length >= 8 && c.All(char.IsDigit)) continue;
+                        if (!coverCodeRx.IsMatch(c)) continue;
                         if (!covers.Contains(c)) covers.Add(c);
                     }
                 }
             }
             if (!string.IsNullOrEmpty(branchLabel)) raw["Κλάδος.Code"] = branchLabel;
             if (covers.Count > 0) raw["Καλύψεις"] = string.Join(", ", covers);
+            // Producer code — resolver walks Raw["Συνεργάτης.Code"] to surface
+            // unmapped producers for the same inline-link flow as branches /
+            // coverages. Every parser should write this key.
+            if (!string.IsNullOrEmpty(producer)) raw["Συνεργάτης.Code"] = producer;
 
             var status = "Ready";
             if (string.IsNullOrWhiteSpace(policyNumber))
@@ -922,6 +936,7 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             var proposal     = cProposal   > 0 ? ws.Cell(rn, cProposal).GetString().Trim()   : null;
             var partnerCode  = cProducer   > 0 ? ws.Cell(rn, cProducer).GetString().Trim()   : null;
             var plate        = isMotor && cPlate > 0 ? ws.Cell(rn, cPlate).GetString().Trim() : null;
+            if (!string.IsNullOrEmpty(partnerCode)) raw["Συνεργάτης.Code"] = partnerCode;
 
             DateOnly? issue = ParseDate(ws.Cell(rn, cIssueDate).Value);
             DateOnly? start = ParseDate(ws.Cell(rn, cStartDate).Value);
@@ -2194,12 +2209,16 @@ public record PendingBridgeMapping(
     string? RawLabel,
     Guid? TargetInsuranceCompanyId,
     Guid? TargetParameterItemId,
+    Guid? TargetProducerId = null,
     // Optional inline "+ create new" — when set the handler creates the
     // parametric first (with this code + name) and links the mapping to it.
     string? CreateParametricCode = null,
     string? CreateParametricName = null,
     PolicyType? CreateParametricPolicyType = null,
-    string? CreateParametricParentCode = null);
+    string? CreateParametricParentCode = null,
+    // Producer-kind inline creation
+    string? CreateProducerCode = null,
+    string? CreateProducerName = null);
 
 public record CompanyBridgeRunSummary(
     Guid RunId,
@@ -2748,6 +2767,41 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
 
             Guid? targetParamId = p.TargetParameterItemId;
             Guid? targetCompanyId = p.TargetInsuranceCompanyId;
+            Guid? targetProducerId = p.TargetProducerId;
+
+            // Producer-kind mapping. Same inline-create dance as parametrics
+            // but against the Producer table. Once persisted, every import
+            // that mentions the raw producer code auto-routes to this row.
+            if (p.Kind == BridgeMappingKind.Producer
+                && !targetProducerId.HasValue
+                && !string.IsNullOrWhiteSpace(p.CreateProducerCode)
+                && !string.IsNullOrWhiteSpace(p.CreateProducerName))
+            {
+                var code = p.CreateProducerCode.Trim().ToUpperInvariant();
+                var existingP = await _db.Producers.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(x => x.DeletedAt == null
+                        && x.TenantId == tenantId
+                        && x.Code == code, ct);
+                if (existingP is not null)
+                {
+                    targetProducerId = existingP.Id;
+                }
+                else
+                {
+                    var pr = new Producer
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        Code = code,
+                        Name = p.CreateProducerName.Trim(),
+                        Status = ProducerStatus.Active,
+                        CreatedAt = now,
+                    };
+                    _db.Producers.Add(pr);
+                    await _db.SaveChangesAsync(ct);
+                    targetProducerId = pr.Id;
+                }
+            }
 
             // Inline "+ Νέο παραμετρικό" — the operator typed a code + name in
             // the preview instead of picking one, so we materialise it here so
@@ -2820,6 +2874,7 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
             mapping.RawLabel = string.IsNullOrWhiteSpace(p.RawLabel) ? mapping.RawLabel : p.RawLabel.Trim();
             mapping.TargetInsuranceCompanyId = targetCompanyId;
             mapping.TargetParameterItemId = targetParamId;
+            mapping.TargetProducerId = targetProducerId;
             mapping.ConfirmedByUserId = _current.UserId;
             mapping.ConfirmedAt = now;
             mapping.UpdatedAt = now;

@@ -56,7 +56,7 @@ interface PreviewResult {
   readyCount: number; warnCount: number; errorCount: number; duplicateCount: number;
   unmappedCodes: UnmappedCode[];
 }
-type MappingKind = "Company" | "Branch" | "Coverage" | "Use" | "Package";
+type MappingKind = "Company" | "Branch" | "Coverage" | "Use" | "Package" | "Producer";
 interface UnmappedCode {
   kind: MappingKind;
   sourceCarrier: string | null;
@@ -69,8 +69,11 @@ interface UnmappedCode {
 interface MappingResolution {
   targetParameterItemId?: string;
   targetInsuranceCompanyId?: string;
+  targetProducerId?: string;
   createParametricCode?: string;
   createParametricName?: string;
+  createProducerCode?: string;
+  createProducerName?: string;
 }
 /** Company-parametric row as returned by /api/company-parameters. */
 interface CompanyParameterItemLite {
@@ -82,6 +85,7 @@ interface CompanyParameterItemLite {
 }
 const KIND_LABEL: Record<MappingKind, string> = {
   Company: "Εταιρεία", Branch: "Κλάδος", Coverage: "Κάλυψη", Use: "Χρήση", Package: "Πακέτο",
+  Producer: "Συνεργάτης",
 };
 
 const STATUS_COLOR: Record<string, "default" | "success" | "warning" | "error" | "info"> = {
@@ -196,7 +200,11 @@ export function CarrierBridgesPage() {
   const isResolved = (u: UnmappedCode) => {
     const r = resolutions[unmapKey(u)] ?? {};
     if (u.kind === "Company") return !!r.targetInsuranceCompanyId;
-    return !!r.targetParameterItemId || (!!r.createParametricCode?.trim() && !!r.createParametricName?.trim());
+    if (u.kind === "Producer")
+      return !!r.targetProducerId
+        || (!!r.createProducerCode?.trim() && !!r.createProducerName?.trim());
+    return !!r.targetParameterItemId
+      || (!!r.createParametricCode?.trim() && !!r.createParametricName?.trim());
   };
   const allResolved = !preview
     || (preview.unmappedCodes ?? []).length === 0
@@ -214,6 +222,12 @@ export function CarrierBridgesPage() {
     enabled: !!preview,
     queryFn: async () => (await api.get<{ id: string; name: string; code: string; }[]>("/insurance-companies")).data
   });
+  // Producers list — feeds the Kind=Producer picker in the mapping panel.
+  const producers = useQuery({
+    queryKey: ["producers-for-bridge-mapping"],
+    enabled: !!preview,
+    queryFn: async () => (await api.get<{ id: string; code: string; name: string; }[]>("/producers")).data
+  });
 
   const commit = useMutation({
     mutationFn: async () => {
@@ -226,8 +240,11 @@ export function CarrierBridgesPage() {
           rawLabel: u.rawLabel,
           targetInsuranceCompanyId: r.targetInsuranceCompanyId ?? null,
           targetParameterItemId: r.targetParameterItemId ?? null,
+          targetProducerId: r.targetProducerId ?? null,
           createParametricCode: r.createParametricCode?.trim() || null,
           createParametricName: r.createParametricName?.trim() || null,
+          createProducerCode: r.createProducerCode?.trim() || null,
+          createProducerName: r.createProducerName?.trim() || null,
         };
       });
       const effectiveCarrierId = companyLink?.targetInsuranceCompanyId ?? selected!.insuranceCompanyId;
@@ -605,6 +622,7 @@ export function CarrierBridgesPage() {
               parametrics={parametrics.data ?? []}
               parametricsLoading={parametrics.isLoading}
               insuranceCompanies={insuranceCompanies.data ?? []}
+              producers={producers.data ?? []}
               unmapKey={unmapKey}
               isResolved={isResolved}
             />
@@ -1147,18 +1165,19 @@ function Kpi({ label, value, color }: { label: string; value: number; color?: "s
  * defers actual creation to the commit endpoint. Once every entry is
  * resolved, the "Εισαγωγή" button in the KPI card above unblocks.
  */
-function UnmappedCodesPanel({ unmapped, resolutions, onChange, parametrics, parametricsLoading, insuranceCompanies, unmapKey, isResolved }: {
+function UnmappedCodesPanel({ unmapped, resolutions, onChange, parametrics, parametricsLoading, insuranceCompanies, producers, unmapKey, isResolved }: {
   unmapped: UnmappedCode[];
   resolutions: Record<string, MappingResolution>;
   onChange: (r: Record<string, MappingResolution>) => void;
   parametrics: CompanyParameterItemLite[];
   parametricsLoading: boolean;
   insuranceCompanies: { id: string; name: string; code: string; }[];
+  producers: { id: string; code: string; name: string; }[];
   unmapKey: (u: UnmappedCode) => string;
   isResolved: (u: UnmappedCode) => boolean;
 }) {
   const paramsByKind: Record<MappingKind, CompanyParameterItemLite[]> = {
-    Company: [], Branch: [], Coverage: [], Use: [], Package: []
+    Company: [], Branch: [], Coverage: [], Use: [], Package: [], Producer: []
   };
   for (const p of parametrics) {
     const k = p.kind as MappingKind;
@@ -1214,6 +1233,36 @@ function UnmappedCodesPanel({ unmapped, resolutions, onChange, parametrics, para
                       onChange={(_, v) => patch(key, { ...r, targetInsuranceCompanyId: v?.id ?? undefined, targetParameterItemId: undefined })}
                       renderInput={params => <TextField {...params} label="Αντιστοίχιση σε ασφαλιστική" />}
                     />
+                  ) : u.kind === "Producer" ? (
+                    <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
+                      <Autocomplete
+                        sx={{ flex: 1 }}
+                        size="small"
+                        options={producers}
+                        getOptionLabel={o => `${o.code} · ${o.name}`}
+                        value={producers.find(o => o.id === r.targetProducerId) ?? null}
+                        onChange={(_, v) => patch(key, {
+                          ...r,
+                          targetProducerId: v?.id ?? undefined,
+                          createProducerCode: v ? undefined : r.createProducerCode,
+                          createProducerName: v ? undefined : r.createProducerName,
+                        })}
+                        renderInput={params => <TextField {...params} label="Αντιστοίχιση σε συνεργάτη" />}
+                      />
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="caption" color="text.secondary">ή νέος →</Typography>
+                        <TextField
+                          size="small" label="Κωδικός" sx={{ width: 110 }}
+                          value={r.createProducerCode ?? ""}
+                          onChange={e => patch(key, { ...r, createProducerCode: e.target.value.toUpperCase(), targetProducerId: undefined })}
+                        />
+                        <TextField
+                          size="small" label="Όνομα" sx={{ minWidth: 180 }}
+                          value={r.createProducerName ?? ""}
+                          onChange={e => patch(key, { ...r, createProducerName: e.target.value, targetProducerId: undefined })}
+                        />
+                      </Stack>
+                    </Stack>
                   ) : (
                     <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
                       <Autocomplete
