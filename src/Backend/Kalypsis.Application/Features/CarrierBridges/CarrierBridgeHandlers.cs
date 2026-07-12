@@ -2275,16 +2275,19 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
 
             if (companyParams.Count == 0)
             {
-                r.Notes.Add(new BridgeImportNote("Παραμετρικά εταιρείας", "warn",
-                    "Δεν υπάρχουν κεντρικά παραμετρικά Kalypsis για αυτή την εταιρεία. Η γέφυρα θα εισαχθεί, αλλά λείπει αυτόματη αντιστοίχιση κλάδων/καλύψεων/χρήσεων."));
-                if (status == "Ready") status = "WarnDiff";
+                // Non-scary hint — the Απαιτούμενες αντιστοιχίσεις panel is
+                // the source of truth, this row-level note just points at it.
+                // The old wording («λείπει αυτόματη αντιστοίχιση…») made
+                // operators think something was broken.
+                r.Notes.Add(new BridgeImportNote("Αντιστοιχίσεις", "info",
+                    "Βρέθηκαν raw κωδικοί χωρίς αντιστοίχιση — δείτε το πάνω πάνελ «Απαιτούμενες αντιστοιχίσεις» ή κάντε κλικ στη γραμμή για να τους συνδέσετε."));
             }
             else
             {
                 if (configuredBranches.Count > 0 && !configuredBranches.Contains(rowPolicyType))
                 {
                     r.Notes.Add(new BridgeImportNote("Κλάδος", "warn",
-                        $"Ο κλάδος {rowPolicyType} δεν είναι ενεργός στα κεντρικά παραμετρικά της εταιρείας."));
+                        $"Ο κλάδος {rowPolicyType} δεν είναι ενεργός στα παραμετρικά της εταιρείας."));
                     if (status == "Ready") status = "WarnDiff";
                 }
 

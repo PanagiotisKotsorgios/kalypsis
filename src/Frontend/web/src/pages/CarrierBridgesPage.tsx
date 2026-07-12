@@ -394,8 +394,16 @@ export function CarrierBridgesPage() {
           <Alert severity="info" sx={{ mb: 2 }}>
             {(() => {
               const fmt = (selected.bridgeFormat ?? "ERGO").toUpperCase();
-              const zip = fmt.includes("GRAND") || fmt.includes("ATLANTIC");
-              return `Αναλυτής για format: ${fmt}. Δεκτό αρχείο: ${zip ? ".zip" : ".xlsx"}`;
+              // Real accepted formats per carrier. Keep in sync with the
+              // backend sniffer (SniffFormat) and the parser dispatch.
+              const accepted = fmt.includes("GRAND")
+                ? ".zip (Policies + Customers + Objects + Covers + FBC*.csv)"
+                : fmt.includes("ATLANTIC")
+                  ? ".zip (Producer_ .zip με Filpolhd.txt / Filpoldt.txt / …)"
+                  : fmt.includes("INTERLIFE")
+                    ? ".xlsx (MOTOR_… ή LOIPOI_…)"
+                    : ".txt HEADER + DETAIL ή .zip που τα περιέχει";
+              return `Αναλυτής για format: ${fmt}. Δεκτό αρχείο: ${accepted}`;
             })()}
             <br />
             {(() => {
@@ -404,7 +412,10 @@ export function CarrierBridgesPage() {
                 return "Το Grand Cover εξάγει ένα ενιαίο .zip με όλα τα συμβόλαια. Ανεβάστε το αυτούσιο.";
               if (fmt.includes("ATLANTIC"))
                 return "Η Ατλαντική Ένωση εξάγει τον φάκελο Producer_ .zip. Ανεβάστε τον αυτούσιο.";
-              return t("carrierBridges.lobNote", "Επιλέξτε τον κλάδο του αρχείου. Επιτρέπεται ένα αρχείο τη φορά.");
+              if (fmt.includes("INTERLIFE"))
+                return "Η Interlife εξάγει δύο ξεχωριστά αρχεία .xlsx: MOTOR_ και LOIPOI_. Ανεβάστε ένα κάθε φορά.";
+              // Default = ERGO: HEADER + DETAIL .txt (ή zip που τα περιέχει)
+              return "Το ERGO εξάγει δύο αρχεία .txt ανά κλάδο ( (HEADER) και (DETAIL) ). Ανεβάστε το .zip που τα περιέχει, ή τα δύο .txt μαζί ως .zip.";
             })()}
           </Alert>
           <input ref={fileRef} type="file"
@@ -413,7 +424,9 @@ export function CarrierBridgesPage() {
           {(() => {
             // Each carrier's export shape drives which tiles we show.
             // Grand Cover ships a single mixed ZIP → one tile.
-            // ERGO ships two separate .xlsx (auto + fire) → two tiles.
+            // ERGO ships one HEADER + DETAIL .txt pair per LOB (usually
+            // bundled in a .zip). Four tiles below cover AUTO / FIRE /
+            // LIABILITY / PROS.
             const fmt = (selected.bridgeFormat ?? "").toUpperCase();
             if (fmt.includes("GRAND")) {
               return (
