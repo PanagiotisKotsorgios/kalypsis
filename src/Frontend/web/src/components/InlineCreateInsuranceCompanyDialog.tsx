@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Alert, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  FormControlLabel, Stack, Switch, TextField, Typography
+  Stack, TextField, Typography
 } from "@mui/material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
@@ -131,10 +131,6 @@ export function InlineCreateInsuranceCompanyDialog({ open, onClose, prefillText 
               fullWidth
             />
           </Stack>
-          <FormControlLabel
-            control={<Switch checked={form.createBridge} onChange={e => setForm({ ...form, createBridge: e.target.checked })} />}
-            label="Δημιουργία γέφυρας"
-          />
         </Stack>
       </DialogContent>
       <DialogActions>

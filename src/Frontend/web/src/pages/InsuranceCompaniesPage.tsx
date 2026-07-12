@@ -406,6 +406,10 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn }: {
 function CompanyDialog({ open, onClose, item, onSaved }: {
   open: boolean; onClose: () => void; item: CompanyDto | null; onSaved: () => void;
 }) {
+  // Bridge + zero-commission-rule bootstrap is always on and always uses safe
+  // defaults — used to be exposed to end users as three switches + a raw JSON
+  // textarea which confused everyone. Now the API call carries the same
+  // defaults silently; nothing shows in the UI.
   const [form, setForm] = useState<UpsertBody>({
     name: "", code: "", country: "Ελλάδα", website: null, isActive: true,
     agentCode: null, contactName: null, contactEmail: null, contactPhone: null,
@@ -413,7 +417,7 @@ function CompanyDialog({ open, onClose, item, onSaved }: {
     createBridge: true,
     bridgeName: null,
     bridgeAutoSync: false,
-    bridgeConfigJson: "{\"mode\":\"manual\",\"status\":\"pending-configuration\"}",
+    bridgeConfigJson: null,
     installZeroCommissionDefaults: true
   });
   const [err, setErr] = useState<string | null>(null);
@@ -424,10 +428,10 @@ function CompanyDialog({ open, onClose, item, onSaved }: {
         name: item.name, code: item.code, country: item.country, website: item.website, isActive: item.isActive,
         agentCode: item.agentCode, contactName: item.contactName, contactEmail: item.contactEmail,
         contactPhone: item.contactPhone, afmVat: item.afmVat, notes: item.notes,
-        createBridge: true,
+        createBridge: !item.bridgeLinked,
         bridgeName: item.bridgeLinked ? null : `${item.name} bridge`,
         bridgeAutoSync: false,
-        bridgeConfigJson: item.bridgeLinked ? null : "{\"mode\":\"manual\",\"status\":\"pending-configuration\"}",
+        bridgeConfigJson: null,
         installZeroCommissionDefaults: item.commissionDefaultCount === 0
       });
     } else if (open) {
@@ -438,7 +442,7 @@ function CompanyDialog({ open, onClose, item, onSaved }: {
         createBridge: true,
         bridgeName: null,
         bridgeAutoSync: false,
-        bridgeConfigJson: "{\"mode\":\"manual\",\"status\":\"pending-configuration\"}",
+        bridgeConfigJson: null,
         installZeroCommissionDefaults: true
       });
     }
@@ -504,30 +508,6 @@ function CompanyDialog({ open, onClose, item, onSaved }: {
           </Stack>
           <TextField label="Σημειώσεις" multiline minRows={2} fullWidth value={form.notes ?? ""}
             onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-          <Alert severity="info">
-            Η γέφυρα και οι μηδενικοί κανόνες προμηθειών δημιουργούνται από εδώ ώστε η εταιρεία να μη μείνει μισο-παραμετροποιημένη.
-          </Alert>
-          <FormControlLabel control={<Switch checked={form.createBridge}
-            onChange={(e) => setForm({ ...form, createBridge: e.target.checked })} />}
-            label="Δημιουργία / σύνδεση γέφυρας" />
-          {form.createBridge && (
-            <Stack spacing={2}>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                <TextField label="Όνομα γέφυρας" fullWidth value={form.bridgeName ?? ""}
-                  onChange={(e) => setForm({ ...form, bridgeName: e.target.value })}
-                  placeholder="Αφήστε κενό για αυτόματο όνομα" />
-                <FormControlLabel control={<Switch checked={form.bridgeAutoSync}
-                  onChange={(e) => setForm({ ...form, bridgeAutoSync: e.target.checked })} />}
-                  label="Αυτόματος συγχρονισμός" />
-              </Stack>
-              <TextField label="Ρυθμίσεις γέφυρας (JSON)" multiline minRows={2} fullWidth value={form.bridgeConfigJson ?? ""}
-                onChange={(e) => setForm({ ...form, bridgeConfigJson: e.target.value })}
-                helperText="Προτείνεται να μείνει το ασφαλές placeholder μέχρι να δοθούν τα πραγματικά στοιχεία σύνδεσης." />
-            </Stack>
-          )}
-          <FormControlLabel control={<Switch checked={form.installZeroCommissionDefaults}
-            onChange={(e) => setForm({ ...form, installZeroCommissionDefaults: e.target.checked })} />}
-            label="Δημιουργία μηδενικών κανόνων προμηθειών για όλους τους κλάδους/χρήσεις" />
           <FormControlLabel control={<Switch checked={form.isActive}
             onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />}
             label={form.isActive ? "Ενεργή" : "Ανενεργή"} />
