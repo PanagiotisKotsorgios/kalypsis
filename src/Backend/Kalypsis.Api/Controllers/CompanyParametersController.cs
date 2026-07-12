@@ -128,15 +128,17 @@ public class CompanyParametersController : ControllerBase
         }
         else
         {
-            // Unscoped list — still bounded to carriers the tenant can see.
-            var accessibleCodes = await _db.InsuranceCompanies.IgnoreQueryFilters()
-                .Where(c => c.DeletedAt == null && (c.TenantId == null || c.TenantId == tenantId))
-                .Select(c => c.Code)
-                .Distinct()
-                .ToListAsync(ct);
+            // Unscoped list — restricted to parametrics attached to the
+            // OFFICE's own carriers. Kalypsis-global platform parametrics
+            // (thousands of rows across ERGO, ATLANTIC, GRAND-COVER, etc.)
+            // used to fold in here via the accessibleCodes lookup, so any
+            // page that fetched /api/company-parameters?kind=Coverage got
+            // "2000 διαθέσιμα παραμετρικά" from the platform catalog. The
+            // office should only see what it authored itself.
             q = _db.CompanyParameterItems.IgnoreQueryFilters()
                 .Include(x => x.InsuranceCompany)
-                .Where(x => x.DeletedAt == null && x.IsActive && accessibleCodes.Contains(x.InsuranceCompany.Code));
+                .Where(x => x.DeletedAt == null && x.IsActive
+                    && x.InsuranceCompany.TenantId == tenantId);
         }
 
         q = ApplyCommonFilters(q, kind, search);

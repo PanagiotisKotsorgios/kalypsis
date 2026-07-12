@@ -37,33 +37,27 @@ public static class DataSeeder
         // in via the platform-admin bulk importer (POST /api/platform/
         // company-parameters/import/{insuranceCompanyId}). See
         // CompanyParameterImportController.
-        // Order matters: cleanup FIRST (so any leftover duplicates get
-        // collapsed onto one canonical broker), then seeder (which finds the
-        // canonical broker, refills missing subs, resurrects soft-deleted
-        // subs, ensures their ParentCompanyId points at the canonical row),
-        // then cleanup AGAIN (sweeps anything new the seeder might have
-        // left dangling — usually a no-op).
-        try { await CleanupNonGrandCoverGlobalsAsync(db, logger, cancellationToken); }
-        catch (Exception ex) { logger.LogError(ex, "CleanupNonGrandCoverGlobalsAsync (pre-seed) failed — continuing boot."); }
-
+        // Boot-time global-carrier cleanup + Kalypsis-seeded parametric
+        // packs are DISABLED under the "each office runs its own catalogue"
+        // model. The old pre-seed/post-seed CleanupNonGrandCoverGlobalsAsync
+        // was actively harmful on redeploy — it soft-deleted every tenant-
+        // owned row whose Code fell outside a small whitelist and re-routed
+        // any carrier the office had authored back onto a shared Kalypsis-
+        // global row, wiping the office's customisations. The Atlantic +
+        // ERGO parametric seeders would then fill those global rows with
+        // ~3000 rows nobody in the office ever asked for.
+        //
+        // Cleanup + seeders are kept as callable methods (a platform admin
+        // can still invoke them via /api/platform/company-parameters/run-
+        // cleanup for a controlled reset) but they no longer run on boot.
+        //
+        // GrandCoverSeeder still runs — it materialises the Grand Cover
+        // broker + its 49 subs, which are the ONLY globals the platform
+        // legitimately needs to offer (the whole Grand Cover business
+        // is a broker aggregating other insurers, so its structure IS
+        // the shared catalog).
         try { await GrandCoverSeeder.SeedAsync(db, logger, cancellationToken); }
         catch (Exception ex) { logger.LogError(ex, "GrandCoverSeeder failed — continuing boot without IW seed."); }
-
-        try { await CleanupNonGrandCoverGlobalsAsync(db, logger, cancellationToken); }
-        catch (Exception ex) { logger.LogError(ex, "CleanupNonGrandCoverGlobalsAsync (post-seed) failed — continuing boot."); }
-
-        // Runs *after* cleanup so the ATLANTIC global carrier row it needs
-        // is guaranteed to exist. Seeds the official παραμετρικά extracted
-        // from the ΠΑΡΑΜΕΤΡΙΚΑ.zip pack: 20 κλάδοι + 104 χρήσεις + 2648
-        // καλύψεις attached to ATLANTIC.
-        try { await AtlanticSeeder.SeedAsync(db, logger, cancellationToken); }
-        catch (Exception ex) { logger.LogError(ex, "AtlanticSeeder failed — continuing boot without Atlantic παραμετρικά."); }
-
-        // Same idea for ERGO: seeds branches + ~450 coverage codes extracted
-        // from ERGO's «Κωδικοποίηση και περιγραφή» PDF, keyed off the ERGO
-        // global carrier row.
-        try { await ErgoSeeder.SeedAsync(db, logger, cancellationToken); }
-        catch (Exception ex) { logger.LogError(ex, "ErgoSeeder failed — continuing boot without ERGO παραμετρικά."); }
 
         var seedEmail = (config["Seed:PlatformAdminEmail"] ?? "superadmin@kalypsis.gr").ToLowerInvariant();
         var seedPassword = config["Seed:PlatformAdminPassword"] ?? "Kalypsis@2026!";

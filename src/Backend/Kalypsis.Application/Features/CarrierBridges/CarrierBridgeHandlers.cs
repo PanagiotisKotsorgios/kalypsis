@@ -699,6 +699,7 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             // real cover code.
             var covers = new List<string>();
             string? branchLabel = null;
+            decimal? ergoAgencyComm = null;
             var coverCodeRx = new System.Text.RegularExpressions.Regex("^[Α-Ω]\\d{3,5}$");
             if (coversByKey.TryGetValue($"{producer}|{policyNumber}", out var detail))
             {
@@ -713,10 +714,27 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                         if (!coverCodeRx.IsMatch(c)) continue;
                         if (!covers.Contains(c)) covers.Add(c);
                     }
+                    // Office's commission for this cover line. ERGO_TXT DETAIL
+                    // has two layouts:
+                    //   AUTO — 12 cols, cover code at field 4, commission at
+                    //     field 7 (no customer AFM shift).
+                    //   FIRE / LIABILITY / PROS — 12 cols, customer AFM at
+                    //     field 4, cover code at field 5, commission at
+                    //     field 8.
+                    // Detected by whether field 4 matches the Greek-letter
+                    // cover-code shape (AUTO) or not (customer AFM in others).
+                    var f4 = d.Length > 4 ? d[4].Trim() : "";
+                    int commCol = coverCodeRx.IsMatch(f4) ? 7 : 8;
+                    if (d.Length > commCol)
+                    {
+                        var v = ParseErgoAmount(d[commCol]);
+                        if (v.HasValue) ergoAgencyComm = (ergoAgencyComm ?? 0m) + v.Value;
+                    }
                 }
             }
             if (!string.IsNullOrEmpty(branchLabel)) raw["Κλάδος.Code"] = branchLabel;
             if (covers.Count > 0) raw["Καλύψεις"] = string.Join(", ", covers);
+            if (ergoAgencyComm.HasValue) ergoAgencyComm = decimal.Round(ergoAgencyComm.Value, 2);
             // Producer code — resolver walks Raw["Συνεργάτης.Code"] to surface
             // unmapped producers for the same inline-link flow as branches /
             // coverages. Every parser should write this key.
@@ -739,7 +757,9 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 idx, policyNumber, null,
                 customerName, string.IsNullOrEmpty(customerVat) ? null : customerVat,
                 issue, start, end,
-                gross, net, null, null,
+                gross, net,
+                null,                 // PartnerCommission — split downstream
+                ergoAgencyComm,       // AgencyCommission summed from DETAIL rows
                 "ERGO", producer,
                 raw, notes, status, rowType, null, null, plate));
         }
