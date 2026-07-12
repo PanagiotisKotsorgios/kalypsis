@@ -195,7 +195,8 @@ export function CarrierBridgesPage() {
   // Keyed by `${kind}|${rawCode}` so a code that appears with multiple kinds
   // (e.g. "01" as both a Branch and a Coverage) gets one row per kind.
   const [resolutions, setResolutions] = useState<Record<string, MappingResolution>>({});
-  useEffect(() => { setResolutions({}); }, [preview]);
+  const [bulkPanelOpen, setBulkPanelOpen] = useState(false);
+  useEffect(() => { setResolutions({}); setBulkPanelOpen(false); }, [preview]);
   const unmapKey = (u: UnmappedCode) => `${u.kind}|${u.rawCode}`;
   const isResolved = (u: UnmappedCode) => {
     const r = resolutions[unmapKey(u)] ?? {};
@@ -614,19 +615,52 @@ export function CarrierBridgesPage() {
             )}
           </Card>
 
-          {(preview.unmappedCodes ?? []).length > 0 && (
-            <UnmappedCodesPanel
-              unmapped={preview.unmappedCodes}
-              resolutions={resolutions}
-              onChange={setResolutions}
-              parametrics={parametrics.data ?? []}
-              parametricsLoading={parametrics.isLoading}
-              insuranceCompanies={insuranceCompanies.data ?? []}
-              producers={producers.data ?? []}
-              unmapKey={unmapKey}
-              isResolved={isResolved}
-            />
-          )}
+          {(preview.unmappedCodes ?? []).length > 0 && (() => {
+            const total = preview.unmappedCodes.length;
+            const open = preview.unmappedCodes.filter(u => !isResolved(u)).length;
+            return (
+              <Card sx={{
+                p: 2, mb: 2, borderLeft: 4,
+                borderLeftColor: open > 0 ? "warning.main" : "success.main"
+              }}>
+                <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+                  <LinkIcon color={open > 0 ? "warning" : "success"} />
+                  <Typography fontWeight={800}>
+                    {open > 0
+                      ? `Απαιτούμενες αντιστοιχίσεις — ${open} / ${total}`
+                      : `Όλες οι αντιστοιχίσεις έτοιμες — ${total}`}
+                  </Typography>
+                  <Box sx={{ flex: 1 }} />
+                  <Button
+                    size="small" variant="outlined"
+                    onClick={() => setBulkPanelOpen(v => !v)}
+                  >
+                    {bulkPanelOpen ? "Κλείσιμο μαζικού πίνακα" : "Άνοιγμα μαζικού πίνακα"}
+                  </Button>
+                </Stack>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Ανοίξτε κάθε συμβόλαιο (κλικ στη γραμμή του παρακάτω) και αντιστοιχίστε
+                  μόνο τους κωδικούς που φέρνει το ίδιο. Οι αντιστοιχίσεις εφαρμόζονται
+                  αυτόματα σε κάθε άλλο συμβόλαιο της γέφυρας με τους ίδιους κωδικούς.
+                </Typography>
+                {bulkPanelOpen && (
+                  <Box sx={{ mt: 2 }}>
+                    <UnmappedCodesPanel
+                      unmapped={preview.unmappedCodes}
+                      resolutions={resolutions}
+                      onChange={setResolutions}
+                      parametrics={parametrics.data ?? []}
+                      parametricsLoading={parametrics.isLoading}
+                      insuranceCompanies={insuranceCompanies.data ?? []}
+                      producers={producers.data ?? []}
+                      unmapKey={unmapKey}
+                      isResolved={isResolved}
+                    />
+                  </Box>
+                )}
+              </Card>
+            );
+          })()}
 
           {/* Filter chips + search */}
           <Card sx={{ p: 1.5, mb: 1.5 }}>
@@ -693,7 +727,29 @@ export function CarrierBridgesPage() {
                     <TableCell sx={{ fontFamily: "monospace", color: "text.secondary" }}>{row.index}</TableCell>
                     <TableCell>
                       {(() => { const tag = preflightTag(row);
-                        return <Chip size="small" color={tag.color} label={tag.label} sx={{ fontWeight: 700 }} />; })()}
+                        // Per-contract unmapped-code hint. Counts how many
+                        // codes THIS row carries that are still open, so the
+                        // operator sees at a glance which contracts need
+                        // attention before commit.
+                        const rowUnmapped = (preview?.unmappedCodes ?? []).filter(u => u.rows.includes(row.index));
+                        const openHere = rowUnmapped.filter(u => !isResolved(u)).length;
+                        return (
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <Chip size="small" color={tag.color} label={tag.label} sx={{ fontWeight: 700 }} />
+                            {rowUnmapped.length > 0 && (
+                              <Tooltip title={openHere > 0
+                                ? `${openHere} από ${rowUnmapped.length} raw κωδικοί χωρίς αντιστοίχιση — κλικ για link`
+                                : `${rowUnmapped.length} raw κωδικοί, όλοι αντιστοιχισμένοι`}>
+                                <Chip size="small"
+                                  color={openHere > 0 ? "warning" : "success"}
+                                  variant={openHere > 0 ? "filled" : "outlined"}
+                                  icon={<LinkIcon />}
+                                  label={openHere > 0 ? `${openHere}` : "✓"} />
+                              </Tooltip>
+                            )}
+                          </Stack>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={0.5} alignItems="center">
@@ -757,6 +813,15 @@ export function CarrierBridgesPage() {
           setPreview({ ...preview, rows: next });
           setDetailRow(updated);
         }}
+        unmapped={preview?.unmappedCodes ?? []}
+        resolutions={resolutions}
+        onChangeResolutions={setResolutions}
+        parametrics={parametrics.data ?? []}
+        parametricsLoading={parametrics.isLoading}
+        insuranceCompanies={insuranceCompanies.data ?? []}
+        producers={producers.data ?? []}
+        unmapKey={unmapKey}
+        isResolved={isResolved}
       />
     </Box>
   );
@@ -764,8 +829,21 @@ export function CarrierBridgesPage() {
 
 interface PolicyLite { id: string; policyNumber: string; customerDisplay: string; insuranceCompanyName: string; startDate: string; endDate: string; }
 
-function RowDetailDialog({ row, onClose, onUpdate }: {
+function RowDetailDialog({ row, onClose, onUpdate,
+  unmapped, resolutions, onChangeResolutions,
+  parametrics, parametricsLoading, insuranceCompanies, producers,
+  unmapKey, isResolved,
+}: {
   row: ImportRow | null; onClose: () => void; onUpdate: (r: ImportRow) => void;
+  unmapped: UnmappedCode[];
+  resolutions: Record<string, MappingResolution>;
+  onChangeResolutions: (r: Record<string, MappingResolution>) => void;
+  parametrics: CompanyParameterItemLite[];
+  parametricsLoading: boolean;
+  insuranceCompanies: { id: string; name: string; code: string; }[];
+  producers: { id: string; code: string; name: string; }[];
+  unmapKey: (u: UnmappedCode) => string;
+  isResolved: (u: UnmappedCode) => boolean;
 }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState(0);
@@ -835,10 +913,26 @@ function RowDetailDialog({ row, onClose, onUpdate }: {
         </IconButton>
       </DialogTitle>
 
+      {(() => { void 0; return null; })()}
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ px: 2, borderBottom: 1, borderColor: "divider" }}>
         <Tab label={t("carrierBridges.tab.details", "Στοιχεία")} />
         <Tab label={t("carrierBridges.tab.raw", "Πηγαία xlsx")} />
         <Tab label={t("carrierBridges.tab.linked", "Συνδεδεμένο Ασφαλιστήριο")} />
+        <Tab label={(() => {
+          const rowUnmapped = unmapped.filter(u => u.rows.includes(row.index));
+          const openCount = rowUnmapped.filter(u => !isResolved(u)).length;
+          const total = rowUnmapped.length;
+          return (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <span>Αντιστοιχίσεις</span>
+              {total > 0 && (
+                <Chip size="small"
+                  color={openCount === 0 ? "success" : "warning"}
+                  label={openCount === 0 ? `✓ ${total}` : `${openCount}/${total}`} />
+              )}
+            </Stack>
+          );
+        })()} />
       </Tabs>
 
       <DialogContent dividers>
@@ -959,6 +1053,38 @@ function RowDetailDialog({ row, onClose, onUpdate }: {
             <ManualCreateAndLink row={row} onLinked={(p) => linkTo(p)} />
           </Stack>
         )}
+
+        {tab === 3 && (() => {
+          const rowUnmapped = unmapped.filter(u => u.rows.includes(row.index));
+          if (rowUnmapped.length === 0) {
+            return (
+              <Alert severity="success">
+                Δεν χρειάζεται καμία αντιστοίχιση για αυτό το συμβόλαιο — όλοι οι raw κωδικοί του
+                αντιστοιχούν ήδη σε δικά σας παραμετρικά ή σε προηγούμενες γέφυρες.
+              </Alert>
+            );
+          }
+          return (
+            <Stack spacing={2}>
+              <Alert severity="info">
+                Οι κωδικοί που έφερε αυτό το συμβόλαιο. Μόλις τους αντιστοιχίσετε εδώ, το ίδιο ισχύει
+                αυτόματα για κάθε άλλο συμβόλαιο της ίδιας γέφυρας που τους περιέχει — και για κάθε
+                μελλοντική εισαγωγή, εκτός αν αλλάξετε τον στόχο.
+              </Alert>
+              <UnmappedCodesPanel
+                unmapped={rowUnmapped}
+                resolutions={resolutions}
+                onChange={onChangeResolutions}
+                parametrics={parametrics}
+                parametricsLoading={parametricsLoading}
+                insuranceCompanies={insuranceCompanies}
+                producers={producers}
+                unmapKey={unmapKey}
+                isResolved={isResolved}
+              />
+            </Stack>
+          );
+        })()}
       </DialogContent>
     </Dialog>
   );
