@@ -43,7 +43,8 @@ import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import GroupsIcon from "@mui/icons-material/Groups";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link as RouterLink } from "react-router-dom";
+import EventRepeatIcon from "@mui/icons-material/EventRepeat";
 import { money, date } from "../utils/format";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
@@ -321,6 +322,14 @@ export function PoliciesPage() {
         </Box>
         <Stack direction="row" spacing={1}>
           {canEdit && activeView === "policies" && <ExportButton href="/api/exports/policies.csv" />}
+          {/* Ανανεώσεις moved out of the sidebar — reachable from here so the
+              sidebar has one fewer entry. Same underlying page. */}
+          {canEdit && activeView === "policies" && (
+            <Button component={RouterLink} to="/app/renewals"
+              variant="outlined" startIcon={<EventRepeatIcon />} size="large">
+              {t("nav.renewals", "Ανανεώσεις")}
+            </Button>
+          )}
           {canEdit && activeView === "policies" && (
             <Button data-tour="policies-new" startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateOpen(true); }}>
               {t("policies.create")}

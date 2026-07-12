@@ -858,6 +858,18 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             if (!string.IsNullOrEmpty(description))  raw["ergo.description"] = description;
             if (loneLob is not null) raw["ergo.lob"] = loneLob;
 
+            // Package + use codes live in the ERGO HEADER row:
+            //   field 27 → product / package label (e.g. "ERGO My Auto Total Plus")
+            //   field 29 → vehicle-use category code (e.g. "000")
+            // The resolver walks Raw["Πακέτο.Code"] + Raw["Χρήση.Code"] for
+            // its inline-linking prompt, so writing them here is enough for
+            // the operator to see + link them alongside branches / covers /
+            // producers.
+            var packageLabel = h.Length > 27 ? h[27].Trim() : "";
+            if (!string.IsNullOrEmpty(packageLabel)) raw["Πακέτο.Code"] = packageLabel;
+            var useCode = h.Length > 29 ? h[29].Trim() : "";
+            if (!string.IsNullOrEmpty(useCode)) raw["Χρήση.Code"] = useCode;
+
             // Extract vehicle plate from the description (AUTO files start
             // with the plate). Greek plates: 2–3 letters + 3–4 digits.
             string? plate = null;
@@ -2207,9 +2219,29 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 && rows.Any(x => x.Index < r.Index && x.PolicyNumber == r.PolicyNumber && !IsLifecycle(x.RowType));
             if (IsLifecycle(rowType) && !linkedId.HasValue && !parentAppearsEarlierInFile)
             {
-                status = "Error";
-                r.Notes.Add(new BridgeImportNote("Συμβόλαιο", "error",
-                    "Δεν βρέθηκε ασφαλές συμβόλαιο-στόχος για την αυτόματη σύνδεση της κίνησης."));
+                // Cancellations that can't find a live parent policy used to
+                // hard-fail with status=Error and get silently skipped on
+                // commit. Under the new "just import everything" model we
+                // let them through as Ready with an info note — the commit
+                // step will create a synthetic parent policy (Status=Cancelled)
+                // so the office ends up with a complete audit trail:
+                //   • one Policy row that captures what the carrier issued
+                //     even though we never saw the original
+                //   • one Cancellation record + negative FinancialMovements
+                //     applied on top of it
+                // Endorsements + GreenCards keep the old Error behaviour —
+                // they genuinely need a live target to attach to.
+                if (rowType == "Cancellation")
+                {
+                    r.Notes.Add(new BridgeImportNote("Συμβόλαιο", "info",
+                        "Δεν βρέθηκε προηγούμενο συμβόλαιο — θα δημιουργηθεί αυτόματα ως «Ακυρωμένο» ώστε να διατηρηθεί το ιστορικό."));
+                }
+                else
+                {
+                    status = "Error";
+                    r.Notes.Add(new BridgeImportNote("Συμβόλαιο", "error",
+                        "Δεν βρέθηκε ασφαλές συμβόλαιο-στόχος για την αυτόματη σύνδεση της κίνησης."));
+                }
             }
 
             if (!string.IsNullOrEmpty(nameKey) && r.StartDate.HasValue && rowType == "New"
@@ -2708,6 +2740,95 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                         parentPolicy = linkedPolicy;
                     else if (policiesByNumber.TryGetValue(row.PolicyNumber!, out var sameNumberPolicy))
                         parentPolicy = sameNumberPolicy;
+
+                    // Cancellation orphan handling. Old behaviour: skip the
+                    // row + increment RowsSkipped. Under the new "just import
+                    // it, keep history" model we synthesise a parent Policy
+                    // record with Status=Cancelled so the office keeps both
+                    // the audit trail AND the negative financials. Endorsements
+                    // / GreenCards still skip — they need a live parent to
+                    // amend and no synthetic row can rehydrate that history.
+                    if (parentPolicy is null && row.RowType == "Cancellation")
+                    {
+                        // Resolve producer (may auto-create — same code the
+                        // non-lifecycle branch runs later).
+                        Guid? synthProducerId = null;
+                        if (!string.IsNullOrEmpty(row.PartnerCode))
+                        {
+                            if (!producerCache.TryGetValue(row.PartnerCode, out var pr))
+                            {
+                                pr = await _db.Producers.IgnoreQueryFilters()
+                                    .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Code == row.PartnerCode && x.DeletedAt == null, ct);
+                                if (pr is null)
+                                {
+                                    pr = new Producer
+                                    {
+                                        Id = Guid.NewGuid(),
+                                        TenantId = tenantId,
+                                        Code = row.PartnerCode,
+                                        Name = $"Bridge auto-created {row.PartnerCode}",
+                                        Status = ProducerStatus.Active
+                                    };
+                                    _db.Producers.Add(pr);
+                                    log.AppendLine($"row {row.Index}: auto-created producer {row.PartnerCode} (synthetic parent)");
+                                }
+                                producerCache[row.PartnerCode] = pr;
+                            }
+                            synthProducerId = pr.Id;
+                        }
+                        // Customer lookup — same shape the non-lifecycle
+                        // branch uses further down (customer cache + name
+                        // heuristic for Individual vs Company).
+                        var synthName = (row.CustomerName ?? "Unknown").Trim();
+                        var synthKey = CustKey(synthName);
+                        if (!customerCache.TryGetValue(synthKey, out var synthCustomer))
+                        {
+                            var looksCompany = synthName.Contains("ΕΠΕ") || synthName.Contains("ΑΕ") || synthName.Contains("ΟΕ")
+                                || synthName.Contains("Α.Ε") || synthName.Contains("ΕΤΑΙΡ", StringComparison.OrdinalIgnoreCase);
+                            var parts = synthName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                            synthCustomer = new Customer
+                            {
+                                Id = Guid.NewGuid(),
+                                TenantId = tenantId,
+                                CustomerNumber = $"IMP-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}",
+                                Type = looksCompany ? CustomerType.Company : CustomerType.Individual,
+                                CompanyName = looksCompany ? synthName : null,
+                                FirstName = !looksCompany && parts.Length >= 1 ? parts[0] : null,
+                                LastName  = !looksCompany && parts.Length >= 2 ? string.Join(' ', parts.Skip(1)) : null,
+                                VatNumber = row.CustomerVat
+                            };
+                            _db.Customers.Add(synthCustomer);
+                            customerCache[synthKey] = synthCustomer;
+                        }
+                        parentPolicy = new Policy
+                        {
+                            Id = Guid.NewGuid(),
+                            TenantId = tenantId,
+                            PolicyNumber = row.PolicyNumber!,
+                            CustomerId = synthCustomer.Id,
+                            InsuranceCompanyId = carrier.Id,
+                            ProducerId = synthProducerId,
+                            PolicyType = !string.IsNullOrEmpty(row.PlateNumber) ? PolicyType.Auto : PolicyType.Other,
+                            Status = PolicyStatus.Cancelled,
+                            StartDate = row.StartDate ?? DateOnly.FromDateTime(DateTime.Today),
+                            EndDate = row.EndDate ?? (row.StartDate ?? DateOnly.FromDateTime(DateTime.Today)).AddYears(1),
+                            Premium = Math.Abs(row.GrossPremium ?? 0m),
+                            Currency = "EUR",
+                            SpecsJson = System.Text.Json.JsonSerializer.Serialize(new {
+                                plate = row.PlateNumber,
+                                proposal = row.ProposalNumber,
+                                importedFrom = "bridge-cancellation-orphan",
+                                bridgeReference,
+                                syntheticParent = true
+                            }),
+                            CreatedByUserId = _current.UserId
+                        };
+                        _db.Policies.Add(parentPolicy);
+                        policiesByNumber[parentPolicy.PolicyNumber] = parentPolicy;
+                        policiesById[parentPolicy.Id] = parentPolicy;
+                        affectedPolicies[parentPolicy.Id] = parentPolicy;
+                        log.AppendLine($"row {row.Index}: synthesised cancelled parent {row.PolicyNumber} (no live target found)");
+                    }
 
                     if (parentPolicy is null)
                     {

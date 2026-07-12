@@ -30,7 +30,6 @@ import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import EventIcon from "@mui/icons-material/Event";
-import EventRepeatIcon from "@mui/icons-material/EventRepeat";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import LinkIcon from "@mui/icons-material/Link";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
@@ -223,7 +222,9 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/production-lists", labelKey: "nav.productionLists", icon: <LeaderboardIcon />, package: "BackOffice", group: "production" },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice", group: "production" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice", group: "production" },
-    { to: "/renewals", labelKey: "nav.renewals", icon: <EventRepeatIcon />, package: "BackOffice", group: "production" },
+    // "Ανανεώσεις" is now a button inside the Συμβόλαια page — one less sidebar
+    // entry to scan through. Legacy /renewals route still lives so anyone
+    // with the URL bookmarked keeps working.
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice", group: "production" },
     { to: "/producers", labelKey: "nav.producers", icon: <HandshakeIcon />, package: "BackOffice", group: "production" },
     { to: "/endorsements", labelKey: "nav.endorsements", icon: <EditNoteIcon />, package: "BackOffice", group: "production" },
