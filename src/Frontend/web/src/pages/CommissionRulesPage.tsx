@@ -246,7 +246,7 @@ export function CommissionRulesPage() {
                 body="Ορίστε μία προμήθεια ανά συνδυασμό (εταιρία × κλάδος × κατηγορία συνεργάτη). Αν αφήσετε κάποιο πεδίο κενό, ο κανόνας ισχύει για όλες τις τιμές αυτής της διάστασης. Όταν δύο κανόνες ταιριάζουν, υπερισχύει ο πιο συγκεκριμένος. Η προμήθεια έδρας που έρχεται από γέφυρα δεν αλλάζει — μόνο η προμήθεια συνεργάτη προ-υπολογίζεται από εδώ." />
             </Stack>
             <Typography color="text.secondary">
-              Ενιαία οθόνη για προμήθειες γραφείου και συνεργατών: κανόνες ένας-ένας, μηδενική αρχικοποίηση και μαζική επεξεργασία συμβολαίων.
+              Ορίστε ποιό ποσοστό κρατά το γραφείο και ποιό πάει στον συνεργάτη ανά κλάδο / κάλυψη / πακέτο / χρήση.
             </Typography>
           </Box>
         </Stack>
@@ -274,9 +274,17 @@ export function CommissionRulesPage() {
       </Alert>
 
       <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1} flexWrap="wrap" alignItems={{ md: "center" }} useFlexGap>
+        {/* Filters laid out on a responsive grid — 1 col on phones,
+            2 on tablets, 3 on desktop — so the toolbar doesn't grow tall
+            when every filter needs a min-width. */}
+        <Box sx={{
+          display: "grid",
+          gap: 1,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)" },
+          alignItems: "start",
+        }}>
           <TextField size="small" placeholder="Αναζήτηση…"
-            value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 200 }}
+            value={search} onChange={(e) => setSearch(e.target.value)} fullWidth
             InputProps={{
               endAdornment: <FilterHelp title="Αναζήτηση σε συνεργάτη, εταιρία ή κλάδο του κανόνα προμήθειας." />
             }} />
@@ -284,7 +292,7 @@ export function CommissionRulesPage() {
             label="Εταιρία" value={carrierFilter}
             onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); setCoverFilter(""); }}
             emptyLabel="Όλες"
-            sx={{ minWidth: 170 }}
+            sx={{ width: "100%" }}
             options={(companies.data ?? []).filter(c => !c.parentCompanyId).map(c => ({
               value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : c.code,
             }))}
@@ -295,7 +303,7 @@ export function CommissionRulesPage() {
             const subs = (companies.data ?? []).filter(c => c.parentCompanyId === selected.id);
             return (
               <Autocomplete<CompanyLite, true>
-                multiple size="small" sx={{ minWidth: 260 }}
+                multiple size="small" sx={{ width: "100%" }}
                 options={subs}
                 value={subs.filter(s => subCarrierFilter.includes(s.id))}
                 onChange={(_, value) => setSubCarrierFilter(value.map(v => v.id))}
@@ -313,11 +321,11 @@ export function CommissionRulesPage() {
               ? "Επιλέξτε εταιρία"
               : filterCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
             emptyLabel="Όλοι"
-            sx={{ minWidth: 200 }}
+            sx={{ width: "100%" }}
             options={filterCatalogue.branches.map(b => ({ value: b.value, label: b.label }))}
           />
           <SearchableTextField size="small" label="Κατηγορία" value={tierFilter}
-            onChange={(e) => setTierFilter(e.target.value as ProducerTier | "")} sx={{ minWidth: 160 }}>
+            onChange={(e) => setTierFilter(e.target.value as ProducerTier | "")} fullWidth>
             <MenuItem value="">Όλες</MenuItem>
             {(["A","B","C","D","E"] as const).map(t => <MenuItem key={t} value={t}>{TIER_LABEL[t]}</MenuItem>)}
           </SearchableTextField>
@@ -329,7 +337,7 @@ export function CommissionRulesPage() {
               ? "Επιλέξτε εταιρία"
               : filterCatalogue.uses.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
             emptyLabel="Όλες"
-            sx={{ minWidth: 170 }}
+            sx={{ width: "100%" }}
             options={filterCatalogue.uses.map(u => ({ value: u.value, label: u.label }))}
           />
           <SearchableSelect
@@ -342,17 +350,17 @@ export function CommissionRulesPage() {
                 ? "Δεν υπάρχουν παραμετρικά"
                 : ""}
             emptyLabel="Όλες"
-            sx={{ minWidth: 170 }}
+            sx={{ width: "100%" }}
             options={[
               ...filterCatalogue.coverages.map(c => ({ value: c.value, label: c.label, group: "Καλύψεις" })),
               ...filterCatalogue.packages.map(p => ({ value: p.value, label: p.label, group: "Πακέτα" })),
             ]}
           />
+        </Box>
+        <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1 }}>
           <Button size="small" onClick={() => {
             setSearch(""); setCarrierFilter(""); setSubCarrierFilter([]); setTierFilter(""); setTypeFilter(""); setUseFilter(""); setCoverFilter("");
           }}>Καθαρισμός</Button>
-          {/* Zero-rule seed chip removed — the operator doesn't need to
-              see internal safety-net rows in the filters bar. */}
         </Stack>
       </Card>
 

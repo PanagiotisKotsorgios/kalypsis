@@ -249,8 +249,10 @@ const navByRole: Record<Role, NavItem[]> = {
     // Εταιρείες → Κλάδοι/Πακέτα/Καλύψεις → ενιαία παραμετροποίηση προμηθειών/προεπιλογών.
     { to: "/insurance-companies", labelKey: "nav.insuranceCompanies", icon: <BusinessIcon />,           package: "BackOffice", group: "params" },
     { to: "/company-parametrics", labelKey: "nav.companyParametrics", icon: <TuneOutlinedIcon />,       package: "BackOffice", group: "params" },
-    { to: "/lookups",             labelKey: "nav.lookups",            icon: <MenuBookIcon />,           package: "BackOffice", group: "params" },
+    // Παραμετροποίηση προμηθειών sits right under «Παραμετρικά ασφαλιστικών»
+    // — the two screens are used back-to-back when onboarding a new carrier.
     { to: "/commission-rules",    labelKey: "nav.commissionRules",    icon: <StackedLineChartIcon />,   package: "BackOffice", group: "params" },
+    { to: "/lookups",             labelKey: "nav.lookups",            icon: <MenuBookIcon />,           package: "BackOffice", group: "params" },
     // — secondary configuration tools below the four primary items —
     { to: "/parametric-files",    labelKey: "nav.parametricFiles",    icon: <InventoryIcon />,      package: "BackOffice", group: "params" },
     { to: "/document-designer",   labelKey: "nav.docDesigner",        icon: <DesignServicesIcon />, package: "BackOffice", group: "params" },
