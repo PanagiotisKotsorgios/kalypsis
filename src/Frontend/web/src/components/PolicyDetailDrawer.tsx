@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  Divider, Drawer, IconButton, MenuItem,
+  Divider, Drawer, FormControlLabel, IconButton, MenuItem,
   Stack, Switch, Tab, Tabs, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
@@ -100,6 +100,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
   const [tab, setTab] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [changeProducerOpen, setChangeProducerOpen] = useState(false);
 
   const q = useQuery({
     queryKey: ["policy-detail", policyId],
@@ -506,7 +507,12 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                   <KV label={t("policyDetail.name")} value={p.insuranceCompanyName} />
                   {p.insuranceCompanyCode && <KV label={t("policyDetail.code")} value={p.insuranceCompanyCode} mono />}
                   <Divider />
-                  <Typography variant="overline" color="text.secondary" fontWeight={700}>{t("policyDetail.producer")}</Typography>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <Typography variant="overline" color="text.secondary" fontWeight={700}>{t("policyDetail.producer")}</Typography>
+                    <Button size="small" variant="text" onClick={() => setChangeProducerOpen(true)}>
+                      Αλλαγή συνεργάτη
+                    </Button>
+                  </Stack>
                   <KV label={t("policyDetail.name")} value={p.producerName ?? "—"} />
                   {p.producerCode && <KV label={t("policyDetail.code")} value={p.producerCode} mono />}
                 </Stack>
@@ -643,7 +649,108 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
           }
         }}
       />
+
+      {p && (
+        <ChangeProducerDialog
+          open={changeProducerOpen}
+          onClose={() => setChangeProducerOpen(false)}
+          policyId={p.id}
+          policyNumber={p.policyNumber}
+          currentProducerId={p.producerId}
+          currentProducerName={p.producerName}
+          onSaved={() => {
+            setChangeProducerOpen(false);
+            void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] });
+            void qc.invalidateQueries({ queryKey: ["policies"] });
+          }}
+        />
+      )}
     </Drawer>
+  );
+}
+
+/**
+ * "Αλλαγή συνεργάτη" popup — accessed from the Συνεργάτης section of the
+ * policy detail. Meant for correcting a wrong producer link (typically
+ * from a bridge auto-mapping). Optionally lets the operator propagate the
+ * same change to every future renewal (not older ones — historical
+ * production stays intact under the original συνεργάτης).
+ */
+function ChangeProducerDialog({ open, onClose, policyId, policyNumber, currentProducerId, currentProducerName, onSaved }: {
+  open: boolean;
+  onClose: () => void;
+  policyId: string;
+  policyNumber: string;
+  currentProducerId: string | null;
+  currentProducerName: string | null;
+  onSaved: () => void;
+}) {
+  const [newProducerId, setNewProducerId] = useState<string>("");
+  const [transferRenewals, setTransferRenewals] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const producersQ = useQuery({
+    queryKey: ["producers-lite-for-change"],
+    enabled: open,
+    queryFn: async () => (await api.get<{ id: string; name: string; code: string }[]>("/producers")).data
+  });
+
+  useEffect(() => {
+    if (open) { setNewProducerId(""); setTransferRenewals(false); setErr(null); }
+  }, [open]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      // Bulk-update endpoint with a single-policy array — same payload the
+      // multi-select toolbar uses. Handles both the direct producer change
+      // and the optional renewal-transfer flag in one server round trip.
+      return (await api.post("/policies/bulk-update", {
+        policyIds: [policyId],
+        producerId: newProducerId,
+        renewalTransferToProducerId: transferRenewals ? newProducerId : null,
+        renewalTransferToCarrierId: null,
+        status: null,
+        paymentCollectionMethod: null,
+      })).data;
+    },
+    onSuccess: onSaved,
+    onError: e => setErr(extractErrorMessage(e))
+  });
+
+  const options = (producersQ.data ?? [])
+    .filter(p => p.id !== currentProducerId)
+    .map(p => ({ value: p.id, label: p.name, hint: p.code }));
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Αλλαγή συνεργάτη — συμβόλαιο {policyNumber}</DialogTitle>
+      <DialogContent>
+        {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Τρέχων συνεργάτης: <strong>{currentProducerName ?? "— κανένας —"}</strong>.
+          Επιλέξτε άλλον για να διορθώσετε λανθασμένη αντιστοίχιση (π.χ. από γέφυρα).
+          Οι προηγούμενες προμήθειες παραμένουν άθικτες.
+        </Alert>
+        <Stack spacing={2} mt={0.5}>
+          <SearchableSelect
+            label="Νέος συνεργάτης"
+            value={newProducerId}
+            onChange={v => setNewProducerId(v as string)}
+            options={options}
+          />
+          <FormControlLabel
+            control={<Switch checked={transferRenewals} onChange={e => setTransferRenewals(e.target.checked)} />}
+            label="Μεταφορά ανανεώσεων στον νέο συνεργάτη"
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Άκυρο</Button>
+        <Button variant="contained" disabled={!newProducerId || save.isPending} onClick={() => save.mutate()}>
+          {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
