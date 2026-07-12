@@ -423,7 +423,7 @@ function ProducerDialog({ open, onClose, producer, onSaved }: {
 
   return (
     <>
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
       <DialogTitle>{editing ? t("producers.form.editTitle") : t("producers.form.createTitle")}</DialogTitle>
       <DialogContent>
         {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
