@@ -2070,16 +2070,14 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 }
             }
 
-            // Missing-parameterization auto-create suggestion (info only — actual creation
-            // happens at commit time so the user can review).
-            if (!string.IsNullOrEmpty(r.PartnerCode))
-            {
-                var producerExists = await _db.Producers.IgnoreQueryFilters()
-                    .AnyAsync(p => p.Code == r.PartnerCode && p.DeletedAt == null, ct);
-                if (!producerExists)
-                    r.Notes.Add(new BridgeImportNote("Συνεργάτης", "info",
-                        $"Δεν υπάρχει συνεργάτης «{r.PartnerCode}» — θα δημιουργηθεί αυτόματα στην εισαγωγή"));
-            }
+            // (Legacy "Δεν υπάρχει συνεργάτης — θα δημιουργηθεί αυτόματα"
+            // note removed. Under the mapping model the operator sees the
+            // raw producer code in the Απαιτούμενες αντιστοιχίσεις panel
+            // and either links it to an existing office producer or creates
+            // a new one inline. The auto-create fallback still runs at
+            // commit if no mapping exists — but noting it here is stale
+            // the moment the operator resolves the mapping and only
+            // clutters the row's Παρατηρήσεις list.)
 
             // Row → PolicyType. First try the KLDCOD branch code (Atlantic
             // carries it in the raw pack) matched against the seeded Branch

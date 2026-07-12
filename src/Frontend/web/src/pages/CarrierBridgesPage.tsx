@@ -1099,7 +1099,10 @@ function ManualCreateAndLink({ row, onLinked }: { row: ImportRow; onLinked: (p: 
   const [priorNumber, setPriorNumber] = useState("");
   const [priorStart, setPriorStart] = useState("");
   const [priorEnd, setPriorEnd] = useState("");
-  const [priorPremium, setPriorPremium] = useState<string>(row.grossPremium?.toFixed(2) ?? "");
+  // Cancellation rows carry a NEGATIVE premium in the bridge feed. The
+  // /policies POST validator requires Premium >= 0, so seed the prior-
+  // policy premium with the absolute value the operator can then adjust.
+  const [priorPremium, setPriorPremium] = useState<string>(row.grossPremium != null ? Math.abs(row.grossPremium).toFixed(2) : "");
   const [paid, setPaid] = useState(false);
   const [paymentDate, setPaymentDate] = useState("");
   const [receiptNumber, setReceiptNumber] = useState("");
@@ -1132,12 +1135,21 @@ function ManualCreateAndLink({ row, onLinked }: { row: ImportRow; onLinked: (p: 
       if (!customerId) {
         const looksCompany = /Α\.?Ε|ΕΠΕ|ΟΕ|ΕΤΑΙΡ/i.test(target);
         const parts = target.split(" ").filter(Boolean);
+        // No placeholder email — the customer validator's EmailAddress()
+        // rule rejects Greek local parts (SMTPUTF8), so previously any
+        // Greek-named customer created here bounced with "μη έγκυρη
+        // διεύθυνση". Leave it null; the operator can add contact
+        // details from the customer card afterwards.
+        // Companies additionally need a VatNumber the bridge doesn't
+        // carry, so we insert a placeholder ("BRIDGE-<name-slug>") that
+        // clears the required-length check but is trivially edited later.
+        const nameSlug = normalized(target).slice(0, 20) || "IMPORT";
         const created = await api.post<{ customer: { id: string } }>("/customers", {
           type: looksCompany ? "Company" : "Individual",
           companyName: looksCompany ? target : null,
+          vatNumber: looksCompany ? `BRIDGE-${nameSlug}` : null,
           firstName:  !looksCompany && parts.length >= 1 ? parts[0] : null,
           lastName:   !looksCompany && parts.length >= 2 ? parts.slice(1).join(" ") : null,
-          email: `${normalized(target).slice(0, 12).toLowerCase() || "import"}@placeholder.local`,
           createPortalAccount: false
         });
         customerId = created.data.customer.id;
@@ -1148,7 +1160,9 @@ function ManualCreateAndLink({ row, onLinked }: { row: ImportRow; onLinked: (p: 
       const carrierId = companies.data.find(c => c.name === row.carrierName)?.id ?? companies.data[0]?.id;
       if (!carrierId) throw new Error("Δεν βρέθηκε η εταιρία στο σύστημα.");
 
-      // 3. Create the prior policy
+      // 3. Create the prior policy. Premium coerced non-negative so the
+      // /policies validator (Premium >= 0) never blocks a cancellation
+      // row where the bridge amount is negative by design.
       const policyRes = await api.post<{ id: string; policyNumber: string; customerDisplay: string; insuranceCompanyName: string; startDate: string; endDate: string }>(
         "/policies", {
           customerId,
@@ -1156,7 +1170,7 @@ function ManualCreateAndLink({ row, onLinked }: { row: ImportRow; onLinked: (p: 
           policyType: row.plateNumber ? "Auto" : "Other",
           startDate: priorStart,
           endDate: priorEnd,
-          premium: Number(priorPremium) || 0,
+          premium: Math.abs(Number(priorPremium) || 0),
           currency: "EUR",
           status: "Expired"
         });
