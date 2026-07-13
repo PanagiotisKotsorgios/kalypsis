@@ -225,6 +225,7 @@ const navByRole: Record<Role, NavItem[]> = {
 
     // ===== BackOffice — ΠΑΡΑΓΩΓΗ (core production records: customers, policies, claims) =====
     { to: "/production-lists", labelKey: "nav.productionLists", icon: <LeaderboardIcon />, package: "BackOffice", group: "production" },
+    { to: "/production-report", labelKey: "nav.productionReport", icon: <FactCheckIcon />, package: "BackOffice", group: "production" },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice", group: "production" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice", group: "production" },
     // "Ανανεώσεις" is now a button inside the Συμβόλαια page — one less sidebar
@@ -239,6 +240,9 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/financials", labelKey: "nav.financials", icon: <AttachMoneyIcon />, package: "BackOffice", group: "financials" },
     { to: "/securities", labelKey: "nav.securities", icon: <RestoreIcon />, package: "BackOffice", group: "financials" },
     { to: "/credit-notes", labelKey: "nav.creditNotes", icon: <ReceiptLongOutlinedIcon />, package: "BackOffice", group: "financials" },
+    { to: "/commission-distribution", labelKey: "nav.commissionDistribution", icon: <AccountTreeIcon />, package: "BackOffice", group: "financials" },
+    { to: "/financial-report", labelKey: "nav.financialReport", icon: <AccountBalanceIcon />, package: "BackOffice", group: "financials" },
+    { to: "/producer-statement", labelKey: "nav.producerStatement", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
 
     // BackOffice → ΠΡΟΜΗΘΕΙΕΣ — the commission settlement entry point is in
     // Production Lists, keeping production reporting and monthly settlement together.
@@ -305,10 +309,10 @@ const navByRole: Record<Role, NavItem[]> = {
     // ===== Intelligence =====
     // persistency hidden — analytics shell exists but not wired to data yet.
     { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, package: "Intelligence" },
-    { to: "/production-report", labelKey: "nav.productionReport", icon: <FactCheckIcon />, package: "Intelligence" },
-    { to: "/commission-distribution", labelKey: "nav.commissionDistribution", icon: <AccountTreeIcon />, package: "Intelligence" },
-    { to: "/financial-report", labelKey: "nav.financialReport", icon: <AccountBalanceIcon />, package: "Intelligence" },
-    { to: "/producer-statement", labelKey: "nav.producerStatement", icon: <ReceiptLongIcon />, package: "Intelligence" },
+    // NOTE: the four reports below intentionally live under BackOffice
+    // (Παραγωγή group for the production listing, Οικονομικά group for the
+    // money reports) so operators find them next to the workflows that
+    // feed them, without having to jump into the Intelligence workspace.
     { to: "/named-reports", labelKey: "nav.namedReports", icon: <AssessmentOutlinedIcon />, package: "Intelligence" },
     { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, package: "Intelligence" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Intelligence" },
