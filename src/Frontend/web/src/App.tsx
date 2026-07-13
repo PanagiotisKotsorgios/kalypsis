@@ -84,6 +84,9 @@ import { TasksPage } from "./pages/TasksPage";
 import { ProducersPage } from "./pages/ProducersPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { ProductionReportPage } from "./pages/ProductionReportPage";
+import { CommissionDistributionPage } from "./pages/CommissionDistributionPage";
+import { FinancialReportPage } from "./pages/FinancialReportPage";
+import { ProducerStatementPage } from "./pages/ProducerStatementPage";
 import { AgencySettingsPage } from "./pages/AgencySettingsPage";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { PackageGate } from "./pages/PackageLockedPage";
@@ -303,6 +306,9 @@ const navByRole: Record<Role, NavItem[]> = {
     // persistency hidden — analytics shell exists but not wired to data yet.
     { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, package: "Intelligence" },
     { to: "/production-report", labelKey: "nav.productionReport", icon: <FactCheckIcon />, package: "Intelligence" },
+    { to: "/commission-distribution", labelKey: "nav.commissionDistribution", icon: <AccountTreeIcon />, package: "Intelligence" },
+    { to: "/financial-report", labelKey: "nav.financialReport", icon: <AccountBalanceIcon />, package: "Intelligence" },
+    { to: "/producer-statement", labelKey: "nav.producerStatement", icon: <ReceiptLongIcon />, package: "Intelligence" },
     { to: "/named-reports", labelKey: "nav.namedReports", icon: <AssessmentOutlinedIcon />, package: "Intelligence" },
     { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, package: "Intelligence" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Intelligence" },
@@ -517,6 +523,9 @@ export default function App() {
                   <Route path="claims" element={<ClaimsPage />} />
                   <Route path="reports" element={<ReportsPage />} />
                   <Route path="production-report" element={<ProductionReportPage />} />
+                  <Route path="commission-distribution" element={<CommissionDistributionPage />} />
+                  <Route path="financial-report" element={<FinancialReportPage />} />
+                  <Route path="producer-statement" element={<ProducerStatementPage />} />
                   <Route path="profile" element={<ProfilePage />} />
                   <Route path="agency-settings" element={<AgencySettingsPage />} />
                   <Route path="coming-soon" element={<ComingSoonPage />} />
