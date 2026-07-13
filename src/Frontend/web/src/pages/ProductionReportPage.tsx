@@ -114,7 +114,7 @@ export function ProductionReportPage() {
     <Box>
       <Stack direction="row" alignItems="center" spacing={1} mb={1}>
         <FactCheckIcon />
-        <Typography variant="h4" sx={{ fontWeight: 800 }}>Λίστες Παραγωγής</Typography>
+        <Typography variant="h4" sx={{ fontWeight: 800 }}>Ετήσια Παραγωγή</Typography>
       </Stack>
       <Typography color="text.secondary" sx={{ mb: 2 }}>
         Ετήσια/περιοδική παραγωγή του γραφείου — φιλτράρετε ανά χρονικό διάστημα,
