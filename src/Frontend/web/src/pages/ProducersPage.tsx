@@ -36,11 +36,22 @@ type ProducerTier = "None" | "A" | "B" | "C" | "D" | "E";
 type HierarchyLevel = "Producer" | "Manager" | "Unit" | "Assistant" | "Agency";
 
 const HIERARCHY_LABEL: Record<HierarchyLevel, string> = {
-  Producer:  "Παραγωγός",
-  Manager:   "Manager",
-  Unit:      "Unit",
-  Assistant: "Assistant",
-  Agency:    "Γραφείο"
+  Producer:  "Παραγωγός (πωλητής)",
+  Manager:   "Προϊστάμενος ομάδας",
+  Unit:      "Υπεύθυνος μονάδας",
+  Assistant: "Βοηθός διοίκησης",
+  Agency:    "Γραφείο (κεντρικό)"
+};
+
+// One-line explanation shown next to each option so the operator knows
+// exactly what each level means — the English terms (Manager / Unit /
+// Assistant) come from ALIS parity and are opaque without context.
+const HIERARCHY_DESC: Record<HierarchyLevel, string> = {
+  Producer:  "Ο συνεργάτης που φέρνει το συμβόλαιο. Είναι το πρώτο επίπεδο προμήθειας.",
+  Manager:   "Προϊστάμενος μιας ομάδας παραγωγών. Παίρνει ένα ποσοστό από κάθε συμβόλαιο των παραγωγών του.",
+  Unit:      "Επικεφαλής μιας μονάδας από ομάδες. Παίρνει ποσοστό πάνω από τον Προϊστάμενο ομάδας.",
+  Assistant: "Βοηθός διοίκησης πάνω από τη μονάδα. Παίρνει ένα μικρό ποσοστό συντονισμού.",
+  Agency:    "Το ίδιο το γραφείο. Είναι η κορυφή της ιεραρχίας — παίρνει ό,τι μένει μετά όλες τις προμήθειες."
 };
 
 interface ProducerDto {
@@ -428,11 +439,15 @@ function ProducerDialog({ open, onClose, producer, onSaved }: {
       <DialogContent>
         {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
         <Stack spacing={2.5} mt={1}>
+          {/* Κωδικός is short (≤8 chars), Κατάσταση carries longer localised
+              labels — give status ~2× the width so «Τερματισμένος» never
+              gets clipped and Κωδικός stops swallowing empty space. */}
           <Stack direction="row" spacing={2}>
             <TextField label={t("producers.col.code")} value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value })} fullWidth required disabled={editing}
+              onChange={(e) => setForm({ ...form, code: e.target.value })} required disabled={editing}
+              sx={{ flex: 1 }}
               InputProps={{ endAdornment: <FilterHelp title="Μοναδικός κωδικός συνεργάτη. Δεν αλλάζει μετά τη δημιουργία — χρησιμοποιείται σε bridges και reports." /> }} />
-            <FilterFieldWrap tip="Ενεργός: εμφανίζεται και δουλεύει κανονικά. Ανενεργός/Τερματισμένος: κρύβεται από τις νέες αναθέσεις.">
+            <FilterFieldWrap tip="Ενεργός: εμφανίζεται και δουλεύει κανονικά. Ανενεργός/Τερματισμένος: κρύβεται από τις νέες αναθέσεις." sx={{ flex: 2 }}>
               <SearchableTextField label={t("producers.col.status")} value={form.status}
                 onChange={(e) => setForm({ ...form, status: e.target.value as ProducerStatus })} fullWidth>
                 {(["Active","Suspended","Terminated"] as const).map(s => <MenuItem key={s} value={s}>{t(`producers.statuses.${s}`)}</MenuItem>)}
@@ -449,25 +464,42 @@ function ProducerDialog({ open, onClose, producer, onSaved }: {
           </FilterFieldWrap>
           {/* ALIS-parity hierarchy — determines who gets paid at each level of
               the commission matrix. Leaf sales agents keep the default
-              "Παραγωγός" level; supervisors move up the chain. */}
+              "Παραγωγός" level; supervisors move up the chain. The Alert
+              below primes the operator on what each rank actually means so
+              they aren't guessing between «Manager» / «Unit» / «Assistant». */}
+          <Alert severity="info" variant="outlined" sx={{ mb: -1 }}>
+            <b>Πώς δουλεύει η ιεραρχία:</b> Κάθε συμβόλαιο πληρώνει τον <i>Παραγωγό</i> που το φέρνει.
+            Ένα κομμάτι της προμήθειας ανεβαίνει και στον <i>Προϊστάμενο ομάδας</i>, μετά στον <i>Υπεύθυνο μονάδας</i>,
+            μετά στον <i>Βοηθό διοίκησης</i>, και ό,τι μένει πάει στο <i>Γραφείο</i>.
+            Αν αυτός ο συνεργάτης είναι στην κορυφή της ιεραρχίας του, αφήστε το «Προϊστάμενος» → <i>Ίδιος</i>.
+          </Alert>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <FilterFieldWrap tip="Θέση στην ιεραρχία προμηθειών. Ένας απλός Παραγωγός έχει έναν Manager ως γονέα, ο Manager έναν Unit, κ.ο.κ.">
-              <SearchableTextField label="Επίπεδο ιεραρχίας" value={form.hierarchyLevel}
-                onChange={(e) => setForm({ ...form, hierarchyLevel: e.target.value as HierarchyLevel })} fullWidth>
-                {(["Producer","Manager","Unit","Assistant","Agency"] as const).map(lvl =>
-                  <MenuItem key={lvl} value={lvl}>{HIERARCHY_LABEL[lvl]}</MenuItem>)}
-              </SearchableTextField>
+            <FilterFieldWrap tip="Θέση στην ιεραρχία προμηθειών. Ένας απλός Παραγωγός έχει έναν Προϊστάμενο ομάδας ως γονέα, εκείνος έναν Υπεύθυνο μονάδας, κ.ο.κ." sx={{ flex: 2 }}>
+              <SearchableSelect
+                label="Επίπεδο ιεραρχίας"
+                value={form.hierarchyLevel}
+                onChange={(v) => setForm({ ...form, hierarchyLevel: v as HierarchyLevel })}
+                sx={{ width: "100%" }}
+                options={(["Producer","Manager","Unit","Assistant","Agency"] as const).map(lvl => ({
+                  value: lvl,
+                  label: HIERARCHY_LABEL[lvl],
+                  hint: HIERARCHY_DESC[lvl],
+                }))}
+                helperText={HIERARCHY_DESC[form.hierarchyLevel]} />
             </FilterFieldWrap>
-            <SearchableSelect
-              label="Προϊστάμενος"
-              value={form.parentProducerId}
-              onChange={(v) => setForm({ ...form, parentProducerId: v })}
-              emptyLabel="— Κανένας —"
-              options={parentOptions.map(p => ({
-                value: p.id, label: p.name,
-                hint: HIERARCHY_LABEL[p.hierarchyLevel ?? "Producer"]
-              }))}
-              helperText="Ο συνεργάτης που πληρώνεται στο επόμενο επίπεδο της ιεραρχίας." />
+            <Box sx={{ flex: 1 }}>
+              <SearchableSelect
+                label="Προϊστάμενος"
+                value={form.parentProducerId}
+                onChange={(v) => setForm({ ...form, parentProducerId: v })}
+                emptyLabel="Ίδιος (κορυφή ιεραρχίας)"
+                sx={{ width: "100%" }}
+                options={parentOptions.map(p => ({
+                  value: p.id, label: p.name,
+                  hint: HIERARCHY_LABEL[p.hierarchyLevel ?? "Producer"]
+                }))}
+                helperText="Ο συνεργάτης που παίρνει προμήθεια από πάνω. Αφήστε «Ίδιος» αν αυτός είναι το ανώτερο επίπεδο." />
+            </Box>
           </Stack>
           <TextField label={t("producers.col.name")} value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth required
