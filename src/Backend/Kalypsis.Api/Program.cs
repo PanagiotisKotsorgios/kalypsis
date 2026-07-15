@@ -122,6 +122,18 @@ builder.Services.AddAuthorization(opt =>
         nameof(Kalypsis.Domain.Enums.Role.PlatformAdmin),
         nameof(Kalypsis.Domain.Enums.Role.PlatformEmployee)));
     opt.AddPolicy("Producer", p => p.RequireClaim("role", nameof(Kalypsis.Domain.Enums.Role.Producer)));
+    // Federation module policies — mirror the AgencyAdmin / AgencyStaff pair
+    // so PlatformAdmin/Employee can operate federation surfaces while
+    // impersonating (identical to the insurance-side policies).
+    opt.AddPolicy("FederationAdmin", p => p.RequireClaim("role",
+        nameof(Kalypsis.Domain.Enums.Role.FederationAdmin),
+        nameof(Kalypsis.Domain.Enums.Role.PlatformAdmin),
+        nameof(Kalypsis.Domain.Enums.Role.PlatformEmployee)));
+    opt.AddPolicy("FederationStaff", p => p.RequireClaim("role",
+        nameof(Kalypsis.Domain.Enums.Role.FederationAdmin),
+        nameof(Kalypsis.Domain.Enums.Role.FederationEmployee),
+        nameof(Kalypsis.Domain.Enums.Role.PlatformAdmin),
+        nameof(Kalypsis.Domain.Enums.Role.PlatformEmployee)));
 });
 
 // CORS — restrict origins to the configured frontend (comma-separated allowed).

@@ -224,6 +224,15 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<TenantBackupPolicy> TenantBackupPolicies => Set<TenantBackupPolicy>();
     public DbSet<GdprErasureRequest> GdprErasureRequests => Set<GdprErasureRequest>();
 
+    // ==== Federation module ==================================================
+    public DbSet<Championship> Championships => Set<Championship>();
+    public DbSet<ChampionshipCategory> ChampionshipCategories => Set<ChampionshipCategory>();
+    public DbSet<Club> Clubs => Set<Club>();
+    public DbSet<Athlete> Athletes => Set<Athlete>();
+    public DbSet<ChampionshipRegistration> ChampionshipRegistrations => Set<ChampionshipRegistration>();
+    public DbSet<RegistrationAthlete> RegistrationAthletes => Set<RegistrationAthlete>();
+    public DbSet<ChampionshipResult> ChampionshipResults => Set<ChampionshipResult>();
+
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
 
     // PlatformAdmin / PlatformEmployee normally bypass the tenant filter, but

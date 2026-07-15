@@ -1112,6 +1112,162 @@ public static class DataSeeder
         await EnsureIndexAsync(db, logger, dbName,
             table: "bridge_code_mappings", indexName: "IX_bcm_target_producer",
             addSql: "CREATE INDEX `IX_bcm_target_producer` ON `bridge_code_mappings` (`TargetProducerId`)", ct);
+
+        // ================================================================
+        // Federation module — Championship / Club / Athlete / etc.
+        // Created via the same safety-net path as the ALIS-parity tables
+        // above so a fresh boot brings the tables up without requiring the
+        // operator to run `dotnet ef database update`. FK enforcement is
+        // deliberately absent — soft deletes + tenant scoping already
+        // prevent cross-tenant reads, and the tables all carry TenantId so
+        // orphan cleanup can run per-tenant.
+        // ================================================================
+        await EnsureTableAsync(db, logger, dbName,
+            table: "championships",
+            createSql: @"CREATE TABLE IF NOT EXISTS `championships` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `Name` varchar(200) NOT NULL,
+                `Sport` varchar(100) NOT NULL,
+                `Location` varchar(200) NULL,
+                `StartDate` date NOT NULL,
+                `EndDate` date NOT NULL,
+                `Status` int NOT NULL DEFAULT 0,
+                `Description` longtext NULL,
+                `RegistrationDeadline` date NULL,
+                `ClubEntryFee` decimal(12,2) NOT NULL DEFAULT 0,
+                `FeePerAthlete` decimal(12,2) NOT NULL DEFAULT 0,
+                `Currency` varchar(3) NOT NULL DEFAULT 'EUR',
+                `AnnouncementFilePath` varchar(500) NULL,
+                `AnnouncementFileName` varchar(200) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_championships_TenantId` (`TenantId`),
+                KEY `IX_championships_StartDate` (`StartDate`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "championship_categories",
+            createSql: @"CREATE TABLE IF NOT EXISTS `championship_categories` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `ChampionshipId` char(36) NOT NULL,
+                `Name` varchar(200) NOT NULL,
+                `MinAge` int NULL,
+                `MaxAge` int NULL,
+                `Gender` varchar(20) NULL,
+                `SortOrder` int NOT NULL DEFAULT 0,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_champ_cat_Championship` (`ChampionshipId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "clubs",
+            createSql: @"CREATE TABLE IF NOT EXISTS `clubs` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `Name` varchar(200) NOT NULL,
+                `Code` varchar(40) NOT NULL,
+                `City` varchar(120) NULL,
+                `ContactName` varchar(160) NULL,
+                `ContactEmail` varchar(160) NULL,
+                `ContactPhone` varchar(40) NULL,
+                `Notes` longtext NULL,
+                `IsActive` tinyint(1) NOT NULL DEFAULT 1,
+                `ManagerUserId` char(36) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UQ_clubs_Tenant_Code` (`TenantId`, `Code`),
+                KEY `IX_clubs_TenantId` (`TenantId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "athletes",
+            createSql: @"CREATE TABLE IF NOT EXISTS `athletes` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `ClubId` char(36) NOT NULL,
+                `FirstName` varchar(120) NOT NULL,
+                `LastName` varchar(120) NOT NULL,
+                `BirthDate` date NULL,
+                `Gender` varchar(20) NULL,
+                `LicenseNumber` varchar(60) NULL,
+                `Notes` longtext NULL,
+                `IsActive` tinyint(1) NOT NULL DEFAULT 1,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_athletes_TenantId` (`TenantId`),
+                KEY `IX_athletes_ClubId` (`ClubId`),
+                KEY `IX_athletes_LicenseNumber` (`LicenseNumber`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "championship_registrations",
+            createSql: @"CREATE TABLE IF NOT EXISTS `championship_registrations` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `ChampionshipId` char(36) NOT NULL,
+                `ClubId` char(36) NOT NULL,
+                `SubmittedOn` date NOT NULL,
+                `TotalFee` decimal(12,2) NOT NULL DEFAULT 0,
+                `Currency` varchar(3) NOT NULL DEFAULT 'EUR',
+                `PaymentStatus` int NOT NULL DEFAULT 0,
+                `PaidOn` date NULL,
+                `PaymentReference` varchar(120) NULL,
+                `Notes` longtext NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_champ_reg_Champ` (`ChampionshipId`),
+                KEY `IX_champ_reg_Club` (`ClubId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "registration_athletes",
+            createSql: @"CREATE TABLE IF NOT EXISTS `registration_athletes` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `RegistrationId` char(36) NOT NULL,
+                `AthleteId` char(36) NOT NULL,
+                `CategoryId` char(36) NOT NULL,
+                `StartNumber` int NULL,
+                `Notes` varchar(500) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_reg_ath_Registration` (`RegistrationId`),
+                KEY `IX_reg_ath_Athlete` (`AthleteId`),
+                KEY `IX_reg_ath_Category` (`CategoryId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "championship_results",
+            createSql: @"CREATE TABLE IF NOT EXISTS `championship_results` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `RegistrationAthleteId` char(36) NOT NULL,
+                `Rank` int NULL,
+                `Score` varchar(80) NULL,
+                `Notes` longtext NULL,
+                `EnteredByUserId` char(36) NULL,
+                `EnteredAt` datetime(6) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_champ_res_RegAth` (`RegistrationAthleteId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
     }
 
     private static async Task<bool> ColumnExistsAsync(AppDbContext db, string dbName, string table, string column, CancellationToken ct)

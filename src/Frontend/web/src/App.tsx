@@ -23,6 +23,7 @@ import ScheduleIcon from "@mui/icons-material/Schedule";
 import StorageIcon from "@mui/icons-material/Storage";
 import AnalyticsIcon from "@mui/icons-material/Analytics";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
+import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import CampaignIcon from "@mui/icons-material/Campaign";
 import GavelIcon from "@mui/icons-material/Gavel";
 import RuleFolderIcon from "@mui/icons-material/RuleFolder";
@@ -87,6 +88,7 @@ import { ProductionReportPage } from "./pages/ProductionReportPage";
 import { CommissionDistributionPage } from "./pages/CommissionDistributionPage";
 import { FinancialReportPage } from "./pages/FinancialReportPage";
 import { ProducerStatementPage } from "./pages/ProducerStatementPage";
+import { FederationChampionshipsPage } from "./pages/FederationChampionshipsPage";
 import { AgencySettingsPage } from "./pages/AgencySettingsPage";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { PackageGate } from "./pages/PackageLockedPage";
@@ -401,6 +403,28 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/platform/support", labelKey: "nav.support", icon: <SupportAgentIcon /> },
     { to: "/platform/status", labelKey: "nav.status", icon: <MonitorHeartIcon /> },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
+  ],
+  // ==== Federation module (Ομοσπονδία) ====================================
+  // FederationAdmin sees the full stack — championships, clubs, athletes,
+  // registrations & payments, live results. FederationEmployee gets the
+  // same navigation but hits controller-level FederationAdmin gates on any
+  // write beyond payment-status + result upserts. ClubManager only sees
+  // their own club's athletes and registrations (page-level filters
+  // handled inside each view).
+  FederationAdmin: [
+    { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
+    { to: "/federation/championships", labelKey: "nav.championships", icon: <EmojiEventsIcon /> },
+    { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
+  ],
+  FederationEmployee: [
+    { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
+    { to: "/federation/championships", labelKey: "nav.championships", icon: <EmojiEventsIcon /> },
+    { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
+  ],
+  ClubManager: [
+    { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
+    { to: "/federation/championships", labelKey: "nav.championships", icon: <EmojiEventsIcon /> },
+    { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ]
 };
 
@@ -530,6 +554,7 @@ export default function App() {
                   <Route path="commission-distribution" element={<CommissionDistributionPage />} />
                   <Route path="financial-report" element={<FinancialReportPage />} />
                   <Route path="producer-statement" element={<ProducerStatementPage />} />
+                  <Route path="federation/championships" element={<FederationChampionshipsPage />} />
                   <Route path="profile" element={<ProfilePage />} />
                   <Route path="agency-settings" element={<AgencySettingsPage />} />
                   <Route path="coming-soon" element={<ComingSoonPage />} />

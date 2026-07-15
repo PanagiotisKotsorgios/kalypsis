@@ -249,4 +249,13 @@ public interface IAppDbContext
     /// back on mid-wipe.
     Task OpenConnectionAsync(CancellationToken cancellationToken = default);
     Task CloseConnectionAsync(CancellationToken cancellationToken = default);
+
+    // ==== Federation module (championships / clubs / athletes / results) ====
+    DbSet<Championship> Championships { get; }
+    DbSet<ChampionshipCategory> ChampionshipCategories { get; }
+    DbSet<Club> Clubs { get; }
+    DbSet<Athlete> Athletes { get; }
+    DbSet<ChampionshipRegistration> ChampionshipRegistrations { get; }
+    DbSet<RegistrationAthlete> RegistrationAthletes { get; }
+    DbSet<ChampionshipResult> ChampionshipResults { get; }
 }

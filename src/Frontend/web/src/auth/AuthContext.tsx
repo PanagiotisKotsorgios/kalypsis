@@ -15,7 +15,11 @@ export type Role =
   | "AgencyAdmin"
   | "AgencyUser"
   | "Producer"
-  | "Customer";
+  | "Customer"
+  // Federation module — a sports federation running on the same platform.
+  | "FederationAdmin"
+  | "FederationEmployee"
+  | "ClubManager";
 
 export interface AuthUser {
   userId: string;
