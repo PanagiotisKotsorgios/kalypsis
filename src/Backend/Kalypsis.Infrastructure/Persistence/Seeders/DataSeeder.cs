@@ -295,6 +295,22 @@ public static class DataSeeder
         ("SYNDEA",           "Συνεταιριστική - SYNDEA"),
         ("YDROGEIOS",        "Υδρόγειος"),
         ("INTERASCO",        "InterAsco OVER"),
+
+        // ---- Brokers / Πρακτορεία (από το ALIS «Πρακτορεία» tab) ----
+        // Χονδρικοί ασφαλιστικοί πράκτορες που συχνά αναλαμβάνουν την
+        // διαχείριση συμβολαίων μεταξύ γραφείου και ασφαλιστικής. Ίδιο flow
+        // εισαγωγής με τις ασφαλιστικές — όλα «Χρειάζεται παραμετροποίηση»
+        // μέχρι να γραφτεί per-broker parser.
+        ("CROMAR",           "Cromar Insurance Brokers"),
+        ("DIN",              "DIN Ασφαλιστικοί Πράκτορες"),
+        ("HOWDEN",           "Howden"),
+        ("GRAND_COVER_2",    "Grand Cover 2"),
+        ("COSMOS_UNION",     "Cosmos Union"),
+        ("INFOTRUST",        "InfoTrust"),
+        ("BROKINS",          "Brokins"),
+        ("KAPPA_AGENTS",     "Kappa Insurance Agents"),
+        ("EUROPROTECTION",   "Europrotection Brokers"),
+        ("KARAVIAS",         "Καραβίας Πράκτορες"),
     };
 
     /// <summary>
