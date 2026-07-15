@@ -50,3 +50,4 @@ NOTHING.txt
 staging-tests/**/*.xlsx
 staging-tests/**/*.xls
 staging-tests/**/*.filled.csv
+docker-compose.override.yml
