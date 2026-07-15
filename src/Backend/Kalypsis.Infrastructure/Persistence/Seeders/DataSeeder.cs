@@ -1351,11 +1351,11 @@ public static class DataSeeder
 
         // ==== Ν. 4583/2018 — ΤτΕ αριθμός εγγραφής στον Tenant =================
         await EnsureColumnAsync(db, logger, dbName,
-            table: "Tenants", column: "TteRegistrationNumber",
-            addSql: "ALTER TABLE `Tenants` ADD COLUMN `TteRegistrationNumber` varchar(40) NULL", ct);
+            table: "tenants", column: "TteRegistrationNumber",
+            addSql: "ALTER TABLE `tenants` ADD COLUMN `TteRegistrationNumber` varchar(40) NULL", ct);
         await EnsureColumnAsync(db, logger, dbName,
-            table: "Tenants", column: "TteRegistrationYear",
-            addSql: "ALTER TABLE `Tenants` ADD COLUMN `TteRegistrationYear` int NULL", ct);
+            table: "tenants", column: "TteRegistrationYear",
+            addSql: "ALTER TABLE `tenants` ADD COLUMN `TteRegistrationYear` int NULL", ct);
 
         // ==== GDPR Art. 33 — Data breach incidents registry ===================
         await EnsureTableAsync(db, logger, dbName,
@@ -1413,14 +1413,14 @@ public static class DataSeeder
         // the audit trail runs from the very first interaction. Nullable to
         // stay backward-compatible with rows created before this migration.
         await EnsureColumnAsync(db, logger, dbName,
-            table: "RegistrationRequests", column: "DpaAccepted",
-            addSql: "ALTER TABLE `RegistrationRequests` ADD COLUMN `DpaAccepted` tinyint(1) NOT NULL DEFAULT 0", ct);
+            table: "registration_requests", column: "DpaAccepted",
+            addSql: "ALTER TABLE `registration_requests` ADD COLUMN `DpaAccepted` tinyint(1) NOT NULL DEFAULT 0", ct);
         await EnsureColumnAsync(db, logger, dbName,
-            table: "RegistrationRequests", column: "DpaVersion",
-            addSql: "ALTER TABLE `RegistrationRequests` ADD COLUMN `DpaVersion` varchar(20) NULL", ct);
+            table: "registration_requests", column: "DpaVersion",
+            addSql: "ALTER TABLE `registration_requests` ADD COLUMN `DpaVersion` varchar(20) NULL", ct);
         await EnsureColumnAsync(db, logger, dbName,
-            table: "RegistrationRequests", column: "DpaAcceptedAt",
-            addSql: "ALTER TABLE `RegistrationRequests` ADD COLUMN `DpaAcceptedAt` datetime(6) NULL", ct);
+            table: "registration_requests", column: "DpaAcceptedAt",
+            addSql: "ALTER TABLE `registration_requests` ADD COLUMN `DpaAcceptedAt` datetime(6) NULL", ct);
 
         // ==== Widen encrypted columns to varchar(500) ==========================
         // See AppDbContext.OnModelCreating — every column below is now encrypted
