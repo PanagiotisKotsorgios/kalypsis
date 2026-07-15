@@ -144,6 +144,7 @@
     "b2bPortal": "B2B / C2B Portals",
     "commissions": "Προμήθειες",
     "overCommissions": "Υπερπρομήθειες",
+    "overCommissionBridges": "Γέφυρες Υπερπρομηθειών",
     "productionReport": "Ετήσια Παραγωγή",
     "championships": "Πρωταθλήματα",
     "commissionDistribution": "Καταμερισμός Προμηθειών",
@@ -2692,6 +2693,17 @@
     "matched": "Match",
     "failed": "Σφάλματα",
     "completedAt": "Ολοκληρώθηκε"
+  },
+  "overCommissionBridges": {
+    "title": "Γέφυρες Υπερπρομηθειών",
+    "subtitle": "Ρυθμίστε γέφυρες υπερπρομηθειών ανά ασφαλιστική εταιρεία.",
+    "pickCarrier": "Επιλέξτε ασφαλιστική εταιρεία",
+    "noCompanies": "Δεν έχουν καταχωρηθεί ενεργές ασφαλιστικές εταιρείες.",
+    "global": "Global",
+    "backToList": "Πίσω στη λίστα",
+    "openPyramid": "Άνοιγμα Πυραμίδας Υπερπρομηθειών",
+    "carrierDetailIntro": "Κανόνες υπερπρομηθειών που εφαρμόζονται στα συμβόλαια αυτής της ασφαλιστικής.",
+    "noRules": "Δεν υπάρχουν κανόνες υπερπρομηθειών ακόμη — δημιουργήστε τον πρώτο από την Πυραμίδα."
   },
   "overCommissions": {
     "title": "Υπερπρομήθειες",

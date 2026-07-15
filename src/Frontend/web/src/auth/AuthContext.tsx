@@ -187,6 +187,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     sessionStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(STORAGE_KEY);
+    // Fresh login always lands on a clean sidebar: any group-open state left
+    // over from a previous user/session gets wiped so dropdowns start closed.
+    try { localStorage.removeItem("nav.openGroups"); } catch { /* ignore */ }
     clearSessionDeadline(payload.user.userId);
     localStorage.setItem(PERSISTENCE_KEY, rememberMe ? "local" : "session");
     (rememberMe ? localStorage : sessionStorage).setItem(STORAGE_KEY, JSON.stringify(stored));
@@ -249,6 +252,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionStorage.removeItem(IMPERSONATION_INFO_KEY);
     }
     clearStored();
+    // Reset per-user UI state so the next login lands on a clean sidebar —
+    // previously opened group dropdowns persisted across sessions and users
+    // would see stale-open sections on first entrance after re-login.
+    try {
+      localStorage.removeItem("nav.openGroups");
+    } catch { /* ignore */ }
     setAuthToken(null);
     setAccessToken(null);
     setUser(null);

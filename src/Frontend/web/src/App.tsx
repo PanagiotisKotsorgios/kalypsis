@@ -195,6 +195,7 @@ import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import { AllToolsPage } from "./pages/AllToolsPage";
 import { CarrierBridgesPage } from "./pages/CarrierBridgesPage";
+import { OverCommissionBridgesPage } from "./pages/OverCommissionBridgesPage";
 import { BridgeCodeMappingsPage } from "./pages/BridgeCodeMappingsPage";
 import { ProductionListsPage } from "./pages/ProductionListsPage";
 import { RenewalsPage } from "./pages/RenewalsPage";
@@ -249,6 +250,7 @@ const navByRole: Record<Role, NavItem[]> = {
     // BackOffice → ΠΡΟΜΗΘΕΙΕΣ — the commission settlement entry point is in
     // Production Lists, keeping production reporting and monthly settlement together.
     { to: "/over-commissions", labelKey: "nav.overCommissions", icon: <StackedLineChartIcon />,  package: "BackOffice", group: "production" },
+    { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice", group: "production" },
 
     // Accounting and cash-control routes remain available from the Financial hub.
 
@@ -346,6 +348,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice" },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
+    { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
     // CRM
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
@@ -581,6 +584,7 @@ export default function App() {
                   <Route path="kepyo" element={<KepyoReportsPage />} />
                   <Route path="magnetic-import" element={<MagneticImportsPage />} />
                   <Route path="over-commissions" element={<OverCommissionsPage />} />
+                  <Route path="over-commission-bridges" element={<OverCommissionBridgesPage />} />
                   <Route path="goals" element={<ProductionGoalsPage />} />
                   <Route path="production-stats" element={<ProductionStatsPage />} />
                   <Route path="commission-runs" element={<CommissionRunsPage />} />
