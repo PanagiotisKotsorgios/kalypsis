@@ -67,6 +67,7 @@ import { CookiesPage } from "./pages/CookiesPage";
 import { DpaPage } from "./pages/DpaPage";
 import { DpaAcceptancePrompt } from "./components/DpaAcceptancePrompt";
 import { BreachIncidentsPage } from "./pages/BreachIncidentsPage";
+import { CollectionFilesBridgesPage } from "./pages/CollectionFilesBridgesPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { UnderMaintenancePage } from "./pages/UnderMaintenancePage";
 import { SiteMaintenancePage } from "./pages/SiteMaintenancePage";
@@ -227,6 +228,7 @@ const navByRole: Record<Role, NavItem[]> = {
 
     // ===== BackOffice — Standalone "Γέφυρες Εταιριών" (carrier xlsx/csv import) =====
     { to: "/carrier-bridges", labelKey: "nav.carrierBridges", icon: <CloudUploadIcon />, package: "BackOffice" },
+    { to: "/collection-files-bridges", labelKey: "nav.collectionFilesBridges", icon: <CloudUploadIcon />, package: "BackOffice" },
     { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
     { to: "/bridge-code-mappings", labelKey: "nav.bridgeCodeMappings", icon: <CloudUploadIcon />, package: "BackOffice" },
 
@@ -632,6 +634,7 @@ export default function App() {
                   <Route path="all-tools" element={<AllToolsPage />} />
                   <Route path="default-value-rules" element={<Navigate to="/app/commission-rules" replace />} />
                   <Route path="carrier-bridges" element={<CarrierBridgesPage />} />
+                  <Route path="collection-files-bridges" element={<CollectionFilesBridgesPage />} />
                   <Route path="bridge-code-mappings" element={<BridgeCodeMappingsPage />} />
                   <Route path="production-lists" element={<ProductionListsPage />} />
                   <Route path="renewals" element={<RenewalsPage />} />
