@@ -69,6 +69,7 @@ import { DpaAcceptancePrompt } from "./components/DpaAcceptancePrompt";
 import { BreachIncidentsPage } from "./pages/BreachIncidentsPage";
 import { CollectionFilesBridgesPage } from "./pages/CollectionFilesBridgesPage";
 import { UnderConstructionPage } from "./pages/UnderConstructionPage";
+import { LegalTemplatesPage } from "./pages/LegalTemplatesPage";
 import TuneOutlinedIconRC from "@mui/icons-material/TuneOutlined";
 import ReceiptLongIconRC from "@mui/icons-material/ReceiptLong";
 import AnalyticsIconRC from "@mui/icons-material/Analytics";
@@ -296,6 +297,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/dynamic-fields",      labelKey: "nav.dynamicFields",      icon: <TuneOutlinedIcon />,   package: "BackOffice", group: "params" },
     { to: "/groupings",           labelKey: "nav.groupings",          icon: <TuneOutlinedIcon />,   package: "BackOffice", group: "params" },
     { to: "/period-locks",        labelKey: "nav.periodLocks",        icon: <TuneOutlinedIcon />,   package: "BackOffice", group: "params" },
+    { to: "/legal-templates",     labelKey: "nav.legalTemplates",     icon: <GavelIcon />,          package: "BackOffice", group: "params" },
 
     // BackOffice → ΔΙΟΙΚΗΣΗ
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
@@ -589,6 +591,7 @@ export default function App() {
                   {/* Roadmap placeholders — sidebar entries visible but pages
                       show a «Υπό ανάπτυξη» card. Each gets a mini feature
                       preview so users know what will land here. */}
+                  <Route path="legal-templates" element={<LegalTemplatesPage />} />
                   <Route path="dynamic-fields" element={
                     <UnderConstructionPage
                       title="Δυναμικά Πεδία"
