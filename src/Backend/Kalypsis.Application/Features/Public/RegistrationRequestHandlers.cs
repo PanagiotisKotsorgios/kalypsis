@@ -59,7 +59,9 @@ public record SubmitRegistrationRequestCommand(
     string? City,
     string? Message,
     string? IpAddress,
-    string? UserAgent
+    string? UserAgent,
+    bool DpaAccepted,
+    string? DpaVersion
 ) : IRequest<RegistrationRequestDto>;
 
 public class SubmitRegistrationRequestCommandValidator : AbstractValidator<SubmitRegistrationRequestCommand>
@@ -80,6 +82,12 @@ public class SubmitRegistrationRequestCommandValidator : AbstractValidator<Submi
             RuleFor(x => x.City!).MaximumLength(120));
         When(x => !string.IsNullOrWhiteSpace(x.Message), () =>
             RuleFor(x => x.Message!).MaximumLength(2000));
+        // GDPR Άρθρο 28 — η αποδοχή του DPA είναι αδιαπραγμάτευτη για να μπορέσουμε
+        // να επεξεργαστούμε δεδομένα πελατών του γραφείου νόμιμα.
+        RuleFor(x => x.DpaAccepted).Equal(true)
+            .WithMessage("Απαιτείται αποδοχή της Σύμβασης Επεξεργασίας Προσωπικών Δεδομένων (DPA).");
+        RuleFor(x => x.DpaVersion).NotEmpty().MaximumLength(20)
+            .WithMessage("Λείπει η έκδοση του αποδεκτού DPA.");
     }
 }
 
@@ -118,7 +126,10 @@ public class SubmitRegistrationRequestCommandHandler
             ReferenceCode    = code,
             Status           = RegistrationRequestStatus.New,
             IpAddress        = string.IsNullOrWhiteSpace(r.IpAddress) ? null : r.IpAddress,
-            UserAgent        = string.IsNullOrWhiteSpace(r.UserAgent) ? null : r.UserAgent
+            UserAgent        = string.IsNullOrWhiteSpace(r.UserAgent) ? null : r.UserAgent,
+            DpaAccepted      = r.DpaAccepted,
+            DpaVersion       = string.IsNullOrWhiteSpace(r.DpaVersion) ? null : r.DpaVersion.Trim(),
+            DpaAcceptedAt    = r.DpaAccepted ? DateTime.UtcNow : (DateTime?)null,
         };
         _db.RegistrationRequests.Add(rec);
         await _db.SaveChangesAsync(ct);

@@ -223,6 +223,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<TenantBackup> TenantBackups => Set<TenantBackup>();
     public DbSet<TenantBackupPolicy> TenantBackupPolicies => Set<TenantBackupPolicy>();
     public DbSet<GdprErasureRequest> GdprErasureRequests => Set<GdprErasureRequest>();
+    public DbSet<DpaAcceptance> DpaAcceptances => Set<DpaAcceptance>();
 
     // ==== Federation module ==================================================
     public DbSet<Championship> Championships => Set<Championship>();

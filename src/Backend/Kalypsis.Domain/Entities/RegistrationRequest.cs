@@ -35,4 +35,12 @@ public class RegistrationRequest : BaseEntity
 
     public string? IpAddress { get; set; }
     public string? UserAgent { get; set; }
+
+    // GDPR Άρθρο 28 — αποδοχή της Σύμβασης Επεξεργασίας Προσωπικών Δεδομένων
+    // κατά τη στιγμή της αίτησης εγγραφής. Nullable για συμβατότητα με παλιές
+    // εγγραφές που δημιουργήθηκαν πριν αυτό το checkpoint· η νέα φόρμα το
+    // επιβάλλει ως υποχρεωτικό.
+    public bool DpaAccepted { get; set; }
+    public string? DpaVersion { get; set; }
+    public DateTime? DpaAcceptedAt { get; set; }
 }

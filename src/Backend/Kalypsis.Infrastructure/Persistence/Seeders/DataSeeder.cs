@@ -1269,6 +1269,40 @@ public static class DataSeeder
                 KEY `IX_champ_res_RegAth` (`RegistrationAthleteId`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
 
+        // ==== GDPR Art. 28 — DPA acceptance table =============================
+        await EnsureTableAsync(db, logger, dbName,
+            table: "dpa_acceptances",
+            createSql: @"CREATE TABLE IF NOT EXISTS `dpa_acceptances` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `Version` varchar(20) NOT NULL,
+                `AcceptedAt` datetime(6) NOT NULL,
+                `AcceptedByUserId` char(36) NOT NULL,
+                `AcceptedByName` varchar(200) NOT NULL,
+                `AcceptedByEmail` varchar(200) NOT NULL,
+                `IpAddress` varchar(64) NULL,
+                `UserAgent` varchar(500) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_dpa_acceptances_TenantVersion` (`TenantId`, `Version`),
+                KEY `IX_dpa_acceptances_AcceptedBy` (`AcceptedByUserId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
+        // Registration form now captures DPA acceptance at submission time so
+        // the audit trail runs from the very first interaction. Nullable to
+        // stay backward-compatible with rows created before this migration.
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "RegistrationRequests", column: "DpaAccepted",
+            addSql: "ALTER TABLE `RegistrationRequests` ADD COLUMN `DpaAccepted` tinyint(1) NOT NULL DEFAULT 0", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "RegistrationRequests", column: "DpaVersion",
+            addSql: "ALTER TABLE `RegistrationRequests` ADD COLUMN `DpaVersion` varchar(20) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "RegistrationRequests", column: "DpaAcceptedAt",
+            addSql: "ALTER TABLE `RegistrationRequests` ADD COLUMN `DpaAcceptedAt` datetime(6) NULL", ct);
+
         // ==== Widen encrypted columns to varchar(500) ==========================
         // See AppDbContext.OnModelCreating — every column below is now encrypted
         // via ASP.NET DataProtection at the EF layer, and the ciphertext balloons

@@ -64,6 +64,8 @@ import { ContactPage } from "./pages/ContactPage";
 import { TermsPage } from "./pages/TermsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { CookiesPage } from "./pages/CookiesPage";
+import { DpaPage } from "./pages/DpaPage";
+import { DpaAcceptancePrompt } from "./components/DpaAcceptancePrompt";
 import { DashboardPage } from "./pages/DashboardPage";
 import { UnderMaintenancePage } from "./pages/UnderMaintenancePage";
 import { SiteMaintenancePage } from "./pages/SiteMaintenancePage";
@@ -511,6 +513,7 @@ export default function App() {
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/cookies" element={<CookiesPage />} />
+        <Route path="/dpa" element={<DpaPage />} />
         <Route
           path="/app/*"
           element={
@@ -520,6 +523,7 @@ export default function App() {
                 <GlobalKeyboardShortcuts />
                 <CommandPalette />
                 <GlobalStickyHeaders />
+                <DpaAcceptancePrompt />
                 <Routes>
                   {/* Agency users land on the Workspace Hub; other roles keep their dashboard. */}
                   <Route index element={

@@ -227,6 +227,7 @@ public interface IAppDbContext
     DbSet<TenantBackup> TenantBackups { get; }
     DbSet<TenantBackupPolicy> TenantBackupPolicies { get; }
     DbSet<GdprErasureRequest> GdprErasureRequests { get; }
+    DbSet<DpaAcceptance> DpaAcceptances { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

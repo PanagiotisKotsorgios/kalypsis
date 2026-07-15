@@ -33,6 +33,7 @@ type RegisterForm = {
   city: string;
   message: string;
   agreedTerms: boolean;
+  agreedDpa: boolean;
 };
 
 const initial: RegisterForm = {
@@ -45,8 +46,14 @@ const initial: RegisterForm = {
   licenseNumber: "",
   city: "",
   message: "",
-  agreedTerms: false
+  agreedTerms: false,
+  agreedDpa: false
 };
+
+// GDPR Άρθρο 28 — η τρέχουσα έκδοση του DPA στην πλατφόρμα. Ταιριάζει με το
+// backend DpaController.CurrentVersion — αν αλλάξει εκεί, ενημερώστε και εδώ
+// (η υποβολή θα απορριφθεί αν οι δύο δεν συμπίπτουν).
+const DPA_VERSION = "v1.0";
 
 export function RegisterPage() {
   const { t } = useTranslation();
@@ -77,6 +84,10 @@ export function RegisterPage() {
       setError(t("register.errors.terms"));
       return;
     }
+    if (!form.agreedDpa) {
+      setError(t("register.errors.dpa", "Απαιτείται αποδοχή της Σύμβασης Επεξεργασίας Προσωπικών Δεδομένων (DPA)."));
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
@@ -89,7 +100,9 @@ export function RegisterPage() {
         vatNumber:        form.vatNumber.trim() || null,
         licenseNumber:    form.licenseNumber.trim() || null,
         city:             form.city.trim() || null,
-        message:          form.message.trim() || null
+        message:          form.message.trim() || null,
+        dpaAccepted:      true,
+        dpaVersion:       DPA_VERSION
       });
       setSubmitted({ ref: data.referenceCode });
     } catch (err) {
@@ -322,6 +335,27 @@ export function RegisterPage() {
                       label={
                         <Typography sx={{ fontSize: 15, color: "rgba(11,37,69,0.78)", lineHeight: 1.55 }}>
                           {t("register.terms")}
+                        </Typography>
+                      }
+                      sx={{ alignItems: "flex-start", ml: -0.5 }}
+                    />
+
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={form.agreedDpa}
+                          onChange={(e) => set("agreedDpa", e.target.checked)}
+                          disabled={submitting}
+                          sx={{ alignSelf: "flex-start", mt: -0.5, color: "rgba(11,37,69,0.55)" }}
+                        />
+                      }
+                      label={
+                        <Typography sx={{ fontSize: 15, color: "rgba(11,37,69,0.78)", lineHeight: 1.55 }}>
+                          {t("register.dpa", "Έχω διαβάσει και αποδέχομαι τη")}{" "}
+                          <Link component={RouterLink} to="/dpa" target="_blank" rel="noopener" sx={{ fontWeight: 600 }}>
+                            {t("register.dpaLink", "Σύμβαση Επεξεργασίας Προσωπικών Δεδομένων (DPA)")}
+                          </Link>
+                          {" "}({DPA_VERSION}) — {t("register.dpaExplain", "απαιτείται από το Άρθρο 28 GDPR για να μπορέσουμε νομίμως να επεξεργαστούμε δεδομένα των πελατών σας.")}
                         </Typography>
                       }
                       sx={{ alignItems: "flex-start", ml: -0.5 }}

@@ -43,7 +43,12 @@ public class PublicController : ControllerBase
         string? VatNumber,
         string? LicenseNumber,
         string? City,
-        string? Message
+        string? Message,
+        // GDPR Άρθρο 28 — αποδοχή του DPA κατά την υποβολή. Nullable ώστε η
+        // επικύρωση (must-be-true) να γίνει στον FluentValidator με σαφές
+        // μήνυμα στα Ελληνικά αντί για generic "field required".
+        bool? DpaAccepted,
+        string? DpaVersion
     );
 
     [HttpPost("register")]
@@ -57,7 +62,9 @@ public class PublicController : ControllerBase
             body.FirstName, body.LastName, body.Email, body.Phone,
             body.OrganizationName, body.VatNumber, body.LicenseNumber,
             body.City, body.Message, ip,
-            string.IsNullOrWhiteSpace(ua) ? null : ua
+            string.IsNullOrWhiteSpace(ua) ? null : ua,
+            body.DpaAccepted ?? false,
+            body.DpaVersion
         ), ct);
         return Ok(dto);
     }
