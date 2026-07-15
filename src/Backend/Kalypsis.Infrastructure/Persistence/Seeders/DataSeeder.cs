@@ -59,6 +59,14 @@ public static class DataSeeder
         try { await GrandCoverSeeder.SeedAsync(db, logger, cancellationToken); }
         catch (Exception ex) { logger.LogError(ex, "GrandCoverSeeder failed — continuing boot without IW seed."); }
 
+        // Boot-time global carrier catalogue (ALIS-style). Additive-only:
+        // εισάγει μια γραμμή για κάθε (Code, Name) στο GlobalCarriers array
+        // που δεν υπάρχει ήδη ως global (TenantId=null). Δεν διαγράφει,
+        // δεν αγγίζει tenant-owned data, δεν αλλάζει υπάρχουσες γραμμές.
+        // Ασφαλές να τρέχει σε κάθε boot.
+        try { await SeedGlobalCarriersAsync(db, logger, cancellationToken); }
+        catch (Exception ex) { logger.LogError(ex, "SeedGlobalCarriersAsync failed — continuing boot."); }
+
         var seedEmail = (config["Seed:PlatformAdminEmail"] ?? "superadmin@kalypsis.gr").ToLowerInvariant();
         var seedPassword = config["Seed:PlatformAdminPassword"] ?? "Kalypsis@2026!";
         var seedFirstName = config["Seed:PlatformAdminFirstName"] ?? "Super";
@@ -509,6 +517,59 @@ public static class DataSeeder
     /// table if necessary. Same for missing tables. This is BELT-AND-BRACES on
     /// top of MigrateAsync — when migrations work, every check below is a no-op.
     /// </summary>
+    /// <summary>
+    /// Idempotent, additive-only bootstrap του global-carriers καταλόγου.
+    ///
+    /// Για κάθε (Code, Name) στο <see cref="GlobalCarriers"/>, ελέγχει αν
+    /// υπάρχει global row (TenantId=null, DeletedAt=null) με αυτόν τον Code.
+    /// Αν δεν υπάρχει, την εισάγει. Δεν διαγράφει και δεν αλλάζει τίποτε.
+    ///
+    /// Έτσι το κάθε γραφείο βλέπει τη λίστα του ALIS στη σελίδα «Γέφυρες
+    /// Εταιρειών» ακόμη και αν το επιθετικό <see cref="CleanupNonGrandCoverGlobalsAsync"/>
+    /// δεν τρέχει στο boot.
+    ///
+    /// GRAND_COVER εξαιρείται γιατί ο <c>GrandCoverSeeder</c> τη διαχειρίζεται
+    /// ως broker με hierarchy.
+    /// </summary>
+    private static async Task SeedGlobalCarriersAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        // Κώδικες που ήδη υπάρχουν ως global (case-insensitive check για
+        // consistency με τη cleanup routine).
+        var existingCodes = await db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(c => c.TenantId == null && c.DeletedAt == null)
+            .Select(c => c.Code)
+            .ToListAsync(ct);
+        var existingSet = new HashSet<string>(existingCodes, StringComparer.OrdinalIgnoreCase);
+
+        var added = 0;
+        foreach (var (code, name) in GlobalCarriers)
+        {
+            if (code == "GRAND_COVER") continue; // owned by GrandCoverSeeder
+            if (existingSet.Contains(code)) continue;
+            db.InsuranceCompanies.Add(new InsuranceCompany
+            {
+                Id = Guid.NewGuid(),
+                TenantId = null,
+                Name = name,
+                Code = code,
+                Country = "GR",
+                IsActive = true,
+                IsBroker = false,
+                ParentCompanyId = null,
+            });
+            added++;
+        }
+        if (added > 0)
+        {
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("Global carrier catalogue: seeded {Count} new row(s).", added);
+        }
+        else
+        {
+            logger.LogInformation("Global carrier catalogue: all {Total} entries already present.", GlobalCarriers.Length);
+        }
+    }
+
     private static async Task EnsureSchemaSafetyAsync(AppDbContext db, ILogger logger, CancellationToken ct)
     {
         var conn = db.Database.GetDbConnection();
