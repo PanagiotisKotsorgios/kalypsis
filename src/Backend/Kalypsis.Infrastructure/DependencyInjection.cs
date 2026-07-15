@@ -12,6 +12,7 @@ using Kalypsis.Infrastructure.Services;
 using Kalypsis.Infrastructure.Sms;
 using Kalypsis.Infrastructure.Storage;
 using Kalypsis.Infrastructure.Workflows;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +26,24 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("ConnectionStrings:Default is not configured.");
 
+        // === Application-level encryption at rest =============================
+        // ASP.NET DataProtection produces AES-256-GCM ciphertext with an HMAC-
+        // signed envelope. Keys persist to disk (Coolify volume path via
+        // DataProtection__KeyRingPath env var, default /data/keys inside the
+        // container). Losing the key ring = losing every encrypted column, so
+        // the volume MUST be persistent + backed up (see SECURITY.md).
+        //
+        // Application name pins the purpose scope so keys from other apps on
+        // the same volume can't accidentally decrypt Kalypsis data.
+        var keyRingPath = configuration["DataProtection:KeyRingPath"] ?? "/data/keys";
+        try { Directory.CreateDirectory(keyRingPath); }
+        catch { /* volume may not exist in tests / design-time; DataProtection
+                   will fall back to ephemeral keys in that case */ }
+        var dp = services.AddDataProtection()
+            .SetApplicationName("Kalypsis");
+        if (Directory.Exists(keyRingPath))
+            dp.PersistKeysToFileSystem(new DirectoryInfo(keyRingPath));
+
         var serverVersion = configuration["Database:ServerVersion"] is { Length: > 0 } v
             ? ServerVersion.Parse(v)
             : new MySqlServerVersion(new Version(8, 0, 36));
@@ -34,6 +53,13 @@ public static class DependencyInjection
                 mysql => mysql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)));
 
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
+
+        // Bootstrap the static EncryptedStringConverter with a DI-resolved
+        // protector so EF converters can encrypt/decrypt columns without
+        // needing per-DbContext DI plumbing. Purpose string ties keys to
+        // "EF.Sensitive" scope — separate from any future protector uses
+        // (auth cookies etc.).
+        services.AddSingleton<Persistence.EncryptedStringBootstrapper>();
 
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
 

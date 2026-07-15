@@ -53,6 +53,61 @@ leaves, or every 6–12 months as routine hygiene.
 
 ---
 
+## Application-level encryption at rest (DataProtection keyring)
+
+Sensitive columns are encrypted at the EF layer via ASP.NET DataProtection
+(AES-256-GCM + HMAC-SHA256). The affected columns:
+
+- **Customer PII** — `Amka`, `IdNumber`, `PassportNumber`, `DriverLicenseNumber`
+- **Financial identifiers** — `BankConnection.Iban`, `BankStatementLine.CounterpartyIban`,
+  `Bank.AccountIban`, `Garage.Iban`
+- **Third-party integration secrets** — `CarrierConnection.ClientSecretEncrypted`,
+  `MailboxConnection.{AccessToken,RefreshToken,ImapPassword}Encrypted`,
+  `TelephonyConnection.{AccountSid,AuthToken}Encrypted`,
+  `BackofficeBridgeConnection.SecretEncrypted`
+
+Ciphertext is prefixed with `kx1:` so the read path can distinguish encrypted
+values from legacy plaintext (older rows written before this feature shipped
+keep working — they self-heal to encrypted on the next write).
+
+### The keyring volume
+
+The key material lives at `/data/keys` inside the API container, mounted from
+the Docker volume `dp_keys`. **This volume MUST be persistent and backed up
+alongside `mysql_data_v2`.** If you lose the keyring, every encrypted column
+in the DB becomes unreadable — the row is intact but its ciphertext can't be
+decrypted.
+
+- Env var: `DataProtection__KeyRingPath` (default `/data/keys`)
+- Coolify: the volume is declared in `docker-compose.yml`; add it to your
+  scheduled backup (Coolify → Storages → Backups)
+
+### Restoring from backup
+
+To restore a Kalypsis production instance you need BOTH:
+1. The MySQL data volume (contains encrypted ciphertext rows)
+2. The `dp_keys` volume (contains the AES keys)
+
+A restore that only recovers MySQL will leave every encrypted column stuck
+as gibberish. On first boot after such a mistake, the API keeps running but
+sensitive fields display as `kx1:CfDJ8...` in the UI.
+
+### Rotating the DataProtection keys
+
+ASP.NET DataProtection rotates keys automatically every 90 days. Old keys stay
+in the ring so previously-encrypted data still decrypts — you only lose access
+if you delete the `dp_keys` volume.
+
+To force-rotate manually (e.g. after a suspected key leak):
+```bash
+docker exec -it <api-container> sh -c 'rm /data/keys/key-*.xml && kill 1'
+```
+Coolify restarts the container; a fresh key is generated. Existing encrypted
+rows keep working because DataProtection tries all keys on the ring on read
+until one succeeds.
+
+---
+
 ## Rotating the Brevo API key
 
 1. In Brevo dashboard → **SMTP & API** → revoke the old key, create a new one.

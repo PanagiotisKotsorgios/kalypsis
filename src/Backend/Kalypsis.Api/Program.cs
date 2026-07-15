@@ -293,6 +293,15 @@ app.MapGet("/api/version", () => Results.Ok(new
 
 app.MapControllers();
 
+// Prime the EncryptedStringConverter BEFORE any DbContext resolves — every
+// entity read/write for the sensitive columns depends on this having run.
+using (var bootScope = app.Services.CreateScope())
+{
+    bootScope.ServiceProvider
+        .GetRequiredService<Kalypsis.Infrastructure.Persistence.EncryptedStringBootstrapper>()
+        .Initialize();
+}
+
 await DataSeeder.SeedAsync(app.Services);
 await DemoDataSeeder.SeedAsync(app.Services);
 

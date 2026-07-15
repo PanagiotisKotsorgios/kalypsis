@@ -258,6 +258,41 @@ public class AppDbContext : DbContext, IAppDbContext
             }
         }
 
+        // ==== Application-level encryption at rest (AES-256-GCM via DataProtection) ==
+        // Central declaration of all encrypted columns. Widened to varchar(500)
+        // because a ~10-char plaintext (AMKA, IBAN) balloons to ~150-200 chars
+        // with the DataProtection envelope + base64 wrap; 500 leaves margin.
+        // Legacy plaintext already in these columns keeps working: the converter
+        // detects the missing "kx1:" prefix on read and returns the raw value,
+        // then re-encrypts on next write (self-healing).
+        var enc = new EncryptedStringConverter();
+        void Encrypt<T>(System.Linq.Expressions.Expression<Func<T, string?>> prop, int maxLength = 500)
+            where T : class =>
+            modelBuilder.Entity<T>().Property(prop).HasConversion(enc!).HasMaxLength(maxLength);
+
+        // Customer PII — αριθμοί ταυτότητας, ΑΜΚΑ, διαβατήριο, δίπλωμα.
+        Encrypt<Customer>(x => x.Amka);
+        Encrypt<Customer>(x => x.IdNumber);
+        Encrypt<Customer>(x => x.PassportNumber);
+        Encrypt<Customer>(x => x.DriverLicenseNumber);
+
+        // Financial identifiers — IBAN (τραπεζικός λογαριασμός) όπου βρίσκεται.
+        Encrypt<BankConnection>(x => x.Iban);
+        Encrypt<BankStatementLine>(x => x.CounterpartyIban);
+        Encrypt<Bank>(x => x.AccountIban);
+        Encrypt<Garage>(x => x.Iban);
+
+        // Third-party integration secrets. Client secrets fit in 500; OAuth
+        // tokens can be 1-2 KB before encryption, so keep the existing 2000
+        // width (encrypted balloon lands around ~2800 → widen to 3000).
+        Encrypt<CarrierConnection>(x => x.ClientSecretEncrypted);
+        Encrypt<MailboxConnection>(x => x.AccessTokenEncrypted, maxLength: 3000);
+        Encrypt<MailboxConnection>(x => x.RefreshTokenEncrypted, maxLength: 3000);
+        Encrypt<MailboxConnection>(x => x.ImapPasswordEncrypted);
+        Encrypt<TelephonyConnection>(x => x.AccountSidEncrypted);
+        Encrypt<TelephonyConnection>(x => x.AuthTokenEncrypted);
+        Encrypt<BackofficeBridgeConnection>(x => x.SecretEncrypted);
+
         base.OnModelCreating(modelBuilder);
     }
 

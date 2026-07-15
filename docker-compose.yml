@@ -70,11 +70,18 @@ services:
       #   3) localhost as a safe last-resort default.
       Cors__FrontendOrigin: ${PUBLIC_ORIGIN:-${SERVICE_URL_WEB:-http://localhost}}
       Storage__LocalRoot: /data/uploads
+      # ASP.NET DataProtection keyring — encrypts sensitive DB columns (customer
+      # ΑΜΚΑ / ταυτότητα / διαβατήριο / δίπλωμα, IBANs, OAuth tokens, IMAP passwords,
+      # Twilio credentials). MUST persist across container restarts — losing the
+      # volume means losing the ability to decrypt every existing encrypted row.
+      # Back up this volume alongside the MySQL data.
+      DataProtection__KeyRingPath: /data/keys
       Brevo__ApiKey:       ${BREVO_API_KEY:-}
       Brevo__SenderEmail:  ${BREVO_SENDER_EMAIL:-no-reply@kalypsis.gr}
       Brevo__SenderName:   ${BREVO_SENDER_NAME:-Kalypsis}
     volumes:
       - uploads_data:/data/uploads
+      - dp_keys:/data/keys
     # Don't publish 8080 to the host — nginx in the `web` service proxies
     # `/api` over the internal docker network. Comment this back in only for
     # debugging from outside the Compose network.
@@ -104,3 +111,7 @@ volumes:
   # deploy. Bump to _v3 etc. if you ever need another clean reset.
   mysql_data_v2:
   uploads_data:
+  # DataProtection keys — see api.environment.DataProtection__KeyRingPath.
+  # NEVER delete this volume unless you're OK with all encrypted columns
+  # (customer IDs, IBANs, OAuth tokens) becoming unreadable ciphertext.
+  dp_keys:
