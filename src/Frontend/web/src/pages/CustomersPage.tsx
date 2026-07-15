@@ -6,6 +6,7 @@ import {
   Box,
   Button,
   Card,
+  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
@@ -14,6 +15,7 @@ import {
   DialogTitle,
   FormControlLabel,
   InputAdornment,
+  Link,
   MenuItem,
   Stack,
   Switch,
@@ -106,9 +108,25 @@ export function CustomersPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (body: CreateBody) => (await api.post<CreateResponse>("/customers", body)).data,
+    mutationFn: async (body: CreateBody) => {
+      // GDPR Άρθρο 13 — μετά τη δημιουργία του πελάτη καταγράφουμε consent
+      // record ότι του δόθηκε η Ενημέρωση Υποκειμένου. Χωρίς αυτό ο πελάτης
+      // δεν μπορεί να προχωρήσει (η φόρμα έχει mandatory checkbox).
+      // Το «acknowledged» flag δεν στέλνεται στον /customers endpoint —
+      // είναι client-side gate. Μετά τη δημιουργία, POST στο consents endpoint.
+      const { data } = await api.post<CreateResponse>("/customers", body);
+      try {
+        await api.post(`/customers/${data.customer.id}/consents`, {
+          type: "PrivacyNotice",
+          method: "PaperForm",  // ο agent δίνει το τυπωμένο έντυπο
+          version: "v1.0"
+        });
+      } catch { /* consent record failure δεν block-άρει τη δημιουργία */ }
+      return data;
+    },
     onSuccess: (data) => {
       void qc.invalidateQueries({ queryKey: ["customers"] });
+      void qc.invalidateQueries({ queryKey: ["customer-consents"] });
       setOpen(false);
       if (data.portalEmail && data.portalTemporaryPassword) {
         setCreatedCreds({ email: data.portalEmail, password: data.portalTemporaryPassword });
@@ -420,6 +438,10 @@ function CreateCustomerDialog({
     notes: "",
     createPortalAccount: true
   });
+  // GDPR Άρθρο 13 — client-side gate: χωρίς την επιβεβαίωση παραλαβής της
+  // Ενημέρωσης Υποκειμένου η δημιουργία δεν προχωρά. Client-only state, δεν
+  // στέλνεται στο /customers — μετά τη δημιουργία γίνεται POST στο consents.
+  const [privacyAck, setPrivacyAck] = useState(false);
 
   const handleSubmit = () => {
     const payload: CreateBody = {
@@ -560,11 +582,37 @@ function CreateCustomerDialog({
             }
             label={t("customers.createPortalAccount")}
           />
+
+          {/* GDPR Άρθρο 13 — παραλαβή Ενημέρωσης Υποκειμένου. Το γραφείο
+              οφείλει να δώσει στον πελάτη το τυπωμένο έντυπο πριν συνεχίσει.
+              Το κείμενο βρίσκεται στα Νομικά Έντυπα Πελατών. */}
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={privacyAck}
+                onChange={(e) => setPrivacyAck(e.target.checked)}
+                required
+                sx={{ alignSelf: "flex-start", mt: -0.5 }}
+              />
+            }
+            label={
+              <Typography variant="body2" color="text.secondary">
+                {t("customers.privacyNoticeAck",
+                  "Επιβεβαιώνω ότι έδωσα στον πελάτη την Ενημέρωση Υποκειμένου (Άρθρο 13 GDPR). Το τυπωμένο έντυπο βρίσκεται στη σελίδα ")}
+                <Link href="/app/legal-templates" target="_blank"
+                  rel="noopener" sx={{ fontWeight: 600 }}>
+                  {t("customers.legalTemplatesLink", "Νομικά Έντυπα Πελατών")}
+                </Link>.
+              </Typography>
+            }
+            sx={{ alignItems: "flex-start", ml: -0.5, mt: 1 }}
+          />
         </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>{t("common.cancel")}</Button>
-        <Button onClick={handleSubmit} variant="contained" disabled={submitting}>
+        <Button onClick={handleSubmit} variant="contained"
+          disabled={submitting || !privacyAck}>
           {submitting ? <CircularProgress size={18} /> : t("common.create")}
         </Button>
       </DialogActions>
