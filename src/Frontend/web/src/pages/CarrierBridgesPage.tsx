@@ -137,6 +137,10 @@ export function CarrierBridgesPage() {
   // Όνομα της εταιρείας που ζητά ο χρήστης αλλά ΔΕΝ έχει έτοιμο parser —
   // ανοίγει «Χρειάζεται παραμετροποίηση» dialog μέχρι να γραφτεί ο adapter.
   const [underDevCarrier, setUnderDevCarrier] = useState<string | null>(null);
+  // Search + διαθεσιμότητα φίλτρο για τη Στάδιο 1 grid — με 40+ εταιρείες
+  // η γρήγορη πλοήγηση απαιτεί καλή εύρεση.
+  const [carrierSearch, setCarrierSearch] = useState("");
+  const [carriersFilter, setCarriersFilter] = useState<"all" | "available" | "unavailable">("all");
 
   const carriers = useQuery({
     queryKey: ["available-bridges"],
@@ -351,12 +355,74 @@ export function CarrierBridgesPage() {
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
 
       {/* Step 1 — pick carrier */}
-      {!selected && (
+      {!selected && (() => {
+        // Client-side φιλτράρισμα: (α) case-insensitive search σε name+code,
+        // (β) chip για διαθεσιμότητα. Το total count στο header δείχνει
+        // πόσα ταιριάζουν vs σύνολο.
+        const all = carriers.data ?? [];
+        const availCount = all.filter(c => c.bridgeAvailable).length;
+        const s = carrierSearch.trim().toLowerCase();
+        const filtered = all.filter(c => {
+          if (carriersFilter === "available" && !c.bridgeAvailable) return false;
+          if (carriersFilter === "unavailable" && c.bridgeAvailable) return false;
+          if (!s) return true;
+          return c.name.toLowerCase().includes(s) || c.code.toLowerCase().includes(s);
+        });
+        return (
         <Card sx={{ p: 3 }}>
-          <Typography fontWeight={700} mb={2}>{t("carrierBridges.pickCarrier")}</Typography>
+          <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between"
+            alignItems={{ xs: "stretch", md: "center" }} spacing={2} mb={2.5}>
+            <Box>
+              <Typography fontWeight={700}>{t("carrierBridges.pickCarrier")}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {t("carrierBridges.countSummary",
+                  "{{shown}} από {{total}} · {{avail}} διαθέσιμες", {
+                  shown: filtered.length, total: all.length, avail: availCount
+                })}
+              </Typography>
+            </Box>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}
+              sx={{ minWidth: { md: 520 } }}>
+              <TextField
+                size="small"
+                placeholder={t("carrierBridges.searchPlaceholder", "Αναζήτηση: όνομα ή κωδικός…")}
+                value={carrierSearch}
+                onChange={e => setCarrierSearch(e.target.value)}
+                InputProps={{
+                  endAdornment: carrierSearch
+                    ? <IconButton size="small" onClick={() => setCarrierSearch("")}><CloseIcon fontSize="small" /></IconButton>
+                    : null
+                }}
+                sx={{ flex: 1 }}
+              />
+              <Stack direction="row" spacing={0.5}>
+                <Chip
+                  size="small"
+                  label={t("carrierBridges.filter.all", "Όλες")}
+                  color={carriersFilter === "all" ? "primary" : "default"}
+                  variant={carriersFilter === "all" ? "filled" : "outlined"}
+                  onClick={() => setCarriersFilter("all")}
+                />
+                <Chip
+                  size="small"
+                  label={t("carrierBridges.filter.available", "Διαθέσιμες")}
+                  color={carriersFilter === "available" ? "success" : "default"}
+                  variant={carriersFilter === "available" ? "filled" : "outlined"}
+                  onClick={() => setCarriersFilter("available")}
+                />
+                <Chip
+                  size="small"
+                  label={t("carrierBridges.filter.unavailable", "Υπό ανάπτυξη")}
+                  color={carriersFilter === "unavailable" ? "warning" : "default"}
+                  variant={carriersFilter === "unavailable" ? "filled" : "outlined"}
+                  onClick={() => setCarriersFilter("unavailable")}
+                />
+              </Stack>
+            </Stack>
+          </Stack>
           {carriers.isLoading ? <CircularProgress /> : (
             <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "repeat(2,1fr)", md: "repeat(3,1fr)" } }}>
-              {(carriers.data ?? []).map(c => (
+              {filtered.map(c => (
                 <Card key={c.insuranceCompanyId} variant="outlined" sx={{
                   p: 2, cursor: "pointer",
                   transition: "all 0.15s",
@@ -378,13 +444,22 @@ export function CarrierBridgesPage() {
                   <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>{c.code}</Typography>
                 </Card>
               ))}
-              {(carriers.data ?? []).length === 0 && (
+              {all.length === 0 && (
                 <Alert severity="info" sx={{ gridColumn: "1/-1" }}>{t("carrierBridges.noCarriers")}</Alert>
+              )}
+              {all.length > 0 && filtered.length === 0 && (
+                <Alert severity="info" sx={{ gridColumn: "1/-1" }}
+                  action={<Button size="small" onClick={() => { setCarrierSearch(""); setCarriersFilter("all"); }}>
+                    {t("common.reset", "Επαναφορά")}
+                  </Button>}>
+                  {t("carrierBridges.noMatches", "Καμία εταιρεία δεν ταιριάζει στα φίλτρα.")}
+                </Alert>
               )}
             </Box>
           )}
         </Card>
-      )}
+        );
+      })()}
 
       {/* «Χρειάζεται παραμετροποίηση» modal για κάθε unavailable carrier —
           όλες οι εταιρείες του ALIS καταλόγου είναι ορατές αλλά μόνο οι
