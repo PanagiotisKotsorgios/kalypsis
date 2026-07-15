@@ -71,6 +71,10 @@ public static class DependencyInjection
         services.AddHostedService<PolicyRenewalReminderJob>();
         services.AddHostedService<MarketingCampaignScheduler>();
         services.AddHostedService<ProducerMonthlySnapshotJob>();
+        // GDPR Άρθρο 5(1)(ε) — αυτόματη διαγραφή παλιών logs/notifications ώστε
+        // να μην διατηρούμε δεδομένα πέραν της περιόδου που δηλώνει η Πολιτική
+        // Απορρήτου. Runs κάθε 24h, batch-based για να μη μπλοκάρει.
+        services.AddHostedService<Scheduling.RetentionCleanupJob>();
 
         // Auto-backup: polls TenantBackupPolicies hourly, creates snapshots
         // when due, prunes older auto backups beyond retention count.

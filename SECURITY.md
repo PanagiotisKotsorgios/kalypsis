@@ -175,6 +175,39 @@ API should return:
 
 ---
 
+## Data breach registry (GDPR Art. 33)
+
+`PlatformAdmin → Παραβιάσεις Δεδομένων` (`/app/platform/breach-incidents`) is
+the internal register mandated by Article 33. Every suspected or confirmed
+personal-data breach must land there **as soon as it becomes known** — that
+timestamp starts the 72-hour clock for notifying the ΑΠΔΠΧ.
+
+Workflow:
+1. Create the incident (severity, scope, nature, categories, subject-count
+   estimate, mitigations). The `IncidentCode` `BR-XXXXXX` is what you quote
+   to the authority.
+2. Hit **Ειδοποίηση γραφείων** — the API sends email + in-app notification
+   to every `AgencyAdmin` in the affected tenants (or all tenants when
+   scope = `AllTenants`) and stamps `TenantsNotifiedAt`. Idempotent.
+3. When you file with the ΑΠΔΠΧ (portal or email), edit the incident and
+   set `AuthorityNotifiedAt` + `AuthorityReference`. Rows past 72h without
+   this stamp turn red in the list — your visual overdue signal.
+4. Once contained and root-caused, use **Κλείσιμο** with a short note.
+
+## Retention cleanup
+
+`RetentionCleanupJob` runs every 24 hours (first run 5 min after boot) and
+prunes:
+
+- `AuditLog` rows older than **12 months** (matches the Privacy policy)
+- `Notification` rows older than **6 months** where `ReadAt IS NOT NULL`
+- `CommunicationLog` rows older than **24 months**
+
+Batched at 500 rows per transaction so it can't lock the DB. Failures per
+category are logged and skipped, not fatal. To pause the job, remove the
+`AddHostedService<RetentionCleanupJob>` line in
+`Infrastructure/DependencyInjection.cs`.
+
 ## Incident response checklist
 
 If you suspect a session token has leaked:

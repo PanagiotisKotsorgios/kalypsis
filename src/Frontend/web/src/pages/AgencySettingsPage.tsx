@@ -25,6 +25,8 @@ interface AgencyProfile {
   vatNumber: string | null;
   defaultCurrency: string;
   defaultPolicyDurationMonths: number;
+  tteRegistrationNumber: string | null;
+  tteRegistrationYear: number | null;
 }
 
 export function AgencySettingsPage() {
@@ -39,7 +41,8 @@ export function AgencySettingsPage() {
   const [form, setForm] = useState({
     name: "", logoUrl: "", brandColorHex: "#0b2545",
     contactEmail: "", contactPhone: "", addressLine: "", vatNumber: "",
-    defaultCurrency: "EUR", defaultPolicyDurationMonths: 12
+    defaultCurrency: "EUR", defaultPolicyDurationMonths: 12,
+    tteRegistrationNumber: "", tteRegistrationYear: ""
   });
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -64,13 +67,23 @@ export function AgencySettingsPage() {
         addressLine: q.data.addressLine ?? "",
         vatNumber: q.data.vatNumber ?? "",
         defaultCurrency: q.data.defaultCurrency,
-        defaultPolicyDurationMonths: q.data.defaultPolicyDurationMonths
+        defaultPolicyDurationMonths: q.data.defaultPolicyDurationMonths,
+        tteRegistrationNumber: q.data.tteRegistrationNumber ?? "",
+        tteRegistrationYear: q.data.tteRegistrationYear?.toString() ?? ""
       });
     }
   }, [q.data]);
 
   const save = useMutation({
-    mutationFn: async () => (await api.put<AgencyProfile>("/agency-profile", form)).data,
+    mutationFn: async () => {
+      // Convert TteRegistrationYear από string σε number|null πριν την αποστολή.
+      const body = {
+        ...form,
+        tteRegistrationNumber: form.tteRegistrationNumber.trim() || null,
+        tteRegistrationYear: form.tteRegistrationYear ? Number(form.tteRegistrationYear) : null
+      };
+      return (await api.put<AgencyProfile>("/agency-profile", body)).data;
+    },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["agency-profile"] });
       setSaved(true);
@@ -209,6 +222,25 @@ export function AgencySettingsPage() {
               />
               <TextField label={t("agencySettings.vat")} value={form.vatNumber}
                 onChange={(e) => setForm({ ...form, vatNumber: e.target.value.replace(/\D/g, "").slice(0, 9) })} fullWidth />
+            </Stack>
+            {/* Ν. 4583/2018 — αριθμός εγγραφής στο Ειδικό Μητρώο ΤτΕ ασφαλιστικών
+                διαμεσολαβητών. Εμφανίζεται στο footer του app για τους πελάτες. */}
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 2 }}>
+              <TextField
+                label={t("agencySettings.tteNumber", "Αρ. εγγραφής ΤτΕ (Ν.4583/2018)")}
+                value={form.tteRegistrationNumber}
+                onChange={(e) => setForm({ ...form, tteRegistrationNumber: e.target.value })}
+                fullWidth
+                helperText={t("agencySettings.tteNumberHint", "Ειδικό Μητρώο Ασφαλιστικών Διαμεσολαβητών Τραπέζης της Ελλάδος")}
+              />
+              <TextField
+                type="number"
+                label={t("agencySettings.tteYear", "Έτος πρώτης εγγραφής")}
+                value={form.tteRegistrationYear}
+                onChange={(e) => setForm({ ...form, tteRegistrationYear: e.target.value.replace(/\D/g, "").slice(0, 4) })}
+                fullWidth
+                inputProps={{ min: 1900, max: 2100 }}
+              />
             </Stack>
           </CardContent>
         </Card>

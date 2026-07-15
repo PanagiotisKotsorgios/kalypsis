@@ -19,7 +19,9 @@ public record AgencyProfileDto(
     string? AddressLine,
     string? VatNumber,
     string DefaultCurrency,
-    int DefaultPolicyDurationMonths);
+    int DefaultPolicyDurationMonths,
+    string? TteRegistrationNumber,
+    int? TteRegistrationYear);
 
 public record UpdateAgencyProfileBody(
     string Name,
@@ -30,7 +32,12 @@ public record UpdateAgencyProfileBody(
     string? AddressLine,
     string? VatNumber,
     string DefaultCurrency,
-    int DefaultPolicyDurationMonths);
+    int DefaultPolicyDurationMonths,
+    // Ν. 4583/2018 — αριθμός εγγραφής στο Ειδικό Μητρώο ΤτΕ, υποχρεωτικός για
+    // ασφαλιστικούς διαμεσολαβητές· εμφανίζεται στο footer της πλατφόρμας για
+    // να ικανοποιείται η υποχρέωση επίδειξης στους πελάτες.
+    string? TteRegistrationNumber,
+    int? TteRegistrationYear);
 
 public record GetMyAgencyProfileQuery() : IRequest<AgencyProfileDto>;
 
@@ -48,7 +55,8 @@ public class GetMyAgencyProfileQueryHandler : IRequestHandler<GetMyAgencyProfile
         return new AgencyProfileDto(
             t.Id, t.Name, t.Code, t.SubscriptionPlan,
             t.LogoUrl, t.BrandColorHex, t.ContactEmail, t.ContactPhone,
-            t.AddressLine, t.VatNumber, t.DefaultCurrency, t.DefaultPolicyDurationMonths);
+            t.AddressLine, t.VatNumber, t.DefaultCurrency, t.DefaultPolicyDurationMonths,
+            t.TteRegistrationNumber, t.TteRegistrationYear);
     }
 }
 
@@ -65,6 +73,10 @@ public class UpdateMyAgencyProfileCommandValidator : AbstractValidator<UpdateMyA
             RuleFor(x => x.Body.BrandColorHex!).Matches(@"^#?[0-9A-Fa-f]{6}$"));
         When(x => !string.IsNullOrWhiteSpace(x.Body.ContactEmail), () =>
             RuleFor(x => x.Body.ContactEmail!).EmailAddress());
+        When(x => !string.IsNullOrWhiteSpace(x.Body.TteRegistrationNumber), () =>
+            RuleFor(x => x.Body.TteRegistrationNumber!).MaximumLength(40));
+        When(x => x.Body.TteRegistrationYear.HasValue, () =>
+            RuleFor(x => x.Body.TteRegistrationYear!.Value).InclusiveBetween(1900, 2100));
     }
 }
 
@@ -90,12 +102,15 @@ public class UpdateMyAgencyProfileCommandHandler : IRequestHandler<UpdateMyAgenc
         t.VatNumber = string.IsNullOrWhiteSpace(b.VatNumber) ? null : b.VatNumber.Trim();
         t.DefaultCurrency = b.DefaultCurrency.Trim().ToUpperInvariant();
         t.DefaultPolicyDurationMonths = b.DefaultPolicyDurationMonths;
+        t.TteRegistrationNumber = string.IsNullOrWhiteSpace(b.TteRegistrationNumber) ? null : b.TteRegistrationNumber.Trim();
+        t.TteRegistrationYear = b.TteRegistrationYear;
         await _db.SaveChangesAsync(ct);
 
         return new AgencyProfileDto(
             t.Id, t.Name, t.Code, t.SubscriptionPlan,
             t.LogoUrl, t.BrandColorHex, t.ContactEmail, t.ContactPhone,
-            t.AddressLine, t.VatNumber, t.DefaultCurrency, t.DefaultPolicyDurationMonths);
+            t.AddressLine, t.VatNumber, t.DefaultCurrency, t.DefaultPolicyDurationMonths,
+            t.TteRegistrationNumber, t.TteRegistrationYear);
     }
 
     private static string Normalise(string color)
@@ -165,7 +180,8 @@ public class UploadAgencyLogoCommandHandler : IRequestHandler<UploadAgencyLogoCo
         return new AgencyProfileDto(
             t.Id, t.Name, t.Code, t.SubscriptionPlan,
             t.LogoUrl, t.BrandColorHex, t.ContactEmail, t.ContactPhone,
-            t.AddressLine, t.VatNumber, t.DefaultCurrency, t.DefaultPolicyDurationMonths);
+            t.AddressLine, t.VatNumber, t.DefaultCurrency, t.DefaultPolicyDurationMonths,
+            t.TteRegistrationNumber, t.TteRegistrationYear);
     }
 }
 
@@ -251,6 +267,7 @@ public class DeleteMyAgencyLogoCommandHandler : IRequestHandler<DeleteMyAgencyLo
         return new AgencyProfileDto(
             t.Id, t.Name, t.Code, t.SubscriptionPlan,
             t.LogoUrl, t.BrandColorHex, t.ContactEmail, t.ContactPhone,
-            t.AddressLine, t.VatNumber, t.DefaultCurrency, t.DefaultPolicyDurationMonths);
+            t.AddressLine, t.VatNumber, t.DefaultCurrency, t.DefaultPolicyDurationMonths,
+            t.TteRegistrationNumber, t.TteRegistrationYear);
     }
 }

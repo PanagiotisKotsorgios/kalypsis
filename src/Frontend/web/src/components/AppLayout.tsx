@@ -732,9 +732,38 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
       >
         <ImpersonationBanner />
         {children}
+        <TteRegistrationFooter />
       </Box>
       <KalypsisOnboarding />
       <PageTourMount />
+    </Box>
+  );
+}
+
+/**
+ * Ν. 4583/2018 — υποχρέωση επίδειξης αριθμού εγγραφής στο Ειδικό Μητρώο
+ * Ασφαλιστικών Διαμεσολαβητών ΤτΕ σε κάθε επικοινωνία με πελάτες.
+ * Εμφανίζεται μόνο αν το γραφείο έχει καταχωρήσει αριθμό στα Ρυθμίσεις.
+ */
+function TteRegistrationFooter() {
+  const { user } = useAuth();
+  const q = useQuery({
+    queryKey: ["agency-profile-tte"],
+    enabled: !!user?.tenantId,
+    queryFn: async () => (await api.get<{ tteRegistrationNumber: string | null; tteRegistrationYear: number | null; name: string }>("/agency-profile")).data,
+    staleTime: 10 * 60_000
+  });
+  if (!q.data?.tteRegistrationNumber) return null;
+  return (
+    <Box sx={{
+      mt: 4, py: 1.5, px: 2, borderTop: "1px solid rgba(11,37,69,0.08)",
+      textAlign: "center", fontSize: 11.5, color: "rgba(11,37,69,0.6)",
+      lineHeight: 1.6
+    }}>
+      {q.data.name} · Εγγεγραμμένος Ασφαλιστικός Διαμεσολαβητής, Ειδικό Μητρώο
+      ΤτΕ αρ. <strong>{q.data.tteRegistrationNumber}</strong>
+      {q.data.tteRegistrationYear ? ` (${q.data.tteRegistrationYear})` : ""}
+      {" · "}Ν. 4583/2018
     </Box>
   );
 }

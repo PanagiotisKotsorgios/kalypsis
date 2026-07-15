@@ -66,6 +66,7 @@ import { PrivacyPage } from "./pages/PrivacyPage";
 import { CookiesPage } from "./pages/CookiesPage";
 import { DpaPage } from "./pages/DpaPage";
 import { DpaAcceptancePrompt } from "./components/DpaAcceptancePrompt";
+import { BreachIncidentsPage } from "./pages/BreachIncidentsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { UnderMaintenancePage } from "./pages/UnderMaintenancePage";
 import { SiteMaintenancePage } from "./pages/SiteMaintenancePage";
@@ -395,6 +396,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/platform/storage", labelKey: "nav.storage", icon: <StorageIcon /> },
     { to: "/platform/jobs", labelKey: "nav.jobs", icon: <ScheduleIcon /> },
     { to: "/platform/status", labelKey: "nav.status", icon: <MonitorHeartIcon /> },
+    { to: "/platform/breach-incidents", labelKey: "nav.breachIncidents", icon: <RuleFolderIcon /> },
     { to: "/platform/compliance", labelKey: "nav.compliance", icon: <RuleFolderIcon /> },
     { to: "/platform/support", labelKey: "nav.support", icon: <SupportAgentIcon /> },
     { to: "/platform/economics", labelKey: "nav.platformEconomics", icon: <AnalyticsIcon /> },
@@ -654,6 +656,7 @@ export default function App() {
                   <Route path="platform/storage" element={<PlatformStoragePage />} />
                   <Route path="platform/jobs" element={<PlatformJobsPage />} />
                   <Route path="platform/status" element={<PlatformStatusPage />} />
+                  <Route path="platform/breach-incidents" element={<BreachIncidentsPage />} />
                   <Route path="platform/compliance" element={<PlatformCompliancePage />} />
                   <Route path="platform/support" element={<PlatformSupportPage />} />
                   <Route path="integration-settings" element={<IntegrationSettingsPage />} />

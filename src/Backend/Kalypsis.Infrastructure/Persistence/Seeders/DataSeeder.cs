@@ -1269,6 +1269,45 @@ public static class DataSeeder
                 KEY `IX_champ_res_RegAth` (`RegistrationAthleteId`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
 
+        // ==== Ν. 4583/2018 — ΤτΕ αριθμός εγγραφής στον Tenant =================
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "Tenants", column: "TteRegistrationNumber",
+            addSql: "ALTER TABLE `Tenants` ADD COLUMN `TteRegistrationNumber` varchar(40) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "Tenants", column: "TteRegistrationYear",
+            addSql: "ALTER TABLE `Tenants` ADD COLUMN `TteRegistrationYear` int NULL", ct);
+
+        // ==== GDPR Art. 33 — Data breach incidents registry ===================
+        await EnsureTableAsync(db, logger, dbName,
+            table: "data_breach_incidents",
+            createSql: @"CREATE TABLE IF NOT EXISTS `data_breach_incidents` (
+                `Id` char(36) NOT NULL,
+                `IncidentCode` varchar(20) NOT NULL,
+                `DiscoveredAt` datetime(6) NOT NULL,
+                `OccurredAt` datetime(6) NULL,
+                `Severity` int NOT NULL DEFAULT 1,
+                `ContainmentStatus` int NOT NULL DEFAULT 0,
+                `TenantsScope` int NOT NULL DEFAULT 0,
+                `AffectedTenantIdsJson` longtext NULL,
+                `Nature` varchar(2000) NOT NULL,
+                `AffectedDataCategories` varchar(500) NULL,
+                `EstimatedAffectedSubjects` int NULL,
+                `Mitigations` varchar(2000) NULL,
+                `TenantsNotifiedAt` datetime(6) NULL,
+                `AuthorityNotifiedAt` datetime(6) NULL,
+                `AuthorityReference` varchar(100) NULL,
+                `ReportedByUserId` char(36) NOT NULL,
+                `ClosedAt` datetime(6) NULL,
+                `ClosureNotes` varchar(2000) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_data_breach_incidents_Code` (`IncidentCode`),
+                KEY `IX_data_breach_incidents_Discovered` (`DiscoveredAt`),
+                KEY `IX_data_breach_incidents_ReportedBy` (`ReportedByUserId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
         // ==== GDPR Art. 28 — DPA acceptance table =============================
         await EnsureTableAsync(db, logger, dbName,
             table: "dpa_acceptances",
