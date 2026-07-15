@@ -1,12 +1,15 @@
+import { useState } from "react";
 import {
-  Alert, Box, Card, CardContent, Chip, CircularProgress, LinearProgress, Link, Stack, Typography
+  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions,
+  DialogContent, DialogTitle, LinearProgress, Link, Stack, Typography
 } from "@mui/material";
 import GavelIcon from "@mui/icons-material/Gavel";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import { useQuery } from "@tanstack/react-query";
+import HistoryIcon from "@mui/icons-material/History";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { api } from "../api/client";
+import { api, extractErrorMessage } from "../api/client";
 
 // GDPR + IDD compliance dashboard για το γραφείο-controller.
 // Δείχνει σε ένα κοίταγμα ποιοι πελάτες έχουν την απαιτούμενη τεκμηρίωση
@@ -27,17 +30,43 @@ interface Dashboard {
   sensitivePolicyCustomers: number;
   sensitivePolicyCustomersWithHealthConsent: number;
   sensitivePolicyCustomersMissingHealthConsent: number;
+  customersWithIddNeedsAssessment: number;
+  customersMissingIddNeedsAssessment: number;
+  highValueCustomers: number;
+  highValueCustomersWithAmlKyc: number;
+  highValueCustomersMissingAmlKyc: number;
   missingPrivacyNoticeSample: GapCustomer[];
   missingHealthConsentSample: GapCustomer[];
+  missingIddSample: GapCustomer[];
+  missingAmlKycSample: GapCustomer[];
+}
+
+interface BackfillResult {
+  created: number;
+  alreadyPresent: number;
 }
 
 export function ComplianceDashboardPage() {
   const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [backfillOpen, setBackfillOpen] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<BackfillResult | null>(null);
+  const [backfillError, setBackfillError] = useState<string | null>(null);
 
   const q = useQuery({
     queryKey: ["compliance-dashboard"],
     queryFn: async () => (await api.get<Dashboard>("/compliance-dashboard")).data,
     staleTime: 60_000
+  });
+
+  const backfill = useMutation({
+    mutationFn: async () => (await api.post<BackfillResult>("/compliance-dashboard/backfill-privacy-notice")).data,
+    onSuccess: (res) => {
+      setBackfillResult(res);
+      setBackfillError(null);
+      void qc.invalidateQueries({ queryKey: ["compliance-dashboard"] });
+    },
+    onError: (e) => setBackfillError(extractErrorMessage(e))
   });
 
   if (q.isLoading) {
@@ -50,31 +79,40 @@ export function ComplianceDashboardPage() {
   if (!q.data) return null;
   const d = q.data;
 
-  const privacyPct = d.totalCustomers > 0
-    ? Math.round((d.customersWithPrivacyNotice / d.totalCustomers) * 100)
-    : 100;
-  const healthPct = d.sensitivePolicyCustomers > 0
-    ? Math.round((d.sensitivePolicyCustomersWithHealthConsent / d.sensitivePolicyCustomers) * 100)
-    : 100;
+  const pct = (num: number, den: number) =>
+    den > 0 ? Math.round((num / den) * 100) : 100;
+  const privacyPct = pct(d.customersWithPrivacyNotice, d.totalCustomers);
+  const healthPct  = pct(d.sensitivePolicyCustomersWithHealthConsent, d.sensitivePolicyCustomers);
+  // Denominator για IDD = πελάτες με τουλάχιστον ένα συμβόλαιο, το ανακατασκευάζουμε
+  // από τα δύο counts (with + missing) — ο controller δεν το εκθέτει ξεχωριστά.
+  const iddDen = d.customersWithIddNeedsAssessment + d.customersMissingIddNeedsAssessment;
+  const iddPctFixed = pct(d.customersWithIddNeedsAssessment, iddDen);
+  const amlPct = pct(d.highValueCustomersWithAmlKyc, d.highValueCustomers);
 
   return (
     <Box>
-      <Stack direction="row" alignItems="center" spacing={2} mb={3}>
-        <GavelIcon sx={{ fontSize: 36 }} color="primary" />
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800 }}>
-            {t("complianceDashboard.title", "Πίνακας Συμμόρφωσης")}
-          </Typography>
-          <Typography color="text.secondary">
-            {t("complianceDashboard.subtitle",
-              "GDPR + IDD status του γραφείου σας — πόσους πελάτες καλύπτουν οι υποχρεωτικές συγκαταθέσεις.")}
-          </Typography>
-        </Box>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} mb={3}>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <GavelIcon sx={{ fontSize: 36 }} color="primary" />
+          <Box>
+            <Typography variant="h4" sx={{ fontWeight: 800 }}>
+              {t("complianceDashboard.title", "Πίνακας Συμμόρφωσης")}
+            </Typography>
+            <Typography color="text.secondary">
+              {t("complianceDashboard.subtitle",
+                "GDPR + IDD + AML/KYC status του γραφείου σας — τι είναι μαζί, τι εκκρεμεί.")}
+            </Typography>
+          </Box>
+        </Stack>
+        <Button variant="outlined" startIcon={<HistoryIcon />} onClick={() => setBackfillOpen(true)}>
+          {t("complianceDashboard.backfillBtn", "Backfill παλαιών πελατών")}
+        </Button>
       </Stack>
 
       <Stack direction={{ xs: "column", md: "row" }} spacing={2} mb={2}>
         <ComplianceCard
-          title={t("complianceDashboard.gdpr13Title", "Ενημέρωση Υποκειμένου (Άρθρο 13 GDPR)")}
+          title={t("complianceDashboard.gdpr13Title", "Ενημέρωση Υποκειμένου")}
+          legalRef="Άρθρο 13 GDPR"
           description={t("complianceDashboard.gdpr13Body",
             "Κάθε πελάτης πρέπει να έχει παραλάβει την Ενημέρωση Υποκειμένου κατά τη συλλογή των στοιχείων του.")}
           numerator={d.customersWithPrivacyNotice}
@@ -86,7 +124,8 @@ export function ComplianceDashboardPage() {
             "Καταγράψτε consent από την καρτέλα κάθε πελάτη ή δημιουργήστε ξανά με το checkbox της φόρμας.")}
         />
         <ComplianceCard
-          title={t("complianceDashboard.gdpr9Title", "Δεδομένα Υγείας (Άρθρο 9 GDPR)")}
+          title={t("complianceDashboard.gdpr9Title", "Δεδομένα Υγείας")}
+          legalRef="Άρθρο 9 GDPR"
           description={t("complianceDashboard.gdpr9Body",
             "Πελάτες με συμβόλαιο Ζωής ή Υγείας πρέπει να έχουν δώσει ρητή συγκατάθεση για επεξεργασία δεδομένων υγείας.")}
           numerator={d.sensitivePolicyCustomersWithHealthConsent}
@@ -99,18 +138,92 @@ export function ComplianceDashboardPage() {
         />
       </Stack>
 
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} mb={2}>
+        <ComplianceCard
+          title={t("complianceDashboard.iddTitle", "Ανάλυση Απαιτήσεων & Αναγκών")}
+          legalRef="Ν. 4583/2018 · IDD Άρθρο 27"
+          description={t("complianceDashboard.iddBody",
+            "Ο διαμεσολαβητής υπογράφει με κάθε πελάτη Ανάλυση Αναγκών πριν προτείνει προϊόν.")}
+          numerator={d.customersWithIddNeedsAssessment}
+          denominator={iddDen}
+          missing={d.customersMissingIddNeedsAssessment}
+          percent={iddPctFixed}
+          gapSample={d.missingIddSample}
+          gapCta={t("complianceDashboard.iddCta",
+            "Πάρτε το IDD Demands & Needs έντυπο και υπογράψτε το με τον πελάτη.")}
+        />
+        <ComplianceCard
+          title={t("complianceDashboard.amlTitle", "Δήλωση Πραγματικού Δικαιούχου (AML/KYC)")}
+          legalRef="Ν. 4557/2018"
+          description={t("complianceDashboard.amlBody",
+            "Πελάτες με συμβόλαιο Ζωής ή ετήσιο ασφάλιστρο ≥15.000€ πρέπει να έχουν καταθέσει KYC/AML δήλωση.")}
+          numerator={d.highValueCustomersWithAmlKyc}
+          denominator={d.highValueCustomers}
+          missing={d.highValueCustomersMissingAmlKyc}
+          percent={amlPct}
+          gapSample={d.missingAmlKycSample}
+          gapCta={t("complianceDashboard.amlCta",
+            "Συλλέξτε τη Δήλωση Πραγματικού Δικαιούχου + Πηγής Χρημάτων από κάθε πελάτη του dataset.")}
+        />
+      </Stack>
+
       <Alert severity="info">
         {t("complianceDashboard.footer",
-          "Οι τιμές υπολογίζονται σε πραγματικό χρόνο. Πάνω από 90% σε κάθε δείκτη = συμμορφούμενο γραφείο έναντι έλεγχου ΑΠΔΠΧ.")}
+          "Οι τιμές υπολογίζονται σε πραγματικό χρόνο. Πάνω από 90% σε κάθε δείκτη = συμμορφούμενο γραφείο έναντι ελέγχου ΑΠΔΠΧ/ΤτΕ.")}
       </Alert>
+
+      {/* Backfill dialog — μία φορά για όλους τους παλιούς πελάτες */}
+      <Dialog open={backfillOpen} onClose={() => setBackfillOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{t("complianceDashboard.backfillTitle", "Backfill Ενημέρωσης Υποκειμένου")}</DialogTitle>
+        <DialogContent>
+          {backfillResult ? (
+            <Alert severity="success">
+              Δημιουργήθηκαν {backfillResult.created} νέα records. Ήδη υπήρχαν {backfillResult.alreadyPresent}.
+            </Alert>
+          ) : (
+            <>
+              <Typography paragraph>
+                Η ενέργεια αυτή δημιουργεί ένα ConsentRecord PrivacyNotice
+                (Method=Verbal, Version=«backfill-legacy») για κάθε ενεργό πελάτη
+                του γραφείου σας που δεν έχει ήδη. Είναι για <strong>παλαιούς
+                πελάτες</strong> που δημιουργήθηκαν πριν την ενεργοποίηση του
+                mandatory checkbox στη φόρμα δημιουργίας.
+              </Typography>
+              <Typography paragraph color="warning.main">
+                Πατώντας «Εκτέλεση» δηλώνετε ότι είχατε δώσει προφορικά την
+                Ενημέρωση Υποκειμένου σε όλους αυτούς τους πελάτες. Η ενέργεια
+                γίνεται log στο audit trail με timestamp και IP.
+              </Typography>
+              {backfillError && (
+                <Alert severity="error" onClose={() => setBackfillError(null)}>
+                  {backfillError}
+                </Alert>
+              )}
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setBackfillOpen(false); setBackfillResult(null); }}>
+            {backfillResult ? "Κλείσιμο" : "Ακύρωση"}
+          </Button>
+          {!backfillResult && (
+            <Button variant="contained" color="warning"
+              disabled={backfill.isPending}
+              onClick={() => backfill.mutate()}>
+              {backfill.isPending ? <CircularProgress size={18} /> : "Εκτέλεση Backfill"}
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
 
 function ComplianceCard({
-  title, description, numerator, denominator, missing, percent, gapSample, gapCta
+  title, legalRef, description, numerator, denominator, missing, percent, gapSample, gapCta
 }: {
   title: string;
+  legalRef?: string;
   description: string;
   numerator: number;
   denominator: number;
@@ -127,7 +240,12 @@ function ComplianceCard({
     <Card variant="outlined" sx={{ flex: 1 }}>
       <CardContent>
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1}>
-          <Typography fontWeight={700}>{title}</Typography>
+          <Box>
+            <Typography fontWeight={700}>{title}</Typography>
+            {legalRef && (
+              <Chip size="small" label={legalRef} color="primary" variant="outlined" sx={{ mt: 0.5 }} />
+            )}
+          </Box>
           <Chip
             size="small"
             icon={status === "success" ? <CheckCircleIcon /> : <WarningAmberIcon />}
@@ -135,7 +253,7 @@ function ComplianceCard({
             color={status}
           />
         </Stack>
-        <Typography variant="body2" color="text.secondary" mb={2}>{description}</Typography>
+        <Typography variant="body2" color="text.secondary" mb={2} mt={1}>{description}</Typography>
 
         <Box mb={2}>
           <LinearProgress

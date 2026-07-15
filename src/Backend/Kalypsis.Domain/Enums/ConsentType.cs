@@ -21,7 +21,16 @@ public enum ConsentType
 
     /// <summary>Άρθρο 9§2(α) GDPR — ρητή συγκατάθεση επεξεργασίας δεδομένων
     /// υγείας. Απαιτούμενη για συμβόλαια Ζωής/Υγείας/Ατυχημάτων.</summary>
-    HealthDataProcessing = 8
+    HealthDataProcessing = 8,
+
+    /// <summary>Ν. 4583/2018 Άρθρο 27 (IDD) — Ανάλυση Απαιτήσεων & Αναγκών.
+    /// Ο διαμεσολαβητής υπογράφει με τον πελάτη το σχετικό έντυπο πριν
+    /// προτείνει προϊόν.</summary>
+    IddDemandsAndNeeds = 9,
+
+    /// <summary>Ν. 4557/2018 — Δήλωση Πραγματικού Δικαιούχου & Πηγής Χρημάτων
+    /// (KYC/AML). Απαιτούμενη για συμβόλαια Ζωής ή αξίας ≥15.000€/έτος.</summary>
+    AmlKycDeclaration = 10
 }
 
 public enum ConsentMethod

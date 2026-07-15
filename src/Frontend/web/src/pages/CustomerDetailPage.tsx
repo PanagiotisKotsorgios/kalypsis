@@ -118,7 +118,16 @@ interface FamilyProfile {
   opportunities: { customerId: string; customerName: string; relationship: string | null; needKind: string; needTitle: string; reason: string; priority: number; }[];
 }
 
-const CONSENT_TYPES = [
+// Ομαδοποιημένα consent types για το UI του CustomerDetailPage. Οι δύο
+// ομάδες εμφανίζονται σε ξεχωριστά sections ώστε ο operator να μη μπερδεύει
+// τα Άρθρα 13/9 GDPR (compliance-critical) με τα marketing opt-ins.
+const CONSENT_TYPES_LEGAL = [
+  "PrivacyNotice",             // Άρθρο 13 GDPR
+  "HealthDataProcessing",      // Άρθρο 9 GDPR
+  "IddDemandsAndNeeds",        // Ν.4583/2018 Άρθρο 27
+  "AmlKycDeclaration",         // Ν.4557/2018
+];
+const CONSENT_TYPES_MARKETING = [
   "EmailMarketing",
   "SmsMarketing",
   "ViberMarketing",
@@ -616,10 +625,21 @@ function ConsentsTab({ customerId }: { customerId: string }) {
   });
 
   const grant = useMutation({
-    mutationFn: async (type: string) => api.post(`/customers/${customerId}/consents`, {
-      type, method: "OnlineForm", version: "v1"
-    }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["customer-consents", customerId] }),
+    mutationFn: async (type: string) => {
+      // Νομικές συγκαταθέσεις: υπογράφονται σε τυπωμένο έντυπο. Marketing:
+      // στην πράξη δίνονται είτε τηλεφωνικά είτε online — «OnlineForm» είναι
+      // λογικό default. Ο operator μπορεί να το αλλάξει από το UI αν χρειαστεί.
+      const isLegal = CONSENT_TYPES_LEGAL.includes(type);
+      return api.post(`/customers/${customerId}/consents`, {
+        type,
+        method: isLegal ? "PaperForm" : "OnlineForm",
+        version: "v1.0"
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["customer-consents", customerId] });
+      qc.invalidateQueries({ queryKey: ["compliance-dashboard"] });
+    },
     onError: (e) => setErr(extractErrorMessage(e))
   });
 
@@ -637,36 +657,51 @@ function ConsentsTab({ customerId }: { customerId: string }) {
     return m;
   }, [q.data]);
 
+  const renderRow = (type: string, i: number) => {
+    const active = !!liveByType[type];
+    return (
+      <Stack key={type} direction="row" alignItems="center" sx={{
+        p: 2,
+        borderTop: i === 0 ? 0 : 1,
+        borderColor: "divider"
+      }}>
+        <Box sx={{ flex: 1 }}>
+          <Typography fontWeight={700}>{consentLabel(type)}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {active
+              ? `Δόθηκε ${formatDate(liveByType[type]!.grantedAt)}`
+              : "Ανενεργό"}
+          </Typography>
+        </Box>
+        <Switch
+          checked={active}
+          disabled={grant.isPending || revoke.isPending}
+          onChange={(e) => (e.target.checked ? grant.mutate(type) : revoke.mutate(type))}
+        />
+      </Stack>
+    );
+  };
+
   return (
     <Box>
-      <Typography variant="h6" sx={{ mb: 2 }}>Συγκαταθέσεις επικοινωνίας</Typography>
       {err && <Alert severity="error" onClose={() => setErr(null)} sx={{ mb: 2 }}>{err}</Alert>}
 
+      <Typography variant="h6" sx={{ mb: 1.5 }}>Νομικές Συγκαταθέσεις</Typography>
+      <Typography variant="body2" color="text.secondary" mb={1.5}>
+        Υποχρεωτικές βάσει GDPR / IDD / AML. Πάρτε το έντυπο από τη σελίδα «Νομικά
+        Έντυπα Πελατών», δώστε το στον πελάτη, και μόλις υπογραφεί ενεργοποιήστε
+        το αντίστοιχο switch εδώ.
+      </Typography>
+      <Card variant="outlined" sx={{ mb: 3 }}>
+        {CONSENT_TYPES_LEGAL.map((type, i) => renderRow(type, i))}
+      </Card>
+
+      <Typography variant="h6" sx={{ mb: 1.5 }}>Συγκαταθέσεις Επικοινωνίας</Typography>
+      <Typography variant="body2" color="text.secondary" mb={1.5}>
+        Marketing opt-ins ανά κανάλι. Ο πελάτης μπορεί να ανακαλέσει ανά πάσα στιγμή.
+      </Typography>
       <Card variant="outlined">
-        {CONSENT_TYPES.map((type, i) => {
-          const active = !!liveByType[type];
-          return (
-            <Stack key={type} direction="row" alignItems="center" sx={{
-              p: 2,
-              borderTop: i === 0 ? 0 : 1,
-              borderColor: "divider"
-            }}>
-              <Box sx={{ flex: 1 }}>
-                <Typography fontWeight={700}>{consentLabel(type)}</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {active
-                    ? `Δόθηκε ${formatDate(liveByType[type]!.grantedAt)}`
-                    : "Ανενεργό"}
-                </Typography>
-              </Box>
-              <Switch
-                checked={active}
-                disabled={grant.isPending || revoke.isPending}
-                onChange={(e) => (e.target.checked ? grant.mutate(type) : revoke.mutate(type))}
-              />
-            </Stack>
-          );
-        })}
+        {CONSENT_TYPES_MARKETING.map((type, i) => renderRow(type, i))}
       </Card>
 
       <Box sx={{ mt: 3 }}>
@@ -714,6 +749,10 @@ function ConsentsTab({ customerId }: { customerId: string }) {
 
 function consentLabel(type: string): string {
   switch (type) {
+    case "PrivacyNotice": return "Ενημέρωση Υποκειμένου (Άρθρο 13 GDPR)";
+    case "HealthDataProcessing": return "Επεξεργασία δεδομένων υγείας (Άρθρο 9 GDPR)";
+    case "IddDemandsAndNeeds": return "Ανάλυση Αναγκών Πελάτη (IDD)";
+    case "AmlKycDeclaration": return "Δήλωση Πραγματικού Δικαιούχου (AML/KYC)";
     case "EmailMarketing": return "Email marketing";
     case "SmsMarketing": return "SMS marketing";
     case "ViberMarketing": return "Viber marketing";
