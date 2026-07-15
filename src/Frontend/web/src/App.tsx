@@ -224,6 +224,7 @@ const navByRole: Record<Role, NavItem[]> = {
 
     // ===== BackOffice — Standalone "Γέφυρες Εταιριών" (carrier xlsx/csv import) =====
     { to: "/carrier-bridges", labelKey: "nav.carrierBridges", icon: <CloudUploadIcon />, package: "BackOffice" },
+    { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
     { to: "/bridge-code-mappings", labelKey: "nav.bridgeCodeMappings", icon: <CloudUploadIcon />, package: "BackOffice" },
 
     // ===== BackOffice — ΠΑΡΑΓΩΓΗ (core production records: customers, policies, claims) =====
@@ -250,7 +251,6 @@ const navByRole: Record<Role, NavItem[]> = {
     // BackOffice → ΠΡΟΜΗΘΕΙΕΣ — the commission settlement entry point is in
     // Production Lists, keeping production reporting and monthly settlement together.
     { to: "/over-commissions", labelKey: "nav.overCommissions", icon: <StackedLineChartIcon />,  package: "BackOffice", group: "production" },
-    { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice", group: "production" },
 
     // Accounting and cash-control routes remain available from the Financial hub.
 
