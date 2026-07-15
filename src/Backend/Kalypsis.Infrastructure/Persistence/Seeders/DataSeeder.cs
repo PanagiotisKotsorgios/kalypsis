@@ -235,6 +235,69 @@ public static class DataSeeder
     }
 
     /// <summary>
+    /// Πλήρης κατάλογος global ασφαλιστικών εταιρειών που ξέρει η πλατφόρμα —
+    /// αντιγράφει την λίστα του ALIS ώστε κάθε γραφείο-πελάτης να βλέπει τις
+    /// ίδιες επιλογές στη σελίδα «Γέφυρες Εταιρειών». Οι πρώτες 4 (ERGO,
+    /// ATLANTIC, INTERLIFE, GRAND_COVER) έχουν λειτουργικό parser· οι
+    /// υπόλοιπες εμφανίζονται με «Χρειάζεται παραμετροποίηση» modal στο
+    /// frontend μέχρι να γραφτεί ο αντίστοιχος adapter.
+    ///
+    /// Ονομάζοντας μια εταιρεία εδώ αυτόματα την:
+    ///   (α) προστατεύει από το whitelist-cleanup στο CleanupNonGrandCoverGlobalsAsync
+    ///   (β) την σπέρνει ως global (TenantId=null) InsuranceCompany αν δεν υπάρχει
+    ///   (γ) την κάνει να εμφανιστεί στο /carrier-bridges/available endpoint
+    /// </summary>
+    private static readonly (string Code, string Name)[] GlobalCarriers =
+    {
+        // ---- Working parsers (Kalypsis-provided bridges) ----
+        ("ERGO",             "ERGO Hellas"),
+        ("ATLANTIC",         "Ατλαντική Ένωση"),
+        ("INTERLIFE",        "Interlife"),
+        // GRAND_COVER seeded separately by GrandCoverSeeder με broker hierarchy
+        // αλλά κρατάμε τον κωδικό στο whitelist ώστε να μη διαγραφεί.
+        ("GRAND_COVER",      "Grand Cover"),
+
+        // ---- Additional carriers from the ALIS catalogue ----
+        // Κάθε γραφείο-πελάτης πρέπει να αναγνωρίζει αυτή τη λίστα από το παλιό
+        // back-office. Rebranded/merged entities διατηρούνται για ιστορικούς
+        // λόγους (π.χ. Ευρωπαϊκή Πίστη ενσωματώθηκε στην Allianz το 2022 αλλά
+        // παλιά συμβόλαια εξακολουθούν να αναφέρονται σε αυτήν).
+        ("ACCELERANT",       "Accelerant"),
+        ("ALLIANZ",          "Allianz"),
+        ("ALLIANZ_EP",       "Allianz - Ευρωπαϊκή Πίστη"),
+        ("ARAG",             "Arag"),
+        ("CNP_LIFE",         "CNP Life"),
+        ("DAS",              "DAS"),
+        ("EUROLIFE",         "EFG Eurolife"),
+        ("ERMIS_ASSIST",     "Ermis Assistance"),
+        ("EUROINS",          "EuroIns"),
+        ("EUROINS_ATLAS",    "EuroIns 2 (ATLAS)"),
+        ("EXTRA_ASSIST",     "Extra Assistance"),
+        ("GROUPAMA",         "Groupama"),
+        ("HELLAS_DIRECT",    "Hellas Direct"),
+        ("INTERAMERICAN",    "Interamerican"),
+        ("INTER_GL_ASSIST",  "Inter GL Assistance"),
+        ("MEDITERRANIA",     "Mediterrania"),
+        ("MODIAL",           "Modial Insurance"),
+        ("PERSONAL",         "Personal"),
+        ("PERSONAL_2",       "Personal 2"),
+        ("PRIME_DEMCO",      "Prime Demco Υγείας"),
+        ("QEL",              "Qel"),
+        ("APEIRON",          "Άπειρον"),
+        ("GENIKI_PAN",       "Γενική Πανελλαδική"),
+        ("DYNAMIS",          "Δύναμις"),
+        ("ETHNIKI",          "Εθνική Ασφαλιστική"),
+        ("EUROPI_ASF",       "Ευρώπη Ασφαλιστική"),
+        ("INTERSALONIKA",    "ΙντερΣαλόνικα"),
+        ("MINETTA",          "Μινέττα"),
+        ("NEOS_POSEIDON",    "Νέος Ποσειδών"),
+        ("ORIZON",           "Ορίζων"),
+        ("SYNDEA",           "Συνεταιριστική - SYNDEA"),
+        ("YDROGEIOS",        "Υδρόγειος"),
+        ("INTERASCO",        "InterAsco OVER"),
+    };
+
+    /// <summary>
     /// Nuclear, raw-SQL cleanup. Runs on every boot, fully idempotent.
     /// EF change-tracking is bypassed so this works even if any row has a
     /// stale FK or a soft-delete state the model wouldn't normally read.
@@ -306,7 +369,9 @@ public static class DataSeeder
         // its subs, or a *whitelisted standalone carrier we ship a bridge
         // parser for*. This kills the demo carriers and duplicate Grand
         // Cover broker copies while keeping ERGO alive alongside GC.
-        var carrierWhitelistCsv = "'ERGO','ATLANTIC','INTERLIFE'"; // extend when a new bridge lands
+        // Whitelist built από τη στατική λίστα GlobalCarriers ώστε να μη ξεχνιέται
+        // ένας κωδικός όταν μπαίνει νέα εταιρεία στο κατάλογο. ALIS-style set.
+        var carrierWhitelistCsv = string.Join(",", GlobalCarriers.Select(c => $"'{c.Code}'"));
         var deletedCarriers = await db.Database.ExecuteSqlRawAsync($@"
             UPDATE `insurance_companies`
             SET `DeletedAt` = UTC_TIMESTAMP(6), `IsActive` = 0
@@ -324,7 +389,10 @@ public static class DataSeeder
         // IsBroker=0), then soft-delete every other row with the same Code
         // and re-route their CompanyParameterItems to the canonical row.
         // This is idempotent — running twice yields the same single row.
-        var whitelistedCodes = new[] { "ERGO", "ATLANTIC", "INTERLIFE" };
+        // GRAND_COVER στο loop θα μπερδέψει τη broker-hierarchy — τη χειρίζεται
+        // ήδη ο GrandCoverSeeder — γι' αυτό εξαιρείται από το normalise-loop.
+        var whitelistedCodes = GlobalCarriers.Select(c => c.Code)
+            .Where(c => c != "GRAND_COVER").ToArray();
         foreach (var wcode in whitelistedCodes)
         {
             var canonicalWlId = await db.InsuranceCompanies.IgnoreQueryFilters()
@@ -336,14 +404,10 @@ public static class DataSeeder
 
             if (canonicalWlId is null)
             {
-                // No row exists at all — seed a fresh one.
-                var displayName = wcode switch
-                {
-                    "ERGO"      => "ERGO Hellas",
-                    "ATLANTIC"  => "Ατλαντική Ένωση",
-                    "INTERLIFE" => "Interlife",
-                    _           => wcode
-                };
+                // No row exists at all — seed a fresh one χρησιμοποιώντας το
+                // display name από τη στατική λίστα (fallback στο code).
+                var displayName = GlobalCarriers
+                    .FirstOrDefault(c => c.Code == wcode).Name ?? wcode;
                 db.InsuranceCompanies.Add(new InsuranceCompany
                 {
                     Id = Guid.NewGuid(),

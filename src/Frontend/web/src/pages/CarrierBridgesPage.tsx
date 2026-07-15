@@ -134,6 +134,9 @@ export function CarrierBridgesPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [detailRow, setDetailRow] = useState<ImportRow | null>(null);
+  // Όνομα της εταιρείας που ζητά ο χρήστης αλλά ΔΕΝ έχει έτοιμο parser —
+  // ανοίγει «Χρειάζεται παραμετροποίηση» dialog μέχρι να γραφτεί ο adapter.
+  const [underDevCarrier, setUnderDevCarrier] = useState<string | null>(null);
 
   const carriers = useQuery({
     queryKey: ["available-bridges"],
@@ -355,17 +358,22 @@ export function CarrierBridgesPage() {
             <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "repeat(2,1fr)", md: "repeat(3,1fr)" } }}>
               {(carriers.data ?? []).map(c => (
                 <Card key={c.insuranceCompanyId} variant="outlined" sx={{
-                  p: 2, cursor: c.bridgeAvailable ? "pointer" : "not-allowed",
-                  opacity: c.bridgeAvailable ? 1 : 0.45,
-                  "&:hover": { borderColor: c.bridgeAvailable ? "primary.main" : undefined }
-                }} onClick={() => c.bridgeAvailable && setSelected(c)}>
+                  p: 2, cursor: "pointer",
+                  transition: "all 0.15s",
+                  "&:hover": {
+                    borderColor: "primary.main",
+                    boxShadow: 2,
+                    transform: "translateY(-1px)"
+                  }
+                }} onClick={() => {
+                  if (c.bridgeAvailable) setSelected(c);
+                  else setUnderDevCarrier(c.name);
+                }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
                     <Typography fontWeight={700}>{c.name}</Typography>
                     {c.bridgeAvailable
                       ? <Chip size="small" color="success" icon={<CheckCircleIcon />} label={c.bridgeFormat} />
-                      : <Tooltip title={t("carrierBridges.unavailableReason")}>
-                          <Chip size="small" icon={<HelpOutlineIcon />} label={t("carrierBridges.unavailable")} />
-                        </Tooltip>}
+                      : <Chip size="small" icon={<HelpOutlineIcon />} label={t("carrierBridges.unavailable")} variant="outlined" />}
                   </Stack>
                   <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>{c.code}</Typography>
                 </Card>
@@ -377,6 +385,32 @@ export function CarrierBridgesPage() {
           )}
         </Card>
       )}
+
+      {/* «Χρειάζεται παραμετροποίηση» modal για κάθε unavailable carrier —
+          όλες οι εταιρείες του ALIS καταλόγου είναι ορατές αλλά μόνο οι
+          4 πρώτες (ERGO/ATLANTIC/INTERLIFE/GRAND_COVER) έχουν έτοιμο parser. */}
+      <Dialog open={!!underDevCarrier} onClose={() => setUnderDevCarrier(null)}
+        maxWidth="xs" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <HelpOutlineIcon color="warning" />
+            <span>{t("carrierBridges.underDevTitle", "Χρειάζεται επιπλέον παραμετροποίηση")}</span>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            {t("carrierBridges.underDevBody",
+              "Η γέφυρα για την εταιρεία «{{carrier}}» χρειάζεται επιπλέον παραμετροποίηση ανάλογα με τον τύπο του γραφείου σας. Επικοινωνήστε μαζί μας για να την ενεργοποιήσουμε.", {
+              carrier: underDevCarrier ?? ""
+            })}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" onClick={() => setUnderDevCarrier(null)}>
+            {t("common.close", "Κλείσιμο")}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Link-carrier gate — dispatched from Step 2 the moment the operator
           selects a carrier that isn't yet linked to one of their own. */}
