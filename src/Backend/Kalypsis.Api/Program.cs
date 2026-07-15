@@ -44,6 +44,18 @@ if (!builder.Environment.IsDevelopment())
     if (LooksLikePlaceholder(jwt.Secret))
         throw new InvalidOperationException("Jwt:Secret looks like a placeholder — refuse to start. See SECURITY.md.");
 
+    // DataProtection master key — feeds application-level column encryption
+    // (see SensitiveDataEncryptor). If this changes or is lost, every encrypted
+    // column (customer ΑΜΚΑ / ΑΔΤ / IBAN / OAuth tokens) becomes unreadable.
+    // Store in Coolify env var so it survives redeploys and gets backed up
+    // with the app config export.
+    var dpMaster = builder.Configuration["DataProtection:MasterKey"] ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(dpMaster) || dpMaster.Length < 32)
+        throw new InvalidOperationException(
+            "DataProtection:MasterKey must be at least 32 chars in production. Generate from a CSPRNG (e.g. openssl rand -base64 48). See SECURITY.md.");
+    if (LooksLikePlaceholder(dpMaster))
+        throw new InvalidOperationException("DataProtection:MasterKey looks like a placeholder — refuse to start. See SECURITY.md.");
+
     var conn = builder.Configuration.GetConnectionString("Default") ?? string.Empty;
     if (string.IsNullOrWhiteSpace(conn))
         throw new InvalidOperationException("ConnectionStrings:Default is required in production.");

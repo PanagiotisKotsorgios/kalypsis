@@ -13,6 +13,7 @@ following are missing or look like placeholders.
 | Env var (Coolify panel)                      | Notes |
 |----------------------------------------------|-------|
 | `Jwt__Secret`                                | ≥ 48 chars, CSPRNG-generated. Used to sign access tokens. |
+| `DataProtection__MasterKey`                  | ≥ 32 chars, CSPRNG-generated. Master key for AES-256-GCM column encryption. **Losing it = losing every encrypted column.** |
 | `ConnectionStrings__Default`                 | MySQL connection string with a non-empty `Password=`. |
 | `Cors__FrontendOrigin`                       | The HTTPS origin of the SPA (e.g. `https://www.mykalypsis.gr`). Comma-separated for multiple. |
 | `Brevo__ApiKey`                              | Recommended (not enforced). Without it, password reset + contact form silently won't email. |
@@ -53,10 +54,14 @@ leaves, or every 6–12 months as routine hygiene.
 
 ---
 
-## Application-level encryption at rest (DataProtection keyring)
+## Application-level encryption at rest
 
-Sensitive columns are encrypted at the EF layer via ASP.NET DataProtection
-(AES-256-GCM + HMAC-SHA256). The affected columns:
+Sensitive columns are encrypted at the EF layer with **AES-256-GCM** (via
+`SensitiveDataEncryptor`). The master key comes from the Coolify env var
+`DataProtection__MasterKey` and gets derived per-purpose through HKDF-SHA256
+— **no persistent volume needed, no on-disk keyring**.
+
+### Affected columns
 
 - **Customer PII** — `Amka`, `IdNumber`, `PassportNumber`, `DriverLicenseNumber`
 - **Financial identifiers** — `BankConnection.Iban`, `BankStatementLine.CounterpartyIban`,
@@ -66,45 +71,50 @@ Sensitive columns are encrypted at the EF layer via ASP.NET DataProtection
   `TelephonyConnection.{AccountSid,AuthToken}Encrypted`,
   `BackofficeBridgeConnection.SecretEncrypted`
 
-Ciphertext is prefixed with `kx1:` so the read path can distinguish encrypted
-values from legacy plaintext (older rows written before this feature shipped
-keep working — they self-heal to encrypted on the next write).
+Ciphertext envelope: `kx1:` + base64(nonce(12) ‖ tag(16) ‖ ciphertext). The
+prefix lets the read path distinguish encrypted values from legacy plaintext
+(older rows written before this feature shipped keep working — they self-heal
+to encrypted on the next write).
 
-### The keyring volume
+### Backup story
 
-The key material lives at `/data/keys` inside the API container, mounted from
-the Docker volume `dp_keys`. **This volume MUST be persistent and backed up
-alongside `mysql_data_v2`.** If you lose the keyring, every encrypted column
-in the DB becomes unreadable — the row is intact but its ciphertext can't be
-decrypted.
+You only need to back up **two things** to restore a Kalypsis production
+instance:
 
-- Env var: `DataProtection__KeyRingPath` (default `/data/keys`)
-- Coolify: the volume is declared in `docker-compose.yml`; add it to your
-  scheduled backup (Coolify → Storages → Backups)
+1. The **MySQL data volume** (`mysql_data_v2`) — encrypted ciphertext rows
+2. The **Coolify app config export** (Menu → «Configuration» → export) —
+   contains `DataProtection__MasterKey` alongside every other env var
 
-### Restoring from backup
+A DB dump alone is **useless to an attacker** without the master key. That's
+the whole point of moving away from a volume-based keyring: even if someone
+walks off with `mysqldump` output, they can't decrypt anything.
 
-To restore a Kalypsis production instance you need BOTH:
-1. The MySQL data volume (contains encrypted ciphertext rows)
-2. The `dp_keys` volume (contains the AES keys)
+### Setting the master key on a fresh Coolify install
 
-A restore that only recovers MySQL will leave every encrypted column stuck
-as gibberish. On first boot after such a mistake, the API keeps running but
-sensitive fields display as `kx1:CfDJ8...` in the UI.
+1. Generate the key:
+   ```bash
+   openssl rand -base64 48
+   ```
+2. Coolify → your app → **Environment Variables** → add
+   `DATA_PROTECTION_MASTER_KEY=<the-generated-value>`.
+3. Deploy. The API refuses to boot in production if this is missing, ≤ 32
+   chars, or looks like a placeholder (`change-me`, `xxxx`, `placeholder`, …).
 
-### Rotating the DataProtection keys
+### Rotating the master key
 
-ASP.NET DataProtection rotates keys automatically every 90 days. Old keys stay
-in the ring so previously-encrypted data still decrypts — you only lose access
-if you delete the `dp_keys` volume.
+Rotation requires re-encrypting existing rows because the derived AES key
+changes when the master changes. The safe procedure:
 
-To force-rotate manually (e.g. after a suspected key leak):
-```bash
-docker exec -it <api-container> sh -c 'rm /data/keys/key-*.xml && kill 1'
-```
-Coolify restarts the container; a fresh key is generated. Existing encrypted
-rows keep working because DataProtection tries all keys on the ring on read
-until one succeeds.
+1. **Keep the OLD key handy** — you can only decrypt existing ciphertext with it.
+2. Set a NEW `DATA_PROTECTION_MASTER_KEY` and redeploy.
+3. **Re-encrypt loop**: touch every encrypted row (update-in-place). The
+   converter reads with the new key first; if that fails (because the row was
+   still encrypted under the old key), the value shows as ciphertext.
+
+Until re-encryption support ships as an automated command, plan rotations
+during a maintenance window. Rotate ONLY if the current key is suspected to
+have leaked — not as routine hygiene. `Jwt__Secret` rotates every 6-12 months;
+this one you leave alone unless something goes wrong.
 
 ---
 
