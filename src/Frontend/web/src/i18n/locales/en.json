@@ -2406,14 +2406,11 @@
   },
   "overCommissionBridges": {
     "title": "Over-commission Bridges",
-    "subtitle": "Configure over-commission bridges per insurance carrier.",
+    "subtitle": "Over-commission bridges per insurance carrier.",
     "pickCarrier": "Select an insurance carrier",
-    "noCompanies": "No active insurance carriers have been registered.",
-    "global": "Global",
-    "backToList": "Back to list",
-    "openPyramid": "Open Over-commission Pyramid",
-    "carrierDetailIntro": "Over-commission rules that apply to policies of this carrier.",
-    "noRules": "No over-commission rules yet — create the first one from the Pyramid."
+    "noCompanies": "No insurance carriers are available.",
+    "underDevTitle": "Under development",
+    "underDevBody": "The over-commission bridge for «{{carrier}}» is still under development and will be enabled soon."
   },
   "overCommissions": {
     "title": "Over-commissions", "subtitle": "9-level commission hierarchy.",
