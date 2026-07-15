@@ -370,54 +370,52 @@ export function CarrierBridgesPage() {
         });
         return (
         <Card sx={{ p: 3 }}>
-          <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between"
-            alignItems={{ xs: "stretch", md: "center" }} spacing={2} mb={2.5}>
-            <Box>
-              <Typography fontWeight={700}>{t("carrierBridges.pickCarrier")}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                {t("carrierBridges.countSummary",
-                  "{{shown}} από {{total}} · {{avail}} διαθέσιμες", {
-                  shown: filtered.length, total: all.length, avail: availCount
-                })}
-              </Typography>
-            </Box>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}
-              sx={{ minWidth: { md: 520 } }}>
-              <TextField
+          {/* Big prominent live search — full-width, large. Ιδανικό όταν
+              υπάρχουν 40+ κάρτες και ο operator ψάχνει συγκεκριμένη εταιρεία. */}
+          <TextField
+            fullWidth
+            autoFocus
+            placeholder={t("carrierBridges.searchPlaceholder", "Αναζήτηση εταιρείας…")}
+            value={carrierSearch}
+            onChange={e => setCarrierSearch(e.target.value)}
+            InputProps={{
+              sx: { fontSize: 20, py: 0.5 },
+              endAdornment: carrierSearch
+                ? <IconButton onClick={() => setCarrierSearch("")}><CloseIcon /></IconButton>
+                : null
+            }}
+            sx={{ mb: 2 }}
+          />
+          <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between"
+            alignItems={{ xs: "flex-start", sm: "center" }} spacing={1.5} mb={2.5}>
+            <Typography variant="caption" color="text.secondary">
+              {t("carrierBridges.countSummary",
+                "{{shown}} από {{total}} · {{avail}} διαθέσιμες", {
+                shown: filtered.length, total: all.length, avail: availCount
+              })}
+            </Typography>
+            <Stack direction="row" spacing={0.5}>
+              <Chip
                 size="small"
-                placeholder={t("carrierBridges.searchPlaceholder", "Αναζήτηση: όνομα ή κωδικός…")}
-                value={carrierSearch}
-                onChange={e => setCarrierSearch(e.target.value)}
-                InputProps={{
-                  endAdornment: carrierSearch
-                    ? <IconButton size="small" onClick={() => setCarrierSearch("")}><CloseIcon fontSize="small" /></IconButton>
-                    : null
-                }}
-                sx={{ flex: 1 }}
+                label={t("carrierBridges.filter.all", "Όλες")}
+                color={carriersFilter === "all" ? "primary" : "default"}
+                variant={carriersFilter === "all" ? "filled" : "outlined"}
+                onClick={() => setCarriersFilter("all")}
               />
-              <Stack direction="row" spacing={0.5}>
-                <Chip
-                  size="small"
-                  label={t("carrierBridges.filter.all", "Όλες")}
-                  color={carriersFilter === "all" ? "primary" : "default"}
-                  variant={carriersFilter === "all" ? "filled" : "outlined"}
-                  onClick={() => setCarriersFilter("all")}
-                />
-                <Chip
-                  size="small"
-                  label={t("carrierBridges.filter.available", "Διαθέσιμες")}
-                  color={carriersFilter === "available" ? "success" : "default"}
-                  variant={carriersFilter === "available" ? "filled" : "outlined"}
-                  onClick={() => setCarriersFilter("available")}
-                />
-                <Chip
-                  size="small"
-                  label={t("carrierBridges.filter.unavailable", "Υπό ανάπτυξη")}
-                  color={carriersFilter === "unavailable" ? "warning" : "default"}
-                  variant={carriersFilter === "unavailable" ? "filled" : "outlined"}
-                  onClick={() => setCarriersFilter("unavailable")}
-                />
-              </Stack>
+              <Chip
+                size="small"
+                label={t("carrierBridges.filter.available", "Διαθέσιμες")}
+                color={carriersFilter === "available" ? "success" : "default"}
+                variant={carriersFilter === "available" ? "filled" : "outlined"}
+                onClick={() => setCarriersFilter("available")}
+              />
+              <Chip
+                size="small"
+                label={t("carrierBridges.filter.unavailable", "Υπό ανάπτυξη")}
+                color={carriersFilter === "unavailable" ? "warning" : "default"}
+                variant={carriersFilter === "unavailable" ? "filled" : "outlined"}
+                onClick={() => setCarriersFilter("unavailable")}
+              />
             </Stack>
           </Stack>
           {carriers.isLoading ? <CircularProgress /> : (

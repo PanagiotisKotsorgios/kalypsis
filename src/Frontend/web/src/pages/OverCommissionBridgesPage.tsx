@@ -1,10 +1,11 @@
 import { useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, Stack, Tooltip, Typography
+  DialogTitle, IconButton, Stack, TextField, Tooltip, Typography
 } from "@mui/material";
 import BuildIcon from "@mui/icons-material/Build";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CloseIcon from "@mui/icons-material/Close";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import StackedLineChartIcon from "@mui/icons-material/StackedLineChart";
 import { useQuery } from "@tanstack/react-query";
@@ -23,13 +24,18 @@ interface AvailableCarrier {
 export function OverCommissionBridgesPage() {
   const { t } = useTranslation();
   const [pickedName, setPickedName] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const carriers = useQuery({
     queryKey: ["available-bridges"],
     queryFn: async () => (await api.get<AvailableCarrier[]>("/carrier-bridges/available")).data
   });
 
-  const items = carriers.data ?? [];
+  const all = carriers.data ?? [];
+  const s = search.trim().toLowerCase();
+  const items = s
+    ? all.filter(c => c.name.toLowerCase().includes(s) || c.code.toLowerCase().includes(s))
+    : all;
 
   return (
     <Box>
@@ -47,11 +53,27 @@ export function OverCommissionBridgesPage() {
 
       {carriers.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
-      ) : items.length === 0 ? (
+      ) : all.length === 0 ? (
         <Alert severity="info">{t("overCommissionBridges.noCompanies")}</Alert>
       ) : (
         <Card sx={{ p: 3 }}>
-          <Typography fontWeight={700} mb={2}>{t("overCommissionBridges.pickCarrier")}</Typography>
+          <TextField
+            fullWidth
+            autoFocus
+            placeholder={t("carrierBridges.searchPlaceholder", "Αναζήτηση εταιρείας…")}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            InputProps={{
+              sx: { fontSize: 20, py: 0.5 },
+              endAdornment: search
+                ? <IconButton onClick={() => setSearch("")}><CloseIcon /></IconButton>
+                : null
+            }}
+            sx={{ mb: 2 }}
+          />
+          <Typography variant="caption" color="text.secondary" display="block" mb={2}>
+            {items.length} από {all.length}
+          </Typography>
           <Box sx={{
             display: "grid", gap: 2,
             gridTemplateColumns: { xs: "1fr", sm: "repeat(2,1fr)", md: "repeat(3,1fr)" }

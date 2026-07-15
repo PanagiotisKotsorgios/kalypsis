@@ -57,30 +57,24 @@ export function CollectionFilesBridgesPage() {
       </Stack>
 
       <Card sx={{ p: 3 }}>
-        <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between"
-          alignItems={{ xs: "stretch", md: "center" }} spacing={2} mb={2.5}>
-          <Box>
-            <Typography fontWeight={700}>
-              {t("collectionFilesBridges.pickCarrier", "Επιλέξτε ασφαλιστική")}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {t("collectionFilesBridges.countSummary",
-                "{{shown}} από {{total}}", { shown: filtered.length, total: all.length })}
-            </Typography>
-          </Box>
-          <TextField
-            size="small"
-            placeholder={t("carrierBridges.searchPlaceholder", "Αναζήτηση: όνομα ή κωδικός…")}
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            InputProps={{
-              endAdornment: search
-                ? <IconButton size="small" onClick={() => setSearch("")}><CloseIcon fontSize="small" /></IconButton>
-                : null
-            }}
-            sx={{ minWidth: { md: 320 } }}
-          />
-        </Stack>
+        <TextField
+          fullWidth
+          autoFocus
+          placeholder={t("carrierBridges.searchPlaceholder", "Αναζήτηση εταιρείας…")}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          InputProps={{
+            sx: { fontSize: 20, py: 0.5 },
+            endAdornment: search
+              ? <IconButton onClick={() => setSearch("")}><CloseIcon /></IconButton>
+              : null
+          }}
+          sx={{ mb: 2 }}
+        />
+        <Typography variant="caption" color="text.secondary" display="block" mb={2}>
+          {t("collectionFilesBridges.countSummary",
+            "{{shown}} από {{total}}", { shown: filtered.length, total: all.length })}
+        </Typography>
 
         {carriers.isLoading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>

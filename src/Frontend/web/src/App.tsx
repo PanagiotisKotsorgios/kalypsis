@@ -68,6 +68,14 @@ import { DpaPage } from "./pages/DpaPage";
 import { DpaAcceptancePrompt } from "./components/DpaAcceptancePrompt";
 import { BreachIncidentsPage } from "./pages/BreachIncidentsPage";
 import { CollectionFilesBridgesPage } from "./pages/CollectionFilesBridgesPage";
+import { UnderConstructionPage } from "./pages/UnderConstructionPage";
+import TuneOutlinedIconRC from "@mui/icons-material/TuneOutlined";
+import ReceiptLongIconRC from "@mui/icons-material/ReceiptLong";
+import AnalyticsIconRC from "@mui/icons-material/Analytics";
+import AccountBalanceIconRC from "@mui/icons-material/AccountBalance";
+import EmailIconRC from "@mui/icons-material/Email";
+import GroupWorkIconRC from "@mui/icons-material/GroupWork";
+import LockClockIconRC from "@mui/icons-material/LockClock";
 import { DashboardPage } from "./pages/DashboardPage";
 import { UnderMaintenancePage } from "./pages/UnderMaintenancePage";
 import { SiteMaintenancePage } from "./pages/SiteMaintenancePage";
@@ -252,6 +260,14 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/commission-distribution", labelKey: "nav.commissionDistribution", icon: <AccountTreeIcon />, package: "BackOffice", group: "financials" },
     { to: "/financial-report", labelKey: "nav.financialReport", icon: <AccountBalanceIcon />, package: "BackOffice", group: "financials" },
     { to: "/producer-statement", labelKey: "nav.producerStatement", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
+    // Roadmap accounting placeholders
+    { to: "/bulk-receipts",         labelKey: "nav.bulkReceipts",         icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
+    { to: "/auto-receipt-matching", labelKey: "nav.autoReceiptMatching",  icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
+    { to: "/ageing-analysis",       labelKey: "nav.ageingAnalysis",       icon: <AnalyticsIcon />,   package: "BackOffice", group: "financials" },
+    { to: "/journal-entries",       labelKey: "nav.journalEntries",       icon: <AccountBalanceIcon />, package: "BackOffice", group: "financials" },
+    { to: "/commission-certificates", labelKey: "nav.commissionCertificates", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
+    { to: "/carrier-ledger",        labelKey: "nav.carrierLedger",        icon: <AccountBalanceIcon />, package: "BackOffice", group: "financials" },
+    { to: "/statement-mailer",      labelKey: "nav.statementMailer",      icon: <EmailIcon />, package: "BackOffice", group: "financials" },
 
     // BackOffice → ΠΡΟΜΗΘΕΙΕΣ — the commission settlement entry point is in
     // Production Lists, keeping production reporting and monthly settlement together.
@@ -275,6 +291,11 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/parametric-files",    labelKey: "nav.parametricFiles",    icon: <InventoryIcon />,      package: "BackOffice", group: "params" },
     { to: "/document-designer",   labelKey: "nav.docDesigner",        icon: <DesignServicesIcon />, package: "BackOffice", group: "params" },
     { to: "/config-hub",          labelKey: "nav.configHub",          icon: <TuneOutlinedIcon />,   package: "BackOffice", group: "params" },
+    // Roadmap features — placeholder pages «υπό ανάπτυξη» για να είναι
+    // discoverable ενώ γράφονται. Ίδιο pattern με τις Γέφυρες αρχείων εισπράξεων.
+    { to: "/dynamic-fields",      labelKey: "nav.dynamicFields",      icon: <TuneOutlinedIcon />,   package: "BackOffice", group: "params" },
+    { to: "/groupings",           labelKey: "nav.groupings",          icon: <TuneOutlinedIcon />,   package: "BackOffice", group: "params" },
+    { to: "/period-locks",        labelKey: "nav.periodLocks",        icon: <TuneOutlinedIcon />,   package: "BackOffice", group: "params" },
 
     // BackOffice → ΔΙΟΙΚΗΣΗ
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
@@ -565,6 +586,129 @@ export default function App() {
                   <Route path="commission-distribution" element={<CommissionDistributionPage />} />
                   <Route path="financial-report" element={<FinancialReportPage />} />
                   <Route path="producer-statement" element={<ProducerStatementPage />} />
+                  {/* Roadmap placeholders — sidebar entries visible but pages
+                      show a «Υπό ανάπτυξη» card. Each gets a mini feature
+                      preview so users know what will land here. */}
+                  <Route path="dynamic-fields" element={
+                    <UnderConstructionPage
+                      title="Δυναμικά Πεδία"
+                      subtitle="Δικά σας επιπλέον πεδία σε πελάτες και συμβόλαια"
+                      Icon={TuneOutlinedIconRC}
+                      points={[
+                        "Ορισμός custom πεδίων (κείμενο, αριθμός, ημερομηνία, dropdown, checkbox)",
+                        "Εμφάνιση στις καρτέλες πελάτη και συμβολαίου",
+                        "Χρήση σε αναφορές και φίλτρα",
+                        "Απόκρυψη ανά ρόλο / χρήστη",
+                      ]} />
+                  } />
+                  <Route path="groupings" element={
+                    <UnderConstructionPage
+                      title="Ομαδοποιήσεις"
+                      subtitle="Δικές σας ομάδες πελατών, συμβολαίων και συνεργατών"
+                      Icon={GroupWorkIconRC}
+                      points={[
+                        "Δημιουργία απεριόριστων ομάδων (τμήματα, καμπάνιες, ζώνες)",
+                        "Ανάθεση πελατών/συμβολαίων σε πολλαπλές ομάδες",
+                        "Φιλτράρισμα και ομαδικές ενέργειες ανά ομάδα",
+                        "Στατιστικά ανά ομάδα",
+                      ]} />
+                  } />
+                  <Route path="period-locks" element={
+                    <UnderConstructionPage
+                      title="Ημερομηνίες Κλειδωμάτων"
+                      subtitle="Κλείσιμο λογιστικών περιόδων ώστε να μη γίνονται αναδρομικές αλλαγές"
+                      Icon={LockClockIconRC}
+                      points={[
+                        "Κλείδωμα οικονομικών κινήσεων έως δεδομένη ημερομηνία",
+                        "Διαφορετικά κλειδώματα ανά πυλώνα (εισπράξεις, πληρωμές, προμήθειες)",
+                        "Bypass μόνο για AgencyAdmin με audit log",
+                        "Ενσωμάτωση στα «Οικονομικά Αποτελέσματα»",
+                      ]} />
+                  } />
+                  <Route path="bulk-receipts" element={
+                    <UnderConstructionPage
+                      title="Εισαγωγή Πολλαπλών Εισπράξεων"
+                      subtitle="Μαζική καταχώρηση εισπράξεων από ένα spreadsheet"
+                      Icon={ReceiptLongIconRC}
+                      points={[
+                        "Ανέβασμα Excel/CSV με πολλές εισπράξεις",
+                        "Auto-match ανά αρ. συμβολαίου ή ΑΦΜ",
+                        "Preview πριν την οριστικοποίηση, όπως στις Γέφυρες",
+                        "Skip διπλών εισπράξεων",
+                      ]} />
+                  } />
+                  <Route path="auto-receipt-matching" element={
+                    <UnderConstructionPage
+                      title="Αυτόματη Είσπραξη Ισόποσων Παραστατικών"
+                      subtitle="Auto-matching εισπράξεων με ανοιχτά παραστατικά ίδιου ποσού"
+                      Icon={ReceiptLongIconRC}
+                      points={[
+                        "Σάρωση ανοιχτών παραστατικών από τραπεζικές κινήσεις",
+                        "Πρόταση matches με confidence score",
+                        "One-click αποδοχή ή αντιπρόταση",
+                        "Ημερήσιο job για συνεχή εκκαθάριση",
+                      ]} />
+                  } />
+                  <Route path="ageing-analysis" element={
+                    <UnderConstructionPage
+                      title="Ageing Analysis"
+                      subtitle="Ηλικίωση ανείσπρακτων και υπερήμερων"
+                      Icon={AnalyticsIconRC}
+                      points={[
+                        "Buckets 0-30, 31-60, 61-90, 90+ ημέρες",
+                        "Ανά πελάτη, ασφαλιστική, συνεργάτη",
+                        "Export σε Excel/PDF",
+                        "Αυτόματες ειδοποιήσεις σε πελάτες με ληξιπρόθεσμα",
+                      ]} />
+                  } />
+                  <Route path="journal-entries" element={
+                    <UnderConstructionPage
+                      title="Λογιστικά Άρθρα"
+                      subtitle="Παραγωγή λογιστικών εγγραφών για εξαγωγή σε λογιστικό πρόγραμμα"
+                      Icon={AccountBalanceIconRC}
+                      points={[
+                        "Αυτόματη δημιουργία άρθρων από κάθε ταμειακή κίνηση",
+                        "Παραμετροποιήσιμος κωδικός λογαριασμού ανά κατηγορία",
+                        "Export σε EPSILON, DATASOFT, Web-Kepyo, generic XML/CSV",
+                        "Ιστορικό εξαγωγών με reversal option",
+                      ]} />
+                  } />
+                  <Route path="commission-certificates" element={
+                    <UnderConstructionPage
+                      title="Βεβαιώσεις Προμηθειών"
+                      subtitle="Ετήσιες βεβαιώσεις καταβεβλημένων προμηθειών για συνεργάτες"
+                      Icon={ReceiptLongIconRC}
+                      points={[
+                        "Αυτόματη έκδοση για κάθε συνεργάτη-παραγωγό ανά έτος",
+                        "Σύνολα μικτά / παρακράτηση / καθαρά",
+                        "PDF έτοιμο για υπογραφή",
+                        "Μαζική αποστολή με email",
+                      ]} />
+                  } />
+                  <Route path="carrier-ledger" element={
+                    <UnderConstructionPage
+                      title="Λογιστική Καρτέλα Ασφαλιστικών"
+                      subtitle="Καρτέλα ανά ασφαλιστική με όλες τις συναλλαγές"
+                      Icon={AccountBalanceIconRC}
+                      points={[
+                        "Χρεωπιστωτική καρτέλα ανά εταιρεία",
+                        "Οφειλές: προμήθειες που περιμένουμε",
+                        "Πληρωμές: πληρωμές συμβολαίων προς εταιρεία",
+                        "Reconciliation με πινάκια εταιρείας",
+                      ]} />
+                  } />
+                  <Route path="statement-mailer" element={
+                    <UnderConstructionPage
+                      title="Αυτόματη Αποστολή Statements"
+                      subtitle="Ανά χρήστη/συνεργάτη αποστολή αναλυτικών καταστάσεων"
+                      Icon={EmailIconRC}
+                      points={[
+                        "Scheduled monthly email σε κάθε παραγωγό",
+                        "PDF attachment με προμήθειες + statement",
+                        "Επιλογή θέματος και template ανά τύπο ρόλου",
+                        "Preview + dry-run πριν την πραγματική αποστολή",
+                      ]} />
+                  } />
                   <Route path="federation/championships" element={<FederationChampionshipsPage />} />
                   <Route path="profile" element={<ProfilePage />} />
                   <Route path="agency-settings" element={<AgencySettingsPage />} />
