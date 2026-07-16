@@ -785,7 +785,10 @@ public class InsuranceCompaniesController : ControllerBase
         string? Notes, bool IsBroker = false, Guid? ParentCompanyId = null,
         IReadOnlyList<string>? ExcludedBranchCodes = null);
 
-    /// <summary>Lists every global carrier (TenantId IS NULL) for the platform admin UI.</summary>
+    /// <summary>Lists every global carrier (TenantId IS NULL) for the platform admin UI.
+    /// The `bridgeStatus` column drives the Γέφυρα chip in the SuperAdmin table:
+    /// "Ready" for the ~4 carriers with a shipped analyzer (ERGO, Grand Cover,
+    /// Ατλαντική, Interlife), "InDevelopment" for the rest.</summary>
     [HttpGet("/api/platform/insurance-companies")]
     [Authorize(Policy = "PlatformAdmin")]
     public async Task<ActionResult<IReadOnlyList<object>>> PlatformList(CancellationToken ct)
@@ -800,18 +803,51 @@ public class InsuranceCompaniesController : ControllerBase
             .GroupBy(p => p.InsuranceCompanyId)
             .Select(g => new { Id = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Id, x => x.Count, ct);
-        return Ok(rows.Select(c => new {
-            id = c.Id,
-            name = c.Name,
-            code = c.Code,
-            country = c.Country,
-            website = c.Website,
-            isActive = c.IsActive,
-            isBroker = c.IsBroker,
-            parentCompanyId = c.ParentCompanyId,
-            notes = c.Notes,
-            excludedBranchCodesJson = c.ExcludedBranchCodesJson,
-            parameterItemCount = paramCounts.GetValueOrDefault(c.Id, 0)
+        // Mirror the SupportedTokens set in ListAvailableCarrierBridgesHandler.
+        // Anything matched here has a real analyzer and shows "Έτοιμη"; anything
+        // else surfaces as "Υπό ανάπτυξη" so the SuperAdmin can see at a glance
+        // where the coverage gaps are.
+        var supportedTokens = new[] {
+            "ERGO", "GRAND COVER", "GRANDCOVER",
+            "ATLANTIC", "ATLANTIKI", "ΑΤΛΑΝΤΙΚΗ",
+            "INTERLIFE", "ΙΝΤΕΡΛΑΪΦ", "ΙΝΤΕΡΛΑΙΦ"
+        };
+        string BridgeStatus(string code, string name)
+        {
+            var codeU = (code ?? "").ToUpperInvariant();
+            var nameU = (name ?? "").ToUpperInvariant();
+            return supportedTokens.Any(t => codeU.Contains(t) || nameU.Contains(t))
+                ? "Ready" : "InDevelopment";
+        }
+        // Also pull any custom-built configs so the SuperAdmin sees which
+        // carriers have a bridge configured via the visual builder — those
+        // are marked "Configured" (separate from the shipped analyzers).
+        var configuredIds = await _db.CarrierBridgeConfigs
+            .Where(c => c.DeletedAt == null && c.Enabled)
+            .Select(c => c.InsuranceCompanyId)
+            .ToListAsync(ct);
+        var configuredSet = new HashSet<Guid>(configuredIds);
+
+        return Ok(rows.Select(c => {
+            var shipStatus = BridgeStatus(c.Code, c.Name);
+            var isConfigured = configuredSet.Contains(c.Id);
+            var effectiveStatus = shipStatus == "Ready" ? "Ready"
+                                : isConfigured ? "Configured"
+                                : "InDevelopment";
+            return new {
+                id = c.Id,
+                name = c.Name,
+                code = c.Code,
+                country = c.Country,
+                website = c.Website,
+                isActive = c.IsActive,
+                isBroker = c.IsBroker,
+                parentCompanyId = c.ParentCompanyId,
+                notes = c.Notes,
+                excludedBranchCodesJson = c.ExcludedBranchCodesJson,
+                parameterItemCount = paramCounts.GetValueOrDefault(c.Id, 0),
+                bridgeStatus = effectiveStatus
+            };
         }).ToList());
     }
 

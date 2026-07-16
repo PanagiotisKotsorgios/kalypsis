@@ -263,6 +263,7 @@ public interface IAppDbContext
     DbSet<SupportTicketReply> SupportTicketReplies { get; }
     DbSet<PlatformJobOverride> PlatformJobOverrides { get; }
     DbSet<PlatformBackup> PlatformBackups { get; }
+    DbSet<CarrierBridgeConfig> CarrierBridgeConfigs { get; }
 
     // ==== Federation module (championships / clubs / athletes / results) ====
     DbSet<Championship> Championships { get; }

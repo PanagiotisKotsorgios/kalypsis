@@ -1264,6 +1264,27 @@ public static class DataSeeder
                 UNIQUE KEY `UX_platform_job_overrides_JobKey` (`JobKey`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
 
+        // --- carrier_bridge_configs table ---------------------------------
+        // Per-carrier bridge parsing config authored via the visual builder.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "carrier_bridge_configs",
+            createSql: @"CREATE TABLE IF NOT EXISTS `carrier_bridge_configs` (
+                `Id` char(36) NOT NULL,
+                `InsuranceCompanyId` char(36) NOT NULL,
+                `FileType` varchar(20) NOT NULL DEFAULT 'xlsx',
+                `RecordType` varchar(40) NOT NULL DEFAULT 'Policy',
+                `ConfigJson` longtext NOT NULL,
+                `Version` int NOT NULL DEFAULT 1,
+                `Enabled` tinyint(1) NOT NULL DEFAULT 1,
+                `LastUpdatedByUserId` char(36) NULL,
+                `Notes` varchar(2000) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_carrier_bridge_configs_CompanyId_RecordType` (`InsuranceCompanyId`, `RecordType`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         // --- platform_backups table ---------------------------------------
         // Manifest of full-platform backups. Distinct from tenant_backups
         // (per-tenant JSON) — this tracks operator-triggered full DB dumps.

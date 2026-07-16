@@ -9,9 +9,15 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
+import BuildIcon from "@mui/icons-material/Build";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ConstructionIcon from "@mui/icons-material/Construction";
+import SettingsSuggestIcon from "@mui/icons-material/SettingsSuggest";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
+import { BridgeBuilderDialog } from "../components/BridgeBuilderDialog";
+
 
 interface CarrierRow {
   id: string;
@@ -24,6 +30,8 @@ interface CarrierRow {
   parentCompanyId: string | null;
   notes: string | null;
   parameterItemCount: number;
+  /** "Ready" (shipped analyzer) | "Configured" (built via visual builder) | "InDevelopment" (no bridge yet) */
+  bridgeStatus: "Ready" | "Configured" | "InDevelopment";
 }
 
 interface FormBody {
@@ -50,6 +58,7 @@ export function PlatformCarriersPage() {
   const [editing, setEditing] = useState<FormBody | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [builder, setBuilder] = useState<CarrierRow | null>(null);
 
   const carriers = useQuery({
     queryKey: ["platform-carriers"],
@@ -137,8 +146,14 @@ export function PlatformCarriersPage() {
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}
 
       <Alert severity="info" sx={{ mb: 2 }}>
-        Αυτή η σελίδα είναι μόνο ο καθολικός κατάλογος (όνομα · κωδικός · κατάσταση). Τα παραμετρικά (κλάδοι / πακέτα / καλύψεις / γέφυρες)
-        ορίζονται πλέον <strong>ανά γραφείο</strong> στη σελίδα «Ασφαλιστικές Εταιρείες» → «Ρυθμίσεις Γέφυρας» → import αρχείων.
+        Ο καθολικός κατάλογος εταιριών. Η στήλη <strong>Γέφυρα</strong> δείχνει την κατάσταση ανά εταιρία:
+        <Chip size="small" color="success" label="Έτοιμη" sx={{ mx: 0.5, height: 20 }} />
+        έτοιμος analyzer (ERGO / Grand Cover / Ατλαντική / Interlife),
+        <Chip size="small" color="info" label="Διαμορφωμένη" sx={{ mx: 0.5, height: 20 }} />
+        έχει διαμορφωθεί από το visual builder,
+        <Chip size="small" color="warning" variant="outlined" label="Υπό ανάπτυξη" sx={{ mx: 0.5, height: 20 }} />
+        δεν υπάρχει γέφυρα ακόμη. Πάτησε <BuildIcon fontSize="inherit" sx={{ verticalAlign: "middle", mx: 0.5 }} />
+        για να χτίσεις γέφυρα visually (upload sample → map columns → preview → save) χωρίς κώδικα.
       </Alert>
 
       <Card sx={{ p: 2, mb: 2 }}>
@@ -167,11 +182,12 @@ export function PlatformCarriersPage() {
               <TableCell>Χώρα</TableCell>
               <TableCell>Website</TableCell>
               <TableCell align="center">Κατάσταση</TableCell>
-              <TableCell align="right" width={120}>Ενέργειες</TableCell>
+              <TableCell align="center">Γέφυρα</TableCell>
+              <TableCell align="right" width={180}>Ενέργειες</TableCell>
             </TableRow></TableHead>
             <TableBody>
               {rows.length === 0 && (
-                <TableRow><TableCell colSpan={6} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                <TableRow><TableCell colSpan={7} align="center" sx={{ py: 4, color: "text.secondary" }}>
                   {allRows.length === 0
                     ? "Δεν υπάρχουν εταιρίες. Δημιουργήστε την πρώτη με το «Νέα ασφαλιστική»."
                     : "Καμία εταιρία δεν ταιριάζει στα φίλτρα."}
@@ -189,7 +205,16 @@ export function PlatformCarriersPage() {
                     <Chip size="small" label={r.isActive ? "Ενεργή" : "Ανενεργή"}
                       color={r.isActive ? "success" : "default"} />
                   </TableCell>
+                  <TableCell align="center">
+                    <BridgeStatusChip status={r.bridgeStatus ?? "InDevelopment"} />
+                  </TableCell>
                   <TableCell align="right">
+                    <IconButton size="small" title="Ρύθμιση γέφυρας (visual builder)"
+                      color={r.bridgeStatus === "Configured" ? "success" : "primary"}
+                      onClick={() => setBuilder(r)}
+                      disabled={r.bridgeStatus === "Ready"}>
+                      <BuildIcon fontSize="small" />
+                    </IconButton>
                     <IconButton size="small" title="Επεξεργασία"
                       onClick={() => setEditing({
                         id: r.id, name: r.name, code: r.code,
@@ -256,6 +281,31 @@ export function PlatformCarriersPage() {
         </DialogActions>
       </Dialog>
 
+      <BridgeBuilderDialog
+        open={!!builder}
+        carrier={builder ? { id: builder.id, name: builder.name, code: builder.code } : null}
+        onClose={() => setBuilder(null)}
+        onSaved={() => {
+          setBuilder(null);
+          setSuccess("Η γέφυρα αποθηκεύτηκε.");
+          void qc.invalidateQueries({ queryKey: ["platform-carriers"] });
+        }}
+      />
     </Box>
   );
+}
+
+/**
+ * Small chip that colours + labels a carrier's bridge status. Three states:
+ * Ready = shipped analyzer (green, immutable), Configured = built via the
+ * visual builder (blue, editable), InDevelopment = no bridge yet (orange).
+ */
+function BridgeStatusChip({ status }: { status: string }) {
+  if (status === "Ready") {
+    return <Chip size="small" color="success" icon={<CheckCircleIcon />} label="Έτοιμη" />;
+  }
+  if (status === "Configured") {
+    return <Chip size="small" color="info" icon={<SettingsSuggestIcon />} label="Διαμορφωμένη" />;
+  }
+  return <Chip size="small" color="warning" variant="outlined" icon={<ConstructionIcon />} label="Υπό ανάπτυξη" />;
 }
