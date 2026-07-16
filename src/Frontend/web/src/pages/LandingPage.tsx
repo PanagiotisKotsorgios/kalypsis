@@ -18,6 +18,9 @@ import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import SmartphoneOutlinedIcon from "@mui/icons-material/SmartphoneOutlined";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
+import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
+import DesktopMacIcon from "@mui/icons-material/DesktopMac";
 import { PublicFooter } from "../components/PublicFooter";
 import { AccessibilityWidget } from "../components/AccessibilityWidget";
 import { PageEnter } from "../components/PageEnter";
@@ -544,6 +547,18 @@ export function LandingPage() {
       }}>
         <PageEnter stagger={700}>
           <FeatureGrid />
+        </PageEnter>
+      </Container>
+
+      {/* Full-width dark section — Kalypsis Desktop presentation. Sits outside
+          the max-width Container so the black bleeds edge-to-edge. */}
+      <DesktopAppSection />
+
+      <Container maxWidth={false} sx={{
+        maxWidth: { xs: "100%", md: "82%", xl: "1600px" },
+        px: { xs: 3, md: 6 }, py: { xs: 2, md: 3 }
+      }}>
+        <PageEnter stagger={700}>
           <NewsletterCard />
         </PageEnter>
       </Container>
@@ -876,6 +891,262 @@ function FeatureCell({ icon: Icon, title, body, index, area, featured }: {
       }}>
         {body}
       </Typography>
+    </Box>
+  );
+}
+
+/* ============================================================================
+   Desktop App section — full-width dark presentation of the native
+   Kalypsis Desktop client. Auto-rotating slider with 4 screenshots +
+   captions. Pauses on hover / keyboard focus for accessibility, and
+   respects prefers-reduced-motion (no auto-advance for those users).
+   ============================================================================ */
+const DESKTOP_SLIDES = [
+  { img: "/images/kalypsis-desktop-1.png", tKey: "landing.v2.desktop.slides.s1T", bKey: "landing.v2.desktop.slides.s1B" },
+  { img: "/images/kalypsis-desktop-2.png", tKey: "landing.v2.desktop.slides.s2T", bKey: "landing.v2.desktop.slides.s2B" },
+  { img: "/images/kalypsis-desktop-3.png", tKey: "landing.v2.desktop.slides.s3T", bKey: "landing.v2.desktop.slides.s3B" },
+  { img: "/images/kalypsis-desktop-4.png", tKey: "landing.v2.desktop.slides.s4T", bKey: "landing.v2.desktop.slides.s4B" }
+];
+const DESKTOP_INTERVAL_MS = 6000;
+
+function DesktopAppSection() {
+  const { t } = useTranslation();
+  const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [reduceMotion] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+
+  useEffect(() => {
+    if (paused || reduceMotion) return;
+    const id = window.setInterval(() => {
+      setActive(v => (v + 1) % DESKTOP_SLIDES.length);
+    }, DESKTOP_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [paused, reduceMotion]);
+
+  const goto = (i: number) => setActive(((i % DESKTOP_SLIDES.length) + DESKTOP_SLIDES.length) % DESKTOP_SLIDES.length);
+
+  return (
+    <Box
+      component="section"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+      sx={{
+        position: "relative",
+        // Deep navy → near-black gradient. Matches the platform's dark chrome
+        // (AppShell topbar) so the section reads as "same product, different
+        // surface" rather than a foreign inset.
+        bgcolor: "#050a15",
+        backgroundImage:
+          `radial-gradient(1200px 600px at 15% -10%, rgba(31,123,179,0.22) 0%, transparent 60%),
+           radial-gradient(900px 500px at 90% 110%, rgba(176,138,62,0.14) 0%, transparent 60%),
+           linear-gradient(180deg, #050a15 0%, #0a1428 100%)`,
+        color: "#f6f7fb",
+        overflow: "hidden",
+        py: { xs: 7, md: 12 },
+        my: { xs: 4, md: 6 }
+      }}
+    >
+      {/* Ambient grid pattern — SVG data URL for zero HTTP cost. Just enough
+          texture to keep the flat background from feeling dead. */}
+      <Box aria-hidden sx={{
+        position: "absolute", inset: 0, opacity: 0.05,
+        backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'><path d='M0 0h40v40H0z' fill='none' stroke='%23ffffff' stroke-width='0.5'/></svg>")`,
+        pointerEvents: "none"
+      }} />
+
+      <Container maxWidth="lg" sx={{ position: "relative", px: { xs: 3, md: 5 } }}>
+        <Reveal>
+          <Stack direction="row" alignItems="center" spacing={1.25} mb={2}>
+            <DesktopMacIcon sx={{ color: "#b08a3e", fontSize: 20 }} />
+            <Typography sx={{
+              fontSize: 11, letterSpacing: "0.25em", textTransform: "uppercase",
+              color: "#b08a3e", fontWeight: 700
+            }}>
+              {t("landing.v2.desktop.eyebrow")}
+            </Typography>
+          </Stack>
+          <Typography component="h2" sx={{
+            fontSize: { xs: 28, md: 44 }, fontWeight: 800, letterSpacing: "-0.02em",
+            lineHeight: 1.1, mb: 2, maxWidth: 820,
+            // Subtle white → warm-gold text gradient. Reads white at normal
+            // sizes and picks up gold on the descenders. Aligned with the
+            // legal-hub masthead so both dark surfaces feel siblings.
+            background: "linear-gradient(180deg, #ffffff 0%, #f2e6c8 130%)",
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+            backgroundClip: "text"
+          }}>
+            {t("landing.v2.desktop.title")}
+          </Typography>
+          <Typography sx={{
+            fontSize: { xs: 15, md: 17 }, lineHeight: 1.6,
+            color: "rgba(246,247,251,0.72)", maxWidth: 720, mb: { xs: 5, md: 6 }
+          }}>
+            {t("landing.v2.desktop.sub")}
+          </Typography>
+        </Reveal>
+
+        {/* Slider — screenshot on the left, caption + controls on the right. */}
+        <Box sx={{
+          display: "grid",
+          gap: { xs: 4, md: 6 },
+          gridTemplateColumns: { xs: "1fr", md: "1.35fr 1fr" },
+          alignItems: "center"
+        }}>
+          {/* Screenshot stage — every slide is stacked absolute, crossfading
+              via opacity. The tilted glow behind the active slide gives it
+              a "framed on a desk" feel without needing 3D transforms. */}
+          <Box sx={{
+            position: "relative",
+            aspectRatio: "16 / 10",
+            borderRadius: 3,
+            overflow: "hidden",
+            border: "1px solid rgba(255,255,255,0.08)",
+            boxShadow: "0 40px 80px -30px rgba(0,0,0,0.75), 0 20px 40px -20px rgba(31,123,179,0.35)",
+            bgcolor: "#0a1428"
+          }}>
+            {/* Glow that trails the active slide */}
+            <Box aria-hidden sx={{
+              position: "absolute", inset: -40, zIndex: 0,
+              background: "radial-gradient(circle at 30% 20%, rgba(31,123,179,0.35), transparent 55%)",
+              opacity: 0.9,
+              filter: "blur(20px)",
+              transition: "transform 900ms ease",
+              transform: `translateX(${active * 4}%)`
+            }} />
+            {DESKTOP_SLIDES.map((s, i) => (
+              <Box key={s.img}
+                component="img"
+                src={s.img}
+                alt={t(s.tKey) as string}
+                loading={i === 0 ? "eager" : "lazy"}
+                sx={{
+                  position: "absolute", inset: 0,
+                  width: "100%", height: "100%",
+                  objectFit: "cover", objectPosition: "top",
+                  zIndex: 1,
+                  opacity: i === active ? 1 : 0,
+                  transform: i === active ? "scale(1)" : "scale(1.03)",
+                  transition: "opacity 900ms cubic-bezier(0.22,1,0.36,1), transform 1500ms cubic-bezier(0.22,1,0.36,1)"
+                }}
+              />
+            ))}
+            {/* Bottom fade so text-overlay controls sit clean on any screenshot */}
+            <Box aria-hidden sx={{
+              position: "absolute", inset: "auto 0 0 0", height: 120, zIndex: 2,
+              background: "linear-gradient(180deg, transparent, rgba(5,10,21,0.6))",
+              pointerEvents: "none"
+            }} />
+          </Box>
+
+          {/* Caption + controls — animates in per-slide */}
+          <Box sx={{ minHeight: { md: 320 }, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            {DESKTOP_SLIDES.map((s, i) => (
+              <Box key={s.img} sx={{
+                display: i === active ? "block" : "none"
+              }}>
+                <Typography sx={{
+                  fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase",
+                  color: "rgba(176,138,62,0.9)", fontWeight: 700, mb: 1
+                }}>
+                  {String(i + 1).padStart(2, "0")} / {String(DESKTOP_SLIDES.length).padStart(2, "0")}
+                </Typography>
+                <Typography component="h3"
+                  key={`title-${active}`}
+                  sx={{
+                    fontSize: { xs: 22, md: 28 }, fontWeight: 800, letterSpacing: "-0.015em",
+                    color: "#ffffff", mb: 1.5,
+                    animation: "kdSlideIn 700ms cubic-bezier(0.22,1,0.36,1) both"
+                  }}>
+                  {t(s.tKey)}
+                </Typography>
+                <Typography
+                  key={`body-${active}`}
+                  sx={{
+                    fontSize: { xs: 14.5, md: 16 }, lineHeight: 1.65,
+                    color: "rgba(246,247,251,0.75)",
+                    animation: "kdSlideIn 700ms 80ms cubic-bezier(0.22,1,0.36,1) both"
+                  }}>
+                  {t(s.bKey)}
+                </Typography>
+              </Box>
+            ))}
+
+            {/* Dots + arrows */}
+            <Stack direction="row" spacing={1.5} alignItems="center" mt={4}>
+              <IconButton
+                aria-label={t("landing.v2.desktop.aria.prev") as string}
+                onClick={() => goto(active - 1)}
+                sx={{
+                  color: "#f6f7fb", border: "1px solid rgba(255,255,255,0.15)",
+                  width: 40, height: 40,
+                  "&:hover": { borderColor: "#b08a3e", color: "#b08a3e", bgcolor: "rgba(176,138,62,0.08)" }
+                }}
+              >
+                <ArrowBackIosNewIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+              <IconButton
+                aria-label={t("landing.v2.desktop.aria.next") as string}
+                onClick={() => goto(active + 1)}
+                sx={{
+                  color: "#f6f7fb", border: "1px solid rgba(255,255,255,0.15)",
+                  width: 40, height: 40,
+                  "&:hover": { borderColor: "#b08a3e", color: "#b08a3e", bgcolor: "rgba(176,138,62,0.08)" }
+                }}
+              >
+                <ArrowForwardIosIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+              <Box sx={{ flex: 1 }} />
+              <Stack direction="row" spacing={0.75} alignItems="center">
+                {DESKTOP_SLIDES.map((_, i) => (
+                  <Box key={i}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${t("landing.v2.desktop.aria.dot")} ${i + 1}`}
+                    onClick={() => goto(i)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goto(i); } }}
+                    sx={{
+                      width: i === active ? 28 : 8, height: 8,
+                      borderRadius: 4,
+                      bgcolor: i === active ? "#b08a3e" : "rgba(255,255,255,0.25)",
+                      cursor: "pointer",
+                      transition: "width 400ms ease, background-color 400ms ease",
+                      "&:hover": { bgcolor: i === active ? "#b08a3e" : "rgba(255,255,255,0.5)" }
+                    }}
+                  />
+                ))}
+              </Stack>
+            </Stack>
+
+            {/* CTA */}
+            <Button
+              component={RouterLink}
+              to="/register"
+              endIcon={<ArrowForwardIcon />}
+              sx={{
+                mt: 4, alignSelf: "flex-start",
+                bgcolor: "#b08a3e", color: "#0a0f1a",
+                fontWeight: 700, letterSpacing: "0.02em",
+                textTransform: "none", px: 3, py: 1.25,
+                borderRadius: 1.5,
+                "&:hover": { bgcolor: "#c69f52" }
+              }}
+            >
+              {t("landing.v2.desktop.cta")}
+            </Button>
+          </Box>
+        </Box>
+      </Container>
+
+      {/* Keyframes for per-slide caption entrance */}
+      <style>{`
+        @keyframes kdSlideIn {
+          from { opacity: 0; transform: translateY(14px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </Box>
   );
 }

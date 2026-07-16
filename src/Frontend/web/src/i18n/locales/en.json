@@ -720,6 +720,27 @@
         "portalT": "Client & Producer Portal",
         "portalB": "Mobile app for clients and a web portal for producers, wired into the back-office."
       },
+      "desktop": {
+        "eyebrow": "KALYPSIS DESKTOP · NEW",
+        "title": "Your platform, now outside the browser.",
+        "sub": "Native Windows and macOS app with full offline support, wired to the Kalypsis cloud. Same data, same controls, a proper desktop experience.",
+        "cta": "Request beta access",
+        "slides": {
+          "s1T": "Receipts & Payments",
+          "s1B": "Full receipts and payments ledger with instant search, bulk actions and Excel / PDF exports.",
+          "s2T": "Unified customer card",
+          "s2B": "Details, policies, communication history, bulk SMS/Email — all on one screen.",
+          "s3T": "Production analytics",
+          "s3B": "Live production and settlement dashboards, line distribution, top producers and commission breakdown.",
+          "s4T": "Receipt oversight",
+          "s4B": "Powerful KPIs, smart filters and one-click Excel export — a full picture of the year in seconds."
+        },
+        "aria": {
+          "prev": "Previous slide",
+          "next": "Next slide",
+          "dot": "Go to slide"
+        }
+      },
       "newsEyebrow": "Newsletter",
       "newsTitle": "Stay in the loop.",
       "newsBody": "New features, guides and platform announcements. No spam. Unsubscribe in one click.",
