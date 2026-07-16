@@ -66,6 +66,10 @@ import { PrivacyPage } from "./pages/PrivacyPage";
 import { CookiesPage } from "./pages/CookiesPage";
 import { DpaPage } from "./pages/DpaPage";
 import { DpaAcceptancePrompt } from "./components/DpaAcceptancePrompt";
+import { SubscriptionAgreementPage } from "./pages/SubscriptionAgreementPage";
+import { SlaPage } from "./pages/SlaPage";
+import { AcceptableUsePolicyPage } from "./pages/AcceptableUsePolicyPage";
+import { LegalHubPage } from "./pages/LegalHubPage";
 import { BreachIncidentsPage } from "./pages/BreachIncidentsPage";
 import { CollectionFilesBridgesPage } from "./pages/CollectionFilesBridgesPage";
 import { UnderConstructionPage } from "./pages/UnderConstructionPage";
@@ -319,6 +323,9 @@ const navByRole: Record<Role, NavItem[]> = {
 
     // Per-tenant backups + GDPR — always visible.
     { to: "/backups", labelKey: "nav.backups", icon: <BackupIcon /> },
+    // Νομικά έγγραφα — πάντα ορατά, όπως στο footer κάθε άλλης cloud
+    // πλατφόρμας. Οδηγεί στο public LegalHub έξω από το /app.
+    { to: "/legal", labelKey: "nav.legalHub", icon: <GavelIcon /> },
 
     // ===== CRM — top-level (3) + grouped (5) =====
     // Every CRM item carries a `permission` code so an AgencyAdmin can hide
@@ -543,6 +550,10 @@ export default function App() {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/cookies" element={<CookiesPage />} />
         <Route path="/dpa" element={<DpaPage />} />
+        <Route path="/subscription-agreement" element={<SubscriptionAgreementPage />} />
+        <Route path="/sla" element={<SlaPage />} />
+        <Route path="/acceptable-use" element={<AcceptableUsePolicyPage />} />
+        <Route path="/legal" element={<LegalHubPage />} />
         <Route
           path="/app/*"
           element={
@@ -594,6 +605,11 @@ export default function App() {
                       show a «Υπό ανάπτυξη» card. Each gets a mini feature
                       preview so users know what will land here. */}
                   <Route path="legal-templates" element={<LegalTemplatesPage />} />
+                  {/* Sidebar link «Νομικά έγγραφα» → redirect στο public
+                      LegalHub. Χρήση Navigate ώστε ο operator να φύγει
+                      από το authenticated shell και να βλέπει τη σελίδα
+                      όπως ένας επισκέπτης. */}
+                  <Route path="legal" element={<Navigate to="/legal" replace />} />
                   <Route path="compliance-dashboard" element={<ComplianceDashboardPage />} />
                   <Route path="dynamic-fields" element={
                     <UnderConstructionPage
