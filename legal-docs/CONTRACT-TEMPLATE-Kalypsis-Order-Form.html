@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="el" xmlns:o='urn:schemas-microsoft-com:office:office'
+      xmlns:w='urn:schemas-microsoft-com:office:word'
+      xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+  <meta charset="UTF-8">
+  <meta name="ProgId" content="Word.Document">
+  <meta name="Generator" content="Kalypsis Order Form v1.0">
+  <title>Kalypsis — Έντυπο Παραγγελίας Συνδρομής</title>
+  <!--[if gte mso 9]>
+  <xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml>
+  <![endif]-->
+  <style>
+    @page WordSection1 { size: 21.0cm 29.7cm; margin: 2.0cm 1.8cm; }
+    div.WordSection1 { page: WordSection1; }
+    body { font-family: 'Calibri', 'Segoe UI', sans-serif; font-size: 11pt; color: #0b2545; line-height: 1.35; }
+    .header { text-align: center; padding: 20pt 0 25pt; border-bottom: 3px solid #0b2545; margin-bottom: 20pt; }
+    .header-eyebrow { letter-spacing: 4pt; font-size: 9pt; text-transform: uppercase; color: #6b7280; }
+    .header-title { font-size: 24pt; font-weight: bold; margin: 10pt 0 4pt; }
+    .header-sub { font-size: 12pt; color: #4b5563; }
+    .header-meta { margin-top: 12pt; font-size: 10pt; color: #6b7280; }
+
+    h2 { font-size: 14pt; color: #0b2545; margin-top: 20pt; border-bottom: 1.5pt solid #0b2545; padding-bottom: 3pt; }
+    h3 { font-size: 11.5pt; color: #1a3a5c; margin-top: 12pt; margin-bottom: 4pt; }
+
+    .info-table { border-collapse: collapse; width: 100%; margin: 6pt 0 12pt; }
+    .info-table td { border: 1px solid #999; padding: 5pt 8pt; font-size: 10.5pt; vertical-align: middle; }
+    .info-table td.label { background: #e8eef4; font-weight: bold; width: 32%; }
+    .fill { color: #999; font-style: italic; }
+    .fill-box { display: inline-block; min-width: 200pt; border-bottom: 1px solid #333; padding: 0 4pt; }
+
+    .package-table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+    .package-table th, .package-table td { border: 1px solid #999; padding: 6pt 8pt; text-align: center; font-size: 10pt; }
+    .package-table th { background: #0b2545; color: white; font-size: 11pt; }
+    .package-table td.feature { text-align: left; background: #f5f7fa; font-weight: bold; }
+    .package-selected { background: #d1e7dd !important; }
+    .price { font-size: 13pt; font-weight: bold; color: #0b2545; }
+
+    .checkbox { display: inline-block; width: 12pt; height: 12pt; border: 1.5pt solid #333; margin-right: 4pt; vertical-align: middle; }
+
+    .totals-table { border-collapse: collapse; width: 60%; margin: 10pt 0 15pt auto; }
+    .totals-table td { border: 1px solid #999; padding: 5pt 8pt; font-size: 10.5pt; }
+    .totals-table td.total-label { background: #e8eef4; font-weight: bold; }
+    .totals-table td.grand-total { background: #0b2545; color: white; font-weight: bold; font-size: 12pt; }
+
+    .references { background: #f5f7fa; border-left: 3px solid #0b2545; padding: 10pt 14pt; margin: 12pt 0; font-size: 10pt; }
+    .references a { color: #0b2545; text-decoration: none; font-weight: bold; }
+
+    .signature-block { margin-top: 25pt; }
+    .signature-table { border-collapse: collapse; width: 100%; margin-top: 8pt; }
+    .signature-table td { padding: 24pt 12pt 8pt; border-bottom: 1px solid #333; vertical-align: bottom; font-size: 10pt; text-align: center; }
+    .signature-table td.role { border: none; padding: 4pt 12pt 0; font-weight: bold; font-size: 10.5pt; }
+
+    .small { font-size: 9pt; color: #6b7280; }
+    .instructions { background: #fff9e6; border: 1px solid #f0d878; padding: 8pt 12pt; margin: 8pt 0; font-size: 10pt; }
+  </style>
+</head>
+<body>
+<div class="WordSection1">
+
+<div class="header">
+  <div class="header-eyebrow">Εμπορική Σύμβαση Παροχής SaaS</div>
+  <div class="header-title">Έντυπο Παραγγελίας Συνδρομής</div>
+  <div class="header-sub">Πλατφόρμα Kalypsis</div>
+  <div class="header-meta">
+    Αριθμός Παραγγελίας: KLP-<span class="fill">[YYYY]-[NNNNN]</span> &nbsp;·&nbsp;
+    Ημερομηνία: <span class="fill">[ΗΗ/ΜΜ/ΕΕΕΕ]</span>
+  </div>
+</div>
+
+<div class="instructions">
+  <strong>Οδηγίες συμπλήρωσης:</strong> Το παρόν έντυπο συμπληρώνεται κατά τη
+  σύναψη νέας συνδρομής ή σε ανανέωση. Αντικαθιστά κάθε προγενέστερο Έντυπο
+  Παραγγελίας. Δεσμεύεται ενσωματώνοντας τους δημόσιους όρους της Πλατφόρμας
+  (βλ. §7). Υπογράφεται σε δύο αντίτυπα — ένα για κάθε συμβαλλόμενο.
+</div>
+
+<h2>1. Στοιχεία Παρόχου</h2>
+
+<table class="info-table">
+  <tr><td class="label">Επωνυμία</td><td>Παναγιώτης Κοτσοργιός — Kalypsis</td></tr>
+  <tr><td class="label">ΑΦΜ / ΔΟΥ</td><td>176091030 · ΔΟΥ Μεσολογγίου</td></tr>
+  <tr><td class="label">Έδρα</td><td>Εργατικές Κατοικίες Λιμάνι Μεσολογγίου 113, 30200 Μεσολόγγι</td></tr>
+  <tr><td class="label">Email Επικοινωνίας</td><td>info@mykalypsis.gr</td></tr>
+  <tr><td class="label">Τραπεζικός Λογαριασμός</td><td><span class="fill">[Τράπεζα — IBAN GR...]</span></td></tr>
+</table>
+
+<h2>2. Στοιχεία Πελάτη (Γραφείου)</h2>
+
+<table class="info-table">
+  <tr><td class="label">Επωνυμία γραφείου</td><td><span class="fill-box">&nbsp;</span></td></tr>
+  <tr><td class="label">Νομική μορφή</td><td><span class="fill-box">Ατομική / ΙΚΕ / ΑΕ / ΕΠΕ / ΟΕ / ΕΕ</span></td></tr>
+  <tr><td class="label">ΑΦΜ / ΔΟΥ</td><td><span class="fill-box">&nbsp;</span></td></tr>
+  <tr><td class="label">ΓΕΜΗ</td><td><span class="fill-box">&nbsp;</span></td></tr>
+  <tr><td class="label">Αρ. Μητρώου ΤτΕ (Ν.4583/2018)</td><td><span class="fill-box">&nbsp;</span></td></tr>
+  <tr><td class="label">Έδρα</td><td><span class="fill-box">&nbsp;</span></td></tr>
+  <tr><td class="label">Νόμιμος Εκπρόσωπος</td><td><span class="fill-box">Ονοματεπώνυμο</span></td></tr>
+  <tr><td class="label">Email Επικοινωνίας</td><td><span class="fill-box">&nbsp;</span></td></tr>
+  <tr><td class="label">Τηλέφωνο</td><td><span class="fill-box">&nbsp;</span></td></tr>
+</table>
+
+<h2>3. Επιλεγόμενο Πακέτο Συνδρομής</h2>
+
+<p><em>Σημειώστε <strong>ένα</strong> πακέτο. Το επιλεγμένο θα εμφανίζεται στα
+τιμολόγια και θα προσδιορίζει τη λειτουργικότητα.</em></p>
+
+<table class="package-table">
+  <tr>
+    <th style="width: 22%;">Χαρακτηριστικά</th>
+    <th style="width: 19.5%;">🟢 Producer</th>
+    <th style="width: 19.5%;">🔵 Standard</th>
+    <th style="width: 19.5%;">🟣 Growth</th>
+    <th style="width: 19.5%;">🟡 Premium</th>
+  </tr>
+  <tr>
+    <td class="feature">Επιλογή (☒)</td>
+    <td><span class="checkbox"></span></td>
+    <td><span class="checkbox"></span></td>
+    <td><span class="checkbox"></span></td>
+    <td><span class="checkbox"></span></td>
+  </tr>
+  <tr>
+    <td class="feature">Ετήσιο Ασφάλιστρο</td>
+    <td class="price">90 €</td>
+    <td class="price">550 €</td>
+    <td class="price">950 €</td>
+    <td class="price">1.800 €</td>
+  </tr>
+  <tr>
+    <td class="feature">Περιλαμβανόμενα γραφεία</td>
+    <td>1</td><td>1</td><td>2</td><td>3</td>
+  </tr>
+  <tr>
+    <td class="feature">Περιλαμβανόμενοι χρήστες</td>
+    <td>1</td><td>3</td><td>6</td><td>12</td>
+  </tr>
+  <tr>
+    <td class="feature">BackOffice</td>
+    <td>✓</td><td>✓</td><td>✓</td><td>✓</td>
+  </tr>
+  <tr>
+    <td class="feature">FrontOffice (πολυτιμολόγηση)</td>
+    <td>—</td><td>✓</td><td>✓</td><td>✓</td>
+  </tr>
+  <tr>
+    <td class="feature">CRM &amp; Πύλη Πελάτη</td>
+    <td>—</td><td>—</td><td>✓</td><td>✓</td>
+  </tr>
+  <tr>
+    <td class="feature">Intelligence (dashboards)</td>
+    <td>—</td><td>—</td><td>—</td><td>✓</td>
+  </tr>
+  <tr>
+    <td class="feature">Integrations (γέφυρες)</td>
+    <td>Βασικές</td><td>✓</td><td>✓</td><td>✓</td>
+  </tr>
+  <tr>
+    <td class="feature">2FA (TOTP + email)</td>
+    <td>✓</td><td>✓</td><td>✓</td><td>✓</td>
+  </tr>
+  <tr>
+    <td class="feature">Support</td>
+    <td>Email</td><td>Email</td><td>Email + Chat</td><td>Priority + Phone</td>
+  </tr>
+</table>
+
+<h3>3.1 Πρόσθετες Μονάδες (Add-ons)</h3>
+
+<table class="info-table">
+  <tr>
+    <td class="label" style="width: 55%;">Έξτρα γραφεία (πέραν των περιλαμβανομένων)</td>
+    <td>Ποσότητα: <span class="fill-box" style="min-width: 40pt;">&nbsp;</span> × 120 €/έτος = <span class="fill-box" style="min-width: 60pt;">&nbsp;</span> €</td>
+  </tr>
+  <tr>
+    <td class="label">Έξτρα χρήστες (πέραν των περιλαμβανομένων)</td>
+    <td>Ποσότητα: <span class="fill-box" style="min-width: 40pt;">&nbsp;</span> × 60 €/έτος = <span class="fill-box" style="min-width: 60pt;">&nbsp;</span> €</td>
+  </tr>
+  <tr>
+    <td class="label">Federation Module (Ομοσπονδία)</td>
+    <td><span class="checkbox"></span> Ενεργοποίηση — 200 €/έτος</td>
+  </tr>
+</table>
+
+<h3>3.2 Έκτακτες Υπηρεσίες (One-off)</h3>
+
+<table class="info-table">
+  <tr>
+    <td class="label" style="width: 55%;">Μεταφορά δεδομένων από παλαιό BackOffice</td>
+    <td><span class="checkbox"></span> Ναι — τιμή κατόπιν εκτίμησης &nbsp;/&nbsp; <span class="checkbox"></span> Όχι</td>
+  </tr>
+  <tr>
+    <td class="label">Απομακρυσμένη εκπαίδευση</td>
+    <td>Ώρες: <span class="fill-box" style="min-width: 40pt;">&nbsp;</span> × 15 €/ώρα = <span class="fill-box" style="min-width: 60pt;">&nbsp;</span> €</td>
+  </tr>
+  <tr>
+    <td class="label">Custom development</td>
+    <td>Ώρες: <span class="fill-box" style="min-width: 40pt;">&nbsp;</span> × 60 €/ώρα = <span class="fill-box" style="min-width: 60pt;">&nbsp;</span> €</td>
+  </tr>
+</table>
+
+<h2>4. Συνολικό Ποσό &amp; Όροι Πληρωμής</h2>
+
+<table class="totals-table">
+  <tr>
+    <td class="total-label">Ετήσιο ασφάλιστρο πακέτου</td>
+    <td style="text-align: right;"><span class="fill-box" style="min-width: 60pt;">&nbsp;</span> €</td>
+  </tr>
+  <tr>
+    <td class="total-label">Πρόσθετες μονάδες (§3.1)</td>
+    <td style="text-align: right;"><span class="fill-box" style="min-width: 60pt;">&nbsp;</span> €</td>
+  </tr>
+  <tr>
+    <td class="total-label">Έκτακτες υπηρεσίες (§3.2)</td>
+    <td style="text-align: right;"><span class="fill-box" style="min-width: 60pt;">&nbsp;</span> €</td>
+  </tr>
+  <tr>
+    <td class="total-label">Υποσύνολο</td>
+    <td style="text-align: right;"><span class="fill-box" style="min-width: 60pt;">&nbsp;</span> €</td>
+  </tr>
+  <tr>
+    <td class="total-label">ΦΠΑ 24% (όπου εφαρμόζεται)</td>
+    <td style="text-align: right;"><span class="fill-box" style="min-width: 60pt;">&nbsp;</span> €</td>
+  </tr>
+  <tr>
+    <td class="grand-total">ΣΥΝΟΛΟ ΠΛΗΡΩΤΕΟ</td>
+    <td class="grand-total" style="text-align: right;"><span class="fill-box" style="min-width: 60pt;">&nbsp;</span> €</td>
+  </tr>
+</table>
+
+<table class="info-table">
+  <tr><td class="label">Νόμισμα</td><td>EUR (€)</td></tr>
+  <tr><td class="label">Όροι πληρωμής</td><td>Προπληρωτέα — 15 ημερολογιακές ημέρες από την έκδοση τιμολογίου</td></tr>
+  <tr><td class="label">Τρόπος πληρωμής</td><td>Τραπεζική κατάθεση στον λογαριασμό του Παρόχου (§1)</td></tr>
+  <tr><td class="label">Συνέπειες καθυστέρησης</td><td>Άνω των 30 ημερών: αναστολή πρόσβασης έως εξόφληση</td></tr>
+</table>
+
+<h2>5. Διάρκεια &amp; Ανανέωση</h2>
+
+<table class="info-table">
+  <tr><td class="label">Ημερομηνία έναρξης</td><td><span class="fill-box">[ΗΗ/ΜΜ/ΕΕΕΕ]</span></td></tr>
+  <tr><td class="label">Αρχική διάρκεια</td><td>12 μήνες</td></tr>
+  <tr><td class="label">Αυτόματη ανανέωση</td><td>Ναι, για ισόχρονες περιόδους έως καταγγελία</td></tr>
+  <tr><td class="label">Ελάχιστη προειδοποίηση μη-ανανέωσης</td><td>30 ημερολογιακές ημέρες πριν τη λήξη</td></tr>
+  <tr><td class="label">Παράθυρο εξαγωγής δεδομένων μετά τη λήξη</td><td>90 ημερολογιακές ημέρες (mode «export-only»)</td></tr>
+</table>
+
+<h2>6. Ειδικές Συνθήκες (προαιρετικό)</h2>
+
+<div class="info-table" style="border: 1px solid #999; padding: 8pt 10pt; min-height: 45pt; font-style: italic; color: #999;">
+  Ενσωματώστε τυχόν ειδικούς όρους που συμφωνήθηκαν εκτός του τυπικού
+  πλαισίου (π.χ. δωρεάν εκπαίδευση, προτεινόμενη τιμή, εκπτωτικός κωδικός,
+  προσαρμοσμένη SLA). Αν κενό, παραλείπεται.<br/>
+  <span class="fill-box" style="display: block; min-width: 90%; margin-top: 6pt;">&nbsp;</span>
+  <span class="fill-box" style="display: block; min-width: 90%; margin-top: 6pt;">&nbsp;</span>
+  <span class="fill-box" style="display: block; min-width: 90%; margin-top: 6pt;">&nbsp;</span>
+</div>
+
+<h2>7. Ενσωματούμενα Έγγραφα</h2>
+
+<div class="references">
+  Το παρόν Έντυπο δεσμεύεται από το πλήρες νομικό πλαίσιο της Πλατφόρμας
+  Kalypsis, όπως αυτό δημοσιεύεται στο <a href="https://www.mykalypsis.gr/legal">mykalypsis.gr/legal</a>.
+  Τα ακόλουθα έγγραφα αποτελούν <strong>αναπόσπαστο μέρος</strong> της σύμβασης
+  και ο Πελάτης δηλώνει ότι τα έχει διαβάσει και αποδεχθεί ρητά:
+
+  <ul style="margin-top: 8pt;">
+    <li><a href="https://www.mykalypsis.gr/subscription-agreement">Σύμβαση Παροχής Υπηρεσιών Πλατφόρμας</a> (MSA v1.0)</li>
+    <li><a href="https://www.mykalypsis.gr/dpa">Σύμβαση Επεξεργασίας Προσωπικών Δεδομένων</a> (DPA v1.0 — Άρθρο 28 GDPR)</li>
+    <li><a href="https://www.mykalypsis.gr/sla">Συμφωνία Επιπέδου Υπηρεσίας</a> (SLA v1.0)</li>
+    <li><a href="https://www.mykalypsis.gr/acceptable-use">Πολιτική Αποδεκτής Χρήσης</a> (AUP v1.0)</li>
+    <li><a href="https://www.mykalypsis.gr/refund-policy">Πολιτική Επιστροφών &amp; Καταγγελίας</a></li>
+    <li><a href="https://www.mykalypsis.gr/sub-processors">Λίστα Sub-processors</a></li>
+  </ul>
+
+  Σε περίπτωση αντίφασης μεταξύ των παραπάνω εγγράφων και του παρόντος
+  Εντύπου, υπερισχύει το παρόν <strong>μόνο για τους εμπορικούς όρους</strong>
+  (πακέτο, τιμή, διάρκεια) — τα νομικά/λειτουργικά καλύπτονται από τη MSA.
+</div>
+
+<h2>8. Εφαρμοστέο Δίκαιο &amp; Δωσιδικία</h2>
+
+<p>Η παρούσα Σύμβαση διέπεται από το <strong>Ελληνικό Δίκαιο</strong>. Για κάθε
+διαφορά αποκλειστικά αρμόδια είναι τα Δικαστήρια Μεσολογγίου. Πριν από
+προσφυγή στη δικαιοσύνη, τα μέρη δεσμεύονται σε καλόπιστη διαπραγμάτευση
+για 30 ημερολογιακές ημέρες.</p>
+
+<h2>9. Υπογραφές</h2>
+
+<p class="small">Το παρόν υπογράφεται από αμφότερα τα μέρη. Η ηλεκτρονική
+υπογραφή (μέσω PDF signature ή qualified electronic signature) γίνεται
+αποδεκτή ως ισοδύναμη της φυσικής.</p>
+
+<div class="signature-block">
+  <table class="signature-table">
+    <tr>
+      <td class="role">ΓΙΑ ΤΟΝ ΠΕΛΑΤΗ</td>
+      <td class="role">ΓΙΑ ΤΟΝ ΠΑΡΟΧΟ</td>
+    </tr>
+    <tr>
+      <td>Ονοματεπώνυμο: <span class="fill-box">&nbsp;</span></td>
+      <td>Παναγιώτης Κοτσοργιός</td>
+    </tr>
+    <tr>
+      <td>Ιδιότητα: <span class="fill-box">&nbsp;</span></td>
+      <td>Ιδιοκτήτης, Kalypsis</td>
+    </tr>
+    <tr>
+      <td>Ημερομηνία: <span class="fill-box">&nbsp;</span></td>
+      <td>Ημερομηνία: <span class="fill-box">&nbsp;</span></td>
+    </tr>
+    <tr>
+      <td style="border-bottom: none; padding-top: 40pt;">
+        <span style="border-top: 1px solid #333; display: inline-block; min-width: 200pt; padding-top: 3pt;">Υπογραφή &amp; Σφραγίδα</span>
+      </td>
+      <td style="border-bottom: none; padding-top: 40pt;">
+        <span style="border-top: 1px solid #333; display: inline-block; min-width: 200pt; padding-top: 3pt;">Υπογραφή &amp; Σφραγίδα</span>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<p class="small" style="margin-top: 30pt; text-align: center; color: #9ca3af;">
+  Kalypsis Order Form v1.0 · info@mykalypsis.gr · mykalypsis.gr/legal
+</p>
+
+</div>
+</body>
+</html>
