@@ -723,17 +723,31 @@
       "desktop": {
         "eyebrow": "KALYPSIS DESKTOP · NEW",
         "title": "Your platform, now outside the browser.",
-        "sub": "Native Windows and macOS app with full offline support, wired to the Kalypsis cloud. Same data, same controls, a proper desktop experience.",
+        "subA": "Native Windows and macOS app that runs locally on your machine and syncs with the Kalypsis cloud. Same data, same access controls — but with desktop-class speed and full functionality when your connection drops.",
+        "subB": "Designed for offices with heavy data-entry: keyboard-first workflows, shortcuts for every action, thermal-printer support and direct access to local PDF/XLSX files without uploads.",
         "cta": "Request beta access",
+        "featuresLabel": "Features",
         "slides": {
           "s1T": "Receipts & Payments",
-          "s1B": "Full receipts and payments ledger with instant search, bulk actions and Excel / PDF exports.",
+          "s1B": "Full receipts and payments ledger with instant search, bulk actions, payment-method filters and Excel / PDF exports.",
           "s2T": "Unified customer card",
-          "s2B": "Details, policies, communication history, bulk SMS/Email — all on one screen.",
+          "s2B": "Details, policies, communication history, bulk SMS/Email — all on one screen with direct access to claims and payments.",
           "s3T": "Production analytics",
-          "s3B": "Live production and settlement dashboards, line distribution, top producers and commission breakdown.",
+          "s3B": "Live production and settlement dashboards, line distribution, top producers and commission breakdown by month, carrier and partner.",
           "s4T": "Receipt oversight",
-          "s4B": "Powerful KPIs, smart filters and one-click Excel export — a full picture of the year in seconds."
+          "s4B": "Powerful KPIs, smart filters and one-click Excel export — a full picture of the year in seconds, no browser required."
+        },
+        "faq": {
+          "q1": "Does it work without internet?",
+          "a1": "Yes. The app keeps a local encrypted copy of your office data and syncs automatically when the connection returns. Entry, search and printing all work offline.",
+          "q2": "Is it a separate program or a browser extension?",
+          "a2": "A full native app with .msi installers for Windows and .dmg for macOS. No browser required to run, no extra plugins.",
+          "q3": "How does cloud sync work?",
+          "a3": "Two-way sync in real time over an encrypted channel (TLS 1.3). Desktop changes show up in Kalypsis web instantly — and vice-versa.",
+          "q4": "Is there an extra charge?",
+          "a4": "No. It's included in your subscription at no additional cost. Each user can install it on up to 3 devices.",
+          "q5": "Which systems are supported?",
+          "a5": "Windows 10/11 (x64), macOS 12+ (Intel & Apple Silicon). Linux is on the 2026 roadmap."
         },
         "aria": {
           "prev": "Previous slide",
