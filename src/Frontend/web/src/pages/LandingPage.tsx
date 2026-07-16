@@ -948,9 +948,8 @@ function DesktopAppSection() {
   const n = DESKTOP_SLIDES.length;
   const goto = (i: number) => setActive(((i % n) + n) % n);
 
-  // Signed shortest-path offset for coverflow positioning. For 4 slides the
-  // possible offsets are {-1, 0, 1, 2} — asymmetric by one slot, which reads
-  // fine visually because the outermost slide sits far right and fades.
+  // Signed shortest-path offset. Vertical carousel now — offset < 0 means the
+  // slide is above the active center, offset > 0 means below.
   const offsetFor = (i: number) => {
     const raw = ((i - active) % n + n) % n;
     return raw > n / 2 ? raw - n : raw;
@@ -965,29 +964,42 @@ function DesktopAppSection() {
       onBlur={() => setPaused(false)}
       sx={{
         position: "relative",
-        // Uses the platform's exact dark-mode background (background.default
-        // in src/theme.ts) so the section reads as "AppShell dark", not a
-        // separate marketing surface.
         bgcolor: D_BG,
-        // Two very restrained tints — a subtle top-left blue and a soft
-        // bottom-right elevated-paper wash. No AI-looking radial glows.
-        backgroundImage:
-          `linear-gradient(180deg, ${D_BG} 0%, ${D_ELEVATED} 100%)`,
         color: D_TEXT,
         overflow: "hidden",
         py: { xs: 7, md: 11 },
         my: { xs: 4, md: 6 }
       }}
     >
-      {/* Thin brand accent line at the top edge — the only decoration on
-          this surface. Everything else is plain colour. */}
+      {/* Dynamic backdrop — every slide is layered edge-to-edge at low
+          opacity, blurred and darkened. Only the active one is at full
+          "background" opacity, so the section's colour subtly shifts to
+          match the current screenshot. Sits behind everything else. */}
+      {DESKTOP_SLIDES.map((s, i) => (
+        <Box key={`bg-${s.img}`} aria-hidden sx={{
+          position: "absolute", inset: 0, zIndex: 0,
+          backgroundImage: `url(${s.img})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          filter: "blur(40px) saturate(1.1)",
+          transform: "scale(1.15)",   // hides blur edge artifacts
+          opacity: i === active ? 0.35 : 0,
+          transition: "opacity 1200ms ease"
+        }} />
+      ))}
+      {/* Dark wash on top of the image bg so foreground text stays legible. */}
       <Box aria-hidden sx={{
-        position: "absolute", top: 0, left: 0, right: 0, height: 2,
+        position: "absolute", inset: 0, zIndex: 0,
+        background: `linear-gradient(180deg, rgba(21,38,64,0.85) 0%, rgba(28,50,82,0.9) 100%)`
+      }} />
+      {/* Top brand hairline. */}
+      <Box aria-hidden sx={{
+        position: "absolute", top: 0, left: 0, right: 0, height: 2, zIndex: 1,
         background: `linear-gradient(90deg, transparent, ${D_ACCENT} 25%, ${D_ACCENT} 75%, transparent)`,
         opacity: 0.4
       }} />
 
-      <Container maxWidth="lg" sx={{ position: "relative", px: { xs: 3, md: 5 } }}>
+      <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1, px: { xs: 3, md: 5 } }}>
         <Reveal>
           <Typography sx={{
             fontSize: 11, letterSpacing: "0.25em", textTransform: "uppercase",
@@ -996,141 +1008,107 @@ function DesktopAppSection() {
             {t("landing.v2.desktop.eyebrow")}
           </Typography>
           <Typography component="h2" sx={{
-            fontSize: { xs: 28, md: 42 }, fontWeight: 800, letterSpacing: "-0.02em",
+            fontSize: { xs: 28, md: 44 }, fontWeight: 800, letterSpacing: "-0.02em",
             lineHeight: 1.1, mb: 2.5, maxWidth: 820, color: D_TEXT
           }}>
             {t("landing.v2.desktop.title")}
           </Typography>
           <Typography sx={{
-            fontSize: { xs: 15, md: 16.5 }, lineHeight: 1.65,
-            color: D_TEXT_SOFT, maxWidth: 760, mb: 1.5
+            fontSize: { xs: 15, md: 17 }, lineHeight: 1.65,
+            color: D_TEXT_SOFT, maxWidth: 760, mb: { xs: 5, md: 7 }
           }}>
             {t("landing.v2.desktop.subA")}
           </Typography>
-          <Typography sx={{
-            fontSize: { xs: 15, md: 16.5 }, lineHeight: 1.65,
-            color: D_TEXT_SOFT, maxWidth: 760, mb: { xs: 5, md: 7 }
-          }}>
-            {t("landing.v2.desktop.subB")}
-          </Typography>
         </Reveal>
 
-        {/* Two-column layout — coverflow left, FAQ right. Stacks on mobile. */}
+        {/* Two-column layout — bigger vertical carousel left, white panel
+            shifted to the right. On mobile they stack. */}
         <Box sx={{
           display: "grid",
-          gap: { xs: 5, md: 6 },
-          gridTemplateColumns: { xs: "1fr", md: "1.2fr 1fr" },
-          alignItems: "flex-start"
+          gap: { xs: 5, md: 5 },
+          gridTemplateColumns: { xs: "1fr", md: "1.35fr 1fr" },
+          alignItems: "stretch"
         }}>
-          {/* ─── Coverflow stage ───────────────────────────────────────── */}
-          <Box>
-            <Box sx={{
-              position: "relative",
-              // Fixed height so all slides can share it regardless of aspect.
-              height: { xs: 240, sm: 320, md: 400 },
-              // Overflow visible so the offset side-slides can peek out of
-              // the container's left/right edges (limited by section overflow).
-              perspective: "1600px"
-            }}>
-              {DESKTOP_SLIDES.map((s, i) => {
-                const off = offsetFor(i);
-                const abs = Math.abs(off);
-                // Coverflow math — center slide is big & flat, sides shrink
-                // and rotate inward. Numbers picked by eye to feel "iOS-y".
-                const translateX = off * 34;                       // %
-                const scale = abs === 0 ? 1 : abs === 1 ? 0.78 : 0.6;
-                const rotateY = -off * 18;                         // deg
-                const opacity = abs === 0 ? 1 : abs === 1 ? 0.7 : 0.35;
-                const zIndex = 10 - abs;
-                return (
-                  <Box key={s.img}
-                    onClick={() => goto(i)}
+          {/* ─── Vertical carousel ─────────────────────────────────────── */}
+          <Box sx={{
+            position: "relative",
+            height: { xs: 460, sm: 560, md: 680 },
+            perspective: "2200px"
+          }}>
+            {DESKTOP_SLIDES.map((s, i) => {
+              const off = offsetFor(i);
+              const abs = Math.abs(off);
+              // Vertical stack — active in the center, neighbours peek up/down.
+              const translateY = off * 36;                          // %
+              const translateZ = -abs * 220;                        // px, depth
+              const scale = abs === 0 ? 1 : abs === 1 ? 0.82 : 0.66;
+              const rotateX = off * 8;                              // gentle tilt
+              const opacity = abs === 0 ? 1 : abs === 1 ? 0.65 : 0.3;
+              const zIndex = 10 - abs;
+              return (
+                <Box key={s.img}
+                  onClick={() => goto(i)}
+                  role="button"
+                  aria-label={`${t("landing.v2.desktop.aria.dot")} ${i + 1}`}
+                  sx={{
+                    position: "absolute",
+                    left: "50%", top: "50%",
+                    // Bigger images than before — center slide is close to the
+                    // full column width so the UI details are actually readable.
+                    width: { xs: "94%", sm: "88%", md: "92%" },
+                    aspectRatio: "16 / 10",
+                    cursor: abs === 0 ? "default" : "pointer",
+                    zIndex,
+                    transformStyle: "preserve-3d",
+                    transformOrigin: "center center",
+                    transform:
+                      `translate(-50%, -50%) translateY(${translateY}%) translateZ(${translateZ}px) rotateX(${rotateX}deg) scale(${scale})`,
+                    transition: "transform 900ms cubic-bezier(0.22,1,0.36,1), opacity 900ms ease",
+                    opacity,
+                    borderRadius: 3,
+                    overflow: "hidden",
+                    border: `1px solid ${abs === 0 ? "rgba(30,167,225,0.4)" : "rgba(230,238,247,0.1)"}`,
+                    boxShadow: abs === 0
+                      ? `0 40px 80px -20px rgba(0,0,0,0.75), 0 0 0 4px rgba(30,167,225,0.1)`
+                      : "0 25px 50px -20px rgba(0,0,0,0.55)",
+                    bgcolor: D_ELEVATED
+                  }}
+                >
+                  <Box component="img"
+                    src={s.img}
+                    alt={t(s.tKey) as string}
+                    loading={abs <= 1 ? "eager" : "lazy"}
                     sx={{
-                      position: "absolute",
-                      top: 0, left: "50%",
-                      width: { xs: "80%", sm: "70%", md: "62%" },
-                      height: "100%",
-                      cursor: abs === 0 ? "default" : "pointer",
-                      zIndex,
-                      transformOrigin: "center center",
-                      transform: `translate(-50%, 0) translateX(${translateX}%) scale(${scale}) rotateY(${rotateY}deg)`,
-                      transition: "transform 800ms cubic-bezier(0.22,1,0.36,1), opacity 800ms ease",
-                      opacity,
-                      borderRadius: 2.5,
-                      overflow: "hidden",
-                      border: `1px solid ${abs === 0 ? "rgba(30,167,225,0.35)" : "rgba(230,238,247,0.08)"}`,
-                      // Center slide gets a proper drop shadow + subtle blue
-                      // glow ring; side slides get a plainer shadow only, so
-                      // the eye tracks the center clearly.
-                      boxShadow: abs === 0
-                        ? `0 30px 60px -25px rgba(0,0,0,0.7), 0 0 0 4px rgba(30,167,225,0.08)`
-                        : "0 20px 40px -20px rgba(0,0,0,0.55)",
-                      bgcolor: D_ELEVATED
+                      width: "100%", height: "100%",
+                      objectFit: "contain", objectPosition: "center",
+                      display: "block",
+                      filter: abs === 0 ? "none" : "saturate(0.55) brightness(0.8)"
                     }}
-                  >
-                    <Box component="img"
-                      src={s.img}
-                      alt={t(s.tKey) as string}
-                      loading={abs <= 1 ? "eager" : "lazy"}
-                      sx={{
-                        // contain, not cover — user wants the full screenshot
-                        // visible. The tile's dark bg fills the letterbox.
-                        width: "100%", height: "100%",
-                        objectFit: "contain", objectPosition: "center",
-                        display: "block",
-                        // Side slides get slightly desaturated so the eye
-                        // gravitates to the fully-coloured center image.
-                        filter: abs === 0 ? "none" : "saturate(0.6) brightness(0.85)"
-                      }}
-                    />
-                  </Box>
-                );
-              })}
-            </Box>
+                  />
+                </Box>
+              );
+            })}
 
-            {/* Active-slide caption below the stage — always visible so the
-                image itself stays uncovered. */}
-            <Box key={`cap-${active}`} sx={{ mt: 4, animation: "kdSlideIn 500ms cubic-bezier(0.22,1,0.36,1) both" }}>
-              <Typography sx={{
-                fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase",
-                color: D_ACCENT, fontWeight: 700, mb: 0.75
-              }}>
-                {String(active + 1).padStart(2, "0")} / {String(n).padStart(2, "0")} · {t(DESKTOP_SLIDES[active].tKey)}
-              </Typography>
-              <Typography sx={{
-                fontSize: { xs: 14, md: 15 }, lineHeight: 1.6,
-                color: D_TEXT_SOFT, maxWidth: 620
-              }}>
-                {t(DESKTOP_SLIDES[active].bKey)}
-              </Typography>
-            </Box>
-
-            {/* Controls — dots + arrows sit under the caption. */}
-            <Stack direction="row" spacing={1.5} alignItems="center" mt={3}>
+            {/* Vertical control column — up/down arrows and vertical dot rail
+                docked to the right edge of the stage. */}
+            <Stack direction="column" spacing={1.25} alignItems="center" sx={{
+              position: "absolute", right: { xs: 8, md: -4 }, top: "50%",
+              transform: "translateY(-50%)", zIndex: 20
+            }}>
               <IconButton
                 aria-label={t("landing.v2.desktop.aria.prev") as string}
                 onClick={() => goto(active - 1)}
                 sx={{
-                  color: D_TEXT, border: "1px solid rgba(230,238,247,0.15)",
+                  color: D_TEXT, border: "1px solid rgba(230,238,247,0.2)",
+                  bgcolor: "rgba(21,38,64,0.55)", backdropFilter: "blur(6px)",
                   width: 38, height: 38,
-                  "&:hover": { borderColor: D_ACCENT, color: D_ACCENT, bgcolor: "rgba(30,167,225,0.08)" }
+                  transform: "rotate(-90deg)",
+                  "&:hover": { borderColor: D_ACCENT, color: D_ACCENT, bgcolor: "rgba(30,167,225,0.15)" }
                 }}
               >
                 <ArrowBackIosNewIcon sx={{ fontSize: 14 }} />
               </IconButton>
-              <IconButton
-                aria-label={t("landing.v2.desktop.aria.next") as string}
-                onClick={() => goto(active + 1)}
-                sx={{
-                  color: D_TEXT, border: "1px solid rgba(230,238,247,0.15)",
-                  width: 38, height: 38,
-                  "&:hover": { borderColor: D_ACCENT, color: D_ACCENT, bgcolor: "rgba(30,167,225,0.08)" }
-                }}
-              >
-                <ArrowForwardIosIcon sx={{ fontSize: 14 }} />
-              </IconButton>
-              <Box sx={{ flex: 1 }} />
-              <Stack direction="row" spacing={0.75} alignItems="center">
+              <Stack direction="column" spacing={0.75} alignItems="center" py={0.5}>
                 {DESKTOP_SLIDES.map((_, i) => (
                   <Box key={i}
                     role="button"
@@ -1139,35 +1117,77 @@ function DesktopAppSection() {
                     onClick={() => goto(i)}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goto(i); } }}
                     sx={{
-                      width: i === active ? 26 : 7, height: 7,
+                      width: 7, height: i === active ? 26 : 7,
                       borderRadius: 4,
-                      bgcolor: i === active ? D_ACCENT : "rgba(230,238,247,0.2)",
+                      bgcolor: i === active ? D_ACCENT : "rgba(230,238,247,0.28)",
                       cursor: "pointer",
-                      transition: "width 400ms ease, background-color 400ms ease",
-                      "&:hover": { bgcolor: i === active ? D_ACCENT : "rgba(230,238,247,0.45)" }
+                      transition: "height 400ms ease, background-color 400ms ease",
+                      "&:hover": { bgcolor: i === active ? D_ACCENT : "rgba(230,238,247,0.5)" }
                     }}
                   />
                 ))}
               </Stack>
+              <IconButton
+                aria-label={t("landing.v2.desktop.aria.next") as string}
+                onClick={() => goto(active + 1)}
+                sx={{
+                  color: D_TEXT, border: "1px solid rgba(230,238,247,0.2)",
+                  bgcolor: "rgba(21,38,64,0.55)", backdropFilter: "blur(6px)",
+                  width: 38, height: 38,
+                  transform: "rotate(-90deg)",
+                  "&:hover": { borderColor: D_ACCENT, color: D_ACCENT, bgcolor: "rgba(30,167,225,0.15)" }
+                }}
+              >
+                <ArrowForwardIosIcon sx={{ fontSize: 14 }} />
+              </IconButton>
             </Stack>
           </Box>
 
-          {/* ─── FAQ accordion + CTA ──────────────────────────────────── */}
-          <Box>
+          {/* ─── White right-side panel ────────────────────────────────── */}
+          <Box sx={{
+            bgcolor: "#ffffff",
+            color: "#0b2545",
+            borderRadius: 3,
+            p: { xs: 3, md: 5 },
+            boxShadow: "0 30px 60px -25px rgba(0,0,0,0.5)",
+            // Nudge the whole panel visually further to the right on desktop
+            // so it doesn't hug the stage — reads as a lifted card.
+            ml: { md: 2 },
+            display: "flex", flexDirection: "column"
+          }}>
+            {/* Active slide title changes with the carousel — bigger, bolder. */}
+            <Typography key={`t-${active}`} sx={{
+              fontSize: 11, letterSpacing: "0.22em", textTransform: "uppercase",
+              color: D_ACCENT, fontWeight: 700, mb: 1.5,
+              animation: "kdSlideIn 500ms cubic-bezier(0.22,1,0.36,1) both"
+            }}>
+              {String(active + 1).padStart(2, "0")} / {String(n).padStart(2, "0")}
+            </Typography>
+            <Typography key={`h-${active}`} component="h3" sx={{
+              fontSize: { xs: 24, md: 32 }, fontWeight: 900, letterSpacing: "-0.02em",
+              lineHeight: 1.15, mb: 2, color: "#0b1522",
+              animation: "kdSlideIn 550ms cubic-bezier(0.22,1,0.36,1) both"
+            }}>
+              {t(DESKTOP_SLIDES[active].tKey)}
+            </Typography>
+            <Typography key={`b-${active}`} sx={{
+              fontSize: { xs: 16, md: 18 }, fontWeight: 500, lineHeight: 1.6,
+              color: "#3d4f6b", mb: 3.5,
+              animation: "kdSlideIn 600ms cubic-bezier(0.22,1,0.36,1) both"
+            }}>
+              {t(DESKTOP_SLIDES[active].bKey)}
+            </Typography>
+
+            {/* FAQ accordion — bigger, bolder text so it feels like a proper
+                content card, not a footnote. */}
             <Typography sx={{
               fontSize: 11, letterSpacing: "0.22em", textTransform: "uppercase",
-              color: D_TEXT_SOFT, fontWeight: 700, mb: 2
+              color: "#3d4f6b", fontWeight: 700, mb: 1.5
             }}>
               {t("landing.v2.desktop.featuresLabel")}
             </Typography>
             <Box sx={{
-              // Wrap the accordion in a subtle bordered surface so the FAQ
-              // reads as one block, matching the elevated-paper look of the
-              // rest of the platform.
-              borderRadius: 2,
-              border: "1px solid rgba(230,238,247,0.08)",
-              bgcolor: "rgba(17,29,46,0.6)",
-              overflow: "hidden"
+              borderTop: "1px solid #e5e9ef", mb: 3.5
             }}>
               {DESKTOP_FAQ.map((f, i) => (
                 <Accordion
@@ -1179,44 +1199,39 @@ function DesktopAppSection() {
                   elevation={0}
                   sx={{
                     bgcolor: "transparent",
-                    color: D_TEXT,
-                    borderBottom: "1px solid rgba(230,238,247,0.06)",
-                    "&:last-of-type": { borderBottom: 0 },
+                    borderBottom: "1px solid #e5e9ef",
                     "&:before": { display: "none" },
                     "&.Mui-expanded": { m: 0 }
                   }}
                 >
                   <AccordionSummary
-                    // Simple +/− text glyph rather than yet-another icon.
                     expandIcon={
                       <Box aria-hidden sx={{
-                        color: D_TEXT_SOFT, fontSize: 20, lineHeight: 1,
-                        fontWeight: 300, transform: "translateY(-1px)"
-                      }}>
-                        +
-                      </Box>
+                        color: "#3d4f6b", fontSize: 22, lineHeight: 1,
+                        fontWeight: 300
+                      }}>+</Box>
                     }
                     sx={{
                       "& .MuiAccordionSummary-expandIconWrapper.Mui-expanded": {
-                        transform: "rotate(45deg)"   // + rotates into ×
+                        transform: "rotate(45deg)"
                       },
-                      px: 2.5, py: 1,
+                      px: 0, py: 1,
                       "& .MuiAccordionSummary-content": { my: 1.25 },
-                      "&:hover": { bgcolor: "rgba(30,167,225,0.04)" },
-                      "&.Mui-expanded": { bgcolor: "rgba(30,167,225,0.06)" }
+                      "&.Mui-expanded": { "& .MuiTypography-root": { color: D_ACCENT } }
                     }}
                   >
                     <Typography sx={{
-                      fontSize: { xs: 14, md: 14.5 }, fontWeight: 600,
-                      color: expandedFaq === i ? D_ACCENT : D_TEXT,
+                      fontSize: { xs: 15.5, md: 17 }, fontWeight: 700,
+                      color: "#0b1522",
                       transition: "color 200ms ease"
                     }}>
                       {t(f.qKey)}
                     </Typography>
                   </AccordionSummary>
-                  <AccordionDetails sx={{ px: 2.5, pt: 0, pb: 2 }}>
+                  <AccordionDetails sx={{ px: 0, pt: 0, pb: 2 }}>
                     <Typography sx={{
-                      fontSize: 13.5, lineHeight: 1.65, color: D_TEXT_SOFT
+                      fontSize: { xs: 14.5, md: 15.5 }, lineHeight: 1.65,
+                      color: "#3d4f6b", fontWeight: 400
                     }}>
                       {t(f.aKey)}
                     </Typography>
@@ -1229,14 +1244,15 @@ function DesktopAppSection() {
               component={RouterLink}
               to="/register"
               endIcon={<ArrowForwardIcon />}
+              size="large"
               sx={{
-                mt: 3.5,
-                bgcolor: D_ACCENT, color: "#04121e",
-                fontWeight: 700, letterSpacing: "0.01em",
-                textTransform: "none", px: 3, py: 1.15,
+                alignSelf: "flex-start",
+                bgcolor: "#0b2545", color: "#ffffff",
+                fontWeight: 800, letterSpacing: "0.01em", fontSize: 15,
+                textTransform: "none", px: 3.5, py: 1.5,
                 borderRadius: 1.5,
-                boxShadow: `0 8px 24px -12px ${D_ACCENT}`,
-                "&:hover": { bgcolor: "#54b7ea" }
+                boxShadow: "0 10px 24px -12px rgba(11,37,69,0.6)",
+                "&:hover": { bgcolor: "#1d4e89" }
               }}
             >
               {t("landing.v2.desktop.cta")}
