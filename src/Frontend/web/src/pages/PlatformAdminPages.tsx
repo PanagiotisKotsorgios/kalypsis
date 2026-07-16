@@ -1779,10 +1779,27 @@ export function PlatformSupportPage() {
     onError: (e) => setBanner({ kind: "error", msg: extractErrorMessage(e) })
   });
 
-  const filtered = tickets.filter(x =>
-    (statusFilter === "all" || (statusFilter === "open" ? x.status !== "Resolved" : x.status === statusFilter))
-    && (priorityFilter === "all" || x.priority === priorityFilter)
-  );
+  // Additional server-side filter surface: a full-text search that combines
+  // subject + tenant name, plus client-side pagination since the list can
+  // grow past 100 rows for busy support teams.
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  const filtered = tickets.filter(x => {
+    if (statusFilter !== "all" && (statusFilter === "open" ? x.status === "Resolved" : x.status !== statusFilter)) return false;
+    if (priorityFilter !== "all" && x.priority !== priorityFilter) return false;
+    if (search) {
+      const s = search.toLowerCase();
+      if (!x.subject.toLowerCase().includes(s) && !x.tenant.toLowerCase().includes(s)) return false;
+    }
+    return true;
+  });
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const clampedPage = Math.min(page, pageCount);
+
+  useEffect(() => { setPage(1); }, [statusFilter, priorityFilter, search, pageSize]);
 
   const stats = {
     total: tickets.length,
@@ -1829,7 +1846,17 @@ export function PlatformSupportPage() {
             <MenuItem value="Normal">Normal</MenuItem>
             <MenuItem value="Low">Low</MenuItem>
           </TextField>
+          <TextField size="small" label="Αναζήτηση" value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="subject ή tenant"
+            sx={{ minWidth: 220 }} />
+          <TextField select size="small" label="Ανά σελίδα" value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+            sx={{ minWidth: 100 }}>
+            {[10, 25, 50, 100].map(n => <MenuItem key={n} value={n}>{n}</MenuItem>)}
+          </TextField>
           <Box sx={{ flex: 1 }} />
+          <Chip size="small" label={`${filtered.length} από ${tickets.length}`} />
           <Button variant="contained" startIcon={<SendIcon />} onClick={() => setNewTicketOpen(true)}>
             Νέο ticket
           </Button>
@@ -1850,7 +1877,7 @@ export function PlatformSupportPage() {
             <TableCell align="right">Ενέργειες</TableCell>
           </TableRow></TableHead>
           <TableBody>
-            {filtered.map(tt => (
+            {paged.map(tt => (
               <TableRow key={tt.id} hover
                 onClick={(e) => {
                   const target = e.target as HTMLElement;
@@ -1906,6 +1933,21 @@ export function PlatformSupportPage() {
             )}
           </TableBody>
         </Table>
+        {pageCount > 1 && (
+          <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ p: 2 }}>
+            <Button size="small" variant="outlined"
+              disabled={page <= 1} onClick={() => setPage(1)}>«</Button>
+            <Button size="small" variant="outlined"
+              disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>‹</Button>
+            <Typography variant="body2" sx={{ minWidth: 140, textAlign: "center" }}>
+              Σελίδα <strong>{clampedPage}</strong> από <strong>{pageCount}</strong>
+            </Typography>
+            <Button size="small" variant="outlined"
+              disabled={page >= pageCount} onClick={() => setPage(p => Math.min(pageCount, p + 1))}>›</Button>
+            <Button size="small" variant="outlined"
+              disabled={page >= pageCount} onClick={() => setPage(pageCount)}>»</Button>
+          </Stack>
+        )}
       </Card>
 
       {/* Ticket detail dialog */}

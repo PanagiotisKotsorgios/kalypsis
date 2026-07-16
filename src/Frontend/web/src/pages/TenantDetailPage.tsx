@@ -1,7 +1,8 @@
 import { useState } from "react";
 import {
   Alert, Avatar, Box, Button, Card, CardContent, Chip, CircularProgress, IconButton,
-  Stack, Table, TableBody, TableCell, TableHead, TableRow, Tab, Tabs, Typography
+  MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, Tab, Tabs,
+  TextField, Typography
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LoginIcon from "@mui/icons-material/Login";
@@ -180,40 +181,13 @@ export function TenantDetailPage() {
         <ActivityTab tenantId={id} />
       )}
 
-      {tab === "users" && (
-        <Card variant="outlined" sx={{ overflowX: "auto" }}>
-          {usersQ.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
-            <Table size="small">
-              <TableHead><TableRow>
-                <TableCell>Email</TableCell>
-                <TableCell>{t("tenants.userName")}</TableCell>
-                <TableCell>{t("tenants.userRole")}</TableCell>
-                <TableCell>{t("common.status")}</TableCell>
-                <TableCell>{t("tenants.userLastLogin")}</TableCell>
-                <TableCell align="right" />
-              </TableRow></TableHead>
-              <TableBody>
-                {(usersQ.data ?? []).map(u => (
-                  <TableRow key={u.id} hover>
-                    <TableCell>{u.email}</TableCell>
-                    <TableCell>{u.firstName} {u.lastName}</TableCell>
-                    <TableCell><Chip size="small" label={t(`roles.${u.role}`)} variant="outlined" /></TableCell>
-                    <TableCell><Chip size="small" color={u.isActive ? "success" : "default"} label={u.isActive ? t("common.active") : t("common.inactive")} /></TableCell>
-                    <TableCell>{u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString("el-GR") : "—"}</TableCell>
-                    <TableCell align="right">
-                      <Button size="small" onClick={() => setActive.mutate({ userId: u.id, isActive: !u.isActive })}>
-                        {u.isActive ? t("tenants.userDeactivate") : t("tenants.userActivate")}
-                      </Button>
-                      <Button size="small" color="error" onClick={() => { if (confirm(t("common.confirmDelete"))) delUser.mutate(u.id); }}>
-                        {t("common.delete")}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </Card>
+      {tab === "users" && id && (
+        <UsersTab
+          users={usersQ.data ?? []}
+          loading={usersQ.isLoading}
+          onToggle={(userId, isActive) => setActive.mutate({ userId, isActive })}
+          onDelete={(userId) => { if (confirm(t("common.confirmDelete"))) delUser.mutate(userId); }}
+        />
       )}
 
       {(tab === "customers" || tab === "policies") && (
@@ -359,7 +333,6 @@ function PackagesTab({ tenantId, onError }: { tenantId: string; onError: (m: str
 
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import StarIcon from "@mui/icons-material/Star";
-import { TextField } from "@mui/material";
 
 interface BillingBreakdown {
   tenantId: string;
@@ -822,6 +795,24 @@ interface TimelineEntry {
   at: string; kind: string; title: string; detail: string | null;
   actorUserId: string | null; actorEmail: string | null;
 }
+interface TimelinePage {
+  items: TimelineEntry[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  availableKinds: string[];
+}
+
+const KIND_LABEL: Record<string, string> = {
+  audit: "Audit",
+  user_created: "Νέος χρήστης",
+  user_login: "Σύνδεση",
+  package_change: "Πακέτα",
+  office_added: "Νέο υποκ/μα",
+  office_removed: "Διαγραφή υποκ/μα",
+  contract_signed: "Νέο συμβόλαιο",
+  contract_terminated: "Λήξη συμβολαίου"
+};
 
 const KIND_ICON: Record<string, React.ReactNode> = {
   audit: <HistoryIcon />,
@@ -845,61 +836,265 @@ const KIND_COLOR: Record<string, string> = {
   contract_terminated: "error.main"
 };
 
+/**
+ * Users tab with client-side search + pagination. Backend already returns
+ * every user of the tenant in one shot (they're capped by the platform
+ * roster anyway) so filtering + paginating client-side is cheap and lets
+ * the SuperAdmin land on a specific user without scrolling through 200
+ * rows for busy tenants.
+ */
+interface UserRow {
+  id: string; email: string; firstName: string; lastName: string;
+  role: string; isActive: boolean; lastLoginAt: string | null;
+}
+function UsersTab({ users, loading, onToggle, onDelete }: {
+  users: readonly UserRow[];
+  loading: boolean;
+  onToggle: (id: string, isActive: boolean) => void;
+  onDelete: (id: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  const filtered = users.filter(u => {
+    if (statusFilter === "active" && !u.isActive) return false;
+    if (statusFilter === "inactive" && u.isActive) return false;
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return u.email.toLowerCase().includes(s)
+      || `${u.firstName} ${u.lastName}`.toLowerCase().includes(s)
+      || u.role.toLowerCase().includes(s);
+  });
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const clampedPage = Math.min(page, pageCount);
+  if (clampedPage !== page && paged.length === 0 && filtered.length > 0) {
+    // Guard: filters shrunk the list past the current page — snap back to 1.
+    setPage(1);
+  }
+
+  return (
+    <Card variant="outlined" sx={{ overflowX: "auto" }}>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ p: 2, alignItems: { md: "center" } }}>
+        <TextField size="small" label="Αναζήτηση (email / όνομα / ρόλος)"
+          value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          sx={{ minWidth: 280 }} />
+        <TextField select size="small" label="Κατάσταση" value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value as any); setPage(1); }}
+          sx={{ minWidth: 160 }}>
+          <MenuItem value="all">Όλοι</MenuItem>
+          <MenuItem value="active">Ενεργοί</MenuItem>
+          <MenuItem value="inactive">Ανενεργοί</MenuItem>
+        </TextField>
+        <Box sx={{ flex: 1 }} />
+        <Chip size="small" label={`${filtered.length} χρήστες`} />
+        <TextField select size="small" label="Ανά σελίδα" value={pageSize}
+          onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+          sx={{ minWidth: 100 }}>
+          {[10, 25, 50, 100].map(n => <MenuItem key={n} value={n}>{n}</MenuItem>)}
+        </TextField>
+      </Stack>
+      {loading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
+        <>
+          <Table size="small">
+            <TableHead><TableRow>
+              <TableCell>Email</TableCell>
+              <TableCell>{t("tenants.userName")}</TableCell>
+              <TableCell>{t("tenants.userRole")}</TableCell>
+              <TableCell>{t("common.status")}</TableCell>
+              <TableCell>{t("tenants.userLastLogin")}</TableCell>
+              <TableCell align="right" />
+            </TableRow></TableHead>
+            <TableBody>
+              {paged.length === 0 && (
+                <TableRow><TableCell colSpan={6} sx={{ py: 4, textAlign: "center", color: "text.secondary" }}>
+                  Κανένας χρήστης δεν ταιριάζει στα φίλτρα.
+                </TableCell></TableRow>
+              )}
+              {paged.map(u => (
+                <TableRow key={u.id} hover>
+                  <TableCell>{u.email}</TableCell>
+                  <TableCell>{u.firstName} {u.lastName}</TableCell>
+                  <TableCell><Chip size="small" label={t(`roles.${u.role}`)} variant="outlined" /></TableCell>
+                  <TableCell><Chip size="small" color={u.isActive ? "success" : "default"} label={u.isActive ? t("common.active") : t("common.inactive")} /></TableCell>
+                  <TableCell>{u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString("el-GR") : "—"}</TableCell>
+                  <TableCell align="right">
+                    <Button size="small" onClick={() => onToggle(u.id, !u.isActive)}>
+                      {u.isActive ? t("tenants.userDeactivate") : t("tenants.userActivate")}
+                    </Button>
+                    <Button size="small" color="error" onClick={() => onDelete(u.id)}>
+                      {t("common.delete")}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ p: 2 }}>
+            <Button size="small" variant="outlined"
+              disabled={page <= 1} onClick={() => setPage(1)}>«</Button>
+            <Button size="small" variant="outlined"
+              disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>‹</Button>
+            <Typography variant="body2" sx={{ minWidth: 140, textAlign: "center" }}>
+              Σελίδα <strong>{clampedPage}</strong> από <strong>{pageCount}</strong>
+            </Typography>
+            <Button size="small" variant="outlined"
+              disabled={page >= pageCount} onClick={() => setPage(p => Math.min(pageCount, p + 1))}>›</Button>
+            <Button size="small" variant="outlined"
+              disabled={page >= pageCount} onClick={() => setPage(pageCount)}>»</Button>
+          </Stack>
+        </>
+      )}
+    </Card>
+  );
+}
+
 function ActivityTab({ tenantId }: { tenantId: string }) {
+  // Server-side pagination + filters. The old page dumped a flat 200 rows
+  // which was unreadable on busy tenants; now every knob lives in the URL
+  // params so a filtered view is bookmark-friendly.
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [kindFilter, setKindFilter] = useState<string>("");
+  const [actorFilter, setActorFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
+
   const q = useQuery({
-    queryKey: ["tenant-activity", tenantId],
-    queryFn: async () => (await api.get<TimelineEntry[]>(`/platform/tenants/${tenantId}/activity?take=200`)).data
+    queryKey: ["tenant-activity", tenantId, page, pageSize, kindFilter, actorFilter, search, fromDate, toDate],
+    queryFn: async () => (await api.get<TimelinePage>(
+      `/platform/tenants/${tenantId}/activity`,
+      { params: {
+          page, pageSize,
+          kind: kindFilter || undefined,
+          actor: actorFilter || undefined,
+          search: search || undefined,
+          from: fromDate || undefined,
+          to: toDate || undefined,
+        }
+      }
+    )).data
   });
 
-  if (q.isLoading) return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
+  // Reset to first page whenever any filter changes so the operator doesn't
+  // land on an empty page 4 after tightening the filters.
+  useEffect(() => { setPage(1); }, [kindFilter, actorFilter, search, fromDate, toDate, pageSize]);
 
-  const entries = q.data ?? [];
+  const data = q.data;
+  const entries = data?.items ?? [];
+  const totalCount = data?.totalCount ?? 0;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  const resetFilters = () => {
+    setKindFilter(""); setActorFilter(""); setSearch("");
+    setFromDate(""); setToDate("");
+  };
+  const hasActiveFilter = !!(kindFilter || actorFilter || search || fromDate || toDate);
 
   return (
     <Card variant="outlined">
       <CardContent>
         <Stack direction="row" alignItems="center" spacing={2} mb={3}>
           <HistoryIcon color="primary" />
-          <Box>
+          <Box sx={{ flex: 1 }}>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>Ιστορικό δραστηριότητας</Typography>
             <Typography variant="body2" color="text.secondary">
-              Τελευταίες 200 πράξεις σε αυτό το γραφείο — audit, χρήστες, πακέτα, υποκαταστήματα, συμβόλαια.
+              Audit, χρήστες, πακέτα, υποκαταστήματα, συμβόλαια — με φίλτρα και σελιδοποίηση.
             </Typography>
           </Box>
+          <Chip size="small" label={`${totalCount} συνολικά`} color={hasActiveFilter ? "primary" : "default"} />
         </Stack>
 
-        {entries.length === 0 ? (
+        {/* Filters row */}
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ mb: 2.5, alignItems: { md: "center" } }}>
+          <TextField select size="small" label="Τύπος" value={kindFilter}
+            onChange={(e) => setKindFilter(e.target.value)}
+            sx={{ minWidth: 180 }}>
+            <MenuItem value="">Όλα</MenuItem>
+            {(data?.availableKinds ?? []).map(k => (
+              <MenuItem key={k} value={k}>{KIND_LABEL[k] ?? k}</MenuItem>
+            ))}
+          </TextField>
+          <TextField size="small" label="Χρήστης (email)" value={actorFilter}
+            onChange={(e) => setActorFilter(e.target.value)}
+            placeholder="π.χ. info@lanca"
+            sx={{ minWidth: 200 }} />
+          <TextField size="small" label="Αναζήτηση" value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="τίτλος ή περιγραφή"
+            sx={{ minWidth: 200 }} />
+          <TextField size="small" label="Από" type="date" value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            InputLabelProps={{ shrink: true }} sx={{ minWidth: 150 }} />
+          <TextField size="small" label="Έως" type="date" value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            InputLabelProps={{ shrink: true }} sx={{ minWidth: 150 }} />
+          {hasActiveFilter && (
+            <Button size="small" onClick={resetFilters}>Καθαρισμός</Button>
+          )}
+          <Box sx={{ flex: 1 }} />
+          <TextField select size="small" label="Ανά σελίδα" value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+            sx={{ minWidth: 100 }}>
+            {[25, 50, 100, 200].map(n => <MenuItem key={n} value={n}>{n}</MenuItem>)}
+          </TextField>
+        </Stack>
+
+        {q.isLoading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
+        ) : entries.length === 0 ? (
           <Typography textAlign="center" color="text.secondary" sx={{ py: 4 }}>
-            Καμία πράξη στο διάστημα.
+            {hasActiveFilter ? "Καμία πράξη με αυτά τα φίλτρα." : "Καμία πράξη στο διάστημα."}
           </Typography>
         ) : (
-          <Stack spacing={0}>
-            {entries.map((e, i) => (
-              <Stack key={i} direction="row" spacing={2} sx={{ position: "relative", pl: 1, py: 1.5, borderLeft: "2px solid", borderColor: KIND_COLOR[e.kind] ?? "divider" }}>
-                <Box sx={{ display: "flex", alignItems: "flex-start", color: KIND_COLOR[e.kind] ?? "text.disabled", pt: 0.5 }}>
-                  {KIND_ICON[e.kind] ?? <HistoryIcon />}
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="baseline">
-                    <Typography sx={{ fontWeight: 600 }}>{e.title}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {new Date(e.at).toLocaleString("el-GR")}
-                    </Typography>
-                  </Stack>
-                  {e.detail && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, fontSize: 12.5, whiteSpace: "pre-wrap" }}>
-                      {e.detail.length > 240 ? e.detail.slice(0, 240) + "…" : e.detail}
-                    </Typography>
-                  )}
-                  {e.actorEmail && (
-                    <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>
-                      {e.actorEmail}
-                    </Typography>
-                  )}
-                </Box>
-              </Stack>
-            ))}
-          </Stack>
+          <>
+            <Stack spacing={0}>
+              {entries.map((e, i) => (
+                <Stack key={i} direction="row" spacing={2} sx={{ position: "relative", pl: 1, py: 1.5, borderLeft: "2px solid", borderColor: KIND_COLOR[e.kind] ?? "divider" }}>
+                  <Box sx={{ display: "flex", alignItems: "flex-start", color: KIND_COLOR[e.kind] ?? "text.disabled", pt: 0.5 }}>
+                    {KIND_ICON[e.kind] ?? <HistoryIcon />}
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+                      <Typography sx={{ fontWeight: 600 }}>{e.title}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: "nowrap" }}>
+                        {new Date(e.at).toLocaleString("el-GR")}
+                      </Typography>
+                    </Stack>
+                    {e.detail && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, fontSize: 12.5, whiteSpace: "pre-wrap" }}>
+                        {e.detail.length > 240 ? e.detail.slice(0, 240) + "…" : e.detail}
+                      </Typography>
+                    )}
+                    {e.actorEmail && (
+                      <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>
+                        {e.actorEmail}
+                      </Typography>
+                    )}
+                  </Box>
+                </Stack>
+              ))}
+            </Stack>
+
+            {/* Pagination bar */}
+            <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" mt={3}>
+              <Button size="small" variant="outlined"
+                disabled={page <= 1} onClick={() => setPage(1)}>«</Button>
+              <Button size="small" variant="outlined"
+                disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>‹</Button>
+              <Typography variant="body2" sx={{ minWidth: 120, textAlign: "center" }}>
+                Σελίδα <strong>{page}</strong> από <strong>{pageCount}</strong>
+              </Typography>
+              <Button size="small" variant="outlined"
+                disabled={page >= pageCount} onClick={() => setPage(p => Math.min(pageCount, p + 1))}>›</Button>
+              <Button size="small" variant="outlined"
+                disabled={page >= pageCount} onClick={() => setPage(pageCount)}>»</Button>
+            </Stack>
+          </>
         )}
       </CardContent>
     </Card>

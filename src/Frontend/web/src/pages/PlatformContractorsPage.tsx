@@ -71,6 +71,37 @@ export function PlatformContractorsPage() {
   const contractors = contractorsQ.data ?? [];
   const assignments = assignmentsQ.data ?? [];
 
+  // Client-side search + pagination for both tables. Contractors + assignments
+  // are unlikely to exceed a few dozen rows, but the search bar keeps the
+  // page usable even at fleet-scale (100+ contractors managing 200+ offices).
+  const [contractorSearch, setContractorSearch] = useState("");
+  const [contractorPage, setContractorPage] = useState(1);
+  const [assignSearch, setAssignSearch] = useState("");
+  const [assignPage, setAssignPage] = useState(1);
+  const PAGE_SIZE = 15;
+
+  const filteredContractors = contractors.filter(c => {
+    if (!contractorSearch) return true;
+    const s = contractorSearch.toLowerCase();
+    return c.name.toLowerCase().includes(s)
+      || c.email.toLowerCase().includes(s)
+      || (c.afmVat ?? "").toLowerCase().includes(s);
+  });
+  const contractorPageCount = Math.max(1, Math.ceil(filteredContractors.length / PAGE_SIZE));
+  const pagedContractors = filteredContractors.slice((contractorPage - 1) * PAGE_SIZE, contractorPage * PAGE_SIZE);
+
+  const filteredAssignments = assignments.filter(a => {
+    if (!assignSearch) return true;
+    const s = assignSearch.toLowerCase();
+    const contractor = contractors.find(c => c.id === a.contractorId);
+    return (contractor?.name.toLowerCase().includes(s) ?? false);
+  });
+  const assignPageCount = Math.max(1, Math.ceil(filteredAssignments.length / PAGE_SIZE));
+  const pagedAssignments = filteredAssignments.slice((assignPage - 1) * PAGE_SIZE, assignPage * PAGE_SIZE);
+
+  useEffect(() => { setContractorPage(1); }, [contractorSearch]);
+  useEffect(() => { setAssignPage(1); }, [assignSearch]);
+
   const upsertContractor = useMutation({
     mutationFn: async (c: Contractor) => {
       const body = { name: c.name, email: c.email, phone: c.phone, afmVat: c.afmVat, active: c.active, notes: c.notes };
@@ -159,10 +190,22 @@ export function PlatformContractorsPage() {
 
       <Card variant="outlined" sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" fontWeight={700} mb={2}>
-            <BusinessCenterIcon sx={{ verticalAlign: "middle", mr: 1 }} fontSize="small" />
-            Συνεργάτες
-          </Typography>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }} mb={2}>
+            <Typography variant="h6" fontWeight={700}>
+              <BusinessCenterIcon sx={{ verticalAlign: "middle", mr: 1 }} fontSize="small" />
+              Συνεργάτες
+            </Typography>
+            <Box sx={{ flex: 1 }} />
+            {contractors.length > 0 && (
+              <>
+                <TextField size="small" label="Αναζήτηση (όνομα / email / ΑΦΜ)"
+                  value={contractorSearch}
+                  onChange={(e) => setContractorSearch(e.target.value)}
+                  sx={{ minWidth: 280 }} />
+                <Chip size="small" label={`${filteredContractors.length} από ${contractors.length}`} />
+              </>
+            )}
+          </Stack>
           {contractors.length === 0 ? (
             <Alert severity="warning">
               Δεν έχετε καταχωρήσει συνεργάτες. Πατήστε «Νέος συνεργάτης» για να ξεκινήσετε.
@@ -182,7 +225,12 @@ export function PlatformContractorsPage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {contractors.map(c => {
+                  {pagedContractors.length === 0 && (
+                    <TableRow><TableCell colSpan={7} sx={{ py: 3, textAlign: "center", color: "text.secondary" }}>
+                      Κανένας συνεργάτης δεν ταιριάζει στην αναζήτηση.
+                    </TableCell></TableRow>
+                  )}
+                  {pagedContractors.map(c => {
                     const active = assignments.filter(a => a.contractorId === c.id && !a.endedOn);
                     return (
                       <TableRow key={c.id} hover>
@@ -218,6 +266,9 @@ export function PlatformContractorsPage() {
                   })}
                 </TableBody>
               </Table>
+              {contractorPageCount > 1 && (
+                <Pager page={contractorPage} pageCount={contractorPageCount} onPage={setContractorPage} />
+              )}
             </Box>
           )}
         </CardContent>
@@ -225,7 +276,19 @@ export function PlatformContractorsPage() {
 
       <Card variant="outlined">
         <CardContent>
-          <Typography variant="h6" fontWeight={700} mb={2}>Αναθέσεις γραφείων</Typography>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }} mb={2}>
+            <Typography variant="h6" fontWeight={700}>Αναθέσεις γραφείων</Typography>
+            <Box sx={{ flex: 1 }} />
+            {assignments.length > 0 && (
+              <>
+                <TextField size="small" label="Αναζήτηση (όνομα συνεργάτη)"
+                  value={assignSearch}
+                  onChange={(e) => setAssignSearch(e.target.value)}
+                  sx={{ minWidth: 260 }} />
+                <Chip size="small" label={`${filteredAssignments.length} από ${assignments.length}`} />
+              </>
+            )}
+          </Stack>
           {assignments.length === 0 ? (
             <Alert severity="warning">
               Καμία ανάθεση. Επιλέξτε έναν συνεργάτη παραπάνω και πατήστε «+» για να τον αναθέσετε σε γραφείο.
@@ -245,7 +308,12 @@ export function PlatformContractorsPage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {assignments.map(a => {
+                  {pagedAssignments.length === 0 && (
+                    <TableRow><TableCell colSpan={7} sx={{ py: 3, textAlign: "center", color: "text.secondary" }}>
+                      Καμία ανάθεση δεν ταιριάζει στην αναζήτηση.
+                    </TableCell></TableRow>
+                  )}
+                  {pagedAssignments.map(a => {
                     const c = contractors.find(x => x.id === a.contractorId);
                     const t = tenantById.get(a.tenantId);
                     const active = !a.endedOn;
@@ -284,6 +352,9 @@ export function PlatformContractorsPage() {
                   })}
                 </TableBody>
               </Table>
+              {assignPageCount > 1 && (
+                <Pager page={assignPage} pageCount={assignPageCount} onPage={setAssignPage} />
+              )}
             </Box>
           )}
         </CardContent>
@@ -316,6 +387,23 @@ export function PlatformContractorsPage() {
         busy={upsertAssignment.isPending}
       />
     </Box>
+  );
+}
+
+/** Reusable page navigation bar. Kept local since two tables on this page
+ *  both need it and neither of them warrants a shared component elsewhere. */
+function Pager({ page, pageCount, onPage }: { page: number; pageCount: number; onPage: (n: number) => void }) {
+  const clamped = Math.min(page, pageCount);
+  return (
+    <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ p: 2 }}>
+      <Button size="small" variant="outlined" disabled={page <= 1} onClick={() => onPage(1)}>«</Button>
+      <Button size="small" variant="outlined" disabled={page <= 1} onClick={() => onPage(Math.max(1, page - 1))}>‹</Button>
+      <Typography variant="body2" sx={{ minWidth: 140, textAlign: "center" }}>
+        Σελίδα <strong>{clamped}</strong> από <strong>{pageCount}</strong>
+      </Typography>
+      <Button size="small" variant="outlined" disabled={page >= pageCount} onClick={() => onPage(Math.min(pageCount, page + 1))}>›</Button>
+      <Button size="small" variant="outlined" disabled={page >= pageCount} onClick={() => onPage(pageCount)}>»</Button>
+    </Stack>
   );
 }
 
