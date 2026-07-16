@@ -89,6 +89,13 @@ const governance: LegalDoc[] = [
     tag: "GDPR Άρθρο 30"
   },
   {
+    to: "/data-retention-schedule",
+    title: "Πίνακας Διατήρησης Δεδομένων",
+    subtitle: "Ενοποιημένη λίστα περιόδων διατήρησης ανά κατηγορία με νομικές αναφορές.",
+    Icon: ListAltIcon,
+    tag: "GDPR Άρθρο 5(1)(ε)"
+  },
+  {
     to: "/complaints-policy",
     title: "Διαδικασία Χειρισμού Παραπόνων",
     subtitle: "Πώς υποβάλλετε παράπονο και τι χρόνο απόκρισης θα έχετε (Ν. 4583/2018).",

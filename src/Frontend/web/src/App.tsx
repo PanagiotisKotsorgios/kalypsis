@@ -79,6 +79,7 @@ import { RefundPolicyPage } from "./pages/RefundPolicyPage";
 import { CodeOfConductPage } from "./pages/CodeOfConductPage";
 import { OssAttributionsPage } from "./pages/OssAttributionsPage";
 import { RopaPage } from "./pages/RopaPage";
+import { DataRetentionPage } from "./pages/DataRetentionPage";
 import { BreachIncidentsPage } from "./pages/BreachIncidentsPage";
 import { CollectionFilesBridgesPage } from "./pages/CollectionFilesBridgesPage";
 import { UnderConstructionPage } from "./pages/UnderConstructionPage";
@@ -572,6 +573,7 @@ export default function App() {
         <Route path="/code-of-conduct" element={<CodeOfConductPage />} />
         <Route path="/oss-licenses" element={<OssAttributionsPage />} />
         <Route path="/ropa" element={<RopaPage />} />
+        <Route path="/data-retention-schedule" element={<DataRetentionPage />} />
         <Route
           path="/app/*"
           element={
