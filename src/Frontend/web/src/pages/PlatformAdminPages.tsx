@@ -28,6 +28,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { Link as RouterLink } from "react-router-dom";
 import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 
@@ -813,7 +814,14 @@ export function PlatformBackupsPage() {
 
   const backupsQ = useQuery({
     queryKey: ["platform-backups"],
-    queryFn: async () => (await api.get<PlatformBackupDto[]>("/platform/backups")).data
+    queryFn: async () => (await api.get<PlatformBackupDto[]>("/platform/backups")).data,
+    // Poll while any row is still working so the operator sees the
+    // Completed transition + size fill-in without needing to refresh.
+    refetchInterval: (query) => {
+      const rows = query.state.data as PlatformBackupDto[] | undefined;
+      const hasWorking = (rows ?? []).some(r => r.status === "InProgress");
+      return hasWorking ? 5_000 : false;
+    }
   });
   const backups = backupsQ.data ?? [];
 
@@ -938,13 +946,22 @@ export function PlatformBackupsPage() {
                 </TableCell>
                 <TableCell sx={{ fontSize: 12 }}>{b.createdByName ?? "—"}</TableCell>
                 <TableCell align="right">
-                  <Tooltip title="Λήψη"><IconButton size="small"><DownloadIcon fontSize="small" /></IconButton></Tooltip>
+                  <Tooltip title={b.status === "Completed" ? "Λήψη backup" : "Δεν είναι έτοιμο"}>
+                    <span>
+                      <IconButton size="small" disabled={b.status !== "Completed"}
+                        component="a" href={`/api/platform/backups/${b.id}/download`} download>
+                        <DownloadIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
                   <Tooltip title="Restore αυτού του backup">
-                    <IconButton size="small" color="warning"
-                      disabled={b.status !== "Completed" && b.status !== "AwaitingRestore"}
-                      onClick={() => setRestoreConfirmId(b.id)}>
-                      <RefreshIcon fontSize="small" />
-                    </IconButton>
+                    <span>
+                      <IconButton size="small" color="warning"
+                        disabled={b.status !== "Completed" && b.status !== "AwaitingRestore"}
+                        onClick={() => setRestoreConfirmId(b.id)}>
+                        <RefreshIcon fontSize="small" />
+                      </IconButton>
+                    </span>
                   </Tooltip>
                 </TableCell>
               </TableRow>
@@ -1147,9 +1164,9 @@ export function PlatformStoragePage() {
                   </Stack>
                 </TableCell>
                 <TableCell align="right">
-                  <Button size="small" variant="outlined"
-                    onClick={() => setCleanupStatus(`Analytics για ${row.tenantCode} θα εμφανιστεί σύντομα.`)}>
-                    Analytics
+                  <Button size="small" variant="outlined" component={RouterLink}
+                    to={`/app/tenants/${row.tenantId}`}>
+                    Άνοιγμα
                   </Button>
                 </TableCell>
               </TableRow>
@@ -1388,14 +1405,28 @@ export function PlatformStatusPage() {
     }
   });
 
-  // Recent audit-log severity — powers the "recent errors" list at the bottom.
+  // Recent audit-log activity — the /audit-logs endpoint returns a paginated
+  // envelope (`{ items, totalCount, page, pageSize, ... }`), NOT a flat array,
+  // and uses `pageSize`, not `limit`. Getting either of those wrong makes the
+  // page white-screen because `.slice(0, 15).map()` blows up on the envelope.
   const auditQ = useQuery({
     queryKey: ["platform-status-recent-audit"],
     queryFn: async () => {
       try {
-        const r = await api.get<Array<{ id: string; kind: string; entity: string; occurredAt: string; message?: string }>>(
-          "/audit-logs", { params: { limit: 20 } });
-        return r.data;
+        const r = await api.get<{
+          items: Array<{
+            id: string;
+            entityName: string;
+            action: string;
+            category?: string;
+            userEmail?: string;
+            tenantName?: string;
+            target?: string;
+            createdAt: string;
+          }>;
+          totalCount: number;
+        }>("/audit-logs", { params: { pageSize: 20 } });
+        return r.data.items ?? [];
       } catch { return []; }
     }
   });
@@ -1483,20 +1514,25 @@ export function PlatformStatusPage() {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Kind</TableCell>
+                <TableCell>Action</TableCell>
                 <TableCell>Entity</TableCell>
-                <TableCell>Message</TableCell>
+                <TableCell>Target</TableCell>
+                <TableCell>Χρήστης</TableCell>
                 <TableCell align="right">Ημ/νία</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {(auditQ.data ?? []).slice(0, 15).map(a => (
                 <TableRow key={a.id} hover>
-                  <TableCell><Chip size="small" variant="outlined" label={a.kind} /></TableCell>
-                  <TableCell sx={{ fontSize: 13 }}>{a.entity}</TableCell>
-                  <TableCell sx={{ fontSize: 13, color: "text.secondary" }}>{a.message ?? "—"}</TableCell>
+                  <TableCell><Chip size="small" variant="outlined" label={a.action || a.category || "—"} /></TableCell>
+                  <TableCell sx={{ fontSize: 13 }}>{a.entityName || "—"}</TableCell>
+                  <TableCell sx={{ fontSize: 13, color: "text.secondary" }}>{a.target ?? "—"}</TableCell>
+                  <TableCell sx={{ fontSize: 12, color: "text.secondary" }}>
+                    {a.userEmail ?? "—"}
+                    {a.tenantName && <div style={{ fontSize: 10 }}>{a.tenantName}</div>}
+                  </TableCell>
                   <TableCell align="right" sx={{ fontSize: 12, whiteSpace: "nowrap" }}>
-                    {new Date(a.occurredAt).toLocaleString("el-GR")}
+                    {new Date(a.createdAt).toLocaleString("el-GR")}
                   </TableCell>
                 </TableRow>
               ))}

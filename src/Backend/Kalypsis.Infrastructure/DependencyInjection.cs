@@ -82,6 +82,14 @@ public static class DependencyInjection
             Kalypsis.Infrastructure.Scheduling.TenantBackupService>();
         services.AddHostedService<Kalypsis.Infrastructure.Scheduling.AutoBackupJob>();
 
+        // Platform-wide backup: aggregates every tenant + platform-scoped tables
+        // into one gzipped JSON archive. PlatformBackupJob polls every 2 min
+        // for SuperAdmin-queued rows AND creates a daily snapshot if none in
+        // the last 24h.
+        services.AddScoped<Kalypsis.Application.Abstractions.IPlatformBackupService,
+            Kalypsis.Infrastructure.Scheduling.PlatformBackupService>();
+        services.AddHostedService<Kalypsis.Infrastructure.Scheduling.PlatformBackupJob>();
+
         // === Phase 3: pluggable integration surface ==========================
         // Every carrier we already seed in InsuranceCompanies gets a stub adapter.
         // Real adapters are dropped into Kalypsis.Carriers.{Code} and registered here.

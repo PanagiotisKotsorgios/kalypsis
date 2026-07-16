@@ -1,4 +1,4 @@
-﻿import { Navigate, Route, Routes } from "react-router-dom";
+﻿import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import PeopleIcon from "@mui/icons-material/People";
 import DescriptionIcon from "@mui/icons-material/Description";
@@ -44,6 +44,7 @@ import { AppShell } from "./components/AppShell";
 import { GlobalKeyboardShortcuts } from "./components/GlobalKeyboardShortcuts";
 import { CommandPalette } from "./components/CommandPalette";
 import { GlobalStickyHeaders } from "./components/GlobalStickyHeaders";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { CookieBanner } from "./components/CookieBanner";
 import { CookiePreferencesButton } from "./components/CookiePreferencesButton";
@@ -275,14 +276,14 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/commission-distribution", labelKey: "nav.commissionDistribution", icon: <AccountTreeIcon />, package: "BackOffice", group: "financials" },
     { to: "/financial-report", labelKey: "nav.financialReport", icon: <AccountBalanceIcon />, package: "BackOffice", group: "financials" },
     { to: "/producer-statement", labelKey: "nav.producerStatement", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
-    // Roadmap accounting placeholders
-    { to: "/bulk-receipts",         labelKey: "nav.bulkReceipts",         icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
-    { to: "/auto-receipt-matching", labelKey: "nav.autoReceiptMatching",  icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
-    { to: "/ageing-analysis",       labelKey: "nav.ageingAnalysis",       icon: <AnalyticsIcon />,   package: "BackOffice", group: "financials" },
-    { to: "/journal-entries",       labelKey: "nav.journalEntries",       icon: <AccountBalanceIcon />, package: "BackOffice", group: "financials" },
-    { to: "/commission-certificates", labelKey: "nav.commissionCertificates", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
-    { to: "/carrier-ledger",        labelKey: "nav.carrierLedger",        icon: <AccountBalanceIcon />, package: "BackOffice", group: "financials" },
-    { to: "/statement-mailer",      labelKey: "nav.statementMailer",      icon: <EmailIcon />, package: "BackOffice", group: "financials" },
+    // Roadmap accounting placeholders — routes stay (deep-links + all-tools
+    // page keep working) but hidden from sidebar to keep the Financials group
+    // trimmed to the 6 items the office actually uses daily. Users discover
+    // upcoming features via the "All Tools" grid, not by scrolling past a
+    // wall of "υπό ανάπτυξη" chips.
+    // Routes: /bulk-receipts /auto-receipt-matching /ageing-analysis
+    //         /journal-entries /commission-certificates /carrier-ledger
+    //         /statement-mailer
 
     // BackOffice → ΠΡΟΜΗΘΕΙΕΣ — the commission settlement entry point is in
     // Production Lists, keeping production reporting and monthly settlement together.
@@ -305,12 +306,11 @@ const navByRole: Record<Role, NavItem[]> = {
     // — secondary configuration tools below the four primary items —
     { to: "/parametric-files",    labelKey: "nav.parametricFiles",    icon: <InventoryIcon />,      package: "BackOffice", group: "params" },
     { to: "/document-designer",   labelKey: "nav.docDesigner",        icon: <DesignServicesIcon />, package: "BackOffice", group: "params" },
+    // Config Hub τραβάει μέσα του τα roadmap items (Dynamic Fields · Groupings ·
+    // Period Locks) σαν tabs — έτσι το sidebar μένει καθαρό και τα coming-soon
+    // δεν φαίνονται σαν «σπασμένα» links. Routes για /dynamic-fields κτλ. μένουν
+    // για deep-links, απλά ανακατευθύνουν στο config-hub με το σωστό tab.
     { to: "/config-hub",          labelKey: "nav.configHub",          icon: <TuneOutlinedIcon />,   package: "BackOffice", group: "params" },
-    // Roadmap features — placeholder pages «υπό ανάπτυξη» για να είναι
-    // discoverable ενώ γράφονται. Ίδιο pattern με τις Γέφυρες αρχείων εισπράξεων.
-    { to: "/dynamic-fields",      labelKey: "nav.dynamicFields",      icon: <TuneOutlinedIcon />,   package: "BackOffice", group: "params" },
-    { to: "/groupings",           labelKey: "nav.groupings",          icon: <TuneOutlinedIcon />,   package: "BackOffice", group: "params" },
-    { to: "/period-locks",        labelKey: "nav.periodLocks",        icon: <TuneOutlinedIcon />,   package: "BackOffice", group: "params" },
     { to: "/legal-templates",     labelKey: "nav.legalTemplates",     icon: <GavelIcon />,          package: "BackOffice", group: "params" },
     { to: "/compliance-dashboard",labelKey: "nav.complianceDashboard",icon: <GavelIcon />,          package: "BackOffice", group: "admin" },
 
@@ -476,6 +476,19 @@ const navByRole: Record<Role, NavItem[]> = {
   ]
 };
 
+/**
+ * Wraps the routed page with an ErrorBoundary that resets whenever the URL
+ * changes. Without this, a component throw (bad API response shape, missing
+ * data, JS bug) tears the whole React tree down and leaves a white screen —
+ * and worse, sometimes stays broken after navigation because the shell state
+ * is gone. With this in place, a page crash renders a recovery card inside
+ * the AppShell while the sidebar + user menu keep working.
+ */
+function RoutedErrorBoundary({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  return <ErrorBoundary resetKey={location.pathname}>{children}</ErrorBoundary>;
+}
+
 export default function App() {
   const { user, loading } = useAuth();
   const { tenantId: impersonatedTenantId } = useImpersonation();
@@ -581,6 +594,7 @@ export default function App() {
                 <CommandPalette />
                 <GlobalStickyHeaders />
                 <DpaAcceptancePrompt />
+                <RoutedErrorBoundary>
                 <Routes>
                   {/* Agency users land on the Workspace Hub; other roles keep their dashboard. */}
                   <Route index element={
@@ -872,6 +886,7 @@ export default function App() {
                   <Route path="vehicle-models" element={<VehicleModelsPage />} />
                   <Route path="*" element={<Navigate to="/app" replace />} />
                 </Routes>
+                </RoutedErrorBoundary>
               </AppShell>
               )}
             </ProtectedRoute>

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   Alert, Box, Button, Card, Checkbox, Chip, CircularProgress,
   Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel,
@@ -8,12 +8,10 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
-import { SearchableSelect } from "../components/SearchableSelect";
 
 interface CarrierRow {
   id: string;
@@ -52,8 +50,6 @@ export function PlatformCarriersPage() {
   const [editing, setEditing] = useState<FormBody | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [importTarget, setImportTarget] = useState<CarrierRow | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const carriers = useQuery({
     queryKey: ["platform-carriers"],
@@ -97,46 +93,21 @@ export function PlatformCarriersPage() {
     onError: (e) => setError(extractErrorMessage(e)),
   });
 
-  const runCleanup = useMutation({
-    mutationFn: async () =>
-      (await api.post("/platform/company-parameters/run-cleanup")).data,
-    onSuccess: () => {
-      setSuccess("Ο καθαρισμός ολοκληρώθηκε. Οι duplicates αφαιρέθηκαν.");
-      void qc.invalidateQueries({ queryKey: ["platform-carriers"] });
-    },
-    onError: (e) => setError(extractErrorMessage(e)),
-  });
-
-  const importParams = useMutation({
-    mutationFn: async ({ carrierId, file }: { carrierId: string; file: File }) => {
-      const form = new FormData();
-      form.append("file", file);
-      return (await api.post<{ inserted: number; skipped: number; warnings: string[] }>(
-        `/platform/company-parameters/import/${carrierId}`,
-        form,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      )).data;
-    },
-    onSuccess: (res) => {
-      setSuccess(`Εισαγωγή ολοκληρώθηκε: ${res.inserted} νέες εγγραφές, ${res.skipped} παραλείφθηκαν.`);
-      setImportTarget(null);
-      void qc.invalidateQueries({ queryKey: ["platform-carriers"] });
-    },
-    onError: (e) => setError(extractErrorMessage(e)),
-  });
-
-  const rows = carriers.data ?? [];
-  const brokers = rows.filter(r => r.isBroker);
-  // Group: brokers first with their subs, then standalone, then other globals.
-  const grouped: CarrierRow[] = [];
-  for (const broker of brokers.filter(b => !b.parentCompanyId)) {
-    grouped.push(broker);
-    const subs = rows.filter(r => r.parentCompanyId === broker.id);
-    for (const s of subs) grouped.push(s);
-  }
-  for (const r of rows) {
-    if (!grouped.includes(r)) grouped.push(r);
-  }
+  // Flat, alphabetical list — the broker/sub-broker tree was dropped from
+  // this screen. Central παραμετρικά are no longer maintained per carrier;
+  // each γραφείο links what comes from its own bridge to whichever carrier
+  // row it uses. This page is now a system-wide carrier registry only.
+  const [search, setSearch] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
+  const allRows = carriers.data ?? [];
+  const rows = allRows
+    .filter(r => showInactive || r.isActive)
+    .filter(r => {
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      return r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q);
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, "el"));
 
   return (
     <Box>
@@ -145,21 +116,16 @@ export function PlatformCarriersPage() {
           <BusinessCenterIcon sx={{ fontSize: 36 }} color="primary" />
           <Box>
             <Stack direction="row" alignItems="center" spacing={0.5}>
-              <Typography variant="h4" sx={{ fontWeight: 800 }}>Ασφαλιστικές Εταιρίες (Καθολικές)</Typography>
+              <Typography variant="h4" sx={{ fontWeight: 800 }}>Ασφαλιστικές Εταιρίες</Typography>
               <HelpHint title="Πώς δουλεύει"
-                body="Κάθε εταιρία που δημιουργείτε εδώ γίνεται διαθέσιμη σε όλους τους χρήστες της πλατφόρμας. Για κάθε εταιρία πρέπει να εισάγετε τα παραμετρικά (κλάδοι, χρήσεις, καλύψεις, πακέτα) ώστε να εμφανίζονται σωστά τα dropdown σε όλες τις σελίδες." />
+                body="Καθολικός κατάλογος ασφαλιστικών εταιριών. Κάθε γραφείο συνδέει τα αρχεία που έρχονται από τις γέφυρες με μια από αυτές τις εταιρίες. Τα παραμετρικά δεν καθορίζονται πια εδώ — κάθε γραφείο διαμορφώνει δικά του παραμετρικά ανά εταιρία στη σελίδα «Παραμετρικά Ασφαλιστικών»." />
             </Stack>
             <Typography color="text.secondary">
-              Καθολικές εταιρίες που εμφανίζονται σε όλα τα γραφεία. Δημιουργήστε μία, ανεβάστε τα παραμετρικά της και είναι έτοιμη.
+              Καθολικός κατάλογος. Κάθε γραφείο συνδέει τα αρχεία της γέφυράς του σε μια από αυτές και ορίζει τα δικά του παραμετρικά.
             </Typography>
           </Box>
         </Stack>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-          <Button variant="outlined" size="large"
-            onClick={() => { setError(null); runCleanup.mutate(); }}
-            disabled={runCleanup.isPending}>
-            {runCleanup.isPending ? <CircularProgress size={18} /> : "Καθαρισμός duplicates"}
-          </Button>
           <Button startIcon={<AddIcon />} variant="contained" size="large"
             onClick={() => { setError(null); setEditing({ ...EMPTY_FORM }); }}>
             Νέα ασφαλιστική
@@ -171,8 +137,24 @@ export function PlatformCarriersPage() {
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}
 
       <Alert severity="info" sx={{ mb: 2 }}>
-        Οι αλλαγές εδώ ισχύουν για όλα τα γραφεία αμέσως. Το «Καθαρισμός duplicates» τρέχει ξανά την πολιτική «μόνο Grand Cover» και αφαιρεί τυχόν διπλές καταχωρήσεις.
+        Αυτή η σελίδα είναι μόνο ο καθολικός κατάλογος (όνομα · κωδικός · κατάσταση). Τα παραμετρικά (κλάδοι / πακέτα / καλύψεις / γέφυρες)
+        ορίζονται πλέον <strong>ανά γραφείο</strong> στη σελίδα «Ασφαλιστικές Εταιρείες» → «Ρυθμίσεις Γέφυρας» → import αρχείων.
       </Alert>
+
+      <Card sx={{ p: 2, mb: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }}>
+          <TextField size="small" label="Αναζήτηση (όνομα ή κωδικός)"
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            sx={{ minWidth: 280 }} />
+          <FormControlLabel
+            control={<Checkbox checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />}
+            label="Εμφάνιση ανενεργών" />
+          <Box sx={{ flex: 1 }} />
+          <Typography variant="caption" color="text.secondary">
+            {rows.length} από {allRows.length} εταιρίες
+          </Typography>
+        </Stack>
+      </Card>
 
       {carriers.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
@@ -183,78 +165,51 @@ export function PlatformCarriersPage() {
               <TableCell>Όνομα</TableCell>
               <TableCell>Κωδικός</TableCell>
               <TableCell>Χώρα</TableCell>
-              <TableCell align="center">Πρακτορείο</TableCell>
-              <TableCell align="right">Παραμετρικά</TableCell>
-              <TableCell align="center">Ενεργή</TableCell>
-              <TableCell align="right" width={170}>Ενέργειες</TableCell>
+              <TableCell>Website</TableCell>
+              <TableCell align="center">Κατάσταση</TableCell>
+              <TableCell align="right" width={120}>Ενέργειες</TableCell>
             </TableRow></TableHead>
             <TableBody>
-              {grouped.length === 0 && (
-                <TableRow><TableCell colSpan={7} align="center" sx={{ py: 4, color: "text.secondary" }}>
-                  Δεν υπάρχουν καθολικές ασφαλιστικές. Δημιουργήστε την πρώτη με το «Νέα ασφαλιστική».
+              {rows.length === 0 && (
+                <TableRow><TableCell colSpan={6} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                  {allRows.length === 0
+                    ? "Δεν υπάρχουν εταιρίες. Δημιουργήστε την πρώτη με το «Νέα ασφαλιστική»."
+                    : "Καμία εταιρία δεν ταιριάζει στα φίλτρα."}
                 </TableCell></TableRow>
               )}
-              {grouped.map(r => {
-                const isSub = !!r.parentCompanyId;
-                const parent = isSub ? rows.find(x => x.id === r.parentCompanyId) : null;
-                return (
-                  <TableRow key={r.id} hover sx={isSub ? { bgcolor: "rgba(11,37,69,0.02)" } : undefined}>
-                    <TableCell sx={isSub ? { pl: 4, fontSize: 13, color: "text.secondary" } : { fontWeight: 600 }}>
-                      {isSub && "↳ "}{r.name}
-                      {isSub && parent && (
-                        <Typography component="span" variant="caption" color="text.disabled" sx={{ ml: 1 }}>
-                          (υπό {parent.name})
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{r.code}</TableCell>
-                    <TableCell>{r.country ?? "—"}</TableCell>
-                    <TableCell align="center">
-                      {r.isBroker ? <Chip size="small" color="primary" label="Πρακτορείο" /> : "—"}
-                    </TableCell>
-                    <TableCell align="right">
-                      <Chip size="small" label={r.parameterItemCount} variant="outlined"
-                        color={r.parameterItemCount === 0 ? "warning" : "default"} />
-                    </TableCell>
-                    <TableCell align="center">
-                      <Chip size="small" label={r.isActive ? "Ενεργή" : "Ανενεργή"}
-                        color={r.isActive ? "success" : "default"} />
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton size="small" title="Εισαγωγή παραμετρικών"
-                        onClick={() => setImportTarget(r)}>
-                        <UploadFileIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" title="Επεξεργασία"
-                        onClick={() => {
-                          let exc = "";
-                          try {
-                            const arr = (r as any).excludedBranchCodesJson
-                              ? JSON.parse((r as any).excludedBranchCodesJson) : null;
-                            if (Array.isArray(arr)) exc = arr.join(", ");
-                          } catch { /* ignore malformed json */ }
-                          setEditing({
-                            id: r.id, name: r.name, code: r.code,
-                            country: r.country ?? "", website: r.website ?? "",
-                            isActive: r.isActive, isBroker: r.isBroker,
-                            parentCompanyId: r.parentCompanyId ?? "",
-                            notes: r.notes ?? "",
-                            excludedBranchCodes: exc
-                          });
-                        }}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" color="error" title="Διαγραφή"
-                        onClick={() => {
-                          if (confirm(`Διαγραφή της «${r.name}»; Η ενέργεια αφαιρεί την εταιρία από όλα τα γραφεία.`))
-                            del.mutate(r.id);
-                        }}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {rows.map(r => (
+                <TableRow key={r.id} hover>
+                  <TableCell sx={{ fontWeight: 600 }}>{r.name}</TableCell>
+                  <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{r.code}</TableCell>
+                  <TableCell sx={{ fontSize: 13 }}>{r.country ?? "—"}</TableCell>
+                  <TableCell sx={{ fontSize: 13, color: "text.secondary", maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {r.website ?? "—"}
+                  </TableCell>
+                  <TableCell align="center">
+                    <Chip size="small" label={r.isActive ? "Ενεργή" : "Ανενεργή"}
+                      color={r.isActive ? "success" : "default"} />
+                  </TableCell>
+                  <TableCell align="right">
+                    <IconButton size="small" title="Επεξεργασία"
+                      onClick={() => setEditing({
+                        id: r.id, name: r.name, code: r.code,
+                        country: r.country ?? "", website: r.website ?? "",
+                        isActive: r.isActive, isBroker: false,
+                        parentCompanyId: "", notes: r.notes ?? "",
+                        excludedBranchCodes: ""
+                      })}>
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton size="small" color="error" title="Διαγραφή"
+                      onClick={() => {
+                        if (confirm(`Διαγραφή της «${r.name}»; Η ενέργεια αφαιρεί την εταιρία από τον καθολικό κατάλογο.`))
+                          del.mutate(r.id);
+                      }}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </Card>
@@ -279,35 +234,16 @@ export function PlatformCarriersPage() {
                 <TextField label="Website" value={editing.website} fullWidth
                   onChange={e => setEditing({ ...editing, website: e.target.value })} />
               </Stack>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
-                <FormControlLabel
-                  control={<Checkbox checked={editing.isActive}
-                    onChange={e => setEditing({ ...editing, isActive: e.target.checked })} />}
-                  label="Ενεργή" />
-                <FormControlLabel
-                  control={<Checkbox checked={editing.isBroker}
-                    onChange={e => setEditing({ ...editing, isBroker: e.target.checked, parentCompanyId: "" })} />}
-                  label="Πρακτορείο (broker)" />
-              </Stack>
-              <SearchableSelect
-                label="Γονικό πρακτορείο (αν υποασφαλιστική)"
-                value={editing.parentCompanyId}
-                onChange={(v) => setEditing({ ...editing, parentCompanyId: v })}
-                disabled={editing.isBroker}
-                emptyLabel="— Καμία —"
-                options={(carriers.data ?? []).filter(c => c.isBroker && c.id !== editing.id).map(b => ({
-                  value: b.id, label: b.name,
-                }))}
-              />
-              <TextField label="Εξαιρούμενοι κλάδοι"
-                value={editing.excludedBranchCodes}
-                onChange={e => setEditing({ ...editing, excludedBranchCodes: e.target.value })}
-                disabled={editing.isBroker || !editing.parentCompanyId}
-                placeholder="π.χ. IW15, IW07, IW04"
-                helperText="Κωδικοί κλάδων του πρακτορείου που αυτή η υποασφαλιστική ΔΕΝ πουλάει — διαχωρισμός με κόμμα. Άδειο = πουλάει όλους τους κλάδους."
-                fullWidth />
+              <FormControlLabel
+                control={<Checkbox checked={editing.isActive}
+                  onChange={e => setEditing({ ...editing, isActive: e.target.checked })} />}
+                label="Ενεργή" />
               <TextField label="Σημειώσεις" value={editing.notes} multiline rows={2} fullWidth
                 onChange={e => setEditing({ ...editing, notes: e.target.value })} />
+              <Alert severity="info" sx={{ fontSize: 12 }}>
+                Τα παραμετρικά (κλάδοι / πακέτα / καλύψεις / γέφυρες) ορίζονται πλέον <strong>ανά γραφείο</strong>.
+                Αυτή η σελίδα διαχειρίζεται μόνο τον καθολικό κατάλογο εταιριών.
+              </Alert>
             </Stack>
           )}
         </DialogContent>
@@ -320,42 +256,6 @@ export function PlatformCarriersPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Import parametrics dialog */}
-      <Dialog open={!!importTarget} onClose={() => setImportTarget(null)} fullWidth maxWidth="sm">
-        <DialogTitle>Εισαγωγή παραμετρικών — {importTarget?.name}</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2.5} mt={1}>
-            <Alert severity="info">
-              Δεκτό format: <strong>xlsx</strong> με sheets «Κλάδοι / Χρήσεις / Καλύψεις / Πακέτα» (IW shape),
-              ή <strong>CSV</strong> με στήλες <code>Kind,Code,Name,PolicyType,ParentCode,BridgeSystem,BridgeCode</code>.
-              Η εισαγωγή είναι idempotent — διπλά (Kind+Code+ParentCode) παραλείπονται.
-            </Alert>
-            <Box>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Τρέχοντα παραμετρικά: {importTarget?.parameterItemCount} εγγραφές
-              </Typography>
-              <input
-                ref={fileInputRef} type="file" accept=".xlsx,.csv" hidden
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file && importTarget) {
-                    importParams.mutate({ carrierId: importTarget.id, file });
-                    e.target.value = "";
-                  }
-                }}
-              />
-              <Button variant="contained" startIcon={<UploadFileIcon />}
-                onClick={() => fileInputRef.current?.click()}
-                disabled={importParams.isPending}>
-                {importParams.isPending ? <CircularProgress size={18} /> : "Επιλογή αρχείου"}
-              </Button>
-            </Box>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setImportTarget(null)}>Κλείσιμο</Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }
