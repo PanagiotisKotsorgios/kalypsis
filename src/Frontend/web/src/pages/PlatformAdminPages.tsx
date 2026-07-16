@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { extractErrorMessage } from "../api/client";
 import {
@@ -783,53 +783,77 @@ export function PlatformIntegrationsPage() {
 }
 
 /* ===================== Backups ===================== */
+interface PlatformBackupDto {
+  id: string;
+  fileName: string;
+  sizeBytes: number;
+  scope: string;
+  status: string;
+  message: string | null;
+  durationSeconds: number;
+  takenAt: string;
+  createdByName: string | null;
+}
+
+function humanSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
 export function PlatformBackupsPage() {
   const { t } = useTranslation();
-  // Frontend backup-management surface — backend `/platform/backups/*` endpoints
-  // aren't wired yet, so the actions here are optimistically staged (the button
-  // click confirms the action + logs the intent) until the backend catches up.
-  // The listing still shows real historical rows once the backend endpoint
-  // lands; until then it renders the recent-schedule shape based on the
-  // configured cron.
-  const [busy, setBusy] = useState<null | "create" | "import" | "download" | "restore">(null);
+  const qcBackups = useQueryClient();
   const [status, setStatus] = useState<{ kind: "success" | "error" | "info"; msg: string } | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [restoreConfirmId, setRestoreConfirmId] = useState<string | null>(null);
   const [scopeDialog, setScopeDialog] = useState(false);
   const [scope, setScope] = useState({ db: true, uploads: true, logs: false, config: true });
 
-  const backups = [
-    { id: "b7", file: "kalypsis-full-2026-07-16-0300.zip",   size: "1.2 GB",  takenAt: "2026-07-16 03:00", duration: "9m 12s", scope: "full",     status: "ok" },
-    { id: "b6", file: "kalypsis-full-2026-07-15-0300.zip",   size: "1.1 GB",  takenAt: "2026-07-15 03:00", duration: "8m 42s", scope: "full",     status: "ok" },
-    { id: "b5", file: "kalypsis-db-2026-07-14-0300.sql.gz",  size: "248 MB",  takenAt: "2026-07-14 03:00", duration: "4m 21s", scope: "db-only",  status: "ok" },
-    { id: "b4", file: "kalypsis-db-2026-07-13-0300.sql.gz",  size: "246 MB",  takenAt: "2026-07-13 03:00", duration: "4m 11s", scope: "db-only",  status: "ok" },
-    { id: "b3", file: "kalypsis-db-2026-07-12-0300.sql.gz",  size: "245 MB",  takenAt: "2026-07-12 03:00", duration: "4m 09s", scope: "db-only",  status: "ok" },
-    { id: "b2", file: "kalypsis-db-2026-07-11-0300.sql.gz",  size: "241 MB",  takenAt: "2026-07-11 03:00", duration: "4m 03s", scope: "db-only",  status: "ok" },
-    { id: "b1", file: "kalypsis-db-2026-07-10-0300.sql.gz",  size: "240 MB",  takenAt: "2026-07-10 03:00", duration: "3m 58s", scope: "db-only",  status: "ok" },
-  ];
+  const backupsQ = useQuery({
+    queryKey: ["platform-backups"],
+    queryFn: async () => (await api.get<PlatformBackupDto[]>("/platform/backups")).data
+  });
+  const backups = backupsQ.data ?? [];
 
-  const runCreate = async () => {
-    setBusy("create");
-    try {
-      // Staged call — backend `/platform/backups/create` will accept the scope
-      // payload and return the new backup metadata. Until it exists we simulate
-      // the round-trip so the UX flows.
-      await new Promise(r => setTimeout(r, 900));
+  const createMut = useMutation({
+    mutationFn: async () => (await api.post<PlatformBackupDto>("/platform/backups/create", scope)).data,
+    onSuccess: (row) => {
       setStatus({ kind: "success",
-        msg: `Ξεκίνησε backup με scope: ${Object.entries(scope).filter(([, v]) => v).map(([k]) => k).join(", ")}. Θα εμφανιστεί στη λίστα σε λίγα λεπτά.` });
+        msg: `Ξεκίνησε backup «${row.fileName}» με scope: ${row.scope}. Θα εμφανιστεί στη λίστα σε λίγα λεπτά.` });
       setScopeDialog(false);
-    } catch (e) { setStatus({ kind: "error", msg: extractErrorMessage(e) }); }
-    finally { setBusy(null); }
-  };
-  const runImport = async () => {
-    if (!importFile) { setStatus({ kind: "error", msg: "Επιλέξτε αρχείο .zip πρώτα." }); return; }
-    setBusy("import");
-    try {
-      await new Promise(r => setTimeout(r, 1200));
-      setStatus({ kind: "success", msg: `Ελέγχθηκε ${importFile.name} (${(importFile.size / 1024 / 1024).toFixed(1)} MB). Restore θα ξεκινήσει με επιβεβαίωση.` });
+      void qcBackups.invalidateQueries({ queryKey: ["platform-backups"] });
+    },
+    onError: (e) => setStatus({ kind: "error", msg: extractErrorMessage(e) })
+  });
+  const importMut = useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return (await api.post<PlatformBackupDto>("/platform/backups/import", form,
+        { headers: { "Content-Type": "multipart/form-data" } })).data;
+    },
+    onSuccess: (row) => {
+      setStatus({ kind: "success", msg: `Ανέβηκε ${row.fileName} (${humanSize(row.sizeBytes)}). Awaiting restore.` });
       setImportFile(null);
-    } catch (e) { setStatus({ kind: "error", msg: extractErrorMessage(e) }); }
-    finally { setBusy(null); }
+      void qcBackups.invalidateQueries({ queryKey: ["platform-backups"] });
+    },
+    onError: (e) => setStatus({ kind: "error", msg: extractErrorMessage(e) })
+  });
+  const restoreMut = useMutation({
+    mutationFn: async (id: string) => (await api.post<PlatformBackupDto>(`/platform/backups/${id}/restore`)).data,
+    onSuccess: (row) => {
+      setStatus({ kind: "info", msg: `Restore request καταγράφηκε (#${row.id.slice(0, 8)}). Θα λάβεις notification όταν ολοκληρωθεί.` });
+      setRestoreConfirmId(null);
+      void qcBackups.invalidateQueries({ queryKey: ["platform-backups"] });
+    },
+    onError: (e) => setStatus({ kind: "error", msg: extractErrorMessage(e) })
+  });
+
+  const runImport = () => {
+    if (!importFile) { setStatus({ kind: "error", msg: "Επιλέξτε αρχείο .zip πρώτα." }); return; }
+    importMut.mutate(importFile);
   };
 
   return (
@@ -838,8 +862,9 @@ export function PlatformBackupsPage() {
 
       {/* KPI strip */}
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4,1fr)" }, mb: 3 }}>
-        <Kpi label="Backups (30 ημ.)" value={backups.length} hint="rolling window" />
-        <Kpi label="Τελευταίο backup" value="03:00" hint="σήμερα · scope: full" />
+        <Kpi label="Σύνολο backups" value={backups.length} hint="τελευταία 60" />
+        <Kpi label="Τελευταίο" value={backups[0] ? new Date(backups[0].takenAt).toLocaleDateString("el-GR") : "—"}
+          hint={backups[0]?.scope ?? ""} />
         <Kpi label="Retention" value="90 ημ." hint="daily + 12mo monthly" />
         <Kpi label="Off-site" value="Hetzner S3" hint="AES-256 at rest" />
       </Box>
@@ -850,26 +875,26 @@ export function PlatformBackupsPage() {
           <Box sx={{ flex: 1 }}>
             <Typography fontWeight={800} fontSize={16}>Νέο backup / Restore</Typography>
             <Typography variant="caption" color="text.secondary">
-              Δημιούργησε full-platform backup ή κάνε import από zip για restore. Εξωτερικό vendor θα λάβει notification.
+              Δημιούργησε full-platform backup ή κάνε import από zip για restore.
             </Typography>
           </Box>
           <Button variant="contained" startIcon={<CloudUploadIcon />}
-            disabled={busy === "create"}
+            disabled={createMut.isPending}
             onClick={() => setScopeDialog(true)}>
-            {busy === "create" ? <CircularProgress size={16} /> : "Δημιουργία backup"}
+            {createMut.isPending ? <CircularProgress size={16} /> : "Δημιουργία backup"}
           </Button>
-          <Button variant="outlined" component="label" disabled={busy === "import"}>
+          <Button variant="outlined" component="label" disabled={importMut.isPending}>
             Επιλογή zip
             <input hidden type="file" accept=".zip,.sql.gz,.gz"
               onChange={(e) => setImportFile(e.target.files?.[0] ?? null)} />
           </Button>
           {importFile && (
-            <Chip label={`${importFile.name} (${(importFile.size / 1024 / 1024).toFixed(1)} MB)`}
+            <Chip label={`${importFile.name} (${humanSize(importFile.size)})`}
               onDelete={() => setImportFile(null)} />
           )}
-          <Button variant="outlined" color="warning" disabled={!importFile || busy === "import"}
+          <Button variant="outlined" color="warning" disabled={!importFile || importMut.isPending}
             onClick={runImport}>
-            {busy === "import" ? <CircularProgress size={16} /> : "Restore από zip"}
+            {importMut.isPending ? <CircularProgress size={16} /> : "Restore από zip"}
           </Button>
         </Stack>
       </Card>
@@ -883,25 +908,40 @@ export function PlatformBackupsPage() {
             <TableCell align="right">{t("plat.backups.size")}</TableCell>
             <TableCell align="right">{t("plat.backups.duration")}</TableCell>
             <TableCell>{t("common.status")}</TableCell>
+            <TableCell>Από</TableCell>
             <TableCell align="right">Ενέργειες</TableCell>
           </TableRow></TableHead>
           <TableBody>
-            {backups.map(b => (
+            {backupsQ.isLoading ? (
+              <TableRow><TableCell colSpan={8} sx={{ py: 4, textAlign: "center" }}>
+                <CircularProgress size={22} />
+              </TableCell></TableRow>
+            ) : backups.length === 0 ? (
+              <TableRow><TableCell colSpan={8} sx={{ py: 4, textAlign: "center", color: "text.secondary" }}>
+                Κανένα backup ακόμη — πάτα «Δημιουργία backup» για το πρώτο.
+              </TableCell></TableRow>
+            ) : backups.map(b => (
               <TableRow key={b.id} hover>
-                <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{b.file}</TableCell>
+                <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{b.fileName}</TableCell>
                 <TableCell>
                   <Chip size="small" variant="outlined"
                     color={b.scope === "full" ? "primary" : "default"}
                     label={b.scope} />
                 </TableCell>
-                <TableCell>{b.takenAt}</TableCell>
-                <TableCell align="right">{b.size}</TableCell>
-                <TableCell align="right">{b.duration}</TableCell>
-                <TableCell><Chip size="small" color="success" label="OK" /></TableCell>
+                <TableCell sx={{ fontSize: 12 }}>{new Date(b.takenAt).toLocaleString("el-GR")}</TableCell>
+                <TableCell align="right">{b.sizeBytes > 0 ? humanSize(b.sizeBytes) : "—"}</TableCell>
+                <TableCell align="right">{b.durationSeconds > 0 ? `${b.durationSeconds}s` : "—"}</TableCell>
+                <TableCell>
+                  <Chip size="small"
+                    color={b.status === "Completed" ? "success" : b.status === "Failed" ? "error" : "info"}
+                    label={b.status} />
+                </TableCell>
+                <TableCell sx={{ fontSize: 12 }}>{b.createdByName ?? "—"}</TableCell>
                 <TableCell align="right">
                   <Tooltip title="Λήψη"><IconButton size="small"><DownloadIcon fontSize="small" /></IconButton></Tooltip>
                   <Tooltip title="Restore αυτού του backup">
                     <IconButton size="small" color="warning"
+                      disabled={b.status !== "Completed" && b.status !== "AwaitingRestore"}
                       onClick={() => setRestoreConfirmId(b.id)}>
                       <RefreshIcon fontSize="small" />
                     </IconButton>
@@ -935,9 +975,9 @@ export function PlatformBackupsPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setScopeDialog(false)}>Ακύρωση</Button>
-          <Button variant="contained" onClick={runCreate}
-            disabled={busy === "create" || !Object.values(scope).some(Boolean)}>
-            {busy === "create" ? <CircularProgress size={16} /> : "Έναρξη"}
+          <Button variant="contained" onClick={() => createMut.mutate()}
+            disabled={createMut.isPending || !Object.values(scope).some(Boolean)}>
+            {createMut.isPending ? <CircularProgress size={16} /> : "Έναρξη"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -950,18 +990,19 @@ export function PlatformBackupsPage() {
             Η ενέργεια θα αντικαταστήσει τα τρέχοντα δεδομένα με αυτά του backup. Δεν αναιρείται.
           </Alert>
           <Typography variant="body2">
-            Πληκτρολόγησε «RESTORE» για επιβεβαίωση. Το backend θα κάνει staging σε ξεχωριστό schema
+            Το request θα καταγραφεί ως «RestoreRequested». Το backend θα κάνει staging σε ξεχωριστό schema
             και θα ενημερώσει με notification όταν ολοκληρωθεί.
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setRestoreConfirmId(null)}>Ακύρωση</Button>
           <Button variant="contained" color="error"
+            disabled={restoreMut.isPending}
             onClick={() => {
-              setStatus({ kind: "info", msg: `Restore ξεκίνησε (backup #${restoreConfirmId}). Θα λάβεις notification όταν ολοκληρωθεί.` });
-              setRestoreConfirmId(null);
+              if (!restoreConfirmId) return;
+              restoreMut.mutate(restoreConfirmId);
             }}>
-            Έναρξη Restore
+            {restoreMut.isPending ? <CircularProgress size={16} /> : "Έναρξη Restore"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -970,37 +1011,49 @@ export function PlatformBackupsPage() {
 }
 
 /* ===================== Storage ===================== */
+interface StorageCategoryDto { key: string; label: string; bytes: number; cleanupHint: string; }
+interface TenantStorageDto { tenantId: string; tenantName: string; tenantCode: string; databaseBytes: number; uploadsBytes: number; totalBytes: number; }
+interface StorageBreakdownDto {
+  totalBytes: number;
+  capacityBytes: number;
+  categories: StorageCategoryDto[];
+  tenants: TenantStorageDto[];
+}
+const GB = 1024 * 1024 * 1024;
+const humanBytes = (b: number): string => {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  if (b < 1024 * 1024 * 1024) return `${(b / 1024 / 1024).toFixed(1)} MB`;
+  return `${(b / GB).toFixed(2)} GB`;
+};
 export function PlatformStoragePage() {
   const { t } = useTranslation();
-  // Per-tenant + per-category storage breakdown. Numbers are still placeholder
-  // until a `/platform/storage/breakdown` endpoint is wired, but the layout
-  // supports the real shape (category × tenant sub-rows, cleanup actions).
-  const totalCap = 100;
-  const buckets = [
-    { key: "db",       label: "Database (MySQL)",     gb: 2.4,   pct: 2.4,  cleanupHint: "Rebuild indexes" },
-    { key: "uploads",  label: "Uploads (customer docs)", gb: 18.7, pct: 18.7, cleanupHint: "Recycle-bin cleanup" },
-    { key: "backups",  label: "Backups (local)",       gb: 4.1,   pct: 4.1,  cleanupHint: "Trim retention" },
-    { key: "logs",     label: "Logs (audit + request)", gb: 0.412, pct: 0.4,  cleanupHint: "Rotate & compress" },
-    { key: "cache",    label: "Cache & temp",          gb: 0.18,  pct: 0.18, cleanupHint: "Purge cache" },
-  ];
-  const perTenant = [
-    { name: "Δημόνστρα Ασφαλιστική Α.Ε.", code: "DEMO_AGENCY", db: "312 MB",  uploads: "6.2 GB", total: "6.5 GB", pct: 30 },
-    { name: "LANCA I.K.E.",              code: "LANCA",       db: "142 MB",  uploads: "2.1 GB", total: "2.2 GB", pct: 10 },
-    { name: "Ασφάλειες Γκαναβίας",       code: "AGENCY",      db: "96 MB",   uploads: "820 MB", total: "916 MB", pct: 4 },
-  ];
-  const totalGb = buckets.reduce((s, b) => s + b.gb, 0);
-  const totalPct = Math.min(100, (totalGb / totalCap) * 100);
   const [cleanupStatus, setCleanupStatus] = useState<string | null>(null);
+  const dataQ = useQuery({
+    queryKey: ["platform-storage-breakdown"],
+    queryFn: async () => (await api.get<StorageBreakdownDto>("/platform/storage/breakdown")).data
+  });
+  const data = dataQ.data;
+  const totalCapGb = data ? data.capacityBytes / GB : 100;
+  const totalGb = data ? data.totalBytes / GB : 0;
+  const buckets = data?.categories ?? [];
+  const perTenant = data?.tenants ?? [];
+  const totalPct = data ? Math.min(100, (data.totalBytes / data.capacityBytes) * 100) : 0;
+  const bytesPct = (bytes: number) => data && data.totalBytes > 0 ? (bytes / data.totalBytes) * 100 : 0;
+  const uploadPct = (bytes: number) => {
+    const uploadTotal = perTenant.reduce((s, x) => s + x.uploadsBytes, 0);
+    return uploadTotal > 0 ? (bytes / uploadTotal) * 100 : 0;
+  };
   return (
     <PageShell icon={<StorageIcon sx={{ fontSize: 36 }} color="primary" />} titleKey="plat.storage.title" subtitleKey="plat.storage.subtitle" helpId="page.platStorage">
       {cleanupStatus && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setCleanupStatus(null)}>{cleanupStatus}</Alert>}
 
       {/* Top KPIs */}
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4,1fr)" }, mb: 3 }}>
-        <Kpi label="Συνολικά" value={`${totalGb.toFixed(1)} GB`} hint={`από ${totalCap} GB`} />
-        <Kpi label="Database" value={`${buckets[0].gb.toFixed(1)} GB`} hint="MySQL" />
-        <Kpi label="Uploads"  value={`${buckets[1].gb.toFixed(1)} GB`} hint="customer docs" />
-        <Kpi label="Backups"  value={`${buckets[2].gb.toFixed(1)} GB`} hint="local rolling" />
+        <Kpi label="Συνολικά" value={humanBytes(data?.totalBytes ?? 0)} hint={`από ${totalCapGb.toFixed(0)} GB`} />
+        <Kpi label="Database" value={humanBytes(buckets.find(b => b.key === "db")?.bytes ?? 0)} hint="MySQL" />
+        <Kpi label="Uploads"  value={humanBytes(buckets.find(b => b.key === "uploads")?.bytes ?? 0)} hint="customer docs" />
+        <Kpi label="Backups"  value={humanBytes(buckets.find(b => b.key === "backups")?.bytes ?? 0)} hint="local rolling" />
       </Box>
 
       {/* Overall utilization */}
@@ -1014,7 +1067,7 @@ export function PlatformStoragePage() {
           color={totalPct > 85 ? "error" : totalPct > 70 ? "warning" : "success"}
           sx={{ height: 10, borderRadius: 1, mb: 1 }} />
         <Typography variant="caption" color="text.secondary">
-          {totalGb.toFixed(1)} GB / {totalCap} GB · Alerts στο 85% / 95%
+          {totalGb.toFixed(1)} GB / {totalCapGb.toFixed(0)} GB · Alerts στο 85% / 95%
         </Typography>
       </Card>
 
@@ -1034,14 +1087,18 @@ export function PlatformStoragePage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {buckets.map(b => (
+            {dataQ.isLoading ? (
+              <TableRow><TableCell colSpan={5} sx={{ py: 4, textAlign: "center" }}>
+                <CircularProgress size={22} />
+              </TableCell></TableRow>
+            ) : buckets.map(b => (
               <TableRow key={b.key} hover>
                 <TableCell sx={{ fontWeight: 600 }}>{b.label}</TableCell>
-                <TableCell align="right" sx={{ fontFamily: "monospace" }}>{b.gb.toFixed(2)} GB</TableCell>
+                <TableCell align="right" sx={{ fontFamily: "monospace" }}>{humanBytes(b.bytes)}</TableCell>
                 <TableCell sx={{ minWidth: 180 }}>
                   <Stack direction="row" alignItems="center" spacing={1}>
-                    <LinearProgress variant="determinate" value={b.pct} sx={{ flex: 1, height: 6, borderRadius: 3 }} />
-                    <Typography variant="caption" sx={{ minWidth: 40, textAlign: "right" }}>{b.pct.toFixed(1)}%</Typography>
+                    <LinearProgress variant="determinate" value={bytesPct(b.bytes)} sx={{ flex: 1, height: 6, borderRadius: 3 }} />
+                    <Typography variant="caption" sx={{ minWidth: 40, textAlign: "right" }}>{bytesPct(b.bytes).toFixed(1)}%</Typography>
                   </Stack>
                 </TableCell>
                 <TableCell sx={{ color: "text.secondary", fontSize: 12 }}>{b.cleanupHint}</TableCell>
@@ -1074,24 +1131,24 @@ export function PlatformStoragePage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {perTenant.map(t => (
-              <TableRow key={t.code} hover>
+            {perTenant.map(row => (
+              <TableRow key={row.tenantId} hover>
                 <TableCell>
-                  <Typography fontWeight={700}>{t.name}</Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>{t.code}</Typography>
+                  <Typography fontWeight={700}>{row.tenantName}</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>{row.tenantCode}</Typography>
                 </TableCell>
-                <TableCell align="right" sx={{ fontFamily: "monospace" }}>{t.db}</TableCell>
-                <TableCell align="right" sx={{ fontFamily: "monospace" }}>{t.uploads}</TableCell>
-                <TableCell align="right" sx={{ fontFamily: "monospace", fontWeight: 700 }}>{t.total}</TableCell>
+                <TableCell align="right" sx={{ fontFamily: "monospace" }}>{humanBytes(row.databaseBytes)}</TableCell>
+                <TableCell align="right" sx={{ fontFamily: "monospace" }}>{humanBytes(row.uploadsBytes)}</TableCell>
+                <TableCell align="right" sx={{ fontFamily: "monospace", fontWeight: 700 }}>{humanBytes(row.totalBytes)}</TableCell>
                 <TableCell sx={{ minWidth: 180 }}>
                   <Stack direction="row" alignItems="center" spacing={1}>
-                    <LinearProgress variant="determinate" value={t.pct} sx={{ flex: 1, height: 6, borderRadius: 3 }} color="info" />
-                    <Typography variant="caption">{t.pct}%</Typography>
+                    <LinearProgress variant="determinate" value={uploadPct(row.uploadsBytes)} sx={{ flex: 1, height: 6, borderRadius: 3 }} color="info" />
+                    <Typography variant="caption">{uploadPct(row.uploadsBytes).toFixed(0)}%</Typography>
                   </Stack>
                 </TableCell>
                 <TableCell align="right">
                   <Button size="small" variant="outlined"
-                    onClick={() => setCleanupStatus(`Analytics για ${t.code} θα εμφανιστεί σύντομα.`)}>
+                    onClick={() => setCleanupStatus(`Analytics για ${row.tenantCode} θα εμφανιστεί σύντομα.`)}>
                     Analytics
                   </Button>
                 </TableCell>
@@ -1105,59 +1162,57 @@ export function PlatformStoragePage() {
 }
 
 /* ===================== Background Jobs ===================== */
+interface JobDto {
+  jobKey: string;
+  name: string;
+  category: string;
+  cronBaseline: string;
+  cronOverride: string | null;
+  enabled: boolean;
+  description: string;
+}
 interface JobRow {
   key: string;
   name: string;
   cron: string;
-  lastRun: string;
-  nextRun: string;
-  status: "ok" | "warn" | "err" | "disabled";
-  category: "housekeeping" | "billing" | "notifications" | "reports" | "integrations";
+  status: "ok" | "disabled";
+  category: string;
   enabled: boolean;
-  runCount: number;
-  avgDurationMs: number;
   description: string;
 }
 export function PlatformJobsPage() {
+  const qcJobs = useQueryClient();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selected, setSelected] = useState<JobRow | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
 
-  // Baseline job set — real registry comes from IHostedService in the API.
-  // The frontend can read/write cron + enabled flags via a future `/platform/jobs`
-  // endpoint; toggle & cron edits below are staged into localStorage in the
-  // meantime so operator changes persist across visits.
-  const baseJobs: JobRow[] = [
-    { key: "renewal-reminders", name: "Renewal reminders",   cron: "0 8 * * *",   lastRun: "2026-07-16 08:00", nextRun: "2026-07-17 08:00", status: "ok",  category: "notifications", enabled: true,  runCount: 214, avgDurationMs: 1820, description: "Στέλνει reminders για επικείμενες ανανεώσεις (D-30, D-15, D-3)." },
-    { key: "daily-backup",      name: "Daily backup",         cron: "0 3 * * *",   lastRun: "2026-07-16 03:00", nextRun: "2026-07-17 03:00", status: "ok",  category: "housekeeping",  enabled: true,  runCount: 187, avgDurationMs: 261000, description: "Δημιουργεί καθημερινό backup της βάσης και συγχρονίζει με off-site S3." },
-    { key: "commission-scheduler", name: "Commission scheduler", cron: "0 1 1 * *", lastRun: "2026-07-01 01:00", nextRun: "2026-08-01 01:00", status: "ok",  category: "billing",       enabled: true,  runCount: 6,   avgDurationMs: 34000, description: "Δημιουργεί μηνιαία εκκαθαριστικά προμηθειών και τα σφραγίζει." },
-    { key: "maintenance-scan",  name: "Maintenance scan",      cron: "*/15 * * * *", lastRun: "2026-07-16 16:00", nextRun: "2026-07-16 16:15", status: "ok",  category: "housekeeping",  enabled: true,  runCount: 6820, avgDurationMs: 420, description: "Ελέγχει flag maintenance/launch gate και ενημερώνει PlatformSetting." },
-    { key: "failed-payment-retry", name: "Failed-payment retry", cron: "0 */6 * * *", lastRun: "2026-07-16 12:00", nextRun: "2026-07-16 18:00", status: "warn", category: "billing",     enabled: true,  runCount: 328, avgDurationMs: 4900, description: "Ξανα-δοκιμάζει αποτυχημένες πληρωμές. Warn = >5 αποτυχίες σε 6h." },
-    { key: "retention-cleanup", name: "Retention cleanup",     cron: "0 4 * * 0",   lastRun: "2026-07-12 04:00", nextRun: "2026-07-19 04:00", status: "ok",  category: "housekeeping",  enabled: true,  runCount: 29,  avgDurationMs: 82000, description: "Εφαρμόζει το Data Retention Schedule — soft-delete + anonymization." },
-    { key: "mydata-submit",     name: "MyDATA submit",         cron: "0 2 * * *",   lastRun: "2026-07-16 02:00", nextRun: "2026-07-17 02:00", status: "ok",  category: "integrations",  enabled: true,  runCount: 187, avgDurationMs: 12000, description: "Στέλνει τιμολόγια στο ΑΑΔΕ MyDATA." },
-    { key: "audit-archive",     name: "Audit archive",         cron: "0 5 1 * *",   lastRun: "2026-07-01 05:00", nextRun: "2026-08-01 05:00", status: "ok",  category: "housekeeping",  enabled: true,  runCount: 6,   avgDurationMs: 58000, description: "Παγιώνει audit logs > 12 μηνών σε cold storage." },
-    { key: "email-digest",      name: "Weekly email digest",   cron: "0 9 * * 1",   lastRun: "2026-07-13 09:00", nextRun: "2026-07-20 09:00", status: "ok",  category: "notifications", enabled: true,  runCount: 26,  avgDurationMs: 21000, description: "Εβδομαδιαίο digest σε AgencyAdmins." },
-    { key: "kepyo-generator",   name: "ΚΕΠΥΟ generator",       cron: "0 6 15 * *",  lastRun: "2026-06-15 06:00", nextRun: "2026-07-15 06:00", status: "disabled", category: "reports",  enabled: false, runCount: 6,   avgDurationMs: 45000, description: "Δημιουργεί ΚΕΠΥΟ αναφορά μηνιαίως. Απενεργοποιημένο μέχρι νέας παραγγελίας." },
-  ];
-
-  const [jobs, setJobs] = useState<JobRow[]>(() => {
-    try {
-      const raw = window.localStorage.getItem("kalypsis.platformJobsOverrides.v1");
-      if (raw) {
-        const overrides = JSON.parse(raw) as Record<string, Partial<JobRow>>;
-        return baseJobs.map(j => ({ ...j, ...overrides[j.key] }));
-      }
-    } catch {}
-    return baseJobs;
+  const jobsQ = useQuery({
+    queryKey: ["platform-jobs"],
+    queryFn: async () => (await api.get<JobDto[]>("/platform/jobs")).data
   });
-  const persistJobs = (next: JobRow[]) => {
-    setJobs(next);
-    const overrides: Record<string, Partial<JobRow>> = {};
-    for (const j of next) overrides[j.key] = { cron: j.cron, enabled: j.enabled };
-    window.localStorage.setItem("kalypsis.platformJobsOverrides.v1", JSON.stringify(overrides));
-  };
+  const jobs: JobRow[] = useMemo(() => (jobsQ.data ?? []).map(j => ({
+    key: j.jobKey,
+    name: j.name,
+    cron: j.cronOverride ?? j.cronBaseline,
+    status: j.enabled ? "ok" : "disabled",
+    category: j.category,
+    enabled: j.enabled,
+    description: j.description
+  })), [jobsQ.data]);
+
+  const upsertOverride = useMutation({
+    mutationFn: async ({ jobKey, cronOverride, enabled }: { jobKey: string; cronOverride: string | null; enabled: boolean }) =>
+      (await api.put<JobDto>(`/platform/jobs/${jobKey}`, { cronOverride, enabled })).data,
+    onSuccess: () => void qcJobs.invalidateQueries({ queryKey: ["platform-jobs"] }),
+    onError: (e) => setBanner(extractErrorMessage(e))
+  });
+  const triggerJob = useMutation({
+    mutationFn: async (jobKey: string) => { await api.post(`/platform/jobs/${jobKey}/trigger`); },
+    onSuccess: (_, jobKey) => setBanner(`Έγινε trigger του «${jobKey}» — αποτέλεσμα σε λίγα λεπτά.`),
+    onError: (e) => setBanner(extractErrorMessage(e))
+  });
 
   const filtered = jobs.filter(j =>
     (category === "all" || j.category === category)
@@ -1169,23 +1224,20 @@ export function PlatformJobsPage() {
     total: jobs.length,
     enabled: jobs.filter(j => j.enabled).length,
     ok: jobs.filter(j => j.status === "ok").length,
-    warn: jobs.filter(j => j.status === "warn").length,
-    err: jobs.filter(j => j.status === "err").length,
+    disabled: jobs.filter(j => j.status === "disabled").length,
   };
-  const statusColor = (s: JobRow["status"]) =>
-    s === "ok" ? "success" : s === "warn" ? "warning" : s === "err" ? "error" : "default";
+  const statusColor = (s: JobRow["status"]) => s === "ok" ? "success" : "default";
 
   return (
     <PageShell icon={<ScheduleIcon sx={{ fontSize: 36 }} color="primary" />} titleKey="plat.jobs.title" subtitleKey="plat.jobs.subtitle" helpId="page.platJobs">
       {banner && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setBanner(null)}>{banner}</Alert>}
 
       {/* Stats */}
-      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(5,1fr)" }, mb: 3 }}>
+      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4,1fr)" }, mb: 3 }}>
         <Kpi label="Σύνολο" value={stats.total} />
         <Kpi label="Ενεργά" value={`${stats.enabled} / ${stats.total}`} />
-        <Kpi label="OK" value={stats.ok} />
-        <Kpi label="Warnings" value={stats.warn} />
-        <Kpi label="Errors" value={stats.err} />
+        <Kpi label="Απενεργοποιημένα" value={stats.disabled} />
+        <Kpi label="Κατηγορίες" value={new Set(jobs.map(j => j.category)).size} />
       </Box>
 
       {/* Filters */}
@@ -1206,13 +1258,11 @@ export function PlatformJobsPage() {
             value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 180 }}>
             <MenuItem value="all">Όλες</MenuItem>
             <MenuItem value="ok">OK</MenuItem>
-            <MenuItem value="warn">Warning</MenuItem>
-            <MenuItem value="err">Error</MenuItem>
             <MenuItem value="disabled">Disabled</MenuItem>
           </TextField>
           <Box sx={{ flex: 1 }} />
           <Button variant="outlined" startIcon={<RefreshIcon />}
-            onClick={() => setBanner("Refresh queued — status θα ενημερωθεί σε λίγα δευτερόλεπτα.")}>
+            onClick={() => qcJobs.invalidateQueries({ queryKey: ["platform-jobs"] })}>
             Refresh όλων
           </Button>
         </Stack>
@@ -1224,9 +1274,6 @@ export function PlatformJobsPage() {
             <TableCell>Όνομα</TableCell>
             <TableCell>Κατηγορία</TableCell>
             <TableCell sx={{ fontFamily: "monospace" }}>cron</TableCell>
-            <TableCell>Τελευταία εκτέλεση</TableCell>
-            <TableCell>Επόμενη</TableCell>
-            <TableCell align="right">Runs / avg</TableCell>
             <TableCell>Κατάσταση</TableCell>
             <TableCell align="right">Ενέργειες</TableCell>
           </TableRow></TableHead>
@@ -1239,12 +1286,6 @@ export function PlatformJobsPage() {
                 </TableCell>
                 <TableCell><Chip size="small" variant="outlined" label={j.category} /></TableCell>
                 <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{j.cron}</TableCell>
-                <TableCell sx={{ fontSize: 12 }}>{j.lastRun}</TableCell>
-                <TableCell sx={{ fontSize: 12 }}>{j.nextRun}</TableCell>
-                <TableCell align="right" sx={{ fontSize: 12 }}>
-                  <div>{j.runCount}</div>
-                  <Typography variant="caption" color="text.secondary">avg {(j.avgDurationMs / 1000).toFixed(1)}s</Typography>
-                </TableCell>
                 <TableCell><Chip size="small" color={statusColor(j.status) as any} label={j.status.toUpperCase()} /></TableCell>
                 <TableCell align="right">
                   <Tooltip title="Ρυθμίσεις">
@@ -1252,15 +1293,13 @@ export function PlatformJobsPage() {
                   </Tooltip>
                   <Tooltip title="Εκτέλεση τώρα">
                     <IconButton size="small" color="primary"
-                      onClick={() => setBanner(`Έγινε trigger του «${j.name}» — αποτέλεσμα σε λίγα λεπτά.`)}>
+                      onClick={() => triggerJob.mutate(j.key)}>
                       ▶
                     </IconButton>
                   </Tooltip>
                   <Tooltip title={j.enabled ? "Απενεργοποίηση" : "Ενεργοποίηση"}>
                     <IconButton size="small"
-                      onClick={() => {
-                        persistJobs(jobs.map(x => x.key === j.key ? { ...x, enabled: !x.enabled, status: x.enabled ? "disabled" : "ok" } : x));
-                      }}>
+                      onClick={() => upsertOverride.mutate({ jobKey: j.key, cronOverride: j.cron, enabled: !j.enabled })}>
                       {j.enabled ? "⏸" : "▶"}
                     </IconButton>
                   </Tooltip>
@@ -1269,7 +1308,7 @@ export function PlatformJobsPage() {
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} sx={{ py: 4, textAlign: "center", color: "text.secondary" }}>
+                <TableCell colSpan={5} sx={{ py: 4, textAlign: "center", color: "text.secondary" }}>
                   Δεν υπάρχει job που ταιριάζει στα φίλτρα.
                 </TableCell>
               </TableRow>
@@ -1296,21 +1335,20 @@ export function PlatformJobsPage() {
             </TextField>
             <Divider />
             <Typography variant="caption" color="text.secondary">
-              Οι αλλαγές αποθηκεύονται τοπικά μέχρι backend endpoint. Historical runs: {selected?.runCount}
-              · Avg duration: {selected ? (selected.avgDurationMs / 1000).toFixed(1) : 0}s
+              Οι αλλαγές αποθηκεύονται στο platform_job_overrides — παραμένουν σε επόμενα deploys.
             </Typography>
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSelected(null)}>Ακύρωση</Button>
-          <Button variant="contained"
+          <Button variant="contained" disabled={upsertOverride.isPending}
             onClick={() => {
               if (!selected) return;
-              persistJobs(jobs.map(x => x.key === selected.key ? selected : x));
+              upsertOverride.mutate({ jobKey: selected.key, cronOverride: selected.cron, enabled: selected.enabled });
               setBanner(`Οι ρυθμίσεις του «${selected.name}» αποθηκεύτηκαν.`);
               setSelected(null);
             }}>
-            Αποθήκευση
+            {upsertOverride.isPending ? <CircularProgress size={16} /> : "Αποθήκευση"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1575,44 +1613,65 @@ export function PlatformCompliancePage() {
 }
 
 /* ===================== Support Inbox ===================== */
-interface SupportReply { at: string; author: string; body: string; }
+interface SupportReply { id: string; at: string; author: string; body: string; notifiedTenant: boolean; }
 interface SupportTicket {
   id: string;
+  tenantId: string;
   tenant: string;
   tenantCode: string;
   subject: string;
   body: string;
   priority: "High" | "Normal" | "Low";
   openedAt: string;
+  resolvedAt: string | null;
   status: "Open" | "InProgress" | "Waiting" | "Resolved";
   channel: "Email" | "Internal" | "Phone";
   assignee: string | null;
   replies: SupportReply[];
 }
 
-const SUPPORT_KEY = "kalypsis.supportTickets.v1";
-const SEED_TICKETS: SupportTicket[] = [
-  { id: "S-103", tenant: "Δημόνστρα Ασφαλιστική Α.Ε.", tenantCode: "DEMO_AGENCY", subject: "Δεν εμφανίζεται στατιστικό παραγωγής", body: "Από χθες το γράφημα παραγωγής δεν φορτώνει.", priority: "Normal", openedAt: "2026-07-14", status: "Open", channel: "Email", assignee: null, replies: [] },
-  { id: "S-102", tenant: "Alpha Insurance Agency", tenantCode: "ALPHA", subject: "Σφάλμα στην εκτύπωση απόδειξης", body: "Το PDF βγαίνει κενό μετά το τελευταίο update.", priority: "High", openedAt: "2026-07-12", status: "InProgress", channel: "Email", assignee: "super@kalypsis.gr", replies: [
-    { at: "2026-07-13T09:22", author: "super@kalypsis.gr", body: "Το είδα, το ρίχνω σε νέο version αύριο." }
-  ]},
-  { id: "S-101", tenant: "Δημόνστρα Ασφαλιστική Α.Ε.", tenantCode: "DEMO_AGENCY", subject: "Πώς ενεργοποιείται το myDATA;", body: "Ψάχνω τα βήματα για την ενεργοποίηση MyDATA.", priority: "Low", openedAt: "2026-07-08", status: "Resolved", channel: "Internal", assignee: "super@kalypsis.gr", replies: [
-    { at: "2026-07-09T11:15", author: "super@kalypsis.gr", body: "Οδηγίες στο /platform/integrations. Έκλεισα το ticket." }
-  ]},
-];
+interface SupportTicketApiDto {
+  id: string;
+  tenantId: string;
+  tenantName: string;
+  tenantCode: string;
+  subject: string;
+  body: string;
+  priority: string;
+  status: string;
+  channel: string;
+  assignee: string | null;
+  openedAt: string;
+  resolvedAt: string | null;
+  replies: Array<{ id: string; at: string; author: string; body: string; notifiedTenant: boolean }>;
+}
+
+function apiToTicket(a: SupportTicketApiDto): SupportTicket {
+  return {
+    id: a.id,
+    tenantId: a.tenantId,
+    tenant: a.tenantName,
+    tenantCode: a.tenantCode,
+    subject: a.subject,
+    body: a.body,
+    priority: a.priority as SupportTicket["priority"],
+    status: a.status as SupportTicket["status"],
+    channel: a.channel as SupportTicket["channel"],
+    assignee: a.assignee,
+    openedAt: a.openedAt,
+    resolvedAt: a.resolvedAt,
+    replies: a.replies
+  };
+}
 
 export function PlatformSupportPage() {
   const { t } = useTranslation();
-  const [tickets, setTickets] = useState<SupportTicket[]>(() => {
-    try {
-      const raw = window.localStorage.getItem(SUPPORT_KEY);
-      return raw ? (JSON.parse(raw) as SupportTicket[]) : SEED_TICKETS;
-    } catch { return SEED_TICKETS; }
+  const qc = useQueryClient();
+  const ticketsQ = useQuery({
+    queryKey: ["platform-support-tickets"],
+    queryFn: async () => (await api.get<SupportTicketApiDto[]>("/platform/support-tickets")).data
   });
-  const persist = (next: SupportTicket[]) => {
-    setTickets(next);
-    window.localStorage.setItem(SUPPORT_KEY, JSON.stringify(next));
-  };
+  const tickets: SupportTicket[] = useMemo(() => (ticketsQ.data ?? []).map(apiToTicket), [ticketsQ.data]);
 
   const [openTicket, setOpenTicket] = useState<SupportTicket | null>(null);
   const [newTicketOpen, setNewTicketOpen] = useState(false);
@@ -1621,6 +1680,68 @@ export function PlatformSupportPage() {
   const [banner, setBanner] = useState<{ kind: "success" | "info" | "error"; msg: string } | null>(null);
   const [replyDraft, setReplyDraft] = useState("");
   const [notifyDraft, setNotifyDraft] = useState({ open: false, subject: "", body: "" });
+
+  const patchTicket = useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: Partial<SupportTicket> }) =>
+      (await api.patch<SupportTicketApiDto>(`/platform/support-tickets/${id}`, {
+        status: patch.status, priority: patch.priority, assignee: patch.assignee
+      })).data,
+    onSuccess: (updated) => {
+      void qc.invalidateQueries({ queryKey: ["platform-support-tickets"] });
+      if (openTicket && openTicket.id === updated.id) setOpenTicket(apiToTicket(updated));
+    },
+    onError: (e) => setBanner({ kind: "error", msg: extractErrorMessage(e) })
+  });
+  const deleteTicket = useMutation({
+    mutationFn: async (id: string) => { await api.delete(`/platform/support-tickets/${id}`); },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["platform-support-tickets"] });
+      setOpenTicket(null);
+      setBanner({ kind: "success", msg: "Ticket διαγράφηκε." });
+    },
+    onError: (e) => setBanner({ kind: "error", msg: extractErrorMessage(e) })
+  });
+  const addReply = useMutation({
+    mutationFn: async ({ id, body }: { id: string; body: string }) =>
+      (await api.post<SupportTicketApiDto>(`/platform/support-tickets/${id}/replies`, {
+        author: "super@kalypsis.gr", body
+      })).data,
+    onSuccess: (updated) => {
+      void qc.invalidateQueries({ queryKey: ["platform-support-tickets"] });
+      setOpenTicket(apiToTicket(updated));
+      setReplyDraft("");
+      setBanner({ kind: "success", msg: "Απάντηση καταχωρήθηκε." });
+    },
+    onError: (e) => setBanner({ kind: "error", msg: extractErrorMessage(e) })
+  });
+  const notifyTenant = useMutation({
+    mutationFn: async ({ id, subject, body }: { id: string; subject: string; body: string }) =>
+      (await api.post<SupportTicketApiDto>(`/platform/support-tickets/${id}/notify`, { subject, body })).data,
+    onSuccess: (updated) => {
+      void qc.invalidateQueries({ queryKey: ["platform-support-tickets"] });
+      setOpenTicket(apiToTicket(updated));
+      setNotifyDraft({ open: false, subject: "", body: "" });
+      setBanner({ kind: "success", msg: `Ειδοποίηση στάλθηκε προς ${updated.tenantCode}. Καταγράφηκε στο ticket.` });
+    },
+    onError: (e) => setBanner({ kind: "error", msg: extractErrorMessage(e) })
+  });
+  const createTicket = useMutation({
+    mutationFn: async (body: Omit<SupportTicket, "id" | "replies" | "openedAt" | "resolvedAt" | "tenantCode" | "tenant"> & { tenantId: string }) =>
+      (await api.post<SupportTicketApiDto>("/platform/support-tickets", {
+        tenantId: body.tenantId,
+        subject: body.subject,
+        body: body.body,
+        priority: body.priority,
+        channel: body.channel,
+        assignee: body.assignee
+      })).data,
+    onSuccess: (created) => {
+      void qc.invalidateQueries({ queryKey: ["platform-support-tickets"] });
+      setNewTicketOpen(false);
+      setBanner({ kind: "success", msg: `Δημιουργήθηκε ticket για ${created.tenantCode}.` });
+    },
+    onError: (e) => setBanner({ kind: "error", msg: extractErrorMessage(e) })
+  });
 
   const filtered = tickets.filter(x =>
     (statusFilter === "all" || (statusFilter === "open" ? x.status !== "Resolved" : x.status === statusFilter))
@@ -1638,12 +1759,7 @@ export function PlatformSupportPage() {
   const STATUS_COLOR: any = { Open: "info", InProgress: "warning", Waiting: "default", Resolved: "success" };
 
   const updateTicket = (id: string, patch: Partial<SupportTicket>) => {
-    persist(tickets.map(x => x.id === id ? { ...x, ...patch } : x));
-  };
-
-  const nextId = () => {
-    const nums = tickets.map(x => Number(x.id.replace("S-", "")) || 0);
-    return `S-${Math.max(0, ...nums) + 1}`;
+    patchTicket.mutate({ id, patch });
   };
 
   return (
@@ -1707,7 +1823,7 @@ export function PlatformSupportPage() {
                   setReplyDraft("");
                 }}
                 sx={{ cursor: "pointer" }}>
-                <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{tt.id}</TableCell>
+                <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{tt.id.slice(0, 8)}</TableCell>
                 <TableCell>
                   <Typography fontWeight={600}>{tt.tenant}</Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>{tt.tenantCode}</Typography>
@@ -1715,7 +1831,7 @@ export function PlatformSupportPage() {
                 <TableCell>{tt.subject}</TableCell>
                 <TableCell><Chip size="small" color={PRIO_COLOR[tt.priority]} label={tt.priority} /></TableCell>
                 <TableCell sx={{ fontSize: 12 }}>{tt.assignee ?? <em style={{ color: "#999" }}>—</em>}</TableCell>
-                <TableCell>{tt.openedAt}</TableCell>
+                <TableCell sx={{ fontSize: 12 }}>{new Date(tt.openedAt).toLocaleDateString("el-GR")}</TableCell>
                 <TableCell align="center">{tt.replies.length}</TableCell>
                 <TableCell><Chip size="small" color={STATUS_COLOR[tt.status]} label={tt.status} /></TableCell>
                 <TableCell align="right">
@@ -1762,7 +1878,7 @@ export function PlatformSupportPage() {
           <>
             <DialogTitle>
               <Stack direction="row" spacing={1} alignItems="center">
-                <Typography sx={{ fontFamily: "monospace", fontWeight: 700 }}>{openTicket.id}</Typography>
+                <Typography sx={{ fontFamily: "monospace", fontWeight: 700 }}>{openTicket.id.slice(0, 8)}</Typography>
                 <Chip size="small" color={PRIO_COLOR[openTicket.priority]} label={openTicket.priority} />
                 <Chip size="small" color={STATUS_COLOR[openTicket.status]} label={openTicket.status} />
                 <Box sx={{ flex: 1 }} />
@@ -1772,7 +1888,7 @@ export function PlatformSupportPage() {
             <DialogContent>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>{openTicket.subject}</Typography>
               <Typography variant="caption" color="text.secondary">
-                Ανοίχθηκε {openTicket.openedAt} · {openTicket.channel} · Assignee: {openTicket.assignee ?? "—"}
+                Ανοίχθηκε {new Date(openTicket.openedAt).toLocaleString("el-GR")} · {openTicket.channel} · Assignee: {openTicket.assignee ?? "—"}
               </Typography>
               <Alert severity="info" sx={{ my: 2 }}>{openTicket.body}</Alert>
 
@@ -1829,12 +1945,11 @@ export function PlatformSupportPage() {
             <DialogActions>
               <Button color="error"
                 onClick={() => {
-                  if (!confirm(`Διαγραφή ticket ${openTicket.id};`)) return;
-                  persist(tickets.filter(x => x.id !== openTicket.id));
-                  setOpenTicket(null);
-                  setBanner({ kind: "success", msg: "Ticket διαγράφηκε." });
+                  if (!confirm(`Διαγραφή ticket ${openTicket.id.slice(0, 8)};`)) return;
+                  deleteTicket.mutate(openTicket.id);
                 }}
-                sx={{ mr: "auto" }}>
+                sx={{ mr: "auto" }}
+                disabled={deleteTicket.isPending}>
                 Διαγραφή
               </Button>
               <Button onClick={() => setOpenTicket(null)}>Κλείσιμο</Button>
@@ -1842,18 +1957,9 @@ export function PlatformSupportPage() {
                 onClick={() => setNotifyDraft({ open: true, subject: `[Kalypsis Support] ${openTicket.subject}`, body: "" })}>
                 Ειδοποίηση πελάτη
               </Button>
-              <Button variant="contained" disabled={!replyDraft.trim()}
-                onClick={() => {
-                  const reply: SupportReply = {
-                    at: new Date().toISOString(),
-                    author: "super@kalypsis.gr",
-                    body: replyDraft.trim(),
-                  };
-                  updateTicket(openTicket.id, { replies: [...openTicket.replies, reply] });
-                  setReplyDraft("");
-                  setBanner({ kind: "success", msg: "Απάντηση καταχωρήθηκε." });
-                }}>
-                Προσθήκη απάντησης
+              <Button variant="contained" disabled={!replyDraft.trim() || addReply.isPending}
+                onClick={() => addReply.mutate({ id: openTicket.id, body: replyDraft.trim() })}>
+                {addReply.isPending ? <CircularProgress size={16} /> : "Προσθήκη απάντησης"}
               </Button>
             </DialogActions>
           </>
@@ -1879,22 +1985,12 @@ export function PlatformSupportPage() {
         <DialogActions>
           <Button onClick={() => setNotifyDraft({ open: false, subject: "", body: "" })}>Ακύρωση</Button>
           <Button variant="contained" startIcon={<SendIcon />}
-            disabled={!notifyDraft.subject.trim() || !notifyDraft.body.trim()}
+            disabled={!notifyDraft.subject.trim() || !notifyDraft.body.trim() || notifyTenant.isPending}
             onClick={() => {
               if (!openTicket) return;
-              const reply: SupportReply = {
-                at: new Date().toISOString(),
-                author: "super@kalypsis.gr → πελάτης",
-                body: `[EMAIL/NOTIFICATION SENT]\nΘέμα: ${notifyDraft.subject}\n\n${notifyDraft.body}`,
-              };
-              updateTicket(openTicket.id, {
-                replies: [...openTicket.replies, reply],
-                status: openTicket.status === "Open" ? "InProgress" : openTicket.status
-              });
-              setNotifyDraft({ open: false, subject: "", body: "" });
-              setBanner({ kind: "success", msg: `Ειδοποίηση στάλθηκε στο ${openTicket.tenantCode}. Καταγράφηκε στο ticket.` });
+              notifyTenant.mutate({ id: openTicket.id, subject: notifyDraft.subject.trim(), body: notifyDraft.body.trim() });
             }}>
-            Αποστολή
+            {notifyTenant.isPending ? <CircularProgress size={16} /> : "Αποστολή"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1902,50 +1998,50 @@ export function PlatformSupportPage() {
       {/* New ticket dialog */}
       <NewTicketDialog
         open={newTicketOpen}
+        busy={createTicket.isPending}
         onClose={() => setNewTicketOpen(false)}
-        onCreate={(t) => {
-          const created: SupportTicket = { ...t, id: nextId(), replies: [], openedAt: new Date().toISOString().slice(0, 10) };
-          persist([created, ...tickets]);
-          setNewTicketOpen(false);
-          setBanner({ kind: "success", msg: `Δημιουργήθηκε ${created.id}.` });
-        }}
+        onCreate={(t) => createTicket.mutate(t)}
       />
     </PageShell>
   );
 }
 
-function NewTicketDialog({ open, onClose, onCreate }: {
+function NewTicketDialog({ open, busy, onClose, onCreate }: {
   open: boolean;
+  busy: boolean;
   onClose: () => void;
-  onCreate: (t: Omit<SupportTicket, "id" | "replies" | "openedAt">) => void;
+  onCreate: (t: {
+    tenantId: string;
+    subject: string; body: string;
+    priority: "High" | "Normal" | "Low";
+    status: "Open";
+    channel: "Email" | "Internal" | "Phone";
+    assignee: string | null;
+  }) => void;
 }) {
   const tenantsQ = useQuery({
     queryKey: ["all-tenants-support"],
     enabled: open,
     queryFn: async () => (await api.get<Array<{ id: string; name: string; code: string }>>("/tenants")).data
   });
-  const [form, setForm] = useState<Omit<SupportTicket, "id" | "replies" | "openedAt">>({
-    tenant: "", tenantCode: "", subject: "", body: "",
-    priority: "Normal", status: "Open", channel: "Internal", assignee: null
+  const [form, setForm] = useState<{ tenantId: string; subject: string; body: string; priority: "High" | "Normal" | "Low"; channel: "Email" | "Internal" | "Phone" }>({
+    tenantId: "", subject: "", body: "",
+    priority: "Normal", channel: "Internal"
   });
   useEffect(() => {
-    if (open) setForm({ tenant: "", tenantCode: "", subject: "", body: "",
-      priority: "Normal", status: "Open", channel: "Internal", assignee: null });
+    if (open) setForm({ tenantId: "", subject: "", body: "", priority: "Normal", channel: "Internal" });
   }, [open]);
-  const valid = form.tenant && form.subject.trim() && form.body.trim();
+  const valid = form.tenantId && form.subject.trim() && form.body.trim();
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>Νέο support ticket</DialogTitle>
       <DialogContent>
         <Stack spacing={2} mt={1}>
           <TextField select label="Γραφείο" required fullWidth
-            value={form.tenant}
-            onChange={(e) => {
-              const t = tenantsQ.data?.find(x => x.name === e.target.value);
-              setForm({ ...form, tenant: e.target.value, tenantCode: t?.code ?? "" });
-            }}>
+            value={form.tenantId}
+            onChange={(e) => setForm({ ...form, tenantId: e.target.value })}>
             {(tenantsQ.data ?? []).map(t => (
-              <MenuItem key={t.id} value={t.name}>{t.name} ({t.code})</MenuItem>
+              <MenuItem key={t.id} value={t.id}>{t.name} ({t.code})</MenuItem>
             ))}
           </TextField>
           <TextField label="Θέμα" required fullWidth
@@ -1954,13 +2050,13 @@ function NewTicketDialog({ open, onClose, onCreate }: {
             value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
           <Stack direction="row" spacing={2}>
             <TextField select label="Priority" fullWidth
-              value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value as SupportTicket["priority"] })}>
+              value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value as "High" | "Normal" | "Low" })}>
               <MenuItem value="High">High</MenuItem>
               <MenuItem value="Normal">Normal</MenuItem>
               <MenuItem value="Low">Low</MenuItem>
             </TextField>
             <TextField select label="Channel" fullWidth
-              value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value as SupportTicket["channel"] })}>
+              value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value as "Email" | "Internal" | "Phone" })}>
               <MenuItem value="Email">Email</MenuItem>
               <MenuItem value="Internal">Internal</MenuItem>
               <MenuItem value="Phone">Phone</MenuItem>
@@ -1970,7 +2066,10 @@ function NewTicketDialog({ open, onClose, onCreate }: {
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Ακύρωση</Button>
-        <Button variant="contained" disabled={!valid} onClick={() => onCreate(form)}>Δημιουργία</Button>
+        <Button variant="contained" disabled={!valid || busy}
+          onClick={() => onCreate({ ...form, status: "Open", assignee: null })}>
+          {busy ? <CircularProgress size={16} /> : "Δημιουργία"}
+        </Button>
       </DialogActions>
     </Dialog>
   );

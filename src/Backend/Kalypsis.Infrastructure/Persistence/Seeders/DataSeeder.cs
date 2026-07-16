@@ -1148,6 +1148,145 @@ public static class DataSeeder
                 KEY `IX_gdpr_erasure_requests_TenantId_Status_CreatedAt` (`TenantId`, `Status`, `CreatedAt`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
 
+        // --- contractors table --------------------------------------------
+        // SuperAdmin-registered independent contractors that manage tenant
+        // back-offices at a custom monthly rate. Platform-scoped (no TenantId).
+        await EnsureTableAsync(db, logger, dbName,
+            table: "contractors",
+            createSql: @"CREATE TABLE IF NOT EXISTS `contractors` (
+                `Id` char(36) NOT NULL,
+                `Name` varchar(200) NOT NULL,
+                `Email` varchar(200) NOT NULL,
+                `Phone` varchar(80) NULL,
+                `AfmVat` varchar(40) NULL,
+                `Active` tinyint(1) NOT NULL DEFAULT 1,
+                `Notes` varchar(2000) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_contractors_Email` (`Email`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        // --- contractor_assignments table ---------------------------------
+        // A contractor's engagement with a specific tenant, with the monthly
+        // price the tenant pays the contractor. Not part of Kalypsis MRR.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "contractor_assignments",
+            createSql: @"CREATE TABLE IF NOT EXISTS `contractor_assignments` (
+                `Id` char(36) NOT NULL,
+                `ContractorId` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `MonthlyPrice` decimal(12,2) NOT NULL,
+                `Currency` varchar(3) NOT NULL DEFAULT 'EUR',
+                `StartedOn` datetime(6) NOT NULL,
+                `EndedOn` datetime(6) NULL,
+                `Notes` varchar(2000) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_contractor_assignments_ContractorId` (`ContractorId`),
+                KEY `IX_contractor_assignments_TenantId` (`TenantId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        // --- tenant_payment_statuses table --------------------------------
+        // One row per tenant. Powers «Πληρωμένα / Ληξιπρόθεσμα» on Economics.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "tenant_payment_statuses",
+            createSql: @"CREATE TABLE IF NOT EXISTS `tenant_payment_statuses` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `PaidUntil` datetime(6) NULL,
+                `LastPaidOn` datetime(6) NULL,
+                `Note` varchar(2000) NULL,
+                `UpdatedByUserId` char(36) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_tenant_payment_statuses_TenantId` (`TenantId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        // --- support_tickets table ----------------------------------------
+        await EnsureTableAsync(db, logger, dbName,
+            table: "support_tickets",
+            createSql: @"CREATE TABLE IF NOT EXISTS `support_tickets` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `TenantName` varchar(200) NOT NULL,
+                `TenantCode` varchar(60) NOT NULL,
+                `Subject` varchar(400) NOT NULL,
+                `Body` longtext NOT NULL,
+                `Priority` varchar(20) NOT NULL DEFAULT 'Normal',
+                `Status` varchar(20) NOT NULL DEFAULT 'Open',
+                `Channel` varchar(20) NOT NULL DEFAULT 'Internal',
+                `Assignee` varchar(200) NULL,
+                `OpenedAt` datetime(6) NOT NULL,
+                `ResolvedAt` datetime(6) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_support_tickets_Status_Priority` (`Status`, `Priority`),
+                KEY `IX_support_tickets_TenantId` (`TenantId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        // --- support_ticket_replies table ---------------------------------
+        await EnsureTableAsync(db, logger, dbName,
+            table: "support_ticket_replies",
+            createSql: @"CREATE TABLE IF NOT EXISTS `support_ticket_replies` (
+                `Id` char(36) NOT NULL,
+                `SupportTicketId` char(36) NOT NULL,
+                `Author` varchar(200) NOT NULL,
+                `Body` longtext NOT NULL,
+                `NotifiedTenant` tinyint(1) NOT NULL DEFAULT 0,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_support_ticket_replies_TicketId_CreatedAt` (`SupportTicketId`, `CreatedAt`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        // --- platform_job_overrides table ---------------------------------
+        // Persisted SuperAdmin overrides for cron + enabled per job key.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "platform_job_overrides",
+            createSql: @"CREATE TABLE IF NOT EXISTS `platform_job_overrides` (
+                `Id` char(36) NOT NULL,
+                `JobKey` varchar(80) NOT NULL,
+                `CronOverride` varchar(80) NULL,
+                `Enabled` tinyint(1) NOT NULL DEFAULT 1,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_platform_job_overrides_JobKey` (`JobKey`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        // --- platform_backups table ---------------------------------------
+        // Manifest of full-platform backups. Distinct from tenant_backups
+        // (per-tenant JSON) — this tracks operator-triggered full DB dumps.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "platform_backups",
+            createSql: @"CREATE TABLE IF NOT EXISTS `platform_backups` (
+                `Id` char(36) NOT NULL,
+                `FileName` varchar(300) NOT NULL,
+                `StoragePath` varchar(800) NOT NULL,
+                `SizeBytes` bigint NOT NULL DEFAULT 0,
+                `Scope` varchar(40) NOT NULL DEFAULT 'full',
+                `Status` varchar(20) NOT NULL DEFAULT 'InProgress',
+                `Message` varchar(2000) NULL,
+                `DurationSeconds` int NOT NULL DEFAULT 0,
+                `CreatedByUserId` char(36) NULL,
+                `CreatedByName` varchar(200) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_platform_backups_Status_CreatedAt` (`Status`, `CreatedAt`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         // --- saved_reports table ------------------------------------------
         await EnsureTableAsync(db, logger, dbName,
             table: "saved_reports",

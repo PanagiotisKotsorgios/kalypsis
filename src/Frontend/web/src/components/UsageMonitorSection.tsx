@@ -17,10 +17,15 @@ import { useAuth } from "../auth/AuthContext";
 
 interface UsageChannel { channel: string; used: number; limit: number; displayName: string; }
 interface UsageMonitor { year: number; month: number; channels: UsageChannel[]; }
-interface Campaign {
-  id: string; subject: string; status: string;
-  recipients: number; sent: number; failed: number;
-  sentAt: string | null; createdAt: string;
+interface EmailLogEntry {
+  at: string;
+  source: string;       // "Newsletter" | "PasswordReset" | "Notification" | "Support" | "Comm"
+  subject: string;
+  recipient: string;
+  recipientCount: number;
+  status: string;
+  tenantId: string | null;
+  tenantName: string | null;
 }
 
 const CHANNEL_ICON: Record<string, JSX.Element> = {
@@ -53,10 +58,12 @@ export function UsageMonitorSection() {
     queryKey: ["me-usage-monitor"],
     queryFn: async () => (await api.get<UsageMonitor>("/me/usage-monitor")).data
   });
-  const campaignsQ = useQuery({
-    queryKey: ["newsletter-campaigns-recent"],
+  // Broader email log — covers newsletter + password resets + notifications
+  // + support ticket notifications, not just newsletter campaigns.
+  const emailLogQ = useQuery({
+    queryKey: ["platform-emails-recent"],
     enabled: isPlatformAdmin,
-    queryFn: async () => (await api.get<Campaign[]>("/platform/newsletter/campaigns")).data,
+    queryFn: async () => (await api.get<EmailLogEntry[]>("/platform/emails/recent", { params: { limit: 30 } })).data,
     refetchInterval: 30_000  // live-ish — email history isn't chatty enough to need websockets
   });
 
@@ -176,16 +183,16 @@ export function UsageMonitorSection() {
                   Live email log (πλατφόρμα)
                 </Typography>
                 <Typography color="text.secondary" sx={{ fontSize: 14 }}>
-                  Οι πιο πρόσφατες αποστολές email από την πλατφόρμα (καμπάνιες, ενημερώσεις). Ανανέωση κάθε 30″.
+                  Όλες οι εξερχόμενες αποστολές email — καμπάνιες, ενημερώσεις κωδικού, notifications, support. Ανανέωση κάθε 30″.
                 </Typography>
               </Box>
-              <Chip size="small" color={campaignsQ.isFetching ? "info" : "default"}
-                label={campaignsQ.isFetching ? "Ανανέωση…" : "Ζωντανά"} variant="outlined" />
+              <Chip size="small" color={emailLogQ.isFetching ? "info" : "default"}
+                label={emailLogQ.isFetching ? "Ανανέωση…" : "Ζωντανά"} variant="outlined" />
             </Stack>
 
-            {campaignsQ.isLoading ? (
+            {emailLogQ.isLoading ? (
               <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}><CircularProgress size={22} /></Box>
-            ) : (campaignsQ.data ?? []).length === 0 ? (
+            ) : (emailLogQ.data ?? []).length === 0 ? (
               <Alert severity="info" sx={{ mb: 0 }}>
                 Καμία καταγραφή email αποστολής προς το παρόν.
               </Alert>
@@ -194,37 +201,39 @@ export function UsageMonitorSection() {
                 <Table size="small">
                   <TableHead>
                     <TableRow>
+                      <TableCell>Πηγή</TableCell>
                       <TableCell>Θέμα</TableCell>
-                      <TableCell align="right">Παραλήπτες</TableCell>
-                      <TableCell align="right">Επιτυχή</TableCell>
-                      <TableCell align="right">Αποτυχία</TableCell>
+                      <TableCell>Παραλήπτης</TableCell>
+                      <TableCell>Γραφείο</TableCell>
                       <TableCell>Κατάσταση</TableCell>
                       <TableCell align="right">Ημ/νία</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {(campaignsQ.data ?? []).slice(0, 15).map(c => {
-                      const when = c.sentAt ?? c.createdAt;
-                      return (
-                        <TableRow key={c.id} hover>
-                          <TableCell><Typography fontWeight={600}>{c.subject}</Typography></TableCell>
-                          <TableCell align="right">{c.recipients}</TableCell>
-                          <TableCell align="right" sx={{ color: "success.main", fontWeight: 700 }}>{c.sent}</TableCell>
-                          <TableCell align="right" sx={{ color: c.failed > 0 ? "error.main" : "text.secondary", fontWeight: 700 }}>
-                            {c.failed}
-                          </TableCell>
-                          <TableCell>
-                            <Chip size="small"
-                              color={c.status === "Sent" ? "success" : c.status === "Failed" ? "error" : "default"}
-                              variant={c.status === "Sent" || c.status === "Failed" ? "filled" : "outlined"}
-                              label={c.status} />
-                          </TableCell>
-                          <TableCell align="right" sx={{ whiteSpace: "nowrap", fontSize: 12, color: "text.secondary" }}>
-                            {when ? new Date(when).toLocaleString("el-GR") : "—"}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    {(emailLogQ.data ?? []).map((e, i) => (
+                      <TableRow key={`${e.at}-${i}`} hover>
+                        <TableCell>
+                          <Chip size="small" variant="outlined" label={e.source} />
+                        </TableCell>
+                        <TableCell><Typography fontWeight={600}>{e.subject}</Typography></TableCell>
+                        <TableCell sx={{ fontSize: 12 }}>
+                          {e.recipient}
+                          {e.recipientCount > 1 && (
+                            <Typography variant="caption" color="text.secondary"> ({e.recipientCount})</Typography>
+                          )}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: 12 }}>{e.tenantName ?? "—"}</TableCell>
+                        <TableCell>
+                          <Chip size="small"
+                            color={e.status === "Sent" ? "success" : e.status === "Failed" ? "error" : "default"}
+                            variant={e.status === "Sent" || e.status === "Failed" ? "filled" : "outlined"}
+                            label={e.status} />
+                        </TableCell>
+                        <TableCell align="right" sx={{ whiteSpace: "nowrap", fontSize: 12, color: "text.secondary" }}>
+                          {new Date(e.at).toLocaleString("el-GR")}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </Box>

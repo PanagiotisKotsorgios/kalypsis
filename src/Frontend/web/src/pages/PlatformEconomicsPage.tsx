@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, Stack, Table, TableBody, TableCell, TableHead, TableRow,
@@ -10,10 +10,10 @@ import BusinessIcon from "@mui/icons-material/Business";
 import EuroIcon from "@mui/icons-material/Euro";
 import PaidIcon from "@mui/icons-material/Paid";
 import EditIcon from "@mui/icons-material/Edit";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { api } from "../api/client";
+import { api, extractErrorMessage } from "../api/client";
 import { money, date } from "../utils/format";
 
 /**
@@ -51,21 +51,14 @@ interface TenantRevenue {
 interface SeriesPoint { month: string; mrr: number; activeTenants: number; newTenants: number; }
 
 interface TenantPayment { paidUntil: string | null; lastPaidOn: string | null; note: string | null; }
+interface TenantPaymentApiDto { tenantId: string; paidUntil: string | null; lastPaidOn: string | null; note: string | null; }
 type PaymentsMap = Record<string, TenantPayment>;
-
-const PAYMENTS_KEY = "kalypsis.tenantPayments.v1";
-function readPayments(): PaymentsMap {
-  try {
-    const raw = window.localStorage.getItem(PAYMENTS_KEY);
-    return raw ? JSON.parse(raw) as PaymentsMap : {};
-  } catch { return {}; }
-}
-function writePayments(map: PaymentsMap) {
-  window.localStorage.setItem(PAYMENTS_KEY, JSON.stringify(map));
-}
 
 export function PlatformEconomicsPage() {
   const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+
   const overview = useQuery({
     queryKey: ["platform-economics-overview"],
     queryFn: async () => (await api.get<Overview>("/platform/economics/overview")).data
@@ -78,16 +71,32 @@ export function PlatformEconomicsPage() {
     queryKey: ["platform-economics-series", 12],
     queryFn: async () => (await api.get<SeriesPoint[]>("/platform/economics/series?months=12")).data
   });
+  const paymentsQ = useQuery({
+    queryKey: ["platform-tenant-payments"],
+    queryFn: async () => (await api.get<TenantPaymentApiDto[]>("/platform/tenant-payments")).data
+  });
 
-  const [payments, setPayments] = useState<PaymentsMap>(() => readPayments());
+  const payments: PaymentsMap = useMemo(() => {
+    const map: PaymentsMap = {};
+    for (const p of paymentsQ.data ?? []) {
+      map[p.tenantId] = { paidUntil: p.paidUntil, lastPaidOn: p.lastPaidOn, note: p.note };
+    }
+    return map;
+  }, [paymentsQ.data]);
+
+  const savePayment = useMutation({
+    mutationFn: async ({ tenantId, next }: { tenantId: string; next: TenantPayment }) =>
+      (await api.put<TenantPaymentApiDto>(`/platform/tenant-payments/${tenantId}`, next)).data,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["platform-tenant-payments"] }),
+    onError: (e) => setError(extractErrorMessage(e))
+  });
+  const clearPayment = useMutation({
+    mutationFn: async (tenantId: string) => { await api.delete(`/platform/tenant-payments/${tenantId}`); },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["platform-tenant-payments"] }),
+    onError: (e) => setError(extractErrorMessage(e))
+  });
+
   const [dialog, setDialog] = useState<{ tenantId: string; tenantName: string } | null>(null);
-  const updatePayment = useCallback((tenantId: string, next: TenantPayment) => {
-    setPayments(prev => {
-      const merged = { ...prev, [tenantId]: next };
-      writePayments(merged);
-      return merged;
-    });
-  }, []);
 
   if (overview.isLoading || !overview.data) {
     return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
@@ -126,6 +135,8 @@ export function PlatformEconomicsPage() {
           </Typography>
         </Box>
       </Stack>
+
+      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 
       {/* Top KPI row — Kalypsis earnings */}
       <Box sx={{
@@ -217,7 +228,7 @@ export function PlatformEconomicsPage() {
             <Chip size="small" label={`${revenue.data?.length ?? 0} γραμμές`} />
             <Box sx={{ flex: 1 }} />
             <Typography variant="caption" color="text.secondary">
-              Οι πληρωμές αποθηκεύονται τοπικά (localStorage). Backend model έρχεται σε επόμενη φάση.
+              Οι πληρωμές αποθηκεύονται στη βάση — πραγματική παρακολούθηση συνδρομών.
             </Typography>
           </Stack>
           {revenue.isLoading ? <CircularProgress size={24} /> : (
@@ -300,15 +311,16 @@ export function PlatformEconomicsPage() {
         open={!!dialog}
         tenantName={dialog?.tenantName ?? ""}
         current={dialog ? payments[dialog.tenantId] : undefined}
+        busy={savePayment.isPending || clearPayment.isPending}
         onClose={() => setDialog(null)}
         onSave={(next) => {
           if (!dialog) return;
-          updatePayment(dialog.tenantId, next);
+          savePayment.mutate({ tenantId: dialog.tenantId, next });
           setDialog(null);
         }}
         onClear={() => {
           if (!dialog) return;
-          updatePayment(dialog.tenantId, { paidUntil: null, lastPaidOn: null, note: null });
+          clearPayment.mutate(dialog.tenantId);
           setDialog(null);
         }}
       />
@@ -336,10 +348,11 @@ function PaymentBadge({ payment }: { payment?: TenantPayment }) {
   );
 }
 
-function PaymentDialog({ open, tenantName, current, onClose, onSave, onClear }: {
+function PaymentDialog({ open, tenantName, current, busy, onClose, onSave, onClear }: {
   open: boolean;
   tenantName: string;
   current?: TenantPayment;
+  busy?: boolean;
   onClose: () => void;
   onSave: (next: TenantPayment) => void;
   onClear: () => void;
@@ -375,13 +388,13 @@ function PaymentDialog({ open, tenantName, current, onClose, onSave, onClear }: 
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClear} color="error" sx={{ mr: "auto" }}>Αφαίρεση σήμανσης</Button>
-        <Button onClick={onClose}>Ακύρωση</Button>
-        <Button variant="contained" onClick={() => onSave({
+        <Button onClick={onClear} color="error" sx={{ mr: "auto" }} disabled={busy}>Αφαίρεση σήμανσης</Button>
+        <Button onClick={onClose} disabled={busy}>Ακύρωση</Button>
+        <Button variant="contained" disabled={busy} onClick={() => onSave({
           paidUntil: paidUntil || null,
           lastPaidOn: lastPaidOn || null,
           note: note.trim() || null
-        })}>Αποθήκευση</Button>
+        })}>{busy ? <CircularProgress size={16} /> : "Αποθήκευση"}</Button>
       </DialogActions>
     </Dialog>
   );

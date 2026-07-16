@@ -226,6 +226,15 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<DpaAcceptance> DpaAcceptances => Set<DpaAcceptance>();
     public DbSet<DataBreachIncident> DataBreachIncidents => Set<DataBreachIncident>();
 
+    // ==== SuperAdmin platform-ops ============================================
+    public DbSet<Contractor> Contractors => Set<Contractor>();
+    public DbSet<ContractorAssignment> ContractorAssignments => Set<ContractorAssignment>();
+    public DbSet<TenantPaymentStatus> TenantPaymentStatuses => Set<TenantPaymentStatus>();
+    public DbSet<SupportTicket> SupportTickets => Set<SupportTicket>();
+    public DbSet<SupportTicketReply> SupportTicketReplies => Set<SupportTicketReply>();
+    public DbSet<PlatformJobOverride> PlatformJobOverrides => Set<PlatformJobOverride>();
+    public DbSet<PlatformBackup> PlatformBackups => Set<PlatformBackup>();
+
     // ==== Federation module ==================================================
     public DbSet<Championship> Championships => Set<Championship>();
     public DbSet<ChampionshipCategory> ChampionshipCategories => Set<ChampionshipCategory>();

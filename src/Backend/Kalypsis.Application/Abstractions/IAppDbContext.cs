@@ -252,6 +252,18 @@ public interface IAppDbContext
     Task OpenConnectionAsync(CancellationToken cancellationToken = default);
     Task CloseConnectionAsync(CancellationToken cancellationToken = default);
 
+    // ==== SuperAdmin platform-ops tables =====================================
+    // Contractors + payment tracking + support tickets + job overrides. Backed
+    // by localStorage during the initial UI phase; these tables are the
+    // durable home now.
+    DbSet<Contractor> Contractors { get; }
+    DbSet<ContractorAssignment> ContractorAssignments { get; }
+    DbSet<TenantPaymentStatus> TenantPaymentStatuses { get; }
+    DbSet<SupportTicket> SupportTickets { get; }
+    DbSet<SupportTicketReply> SupportTicketReplies { get; }
+    DbSet<PlatformJobOverride> PlatformJobOverrides { get; }
+    DbSet<PlatformBackup> PlatformBackups { get; }
+
     // ==== Federation module (championships / clubs / athletes / results) ====
     DbSet<Championship> Championships { get; }
     DbSet<ChampionshipCategory> ChampionshipCategories { get; }
