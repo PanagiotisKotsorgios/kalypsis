@@ -235,6 +235,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<PlatformJobOverride> PlatformJobOverrides => Set<PlatformJobOverride>();
     public DbSet<PlatformBackup> PlatformBackups => Set<PlatformBackup>();
     public DbSet<CarrierBridgeConfig> CarrierBridgeConfigs => Set<CarrierBridgeConfig>();
+    public DbSet<OverCommissionStatement> OverCommissionStatements => Set<OverCommissionStatement>();
 
     // ==== Federation module ==================================================
     public DbSet<Championship> Championships => Set<Championship>();

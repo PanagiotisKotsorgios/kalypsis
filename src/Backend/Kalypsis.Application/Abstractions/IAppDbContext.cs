@@ -264,6 +264,7 @@ public interface IAppDbContext
     DbSet<PlatformJobOverride> PlatformJobOverrides { get; }
     DbSet<PlatformBackup> PlatformBackups { get; }
     DbSet<CarrierBridgeConfig> CarrierBridgeConfigs { get; }
+    DbSet<OverCommissionStatement> OverCommissionStatements { get; }
 
     // ==== Federation module (championships / clubs / athletes / results) ====
     DbSet<Championship> Championships { get; }

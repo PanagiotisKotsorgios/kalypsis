@@ -1264,6 +1264,33 @@ public static class DataSeeder
                 UNIQUE KEY `UX_platform_job_overrides_JobKey` (`JobKey`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
 
+        // --- over_commission_statements table -----------------------------
+        // Monthly over-commission actuals per (carrier, producer). Entered
+        // manually from the carrier's πινάκιο or (later) auto-imported.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "over_commission_statements",
+            createSql: @"CREATE TABLE IF NOT EXISTS `over_commission_statements` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `InsuranceCompanyId` char(36) NOT NULL,
+                `ProducerId` char(36) NOT NULL,
+                `Year` int NOT NULL,
+                `Month` int NOT NULL,
+                `GrossAmount` decimal(14,2) NOT NULL,
+                `NetAmount` decimal(14,2) NOT NULL,
+                `Currency` varchar(3) NOT NULL DEFAULT 'EUR',
+                `Reference` varchar(200) NULL,
+                `Notes` varchar(2000) NULL,
+                `PaidOn` datetime(6) NULL,
+                `EnteredByUserId` char(36) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_over_commission_statements_key` (`TenantId`, `InsuranceCompanyId`, `ProducerId`, `Year`, `Month`),
+                KEY `IX_over_commission_statements_TenantId_YearMonth` (`TenantId`, `Year`, `Month`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         // --- carrier_bridge_configs table ---------------------------------
         // Per-carrier bridge parsing config authored via the visual builder.
         await EnsureTableAsync(db, logger, dbName,

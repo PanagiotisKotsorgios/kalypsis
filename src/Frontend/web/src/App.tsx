@@ -138,6 +138,7 @@ import { AccountingExportsPage } from "./pages/AccountingExportsPage";
 import { KepyoReportsPage } from "./pages/KepyoReportsPage";
 import { MagneticImportsPage } from "./pages/MagneticImportsPage";
 import { OverCommissionsPage } from "./pages/OverCommissionsPage";
+import { OverCommissionStatementsPage } from "./pages/OverCommissionStatementsPage";
 import { ProductionGoalsPage } from "./pages/ProductionGoalsPage";
 import { ProductionStatsPage } from "./pages/ProductionStatsPage";
 import { TenantDetailPage } from "./pages/TenantDetailPage";
@@ -276,6 +277,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/commission-distribution", labelKey: "nav.commissionDistribution", icon: <AccountTreeIcon />, package: "BackOffice", group: "financials" },
     { to: "/financial-report", labelKey: "nav.financialReport", icon: <AccountBalanceIcon />, package: "BackOffice", group: "financials" },
     { to: "/producer-statement", labelKey: "nav.producerStatement", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
+    { to: "/over-commission-statements", labelKey: "nav.overCommissionStatements", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
     // Roadmap accounting placeholders — routes stay (deep-links + all-tools
     // page keep working) but hidden from sidebar to keep the Financials group
     // trimmed to the 6 items the office actually uses daily. Users discover
@@ -808,6 +810,7 @@ export default function App() {
                   <Route path="kepyo" element={<KepyoReportsPage />} />
                   <Route path="magnetic-import" element={<MagneticImportsPage />} />
                   <Route path="over-commissions" element={<OverCommissionsPage />} />
+                  <Route path="over-commission-statements" element={<OverCommissionStatementsPage />} />
                   <Route path="over-commission-bridges" element={<OverCommissionBridgesPage />} />
                   <Route path="goals" element={<ProductionGoalsPage />} />
                   <Route path="production-stats" element={<ProductionStatsPage />} />

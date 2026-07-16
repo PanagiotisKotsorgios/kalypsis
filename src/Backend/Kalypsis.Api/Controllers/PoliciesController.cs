@@ -822,11 +822,23 @@ public class InsuranceCompaniesController : ControllerBase
         // Also pull any custom-built configs so the SuperAdmin sees which
         // carriers have a bridge configured via the visual builder — those
         // are marked "Configured" (separate from the shipped analyzers).
-        var configuredIds = await _db.CarrierBridgeConfigs
-            .Where(c => c.DeletedAt == null && c.Enabled)
-            .Select(c => c.InsuranceCompanyId)
-            .ToListAsync(ct);
-        var configuredSet = new HashSet<Guid>(configuredIds);
+        // The safety-net creates carrier_bridge_configs on boot, but if we're
+        // hitting this endpoint before that fires on first deploy (rare but
+        // possible) we don't want the whole list to disappear — swallow the
+        // read error and treat the "configured" set as empty.
+        HashSet<Guid> configuredSet;
+        try
+        {
+            var configuredIds = await _db.CarrierBridgeConfigs
+                .Where(c => c.DeletedAt == null && c.Enabled)
+                .Select(c => c.InsuranceCompanyId)
+                .ToListAsync(ct);
+            configuredSet = new HashSet<Guid>(configuredIds);
+        }
+        catch
+        {
+            configuredSet = new HashSet<Guid>();
+        }
 
         return Ok(rows.Select(c => {
             var shipStatus = BridgeStatus(c.Code, c.Name);
