@@ -23,13 +23,21 @@ namespace Kalypsis.Api.Controllers;
 [Route("api/gdpr/dpa")]
 public class DpaController : ControllerBase
 {
-    /// <summary>Η ενεργή έκδοση του DPA. Bump όταν αλλάζει το κείμενο (π.χ.
-    /// αλλαγή sub-processor, νέο TOM section) ώστε όλα τα γραφεία να πρέπει
-    /// να αποδεχθούν ξανά.</summary>
-    public const string CurrentVersion = "v1.0";
+    /// <summary>Η ενεργή έκδοση του πλήρους νομικού πλαισίου. Από v2.0 και πάνω
+    /// η αποδοχή αφορά τα ΤΕΣΣΕΡΑ εμπορικά έγγραφα ως ενιαία δέσμη:
+    ///
+    ///   1. Σύμβαση Παροχής Υπηρεσιών Πλατφόρμας (MSA)
+    ///   2. Σύμβαση Επεξεργασίας Προσωπικών Δεδομένων (DPA, Άρθρο 28 GDPR)
+    ///   3. Συμφωνία Επιπέδου Υπηρεσίας (SLA)
+    ///   4. Πολιτική Αποδεκτής Χρήσης (AUP)
+    ///
+    /// Η ενδοπλατφορμική routing διατηρεί το «dpa» prefix για συμβατότητα
+    /// με τον υπάρχοντα κώδικα, αλλά conceptually πλέον καλύπτεται όλη η
+    /// δέσμη. Bump όταν αλλάξει έστω και ένα από τα 4 έγγραφα.</summary>
+    public const string CurrentVersion = "suite-v1.0";
 
-    /// <summary>Ημερομηνία δημοσίευσης της τρέχουσας έκδοσης.</summary>
-    public static readonly DateOnly CurrentVersionPublishedOn = new(2026, 7, 15);
+    /// <summary>Ημερομηνία δημοσίευσης της τρέχουσας έκδοσης της δέσμης.</summary>
+    public static readonly DateOnly CurrentVersionPublishedOn = new(2026, 7, 16);
 
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _current;
