@@ -70,8 +70,11 @@ export function OverCommissionStatementsPage() {
   const [gridOpen, setGridOpen] = useState(false);
 
   const carriersQ = useQuery({
-    queryKey: ["insurance-companies-min"],
-    queryFn: async () => (await api.get<Carrier[]>("/insurance-companies")).data
+    // onlyUsed=true → dropdown shows only the office's own carriers,
+    // not the platform-wide catalog. Keeps the picker focused on the
+    // insurers the γραφείο actually works with.
+    queryKey: ["insurance-companies-min", "onlyUsed"],
+    queryFn: async () => (await api.get<Carrier[]>("/insurance-companies", { params: { onlyUsed: true } })).data
   });
   const producersQ = useQuery({
     queryKey: ["producers-min"],
@@ -120,7 +123,7 @@ export function OverCommissionStatementsPage() {
           <Button startIcon={<GridOnIcon />} variant="outlined" size="large"
             color={gridOpen ? "primary" : "inherit"}
             onClick={() => setGridOpen(v => !v)}>
-            {gridOpen ? "Απόκρυψη Grid" : "Grid Editor"}
+            {gridOpen ? "Απόκρυψη Μαζικής Καταχώρησης" : "Μαζική Καταχώρηση"}
           </Button>
           <Button startIcon={<AddIcon />} variant="contained" size="large"
             onClick={() => setDialog("new")}>

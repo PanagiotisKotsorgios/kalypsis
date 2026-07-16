@@ -76,7 +76,7 @@ export function ProductionListsPage() {
 
   const carriers = useQuery({
     queryKey: ["carriers-prod-list"],
-    queryFn: async () => (await api.get<Carrier[]>("/insurance-companies")).data
+    queryFn: async () => (await api.get<Carrier[]>("/insurance-companies", { params: { onlyUsed: true } })).data
   });
   const producers = useQuery({
     queryKey: ["producers-prod-list"],

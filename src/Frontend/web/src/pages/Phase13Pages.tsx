@@ -99,7 +99,7 @@ function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClos
   const producers = useQuery({ queryKey: ["producers-for-advance"], enabled: open && form.partyType === "Producer",
     queryFn: async () => (await api.get("/producers")).data });
   const carriers = useQuery({ queryKey: ["carriers-for-advance"], enabled: open && form.partyType === "Carrier",
-    queryFn: async () => (await api.get("/insurance-companies")).data });
+    queryFn: async () => (await api.get("/insurance-companies", { params: { onlyUsed: true } })).data });
   useEffect(() => { if (open) setForm(f => ({ ...f, number: `AD-${Date.now().toString().slice(-6)}`, receivedOn: today, amount: 0 })); /* eslint-disable-next-line */ }, [open]);
   const save = useMutation({
     mutationFn: async () => (await api.post("/advance-payments", {

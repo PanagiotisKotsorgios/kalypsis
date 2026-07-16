@@ -366,7 +366,7 @@ function MovementDialog({ open, onClose, accounts, onSaved }: { open: boolean; o
   });
   const companies = useQuery({
     queryKey: ["companies-lite-for-cash"], enabled: open,
-    queryFn: async () => (await api.get<{ id: string; name: string }[]>("/insurance-companies")).data
+    queryFn: async () => (await api.get<{ id: string; name: string }[]>("/insurance-companies", { params: { onlyUsed: true } })).data
   });
   const customerPolicies = useQuery({
     queryKey: ["customer-policies-for-cash", form.customerId],

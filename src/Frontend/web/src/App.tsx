@@ -338,8 +338,8 @@ const navByRole: Record<Role, NavItem[]> = {
     // Per-tenant backups + GDPR — always visible.
     { to: "/backups", labelKey: "nav.backups", icon: <BackupIcon /> },
     // Νομικά έγγραφα — πάντα ορατά, όπως στο footer κάθε άλλης cloud
-    // πλατφόρμας. Οδηγεί στο public LegalHub έξω από το /app.
-    { to: "/app/legal", labelKey: "nav.legalHub", icon: <GavelIcon /> },
+    // πλατφόρμας. Το AppLayout προσθέτει από μόνο του το /app prefix.
+    { to: "/legal", labelKey: "nav.legalHub", icon: <GavelIcon /> },
 
     // ===== CRM — top-level (3) + grouped (5) =====
     // Every CRM item carries a `permission` code so an AgencyAdmin can hide

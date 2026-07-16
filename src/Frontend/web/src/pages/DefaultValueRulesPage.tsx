@@ -114,7 +114,7 @@ function RuleDialog({ item, onClose, onSaved }: { item: any | null; onClose: () 
   });
   const [err, setErr] = useState<string | null>(null);
   const carriers = useQuery({ queryKey: ["carriers-for-dvr"], enabled: !!item,
-    queryFn: async () => (await api.get<CarrierLite[]>("/insurance-companies")).data });
+    queryFn: async () => (await api.get<CarrierLite[]>("/insurance-companies", { params: { onlyUsed: true } })).data });
   const dvrCatalogue = useCarrierCatalogue(form.insuranceCompanyId);
   useEffect(() => {
     if (item && item.id) setForm({

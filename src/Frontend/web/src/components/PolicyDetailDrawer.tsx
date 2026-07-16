@@ -178,7 +178,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
   const carriersLookup = useQuery({
     queryKey: ["carriers-lookup"],
     enabled: open,
-    queryFn: async () => (await api.get<Array<{ id: string; name: string; code?: string }>>("/insurance-companies")).data
+    queryFn: async () => (await api.get<Array<{ id: string; name: string; code?: string }>>("/insurance-companies", { params: { onlyUsed: true } })).data
   });
 
   // Tab-specific data sources (loaded only when the tab is opened).

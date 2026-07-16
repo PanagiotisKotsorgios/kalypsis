@@ -242,7 +242,7 @@ export function CarrierBridgesPage() {
   const insuranceCompanies = useQuery({
     queryKey: ["insurance-companies-lite"],
     enabled: !!preview,
-    queryFn: async () => (await api.get<{ id: string; name: string; code: string; }[]>("/insurance-companies")).data
+    queryFn: async () => (await api.get<{ id: string; name: string; code: string; }[]>("/insurance-companies", { params: { onlyUsed: true } })).data
   });
   // Producers list — feeds the Kind=Producer picker in the mapping panel.
   const producers = useQuery({

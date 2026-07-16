@@ -131,7 +131,7 @@ export function ClaimsPage() {
   const carriersQ = useQuery({
     queryKey: ["carriers-claims-filter"],
     queryFn: async () => (await api.get<{ id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null }[]>(
-      "/insurance-companies")).data
+      "/insurance-companies", { params: { onlyUsed: true } })).data
   });
   const filterCatalogue = useCarrierCatalogue(carrierFilter, subCarrierFilter);
 

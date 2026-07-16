@@ -65,7 +65,7 @@ export function AgencyCompanyParametricsPage() {
 
   const carriersQ = useQuery({
     queryKey: ["insurance-companies", "for-parametrics"],
-    queryFn: async () => (await api.get<CompanyDto[]>("/insurance-companies")).data
+    queryFn: async () => (await api.get<CompanyDto[]>("/insurance-companies", { params: { onlyUsed: true } })).data
   });
 
   // Restrict the carrier picker to what the agency actually owns or has opted
