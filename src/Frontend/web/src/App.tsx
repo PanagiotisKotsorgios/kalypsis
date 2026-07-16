@@ -334,7 +334,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/backups", labelKey: "nav.backups", icon: <BackupIcon /> },
     // Νομικά έγγραφα — πάντα ορατά, όπως στο footer κάθε άλλης cloud
     // πλατφόρμας. Οδηγεί στο public LegalHub έξω από το /app.
-    { to: "/legal", labelKey: "nav.legalHub", icon: <GavelIcon /> },
+    { to: "/app/legal", labelKey: "nav.legalHub", icon: <GavelIcon /> },
 
     // ===== CRM — top-level (3) + grouped (5) =====
     // Every CRM item carries a `permission` code so an AgencyAdmin can hide
@@ -622,11 +622,29 @@ export default function App() {
                       show a «Υπό ανάπτυξη» card. Each gets a mini feature
                       preview so users know what will land here. */}
                   <Route path="legal-templates" element={<LegalTemplatesPage />} />
-                  {/* Sidebar link «Νομικά έγγραφα» → redirect στο public
-                      LegalHub. Χρήση Navigate ώστε ο operator να φύγει
-                      από το authenticated shell και να βλέπει τη σελίδα
-                      όπως ένας επισκέπτης. */}
-                  <Route path="legal" element={<Navigate to="/legal" replace />} />
+                  {/* Legal docs inside the authenticated shell — earlier the
+                      sidebar link redirected out to the public /legal, which
+                      stripped the sidebar. Now the same pages render inside
+                      AppShell with a basePath so their internal doc links
+                      stay in-app instead of bouncing the user out. */}
+                  <Route path="legal" element={<LegalHubPage basePath="/app/legal" />} />
+                  <Route path="legal/subscription-agreement" element={<SubscriptionAgreementPage />} />
+                  <Route path="legal/dpa" element={<DpaPage />} />
+                  <Route path="legal/sla" element={<SlaPage />} />
+                  <Route path="legal/acceptable-use" element={<AcceptableUsePolicyPage />} />
+                  <Route path="legal/sub-processors" element={<SubProcessorsPage />} />
+                  <Route path="legal/ropa" element={<RopaPage />} />
+                  <Route path="legal/data-retention-schedule" element={<DataRetentionPage />} />
+                  <Route path="legal/complaints-policy" element={<ComplaintsPolicyPage />} />
+                  <Route path="legal/security-disclosure" element={<SecurityDisclosurePage />} />
+                  <Route path="legal/refund-policy" element={<RefundPolicyPage />} />
+                  <Route path="legal/client-portal-terms" element={<ClientPortalTermsPage />} />
+                  <Route path="legal/accessibility" element={<AccessibilityPage />} />
+                  <Route path="legal/code-of-conduct" element={<CodeOfConductPage />} />
+                  <Route path="legal/oss-licenses" element={<OssAttributionsPage />} />
+                  <Route path="legal/terms" element={<TermsPage />} />
+                  <Route path="legal/privacy" element={<PrivacyPage />} />
+                  <Route path="legal/cookies" element={<CookiesPage />} />
                   <Route path="compliance-dashboard" element={<ComplianceDashboardPage />} />
                   <Route path="dynamic-fields" element={
                     <UnderConstructionPage

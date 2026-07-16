@@ -25,23 +25,26 @@ interface LegalShellProps {
   heroImage?: string;
 }
 
-// Mirrors LandingPage palette so the legal pages are visually continuous.
-const NAVY = "#0b2545";
-const NAVY_SOFT = "#3d4f6b";
-const ACCENT = "#1f7bb3";
-const RULE = "#e5e9ef";
-const SURFACE = "#fafbfc";
+// Law-firm portal palette — near-black body, warm brand rule.
+// Matches LegalHubPage so the whole legal experience feels like one bound
+// dossier rather than a mix of marketing + form pages.
+const NAVY = "#0b0f14";              // near-black — body copy + headings
+const NAVY_SOFT = "#3a4551";         // muted grey — secondary text
+const ACCENT = "#b08a3e";            // brand gold — accents + rules
+const RULE = "#e2ded4";              // warm hairline
+const SURFACE = "#faf9f5";           // paper — meta card + code
 
 /**
- * Quiet, white shell for Terms / Privacy / Cookies. Restrained enterprise
- * SaaS look — navy body text, hairline rules, one accent colour, no editorial
- * grain or display serifs. Matches the redesigned landing page.
+ * Restrained legal-portal shell used by every individual policy page.
+ * Reads as a professional legal dossier: near-black text, warm hairline
+ * rules, single gold accent, no marketing decoration. Prints cleanly for
+ * auditors who need a paper copy.
  */
 export function LegalShell({ eyebrow, title, lastUpdated, sections, intro }: LegalShellProps) {
   return (
     <Box sx={{
       minHeight: "100vh",
-      bgcolor: "#ffffff",
+      bgcolor: "#f6f6f4",       // warm off-white — reads as document paper
       color: NAVY,
       fontFamily: '"Inter", "Segoe UI", system-ui, -apple-system, sans-serif',
       display: "flex", flexDirection: "column"
@@ -98,7 +101,8 @@ export function LegalShell({ eyebrow, title, lastUpdated, sections, intro }: Leg
           </Stack>
           <Typography component="h1" sx={{
             fontSize: { xs: 34, md: 48 }, fontWeight: 700,
-            lineHeight: 1.1, letterSpacing: "-0.02em", color: NAVY, mb: 3
+            lineHeight: 1.1, letterSpacing: "-0.02em", color: NAVY, mb: 3,
+            fontFamily: 'var(--display, "Playfair Display", "Times New Roman", serif)'
           }}>
             {title}
           </Typography>
@@ -181,7 +185,8 @@ export function LegalShell({ eyebrow, title, lastUpdated, sections, intro }: Leg
                     </Typography>
                     <Typography component="h2" sx={{
                       fontSize: { xs: 22, md: 26 }, fontWeight: 700, lineHeight: 1.25,
-                      color: NAVY, letterSpacing: "-0.01em"
+                      color: NAVY, letterSpacing: "-0.01em",
+                      fontFamily: 'var(--display, "Playfair Display", "Times New Roman", serif)'
                     }}>
                       {s.heading}
                     </Typography>
