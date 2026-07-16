@@ -8,6 +8,15 @@ import CookieIcon from "@mui/icons-material/Cookie";
 import CloudDoneIcon from "@mui/icons-material/CloudDone";
 import PolicyIcon from "@mui/icons-material/Policy";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
+import ReportProblemIcon from "@mui/icons-material/ReportProblem";
+import BugReportIcon from "@mui/icons-material/BugReport";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import AccessibilityNewIcon from "@mui/icons-material/AccessibilityNew";
+import MoneyOffIcon from "@mui/icons-material/MoneyOff";
+import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
+import CodeIcon from "@mui/icons-material/Code";
+import ListAltIcon from "@mui/icons-material/ListAlt";
 import { useTranslation } from "react-i18next";
 import type { SvgIconComponent } from "@mui/icons-material";
 
@@ -61,6 +70,68 @@ const commercial: LegalDoc[] = [
     Icon: PolicyIcon,
     tag: "Παράρτημα MSA",
     version: "v1.0"
+  }
+];
+
+const governance: LegalDoc[] = [
+  {
+    to: "/sub-processors",
+    title: "Λίστα Sub-processors",
+    subtitle: "Τρίτοι πάροχοι (Hetzner, Brevo) + change log. 30-day notice πριν από κάθε αλλαγή.",
+    Icon: AccountTreeIcon,
+    tag: "GDPR Άρθρο 28"
+  },
+  {
+    to: "/ropa",
+    title: "Μητρώο Δραστηριοτήτων Επεξεργασίας (RoPA)",
+    subtitle: "Δραστηριότητες επεξεργασίας ως Controller + Processor.",
+    Icon: ListAltIcon,
+    tag: "GDPR Άρθρο 30"
+  },
+  {
+    to: "/complaints-policy",
+    title: "Διαδικασία Χειρισμού Παραπόνων",
+    subtitle: "Πώς υποβάλλετε παράπονο και τι χρόνο απόκρισης θα έχετε (Ν. 4583/2018).",
+    Icon: ReportProblemIcon,
+    tag: "Ν. 4583/2018"
+  },
+  {
+    to: "/security-disclosure",
+    title: "Πολιτική Υπεύθυνης Γνωστοποίησης Ευπαθειών",
+    subtitle: "Πώς οι security researchers αναφέρουν ευπάθειες + safe-harbor.",
+    Icon: BugReportIcon,
+    tag: "RFC 9116"
+  },
+  {
+    to: "/refund-policy",
+    title: "Πολιτική Επιστροφών & Καταγγελίας Συνδρομής",
+    subtitle: "30ήμερη δοκιμή, 14-day παράθυρο επιστροφής καλής θελήσεως, SLA credits.",
+    Icon: MoneyOffIcon
+  },
+  {
+    to: "/client-portal-terms",
+    title: "Όροι Χρήσης Πύλης Ασφαλισμένου",
+    subtitle: "Ισχύουν για ασφαλισμένους που συνδέονται στην πύλη τους (όχι για γραφεία).",
+    Icon: PersonOutlineIcon
+  },
+  {
+    to: "/accessibility",
+    title: "Δήλωση Προσβασιμότητας",
+    subtitle: "WCAG 2.1 AA — κατάσταση συμμόρφωσης, γνωστά ζητήματα, επικοινωνία.",
+    Icon: AccessibilityNewIcon,
+    tag: "EU 2016/2102"
+  },
+  {
+    to: "/code-of-conduct",
+    title: "Κώδικας Δεοντολογίας",
+    subtitle: "Ακεραιότητα, anti-bribery, whistleblowing, σύγκρουση συμφερόντων.",
+    Icon: WorkOutlineIcon
+  },
+  {
+    to: "/oss-licenses",
+    title: "Αναγνώριση Βιβλιοθηκών Ανοικτού Κώδικα",
+    subtitle: "OSS attributions για κάθε third-party βιβλιοθήκη.",
+    Icon: CodeIcon
   }
 ];
 
@@ -120,7 +191,18 @@ export function LegalHubPage() {
         </Stack>
 
         <Typography variant="h6" fontWeight={700} mb={1.5}>
-          {t("legalHub.policies", "Β. Δημόσιες Πολιτικές")}
+          {t("legalHub.governance", "Β. Πολιτικές Διακυβέρνησης & Συμμόρφωσης")}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" mb={2}>
+          {t("legalHub.governanceBody",
+            "Πλαίσιο εσωτερικών διαδικασιών και ρυθμιστικής συμμόρφωσης της Kalypsis — διαθέσιμο δημόσια για διαφάνεια.")}
+        </Typography>
+        <Stack spacing={1.5} mb={5}>
+          {governance.map(d => <DocRow key={d.to} doc={d} />)}
+        </Stack>
+
+        <Typography variant="h6" fontWeight={700} mb={1.5}>
+          {t("legalHub.policies", "Γ. Δημόσιες Πολιτικές Ιστοσελίδας")}
         </Typography>
         <Typography variant="body2" color="text.secondary" mb={2}>
           {t("legalHub.policiesBody",

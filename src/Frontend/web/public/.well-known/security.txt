@@ -1,0 +1,12 @@
+# Kalypsis — Security Contact
+# RFC 9116 (https://tools.ietf.org/html/rfc9116)
+#
+# Report a security vulnerability to us via the contact below. Details on
+# scope, safe-harbor and expected response times are on the Security
+# Disclosure page linked as Policy.
+
+Contact: mailto:info@mykalypsis.gr
+Expires: 2027-07-16T00:00:00.000Z
+Preferred-Languages: el, en
+Canonical: https://www.mykalypsis.gr/.well-known/security.txt
+Policy: https://www.mykalypsis.gr/security-disclosure

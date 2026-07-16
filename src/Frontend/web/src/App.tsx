@@ -70,6 +70,15 @@ import { SubscriptionAgreementPage } from "./pages/SubscriptionAgreementPage";
 import { SlaPage } from "./pages/SlaPage";
 import { AcceptableUsePolicyPage } from "./pages/AcceptableUsePolicyPage";
 import { LegalHubPage } from "./pages/LegalHubPage";
+import { SubProcessorsPage } from "./pages/SubProcessorsPage";
+import { ComplaintsPolicyPage } from "./pages/ComplaintsPolicyPage";
+import { SecurityDisclosurePage } from "./pages/SecurityDisclosurePage";
+import { ClientPortalTermsPage } from "./pages/ClientPortalTermsPage";
+import { AccessibilityPage } from "./pages/AccessibilityPage";
+import { RefundPolicyPage } from "./pages/RefundPolicyPage";
+import { CodeOfConductPage } from "./pages/CodeOfConductPage";
+import { OssAttributionsPage } from "./pages/OssAttributionsPage";
+import { RopaPage } from "./pages/RopaPage";
 import { BreachIncidentsPage } from "./pages/BreachIncidentsPage";
 import { CollectionFilesBridgesPage } from "./pages/CollectionFilesBridgesPage";
 import { UnderConstructionPage } from "./pages/UnderConstructionPage";
@@ -554,6 +563,15 @@ export default function App() {
         <Route path="/sla" element={<SlaPage />} />
         <Route path="/acceptable-use" element={<AcceptableUsePolicyPage />} />
         <Route path="/legal" element={<LegalHubPage />} />
+        <Route path="/sub-processors" element={<SubProcessorsPage />} />
+        <Route path="/complaints-policy" element={<ComplaintsPolicyPage />} />
+        <Route path="/security-disclosure" element={<SecurityDisclosurePage />} />
+        <Route path="/client-portal-terms" element={<ClientPortalTermsPage />} />
+        <Route path="/accessibility" element={<AccessibilityPage />} />
+        <Route path="/refund-policy" element={<RefundPolicyPage />} />
+        <Route path="/code-of-conduct" element={<CodeOfConductPage />} />
+        <Route path="/oss-licenses" element={<OssAttributionsPage />} />
+        <Route path="/ropa" element={<RopaPage />} />
         <Route
           path="/app/*"
           element={
