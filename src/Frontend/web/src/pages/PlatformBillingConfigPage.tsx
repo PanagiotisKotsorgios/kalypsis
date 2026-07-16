@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, IconButton, InputAdornment,
-  Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Tooltip, Typography
+  Stack, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, TextField, Tooltip, Typography
 } from "@mui/material";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import EuroIcon from "@mui/icons-material/Euro";
@@ -10,8 +10,9 @@ import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import BlockIcon from "@mui/icons-material/Block";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
+import { TenantChargeablesPanel } from "./PlatformAdminPages";
 
 type PackageCode = "BackOffice" | "FrontOffice" | "Crm" | "Intelligence" | "Integrations";
 const ALL_PACKAGES: PackageCode[] = ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"];
@@ -46,14 +47,21 @@ export function PlatformBillingConfigPage() {
   const { t, i18n } = useTranslation();
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);
+  // Tab persisted in the query string so external links / redirects from the
+  // old /platform/chargeables route can deep-link straight to the chargeables
+  // tab (?tab=chargeables). Defaults to the subscription pricing grid.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get("tab") === "chargeables" ? "chargeables" : "subscriptions";
 
   const tenants = useQuery({
     queryKey: ["platform-billing", "tenants"],
-    queryFn: async () => (await api.get<TenantBillingRow[]>("/platform/billing/tenants")).data
+    queryFn: async () => (await api.get<TenantBillingRow[]>("/platform/billing/tenants")).data,
+    enabled: tab === "subscriptions"
   });
   const summary = useQuery({
     queryKey: ["platform-billing", "summary"],
-    queryFn: async () => (await api.get<BillingSummary>("/platform/billing/summary")).data
+    queryFn: async () => (await api.get<BillingSummary>("/platform/billing/summary")).data,
+    enabled: tab === "subscriptions"
   });
 
   const fmt = useMemo(
@@ -75,7 +83,25 @@ export function PlatformBillingConfigPage() {
         </Button>
       </Stack>
 
+      <Tabs
+        value={tab}
+        onChange={(_, v) => {
+          const next = new URLSearchParams(searchParams);
+          if (v === "subscriptions") next.delete("tab"); else next.set("tab", v);
+          setSearchParams(next, { replace: true });
+        }}
+        sx={{ mb: 3, borderBottom: 1, borderColor: "divider" }}
+      >
+        <Tab value="subscriptions" label={t("billing.tabs.subscriptions", "Πακέτα & Τιμές συνδρομής")} />
+        <Tab value="chargeables"   label={t("billing.tabs.chargeables",   "Έκτακτες Χρεώσεις")} />
+      </Tabs>
+
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+
+      {tab === "chargeables" && <TenantChargeablesPanel />}
+
+      {tab === "subscriptions" && <>
+
 
       {/* Summary strip */}
       <Box sx={{
@@ -170,6 +196,7 @@ export function PlatformBillingConfigPage() {
           </Table>
         </Card>
       )}
+      </>}
     </Box>
   );
 }

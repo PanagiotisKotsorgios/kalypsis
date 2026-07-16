@@ -1,14 +1,33 @@
-import { Box, Card, CardContent, Chip, CircularProgress, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions,
+  DialogContent, DialogTitle, Stack, Table, TableBody, TableCell, TableHead, TableRow,
+  TextField, Tooltip, Typography
+} from "@mui/material";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import GroupIcon from "@mui/icons-material/Group";
 import BusinessIcon from "@mui/icons-material/Business";
-import DescriptionIcon from "@mui/icons-material/Description";
 import EuroIcon from "@mui/icons-material/Euro";
+import PaidIcon from "@mui/icons-material/Paid";
+import EditIcon from "@mui/icons-material/Edit";
 import { useQuery } from "@tanstack/react-query";
 import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 import { money, date } from "../utils/format";
+
+/**
+ * Οικονομικά Πλατφόρμας — τι κερδίζει η Kalypsis.
+ *
+ * Focused on SaaS revenue metrics (MRR/ARR/ARPA), Kalypsis-earnings per
+ * tenant, and a payment-status tracker so the operator can mark each
+ * office «paid until DD/MM/YYYY» and see who's overdue at a glance.
+ *
+ * The payment tracker is persisted in localStorage as a first-pass — a
+ * proper backend model (TenantPayment entity + endpoints) lands in a
+ * follow-up. This lets the SuperAdmin start using it today without a
+ * migration.
+ */
 
 interface Overview {
   totalTenants: number; activeTenants: number; trialTenants: number;
@@ -31,6 +50,20 @@ interface TenantRevenue {
 
 interface SeriesPoint { month: string; mrr: number; activeTenants: number; newTenants: number; }
 
+interface TenantPayment { paidUntil: string | null; lastPaidOn: string | null; note: string | null; }
+type PaymentsMap = Record<string, TenantPayment>;
+
+const PAYMENTS_KEY = "kalypsis.tenantPayments.v1";
+function readPayments(): PaymentsMap {
+  try {
+    const raw = window.localStorage.getItem(PAYMENTS_KEY);
+    return raw ? JSON.parse(raw) as PaymentsMap : {};
+  } catch { return {}; }
+}
+function writePayments(map: PaymentsMap) {
+  window.localStorage.setItem(PAYMENTS_KEY, JSON.stringify(map));
+}
+
 export function PlatformEconomicsPage() {
   const { t } = useTranslation();
   const overview = useQuery({
@@ -46,6 +79,16 @@ export function PlatformEconomicsPage() {
     queryFn: async () => (await api.get<SeriesPoint[]>("/platform/economics/series?months=12")).data
   });
 
+  const [payments, setPayments] = useState<PaymentsMap>(() => readPayments());
+  const [dialog, setDialog] = useState<{ tenantId: string; tenantName: string } | null>(null);
+  const updatePayment = useCallback((tenantId: string, next: TenantPayment) => {
+    setPayments(prev => {
+      const merged = { ...prev, [tenantId]: next };
+      writePayments(merged);
+      return merged;
+    });
+  }, []);
+
   if (overview.isLoading || !overview.data) {
     return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
   }
@@ -53,43 +96,77 @@ export function PlatformEconomicsPage() {
   const seriesData = series.data ?? [];
   const maxMrr = Math.max(1, ...seriesData.map(p => p.mrr));
 
+  // Aggregate payment status across tenants for the top-strip KPIs.
+  const paymentStats = useMemo(() => {
+    const rows = revenue.data ?? [];
+    const today = new Date();
+    let paid = 0, overdue = 0, notMarked = 0, upcomingTotal = 0;
+    for (const r of rows) {
+      const p = payments[r.tenantId];
+      if (!p || !p.paidUntil) { notMarked++; continue; }
+      const until = new Date(p.paidUntil);
+      if (until >= today) {
+        paid++;
+        upcomingTotal += r.monthlyTotal;
+      } else {
+        overdue++;
+      }
+    }
+    return { paid, overdue, notMarked, upcomingTotal };
+  }, [revenue.data, payments]);
+
   return (
     <Box>
       <Stack direction="row" alignItems="center" spacing={2} mb={3}>
         <TrendingUpIcon sx={{ fontSize: 36 }} color="primary" />
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("economics.title")}</Typography>
-          <Typography color="text.secondary">{t("economics.subtitle")}</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("economics.title", "Οικονομικά Πλατφόρμας")}</Typography>
+          <Typography color="text.secondary">
+            Τι κερδίζει η Kalypsis — έσοδα ανά γραφείο, MRR/ARR και παρακολούθηση πληρωμών συνδρομής.
+          </Typography>
         </Box>
       </Stack>
 
-      {/* Top KPI row */}
+      {/* Top KPI row — Kalypsis earnings */}
       <Box sx={{
         display: "grid", gap: 2, mb: 3,
         gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }
       }}>
-        <KpiCard label={t("economics.kpi.mrr")}  value={money(o.mrr, o.currency)} icon={<EuroIcon />} highlight />
-        <KpiCard label={t("economics.kpi.arr")}  value={money(o.arr, o.currency)} icon={<EuroIcon />} />
-        <KpiCard label={t("economics.kpi.arpa")} value={money(o.averageRevenuePerTenant, o.currency)} />
-        <KpiCard label={t("economics.kpi.tenants")} value={o.totalTenants} icon={<BusinessIcon />} />
+        <KpiCard label="MRR (Kalypsis)"  value={money(o.mrr, o.currency)} icon={<EuroIcon />} highlight />
+        <KpiCard label="ARR (Kalypsis)"  value={money(o.arr, o.currency)} icon={<EuroIcon />} />
+        <KpiCard label="ARPU"            value={money(o.averageRevenuePerTenant, o.currency)} />
+        <KpiCard label="Γραφεία"         value={o.totalTenants} icon={<BusinessIcon />} />
       </Box>
 
-      {/* Sub KPI row */}
+      {/* Payment tracker KPIs */}
+      <Box sx={{
+        display: "grid", gap: 2, mb: 3,
+        gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }
+      }}>
+        <KpiCard label="✅ Πληρωμένα"     value={paymentStats.paid}      small color="success.main" />
+        <KpiCard label="⚠️ Ληξιπρόθεσμα" value={paymentStats.overdue}   small color="error.main" />
+        <KpiCard label="Χωρίς σήμανση"    value={paymentStats.notMarked} small color="text.secondary" />
+        <KpiCard label="Έσοδα από πληρωμένα" value={money(paymentStats.upcomingTotal, o.currency)} small color="success.main" />
+      </Box>
+
+      {/* Sub KPI row — SaaS lifecycle */}
       <Box sx={{
         display: "grid", gap: 2, mb: 4,
         gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }
       }}>
-        <KpiCard label={t("economics.kpi.active")}  value={o.activeTenants} small  color="success.main" />
-        <KpiCard label={t("economics.kpi.trial")}   value={o.trialTenants}  small  color="info.main" />
-        <KpiCard label={t("economics.kpi.pastDue")} value={o.pastDueTenants} small color="warning.main" />
-        <KpiCard label={t("economics.kpi.churned")} value={o.cancelledTenants} small color="error.main" />
+        <KpiCard label="Ενεργά γραφεία" value={o.activeTenants}     small color="success.main" />
+        <KpiCard label="Σε δοκιμή"       value={o.trialTenants}      small color="info.main" />
+        <KpiCard label="Σε καθυστέρηση"  value={o.pastDueTenants}    small color="warning.main" />
+        <KpiCard label="Έκλεισαν"        value={o.cancelledTenants}  small color="error.main" />
       </Box>
 
       {/* MRR chart */}
       <Card variant="outlined" sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>{t("economics.chart.title")}</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>{t("economics.chart.subtitle")}</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>MRR ανά μήνα</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Συγκεντρωτική εικόνα μηνιαίων εσόδων της Kalypsis από όλα τα γραφεία.
+          </Typography>
 
           {series.isLoading ? <CircularProgress size={24} /> : (
             <Box sx={{
@@ -124,69 +201,85 @@ export function PlatformEconomicsPage() {
           )}
 
           <Stack direction="row" spacing={4} sx={{ mt: 2 }} flexWrap="wrap" useFlexGap>
-            <LegendDot color="primary.main" label={`${t("economics.chart.mrrLine")}: max ${maxMrr.toFixed(0)} ${o.currency}`} />
+            <LegendDot color="primary.main" label={`Έσοδα: max ${maxMrr.toFixed(0)} ${o.currency}`} />
             <Typography variant="caption" color="text.secondary">
-              {t("economics.chart.activeNow", { n: o.activeTenants + o.trialTenants })} ·
-              {" "}
-              {t("economics.chart.newLast30", { n: o.newTenants30d })}
+              Τώρα ενεργά: {o.activeTenants + o.trialTenants} · Νέα τελευταίες 30 ημ.: {o.newTenants30d}
             </Typography>
           </Stack>
         </CardContent>
       </Card>
 
-      {/* Per-tenant revenue */}
+      {/* Per-tenant revenue + payment status */}
       <Card variant="outlined">
         <CardContent>
-          <Stack direction="row" alignItems="center" spacing={2} mb={2}>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>{t("economics.table.title")}</Typography>
-            <Chip size="small" label={`${revenue.data?.length ?? 0} ${t("economics.table.rows")}`} />
+          <Stack direction="row" alignItems="center" spacing={2} mb={2} flexWrap="wrap" gap={1}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>Έσοδα & πληρωμές ανά γραφείο</Typography>
+            <Chip size="small" label={`${revenue.data?.length ?? 0} γραμμές`} />
+            <Box sx={{ flex: 1 }} />
+            <Typography variant="caption" color="text.secondary">
+              Οι πληρωμές αποθηκεύονται τοπικά (localStorage). Backend model έρχεται σε επόμενη φάση.
+            </Typography>
           </Stack>
           {revenue.isLoading ? <CircularProgress size={24} /> : (
             <Box sx={{ overflowX: "auto" }}>
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>{t("economics.table.tenant")}</TableCell>
-                    <TableCell>{t("economics.table.plan")}</TableCell>
-                    <TableCell>{t("economics.table.state")}</TableCell>
-                    <TableCell align="right">{t("economics.table.offices")}</TableCell>
-                    <TableCell align="right">{t("economics.table.billable")}</TableCell>
-                    <TableCell>{t("economics.table.contract")}</TableCell>
-                    <TableCell align="right">{t("economics.table.monthly")}</TableCell>
+                    <TableCell>Γραφείο</TableCell>
+                    <TableCell>Πλάνο</TableCell>
+                    <TableCell>Κατάσταση</TableCell>
+                    <TableCell align="right">Υποκαταστήματα</TableCell>
+                    <TableCell align="right">Χρεώσιμα</TableCell>
+                    <TableCell>Συμβόλαιο</TableCell>
+                    <TableCell align="right">Μηνιαία χρέωση</TableCell>
+                    <TableCell>Πληρωμή</TableCell>
+                    <TableCell align="right">Ενέργειες</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {(revenue.data ?? []).map(r => (
-                    <TableRow key={r.tenantId} hover>
-                      <TableCell>
-                        <Box component={RouterLink} to={`/app/tenants/${r.tenantId}`}
-                          sx={{ color: "text.primary", textDecoration: "none", fontWeight: 600,
-                                "&:hover": { color: "primary.main", textDecoration: "underline" } }}>
-                          {r.tenantName}
-                        </Box>
-                        <Typography variant="caption" sx={{ display: "block", color: "text.secondary", fontFamily: "monospace" }}>
-                          {r.tenantCode}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>{r.plan ?? "—"}</TableCell>
-                      <TableCell><Chip size="small" label={r.subscriptionState} /></TableCell>
-                      <TableCell align="right">{r.officeCount}</TableCell>
-                      <TableCell align="right">{r.billableOfficeCount}</TableCell>
-                      <TableCell>
-                        {r.hasContract ? (
-                          <Stack direction="column" spacing={0}>
-                            <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.contractNumber}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {r.contractEffectiveFrom ? date(r.contractEffectiveFrom) : ""}
-                            </Typography>
-                          </Stack>
-                        ) : <Chip size="small" label={t("economics.table.noContract")} color="warning" variant="outlined" />}
-                      </TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700, color: r.monthlyTotal > 0 ? "primary.main" : "text.disabled" }}>
-                        {money(r.monthlyTotal, r.currency)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {(revenue.data ?? []).map(r => {
+                    const p = payments[r.tenantId];
+                    return (
+                      <TableRow key={r.tenantId} hover>
+                        <TableCell>
+                          <Box component={RouterLink} to={`/app/tenants/${r.tenantId}`}
+                            sx={{ color: "text.primary", textDecoration: "none", fontWeight: 600,
+                                  "&:hover": { color: "primary.main", textDecoration: "underline" } }}>
+                            {r.tenantName}
+                          </Box>
+                          <Typography variant="caption" sx={{ display: "block", color: "text.secondary", fontFamily: "monospace" }}>
+                            {r.tenantCode}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>{r.plan ?? "—"}</TableCell>
+                        <TableCell><Chip size="small" label={r.subscriptionState} /></TableCell>
+                        <TableCell align="right">{r.officeCount}</TableCell>
+                        <TableCell align="right">{r.billableOfficeCount}</TableCell>
+                        <TableCell>
+                          {r.hasContract ? (
+                            <Stack direction="column" spacing={0}>
+                              <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.contractNumber}</Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {r.contractEffectiveFrom ? date(r.contractEffectiveFrom) : ""}
+                              </Typography>
+                            </Stack>
+                          ) : <Chip size="small" label="Χωρίς συμβόλαιο" color="warning" variant="outlined" />}
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700, color: r.monthlyTotal > 0 ? "primary.main" : "text.disabled" }}>
+                          {money(r.monthlyTotal, r.currency)}
+                        </TableCell>
+                        <TableCell><PaymentBadge payment={p} /></TableCell>
+                        <TableCell align="right">
+                          <Tooltip title="Επεξεργασία πληρωμής">
+                            <Button size="small" variant="outlined" startIcon={<EditIcon fontSize="small" />}
+                              onClick={() => setDialog({ tenantId: r.tenantId, tenantName: r.tenantName })}>
+                              Πληρωμή
+                            </Button>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </Box>
@@ -194,17 +287,103 @@ export function PlatformEconomicsPage() {
         </CardContent>
       </Card>
 
-      {/* Bottom stats */}
+      {/* Bottom stats — SaaS user metrics only */}
       <Box sx={{
         display: "grid", gap: 2, mt: 3,
-        gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }
+        gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(2, 1fr)" }
       }}>
-        <KpiCard label={t("economics.kpi.totalUsers")} value={o.totalUsers} icon={<GroupIcon />} small />
-        <KpiCard label={t("economics.kpi.activeUsers30")} value={o.activeUsers30d} small />
-        <KpiCard label={t("economics.kpi.totalCustomers")} value={o.totalCustomers} icon={<GroupIcon />} small />
-        <KpiCard label={t("economics.kpi.totalPolicies")} value={o.totalPolicies} icon={<DescriptionIcon />} small />
+        <KpiCard label="Σύνολο χρηστών" value={o.totalUsers} icon={<GroupIcon />} small />
+        <KpiCard label="Ενεργοί χρήστες (30 ημ.)" value={o.activeUsers30d} small />
       </Box>
+
+      <PaymentDialog
+        open={!!dialog}
+        tenantName={dialog?.tenantName ?? ""}
+        current={dialog ? payments[dialog.tenantId] : undefined}
+        onClose={() => setDialog(null)}
+        onSave={(next) => {
+          if (!dialog) return;
+          updatePayment(dialog.tenantId, next);
+          setDialog(null);
+        }}
+        onClear={() => {
+          if (!dialog) return;
+          updatePayment(dialog.tenantId, { paidUntil: null, lastPaidOn: null, note: null });
+          setDialog(null);
+        }}
+      />
     </Box>
+  );
+}
+
+function PaymentBadge({ payment }: { payment?: TenantPayment }) {
+  if (!payment || !payment.paidUntil) {
+    return <Chip size="small" variant="outlined" label="Χωρίς σήμανση" />;
+  }
+  const until = new Date(payment.paidUntil);
+  const today = new Date();
+  const overdue = until < today;
+  return (
+    <Stack direction="row" alignItems="center" spacing={0.5}>
+      <PaidIcon fontSize="small" color={overdue ? "error" : "success"} />
+      <Chip size="small"
+        color={overdue ? "error" : "success"}
+        variant={overdue ? "filled" : "outlined"}
+        label={overdue
+          ? `Ληξιπρόθεσμο (${until.toLocaleDateString("el-GR")})`
+          : `Έως ${until.toLocaleDateString("el-GR")}`} />
+    </Stack>
+  );
+}
+
+function PaymentDialog({ open, tenantName, current, onClose, onSave, onClear }: {
+  open: boolean;
+  tenantName: string;
+  current?: TenantPayment;
+  onClose: () => void;
+  onSave: (next: TenantPayment) => void;
+  onClear: () => void;
+}) {
+  const [paidUntil, setPaidUntil] = useState("");
+  const [lastPaidOn, setLastPaidOn] = useState("");
+  const [note, setNote] = useState("");
+  const today = new Date().toISOString().slice(0, 10);
+  useEffect(() => {
+    if (!open) return;
+    setPaidUntil(current?.paidUntil ?? "");
+    setLastPaidOn(current?.lastPaidOn ?? today);
+    setNote(current?.note ?? "");
+  }, [open, current, today]);
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Πληρωμή γραφείου — {tenantName}</DialogTitle>
+      <DialogContent>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Καταχώρησε μέχρι πότε είναι πληρωμένη η συνδρομή. Ληξιπρόθεσμα εμφανίζονται με κόκκινο.
+        </Alert>
+        <Stack spacing={2} mt={1}>
+          <TextField label="Πληρωμένο έως" type="date" fullWidth
+            InputLabelProps={{ shrink: true }}
+            value={paidUntil} onChange={(e) => setPaidUntil(e.target.value)} />
+          <TextField label="Ημερομηνία τελευταίας πληρωμής" type="date" fullWidth
+            InputLabelProps={{ shrink: true }}
+            value={lastPaidOn} onChange={(e) => setLastPaidOn(e.target.value)} />
+          <TextField label="Σημείωση (προαιρετικό)" fullWidth multiline minRows={2}
+            value={note} onChange={(e) => setNote(e.target.value)}
+            placeholder="π.χ. Πληρωμή με τραπεζική κατάθεση 12/07" />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClear} color="error" sx={{ mr: "auto" }}>Αφαίρεση σήμανσης</Button>
+        <Button onClick={onClose}>Ακύρωση</Button>
+        <Button variant="contained" onClick={() => onSave({
+          paidUntil: paidUntil || null,
+          lastPaidOn: lastPaidOn || null,
+          note: note.trim() || null
+        })}>Αποθήκευση</Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 

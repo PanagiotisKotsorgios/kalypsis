@@ -27,7 +27,6 @@ import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import CampaignIcon from "@mui/icons-material/Campaign";
 import GavelIcon from "@mui/icons-material/Gavel";
 import RuleFolderIcon from "@mui/icons-material/RuleFolder";
-import TranslateIcon from "@mui/icons-material/Translate";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
@@ -155,6 +154,7 @@ import { PlafondPage } from "./pages/PlafondPage";
 import { RiskProfilesPage } from "./pages/RiskProfilesPage";
 import { AgencyOfficesPage } from "./pages/AgencyOfficesPage";
 import { PlatformEconomicsPage } from "./pages/PlatformEconomicsPage";
+import { PlatformContractorsPage } from "./pages/PlatformContractorsPage";
 import { WorkspaceHubPage } from "./pages/WorkspaceHubPage";
 import { PlatformEmailTemplatesPage } from "./pages/PlatformEmailTemplatesPage";
 import { PlatformMaintenancePage } from "./pages/PlatformMaintenancePage";
@@ -166,7 +166,6 @@ import { CommissionRulesPage } from "./pages/CommissionRulesPage";
 import { ReferenceCatalogsPage } from "./pages/ReferenceCatalogsPage";
 import { ParametricFilesPage } from "./pages/ParametricFilesPage";
 import { PlatformParametricFilesPage } from "./pages/PlatformParametricFilesPage";
-import { PlatformCompanyParametersPage } from "./pages/PlatformCompanyParametersPage";
 import { AgencyCompanyParametricsPage } from "./pages/AgencyCompanyParametricsPage";
 import { GaragesPage } from "./pages/GaragesPage";
 import { ClaimProvisionsPage } from "./pages/ClaimProvisionsPage";
@@ -229,7 +228,7 @@ import { ProductionListsPage } from "./pages/ProductionListsPage";
 import { RenewalsPage } from "./pages/RenewalsPage";
 import { FinancialsPage } from "./pages/FinancialsPage";
 import {
-  SubscriptionPlansPage, TenantChargeablesPage, BroadcastPage, PlatformTranslationsPage,
+  SubscriptionPlansPage, BroadcastPage,
   PlatformApiKeysPage, PlatformIntegrationsPage, PlatformBackupsPage,
   PlatformStoragePage, PlatformJobsPage, PlatformStatusPage, PlatformCompliancePage, PlatformSupportPage
 } from "./pages/PlatformAdminPages";
@@ -426,14 +425,11 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/platform/carriers", labelKey: "nav.platformCarriers", icon: <SecurityIcon /> },
     { to: "/platform/maintenance", labelKey: "nav.maintenance", icon: <EngineeringIcon /> },
     { to: "/platform/parametric-files", labelKey: "nav.broadcastParametric", icon: <InventoryIcon /> },
-    { to: "/platform/company-parameters", labelKey: "nav.companyParameters", icon: <TuneOutlinedIcon /> },
     { to: "/platform/plans", labelKey: "nav.subscriptionPlans", icon: <CreditCardIcon /> },
-    { to: "/platform/chargeables", labelKey: "nav.chargeables", icon: <PaymentsIcon /> },
     { to: "/platform/billing", labelKey: "nav.billing", icon: <PaymentsIcon /> },
     { to: "/platform/invoices", labelKey: "nav.invoices", icon: <ReceiptLongIcon /> },
     { to: "/platform/email-templates", labelKey: "nav.emailTemplates", icon: <EmailIcon /> },
     { to: "/platform/broadcast", labelKey: "nav.broadcast", icon: <CampaignIcon /> },
-    { to: "/platform/i18n", labelKey: "nav.translations", icon: <TranslateIcon /> },
     { to: "/platform/api-keys", labelKey: "nav.apiKeys", icon: <KeyIcon /> },
     { to: "/platform/integrations", labelKey: "nav.integrations", icon: <ExtensionIcon /> },
     { to: "/platform/backups", labelKey: "nav.backups", icon: <CloudUploadIcon /> },
@@ -444,6 +440,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/platform/compliance", labelKey: "nav.compliance", icon: <RuleFolderIcon /> },
     { to: "/platform/support", labelKey: "nav.support", icon: <SupportAgentIcon /> },
     { to: "/platform/economics", labelKey: "nav.platformEconomics", icon: <AnalyticsIcon /> },
+    { to: "/platform/contractors", labelKey: "nav.contractors", icon: <EngineeringIcon /> },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
   PlatformEmployee: [
@@ -757,6 +754,7 @@ export default function App() {
                   <Route path="coming-soon" element={<ComingSoonPage />} />
                   <Route path="platform/registrations" element={<PlatformRegistrationsPage />} />
                   <Route path="platform/economics" element={<PlatformEconomicsPage />} />
+                  <Route path="platform/contractors" element={<PlatformContractorsPage />} />
                   <Route path="platform/email-templates" element={<PlatformEmailTemplatesPage />} />
                   <Route path="platform/maintenance" element={<PlatformMaintenancePage />} />
                   <Route path="platform/*" element={<ComingSoonPage />} />
@@ -792,7 +790,6 @@ export default function App() {
                   <Route path="lookups" element={<ReferenceCatalogsPage />} />
                   <Route path="parametric-files" element={<ParametricFilesPage />} />
                   <Route path="platform/parametric-files" element={<PlatformParametricFilesPage />} />
-                  <Route path="platform/company-parameters" element={<PlatformCompanyParametersPage />} />
                   <Route path="company-parametrics" element={<AgencyCompanyParametricsPage />} />
                   <Route path="quote-builder" element={<QuoteBuilderPage />} />
                   <Route path="workflows" element={<WorkflowRulesPage />} />
@@ -834,11 +831,10 @@ export default function App() {
                   <Route path="bridge-import" element={<Navigate to="/app/carrier-bridges" replace />} />
                   <Route path="platform/carriers" element={<PlatformCarriersPage />} />
                   <Route path="platform/plans" element={<SubscriptionPlansPage />} />
-                  <Route path="platform/chargeables" element={<TenantChargeablesPage />} />
+                  <Route path="platform/chargeables" element={<Navigate to="/app/platform/billing?tab=chargeables" replace />} />
                   <Route path="platform/billing" element={<PlatformBillingConfigPage />} />
                   <Route path="platform/invoices" element={<PlatformInvoicesPage />} />
                   <Route path="platform/broadcast" element={<BroadcastPage />} />
-                  <Route path="platform/i18n" element={<PlatformTranslationsPage />} />
                   <Route path="platform/api-keys" element={<PlatformApiKeysPage />} />
                   <Route path="platform/integrations" element={<PlatformIntegrationsPage />} />
                   <Route path="platform/backups" element={<PlatformBackupsPage />} />

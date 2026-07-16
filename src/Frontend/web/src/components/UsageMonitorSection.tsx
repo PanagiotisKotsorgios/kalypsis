@@ -1,7 +1,8 @@
 import { useState } from "react";
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, LinearProgress, Stack, Typography
+  DialogContent, DialogTitle, LinearProgress, Stack, Table, TableBody, TableCell, TableHead,
+  TableRow, Typography
 } from "@mui/material";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import EmailIcon from "@mui/icons-material/Email";
@@ -9,11 +10,18 @@ import SmsIcon from "@mui/icons-material/Sms";
 import PhoneIcon from "@mui/icons-material/Phone";
 import ChatBubbleIcon from "@mui/icons-material/ChatBubble";
 import UpgradeIcon from "@mui/icons-material/Upgrade";
+import AllInclusiveIcon from "@mui/icons-material/AllInclusive";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
 
 interface UsageChannel { channel: string; used: number; limit: number; displayName: string; }
 interface UsageMonitor { year: number; month: number; channels: UsageChannel[]; }
+interface Campaign {
+  id: string; subject: string; status: string;
+  recipients: number; sent: number; failed: number;
+  sentAt: string | null; createdAt: string;
+}
 
 const CHANNEL_ICON: Record<string, JSX.Element> = {
   email: <EmailIcon />,
@@ -28,109 +36,202 @@ const MONTH_NAMES = [
 ];
 
 /**
- * Card in the profile page that shows the user's current-month outgoing
- * communications per channel with a progress bar against the platform limit.
- * When any channel hits capacity we pop a small dialog inviting the user to
- * ask the admin for more quota — actual purchase flow is out of scope for
- * this MVP, we just surface the friction point.
+ * Profile card that shows the user's current-month outgoing communications.
+ *
+ * Regular users see a per-channel progress bar against the platform limit,
+ * with a "pay for more" dialog when a channel hits capacity.
+ *
+ * PlatformAdmin gets the same counters WITHOUT limits (they run the platform
+ * — quotas don't apply to them) and a live outbound email log fed from the
+ * platform-wide newsletter campaign history.
  */
 export function UsageMonitorSection() {
+  const { user } = useAuth();
+  const isPlatformAdmin = user?.role === "PlatformAdmin";
   const [upgradeChannel, setUpgradeChannel] = useState<UsageChannel | null>(null);
   const q = useQuery({
     queryKey: ["me-usage-monitor"],
     queryFn: async () => (await api.get<UsageMonitor>("/me/usage-monitor")).data
   });
+  const campaignsQ = useQuery({
+    queryKey: ["newsletter-campaigns-recent"],
+    enabled: isPlatformAdmin,
+    queryFn: async () => (await api.get<Campaign[]>("/platform/newsletter/campaigns")).data,
+    refetchInterval: 30_000  // live-ish — email history isn't chatty enough to need websockets
+  });
 
   return (
-    <Card sx={{ mb: 3 }}>
-      <CardContent>
-        <Stack direction="row" alignItems="center" spacing={2} mb={2}>
-          <Box sx={{
-            width: 44, height: 44, borderRadius: 2, display: "grid", placeItems: "center",
-            bgcolor: "rgba(11,37,69,0.06)", color: "primary.main"
-          }}>
-            <BarChartIcon />
-          </Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontWeight: 800, fontSize: 18 }}>
-              Χρήση επικοινωνιών αυτού του μήνα
-            </Typography>
-            <Typography color="text.secondary" sx={{ fontSize: 14 }}>
-              {q.data ? `${MONTH_NAMES[q.data.month]} ${q.data.year}` : "Φόρτωση…"} — email, SMS, Viber
-              και τηλεφωνικές κλήσεις που έχετε καταγράψει.
-            </Typography>
-          </Box>
-        </Stack>
-
-        {q.isLoading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}><CircularProgress size={22} /></Box>
-        ) : q.isError ? (
-          <Alert severity="error">Αδυναμία φόρτωσης χρήσης.</Alert>
-        ) : (
-          <Stack spacing={1.75}>
-            {(q.data?.channels ?? []).map(c => {
-              const pct = c.limit > 0 ? Math.min(100, Math.round((c.used / c.limit) * 100)) : 0;
-              const over = c.limit > 0 && c.used >= c.limit;
-              const warning = !over && pct >= 80;
-              return (
-                <Box key={c.channel}>
-                  <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 0.5 }}>
-                    <Box sx={{ color: over ? "error.main" : warning ? "warning.main" : "text.secondary" }}>
-                      {CHANNEL_ICON[c.channel] ?? <BarChartIcon />}
-                    </Box>
-                    <Typography sx={{ flex: 1, fontWeight: 600 }}>{c.displayName}</Typography>
-                    <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700,
-                      color: over ? "error.main" : "text.primary" }}>
-                      {c.used} / {c.limit}
-                    </Typography>
-                    {over && (
-                      <Chip size="small" color="error" label="Όριο" sx={{ fontWeight: 800 }} />
-                    )}
-                    {warning && !over && (
-                      <Chip size="small" color="warning" label="Κοντά στο όριο" sx={{ fontWeight: 800 }} />
-                    )}
-                    {over && (
-                      <Button size="small" variant="outlined" color="error"
-                        startIcon={<UpgradeIcon fontSize="small" />}
-                        onClick={() => setUpgradeChannel(c)}>
-                        Πληρωμή
-                      </Button>
-                    )}
-                  </Stack>
-                  <LinearProgress
-                    variant="determinate"
-                    value={pct}
-                    color={over ? "error" : warning ? "warning" : "primary"}
-                    sx={{ height: 8, borderRadius: 4 }}
-                  />
-                </Box>
-              );
-            })}
+    <>
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Stack direction="row" alignItems="center" spacing={2} mb={2}>
+            <Box sx={{
+              width: 44, height: 44, borderRadius: 2, display: "grid", placeItems: "center",
+              bgcolor: "rgba(11,37,69,0.06)", color: "primary.main"
+            }}>
+              <BarChartIcon />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ fontWeight: 800, fontSize: 18 }}>
+                Χρήση επικοινωνιών αυτού του μήνα
+              </Typography>
+              <Typography color="text.secondary" sx={{ fontSize: 14 }}>
+                {q.data ? `${MONTH_NAMES[q.data.month]} ${q.data.year}` : "Φόρτωση…"} — email, SMS, Viber
+                και τηλεφωνικές κλήσεις που έχετε καταγράψει.
+              </Typography>
+            </Box>
+            {isPlatformAdmin && (
+              <Chip color="success" icon={<AllInclusiveIcon />} label="Απεριόριστη ποσόστωση" sx={{ fontWeight: 700 }} />
+            )}
           </Stack>
-        )}
-      </CardContent>
 
-      <Dialog open={!!upgradeChannel} onClose={() => setUpgradeChannel(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <UpgradeIcon color="warning" />
-            <span>Ξεπεράσατε το όριο</span>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <Typography sx={{ mb: 1.5 }}>
-            Έχετε χρησιμοποιήσει <b>{upgradeChannel?.used}</b> από τα <b>{upgradeChannel?.limit}</b>
-            {" "}<b>{upgradeChannel?.displayName}</b> που περιλαμβάνει το πακέτο σας γι' αυτόν τον μήνα.
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Για επιπλέον όγκο, επικοινωνήστε με τον διαχειριστή του γραφείου σας ή αναβαθμίστε το πακέτο
-            σας από τις Ρυθμίσεις. Το ανώτατο ανά μήνα καθορίζεται από τον Διαχειριστή Πλατφόρμας.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button variant="contained" onClick={() => setUpgradeChannel(null)}>Κατάλαβα</Button>
-        </DialogActions>
-      </Dialog>
-    </Card>
+          {q.isLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}><CircularProgress size={22} /></Box>
+          ) : q.isError ? (
+            <Alert severity="error">Αδυναμία φόρτωσης χρήσης.</Alert>
+          ) : (
+            <Stack spacing={1.75}>
+              {(q.data?.channels ?? []).map(c => {
+                const pct = c.limit > 0 ? Math.min(100, Math.round((c.used / c.limit) * 100)) : 0;
+                const over = !isPlatformAdmin && c.limit > 0 && c.used >= c.limit;
+                const warning = !isPlatformAdmin && !over && pct >= 80;
+                return (
+                  <Box key={c.channel}>
+                    <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 0.5 }}>
+                      <Box sx={{ color: over ? "error.main" : warning ? "warning.main" : "text.secondary" }}>
+                        {CHANNEL_ICON[c.channel] ?? <BarChartIcon />}
+                      </Box>
+                      <Typography sx={{ flex: 1, fontWeight: 600 }}>{c.displayName}</Typography>
+                      <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700,
+                        color: over ? "error.main" : "text.primary" }}>
+                        {isPlatformAdmin ? `${c.used}` : `${c.used} / ${c.limit}`}
+                      </Typography>
+                      {isPlatformAdmin && (
+                        <Chip size="small" color="success" variant="outlined" label="χωρίς όριο" />
+                      )}
+                      {over && (
+                        <Chip size="small" color="error" label="Όριο" sx={{ fontWeight: 800 }} />
+                      )}
+                      {warning && !over && (
+                        <Chip size="small" color="warning" label="Κοντά στο όριο" sx={{ fontWeight: 800 }} />
+                      )}
+                      {over && (
+                        <Button size="small" variant="outlined" color="error"
+                          startIcon={<UpgradeIcon fontSize="small" />}
+                          onClick={() => setUpgradeChannel(c)}>
+                          Πληρωμή
+                        </Button>
+                      )}
+                    </Stack>
+                    {!isPlatformAdmin && (
+                      <LinearProgress
+                        variant="determinate"
+                        value={pct}
+                        color={over ? "error" : warning ? "warning" : "primary"}
+                        sx={{ height: 8, borderRadius: 4 }}
+                      />
+                    )}
+                  </Box>
+                );
+              })}
+            </Stack>
+          )}
+        </CardContent>
+
+        <Dialog open={!!upgradeChannel} onClose={() => setUpgradeChannel(null)} maxWidth="xs" fullWidth>
+          <DialogTitle>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <UpgradeIcon color="warning" />
+              <span>Ξεπεράσατε το όριο</span>
+            </Stack>
+          </DialogTitle>
+          <DialogContent>
+            <Typography sx={{ mb: 1.5 }}>
+              Έχετε χρησιμοποιήσει <b>{upgradeChannel?.used}</b> από τα <b>{upgradeChannel?.limit}</b>
+              {" "}<b>{upgradeChannel?.displayName}</b> που περιλαμβάνει το πακέτο σας γι' αυτόν τον μήνα.
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Για επιπλέον όγκο, επικοινωνήστε με τον διαχειριστή του γραφείου σας ή αναβαθμίστε το πακέτο
+              σας από τις Ρυθμίσεις. Το ανώτατο ανά μήνα καθορίζεται από τον Διαχειριστή Πλατφόρμας.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button variant="contained" onClick={() => setUpgradeChannel(null)}>Κατάλαβα</Button>
+          </DialogActions>
+        </Dialog>
+      </Card>
+
+      {isPlatformAdmin && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Stack direction="row" alignItems="center" spacing={2} mb={2}>
+              <Box sx={{
+                width: 44, height: 44, borderRadius: 2, display: "grid", placeItems: "center",
+                bgcolor: "rgba(11,37,69,0.06)", color: "primary.main"
+              }}>
+                <EmailIcon />
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <Typography sx={{ fontWeight: 800, fontSize: 18 }}>
+                  Live email log (πλατφόρμα)
+                </Typography>
+                <Typography color="text.secondary" sx={{ fontSize: 14 }}>
+                  Οι πιο πρόσφατες αποστολές email από την πλατφόρμα (καμπάνιες, ενημερώσεις). Ανανέωση κάθε 30″.
+                </Typography>
+              </Box>
+              <Chip size="small" color={campaignsQ.isFetching ? "info" : "default"}
+                label={campaignsQ.isFetching ? "Ανανέωση…" : "Ζωντανά"} variant="outlined" />
+            </Stack>
+
+            {campaignsQ.isLoading ? (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}><CircularProgress size={22} /></Box>
+            ) : (campaignsQ.data ?? []).length === 0 ? (
+              <Alert severity="info" sx={{ mb: 0 }}>
+                Καμία καταγραφή email αποστολής προς το παρόν.
+              </Alert>
+            ) : (
+              <Box sx={{ overflowX: "auto" }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Θέμα</TableCell>
+                      <TableCell align="right">Παραλήπτες</TableCell>
+                      <TableCell align="right">Επιτυχή</TableCell>
+                      <TableCell align="right">Αποτυχία</TableCell>
+                      <TableCell>Κατάσταση</TableCell>
+                      <TableCell align="right">Ημ/νία</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {(campaignsQ.data ?? []).slice(0, 15).map(c => {
+                      const when = c.sentAt ?? c.createdAt;
+                      return (
+                        <TableRow key={c.id} hover>
+                          <TableCell><Typography fontWeight={600}>{c.subject}</Typography></TableCell>
+                          <TableCell align="right">{c.recipients}</TableCell>
+                          <TableCell align="right" sx={{ color: "success.main", fontWeight: 700 }}>{c.sent}</TableCell>
+                          <TableCell align="right" sx={{ color: c.failed > 0 ? "error.main" : "text.secondary", fontWeight: 700 }}>
+                            {c.failed}
+                          </TableCell>
+                          <TableCell>
+                            <Chip size="small"
+                              color={c.status === "Sent" ? "success" : c.status === "Failed" ? "error" : "default"}
+                              variant={c.status === "Sent" || c.status === "Failed" ? "filled" : "outlined"}
+                              label={c.status} />
+                          </TableCell>
+                          <TableCell align="right" sx={{ whiteSpace: "nowrap", fontSize: 12, color: "text.secondary" }}>
+                            {when ? new Date(when).toLocaleString("el-GR") : "—"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </>
   );
 }

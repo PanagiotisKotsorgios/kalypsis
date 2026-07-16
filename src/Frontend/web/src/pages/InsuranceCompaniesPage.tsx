@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import {
   Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
@@ -7,8 +8,7 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import BusinessIcon from "@mui/icons-material/Business";
-import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import AddIcon from "@mui/icons-material/Add";
 import LayersClearIcon from "@mui/icons-material/LayersClear";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -96,24 +96,12 @@ export function InsuranceCompaniesPage() {
   // carrier catalogs: the master list is stable, per-tenant status floats
   // on top of it.
   const allData = q.data ?? [];
-  const allGlobal = allData.filter(c => c.isGlobal);
-  const usedGlobal = allGlobal.filter(c => c.isUsedByTenant);
-
-  const groupByBroker = (rows: CompanyDto[]): CompanyDto[] => {
-    const topLevel = rows.filter(c => !c.parentCompanyId);
-    const out: CompanyDto[] = [];
-    for (const top of topLevel) {
-      out.push(top);
-      for (const s of rows.filter(c => c.parentCompanyId === top.id)) out.push(s);
-    }
-    return out;
-  };
-  const usedGlobalGrouped = groupByBroker(usedGlobal);
+  // Flat list — the broker/sub-broker hierarchy has been dropped from this
+  // screen. Each office manages its own carriers and wires up bridges per
+  // carrier; the multi-level tree caused more confusion than it solved.
   const ownTenantRows = allData.filter(c => !c.isGlobal);
-  // Agencies see their own catalogue plus any legacy global carriers they had
-  // already opted-in to (so existing policies keep resolving). Every other
-  // Kalypsis-global row is intentionally hidden — new agencies never see them.
-  const allOwnRows = [...ownTenantRows, ...usedGlobalGrouped];
+  const usedGlobalRows = allData.filter(c => c.isGlobal && c.isUsedByTenant);
+  const allOwnRows = [...ownTenantRows, ...usedGlobalRows];
 
   const [search, setSearch] = useState("");
   const ownRows = useMemo(() => {
@@ -141,7 +129,7 @@ export function InsuranceCompaniesPage() {
           <Box>
             <Typography variant="h4" sx={{ fontWeight: 800 }}>Ασφαλιστικές Εταιρείες</Typography>
             <Typography color="text.secondary">
-              Καθολικός κατάλογος + εταιρείες που πρόσθεσε το γραφείο σας. Διαχειριστείτε ξεχωριστά τις δικές σας συνεργασίες.
+              Οι εταιρείες με τις οποίες συνεργάζεστε. Προσθέστε καινούριες και ρυθμίστε τις γέφυρες για κάθε μία.
             </Typography>
           </Box>
         </Stack>
@@ -163,8 +151,8 @@ export function InsuranceCompaniesPage() {
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}
       <Alert severity="info" sx={{ mb: 2 }}>
-        Δημιουργήστε τις δικές σας ασφαλιστικές και ορίστε δικά σας παραμετρικά (κλάδους / καλύψεις / χρήσεις / πακέτα).
-        Οι γέφυρες συνδέουν raw κωδικούς κάθε εταιρείας με τα δικά σας παραμετρικά.
+        Ροή: <strong>1)</strong> Δημιουργήστε ασφαλιστική → <strong>2)</strong> Ανοίξτε τις «Γέφυρες Εταιριών» και ρυθμίστε πώς θα διαβάζονται τα αρχεία της.
+        Αν η γέφυρα για μια εταιρεία δεν είναι έτοιμη, θα δείτε μήνυμα «υπό ανάπτυξη».
       </Alert>
 
       {q.isLoading ? (
@@ -242,27 +230,8 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
    * buttons) — opens the full carrier profile popup. */
   onRowClick?: (c: CompanyDto) => void;
 }) {
-  // Track which brokers are expanded. Collapsed by default so the table
-  // doesn't dump 56 rows of subs onto the user; clicking the chevron on a
-  // broker row reveals its subs.
-  const [expandedBrokerIds, setExpandedBrokerIds] = useState<Set<string>>(new Set());
-  const toggleBroker = (id: string) => {
-    setExpandedBrokerIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-  // How many subs each broker has, for the badge on the broker row.
-  const subCountByBroker = new Map<string, number>();
-  for (const r of rows) {
-    if (r.parentCompanyId) {
-      subCountByBroker.set(r.parentCompanyId, (subCountByBroker.get(r.parentCompanyId) ?? 0) + 1);
-    }
-  }
-  // Client-side sort via the right-click header menu. Broker rows keep
-  // their expansion state independent of the sort — we sort in-place then
-  // still filter subs by expanded state.
+  // Client-side sort via the right-click header menu. Every row is a
+  // top-level carrier now — the broker/sub-carrier tree was dropped.
   const [sortKey, setSortKey] = useState<keyof CompanyDto | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const sortedRows = useMemo(() => {
@@ -298,17 +267,11 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
     onDelete: onDelete && !readonly ? (c) => { if (confirm("Διαγραφή;")) onDelete(c.id); } : undefined,
   });
 
-  // Filter: sub rows are hidden unless their broker is expanded.
-  const visibleRows = sortedRows.filter(r =>
-    !r.parentCompanyId || expandedBrokerIds.has(r.parentCompanyId)
-  );
-
   return (
     <Box sx={{ overflowX: "auto" }}>
       <Table size="small">
         <TableHead>
           <TableRow>
-            <TableCell sx={{ width: 32 }} />
             {onToggleOptIn && (
               <TableCell align="center" sx={{ width: 60 }}>
                 <Tooltip title="Χρησιμοποιώ αυτή την εταιρεία — εμφανίζεται στις γέφυρες, στους πίνακες και στα φίλτρα.">
@@ -340,40 +303,18 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
           </TableRow>
         </TableHead>
         <TableBody>
-          {visibleRows.map((r) => {
-            const subCount = r.isBroker ? subCountByBroker.get(r.id) ?? 0 : 0;
-            const expanded = expandedBrokerIds.has(r.id);
-            return (
+          {sortedRows.map((r) => (
             <TableRow key={r.id} hover
               onContextMenu={(e) => rowMenu.open(e, r)}
               onClick={onRowClick ? (e) => {
-                // Ignore clicks that originated on an action button/link/input
-                // — those have their own handlers and we don't want to open the
-                // profile popup as a side-effect.
                 const t = e.target as HTMLElement;
                 if (t.closest("button,a,input,[role='button']")) return;
                 onRowClick(r);
               } : undefined}
-              sx={{
-                cursor: onRowClick ? "pointer" : undefined,
-                ...(r.parentCompanyId ? { bgcolor: "rgba(11,37,69,0.02)" } : {})
-              }}>
-              <TableCell sx={{ width: 32, p: 0.5 }}>
-                {r.isBroker && subCount > 0 && (
-                  <IconButton size="small" onClick={() => toggleBroker(r.id)} aria-label={expanded ? "Σύμπτυξη" : "Επέκταση"}>
-                    {expanded ? <KeyboardArrowDownIcon fontSize="small" /> : <KeyboardArrowRightIcon fontSize="small" />}
-                  </IconButton>
-                )}
-              </TableCell>
+              sx={{ cursor: onRowClick ? "pointer" : undefined }}>
               {onToggleOptIn && (
                 <TableCell align="center" sx={{ width: 60, p: 0.5 }}>
-                  {/* Sub-carriers inherit from their broker — the broker's
-                      opt-in gates them.
-                      Tenant-owned rows (isGlobal=false) aren't opt-in at all;
-                      they're implicitly used and get removed via the delete
-                      icon, not the checkbox — so we hide the checkbox for
-                      them too. */}
-                  {r.parentCompanyId || !r.isGlobal ? null : (
+                  {!r.isGlobal ? null : (
                     <Checkbox
                       size="small"
                       checked={!!r.isUsedByTenant}
@@ -383,22 +324,9 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
                   )}
                 </TableCell>
               )}
-              <TableCell sx={{ fontFamily: "monospace", fontWeight: 700, pl: r.parentCompanyId ? 4 : 0 }}>
-                {r.parentCompanyId ? "↳ " : ""}{r.code}
-              </TableCell>
+              <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.code}</TableCell>
               <TableCell>
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <Typography fontWeight={600} sx={{ color: r.parentCompanyId ? "text.secondary" : "text.primary" }}>
-                    {r.name}
-                  </Typography>
-                  {r.isBroker && <Chip size="small" label="πρακτορείο" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />}
-                  {r.isBroker && subCount > 0 && (
-                    <Chip size="small" variant="outlined"
-                      label={`${subCount} υποασφαλιστικές`}
-                      sx={{ height: 18, fontSize: 10, fontWeight: 600 }}
-                      onClick={() => toggleBroker(r.id)} />
-                  )}
-                </Stack>
+                <Typography fontWeight={600}>{r.name}</Typography>
                 {r.country && <Typography variant="caption" color="text.secondary">{r.country}</Typography>}
               </TableCell>
               <TableCell sx={{ fontFamily: "monospace", fontSize: 13 }}>{r.agentCode ?? "—"}</TableCell>
@@ -412,17 +340,18 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
                 <Chip size="small" color={r.isActive ? "success" : "default"} label={r.isActive ? "Ενεργή" : "Ανενεργή"} />
               </TableCell>
               <TableCell>
-                {r.parentCompanyId ? (
-                  // Subs share the broker's bridge — they don't have their own.
-                  <Chip size="small" variant="outlined" label="Μέσω πρακτορείου" sx={{ color: "text.secondary" }} />
-                ) : linkedCarrierIds?.has(r.id) ? (
-                  // Only after the operator explicitly links this carrier to a
-                  // raw bridge source from the CarrierBridges page — the
-                  // platform shipping an analyzer doesn't count on its own.
-                  <Chip size="small" color="primary" label="Γέφυρα συνδεδεμένη" />
-                ) : (
-                  <Chip size="small" color="warning" variant="outlined" label="Χωρίς σύνδεση" />
-                )}
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  {linkedCarrierIds?.has(r.id) ? (
+                    <Chip size="small" color="primary" label="Συνδεδεμένη" />
+                  ) : (
+                    <Chip size="small" color="warning" variant="outlined" label="Χωρίς σύνδεση" />
+                  )}
+                  <Tooltip title="Άνοιγμα «Γέφυρες Εταιριών» για ρύθμιση">
+                    <IconButton size="small" color="primary" component={RouterLink} to="/app/carrier-bridges">
+                      <CloudUploadIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
               </TableCell>
               <TableCell align="right">
                 <Chip size="small" color={r.parameterItemCount > 0 ? "success" : "warning"} variant="outlined" label={r.parameterItemCount} />
@@ -430,13 +359,7 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
               <TableCell align="right" sx={{ fontWeight: 700 }}>{r.commissionDefaultCount}</TableCell>
               <TableCell align="right">
                 {readonly ? (
-                  // Ενταγμένη = tenant has ticked "Χρησιμοποιώ" (or created the
-                  // row themselves). Διαθέσιμη = universal row still up for
-                  // grabs. Sub-carriers inherit the broker's status silently
-                  // — no chip so the row stays visually secondary.
-                  r.parentCompanyId ? (
-                    <Chip size="small" variant="outlined" label="Υπό πρακτορείο" sx={{ color: "text.secondary" }} />
-                  ) : r.isUsedByTenant ? (
+                  r.isUsedByTenant ? (
                     <Chip size="small" color="success" label="Ενταγμένη" sx={{ fontWeight: 700 }} />
                   ) : (
                     <Chip size="small" variant="outlined" label="Διαθέσιμη" sx={{ color: "text.secondary" }} />
@@ -458,8 +381,7 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
                 )}
               </TableCell>
             </TableRow>
-            );
-          })}
+          ))}
         </TableBody>
       </Table>
       {headerMenu.menu}

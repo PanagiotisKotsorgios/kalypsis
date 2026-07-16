@@ -229,9 +229,21 @@ export function TenantsPage() {
                 {tenantsQuery.data?.map((row) => {
                   const isPlatform = row.code === "PLATFORM";
                   return (
-                  <TableRow key={row.id} hover>
+                  <TableRow key={row.id} hover
+                    onClick={(e) => {
+                      // Row-level click opens the tenant detail page. Skip
+                      // when the click originated on an action button so
+                      // impersonate/edit/delete keep their own behavior.
+                      const t = e.target as HTMLElement;
+                      if (t.closest("button,a,input,[role='button']")) return;
+                      if (isPlatform) return;
+                      navigate(`/app/tenants/${row.id}`);
+                    }}
+                    sx={{ cursor: isPlatform ? "default" : "pointer" }}>
                     <TableCell>
-                      <Typography fontWeight={600}>{row.name}</Typography>
+                      <Typography fontWeight={600} sx={{ color: isPlatform ? "text.primary" : "primary.main" }}>
+                        {row.name}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip label={row.code} size="small" variant="outlined" />
