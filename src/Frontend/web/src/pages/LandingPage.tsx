@@ -20,8 +20,6 @@ import SmartphoneOutlinedIcon from "@mui/icons-material/SmartphoneOutlined";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
-import DesktopMacIcon from "@mui/icons-material/DesktopMac";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { Accordion, AccordionDetails, AccordionSummary } from "@mui/material";
 import { PublicFooter } from "../components/PublicFooter";
 import { AccessibilityWidget } from "../components/AccessibilityWidget";
@@ -905,10 +903,11 @@ function FeatureCell({ icon: Icon, title, body, index, area, featured }: {
    focus and respects prefers-reduced-motion.
    ============================================================================ */
 
-// Platform's own dark-mode palette — declared in src/theme.ts. Reusing the
-// exact hex values keeps this section visually paired with AppShell.
-const D_BG        = "#0b1522";  // background.default (dark)
-const D_ELEVATED  = "#111d2e";  // background.paper (dark)
+// Platform's own dark-mode palette — declared in src/theme.ts. Slightly
+// lightened from the exact paper values so the section reads as a lifted
+// slate against the white page above and below.
+const D_BG        = "#152640";  // lifted slate (base)
+const D_ELEVATED  = "#1c3252";  // one step up for the FAQ surface
 const D_ACCENT    = "#1ea7e1";  // primary.main (dark) — Kalypsis blue
 const D_TEXT      = "#e6eef7";  // text.primary (dark)
 const D_TEXT_SOFT = "#a6b5c6";  // text.secondary (dark)
@@ -980,34 +979,22 @@ function DesktopAppSection() {
         my: { xs: 4, md: 6 }
       }}
     >
-      {/* Faint vertical rule pattern — plain 1px lines every 96px. Reads as
-          "engineered surface" rather than the fuzzy noise a generated
-          gradient would give. */}
-      <Box aria-hidden sx={{
-        position: "absolute", inset: 0, opacity: 0.04, pointerEvents: "none",
-        backgroundImage:
-          `linear-gradient(90deg, transparent 95px, rgba(230,238,247,0.9) 96px, transparent 97px)`,
-        backgroundSize: "96px 100%"
-      }} />
-      {/* Thin brand accent line at the top edge — one exact hairline instead
-          of a glow. Same trick used on the LegalHub masthead. */}
+      {/* Thin brand accent line at the top edge — the only decoration on
+          this surface. Everything else is plain colour. */}
       <Box aria-hidden sx={{
         position: "absolute", top: 0, left: 0, right: 0, height: 2,
         background: `linear-gradient(90deg, transparent, ${D_ACCENT} 25%, ${D_ACCENT} 75%, transparent)`,
-        opacity: 0.35
+        opacity: 0.4
       }} />
 
       <Container maxWidth="lg" sx={{ position: "relative", px: { xs: 3, md: 5 } }}>
         <Reveal>
-          <Stack direction="row" alignItems="center" spacing={1.25} mb={2}>
-            <DesktopMacIcon sx={{ color: D_ACCENT, fontSize: 20 }} />
-            <Typography sx={{
-              fontSize: 11, letterSpacing: "0.25em", textTransform: "uppercase",
-              color: D_ACCENT, fontWeight: 700
-            }}>
-              {t("landing.v2.desktop.eyebrow")}
-            </Typography>
-          </Stack>
+          <Typography sx={{
+            fontSize: 11, letterSpacing: "0.25em", textTransform: "uppercase",
+            color: D_ACCENT, fontWeight: 700, mb: 2
+          }}>
+            {t("landing.v2.desktop.eyebrow")}
+          </Typography>
           <Typography component="h2" sx={{
             fontSize: { xs: 28, md: 42 }, fontWeight: 800, letterSpacing: "-0.02em",
             lineHeight: 1.1, mb: 2.5, maxWidth: 820, color: D_TEXT
@@ -1086,8 +1073,10 @@ function DesktopAppSection() {
                       alt={t(s.tKey) as string}
                       loading={abs <= 1 ? "eager" : "lazy"}
                       sx={{
+                        // contain, not cover — user wants the full screenshot
+                        // visible. The tile's dark bg fills the letterbox.
                         width: "100%", height: "100%",
-                        objectFit: "cover", objectPosition: "top",
+                        objectFit: "contain", objectPosition: "center",
                         display: "block",
                         // Side slides get slightly desaturated so the eye
                         // gravitates to the fully-coloured center image.
@@ -1198,8 +1187,19 @@ function DesktopAppSection() {
                   }}
                 >
                   <AccordionSummary
-                    expandIcon={<ExpandMoreIcon sx={{ color: D_TEXT_SOFT }} />}
+                    // Simple +/− text glyph rather than yet-another icon.
+                    expandIcon={
+                      <Box aria-hidden sx={{
+                        color: D_TEXT_SOFT, fontSize: 20, lineHeight: 1,
+                        fontWeight: 300, transform: "translateY(-1px)"
+                      }}>
+                        +
+                      </Box>
+                    }
                     sx={{
+                      "& .MuiAccordionSummary-expandIconWrapper.Mui-expanded": {
+                        transform: "rotate(45deg)"   // + rotates into ×
+                      },
                       px: 2.5, py: 1,
                       "& .MuiAccordionSummary-content": { my: 1.25 },
                       "&:hover": { bgcolor: "rgba(30,167,225,0.04)" },
