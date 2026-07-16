@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="el" xmlns:o='urn:schemas-microsoft-com:office:office'
+      xmlns:w='urn:schemas-microsoft-com:office:word'
+      xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+  <meta charset="UTF-8">
+  <meta name="ProgId" content="Word.Document">
+  <meta name="Generator" content="Kalypsis DPIA v1.0">
+  <title>DPIA Kalypsis v1.0</title>
+  <!--[if gte mso 9]>
+  <xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotOptimizeForBrowser/>
+    </w:WordDocument>
+  </xml>
+  <![endif]-->
+  <style>
+    @page WordSection1 { size: 21.0cm 29.7cm; margin: 2.5cm 2.0cm; }
+    div.WordSection1 { page: WordSection1; }
+    body { font-family: 'Calibri', 'Segoe UI', sans-serif; font-size: 11pt; color: #0b2545; line-height: 1.4; }
+    h1 { font-size: 20pt; color: #0b2545; border-bottom: 3px solid #0b2545; padding-bottom: 6pt; margin-top: 24pt; }
+    h2 { font-size: 15pt; color: #0b2545; margin-top: 18pt; border-bottom: 1px solid #ccc; padding-bottom: 3pt; }
+    h3 { font-size: 12pt; color: #1a3a5c; margin-top: 12pt; }
+    table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+    th, td { border: 1px solid #999; padding: 6pt 8pt; text-align: left; vertical-align: top; font-size: 10.5pt; }
+    th { background: #e8eef4; font-weight: bold; }
+    .cover { text-align: center; padding: 40pt 0 60pt; border-bottom: 1px solid #ccc; }
+    .cover-eyebrow { letter-spacing: 4pt; font-size: 9pt; text-transform: uppercase; color: #6b7280; }
+    .cover-title { font-size: 28pt; font-weight: bold; margin: 12pt 0; }
+    .cover-sub { font-size: 13pt; color: #4b5563; }
+    .cover-meta { margin-top: 40pt; font-size: 10pt; color: #6b7280; }
+    .risk-low { background: #d4edda; padding: 2pt 6pt; border-radius: 3pt; font-size: 9pt; font-weight: bold; }
+    .risk-med { background: #fff3cd; padding: 2pt 6pt; border-radius: 3pt; font-size: 9pt; font-weight: bold; }
+    .risk-high { background: #f8d7da; padding: 2pt 6pt; border-radius: 3pt; font-size: 9pt; font-weight: bold; }
+    ul, ol { margin: 6pt 0; padding-left: 24pt; }
+    li { margin-bottom: 4pt; }
+    .callout { background: #f5f7fa; border-left: 3px solid #0b2545; padding: 10pt 14pt; margin: 10pt 0; }
+    .footer-line { text-align: center; font-size: 9pt; color: #9ca3af; margin-top: 40pt; }
+  </style>
+</head>
+<body>
+<div class="WordSection1">
+
+<div class="cover">
+  <div class="cover-eyebrow">GDPR Άρθρο 35 — Έκτίμηση Αντικτύπου</div>
+  <div class="cover-title">Data Protection Impact Assessment</div>
+  <div class="cover-sub">Πλατφόρμα Kalypsis</div>
+  <div class="cover-meta">
+    Έκδοση 1.0 &nbsp;·&nbsp; 16 Ιουλίου 2026<br/>
+    Παναγιώτης Κοτσοργιός · ΑΦΜ 176091030 · Μεσολόγγι<br/>
+    info@mykalypsis.gr
+  </div>
+</div>
+
+<h1>1. Executive Summary</h1>
+
+<p>Η παρούσα Εκτίμηση Αντικτύπου για την Προστασία Δεδομένων (DPIA)
+εκπονείται από την Kalypsis σύμφωνα με το Άρθρο 35 του Γενικού Κανονισμού
+Προστασίας Δεδομένων (ΕΕ) 2016/679. Καλύπτει το σύνολο των δραστηριοτήτων
+επεξεργασίας που εκτελεί η Πλατφόρμα, τόσο ως <strong>Υπεύθυνος Επεξεργασίας</strong>
+για τα δεδομένα των γραφείων-πελατών όσο και ως <strong>Εκτελών την
+Επεξεργασία</strong> (Άρθρο 28) για τα δεδομένα των ασφαλισμένων που εισάγει το
+κάθε γραφείο.</p>
+
+<p><strong>Συμπέρασμα:</strong> Η γενική επικινδυνότητα ταξινομείται ως{" "}
+<span class="risk-med">ΜΕΤΡΙΑ</span> μετά τα εφαρμοζόμενα μέτρα μετριασμού. Δεν
+υπάρχει υπολειμματικός κίνδυνος που να απαιτεί προηγούμενη διαβούλευση με την
+ΑΠΔΠΧ κατά το Άρθρο 36 §1 GDPR.</p>
+
+<h2>1.1 Λόγοι εκπόνησης DPIA</h2>
+<p>Η επεξεργασία εμπίπτει στα κριτήρια «υψηλού κινδύνου» των Κατευθυντηρίων
+Γραμμών WP248 της Ομάδας Εργασίας Άρθρου 29 (νυν EDPB), λόγω:</p>
+<ul>
+  <li>Επεξεργασία <strong>ειδικών κατηγοριών</strong> δεδομένων (Άρθρο 9) — δεδομένα υγείας για συμβόλαια Ζωής/Υγείας.</li>
+  <li><strong>Μεγάλης κλίμακας</strong> επεξεργασία δεδομένων ταυτοποίησης (ΑΜΚΑ, ταυτότητας, διαβατηρίου).</li>
+  <li>Συστηματική επεξεργασία <strong>ευάλωτων υποκειμένων</strong> (ενδεχομένως ανηλίκων ή ηλικιωμένων για ασφαλίσεις).</li>
+  <li>Νέες τεχνολογικές λύσεις (cloud SaaS) που δεν έχουν προηγούμενο σε πολλά μικρά γραφεία.</li>
+</ul>
+
+<h1>2. Περιγραφή της Επεξεργασίας</h1>
+
+<h2>2.1 Φύση της επεξεργασίας</h2>
+
+<p>Η Πλατφόρμα Kalypsis είναι σύστημα Back-Office SaaS που παρέχεται σε
+ασφαλιστικά γραφεία στην Ελλάδα για τη διαχείριση χαρτοφυλακίου συμβολαίων,
+πελατών, ζημιών, εισπράξεων και προμηθειών. Η επεξεργασία περιλαμβάνει:</p>
+
+<ul>
+  <li>Αποθήκευση, ανάκτηση, τροποποίηση, εξαγωγή δεδομένων.</li>
+  <li>Αυτοματοποιημένους υπολογισμούς (προμήθειες, υπερπρομήθειες, εκκαθαρίσεις).</li>
+  <li>Εισαγωγή αρχείων από γέφυρες ασφαλιστικών εταιρειών (XLSX/CSV/ZIP) που ανεβάζει ο ίδιος ο Πελάτης.</li>
+  <li>Αποστολή transactional email και σε-πλατφορμικών ειδοποιήσεων.</li>
+  <li>Παραγωγή αναφορών παραγωγής και οικονομικών.</li>
+</ul>
+
+<h2>2.2 Πεδίο εφαρμογής</h2>
+
+<table>
+  <tr><th>Παράμετρος</th><th>Τιμή</th></tr>
+  <tr><td>Αναμενόμενος αριθμός γραφείων-πελατών (12μηνο)</td><td>50–200</td></tr>
+  <tr><td>Μέσος αριθμός πελατών ανά γραφείο</td><td>500–3.000</td></tr>
+  <tr><td>Εκτιμώμενο σύνολο υποκειμένων στην πλατφόρμα</td><td>50.000–600.000</td></tr>
+  <tr><td>Γεωγραφική εμβέλεια</td><td>Ελλάδα (κύρια)</td></tr>
+  <tr><td>Διάρκεια διατήρησης</td><td>Ενεργή συνδρομή + 90 μέρες export window· φορολογικά ≤10 έτη</td></tr>
+</table>
+
+<h2>2.3 Πλαίσιο επεξεργασίας</h2>
+
+<table>
+  <tr><th>Κατηγορία υποκειμένων</th><th>Σχέση με τον Controller</th><th>Ανάμενόμενες προσδοκίες</th></tr>
+  <tr><td>Ασφαλισμένοι (φυσικά πρόσωπα)</td><td>Συμβατική σχέση με γραφείο</td><td>Ασφαλής διαχείριση, πρόσβαση στα δεδομένα τους</td></tr>
+  <tr><td>Νομικά πρόσωπα (εταιρείες)</td><td>Πελάτες γραφείου</td><td>Επαγγελματική επικοινωνία, εμπιστευτικότητα</td></tr>
+  <tr><td>Συνεργάτες-παραγωγοί</td><td>Ένταξη στη πυραμίδα υπερπρομηθειών</td><td>Ακριβής υπολογισμός εσόδων</td></tr>
+  <tr><td>Οδηγοί, δικαιούχοι</td><td>Έμμεσα εμπλεκόμενοι</td><td>Ελάχιστη επεξεργασία, χρήση μόνο για συγκεκριμένο σκοπό</td></tr>
+  <tr><td>Χρήστες γραφείου</td><td>Εργαζόμενοι/ιδιοκτήτες</td><td>Ασφαλής πρόσβαση, καταγραφή ενεργειών</td></tr>
+</table>
+
+<h2>2.4 Σκοποί επεξεργασίας</h2>
+
+<ul>
+  <li>Παροχή της υπηρεσίας SaaS στο γραφείο (εκτέλεση σύμβασης — Άρθρο 6§1(β)).</li>
+  <li>Συμμόρφωση με νομικές υποχρεώσεις (φορολογικές, AML/KYC — Άρθρο 6§1(γ)).</li>
+  <li>Νόμιμο συμφέρον για βελτίωση υπηρεσίας και ασφάλεια (Άρθρο 6§1(στ)).</li>
+  <li>Ρητή συγκατάθεση για ειδικές κατηγορίες (δεδομένα υγείας — Άρθρο 9§2(α)).</li>
+</ul>
+
+<h1>3. Αξιολόγηση Αναγκαιότητας & Αναλογικότητας</h1>
+
+<h2>3.1 Νομική βάση επεξεργασίας</h2>
+<p>Η νομική βάση για κάθε κατηγορία επεξεργασίας τεκμηριώνεται στο Μητρώο
+Δραστηριοτήτων Επεξεργασίας (RoPA — δημόσια διαθέσιμο). Η κύρια νομική βάση
+είναι η <strong>εκτέλεση σύμβασης</strong> μεταξύ Kalypsis και του γραφείου-πελάτη,
+συνοδευόμενη από τη DPA v1.0 (Άρθρο 28).</p>
+
+<h2>3.2 Ελαχιστοποίηση δεδομένων</h2>
+<p>Η Πλατφόρμα συλλέγει μόνο τα δεδομένα που είναι αναγκαία για την
+ασφαλιστική διαμεσολάβηση. Ειδικές κατηγορίες (υγεία) συλλέγονται μόνο για
+συμβόλαια Ζωής/Υγείας και υπό τη ρητή συγκατάθεση του υποκειμένου.</p>
+
+<h2>3.3 Ακρίβεια & Ενημέρωση</h2>
+<p>Ο Πελάτης (γραφείο) είναι υπεύθυνος για την ακρίβεια των δεδομένων που
+εισάγει. Η Πλατφόρμα παρέχει εργαλεία validation και δίνει στα υποκείμενα
+δυνατότητα άσκησης δικαιώματος διόρθωσης (Άρθρο 16) μέσω της GDPR σελίδας.</p>
+
+<h2>3.4 Περίοδος διατήρησης</h2>
+<p>Δεδομένα διατηρούνται όσο ισχύει η συνδρομή του γραφείου + 90 ημέρες
+export window. Τα φορολογικά αρχεία διατηρούνται έως 10 έτη κατά τον Ν.
+4308/2014. Auto-retention job σβήνει audit logs > 12 μήνες και read
+notifications > 6 μήνες.</p>
+
+<h2>3.5 Δικαιώματα υποκειμένων</h2>
+<p>Πλήρης υποστήριξη των Άρθρων 15-22 GDPR:</p>
+<ul>
+  <li>Πρόσβαση: μέσω τμήματος πελάτης/portal.</li>
+  <li>Διόρθωση: αυτο-εξυπηρέτηση για βασικά στοιχεία.</li>
+  <li>Διαγραφή: GdprErasureRequest workflow με anonymization pipeline.</li>
+  <li>Περιορισμός & Εναντίωση: με έγγραφη αίτηση.</li>
+  <li>Φορητότητα: JSON/CSV export.</li>
+</ul>
+
+<h1>4. Αξιολόγηση Κινδύνων</h1>
+
+<h2>4.1 Μεθοδολογία</h2>
+<p>Η αξιολόγηση κινδύνων ακολουθεί τη μεθοδολογία CNIL PIA Software, με
+βαθμολόγηση:</p>
+<ul>
+  <li><strong>Πιθανότητα:</strong> Αμελητέα (1) → Περιορισμένη (2) → Σημαντική (3) → Μέγιστη (4)</li>
+  <li><strong>Σοβαρότητα:</strong> Αμελητέα (1) → Περιορισμένη (2) → Σημαντική (3) → Μέγιστη (4)</li>
+</ul>
+
+<h2>4.2 Κατάλογος κινδύνων</h2>
+
+<table>
+  <tr>
+    <th>#</th>
+    <th>Κίνδυνος</th>
+    <th>Επίπτωση στα υποκείμενα</th>
+    <th>Πιθανότητα (πριν)</th>
+    <th>Σοβαρότητα</th>
+    <th>Μέτρα μετριασμού</th>
+    <th>Πιθανότητα (μετά)</th>
+  </tr>
+  <tr>
+    <td>Κ1</td>
+    <td>Μη-εξουσιοδοτημένη πρόσβαση σε βάση δεδομένων</td>
+    <td>Απώλεια εμπιστευτικότητας ΑΜΚΑ/IBAN, ταυτότητας κλοπής</td>
+    <td>3</td>
+    <td>4</td>
+    <td>AES-256-GCM at rest για ευαίσθητες στήλες, TLS 1.3, RBAC, 2FA</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>Κ2</td>
+    <td>Cross-tenant διαρροή (γραφείο Α βλέπει δεδομένα γραφείου Β)</td>
+    <td>Σοβαρή παραβίαση εμπιστευτικότητας</td>
+    <td>2</td>
+    <td>4</td>
+    <td>TenantId global query filter σε EF Core, audit trail κάθε read</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>Κ3</td>
+    <td>Ransomware επίθεση στην υποδομή</td>
+    <td>Μη-διαθεσιμότητα υπηρεσίας, δυνητική απώλεια δεδομένων</td>
+    <td>2</td>
+    <td>3</td>
+    <td>Καθημερινά κρυπτογραφημένα backups σε ξεχωριστή περιοχή ΕΟΧ, RPO ≤24h, RTO ≤4h</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>Κ4</td>
+    <td>Παραβίαση credentials χρήστη</td>
+    <td>Πρόσβαση σε δεδομένα ενός γραφείου</td>
+    <td>3</td>
+    <td>3</td>
+    <td>BCrypt hashing, 2FA (TOTP + email), IP blocking, rate limiting, per-user lockout</td>
+    <td>2</td>
+  </tr>
+  <tr>
+    <td>Κ5</td>
+    <td>Malicious upload (κακόβουλο αρχείο σε γέφυρες)</td>
+    <td>Ενδεχόμενη μόλυνση χρηστών όταν κατεβάζουν από την πλατφόρμα</td>
+    <td>2</td>
+    <td>2</td>
+    <td>ClamAV στα uploads, magic-byte validation, max file size, extension whitelist</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>Κ6</td>
+    <td>Απώλεια master key κρυπτογράφησης</td>
+    <td>Οριστική απώλεια πρόσβασης σε ευαίσθητα δεδομένα</td>
+    <td>2</td>
+    <td>4</td>
+    <td>Master key στο Coolify env var, backup σε password manager εκτός platform</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>Κ7</td>
+    <td>Παραβίαση sub-processor (Hetzner/Brevo)</td>
+    <td>Έμμεση διαρροή δεδομένων</td>
+    <td>2</td>
+    <td>3</td>
+    <td>DPAs με κάθε sub-processor, encryption at rest, 30-day change notice</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>Κ8</td>
+    <td>Επεξεργασία χωρίς έγκυρη συγκατάθεση (δεδομένα υγείας)</td>
+    <td>Παραβίαση Άρθρου 9 GDPR — υψηλότατο πρόστιμο</td>
+    <td>2</td>
+    <td>4</td>
+    <td>Consent capture στο customer create + Compliance Dashboard alert, ConsentRecord audit trail</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>Κ9</td>
+    <td>Μη-ενημέρωση υποκειμένων (Άρθρο 13)</td>
+    <td>Παραβίαση GDPR</td>
+    <td>3</td>
+    <td>3</td>
+    <td>Legal Templates page — pre-filled Ενημέρωση, mandatory checkbox στη φόρμα δημιουργίας πελάτη</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>Κ10</td>
+    <td>Παραβίαση δεδομένων χωρίς έγκαιρη ειδοποίηση</td>
+    <td>Παραβίαση Άρθρου 33 (72h)</td>
+    <td>2</td>
+    <td>3</td>
+    <td>Data Breach Registry, 72h clock, auto-email σε affected controllers</td>
+    <td>1</td>
+  </tr>
+</table>
+
+<h2>4.3 Συνολική εκτίμηση</h2>
+<p>Πριν την εφαρμογή των μέτρων: <span class="risk-high">ΥΨΗΛΟΣ</span><br/>
+Μετά την εφαρμογή των μέτρων: <span class="risk-med">ΜΕΤΡΙΟΣ</span></p>
+
+<p>Δεν υπάρχει υπολειμματικός κίνδυνος τέτοιου βαθμού που να απαιτεί
+προηγούμενη διαβούλευση με την ΑΠΔΠΧ (Άρθρο 36).</p>
+
+<h1>5. Τεχνικά & Οργανωτικά Μέτρα</h1>
+
+<h2>5.1 Τεχνικά μέτρα (κατά Άρθρο 32)</h2>
+<ul>
+  <li><strong>Encryption at rest:</strong> AES-256-GCM με HKDF-παραγόμενο κλειδί για ΑΜΚΑ, ταυτότητα, διαβατήριο, δίπλωμα, IBAN, integration secrets.</li>
+  <li><strong>Encryption in transit:</strong> TLS 1.3 σε όλες τις επικοινωνίες.</li>
+  <li><strong>Authentication:</strong> BCrypt passwords, 2FA (TOTP + email code), per-user lockout μετά από N αποτυχίες.</li>
+  <li><strong>Authorization:</strong> Role-Based Access Control (7 ρόλοι), TenantId filter σε κάθε query.</li>
+  <li><strong>Network:</strong> Rate limiting per policy, IP blocking, HSTS με preload, X-Frame-Options DENY, strict CSP.</li>
+  <li><strong>Anti-malware:</strong> ClamAV integration στα uploads, magic-byte validation.</li>
+  <li><strong>Backups:</strong> Καθημερινά, κρυπτογραφημένα, σε ξεχωριστή γεωγραφική περιοχή ΕΟΧ.</li>
+  <li><strong>Audit:</strong> Πλήρες audit log για κάθε state-changing action, 12-μηνη διατήρηση.</li>
+</ul>
+
+<h2>5.2 Οργανωτικά μέτρα</h2>
+<ul>
+  <li>Least-privilege access για το προσωπικό του Παρόχου.</li>
+  <li>Confidentiality clauses σε κάθε σύμβαση εργαζομένου/εργολάβου.</li>
+  <li>DPO ορισμένος στην Πολιτική Απορρήτου (info@mykalypsis.gr).</li>
+  <li>Incident response διαδικασία με 72-hour breach clock.</li>
+  <li>Δημόσια Sub-processor list με 30-day change notice.</li>
+  <li>Ετήσια επανεκτίμηση DPIA + code security review.</li>
+</ul>
+
+<h1>6. Διαβούλευση</h1>
+
+<h2>6.1 Εσωτερική διαβούλευση</h2>
+<p>Η παρούσα DPIA καταρτίστηκε από τον ιδιοκτήτη και DPO της Kalypsis, με
+τεχνική συνδρομή από το development team. Δεν υπάρχουν άλλες εσωτερικές
+ομάδες που να επηρεάζονται.</p>
+
+<h2>6.2 Εξωτερική διαβούλευση</h2>
+<p>Δεν πραγματοποιήθηκε διαβούλευση με υποκείμενα ή τους αντιπροσώπους τους
+κατά την κατάρτιση αυτής της αρχικής έκδοσης. Θα εξεταστεί για μελλοντικές
+εκδόσεις όταν η κλίμακα χρήσης το δικαιολογεί.</p>
+
+<h2>6.3 Διαβούλευση με ΑΠΔΠΧ</h2>
+<p>Δεν απαιτείται προηγούμενη διαβούλευση κατά το Άρθρο 36 GDPR, καθώς τα
+εναπομένοντα ρίσκα ταξινομούνται ως μη-υψηλά μετά τα εφαρμοζόμενα μέτρα.</p>
+
+<h1>7. Έγκριση</h1>
+
+<table>
+  <tr>
+    <th>Ρόλος</th>
+    <th>Όνομα</th>
+    <th>Ημερομηνία</th>
+    <th>Υπογραφή</th>
+  </tr>
+  <tr>
+    <td>Υπεύθυνος Επεξεργασίας / DPO</td>
+    <td>Παναγιώτης Κοτσοργιός</td>
+    <td>16 Ιουλίου 2026</td>
+    <td>_______________________</td>
+  </tr>
+</table>
+
+<h1>8. Παρακολούθηση & Επανεξέταση</h1>
+
+<p>Η παρούσα DPIA επανεξετάζεται:</p>
+<ul>
+  <li><strong>Ετησίως</strong> στο πλαίσιο τακτικού compliance review.</li>
+  <li><strong>Όταν αλλάζει sub-processor</strong> ή προστίθεται νέος.</li>
+  <li><strong>Όταν εισάγονται νέα features</strong> που επηρεάζουν την επεξεργασία (π.χ. AI/ML, νέες κατηγορίες δεδομένων).</li>
+  <li><strong>Μετά από σοβαρό incident</strong>, ως μέρος του post-mortem.</li>
+</ul>
+
+<div class="footer-line">
+  Kalypsis DPIA v1.0 — Παναγιώτης Κοτσοργιός — Μεσολόγγι — info@mykalypsis.gr
+</div>
+
+</div>
+</body>
+</html>
