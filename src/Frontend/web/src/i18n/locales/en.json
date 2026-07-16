@@ -1426,7 +1426,7 @@
       "terms": "You must accept the terms to continue.",
       "submit": "Submission failed. Please try again."
     },
-    "terms": "I confirm the above is accurate and accept the Kalypsis Privacy Policy and Terms of Service. I consent to the Kalypsis team contacting me to verify these details.",
+    "terms": "I confirm the above is accurate and accept the Kalypsis <0>Privacy Policy</0> and <1>Terms of Service</1>. I consent to the Kalypsis team contacting me to verify these details.",
     "prev": "Back",
     "next": "Next",
     "submit": "Submit application",

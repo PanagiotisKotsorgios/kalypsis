@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { KalypsisLogo } from "../components/KalypsisLogo";
 import { LanguageToggle } from "../components/LanguageToggle";
@@ -334,7 +334,15 @@ export function RegisterPage() {
                       }
                       label={
                         <Typography sx={{ fontSize: 15, color: "rgba(11,37,69,0.78)", lineHeight: 1.55 }}>
-                          {t("register.terms")}
+                          <Trans
+                            i18nKey="register.terms"
+                            components={[
+                              // eslint-disable-next-line jsx-a11y/anchor-has-content
+                              <Link key="privacy" component={RouterLink} to="/privacy" target="_blank" rel="noopener" sx={{ fontWeight: 600 }} />,
+                              // eslint-disable-next-line jsx-a11y/anchor-has-content
+                              <Link key="terms" component={RouterLink} to="/terms" target="_blank" rel="noopener" sx={{ fontWeight: 600 }} />
+                            ]}
+                          />
                         </Typography>
                       }
                       sx={{ alignItems: "flex-start", ml: -0.5 }}
@@ -355,7 +363,7 @@ export function RegisterPage() {
                           <Link component={RouterLink} to="/dpa" target="_blank" rel="noopener" sx={{ fontWeight: 600 }}>
                             {t("register.dpaLink", "Σύμβαση Επεξεργασίας Προσωπικών Δεδομένων (DPA)")}
                           </Link>
-                          {" "}({DPA_VERSION}) — {t("register.dpaExplain", "απαιτείται από το Άρθρο 28 GDPR για να μπορέσουμε νομίμως να επεξεργαστούμε δεδομένα των πελατών σας.")}
+                          {" "}({DPA_VERSION}).
                         </Typography>
                       }
                       sx={{ alignItems: "flex-start", ml: -0.5 }}
