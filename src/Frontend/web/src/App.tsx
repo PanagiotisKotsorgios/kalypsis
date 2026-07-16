@@ -277,7 +277,6 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/commission-distribution", labelKey: "nav.commissionDistribution", icon: <AccountTreeIcon />, package: "BackOffice", group: "financials" },
     { to: "/financial-report", labelKey: "nav.financialReport", icon: <AccountBalanceIcon />, package: "BackOffice", group: "financials" },
     { to: "/producer-statement", labelKey: "nav.producerStatement", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
-    { to: "/over-commission-statements", labelKey: "nav.overCommissionStatements", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
     // Roadmap accounting placeholders — routes stay (deep-links + all-tools
     // page keep working) but hidden from sidebar to keep the Financials group
     // trimmed to the 6 items the office actually uses daily. Users discover
@@ -289,7 +288,11 @@ const navByRole: Record<Role, NavItem[]> = {
 
     // BackOffice → ΠΡΟΜΗΘΕΙΕΣ — the commission settlement entry point is in
     // Production Lists, keeping production reporting and monthly settlement together.
+    // Over-commission rules + statements sit together: the rule page tells you
+    // "manager gets X%", the statement page is where you key the monthly
+    // πινάκιο actuals per producer. Two clicks apart.
     { to: "/over-commissions", labelKey: "nav.overCommissions", icon: <StackedLineChartIcon />,  package: "BackOffice", group: "production" },
+    { to: "/over-commission-statements", labelKey: "nav.overCommissionStatements", icon: <ReceiptLongIcon />, package: "BackOffice", group: "production" },
 
     // Accounting and cash-control routes remain available from the Financial hub.
 
