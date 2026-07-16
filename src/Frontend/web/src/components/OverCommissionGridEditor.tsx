@@ -41,6 +41,7 @@ interface GridRow {
   month: number;
   grossAmount: string;            // strings while editing — parsed on send
   netAmount: string;
+  producerSharePercent: string;   // string while editing; blank = 100
   reference: string;
   notes: string;
   paidOn: string;
@@ -80,10 +81,24 @@ function emptyRow(defaultYear: number, defaultMonth: number, defaultCarrierId = 
     month: defaultMonth,
     grossAmount: "",
     netAmount: "",
+    producerSharePercent: "",
     reference: "",
     notes: "",
     paidOn: ""
   };
+}
+
+// Blank % means "everything to the producer". Clamps to [0, 100] so a stray
+// keypress can't produce a nonsense share.
+function parsePercent(raw: string): number {
+  if (raw.trim() === "") return 100;
+  const n = Number(raw.replace(",", "."));
+  if (!Number.isFinite(n)) return 100;
+  return Math.min(100, Math.max(0, n));
+}
+function splitRow(gross: number, pct: number): { producer: number; office: number } {
+  const producer = Math.round(gross * pct) / 100;
+  return { producer, office: Math.round((gross - producer) * 100) / 100 };
 }
 
 export function OverCommissionGridEditor({
@@ -163,15 +178,20 @@ export function OverCommissionGridEditor({
   }, []);
 
   const stats = useMemo(() => {
-    let complete = 0, partial = 0, empty = 0, totalGross = 0;
+    let complete = 0, partial = 0, empty = 0, totalGross = 0, totalProducer = 0, totalOffice = 0;
     for (const r of rows) {
       if (isRowEmpty(r)) empty++;
       else if (isRowComplete(r)) {
         complete++;
-        totalGross += Number(r.grossAmount.replace(",", ".")) || 0;
+        const gross = Number(r.grossAmount.replace(",", ".")) || 0;
+        const pct = parsePercent(r.producerSharePercent);
+        const { producer, office } = splitRow(gross, pct);
+        totalGross += gross;
+        totalProducer += producer;
+        totalOffice += office;
       } else partial++;
     }
-    return { complete, partial, empty, totalGross, total: rows.length };
+    return { complete, partial, empty, totalGross, totalProducer, totalOffice, total: rows.length };
   }, [rows, isRowComplete, isRowEmpty]);
 
   const updateRow = useCallback((k: string, patch: Partial<GridRow>) => {
@@ -199,7 +219,8 @@ export function OverCommissionGridEditor({
         currency: CURRENCY,
         reference: r.reference.trim() || null,
         notes: r.notes.trim() || null,
-        paidOn: r.paidOn || null
+        paidOn: r.paidOn || null,
+        producerSharePercent: parsePercent(r.producerSharePercent)
       }));
       return {
         completeRows,
@@ -269,12 +290,14 @@ export function OverCommissionGridEditor({
       </Box>
 
       {/* Header strip: totals + import */}
-      <Box sx={{ p: 2, display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(5, 1fr)" } }}>
+      <Box sx={{ p: 2, display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr) repeat(3, 1fr)" } }}>
         <Mini label="Σύνολο γραμμές" value={stats.total} />
         <Mini label="Έτοιμες" value={stats.complete} color="success.main" />
         <Mini label="Ημιτελείς" value={stats.partial} color={stats.partial > 0 ? "warning.main" : "text.primary"} />
         <Mini label="Άδειες" value={stats.empty} color="text.secondary" />
-        <Mini label="Σύνολο μικτά (έτοιμες)" value={moneyFmt.format(stats.totalGross)} highlight />
+        <Mini label="Μικτά (έτοιμες)" value={moneyFmt.format(stats.totalGross)} highlight />
+        <Mini label="Στον παραγωγό" value={moneyFmt.format(stats.totalProducer)} color="success.main" />
+        <Mini label="Στην έδρα" value={moneyFmt.format(stats.totalOffice)} color="info.main" />
       </Box>
 
       {globalError && (
@@ -305,6 +328,9 @@ export function OverCommissionGridEditor({
               <TableCell sx={{ width: 130 }}>Μήνας *</TableCell>
               <TableCell sx={{ width: 130 }} align="right">Μικτά (€) *</TableCell>
               <TableCell sx={{ width: 130 }} align="right">Καθαρά (€)</TableCell>
+              <TableCell sx={{ width: 90 }} align="right">% Παρ.</TableCell>
+              <TableCell sx={{ width: 120 }} align="right">Παραγωγός</TableCell>
+              <TableCell sx={{ width: 120 }} align="right">Έδρα</TableCell>
               <TableCell sx={{ width: 150 }}>Reference</TableCell>
               <TableCell sx={{ width: 150 }}>Πληρωμή</TableCell>
               <TableCell sx={{ minWidth: 180 }}>Σημείωση</TableCell>
@@ -368,6 +394,27 @@ export function OverCommissionGridEditor({
                       placeholder="= μικτά"
                       inputProps={{ style: { textAlign: "right", fontFamily: "monospace" } }} />
                   </TableCell>
+                  <TableCell align="right">
+                    <TextField size="small" value={r.producerSharePercent}
+                      onChange={e => updateRow(r.key, { producerSharePercent: e.target.value })}
+                      placeholder="100"
+                      inputProps={{ style: { textAlign: "right", fontFamily: "monospace" }, min: 0, max: 100 }} />
+                  </TableCell>
+                  {(() => {
+                    const gross = Number(r.grossAmount.replace(",", ".")) || 0;
+                    const pct = parsePercent(r.producerSharePercent);
+                    const { producer, office } = splitRow(gross, pct);
+                    return (
+                      <>
+                        <TableCell align="right" sx={{ fontFamily: "monospace", color: gross > 0 ? "success.main" : "text.disabled", fontSize: 13 }}>
+                          {gross > 0 ? moneyFmt.format(producer) : "—"}
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontFamily: "monospace", color: gross > 0 && office > 0 ? "info.main" : "text.disabled", fontSize: 13 }}>
+                          {gross > 0 ? moneyFmt.format(office) : "—"}
+                        </TableCell>
+                      </>
+                    );
+                  })()}
                   <TableCell>
                     <TextField size="small" value={r.reference}
                       onChange={e => updateRow(r.key, { reference: e.target.value })}

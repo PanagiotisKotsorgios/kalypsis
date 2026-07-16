@@ -1282,6 +1282,7 @@ public static class DataSeeder
                 `Reference` varchar(200) NULL,
                 `Notes` varchar(2000) NULL,
                 `PaidOn` datetime(6) NULL,
+                `ProducerSharePercent` decimal(5,2) NOT NULL DEFAULT 100.00,
                 `EnteredByUserId` char(36) NULL,
                 `CreatedAt` datetime(6) NOT NULL,
                 `UpdatedAt` datetime(6) NULL,
@@ -1290,6 +1291,13 @@ public static class DataSeeder
                 UNIQUE KEY `UX_over_commission_statements_key` (`TenantId`, `InsuranceCompanyId`, `ProducerId`, `Year`, `Month`),
                 KEY `IX_over_commission_statements_TenantId_YearMonth` (`TenantId`, `Year`, `Month`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        // In-place ALTER for existing over_commission_statements tables —
+        // adds ProducerSharePercent so tenants that shipped v1 don't need a
+        // fresh migration cycle.
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "over_commission_statements", column: "ProducerSharePercent",
+            addSql: "ALTER TABLE `over_commission_statements` ADD COLUMN `ProducerSharePercent` decimal(5,2) NOT NULL DEFAULT 100.00", ct);
 
         // --- carrier_bridge_configs table ---------------------------------
         // Per-carrier bridge parsing config authored via the visual builder.

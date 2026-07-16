@@ -41,5 +41,13 @@ public class OverCommissionStatement : TenantEntity
     /// <summary>When the amount was actually paid to the producer's account. Null = pending.</summary>
     public DateTime? PaidOn { get; set; }
 
+    /// <summary>
+    /// Simple producer/office split — the % of <see cref="GrossAmount"/> the
+    /// producer keeps. Office (έδρα) gets the rest (100 - this). No auto-
+    /// lookup against rules yet; the operator keys the % per line. Default
+    /// 100 means everything goes to the producer.
+    /// </summary>
+    public decimal ProducerSharePercent { get; set; } = 100m;
+
     public Guid? EnteredByUserId { get; set; }
 }

@@ -39,6 +39,9 @@ interface StatementDto {
   reference: string | null;
   notes: string | null;
   paidOn: string | null;
+  producerSharePercent: number;
+  producerAmount: number;
+  officeAmount: number;
   createdAt: string;
 }
 
@@ -94,6 +97,8 @@ export function OverCommissionStatementsPage() {
   const totals = useMemo(() => ({
     gross: rows.reduce((s, r) => s + r.grossAmount, 0),
     net: rows.reduce((s, r) => s + r.netAmount, 0),
+    producer: rows.reduce((s, r) => s + (r.producerAmount ?? r.grossAmount), 0),
+    office: rows.reduce((s, r) => s + (r.officeAmount ?? 0), 0),
     paidCount: rows.filter(r => r.paidOn).length,
     unpaidGross: rows.filter(r => !r.paidOn).reduce((s, r) => s + r.grossAmount, 0)
   }), [rows]);
@@ -139,10 +144,12 @@ export function OverCommissionStatementsPage() {
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 
       {/* Totals strip */}
-      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4,1fr)" }, mb: 3 }}>
+      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3,1fr) repeat(3,1fr)" }, mb: 3 }}>
         <Kpi label="Σύνολο μικτά" value={moneyFmt.format(totals.gross)} />
         <Kpi label="Σύνολο καθαρά" value={moneyFmt.format(totals.net)} />
         <Kpi label="Πληρωμένες γραμμές" value={`${totals.paidCount} / ${rows.length}`} />
+        <Kpi label="Στον παραγωγό" value={moneyFmt.format(totals.producer)} color="success.main" />
+        <Kpi label="Στην έδρα" value={moneyFmt.format(totals.office)} color="info.main" />
         <Kpi label="Απλήρωτο (μικτά)" value={moneyFmt.format(totals.unpaidGross)} color="warning.main" />
       </Box>
 
@@ -191,6 +198,9 @@ export function OverCommissionStatementsPage() {
                 <TableCell>Παραγωγός</TableCell>
                 <TableCell align="right">Μικτά</TableCell>
                 <TableCell align="right">Καθαρά</TableCell>
+                <TableCell align="right">% Παρ.</TableCell>
+                <TableCell align="right">Παραγωγός</TableCell>
+                <TableCell align="right">Έδρα</TableCell>
                 <TableCell>Reference</TableCell>
                 <TableCell>Πληρωμή</TableCell>
                 <TableCell align="right">Ενέργειες</TableCell>
@@ -198,11 +208,11 @@ export function OverCommissionStatementsPage() {
             </TableHead>
             <TableBody>
               {listQ.isLoading ? (
-                <TableRow><TableCell colSpan={8} sx={{ py: 4, textAlign: "center" }}>
+                <TableRow><TableCell colSpan={11} sx={{ py: 4, textAlign: "center" }}>
                   <CircularProgress size={22} />
                 </TableCell></TableRow>
               ) : rows.length === 0 ? (
-                <TableRow><TableCell colSpan={8} sx={{ py: 4, textAlign: "center", color: "text.secondary" }}>
+                <TableRow><TableCell colSpan={11} sx={{ py: 4, textAlign: "center", color: "text.secondary" }}>
                   Καμία εγγραφή για αυτή την περίοδο. Πάτα «Νέα εγγραφή» για να ξεκινήσεις.
                 </TableCell></TableRow>
               ) : rows.map(r => (
@@ -224,6 +234,15 @@ export function OverCommissionStatementsPage() {
                   </TableCell>
                   <TableCell align="right" sx={{ fontFamily: "monospace" }}>
                     {moneyFmt.format(r.netAmount)}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontFamily: "monospace", fontSize: 12 }}>
+                    {(r.producerSharePercent ?? 100).toFixed(1)}%
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontFamily: "monospace", color: "success.main" }}>
+                    {moneyFmt.format(r.producerAmount ?? r.grossAmount)}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontFamily: "monospace", color: "info.main" }}>
+                    {moneyFmt.format(r.officeAmount ?? 0)}
                   </TableCell>
                   <TableCell sx={{ fontSize: 12, color: "text.secondary" }}>{r.reference ?? "—"}</TableCell>
                   <TableCell>
@@ -299,6 +318,7 @@ function EntryDialog({ open, entry, defaultYear, defaultMonth, carriers, produce
     month: defaultMonth,
     grossAmount: 0,
     netAmount: 0,
+    producerSharePercent: 100,
     currency: "EUR",
     reference: "",
     notes: "",
@@ -316,6 +336,7 @@ function EntryDialog({ open, entry, defaultYear, defaultMonth, carriers, produce
         month: entry.month,
         grossAmount: entry.grossAmount,
         netAmount: entry.netAmount,
+        producerSharePercent: entry.producerSharePercent ?? 100,
         currency: entry.currency,
         reference: entry.reference ?? "",
         notes: entry.notes ?? "",
@@ -325,7 +346,9 @@ function EntryDialog({ open, entry, defaultYear, defaultMonth, carriers, produce
       setForm({
         insuranceCompanyId: "", producerId: "",
         year: defaultYear, month: defaultMonth,
-        grossAmount: 0, netAmount: 0, currency: "EUR",
+        grossAmount: 0, netAmount: 0,
+        producerSharePercent: 100,
+        currency: "EUR",
         reference: "", notes: "", paidOn: ""
       });
     }
@@ -343,7 +366,8 @@ function EntryDialog({ open, entry, defaultYear, defaultMonth, carriers, produce
         currency: form.currency,
         reference: form.reference.trim() || null,
         notes: form.notes.trim() || null,
-        paidOn: form.paidOn || null
+        paidOn: form.paidOn || null,
+        producerSharePercent: Math.min(100, Math.max(0, form.producerSharePercent))
       };
       if (entry) return (await api.put(`/over-commission-statements/${entry.id}`, body)).data;
       return (await api.post("/over-commission-statements", body)).data;
@@ -398,6 +422,20 @@ function EntryDialog({ open, entry, defaultYear, defaultMonth, carriers, produce
               onChange={(e) => setForm({ ...form, netAmount: Number(e.target.value) || 0 })}
               helperText="Άφησέ το 0 = ίδιο με μικτά"
               inputProps={{ step: "0.01", min: 0 }} />
+          </Stack>
+          <Stack direction="row" spacing={2}>
+            <TextField type="number" label="% Παραγωγού" required
+              value={form.producerSharePercent}
+              onChange={(e) => setForm({ ...form, producerSharePercent: Number(e.target.value) })}
+              inputProps={{ step: "0.01", min: 0, max: 100 }}
+              helperText="Ό,τι μένει (100 − x) πάει στην έδρα"
+              sx={{ width: 180 }} />
+            <Box sx={{ flex: 1, display: "flex", alignItems: "center", gap: 2, mt: 1 }}>
+              <Chip size="small" color="success"
+                label={`Παραγωγός: ${moneyFmt.format(form.grossAmount * Math.min(100, Math.max(0, form.producerSharePercent)) / 100)}`} />
+              <Chip size="small" color="info"
+                label={`Έδρα: ${moneyFmt.format(form.grossAmount - form.grossAmount * Math.min(100, Math.max(0, form.producerSharePercent)) / 100)}`} />
+            </Box>
           </Stack>
           <TextField label="Reference (π.χ. αρ. πινακίου)" fullWidth value={form.reference}
             onChange={(e) => setForm({ ...form, reference: e.target.value })}

@@ -14,6 +14,9 @@ public record OverCommissionStatementDto(
     decimal GrossAmount, decimal NetAmount, string Currency,
     string? Reference, string? Notes,
     DateTime? PaidOn,
+    decimal ProducerSharePercent,
+    decimal ProducerAmount,   // computed: Gross × ProducerSharePercent / 100
+    decimal OfficeAmount,     // computed: Gross − ProducerAmount (goes to έδρα)
     DateTime CreatedAt, DateTime? UpdatedAt);
 
 public record ListOverCommissionStatementsQuery(
@@ -51,17 +54,21 @@ public class ListOverCommissionStatementsHandler
             .ToListAsync(ct);
         var producerMap = producers.ToDictionary(x => x.Id, x => (x.Name, x.Code));
 
-        var mapped = rows.Select(s => new OverCommissionStatementDto(
-            s.Id, s.InsuranceCompanyId, carriers.GetValueOrDefault(s.InsuranceCompanyId, "—"),
-            s.ProducerId,
-            producerMap.TryGetValue(s.ProducerId, out var p) ? p.Name : "—",
-            producerMap.TryGetValue(s.ProducerId, out var p2) ? p2.Code : null,
-            s.Year, s.Month,
-            s.GrossAmount, s.NetAmount, s.Currency,
-            s.Reference, s.Notes,
-            s.PaidOn,
-            s.CreatedAt, s.UpdatedAt
-        )).AsEnumerable();
+        var mapped = rows.Select(s =>
+        {
+            var (producer, office) = SplitCalculator.Split(s.GrossAmount, s.ProducerSharePercent);
+            return new OverCommissionStatementDto(
+                s.Id, s.InsuranceCompanyId, carriers.GetValueOrDefault(s.InsuranceCompanyId, "—"),
+                s.ProducerId,
+                producerMap.TryGetValue(s.ProducerId, out var p) ? p.Name : "—",
+                producerMap.TryGetValue(s.ProducerId, out var p2) ? p2.Code : null,
+                s.Year, s.Month,
+                s.GrossAmount, s.NetAmount, s.Currency,
+                s.Reference, s.Notes,
+                s.PaidOn,
+                s.ProducerSharePercent, producer, office,
+                s.CreatedAt, s.UpdatedAt);
+        }).AsEnumerable();
 
         // Client-side search across carrier/producer name — cheap because we
         // already materialised the small list. Server-side would need joins
@@ -86,7 +93,25 @@ public record UpsertOverCommissionStatementCommand(
     int Year, int Month,
     decimal GrossAmount, decimal NetAmount, string Currency,
     string? Reference, string? Notes,
-    DateTime? PaidOn) : IRequest<OverCommissionStatementDto>;
+    DateTime? PaidOn,
+    decimal ProducerSharePercent) : IRequest<OverCommissionStatementDto>;
+
+/// <summary>
+/// Rounds the producer/office split to 2 decimals with the office getting
+/// whatever's left after producer rounding — avoids the £0.01-drift that
+/// bites naive round(share) + round(rest) pairs.
+/// </summary>
+internal static class SplitCalculator
+{
+    public static (decimal Producer, decimal Office) Split(decimal gross, decimal producerPct)
+    {
+        var pct = Math.Clamp(producerPct, 0m, 100m);
+        var producer = Math.Round(gross * pct / 100m, 2, MidpointRounding.AwayFromZero);
+        var office = Math.Round(gross - producer, 2, MidpointRounding.AwayFromZero);
+        return (producer, office);
+    }
+}
+
 
 public class UpsertOverCommissionStatementValidator : AbstractValidator<UpsertOverCommissionStatementCommand>
 {
@@ -99,6 +124,8 @@ public class UpsertOverCommissionStatementValidator : AbstractValidator<UpsertOv
         RuleFor(x => x.GrossAmount).GreaterThanOrEqualTo(0);
         RuleFor(x => x.NetAmount).GreaterThanOrEqualTo(0);
         RuleFor(x => x.Currency).NotEmpty().Length(3);
+        RuleFor(x => x.ProducerSharePercent).InclusiveBetween(0m, 100m)
+            .WithMessage("Το % παραγωγού πρέπει να είναι μεταξύ 0 και 100.");
     }
 }
 
@@ -149,6 +176,7 @@ public class UpsertOverCommissionStatementHandler
         row.Reference = string.IsNullOrWhiteSpace(r.Reference) ? null : r.Reference.Trim();
         row.Notes = string.IsNullOrWhiteSpace(r.Notes) ? null : r.Notes.Trim();
         row.PaidOn = r.PaidOn;
+        row.ProducerSharePercent = Math.Clamp(r.ProducerSharePercent, 0m, 100m);
         row.EnteredByUserId = _current.UserId;
 
         await _db.SaveChangesAsync(ct);
@@ -158,6 +186,7 @@ public class UpsertOverCommissionStatementHandler
         var producer = await _db.Producers.IgnoreQueryFilters()
             .Where(x => x.Id == row.ProducerId).Select(x => new { x.Name, x.Code }).FirstOrDefaultAsync(ct);
 
+        var (producerAmt, officeAmt) = SplitCalculator.Split(row.GrossAmount, row.ProducerSharePercent);
         return new OverCommissionStatementDto(
             row.Id, row.InsuranceCompanyId, carrier ?? "—",
             row.ProducerId, producer?.Name ?? "—", producer?.Code,
@@ -165,6 +194,7 @@ public class UpsertOverCommissionStatementHandler
             row.GrossAmount, row.NetAmount, row.Currency,
             row.Reference, row.Notes,
             row.PaidOn,
+            row.ProducerSharePercent, producerAmt, officeAmt,
             row.CreatedAt, row.UpdatedAt);
     }
 }
@@ -176,7 +206,8 @@ public record BulkStatementRow(
     int Year, int Month,
     decimal GrossAmount, decimal NetAmount, string Currency,
     string? Reference, string? Notes,
-    DateTime? PaidOn);
+    DateTime? PaidOn,
+    decimal ProducerSharePercent);
 
 public record BulkUpsertRowResult(int Index, bool Success, string? Error, Guid? Id);
 public record BulkUpsertResult(int Inserted, int Updated, int Failed, IReadOnlyList<BulkUpsertRowResult> Rows);
@@ -240,6 +271,7 @@ public class BulkUpsertOverCommissionStatementsHandler
                     s.Reference = string.IsNullOrWhiteSpace(row.Reference) ? null : row.Reference.Trim();
                     s.Notes = string.IsNullOrWhiteSpace(row.Notes) ? null : row.Notes.Trim();
                     s.PaidOn = row.PaidOn;
+                    s.ProducerSharePercent = Math.Clamp(row.ProducerSharePercent, 0m, 100m);
                     s.EnteredByUserId = _current.UserId;
                     updated++;
                     results.Add(new BulkUpsertRowResult(i, true, null, s.Id));
@@ -258,6 +290,7 @@ public class BulkUpsertOverCommissionStatementsHandler
                         Reference = string.IsNullOrWhiteSpace(row.Reference) ? null : row.Reference.Trim(),
                         Notes = string.IsNullOrWhiteSpace(row.Notes) ? null : row.Notes.Trim(),
                         PaidOn = row.PaidOn,
+                        ProducerSharePercent = Math.Clamp(row.ProducerSharePercent, 0m, 100m),
                         EnteredByUserId = _current.UserId
                     };
                     _db.OverCommissionStatements.Add(fresh);
