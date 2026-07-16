@@ -9,8 +9,10 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import PaidIcon from "@mui/icons-material/Paid";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import GridOnIcon from "@mui/icons-material/GridOn";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { OverCommissionGridEditor } from "../components/OverCommissionGridEditor";
 
 /**
  * Οικονομικά → Υπερπρομήθειες (per-producer per-month actuals).
@@ -62,6 +64,7 @@ export function OverCommissionStatementsPage() {
   const [search, setSearch] = useState("");
   const [dialog, setDialog] = useState<StatementDto | null | "new">(null);
   const [error, setError] = useState<string | null>(null);
+  const [gridOpen, setGridOpen] = useState(false);
 
   const carriersQ = useQuery({
     queryKey: ["insurance-companies-min"],
@@ -108,11 +111,30 @@ export function OverCommissionStatementsPage() {
             γραμμή του πινακίου (ERGO, Ατλαντική, Grand Cover, κτλ.).
           </Typography>
         </Box>
-        <Button startIcon={<AddIcon />} variant="contained" size="large"
-          onClick={() => setDialog("new")}>
-          Νέα εγγραφή
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button startIcon={<GridOnIcon />} variant="outlined" size="large"
+            color={gridOpen ? "primary" : "inherit"}
+            onClick={() => setGridOpen(v => !v)}>
+            {gridOpen ? "Απόκρυψη Grid" : "Grid Editor"}
+          </Button>
+          <Button startIcon={<AddIcon />} variant="contained" size="large"
+            onClick={() => setDialog("new")}>
+            Νέα εγγραφή
+          </Button>
+        </Stack>
       </Stack>
+
+      {gridOpen && (
+        <OverCommissionGridEditor
+          carriers={carriersQ.data ?? []}
+          producers={producersQ.data ?? []}
+          defaultYear={year}
+          defaultMonth={typeof month === "number" ? month : now.getMonth() + 1}
+          defaultCarrierId={carrierFilter}
+          onImported={() => qc.invalidateQueries({ queryKey: ["over-commission-statements"] })}
+          onClose={() => setGridOpen(false)}
+        />
+      )}
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 

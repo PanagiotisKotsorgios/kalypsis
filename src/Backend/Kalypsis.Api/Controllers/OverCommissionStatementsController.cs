@@ -61,4 +61,20 @@ public class OverCommissionStatementsController : ControllerBase
         await _m.Send(new DeleteOverCommissionStatementCommand(id), ct);
         return NoContent();
     }
+
+    public record BulkBody(IReadOnlyList<BulkStatementRow> Rows);
+
+    /// <summary>Bulk upsert-by-natural-key. Accepts many rows in one call — powers
+    /// the Excel-like grid editor. Returns per-row success/error so the frontend
+    /// can highlight the rows that failed without losing the ones that succeeded.</summary>
+    [HttpPost("bulk")]
+    public async Task<ActionResult<BulkUpsertResult>> Bulk(
+        [FromBody] BulkBody body, CancellationToken ct)
+    {
+        if (body.Rows == null || body.Rows.Count == 0)
+            return BadRequest(new { code = "empty", message = "Δώσε τουλάχιστον μία γραμμή." });
+        if (body.Rows.Count > 500)
+            return BadRequest(new { code = "too_many", message = "Το batch ξεπερνά τις 500 γραμμές — σπάσε το." });
+        return Ok(await _m.Send(new BulkUpsertOverCommissionStatementsCommand(body.Rows), ct));
+    }
 }

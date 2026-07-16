@@ -169,6 +169,119 @@ public class UpsertOverCommissionStatementHandler
     }
 }
 
+/* ============================ Bulk upsert ============================ */
+
+public record BulkStatementRow(
+    Guid InsuranceCompanyId, Guid ProducerId,
+    int Year, int Month,
+    decimal GrossAmount, decimal NetAmount, string Currency,
+    string? Reference, string? Notes,
+    DateTime? PaidOn);
+
+public record BulkUpsertRowResult(int Index, bool Success, string? Error, Guid? Id);
+public record BulkUpsertResult(int Inserted, int Updated, int Failed, IReadOnlyList<BulkUpsertRowResult> Rows);
+
+public record BulkUpsertOverCommissionStatementsCommand(
+    IReadOnlyList<BulkStatementRow> Rows) : IRequest<BulkUpsertResult>;
+
+public class BulkUpsertOverCommissionStatementsHandler
+    : IRequestHandler<BulkUpsertOverCommissionStatementsCommand, BulkUpsertResult>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public BulkUpsertOverCommissionStatementsHandler(IAppDbContext db, ICurrentUser current)
+    { _db = db; _current = current; }
+
+    public async Task<BulkUpsertResult> Handle(
+        BulkUpsertOverCommissionStatementsCommand r, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+
+        // Pre-load any existing rows that match the natural keys the client
+        // is about to send. Lets us split inserts vs updates without one
+        // round-trip per row.
+        var keys = r.Rows.Select(x => new { x.InsuranceCompanyId, x.ProducerId, x.Year, x.Month }).ToList();
+        var carrierIds = r.Rows.Select(x => x.InsuranceCompanyId).Distinct().ToList();
+        var producerIds = r.Rows.Select(x => x.ProducerId).Distinct().ToList();
+        var years = r.Rows.Select(x => x.Year).Distinct().ToList();
+        var months = r.Rows.Select(x => x.Month).Distinct().ToList();
+
+        var existing = await _db.OverCommissionStatements
+            .Where(s => s.TenantId == tenantId && s.DeletedAt == null
+                     && carrierIds.Contains(s.InsuranceCompanyId)
+                     && producerIds.Contains(s.ProducerId)
+                     && years.Contains(s.Year) && months.Contains(s.Month))
+            .ToListAsync(ct);
+        // Small in-memory join — the natural-key lookup we actually need.
+        var existingByKey = existing.ToDictionary(
+            s => (s.InsuranceCompanyId, s.ProducerId, s.Year, s.Month),
+            s => s);
+
+        var results = new List<BulkUpsertRowResult>();
+        int inserted = 0, updated = 0, failed = 0;
+
+        for (int i = 0; i < r.Rows.Count; i++)
+        {
+            var row = r.Rows[i];
+            try
+            {
+                if (row.InsuranceCompanyId == Guid.Empty) throw new Exception("Λείπει η ασφαλιστική.");
+                if (row.ProducerId == Guid.Empty) throw new Exception("Λείπει ο παραγωγός.");
+                if (row.Year < 2000 || row.Year > 2100) throw new Exception("Άκυρο έτος.");
+                if (row.Month < 1 || row.Month > 12) throw new Exception("Άκυρος μήνας.");
+                if (row.GrossAmount < 0) throw new Exception("Αρνητικά μικτά.");
+
+                var key = (row.InsuranceCompanyId, row.ProducerId, row.Year, row.Month);
+                if (existingByKey.TryGetValue(key, out var s))
+                {
+                    s.GrossAmount = row.GrossAmount;
+                    s.NetAmount = row.NetAmount == 0 ? row.GrossAmount : row.NetAmount;
+                    s.Currency = row.Currency;
+                    s.Reference = string.IsNullOrWhiteSpace(row.Reference) ? null : row.Reference.Trim();
+                    s.Notes = string.IsNullOrWhiteSpace(row.Notes) ? null : row.Notes.Trim();
+                    s.PaidOn = row.PaidOn;
+                    s.EnteredByUserId = _current.UserId;
+                    updated++;
+                    results.Add(new BulkUpsertRowResult(i, true, null, s.Id));
+                }
+                else
+                {
+                    var fresh = new OverCommissionStatement
+                    {
+                        TenantId = tenantId,
+                        InsuranceCompanyId = row.InsuranceCompanyId,
+                        ProducerId = row.ProducerId,
+                        Year = row.Year, Month = row.Month,
+                        GrossAmount = row.GrossAmount,
+                        NetAmount = row.NetAmount == 0 ? row.GrossAmount : row.NetAmount,
+                        Currency = row.Currency,
+                        Reference = string.IsNullOrWhiteSpace(row.Reference) ? null : row.Reference.Trim(),
+                        Notes = string.IsNullOrWhiteSpace(row.Notes) ? null : row.Notes.Trim(),
+                        PaidOn = row.PaidOn,
+                        EnteredByUserId = _current.UserId
+                    };
+                    _db.OverCommissionStatements.Add(fresh);
+                    // Register in the dict so a duplicate (same natural key) later in
+                    // the batch is treated as an update against the pending insert.
+                    existingByKey[key] = fresh;
+                    inserted++;
+                    results.Add(new BulkUpsertRowResult(i, true, null, fresh.Id));
+                }
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                results.Add(new BulkUpsertRowResult(i, false, ex.Message, null));
+            }
+        }
+
+        if (inserted + updated > 0)
+            await _db.SaveChangesAsync(ct);
+
+        return new BulkUpsertResult(inserted, updated, failed, results);
+    }
+}
+
 public record DeleteOverCommissionStatementCommand(Guid Id) : IRequest;
 public class DeleteOverCommissionStatementHandler : IRequestHandler<DeleteOverCommissionStatementCommand>
 {
