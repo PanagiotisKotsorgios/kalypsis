@@ -1,0 +1,7 @@
+Code;Name;Email;Phone;AfmVat;HierarchyLevel;ParentCode;OverCommissionCategory;Notes
+P0001;Νικόλαος Αναγνωστόπουλος;test+p0001@example.com;6971111111;300100001;1;;A;Έδρα γραφείου — level 1 (Unit).
+P0002;Μαρία Κωνσταντίνου;test+p0002@example.com;6972222222;300100002;2;P0001;A;Assistant του Νικόλαου — level 2.
+P0003;Δημήτρης Παπαχρήστου;test+p0003@example.com;6973333333;300100003;3;P0001;B;Ανεξάρτητος συνεργάτης — level 3.
+P0004;Ελένη Γεωργίου;test+p0004@example.com;6974444444;300100004;3;P0001;B;Ανεξάρτητη συνεργάτις — level 3.
+P0005;Ιωάννης Λάσκαρης;test+p0005@example.com;6975555555;300100005;3;P0001;C;Νέος συνεργάτης — 30 ημέρες.
+P0006;Αικατερίνη Βασιλείου;test+p0006@example.com;6976666666;300100006;3;P0001;D;Junior — χαμηλότερη κατηγορία.

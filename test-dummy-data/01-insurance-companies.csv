@@ -1,0 +1,5 @@
+Code;Name;Country;Website;AgentCode;ContactName;ContactEmail;ContactPhone;AfmVat;IsActive;Notes
+ERGO;ERGO Ασφαλιστική;GR;https://www.ergohellas.gr;A-000123;Γ. Παπαδόπουλος;test+ergo@example.com;2109876543;094123456;true;Δοκιμαστική εγγραφή — bridge XLSX/CSV κάθε μήνα.
+INTL;Interlife Α.Α.Ε.Γ.Α.;GR;https://www.interlife.gr;INT-8890;Ε. Μαρκάκη;test+interlife@example.com;2109876500;094654321;true;Δοκιμαστική εγγραφή — bridge CSV μηνιαία.
+ATL;Ατλαντική Ένωση;GR;https://www.atlantiki.gr;ATL-4477;Δ. Σακελλαρίου;test+atlantiki@example.com;2109876511;094987654;true;Δοκιμαστική εγγραφή — bridge XLSX.
+GC;Grand Cover;GR;https://www.grandcover.gr;GC-BRK-002;Α. Νικολαΐδης;test+grandcover@example.com;2109876522;094741852;true;Broker — sub-companies μέσα από παραμετρικά.
