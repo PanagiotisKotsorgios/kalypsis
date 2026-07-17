@@ -3,13 +3,9 @@ import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress, MenuItem, Stack, Table, TableBody, TableCell,
   TableHead, TableRow, Typography
 } from "@mui/material";
-import LocalAtmIcon from "@mui/icons-material/LocalAtm";
 import SavingsOutlinedIcon from "@mui/icons-material/SavingsOutlined";
 import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
-import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlined";
 import CalculateIcon from "@mui/icons-material/Calculate";
-import GavelIcon from "@mui/icons-material/Gavel";
-import ImportExportIcon from "@mui/icons-material/ImportExport";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
@@ -23,13 +19,13 @@ const KINDS = ["CustomerCharge","CustomerCredit","PartnerCharge","PartnerCredit"
 type Kind = typeof KINDS[number];
 
 const FINANCIAL_TOOLS = [
-  { to: "/app/cash", label: "Ταμείο", detail: "Υπόλοιπα και κινήσεις ταμείου", icon: <LocalAtmIcon /> },
+  // Trimmed per request: Ταμείο, Γενική λογιστική, ΚΕΠΥΟ and Μαγνητικά
+  // αρχεία are removed from the hub grid. Their /app routes stay live for
+  // deep-links, but the hub only surfaces the tools tenants actually reach
+  // through this screen day-to-day.
   { to: "/app/advance-payments", label: "Προκαταβολές", detail: "Προκαταβολές πελατών και συμψηφισμοί", icon: <SavingsOutlinedIcon /> },
   { to: "/app/reconciliation", label: "Συμφωνία κινήσεων", detail: "Έλεγχος εισπράξεων και εκκρεμοτήτων", icon: <CompareArrowsIcon /> },
-  { to: "/app/gl", label: "Γενική λογιστική", detail: "Λογαριασμοί, εγγραφές και ισοζύγιο", icon: <AccountBalanceOutlinedIcon /> },
-  { to: "/app/accounting", label: "Εξαγωγές λογιστικής", detail: "Αρχεία και παραδόσεις προς λογιστήριο", icon: <CalculateIcon /> },
-  { to: "/app/kepyo", label: "ΚΕΠΥΟ", detail: "Δηλώσεις και αναφορές", icon: <GavelIcon /> },
-  { to: "/app/magnetic-import", label: "Μαγνητικά αρχεία", detail: "Εισαγωγή και διαχείριση αρχείων", icon: <ImportExportIcon /> }
+  { to: "/app/accounting", label: "Εξαγωγές λογιστικής", detail: "Αρχεία και παραδόσεις προς λογιστήριο", icon: <CalculateIcon /> }
 ];
 
 interface MovementDto {
