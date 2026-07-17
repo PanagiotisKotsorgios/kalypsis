@@ -233,6 +233,13 @@ export function PlatformEconomicsPage() {
               Οι πληρωμές αποθηκεύονται στη βάση — πραγματική παρακολούθηση συνδρομών.
             </Typography>
           </Stack>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <strong>«Χωρίς συμβόλαιο»</strong> σημαίνει ότι δεν έχει καταχωρηθεί ακόμη εμπορική
+            συμφωνία Kalypsis ↔ γραφείου (αριθμός συμβολαίου, μηνιαία βάση, χρέωση ανά επιπλέον
+            υποκατάστημα). Για κάθε γραφείο σου πάτησε το πορτοκαλί κουμπί <em>«+ Νέο συμβόλαιο»</em>
+            στη σειρά του — θα σε πάει κατευθείαν στην καρτέλα «Συμβόλαια» του γραφείου να το
+            καταχωρήσεις. Μόλις γίνει, η μηνιαία χρέωση θα εμφανίζεται εδώ αυτόματα.
+          </Alert>
           {revenue.isLoading ? <CircularProgress size={24} /> : (
             <Box sx={{ overflowX: "auto" }}>
               <Table size="small">
@@ -270,13 +277,26 @@ export function PlatformEconomicsPage() {
                         <TableCell align="right">{r.billableOfficeCount}</TableCell>
                         <TableCell>
                           {r.hasContract ? (
-                            <Stack direction="column" spacing={0}>
-                              <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.contractNumber}</Typography>
+                            <Box component={RouterLink} to={`/app/tenants/${r.tenantId}?tab=contracts`}
+                              sx={{ display: "block", textDecoration: "none", color: "inherit",
+                                    "&:hover .num": { color: "primary.main" } }}>
+                              <Typography className="num" variant="body2"
+                                sx={{ fontFamily: "monospace", fontWeight: 700, transition: "color 150ms" }}>
+                                {r.contractNumber}
+                              </Typography>
                               <Typography variant="caption" color="text.secondary">
                                 {r.contractEffectiveFrom ? date(r.contractEffectiveFrom) : ""}
                               </Typography>
-                            </Stack>
-                          ) : <Chip size="small" label="Χωρίς συμβόλαιο" color="warning" variant="outlined" />}
+                            </Box>
+                          ) : (
+                            <Tooltip title="Πάτησε για να δημιουργήσεις συμβόλαιο για αυτό το γραφείο">
+                              <Chip size="small" clickable
+                                component={RouterLink}
+                                to={`/app/tenants/${r.tenantId}?tab=contracts`}
+                                label="+ Νέο συμβόλαιο"
+                                color="warning" variant="outlined" />
+                            </Tooltip>
+                          )}
                         </TableCell>
                         <TableCell align="right" sx={{ fontWeight: 700, color: r.monthlyTotal > 0 ? "primary.main" : "text.disabled" }}>
                           {money(r.monthlyTotal, r.currency)}

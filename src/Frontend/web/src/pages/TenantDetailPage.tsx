@@ -16,7 +16,7 @@ import EuroIcon from "@mui/icons-material/Euro";
 import EventIcon from "@mui/icons-material/Event";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 import { money, date } from "../utils/format";
 import { useImpersonation } from "../impersonation/ImpersonationContext";
@@ -40,7 +40,19 @@ export function TenantDetailPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { enter } = useImpersonation();
-  const [tab, setTab] = useState<"overview" | "packages" | "premium" | "billing" | "contracts" | "activity" | "users" | "customers" | "policies">("overview");
+  // Deep-linkable tab — ?tab=contracts on the URL lands you straight on the
+  // contracts pane. Used by the Economics page's "Χωρίς συμβόλαιο" shortcut.
+  const [searchParams, setSearchParams] = useSearchParams();
+  type TabValue = "overview" | "packages" | "premium" | "billing" | "contracts" | "activity" | "users" | "customers" | "policies";
+  const validTabs: TabValue[] = ["overview", "packages", "premium", "billing", "contracts", "activity", "users", "customers", "policies"];
+  const initialTab = (searchParams.get("tab") ?? "overview") as TabValue;
+  const [tab, setTab] = useState<TabValue>(validTabs.includes(initialTab) ? initialTab : "overview");
+  const changeTab = (next: TabValue) => {
+    setTab(next);
+    const params = new URLSearchParams(searchParams);
+    if (next === "overview") params.delete("tab"); else params.set("tab", next);
+    setSearchParams(params, { replace: true });
+  };
   const [err, setErr] = useState<string | null>(null);
 
   const overviewQ = useQuery({
@@ -113,7 +125,7 @@ export function TenantDetailPage() {
       </Box>
 
       <Card sx={{ mb: 2 }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ px: 2 }}>
+        <Tabs value={tab} onChange={(_, v) => changeTab(v)} sx={{ px: 2 }}>
           <Tab label={t("tenants.tab.overview")} value="overview" />
           <Tab label={t("tenants.tab.packages")} value="packages" />
           <Tab label="Premium" value="premium" />
