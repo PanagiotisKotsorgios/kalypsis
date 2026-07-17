@@ -51,6 +51,7 @@ interface Tenant {
   createdAt: string;
   userCount: number;
   customerCount: number;
+  packageCount: number;
 }
 
 interface CreateTenantBody {
@@ -221,6 +222,7 @@ export function TenantsPage() {
                   <TableCell>{t("tenants.subscriptionPlan")}</TableCell>
                   <TableCell align="right">{t("tenants.users")}</TableCell>
                   <TableCell align="right">{t("tenants.customersCol")}</TableCell>
+                  <TableCell align="right">Πακέτα</TableCell>
                   <TableCell>{t("tenants.status")}</TableCell>
                   <TableCell align="right" />
                 </TableRow>
@@ -251,6 +253,17 @@ export function TenantsPage() {
                     <TableCell>{row.subscriptionPlan}</TableCell>
                     <TableCell align="right">{row.userCount}</TableCell>
                     <TableCell align="right">{row.customerCount}</TableCell>
+                    <TableCell align="right">
+                      {row.packageCount === 0 && !isPlatform ? (
+                        <Chip size="small" clickable
+                          label="0 ⚠️"
+                          color="warning"
+                          title="Χωρίς ενεργά πακέτα — το γραφείο βλέπει άδειο sidebar. Πάτησε για να ενεργοποιήσεις."
+                          onClick={(e) => { e.stopPropagation(); navigate(`/app/tenants/${row.id}?tab=packages`); }} />
+                      ) : (
+                        <Typography variant="body2" fontFamily="monospace">{row.packageCount}</Typography>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Chip
                         label={row.isActive ? t("tenants.active") : t("tenants.inactive")}

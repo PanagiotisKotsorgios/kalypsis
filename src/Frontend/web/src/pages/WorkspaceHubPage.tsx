@@ -1,4 +1,4 @@
-import { Box, Card, CardActionArea, CardContent, CircularProgress, Stack, Typography } from "@mui/material";
+import { Alert, AlertTitle, Box, Card, CardActionArea, CardContent, CircularProgress, Stack, Typography } from "@mui/material";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
 import PeopleIcon from "@mui/icons-material/People";
@@ -71,12 +71,19 @@ export function WorkspaceHubPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { has, isPlatformBypass, loading } = usePackages();
+  const { has, isPlatformBypass, loading, packages } = usePackages();
   const { enter } = useWorkspace();
 
   if (loading) {
     return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
   }
+
+  // The sidebar filters every item behind a `package:` gate — a tenant with
+  // zero enabled packages sees only "Οδηγίες / Backups / Νομικά" and thinks
+  // the app is broken ("half the sidebar, no bridges"). Flag it plainly so
+  // the AgencyAdmin knows to escalate + the SuperAdmin (bypass) knows why
+  // a tenant they're impersonating looks empty.
+  const noPackages = !isPlatformBypass && packages.size === 0;
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -106,6 +113,16 @@ export function WorkspaceHubPage() {
           {t("ws.hub.lead")}
         </Typography>
       </Box>
+
+      {noPackages && (
+        <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
+          <AlertTitle sx={{ fontWeight: 700 }}>Δεν υπάρχουν ενεργά πακέτα για το γραφείο σας</AlertTitle>
+          Για αυτό το πλαϊνό μενού εμφανίζεται μισό — δεν βλέπετε γέφυρες, παραγωγή, οικονομικά
+          ή παραμετροποίηση. Επικοινωνήστε με τον διαχειριστή της Kalypsis
+          (<a href="mailto:info@mykalypsis.gr" style={{ color: "inherit", fontWeight: 700 }}>info@mykalypsis.gr</a>){" "}
+          για ενεργοποίηση των πακέτων της συνδρομής σας (BackOffice, CRM, κ.λπ.).
+        </Alert>
+      )}
 
       <DashboardSummary />
 

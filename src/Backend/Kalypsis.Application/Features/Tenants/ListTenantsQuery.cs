@@ -25,7 +25,9 @@ public class ListTenantsQueryHandler : IRequestHandler<ListTenantsQuery, IReadOn
                 t.SubscriptionPlan,
                 t.CreatedAt,
                 _db.Users.IgnoreQueryFilters().Count(u => u.TenantId == t.Id && u.DeletedAt == null),
-                _db.Customers.IgnoreQueryFilters().Count(c => c.TenantId == t.Id && c.DeletedAt == null)))
+                _db.Customers.IgnoreQueryFilters().Count(c => c.TenantId == t.Id && c.DeletedAt == null),
+                _db.TenantPackageGrants.IgnoreQueryFilters()
+                    .Count(g => g.TenantId == t.Id && g.DeletedAt == null)))
             .ToListAsync(cancellationToken);
 
         return tenants;
