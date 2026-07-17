@@ -1,4 +1,6 @@
-import { Alert, AlertTitle, Box, Card, CardActionArea, CardContent, CircularProgress, Stack, Typography } from "@mui/material";
+import { Alert, AlertTitle, Box, Button, Card, CardActionArea, CardContent, CircularProgress, Stack, Typography } from "@mui/material";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import { useState as useLocalState } from "react";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
 import PeopleIcon from "@mui/icons-material/People";
@@ -71,8 +73,9 @@ export function WorkspaceHubPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { has, isPlatformBypass, loading, packages } = usePackages();
+  const { has, isPlatformBypass, loading, packages, refresh } = usePackages();
   const { enter } = useWorkspace();
+  const [manualRefreshing, setManualRefreshing] = useLocalState(false);
 
   if (loading) {
     return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
@@ -115,12 +118,24 @@ export function WorkspaceHubPage() {
       </Box>
 
       {noPackages && (
-        <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
+        <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}
+          action={
+            <Button size="small" color="inherit" startIcon={manualRefreshing ? <CircularProgress size={14} /> : <RefreshIcon />}
+              disabled={manualRefreshing}
+              onClick={async () => {
+                setManualRefreshing(true);
+                try { await refresh(); }
+                finally { setManualRefreshing(false); }
+              }}>
+              Ανανέωση
+            </Button>
+          }>
           <AlertTitle sx={{ fontWeight: 700 }}>Δεν υπάρχουν ενεργά πακέτα για το γραφείο σας</AlertTitle>
           Για αυτό το πλαϊνό μενού εμφανίζεται μισό — δεν βλέπετε γέφυρες, παραγωγή, οικονομικά
-          ή παραμετροποίηση. Επικοινωνήστε με τον διαχειριστή της Kalypsis
-          (<a href="mailto:info@mykalypsis.gr" style={{ color: "inherit", fontWeight: 700 }}>info@mykalypsis.gr</a>){" "}
-          για ενεργοποίηση των πακέτων της συνδρομής σας (BackOffice, CRM, κ.λπ.).
+          ή παραμετροποίηση. Αν ο διαχειριστής της Kalypsis μόλις ενεργοποίησε πακέτα, πάτησε
+          <strong> «Ανανέωση»</strong>. Αλλιώς επικοινώνησε στο{" "}
+          <a href="mailto:info@mykalypsis.gr" style={{ color: "inherit", fontWeight: 700 }}>info@mykalypsis.gr</a>{" "}
+          για ενεργοποίηση (BackOffice, CRM, κ.λπ.).
         </Alert>
       )}
 
