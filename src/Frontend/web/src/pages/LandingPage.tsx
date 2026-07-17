@@ -981,9 +981,9 @@ function DesktopAppSection() {
           backgroundImage: `url(${s.img})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
-          filter: "blur(24px) saturate(1.15)",
-          transform: "scale(1.1)",   // hides blur edge artifacts
-          opacity: i === active ? 0.9 : 0,
+          // Sharp — the user wants the app UI recognisable behind the wash.
+          filter: "saturate(1.05)",
+          opacity: i === active ? 0.95 : 0,
           transition: "opacity 1200ms ease"
         }} />
       ))}
