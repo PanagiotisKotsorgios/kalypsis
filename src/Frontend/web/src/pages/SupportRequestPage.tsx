@@ -71,21 +71,33 @@ export function SupportRequestPage() {
     setSubmitting(true);
     try {
       // Reuses the public contact endpoint that already goes to the
-      // Kalypsis mailbox; we just append the diagnostics block so the
-      // support engineer has full context.
+      // Kalypsis mailbox. Payload must match PublicContactBody exactly
+      // — inquiryType, firstName, lastName, consent are all mandatory,
+      // and the backend rejects a combined `name` field with 400.
       const body = {
-        name: [user?.firstName, user?.lastName].filter(Boolean).join(" ") || (user?.email ?? "—"),
+        inquiryType: "support",
+        firstName: user?.firstName || (user?.email ?? "—"),
+        lastName: user?.lastName || " ",
         email: user?.email ?? "info@mykalypsis.gr",
         phone: "",
+        agencyOrCity: user?.tenantName ?? null,
         subject: subject.trim() || "Αίτημα υποστήριξης — από την πλατφόρμα",
         message:
 `${message.trim()}
 
 ──────────────── Διαγνωστικά (αυτόματα) ────────────────
 ${diagnosticsText}`,
+        consent: true
       };
-      await api.post("/public/contact", body);
-      setSuccess("Το αίτημά σας εστάλη. Θα σας απαντήσουμε στο email σας το συντομότερο δυνατόν.");
+      const res = await api.post<{ reference: string; delivered: boolean }>("/public/contact", body);
+      if (res.data?.delivered === false) {
+        // Backend accepted the submission but Brevo either rejected it or
+        // isn't configured — surface that plainly instead of pretending
+        // the email went through.
+        setSuccess(`Το αίτημα καταγράφηκε (αρ. ${res.data.reference}) αλλά ο πάροχος email δεν το παρέδωσε. Στείλτε το επίσης στο info@mykalypsis.gr.`);
+      } else {
+        setSuccess(`Το αίτημά σας εστάλη (αρ. ${res.data?.reference ?? ""}). Θα σας απαντήσουμε στο email σας το συντομότερο δυνατόν.`);
+      }
       setMessage("");
       setSubject("");
     } catch (err) {
