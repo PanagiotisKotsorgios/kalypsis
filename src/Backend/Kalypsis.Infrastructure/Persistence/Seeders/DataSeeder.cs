@@ -749,6 +749,12 @@ public static class DataSeeder
             table: "tenants", column: "DefaultTaxWithholdingPercent",
             addSql: "ALTER TABLE `tenants` ADD COLUMN `DefaultTaxWithholdingPercent` decimal(6,3) NOT NULL DEFAULT 20", ct);
 
+        // No FKs in the safety-net CREATE — MySQL rejects the FK when the
+        // referenced column's collation or character set drifts across
+        // versions («Referencing column ... are incompatible»), and the FK
+        // was cosmetic anyway (app-level cascading via SaveChanges). Also
+        // pin CHARACTER SET / COLLATE explicitly so the whole table shares
+        // the utf8mb4_unicode_ci we use fleet-wide.
         await EnsureTableAsync(db, logger, dbName,
             table: "policy_commission_splits",
             createSql: @"CREATE TABLE IF NOT EXISTS `policy_commission_splits` (
@@ -767,10 +773,8 @@ public static class DataSeeder
                 `DeletedAt` datetime(6) NULL,
                 PRIMARY KEY (`Id`),
                 KEY `IX_policy_commission_splits_Tenant_Policy` (`TenantId`, `PolicyId`),
-                KEY `IX_policy_commission_splits_Tenant_Producer` (`TenantId`, `ProducerId`),
-                CONSTRAINT `FK_policy_commission_splits_policies` FOREIGN KEY (`PolicyId`) REFERENCES `policies` (`Id`) ON DELETE CASCADE,
-                CONSTRAINT `FK_policy_commission_splits_producers` FOREIGN KEY (`ProducerId`) REFERENCES `producers` (`Id`) ON DELETE SET NULL
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+                KEY `IX_policy_commission_splits_Tenant_Producer` (`TenantId`, `ProducerId`)
+            ) ENGINE=InnoDB CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
 
         // platform_settings: email-code login toggle
         await EnsureColumnAsync(db, logger, dbName,

@@ -306,6 +306,19 @@ public class AppDbContext : DbContext, IAppDbContext
         Encrypt<TelephonyConnection>(x => x.AuthTokenEncrypted);
         Encrypt<BackofficeBridgeConnection>(x => x.SecretEncrypted);
 
+        // ==== Explicit table-name mapping for entities the schema safety-net
+        // creates as snake_case tables. EF Core's default pluralised-PascalCase
+        // conventions (PlatformBackups, TenantPaymentStatuses, …) collide with
+        // the actual snake_case tables on MySQL / Linux (case-sensitive) →
+        // «Table doesn't exist» failures at runtime. Keep this list in sync
+        // with DataSeeder.EnsureTableAsync() calls.
+        modelBuilder.Entity<PlatformBackup>().ToTable("platform_backups");
+        modelBuilder.Entity<TenantPaymentStatus>().ToTable("tenant_payment_statuses");
+        modelBuilder.Entity<Contractor>().ToTable("contractors");
+        modelBuilder.Entity<ContractorAssignment>().ToTable("contractor_assignments");
+        modelBuilder.Entity<OverCommissionStatement>().ToTable("over_commission_statements");
+        modelBuilder.Entity<CarrierBridgeConfig>().ToTable("carrier_bridge_configs");
+
         base.OnModelCreating(modelBuilder);
     }
 
