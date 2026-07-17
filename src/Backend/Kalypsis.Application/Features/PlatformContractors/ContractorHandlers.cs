@@ -14,7 +14,9 @@ public record ContractorDto(
 public record AssignmentDto(
     Guid Id, Guid ContractorId, Guid TenantId,
     decimal MonthlyPrice, string Currency,
-    DateTime StartedOn, DateTime? EndedOn, string? Notes);
+    DateTime StartedOn, DateTime? EndedOn, string? Notes,
+    decimal KalypsisCommissionPercent,   // 0..100
+    decimal KalypsisMonthlyRevenue);     // MonthlyPrice × pct / 100, rounded to cents
 
 /* ============================ Contractor CRUD ============================ */
 
@@ -112,7 +114,9 @@ public class ListAssignmentsHandler : IRequestHandler<ListAssignmentsQuery, IRea
         return rows.Select(a => new AssignmentDto(
             a.Id, a.ContractorId, a.TenantId,
             a.MonthlyPrice, a.Currency,
-            a.StartedOn, a.EndedOn, a.Notes
+            a.StartedOn, a.EndedOn, a.Notes,
+            a.KalypsisCommissionPercent,
+            Math.Round(a.MonthlyPrice * Math.Clamp(a.KalypsisCommissionPercent, 0m, 100m) / 100m, 2, MidpointRounding.AwayFromZero)
         )).ToList();
     }
 }
@@ -120,7 +124,8 @@ public class ListAssignmentsHandler : IRequestHandler<ListAssignmentsQuery, IRea
 public record UpsertAssignmentCommand(
     Guid? Id, Guid ContractorId, Guid TenantId,
     decimal MonthlyPrice, string Currency,
-    DateTime StartedOn, DateTime? EndedOn, string? Notes) : IRequest<AssignmentDto>;
+    DateTime StartedOn, DateTime? EndedOn, string? Notes,
+    decimal KalypsisCommissionPercent) : IRequest<AssignmentDto>;
 
 public class UpsertAssignmentValidator : AbstractValidator<UpsertAssignmentCommand>
 {
@@ -130,6 +135,7 @@ public class UpsertAssignmentValidator : AbstractValidator<UpsertAssignmentComma
         RuleFor(x => x.TenantId).NotEmpty();
         RuleFor(x => x.MonthlyPrice).GreaterThanOrEqualTo(0);
         RuleFor(x => x.Currency).NotEmpty().Length(3);
+        RuleFor(x => x.KalypsisCommissionPercent).InclusiveBetween(0m, 100m);
     }
 }
 
@@ -161,8 +167,11 @@ public class UpsertAssignmentHandler : IRequestHandler<UpsertAssignmentCommand, 
         a.StartedOn = r.StartedOn;
         a.EndedOn = r.EndedOn;
         a.Notes = string.IsNullOrWhiteSpace(r.Notes) ? null : r.Notes.Trim();
+        a.KalypsisCommissionPercent = Math.Clamp(r.KalypsisCommissionPercent, 0m, 100m);
         await _db.SaveChangesAsync(ct);
-        return new AssignmentDto(a.Id, a.ContractorId, a.TenantId, a.MonthlyPrice, a.Currency, a.StartedOn, a.EndedOn, a.Notes);
+        var kalypsisRev = Math.Round(a.MonthlyPrice * a.KalypsisCommissionPercent / 100m, 2, MidpointRounding.AwayFromZero);
+        return new AssignmentDto(a.Id, a.ContractorId, a.TenantId, a.MonthlyPrice, a.Currency,
+            a.StartedOn, a.EndedOn, a.Notes, a.KalypsisCommissionPercent, kalypsisRev);
     }
 }
 

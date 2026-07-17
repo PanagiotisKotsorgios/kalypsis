@@ -43,6 +43,8 @@ interface Assignment {
   startedOn: string;
   endedOn: string | null;
   notes: string | null;
+  kalypsisCommissionPercent: number;   // 0..100
+  kalypsisMonthlyRevenue: number;      // computed on the server
 }
 
 interface Tenant { id: string; name: string; code: string; }
@@ -149,13 +151,19 @@ export function PlatformContractorsPage() {
   const stats = useMemo(() => {
     const active = assignments.filter(a => !a.endedOn);
     const totalMonthly = active.reduce((s, a) => s + a.monthlyPrice, 0);
+    // What Kalypsis keeps from active assignments — sum of the per-line
+    // commission fields the server returns pre-computed.
+    const kalypsisMonthly = active.reduce((s, a) => s + (a.kalypsisMonthlyRevenue ?? 0), 0);
+    const contractorMonthly = totalMonthly - kalypsisMonthly;
     const uniqueTenants = new Set(active.map(a => a.tenantId));
     return {
       activeContractors: contractors.filter(c => c.active).length,
       totalContractors: contractors.length,
       activeAssignments: active.length,
       officesCovered: uniqueTenants.size,
-      totalMonthly
+      totalMonthly,
+      kalypsisMonthly,
+      contractorMonthly
     };
   }, [contractors, assignments]);
 
@@ -181,11 +189,19 @@ export function PlatformContractorsPage() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 
-      <Box sx={{ display: "grid", gap: 2, mb: 3, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" } }}>
+      <Box sx={{ display: "grid", gap: 2, mb: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" } }}>
         <Kpi label="Ενεργοί συνεργάτες" value={`${stats.activeContractors} / ${stats.totalContractors}`} />
         <Kpi label="Ενεργές αναθέσεις"  value={stats.activeAssignments} />
         <Kpi label="Γραφεία υπό διαχείριση" value={stats.officesCovered} />
-        <Kpi label="Μηνιαία έσοδα συνεργατών" value={moneyFmt.format(stats.totalMonthly)} highlight />
+        <Kpi label="Συνολική μηνιαία χρέωση γραφείων" value={moneyFmt.format(stats.totalMonthly)} />
+      </Box>
+
+      {/* Kalypsis-cut split — surfaces what the platform keeps vs. what
+          goes to the contractor from active assignments. Powered by the
+          new KalypsisCommissionPercent field per assignment. */}
+      <Box sx={{ display: "grid", gap: 2, mb: 3, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" } }}>
+        <Kpi label="🏛️ Έσοδα Kalypsis (προμήθεια)" value={moneyFmt.format(stats.kalypsisMonthly)} highlight />
+        <Kpi label="👤 Στον συνεργάτη" value={moneyFmt.format(stats.contractorMonthly)} />
       </Box>
 
       <Card variant="outlined" sx={{ mb: 3 }}>
@@ -301,6 +317,9 @@ export function PlatformContractorsPage() {
                     <TableCell>Συνεργάτης</TableCell>
                     <TableCell>Γραφείο</TableCell>
                     <TableCell align="right">Μηνιαία τιμή</TableCell>
+                    <TableCell align="right">% Kalypsis</TableCell>
+                    <TableCell align="right">Στον συνεργάτη</TableCell>
+                    <TableCell align="right">Στην Kalypsis</TableCell>
                     <TableCell>Έναρξη</TableCell>
                     <TableCell>Λήξη</TableCell>
                     <TableCell>Κατάσταση</TableCell>
@@ -309,7 +328,7 @@ export function PlatformContractorsPage() {
                 </TableHead>
                 <TableBody>
                   {pagedAssignments.length === 0 && (
-                    <TableRow><TableCell colSpan={7} sx={{ py: 3, textAlign: "center", color: "text.secondary" }}>
+                    <TableRow><TableCell colSpan={10} sx={{ py: 3, textAlign: "center", color: "text.secondary" }}>
                       Καμία ανάθεση δεν ταιριάζει στην αναζήτηση.
                     </TableCell></TableRow>
                   )}
@@ -317,6 +336,9 @@ export function PlatformContractorsPage() {
                     const c = contractors.find(x => x.id === a.contractorId);
                     const t = tenantById.get(a.tenantId);
                     const active = !a.endedOn;
+                    const kalypsisPct = a.kalypsisCommissionPercent ?? 0;
+                    const kalypsisAmt = a.kalypsisMonthlyRevenue ?? 0;
+                    const contractorAmt = a.monthlyPrice - kalypsisAmt;
                     return (
                       <TableRow key={a.id} hover>
                         <TableCell><Typography fontWeight={600}>{c?.name ?? "—"}</Typography></TableCell>
@@ -328,6 +350,15 @@ export function PlatformContractorsPage() {
                         </TableCell>
                         <TableCell align="right" sx={{ fontWeight: 800, color: "primary.main" }}>
                           {moneyFmt.format(a.monthlyPrice)}
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontFamily: "monospace", fontSize: 13 }}>
+                          {kalypsisPct.toFixed(1)}%
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontFamily: "monospace" }}>
+                          {moneyFmt.format(contractorAmt)}
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontFamily: "monospace", color: kalypsisAmt > 0 ? "success.main" : "text.disabled", fontWeight: 700 }}>
+                          {moneyFmt.format(kalypsisAmt)}
                         </TableCell>
                         <TableCell>{new Date(a.startedOn).toLocaleDateString("el-GR")}</TableCell>
                         <TableCell>{a.endedOn ? new Date(a.endedOn).toLocaleDateString("el-GR") : "—"}</TableCell>
@@ -482,7 +513,8 @@ function AssignmentDialog({ open, assignment, defaultContractorId, contractors, 
   const today = new Date().toISOString().slice(0, 10);
   const empty: Assignment = {
     id: "", contractorId: defaultContractorId ?? "", tenantId: "",
-    monthlyPrice: 100, currency: "EUR", startedOn: today, endedOn: null, notes: null
+    monthlyPrice: 100, currency: "EUR", startedOn: today, endedOn: null, notes: null,
+    kalypsisCommissionPercent: 0, kalypsisMonthlyRevenue: 0
   };
   const [form, setForm] = useState<Assignment>(empty);
   useEffect(() => {
@@ -508,9 +540,18 @@ function AssignmentDialog({ open, assignment, defaultContractorId, contractors, 
               <MenuItem key={t.id} value={t.id}>{t.name} ({t.code})</MenuItem>
             ))}
           </TextField>
-          <TextField label="Μηνιαία τιμή (€)" required type="number" fullWidth
-            value={form.monthlyPrice}
-            onChange={(e) => setForm({ ...form, monthlyPrice: Number(e.target.value) })} />
+          <Stack direction="row" spacing={2} alignItems="center">
+            <TextField label="Μηνιαία τιμή (€)" required type="number" fullWidth
+              value={form.monthlyPrice}
+              onChange={(e) => setForm({ ...form, monthlyPrice: Number(e.target.value) })}
+              helperText="Πόσα πληρώνει συνολικά το γραφείο τον συνεργάτη" />
+            <TextField label="% προμήθεια Kalypsis" type="number" fullWidth
+              value={form.kalypsisCommissionPercent}
+              onChange={(e) => setForm({ ...form, kalypsisCommissionPercent:
+                Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
+              inputProps={{ min: 0, max: 100, step: "0.01" }}
+              helperText={`Στην Kalypsis: ${moneyFmt.format(form.monthlyPrice * form.kalypsisCommissionPercent / 100)} · Στον συνεργάτη: ${moneyFmt.format(form.monthlyPrice * (1 - form.kalypsisCommissionPercent / 100))}`} />
+          </Stack>
           <Stack direction="row" spacing={2}>
             <TextField label="Έναρξη" type="date" fullWidth InputLabelProps={{ shrink: true }}
               value={form.startedOn.slice(0, 10)} onChange={(e) => setForm({ ...form, startedOn: e.target.value })} />

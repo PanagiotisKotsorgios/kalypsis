@@ -1178,6 +1178,7 @@ public static class DataSeeder
                 `ContractorId` char(36) NOT NULL,
                 `TenantId` char(36) NOT NULL,
                 `MonthlyPrice` decimal(12,2) NOT NULL,
+                `KalypsisCommissionPercent` decimal(5,2) NOT NULL DEFAULT 0.00,
                 `Currency` varchar(3) NOT NULL DEFAULT 'EUR',
                 `StartedOn` datetime(6) NOT NULL,
                 `EndedOn` datetime(6) NULL,
@@ -1189,6 +1190,13 @@ public static class DataSeeder
                 KEY `IX_contractor_assignments_ContractorId` (`ContractorId`),
                 KEY `IX_contractor_assignments_TenantId` (`TenantId`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        // In-place ALTER for existing contractor_assignments tables that predate
+        // the KalypsisCommissionPercent column. Default 0 means SuperAdmin keeps
+        // no cut until they explicitly set one.
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "contractor_assignments", column: "KalypsisCommissionPercent",
+            addSql: "ALTER TABLE `contractor_assignments` ADD COLUMN `KalypsisCommissionPercent` decimal(5,2) NOT NULL DEFAULT 0.00", ct);
 
         // --- tenant_payment_statuses table --------------------------------
         // One row per tenant. Powers «Πληρωμένα / Ληξιπρόθεσμα» on Economics.

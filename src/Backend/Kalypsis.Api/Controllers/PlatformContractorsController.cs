@@ -45,21 +45,24 @@ public class PlatformContractorsController : ControllerBase
     public record AssignmentBody(
         Guid ContractorId, Guid TenantId,
         decimal MonthlyPrice, string Currency,
-        DateTime StartedOn, DateTime? EndedOn, string? Notes);
+        DateTime StartedOn, DateTime? EndedOn, string? Notes,
+        decimal? KalypsisCommissionPercent);
 
     [HttpPost("assignments")]
     public async Task<ActionResult<AssignmentDto>> CreateAssignment([FromBody] AssignmentBody body, CancellationToken ct)
         => Ok(await _m.Send(new UpsertAssignmentCommand(
             null, body.ContractorId, body.TenantId,
             body.MonthlyPrice, body.Currency,
-            body.StartedOn, body.EndedOn, body.Notes), ct));
+            body.StartedOn, body.EndedOn, body.Notes,
+            body.KalypsisCommissionPercent ?? 0m), ct));
 
     [HttpPut("assignments/{id:guid}")]
     public async Task<ActionResult<AssignmentDto>> UpdateAssignment(Guid id, [FromBody] AssignmentBody body, CancellationToken ct)
         => Ok(await _m.Send(new UpsertAssignmentCommand(
             id, body.ContractorId, body.TenantId,
             body.MonthlyPrice, body.Currency,
-            body.StartedOn, body.EndedOn, body.Notes), ct));
+            body.StartedOn, body.EndedOn, body.Notes,
+            body.KalypsisCommissionPercent ?? 0m), ct));
 
     [HttpDelete("assignments/{id:guid}")]
     public async Task<IActionResult> DeleteAssignment(Guid id, CancellationToken ct)

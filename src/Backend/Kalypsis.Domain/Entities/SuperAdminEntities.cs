@@ -39,7 +39,15 @@ public class ContractorAssignment : BaseEntity
     public Contractor? Contractor { get; set; }
 
     public Guid TenantId { get; set; }
+    /// <summary>Full monthly amount the tenant pays the contractor.</summary>
     public decimal MonthlyPrice { get; set; }
+    /// <summary>
+    /// Percentage of <see cref="MonthlyPrice"/> that Kalypsis keeps as a
+    /// referral / platform commission. Default 0 = the whole fee goes to
+    /// the contractor. Used only for SuperAdmin reporting (this is not
+    /// invoiced automatically anywhere).
+    /// </summary>
+    public decimal KalypsisCommissionPercent { get; set; } = 0m;
     public string Currency { get; set; } = "EUR";
     public DateTime StartedOn { get; set; }
     public DateTime? EndedOn { get; set; }
