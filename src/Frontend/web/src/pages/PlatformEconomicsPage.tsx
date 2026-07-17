@@ -98,14 +98,9 @@ export function PlatformEconomicsPage() {
 
   const [dialog, setDialog] = useState<{ tenantId: string; tenantName: string } | null>(null);
 
-  if (overview.isLoading || !overview.data) {
-    return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
-  }
-  const o = overview.data;
-  const seriesData = series.data ?? [];
-  const maxMrr = Math.max(1, ...seriesData.map(p => p.mrr));
-
   // Aggregate payment status across tenants for the top-strip KPIs.
+  // MUST stay above the loading early-return below — otherwise the hook
+  // count changes between renders and React throws error #310.
   const paymentStats = useMemo(() => {
     const rows = revenue.data ?? [];
     const today = new Date();
@@ -123,6 +118,13 @@ export function PlatformEconomicsPage() {
     }
     return { paid, overdue, notMarked, upcomingTotal };
   }, [revenue.data, payments]);
+
+  if (overview.isLoading || !overview.data) {
+    return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
+  }
+  const o = overview.data;
+  const seriesData = series.data ?? [];
+  const maxMrr = Math.max(1, ...seriesData.map(p => p.mrr));
 
   return (
     <Box>
