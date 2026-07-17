@@ -971,26 +971,27 @@ function DesktopAppSection() {
         my: { xs: 4, md: 6 }
       }}
     >
-      {/* Dynamic backdrop — every slide is layered edge-to-edge at low
-          opacity, blurred and darkened. Only the active one is at full
-          "background" opacity, so the section's colour subtly shifts to
-          match the current screenshot. Sits behind everything else. */}
+      {/* Dynamic backdrop — active screenshot fills the entire section at
+          reduced opacity, softly blurred so it reads as ambient texture
+          rather than a hero image. Non-active slides hold at opacity 0 so
+          the crossfade is clean. */}
       {DESKTOP_SLIDES.map((s, i) => (
         <Box key={`bg-${s.img}`} aria-hidden sx={{
           position: "absolute", inset: 0, zIndex: 0,
           backgroundImage: `url(${s.img})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
-          filter: "blur(40px) saturate(1.1)",
-          transform: "scale(1.15)",   // hides blur edge artifacts
-          opacity: i === active ? 0.35 : 0,
+          filter: "blur(24px) saturate(1.15)",
+          transform: "scale(1.1)",   // hides blur edge artifacts
+          opacity: i === active ? 0.9 : 0,
           transition: "opacity 1200ms ease"
         }} />
       ))}
-      {/* Dark wash on top of the image bg so foreground text stays legible. */}
+      {/* Dark tint — thinner than before so the background image is clearly
+          visible while foreground text still passes contrast. */}
       <Box aria-hidden sx={{
         position: "absolute", inset: 0, zIndex: 0,
-        background: `linear-gradient(180deg, rgba(21,38,64,0.85) 0%, rgba(28,50,82,0.9) 100%)`
+        background: `linear-gradient(180deg, rgba(11,21,34,0.62) 0%, rgba(11,21,34,0.72) 100%)`
       }} />
       {/* Top brand hairline. */}
       <Box aria-hidden sx={{
@@ -1032,8 +1033,9 @@ function DesktopAppSection() {
           {/* ─── Vertical carousel ─────────────────────────────────────── */}
           <Box sx={{
             position: "relative",
-            height: { xs: 460, sm: 560, md: 680 },
-            perspective: "2200px"
+            // Taller stage — user wants the screenshots noticeably larger.
+            height: { xs: 540, sm: 660, md: 820 },
+            perspective: "2400px"
           }}>
             {DESKTOP_SLIDES.map((s, i) => {
               const off = offsetFor(i);
@@ -1053,9 +1055,9 @@ function DesktopAppSection() {
                   sx={{
                     position: "absolute",
                     left: "50%", top: "50%",
-                    // Bigger images than before — center slide is close to the
-                    // full column width so the UI details are actually readable.
-                    width: { xs: "94%", sm: "88%", md: "92%" },
+                    // Bigger images — center slide fills almost the full
+                    // column width so the app UI is clearly readable.
+                    width: { xs: "100%", sm: "96%", md: "100%" },
                     aspectRatio: "16 / 10",
                     cursor: abs === 0 ? "default" : "pointer",
                     zIndex,
