@@ -158,6 +158,7 @@ import { AgencyOfficesPage } from "./pages/AgencyOfficesPage";
 import { PlatformEconomicsPage } from "./pages/PlatformEconomicsPage";
 import { PlatformContractorsPage } from "./pages/PlatformContractorsPage";
 import { WorkspaceHubPage } from "./pages/WorkspaceHubPage";
+import { SupportRequestPage } from "./pages/SupportRequestPage";
 import { PlatformEmailTemplatesPage } from "./pages/PlatformEmailTemplatesPage";
 import { PlatformMaintenancePage } from "./pages/PlatformMaintenancePage";
 import { InsuranceCompaniesPage } from "./pages/InsuranceCompaniesPage";
@@ -202,6 +203,7 @@ import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import BackupIcon from "@mui/icons-material/Backup";
+import BugReportIcon from "@mui/icons-material/BugReport";
 import DesignServicesIcon from "@mui/icons-material/DesignServices";
 // ΖΗΜΙΕΣ ΚΑΙ ΔΙΑΚΑΝΟΝΙΣΜΟΙ group icons (Build/Savings/PaymentsOutlined/HandshakeOutlined)
 // were removed from the sidebar; their imports are no longer needed.
@@ -340,6 +342,9 @@ const navByRole: Record<Role, NavItem[]> = {
     // Νομικά έγγραφα — πάντα ορατά, όπως στο footer κάθε άλλης cloud
     // πλατφόρμας. Το AppLayout προσθέτει από μόνο του το /app prefix.
     { to: "/legal", labelKey: "nav.legalHub", icon: <GavelIcon /> },
+    // Αίτημα υποστήριξης — πάντα ορατό, χωρίς package gate. Auto-attaches
+    // client diagnostics to every submission.
+    { to: "/support-request", labelKey: "nav.supportRequest", icon: <BugReportIcon /> },
 
     // ===== CRM — top-level (3) + grouped (5) =====
     // Every CRM item carries a `permission` code so an AgencyAdmin can hide
@@ -844,6 +849,7 @@ export default function App() {
                   <Route path="name-days" element={<PackageGate package="Crm"><NameDaysPage /></PackageGate>} />
                   <Route path="instructions" element={<AgencyInstructionsPage />} />
                   <Route path="backups" element={<BackupsPage />} />
+                  <Route path="support-request" element={<SupportRequestPage />} />
                   <Route path="mydata" element={<MyDataSubmissionsPage />} />
                   <Route path="document-designer" element={<DocumentDesignerPage />} />
                   <Route path="friendly-settlements" element={<FriendlySettlementsPage />} />
