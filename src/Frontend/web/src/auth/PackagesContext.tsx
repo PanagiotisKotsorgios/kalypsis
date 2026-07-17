@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import { useAuth } from "./AuthContext";
+import { useImpersonation } from "../impersonation/ImpersonationContext";
 
 export type PackageCode = "BackOffice" | "FrontOffice" | "Crm" | "Intelligence" | "Integrations";
 
@@ -29,6 +30,7 @@ const PackagesContext = createContext<PackagesContextValue | undefined>(undefine
  */
 export function PackagesProvider({ children }: { children: ReactNode }) {
   const { user, accessToken } = useAuth();
+  const { tenantId: impersonatedTenantId } = useImpersonation();
   const [packages, setPackages] = useState<Set<PackageCode>>(new Set());
   const [isPlatformBypass, setBypass] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -56,7 +58,12 @@ export function PackagesProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  useEffect(() => { void refresh(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user?.userId, accessToken]);
+  // Refresh on login/logout AND every time the impersonated tenant changes.
+  // Without the impersonation dep, entering a tenant kept showing the
+  // SuperAdmin's bypass flag until the next 5-minute poll — LANCA-style
+  // «my BackOffice package is enabled but sidebar still empty» bug.
+  useEffect(() => { void refresh(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ },
+    [user?.userId, accessToken, impersonatedTenantId]);
 
   // Auto-refresh whenever the user returns to the tab or the browser
   // reconnects. Ensures that a package removed from the superadmin panel

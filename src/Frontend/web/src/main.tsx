@@ -49,19 +49,23 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <MaintenanceProvider>
             <AuthProvider>
               <AuthenticatedThemeGate>
-                <PackagesProvider>
-                  <PremiumProvider>
-                    <WorkspaceProvider>
-                      <ImpersonationProvider>
+                {/* Impersonation must sit ABOVE PackagesProvider so the
+                    packages hook can react to «entered as tenant X» and
+                    re-fetch /me/packages — otherwise superadmin toggling
+                    packages for a tenant they've entered goes unnoticed. */}
+                <ImpersonationProvider>
+                  <PackagesProvider>
+                    <PremiumProvider>
+                      <WorkspaceProvider>
                         <UndoProvider>
                           <BrowserRouter>
                             <App />
                           </BrowserRouter>
                         </UndoProvider>
-                      </ImpersonationProvider>
-                    </WorkspaceProvider>
-                  </PremiumProvider>
-                </PackagesProvider>
+                      </WorkspaceProvider>
+                    </PremiumProvider>
+                  </PackagesProvider>
+                </ImpersonationProvider>
               </AuthenticatedThemeGate>
             </AuthProvider>
           </MaintenanceProvider>
