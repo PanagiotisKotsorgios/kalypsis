@@ -1,0 +1,27 @@
+{
+  "//": "Δείγμα bridge configuration για Interlife CSV.",
+  "fileType": "csv",
+  "recordType": "policy",
+  "csvDelimiter": ";",
+  "encoding": "utf-8",
+  "headerRow": 1,
+  "skipRows": 0,
+  "dateFormat": "yyyy-MM-dd",
+  "decimalSeparator": ",",
+  "currencyStrip": ["€", " "],
+  "mappings": [
+    { "sourceColumn": "POLICY_NO", "targetField": "PolicyNumber" },
+    { "sourceColumn": "VAT", "targetField": "CustomerAfm" },
+    { "sourceColumn": "NAME", "targetField": "CustomerLastName" },
+    { "sourceColumn": "FIRSTNAME", "targetField": "CustomerFirstName" },
+    { "sourceColumn": "AGENT_CODE", "targetField": "ProducerCode" },
+    { "sourceColumn": "PLATE", "targetField": "Plate" },
+    { "sourceColumn": "DATE_FROM", "targetField": "EffectiveFrom", "type": "date" },
+    { "sourceColumn": "DATE_TO", "targetField": "EffectiveTo", "type": "date" },
+    { "sourceColumn": "GROSS", "targetField": "GrossPremium", "type": "decimal" },
+    { "sourceColumn": "NET", "targetField": "NetPremium", "type": "decimal" },
+    { "sourceColumn": "COMMISSION", "targetField": "Commission", "type": "decimal" }
+  ],
+  "filters": [],
+  "notes": "Το Interlife στέλνει καθαρό CSV UTF-8 χωρίς BOM."
+}

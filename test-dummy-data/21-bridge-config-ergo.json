@@ -1,0 +1,29 @@
+{
+  "//": "Δείγμα bridge configuration για ERGO XLSX. Χρησιμοποιήστε το από τον Bridge Builder Dialog στο /app/platform/carriers (SuperAdmin) για να πρωτοτυπάρετε την ανάγνωση αρχείων ERGO.",
+  "fileType": "xlsx",
+  "recordType": "policy",
+  "sheetName": "Portfolio",
+  "headerRow": 1,
+  "skipRows": 0,
+  "dateFormat": "dd/MM/yyyy",
+  "decimalSeparator": ",",
+  "currencyStrip": ["€", "EUR", " "],
+  "mappings": [
+    { "sourceColumn": "Αρ. Συμβολαίου", "targetField": "PolicyNumber" },
+    { "sourceColumn": "ΑΦΜ Πελάτη", "targetField": "CustomerAfm" },
+    { "sourceColumn": "Όνομα", "targetField": "CustomerFirstName" },
+    { "sourceColumn": "Επώνυμο", "targetField": "CustomerLastName" },
+    { "sourceColumn": "Κωδ. Συνεργάτη", "targetField": "ProducerCode" },
+    { "sourceColumn": "Πινακίδα", "targetField": "Plate" },
+    { "sourceColumn": "Έναρξη Ισχύος", "targetField": "EffectiveFrom", "type": "date" },
+    { "sourceColumn": "Λήξη Ισχύος", "targetField": "EffectiveTo", "type": "date" },
+    { "sourceColumn": "Ασφάλιστρο Μικτό", "targetField": "GrossPremium", "type": "decimal" },
+    { "sourceColumn": "Ασφάλιστρο Καθαρό", "targetField": "NetPremium", "type": "decimal" },
+    { "sourceColumn": "Προμήθεια", "targetField": "Commission", "type": "decimal" },
+    { "sourceColumn": "Είδος Κίνησης", "targetField": "MovementKind" }
+  ],
+  "filters": [
+    { "column": "Ασφαλιστική", "operator": "equals", "value": "ERGO" }
+  ],
+  "notes": "Το «Είδος Κίνησης» παίρνει τιμές N=Νέο, R=Ανανέωση, C=Ακύρωση, E=Πρόσθετη. Θέλει mapping ίσως."
+}

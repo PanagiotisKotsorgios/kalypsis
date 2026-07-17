@@ -1,0 +1,4 @@
+CancellationNumber;PolicyNumber;EffectiveFrom;Reason;RefundAmount;RequestedBy;Notes
+CAN-260428-001;26030000004;2026-04-28;VehicleSold;180,00;Customer;Πώληση οχήματος — επιστροφή χρόνου.
+CAN-260610-002;26010000002;2026-06-10;NonPayment;0,00;InsuranceCompany;Ακύρωση λόγω μη πληρωμής — 30 ημέρες καθυστέρησης.
+CAN-260715-003;26030000103;2026-07-15;RiskChange;35,00;Customer;Αλλαγή διεύθυνσης εκτός Ελλάδας.

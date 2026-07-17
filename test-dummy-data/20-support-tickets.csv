@@ -1,0 +1,6 @@
+TenantCode;Subject;Category;Priority;Status;FromEmail;OpenedAt;Body
+LANCA;Δεν βλέπω τη Γέφυρα ERGO στη λίστα;bug;High;Open;test+p0001@example.com;2026-07-17T09:15:00;Μόλις ενεργοποιήθηκε η ERGO στα Παραμετρικά αλλά δεν εμφανίζεται στα Γέφυρες.
+LANCA;Πώς κάνω import πινάκιο υπερπρομηθειών;question;Normal;Open;test+p0001@example.com;2026-07-17T11:00:00;Θέλω να δοκιμάσω το bulk-import από τη Μαζική Καταχώρηση.
+DEMO_AGENCY;Λάθος υπολογισμός προμήθειας στο 26050000105;bug;High;InProgress;test+demo-admin@example.com;2026-07-16T14:30:00;Θα έπρεπε να είναι 186,75€ αλλά εμφανίζεται 155€.
+DEMO_AGENCY;Ζητώ ενεργοποίηση CRM package;request;Normal;Open;test+demo-admin@example.com;2026-07-15T10:00:00;Χρειάζομαι το πακέτο για να κάνω newsletter.
+AGENCY;Οι εκτυπώσεις PDF βγαίνουν κομμένες;bug;Normal;Open;test+agency-admin@example.com;2026-07-14T16:45:00;Chrome — τα margins κόβονται στα δεξιά.

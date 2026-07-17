@@ -1,0 +1,9 @@
+Email;SubscribedAt;Source;IsActive;Notes
+test+news001@example.com;2026-05-01T09:00:00;landing;true;
+test+news002@example.com;2026-05-02T14:30:00;landing;true;
+test+news003@example.com;2026-05-05T11:15:00;webinar;true;Εγγραφή μέσω webinar Απριλίου.
+test+news004@example.com;2026-05-10T18:45:00;referral;true;
+test+news005@example.com;2026-05-15T10:00:00;landing;false;Unsubscribed 2026-06-01.
+test+news006@example.com;2026-06-01T08:20:00;landing;true;
+test+news007@example.com;2026-06-05T15:00:00;partner-brochure;true;
+test+news008@example.com;2026-06-12T20:00:00;landing;true;

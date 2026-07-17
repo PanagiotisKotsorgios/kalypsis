@@ -1,0 +1,6 @@
+CampaignName;Channel;Subject;Audience;ScheduledAt;Status;Notes
+Καλωσόρισμα νέων πελατών Q3 2026;Email;Καλωσορίσατε στην ασφαλιστική οικογένεια LANCA;NewCustomersLast90Days;2026-08-01T10:00:00;Draft;Πρότυπο mail με welcome bundle.
+Υπενθύμιση ανανεώσεων Motor 30 ημ.;Email;Το Motor σας λήγει σε 30 ημέρες;PolicyExpiringMotor30d;2026-08-05T09:30:00;Draft;Filtered by LineOfBusiness=Motor.
+Χριστουγεννιάτικη προσφορά Ζωής;Email+SMS;Ασφαλίστε την οικογένειά σας — έκπτωση 15%;AllIndividualCustomers;2026-12-10T09:00:00;Draft;Χαμηλή περίοδο.
+Follow-up ζημιών Q2 2026;Email;Ερωτηματολόγιο ικανοποίησης μετά από ζημιά;ClaimsSettledQ2;2026-08-15T14:00:00;Draft;
+Νέο πρόγραμμα υγείας οικογενειακό;Viber;Νέο family health από 32€/μήνα;FamiliesWithChildren;2026-09-01T18:00:00;Draft;Απαιτεί Viber integration.

@@ -1,0 +1,7 @@
+ClaimNumber;PolicyNumber;CustomerAfm;InsuranceCompanyCode;IncidentDate;ReportedDate;Kind;EstimatedAmount;SettledAmount;Status;Notes
+CLM-2026-0001;26010000001;100200001;ERGO;2026-04-12;2026-04-13;VehicleDamage;850,00;780,50;Settled;Χτύπημα σε παρκαρισμένο όχημα.
+CLM-2026-0002;26010000002;100200002;ERGO;2026-05-08;2026-05-08;VehicleDamage;1240,00;;InProgress;Ζημιά σε αριστερή πόρτα — αναμένεται εκτίμηση.
+CLM-2026-0003;26020000003;100200003;ERGO;2026-06-22;2026-06-24;ThirdPartyLiability;3500,00;;Pending;Ατύχημα με τραυματισμό — αναμένονται ιατρικά.
+CLM-2026-0004;26010000101;100200005;ERGO;2026-07-01;2026-07-02;WaterDamage;2100,00;1850,00;Settled;Διαρροή στη μπανιέρα.
+CLM-2026-0005;26020000102;100200008;INTL;2026-07-11;2026-07-12;Theft;450,00;;InProgress;Κλοπή περιεχομένου (2 λάπτοπ).
+CLM-2026-0006;26030000004;100200004;INTL;2026-07-15;2026-07-15;VehicleDamage;620,00;;Reported;Καινούριο — αναμένεται ανάθεση πραγματογνώμονα.

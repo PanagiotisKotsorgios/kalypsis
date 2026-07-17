@@ -1,0 +1,10 @@
+ProducerCode;Year;Month;ExpectedCommission;ReceivedCommission;Difference;Status;Notes
+P0003;2026;3;340,20;340,20;0,00;Reconciled;
+P0004;2026;3;198,50;198,50;0,00;Reconciled;
+P0003;2026;4;405,80;385,00;-20,80;Discrepancy;Λείπει προμήθεια από ένα συμβόλαιο ATL.
+P0004;2026;4;225,30;225,30;0,00;Reconciled;
+P0005;2026;4;155,80;155,80;0,00;Reconciled;
+P0006;2026;4;98,60;98,60;0,00;Reconciled;
+P0003;2026;5;480,00;480,00;0,00;Reconciled;
+P0004;2026;5;312,00;295,00;-17,00;Discrepancy;Δύο συμβόλαια με ημερομηνία εκκαθάρισης 06/2026.
+P0002;2026;5;620,00;620,00;0,00;Reconciled;

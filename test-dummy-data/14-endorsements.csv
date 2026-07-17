@@ -1,0 +1,6 @@
+EndorsementNumber;PolicyNumber;EffectiveFrom;Kind;PremiumChange;Description;Status
+END-260315-001;26010000001;2026-03-15;AddCover;45,00;Προσθήκη κάλυψης «οδική βοήθεια».;Applied
+END-260420-002;26020000003;2026-04-20;ChangeVehicle;120,00;Αλλαγή οχήματος — από VW Golf σε Skoda Octavia.;Applied
+END-260510-003;26010000101;2026-05-10;IncreaseValue;35,00;Αύξηση ασφαλιζόμενης αξίας από 180.000 σε 210.000€.;Applied
+END-260615-004;26060000009;2026-06-15;AddDriver;28,50;Προσθήκη 2ου οδηγού (σύζυγος).;Applied
+END-260701-005;26070000011;2026-07-01;AddVehicle;780,50;Προσθήκη 3ου οχήματος στόλου.;Pending

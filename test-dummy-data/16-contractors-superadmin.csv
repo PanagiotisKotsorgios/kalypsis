@@ -1,0 +1,3 @@
+ContractorName;Email;Phone;AfmVat;Active;AssignedTenantCode;MonthlyPrice;KalypsisCommissionPercent;StartedOn;Notes
+Kostas Vlachos IT Services;test+contractor-kostas@example.com;6971111000;300400001;true;LANCA;180,00;25,00;2026-02-01;IT support για LANCA — Kalypsis 25% referral.
+Anastasia Papou;test+contractor-anas@example.com;6971111001;300400002;true;DEMO_AGENCY;220,00;20,00;2026-03-01;Full BackOffice management για DEMO γραφείο.

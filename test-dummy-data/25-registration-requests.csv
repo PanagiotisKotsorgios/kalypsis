@@ -1,0 +1,6 @@
+Kind;Name;Email;Phone;City;LegalForm;VatNumber;LicenseNumber;Message;RequestedAt;Status
+agency;Ασφάλειες Παπαδοπούλου Ε.Ε.;test+reg001@example.com;2310123456;Θεσσαλονίκη;EE;800500001;A-12345;Ενδιαφέρομαι για δοκιμαστική περίοδο.;2026-06-10T10:15:00;Pending
+agent;Δημήτριος Λάμπρου;test+reg002@example.com;6987654321;Πάτρα;;300600001;A-67890;Ανεξάρτητος πράκτορας — χρειάζομαι BackOffice.;2026-06-15T14:00:00;Contacted
+agency;INSURANCE HUB Α.Ε.;test+reg003@example.com;2109876543;Αθήνα;AE;800500002;A-11223;Θέλουμε πλήρη ενσωμάτωση + CRM.;2026-06-20T11:30:00;Pending
+agent;Αντωνία Καπαρή;test+reg004@example.com;6981234567;Ηράκλειο;;300600002;A-33445;Νέα άδεια — ενδιαφέρομαι για entry pricing.;2026-07-01T09:00:00;Pending
+agency;ARETI BROKERS I.K.E.;test+reg005@example.com;2810987654;Ηράκλειο;IKE;800500003;A-55667;Μεταφορά από Δωδώνη — 3 συνεργάτες.;2026-07-05T13:45:00;Contacted

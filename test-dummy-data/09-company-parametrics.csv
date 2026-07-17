@@ -1,0 +1,33 @@
+InsuranceCompanyCode;Kind;Code;Label;ParentCode;OrderIndex;IsActive;Notes
+ERGO;LineOfBusiness;MOTOR;Οχήματα;;10;true;
+ERGO;LineOfBusiness;FIRE;Πυρός;;20;true;
+ERGO;LineOfBusiness;HEALTH;Υγείας;;30;true;
+ERGO;LineOfBusiness;LIFE;Ζωής;;40;true;
+ERGO;Cover;THIRD_PARTY;Αστική ευθύνη;MOTOR;10;true;Ελάχιστη υποχρεωτική.
+ERGO;Cover;FIRE_THEFT;Πυρός-Κλοπή;MOTOR;20;true;
+ERGO;Cover;COMPREHENSIVE;Ολικής (Μικτή);MOTOR;30;true;
+ERGO;Cover;RESIDENTIAL;Κατοικία;FIRE;10;true;
+ERGO;Cover;COMMERCIAL;Επαγγελματικός χώρος;FIRE;20;true;
+ERGO;Cover;INDIVIDUAL;Ατομικό;HEALTH;10;true;
+ERGO;Cover;FAMILY;Οικογενειακό;HEALTH;20;true;
+INTL;LineOfBusiness;MOTOR;Οχήματα;;10;true;
+INTL;LineOfBusiness;FIRE;Πυρός;;20;true;
+INTL;LineOfBusiness;LIABILITY;Αστική ευθύνη;;40;true;
+INTL;Cover;THIRD_PARTY;Αστική ευθύνη;MOTOR;10;true;
+INTL;Cover;COMPREHENSIVE;Μικτή;MOTOR;20;true;
+INTL;Cover;RESIDENTIAL;Κατοικία;FIRE;10;true;
+INTL;Cover;COMMERCIAL;Εμπορικό;FIRE;20;true;
+INTL;Cover;PROFESSIONAL;Επαγγελματία;LIABILITY;10;true;
+ATL;LineOfBusiness;MOTOR;Οχήματα;;10;true;
+ATL;LineOfBusiness;FIRE;Πυρός;;20;true;
+ATL;Cover;THIRD_PARTY;Ε.Α.;MOTOR;10;true;
+ATL;Cover;COMPREHENSIVE;Ολικής;MOTOR;20;true;
+ATL;Cover;FLEET;Στόλος;MOTOR;30;true;3+ οχήματα.
+ATL;Cover;RESIDENTIAL;Κατοικία;FIRE;10;true;
+GC;LineOfBusiness;MOTOR;Οχήματα;;10;true;
+GC;LineOfBusiness;FIRE;Πυρός;;20;true;
+GC;LineOfBusiness;LIFE;Ζωής;;30;true;
+GC;Cover;THIRD_PARTY;Ε.Α.;MOTOR;10;true;
+GC;Cover;COMPREHENSIVE;Ολικής;MOTOR;20;true;
+GC;Cover;COMMERCIAL;Επαγγελματικός χώρος;FIRE;10;true;
+GC;Cover;TERM;Term Life;LIFE;10;true;10ετές πρόγραμμα.

@@ -1,0 +1,11 @@
+PaymentNumber;PaymentDate;RecipientKind;RecipientAfm;RecipientName;Amount;Currency;PaymentMethod;Reference;Notes
+PAY-202603-001;2026-03-31;Producer;300100003;Δημήτρης Παπαχρήστου;340,20;EUR;BankTransfer;IBAN-****3001;Προμήθεια Μαρτίου.
+PAY-202603-002;2026-03-31;Producer;300100004;Ελένη Γεωργίου;198,50;EUR;BankTransfer;IBAN-****3002;Προμήθεια Μαρτίου.
+PAY-202604-003;2026-04-30;Producer;300100003;Δημήτρης Παπαχρήστου;405,80;EUR;BankTransfer;IBAN-****3001;Προμήθεια Απριλίου.
+PAY-202604-004;2026-04-30;Producer;300100004;Ελένη Γεωργίου;225,30;EUR;BankTransfer;IBAN-****3002;Προμήθεια Απριλίου.
+PAY-202604-005;2026-04-30;Producer;300100005;Ιωάννης Λάσκαρης;155,80;EUR;BankTransfer;IBAN-****3003;Προμήθεια Απριλίου + bonus.
+PAY-202604-006;2026-04-30;Producer;300100006;Αικατερίνη Βασιλείου;98,60;EUR;BankTransfer;IBAN-****3004;Προμήθεια Απριλίου (junior).
+PAY-202605-007;2026-05-05;Carrier;094123456;ERGO Ασφαλιστική;12450,80;EUR;BankTransfer;ERGO-INV-2026-04;Εκκαθάριση Απριλίου.
+PAY-202605-008;2026-05-05;Carrier;094654321;Interlife Α.Α.Ε.Γ.Α.;8320,50;EUR;BankTransfer;INT-INV-2026-04;Εκκαθάριση Απριλίου.
+PAY-202605-009;2026-05-05;Carrier;094987654;Ατλαντική Ένωση;5680,20;EUR;BankTransfer;ATL-INV-2026-04;Εκκαθάριση Απριλίου.
+PAY-202607-010;2026-07-15;Producer;300100003;Δημήτρης Παπαχρήστου;280,00;EUR;Cash;;Ενδιάμεση προκαταβολή Ιουλίου.
