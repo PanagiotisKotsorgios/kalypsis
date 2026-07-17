@@ -139,6 +139,30 @@ export function WorkspaceHubPage() {
         </Alert>
       )}
 
+      {/* Diagnostic strip — visible only when packages set is empty. Shows
+          the raw state so SuperAdmin can see exactly what the browser is
+          receiving (tenant id, packages array, bypass flag, JS bundle age).
+          If BackOffice really was enabled server-side, this proves the
+          browser is either stale (needs Ctrl+F5) or hitting a wrong tenant.
+          Hidden entirely once packages arrive. */}
+      {(noPackages || packages.size < 2) && (
+        <Box sx={{
+          mb: 3, p: 2, borderRadius: 2,
+          border: "1px dashed rgba(11,37,69,0.25)",
+          bgcolor: "rgba(11,37,69,0.03)",
+          fontFamily: "monospace", fontSize: 12, color: INK
+        }}>
+          <Typography sx={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: INK_SOFT, fontWeight: 700, mb: 1 }}>
+            Διαγνωστικά (μόνο για troubleshooting)
+          </Typography>
+          <div>role: <strong>{user?.role ?? "—"}</strong></div>
+          <div>tenantId: <strong>{user?.tenantId ?? "—"}</strong></div>
+          <div>packages: <strong>[{Array.from(packages).join(", ") || "—"}]</strong></div>
+          <div>isPlatformBypass: <strong>{String(isPlatformBypass)}</strong></div>
+          <div>bundle: <strong>{(globalThis as { __KALYPSIS_BUILD__?: string }).__KALYPSIS_BUILD__ ?? "(dev)"}</strong></div>
+        </Box>
+      )}
+
       <DashboardSummary />
 
       {/* Grid — only rendered when the tenant actually has ≥ 2 packages
