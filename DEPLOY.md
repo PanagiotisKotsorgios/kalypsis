@@ -43,6 +43,13 @@ In Coolify's **Environment Variables** panel, set the secrets listed in
 | `JWT_SECRET`         | `openssl rand -base64 48`            |
 | `PUBLIC_ORIGIN`      | `https://kalypsis.example.com`       |
 | `BREVO_API_KEY`      | (optional) Brevo SMTP API key        |
+| `GITHUB_DESKTOP_RELEASES_TOKEN` | fine-grained token for desktop releases |
+
+The desktop release token must be scoped only to
+`PanagiotisKotsorgios/kalypsis-desktop-releases` with **Contents: Read and
+write**. It stays in the API container and is never sent to the browser. The
+public release catalog works without it; Platform Admin create/upload/publish
+actions require it.
 
 Leave `WEB_PORT=80` unless you have multiple stacks fighting for the same
 port — Coolify's reverse proxy will front-route TLS to it.

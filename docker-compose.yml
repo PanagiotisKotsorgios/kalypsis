@@ -84,6 +84,9 @@ services:
       Brevo__ApiKey:       ${BREVO_API_KEY:-}
       Brevo__SenderEmail:  ${BREVO_SENDER_EMAIL:-no-reply@kalypsis.gr}
       Brevo__SenderName:   ${BREVO_SENDER_NAME:-Kalypsis}
+      # Server-only credential used by Platform Admin to create releases and
+      # stream assets to the dedicated public desktop releases repository.
+      DesktopReleases__GitHubToken: ${GITHUB_DESKTOP_RELEASES_TOKEN:-}
     volumes:
       - uploads_data:/data/uploads
     # Don't publish 8080 to the host — nginx in the `web` service proxies

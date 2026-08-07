@@ -18,6 +18,7 @@ import CreditCardIcon from "@mui/icons-material/CreditCard";
 import KeyIcon from "@mui/icons-material/Key";
 import ExtensionIcon from "@mui/icons-material/Extension";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import SystemUpdateAltIcon from "@mui/icons-material/SystemUpdateAlt";
 import MonitorHeartIcon from "@mui/icons-material/MonitorHeart";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import StorageIcon from "@mui/icons-material/Storage";
@@ -61,6 +62,7 @@ import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { PricingPage } from "./pages/PricingPage";
 import { DownloadPage } from "./pages/DownloadPage";
+import { DesktopReleasesPage } from "./pages/DesktopReleasesPage";
 import { FaqPage } from "./pages/FaqPage";
 import { ContactPage } from "./pages/ContactPage";
 import { TermsPage } from "./pages/TermsPage";
@@ -239,6 +241,7 @@ import {
   PlatformStoragePage, PlatformJobsPage, PlatformStatusPage, PlatformCompliancePage, PlatformSupportPage
 } from "./pages/PlatformAdminPages";
 import { PlatformCarriersPage } from "./pages/PlatformCarriersPage";
+import { PlatformDesktopReleasesPage } from "./pages/PlatformDesktopReleasesPage";
 
 const navByRole: Record<Role, NavItem[]> = {
   Customer: [
@@ -437,6 +440,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/platform/carriers", labelKey: "nav.platformCarriers", icon: <SecurityIcon /> },
     { to: "/platform/maintenance", labelKey: "nav.maintenance", icon: <EngineeringIcon /> },
     { to: "/platform/parametric-files", labelKey: "nav.broadcastParametric", icon: <InventoryIcon /> },
+    { to: "/platform/desktop-releases", labelKey: "nav.desktopReleases", icon: <SystemUpdateAltIcon /> },
     { to: "/platform/plans", labelKey: "nav.subscriptionPlans", icon: <CreditCardIcon /> },
     { to: "/platform/billing", labelKey: "nav.billing", icon: <PaymentsIcon /> },
     { to: "/platform/invoices", labelKey: "nav.invoices", icon: <ReceiptLongIcon /> },
@@ -581,6 +585,8 @@ export default function App() {
         <Route path="/register/agent" element={<Navigate to="/register" replace />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/download" element={<DownloadPage />} />
+        <Route path="/download/releases" element={<DesktopReleasesPage />} />
+        <Route path="/desktop-releases" element={<Navigate to="/download/releases" replace />} />
         <Route path="/faq" element={<FaqPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/terms" element={<TermsPage />} />
@@ -840,6 +846,7 @@ export default function App() {
                   <Route path="lookups" element={<ReferenceCatalogsPage />} />
                   <Route path="parametric-files" element={<ParametricFilesPage />} />
                   <Route path="platform/parametric-files" element={<PlatformParametricFilesPage />} />
+                  <Route path="platform/desktop-releases" element={<PlatformDesktopReleasesPage />} />
                   <Route path="company-parametrics" element={<AgencyCompanyParametricsPage />} />
                   <Route path="quote-builder" element={<QuoteBuilderPage />} />
                   <Route path="workflows" element={<WorkflowRulesPage />} />
@@ -913,7 +920,7 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      {!location.pathname.startsWith("/app") && location.pathname !== "/download" && <PreloginDesktopDownload />}
+      {!location.pathname.startsWith("/app") && !location.pathname.startsWith("/download") && <PreloginDesktopDownload />}
       <CookieBanner />
       <CookiePreferencesButton />
       {user?.role === "AgencyAdmin" && !impersonatedTenantId && <OnboardingWizard />}

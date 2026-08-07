@@ -17,6 +17,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient("desktop-releases-github", client =>
+{
+    client.BaseAddress = new Uri("https://api.github.com/");
+    client.Timeout = TimeSpan.FromMinutes(30);
+});
 
 // Phase 13 — external integration stub clients (replace with real implementations once credentials wired in IntegrationSettings)
 builder.Services.AddScoped<Kalypsis.Application.Features.Phase13.IAadeClient, Kalypsis.Application.Features.Phase13.StubAadeClient>();

@@ -7,6 +7,7 @@ import FolderZipOutlinedIcon from "@mui/icons-material/FolderZipOutlined";
 import HistoryIcon from "@mui/icons-material/History";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { useTranslation } from "react-i18next";
+import { Link as RouterLink } from "react-router-dom";
 
 const RELEASE_REPO = "PanagiotisKotsorgios/kalypsis-desktop-releases";
 
@@ -14,8 +15,7 @@ export const DESKTOP_INSTALLER_URL =
   `https://github.com/${RELEASE_REPO}/releases/latest/download/kalypsis-desktop-win-Setup.exe`;
 export const DESKTOP_PORTABLE_URL =
   `https://github.com/${RELEASE_REPO}/releases/latest/download/kalypsis-desktop-win-Portable.zip`;
-export const DESKTOP_RELEASES_URL =
-  `https://github.com/${RELEASE_REPO}/releases/latest`;
+export const DESKTOP_RELEASES_PATH = "/download/releases";
 export const DESKTOP_SERVER_SETUP_URL =
   `https://github.com/${RELEASE_REPO}/releases/latest/download/Setup-KalypsisServer.ps1`;
 export const DESKTOP_CLIENT_SETUP_URL =
@@ -83,10 +83,8 @@ export function DesktopDownloadButton({
             {t("landing.v2.desktop.portable")}
           </Button>
           <Button
-            component="a"
-            href={DESKTOP_RELEASES_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+            component={RouterLink}
+            to={DESKTOP_RELEASES_PATH}
             size="small"
             startIcon={<HistoryIcon fontSize="small" />}
             sx={{ textTransform: "none", color: "text.secondary" }}

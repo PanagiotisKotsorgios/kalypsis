@@ -18,6 +18,7 @@ following are missing or look like placeholders.
 | `Cors__FrontendOrigin`                       | The HTTPS origin of the SPA (e.g. `https://www.mykalypsis.gr`). Comma-separated for multiple. |
 | `Brevo__ApiKey`                              | Recommended (not enforced). Without it, password reset + contact form silently won't email. |
 | `Brevo__SenderEmail`                         | The verified Brevo sender (e.g. `info@mykalypsis.gr`). |
+| `GITHUB_DESKTOP_RELEASES_TOKEN`               | Fine-grained token scoped to the desktop releases repo with `Contents: Read and write`. Docker Compose maps it to the server-only `DesktopReleases__GitHubToken`. |
 
 Coolify env vars use double underscores (`__`) where `appsettings.json` would
 use a colon — they map to the same configuration node.
