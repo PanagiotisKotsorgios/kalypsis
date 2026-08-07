@@ -25,6 +25,7 @@ import { PublicFooter } from "../components/PublicFooter";
 import { AccessibilityWidget } from "../components/AccessibilityWidget";
 import { PageEnter } from "../components/PageEnter";
 import { LanguageToggle } from "../components/LanguageToggle";
+import { DesktopDownloadButton } from "../components/DesktopDownloadButton";
 import { api } from "../api/client";
 
 // Restrained brand palette — navy for type, single accent blue, soft borders.
@@ -1242,22 +1243,14 @@ function DesktopAppSection() {
               ))}
             </Box>
 
+            <DesktopDownloadButton sx={{ mt: "auto" }} />
             <Button
               component={RouterLink}
-              to="/register"
-              endIcon={<ArrowForwardIcon />}
-              size="large"
-              sx={{
-                alignSelf: "flex-start",
-                bgcolor: "#0b2545", color: "#ffffff",
-                fontWeight: 800, letterSpacing: "0.01em", fontSize: 15,
-                textTransform: "none", px: 3.5, py: 1.5,
-                borderRadius: 1.5,
-                boxShadow: "0 10px 24px -12px rgba(11,37,69,0.6)",
-                "&:hover": { bgcolor: "#1d4e89" }
-              }}
+              to="/download"
+              size="small"
+              sx={{ alignSelf: "flex-start", color: NAVY_SOFT, textTransform: "none", px: 0 }}
             >
-              {t("landing.v2.desktop.cta")}
+              {t("landing.v2.desktop.moreOptions")}
             </Button>
           </Box>
         </Box>
