@@ -3416,6 +3416,168 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.ToTable("delivery_records", (string)null);
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.DesktopLicense", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("AccessExpiresAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("AccessStartsAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("AdminNotes")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("AfmVat")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<decimal>("AnnualPrice")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<string>("AppVersion")
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<string>("BlockReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("ClientTokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<string>("CompanyName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("ContactName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("varchar(160)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("varchar(254)");
+
+                    b.Property<string>("InstallationId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<bool>("IsBlocked")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime?>("LastSeenAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("MachineName")
+                        .HasMaxLength(160)
+                        .HasColumnType("varchar(160)");
+
+                    b.Property<string>("OsVersion")
+                        .HasMaxLength(240)
+                        .HasColumnType("varchar(240)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<string>("RegistrationCode")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("varchar(24)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InstallationId")
+                        .IsUnique();
+
+                    b.HasIndex("RegistrationCode")
+                        .IsUnique();
+
+                    b.ToTable("desktop_licenses", (string)null);
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.DesktopLicensePayment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("AccessExpiresAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("AccessStartsAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("DesktopLicenseId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<DateTime>("PaidAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
+
+                    b.Property<Guid?>("RecordedByUserId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DesktopLicenseId", "PaidAtUtc");
+
+                    b.ToTable("desktop_license_payments", (string)null);
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.DiasCode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -10035,6 +10197,17 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Navigation("Policy");
                 });
 
+            modelBuilder.Entity("Kalypsis.Domain.Entities.DesktopLicensePayment", b =>
+                {
+                    b.HasOne("Kalypsis.Domain.Entities.DesktopLicense", "DesktopLicense")
+                        .WithMany("Payments")
+                        .HasForeignKey("DesktopLicenseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DesktopLicense");
+                });
+
             modelBuilder.Entity("Kalypsis.Domain.Entities.DiasCode", b =>
                 {
                     b.HasOne("Kalypsis.Domain.Entities.Policy", "Policy")
@@ -10873,6 +11046,11 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                     b.Navigation("Consents");
 
                     b.Navigation("Policies");
+                });
+
+            modelBuilder.Entity("Kalypsis.Domain.Entities.DesktopLicense", b =>
+                {
+                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.FriendlySettlement", b =>

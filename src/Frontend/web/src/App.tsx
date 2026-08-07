@@ -19,6 +19,7 @@ import KeyIcon from "@mui/icons-material/Key";
 import ExtensionIcon from "@mui/icons-material/Extension";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import SystemUpdateAltIcon from "@mui/icons-material/SystemUpdateAlt";
+import DesktopWindowsIcon from "@mui/icons-material/DesktopWindows";
 import MonitorHeartIcon from "@mui/icons-material/MonitorHeart";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import StorageIcon from "@mui/icons-material/Storage";
@@ -243,6 +244,7 @@ import {
 } from "./pages/PlatformAdminPages";
 import { PlatformCarriersPage } from "./pages/PlatformCarriersPage";
 import { PlatformDesktopReleasesPage } from "./pages/PlatformDesktopReleasesPage";
+import { PlatformDesktopLicensesPage } from "./pages/PlatformDesktopLicensesPage";
 
 const navByRole: Record<Role, NavItem[]> = {
   Customer: [
@@ -442,6 +444,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/platform/maintenance", labelKey: "nav.maintenance", icon: <EngineeringIcon /> },
     { to: "/platform/parametric-files", labelKey: "nav.broadcastParametric", icon: <InventoryIcon /> },
     { to: "/platform/desktop-releases", labelKey: "nav.desktopReleases", icon: <SystemUpdateAltIcon /> },
+    { to: "/platform/desktop-licenses", labelKey: "nav.desktopLicenses", icon: <DesktopWindowsIcon /> },
     { to: "/platform/plans", labelKey: "nav.subscriptionPlans", icon: <CreditCardIcon /> },
     { to: "/platform/billing", labelKey: "nav.billing", icon: <PaymentsIcon /> },
     { to: "/platform/invoices", labelKey: "nav.invoices", icon: <ReceiptLongIcon /> },
@@ -849,6 +852,7 @@ export default function App() {
                   <Route path="parametric-files" element={<ParametricFilesPage />} />
                   <Route path="platform/parametric-files" element={<PlatformParametricFilesPage />} />
                   <Route path="platform/desktop-releases" element={<PlatformDesktopReleasesPage />} />
+                  <Route path="platform/desktop-licenses" element={<PlatformDesktopLicensesPage />} />
                   <Route path="company-parametrics" element={<AgencyCompanyParametricsPage />} />
                   <Route path="quote-builder" element={<QuoteBuilderPage />} />
                   <Route path="workflows" element={<WorkflowRulesPage />} />

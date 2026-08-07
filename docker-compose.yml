@@ -87,6 +87,8 @@ services:
       # Server-only credential used by Platform Admin to create releases and
       # stream assets to the dedicated public desktop releases repository.
       DesktopReleases__GitHubToken: ${GITHUB_DESKTOP_RELEASES_TOKEN:-}
+      DesktopLicensing__DefaultAnnualPrice: ${DESKTOP_ANNUAL_PRICE:-0.00}
+      DesktopLicensing__PaymentUrl: ${DESKTOP_PAYMENT_URL:-https://mykalypsis.gr/contact}
     volumes:
       - uploads_data:/data/uploads
     # Don't publish 8080 to the host — nginx in the `web` service proxies

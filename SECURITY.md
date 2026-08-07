@@ -19,6 +19,18 @@ following are missing or look like placeholders.
 | `Brevo__ApiKey`                              | Recommended (not enforced). Without it, password reset + contact form silently won't email. |
 | `Brevo__SenderEmail`                         | The verified Brevo sender (e.g. `info@mykalypsis.gr`). |
 | `GITHUB_DESKTOP_RELEASES_TOKEN`               | Fine-grained token scoped to the desktop releases repo with `Contents: Read and write`. Docker Compose maps it to the server-only `DesktopReleases__GitHubToken`. |
+| `DESKTOP_ANNUAL_PRICE` / `DESKTOP_PAYMENT_URL` | Optional commercial defaults for Desktop activation. They contain no secrets; each actual payment is recorded by Platform Admin. |
+
+### Desktop license boundary
+
+Each Desktop installation creates a 256-bit random client token. The raw token
+is protected locally with Windows DPAPI (`CurrentUser`); the platform stores
+only its SHA-256 hash and compares hashes in constant time. Production Desktop
+builds use the fixed HTTPS API at `mykalypsis.gr` and require a successful
+server response before starting local database or business services. The API
+derives access from server UTC time, blocks unpaid/expired installations, warns
+inside the final 20 days, rate-limits registration/check endpoints, and exposes
+payment and blocking actions only under the `PlatformAdmin` policy.
 
 Coolify env vars use double underscores (`__`) where `appsettings.json` would
 use a colon — they map to the same configuration node.

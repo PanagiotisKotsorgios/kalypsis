@@ -164,7 +164,7 @@ builder.Services.AddCors(o => o.AddPolicy("frontend", p =>
     var origins = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     p.WithOrigins(origins)
         .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-        .WithHeaders("Content-Type", "Authorization", "X-Impersonate-Tenant", "Accept", "Accept-Language");
+        .WithHeaders("Content-Type", "Authorization", "X-Impersonate-Tenant", "X-Kalypsis-Desktop-Token", "Accept", "Accept-Language");
 }));
 
 // IP block list — sees rate-limit rejections and known-bad probe paths.
@@ -215,6 +215,16 @@ builder.Services.AddRateLimiter(opt =>
     // 2) Account creation: 5 / hour / IP. Brand-new registrations should be rare per IP.
     opt.AddPolicy("register", ctx => RateLimitPartition.GetFixedWindowLimiter(IpKey(ctx),
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
+
+    // Desktop activation: registration is rare; status checks happen on each
+    // application launch and periodically during long-running sessions.
+    opt.AddPolicy("desktop-license-register", ctx => RateLimitPartition.GetFixedWindowLimiter(IpKey(ctx),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
+    opt.AddPolicy("desktop-license-check", ctx => RateLimitPartition.GetSlidingWindowLimiter(IpKey(ctx),
+        _ => new SlidingWindowRateLimiterOptions
+        {
+            PermitLimit = 120, Window = TimeSpan.FromMinutes(10), SegmentsPerWindow = 5, QueueLimit = 0
+        }));
 
     // 3) Forgot/reset password: 5 / 15-min / IP. Tight so the reset link can't be spammed.
     opt.AddPolicy("password-reset", ctx => RateLimitPartition.GetFixedWindowLimiter(IpKey(ctx),

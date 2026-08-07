@@ -213,6 +213,10 @@ public class AppDbContext : DbContext, IAppDbContext
     // Editable pricing catalog — singleton row.
     public DbSet<PlatformPricing> PlatformPricings => Set<PlatformPricing>();
 
+    // Platform-managed annual Kalypsis Desktop licenses.
+    public DbSet<DesktopLicense> DesktopLicenses => Set<DesktopLicense>();
+    public DbSet<DesktopLicensePayment> DesktopLicensePayments => Set<DesktopLicensePayment>();
+
     // Per-tenant opt-in to universal carriers.
     public DbSet<TenantCarrierOptIn> TenantCarrierOptIns => Set<TenantCarrierOptIn>();
 
@@ -318,6 +322,41 @@ public class AppDbContext : DbContext, IAppDbContext
         modelBuilder.Entity<ContractorAssignment>().ToTable("contractor_assignments");
         modelBuilder.Entity<OverCommissionStatement>().ToTable("over_commission_statements");
         modelBuilder.Entity<CarrierBridgeConfig>().ToTable("carrier_bridge_configs");
+        modelBuilder.Entity<DesktopLicense>().ToTable("desktop_licenses");
+        modelBuilder.Entity<DesktopLicensePayment>().ToTable("desktop_license_payments");
+
+        modelBuilder.Entity<DesktopLicense>(entity =>
+        {
+            entity.HasIndex(x => x.RegistrationCode).IsUnique();
+            entity.HasIndex(x => x.InstallationId).IsUnique();
+            entity.Property(x => x.RegistrationCode).HasMaxLength(24);
+            entity.Property(x => x.InstallationId).HasMaxLength(64);
+            entity.Property(x => x.ClientTokenHash).HasMaxLength(64);
+            entity.Property(x => x.CompanyName).HasMaxLength(200);
+            entity.Property(x => x.ContactName).HasMaxLength(160);
+            entity.Property(x => x.Email).HasMaxLength(254);
+            entity.Property(x => x.Phone).HasMaxLength(40);
+            entity.Property(x => x.AfmVat).HasMaxLength(30);
+            entity.Property(x => x.MachineName).HasMaxLength(160);
+            entity.Property(x => x.OsVersion).HasMaxLength(240);
+            entity.Property(x => x.AppVersion).HasMaxLength(40);
+            entity.Property(x => x.AnnualPrice).HasPrecision(12, 2);
+            entity.Property(x => x.Currency).HasMaxLength(8);
+            entity.Property(x => x.BlockReason).HasMaxLength(500);
+            entity.HasMany(x => x.Payments)
+                .WithOne(x => x.DesktopLicense)
+                .HasForeignKey(x => x.DesktopLicenseId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<DesktopLicensePayment>(entity =>
+        {
+            entity.Property(x => x.Amount).HasPrecision(12, 2);
+            entity.Property(x => x.Currency).HasMaxLength(8);
+            entity.Property(x => x.PaymentMethod).HasMaxLength(80);
+            entity.Property(x => x.Reference).HasMaxLength(120);
+            entity.Property(x => x.Notes).HasMaxLength(1000);
+            entity.HasIndex(x => new { x.DesktopLicenseId, x.PaidAtUtc });
+        });
 
         base.OnModelCreating(modelBuilder);
     }

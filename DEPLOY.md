@@ -73,6 +73,20 @@ Password: Kalypsis@2026!
 Change password), or override it before the first deploy by setting
 `Seed__PlatformAdminPassword` in Coolify's env.
 
+### Desktop annual licensing
+
+The API applies migration `20260807170000_AddDesktopLicensing` automatically
+on deploy. Desktop installations register through
+`POST /api/public/desktop-license/register` and verify access through
+`POST /api/public/desktop-license/check`; both require the per-installation
+secret in `X-Kalypsis-Desktop-Token`.
+
+Platform Admin manages registrations at `/app/platform/desktop-licenses`.
+Recording a payment grants exactly 365 days from the selected access start
+date. Configure `DESKTOP_ANNUAL_PRICE` only when there is a common list price;
+leave it at `0.00` for individually quoted customers. `DESKTOP_PAYMENT_URL`
+controls the payment/contact button shown by the Desktop gate.
+
 ## 5. Persistent volumes
 
 Two named volumes survive redeploys:
