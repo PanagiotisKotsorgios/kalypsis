@@ -97,7 +97,10 @@ public sealed partial class DesktopReleasesController : ControllerBase
     [Authorize(Policy = "PlatformAdmin")]
     [HttpGet("platform/desktop-releases")]
     public async Task<ActionResult<IReadOnlyList<DesktopReleaseDto>>> ListForAdmin(CancellationToken ct) =>
-        Ok(await ListFromGitHubAsync(requireToken: true, ct));
+        // The releases repository is public, so a missing write credential
+        // must not blank the whole admin screen. When configured, the token
+        // is still attached so GitHub also returns draft releases.
+        Ok(await ListFromGitHubAsync(requireToken: false, ct: ct, useTokenIfConfigured: true));
 
     public sealed record CreateDesktopReleaseRequest(
         string TagName,
@@ -227,7 +230,10 @@ public sealed partial class DesktopReleasesController : ControllerBase
         return NoContent();
     }
 
-    private async Task<IReadOnlyList<DesktopReleaseDto>> ListFromGitHubAsync(bool requireToken, CancellationToken ct)
+    private async Task<IReadOnlyList<DesktopReleaseDto>> ListFromGitHubAsync(
+        bool requireToken,
+        CancellationToken ct,
+        bool useTokenIfConfigured = false)
     {
         var all = new List<GitHubRelease>();
         for (var page = 1; ; page++)
@@ -235,7 +241,8 @@ public sealed partial class DesktopReleasesController : ControllerBase
             using var request = CreateGitHubRequest(
                 HttpMethod.Get,
                 RepositoryPath($"releases?per_page=100&page={page}"),
-                requireToken);
+                requireToken,
+                useTokenIfConfigured);
             var batch = await SendForJsonAsync<List<GitHubRelease>>(request, ct);
             all.AddRange(batch);
             if (batch.Count < 100) break;
@@ -255,17 +262,21 @@ public sealed partial class DesktopReleasesController : ControllerBase
         await SendWithoutBodyAsync(delete, ct);
     }
 
-    private HttpRequestMessage CreateGitHubRequest(HttpMethod method, string pathOrUrl, bool requireToken)
+    private HttpRequestMessage CreateGitHubRequest(
+        HttpMethod method,
+        string pathOrUrl,
+        bool requireToken,
+        bool useTokenIfConfigured = false)
     {
         var request = new HttpRequestMessage(method, pathOrUrl);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         request.Headers.UserAgent.ParseAdd("Kalypsis-Desktop-Release-Center/1.0");
         request.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", "2026-03-10");
 
-        if (requireToken)
+        if (requireToken || useTokenIfConfigured)
         {
             var token = _configuration["DesktopReleases:GitHubToken"]?.Trim();
-            if (string.IsNullOrWhiteSpace(token))
+            if (string.IsNullOrWhiteSpace(token) && requireToken)
                 throw new AppException(
                     "desktop_releases_not_configured",
                     "Δεν έχει ρυθμιστεί GitHub token για τη διαχείριση desktop εκδόσεων.",
@@ -273,7 +284,8 @@ public sealed partial class DesktopReleasesController : ControllerBase
                     title: "Απαιτείται ρύθμιση server",
                     why: "Η δημόσια λίστα λειτουργεί χωρίς token, αλλά η δημιουργία εκδόσεων και το ανέβασμα αρχείων απαιτούν δικαίωμα εγγραφής στο GitHub repository.",
                     fix: "Ορίστε στο API το secret DesktopReleases__GitHubToken με fine-grained GitHub token και Contents: Read and write για το kalypsis-desktop-releases.");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            if (!string.IsNullOrWhiteSpace(token))
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         }
 
         return request;
