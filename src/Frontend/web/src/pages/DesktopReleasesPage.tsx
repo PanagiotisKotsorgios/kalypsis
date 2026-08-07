@@ -14,6 +14,7 @@ import {
   Typography
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import DownloadIcon from "@mui/icons-material/Download";
 import HistoryIcon from "@mui/icons-material/History";
 import LoginOutlinedIcon from "@mui/icons-material/LoginOutlined";
@@ -26,6 +27,7 @@ import { KalypsisLogo } from "../components/KalypsisLogo";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { PageEnter } from "../components/PageEnter";
 import { PublicFooter } from "../components/PublicFooter";
+import { ReleaseMarkdown } from "../components/ReleaseMarkdown";
 import type { DesktopRelease, DesktopReleaseAsset } from "../models/DesktopRelease";
 
 const NAVY = "#0b2545";
@@ -47,6 +49,8 @@ const copy = {
     prerelease: "Δοκιμαστική",
     published: "Δημοσιεύτηκε",
     files: "αρχεία",
+    availableDownloads: "διαθέσιμες λήψεις",
+    guides: "οδηγοί",
     file: "Αρχείο",
     kind: "Τύπος",
     size: "Μέγεθος",
@@ -54,6 +58,10 @@ const copy = {
     downloads: "Λήψεις",
     action: "Λήψη",
     noFiles: "Δεν υπάρχουν αρχεία σε αυτή την έκδοση.",
+    noDownloads: "Δεν υπάρχουν ακόμη αρχεία εγκατάστασης σε αυτή την έκδοση.",
+    guideTitle: "Οδηγοί εγκατάστασης",
+    guideBody: "Διαβάστε τις πλήρεις οδηγίες μέσα στο Kalypsis, χωρίς λήψη αρχείου.",
+    viewGuide: "Προβολή οδηγού",
     empty: "Δεν υπάρχουν ακόμη δημοσιευμένες desktop εκδόσεις.",
     error: "Δεν ήταν δυνατή η φόρτωση των εκδόσεων αυτή τη στιγμή.",
     retry: "Δοκιμή ξανά",
@@ -78,6 +86,8 @@ const copy = {
     prerelease: "Prerelease",
     published: "Published",
     files: "files",
+    availableDownloads: "available downloads",
+    guides: "guides",
     file: "File",
     kind: "Type",
     size: "Size",
@@ -85,6 +95,10 @@ const copy = {
     downloads: "Downloads",
     action: "Download",
     noFiles: "There are no files in this release.",
+    noDownloads: "There are no installation files in this release yet.",
+    guideTitle: "Installation guides",
+    guideBody: "Read the complete instructions inside Kalypsis without downloading a file.",
+    viewGuide: "View guide",
     empty: "There are no published desktop releases yet.",
     error: "The releases could not be loaded right now.",
     retry: "Try again",
@@ -242,6 +256,8 @@ function ReleaseCard({
   labels: typeof copy.el | typeof copy.en;
 }) {
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium" });
+  const downloadableAssets = release.assets.filter(isPublicDownloadAsset);
+  const markdownAssets = release.assets.filter(isMarkdownAsset);
   return (
     <Box component="article" sx={{ border: `1px solid ${isLatest ? "rgba(31,123,179,0.45)" : RULE}`, borderRadius: 2.5, overflow: "hidden", boxShadow: isLatest ? "0 18px 42px -28px rgba(11,37,69,0.45)" : "none" }}>
       <Box sx={{ p: { xs: 2.5, md: 3.5 }, bgcolor: isLatest ? "#f4faff" : "#fafbfc", borderBottom: `1px solid ${RULE}` }}>
@@ -254,20 +270,19 @@ function ReleaseCard({
               {release.prerelease && <Chip label={labels.prerelease} size="small" color="warning" />}
             </Stack>
             <Typography sx={{ color: NAVY_SOFT, fontSize: 13.5 }}>
-              {labels.published}: {date.format(new Date(release.publishedAt ?? release.createdAt))} · {release.assets.length} {labels.files}
+              {labels.published}: {date.format(new Date(release.publishedAt ?? release.createdAt))} · {downloadableAssets.length} {labels.availableDownloads}
+              {markdownAssets.length > 0 ? ` · ${markdownAssets.length} ${labels.guides}` : ""}
             </Typography>
             {release.body && (
-              <Typography sx={{ mt: 1.5, color: NAVY_SOFT, fontSize: 14, lineHeight: 1.65, whiteSpace: "pre-line", maxWidth: 940 }}>
-                {release.body}
-              </Typography>
+              <ReleaseMarkdown compact sx={{ mt: 1.75, maxWidth: 940 }}>{release.body}</ReleaseMarkdown>
             )}
           </Box>
           <HistoryIcon sx={{ color: ACCENT, fontSize: 34, opacity: 0.75 }} />
         </Stack>
       </Box>
 
-      {release.assets.length === 0 ? (
-        <Typography sx={{ p: 3, color: NAVY_SOFT }}>{labels.noFiles}</Typography>
+      {downloadableAssets.length === 0 ? (
+        <Typography sx={{ p: 3, color: NAVY_SOFT }}>{release.assets.length === 0 ? labels.noFiles : labels.noDownloads}</Typography>
       ) : (
         <Box sx={{ overflowX: "auto" }}>
           <Table sx={{ minWidth: 850 }}>
@@ -282,7 +297,7 @@ function ReleaseCard({
               </TableRow>
             </TableHead>
             <TableBody>
-              {release.assets.map((asset) => (
+              {downloadableAssets.map((asset) => (
                 <TableRow key={asset.id} hover>
                   <TableCell sx={{ fontWeight: 750, color: NAVY }}>{asset.name}</TableCell>
                   <TableCell><Chip size="small" variant="outlined" label={assetType(asset, labels)} /></TableCell>
@@ -308,8 +323,42 @@ function ReleaseCard({
           </Table>
         </Box>
       )}
+
+      {markdownAssets.length > 0 && (
+        <Box sx={{ p: { xs: 2.5, md: 3 }, borderTop: `1px solid ${RULE}`, bgcolor: "#fbfcfd" }}>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }}>
+            <Box>
+              <Typography sx={{ color: NAVY, fontWeight: 850, fontSize: 17 }}>{labels.guideTitle}</Typography>
+              <Typography sx={{ color: NAVY_SOFT, fontSize: 13.5, mt: 0.35 }}>{labels.guideBody}</Typography>
+            </Box>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ width: { xs: "100%", md: "auto" } }}>
+              {markdownAssets.map((asset) => (
+                <Button
+                  key={asset.id}
+                  component={RouterLink}
+                  to={`/download/releases/guide/${asset.id}`}
+                  state={{ releaseName: release.name, fileName: asset.name }}
+                  variant="outlined"
+                  startIcon={<DescriptionOutlinedIcon />}
+                  sx={{ textTransform: "none", fontWeight: 800, borderRadius: 1.5 }}
+                >
+                  {labels.viewGuide}: {asset.name}
+                </Button>
+              ))}
+            </Stack>
+          </Stack>
+        </Box>
+      )}
     </Box>
   );
+}
+
+function isPublicDownloadAsset(asset: DesktopReleaseAsset) {
+  return /\.(exe|msi|msix|appx|zip|ps1|bat|cmd|dmg|pkg|deb|rpm|appimage)$/i.test(asset.name);
+}
+
+function isMarkdownAsset(asset: DesktopReleaseAsset) {
+  return /\.(md|markdown)$/i.test(asset.name);
 }
 
 function assetType(asset: DesktopReleaseAsset, labels: typeof copy.el | typeof copy.en) {

@@ -21,6 +21,7 @@ namespace Kalypsis.Api.Controllers;
 public sealed partial class DesktopReleasesController : ControllerBase
 {
     private const long MaxAssetBytes = 550L * 1024 * 1024;
+    private const long MaxMarkdownBytes = 2L * 1024 * 1024;
     private const string PublicCacheKey = "desktop-releases:public";
     private static readonly JsonSerializerOptions GitHubJson = new(JsonSerializerDefaults.Web);
 
@@ -45,16 +46,51 @@ public sealed partial class DesktopReleasesController : ControllerBase
     [AllowAnonymous]
     [HttpGet("public/desktop-releases")]
     public async Task<ActionResult<IReadOnlyList<DesktopReleaseDto>>> ListPublic(CancellationToken ct)
+        => Ok(await GetPublicReleasesAsync(ct));
+
+    /// <summary>Render-safe Markdown source for a public release guide.</summary>
+    [AllowAnonymous]
+    [HttpGet("public/desktop-releases/assets/{assetId:long}/markdown")]
+    public async Task<IActionResult> GetMarkdown(long assetId, CancellationToken ct)
+    {
+        var releases = await GetPublicReleasesAsync(ct);
+        var asset = releases.SelectMany(release => release.Assets)
+            .FirstOrDefault(candidate => candidate.Id == assetId);
+        if (asset is null || !IsMarkdown(asset.Name))
+            throw new AppException("desktop_guide_not_found", "Ο οδηγός έκδοσης δεν βρέθηκε.", 404);
+        if (asset.Size > MaxMarkdownBytes)
+            throw new AppException("desktop_guide_too_large", "Ο οδηγός ξεπερνά το επιτρεπόμενο μέγεθος των 2 MB.", 413);
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, asset.BrowserDownloadUrl);
+        request.Headers.UserAgent.ParseAdd("Kalypsis-Desktop-Release-Center/1.0");
+        using var response = await _httpClientFactory.CreateClient("desktop-releases-github")
+            .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        if (!response.IsSuccessStatusCode)
+            await ThrowGitHubErrorAsync(response, ct);
+        if (response.Content.Headers.ContentLength > MaxMarkdownBytes)
+            throw new AppException("desktop_guide_too_large", "Ο οδηγός ξεπερνά το επιτρεπόμενο μέγεθος των 2 MB.", 413);
+
+        var markdown = await response.Content.ReadAsStringAsync(ct);
+        return Content(markdown, "text/markdown; charset=utf-8", Encoding.UTF8);
+    }
+
+    private async Task<IReadOnlyList<DesktopReleaseDto>> GetPublicReleasesAsync(CancellationToken ct)
     {
         if (_cache.TryGetValue(PublicCacheKey, out IReadOnlyList<DesktopReleaseDto>? cached) && cached is not null)
-            return Ok(cached);
+            return cached;
 
         // Public repositories can be read anonymously. Keeping this call
         // anonymous means a bad/missing admin token can never break downloads.
         var releases = await ListFromGitHubAsync(requireToken: false, ct);
-        var published = releases.Where(r => !r.Draft).ToList();
+        var published = releases
+            .Where(release => !release.Draft)
+            .Select(release => release with
+            {
+                Assets = release.Assets.Where(asset => IsPublicCatalogAsset(asset.Name)).ToList()
+            })
+            .ToList();
         _cache.Set(PublicCacheKey, published, TimeSpan.FromMinutes(5));
-        return Ok(published);
+        return published;
     }
 
     /// <summary>All releases, including drafts, for the Platform Admin manager.</summary>
@@ -325,6 +361,19 @@ public sealed partial class DesktopReleasesController : ControllerBase
         if (name.Length is < 1 or > 255 || name != decoded || decoded.Contains('/') || decoded.Contains('\\') || name.Any(char.IsControl))
             throw AppException.Validation("Το όνομα αρχείου δεν είναι έγκυρο.");
         return name;
+    }
+
+    private static bool IsMarkdown(string name) =>
+        name.EndsWith(".md", StringComparison.OrdinalIgnoreCase) ||
+        name.EndsWith(".markdown", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsPublicCatalogAsset(string name)
+    {
+        if (IsMarkdown(name)) return true;
+        return Path.GetExtension(name).ToLowerInvariant() is
+            ".exe" or ".msi" or ".msix" or ".appx" or ".zip" or
+            ".ps1" or ".bat" or ".cmd" or ".dmg" or ".pkg" or
+            ".deb" or ".rpm" or ".appimage";
     }
 
     private static StringContent JsonContent<T>(T value) =>

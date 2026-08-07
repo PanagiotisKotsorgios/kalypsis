@@ -63,6 +63,7 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { PricingPage } from "./pages/PricingPage";
 import { DownloadPage } from "./pages/DownloadPage";
 import { DesktopReleasesPage } from "./pages/DesktopReleasesPage";
+import { DesktopReleaseGuidePage } from "./pages/DesktopReleaseGuidePage";
 import { FaqPage } from "./pages/FaqPage";
 import { ContactPage } from "./pages/ContactPage";
 import { TermsPage } from "./pages/TermsPage";
@@ -586,6 +587,7 @@ export default function App() {
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/download" element={<DownloadPage />} />
         <Route path="/download/releases" element={<DesktopReleasesPage />} />
+        <Route path="/download/releases/guide/:assetId" element={<DesktopReleaseGuidePage />} />
         <Route path="/desktop-releases" element={<Navigate to="/download/releases" replace />} />
         <Route path="/faq" element={<FaqPage />} />
         <Route path="/contact" element={<ContactPage />} />
