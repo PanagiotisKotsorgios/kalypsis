@@ -759,6 +759,8 @@
           "eyebrow": "Kalypsis Desktop",
           "title": "Install Kalypsis Desktop for Windows",
           "lead": "Download the all-in-one installer, open it and Kalypsis will prepare the application and its private local database automatically.",
+          "whyTitle": "Everything your Windows PC needs",
+          "whyBody": "The desktop release follows the same all-in-one approach as the Kalypsis platform: one verified download, clear installation choices and no missing runtime dependencies.",
           "allInOneTitle": "All-in-one installer",
           "allInOneBody": ".NET, MySQL 8.4 and the required Visual C++ runtime files are included. Installation works offline after the download completes.",
           "localTitle": "Local database by default",

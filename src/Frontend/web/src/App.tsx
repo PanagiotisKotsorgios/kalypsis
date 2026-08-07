@@ -913,7 +913,7 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      {!location.pathname.startsWith("/app") && <PreloginDesktopDownload />}
+      {!location.pathname.startsWith("/app") && location.pathname !== "/download" && <PreloginDesktopDownload />}
       <CookieBanner />
       <CookiePreferencesButton />
       {user?.role === "AgencyAdmin" && !impersonatedTenantId && <OnboardingWizard />}
