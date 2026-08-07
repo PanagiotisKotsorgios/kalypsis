@@ -16,6 +16,12 @@ export const DESKTOP_PORTABLE_URL =
   `https://github.com/${RELEASE_REPO}/releases/latest/download/kalypsis-desktop-win-Portable.zip`;
 export const DESKTOP_RELEASES_URL =
   `https://github.com/${RELEASE_REPO}/releases/latest`;
+export const DESKTOP_SERVER_SETUP_URL =
+  `https://github.com/${RELEASE_REPO}/releases/latest/download/Setup-KalypsisServer.ps1`;
+export const DESKTOP_CLIENT_SETUP_URL =
+  `https://github.com/${RELEASE_REPO}/releases/latest/download/Setup-KalypsisClient.ps1`;
+export const DESKTOP_DEPLOYMENT_GUIDE_URL =
+  `https://github.com/${RELEASE_REPO}/releases/latest/download/DEPLOYMENT.md`;
 
 export interface DesktopDownloadButtonProps {
   size?: "small" | "medium" | "large";

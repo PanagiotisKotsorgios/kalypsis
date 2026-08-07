@@ -53,6 +53,7 @@ import { OnboardingWizard } from "./components/OnboardingWizard";
 import { PageLoader } from "./components/PageLoader";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { PreloginResponsiveStyles } from "./components/PreloginResponsiveStyles";
+import { PreloginDesktopDownload } from "./components/PreloginDesktopDownload";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
@@ -503,6 +504,7 @@ function RoutedErrorBoundary({ children }: { children: React.ReactNode }) {
 export default function App() {
   const { user, loading } = useAuth();
   const { tenantId: impersonatedTenantId } = useImpersonation();
+  const location = useLocation();
 
   if (loading) return <PageLoader minHeight="100vh" />;
 
@@ -539,10 +541,13 @@ export default function App() {
   const isPlatformStaff = user?.role === "PlatformAdmin" || user?.role === "PlatformEmployee";
   if (maintenance.maintenanceModeEnabled && !isPlatformStaff && !staffOverride) {
     return (
-      <SiteMaintenancePage
-        title={maintenance.maintenanceTitle}
-        message={maintenance.maintenanceMessage}
-      />
+      <>
+        <SiteMaintenancePage
+          title={maintenance.maintenanceTitle}
+          message={maintenance.maintenanceMessage}
+        />
+        <PreloginDesktopDownload />
+      </>
     );
   }
 
@@ -908,6 +913,7 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      {!location.pathname.startsWith("/app") && <PreloginDesktopDownload />}
       <CookieBanner />
       <CookiePreferencesButton />
       {user?.role === "AgencyAdmin" && !impersonatedTenantId && <OnboardingWizard />}

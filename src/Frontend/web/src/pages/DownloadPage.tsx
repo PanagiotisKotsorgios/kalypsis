@@ -1,10 +1,17 @@
-import { Box, Container, Divider, Stack, Typography } from "@mui/material";
+import { Box, Button, Container, Divider, Stack, Typography } from "@mui/material";
 import ComputerIcon from "@mui/icons-material/Computer";
 import StorageIcon from "@mui/icons-material/Storage";
 import SystemUpdateAltIcon from "@mui/icons-material/SystemUpdateAlt";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import { useTranslation } from "react-i18next";
-import { DesktopDownloadButton } from "../components/DesktopDownloadButton";
+import DownloadIcon from "@mui/icons-material/Download";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import {
+  DESKTOP_CLIENT_SETUP_URL,
+  DESKTOP_DEPLOYMENT_GUIDE_URL,
+  DESKTOP_SERVER_SETUP_URL,
+  DesktopDownloadButton
+} from "../components/DesktopDownloadButton";
 import { PageEnter } from "../components/PageEnter";
 import { PublicShell } from "../components/PublicShell";
 
@@ -89,6 +96,46 @@ export function DownloadPage() {
               ))}
             </Stack>
 
+            <Divider sx={{ borderColor: RULE, my: { xs: 6, md: 8 } }} />
+
+            <Typography component="h2" sx={{ color: NAVY, fontSize: { xs: 25, md: 32 }, fontWeight: 850, mb: 1.5 }}>
+              {t("landing.v2.desktop.downloadPage.officeTitle")}
+            </Typography>
+            <Typography sx={{ color: NAVY_SOFT, fontSize: 14.5, lineHeight: 1.7, mb: 3 }}>
+              {t("landing.v2.desktop.downloadPage.officeLead")}
+            </Typography>
+
+            <Stack spacing={2.5}>
+              <OfficeRoleCard
+                number={1}
+                title={t("landing.v2.desktop.downloadPage.serverTitle")}
+                body={t("landing.v2.desktop.downloadPage.serverBody")}
+                button={t("landing.v2.desktop.downloadPage.serverButton")}
+                href={DESKTOP_SERVER_SETUP_URL}
+                fileName="Setup-KalypsisServer.ps1"
+                command={'powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\Setup-KalypsisServer.ps1 -SetupExe .\\kalypsis-desktop-win-Setup.exe -AppUserPassword "<strong-password>" -RootPassword "<strong-root-password>"'}
+              />
+              <OfficeRoleCard
+                number={2}
+                title={t("landing.v2.desktop.downloadPage.clientTitle")}
+                body={t("landing.v2.desktop.downloadPage.clientBody")}
+                button={t("landing.v2.desktop.downloadPage.clientButton")}
+                href={DESKTOP_CLIENT_SETUP_URL}
+                fileName="Setup-KalypsisClient.ps1"
+                command={'powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\Setup-KalypsisClient.ps1 -SetupExe .\\kalypsis-desktop-win-Setup.exe -ServerHost "<server-ip>" -AppUserPassword "<same-password>"'}
+              />
+            </Stack>
+
+            <Button
+              component="a"
+              href={DESKTOP_DEPLOYMENT_GUIDE_URL}
+              download="DEPLOYMENT.md"
+              startIcon={<DescriptionOutlinedIcon />}
+              sx={{ mt: 2.5, textTransform: "none", fontWeight: 700 }}
+            >
+              {t("landing.v2.desktop.downloadPage.guideButton")}
+            </Button>
+
             <Box sx={{ mt: 5, p: 2.5, bgcolor: "#fff8e8", border: "1px solid #eed9a3", borderRadius: 2 }}>
               <Typography sx={{ color: NAVY, fontSize: 13.5, lineHeight: 1.6 }}>
                 {t("landing.v2.desktop.downloadPage.signatureNote")}
@@ -98,6 +145,45 @@ export function DownloadPage() {
         </Container>
       </PageEnter>
     </PublicShell>
+  );
+}
+
+function OfficeRoleCard({
+  number, title, body, button, href, fileName, command
+}: {
+  number: number;
+  title: string;
+  body: string;
+  button: string;
+  href: string;
+  fileName: string;
+  command: string;
+}) {
+  return (
+    <Box sx={{ border: `1px solid ${RULE}`, borderRadius: 2, p: { xs: 2.5, md: 3 }, bgcolor: SURFACE }}>
+      <Stack direction="row" spacing={2} alignItems="flex-start">
+        <Box sx={{ width: 34, height: 34, borderRadius: "50%", bgcolor: ACCENT, color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, flexShrink: 0 }}>
+          {number}
+        </Box>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography sx={{ color: NAVY, fontWeight: 800, fontSize: 16 }}>{title}</Typography>
+          <Typography sx={{ color: NAVY_SOFT, fontSize: 14, lineHeight: 1.65, mt: 0.5 }}>{body}</Typography>
+          <Button
+            component="a"
+            href={href}
+            download={fileName}
+            size="small"
+            startIcon={<DownloadIcon />}
+            sx={{ mt: 1.5, textTransform: "none", fontWeight: 750 }}
+          >
+            {button}
+          </Button>
+          <Box component="pre" sx={{ mt: 1.5, mb: 0, p: 1.5, borderRadius: 1, bgcolor: "#0b1522", color: "#e6eef7", fontSize: 11.5, lineHeight: 1.55, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+            {command}
+          </Box>
+        </Box>
+      </Stack>
+    </Box>
   );
 }
 

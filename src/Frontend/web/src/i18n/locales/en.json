@@ -774,6 +774,15 @@
           "step2Body": "Run kalypsis-desktop-win-Setup.exe. The per-user installer copies the application and launches it when setup is complete.",
           "step3Title": "Let first launch finish",
           "step3Body": "The first launch initializes the bundled local database and may take longer than later starts. Kalypsis then opens at the sign-in screen.",
+          "officeTitle": "Office setup: one server, multiple clients",
+          "officeLead": "For a shared office database, download the installer once and keep it beside both setup scripts. Configure the server PC first, then run the client setup on every employee PC.",
+          "serverTitle": "Configure the server PC",
+          "serverBody": "Run the server script from an Administrator PowerShell. It installs Kalypsis, creates the KalypsisMySQL Windows service, opens the database port to the local subnet and prints the server IP needed by clients.",
+          "serverButton": "Download server setup script",
+          "clientTitle": "Configure each client PC",
+          "clientBody": "Run the client script on every other Windows PC using the server IP and the same application database password. It installs Kalypsis and points it to the shared server database.",
+          "clientButton": "Download client setup script",
+          "guideButton": "Download the complete deployment guide",
           "signatureNote": "Windows notice: the current installer is not digitally code-signed, so Microsoft Defender SmartScreen may show an Unknown publisher warning. Only continue when the file was downloaded from this page or the linked PanagiotisKotsorgios/kalypsis-desktop-releases repository."
         },
         "aria": {

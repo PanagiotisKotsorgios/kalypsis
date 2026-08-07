@@ -815,6 +815,15 @@
           "step2Body": "Εκτελέστε το kalypsis-desktop-win-Setup.exe. Ο εγκαταστάτης αντιγράφει την εφαρμογή στο προφίλ χρήστη και την ανοίγει όταν ολοκληρωθεί.",
           "step3Title": "Περιμένετε την πρώτη εκκίνηση",
           "step3Body": "Η πρώτη εκκίνηση αρχικοποιεί την ενσωματωμένη τοπική βάση και μπορεί να διαρκέσει περισσότερο. Στη συνέχεια το Kalypsis ανοίγει στην οθόνη σύνδεσης.",
+          "officeTitle": "Εγκατάσταση γραφείου: ένας server, πολλοί clients",
+          "officeLead": "Για κοινή βάση γραφείου, κατεβάστε μία φορά τον εγκαταστάτη και κρατήστε τον δίπλα στα δύο setup scripts. Ρυθμίστε πρώτα το server PC και έπειτα εκτελέστε το client setup σε κάθε PC υπαλλήλου.",
+          "serverTitle": "Ρύθμιση του server PC",
+          "serverBody": "Εκτελέστε το server script από PowerShell ως Administrator. Εγκαθιστά το Kalypsis, δημιουργεί την υπηρεσία Windows KalypsisMySQL, ανοίγει τη θύρα της βάσης μόνο στο τοπικό δίκτυο και εμφανίζει την IP που χρειάζονται οι clients.",
+          "serverButton": "Λήψη server setup script",
+          "clientTitle": "Ρύθμιση κάθε client PC",
+          "clientBody": "Εκτελέστε το client script σε κάθε άλλο Windows PC με την IP του server και το ίδιο password της βάσης εφαρμογής. Εγκαθιστά το Kalypsis και το συνδέει στην κοινή βάση του server.",
+          "clientButton": "Λήψη client setup script",
+          "guideButton": "Λήψη πλήρους οδηγού εγκατάστασης",
           "signatureNote": "Σημείωση Windows: ο τρέχων εγκαταστάτης δεν έχει ψηφιακή υπογραφή κώδικα, επομένως το Microsoft Defender SmartScreen μπορεί να εμφανίσει προειδοποίηση Άγνωστου εκδότη. Συνεχίστε μόνο όταν το αρχείο έχει ληφθεί από αυτή τη σελίδα ή από το συνδεδεμένο αποθετήριο PanagiotisKotsorgios/kalypsis-desktop-releases."
         },
         "aria": {
