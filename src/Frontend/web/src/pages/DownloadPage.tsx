@@ -11,9 +11,8 @@ import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import { Link as RouterLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
-  DESKTOP_CLIENT_SETUP_URL,
   DESKTOP_DEPLOYMENT_GUIDE_URL,
-  DESKTOP_SERVER_SETUP_URL,
+  DESKTOP_INSTALLER_URL,
   DesktopDownloadButton
 } from "../components/DesktopDownloadButton";
 import { KalypsisLogo } from "../components/KalypsisLogo";
@@ -153,18 +152,28 @@ export function DownloadPage() {
               title={t("landing.v2.desktop.downloadPage.serverTitle")}
               body={t("landing.v2.desktop.downloadPage.serverBody")}
               button={t("landing.v2.desktop.downloadPage.serverButton")}
-              href={DESKTOP_SERVER_SETUP_URL}
-              fileName="Setup-KalypsisServer.ps1"
-              command={'powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\Setup-KalypsisServer.ps1 -SetupExe .\\kalypsis-desktop-win-Setup.exe -AppUserPassword "<strong-password>" -RootPassword "<strong-root-password>"'}
+              href={DESKTOP_INSTALLER_URL}
+              fileName="kalypsis-desktop-win-Setup.exe"
+              steps={[
+                t("landing.v2.desktop.downloadPage.serverStep1"),
+                t("landing.v2.desktop.downloadPage.serverStep2"),
+                t("landing.v2.desktop.downloadPage.serverStep3"),
+                t("landing.v2.desktop.downloadPage.serverStep4")
+              ]}
             />
             <OfficeRoleCard
               number={2}
               title={t("landing.v2.desktop.downloadPage.clientTitle")}
               body={t("landing.v2.desktop.downloadPage.clientBody")}
               button={t("landing.v2.desktop.downloadPage.clientButton")}
-              href={DESKTOP_CLIENT_SETUP_URL}
-              fileName="Setup-KalypsisClient.ps1"
-              command={'powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\Setup-KalypsisClient.ps1 -SetupExe .\\kalypsis-desktop-win-Setup.exe -ServerHost "<server-ip>" -AppUserPassword "<same-password>"'}
+              href={DESKTOP_INSTALLER_URL}
+              fileName="kalypsis-desktop-win-Setup.exe"
+              steps={[
+                t("landing.v2.desktop.downloadPage.clientStep1"),
+                t("landing.v2.desktop.downloadPage.clientStep2"),
+                t("landing.v2.desktop.downloadPage.clientStep3"),
+                t("landing.v2.desktop.downloadPage.clientStep4")
+              ]}
             />
           </Box>
 
@@ -312,7 +321,7 @@ function StepCard({ number, title, body }: { number: number; title: string; body
 }
 
 function OfficeRoleCard({
-  number, title, body, button, href, fileName, command
+  number, title, body, button, href, fileName, steps
 }: {
   number: number;
   title: string;
@@ -320,7 +329,7 @@ function OfficeRoleCard({
   button: string;
   href: string;
   fileName: string;
-  command: string;
+  steps: string[];
 }) {
   return (
     <Box sx={{ border: `1px solid ${RULE}`, borderRadius: 2.5, p: { xs: 3, md: 4 }, bgcolor: number === 1 ? SURFACE : "#ffffff", transition: "border-color 220ms ease, box-shadow 220ms ease", "&:hover": { borderColor: NAVY, boxShadow: "0 14px 30px -16px rgba(11,37,69,0.18)" } }}>
@@ -331,6 +340,15 @@ function OfficeRoleCard({
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography sx={{ color: NAVY, fontWeight: 800, fontSize: { xs: 18, md: 20 } }}>{title}</Typography>
           <Typography sx={{ color: NAVY_SOFT, fontSize: 14.5, lineHeight: 1.65, mt: 0.75 }}>{body}</Typography>
+          <Box sx={{ mt: 2, p: 2, borderRadius: 1.5, bgcolor: "rgba(31,123,179,0.06)", border: `1px solid rgba(31,123,179,0.18)` }}>
+            <Stack component="ol" spacing={0.75} sx={{ pl: 2.5, m: 0 }}>
+              {steps.map((step) => (
+                <Box component="li" key={step} sx={{ color: NAVY, fontSize: 13.5, lineHeight: 1.55 }}>
+                  {step}
+                </Box>
+              ))}
+            </Stack>
+          </Box>
           <Button
             component="a"
             href={href}
@@ -342,9 +360,6 @@ function OfficeRoleCard({
           >
             {button}
           </Button>
-          <Box component="pre" sx={{ mt: 2, mb: 0, p: 1.75, borderRadius: 1.5, bgcolor: "#152640", color: "#e6eef7", fontSize: 11.5, lineHeight: 1.55, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-            {command}
-          </Box>
         </Box>
       </Stack>
     </Box>
