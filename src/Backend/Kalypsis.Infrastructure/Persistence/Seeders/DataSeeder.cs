@@ -577,6 +577,14 @@ public static class DataSeeder
             await conn.OpenAsync(ct);
         var dbName = conn.Database;
 
+        // --- OverCommissionStatements: optional custom period (from/to) ---
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "over_commission_statements", column: "PeriodFrom",
+            addSql: "ALTER TABLE `over_commission_statements` ADD COLUMN `PeriodFrom` datetime(6) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "over_commission_statements", column: "PeriodTo",
+            addSql: "ALTER TABLE `over_commission_statements` ADD COLUMN `PeriodTo` datetime(6) NULL", ct);
+
         // --- insurance_companies.IsBroker / ParentCompanyId ----------------
         await EnsureColumnAsync(db, logger, dbName,
             table: "insurance_companies", column: "IsBroker",

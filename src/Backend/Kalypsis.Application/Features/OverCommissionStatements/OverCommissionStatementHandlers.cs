@@ -17,6 +17,7 @@ public record OverCommissionStatementDto(
     decimal ProducerSharePercent,
     decimal ProducerAmount,   // computed: Gross × ProducerSharePercent / 100
     decimal OfficeAmount,     // computed: Gross − ProducerAmount (goes to έδρα)
+    DateTime? PeriodFrom, DateTime? PeriodTo,
     DateTime CreatedAt, DateTime? UpdatedAt);
 
 public record ListOverCommissionStatementsQuery(
@@ -67,6 +68,7 @@ public class ListOverCommissionStatementsHandler
                 s.Reference, s.Notes,
                 s.PaidOn,
                 s.ProducerSharePercent, producer, office,
+                s.PeriodFrom, s.PeriodTo,
                 s.CreatedAt, s.UpdatedAt);
         }).AsEnumerable();
 
@@ -94,7 +96,8 @@ public record UpsertOverCommissionStatementCommand(
     decimal GrossAmount, decimal NetAmount, string Currency,
     string? Reference, string? Notes,
     DateTime? PaidOn,
-    decimal ProducerSharePercent) : IRequest<OverCommissionStatementDto>;
+    decimal ProducerSharePercent,
+    DateTime? PeriodFrom = null, DateTime? PeriodTo = null) : IRequest<OverCommissionStatementDto>;
 
 /// <summary>
 /// Rounds the producer/office split to 2 decimals with the office getting
@@ -177,6 +180,8 @@ public class UpsertOverCommissionStatementHandler
         row.Notes = string.IsNullOrWhiteSpace(r.Notes) ? null : r.Notes.Trim();
         row.PaidOn = r.PaidOn;
         row.ProducerSharePercent = Math.Clamp(r.ProducerSharePercent, 0m, 100m);
+        row.PeriodFrom = r.PeriodFrom;
+        row.PeriodTo = r.PeriodTo;
         row.EnteredByUserId = _current.UserId;
 
         await _db.SaveChangesAsync(ct);
@@ -195,6 +200,7 @@ public class UpsertOverCommissionStatementHandler
             row.Reference, row.Notes,
             row.PaidOn,
             row.ProducerSharePercent, producerAmt, officeAmt,
+            row.PeriodFrom, row.PeriodTo,
             row.CreatedAt, row.UpdatedAt);
     }
 }
@@ -207,7 +213,8 @@ public record BulkStatementRow(
     decimal GrossAmount, decimal NetAmount, string Currency,
     string? Reference, string? Notes,
     DateTime? PaidOn,
-    decimal ProducerSharePercent);
+    decimal ProducerSharePercent,
+    DateTime? PeriodFrom = null, DateTime? PeriodTo = null);
 
 public record BulkUpsertRowResult(int Index, bool Success, string? Error, Guid? Id);
 public record BulkUpsertResult(int Inserted, int Updated, int Failed, IReadOnlyList<BulkUpsertRowResult> Rows);
@@ -272,6 +279,8 @@ public class BulkUpsertOverCommissionStatementsHandler
                     s.Notes = string.IsNullOrWhiteSpace(row.Notes) ? null : row.Notes.Trim();
                     s.PaidOn = row.PaidOn;
                     s.ProducerSharePercent = Math.Clamp(row.ProducerSharePercent, 0m, 100m);
+                    s.PeriodFrom = row.PeriodFrom;
+                    s.PeriodTo = row.PeriodTo;
                     s.EnteredByUserId = _current.UserId;
                     updated++;
                     results.Add(new BulkUpsertRowResult(i, true, null, s.Id));
@@ -291,6 +300,8 @@ public class BulkUpsertOverCommissionStatementsHandler
                         Notes = string.IsNullOrWhiteSpace(row.Notes) ? null : row.Notes.Trim(),
                         PaidOn = row.PaidOn,
                         ProducerSharePercent = Math.Clamp(row.ProducerSharePercent, 0m, 100m),
+                        PeriodFrom = row.PeriodFrom,
+                        PeriodTo = row.PeriodTo,
                         EnteredByUserId = _current.UserId
                     };
                     _db.OverCommissionStatements.Add(fresh);

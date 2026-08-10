@@ -32,7 +32,6 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import FolderIcon from "@mui/icons-material/Folder";
 import DownloadForOfflineIcon from "@mui/icons-material/DownloadForOffline";
-import ConstructionIcon from "@mui/icons-material/Construction";
 import PhoneIphoneIcon from "@mui/icons-material/PhoneIphone";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -493,27 +492,49 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
       <Dialog open={desktopOpen} onClose={() => setDesktopOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Stack direction="row" alignItems="center" spacing={1.2}>
-            <ConstructionIcon color="secondary" />
+            <WindowsLogo />
             <span>Εγκατάσταση σε υπολογιστή</span>
           </Stack>
         </DialogTitle>
         <DialogContent>
           <Typography sx={{ mb: 2 }}>
-            Η <b>desktop έκδοση του Kalypsis</b> βρίσκεται ακόμη υπό ανάπτυξη. Θα είναι διαθέσιμη για κατέβασμα και
-            εγκατάσταση <b>μετά τις 20 Οκτωβρίου 2026</b> για τις παρακάτω πλατφόρμες:
+            Η <b>desktop έκδοση του Kalypsis για Windows</b> είναι διαθέσιμη τώρα. Κατεβάστε τον ολοκληρωμένο
+            εγκαταστάτη και ξεκινήστε — περιλαμβάνει .NET, MySQL 8.4 και τα απαραίτητα Visual C++ αρχεία,
+            οπότε δεν χρειάζεται τίποτε άλλο.
           </Typography>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mb: 2 }}>
-            <PlatformCard icon={<WindowsLogo />} name="Windows" hint="Installer .exe (Win 10 / 11)" />
-            <PlatformCard icon={<MacOSLogo />} name="macOS" hint=".dmg (Apple silicon + Intel)" />
-            <PlatformCard icon={<LinuxLogo />} name="Linux" hint=".deb · .rpm · AppImage" />
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mb: 2 }} alignItems="stretch">
+            <Button component="a"
+              href="https://github.com/PanagiotisKotsorgios/kalypsis-desktop-releases/releases/latest/download/kalypsis-desktop-win-Setup.exe"
+              variant="contained" size="large" fullWidth
+              startIcon={<WindowsLogo />}
+              sx={{ textTransform: "none", fontWeight: 800, py: 1.5, borderRadius: 1.5 }}
+              onClick={() => setDesktopOpen(false)}>
+              Λήψη Setup.exe για Windows 10 / 11
+            </Button>
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}>
+            <Button component={RouterLink} to="/download" variant="outlined" size="small" fullWidth
+              onClick={() => setDesktopOpen(false)}
+              sx={{ textTransform: "none", fontWeight: 700 }}>
+              Πλήρης σελίδα λήψης &amp; οδηγίες γραφείου
+            </Button>
+            <Button component={RouterLink} to="/download/releases" variant="outlined" size="small" fullWidth
+              onClick={() => setDesktopOpen(false)}
+              sx={{ textTransform: "none", fontWeight: 700 }}>
+              Ιστορικό εκδόσεων
+            </Button>
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mb: 2, opacity: 0.55 }}>
+            <PlatformCard icon={<MacOSLogo />} name="macOS" hint="Σύντομα" />
+            <PlatformCard icon={<LinuxLogo />} name="Linux" hint="Σύντομα" />
           </Stack>
           <Typography variant="body2" color="text.secondary">
-            Μέχρι τότε, μπορείτε να χρησιμοποιείτε κανονικά το Kalypsis μέσω browser — όλες οι λειτουργίες θα είναι
-            διαθέσιμες και στην desktop έκδοση.
+            Μπορείτε πάντα να χρησιμοποιείτε το Kalypsis μέσω browser — η desktop έκδοση προσφέρει τα ίδια
+            χαρακτηριστικά με επιπλέον auto-updates και τοπική βάση δεδομένων.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button variant="contained" onClick={() => setDesktopOpen(false)}>Κατάλαβα</Button>
+          <Button onClick={() => setDesktopOpen(false)}>Κλείσιμο</Button>
         </DialogActions>
       </Dialog>
       <Dialog open={mobileOpen} onClose={() => setMobileOpen(false)} maxWidth="xs" fullWidth>

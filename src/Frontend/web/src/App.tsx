@@ -232,6 +232,7 @@ import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import { AllToolsPage } from "./pages/AllToolsPage";
 import { CarrierBridgesPage } from "./pages/CarrierBridgesPage";
+import { CarrierBridgesHubPage } from "./pages/CarrierBridgesHubPage";
 import { OverCommissionBridgesPage } from "./pages/OverCommissionBridgesPage";
 import { BridgeCodeMappingsPage } from "./pages/BridgeCodeMappingsPage";
 import { ProductionListsPage } from "./pages/ProductionListsPage";
@@ -261,11 +262,8 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />,
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
 
-    // ===== BackOffice — Standalone "Γέφυρες Εταιριών" (carrier xlsx/csv import) =====
-    { to: "/carrier-bridges", labelKey: "nav.carrierBridges", icon: <CloudUploadIcon />, package: "BackOffice" },
-    { to: "/collection-files-bridges", labelKey: "nav.collectionFilesBridges", icon: <CloudUploadIcon />, package: "BackOffice" },
-    { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
-    { to: "/bridge-code-mappings", labelKey: "nav.bridgeCodeMappings", icon: <CloudUploadIcon />, package: "BackOffice" },
+    // ===== BackOffice — Γέφυρες Εταιρειών (hub for 4 carrier-import screens) =====
+    { to: "/carrier-bridges-hub", labelKey: "nav.carrierBridgesHub", icon: <CloudUploadIcon />, package: "BackOffice" },
 
     // ===== BackOffice — ΠΑΡΑΓΩΓΗ (core production records: customers, policies, claims) =====
     { to: "/production-lists", labelKey: "nav.productionLists", icon: <LeaderboardIcon />, package: "BackOffice", group: "production" },
@@ -880,6 +878,7 @@ export default function App() {
                   <Route path="usae" element={<UsaeSubmissionsPage />} />
                   <Route path="all-tools" element={<AllToolsPage />} />
                   <Route path="default-value-rules" element={<Navigate to="/app/commission-rules" replace />} />
+                  <Route path="carrier-bridges-hub" element={<CarrierBridgesHubPage />} />
                   <Route path="carrier-bridges" element={<CarrierBridgesPage />} />
                   <Route path="collection-files-bridges" element={<CollectionFilesBridgesPage />} />
                   <Route path="bridge-code-mappings" element={<BridgeCodeMappingsPage />} />

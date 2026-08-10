@@ -97,6 +97,157 @@ function draftKey(defaultYear: number, defaultMonth: number) {
   return `kalypsis.overCommissionDraft.v1.${defaultYear}-${String(defaultMonth).padStart(2, "0")}`;
 }
 
+// ─── Excel import (carrier ΠΙΝΑΚΙΟ upload) ───────────────────────────
+type ImportField = "producerName" | "producerCode" | "grossAmount"
+                 | "netAmount" | "producerSharePercent" | "reference"
+                 | "paidOn" | "notes";
+
+// Header aliases → normalized field name. Each row in the uploaded sheet
+// is scanned for these variants (case-insensitive, accent-insensitive).
+const HEADER_MAP: Record<string, ImportField> = {
+  "paragogos": "producerName", "producer": "producerName", "onoma": "producerName",
+  "onomateponymo": "producerName", "eponymia": "producerName", "epwnymia": "producerName",
+  "agent": "producerName", "agent name": "producerName", "producer name": "producerName",
+
+  "kwdikos": "producerCode", "kodikos": "producerCode", "code": "producerCode",
+  "agent code": "producerCode", "producer code": "producerCode", "kwd": "producerCode",
+
+  "mikta": "grossAmount", "gross": "grossAmount", "gross amount": "grossAmount",
+  "poso": "grossAmount", "amount": "grossAmount", "brut": "grossAmount",
+  "poso mikto": "grossAmount", "mikto poso": "grossAmount", "yperpromitheia": "grossAmount",
+
+  "kathara": "netAmount", "net": "netAmount", "net amount": "netAmount",
+  "poso kathara": "netAmount",
+
+  "pososto": "producerSharePercent", "pososto paragwgoy": "producerSharePercent",
+  "share": "producerSharePercent", "%": "producerSharePercent", "%paragogoy": "producerSharePercent",
+
+  "reference": "reference", "ref": "reference", "arithmos": "reference",
+  "arithmos parastatikoy": "reference", "parastatiko": "reference",
+
+  "plirwmi": "paidOn", "pliromi": "paidOn", "paid on": "paidOn",
+  "payment date": "paidOn", "date": "paidOn", "hmerominia": "paidOn",
+
+  "shmeiwsi": "notes", "simeiosi": "notes", "notes": "notes",
+  "parathrhsh": "notes", "paratirisi": "notes",
+};
+
+/** Strip accents + lowercase for fuzzy header lookup. */
+function normHeader(s: string): string {
+  return String(s).normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+/** Fuzzy producer match by exact code, then by exact/contains name. */
+function matchProducer(
+  producers: Producer[],
+  name: string | undefined,
+  code: string | undefined,
+): Producer | null {
+  const nCode = (code ?? "").trim();
+  if (nCode.length > 0) {
+    const byCode = producers.find(p => (p.code ?? "").trim().toLowerCase() === nCode.toLowerCase());
+    if (byCode) return byCode;
+  }
+  const nName = (name ?? "").trim().toLowerCase();
+  if (nName.length === 0) return null;
+  const exact = producers.find(p => p.name.trim().toLowerCase() === nName);
+  if (exact) return exact;
+  // Contains match — helps when the sheet has "ΑΝΑΓΝΩΣΤΟΠΟΥΛΟΣ ΝΙΚΟΛΑΟΣ" and
+  // our DB has "ΑΝΑΓΝΩΣΤΟΠΟΥΛΟΣ ΝΙΚΟΣ".
+  return producers.find(p => p.name.trim().toLowerCase().includes(nName)
+                          || nName.includes(p.name.trim().toLowerCase())) ?? null;
+}
+
+interface ExcelImportPreview {
+  fileName: string;
+  sheetNames: string[];
+  activeSheet: string;
+  parsed: Array<{
+    producerName: string | null;
+    producerCode: string | null;
+    matchedProducer: Producer | null;
+    grossAmount: string;
+    netAmount: string;
+    producerSharePercent: string;
+    reference: string;
+    paidOn: string;
+    notes: string;
+    /** Warning message if the row can't be turned into a grid entry. */
+    problem: string | null;
+  }>;
+}
+
+/**
+ * Parse an uploaded workbook. Fuzzy-matches header cells so a carrier's
+ * ΠΙΝΑΚΙΟ Excel (with Greek header names) works alongside vanilla
+ * ["Producer","Gross"] English files. Returns a preview the user confirms
+ * before rows land in the grid.
+ */
+function parseWorkbookPreview(
+  wb: XLSX.WorkBook,
+  sheetName: string,
+  fileName: string,
+  producers: Producer[],
+): ExcelImportPreview {
+  const ws = wb.Sheets[sheetName];
+  const rows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+  if (rows.length === 0) {
+    return { fileName, sheetNames: wb.SheetNames, activeSheet: sheetName, parsed: [] };
+  }
+
+  // Find the header row — the first row where at least 2 cells map to
+  // known headers. Skips leading title/blank rows carriers often put on top.
+  let headerRowIdx = -1;
+  let columnMap: Record<number, ReturnType<() => (typeof HEADER_MAP)[string]>> = {};
+  for (let i = 0; i < Math.min(rows.length, 15); i++) {
+    const test: typeof columnMap = {};
+    (rows[i] ?? []).forEach((cell, j) => {
+      const mapped = HEADER_MAP[normHeader(String(cell))];
+      if (mapped) test[j] = mapped;
+    });
+    if (Object.keys(test).length >= 2) { headerRowIdx = i; columnMap = test; break; }
+  }
+  if (headerRowIdx < 0) {
+    return { fileName, sheetNames: wb.SheetNames, activeSheet: sheetName, parsed: [] };
+  }
+
+  const parsed: ExcelImportPreview["parsed"] = [];
+  for (let r = headerRowIdx + 1; r < rows.length; r++) {
+    const row = rows[r] ?? [];
+    if (row.every(c => c === "" || c == null)) continue;
+    const rec: Record<string, string> = {};
+    Object.entries(columnMap).forEach(([colIdx, field]) => {
+      const raw = row[Number(colIdx)];
+      rec[field!] = raw == null ? "" : String(raw).trim();
+    });
+
+    const gross = rec.grossAmount?.replace(/[€\s]/g, "").replace(",", ".") ?? "";
+    const net   = rec.netAmount?.replace(/[€\s]/g, "").replace(",", ".") ?? "";
+    const pct   = rec.producerSharePercent?.replace(/[\s%]/g, "").replace(",", ".") ?? "";
+    const matched = matchProducer(producers, rec.producerName, rec.producerCode);
+
+    let problem: string | null = null;
+    if (!matched) problem = "Δεν βρέθηκε παραγωγός με αυτό το όνομα/κωδικό.";
+    else if (!gross || Number.isNaN(Number(gross))) problem = "Λείπει ή λάθος μικτό ποσό.";
+
+    parsed.push({
+      producerName: rec.producerName || null,
+      producerCode: rec.producerCode || null,
+      matchedProducer: matched,
+      grossAmount: gross,
+      netAmount: net,
+      producerSharePercent: pct,
+      reference: rec.reference ?? "",
+      paidOn: rec.paidOn ?? "",
+      notes: rec.notes ?? "",
+      problem,
+    });
+  }
+
+  return { fileName, sheetNames: wb.SheetNames, activeSheet: sheetName, parsed };
+}
+
 function emptyRow(defaultYear: number, defaultMonth: number, defaultCarrierId = ""): GridRow {
   return {
     key: uid(),
@@ -165,6 +316,9 @@ export function OverCommissionGridEditor({
   const [visibleCols, setVisibleCols] = useState<Record<OptionalCol, boolean>>(() => loadColVisibility());
   const [colMenuAnchor, setColMenuAnchor] = useState<HTMLElement | null>(null);
   const [exportMenuAnchor, setExportMenuAnchor] = useState<HTMLElement | null>(null);
+  const [importPreview, setImportPreview] = useState<ExcelImportPreview | null>(null);
+  const [importCarrierId, setImportCarrierId] = useState<string>(defaultCarrierId);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const saveTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -413,6 +567,27 @@ export function OverCommissionGridEditor({
               onClick={(e) => setColMenuAnchor(e.currentTarget)}>
               Στήλες
             </Button>
+            <Button size="small" startIcon={<UploadFileIcon />} variant="outlined"
+              onClick={() => fileInputRef.current?.click()}>
+              Εισαγωγή από Excel
+            </Button>
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv"
+              style={{ display: "none" }}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  const buf = await file.arrayBuffer();
+                  const wb = XLSX.read(buf, { type: "array" });
+                  const preview = parseWorkbookPreview(wb, wb.SheetNames[0], file.name, producers);
+                  setImportPreview(preview);
+                  setImportCarrierId(defaultCarrierId || carriers[0]?.id || "");
+                } catch (err) {
+                  setGlobalError(`Αδυναμία ανάγνωσης αρχείου: ${(err as Error).message}`);
+                } finally {
+                  e.target.value = "";  // allow selecting the same file again
+                }
+              }} />
             <Button size="small" startIcon={<FileDownloadIcon />} variant="outlined"
               onClick={(e) => setExportMenuAnchor(e.currentTarget)}
               disabled={stats.complete === 0}>
@@ -658,6 +833,107 @@ export function OverCommissionGridEditor({
         <DialogActions>
           <Button onClick={() => setConfirmClearOpen(false)}>Ακύρωση</Button>
           <Button color="error" variant="contained" onClick={clearAll}>Καθαρισμός</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Excel import preview */}
+      <Dialog open={!!importPreview} onClose={() => setImportPreview(null)} maxWidth="lg" fullWidth>
+        <DialogTitle>
+          Εισαγωγή από Excel — {importPreview?.fileName}
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Επιβεβαιώστε τη χαρτογράφηση παραγωγών + επιλέξτε ασφαλιστική. Οι γραμμές θα προστεθούν
+            στα πρόχειρα του grid — πατήστε μετά «Εισαγωγή N γραμμών» για να σταλούν στο σύστημα.
+          </Typography>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 2 }}>
+            <TextField size="small" label="Φύλλο εργασίας" value={importPreview?.activeSheet ?? ""}
+              disabled sx={{ minWidth: 200 }} />
+            <TextField select size="small" label="Ασφαλιστική για όλες τις γραμμές"
+              value={importCarrierId} onChange={(e) => setImportCarrierId(e.target.value)}
+              sx={{ minWidth: 260 }}>
+              <MenuItem value="">— επιλέξτε —</MenuItem>
+              {carriers.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+            </TextField>
+            <Box sx={{ flex: 1 }} />
+            <Chip color="success" label={`${importPreview?.parsed.filter(p => !p.problem).length ?? 0} έτοιμες`} />
+            <Chip color="warning" label={`${importPreview?.parsed.filter(p => p.problem).length ?? 0} με πρόβλημα`} />
+          </Stack>
+
+          <Box sx={{ maxHeight: 420, overflowY: "auto" }}>
+            <Table size="small" stickyHeader>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Παραγωγός στο Excel</TableCell>
+                  <TableCell>Κωδικός</TableCell>
+                  <TableCell>Αντιστοιχία Kalypsis</TableCell>
+                  <TableCell align="right">Μικτά</TableCell>
+                  <TableCell align="right">Καθαρά</TableCell>
+                  <TableCell align="right">%</TableCell>
+                  <TableCell>Reference</TableCell>
+                  <TableCell>Παρατηρήσεις</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {(importPreview?.parsed ?? []).map((p, i) => (
+                  <TableRow key={i} sx={{ bgcolor: p.problem ? "rgba(255,167,38,0.08)" : undefined }}>
+                    <TableCell>{p.producerName ?? "—"}</TableCell>
+                    <TableCell sx={{ fontFamily: "monospace" }}>{p.producerCode ?? "—"}</TableCell>
+                    <TableCell>
+                      {p.matchedProducer
+                        ? <Chip size="small" color="success" label={p.matchedProducer.name} />
+                        : <Chip size="small" color="warning" label="Δεν βρέθηκε" />}
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontFamily: "monospace" }}>{p.grossAmount || "—"}</TableCell>
+                    <TableCell align="right" sx={{ fontFamily: "monospace" }}>{p.netAmount || "—"}</TableCell>
+                    <TableCell align="right" sx={{ fontFamily: "monospace" }}>{p.producerSharePercent || "—"}</TableCell>
+                    <TableCell>{p.reference || "—"}</TableCell>
+                    <TableCell sx={{ color: "warning.dark", fontSize: 12 }}>{p.problem ?? ""}</TableCell>
+                  </TableRow>
+                ))}
+                {(importPreview?.parsed?.length ?? 0) === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} sx={{ py: 4, textAlign: "center", color: "text.secondary" }}>
+                      Δεν αναγνωρίστηκαν γραμμές. Το αρχείο πρέπει να έχει τουλάχιστον στήλες
+                      «Παραγωγός / Ονοματεπώνυμο» και «Μικτά / Ποσό» στην κεφαλίδα.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setImportPreview(null)}>Ακύρωση</Button>
+          <Button variant="contained" startIcon={<UploadFileIcon />}
+            disabled={!importCarrierId
+                     || !importPreview
+                     || importPreview.parsed.every(p => p.problem)}
+            onClick={() => {
+              if (!importPreview) return;
+              const ready: GridRow[] = importPreview.parsed
+                .filter(p => !p.problem && p.matchedProducer)
+                .map(p => ({
+                  key: uid(),
+                  insuranceCompanyId: importCarrierId,
+                  producerId: p.matchedProducer!.id,
+                  year: defaultYear,
+                  month: defaultMonth,
+                  grossAmount: p.grossAmount,
+                  netAmount: p.netAmount,
+                  producerSharePercent: p.producerSharePercent,
+                  reference: p.reference,
+                  paidOn: p.paidOn,
+                  notes: p.notes,
+                }));
+              setRows(prev => {
+                const kept = prev.filter(r => !isRowEmpty(r));
+                return [...kept, ...ready];
+              });
+              setImportPreview(null);
+            }}>
+            Προσθήκη στον πίνακα ({importPreview?.parsed.filter(p => !p.problem).length ?? 0} γραμμές)
+          </Button>
         </DialogActions>
       </Dialog>
     </Card>

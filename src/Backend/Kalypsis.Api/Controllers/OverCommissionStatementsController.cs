@@ -34,7 +34,8 @@ public class OverCommissionStatementsController : ControllerBase
         decimal GrossAmount, decimal NetAmount, string? Currency,
         string? Reference, string? Notes,
         DateTime? PaidOn,
-        decimal? ProducerSharePercent);
+        decimal? ProducerSharePercent,
+        DateTime? PeriodFrom = null, DateTime? PeriodTo = null);
 
     [HttpPost]
     public async Task<ActionResult<OverCommissionStatementDto>> Create(
@@ -45,7 +46,8 @@ public class OverCommissionStatementsController : ControllerBase
             body.Year, body.Month,
             body.GrossAmount, body.NetAmount, body.Currency ?? "EUR",
             body.Reference, body.Notes, body.PaidOn,
-            body.ProducerSharePercent ?? 100m), ct));
+            body.ProducerSharePercent ?? 100m,
+            body.PeriodFrom, body.PeriodTo), ct));
 
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<OverCommissionStatementDto>> Update(
@@ -56,7 +58,8 @@ public class OverCommissionStatementsController : ControllerBase
             body.Year, body.Month,
             body.GrossAmount, body.NetAmount, body.Currency ?? "EUR",
             body.Reference, body.Notes, body.PaidOn,
-            body.ProducerSharePercent ?? 100m), ct));
+            body.ProducerSharePercent ?? 100m,
+            body.PeriodFrom, body.PeriodTo), ct));
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)

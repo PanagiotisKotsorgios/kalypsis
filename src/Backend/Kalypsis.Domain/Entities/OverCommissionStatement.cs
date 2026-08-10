@@ -50,4 +50,12 @@ public class OverCommissionStatement : TenantEntity
     public decimal ProducerSharePercent { get; set; } = 100m;
 
     public Guid? EnteredByUserId { get; set; }
+
+    /// <summary>
+    /// Optional custom period start when the carrier's πινάκιο covers a
+    /// span other than one whole calendar month (e.g. bi-monthly, ad-hoc
+    /// campaigns). If null, Year+Month are the only period signal.
+    /// </summary>
+    public DateTime? PeriodFrom { get; set; }
+    public DateTime? PeriodTo   { get; set; }
 }

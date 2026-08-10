@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, IconButton, MenuItem, Stack, Table, TableBody, TableCell,
-  TableHead, TableRow, TextField, Tooltip, Typography
+  Alert, Box, Button, Card, CardContent, Checkbox, Chip, CircularProgress, Dialog, DialogActions,
+  DialogContent, DialogTitle, FormControlLabel, IconButton, MenuItem, Stack, Table, TableBody,
+  TableCell, TableHead, TableRow, TextField, Tooltip, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -42,6 +42,8 @@ interface StatementDto {
   producerSharePercent: number;
   producerAmount: number;
   officeAmount: number;
+  periodFrom: string | null;
+  periodTo: string | null;
   createdAt: string;
 }
 
@@ -325,7 +327,10 @@ function EntryDialog({ open, entry, defaultYear, defaultMonth, carriers, produce
     currency: "EUR",
     reference: "",
     notes: "",
-    paidOn: ""
+    paidOn: "",
+    useCustomPeriod: false,
+    periodFrom: "",
+    periodTo: ""
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -343,7 +348,10 @@ function EntryDialog({ open, entry, defaultYear, defaultMonth, carriers, produce
         currency: entry.currency,
         reference: entry.reference ?? "",
         notes: entry.notes ?? "",
-        paidOn: entry.paidOn?.slice(0, 10) ?? ""
+        paidOn: entry.paidOn?.slice(0, 10) ?? "",
+        useCustomPeriod: !!(entry.periodFrom || entry.periodTo),
+        periodFrom: entry.periodFrom?.slice(0, 10) ?? "",
+        periodTo: entry.periodTo?.slice(0, 10) ?? ""
       });
     } else {
       setForm({
@@ -352,7 +360,8 @@ function EntryDialog({ open, entry, defaultYear, defaultMonth, carriers, produce
         grossAmount: 0, netAmount: 0,
         producerSharePercent: 100,
         currency: "EUR",
-        reference: "", notes: "", paidOn: ""
+        reference: "", notes: "", paidOn: "",
+        useCustomPeriod: false, periodFrom: "", periodTo: ""
       });
     }
     setError(null);
@@ -370,7 +379,9 @@ function EntryDialog({ open, entry, defaultYear, defaultMonth, carriers, produce
         reference: form.reference.trim() || null,
         notes: form.notes.trim() || null,
         paidOn: form.paidOn || null,
-        producerSharePercent: Math.min(100, Math.max(0, form.producerSharePercent))
+        producerSharePercent: Math.min(100, Math.max(0, form.producerSharePercent)),
+        periodFrom: form.useCustomPeriod && form.periodFrom ? form.periodFrom : null,
+        periodTo:   form.useCustomPeriod && form.periodTo   ? form.periodTo   : null,
       };
       if (entry) return (await api.put(`/over-commission-statements/${entry.id}`, body)).data;
       return (await api.post("/over-commission-statements", body)).data;
@@ -382,6 +393,19 @@ function EntryDialog({ open, entry, defaultYear, defaultMonth, carriers, produce
   const valid = form.insuranceCompanyId && form.producerId
     && form.year >= 2000 && form.month >= 1 && form.month <= 12
     && form.grossAmount >= 0;
+
+  // ── Derived calculations exposed to the user ──────────────────────
+  const gross = form.grossAmount || 0;
+  const net = form.netAmount || 0;
+  const pct = Math.min(100, Math.max(0, form.producerSharePercent));
+  // If net is blank/0 the backend treats it as = gross. Reflect that here
+  // so the "taxes" number doesn't look like the whole gross was withheld.
+  const effectiveNet = net > 0 ? net : gross;
+  const taxes = Math.max(0, gross - effectiveNet);
+  const netPercentOfGross = gross > 0 ? (effectiveNet / gross) * 100 : 0;
+  const taxPercentOfGross = gross > 0 ? (taxes / gross) * 100 : 0;
+  const producerCommission = Math.round(effectiveNet * pct) / 100;
+  const officeOverCommission = Math.round((effectiveNet - producerCommission) * 100) / 100;
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -426,23 +450,55 @@ function EntryDialog({ open, entry, defaultYear, defaultMonth, carriers, produce
               helperText="Άφησέ το 0 = ίδιο με μικτά"
               inputProps={{ step: "0.01", min: 0 }} />
           </Stack>
-          <Stack direction="row" spacing={2}>
-            <TextField type="number" label="% Παραγωγού" required
+          {/* Computed KPIs from Gross + Net */}
+          <Card variant="outlined" sx={{ p: 1.5, bgcolor: "rgba(31,123,179,0.04)" }}>
+            <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+              <Chip size="small" variant="outlined"
+                label={`Καθαρά επί μικτών: ${netPercentOfGross.toFixed(2)}%`} />
+              <Chip size="small" variant="outlined" color="warning"
+                label={`Φόροι/κρατήσεις: ${moneyFmt.format(taxes)} (${taxPercentOfGross.toFixed(2)}%)`} />
+              <Chip size="small" color="success"
+                label={`Προμήθεια παραγωγού: ${moneyFmt.format(producerCommission)}`} />
+              <Chip size="small" color="info"
+                label={`Υπερπρομήθεια (καθαρή έδρας): ${moneyFmt.format(officeOverCommission)}`} />
+            </Stack>
+          </Card>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <TextField type="number" label="% Παραγωγού επί καθαρών" required
               value={form.producerSharePercent}
               onChange={(e) => setForm({ ...form, producerSharePercent: Number(e.target.value) })}
               inputProps={{ step: "0.01", min: 0, max: 100 }}
-              helperText="Ό,τι μένει (100 − x) πάει στην έδρα"
-              sx={{ width: 180 }} />
-            <Box sx={{ flex: 1, display: "flex", alignItems: "center", gap: 2, mt: 1 }}>
-              <Chip size="small" color="success"
-                label={`Παραγωγός: ${moneyFmt.format(form.grossAmount * Math.min(100, Math.max(0, form.producerSharePercent)) / 100)}`} />
-              <Chip size="small" color="info"
-                label={`Έδρα: ${moneyFmt.format(form.grossAmount - form.grossAmount * Math.min(100, Math.max(0, form.producerSharePercent)) / 100)}`} />
-            </Box>
+              helperText="Ό,τι μένει (100 − x) πάει στην έδρα ως υπερπρομήθεια."
+              sx={{ width: 240 }} />
           </Stack>
           <TextField label="Reference (π.χ. αρ. πινακίου)" fullWidth value={form.reference}
             onChange={(e) => setForm({ ...form, reference: e.target.value })}
             placeholder="ΠΙΝΑΚΙΟ ΥΠΕΡΠΡΟΜΗΘΕΙΩΝ ERGO 4/2026" />
+
+          {/* Optional custom period — otherwise Year+Month above are the period. */}
+          <Card variant="outlined" sx={{ p: 1.5 }}>
+            <FormControlLabel
+              control={<Checkbox size="small" checked={form.useCustomPeriod}
+                onChange={(e) => setForm({ ...form, useCustomPeriod: e.target.checked })} />}
+              label="Καθορισμός διάρκειας (από — έως)"
+            />
+            {form.useCustomPeriod && (
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 1 }}>
+                <TextField type="date" label="Από" fullWidth InputLabelProps={{ shrink: true }}
+                  value={form.periodFrom}
+                  onChange={(e) => setForm({ ...form, periodFrom: e.target.value })} />
+                <TextField type="date" label="Έως" fullWidth InputLabelProps={{ shrink: true }}
+                  value={form.periodTo}
+                  onChange={(e) => setForm({ ...form, periodTo: e.target.value })} />
+              </Stack>
+            )}
+            {!form.useCustomPeriod && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                Χωρίς επιλογή, η περίοδος είναι ολόκληρος ο μήνας {form.month.toString().padStart(2,"0")}/{form.year}.
+              </Typography>
+            )}
+          </Card>
+
           <TextField label="Ημ/νία πληρωμής (προαιρετικό)" type="date" fullWidth
             InputLabelProps={{ shrink: true }}
             value={form.paidOn}
