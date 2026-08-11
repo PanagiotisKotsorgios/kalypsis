@@ -31,7 +31,8 @@ public record GetCommissionDistributionQuery(
     DateOnly? From, DateOnly? To,
     Guid? ProducerId,
     Guid? CarrierId,
-    string? Level          // "Producer" / "Manager" / "Unit" / "Assistant" / "Agency" / null = all
+    string? Level,         // "Producer" / "Manager" / "Unit" / "Assistant" / "Agency" / null = all
+    string? Scope = null   // "policies" (default) / "overcommissions" / "all"
 ) : IRequest<CommissionDistributionDto>;
 
 public class GetCommissionDistributionQueryHandler
@@ -64,56 +65,147 @@ public class GetCommissionDistributionQueryHandler
         var from = request.From ?? new DateOnly(today.Year, 1, 1);
         var to = request.To ?? new DateOnly(today.Year, 12, 31);
 
-        // Anchor on the policy's StartDate so «what was earned in 2026»
-        // matches the production report's totals for the same window —
-        // otherwise the two reports never tie out and the operator loses
-        // trust in both.
-        var policies = _db.Policies.IgnoreQueryFilters()
-            .Where(p => p.TenantId == tenantId && p.DeletedAt == null
-                && p.Status != PolicyStatus.Draft && p.Status != PolicyStatus.Cancelled
-                && p.StartDate >= from && p.StartDate <= to);
-        if (request.CarrierId is Guid cid)
-            policies = policies.Where(p => p.InsuranceCompanyId == cid);
-        var policyIds = await policies.Select(p => p.Id).ToListAsync(ct);
-
-        if (policyIds.Count == 0)
-        {
-            var empty = new CommissionDistributionRow("", "", "", 0, 0m, 0m, 0m);
-            return new CommissionDistributionDto(Array.Empty<CommissionDistributionRow>(), empty, from, to);
-        }
-
-        var splitsQ = _db.PolicyCommissionSplits.IgnoreQueryFilters()
-            .Where(s => s.TenantId == tenantId && s.DeletedAt == null && policyIds.Contains(s.PolicyId));
-        if (request.ProducerId is Guid pid)
-            splitsQ = splitsQ.Where(s => s.ProducerId == pid);
-        if (!string.IsNullOrEmpty(request.Level) && Enum.TryParse<HierarchyLevel>(request.Level, true, out var lvl))
-            splitsQ = splitsQ.Where(s => s.HierarchyLevel == lvl);
-
-        var raw = await splitsQ
-            .Select(s => new {
-                s.PolicyId, s.ProducerId, s.HierarchyLevel,
-                s.GrossAmount, s.TaxWithholdingAmount, s.NetAmount
-            })
-            .ToListAsync(ct);
+        // Scope: "policies" (default), "overcommissions" or "all". Lets the
+        // operator ask "who earned what" across just the policy splits, just
+        // the monthly πινάκιο πρόσοδοι, or both combined — a single unified
+        // ledger. Empty / unrecognised value → policies (safe default).
+        var scope = (request.Scope ?? "policies").ToLowerInvariant();
+        var includePolicies = scope != "overcommissions";
+        var includeOverCommissions = scope == "overcommissions" || scope == "all";
 
         var producerNames = await _db.Producers.IgnoreQueryFilters()
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null)
             .ToDictionaryAsync(p => p.Id, p => p.Name, ct);
 
-        var rows = raw
-            .GroupBy(x => (x.ProducerId, x.HierarchyLevel))
-            .Select(g => {
-                var name = g.Key.ProducerId is Guid gid && producerNames.TryGetValue(gid, out var pn)
+        // (ProducerId?, HierarchyLevel) → running totals — accumulator across
+        // both sources so a producer who shows up in policy splits AND in the
+        // over-commission πινάκιο gets a single unified row.
+        var acc = new Dictionary<(Guid? ProducerId, HierarchyLevel Level), (int Policies, decimal Gross, decimal Tax, decimal Net)>();
+        var seenPolicyIds = new HashSet<Guid>();
+
+        if (includePolicies)
+        {
+            // Anchor on the policy's StartDate so «what was earned in 2026»
+            // matches the production report's totals for the same window.
+            var policies = _db.Policies.IgnoreQueryFilters()
+                .Where(p => p.TenantId == tenantId && p.DeletedAt == null
+                    && p.Status != PolicyStatus.Draft && p.Status != PolicyStatus.Cancelled
+                    && p.StartDate >= from && p.StartDate <= to);
+            if (request.CarrierId is Guid cid)
+                policies = policies.Where(p => p.InsuranceCompanyId == cid);
+            var policyIds = await policies.Select(p => p.Id).ToListAsync(ct);
+
+            if (policyIds.Count > 0)
+            {
+                var splitsQ = _db.PolicyCommissionSplits.IgnoreQueryFilters()
+                    .Where(s => s.TenantId == tenantId && s.DeletedAt == null && policyIds.Contains(s.PolicyId));
+                if (request.ProducerId is Guid pid)
+                    splitsQ = splitsQ.Where(s => s.ProducerId == pid);
+                if (!string.IsNullOrEmpty(request.Level) && Enum.TryParse<HierarchyLevel>(request.Level, true, out var lvl))
+                    splitsQ = splitsQ.Where(s => s.HierarchyLevel == lvl);
+
+                var raw = await splitsQ
+                    .Select(s => new {
+                        s.PolicyId, s.ProducerId, s.HierarchyLevel,
+                        s.GrossAmount, s.TaxWithholdingAmount, s.NetAmount
+                    })
+                    .ToListAsync(ct);
+
+                foreach (var g in raw.GroupBy(x => (x.ProducerId, x.HierarchyLevel)))
+                {
+                    var policyCount = g.Select(x => x.PolicyId).Distinct().Count();
+                    var gross = g.Sum(x => x.GrossAmount);
+                    var tax = g.Sum(x => x.TaxWithholdingAmount);
+                    var net = g.Sum(x => x.NetAmount);
+                    var key = (g.Key.ProducerId, g.Key.HierarchyLevel);
+                    if (acc.TryGetValue(key, out var cur))
+                        acc[key] = (cur.Policies + policyCount, cur.Gross + gross, cur.Tax + tax, cur.Net + net);
+                    else
+                        acc[key] = (policyCount, gross, tax, net);
+                }
+                foreach (var polId in raw.Select(x => x.PolicyId).Distinct())
+                    seenPolicyIds.Add(polId);
+            }
+        }
+
+        if (includeOverCommissions)
+        {
+            // Over-commission statements anchor on PeriodFrom when available,
+            // otherwise the natural key (Year, Month). Both paths get mapped
+            // to a DateOnly so the same [from, to] window works uniformly.
+            var overQ = _db.OverCommissionStatements.IgnoreQueryFilters()
+                .Where(s => s.TenantId == tenantId && s.DeletedAt == null);
+            if (request.CarrierId is Guid cid2) overQ = overQ.Where(s => s.InsuranceCompanyId == cid2);
+            if (request.ProducerId is Guid pid2) overQ = overQ.Where(s => s.ProducerId == pid2);
+
+            var overRows = await overQ
+                .Select(s => new {
+                    s.ProducerId, s.GrossAmount, s.NetAmount, s.ProducerSharePercent,
+                    s.PeriodFrom, s.Year, s.Month
+                })
+                .ToListAsync(ct);
+
+            foreach (var r in overRows)
+            {
+                var anchor = r.PeriodFrom.HasValue
+                    ? DateOnly.FromDateTime(r.PeriodFrom.Value.Date)
+                    : new DateOnly(r.Year, r.Month, 1);
+                if (anchor < from || anchor > to) continue;
+
+                // Producer share × gross → producer; the office keeps the rest.
+                // Net follows gross proportionally (there's no per-share tax
+                // captured on the πινάκιο today).
+                var share = r.ProducerSharePercent < 0m ? 0m : r.ProducerSharePercent > 100m ? 100m : r.ProducerSharePercent;
+                var producerGross = Math.Round(r.GrossAmount * (share / 100m), 2, MidpointRounding.AwayFromZero);
+                var producerNet = Math.Round(r.NetAmount * (share / 100m), 2, MidpointRounding.AwayFromZero);
+                var officeGross = r.GrossAmount - producerGross;
+                var officeNet = r.NetAmount - producerNet;
+
+                var noProducerFilter = !(request.ProducerId is Guid) || r.ProducerId == request.ProducerId;
+                var noLevelFilter = string.IsNullOrEmpty(request.Level);
+                var wantProducerLevel = noLevelFilter || string.Equals(request.Level, nameof(HierarchyLevel.Producer), StringComparison.OrdinalIgnoreCase);
+                var wantAgencyLevel   = noLevelFilter || string.Equals(request.Level, nameof(HierarchyLevel.Agency),   StringComparison.OrdinalIgnoreCase);
+
+                if (wantProducerLevel && noProducerFilter && producerGross != 0m)
+                {
+                    var key = ((Guid?)r.ProducerId, HierarchyLevel.Producer);
+                    if (acc.TryGetValue(key, out var cur))
+                        acc[key] = (cur.Policies, cur.Gross + producerGross, cur.Tax, cur.Net + producerNet);
+                    else
+                        acc[key] = (0, producerGross, 0m, producerNet);
+                }
+                if (wantAgencyLevel && officeGross != 0m)
+                {
+                    var key = ((Guid?)null, HierarchyLevel.Agency);
+                    if (acc.TryGetValue(key, out var cur))
+                        acc[key] = (cur.Policies, cur.Gross + officeGross, cur.Tax, cur.Net + officeNet);
+                    else
+                        acc[key] = (0, officeGross, 0m, officeNet);
+                }
+            }
+        }
+
+        if (acc.Count == 0)
+        {
+            var empty = new CommissionDistributionRow("", "", "", 0, 0m, 0m, 0m);
+            return new CommissionDistributionDto(Array.Empty<CommissionDistributionRow>(), empty, from, to);
+        }
+
+        var rows = acc
+            .Select(kv => {
+                var producerId = kv.Key.ProducerId;
+                var level = kv.Key.Level;
+                var name = producerId is Guid gid && producerNames.TryGetValue(gid, out var pn)
                     ? pn
-                    : g.Key.HierarchyLevel == HierarchyLevel.Agency ? "Γραφείο (χωρίς ονομαστική ανάθεση)" : "—";
+                    : level == HierarchyLevel.Agency ? "Γραφείο (χωρίς ονομαστική ανάθεση)" : "—";
                 return new CommissionDistributionRow(
-                    Key: $"{g.Key.ProducerId?.ToString() ?? "-"}|{g.Key.HierarchyLevel}",
+                    Key: $"{producerId?.ToString() ?? "-"}|{level}",
                     ProducerName: name,
-                    Level: LabelFor(g.Key.HierarchyLevel),
-                    PolicyCount: g.Select(x => x.PolicyId).Distinct().Count(),
-                    Gross: g.Sum(x => x.GrossAmount),
-                    TaxWithholding: g.Sum(x => x.TaxWithholdingAmount),
-                    Net: g.Sum(x => x.NetAmount));
+                    Level: LabelFor(level),
+                    PolicyCount: kv.Value.Policies,
+                    Gross: kv.Value.Gross,
+                    TaxWithholding: kv.Value.Tax,
+                    Net: kv.Value.Net);
             })
             .OrderByDescending(r => r.Gross)
             .ToList();
@@ -122,7 +214,7 @@ public class GetCommissionDistributionQueryHandler
             Key: "TOTAL",
             ProducerName: "Σύνολο",
             Level: "",
-            PolicyCount: raw.Select(x => x.PolicyId).Distinct().Count(),
+            PolicyCount: seenPolicyIds.Count,
             Gross: rows.Sum(r => r.Gross),
             TaxWithholding: rows.Sum(r => r.TaxWithholding),
             Net: rows.Sum(r => r.Net));

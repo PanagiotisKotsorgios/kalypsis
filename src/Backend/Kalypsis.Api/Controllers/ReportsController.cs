@@ -123,9 +123,10 @@ public class ReportsController : ControllerBase
         [FromQuery] Guid? producerId,
         [FromQuery] Guid? carrierId,
         [FromQuery] string? level,
+        [FromQuery] string? scope,
         CancellationToken cancellationToken = default)
         => Ok(await _mediator.Send(
-            new GetCommissionDistributionQuery(from, to, producerId, carrierId, level),
+            new GetCommissionDistributionQuery(from, to, producerId, carrierId, level, scope),
             cancellationToken));
 
     [HttpGet("commission-distribution/export.csv")]
@@ -136,10 +137,11 @@ public class ReportsController : ControllerBase
         [FromQuery] Guid? producerId,
         [FromQuery] Guid? carrierId,
         [FromQuery] string? level,
+        [FromQuery] string? scope,
         CancellationToken cancellationToken = default)
     {
         var report = await _mediator.Send(
-            new GetCommissionDistributionQuery(from, to, producerId, carrierId, level),
+            new GetCommissionDistributionQuery(from, to, producerId, carrierId, level, scope),
             cancellationToken);
         var el = CultureInfo.GetCultureInfo("el-GR");
         var sb = new StringBuilder();

@@ -45,6 +45,10 @@ export function CommissionDistributionPage() {
   const [producerId, setProducerId] = useState("");
   const [carrierId, setCarrierId] = useState("");
   const [level, setLevel] = useState("");
+  // What to include in the ledger: "policies" (commission splits from συμβόλαια —
+  // the default, matches historic behaviour), "overcommissions" (only the
+  // monthly πινάκιο rows), or "all" (both, merged per producer × level).
+  const [scope, setScope] = useState<"policies" | "overcommissions" | "all">("policies");
 
   const carriers = useQuery({
     queryKey: ["insurance-companies", "used"],
@@ -62,8 +66,9 @@ export function CommissionDistributionPage() {
     if (producerId) p.producerId = producerId;
     if (carrierId) p.carrierId = carrierId;
     if (level) p.level = level;
+    if (scope && scope !== "policies") p.scope = scope;
     return p;
-  }, [from, to, producerId, carrierId, level]);
+  }, [from, to, producerId, carrierId, level, scope]);
 
   const report = useQuery({
     queryKey: ["reports-distribution", params],
@@ -91,11 +96,24 @@ export function CommissionDistributionPage() {
         <Typography variant="h4" sx={{ fontWeight: 800 }}>Καταμερισμός Προμηθειών</Typography>
       </Stack>
       <Typography color="text.secondary" sx={{ mb: 2 }}>
-        Ποιος πήρε τι από κάθε συμβόλαιο, ανά επίπεδο ιεραρχίας (Παραγωγός → Προϊστάμενος → Γραφείο).
-        Χρήσιμο για εκκαθαρίσεις και ετήσια κατανομή προμηθειών.
+        Ποιος πήρε τι, ανά επίπεδο ιεραρχίας (Παραγωγός → Προϊστάμενος → Γραφείο). Επιλέξτε
+        πηγή δεδομένων για να δείτε καταμερισμό από <strong>συμβόλαια</strong>,
+        <strong> μηνιαία πινάκια υπερπρομηθειών</strong>, ή και τα δύο μαζί ως συγκεντρωτικά.
       </Typography>
 
       <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        {/* Scope selector — first row, on its own, so the operator explicitly
+            picks what the numbers below cover: policy splits, over-commission
+            πινάκιο rows, or both merged. Default is Policies to match the
+            historic behaviour when older reports were bookmarked. */}
+        <Box sx={{ mb: 1 }}>
+          <SearchableTextField size="small" label="Πηγή δεδομένων" value={scope}
+            onChange={e => setScope((e.target.value as typeof scope) || "policies")} fullWidth>
+            <MenuItem value="policies">Μόνο από συμβόλαια (καταμερισμοί)</MenuItem>
+            <MenuItem value="overcommissions">Μόνο υπερπρομήθειες (πινάκια)</MenuItem>
+            <MenuItem value="all">Όλα (συμβόλαια + υπερπρομήθειες)</MenuItem>
+          </SearchableTextField>
+        </Box>
         <Box sx={{
           display: "grid", gap: 1,
           gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)" },
@@ -124,7 +142,7 @@ export function CommissionDistributionPage() {
         <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 1 }}>
           <Button size="small" onClick={() => {
             setFrom(`${y}-01-01`); setTo(`${y}-12-31`);
-            setProducerId(""); setCarrierId(""); setLevel("");
+            setProducerId(""); setCarrierId(""); setLevel(""); setScope("policies");
           }}>Καθαρισμός</Button>
           <Button size="small" variant="contained" startIcon={<DownloadIcon />}
             disabled={!rows.length} onClick={downloadCsv}>Εξαγωγή CSV</Button>
@@ -135,8 +153,9 @@ export function CommissionDistributionPage() {
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
       ) : rows.length === 0 ? (
         <Alert severity="info">
-          Δεν υπάρχει καταμερισμός προμηθειών στο διάστημα. Ελέγξτε ότι έχουν οριστεί κανόνες
-          στην «Παραμετροποίηση προμηθειών» και ότι υπάρχουν συμβόλαια στο επιλεγμένο εύρος.
+          Δεν βρέθηκαν εγγραφές στο επιλεγμένο διάστημα και πηγή δεδομένων. {scope !== "overcommissions" &&
+            "Για συμβόλαια, ελέγξτε ότι έχουν οριστεί κανόνες στην «Παραμετροποίηση προμηθειών»."} {scope !== "policies" &&
+            "Για υπερπρομήθειες, ελέγξτε τα καταχωρημένα πινάκια στην ενότητα «Υπερπρομήθειες»."}
         </Alert>
       ) : (
         <>

@@ -196,6 +196,7 @@ import { ProducerReconciliationPage } from "./pages/ProducerReconciliationPage";
 import { MyExpectedRatesPage } from "./pages/MyExpectedRatesPage";
 import { MyReconciliationPage } from "./pages/MyReconciliationPage";
 import { ReconciliationDashboardPage } from "./pages/ReconciliationDashboardPage";
+import { ReconciliationHubPage } from "./pages/ReconciliationHubPage";
 import { PremiumGate } from "./components/PremiumGate";
 import { UpgradePlanDialogHost } from "./components/UpgradePlanDialog";
 import VerifiedIcon from "@mui/icons-material/Verified";
@@ -281,7 +282,9 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/financials", labelKey: "nav.financials", icon: <AttachMoneyIcon />, package: "BackOffice", group: "financials" },
     { to: "/securities", labelKey: "nav.securities", icon: <RestoreIcon />, package: "BackOffice", group: "financials" },
     { to: "/credit-notes", labelKey: "nav.creditNotes", icon: <ReceiptLongOutlinedIcon />, package: "BackOffice", group: "financials" },
-    { to: "/commission-distribution", labelKey: "nav.commissionDistribution", icon: <AccountTreeIcon />, package: "BackOffice", group: "financials" },
+    // Consolidation: /commission-distribution moved into the "Ταυτοποιήσεις & Καταμερισμοί"
+    // hub in the Admin group (below), alongside the two reconciliation screens.
+    // Route still resolves for bookmarks.
     { to: "/financial-report", labelKey: "nav.financialReport", icon: <AccountBalanceIcon />, package: "BackOffice", group: "financials" },
     { to: "/producer-statement", labelKey: "nav.producerStatement", icon: <ReceiptLongIcon />, package: "BackOffice", group: "financials" },
     // Roadmap accounting placeholders — routes stay (deep-links + all-tools
@@ -331,8 +334,10 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
     { to: "/audit", labelKey: "nav.audit", icon: <GavelIcon />, package: "BackOffice", group: "admin" },
     { to: "/recycle-bin", labelKey: "nav.recycleBin", icon: <RestoreFromTrashIcon />, package: "BackOffice", group: "admin", premium: "recycle-bin" },
-    { to: "/producer-reconciliation", labelKey: "nav.producerReconciliation", icon: <VerifiedIcon />, package: "BackOffice", group: "admin" },
-    { to: "/reconciliation-dashboard", labelKey: "nav.reconciliationDashboard", icon: <AnalyticsIcon />, package: "BackOffice", group: "admin" },
+    // Consolidated hub — one entry instead of three. Bundles:
+    //   /reconciliation-dashboard, /producer-reconciliation, /commission-distribution
+    // Individual routes still resolve for bookmarks.
+    { to: "/reconciliation-hub", labelKey: "nav.reconciliationHub", icon: <AccountTreeIcon />, package: "BackOffice", group: "admin" },
     { to: "/customer-merge", labelKey: "nav.merge", icon: <MergeIcon />, package: "BackOffice", group: "admin" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "BackOffice", group: "admin" },
 
@@ -641,6 +646,7 @@ export default function App() {
                   <Route path="my-expected-rates" element={<MyExpectedRatesPage />} />
                   <Route path="my-reconciliation" element={<MyReconciliationPage />} />
                   <Route path="reconciliation-dashboard" element={<ReconciliationDashboardPage />} />
+                  <Route path="reconciliation-hub" element={<ReconciliationHubPage />} />
                   <Route path="tasks" element={<TasksPage />} />
                   <Route path="producers" element={<ProducersPage />} />
                   <Route path="claims" element={<ClaimsPage />} />
