@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FilterHelp } from "../components/FilterHelp";
 import {
   Alert, Autocomplete, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  Divider, IconButton, LinearProgress, Stack, Tab, Tabs, Table, TableBody, TableCell, TableHead, TableRow,
+  Divider, IconButton, LinearProgress, MenuItem, Stack, Tab, Tabs, Table, TableBody, TableCell, TableHead, TableRow,
   TextField, Tooltip, Typography
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
@@ -217,7 +217,7 @@ export function CarrierBridgesPage() {
     onError: e => setErr(extractErrorMessage(e))
   });
   const [pendingLob, setPendingLob] = useState<string>("auto");
-  const [filter, setFilter] = useState<"all" | "unlinked" | "renewal" | "new" | "cancellation" | "greencard" | "duplicate">("all");
+  const [filter, setFilter] = useState<"all" | "ready" | "unlinked" | "renewal" | "new" | "cancellation" | "greencard" | "duplicate">("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 25;
@@ -335,6 +335,7 @@ export function CarrierBridgesPage() {
     const s = search.trim().toLowerCase();
     return revealed.filter(r => {
       switch (filter) {
+        case "ready":        if (!isImportable(r)) return false; break;
         case "unlinked":     if (!(r.rowType === "Renewal" && !r.linkedPolicyId)) return false; break;
         case "renewal":      if (r.rowType !== "Renewal") return false; break;
         case "new":          if (r.rowType !== "New") return false; break;
@@ -740,18 +741,35 @@ export function CarrierBridgesPage() {
               </Stack>
               <Stack direction="row" spacing={1}>
                 <Button onClick={() => { setPreview(null); setSelected(null); setCommitted(null); setResolutions({}); setBulkPanelOpen(false); }}>{t("common.cancel")}</Button>
-                <Tooltip title={allResolved ? "" : "Αντιστοιχίστε πρώτα όλους τους κωδικούς πιο κάτω"}>
-                  <span>
-                <Button variant="contained" disabled={!allResolved || commit.isPending || revealedIndex < preview.rows.length || !!committed}
-                  onClick={() => commit.mutate()}>
-                  {commit.isPending
-                    ? <CircularProgress size={18} />
-                    : committed
-                      ? t("carrierBridges.imported")
-                      : t("carrierBridges.confirmImport", { count: preview.rows.filter(isImportable).length })}
-                </Button>
-                  </span>
-                </Tooltip>
+                {(() => {
+                  const readyCount = preview.rows.filter(isImportable).length;
+                  // Compute a precise reason for disable so the tooltip
+                  // actually tells the operator what to fix instead of
+                  // silently greying-out.
+                  const previewing = revealedIndex < preview.rows.length;
+                  const noneReady = readyCount === 0;
+                  const disabled = !allResolved || commit.isPending || previewing || noneReady;
+                  const reason = !allResolved
+                    ? "Αντιστοιχίστε πρώτα όλους τους κωδικούς πιο κάτω"
+                    : previewing
+                      ? "Περιμένετε την ολοκλήρωση προεπισκόπησης"
+                      : noneReady
+                        ? "Δεν υπάρχει καμία έτοιμη γραμμή προς εισαγωγή."
+                        : "";
+                  return (
+                    <Tooltip title={reason}>
+                      <span>
+                        <Button variant="contained" disabled={disabled} onClick={() => commit.mutate()}>
+                          {commit.isPending
+                            ? <CircularProgress size={18} />
+                            : committed
+                              ? t("carrierBridges.confirmImportAgain", { count: readyCount, defaultValue: `Νέα εισαγωγή ${readyCount} έτοιμων` })
+                              : t("carrierBridges.confirmImport", { count: readyCount })}
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  );
+                })()}
               </Stack>
             </Stack>
             {revealedIndex < preview.rows.length && (
@@ -827,28 +845,43 @@ export function CarrierBridgesPage() {
             );
           })()}
 
-          {/* Filter chips + search */}
+          {/* Filter dropdown + search */}
           <Card sx={{ p: 1.5, mb: 1.5 }}>
             <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }}>
-              <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ flex: 1 }}>
-                {([
-                  ["all",          t("carrierBridges.filter.all", "Όλα"),                preview.rows.length],
-                  ["unlinked",     t("carrierBridges.filter.unlinked", "Μόνο ασύνδετα"), preview.rows.filter(r => r.rowType === "Renewal" && !r.linkedPolicyId).length],
-                  ["renewal",      t("carrierBridges.rowType.Renewal", "Ανανέωση"),      preview.rows.filter(r => r.rowType === "Renewal").length],
-                  ["new",          t("carrierBridges.rowType.New", "Νέο"),               preview.rows.filter(r => r.rowType === "New").length],
-                  ["cancellation", t("carrierBridges.rowType.Cancellation", "Ακυρωτικό"),preview.rows.filter(r => r.rowType === "Cancellation").length],
-                  ["greencard",    t("carrierBridges.rowType.GreenCard", "Πρ. Κάρτα"),   preview.rows.filter(r => r.rowType === "GreenCard").length],
-                  ["duplicate",    t("carrierBridges.filter.duplicate", "Έχει εισαχθεί"),preview.rows.filter(r => r.status === "Duplicate").length],
-                ] as const).map(([key, label, count]) => (
-                  <Chip key={key}
-                    label={`${label} · ${count}`}
-                    color={filter === key ? "primary" : "default"}
-                    variant={filter === key ? "filled" : "outlined"}
+              {(() => {
+                const options: Array<{ key: typeof filter; label: string; count: number }> = [
+                  { key: "all",          label: t("carrierBridges.filter.all", "Όλα"),                count: preview.rows.length },
+                  { key: "ready",        label: t("carrierBridges.filter.ready", "Έτοιμα προς εισαγωγή"), count: preview.rows.filter(isImportable).length },
+                  { key: "unlinked",     label: t("carrierBridges.filter.unlinked", "Μόνο ασύνδετα"), count: preview.rows.filter(r => r.rowType === "Renewal" && !r.linkedPolicyId).length },
+                  { key: "renewal",      label: t("carrierBridges.rowType.Renewal", "Ανανέωση"),      count: preview.rows.filter(r => r.rowType === "Renewal").length },
+                  { key: "new",          label: t("carrierBridges.rowType.New", "Νέο"),               count: preview.rows.filter(r => r.rowType === "New").length },
+                  { key: "cancellation", label: t("carrierBridges.rowType.Cancellation", "Ακυρωτικό"),count: preview.rows.filter(r => r.rowType === "Cancellation").length },
+                  { key: "greencard",    label: t("carrierBridges.rowType.GreenCard", "Πρ. Κάρτα"),   count: preview.rows.filter(r => r.rowType === "GreenCard").length },
+                  { key: "duplicate",    label: t("carrierBridges.filter.duplicate", "Έχει εισαχθεί"),count: preview.rows.filter(r => r.status === "Duplicate").length },
+                ];
+                return (
+                  <TextField
+                    select
                     size="small"
-                    onClick={() => { setFilter(key as typeof filter); setPage(1); }}
-                  />
-                ))}
-              </Stack>
+                    label="Φίλτρο εμφάνισης"
+                    value={filter}
+                    onChange={(e) => { setFilter(e.target.value as typeof filter); setPage(1); }}
+                    sx={{ minWidth: 260 }}
+                  >
+                    {options.map(o => (
+                      <MenuItem key={o.key} value={o.key}>
+                        <Stack direction="row" alignItems="center" spacing={1} sx={{ width: "100%" }}>
+                          <Box sx={{ flex: 1 }}>{o.label}</Box>
+                          <Chip size="small" label={o.count} variant="outlined"
+                                color={o.key === "ready" && o.count > 0 ? "success"
+                                     : o.key === "unlinked" && o.count > 0 ? "warning"
+                                     : "default"} />
+                        </Stack>
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                );
+              })()}
               <TextField size="small" placeholder="Αναζήτηση…"
                 value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} sx={{ minWidth: 220 }}
                 InputProps={{
