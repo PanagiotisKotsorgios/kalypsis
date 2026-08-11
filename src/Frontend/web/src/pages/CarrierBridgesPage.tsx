@@ -1120,7 +1120,20 @@ function RowDetailDialog({ row, onClose, onUpdate,
               <Field label={t("carrierBridges.col.net")} value={row.netPremium != null ? num(row.netPremium) : null} />
               <Field label={t("carrierBridges.col.partnerComm")} value={row.partnerCommission != null ? num(row.partnerCommission) : null} />
               <Field label={t("carrierBridges.col.agencyComm")} value={row.agencyCommission != null ? num(row.agencyCommission) : null} />
-              <Field label="Συνεργάτης" value={row.partnerCode} />
+              {/* Producer is editable — if the parser misread the block header
+                  or the operator wants to reassign the row before commit,
+                  they can type the correct partner code here. Change lands
+                  in preview state and ships with the commit payload. */}
+              <Box>
+                <Typography variant="caption" color="text.secondary">Συνεργάτης</Typography>
+                <TextField
+                  size="small" fullWidth
+                  value={row.partnerCode ?? ""}
+                  onChange={(e) => onUpdate({ ...row, partnerCode: e.target.value })}
+                  placeholder="κωδικός συνεργάτη"
+                  helperText="Κωδικός όπως τον αναγνωρίζει η ασφαλιστική· θα ταιριαχθεί με τους δικούς σας."
+                />
+              </Box>
               <Field label="Εταιρία" value={row.carrierName} />
             </Box>
 

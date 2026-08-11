@@ -431,7 +431,16 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         var lastRowNum = lastRow.RowNumber();
         var lastColumnNum = Math.Max(12, ws.LastColumnUsed()?.ColumnNumber() ?? 12);
         var carrierName = ws.Cell(2, 1).GetString().Trim();
-        var partnerCodeFromHeader = ws.Cell(2, 2).GetString().Trim();
+
+        // ERGO's column B (ΣΥΝΕΡΓΑΤΗΣ) acts as a *section header*: the code
+        // is written on the first row of each partner's block, then left
+        // blank on subsequent rows of the same block. The old parser only
+        // read row 2 and applied that partner to every single row of the
+        // file → every policy landed under producer "1". Carry the last
+        // non-empty B value forward instead so KOLOKOURAS (row 69, block
+        // partner "2") stays under 2, ΓΙΑΝΝΑΚΟΥΛΙΑΣ (block "7") stays
+        // under 7, etc.
+        var currentPartnerCode = string.Empty;
 
         for (int rn = 2; rn <= lastRowNum; rn++)
         {
@@ -443,7 +452,12 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 raw[string.IsNullOrWhiteSpace(header) ? $"col{col}" : header] = ws.Cell(rn, col).GetString();
             }
 
-            if (!string.IsNullOrEmpty(partnerCodeFromHeader)) raw["Συνεργάτης.Code"] = partnerCodeFromHeader;
+            // Refresh current partner whenever B has a value; otherwise
+            // inherit from the last non-empty header.
+            var partnerCellRaw = ws.Cell(rn, 2).GetString().Trim();
+            if (!string.IsNullOrEmpty(partnerCellRaw)) currentPartnerCode = partnerCellRaw;
+            if (!string.IsNullOrEmpty(currentPartnerCode)) raw["Συνεργάτης.Code"] = currentPartnerCode;
+
             string? customerName = ws.Cell(rn, 3).GetString().Trim();
             string? policyNumber = ws.Cell(rn, 4).GetString().Trim();
             string? plateOrProposal = ws.Cell(rn, 5).GetString().Trim();
@@ -533,7 +547,7 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 customerName, null,                     // ERGO file has no AFM — leave VAT empty
                 issue, start, end,
                 gross, net, partnerComm, agencyComm,
-                carrierName, partnerCodeFromHeader,
+                carrierName, currentPartnerCode,
                 raw, notes, status, rowType, null, null, plate));
         }
 
