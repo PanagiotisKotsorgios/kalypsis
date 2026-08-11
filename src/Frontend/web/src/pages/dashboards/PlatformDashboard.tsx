@@ -1,20 +1,6 @@
 import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  CircularProgress,
-  Divider,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Typography,
-  useTheme
+  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Divider, Stack,
+  Table, TableBody, TableCell, TableHead, TableRow, Typography, useTheme
 } from "@mui/material";
 import BusinessIcon from "@mui/icons-material/Business";
 import GroupsIcon from "@mui/icons-material/Groups";
@@ -23,24 +9,18 @@ import SecurityIcon from "@mui/icons-material/Security";
 import HealthAndSafetyIcon from "@mui/icons-material/HealthAndSafety";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
-} from "recharts";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
+import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
+import BadgeIcon from "@mui/icons-material/Badge";
 import { useQuery } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../../api/client";
 import { date, dateTime } from "../../utils/format";
 import { useAuth } from "../../auth/AuthContext";
 import { Link as RouterLink } from "react-router-dom";
+import {
+  AnimatedKpiCard, ChartCard, ModernBarChart, ModernDonutChart,
+} from "../../components/ModernDashboard";
 
 /**
  * SuperAdmin dashboard — SaaS-focused metrics only.
@@ -59,9 +39,6 @@ interface PlatformKpi {
   users: number;
   activeUsers7d: number;
   activeUsers30d: number;
-  /* The remaining fields (customers, activePolicies, openClaims, openRequests,
-     totalPremiumVolume, monthlyPremiumVolume) are still returned by the
-     backend for other consumers but deliberately ignored on this screen. */
 }
 interface SeriesPoint { label: string; value: number }
 interface SubscriptionShare { plan: string; tenants: number }
@@ -121,10 +98,7 @@ interface PricingCatalog { version: number; plans: PlanDef[]; addons: AddonDef[]
 const moneyFmt = new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const intFmt = new Intl.NumberFormat("el-GR");
 const PLAN_LABEL: Record<string, string> = {
-  Trial: "Trial",
-  Starter: "Starter",
-  Professional: "Professional",
-  Enterprise: "Enterprise"
+  Trial: "Trial", Starter: "Starter", Professional: "Professional", Enterprise: "Enterprise"
 };
 
 export function PlatformDashboard() {
@@ -150,19 +124,13 @@ export function PlatformDashboard() {
   }
   const r = q.data;
 
-  const pieColors = [
-    theme.palette.primary.main,
-    theme.palette.secondary.main,
-    theme.palette.success.main,
-    theme.palette.warning.main,
-    theme.palette.info.main,
-    theme.palette.error.main,
-    "#8b5cf6"
-  ];
-
   const mrr = billing.data?.monthlyTotal ?? 0;
   const arr = billing.data?.annualTotal ?? 0;
   const arpu = billing.data?.averageRevenuePerTenant ?? 0;
+
+  // Sparkline for MRR — reuse newTenantsByMonth as a growth proxy since the
+  // billing summary endpoint doesn't yet return a monthly series.
+  const tenantSpark = r.newTenantsByMonth.slice(-8).map(p => Number(p.value));
 
   return (
     <Box>
@@ -180,57 +148,47 @@ export function PlatformDashboard() {
         />
       </Stack>
 
-      {/* ============ Primary SaaS KPI row ============ */}
+      {/* Primary SaaS KPI row — animated cards. */}
       <Box sx={{
         display: "grid", gap: 2, mb: 3,
         gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }
       }}>
-        <BigKpi
-          icon={<BusinessIcon />} label="Γραφεία"
-          primary={intFmt.format(r.kpis.tenants)}
-          secondary={`${intFmt.format(r.kpis.activeTenants)} ενεργά`}
-          accent={theme.palette.primary.main}
-        />
-        <BigKpi
-          icon={<GroupsIcon />} label="Χρήστες"
-          primary={intFmt.format(r.kpis.users)}
-          secondary={`${intFmt.format(r.kpis.activeUsers30d)} ενεργοί / 30ημ`}
-          accent={theme.palette.info.main}
-        />
-        <BigKpi
-          icon={<EuroIcon />} label="MRR"
-          primary={moneyFmt.format(mrr)}
-          secondary={`ARR ${moneyFmt.format(arr)}`}
-          accent={theme.palette.success.main}
-        />
-        <BigKpi
-          icon={<SecurityIcon />} label="Ασφάλεια"
-          primary={`${intFmt.format(r.health.failedLoginAttempts24h)} ⚠`}
-          secondary={`${intFmt.format(r.health.lockedAccounts)} κλειδωμένοι · ${intFmt.format(r.health.auditEvents24h)} audit /24h`}
-          accent={theme.palette.warning.main}
-        />
+        <AnimatedKpiCard index={0} label="Γραφεία" value={r.kpis.tenants}
+          accent={theme.palette.primary.main} icon={<BusinessIcon />}
+          format={(v) => `${intFmt.format(Math.round(v))} · ${intFmt.format(r.kpis.activeTenants)} ενεργά`} />
+        <AnimatedKpiCard index={1} label="Χρήστες" value={r.kpis.users}
+          accent={theme.palette.info.main} icon={<GroupsIcon />}
+          format={(v) => `${intFmt.format(Math.round(v))} · ${intFmt.format(r.kpis.activeUsers30d)}/30ημ`} />
+        <AnimatedKpiCard index={2} label="MRR" value={mrr} currency
+          accent={theme.palette.success.main} icon={<EuroIcon />} spark={tenantSpark} />
+        <AnimatedKpiCard index={3} label="ARR" value={arr} currency
+          accent={theme.palette.secondary.main} icon={<TrendingUpIcon />} />
       </Box>
 
-      {/* ============ SaaS operational counters ============ */}
+      {/* SaaS operational counters — smaller animated cards. */}
       <Box sx={{
         display: "grid", gap: 2, mb: 3,
         gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }
       }}>
-        <SmallKpi label="ARPU" value={moneyFmt.format(arpu)} accent={theme.palette.success.main} />
-        <SmallKpi label="Γραφεία με έσοδα"
-          value={billing.data ? `${billing.data.tenantsWithRevenue} / ${billing.data.tenantsTotal}` : "—"}
-          accent={theme.palette.primary.main} />
-        <SmallKpi label="Ενεργοί 7ημ" value={intFmt.format(r.kpis.activeUsers7d)} accent={theme.palette.info.main} />
-        <SmallKpi label="Ειδοποιήσεις 30ημ" value={intFmt.format(r.health.totalNotifications30d)} accent={theme.palette.secondary.main} />
+        <AnimatedKpiCard index={0} label="ARPU" value={arpu} currency
+          accent={theme.palette.success.main} icon={<PaymentsIcon />} />
+        <AnimatedKpiCard index={1} label="Γραφεία με έσοδα" value={billing.data?.tenantsWithRevenue ?? 0}
+          accent={theme.palette.primary.main} icon={<BadgeIcon />}
+          format={(v) => `${Math.round(v)} / ${billing.data?.tenantsTotal ?? 0}`} />
+        <AnimatedKpiCard index={2} label="Ενεργοί 7ημ" value={r.kpis.activeUsers7d}
+          accent={theme.palette.info.main} icon={<PeopleAltIcon />} />
+        <AnimatedKpiCard index={3} label="Ασφάλεια · Failed logins 24h" value={r.health.failedLoginAttempts24h}
+          accent={theme.palette.warning.main} icon={<SecurityIcon />}
+          format={(v) => `${intFmt.format(Math.round(v))} · ${intFmt.format(r.health.lockedAccounts)} κλειδ.`} />
       </Box>
 
-      {/* ============ Πώς χρεώνουμε — τρέχον πακέτο τιμών ============ */}
-      <Card sx={{ mb: 3 }}>
+      {/* Pricing catalog — kept as a static card, no chart wrapper needed. */}
+      <Card sx={{ mb: 3, borderRadius: 2.5 }}>
         <CardContent>
           <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2} flexWrap="wrap" gap={1}>
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <CreditCardIcon color="primary" />
-              <Typography variant="h6">Πώς χρεώνουμε αυτή τη στιγμή</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>Πώς χρεώνουμε αυτή τη στιγμή</Typography>
             </Stack>
             <Button size="small" component={RouterLink} to="/app/platform/plans" variant="outlined">
               Επεξεργασία πλάνων
@@ -241,10 +199,15 @@ export function PlatformDashboard() {
               {pricing.data.plans.map(p => (
                 <Box key={p.code} sx={{
                   border: 1, borderColor: "divider", borderRadius: 2, p: 2,
-                  display: "flex", flexDirection: "column", gap: 0.5
+                  display: "flex", flexDirection: "column", gap: 0.5,
+                  transition: "transform 200ms, box-shadow 200ms",
+                  "&:hover": { transform: "translateY(-2px)", boxShadow: 3, borderColor: "primary.light" },
                 }}>
                   <Typography variant="overline" color="text.secondary">{p.code}</Typography>
-                  <Typography variant="h5" fontWeight={800}>{moneyFmt.format(p.pricePerYear)}<Typography component="span" variant="caption" color="text.secondary"> /έτος</Typography></Typography>
+                  <Typography variant="h5" fontWeight={800}>
+                    {moneyFmt.format(p.pricePerYear)}
+                    <Typography component="span" variant="caption" color="text.secondary"> /έτος</Typography>
+                  </Typography>
                   <Typography variant="caption" color="text.secondary">{p.tagline}</Typography>
                   <Typography variant="caption" color="text.secondary">
                     Περιλαμβάνει {p.includedOffices} γραφεία · {p.includedUsers} χρήστες
@@ -262,7 +225,8 @@ export function PlatformDashboard() {
               <Typography variant="overline" color="text.secondary">Έκτακτες υπηρεσίες</Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap" gap={1} mt={1}>
                 {pricing.data.services.map(s => (
-                  <Chip key={s.code} label={`${s.description}: ${moneyFmt.format(s.unitPrice)} / ${s.unitLabel}`} variant="outlined" size="small" />
+                  <Chip key={s.code} label={`${s.description}: ${moneyFmt.format(s.unitPrice)} / ${s.unitLabel}`}
+                        variant="outlined" size="small" />
                 ))}
               </Stack>
             </>
@@ -270,61 +234,36 @@ export function PlatformDashboard() {
         </CardContent>
       </Card>
 
-      {/* ============ Charts: subscription mix + new tenants ============ */}
-      <Box sx={{
-        display: "grid", gap: 2, mb: 2,
-        gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }
-      }}>
-        <Card>
-          <CardContent>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="h6">Subscription mix</Typography>
-              <Chip size="small" icon={<PaymentsIcon />} label={`${intFmt.format(r.subscriptionMix.reduce((s, x) => s + x.tenants, 0))} γραφεία`} variant="outlined" />
-            </Stack>
-            <Box sx={{ height: 260 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={r.subscriptionMix.map(p => ({ name: PLAN_LABEL[p.plan] ?? p.plan, value: p.tenants }))}
-                    dataKey="value" nameKey="name" cx="50%" cy="50%"
-                    innerRadius={56} outerRadius={100} paddingAngle={2}
-                  >
-                    {r.subscriptionMix.map((_, i) => <Cell key={i} fill={pieColors[i % pieColors.length]} />)}
-                  </Pie>
-                  <Tooltip />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </Box>
-          </CardContent>
-        </Card>
+      {/* Charts row — subscription mix (donut) + new tenants (gradient bar). */}
+      <Box sx={{ display: "grid", gap: 2, mb: 2, gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" } }}>
+        <ChartCard
+          title="Subscription mix"
+          subtitle="Κατανομή πλάνων ανά γραφείο"
+          height={280}
+          action={
+            <Chip size="small" icon={<PaymentsIcon />}
+              label={`${intFmt.format(r.subscriptionMix.reduce((s, x) => s + x.tenants, 0))} γραφεία`}
+              variant="outlined" />
+          }
+        >
+          <ModernDonutChart
+            data={r.subscriptionMix.map(p => ({ label: PLAN_LABEL[p.plan] ?? p.plan, value: p.tenants }))}
+          />
+        </ChartCard>
 
-        <Card>
-          <CardContent>
-            <Typography variant="h6" mb={2}>Νέα γραφεία ανά μήνα</Typography>
-            <Box sx={{ height: 260 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={r.newTenantsByMonth.map(p => ({ month: p.label, value: p.value }))}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill={theme.palette.success.main} radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Box>
-          </CardContent>
-        </Card>
+        <ChartCard title="Νέα γραφεία ανά μήνα" subtitle="Onboarding trend" height={280}>
+          <ModernBarChart
+            data={r.newTenantsByMonth.map(p => ({ label: p.label, value: p.value }))}
+            color={theme.palette.success.main}
+          />
+        </ChartCard>
       </Box>
 
-      {/* ============ Recent feeds ============ */}
-      <Box sx={{
-        display: "grid", gap: 2, mb: 2,
-        gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }
-      }}>
-        <Card>
+      {/* Recent feeds — tenants + activity. */}
+      <Box sx={{ display: "grid", gap: 2, mb: 2, gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" } }}>
+        <Card sx={{ borderRadius: 2.5 }}>
           <CardContent>
-            <Typography variant="h6" mb={2}>Πρόσφατα γραφεία</Typography>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Πρόσφατα γραφεία</Typography>
             {r.recentTenants.length === 0 ? (
               <Typography color="text.secondary">—</Typography>
             ) : (
@@ -343,9 +282,7 @@ export function PlatformDashboard() {
                         {t.onboardingCompletedAt && <Chip size="small" label="onboarded" color="success" />}
                       </Stack>
                     </Box>
-                    <Typography variant="caption" color="text.secondary">
-                      {date(t.createdAt)}
-                    </Typography>
+                    <Typography variant="caption" color="text.secondary">{date(t.createdAt)}</Typography>
                   </Stack>
                 ))}
               </Stack>
@@ -353,9 +290,9 @@ export function PlatformDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card sx={{ borderRadius: 2.5 }}>
           <CardContent>
-            <Typography variant="h6" mb={2}>Πρόσφατη δραστηριότητα</Typography>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Πρόσφατη δραστηριότητα</Typography>
             {r.recentActivity.length === 0 ? (
               <Typography color="text.secondary">—</Typography>
             ) : (
@@ -370,9 +307,7 @@ export function PlatformDashboard() {
                       />
                       <Typography>{a.label}</Typography>
                     </Stack>
-                    <Typography variant="caption" color="text.secondary">
-                      {dateTime(a.occurredAt)}
-                    </Typography>
+                    <Typography variant="caption" color="text.secondary">{dateTime(a.occurredAt)}</Typography>
                   </Stack>
                 ))}
               </Stack>
@@ -381,10 +316,10 @@ export function PlatformDashboard() {
         </Card>
       </Box>
 
-      {/* ============ Top tenants by users ============ */}
-      <Card sx={{ mb: 2 }}>
+      {/* Top tenants by users. */}
+      <Card sx={{ mb: 2, borderRadius: 2.5 }}>
         <CardContent>
-          <Typography variant="h6" mb={2}>Top γραφεία ανά χρήστες</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Top γραφεία ανά χρήστες</Typography>
           {r.recentTenants.length === 0 ? <Typography color="text.secondary">—</Typography> : (
             <Table size="small">
               <TableHead>
@@ -415,10 +350,13 @@ export function PlatformDashboard() {
         </CardContent>
       </Card>
 
-      {/* ============ System health summary ============ */}
-      <Card variant="outlined" sx={{ mt: 2 }}>
+      {/* System health summary — coloured tiles. */}
+      <Card variant="outlined" sx={{ mt: 2, borderRadius: 2.5 }}>
         <CardContent>
-          <Typography variant="h6" mb={2}>Υγεία συστήματος</Typography>
+          <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+            <NotificationsActiveIcon color="action" />
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>Υγεία συστήματος</Typography>
+          </Stack>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, gap: 2 }}>
             <HealthTile label="API status" value={r.health.apiOk ? "OK" : "DEGRADED"} good={r.health.apiOk} />
             <HealthTile label="Failed logins" value={intFmt.format(r.health.failedLoginAttempts24h)} good={r.health.failedLoginAttempts24h < 10} />
@@ -435,48 +373,13 @@ export function PlatformDashboard() {
   );
 }
 
-function BigKpi({
-  icon, label, primary, secondary, accent
-}: {
-  icon: React.ReactNode;
-  label: string;
-  primary: string;
-  secondary: string;
-  accent: string;
-}) {
-  return (
-    <Card sx={{ borderTop: `4px solid ${accent}` }}>
-      <CardContent>
-        <Stack direction="row" alignItems="center" spacing={1} mb={1}>
-          <Box sx={{ color: accent, display: "flex" }}>{icon}</Box>
-          <Typography variant="overline" color="text.secondary">{label}</Typography>
-        </Stack>
-        <Typography variant="h4" fontWeight={800}>{primary}</Typography>
-        <Typography variant="caption" color="text.secondary">{secondary}</Typography>
-      </CardContent>
-    </Card>
-  );
-}
-
-function SmallKpi({ label, value, accent }: { label: string; value: string; accent: string }) {
-  return (
-    <Card sx={{ borderLeft: `4px solid ${accent}` }}>
-      <CardContent>
-        <Typography variant="overline" color="text.secondary">{label}</Typography>
-        <Typography variant="h5" fontWeight={800}>{value}</Typography>
-      </CardContent>
-    </Card>
-  );
-}
-
 function HealthTile({ label, value, good }: { label: string; value: string; good: boolean }) {
   return (
     <Box sx={{
-      p: 2,
-      border: 1,
-      borderRadius: 1,
-      borderColor: "divider",
-      backgroundColor: good ? "rgba(46,125,50,0.05)" : "rgba(237,108,2,0.06)"
+      p: 2, border: 1, borderRadius: 1.5, borderColor: "divider",
+      backgroundColor: good ? "rgba(46,125,50,0.05)" : "rgba(237,108,2,0.06)",
+      transition: "transform 200ms, box-shadow 200ms",
+      "&:hover": { transform: "translateY(-2px)", boxShadow: 2 },
     }}>
       <Typography variant="caption" color="text.secondary">{label}</Typography>
       <Typography variant="h6" fontWeight={700} color={good ? "success.dark" : "warning.dark"}>{value}</Typography>

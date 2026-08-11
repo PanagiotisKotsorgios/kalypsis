@@ -1,37 +1,24 @@
 import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  CircularProgress,
-  Stack,
-  Typography,
-  alpha,
-  useTheme
+  Box, Button, Card, CardContent, Chip, CircularProgress, Stack, Typography, alpha, useTheme
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import PeopleIcon from "@mui/icons-material/People";
+import PolicyIcon from "@mui/icons-material/Policy";
+import EventBusyIcon from "@mui/icons-material/EventBusy";
+import EuroIcon from "@mui/icons-material/Euro";
+import ReportProblemIcon from "@mui/icons-material/ReportProblem";
+import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import { useNavigate } from "react-router-dom";
-import { useWorkspace } from "../../auth/WorkspaceContext";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
+  Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
-import { money } from "../../utils/format";
+import { useWorkspace } from "../../auth/WorkspaceContext";
+import {
+  AnimatedKpiCard, ChartCard, ModernAreaChart, ModernBarChart, ModernDonutChart,
+} from "../../components/ModernDashboard";
 
 interface KpiDto {
   customers: number;
@@ -61,27 +48,16 @@ const STATUS_LABELS: Record<string, string> = {
   Draft: "Πρόχειρο", Active: "Ενεργό", Expired: "Έληξε", Cancelled: "Ακυρωμένο",
   Renewed: "Ανανεώθηκε", PendingRenewal: "Προς ανανέωση"
 };
-
-// Recharts uses the dataKey as the series display name in tooltips + legends
-// by default — passing an explicit `name` prop overrides that with a Greek
-// label so nothing surfaces in English when the operator hovers.
-const SERIES_NAME_PREMIUM = "Ασφάλιστρα";
-const SERIES_NAME_COUNT = "Πλήθος";
-
-// The reports backend returns `Status.ToString()` (English enum names) for
-// claim + request breakdowns. Map to Greek on the frontend so the X-axis
-// labels + tooltips read natively.
+// The reports backend returns Status.ToString() for claim/request breakdowns.
+// Map to Greek here so tooltips + axis labels read natively.
 const BREAKDOWN_LABELS: Record<string, string> = {
-  // Claim statuses
   Open: "Ανοιχτή", InReview: "Υπό εξέταση", Approved: "Εγκεκριμένη",
   Rejected: "Απορρίφθηκε", Closed: "Κλειστή", Reopened: "Επανάνοιξη",
-  // Request statuses
   Pending: "Εκκρεμεί", InProgress: "Σε εξέλιξη", Completed: "Ολοκληρώθηκε",
   Cancelled: "Ακυρώθηκε",
 };
 
 const moneyFmt = new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
-const intFmt = new Intl.NumberFormat("el-GR");
 
 export function AgencyAdminDashboard() {
   const theme = useTheme();
@@ -102,168 +78,109 @@ export function AgencyAdminDashboard() {
   }
   const r = q.data;
 
-  const pieColors = [
-    theme.palette.primary.main,
-    theme.palette.secondary.main,
-    theme.palette.success.main,
-    theme.palette.warning.main,
-    theme.palette.error.main,
-    theme.palette.info.main,
-    "#8b5cf6",
-    "#ec4899"
-  ];
-
-  const typeData = r.policiesByType.map(p => ({ name: TYPE_LABELS[p.label] ?? p.label, value: p.value }));
-  const statusData = r.policiesByStatus.map(p => ({ name: STATUS_LABELS[p.label] ?? p.label, value: p.value }));
-  const monthlyData = r.monthlyPremium.map(p => ({ month: p.label, premium: Number(p.value) }));
-  const carrierData = r.topCarriers.map(c => ({ name: c.carrier, premium: Number(c.premium), policies: c.policies }));
+  const monthlySpark = r.monthlyPremium.slice(-8).map(p => Number(p.value));
 
   return (
     <Box>
-      {/* Back-to-hub button — exits BackOffice workspace and returns to the package selector. */}
-      <Button
-        startIcon={<ArrowBackIcon />}
-        size="small"
+      <Button startIcon={<ArrowBackIcon />} size="small"
         onClick={() => { exitToHub(); navigate("/app"); }}
-        sx={{ mb: 2, color: "text.secondary" }}
-      >
+        sx={{ mb: 2, color: "text.secondary" }}>
         Επιστροφή στον αρχικό Πίνακα Ελέγχου
       </Button>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 800 }}>Πίνακας ελέγχου διαχειριστή</Typography>
-          <Typography color="text.secondary">
-            {user?.tenantName} — επισκόπηση γραφείου
-          </Typography>
+          <Typography color="text.secondary">{user?.tenantName} — επισκόπηση γραφείου</Typography>
         </Box>
         <Chip label="Όλο το γραφείο" color="primary" />
       </Stack>
 
+      {/* KPI strip — 6 animated cards, one per key metric. */}
       <Box sx={{
         display: "grid", gap: 2, mb: 3,
-        gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(6, 1fr)" }
+        gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(6, 1fr)" }
       }}>
-        <KpiCard label="Πελάτες" value={intFmt.format(r.kpis.customers)} accent={theme.palette.primary.main} />
-        <KpiCard label="Ενεργά συμβόλαια" value={intFmt.format(r.kpis.activePolicies)} accent={theme.palette.success.main} />
-        <KpiCard label="Λήγουν σύντομα" value={intFmt.format(r.kpis.expiringSoon)} accent={theme.palette.warning.main} />
-        <KpiCard label="Μηνιαία παραγωγή" value={moneyFmt.format(r.kpis.monthlyPremium)} accent={theme.palette.secondary.main} />
-        <KpiCard label="Ανοιχτές ζημιές" value={intFmt.format(r.kpis.openClaims)} accent={theme.palette.error.main} />
-        <KpiCard label="Ανοιχτά αιτήματα" value={intFmt.format(r.kpis.openRequests)} accent={theme.palette.info.main} />
+        <AnimatedKpiCard index={0} label="Πελάτες"           value={r.kpis.customers}
+                         accent={theme.palette.primary.main} icon={<PeopleIcon />} />
+        <AnimatedKpiCard index={1} label="Ενεργά συμβόλαια"  value={r.kpis.activePolicies}
+                         accent={theme.palette.success.main} icon={<PolicyIcon />} />
+        <AnimatedKpiCard index={2} label="Λήγουν σύντομα"    value={r.kpis.expiringSoon}
+                         accent={theme.palette.warning.main} icon={<EventBusyIcon />} />
+        <AnimatedKpiCard index={3} label="Μηνιαία παραγωγή"  value={r.kpis.monthlyPremium} currency
+                         accent={theme.palette.secondary.main} icon={<EuroIcon />} spark={monthlySpark} />
+        <AnimatedKpiCard index={4} label="Ανοιχτές ζημιές"   value={r.kpis.openClaims}
+                         accent={theme.palette.error.main} icon={<ReportProblemIcon />} />
+        <AnimatedKpiCard index={5} label="Ανοιχτά αιτήματα"  value={r.kpis.openRequests}
+                         accent={theme.palette.info.main} icon={<SupportAgentIcon />} />
       </Box>
 
-      <Box sx={{
-        display: "grid", gap: 2,
-        gridTemplateColumns: { xs: "1fr", lg: "2fr 1fr" }
-      }}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" mb={2}>Παραγωγή ανά μήνα</Typography>
-            <Box sx={{ height: 280 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                  <YAxis tickFormatter={(v) => money(v as number)} tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(v) => moneyFmt.format(v as number)} />
-                  <Line type="monotone" dataKey="premium" name={SERIES_NAME_PREMIUM} stroke={theme.palette.primary.main} strokeWidth={3} dot={{ r: 4 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </Box>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <Typography variant="h6" mb={2}>Κατανομή τύπων</Typography>
-            <Box sx={{ height: 280 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={typeData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                       innerRadius={56} outerRadius={100} paddingAngle={2}>
-                    {typeData.map((_, i) => <Cell key={i} fill={pieColors[i % pieColors.length]} />)}
-                  </Pie>
-                  <Tooltip />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </Box>
-          </CardContent>
-        </Card>
+      {/* Main chart row — trend area + donut. */}
+      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", lg: "2fr 1fr" } }}>
+        <ChartCard title="Παραγωγή ανά μήνα" subtitle="Ασφάλιστρα σε € — 12 μήνες">
+          <ModernAreaChart data={r.monthlyPremium} color={theme.palette.primary.main}
+                           format={(v) => moneyFmt.format(v)} />
+        </ChartCard>
+        <ChartCard title="Κατανομή τύπων" subtitle="Ενεργά συμβόλαια ανά κλάδο">
+          <ModernDonutChart data={r.policiesByType.map(p => ({
+            label: TYPE_LABELS[p.label] ?? p.label, value: p.value
+          }))} />
+        </ChartCard>
       </Box>
 
-      <Box sx={{
-        display: "grid", gap: 2, mt: 2,
-        gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }
-      }}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" mb={2}>Συμβόλαια ανά κατάσταση</Typography>
-            <Box sx={{ height: 260 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={statusData}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Bar dataKey="value" name={SERIES_NAME_COUNT} fill={theme.palette.primary.main} radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Box>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <Typography variant="h6" mb={2}>Top ασφαλιστικές</Typography>
-            <Box sx={{ height: 260 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={carrierData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis type="number" tickFormatter={(v) => moneyFmt.format(v as number)} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={130} />
-                  <Tooltip formatter={(v, n) => n === SERIES_NAME_PREMIUM ? moneyFmt.format(v as number) : v} />
-                  <Bar dataKey="premium" name={SERIES_NAME_PREMIUM} fill={theme.palette.secondary.main} radius={[0, 6, 6, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Box>
-          </CardContent>
-        </Card>
+      {/* Secondary row — statuses + carrier ranking. */}
+      <Box sx={{ display: "grid", gap: 2, mt: 2, gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" } }}>
+        <ChartCard title="Συμβόλαια ανά κατάσταση" subtitle="Ενεργά / Έληξαν / Ακυρώθηκαν / …" height={260}>
+          <ModernBarChart data={r.policiesByStatus.map(p => ({
+            label: STATUS_LABELS[p.label] ?? p.label, value: p.value
+          }))} color={theme.palette.primary.main} />
+        </ChartCard>
+        <ChartCard title="Top ασφαλιστικές" subtitle="Ασφάλιστρα ανά ασφαλιστική εταιρεία" height={260}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={r.topCarriers.map(c => ({ name: c.carrier, premium: Number(c.premium) }))}
+                      layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="carrierGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%"   stopColor={theme.palette.secondary.main} stopOpacity={0.55} />
+                  <stop offset="100%" stopColor={theme.palette.secondary.main} stopOpacity={1} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.25} horizontal={false} />
+              <XAxis type="number" tickFormatter={(v) => moneyFmt.format(v as number)}
+                     tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={140}
+                     tickLine={false} axisLine={false} />
+              <Tooltip cursor={{ fill: alpha(theme.palette.secondary.main, 0.08) }}
+                       formatter={(v) => moneyFmt.format(v as number)}
+                       contentStyle={{
+                         border: "1px solid rgba(15,23,42,0.12)", borderRadius: 8,
+                         boxShadow: "0 10px 32px -12px rgba(15,42,80,0.28)", padding: "8px 12px", fontSize: 12
+                       }} />
+              <Bar dataKey="premium" name="Ασφάλιστρα" fill="url(#carrierGrad)"
+                   radius={[0, 6, 6, 0]} isAnimationActive animationDuration={900} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
       </Box>
 
+      {/* Breakdown row — claims + requests. */}
       <Box sx={{ display: "grid", gap: 2, mt: 2, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" } }}>
-        <BreakdownCard title="Ζημιές ανά κατάσταση" series={r.claimsByStatus} accent={alpha(theme.palette.error.main, 0.85)} />
-        <BreakdownCard title="Αιτήματα ανά κατάσταση" series={r.requestsByStatus} accent={alpha(theme.palette.info.main, 0.85)} />
+        <BreakdownCard title="Ζημιές ανά κατάσταση" series={r.claimsByStatus}
+                       accent={alpha(theme.palette.error.main, 0.85)} />
+        <BreakdownCard title="Αιτήματα ανά κατάσταση" series={r.requestsByStatus}
+                       accent={alpha(theme.palette.info.main, 0.85)} />
       </Box>
     </Box>
   );
 }
 
-function KpiCard({ label, value, accent }: { label: string; value: string; accent: string }) {
-  return (
-    <Card sx={{ borderLeft: `4px solid ${accent}` }}>
-      <CardContent>
-        <Typography variant="overline" color="text.secondary">{label}</Typography>
-        <Typography variant="h4" fontWeight={800}>{value}</Typography>
-      </CardContent>
-    </Card>
-  );
-}
-
 function BreakdownCard({ title, series, accent }: { title: string; series: SeriesPoint[]; accent: string }) {
   return (
-    <Card>
+    <Card sx={{ borderRadius: 2.5 }}>
       <CardContent>
-        <Typography variant="h6" mb={2}>{title}</Typography>
-        <Box sx={{ height: 200 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={series.map(s => ({ name: BREAKDOWN_LABELS[s.label] ?? s.label, value: s.value }))}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Bar dataKey="value" name={SERIES_NAME_COUNT} fill={accent} radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>{title}</Typography>
+        <Box sx={{ height: 220 }}>
+          <ModernBarChart color={accent}
+            data={series.map(s => ({ label: BREAKDOWN_LABELS[s.label] ?? s.label, value: s.value }))} />
         </Box>
       </CardContent>
     </Card>

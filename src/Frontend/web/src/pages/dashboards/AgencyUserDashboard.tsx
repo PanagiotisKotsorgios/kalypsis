@@ -1,28 +1,23 @@
 import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  CircularProgress,
-  Divider,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Typography,
-  useTheme
+  Box, Button, Card, CardContent, Chip, CircularProgress, Divider, Stack,
+  Table, TableBody, TableCell, TableHead, TableRow, Typography, useTheme
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from "recharts";
+import PeopleIcon from "@mui/icons-material/People";
+import PolicyIcon from "@mui/icons-material/Policy";
+import EventBusyIcon from "@mui/icons-material/EventBusy";
+import EuroIcon from "@mui/icons-material/Euro";
+import ReportProblemIcon from "@mui/icons-material/ReportProblem";
+import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import { useWorkspace } from "../../auth/WorkspaceContext";
-import { money, date } from "../../utils/format";
+import { date } from "../../utils/format";
+import {
+  AnimatedKpiCard, ChartCard, ModernAreaChart, ModernDonutChart,
+} from "../../components/ModernDashboard";
 
 interface AgencyUserKpi {
   myCustomers: number;
@@ -49,7 +44,6 @@ const TYPE_LABELS: Record<string, string> = {
   Business: "Επιχείρησης", Travel: "Ταξιδίου", Other: "Άλλο"
 };
 const moneyFmt = new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
-const intFmt = new Intl.NumberFormat("el-GR");
 
 export function AgencyUserDashboard() {
   const theme = useTheme();
@@ -70,10 +64,8 @@ export function AgencyUserDashboard() {
   }
   const r = q.data;
 
-  const pieColors = [
-    theme.palette.primary.main, theme.palette.secondary.main, theme.palette.success.main,
-    theme.palette.warning.main, theme.palette.error.main, theme.palette.info.main, "#8b5cf6"
-  ];
+  // Sparkline data for the "Παραγωγή μήνα" KPI — last N monthly premiums.
+  const premiumSpark = r.myMonthlyPremium.slice(-8).map(p => Number(p.value));
 
   return (
     <Box>
@@ -97,63 +89,45 @@ export function AgencyUserDashboard() {
 
       <Box sx={{
         display: "grid", gap: 2, mb: 3,
-        gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(6, 1fr)" }
+        gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(6, 1fr)" }
       }}>
-        <KpiCard label="Πελάτες μου" value={intFmt.format(r.kpis.myCustomers)} accent={theme.palette.primary.main} />
-        <KpiCard label="Συμβόλαια μου" value={intFmt.format(r.kpis.myPolicies)} accent={theme.palette.success.main} />
-        <KpiCard label="Λήγουν 30 ημ." value={intFmt.format(r.kpis.myExpiringSoon)} accent={theme.palette.warning.main} />
-        <KpiCard label="Παραγωγή μήνα" value={moneyFmt.format(r.kpis.myMonthlyPremium)} accent={theme.palette.secondary.main} />
-        <KpiCard label="Ζημιές μου" value={intFmt.format(r.kpis.myOpenClaims)} accent={theme.palette.error.main} />
-        <KpiCard label="Αιτήματα μου" value={intFmt.format(r.kpis.myOpenRequests)} accent={theme.palette.info.main} />
+        <AnimatedKpiCard index={0} label="Πελάτες μου"      value={r.kpis.myCustomers}
+                         accent={theme.palette.primary.main} icon={<PeopleIcon />} />
+        <AnimatedKpiCard index={1} label="Συμβόλαια μου"    value={r.kpis.myPolicies}
+                         accent={theme.palette.success.main} icon={<PolicyIcon />} />
+        <AnimatedKpiCard index={2} label="Λήγουν 30 ημ."    value={r.kpis.myExpiringSoon}
+                         accent={theme.palette.warning.main} icon={<EventBusyIcon />} />
+        <AnimatedKpiCard index={3} label="Παραγωγή μήνα"    value={r.kpis.myMonthlyPremium} currency
+                         accent={theme.palette.secondary.main} icon={<EuroIcon />} spark={premiumSpark} />
+        <AnimatedKpiCard index={4} label="Ζημιές μου"       value={r.kpis.myOpenClaims}
+                         accent={theme.palette.error.main} icon={<ReportProblemIcon />} />
+        <AnimatedKpiCard index={5} label="Αιτήματα μου"     value={r.kpis.myOpenRequests}
+                         accent={theme.palette.info.main} icon={<SupportAgentIcon />} />
       </Box>
 
-      <Box sx={{
-        display: "grid", gap: 2,
-        gridTemplateColumns: { xs: "1fr", lg: "2fr 1fr" }
-      }}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" mb={2}>Η παραγωγή μου τους τελευταίους μήνες</Typography>
-            <Box sx={{ height: 280 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={r.myMonthlyPremium.map(p => ({ month: p.label, premium: Number(p.value) }))}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                  <YAxis tickFormatter={(v) => money(v as number)} tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(v) => moneyFmt.format(v as number)} />
-                  <Line type="monotone" dataKey="premium" stroke={theme.palette.secondary.main} strokeWidth={3} dot={{ r: 4 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </Box>
-          </CardContent>
-        </Card>
+      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", lg: "2fr 1fr" } }}>
+        <ChartCard title="Η παραγωγή μου τους τελευταίους μήνες" subtitle="Μηνιαία ασφάλιστρα (€)">
+          <ModernAreaChart
+            data={r.myMonthlyPremium}
+            color={theme.palette.secondary.main}
+            format={(v) => moneyFmt.format(v)}
+          />
+        </ChartCard>
 
-        <Card>
-          <CardContent>
-            <Typography variant="h6" mb={2}>Κατανομή τύπων (δικά μου)</Typography>
-            <Box sx={{ height: 280 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={r.myPoliciesByType.map(p => ({ name: TYPE_LABELS[p.label] ?? p.label, value: p.value }))}
-                    dataKey="value" nameKey="name" cx="50%" cy="50%"
-                    innerRadius={50} outerRadius={95} paddingAngle={2}
-                  >
-                    {r.myPoliciesByType.map((_, i) => <Cell key={i} fill={pieColors[i % pieColors.length]} />)}
-                  </Pie>
-                  <Tooltip />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </Box>
-          </CardContent>
-        </Card>
+        <ChartCard title="Κατανομή τύπων (δικά μου)" subtitle="Συμβόλαια ανά κλάδο">
+          <ModernDonutChart
+            data={r.myPoliciesByType.map(p => ({
+              label: TYPE_LABELS[p.label] ?? p.label,
+              value: p.value,
+            }))}
+          />
+        </ChartCard>
       </Box>
 
       <Box sx={{ display: "grid", gap: 2, mt: 2, gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" } }}>
-        <Card>
+        <Card sx={{ borderRadius: 2.5 }}>
           <CardContent>
-            <Typography variant="h6" mb={2}>Επερχόμενες ανανεώσεις</Typography>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Επερχόμενες ανανεώσεις</Typography>
             {r.upcomingRenewals.length === 0 ? (
               <Typography color="text.secondary">Καμία ανανέωση στις επόμενες 30 ημέρες.</Typography>
             ) : (
@@ -186,9 +160,9 @@ export function AgencyUserDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card sx={{ borderRadius: 2.5 }}>
           <CardContent>
-            <Typography variant="h6" mb={2}>Πρόσφατη δραστηριότητα</Typography>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Πρόσφατη δραστηριότητα</Typography>
             {r.recentActivity.length === 0 ? (
               <Typography color="text.secondary">Καμία πρόσφατη δραστηριότητα.</Typography>
             ) : (
@@ -215,16 +189,5 @@ export function AgencyUserDashboard() {
         </Card>
       </Box>
     </Box>
-  );
-}
-
-function KpiCard({ label, value, accent }: { label: string; value: string; accent: string }) {
-  return (
-    <Card sx={{ borderLeft: `4px solid ${accent}` }}>
-      <CardContent>
-        <Typography variant="overline" color="text.secondary">{label}</Typography>
-        <Typography variant="h4" fontWeight={800}>{value}</Typography>
-      </CardContent>
-    </Card>
   );
 }
