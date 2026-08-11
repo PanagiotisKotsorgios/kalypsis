@@ -13,7 +13,7 @@ import RestoreIcon from "@mui/icons-material/Restore";
 import ClearAllIcon from "@mui/icons-material/ClearAll";
 import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { api, extractErrorMessage } from "../api/client";
 import { usePremium } from "../auth/PremiumContext";
@@ -279,10 +279,12 @@ function parseErgoWorkbookPreview(
   sheetName: string,
   fileName: string,
   producers: Producer[],
+  producerCodeMap: Map<string, string> = new Map(),   // ERGO rawCode → internal Producer.id
 ): ExcelImportPreview & { detectedMonth?: number; detectedYear?: number } {
   const ws = wb.Sheets[sheetName];
   const rows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
   const { month, year } = extractErgoMonthYear(sheetName, rows);
+  const producersById = new Map(producers.map(p => [p.id, p]));
 
   const parsed: ExcelImportPreview["parsed"] = [];
   // Header sits on row 5 (index 4) so data starts at index 5.
@@ -298,11 +300,17 @@ function parseErgoWorkbookPreview(
     const m = /^(\d+)\s+(.+)$/.exec(codeAndName);
     const rawCode = m ? m[1] : codeAndName;
     const rawName = m ? m[2] : "";
-    // Match both padded and stripped-of-leading-zeros forms.
     const codeStripped = rawCode.replace(/^0+/, "") || rawCode;
+
+    // ↓ Order of matching: tenant-saved BridgeCodeMapping first (both padded
+    // and stripped variants), then heuristic code/name fuzzy match, then
+    // give up and flag as unmatched.
+    const mappedId = producerCodeMap.get(rawCode) ?? producerCodeMap.get(codeStripped);
     const matched =
-      matchProducer(producers, rawName, rawCode) ??
-      matchProducer(producers, rawName, codeStripped);
+      (mappedId ? producersById.get(mappedId) : undefined)
+      ?? matchProducer(producers, rawName, rawCode)
+      ?? matchProducer(producers, rawName, codeStripped)
+      ?? null;
 
     const overCommission = String(row[5] ?? "").replace(/[€\s]/g, "").replace(",", ".");
     const netPremiums    = String(row[3] ?? "").replace(/[€\s]/g, "").replace(",", ".");
@@ -412,6 +420,91 @@ export function OverCommissionGridEditor({
   const [importLayout, setImportLayout] = useState<ImportLayout>(initialLayout ?? "auto");
   const premium = usePremium();
   const canErgo = premium.has("ergo-overcommission-bridge");
+  // Tenant-saved producer-code mappings for ERGO. Fed into the parser so
+  // any raw ERGO code we've previously linked resolves without asking the
+  // operator to link again on every monthly πινάκιο.
+  const ergoMappingsQ = useQuery({
+    enabled: canErgo,
+    queryKey: ["bridge-code-mappings", "Producer", "ERGO"],
+    queryFn: async () => (await api.get<Array<{
+      id: string; rawCode: string; targetProducerId: string | null;
+    }>>("/bridge-code-mappings", {
+      params: { kind: "Producer", sourceCarrier: "ERGO" }
+    })).data,
+  });
+  const ergoProducerCodeMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const row of ergoMappingsQ.data ?? []) {
+      if (!row.targetProducerId) continue;
+      m.set(row.rawCode, row.targetProducerId);
+      const stripped = row.rawCode.replace(/^0+/, "") || row.rawCode;
+      if (stripped !== row.rawCode) m.set(stripped, row.targetProducerId);
+    }
+    return m;
+  }, [ergoMappingsQ.data]);
+
+  /** Update the preview row for a given raw code to point at the chosen
+   *  internal producer, so the operator sees the green chip immediately
+   *  without waiting for the mappings query to refetch. */
+  const applyLocalMatch = (rawCode: string, producer: Producer) => {
+    setImportPreview(prev => prev ? {
+      ...prev,
+      parsed: prev.parsed.map(p =>
+        p.producerCode === rawCode
+          ? { ...p, matchedProducer: producer, problem:
+              !p.grossAmount || Number.isNaN(Number(p.grossAmount))
+                ? "Λείπει ή λάθος ποσό υπερπρομήθειας." : null }
+          : p)
+    } : prev);
+  };
+
+  /** POST bridge-code-mappings so future imports auto-match. Fire-and-forget:
+   *  a failure here doesn't undo the local match — the operator can still
+   *  land the rows into the grid; only the "next month" auto-match won't work. */
+  const persistErgoMapping = async (rawCode: string, producer: Producer) => {
+    try {
+      await api.post("/bridge-code-mappings", {
+        kind: 6,                             // BridgeMappingKind.Producer
+        sourceCarrier: "ERGO",
+        rawCode,
+        rawLabel: producer.name,
+        targetProducerId: producer.id,
+        notes: "Δημιουργήθηκε από την οθόνη Εισαγωγής ERGO πινακίου.",
+      });
+      // Refetch mappings so subsequent uploads use it automatically.
+      // (Non-blocking — we don't need to wait for the response.)
+      void ergoMappingsQ.refetch();
+    } catch (err) {
+      setGlobalError(`Δεν σώθηκε η μόνιμη σύνδεση: ${extractErrorMessage(err)}`);
+    }
+  };
+
+  /** Row-level action: link an unmatched raw code to an EXISTING producer. */
+  const linkProducer = async (rawCode: string, producer: Producer) => {
+    applyLocalMatch(rawCode, producer);
+    await persistErgoMapping(rawCode, producer);
+  };
+
+  /** Row-level action: create a NEW producer with the ERGO name+code and
+   *  link the raw code to it. */
+  const createAndLinkProducer = async (rawCode: string, rawName: string) => {
+    // Use the ERGO padded code as the internal producer's Code — the
+    // office can rename later, and it's unique enough to avoid collisions.
+    const suggestedCode = `ERGO-${rawCode}`;
+    try {
+      const created = (await api.post<Producer>("/producers", {
+        code: suggestedCode,
+        name: rawName || `ERGO ${rawCode}`,
+        email: null,
+        phone: null,
+        status: 1,                            // ProducerStatus.Active = 1
+      })).data;
+      applyLocalMatch(rawCode, created);
+      await persistErgoMapping(rawCode, created);
+    } catch (err) {
+      setGlobalError(`Αδυναμία δημιουργίας συνεργάτη: ${extractErrorMessage(err)}`);
+    }
+  };
   // If the parent deep-links to ERGO mode, kick off the file-picker
   // right away so the user lands on the OS file dialog.
   useEffect(() => {
@@ -691,9 +784,10 @@ export function OverCommissionGridEditor({
                 try {
                   const buf = await file.arrayBuffer();
                   const wb = XLSX.read(buf, { type: "array" });
+                  const sheet = wb.SheetNames[0];
                   const preview = importLayout === "ergo"
-                    ? parseErgoWorkbookPreview(wb, wb.SheetNames[0], file.name, producers)
-                    : parseWorkbookPreview(wb, wb.SheetNames[0], file.name, producers);
+                    ? parseErgoWorkbookPreview(wb, sheet, file.name, producers, ergoProducerCodeMap)
+                    : parseWorkbookPreview(wb, sheet, file.name, producers);
                   setImportPreview(preview);
                   // Auto-select the ERGO carrier if we can find one; otherwise fall back.
                   const ergoCarrier = importLayout === "ergo"
@@ -979,6 +1073,20 @@ export function OverCommissionGridEditor({
             <Box sx={{ flex: 1 }} />
             <Chip color="success" label={`${importPreview?.parsed.filter(p => !p.problem).length ?? 0} έτοιμες`} />
             <Chip color="warning" label={`${importPreview?.parsed.filter(p => p.problem).length ?? 0} με πρόβλημα`} />
+            {importLayout === "ergo" && (importPreview?.parsed ?? []).some(p => !p.matchedProducer) && (
+              <Button size="small" variant="outlined" color="warning"
+                onClick={async () => {
+                  const missing = (importPreview?.parsed ?? [])
+                    .filter(p => !p.matchedProducer && !!p.producerCode);
+                  for (const p of missing) {
+                    // Sequential — parallel POSTs against /producers race on
+                    // unique Code constraints inside a single tenant.
+                    await createAndLinkProducer(p.producerCode!, p.producerName ?? "");
+                  }
+                }}>
+                ＋ Δημιουργία όλων ({(importPreview?.parsed ?? []).filter(p => !p.matchedProducer).length})
+              </Button>
+            )}
           </Stack>
 
           <Box sx={{ maxHeight: 420, overflowY: "auto" }}>
@@ -1000,10 +1108,30 @@ export function OverCommissionGridEditor({
                   <TableRow key={i} sx={{ bgcolor: p.problem ? "rgba(255,167,38,0.08)" : undefined }}>
                     <TableCell>{p.producerName ?? "—"}</TableCell>
                     <TableCell sx={{ fontFamily: "monospace" }}>{p.producerCode ?? "—"}</TableCell>
-                    <TableCell>
-                      {p.matchedProducer
-                        ? <Chip size="small" color="success" label={p.matchedProducer.name} />
-                        : <Chip size="small" color="warning" label="Δεν βρέθηκε" />}
+                    <TableCell sx={{ minWidth: 320 }}>
+                      {p.matchedProducer ? (
+                        <Chip size="small" color="success" label={p.matchedProducer.name} />
+                      ) : (
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Autocomplete
+                            size="small" sx={{ minWidth: 200 }}
+                            options={producers} getOptionLabel={(o) => `${o.name}${o.code ? " (" + o.code + ")" : ""}`}
+                            renderInput={(params) => <TextField {...params} label="Σύνδεση με…" />}
+                            onChange={(_, v) => {
+                              if (v && p.producerCode) void linkProducer(p.producerCode, v);
+                            }}
+                          />
+                          <Tooltip title="Δημιουργία νέου συνεργάτη με αυτόν τον κωδικό ERGO και σύνδεση.">
+                            <Button size="small" variant="outlined"
+                              onClick={() => {
+                                if (!p.producerCode) return;
+                                void createAndLinkProducer(p.producerCode, p.producerName ?? "");
+                              }}>
+                              ＋ Νέος
+                            </Button>
+                          </Tooltip>
+                        </Stack>
+                      )}
                     </TableCell>
                     <TableCell align="right" sx={{ fontFamily: "monospace" }}>{p.grossAmount || "—"}</TableCell>
                     <TableCell align="right" sx={{ fontFamily: "monospace" }}>{p.netAmount || "—"}</TableCell>
