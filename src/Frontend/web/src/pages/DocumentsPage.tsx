@@ -19,12 +19,14 @@ import {
   IconButton,
   InputAdornment,
   MenuItem,
+  Snackbar,
   Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   TextField,
   Typography
@@ -57,6 +59,29 @@ import { SearchableTextField } from "../components/SearchableTextField";
 
 type DocumentType = "Policy" | "GreenCard" | "Roadside" | "Invoice" | "Other";
 
+// Per-type chip palette. Different tint per document type so scanning a
+// 200-row list is easier: Συμβόλαιο is anchor navy, Πράσινη κάρτα stays
+// literal green, Οδική βοήθεια gets a warm orange, Τιμολόγιο a purple,
+// Άλλο a neutral grey. Both bgcolor + a matching border read on light
+// AND dark themes without extra work.
+const DOC_TYPE_STYLES: Record<DocumentType, { bg: string; fg: string; border: string }> = {
+  Policy:    { bg: "rgba(11,37,69,0.10)",   fg: "#0b2545",  border: "#0b254555" },
+  GreenCard: { bg: "rgba(22,163,74,0.14)",  fg: "#146c3a",  border: "#22c55e88" },
+  Roadside:  { bg: "rgba(217,119,6,0.14)",  fg: "#92590a",  border: "#f59e0b88" },
+  Invoice:   { bg: "rgba(124,58,237,0.14)", fg: "#5b21b6",  border: "#a78bfa88" },
+  Other:     { bg: "rgba(100,116,139,0.14)",fg: "#334155",  border: "#94a3b888" },
+};
+function renderTypeChip(type: DocumentType, label: string) {
+  const s = DOC_TYPE_STYLES[type] ?? DOC_TYPE_STYLES.Other;
+  return (
+    <Chip size="small" label={label}
+      sx={{
+        bgcolor: s.bg, color: s.fg, borderColor: s.border,
+        border: 1, fontWeight: 700,
+      }} />
+  );
+}
+
 interface DocumentDto {
   id: string;
   policyId: string;
@@ -84,6 +109,12 @@ export function DocumentsPage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [previewOf, setPreviewOf] = useState<DocumentDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+  // Toast surfaced from the drawer's «Αντιγραφή εσωτερικού συνδέσμου»
+  // action so the operator gets visible confirmation the URL landed in
+  // the clipboard (silent copies were unfrindly).
+  const [copyToast, setCopyToast] = useState(false);
   // Filter state — all local so the operator can narrow the huge document
   // list by policy number, customer name, doc type, or upload date range
   // without a page reload.
@@ -114,6 +145,18 @@ export function DocumentsPage() {
   };
 
   const allRows = docsQuery.data ?? [];
+
+  // Reset pagination whenever filters change — keeps «page 5» from
+  // being empty after a narrower filter shrinks the set.
+  useEffect(() => { setPage(0); }, [q, type, from, to]);
+
+  // Bridge from the drawer's «Αντιγραφή εσωτερικού συνδέσμου» action
+  // into the snackbar living on the list page.
+  useEffect(() => {
+    const flash = () => setCopyToast(true);
+    window.addEventListener("kalypsis:doc-link-copied", flash);
+    return () => window.removeEventListener("kalypsis:doc-link-copied", flash);
+  }, []);
   const isCustomer = user?.role === "Customer";
 
   // Client-side filter — the /documents endpoint returns everything for the
@@ -240,11 +283,16 @@ export function DocumentsPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {rows.map((d) => (
+                {rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((d) => (
                   <TableRow
                     key={d.id}
                     hover
-                    sx={{ cursor: "pointer" }}
+                    sx={{
+                      cursor: "pointer",
+                      // Zebra stripes — every other row picks up a warm
+                      // yellow tint so long lists are easier to track.
+                      "&:nth-of-type(even)": { bgcolor: "rgba(255,244,196,0.20)" },
+                    }}
                     onClick={(e) => {
                       // Ignore clicks that landed on an action button so the
                       // Download / Delete / etc. IconButtons keep their own
@@ -264,7 +312,7 @@ export function DocumentsPage() {
                         </Box>
                       </Stack>
                     </TableCell>
-                    <TableCell><Chip label={t(`documents.types.${d.documentType}`)} size="small" /></TableCell>
+                    <TableCell>{renderTypeChip(d.documentType, t(`documents.types.${d.documentType}`))}</TableCell>
                     <TableCell>{d.policyNumber}</TableCell>
                     {!isCustomer && <TableCell>{d.customerDisplay}</TableCell>}
                     <TableCell sx={{ fontSize: 13 }}>{date(d.createdAt)}</TableCell>
@@ -292,8 +340,36 @@ export function DocumentsPage() {
               </TableBody>
             </Table>
           </TableContainer>
+          {/* Pagination — rows-per-page selectable + Greek row-label so it
+              blends with the rest of the page instead of shouting «Rows
+              per page: 10». Reset happens on filter change. */}
+          <TablePagination
+            component="div"
+            count={rows.length}
+            page={page}
+            onPageChange={(_, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(e) => { setRowsPerPage(Number(e.target.value)); setPage(0); }}
+            rowsPerPageOptions={[10, 25, 50, 100]}
+            labelRowsPerPage="Γραμμές ανά σελίδα:"
+            labelDisplayedRows={({ from: f, to: to2, count }) =>
+              `${f}–${to2} από ${count !== -1 ? count : `περισσότερα από ${to2}`}`}
+          />
         </Card>
       )}
+
+      {/* Copy-link toast — flashes «Αντιγράφηκε στο πρόχειρο» when the
+          drawer's copy action fires. Auto-hides after 1.6s. */}
+      <Snackbar
+        open={copyToast}
+        autoHideDuration={1600}
+        onClose={() => setCopyToast(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity="success" variant="filled" sx={{ borderRadius: 2, fontWeight: 600 }}>
+          Αντιγράφηκε στο πρόχειρο
+        </Alert>
+      </Snackbar>
 
       {canEdit && (
         <UploadDialog
@@ -616,6 +692,11 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
                 try {
                   const url = `${window.location.origin}/app/documents#doc=${doc.id}`;
                   await navigator.clipboard.writeText(url);
+                  // Notify the parent list to flash the toast — the
+                  // drawer instance is created inside DocumentsPage,
+                  // so window custom-event is the least-invasive channel
+                  // to bridge back without threading a prop.
+                  window.dispatchEvent(new CustomEvent("kalypsis:doc-link-copied"));
                 } catch { /* clipboard blocked — ignore */ }
               }}
               sx={{
