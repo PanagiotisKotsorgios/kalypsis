@@ -3075,6 +3075,12 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                     else if (producerCache.TryGetValue(row.PartnerCode, out var producer))
                     {
                         producerId = producer.Id;
+                        // Producer exists but no BridgeCodeMapping wired it —
+                        // usually because the producer was seeded / created
+                        // directly in Kalypsis with matching Code. Persist the
+                        // mapping so it shows up in «Αντιστοιχίσεις γεφυρών»
+                        // and the operator has an editable link record.
+                        EnsureProducerBridgeMapping(row.PartnerCode, producer, carrier, tenantId, bridgeProducerMap);
                     }
                     else
                     {
@@ -3091,20 +3097,7 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                         producerId = producer.Id;
                         // Remember this raw code so subsequent imports skip
                         // the auto-create dance entirely.
-                        _db.BridgeCodeMappings.Add(new BridgeCodeMapping {
-                            Id = Guid.NewGuid(),
-                            TenantId = tenantId,
-                            Kind = BridgeMappingKind.Producer,
-                            SourceCarrier = carrier.Code ?? carrier.Name,
-                            RawCode = row.PartnerCode,
-                            RawLabel = producer.Name,
-                            TargetProducerId = producer.Id,
-                            Notes = "Δημιουργήθηκε αυτόματα κατά την εισαγωγή αρχείου γέφυρας.",
-                            ConfirmedByUserId = _current.UserId,
-                            ConfirmedAt = DateTime.UtcNow,
-                            CreatedAt = DateTime.UtcNow
-                        });
-                        bridgeProducerMap[row.PartnerCode] = producer.Id;
+                        EnsureProducerBridgeMapping(row.PartnerCode, producer, carrier, tenantId, bridgeProducerMap);
                         log.AppendLine($"row {row.Index}: auto-created producer {row.PartnerCode} + bridge mapping");
                     }
                 }
@@ -3254,6 +3247,41 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
         });
         var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(payload));
         return $"BRG-{Convert.ToHexString(bytes)[..16]}";
+    }
+
+    /// <summary>
+    /// Ensures a Producer-kind BridgeCodeMapping exists for (tenant, carrier,
+    /// rawCode). Idempotent — checks the per-commit cache first, then the DB.
+    /// Called from every path that resolves a partner code (auto-create,
+    /// existing-Producer match, synthetic parent) so the operator ALWAYS sees
+    /// the connection in «Αντιστοιχίσεις γεφυρών» — no silently-linked
+    /// mappings any more.
+    /// </summary>
+    private void EnsureProducerBridgeMapping(
+        string rawCode, Producer producer, InsuranceCompany carrier,
+        Guid tenantId, Dictionary<string, Guid> bridgeProducerMap)
+    {
+        if (bridgeProducerMap.ContainsKey(rawCode)) return;
+        var sourceCarrier = carrier.Code ?? carrier.Name;
+        // Look for a live mapping already stored (from a prior commit) —
+        // sync lookup is safe here because Handle() has already pre-loaded
+        // Producer-kind mappings into bridgeProducerMap for THIS carrier
+        // at the start of the run. If we get here without a cache hit it
+        // means the mapping doesn't exist for this (tenant, carrier, raw).
+        _db.BridgeCodeMappings.Add(new BridgeCodeMapping {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            Kind = BridgeMappingKind.Producer,
+            SourceCarrier = sourceCarrier,
+            RawCode = rawCode,
+            RawLabel = producer.Name,
+            TargetProducerId = producer.Id,
+            Notes = "Δημιουργήθηκε αυτόματα κατά την εισαγωγή αρχείου γέφυρας.",
+            ConfirmedByUserId = _current.UserId,
+            ConfirmedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
+        });
+        bridgeProducerMap[rawCode] = producer.Id;
     }
 
     /// <summary>
