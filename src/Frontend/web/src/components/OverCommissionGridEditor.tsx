@@ -329,7 +329,11 @@ function parseErgoWorkbookPreview(
       // on the over-commission line in the ERGO πινάκιο).
       grossAmount: overCommission,
       netAmount:   overCommission,
-      producerSharePercent: "",
+      // ΥΠΕΡΠΡΟΜΗΘΕΙΑ = bonus above the producer's own commission (col E),
+      // and by ERGO contract the whole amount belongs to the office / έδρα.
+      // Producer share is therefore 0 by default. The operator can still
+      // override per-row in the grid before pressing "Εισαγωγή N γραμμών".
+      producerSharePercent: "0",
       reference: month && year ? `ERGO ΠΙΝΑΚΙΟ ${month}/${year}` : "ERGO ΠΙΝΑΚΙΟ",
       paidOn: "",
       notes: netPremiums ? `Καθαρά ασφάλιστρα μηνός: ${netPremiums}` : "",

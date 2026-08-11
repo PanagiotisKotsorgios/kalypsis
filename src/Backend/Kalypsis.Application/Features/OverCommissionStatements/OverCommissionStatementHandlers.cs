@@ -124,11 +124,20 @@ public class UpsertOverCommissionStatementValidator : AbstractValidator<UpsertOv
         RuleFor(x => x.ProducerId).NotEmpty();
         RuleFor(x => x.Year).InclusiveBetween(2000, 2100);
         RuleFor(x => x.Month).InclusiveBetween(1, 12);
-        RuleFor(x => x.GrossAmount).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.NetAmount).GreaterThanOrEqualTo(0);
+        // Amounts may legitimately be negative — a carrier can debit the
+        // producer back for a cancelled policy or a prior-month correction
+        // right inside the monthly πινάκιο. We only bound the magnitude to
+        // reject data-entry accidents (a stray trailing "000000" pasted in).
+        RuleFor(x => x.GrossAmount).InclusiveBetween(-1_000_000m, 1_000_000m)
+            .WithMessage("Ασυνήθιστο ποσό μικτών (εκτός [-1M, 1M]€).");
+        RuleFor(x => x.NetAmount).InclusiveBetween(-1_000_000m, 1_000_000m)
+            .WithMessage("Ασυνήθιστο ποσό καθαρών (εκτός [-1M, 1M]€).");
         RuleFor(x => x.Currency).NotEmpty().Length(3);
         RuleFor(x => x.ProducerSharePercent).InclusiveBetween(0m, 100m)
             .WithMessage("Το % παραγωγού πρέπει να είναι μεταξύ 0 και 100.");
+        // Πρόσθετος έλεγχος διάρκειας: αν δοθούν και τα δύο, από ≤ έως.
+        RuleFor(x => x).Must(c => c.PeriodFrom is null || c.PeriodTo is null || c.PeriodFrom <= c.PeriodTo)
+            .WithMessage("Η ημερομηνία «Από» πρέπει να είναι πριν ή ίδια με την «Έως».");
     }
 }
 
@@ -267,7 +276,15 @@ public class BulkUpsertOverCommissionStatementsHandler
                 if (row.ProducerId == Guid.Empty) throw new Exception("Λείπει ο παραγωγός.");
                 if (row.Year < 2000 || row.Year > 2100) throw new Exception("Άκυρο έτος.");
                 if (row.Month < 1 || row.Month > 12) throw new Exception("Άκυρος μήνας.");
-                if (row.GrossAmount < 0) throw new Exception("Αρνητικά μικτά.");
+                // Amounts may legitimately be negative — a carrier can debit
+                // the producer back for a cancelled policy or a prior-month
+                // correction right inside the monthly πινάκιο (ERGO does this
+                // regularly). Only reject data-entry accidents that overflow
+                // the sane range.
+                if (row.GrossAmount is < -1_000_000m or > 1_000_000m)
+                    throw new Exception("Ασυνήθιστο ποσό μικτών (εκτός [-1M, 1M]€).");
+                if (row.PeriodFrom is not null && row.PeriodTo is not null && row.PeriodFrom > row.PeriodTo)
+                    throw new Exception("Η ημερομηνία «Από» πρέπει να είναι πριν ή ίδια με την «Έως».");
 
                 var key = (row.InsuranceCompanyId, row.ProducerId, row.Year, row.Month);
                 if (existingByKey.TryGetValue(key, out var s))

@@ -61,6 +61,12 @@ const MONTHS = [
 
 const moneyFmt = new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR" });
 
+/** Build a YYYY-MM-DD from (year, month, day) — used to compare a
+ *  statement's period against the "Από/Έως" filter when no paidOn exists. */
+function isoOfPeriod(year: number, month: number, day: number): string {
+  return `${year.toString().padStart(4, "0")}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+}
+
 export function OverCommissionStatementsPage() {
   const qc = useQueryClient();
   const now = new Date();
@@ -72,6 +78,10 @@ export function OverCommissionStatementsPage() {
   const [dialog, setDialog] = useState<StatementDto | null | "new">(null);
   const [error, setError] = useState<string | null>(null);
   const [gridOpen, setGridOpen] = useState(false);
+  // Advanced filter fields (client-side over the already-loaded month set).
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo]   = useState<string>("");
+  const [paidFilter, setPaidFilter] = useState<"" | "paid" | "unpaid">("");
   // Deep-link ?openImport=ergo (from OverCommissionBridgesPage) auto-opens
   // the μαζική καταχώρηση grid + tells the grid to preselect ERGO layout.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -117,7 +127,26 @@ export function OverCommissionStatementsPage() {
     onError: (e) => setError(extractErrorMessage(e))
   });
 
-  const rows = listQ.data ?? [];
+  const rawRows = listQ.data ?? [];
+  const rows = useMemo(() => {
+    // Apply date range + paid-status filters on top of the backend list.
+    let r = rawRows;
+    if (dateFrom) {
+      r = r.filter(x => {
+        const ref = x.paidOn ?? isoOfPeriod(x.year, x.month, 1);
+        return ref >= dateFrom;
+      });
+    }
+    if (dateTo) {
+      r = r.filter(x => {
+        const ref = x.paidOn ?? isoOfPeriod(x.year, x.month, 28);
+        return ref <= dateTo;
+      });
+    }
+    if (paidFilter === "paid")   r = r.filter(x => !!x.paidOn);
+    if (paidFilter === "unpaid") r = r.filter(x => !x.paidOn);
+    return r;
+  }, [rawRows, dateFrom, dateTo, paidFilter]);
   const totals = useMemo(() => ({
     gross: rows.reduce((s, r) => s + r.grossAmount, 0),
     net: rows.reduce((s, r) => s + r.netAmount, 0),
@@ -126,6 +155,69 @@ export function OverCommissionStatementsPage() {
     paidCount: rows.filter(r => r.paidOn).length,
     unpaidGross: rows.filter(r => !r.paidOn).reduce((s, r) => s + r.grossAmount, 0)
   }), [rows]);
+
+  /** Export the currently-filtered rows in CSV / XLSX / print. */
+  const exportRows = (kind: "csv" | "xlsx" | "print") => {
+    if (rows.length === 0) { setError("Δεν υπάρχουν γραμμές για εξαγωγή."); return; }
+    const headers = [
+      "Έτος","Μήνας","Ασφαλιστική","Παραγωγός","Κωδικός",
+      "Μικτά (€)","Καθαρά (€)","% Παραγωγού",
+      "Στον παραγωγό (€)","Στην έδρα / υπερπρομήθεια (€)",
+      "Reference","Πληρωμή","Σημείωση"
+    ];
+    const data = rows.map(r => [
+      r.year, r.month, r.insuranceCompanyName, r.producerName, r.producerCode ?? "",
+      r.grossAmount, r.netAmount, r.producerSharePercent,
+      r.producerAmount ?? r.grossAmount, r.officeAmount ?? 0,
+      r.reference ?? "", r.paidOn ?? "", r.notes ?? ""
+    ]);
+    if (kind === "csv") {
+      const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+      const lines = [headers.join(";"), ...data.map(row => row.map(esc).join(";"))];
+      const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `overcommissions_${year}${month ? "-" + String(month).padStart(2,"0") : ""}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+    if (kind === "xlsx") {
+      // Load SheetJS lazily so this page doesn't pull it on first paint.
+      import("xlsx").then(XLSX => {
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Υπερπρομήθειες");
+        XLSX.writeFile(wb, `overcommissions_${year}${month ? "-" + String(month).padStart(2,"0") : ""}.xlsx`);
+      });
+      return;
+    }
+    // print
+    const html = `<!doctype html><html><head><meta charset="utf-8">
+      <title>Υπερπρομήθειες ${year}${month ? "/" + String(month).padStart(2,"0") : ""}</title>
+      <style>body{font-family:Arial,sans-serif;padding:24px;color:#111}
+        h1{font-size:18px;margin:0 0 10px}
+        table{width:100%;border-collapse:collapse;font-size:11px}
+        th,td{border:1px solid #ccc;padding:5px 7px;text-align:left}
+        th{background:#0b2545;color:#fff;font-weight:600}
+        td.num{text-align:right;font-family:Consolas,monospace}
+        tfoot td{background:#f5f5f5;font-weight:700}
+        @media print{ @page { size: A4 landscape; margin: 12mm } }
+      </style></head><body>
+      <h1>Υπερπρομήθειες παραγωγών · ${year}${month ? "/" + String(month).padStart(2,"0") : ""}
+          · ${rows.length} γραμμές · Έδρα: ${moneyFmt.format(totals.office)}</h1>
+      <table>
+        <thead><tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr></thead>
+        <tbody>${data.map(r => `<tr>${r.map((v,i)=>
+          `<td class="${i>=5&&i<=9?"num":""}">${v ?? ""}</td>`).join("")}</tr>`).join("")}</tbody>
+      </table>
+      <script>window.onload=()=>setTimeout(()=>window.print(),100);</script>
+      </body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) { setError("Ο browser μπλόκαρε το νέο παράθυρο."); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+  };
 
   return (
     <Box>
@@ -173,14 +265,26 @@ export function OverCommissionStatementsPage() {
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 
       {/* Totals strip */}
-      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3,1fr) repeat(3,1fr)" }, mb: 3 }}>
-        <Kpi label="Σύνολο μικτά" value={moneyFmt.format(totals.gross)} />
-        <Kpi label="Σύνολο καθαρά" value={moneyFmt.format(totals.net)} />
-        <Kpi label="Πληρωμένες γραμμές" value={`${totals.paidCount} / ${rows.length}`} />
-        <Kpi label="Στον παραγωγό" value={moneyFmt.format(totals.producer)} color="success.main" />
-        <Kpi label="Στην έδρα" value={moneyFmt.format(totals.office)} color="info.main" />
-        <Kpi label="Απλήρωτο (μικτά)" value={moneyFmt.format(totals.unpaidGross)} color="warning.main" />
-      </Box>
+      {(() => {
+        // Auto-percentages of the producer/έδρα split against gross —
+        // handles negatives + zero-gross gracefully.
+        const denom = Math.abs(totals.gross);
+        const pct = (v: number) => denom > 0
+          ? `${((v / totals.gross) * 100).toFixed(1)}%`
+          : "—";
+        const pctFmt = (v: number) =>
+          denom > 0 ? `${moneyFmt.format(v)}  ·  ${pct(v)}` : moneyFmt.format(v);
+        return (
+          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3,1fr) repeat(3,1fr)" }, mb: 3 }}>
+            <Kpi label="Σύνολο μικτά" value={moneyFmt.format(totals.gross)} />
+            <Kpi label="Σύνολο καθαρά" value={moneyFmt.format(totals.net)} />
+            <Kpi label="Πληρωμένες γραμμές" value={`${totals.paidCount} / ${rows.length}`} />
+            <Kpi label="Στον παραγωγό (€ · %)" value={pctFmt(totals.producer)} color="success.main" />
+            <Kpi label="Στην έδρα / υπερπρομήθεια (€ · %)" value={pctFmt(totals.office)} color="info.main" />
+            <Kpi label="Απλήρωτο (μικτά)" value={moneyFmt.format(totals.unpaidGross)} color="warning.main" />
+          </Box>
+        );
+      })()}
 
       {/* Filters */}
       <Card sx={{ p: 2, mb: 2 }}>
@@ -211,8 +315,30 @@ export function OverCommissionStatementsPage() {
           <TextField size="small" label="Αναζήτηση" value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="όνομα / κωδικός / reference" sx={{ minWidth: 220 }} />
+          <TextField type="date" size="small" label="Από" InputLabelProps={{ shrink: true }}
+            value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+            sx={{ minWidth: 160 }} />
+          <TextField type="date" size="small" label="Έως" InputLabelProps={{ shrink: true }}
+            value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+            sx={{ minWidth: 160 }} />
+          <TextField select size="small" label="Πληρωμή" value={paidFilter}
+            onChange={(e) => setPaidFilter(e.target.value as "" | "paid" | "unpaid")}
+            sx={{ minWidth: 140 }}>
+            <MenuItem value="">Όλα</MenuItem>
+            <MenuItem value="paid">Πληρωμένα</MenuItem>
+            <MenuItem value="unpaid">Απλήρωτα</MenuItem>
+          </TextField>
           <Box sx={{ flex: 1 }} />
-          <Chip label={`${rows.length} γραμμές`} />
+          <Button size="small" variant="outlined" onClick={() => exportRows("csv")}>
+            Εξαγωγή CSV
+          </Button>
+          <Button size="small" variant="outlined" onClick={() => exportRows("xlsx")}>
+            Εξαγωγή XLSX
+          </Button>
+          <Button size="small" variant="outlined" onClick={() => exportRows("print")}>
+            🖨 Εκτύπωση
+          </Button>
+          <Chip label={`${rows.length} γραμμές · ${moneyFmt.format(totals.office)} στην έδρα`} />
         </Stack>
       </Card>
 
