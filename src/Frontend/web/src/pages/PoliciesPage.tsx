@@ -774,6 +774,7 @@ export function PoliciesPage() {
 interface FormBody {
   customerId: string;
   insuranceCompanyId: string;
+  producerId: string;
   policyType: PolicyType;
   vehicleUseCategory: string;
   coverCode: string;
@@ -814,10 +815,19 @@ function PolicyFormDialog({
     queryFn: async () => (await api.get<CarrierDto[]>("/insurance-companies", { params: { onlyUsed: true } })).data,
     enabled: open
   });
+  // Producer list for the «Συνεργάτης» dropdown — local to the dialog so
+  // it opens/closes with the form; not shared with the parent page which
+  // has its own producers-for-filter query keyed differently.
+  const producersQuery = useQuery({
+    queryKey: ["producers-for-policy-form"],
+    queryFn: async () => (await api.get<{ id: string; name: string; code: string }[]>("/producers")).data,
+    enabled: open,
+  });
 
   const [form, setForm] = useState<FormBody>({
     customerId: "",
     insuranceCompanyId: "",
+    producerId: "",
     policyType: "Auto",
     vehicleUseCategory: "",
     coverCode: "",
@@ -842,6 +852,7 @@ function PolicyFormDialog({
       setForm({
         customerId: policy.customerId,
         insuranceCompanyId: policy.insuranceCompanyId,
+        producerId: policy.producerId ?? "",
         policyType: policy.policyType,
         vehicleUseCategory: "",
         coverCode: "",
@@ -856,6 +867,7 @@ function PolicyFormDialog({
       setForm({
         customerId: "",
         insuranceCompanyId: "",
+        producerId: "",
         policyType: "Auto",
         vehicleUseCategory: "",
         coverCode: "",
@@ -873,7 +885,7 @@ function PolicyFormDialog({
     mutationFn: async () => {
       const body = {
         insuranceCompanyId: form.insuranceCompanyId,
-        producerId: null,
+        producerId: form.producerId || null,
         policyType: form.policyType,
         vehicleUseCategory: form.vehicleUseCategory || null,
         coverCode: form.coverCode || null,
@@ -975,6 +987,21 @@ function PolicyFormDialog({
               );
             })()}
           </Stack>
+
+          {/* Producer picker — optional but recommended. Blank leaves the
+              policy «ασύνδετο»; picking one lets the bridge auto-inherit
+              on next renewal via the same policy number. */}
+          <SearchableSelect
+            label="Συνεργάτης"
+            value={form.producerId}
+            onChange={(v) => setForm({ ...form, producerId: v })}
+            emptyLabel="— χωρίς σύνδεση —"
+            options={(producersQuery.data ?? []).map(p => ({
+              value: p.id,
+              label: p.code ? `${p.code} — ${p.name}` : p.name,
+            }))}
+            helperText="Ο συνεργάτης θα κληρονομείται αυτόματα στις επόμενες ανανεώσεις του ίδιου αριθμού συμβολαίου."
+          />
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <SearchableSelect

@@ -2588,6 +2588,31 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
             .Where(p => p.DeletedAt == null).ToListAsync(ct);
         foreach (var p in allProducers) producerCache[p.Code] = p;
 
+        // Producer-kind BridgeCodeMappings for this carrier — used to route
+        // the carrier's raw partner code to whichever internal producer the
+        // office linked previously (via the ERGO πινάκιο screen or the
+        // bridge preview). Without this the same PartnerCode kept auto-
+        // creating fresh producers on every import.
+        var carrierSourceKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(carrier.Code)) carrierSourceKeys.Add(carrier.Code);
+        if (!string.IsNullOrWhiteSpace(carrier.Name)) carrierSourceKeys.Add(carrier.Name);
+        var bridgeProducerMap = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        var rawProducerMappings = await _db.BridgeCodeMappings.IgnoreQueryFilters()
+            .Where(m => m.TenantId == tenantId
+                && m.DeletedAt == null
+                && m.Kind == BridgeMappingKind.Producer
+                && m.TargetProducerId != null)
+            .Select(m => new { m.SourceCarrier, m.RawCode, m.TargetProducerId })
+            .ToListAsync(ct);
+        foreach (var m in rawProducerMappings)
+        {
+            // Bind either to a carrier-scoped raw code (usual) or to the
+            // global scope when SourceCarrier is null. Carrier-scoped wins.
+            if (m.SourceCarrier is null || carrierSourceKeys.Contains(m.SourceCarrier))
+                bridgeProducerMap[m.RawCode] = m.TargetProducerId!.Value;
+        }
+        var producersById = allProducers.ToDictionary(p => p.Id);
+
         var allCustomers = await _db.Customers.IgnoreQueryFilters()
             .Where(c => c.TenantId == tenantId && c.DeletedAt == null).ToListAsync(ct);
         foreach (var c in allCustomers)
@@ -2761,31 +2786,51 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                     // amend and no synthetic row can rehydrate that history.
                     if (parentPolicy is null && row.RowType == "Cancellation")
                     {
-                        // Resolve producer (may auto-create — same code the
-                        // non-lifecycle branch runs later).
+                        // Resolve producer — mirrors the non-lifecycle branch
+                        // below: BridgeCodeMapping wins first, then code
+                        // match, then auto-create + persist mapping.
                         Guid? synthProducerId = null;
                         if (!string.IsNullOrEmpty(row.PartnerCode))
                         {
-                            if (!producerCache.TryGetValue(row.PartnerCode, out var pr))
+                            if (bridgeProducerMap.TryGetValue(row.PartnerCode, out var mappedId)
+                                && producersById.ContainsKey(mappedId))
                             {
-                                pr = await _db.Producers.IgnoreQueryFilters()
-                                    .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Code == row.PartnerCode && x.DeletedAt == null, ct);
-                                if (pr is null)
-                                {
-                                    pr = new Producer
-                                    {
-                                        Id = Guid.NewGuid(),
-                                        TenantId = tenantId,
-                                        Code = row.PartnerCode,
-                                        Name = $"Bridge auto-created {row.PartnerCode}",
-                                        Status = ProducerStatus.Active
-                                    };
-                                    _db.Producers.Add(pr);
-                                    log.AppendLine($"row {row.Index}: auto-created producer {row.PartnerCode} (synthetic parent)");
-                                }
-                                producerCache[row.PartnerCode] = pr;
+                                synthProducerId = mappedId;
                             }
-                            synthProducerId = pr.Id;
+                            else if (producerCache.TryGetValue(row.PartnerCode, out var pr))
+                            {
+                                synthProducerId = pr.Id;
+                            }
+                            else
+                            {
+                                pr = new Producer
+                                {
+                                    Id = Guid.NewGuid(),
+                                    TenantId = tenantId,
+                                    Code = row.PartnerCode,
+                                    Name = $"Bridge auto-created {row.PartnerCode}",
+                                    Status = ProducerStatus.Active
+                                };
+                                _db.Producers.Add(pr);
+                                producerCache[row.PartnerCode] = pr;
+                                producersById[pr.Id] = pr;
+                                _db.BridgeCodeMappings.Add(new BridgeCodeMapping {
+                                    Id = Guid.NewGuid(),
+                                    TenantId = tenantId,
+                                    Kind = BridgeMappingKind.Producer,
+                                    SourceCarrier = carrier.Code ?? carrier.Name,
+                                    RawCode = row.PartnerCode,
+                                    RawLabel = pr.Name,
+                                    TargetProducerId = pr.Id,
+                                    Notes = "Δημιουργήθηκε αυτόματα κατά την εισαγωγή αρχείου γέφυρας.",
+                                    ConfirmedByUserId = _current.UserId,
+                                    ConfirmedAt = DateTime.UtcNow,
+                                    CreatedAt = DateTime.UtcNow
+                                });
+                                bridgeProducerMap[row.PartnerCode] = pr.Id;
+                                synthProducerId = pr.Id;
+                                log.AppendLine($"row {row.Index}: auto-created producer {row.PartnerCode} + bridge mapping (synthetic parent)");
+                            }
                         }
                         // Customer lookup — same shape the non-lifecycle
                         // branch uses further down (customer cache + name
@@ -2978,12 +3023,31 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                     customerCache[nameKey] = customerEntity;
                 }
 
-                // Auto-create producer if the bridge references a code we don't have.
-                // Cache hits avoid (TenantId, Code) unique-index violations on bulk imports.
+                // Producer resolution — layered fallback so bridge policies
+                // always land linked to an internal συνεργάτης when we can
+                // possibly know one:
+                //   1. BridgeCodeMapping (raw partner code → internal producer)
+                //      — the operator's manual link from ERGO πινάκιο or the
+                //      bridge preview, remembered across imports.
+                //   2. Producer.Code == PartnerCode — direct code match.
+                //   3. Auto-create + persist a BridgeCodeMapping so future
+                //      imports auto-route without re-creating anything.
+                //   4. Inherit from the renewal parent (LinkedPolicyId or
+                //      previous policy with the same number) when the file
+                //      itself doesn't specify a partner.
                 Guid? producerId = null;
                 if (!string.IsNullOrEmpty(row.PartnerCode))
                 {
-                    if (!producerCache.TryGetValue(row.PartnerCode, out var producer))
+                    if (bridgeProducerMap.TryGetValue(row.PartnerCode, out var mappedId)
+                        && producersById.ContainsKey(mappedId))
+                    {
+                        producerId = mappedId;
+                    }
+                    else if (producerCache.TryGetValue(row.PartnerCode, out var producer))
+                    {
+                        producerId = producer.Id;
+                    }
+                    else
                     {
                         producer = new Producer
                         {
@@ -2994,9 +3058,42 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                         };
                         _db.Producers.Add(producer);
                         producerCache[row.PartnerCode] = producer;
-                        log.AppendLine($"row {row.Index}: auto-created producer {row.PartnerCode}");
+                        producersById[producer.Id] = producer;
+                        producerId = producer.Id;
+                        // Remember this raw code so subsequent imports skip
+                        // the auto-create dance entirely.
+                        _db.BridgeCodeMappings.Add(new BridgeCodeMapping {
+                            Id = Guid.NewGuid(),
+                            TenantId = tenantId,
+                            Kind = BridgeMappingKind.Producer,
+                            SourceCarrier = carrier.Code ?? carrier.Name,
+                            RawCode = row.PartnerCode,
+                            RawLabel = producer.Name,
+                            TargetProducerId = producer.Id,
+                            Notes = "Δημιουργήθηκε αυτόματα κατά την εισαγωγή αρχείου γέφυρας.",
+                            ConfirmedByUserId = _current.UserId,
+                            ConfirmedAt = DateTime.UtcNow,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                        bridgeProducerMap[row.PartnerCode] = producer.Id;
+                        log.AppendLine($"row {row.Index}: auto-created producer {row.PartnerCode} + bridge mapping");
                     }
-                    producerId = producer.Id;
+                }
+
+                // No producer from the file itself → try to inherit from a
+                // renewal parent so a lifecycle chain (Χ.Χ. → renewal → …)
+                // keeps its σύνδεση με τον συνεργάτη automatically. Without
+                // this, every renewal row that omits the partner code lands
+                // «ασύνδετο» even when we know exactly who wrote the base.
+                if (producerId is null && !string.IsNullOrEmpty(row.PolicyNumber))
+                {
+                    Policy? parent = null;
+                    if (row.LinkedPolicyId is Guid linkedId && policiesById.TryGetValue(linkedId, out var linkedParent))
+                        parent = linkedParent;
+                    else if (policiesByNumber.TryGetValue(row.PolicyNumber, out var priorSame))
+                        parent = priorSame;
+                    if (parent?.ProducerId is Guid inheritedId && producersById.ContainsKey(inheritedId))
+                        producerId = inheritedId;
                 }
 
                 // Determine the policy status from the imported row type.
