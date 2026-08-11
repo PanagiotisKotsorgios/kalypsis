@@ -3012,6 +3012,21 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                     continue;
                 }
 
+                // DB-side dedup: if the operator re-commits the same preview
+                // after a prior successful import, the row.Status may still
+                // read "Ready" (frontend hasn't re-fetched the preview) but
+                // the policy now lives in policiesByNumber. Skip instead of
+                // hitting the (TenantId, PolicyNumber) unique index. Also
+                // catches concurrent commits where two requests land in the
+                // same window.
+                if (policiesByNumber.TryGetValue(row.PolicyNumber!, out var alreadyPolicy))
+                {
+                    run.RowsSkipped++;
+                    affectedPolicies[alreadyPolicy.Id] = alreadyPolicy;
+                    log.AppendLine($"row {row.Index}: skipped (policy {row.PolicyNumber} already exists in DB)");
+                    continue;
+                }
+
                 // ERGO files don't ship AFM, so we match the customer by normalized name
                 // (uppercase, whitespace-free). Reuse the per-commit cache so the same
                 // customer isn't inserted multiple times for repeating rows.
