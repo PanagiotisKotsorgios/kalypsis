@@ -334,6 +334,9 @@ public class AppDbContext : DbContext, IAppDbContext
         // exist». Both live in DataSeeder.EnsureSchemaSafetyAsync().
         modelBuilder.Entity<SupportTicket>().ToTable("support_tickets");
         modelBuilder.Entity<SupportTicketReply>().ToTable("support_ticket_replies");
+        // Same story — seeder creates `platform_job_overrides`, EF pluralised
+        // to `PlatformJobOverrides` and the daily backup job blew up on Linux.
+        modelBuilder.Entity<PlatformJobOverride>().ToTable("platform_job_overrides");
 
         modelBuilder.Entity<DesktopLicense>(entity =>
         {

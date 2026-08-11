@@ -3173,12 +3173,22 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                 }
                 else
                 {
+                    // Include soft-deleted rows: the DB unique index on
+                    // (TenantId, Code) doesn't respect DeletedAt, so a
+                    // filter of DeletedAt == null hides the row that would
+                    // block the INSERT and leaves us re-throwing from the
+                    // catch below. Resurrect any soft-deleted twin instead.
                     var existingP = await _db.Producers.IgnoreQueryFilters()
-                        .FirstOrDefaultAsync(x => x.DeletedAt == null
-                            && x.TenantId == tenantId
+                        .FirstOrDefaultAsync(x => x.TenantId == tenantId
                             && x.Code == code, ct);
                     if (existingP is not null)
                     {
+                        if (existingP.DeletedAt is not null)
+                        {
+                            existingP.DeletedAt = null;
+                            existingP.UpdatedAt = now;
+                            await _db.SaveChangesAsync(ct);
+                        }
                         targetProducerId = existingP.Id;
                     }
                     else
@@ -3200,16 +3210,22 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                         }
                         catch (DbUpdateException)
                         {
-                            // Belt+suspenders: another concurrent request (or a
-                            // stale in-memory state) already committed the same
-                            // (TenantId, Code). Detach the failed insert, re-
-                            // lookup the winner, reuse its Id.
+                            // Belt+suspenders. A concurrent request or a
+                            // hidden soft-deleted twin already occupies the
+                            // (TenantId, Code) slot. Detach the failed insert,
+                            // re-lookup WITHOUT the soft-delete filter, and
+                            // resurrect if needed.
                             ((DbContext)_db).Entry(pr).State = EntityState.Detached;
                             var winner = await _db.Producers.IgnoreQueryFilters()
-                                .FirstOrDefaultAsync(x => x.DeletedAt == null
-                                    && x.TenantId == tenantId
+                                .FirstOrDefaultAsync(x => x.TenantId == tenantId
                                     && x.Code == code, ct);
                             if (winner is null) throw;
+                            if (winner.DeletedAt is not null)
+                            {
+                                winner.DeletedAt = null;
+                                winner.UpdatedAt = now;
+                                await _db.SaveChangesAsync(ct);
+                            }
                             targetProducerId = winner.Id;
                         }
                     }
@@ -3241,13 +3257,21 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                     targetParamId = cachedParamId;
                     goto after_parametric_upsert; // skip the block below, cache hit
                 }
+                // Include soft-deleted rows — the unique index doesn't
+                // respect DeletedAt, so a filter-out here would leave the
+                // catch below to re-lookup and rethrow. Resurrect instead.
                 var existing = await _db.CompanyParameterItems.IgnoreQueryFilters()
-                    .FirstOrDefaultAsync(x => x.DeletedAt == null
-                        && x.InsuranceCompanyId == carrier.Id
+                    .FirstOrDefaultAsync(x => x.InsuranceCompanyId == carrier.Id
                         && x.Kind == kind
                         && x.Code == code, ct);
                 if (existing is not null)
                 {
+                    if (existing.DeletedAt is not null)
+                    {
+                        existing.DeletedAt = null;
+                        existing.UpdatedAt = now;
+                        await _db.SaveChangesAsync(ct);
+                    }
                     targetParamId = existing.Id;
                 }
                 else
@@ -3275,11 +3299,16 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                     {
                         ((DbContext)_db).Entry(item).State = EntityState.Detached;
                         var winner = await _db.CompanyParameterItems.IgnoreQueryFilters()
-                            .FirstOrDefaultAsync(x => x.DeletedAt == null
-                                && x.InsuranceCompanyId == carrier.Id
+                            .FirstOrDefaultAsync(x => x.InsuranceCompanyId == carrier.Id
                                 && x.Kind == kind
                                 && x.Code == code, ct);
                         if (winner is null) throw;
+                        if (winner.DeletedAt is not null)
+                        {
+                            winner.DeletedAt = null;
+                            winner.UpdatedAt = now;
+                            await _db.SaveChangesAsync(ct);
+                        }
                         targetParamId = winner.Id;
                     }
                 }
