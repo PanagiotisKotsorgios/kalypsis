@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert, Avatar, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, Divider, FormControlLabel, IconButton, LinearProgress, MenuItem, Stack,
-  Switch, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, TextField, Tooltip, Typography
+  DialogContent, DialogTitle, Divider, FormControlLabel, IconButton, LinearProgress, MenuItem,
+  Snackbar, Stack,
+  Switch, Tab, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, Tabs, TextField, Tooltip, Typography
 } from "@mui/material";
 import BackupIcon from "@mui/icons-material/Backup";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -42,6 +43,32 @@ interface GdprRequestDto {
   createdAt: string; handledAt: string | null; handledByName: string | null;
 }
 
+// Filled chip styles per backup kind — Χειροκίνητο pops in navy so the
+// operator's own snapshots stand out from the scheduled daily churn.
+const BACKUP_KIND_STYLES: Record<string, { bg: string; fg: string; border: string; label: string }> = {
+  Manual: { bg: "rgba(11,37,69,0.14)",  fg: "#0b2545", border: "#0b254588", label: "Χειροκίνητο" },
+  Auto:   { bg: "rgba(29,78,137,0.10)", fg: "#1d4e89", border: "#1d4e8966", label: "Αυτόματο" },
+};
+function renderBackupKindChip(kind: string) {
+  const s = BACKUP_KIND_STYLES[kind] ?? { bg: "rgba(100,116,139,0.12)", fg: "#334155", border: "#94a3b866", label: kind };
+  return <Chip size="small" label={s.label}
+    sx={{ bgcolor: s.bg, color: s.fg, borderColor: s.border, border: 1, fontWeight: 700 }} />;
+}
+// Per-entity summary chip palette — Πελάτες navy, Συμβόλαια green,
+// Παραγωγοί orange, Ασφαλιστικές purple, Οδηγίες grey. Keeps the
+// «Περιεχόμενο» cell scannable across 100+ rows.
+const SUMMARY_STYLES: Record<string, { bg: string; fg: string; border: string }> = {
+  Πελάτες:        { bg: "rgba(11,37,69,0.10)",   fg: "#0b2545", border: "#0b254555" },
+  Συμβόλαια:      { bg: "rgba(22,163,74,0.14)",  fg: "#146c3a", border: "#22c55e77" },
+  Παραγωγοί:      { bg: "rgba(217,119,6,0.14)",  fg: "#92590a", border: "#f59e0b77" },
+  Ασφαλιστικές:   { bg: "rgba(124,58,237,0.14)", fg: "#5b21b6", border: "#a78bfa77" },
+  Οδηγίες:        { bg: "rgba(100,116,139,0.14)",fg: "#334155", border: "#94a3b877" },
+};
+function renderSummaryChip(label: string, value: number) {
+  const s = SUMMARY_STYLES[label] ?? SUMMARY_STYLES.Οδηγίες;
+  return <Chip size="small" label={`${label}: ${value}`}
+    sx={{ bgcolor: s.bg, color: s.fg, borderColor: s.border, border: 1, fontWeight: 600 }} />;
+}
 const GDPR_STATUSES = ["Pending", "InReview", "Approved", "Rejected", "Completed"] as const;
 const GDPR_STATUS_LABEL: Record<string, string> = {
   Pending: "Εκκρεμεί", InReview: "Υπό εξέταση", Approved: "Εγκρίθηκε",
@@ -132,6 +159,14 @@ function BackupsTab({ isAdmin }: { isAdmin: boolean }) {
   const totalSize = items.reduce((s, b) => s + b.sizeBytes, 0);
   const latestManual = items.find(b => b.kind === "Manual");
   const latestAuto = items.find(b => b.kind === "Auto");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [copyToast, setCopyToast] = useState<string | null>(null);
+  // Clamp the current page if the list shrinks (e.g. after a delete).
+  useEffect(() => {
+    const maxPage = Math.max(0, Math.ceil(items.length / rowsPerPage) - 1);
+    if (page > maxPage) setPage(maxPage);
+  }, [items.length, rowsPerPage, page]);
 
   // Backups download requires a Bearer token — a plain <a href> hits the
   // API without an Authorization header and returns 401. Fetch as blob
@@ -201,31 +236,38 @@ function BackupsTab({ isAdmin }: { isAdmin: boolean }) {
                   </TableCell>
                 </TableRow>
               )}
-              {items.map(b => (
-                <TableRow key={b.id} hover>
+              {items.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map(b => (
+                <TableRow key={b.id} hover
+                  sx={{ "&:nth-of-type(even)": { bgcolor: "rgba(255,244,196,0.20)" } }}>
                   <TableCell>{dateTime(b.createdAt)}</TableCell>
+                  <TableCell>{renderBackupKindChip(b.kind)}</TableCell>
                   <TableCell>
-                    <Chip
-                      size="small"
-                      color={b.kind === "Auto" ? "info" : "primary"}
-                      variant="outlined"
-                      label={b.kind === "Auto" ? "Αυτόματο" : "Χειροκίνητο"}
-                    />
+                    <Tooltip title="Αντιγραφή ονόματος αρχείου">
+                      <Box component="span" sx={{
+                        fontFamily: "monospace", fontSize: 12, cursor: "pointer",
+                        borderBottom: "1px dashed", borderColor: "text.disabled",
+                        "&:hover": { color: "primary.main", borderColor: "primary.main" }
+                      }} onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(b.fileName);
+                          setCopyToast("Αντιγράφηκε στο πρόχειρο");
+                        } catch { setCopyToast("Αδυναμία αντιγραφής"); }
+                      }}>{b.fileName}</Box>
+                    </Tooltip>
                   </TableCell>
-                  <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{b.fileName}</TableCell>
                   <TableCell>{formatBytes(b.sizeBytes)}</TableCell>
                   <TableCell>
                     {b.summary && (
                       <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5}>
-                        {Object.entries(b.summary).filter(([, v]) => v > 0).slice(0, 4).map(([k, v]) => (
-                          <Chip key={k} size="small" variant="outlined" label={`${SUMMARY_LABELS[k] ?? k}: ${v}`} />
-                        ))}
+                        {Object.entries(b.summary).filter(([, v]) => v > 0).slice(0, 4).map(([k, v]) =>
+                          <span key={k}>{renderSummaryChip(SUMMARY_LABELS[k] ?? k, v)}</span>
+                        )}
                       </Stack>
                     )}
                   </TableCell>
                   <TableCell>{b.createdByName ?? "—"}</TableCell>
                   <TableCell align="right">
-                    <Tooltip title="Λήψη">
+                    <Tooltip title="Λήψη αντιγράφου (.json.gz)">
                       <IconButton size="small" onClick={() => download(b.id, b.fileName)}>
                         <DownloadIcon fontSize="small" />
                       </IconButton>
@@ -238,7 +280,7 @@ function BackupsTab({ isAdmin }: { isAdmin: boolean }) {
                       </Tooltip>
                     )}
                     {isAdmin && (
-                      <Tooltip title="Διαγραφή">
+                      <Tooltip title="Διαγραφή αντιγράφου">
                         <IconButton size="small" color="error" onClick={() => {
                           if (confirm("Διαγραφή αντιγράφου;")) del.mutate(b.id);
                         }}>
@@ -251,9 +293,33 @@ function BackupsTab({ isAdmin }: { isAdmin: boolean }) {
               ))}
             </TableBody>
           </Table>
+          {items.length > 0 && (
+            <TablePagination
+              component="div"
+              count={items.length}
+              page={page}
+              onPageChange={(_, p) => setPage(p)}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={(e) => { setRowsPerPage(Number(e.target.value)); setPage(0); }}
+              rowsPerPageOptions={[10, 25, 50, 100]}
+              labelRowsPerPage="Γραμμές ανά σελίδα:"
+              labelDisplayedRows={({ from: f, to: to2, count }) =>
+                `${f}–${to2} από ${count !== -1 ? count : `περισσότερα από ${to2}`}`}
+            />
+          )}
         </Card>
       )}
       <RestoreDialog backup={restoring} onClose={() => setRestoring(null)} />
+      <Snackbar
+        open={!!copyToast}
+        autoHideDuration={1600}
+        onClose={() => setCopyToast(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity="success" variant="filled" sx={{ borderRadius: 2, fontWeight: 600 }}>
+          {copyToast}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
@@ -511,6 +577,9 @@ function GdprTab({ isAdmin }: { isAdmin: boolean }) {
   const pending = items.filter(x => x.status === "Pending").length;
   const inReview = items.filter(x => x.status === "InReview").length;
   const done = items.filter(x => x.status === "Completed").length;
+  const [gdprPage, setGdprPage] = useState(0);
+  const [gdprRowsPerPage, setGdprRowsPerPage] = useState(10);
+  useEffect(() => { setGdprPage(0); }, [statusFilter]);
 
   return (
     <Box>
@@ -552,8 +621,12 @@ function GdprTab({ isAdmin }: { isAdmin: boolean }) {
                   </TableCell>
                 </TableRow>
               )}
-              {items.map(r => (
-                <TableRow key={r.id} hover sx={{ cursor: isAdmin ? "pointer" : "default" }}
+              {items.slice(gdprPage * gdprRowsPerPage, gdprPage * gdprRowsPerPage + gdprRowsPerPage).map(r => (
+                <TableRow key={r.id} hover
+                  sx={{
+                    cursor: isAdmin ? "pointer" : "default",
+                    "&:nth-of-type(even)": { bgcolor: "rgba(255,244,196,0.20)" },
+                  }}
                   onClick={() => { if (isAdmin) setEditing(r); }}
                 >
                   <TableCell>{dateTime(r.createdAt)}</TableCell>
@@ -593,6 +666,20 @@ function GdprTab({ isAdmin }: { isAdmin: boolean }) {
               ))}
             </TableBody>
           </Table>
+          {items.length > 0 && (
+            <TablePagination
+              component="div"
+              count={items.length}
+              page={gdprPage}
+              onPageChange={(_, p) => setGdprPage(p)}
+              rowsPerPage={gdprRowsPerPage}
+              onRowsPerPageChange={(e) => { setGdprRowsPerPage(Number(e.target.value)); setGdprPage(0); }}
+              rowsPerPageOptions={[10, 25, 50, 100]}
+              labelRowsPerPage="Γραμμές ανά σελίδα:"
+              labelDisplayedRows={({ from: f, to: to2, count }) =>
+                `${f}–${to2} από ${count !== -1 ? count : `περισσότερα από ${to2}`}`}
+            />
+          )}
         </Card>
       )}
       <GdprCreateDialog open={createOpen} onClose={() => setCreateOpen(false)}

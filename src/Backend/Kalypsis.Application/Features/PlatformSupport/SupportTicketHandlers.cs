@@ -135,6 +135,77 @@ public class UpdateTicketHandler : IRequestHandler<UpdateTicketCommand, SupportT
     }
 }
 
+/* ==================== Per-tenant «τα αιτήματά μου» ====================
+ * Signed-in users get their own list of tickets belonging to their tenant.
+ * Separate from the platform-admin ListTicketsQuery which is global. */
+
+public record MyTicketsQuery(string? Search, string? Status) : IRequest<IReadOnlyList<SupportTicketDto>>;
+public class MyTicketsHandler : IRequestHandler<MyTicketsQuery, IReadOnlyList<SupportTicketDto>>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public MyTicketsHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
+    public async Task<IReadOnlyList<SupportTicketDto>> Handle(MyTicketsQuery r, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var q = _db.SupportTickets.Where(t => t.DeletedAt == null && t.TenantId == tenantId);
+        if (!string.IsNullOrEmpty(r.Status)) q = q.Where(t => t.Status == r.Status);
+        if (!string.IsNullOrWhiteSpace(r.Search))
+        {
+            var s = r.Search.Trim();
+            q = q.Where(t => EF.Functions.Like(t.Subject, $"%{s}%")
+                          || EF.Functions.Like(t.Body,    $"%{s}%"));
+        }
+        var rows = await q.OrderByDescending(t => t.OpenedAt).Take(500).ToListAsync(ct);
+        var ids = rows.Select(t => t.Id).ToList();
+        var replies = await _db.SupportTicketReplies
+            .Where(rp => ids.Contains(rp.SupportTicketId) && rp.DeletedAt == null)
+            .OrderBy(rp => rp.CreatedAt).ToListAsync(ct);
+        return rows.Select(t => new SupportTicketDto(
+            t.Id, t.TenantId, t.TenantName, t.TenantCode,
+            t.Subject, t.Body, t.Priority, t.Status, t.Channel, t.Assignee,
+            t.OpenedAt, t.ResolvedAt,
+            replies.Where(rp => rp.SupportTicketId == t.Id)
+                   .Select(rp => new SupportReplyDto(rp.Id, rp.CreatedAt, rp.Author, rp.Body, rp.NotifiedTenant))
+                   .ToList())).ToList();
+    }
+}
+
+public record CreateMyTicketCommand(string Subject, string Body) : IRequest<SupportTicketDto>;
+public class CreateMyTicketHandler : IRequestHandler<CreateMyTicketCommand, SupportTicketDto>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public CreateMyTicketHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
+    public async Task<SupportTicketDto> Handle(CreateMyTicketCommand r, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var tenant = await _db.Tenants.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Tenant");
+        var subj = string.IsNullOrWhiteSpace(r.Subject)
+            ? "Αίτημα υποστήριξης — από την πλατφόρμα"
+            : r.Subject.Trim();
+        var t = new SupportTicket
+        {
+            TenantId = tenantId,
+            TenantName = tenant.Name,
+            TenantCode = tenant.Code,
+            Subject = subj[..Math.Min(subj.Length, 400)],
+            Body = (r.Body ?? "").Trim(),
+            Priority = "Normal",
+            Channel = "Internal",
+            OpenedAt = DateTime.UtcNow,
+            Status = "Open"
+        };
+        _db.SupportTickets.Add(t);
+        await _db.SaveChangesAsync(ct);
+        return new SupportTicketDto(t.Id, t.TenantId, t.TenantName, t.TenantCode,
+            t.Subject, t.Body, t.Priority, t.Status, t.Channel, t.Assignee,
+            t.OpenedAt, t.ResolvedAt, new List<SupportReplyDto>());
+    }
+}
+
 public record DeleteTicketCommand(Guid Id) : IRequest;
 public class DeleteTicketHandler : IRequestHandler<DeleteTicketCommand>
 {
