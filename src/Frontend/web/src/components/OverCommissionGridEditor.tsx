@@ -16,6 +16,7 @@ import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import { useMutation } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { api, extractErrorMessage } from "../api/client";
+import { usePremium } from "../auth/PremiumContext";
 
 /**
  * Μαζική Καταχώρηση Υπερπρομηθειών — Excel-like grid.
@@ -248,6 +249,92 @@ function parseWorkbookPreview(
   return { fileName, sheetNames: wb.SheetNames, activeSheet: sheetName, parsed };
 }
 
+// ─── ERGO Insurance — per-tenant πινάκιο υπερπρομηθειών layout ──────
+// The sheet is named "M-YYYY" (e.g. "1-2026"). Structure:
+//   Row 1: date stamp        Row 2: ΠΕΡΙΦΕΡΕΙΑ    Row 3: ΥΠΟΚΑΤΑΣΤΗΜΑ
+//   Row 4: ΜΗΝΑΣ/ΕΤΟΣ :M/YYYY
+//   Row 5: column headers    Row 6+: data
+// Data columns:
+//   A: literal "ΣΥΝΟΛΟ ΣΥΝΕΡΓΑΤΗ  :"    (label — ignored)
+//   B: "<9-digit-code><spaces><name>"   e.g. "000003375  LANCA Ι.Κ.Ε."
+//   C: Μικτά ασφάλιστρα                 (informational)
+//   D: Καθαρά ασφάλιστρα                (informational)
+//   E: Προμ. Συνεργάτη                  (informational)
+//   F: ΥΠΕΡΠΡΟΜΗΘΕΙΑ                    ← this is what we save
+//   G: Σύνολο = E + F                    (derived, ignored)
+function extractErgoMonthYear(sheetName: string, rows: unknown[][]): { month?: number; year?: number } {
+  const fromSheet = /^(\d{1,2})[-/](\d{4})$/.exec(sheetName.trim());
+  if (fromSheet) return { month: Number(fromSheet[1]), year: Number(fromSheet[2]) };
+  // Fallback — scan first ~6 rows for "ΜΗΝΑΣ/ΕΤΟΣ :M/YYYY".
+  for (let i = 0; i < Math.min(rows.length, 6); i++) {
+    const joined = (rows[i] ?? []).map(c => String(c)).join(" ");
+    const m = /(\d{1,2})\s*[\/-]\s*(\d{4})/.exec(joined);
+    if (m) return { month: Number(m[1]), year: Number(m[2]) };
+  }
+  return {};
+}
+
+function parseErgoWorkbookPreview(
+  wb: XLSX.WorkBook,
+  sheetName: string,
+  fileName: string,
+  producers: Producer[],
+): ExcelImportPreview & { detectedMonth?: number; detectedYear?: number } {
+  const ws = wb.Sheets[sheetName];
+  const rows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+  const { month, year } = extractErgoMonthYear(sheetName, rows);
+
+  const parsed: ExcelImportPreview["parsed"] = [];
+  // Header sits on row 5 (index 4) so data starts at index 5.
+  for (let r = 5; r < rows.length; r++) {
+    const row = rows[r] ?? [];
+    if (row.every(c => c === "" || c == null)) continue;
+    const label = String(row[0] ?? "");
+    if (!label.includes("ΣΥΝΕΡΓΑΤ")) continue;   // skip footers / totals lines
+
+    const codeAndName = String(row[1] ?? "").trim();
+    if (!codeAndName) continue;
+    // "000003375  LANCA Ι.Κ.Ε." → ["000003375", "LANCA Ι.Κ.Ε."]
+    const m = /^(\d+)\s+(.+)$/.exec(codeAndName);
+    const rawCode = m ? m[1] : codeAndName;
+    const rawName = m ? m[2] : "";
+    // Match both padded and stripped-of-leading-zeros forms.
+    const codeStripped = rawCode.replace(/^0+/, "") || rawCode;
+    const matched =
+      matchProducer(producers, rawName, rawCode) ??
+      matchProducer(producers, rawName, codeStripped);
+
+    const overCommission = String(row[5] ?? "").replace(/[€\s]/g, "").replace(",", ".");
+    const netPremiums    = String(row[3] ?? "").replace(/[€\s]/g, "").replace(",", ".");
+
+    let problem: string | null = null;
+    if (!matched) problem = `Δεν βρέθηκε παραγωγός με κωδικό ${rawCode} (${rawName}).`;
+    else if (!overCommission || Number.isNaN(Number(overCommission)))
+      problem = "Λείπει ή λάθος ποσό υπερπρομήθειας.";
+
+    parsed.push({
+      producerName: rawName || null,
+      producerCode: rawCode,
+      matchedProducer: matched,
+      // Gross for the over-commission-statement = the ΥΠΕΡΠΡΟΜΗΘΕΙΑ € the
+      // carrier owes for this producer. Net = same (carrier doesn't withhold
+      // on the over-commission line in the ERGO πινάκιο).
+      grossAmount: overCommission,
+      netAmount:   overCommission,
+      producerSharePercent: "",
+      reference: month && year ? `ERGO ΠΙΝΑΚΙΟ ${month}/${year}` : "ERGO ΠΙΝΑΚΙΟ",
+      paidOn: "",
+      notes: netPremiums ? `Καθαρά ασφάλιστρα μηνός: ${netPremiums}` : "",
+      problem,
+    });
+  }
+
+  return { fileName, sheetNames: wb.SheetNames, activeSheet: sheetName, parsed,
+           detectedMonth: month, detectedYear: year };
+}
+
+type ImportLayout = "auto" | "ergo";
+
 function emptyRow(defaultYear: number, defaultMonth: number, defaultCarrierId = ""): GridRow {
   return {
     key: uid(),
@@ -318,6 +405,9 @@ export function OverCommissionGridEditor({
   const [exportMenuAnchor, setExportMenuAnchor] = useState<HTMLElement | null>(null);
   const [importPreview, setImportPreview] = useState<ExcelImportPreview | null>(null);
   const [importCarrierId, setImportCarrierId] = useState<string>(defaultCarrierId);
+  const [importLayout, setImportLayout] = useState<ImportLayout>("auto");
+  const premium = usePremium();
+  const canErgo = premium.has("ergo-overcommission-bridge");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const saveTimer = useRef<number | null>(null);
 
@@ -567,6 +657,15 @@ export function OverCommissionGridEditor({
               onClick={(e) => setColMenuAnchor(e.currentTarget)}>
               Στήλες
             </Button>
+            {canErgo && (
+              <TextField select size="small" value={importLayout}
+                onChange={(e) => setImportLayout(e.target.value as ImportLayout)}
+                sx={{ minWidth: 180 }}
+                helperText="Layout του αρχείου">
+                <MenuItem value="auto">Αυτόματο (γενικό)</MenuItem>
+                <MenuItem value="ergo">ERGO ΠΙΝΑΚΙΟ</MenuItem>
+              </TextField>
+            )}
             <Button size="small" startIcon={<UploadFileIcon />} variant="outlined"
               onClick={() => fileInputRef.current?.click()}>
               Εισαγωγή από Excel
@@ -579,9 +678,18 @@ export function OverCommissionGridEditor({
                 try {
                   const buf = await file.arrayBuffer();
                   const wb = XLSX.read(buf, { type: "array" });
-                  const preview = parseWorkbookPreview(wb, wb.SheetNames[0], file.name, producers);
+                  const preview = importLayout === "ergo"
+                    ? parseErgoWorkbookPreview(wb, wb.SheetNames[0], file.name, producers)
+                    : parseWorkbookPreview(wb, wb.SheetNames[0], file.name, producers);
                   setImportPreview(preview);
-                  setImportCarrierId(defaultCarrierId || carriers[0]?.id || "");
+                  // Auto-select the ERGO carrier if we can find one; otherwise fall back.
+                  const ergoCarrier = importLayout === "ergo"
+                    ? carriers.find(c => c.name.toUpperCase().includes("ERGO"))
+                    : undefined;
+                  setImportCarrierId(ergoCarrier?.id
+                    ?? defaultCarrierId
+                    ?? carriers[0]?.id
+                    ?? "");
                 } catch (err) {
                   setGlobalError(`Αδυναμία ανάγνωσης αρχείου: ${(err as Error).message}`);
                 } finally {
@@ -911,14 +1019,19 @@ export function OverCommissionGridEditor({
                      || importPreview.parsed.every(p => p.problem)}
             onClick={() => {
               if (!importPreview) return;
+              // ERGO layout embeds M/YYYY in the sheet name; use that when present.
+              const ergoYear  = (importPreview as { detectedYear?: number }).detectedYear;
+              const ergoMonth = (importPreview as { detectedMonth?: number }).detectedMonth;
+              const targetYear  = ergoYear  ?? defaultYear;
+              const targetMonth = ergoMonth ?? defaultMonth;
               const ready: GridRow[] = importPreview.parsed
                 .filter(p => !p.problem && p.matchedProducer)
                 .map(p => ({
                   key: uid(),
                   insuranceCompanyId: importCarrierId,
                   producerId: p.matchedProducer!.id,
-                  year: defaultYear,
-                  month: defaultMonth,
+                  year: targetYear,
+                  month: targetMonth,
                   grossAmount: p.grossAmount,
                   netAmount: p.netAmount,
                   producerSharePercent: p.producerSharePercent,

@@ -28,9 +28,19 @@ public static class PremiumFeatureCodes
     /// <summary>Premium analytics dashboards + scheduled reports.</summary>
     public const string PremiumReports = "premium-reports";
 
+    /// <summary>Per-office ERGO over-commission ΠΙΝΑΚΙΟ importer. Reads the
+    /// carrier's monthly statement Excel with its exact column layout
+    /// (ΣΥΝΟΛΟ ΣΥΝΕΡΓΑΤΗ + code+name / Μικτά / Καθαρά / Προμ. Συνεργάτη /
+    /// ΥΠΕΡΠΡΟΜΗΘΕΙΑ / Σύνολο) and creates over-commission-statement rows
+    /// per producer. Because every office has its own producer-code
+    /// mapping with ERGO, this is a per-tenant premium (not the generic
+    /// bridge).</summary>
+    public const string ErgoOverCommissionBridge = "ergo-overcommission-bridge";
+
     public static readonly IReadOnlyList<string> All = new[]
     {
         RecycleBin, AdvancedExports, ProducerReconciliation,
-        BulkCommissions, MultiBranch, PremiumReports
+        BulkCommissions, MultiBranch, PremiumReports,
+        ErgoOverCommissionBridge
     };
 }

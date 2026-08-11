@@ -2,6 +2,8 @@ import { Box, Card, CardActionArea, Chip, Stack, Typography } from "@mui/materia
 import SettingsIcon from "@mui/icons-material/Settings";
 import GavelIcon from "@mui/icons-material/Gavel";
 import BackupIcon from "@mui/icons-material/Backup";
+import BugReportIcon from "@mui/icons-material/BugReport";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
 import { Link as RouterLink } from "react-router-dom";
 
 /**
@@ -28,6 +30,18 @@ export function AgencySettingsHubPage() {
       title: "Αντίγραφα ασφαλείας",
       body: "Χειροκίνητα και προγραμματισμένα backups + λήψη πλήρους αντιγράφου της βάσης.",
       icon: <BackupIcon />, color: "#16a34a",
+    },
+    {
+      to: "/app/instructions",
+      title: "Οδηγίες γραφείου",
+      body: "Εσωτερικός οδηγός για το προσωπικό του γραφείου — διαδικασίες, standards, quick-reference.",
+      icon: <MenuBookIcon />, color: "#7c3aed",
+    },
+    {
+      to: "/app/support-request",
+      title: "Αιτήματα υποστήριξης",
+      body: "Στείλτε αίτημα προς την ομάδα Kalypsis με αυτόματα προσαρτημένα diagnostics από τον browser.",
+      icon: <BugReportIcon />, color: "#dc2626",
     },
   ];
   return (

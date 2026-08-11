@@ -42,6 +42,23 @@ public class GetMyPremiumFeaturesHandler : IRequestHandler<GetMyPremiumFeaturesQ
             var parsed = TryParseCodes(json);
             foreach (var c in parsed) codes.Add(c);
         }
+
+        // Hard-coded per-tenant overlays. The ERGO ΠΙΝΑΚΙΟ importer is
+        // active only for LANCA Ι.Κ.Ε. (contact info@lanca.gr) — every
+        // office has its own producer-code mapping with ERGO, so it's
+        // not a generic bridge.
+        var tenant = await _db.Tenants.IgnoreQueryFilters()
+            .Where(t => t.Id == tenantId)
+            .Select(t => new { t.Name, t.ContactEmail })
+            .FirstOrDefaultAsync(ct);
+        if (tenant is not null)
+        {
+            var name = (tenant.Name ?? "").ToUpperInvariant();
+            var email = (tenant.ContactEmail ?? "").ToLowerInvariant();
+            if (name.Contains("LANCA") || email == "info@lanca.gr")
+                codes.Add(PremiumFeatureCodes.ErgoOverCommissionBridge);
+        }
+
         return new MyPremiumFeaturesDto(codes.OrderBy(c => c, StringComparer.Ordinal).ToList());
     }
 

@@ -208,7 +208,6 @@ import EditNoteIcon from "@mui/icons-material/EditNote";
 import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
-import BugReportIcon from "@mui/icons-material/BugReport";
 import DesignServicesIcon from "@mui/icons-material/DesignServices";
 // ΖΗΜΙΕΣ ΚΑΙ ΔΙΑΚΑΝΟΝΙΣΜΟΙ group icons (Build/Savings/PaymentsOutlined/HandshakeOutlined)
 // were removed from the sidebar; their imports are no longer needed.
@@ -340,15 +339,9 @@ const navByRole: Record<Role, NavItem[]> = {
     // Standalone top-level — agency-wide backup & document archive
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
 
-    // Per-tenant handbook — visible to every staff member of the γραφείο,
-    // editable only by AgencyAdmin. No package gate (kept always visible).
-    { to: "/instructions", labelKey: "nav.instructions", icon: <MenuBookIcon /> },
-
-    // /backups + /legal moved into the Ρυθμίσεις & διαχείριση hub below.
-    // Individual URLs still resolve for bookmarks.
-    // Αίτημα υποστήριξης — πάντα ορατό, χωρίς package gate. Auto-attaches
-    // client diagnostics to every submission.
-    { to: "/support-request", labelKey: "nav.supportRequest", icon: <BugReportIcon /> },
+    // /instructions + /backups + /legal + /support-request all moved
+    // into the Ρυθμίσεις & διαχείριση hub below. Individual routes
+    // still resolve for bookmarks.
 
     // ===== CRM — top-level (3) + grouped (5) =====
     // Every CRM item carries a `permission` code so an AgencyAdmin can hide

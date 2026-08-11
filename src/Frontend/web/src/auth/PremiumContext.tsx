@@ -7,7 +7,8 @@ export type PremiumFeatureCode =
   | "advanced-exports"
   | "bulk-commissions"
   | "multi-branch"
-  | "premium-reports";
+  | "premium-reports"
+  | "ergo-overcommission-bridge";
 
 export interface PremiumFeatureMeta {
   code: PremiumFeatureCode;
@@ -49,6 +50,12 @@ export const PREMIUM_FEATURE_CATALOGUE: Record<PremiumFeatureCode, PremiumFeatur
     label: "Premium Αναφορές",
     description: "Προγραμματισμένες αναφορές & advanced analytics dashboards.",
     monthlyPriceEUR: 9
+  },
+  "ergo-overcommission-bridge": {
+    code: "ergo-overcommission-bridge",
+    label: "ERGO — γέφυρα υπερπρομηθειών",
+    description: "Ανέβασμα του μηνιαίου πινακίου υπερπρομηθειών της ERGO με τη γραμμογράφηση του γραφείου σας.",
+    monthlyPriceEUR: 12
   }
 };
 
