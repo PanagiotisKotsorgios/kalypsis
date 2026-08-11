@@ -354,7 +354,7 @@ function EntryDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="error">Ακύρωση</Button>
+        <Button onClick={onClose} color="error" variant="contained">Ακύρωση</Button>
         <Button variant="contained" disabled={!valid || save.isPending}
           onClick={() => save.mutate()}>
           {save.isPending ? <CircularProgress size={16} /> : "Αποθήκευση"}

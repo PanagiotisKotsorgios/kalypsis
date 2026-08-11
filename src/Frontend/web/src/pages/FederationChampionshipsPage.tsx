@@ -273,7 +273,7 @@ function ChampionshipDialog({ open, value, onClose, onSaved }: {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="error">Ακύρωση</Button>
+        <Button onClick={onClose} color="error" variant="contained">Ακύρωση</Button>
         <Button variant="contained" onClick={() => save.mutate()}
           disabled={save.isPending || !form.name || !form.sport}>
           {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}

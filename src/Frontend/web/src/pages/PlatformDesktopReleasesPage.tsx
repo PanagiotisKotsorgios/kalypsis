@@ -377,7 +377,7 @@ function CreateReleaseDialog({ open, onClose, onCreated }: { open: boolean; onCl
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={create.isPending} color="error">Άκυρο</Button>
+        <Button onClick={onClose} disabled={create.isPending} color="error" variant="contained">Άκυρο</Button>
         <Button variant="contained" disabled={create.isPending || !form.tagName.trim() || !form.name.trim()} onClick={() => create.mutate()}>
           {create.isPending ? <CircularProgress size={20} /> : "Δημιουργία πρόχειρης"}
         </Button>

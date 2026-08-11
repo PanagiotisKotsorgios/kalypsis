@@ -292,7 +292,7 @@ function EditorPanel({
         />
         <Divider sx={{ my: 2 }} />
         <Stack direction="row" spacing={1} justifyContent="flex-end">
-          <Button startIcon={<CloseIcon />} onClick={onDone}>{t("common.cancel", "Άκυρο")}</Button>
+          <Button startIcon={<CloseIcon />} onClick={onDone} color="error" variant="contained">{t("common.cancel", "Άκυρο")}</Button>
           <Button
             variant="contained"
             startIcon={save.isPending ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}

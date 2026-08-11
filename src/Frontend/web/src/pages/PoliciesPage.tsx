@@ -1228,9 +1228,7 @@ function BulkEditDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => { setResult(null); setErr(null); onClose(); }}>
-          {result ? "Κλείσιμο" : "Άκυρο"}
-        </Button>
+        <Button onClick={() => { setResult(null); setErr(null); onClose(); }} color="error" variant="contained">{result ? "Κλείσιμο" : "Άκυρο"}</Button>
         {result ? (
           <Button variant="contained" onClick={onDone}>Ανανέωση λίστας</Button>
         ) : (

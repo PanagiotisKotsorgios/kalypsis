@@ -681,7 +681,7 @@ function CampaignFormDialog({ open, onClose, item, onSaved }: { open: boolean; o
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t("common.cancel", "Άκυρο")}</Button>
+        <Button onClick={onClose} color="error" variant="contained">{t("common.cancel", "Άκυρο")}</Button>
         <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.name.trim() || !form.subject.trim()}>
           {save.isPending ? <CircularProgress size={18} /> : t("common.save", "Αποθήκευση")}
         </Button>
@@ -932,7 +932,7 @@ function TemplateEditor({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t("common.cancel", "Άκυρο")}</Button>
+        <Button onClick={onClose} color="error" variant="contained">{t("common.cancel", "Άκυρο")}</Button>
         <Button variant="contained" onClick={() => onSave(form)} disabled={!form.name.trim() || !form.body.trim()}>
           {t("common.save", "Αποθήκευση")}
         </Button>
@@ -1134,7 +1134,7 @@ function RuleEditor({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="error">Άκυρο</Button>
+        <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
         <Button variant="contained" onClick={() => onSave(form)} disabled={!form.name.trim() || !form.templateId}>
           Αποθήκευση
         </Button>
@@ -1297,7 +1297,7 @@ function SegmentEditor({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="error">Άκυρο</Button>
+        <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
         <Button variant="contained" onClick={() => onSave(form)} disabled={!form.name.trim()}>Αποθήκευση</Button>
       </DialogActions>
     </Dialog>
@@ -1606,7 +1606,7 @@ function ProviderEditor({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="error">Άκυρο</Button>
+        <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
         <Button variant="contained" onClick={() => onSave(form)} disabled={!form.name.trim()}>Αποθήκευση</Button>
       </DialogActions>
     </Dialog>

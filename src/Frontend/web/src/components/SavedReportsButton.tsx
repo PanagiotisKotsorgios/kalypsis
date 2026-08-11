@@ -118,7 +118,7 @@ export function SavedReportsButton<T>({ entity, currentFilters, onLoad }: {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setSaveOpen(false)}>Άκυρο</Button>
+          <Button onClick={() => setSaveOpen(false)} color="error" variant="contained">Άκυρο</Button>
           <Button variant="contained" onClick={() => save.mutate()}
             disabled={!form.name.trim() || save.isPending}>
             {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}

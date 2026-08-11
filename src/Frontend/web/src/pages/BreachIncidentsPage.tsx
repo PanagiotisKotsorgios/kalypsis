@@ -327,7 +327,7 @@ function BreachFormDialog({ open, onClose, item, onSaved }: {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t("common.cancel", "Ακύρωση")}</Button>
+        <Button onClick={onClose} color="error" variant="contained">{t("common.cancel", "Ακύρωση")}</Button>
         <Button variant="contained" onClick={() => save.mutate()}
           disabled={save.isPending || !form.nature.trim()}>
           {save.isPending ? <CircularProgress size={18} /> : t("common.save", "Αποθήκευση")}

@@ -135,7 +135,7 @@ export function InlineCreateProducerDialog({ open, onClose, prefillText = "", on
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="error">Άκυρο</Button>
+        <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
         <Button variant="contained" disabled={!canSave || create.isPending} onClick={() => create.mutate()}>
           {create.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
         </Button>

@@ -203,9 +203,7 @@ export function ComplianceDashboardPage() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => { setBackfillOpen(false); setBackfillResult(null); }}>
-            {backfillResult ? "Κλείσιμο" : "Ακύρωση"}
-          </Button>
+          <Button onClick={() => { setBackfillOpen(false); setBackfillResult(null); }} color="error" variant="contained">{backfillResult ? "Κλείσιμο" : "Ακύρωση"}</Button>
           {!backfillResult && (
             <Button variant="contained" color="warning"
               disabled={backfill.isPending}

@@ -211,7 +211,7 @@ function ConfigureDialog({ open, onClose, producers, onSaved }: {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="error">Άκυρο</Button>
+        <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
         <Button variant="contained" disabled={save.isPending || !producerId} onClick={() => save.mutate()}>
           {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
         </Button>
@@ -244,7 +244,7 @@ function TopupDialog({ plafond, producerName, onClose, onSaved }: {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="error">Άκυρο</Button>
+        <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
         <Button variant="contained" disabled={topup.isPending || amount <= 0} onClick={() => topup.mutate()}>
           {topup.isPending ? <CircularProgress size={18} /> : "Κατάθεση"}
         </Button>

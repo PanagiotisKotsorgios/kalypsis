@@ -1082,7 +1082,7 @@ export function OverCommissionGridEditor({
           <Typography>Όλες οι γραμμές θα διαγραφούν από το πρόχειρο. Οι ήδη εισηγμένες στο σύστημα δεν πειράζονται.</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmClearOpen(false)}>Ακύρωση</Button>
+          <Button onClick={() => setConfirmClearOpen(false)} color="error" variant="contained">Ακύρωση</Button>
           <Button color="error" variant="contained" onClick={clearAll}>Καθαρισμός</Button>
         </DialogActions>
       </Dialog>
@@ -1189,7 +1189,7 @@ export function OverCommissionGridEditor({
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setImportPreview(null)}>Ακύρωση</Button>
+          <Button onClick={() => setImportPreview(null)} color="error" variant="contained">Ακύρωση</Button>
           <Button variant="contained" startIcon={<UploadFileIcon />}
             disabled={!importCarrierId
                      || !importPreview

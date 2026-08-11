@@ -411,7 +411,7 @@ function PaymentDialog({ open, tenantName, current, busy, onClose, onSave, onCle
       </DialogContent>
       <DialogActions>
         <Button onClick={onClear} color="error" sx={{ mr: "auto" }} disabled={busy}>Αφαίρεση σήμανσης</Button>
-        <Button onClick={onClose} disabled={busy} color="error">Ακύρωση</Button>
+        <Button onClick={onClose} disabled={busy} color="error" variant="contained">Ακύρωση</Button>
         <Button variant="contained" disabled={busy} onClick={() => onSave({
           paidUntil: paidUntil || null,
           lastPaidOn: lastPaidOn || null,

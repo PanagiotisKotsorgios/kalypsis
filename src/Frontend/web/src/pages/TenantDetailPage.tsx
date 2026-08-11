@@ -784,7 +784,7 @@ function ContractDialog({ open, onClose, tenantId, item, onSaved }: {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="error">Άκυρο</Button>
+        <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
         <Button variant="contained" disabled={save.isPending || !form.contractNumber.trim()}
           onClick={() => save.mutate()}>
           {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
@@ -1188,7 +1188,7 @@ function PremiumTab({ tenantId, onError }: { tenantId: string; onError: (m: stri
           </Box>
           {isDirty && (
             <Stack direction="row" spacing={1}>
-              <Button onClick={() => setDraft(null)}>Άκυρο</Button>
+              <Button onClick={() => setDraft(null)} color="error" variant="contained">Άκυρο</Button>
               <Button variant="contained" disabled={save.isPending}
                 onClick={() => save.mutate(Array.from(current))}>
                 {save.isPending ? <CircularProgress size={16} color="inherit" /> : "Αποθήκευση"}

@@ -1112,7 +1112,7 @@ function TaskFormDialog({ open, onClose, task, onSaved }: {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t("common.cancel", "Άκυρο")}</Button>
+        <Button onClick={onClose} color="error" variant="contained">{t("common.cancel", "Άκυρο")}</Button>
         <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.title.trim()}>
           {save.isPending ? <CircularProgress size={18} /> : t("common.save", "Αποθήκευση")}
         </Button>

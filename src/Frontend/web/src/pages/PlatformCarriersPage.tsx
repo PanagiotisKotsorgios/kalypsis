@@ -273,7 +273,7 @@ export function PlatformCarriersPage() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditing(null)}>Άκυρο</Button>
+          <Button onClick={() => setEditing(null)} color="error" variant="contained">Άκυρο</Button>
           <Button variant="contained" onClick={() => editing && save.mutate(editing)}
             disabled={save.isPending || !editing?.name.trim() || !editing?.code.trim()}>
             {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}

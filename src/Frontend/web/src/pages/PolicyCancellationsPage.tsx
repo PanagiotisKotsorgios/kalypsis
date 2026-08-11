@@ -251,7 +251,7 @@ function CancellationDialog({ open, onClose, onSaved }: { open: boolean; onClose
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="error">Άκυρο</Button>
+        <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
         <Button variant="contained" disabled={save.isPending || !policy}
           onClick={() => save.mutate()}>
           {save.isPending ? <CircularProgress size={18} /> : "Καταχώρηση ακύρωσης"}

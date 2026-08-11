@@ -333,7 +333,7 @@ function CelebrantCard({ c, note, onNoteChange }: { c: CelebrantDto; note: strin
               fullWidth
             />
             <Stack direction="row" spacing={1}>
-              <Button size="small" onClick={() => { setEditingNote(false); setDraft(note); }}>{t("common.cancel", "Άκυρο")}</Button>
+              <Button size="small" onClick={() => { setEditingNote(false); setDraft(note); }} color="error" variant="contained">{t("common.cancel", "Άκυρο")}</Button>
               <Box sx={{ flex: 1 }} />
               <Button size="small" variant="contained" onClick={() => { onNoteChange(draft); setEditingNote(false); }}>
                 {t("common.save", "Αποθήκευση")}
@@ -724,7 +724,7 @@ function CatalogCreateDialog({ open, onClose, onSaved }: { open: boolean; onClos
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t("common.cancel", "Άκυρο")}</Button>
+        <Button onClick={onClose} color="error" variant="contained">{t("common.cancel", "Άκυρο")}</Button>
         <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.name.trim()}>
           {save.isPending ? <CircularProgress size={18} /> : t("common.save", "Αποθήκευση")}
         </Button>
@@ -933,7 +933,7 @@ function WishTemplateEditor({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t("common.cancel", "Άκυρο")}</Button>
+        <Button onClick={onClose} color="error" variant="contained">{t("common.cancel", "Άκυρο")}</Button>
         <Button variant="contained" onClick={() => onSave(form)} disabled={!form.name.trim() || !form.body.trim()}>
           {t("common.save", "Αποθήκευση")}
         </Button>

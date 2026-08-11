@@ -603,7 +603,7 @@ function CommunicationsTab({ customerId }: { customerId: string }) {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpen(false)}>Άκυρο</Button>
+          <Button onClick={() => setOpen(false)} color="error" variant="contained">Άκυρο</Button>
           <Button variant="contained" onClick={() => create.mutate()} disabled={create.isPending || !form.subject.trim()}>
             Καταχώρηση
           </Button>
@@ -898,7 +898,7 @@ function ContactsTab({ customerId, customerType }: { customerId: string; custome
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpen(false)}>Άκυρο</Button>
+          <Button onClick={() => setOpen(false)} color="error" variant="contained">Άκυρο</Button>
           <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.firstName || !form.lastName}>
             Αποθήκευση
           </Button>
@@ -1101,7 +1101,7 @@ function DriverLicenseCard({ customerId }: { customerId: string }) {
           <Typography variant="body2" color="text.secondary">
             Χρησιμοποιείται στις ασφαλίσεις αυτοκινήτου και στη λίστα επιτρεπτών οδηγών.
           </Typography></Box>
-        <Button startIcon={<EditIcon />} onClick={() => setEditing(!editing)}>{editing ? "Ακύρωση" : "Επεξεργασία"}</Button>
+        <Button startIcon={<EditIcon />} onClick={() => setEditing(!editing)} color="error" variant="contained">{editing ? "Ακύρωση" : "Επεξεργασία"}</Button>
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       {editing ? (
@@ -1160,7 +1160,7 @@ function CustomerProfileCard({ customerId, profile }: { customerId: string; prof
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
         <Box><Typography variant="h6">Προφίλ και οικογενειακή κατάσταση</Typography>
           <Typography variant="body2" color="text.secondary">Τα στοιχεία αυτά χρησιμοποιούνται στα φίλτρα πελατών, στα ασφαλιστικά έντυπα και στις προτάσεις κάλυψης.</Typography></Box>
-        <Button startIcon={<EditIcon />} onClick={() => setEditing(!editing)}>{editing ? "Ακύρωση" : "Επεξεργασία"}</Button>
+        <Button startIcon={<EditIcon />} onClick={() => setEditing(!editing)} color="error" variant="contained">{editing ? "Ακύρωση" : "Επεξεργασία"}</Button>
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       {editing ? (
@@ -1267,7 +1267,7 @@ function CustomerNeedsCard({ customerId, needs }: { customerId: string; needs: C
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}><SearchableTextField label="Προτεραιότητα" value={form.priority} onChange={e => setForm({ ...form, priority: Number(e.target.value) })} fullWidth>{[1,2,3,4,5].map(n => <MenuItem key={n} value={n}>{n}</MenuItem>)}</SearchableTextField>
           <TextField type="date" label="Επόμενη επικοινωνία" InputLabelProps={{ shrink: true }} value={form.nextContactAt} onChange={e => setForm({ ...form, nextContactAt: e.target.value })} fullWidth /></Stack>
         <TextField label="Σημειώσεις" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} multiline rows={3} fullWidth />
-      </Stack></DialogContent><DialogActions><Button onClick={() => setOpen(false)}>Άκυρο</Button><Button variant="contained" disabled={!form.title.trim() || save.isPending} onClick={() => save.mutate()}>Αποθήκευση</Button></DialogActions></Dialog>
+      </Stack></DialogContent><DialogActions><Button onClick={() => setOpen(false)} color="error" variant="contained">Άκυρο</Button><Button variant="contained" disabled={!form.title.trim() || save.isPending} onClick={() => save.mutate()}>Αποθήκευση</Button></DialogActions></Dialog>
     </Card>
   );
 }
@@ -1307,7 +1307,7 @@ function FamilyMembersCard({ customerId, members }: { customerId: string; member
       <SearchableTextField label="Σχέση" value={form.relationshipType} onChange={e => setForm({ ...form, relationshipType: e.target.value })} fullWidth>{RELATIONSHIP_TYPES.map(type => <MenuItem key={type} value={type}>{RELATION_LABEL[type]}</MenuItem>)}</SearchableTextField>
       <TextField label="Σημειώσεις σχέσης" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} multiline rows={3} fullWidth />
       <Alert severity="info">Αν το μέλος δεν υπάρχει ακόμη ως πελάτης, δημιουργήστε πρώτα την καρτέλα του και μετά συνδέστε το εδώ.</Alert>
-    </Stack></DialogContent><DialogActions><Button onClick={() => setOpen(false)}>Άκυρο</Button><Button variant="contained" disabled={!form.relatedCustomerId || save.isPending} onClick={() => save.mutate()}>Σύνδεση</Button></DialogActions></Dialog>
+    </Stack></DialogContent><DialogActions><Button onClick={() => setOpen(false)} color="error" variant="contained">Άκυρο</Button><Button variant="contained" disabled={!form.relatedCustomerId || save.isPending} onClick={() => save.mutate()}>Σύνδεση</Button></DialogActions></Dialog>
   </Card>;
 }
 
@@ -1701,7 +1701,7 @@ function InvolvedPartyDialog({ open, onClose, editing, claims, onSaved }: {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="error">Άκυρο</Button>
+        <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
         <Button variant="contained" onClick={() => save.mutate()}
           disabled={save.isPending || !form.fullName.trim() || (!editing && !claimId)}>
           {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}

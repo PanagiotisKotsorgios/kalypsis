@@ -152,9 +152,7 @@ export function SubscriptionPlansPage() {
       <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={1} mb={2}>
         {editing ? (
           <>
-            <Button onClick={() => { setEditing(false); setDraft(null); setSaveError(null); }}>
-              Ακύρωση
-            </Button>
+            <Button onClick={() => { setEditing(false); setDraft(null); setSaveError(null); }} color="error" variant="contained">Ακύρωση</Button>
             <Button variant="contained" onClick={() => save.mutate()}
               disabled={save.isPending || !draft}
               startIcon={save.isPending ? <CircularProgress size={16} color="inherit" /> : undefined}>
@@ -991,7 +989,7 @@ export function PlatformBackupsPage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setScopeDialog(false)}>Ακύρωση</Button>
+          <Button onClick={() => setScopeDialog(false)} color="error" variant="contained">Ακύρωση</Button>
           <Button variant="contained" onClick={() => createMut.mutate()}
             disabled={createMut.isPending || !Object.values(scope).some(Boolean)}>
             {createMut.isPending ? <CircularProgress size={16} /> : "Έναρξη"}
@@ -1012,7 +1010,7 @@ export function PlatformBackupsPage() {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setRestoreConfirmId(null)}>Ακύρωση</Button>
+          <Button onClick={() => setRestoreConfirmId(null)} color="error" variant="contained">Ακύρωση</Button>
           <Button variant="contained" color="error"
             disabled={restoreMut.isPending}
             onClick={() => {
@@ -1357,7 +1355,7 @@ export function PlatformJobsPage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setSelected(null)}>Ακύρωση</Button>
+          <Button onClick={() => setSelected(null)} color="error" variant="contained">Ακύρωση</Button>
           <Button variant="contained" disabled={upsertOverride.isPending}
             onClick={() => {
               if (!selected) return;
@@ -2061,7 +2059,7 @@ export function PlatformSupportPage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setNotifyDraft({ open: false, subject: "", body: "" })}>Ακύρωση</Button>
+          <Button onClick={() => setNotifyDraft({ open: false, subject: "", body: "" })} color="error" variant="contained">Ακύρωση</Button>
           <Button variant="contained" startIcon={<SendIcon />}
             disabled={!notifyDraft.subject.trim() || !notifyDraft.body.trim() || notifyTenant.isPending}
             onClick={() => {
@@ -2143,7 +2141,7 @@ function NewTicketDialog({ open, busy, onClose, onCreate }: {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="error">Ακύρωση</Button>
+        <Button onClick={onClose} color="error" variant="contained">Ακύρωση</Button>
         <Button variant="contained" disabled={!valid || busy}
           onClick={() => onCreate({ ...form, status: "Open", assignee: null })}>
           {busy ? <CircularProgress size={16} /> : "Δημιουργία"}
@@ -2490,7 +2488,7 @@ function ChargeableDialog({ open, row, tenantId, onClose, onSaved }: {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="error">Ακύρωση</Button>
+        <Button onClick={onClose} color="error" variant="contained">Ακύρωση</Button>
         <Button variant="contained" onClick={() => save.mutate()}
           disabled={save.isPending || !form.description.trim() || Number(form.quantity) <= 0}>
           {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}

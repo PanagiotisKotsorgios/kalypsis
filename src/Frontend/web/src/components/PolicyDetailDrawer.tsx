@@ -820,7 +820,7 @@ function ChangeProducerDialog({ open, onClose, policyId, policyNumber, currentPr
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="error">Άκυρο</Button>
+        <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
         <Button variant="contained" disabled={!newProducerId || save.isPending} onClick={() => save.mutate()}>
           {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
         </Button>
@@ -1499,7 +1499,7 @@ function PolicyCoversTabInner({ policyId }: { policyId: string }) {
               sx={{ flex: 1 }} />
             <Stack direction="row" spacing={1}>
               {editing && (
-                <Button variant="text" onClick={cancelEdit} color="error">Άκυρο</Button>
+                <Button onClick={cancelEdit} color="error" variant="contained">Άκυρο</Button>
               )}
               <Button variant="contained"
                 onClick={() => (editing ? update.mutate() : add.mutate())}
@@ -1790,7 +1790,7 @@ function PolicyCommunicationsTab({ policyId, loading, rows, onSaved }: {
             <TextField size="small" fullWidth multiline rows={3} label="Λεπτομέρειες"
               value={form.body} onChange={e => setForm({ ...form, body: e.target.value })} />
             <Stack direction="row" spacing={1} justifyContent="flex-end">
-              <Button onClick={() => setCreating(false)}>Ακύρωση</Button>
+              <Button onClick={() => setCreating(false)} color="error" variant="contained">Ακύρωση</Button>
               <Button variant="contained" onClick={() => save.mutate()}
                 disabled={save.isPending || !form.subject.trim()}>
                 {save.isPending ? <CircularProgress size={18} /> : "Καταχώρηση"}
@@ -2065,7 +2065,7 @@ function PolicyCommissionOverrideEditor({ overrideJson, onChange, onSave, saving
             {hasOverride ? "Επεξεργασία" : "Προσθήκη"}
           </Button>
         ) : (
-          <Button size="small" onClick={() => setEditing(false)}>Άκυρο</Button>
+          <Button size="small" onClick={() => setEditing(false)} color="error" variant="contained">Άκυρο</Button>
         )}
       </Stack>
 

@@ -345,9 +345,7 @@ function RestoreDialog({ backup, onClose }: { backup: BackupDto | null; onClose:
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => { setConfirmText(""); setResult(null); setErr(null); onClose(); }}>
-          {result ? "Κλείσιμο" : "Άκυρο"}
-        </Button>
+        <Button onClick={() => { setConfirmText(""); setResult(null); setErr(null); onClose(); }} color="error" variant="contained">{result ? "Κλείσιμο" : "Άκυρο"}</Button>
         {!result && (
           <Button
             variant="contained"
@@ -637,7 +635,7 @@ function GdprCreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: 
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="error">Άκυρο</Button>
+        <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
         <Button variant="contained" onClick={() => save.mutate()}
           disabled={save.isPending || !form.requesterName.trim() || !form.requesterEmail.trim() || !form.reason.trim()}
         >
@@ -679,7 +677,7 @@ function GdprHandleDialog({ req, onClose, onSaved }: { req: GdprRequestDto | nul
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="error">Άκυρο</Button>
+        <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
         <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>
           {save.isPending ? <CircularProgress size={16} /> : "Αποθήκευση"}
         </Button>

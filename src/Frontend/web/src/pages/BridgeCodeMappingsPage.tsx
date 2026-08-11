@@ -329,7 +329,7 @@ function EditDialog({ open, item, carriers, onClose, onSaved }: {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="error">Άκυρο</Button>
+        <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
         <Button variant="contained" disabled={!canSave || save.isPending} onClick={() => save.mutate()}>
           {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
         </Button>

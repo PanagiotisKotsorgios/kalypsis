@@ -300,7 +300,7 @@ function PaymentDialog({ license, onClose, onSaved }: { license: DesktopLicense 
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={payment.isPending} color="error">Άκυρο</Button>
+        <Button onClick={onClose} disabled={payment.isPending} color="error" variant="contained">Άκυρο</Button>
         <Button variant="contained" disabled={payment.isPending || Number(form.amount) <= 0 || !form.paidAt || !form.startsAt} onClick={() => payment.mutate()}>
           {payment.isPending ? <CircularProgress size={20} /> : "Καταχώρηση & ενεργοποίηση"}
         </Button>

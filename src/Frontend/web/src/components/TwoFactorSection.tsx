@@ -150,7 +150,7 @@ export function TwoFactorSection() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => { setEnroll(null); setCode(""); }} disabled={confirm.isPending}>Άκυρο</Button>
+          <Button onClick={() => { setEnroll(null); setCode(""); }} disabled={confirm.isPending} color="error" variant="contained">Άκυρο</Button>
           <Button variant="contained" disabled={confirm.isPending || code.trim().length < 6} onClick={() => confirm.mutate()}>
             {confirm.isPending ? <CircularProgress size={18} color="inherit" /> : "Επιβεβαίωση"}
           </Button>
@@ -189,7 +189,7 @@ export function TwoFactorSection() {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmingDisable(false)}>Άκυρο</Button>
+          <Button onClick={() => setConfirmingDisable(false)} color="error" variant="contained">Άκυρο</Button>
           <Button color="error" variant="contained" disabled={disable.isPending} onClick={() => disable.mutate()}>
             {disable.isPending ? <CircularProgress size={18} color="inherit" /> : "Απενεργοποίηση"}
           </Button>

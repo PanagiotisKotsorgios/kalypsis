@@ -394,7 +394,7 @@ function CatalogueItemDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={save.isPending} color="error">Άκυρο</Button>
+        <Button onClick={onClose} disabled={save.isPending} color="error" variant="contained">Άκυρο</Button>
         <Button variant="contained" disabled={save.isPending} onClick={() => save.mutate()}>
           {save.isPending ? <CircularProgress size={18} color="inherit" /> : "Αποθήκευση"}
         </Button>

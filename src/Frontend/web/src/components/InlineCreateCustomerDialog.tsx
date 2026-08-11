@@ -185,7 +185,7 @@ export function InlineCreateCustomerDialog({ open, onClose, prefillText = "", on
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t("common.cancel", "Άκυρο")}</Button>
+        <Button onClick={onClose} color="error" variant="contained">{t("common.cancel", "Άκυρο")}</Button>
         <Button
           variant="contained"
           disabled={!canSave || create.isPending}

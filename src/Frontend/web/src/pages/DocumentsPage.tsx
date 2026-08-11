@@ -505,10 +505,8 @@ function DocumentPreviewDrawer({ doc, canEdit, onClose, onChanged }: {
                   disabled={replaceMut.isPending}>
                   {replaceMut.isPending ? <CircularProgress size={16} /> : "Αντικατάσταση αρχείου"}
                 </Button>
-                <Button size="small" variant="outlined" startIcon={<EditIcon />}
-                  onClick={() => setEditing(v => !v)}>
-                  {editing ? "Ακύρωση" : "Μετονομασία / Τύπος"}
-                </Button>
+                <Button size="small" startIcon={<EditIcon />}
+                  onClick={() => setEditing(v => !v)} color="error" variant="contained">{editing ? "Ακύρωση" : "Μετονομασία / Τύπος"}</Button>
                 {editing && (
                   <>
                     <SearchableTextField
