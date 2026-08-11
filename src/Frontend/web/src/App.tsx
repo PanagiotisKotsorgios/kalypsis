@@ -124,6 +124,7 @@ import { FinancialReportPage } from "./pages/FinancialReportPage";
 import { ProducerStatementPage } from "./pages/ProducerStatementPage";
 import { FederationChampionshipsPage } from "./pages/FederationChampionshipsPage";
 import { AgencySettingsPage } from "./pages/AgencySettingsPage";
+import { AgencySettingsHubPage } from "./pages/AgencySettingsHubPage";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { PackageGate } from "./pages/PackageLockedPage";
 import { CustomerContractDetailsPage } from "./pages/CustomerContractDetailsPage";
@@ -266,8 +267,9 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/carrier-bridges-hub", labelKey: "nav.carrierBridgesHub", icon: <CloudUploadIcon />, package: "BackOffice" },
 
     // ===== BackOffice — ΠΑΡΑΓΩΓΗ (core production records: customers, policies, claims) =====
+    // Sidebar consolidation: /production-report (ετήσια παραγωγή) is
+    // reachable as a button inside /production-lists.
     { to: "/production-lists", labelKey: "nav.productionLists", icon: <LeaderboardIcon />, package: "BackOffice", group: "production" },
-    { to: "/production-report", labelKey: "nav.productionReport", icon: <FactCheckIcon />, package: "BackOffice", group: "production" },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice", group: "production" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice", group: "production" },
     // "Ανανεώσεις" is now a button inside the Συμβόλαια page — one less sidebar
@@ -299,7 +301,8 @@ const navByRole: Record<Role, NavItem[]> = {
     // Over-commission rules + statements sit together: the rule page tells you
     // "manager gets X%", the statement page is where you key the monthly
     // πινάκιο actuals per producer. Two clicks apart.
-    { to: "/over-commissions", labelKey: "nav.overCommissions", icon: <StackedLineChartIcon />,  package: "BackOffice", group: "production" },
+    // Sidebar consolidation: /over-commissions (rules) is reachable from a
+    // link inside /over-commission-statements — one row here, less scroll.
     { to: "/over-commission-statements", labelKey: "nav.overCommissionStatements", icon: <ReceiptLongIcon />, package: "BackOffice", group: "production" },
 
     // Accounting and cash-control routes remain available from the Financial hub.
@@ -317,7 +320,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/commission-rules",    labelKey: "nav.commissionRules",    icon: <StackedLineChartIcon />,   package: "BackOffice", group: "params" },
     { to: "/lookups",             labelKey: "nav.lookups",            icon: <MenuBookIcon />,           package: "BackOffice", group: "params" },
     // — secondary configuration tools below the four primary items —
-    { to: "/parametric-files",    labelKey: "nav.parametricFiles",    icon: <InventoryIcon />,      package: "BackOffice", group: "params" },
+    // /parametric-files removed from sidebar per user request (route still resolves for deep links).
     { to: "/document-designer",   labelKey: "nav.docDesigner",        icon: <DesignServicesIcon />, package: "BackOffice", group: "params" },
     // Config Hub τραβάει μέσα του τα roadmap items (Dynamic Fields · Groupings ·
     // Period Locks) σαν tabs — έτσι το sidebar μένει καθαρό και τα coming-soon
@@ -325,7 +328,7 @@ const navByRole: Record<Role, NavItem[]> = {
     // για deep-links, απλά ανακατευθύνουν στο config-hub με το σωστό tab.
     { to: "/config-hub",          labelKey: "nav.configHub",          icon: <TuneOutlinedIcon />,   package: "BackOffice", group: "params" },
     { to: "/legal-templates",     labelKey: "nav.legalTemplates",     icon: <GavelIcon />,          package: "BackOffice", group: "params" },
-    { to: "/compliance-dashboard",labelKey: "nav.complianceDashboard",icon: <GavelIcon />,          package: "BackOffice", group: "admin" },
+    // /compliance-dashboard removed from sidebar per user request (route still resolves for deep links).
 
     // BackOffice → ΔΙΟΙΚΗΣΗ
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
@@ -343,11 +346,8 @@ const navByRole: Record<Role, NavItem[]> = {
     // editable only by AgencyAdmin. No package gate (kept always visible).
     { to: "/instructions", labelKey: "nav.instructions", icon: <MenuBookIcon /> },
 
-    // Per-tenant backups + GDPR — always visible.
-    { to: "/backups", labelKey: "nav.backups", icon: <BackupIcon /> },
-    // Νομικά έγγραφα — πάντα ορατά, όπως στο footer κάθε άλλης cloud
-    // πλατφόρμας. Το AppLayout προσθέτει από μόνο του το /app prefix.
-    { to: "/legal", labelKey: "nav.legalHub", icon: <GavelIcon /> },
+    // /backups + /legal moved into the Ρυθμίσεις & διαχείριση hub below.
+    // Individual URLs still resolve for bookmarks.
     // Αίτημα υποστήριξης — πάντα ορατό, χωρίς package gate. Auto-attaches
     // client diagnostics to every submission.
     { to: "/support-request", labelKey: "nav.supportRequest", icon: <BugReportIcon /> },
@@ -399,7 +399,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Integrations" },
 
     // Always-visible footer
-    { to: "/agency-settings", labelKey: "nav.agencySettings", icon: <SettingsIcon /> },
+    { to: "/agency-settings-hub", labelKey: "nav.agencySettingsHub", icon: <SettingsIcon /> },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
   AgencyUser: [
@@ -809,6 +809,7 @@ export default function App() {
                   <Route path="federation/championships" element={<FederationChampionshipsPage />} />
                   <Route path="profile" element={<ProfilePage />} />
                   <Route path="agency-settings" element={<AgencySettingsPage />} />
+                  <Route path="agency-settings-hub" element={<AgencySettingsHubPage />} />
                   <Route path="coming-soon" element={<ComingSoonPage />} />
                   <Route path="platform/registrations" element={<PlatformRegistrationsPage />} />
                   <Route path="platform/economics" element={<PlatformEconomicsPage />} />

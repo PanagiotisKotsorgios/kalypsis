@@ -10,6 +10,7 @@ import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import PaidIcon from "@mui/icons-material/Paid";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import GridOnIcon from "@mui/icons-material/GridOn";
+import { Link as RouterLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { OverCommissionGridEditor } from "../components/OverCommissionGridEditor";
@@ -122,6 +123,10 @@ export function OverCommissionStatementsPage() {
           </Typography>
         </Box>
         <Stack direction="row" spacing={1}>
+          <Button component={RouterLink} to="/app/over-commissions"
+            variant="outlined" size="large">
+            Παραμετρικοί κανόνες (%)
+          </Button>
           <Button startIcon={<GridOnIcon />} variant="outlined" size="large"
             color={gridOpen ? "primary" : "inherit"}
             onClick={() => setGridOpen(v => !v)}>

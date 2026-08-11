@@ -577,6 +577,34 @@ public static class DataSeeder
             await conn.OpenAsync(ct);
         var dbName = conn.Database;
 
+        // --- general_financial_entries: free-form γενικά έσοδα/έξοδα γραφείου -
+        // NEW table; safe-create so an empty tenant boots without a migration.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "general_financial_entries",
+            createSql: @"CREATE TABLE IF NOT EXISTS `general_financial_entries` (
+                `Id`             char(36) NOT NULL,
+                `TenantId`       char(36) NOT NULL,
+                `Kind`           varchar(16) NOT NULL DEFAULT 'Expense',
+                `Category`       varchar(120) NOT NULL DEFAULT '',
+                `Subcategory`    varchar(120) NULL,
+                `EntryDate`      datetime(6) NOT NULL,
+                `Amount`         decimal(18,2) NOT NULL DEFAULT 0,
+                `Currency`       varchar(4) NOT NULL DEFAULT 'EUR',
+                `Description`    longtext NULL,
+                `Counterparty`   varchar(255) NULL,
+                `Reference`      varchar(120) NULL,
+                `PolicyId`       char(36) NULL,
+                `CustomerId`     char(36) NULL,
+                `ProducerId`     char(36) NULL,
+                `EnteredByUserId` char(36) NULL,
+                `CreatedAt`      datetime(6) NOT NULL,
+                `UpdatedAt`      datetime(6) NULL,
+                `DeletedAt`      datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_gfe_Tenant_Date` (`TenantId`, `EntryDate`),
+                KEY `IX_gfe_Tenant_Kind_Category` (`TenantId`, `Kind`, `Category`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
         // --- OverCommissionStatements: optional custom period (from/to) ---
         await EnsureColumnAsync(db, logger, dbName,
             table: "over_commission_statements", column: "PeriodFrom",

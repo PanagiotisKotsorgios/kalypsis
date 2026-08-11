@@ -259,6 +259,9 @@ export function ProductionListsPage() {
         <Box sx={{ flex: 1 }} />
         <Stack direction="row" spacing={1} alignItems="center">
           <SavedReportsButton entity="production-lists" currentFilters={f} onLoad={(next) => setF({ ...f, ...next })} />
+          <Button component={RouterLink} to="/app/production-report" variant="outlined" startIcon={<StackedBarChartIcon />}>
+            Ετήσια παραγωγή
+          </Button>
           <Button component={RouterLink} to="/app/commission-runs" variant="outlined" color="secondary" startIcon={<CalculateIcon />}>
             Εκκαθαρίσεις προμηθειών
           </Button>

@@ -265,6 +265,7 @@ public interface IAppDbContext
     DbSet<PlatformBackup> PlatformBackups { get; }
     DbSet<CarrierBridgeConfig> CarrierBridgeConfigs { get; }
     DbSet<OverCommissionStatement> OverCommissionStatements { get; }
+    DbSet<GeneralFinancialEntry>   GeneralFinancialEntries   { get; }
 
     // ==== Federation module (championships / clubs / athletes / results) ====
     DbSet<Championship> Championships { get; }

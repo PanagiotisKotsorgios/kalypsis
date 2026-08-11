@@ -7,11 +7,13 @@ import { PaymentsPage } from "./PaymentsPage";
 import { FinancialMovementsPage } from "./FinancialMovementsPage";
 import { CashPositionPage } from "./CashPositionPage";
 import { GeneralLedgerPage } from "./GeneralLedgerPage";
+import { GeneralFinancialEntriesPage } from "./GeneralFinancialEntriesPage";
 
 const TABS = [
   { key: "receipts", label: "Εισπράξεις", Component: ReceiptsPage },
   { key: "payments", label: "Πληρωμές", Component: PaymentsPage },
   { key: "movements", label: "Οικονομικές Κινήσεις", Component: FinancialMovementsPage },
+  { key: "general", label: "Έσοδα / Έξοδα γραφείου", Component: GeneralFinancialEntriesPage },
   { key: "cash", label: "Ταμείο", Component: CashPositionPage },
   { key: "gl", label: "Λογιστική", Component: GeneralLedgerPage },
 ] as const;

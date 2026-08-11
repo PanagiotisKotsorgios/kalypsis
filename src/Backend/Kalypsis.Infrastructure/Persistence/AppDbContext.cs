@@ -240,6 +240,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<PlatformBackup> PlatformBackups => Set<PlatformBackup>();
     public DbSet<CarrierBridgeConfig> CarrierBridgeConfigs => Set<CarrierBridgeConfig>();
     public DbSet<OverCommissionStatement> OverCommissionStatements => Set<OverCommissionStatement>();
+    public DbSet<GeneralFinancialEntry>   GeneralFinancialEntries   => Set<GeneralFinancialEntry>();
 
     // ==== Federation module ==================================================
     public DbSet<Championship> Championships => Set<Championship>();
@@ -321,6 +322,8 @@ public class AppDbContext : DbContext, IAppDbContext
         modelBuilder.Entity<Contractor>().ToTable("contractors");
         modelBuilder.Entity<ContractorAssignment>().ToTable("contractor_assignments");
         modelBuilder.Entity<OverCommissionStatement>().ToTable("over_commission_statements");
+        modelBuilder.Entity<GeneralFinancialEntry>().ToTable("general_financial_entries")
+            .HasIndex(x => new { x.TenantId, x.EntryDate });
         modelBuilder.Entity<CarrierBridgeConfig>().ToTable("carrier_bridge_configs");
         modelBuilder.Entity<DesktopLicense>().ToTable("desktop_licenses");
         modelBuilder.Entity<DesktopLicensePayment>().ToTable("desktop_license_payments");
