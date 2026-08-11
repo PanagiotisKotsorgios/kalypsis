@@ -46,6 +46,10 @@ interface StatementDto {
   officeAmount: number;
   periodFrom: string | null;
   periodTo: string | null;
+  // 4-column context from carriers' πινάκια (ERGO ships all four).
+  basePremiumsGross: number | null;
+  basePremiumsNet: number | null;
+  producerDirectCommission: number | null;
   createdAt: string;
 }
 
@@ -148,12 +152,20 @@ export function OverCommissionStatementsPage() {
     return r;
   }, [rawRows, dateFrom, dateTo, paidFilter]);
   const totals = useMemo(() => ({
-    gross: rows.reduce((s, r) => s + r.grossAmount, 0),
-    net: rows.reduce((s, r) => s + r.netAmount, 0),
+    // These four columns come straight from carrier πινάκια (ERGO ships
+    // all four; other carriers may leave the base-premium ones null).
+    // Users read them 1:1 against the carrier's PDF.
+    basePremiumsGross:  rows.reduce((s, r) => s + (r.basePremiumsGross ?? 0), 0),
+    basePremiumsNet:    rows.reduce((s, r) => s + (r.basePremiumsNet ?? 0), 0),
+    producerDirect:     rows.reduce((s, r) => s + (r.producerDirectCommission ?? 0), 0),
+    // Over-commission bonus totals — this is what we actually book.
+    overCommissionGross: rows.reduce((s, r) => s + r.grossAmount, 0),
+    overCommissionNet:   rows.reduce((s, r) => s + r.netAmount, 0),
+    // Split of the bonus after applying the per-row producer share %.
     producer: rows.reduce((s, r) => s + (r.producerAmount ?? r.grossAmount), 0),
-    office: rows.reduce((s, r) => s + (r.officeAmount ?? 0), 0),
+    office:   rows.reduce((s, r) => s + (r.officeAmount ?? 0), 0),
     paidCount: rows.filter(r => r.paidOn).length,
-    unpaidGross: rows.filter(r => !r.paidOn).reduce((s, r) => s + r.grossAmount, 0)
+    unpaidGross: rows.filter(r => !r.paidOn).reduce((s, r) => s + r.grossAmount, 0),
   }), [rows]);
 
   /** Export the currently-filtered rows in CSV / XLSX / print. */
@@ -264,25 +276,38 @@ export function OverCommissionStatementsPage() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 
-      {/* Totals strip */}
+      {/* ── Totals strip — mirrors the ERGO πινάκιο 1:1 ────────────
+          Row 1: the four money columns straight off the carrier statement
+                 (ΜΙΚΤΑ ασφάλιστρα · ΚΑΘΑΡΑ ασφάλιστρα · ΠΡΟΜ.ΣΥΝΕΡΓΑΤΗ ·
+                 ΥΠΕΡΠΡΟΜΗΘΕΙΑ), so the operator can reconcile the totals
+                 shown here against the ERGO PDF footer without doing math.
+          Row 2: how the over-commission bonus is split (producer vs office),
+                 plus the paid/unpaid slice — the operational view. */}
       {(() => {
-        // Auto-percentages of the producer/έδρα split against gross —
-        // handles negatives + zero-gross gracefully.
-        const denom = Math.abs(totals.gross);
-        const pct = (v: number) => denom > 0
-          ? `${((v / totals.gross) * 100).toFixed(1)}%`
-          : "—";
-        const pctFmt = (v: number) =>
-          denom > 0 ? `${moneyFmt.format(v)}  ·  ${pct(v)}` : moneyFmt.format(v);
+        const denom = Math.abs(totals.overCommissionGross);
+        const pct = (v: number) => denom > 0 ? `${((v / totals.overCommissionGross) * 100).toFixed(1)}%` : "—";
+        const pctFmt = (v: number) => denom > 0 ? `${moneyFmt.format(v)}  ·  ${pct(v)}` : moneyFmt.format(v);
         return (
-          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3,1fr) repeat(3,1fr)" }, mb: 3 }}>
-            <Kpi label="Σύνολο μικτά" value={moneyFmt.format(totals.gross)} />
-            <Kpi label="Σύνολο καθαρά" value={moneyFmt.format(totals.net)} />
-            <Kpi label="Πληρωμένες γραμμές" value={`${totals.paidCount} / ${rows.length}`} />
-            <Kpi label="Στον παραγωγό (€ · %)" value={pctFmt(totals.producer)} color="success.main" />
-            <Kpi label="Στην έδρα / υπερπρομήθεια (€ · %)" value={pctFmt(totals.office)} color="info.main" />
-            <Kpi label="Απλήρωτο (μικτά)" value={moneyFmt.format(totals.unpaidGross)} color="warning.main" />
-          </Box>
+          <>
+            <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.06em", textTransform: "uppercase", display: "block", mb: 0.75 }}>
+              Ροή πινακίου
+            </Typography>
+            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4,1fr)" }, mb: 2 }}>
+              <Kpi label="Μικτά ασφάλιστρα (βάση)"    value={moneyFmt.format(totals.basePremiumsGross)} />
+              <Kpi label="Καθαρά ασφάλιστρα (βάση)"   value={moneyFmt.format(totals.basePremiumsNet)} />
+              <Kpi label="Προμήθεια συνεργάτη (άμεση)" value={moneyFmt.format(totals.producerDirect)} color="text.primary" />
+              <Kpi label="Υπερπρομήθεια (bonus)"      value={moneyFmt.format(totals.overCommissionGross)} color="info.main" />
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.06em", textTransform: "uppercase", display: "block", mb: 0.75 }}>
+              Καταμερισμός υπερπρομήθειας
+            </Typography>
+            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4,1fr)" }, mb: 3 }}>
+              <Kpi label="Στον παραγωγό (€ · %)"                   value={pctFmt(totals.producer)} color="success.main" />
+              <Kpi label="Στην έδρα / υπερπρομήθεια (€ · %)"       value={pctFmt(totals.office)}   color="info.main" />
+              <Kpi label="Πληρωμένες γραμμές"                      value={`${totals.paidCount} / ${rows.length}`} />
+              <Kpi label="Απλήρωτο (bonus)"                        value={moneyFmt.format(totals.unpaidGross)} color="warning.main" />
+            </Box>
+          </>
         );
       })()}
 

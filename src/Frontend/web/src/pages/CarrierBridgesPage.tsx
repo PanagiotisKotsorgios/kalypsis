@@ -165,6 +165,22 @@ export function CarrierBridgesPage() {
   });
   const companyLink = (companyMappings.data ?? []).find(m => !!m.targetInsuranceCompanyId);
   const [linkCarrierOpen, setLinkCarrierOpen] = useState(false);
+
+  // Undo a mis-picked carrier link. Deletes the BridgeCodeMapping row,
+  // which triggers the useEffect below to re-open LinkCarrierDialog on
+  // the next render (since companyLink becomes null). Guarded by an
+  // MUI confirm so an accidental click doesn't wipe the setup.
+  const unlinkCarrier = useMutation({
+    mutationFn: async () => {
+      if (!companyLink) return;
+      await api.delete(`/bridge-code-mappings/${companyLink.id}`);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["bridge-code-mappings"] });
+      // Force the picker to re-open right after the query refreshes.
+      setLinkCarrierOpen(true);
+    },
+  });
   // Force-open the link dialog when the operator selected a carrier but no
   // mapping resolves to a tenant carrier yet. If the operator picked one of
   // their own carriers (not a global), the mapping check may still be empty —
@@ -509,8 +525,23 @@ export function CarrierBridgesPage() {
               <Typography variant="caption" color="text.secondary">
                 Οι εγγραφές θα δημιουργηθούν στο δικό σας γραφείο: <strong>{companyLink.targetInsuranceCompanyName}</strong>
               </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
+                Λάθος σύνδεση; Πατήστε «Αλλαγή γραφείου-στόχου» για να την επαναφέρετε και να επιλέξετε άλλο γραφείο.
+              </Typography>
             </Box>
-            <Button onClick={() => setSelected(null)}>{t("carrierBridges.changeCarrier")}</Button>
+            <Stack direction="row" spacing={1}>
+              <Button variant="outlined" color="warning" disabled={unlinkCarrier.isPending}
+                onClick={() => {
+                  if (!companyLink) return;
+                  const msg = `Αποσύνδεση της γέφυρας «${selected.name}» από το γραφείο «${companyLink.targetInsuranceCompanyName}»;\n\n`
+                            + "Θα ανοίξει ο επιλογέας γραφείου για να συνδέσετε τη γέφυρα σε άλλο. "
+                            + "Οι ήδη εισηγμένες εγγραφές δεν διαγράφονται.";
+                  if (window.confirm(msg)) unlinkCarrier.mutate();
+                }}>
+                Αλλαγή γραφείου-στόχου
+              </Button>
+              <Button onClick={() => setSelected(null)}>{t("carrierBridges.changeCarrier")}</Button>
+            </Stack>
           </Stack>
           <Alert severity="info" sx={{ mb: 2 }}>
             {(() => {

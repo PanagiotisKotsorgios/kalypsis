@@ -50,6 +50,12 @@ interface GridRow {
   reference: string;
   notes: string;
   paidOn: string;
+  // Optional 4-column context copied straight from carrier πινάκια. Kept
+  // as strings for editing symmetry; parsed on POST. Empty = null on the
+  // server side (no base-premium context supplied).
+  basePremiumsGross?: string;
+  basePremiumsNet?: string;
+  producerDirectCommission?: string;
   serverError?: string | null;
   serverOk?: boolean;
 }
@@ -174,6 +180,10 @@ interface ExcelImportPreview {
     reference: string;
     paidOn: string;
     notes: string;
+    // Optional 4-column context from carrier πινάκια (ERGO ships all four).
+    basePremiumsGross?: string;
+    basePremiumsNet?: string;
+    producerDirectCommission?: string;
     /** Warning message if the row can't be turned into a grid entry. */
     problem: string | null;
   }>;
@@ -312,8 +322,17 @@ function parseErgoWorkbookPreview(
       ?? matchProducer(producers, rawName, codeStripped)
       ?? null;
 
-    const overCommission = String(row[5] ?? "").replace(/[€\s]/g, "").replace(",", ".");
-    const netPremiums    = String(row[3] ?? "").replace(/[€\s]/g, "").replace(",", ".");
+    // ERGO πινάκιο columns (positions confirmed against LANCA sample):
+    //   [2] ΜΙΚΤΑ ΑΣΦΑΛΙΣΤΡΑ       (base premiums, GROSS — never persisted before)
+    //   [3] ΚΑΘΑΡΑ ΑΣΦΑΛΙΣΤΡΑ      (base premiums, NET)
+    //   [4] ΠΡΟΜ. ΣΥΝΕΡΓΑΤΗ        (producer's own commission on the base — informational)
+    //   [5] ΥΠΕΡΠΡΟΜΗΘΕΙΑ          (bonus to the office — what we book)
+    //   [6] Σύνολο                  (= col4 + col5, derived, ignored)
+    const parseNum = (s: string) => s.replace(/[€\s]/g, "").replace(",", ".");
+    const baseGross  = parseNum(String(row[2] ?? ""));
+    const baseNet    = parseNum(String(row[3] ?? ""));
+    const producerDirect = parseNum(String(row[4] ?? ""));
+    const overCommission = parseNum(String(row[5] ?? ""));
 
     let problem: string | null = null;
     if (!matched) problem = `Δεν βρέθηκε παραγωγός με κωδικό ${rawCode} (${rawName}).`;
@@ -324,19 +343,22 @@ function parseErgoWorkbookPreview(
       producerName: rawName || null,
       producerCode: rawCode,
       matchedProducer: matched,
-      // Gross for the over-commission-statement = the ΥΠΕΡΠΡΟΜΗΘΕΙΑ € the
-      // carrier owes for this producer. Net = same (carrier doesn't withhold
-      // on the over-commission line in the ERGO πινάκιο).
+      // GrossAmount / NetAmount on OverCommissionStatement = the ΥΠΕΡΠΡΟΜΗΘΕΙΑ €
+      // (col F) — the bonus to the office. Net = same for ERGO (no
+      // withholding on the bonus line).
       grossAmount: overCommission,
       netAmount:   overCommission,
-      // ΥΠΕΡΠΡΟΜΗΘΕΙΑ = bonus above the producer's own commission (col E),
-      // and by ERGO contract the whole amount belongs to the office / έδρα.
-      // Producer share is therefore 0 by default. The operator can still
-      // override per-row in the grid before pressing "Εισαγωγή N γραμμών".
+      // Bonus is entirely for the office by ERGO contract. Operator can
+      // override per-row before pressing "Εισαγωγή N γραμμών".
       producerSharePercent: "0",
       reference: month && year ? `ERGO ΠΙΝΑΚΙΟ ${month}/${year}` : "ERGO ΠΙΝΑΚΙΟ",
       paidOn: "",
-      notes: netPremiums ? `Καθαρά ασφάλιστρα μηνός: ${netPremiums}` : "",
+      notes: "",
+      // Persisted separately so KPIs + reports can reconcile against the
+      // ERGO PDF's own footer totals without doing manual math.
+      basePremiumsGross:        baseGross,
+      basePremiumsNet:          baseNet,
+      producerDirectCommission: producerDirect,
       problem,
     });
   }
@@ -597,6 +619,13 @@ export function OverCommissionGridEditor({
   const bulk = useMutation({
     mutationFn: async () => {
       const completeRows = rows.filter(isRowComplete);
+      const num = (s?: string) => {
+        if (s === undefined) return null;
+        const t = s.trim();
+        if (t === "") return null;
+        const n = Number(t.replace(",", "."));
+        return Number.isFinite(n) ? n : null;
+      };
       const payload = completeRows.map(r => ({
         insuranceCompanyId: r.insuranceCompanyId,
         producerId: r.producerId,
@@ -608,7 +637,10 @@ export function OverCommissionGridEditor({
         reference: r.reference.trim() || null,
         notes: r.notes.trim() || null,
         paidOn: r.paidOn || null,
-        producerSharePercent: parsePercent(r.producerSharePercent)
+        producerSharePercent: parsePercent(r.producerSharePercent),
+        basePremiumsGross:        num(r.basePremiumsGross),
+        basePremiumsNet:          num(r.basePremiumsNet),
+        producerDirectCommission: num(r.producerDirectCommission),
       }));
       return {
         completeRows,
@@ -1183,6 +1215,9 @@ export function OverCommissionGridEditor({
                   reference: p.reference,
                   paidOn: p.paidOn,
                   notes: p.notes,
+                  basePremiumsGross:        p.basePremiumsGross,
+                  basePremiumsNet:          p.basePremiumsNet,
+                  producerDirectCommission: p.producerDirectCommission,
                 }));
               setRows(prev => {
                 const kept = prev.filter(r => !isRowEmpty(r));

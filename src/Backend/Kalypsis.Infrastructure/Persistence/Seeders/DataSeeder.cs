@@ -655,6 +655,16 @@ public static class DataSeeder
         await EnsureColumnAsync(db, logger, dbName,
             table: "over_commission_statements", column: "PeriodTo",
             addSql: "ALTER TABLE `over_commission_statements` ADD COLUMN `PeriodTo` datetime(6) NULL", ct);
+        // --- ERGO πινάκιο 4-column context (2026-08-12) ---
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "over_commission_statements", column: "BasePremiumsGross",
+            addSql: "ALTER TABLE `over_commission_statements` ADD COLUMN `BasePremiumsGross` decimal(18,2) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "over_commission_statements", column: "BasePremiumsNet",
+            addSql: "ALTER TABLE `over_commission_statements` ADD COLUMN `BasePremiumsNet` decimal(18,2) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "over_commission_statements", column: "ProducerDirectCommission",
+            addSql: "ALTER TABLE `over_commission_statements` ADD COLUMN `ProducerDirectCommission` decimal(18,2) NULL", ct);
 
         // --- insurance_companies.IsBroker / ParentCompanyId ----------------
         await EnsureColumnAsync(db, logger, dbName,

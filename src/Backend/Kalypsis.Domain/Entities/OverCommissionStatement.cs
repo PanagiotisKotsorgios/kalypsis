@@ -58,4 +58,21 @@ public class OverCommissionStatement : TenantEntity
     /// </summary>
     public DateTime? PeriodFrom { get; set; }
     public DateTime? PeriodTo   { get; set; }
+
+    // ── Underlying premiums that generated this over-commission bonus.
+    //    ERGO's monthly πινάκιο ships four numeric columns per producer
+    //    (ΜΙΚΤΑ ασφάλιστρα / ΚΑΘΑΡΑ ασφάλιστρα / ΠΡΟΜ.ΣΥΝΕΡΓΑΤΗ /
+    //    ΥΠΕΡΠΡΟΜΗΘΕΙΑ). GrossAmount above stores the ΥΠΕΡΠΡΟΜΗΘΕΙΑ (the
+    //    bonus to the office) but the operator also wants the raw context
+    //    for reporting: how much premium the producer's book actually
+    //    generated to earn that bonus. All optional — set only when the
+    //    source system (ERGO importer today, other bridges later) supplies
+    //    them.
+    /// <summary>ΜΙΚΤΑ ΑΣΦΑΛΙΣΤΡΑ of the underlying policies that generated the bonus.</summary>
+    public decimal? BasePremiumsGross { get; set; }
+    /// <summary>ΚΑΘΑΡΑ ΑΣΦΑΛΙΣΤΡΑ of the underlying policies (net of tax/deductions).</summary>
+    public decimal? BasePremiumsNet   { get; set; }
+    /// <summary>ΠΡΟΜ. ΣΥΝΕΡΓΑΤΗ — the producer's own commission on the base premiums,
+    /// paid to them separately from the over-commission bonus.</summary>
+    public decimal? ProducerDirectCommission { get; set; }
 }
