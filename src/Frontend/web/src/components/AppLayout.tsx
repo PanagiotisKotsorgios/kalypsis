@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { GlobalTableEnhancer } from "./GlobalTableEnhancer";
 import {
   AppBar,
   Box,
@@ -585,6 +586,11 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
   );
 
   return (
+    <>
+      {/* Global table enhancer — right-click any table header anywhere in
+          the app to hide columns, print or export CSV/XLSX. Zero per-page
+          wiring; see GlobalTableEnhancer.tsx for the strategy. */}
+      <GlobalTableEnhancer />
     <Box data-app-shell sx={{ display: "flex", minHeight: "100dvh", minWidth: 0, overflowX: "hidden", bgcolor: "background.default" }}>
       <AppBar
         position="fixed"
@@ -758,6 +764,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
       <KalypsisOnboarding />
       <PageTourMount />
     </Box>
+    </>
   );
 }
 
