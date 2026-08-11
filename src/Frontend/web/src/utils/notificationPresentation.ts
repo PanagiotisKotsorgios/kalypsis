@@ -31,6 +31,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   "service-request": "Αίτημα",
   "document": "Έγγραφο",
   "documents": "Έγγραφα",
+  "document-required": "Απαιτείται έγγραφο",
   "bridge": "Γέφυρα",
   "carrier-bridge": "Γέφυρα εταιρείας",
   "commission": "Προμήθειες",

@@ -3184,8 +3184,8 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                 {
                     Id = Guid.NewGuid(),
                     UserId = userId,
-                    Title = "Policy document required",
-                    Body = $"Policy {policy.PolicyNumber} or one of its lifecycle movements came from a carrier bridge without an attached file. Upload the policy PDF or the relevant document in the policy card.",
+                    Title = "Απαιτείται έγγραφο συμβολαίου",
+                    Body = $"Το συμβόλαιο {policy.PolicyNumber} ή κάποια από τις κινήσεις κύκλου ζωής του ήρθε από γέφυρα εταιρείας χωρίς συνημμένο αρχείο. Ανεβάστε το PDF ή το σχετικό έγγραφο από την καρτέλα συμβολαίου.",
                     Category = "document-required",
                     Link = link
                 });
