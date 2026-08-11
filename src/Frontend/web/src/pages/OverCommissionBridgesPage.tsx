@@ -8,9 +8,12 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CloseIcon from "@mui/icons-material/Close";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import StackedLineChartIcon from "@mui/icons-material/StackedLineChart";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
+import { usePremium } from "../auth/PremiumContext";
 
 interface AvailableCarrier {
   insuranceCompanyId: string;
@@ -23,8 +26,23 @@ interface AvailableCarrier {
 
 export function OverCommissionBridgesPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const premium = usePremium();
   const [pickedName, setPickedName] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+
+  // Route the click. For ERGO + LANCA tenant: send them straight to
+  // the over-commission statements page and let them pick "ERGO
+  // ΠΙΝΑΚΙΟ" from the layout dropdown in Μαζική Καταχώρηση.
+  const openBridge = (c: AvailableCarrier) => {
+    const upper = `${c.name} ${c.code}`.toUpperCase();
+    const isErgo = upper.includes("ERGO");
+    if (isErgo && premium.has("ergo-overcommission-bridge")) {
+      navigate("/app/over-commission-statements?openImport=ergo");
+      return;
+    }
+    setPickedName(c.name);
+  };
 
   const carriers = useQuery({
     queryKey: ["available-bridges"],
@@ -78,25 +96,38 @@ export function OverCommissionBridgesPage() {
             display: "grid", gap: 2,
             gridTemplateColumns: { xs: "1fr", sm: "repeat(2,1fr)", md: "repeat(3,1fr)" }
           }}>
-            {items.map(c => (
-              <Card key={c.insuranceCompanyId} variant="outlined" sx={{
-                p: 2, cursor: "pointer",
-                transition: "all 0.15s",
-                "&:hover": { borderColor: "primary.main", boxShadow: 2, transform: "translateY(-1px)" }
-              }} onClick={() => setPickedName(c.name)}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
-                  <Typography fontWeight={700}>{c.name}</Typography>
-                  {c.bridgeAvailable
-                    ? <Chip size="small" color="success" icon={<CheckCircleIcon />} label={c.bridgeFormat ?? "OK"} />
-                    : <Tooltip title={c.unavailableReason ?? t("carrierBridges.unavailableReason")}>
-                        <Chip size="small" icon={<HelpOutlineIcon />} label={t("carrierBridges.unavailable")} />
-                      </Tooltip>}
-                </Stack>
-                <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>
-                  {c.code}
-                </Typography>
-              </Card>
-            ))}
+            {items.map(c => {
+              const upper = `${c.name} ${c.code}`.toUpperCase();
+              const isErgo = upper.includes("ERGO");
+              const ergoReady = isErgo && premium.has("ergo-overcommission-bridge");
+              return (
+                <Card key={c.insuranceCompanyId} variant="outlined" sx={{
+                  p: 2, cursor: "pointer",
+                  transition: "all 0.15s",
+                  borderColor: ergoReady ? "success.light" : undefined,
+                  "&:hover": { borderColor: "primary.main", boxShadow: 2, transform: "translateY(-1px)" }
+                }} onClick={() => openBridge(c)}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
+                    <Typography fontWeight={700}>{c.name}</Typography>
+                    {ergoReady
+                      ? <Chip size="small" color="success" icon={<UploadFileIcon />} label="Ενεργή γέφυρα" />
+                      : c.bridgeAvailable
+                        ? <Chip size="small" color="success" icon={<CheckCircleIcon />} label={c.bridgeFormat ?? "OK"} />
+                        : <Tooltip title={c.unavailableReason ?? t("carrierBridges.unavailableReason")}>
+                            <Chip size="small" icon={<HelpOutlineIcon />} label={t("carrierBridges.unavailable")} />
+                          </Tooltip>}
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>
+                    {c.code}
+                  </Typography>
+                  {ergoReady && (
+                    <Typography variant="caption" color="success.dark" sx={{ display: "block", mt: 0.5 }}>
+                      Πάτα για να ανοίξεις τη γέφυρα υπερπρομηθειών ERGO →
+                    </Typography>
+                  )}
+                </Card>
+              );
+            })}
           </Box>
         </Card>
       )}

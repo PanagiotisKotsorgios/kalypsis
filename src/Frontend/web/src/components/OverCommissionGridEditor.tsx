@@ -373,6 +373,7 @@ function loadColVisibility(): Record<OptionalCol, boolean> {
 
 export function OverCommissionGridEditor({
   carriers, producers, defaultYear, defaultMonth, defaultCarrierId = "",
+  initialLayout,
   onImported, onClose
 }: {
   carriers: Carrier[];
@@ -380,6 +381,9 @@ export function OverCommissionGridEditor({
   defaultYear: number;
   defaultMonth: number;
   defaultCarrierId?: string;
+  /** Preselect the Excel-import layout dropdown. Passed by the parent
+   *  when the user arrives via /over-commission-statements?openImport=ergo. */
+  initialLayout?: ImportLayout;
   onImported: () => void;
   onClose: () => void;
 }) {
@@ -405,9 +409,18 @@ export function OverCommissionGridEditor({
   const [exportMenuAnchor, setExportMenuAnchor] = useState<HTMLElement | null>(null);
   const [importPreview, setImportPreview] = useState<ExcelImportPreview | null>(null);
   const [importCarrierId, setImportCarrierId] = useState<string>(defaultCarrierId);
-  const [importLayout, setImportLayout] = useState<ImportLayout>("auto");
+  const [importLayout, setImportLayout] = useState<ImportLayout>(initialLayout ?? "auto");
   const premium = usePremium();
   const canErgo = premium.has("ergo-overcommission-bridge");
+  // If the parent deep-links to ERGO mode, kick off the file-picker
+  // right away so the user lands on the OS file dialog.
+  useEffect(() => {
+    if (initialLayout === "ergo" && canErgo) {
+      // Small delay so the file input is mounted before we click it.
+      const id = window.setTimeout(() => fileInputRef.current?.click(), 250);
+      return () => window.clearTimeout(id);
+    }
+  }, [initialLayout, canErgo]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const saveTimer = useRef<number | null>(null);
 

@@ -83,6 +83,41 @@ public class Policy : TenantEntity
     /// </summary>
     public string? ReasonForCirculation { get; set; }
 
+    // ── Desktop-parity (2026-08-11) — day-to-day operations fields ──
+    /// <summary>
+    /// Πληρωμή επί πιστώσει — ο πελάτης έφυγε με το συμβόλαιο υπόσχεση να
+    /// πληρώσει αργότερα. Combined με <see cref="PaymentPromisedOn"/> τρέφει
+    /// το «Αναμενόμενες πληρωμές» dashboard και τους reminders.
+    /// </summary>
+    public bool PaidOnCredit { get; set; }
+    /// <summary>Ημερομηνία που ο πελάτης υποσχέθηκε να πληρώσει.</summary>
+    public DateOnly? PaymentPromisedOn { get; set; }
+    /// <summary>Free-form λόγος του πιστωτικού (πχ «πληρωμή έως 15/8»).</summary>
+    public string? CreditReason { get; set; }
+
+    /// <summary>«Ο πελάτης πληρώνει απευθείας στην ασφαλιστική» — δεν
+    /// περνά ταμείο του γραφείου. Άλλαξε το behavior των εισπράξεων:
+    /// δεν παράγει receipt-required warning σε δόσεις που λήγουν.</summary>
+    public bool PaidDirectlyToCarrier { get; set; }
+
+    /// <summary>Χαρακτηριστικό — free-form label ορατό παντού σε λίστες/searches.</summary>
+    public string? Characteristic { get; set; }
+    /// <summary>Απαλλαγή (deductible) € — για κάλυψη υλικών ζημιών, ζωής, ιατρικών.</summary>
+    public decimal? Deductible { get; set; }
+    /// <summary>Ημερομηνία παράδοσης πρωτότυπου/PDF στον πελάτη.</summary>
+    public DateOnly? HandoverDate { get; set; }
+    /// <summary>Ημερομηνία που παρελήφθη το φυσικό συμβόλαιο από το γραφείο.</summary>
+    public DateOnly? OfficeReceivedAt { get; set; }
+    /// <summary>Ιατρικές εξετάσεις (Ζωής / Υγείας) — free-form σημείωση.</summary>
+    public string? MedicalExamsNotes { get; set; }
+    /// <summary>Ηλικίες τη στιγμή έκδοσης — αναφερόμενες σε reports χωρίς recalc.</summary>
+    public int? InsuredAgeAtIssue { get; set; }
+    public int? ContractPartyAgeAtIssue { get; set; }
+    /// <summary>Θέση/spot (marine/aircraft/parking).</summary>
+    public string? Position { get; set; }
+    /// <summary>Free-form σημειώσεις στο συμβόλαιο.</summary>
+    public string? Notes { get; set; }
+
     /// <summary>
     /// Per-policy override του <c>LevelPercentsJson</c> στο <see cref="CommissionRule"/>.
     /// Ίδιο shape, JSON: <c>{"Producer":15,"Manager":3,"Agency":40}</c>.

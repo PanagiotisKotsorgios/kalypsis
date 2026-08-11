@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Alert, Box, Button, Card, CardContent, Checkbox, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, FormControlLabel, IconButton, MenuItem, Stack, Table, TableBody,
@@ -71,6 +72,23 @@ export function OverCommissionStatementsPage() {
   const [dialog, setDialog] = useState<StatementDto | null | "new">(null);
   const [error, setError] = useState<string | null>(null);
   const [gridOpen, setGridOpen] = useState(false);
+  // Deep-link ?openImport=ergo (from OverCommissionBridgesPage) auto-opens
+  // the μαζική καταχώρηση grid + tells the grid to preselect ERGO layout.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [initialLayout, setInitialLayout] = useState<"ergo" | undefined>(undefined);
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (autoOpened.current) return;
+    if (searchParams.get("openImport") === "ergo") {
+      setGridOpen(true);
+      setInitialLayout("ergo");
+      autoOpened.current = true;
+      // Clean the URL so a page refresh doesn't keep re-opening.
+      const next = new URLSearchParams(searchParams);
+      next.delete("openImport");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const carriersQ = useQuery({
     // onlyUsed=true → dropdown shows only the office's own carriers,
@@ -146,6 +164,7 @@ export function OverCommissionStatementsPage() {
           defaultYear={year}
           defaultMonth={typeof month === "number" ? month : now.getMonth() + 1}
           defaultCarrierId={carrierFilter}
+          initialLayout={initialLayout}
           onImported={() => qc.invalidateQueries({ queryKey: ["over-commission-statements"] })}
           onClose={() => setGridOpen(false)}
         />

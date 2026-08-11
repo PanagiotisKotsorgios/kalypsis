@@ -605,6 +605,49 @@ public static class DataSeeder
                 KEY `IX_gfe_Tenant_Kind_Category` (`TenantId`, `Kind`, `Category`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
 
+        // --- policies: 2026-08-11 desktop-parity additions -----------------
+        // Πιστωτικό / promise-to-pay + operations columns that were only
+        // in the desktop entity.
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "PaidOnCredit",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `PaidOnCredit` tinyint(1) NOT NULL DEFAULT 0", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "PaymentPromisedOn",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `PaymentPromisedOn` date NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "CreditReason",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `CreditReason` varchar(255) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "PaidDirectlyToCarrier",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `PaidDirectlyToCarrier` tinyint(1) NOT NULL DEFAULT 0", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "Characteristic",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `Characteristic` varchar(255) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "Deductible",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `Deductible` decimal(18,2) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "HandoverDate",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `HandoverDate` date NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "OfficeReceivedAt",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `OfficeReceivedAt` date NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "MedicalExamsNotes",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `MedicalExamsNotes` longtext NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "InsuredAgeAtIssue",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `InsuredAgeAtIssue` int NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "ContractPartyAgeAtIssue",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `ContractPartyAgeAtIssue` int NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "Position",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `Position` varchar(60) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "Notes",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `Notes` longtext NULL", ct);
+
         // --- OverCommissionStatements: optional custom period (from/to) ---
         await EnsureColumnAsync(db, logger, dbName,
             table: "over_commission_statements", column: "PeriodFrom",
