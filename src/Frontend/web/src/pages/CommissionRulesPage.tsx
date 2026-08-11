@@ -1038,7 +1038,7 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Άκυρο</Button>
+        <Button onClick={onClose} color="error">Άκυρο</Button>
         <Button variant="contained" onClick={() => save.mutate()}
           disabled={save.isPending
             || (!form.agencyPercent && !form.producerPercent)

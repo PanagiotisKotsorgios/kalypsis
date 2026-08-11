@@ -679,7 +679,7 @@ function StandaloneProducerDialog({ open, onClose, onCredentials }: {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Ακύρωση</Button>
+        <Button onClick={onClose} color="error">Ακύρωση</Button>
         <Button variant="contained" onClick={() => create.mutate()} disabled={!canSubmit || create.isPending}>
           {create.isPending ? <CircularProgress size={18} /> : "Δημιουργία"}
         </Button>

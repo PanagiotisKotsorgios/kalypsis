@@ -501,7 +501,7 @@ function CompanyDialog({ open, onClose, item, onSaved }: {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Άκυρο</Button>
+        <Button onClick={onClose} color="error">Άκυρο</Button>
         <Button variant="contained" disabled={save.isPending || !form.name.trim() || !form.code.trim()}
           onClick={() => save.mutate()}>
           {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}

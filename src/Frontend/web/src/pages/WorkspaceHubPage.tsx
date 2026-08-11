@@ -348,22 +348,24 @@ function DashboardSummary() {
         <AnimatedKpiCard index={3} label="Ασφάλιστρα μήνα" value={k.monthlyPremium} currency
           accent={ACCENT} icon={<EuroIcon />} />
         <MiniChartCard title="Παραγωγή 6 μηνών"
-          rightLabel={moneyFmt.format(series.reduce((s, p) => s + p.value, 0))}>
+          rightLabel={moneyFmt.format(series.reduce((s, p) => s + p.value, 0))}
+          kind="area" isEmpty={premiumSpark.every(v => !v)}>
           <ModernAreaChart data={series} color={ACCENT}
             format={(v) => moneyFmt.format(v)} />
-          {/* Hidden ARIA sink so screen readers hear the sparkline count. */}
-          <span aria-hidden style={{ display: "none" }}>{premiumSpark.length}</span>
         </MiniChartCard>
       </Box>
 
-      {/* Second row — three small charts side-by-side. Each ~150 px tall. */}
+      {/* Second row — three small charts side-by-side. Each ~150 px tall.
+          Each card advertises its chart kind + empty-state so the hover
+          skeleton hints at what would appear once data is loaded. */}
       <Box sx={{
         mt: 1.5,
         display: "grid", gap: 1.5,
         gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }
       }}>
         <MiniChartCard title="Συμβόλαια ανά κατάσταση"
-          rightLabel={`${intFmt.format(statuses.reduce((s, x) => s + x.value, 0))}`} height={150}>
+          rightLabel={`${intFmt.format(statuses.reduce((s, x) => s + x.value, 0))}`} height={150}
+          kind="donut" isEmpty={statuses.length === 0 || statuses.every(s => !s.value)}>
           <ModernDonutChart
             data={statuses.map(s => ({ label: s.label, value: s.value }))}
             colors={statusColors}
@@ -372,7 +374,8 @@ function DashboardSummary() {
         </MiniChartCard>
 
         <MiniChartCard title="Κορυφαίες εταιρίες"
-          rightLabel={carriers.length > 0 ? carriers[0].carrier : "—"} height={150}>
+          rightLabel={carriers.length > 0 ? carriers[0].carrier : "—"} height={150}
+          kind="bar" isEmpty={carriers.length === 0}>
           <ModernBarChart
             data={carriers.map(c => ({ label: c.carrier, value: Number(c.premium) }))}
             color={ACCENT}
@@ -383,7 +386,8 @@ function DashboardSummary() {
         <MiniChartCard
           title={secondaryTitle}
           rightLabel={`${intFmt.format(secondaryData.reduce((s, x) => s + x.value, 0))}`}
-          height={150}>
+          height={150}
+          kind="area" isEmpty={secondaryData.length === 0 || secondaryData.every(x => !x.value)}>
           <ModernAreaChart
             data={secondaryData.map(x => ({ label: x.label, value: x.value }))}
             color={INK}
@@ -395,8 +399,12 @@ function DashboardSummary() {
   );
 }
 
-function MiniChartCard({ title, rightLabel, children, height = 76 }: {
+function MiniChartCard({ title, rightLabel, children, height = 76, kind, isEmpty }: {
   title: string; rightLabel?: string; children: React.ReactNode; height?: number;
+  /** Optional chart-type hint so the empty-state hover shows a matching skeleton. */
+  kind?: "area" | "bar" | "donut";
+  /** True when the underlying data has zero rows — enables the hover skeleton. */
+  isEmpty?: boolean;
 }) {
   return (
     <Box sx={{
@@ -408,7 +416,11 @@ function MiniChartCard({ title, rightLabel, children, height = 76 }: {
         : "rgba(11,37,69,0.28)",
       borderRadius: 2.5, p: 1.75, bgcolor: "background.paper",
       transition: "border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease",
-      "&:hover": { borderColor: "primary.main", boxShadow: 3, transform: "translateY(-1px)" }
+      "&:hover": { borderColor: "primary.main", boxShadow: 3, transform: "translateY(-1px)" },
+      // Hover-only visibility for the empty-state skeleton — swap opacity so
+      // the placeholder feels like an "initialising" preview rather than a
+      // permanent watermark. The skeleton itself is drawn below.
+      "&:hover .chart-empty-skeleton": { opacity: 0.55, transform: "translateY(0) scale(1)" }
     }}>
       <Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={{ px: 0.5, mb: 0.5 }}>
         <Typography sx={{
@@ -424,8 +436,20 @@ function MiniChartCard({ title, rightLabel, children, height = 76 }: {
           </Typography>
         )}
       </Stack>
-      <Box sx={{ height }}>
+      <Box sx={{ position: "relative", height }}>
         {children}
+        {isEmpty && kind && (
+          <Box className="chart-empty-skeleton" aria-hidden sx={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            pointerEvents: "none",
+            opacity: 0,
+            transform: "translateY(4px) scale(.98)",
+            transition: "opacity 260ms ease, transform 420ms cubic-bezier(.22,.61,.36,1)",
+          }}>
+            <EmptyChartSkeleton kind={kind} />
+          </Box>
+        )}
       </Box>
     </Box>
   );
@@ -434,3 +458,53 @@ function MiniChartCard({ title, rightLabel, children, height = 76 }: {
 // Tile + DonutLegend removed — the hub now renders KPI tiles via
 // AnimatedKpiCard and donut charts via ModernDonutChart (native legend),
 // matching the shared dashboard design system.
+
+/**
+ * Hover-triggered SVG skeleton drawn inside empty mini-chart cards. Kind
+ * picks between a bar cluster, a donut ring and an area silhouette so the
+ * placeholder hints at what the chart would look like once populated. Pure
+ * dashed navy strokes — no fills — so it reads as an "outline preview".
+ */
+function EmptyChartSkeleton({ kind }: { kind: "area" | "bar" | "donut" }) {
+  const stroke = INK;
+  const strokeSoft = INK_SOFT;
+  if (kind === "bar") {
+    // Five ascending dashed bars — the classic "no data" bar preview.
+    const bars = [22, 34, 18, 46, 30];
+    return (
+      <svg viewBox="0 0 120 60" width="90%" height="90%" preserveAspectRatio="none">
+        {bars.map((h, i) => (
+          <rect key={i} x={6 + i * 22} y={56 - h} width={14} height={h}
+                fill="none" stroke={stroke} strokeWidth={1.5}
+                strokeDasharray="3 3" rx={2} />
+        ))}
+        <line x1="0" y1="56" x2="120" y2="56" stroke={strokeSoft}
+              strokeWidth={1} strokeDasharray="2 4" />
+      </svg>
+    );
+  }
+  if (kind === "donut") {
+    // Dashed ring + a subtle wedge indicator so the shape reads as a donut.
+    return (
+      <svg viewBox="0 0 120 60" width="90%" height="90%" preserveAspectRatio="xMidYMid meet">
+        <circle cx="60" cy="30" r="22" fill="none" stroke={stroke}
+                strokeWidth={2} strokeDasharray="4 4" />
+        <circle cx="60" cy="30" r="10" fill="none" stroke={strokeSoft}
+                strokeWidth={1} strokeDasharray="2 3" />
+        <path d="M60 8 A22 22 0 0 1 82 30" fill="none" stroke={ACCENT}
+              strokeWidth={2} strokeLinecap="round" />
+      </svg>
+    );
+  }
+  // Area / line — a dashed silhouette with a filled baseline hint.
+  return (
+    <svg viewBox="0 0 120 60" width="95%" height="95%" preserveAspectRatio="none">
+      <polyline points="4,46 24,32 44,38 64,20 84,26 104,12 116,18"
+                fill="none" stroke={stroke} strokeWidth={1.8}
+                strokeDasharray="4 4" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points="4,56 24,56 44,56 64,56 84,56 104,56 116,56"
+                fill="none" stroke={strokeSoft} strokeWidth={1}
+                strokeDasharray="2 4" />
+    </svg>
+  );
+}

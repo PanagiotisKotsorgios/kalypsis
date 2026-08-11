@@ -181,7 +181,9 @@ export function DocumentsPage() {
             <SearchableTextField
               select size="small" label="Τύπος" value={type}
               onChange={(e) => setType(e.target.value as DocumentType | "")}
-              sx={{ minWidth: 140, width: "100%" }}
+              // Bumped from 140 → 200 so options like «Πράσινη κάρτα» and
+              // «Οδική βοήθεια» aren't ellipsis-cropped in the closed select.
+              sx={{ minWidth: 200, width: "100%" }}
             >
               <MenuItem value="">Όλοι</MenuItem>
               {(["Policy","GreenCard","Roadside","Invoice","Other"] as const).map(d => (

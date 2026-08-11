@@ -1689,7 +1689,7 @@ function LinkCarrierDialog({ open, sourceCarrierName, sourceCarrierCode, onClose
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Άκυρο</Button>
+        <Button onClick={onClose} color="error">Άκυρο</Button>
         <Button variant="contained" disabled={!targetId || link.isPending} onClick={() => link.mutate()}>
           {link.isPending ? <CircularProgress size={18} /> : "Σύνδεση"}
         </Button>

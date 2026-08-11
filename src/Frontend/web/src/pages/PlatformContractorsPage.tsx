@@ -491,7 +491,7 @@ function ContractorDialog({ open, contractor, onClose, onSave, busy }: {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Ακύρωση</Button>
+        <Button onClick={onClose} color="error">Ακύρωση</Button>
         <Button variant="contained" disabled={!valid || busy} onClick={() => onSave(form)}>
           {busy ? <CircularProgress size={16} /> : "Αποθήκευση"}
         </Button>
@@ -564,7 +564,7 @@ function AssignmentDialog({ open, assignment, defaultContractorId, contractors, 
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Ακύρωση</Button>
+        <Button onClick={onClose} color="error">Ακύρωση</Button>
         <Button variant="contained" disabled={!valid || busy} onClick={() => onSave(form)}>
           {busy ? <CircularProgress size={16} /> : "Αποθήκευση"}
         </Button>

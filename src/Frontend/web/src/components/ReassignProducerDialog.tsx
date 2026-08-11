@@ -223,7 +223,7 @@ export function ReassignProducerDialog({
           <Button variant="contained" onClick={close}>Έγινε</Button>
         ) : (
           <>
-            <Button onClick={close} disabled={execute.isPending}>Άκυρο</Button>
+            <Button onClick={close} disabled={execute.isPending} color="error">Άκυρο</Button>
             <Button
               variant="contained"
               startIcon={execute.isPending ? <CircularProgress size={16} color="inherit" /> : <SwapHorizIcon />}

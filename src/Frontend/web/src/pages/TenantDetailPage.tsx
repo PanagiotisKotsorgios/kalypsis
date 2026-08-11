@@ -784,7 +784,7 @@ function ContractDialog({ open, onClose, tenantId, item, onSaved }: {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Άκυρο</Button>
+        <Button onClick={onClose} color="error">Άκυρο</Button>
         <Button variant="contained" disabled={save.isPending || !form.contractNumber.trim()}
           onClick={() => save.mutate()}>
           {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}

@@ -149,11 +149,9 @@ export function AnimatedKpiCard({
         }),
       }}
     >
-      {/* Gradient accent bar across the top */}
-      <Box sx={{
-        position: "absolute", inset: "0 0 auto 0", height: 4,
-        background: `linear-gradient(90deg, ${color}, ${color}88 60%, transparent)`,
-      }} />
+      {/* Top gradient bar removed intentionally — the permanent navy frame
+          already anchors the card as a container; the coloured accent is now
+          carried by the icon badge alone. */}
       <CardContent sx={{ pt: 2.25 }}>
         <Stack direction="row" alignItems="flex-start" spacing={1.5}>
           <Box sx={{ flex: 1, minWidth: 0 }}>

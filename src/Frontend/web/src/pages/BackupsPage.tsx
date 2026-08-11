@@ -637,7 +637,7 @@ function GdprCreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: 
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Άκυρο</Button>
+        <Button onClick={onClose} color="error">Άκυρο</Button>
         <Button variant="contained" onClick={() => save.mutate()}
           disabled={save.isPending || !form.requesterName.trim() || !form.requesterEmail.trim() || !form.reason.trim()}
         >
@@ -679,7 +679,7 @@ function GdprHandleDialog({ req, onClose, onSaved }: { req: GdprRequestDto | nul
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Άκυρο</Button>
+        <Button onClick={onClose} color="error">Άκυρο</Button>
         <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>
           {save.isPending ? <CircularProgress size={16} /> : "Αποθήκευση"}
         </Button>

@@ -1134,7 +1134,7 @@ function RuleEditor({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Άκυρο</Button>
+        <Button onClick={onClose} color="error">Άκυρο</Button>
         <Button variant="contained" onClick={() => onSave(form)} disabled={!form.name.trim() || !form.templateId}>
           Αποθήκευση
         </Button>
@@ -1297,7 +1297,7 @@ function SegmentEditor({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Άκυρο</Button>
+        <Button onClick={onClose} color="error">Άκυρο</Button>
         <Button variant="contained" onClick={() => onSave(form)} disabled={!form.name.trim()}>Αποθήκευση</Button>
       </DialogActions>
     </Dialog>
@@ -1606,7 +1606,7 @@ function ProviderEditor({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Άκυρο</Button>
+        <Button onClick={onClose} color="error">Άκυρο</Button>
         <Button variant="contained" onClick={() => onSave(form)} disabled={!form.name.trim()}>Αποθήκευση</Button>
       </DialogActions>
     </Dialog>

@@ -242,7 +242,7 @@ function UploadDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Άκυρο</Button>
+        <Button onClick={onClose} color="error">Άκυρο</Button>
         <Button variant="contained" disabled={save.isPending || !file || !form.insuranceCompanyCode || !form.insuranceCompanyName || !form.version}
           onClick={() => save.mutate()}>
           {save.isPending ? <CircularProgress size={18} /> : "Ανέβασμα"}

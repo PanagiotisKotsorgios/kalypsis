@@ -266,7 +266,7 @@ function CreditNoteDialog({ open, onClose, onSaved }: { open: boolean; onClose: 
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Άκυρο</Button>
+        <Button onClick={onClose} color="error">Άκυρο</Button>
         <Button variant="contained" disabled={save.isPending || !form.description.trim() || form.amount <= 0}
           onClick={() => save.mutate()}>
           {save.isPending ? <CircularProgress size={18} /> : "Έκδοση πιστωτικού"}

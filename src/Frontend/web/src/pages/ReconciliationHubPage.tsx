@@ -47,9 +47,14 @@ export function ReconciliationHubPage() {
       <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", md: "repeat(3,1fr)" } }}>
         {tiles.map((t) => (
           <Card key={t.to} variant="outlined" sx={{
-            borderRadius: 2.5, transition: "border-color 220ms, box-shadow 220ms, transform 220ms",
+            borderRadius: 2.5,
+            borderWidth: 1.5,
+            borderColor: (theme) => theme.palette.mode === "dark"
+              ? "rgba(148,191,230,0.32)"
+              : "rgba(11,37,69,0.32)",
+            transition: "border-color 220ms, box-shadow 220ms, transform 220ms",
             "&:hover": { borderColor: t.color, transform: "translateY(-2px)",
-              boxShadow: `0 16px 34px -18px ${t.color}55` }
+              boxShadow: `0 16px 34px -18px ${t.color}88` }
           }}>
             <CardActionArea component={RouterLink} to={t.to} sx={{ p: 3, height: "100%" }}>
               <Stack direction="row" spacing={2} alignItems="flex-start">

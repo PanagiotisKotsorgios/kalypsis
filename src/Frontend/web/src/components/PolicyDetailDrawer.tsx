@@ -820,7 +820,7 @@ function ChangeProducerDialog({ open, onClose, policyId, policyNumber, currentPr
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Άκυρο</Button>
+        <Button onClick={onClose} color="error">Άκυρο</Button>
         <Button variant="contained" disabled={!newProducerId || save.isPending} onClick={() => save.mutate()}>
           {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
         </Button>
@@ -1499,7 +1499,7 @@ function PolicyCoversTabInner({ policyId }: { policyId: string }) {
               sx={{ flex: 1 }} />
             <Stack direction="row" spacing={1}>
               {editing && (
-                <Button variant="text" onClick={cancelEdit}>Άκυρο</Button>
+                <Button variant="text" onClick={cancelEdit} color="error">Άκυρο</Button>
               )}
               <Button variant="contained"
                 onClick={() => (editing ? update.mutate() : add.mutate())}

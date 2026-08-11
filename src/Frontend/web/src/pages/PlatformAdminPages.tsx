@@ -2143,7 +2143,7 @@ function NewTicketDialog({ open, busy, onClose, onCreate }: {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Ακύρωση</Button>
+        <Button onClick={onClose} color="error">Ακύρωση</Button>
         <Button variant="contained" disabled={!valid || busy}
           onClick={() => onCreate({ ...form, status: "Open", assignee: null })}>
           {busy ? <CircularProgress size={16} /> : "Δημιουργία"}
@@ -2490,7 +2490,7 @@ function ChargeableDialog({ open, row, tenantId, onClose, onSaved }: {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Ακύρωση</Button>
+        <Button onClick={onClose} color="error">Ακύρωση</Button>
         <Button variant="contained" onClick={() => save.mutate()}
           disabled={save.isPending || !form.description.trim() || Number(form.quantity) <= 0}>
           {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
