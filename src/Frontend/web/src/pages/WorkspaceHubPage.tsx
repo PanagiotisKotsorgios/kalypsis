@@ -11,14 +11,20 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip as RTooltip, CartesianGrid,
-  PieChart, Pie, Cell, BarChart, Bar, LineChart, Line
-} from "recharts";
+// Recharts is no longer imported directly here — mini-charts render through
+// the shared ModernDashboard components below, so the hub matches the
+// dashboards' gradient/animation language pixel-for-pixel.
+import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
+import PolicyIcon from "@mui/icons-material/Policy";
+import EventBusyIcon from "@mui/icons-material/EventBusy";
+import EuroIcon from "@mui/icons-material/Euro";
 import { useAuth } from "../auth/AuthContext";
 import { usePackages, type PackageCode } from "../auth/PackagesContext";
 import { useWorkspace, WORKSPACE_DEFAULT_ROUTE } from "../auth/WorkspaceContext";
 import { api } from "../api/client";
+import {
+  AnimatedKpiCard, ModernAreaChart, ModernBarChart, ModernDonutChart,
+} from "../components/ModernDashboard";
 
 interface PackageMeta {
   code: PackageCode;
@@ -165,7 +171,12 @@ export function WorkspaceHubPage() {
               variant="outlined"
               sx={{
                 position: "relative",
-                borderColor: "divider",
+                // Permanent navy-tinted frame — matches the KPI + chart
+                // containers so the whole hub reads as one design system.
+                borderColor: (theme) => enabled
+                  ? (theme.palette.mode === "dark" ? "rgba(148,191,230,0.32)" : "rgba(11,37,69,0.32)")
+                  : "divider",
+                borderWidth: 1.5,
                 borderRadius: 2.5,
                 bgcolor: "background.paper",
                 opacity: enabled ? 1 : 0.65,
@@ -191,6 +202,28 @@ export function WorkspaceHubPage() {
                 "&:hover::after": enabled ? { transform: "scaleX(1)" } : {}
               }}
             >
+              {/* Permanent L-bracket ornament in the bottom-right corner —
+                  two thick navy strokes making the card feel like a labeled,
+                  bordered container even when idle. Sits behind the click
+                  surface via pointer-events: none. */}
+              {enabled && (
+                <>
+                  <Box aria-hidden sx={{
+                    position: "absolute",
+                    right: 14, bottom: 14, width: 76, height: 3,
+                    bgcolor: INK, borderRadius: 1,
+                    pointerEvents: "none",
+                    boxShadow: `0 1px 0 ${INK}20`,
+                  }} />
+                  <Box aria-hidden sx={{
+                    position: "absolute",
+                    right: 14, bottom: 14, width: 3, height: 42,
+                    bgcolor: ACCENT, borderRadius: 1,
+                    pointerEvents: "none",
+                    boxShadow: `0 0 0 1px ${ACCENT}20`,
+                  }} />
+                </>
+              )}
               <CardActionArea
                 disabled={!enabled}
                 onClick={() => {
@@ -290,104 +323,72 @@ function DashboardSummary() {
   const claims   = q.data.claimsByStatus ?? [];
   const types    = q.data.policiesByType ?? [];
 
+  const premiumSpark = series.map(p => Number(p.value));
+  const secondaryData = claims.length > 0 ? claims : types;
+  const secondaryTitle = claims.length > 0 ? "Ζημίες ανά κατάσταση" : "Κατανομή κλάδων";
+  // Palette override so the status donut keeps its meaningful colours
+  // (green = active, red = cancelled, …) instead of the default rainbow.
+  const statusColors = statuses.map((s, i) =>
+    STATUS_PALETTE[s.label] ?? CHART_PALETTE[i % CHART_PALETTE.length]);
+
   return (
     <Box sx={{ mb: { xs: 4, md: 5 } }}>
-      {/* KPI row + monthly chart */}
+      {/* KPI row + monthly chart — animated cards, matching the dashboard style. */}
       <Box sx={{
         display: "grid",
         gap: 1.5,
         gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr) 1.5fr" }
       }}>
-        <Tile label="Πελάτες"           value={intFmt.format(k.customers)} />
-        <Tile label="Ενεργά συμβόλαια"  value={intFmt.format(k.activePolicies)} />
-        <Tile label="Λήγουν σύντομα"    value={intFmt.format(k.expiringSoon)} accent="warning" />
-        <Tile label="Ασφάλιστρα μήνα"   value={moneyFmt.format(k.monthlyPremium)} />
+        <AnimatedKpiCard index={0} label="Πελάτες" value={k.customers}
+          accent={INK} icon={<PeopleAltIcon />} />
+        <AnimatedKpiCard index={1} label="Ενεργά συμβόλαια" value={k.activePolicies}
+          accent="#16a34a" icon={<PolicyIcon />} />
+        <AnimatedKpiCard index={2} label="Λήγουν σύντομα" value={k.expiringSoon}
+          accent="#a05a00" icon={<EventBusyIcon />} />
+        <AnimatedKpiCard index={3} label="Ασφάλιστρα μήνα" value={k.monthlyPremium} currency
+          accent={ACCENT} icon={<EuroIcon />} />
         <MiniChartCard title="Παραγωγή 6 μηνών"
           rightLabel={moneyFmt.format(series.reduce((s, p) => s + p.value, 0))}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={series} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
-              <defs>
-                <linearGradient id="hubArea" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"   stopColor={ACCENT} stopOpacity={0.32} />
-                  <stop offset="100%" stopColor={ACCENT} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="#eef1f5" vertical={false} />
-              <XAxis dataKey="label" hide />
-              <YAxis hide />
-              <RTooltip
-                contentStyle={{ borderRadius: 8, border: `1px solid #e5e9ef`, fontSize: 12 }}
-                formatter={(v: any) => moneyFmt.format(Number(v) || 0)} />
-              <Area type="monotone" dataKey="value" stroke={ACCENT} strokeWidth={2}
-                fill="url(#hubArea)" />
-            </AreaChart>
-          </ResponsiveContainer>
+          <ModernAreaChart data={series} color={ACCENT}
+            format={(v) => moneyFmt.format(v)} />
+          {/* Hidden ARIA sink so screen readers hear the sparkline count. */}
+          <span aria-hidden style={{ display: "none" }}>{premiumSpark.length}</span>
         </MiniChartCard>
       </Box>
 
-      {/* Second row — three small charts side-by-side. Each ~140 px tall. */}
+      {/* Second row — three small charts side-by-side. Each ~150 px tall. */}
       <Box sx={{
         mt: 1.5,
         display: "grid", gap: 1.5,
         gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }
       }}>
-        {/* Donut — policies by status */}
         <MiniChartCard title="Συμβόλαια ανά κατάσταση"
           rightLabel={`${intFmt.format(statuses.reduce((s, x) => s + x.value, 0))}`} height={150}>
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={statuses} dataKey="value" nameKey="label"
-                cx="35%" cy="50%" innerRadius={28} outerRadius={50}
-                paddingAngle={2} strokeWidth={0}>
-                {statuses.map((s, i) =>
-                  <Cell key={s.label} fill={STATUS_PALETTE[s.label] ?? CHART_PALETTE[i % CHART_PALETTE.length]} />
-                )}
-              </Pie>
-              <RTooltip
-                contentStyle={{ borderRadius: 8, border: "1px solid #e5e9ef", fontSize: 12 }}
-                formatter={(v: any, n: any) => [intFmt.format(Number(v) || 0), n]} />
-            </PieChart>
-          </ResponsiveContainer>
-          <DonutLegend items={statuses} colorOf={(label, i) =>
-            STATUS_PALETTE[label] ?? CHART_PALETTE[i % CHART_PALETTE.length]} />
+          <ModernDonutChart
+            data={statuses.map(s => ({ label: s.label, value: s.value }))}
+            colors={statusColors}
+            format={(v) => intFmt.format(v)}
+          />
         </MiniChartCard>
 
-        {/* Horizontal-ish bar — top 5 carriers by premium */}
         <MiniChartCard title="Κορυφαίες εταιρίες"
           rightLabel={carriers.length > 0 ? carriers[0].carrier : "—"} height={150}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={carriers} margin={{ top: 5, right: 8, bottom: 0, left: 0 }}>
-              <CartesianGrid stroke="#eef1f5" vertical={false} />
-              <XAxis dataKey="carrier" tick={{ fontSize: 10, fill: INK_SOFT }}
-                tickLine={false} interval={0} />
-              <YAxis hide />
-              <RTooltip
-                contentStyle={{ borderRadius: 8, border: "1px solid #e5e9ef", fontSize: 12 }}
-                formatter={(v: any) => moneyFmt.format(Number(v) || 0)} />
-              <Bar dataKey="premium" radius={[4, 4, 0, 0]}>
-                {carriers.map((_, i) => <Cell key={i} fill={CHART_PALETTE[i % CHART_PALETTE.length]} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <ModernBarChart
+            data={carriers.map(c => ({ label: c.carrier, value: Number(c.premium) }))}
+            color={ACCENT}
+            format={(v) => moneyFmt.format(v)}
+          />
         </MiniChartCard>
 
-        {/* Small line — claims by status (or policies-by-type fallback) */}
         <MiniChartCard
-          title={claims.length > 0 ? "Ζημίες ανά κατάσταση" : "Κατανομή κλάδων"}
-          rightLabel={`${intFmt.format((claims.length > 0 ? claims : types).reduce((s, x) => s + x.value, 0))}`}
+          title={secondaryTitle}
+          rightLabel={`${intFmt.format(secondaryData.reduce((s, x) => s + x.value, 0))}`}
           height={150}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={claims.length > 0 ? claims : types} margin={{ top: 5, right: 8, bottom: 0, left: 0 }}>
-              <CartesianGrid stroke="#eef1f5" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 10, fill: INK_SOFT }} tickLine={false} interval={0} />
-              <YAxis hide />
-              <RTooltip
-                contentStyle={{ borderRadius: 8, border: "1px solid #e5e9ef", fontSize: 12 }}
-                formatter={(v: any) => intFmt.format(Number(v) || 0)} />
-              <Line type="monotone" dataKey="value" stroke={ACCENT} strokeWidth={2.5}
-                dot={{ r: 3, fill: ACCENT }} activeDot={{ r: 5 }} />
-            </LineChart>
-          </ResponsiveContainer>
+          <ModernAreaChart
+            data={secondaryData.map(x => ({ label: x.label, value: x.value }))}
+            color={INK}
+            format={(v) => intFmt.format(v)}
+          />
         </MiniChartCard>
       </Box>
     </Box>
@@ -399,10 +400,15 @@ function MiniChartCard({ title, rightLabel, children, height = 76 }: {
 }) {
   return (
     <Box sx={{
-      border: "1px solid", borderColor: "divider",
+      // Permanent navy-tinted frame so the chart reads as a container even
+      // when its data is empty — matches the AnimatedKpiCard treatment.
+      border: "1.5px solid",
+      borderColor: (theme) => theme.palette.mode === "dark"
+        ? "rgba(148,191,230,0.28)"
+        : "rgba(11,37,69,0.28)",
       borderRadius: 2.5, p: 1.75, bgcolor: "background.paper",
       transition: "border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease",
-      "&:hover": { borderColor: "primary.light", boxShadow: 3, transform: "translateY(-1px)" }
+      "&:hover": { borderColor: "primary.main", boxShadow: 3, transform: "translateY(-1px)" }
     }}>
       <Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={{ px: 0.5, mb: 0.5 }}>
         <Typography sx={{
@@ -425,70 +431,6 @@ function MiniChartCard({ title, rightLabel, children, height = 76 }: {
   );
 }
 
-function DonutLegend({ items, colorOf }: {
-  items: DashSeries[]; colorOf: (label: string, i: number) => string;
-}) {
-  return (
-    <Stack spacing={0.4} sx={{
-      position: "relative", mt: -7.5, ml: "65%", maxHeight: 75, overflow: "hidden"
-    }}>
-      {items.slice(0, 4).map((s, i) => (
-        <Stack key={s.label} direction="row" spacing={0.75} alignItems="center">
-          <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: colorOf(s.label, i) }} />
-          <Typography sx={{ fontSize: 10.5, color: "#3d4f6b", fontWeight: 600, lineHeight: 1 }}>
-            {s.label}
-          </Typography>
-        </Stack>
-      ))}
-    </Stack>
-  );
-}
-
-function Tile({ label, value, accent }: { label: string; value: string; accent?: "warning" }) {
-  // If the number rendered here is a zero-ish placeholder ("0", "0 €" etc.),
-  // enable a subtle hover baseline so the tile still reacts and signals that
-  // the metric is tracked — matches the desktop app's affordance.
-  const isZero = /^0([.,]0+)?(\s.*)?$/.test(value.trim());
-  const accentColor = accent === "warning" ? "#a05a00" : INK;
-  return (
-    <Box sx={{
-      position: "relative",
-      overflow: "hidden",
-      border: "1px solid", borderColor: "divider",
-      borderRadius: 2.5, p: 1.75, bgcolor: "background.paper",
-      transition: "border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease",
-      "&:hover": {
-        borderColor: accent === "warning" ? "warning.light" : "primary.light",
-        boxShadow: 3,
-        transform: "translateY(-1px)",
-      },
-      ...(isZero && {
-        "&::after": {
-          content: '""',
-          position: "absolute",
-          left: 12, right: 12, bottom: 8,
-          height: 0,
-          borderBottom: `1.5px dashed ${accentColor}`,
-          opacity: 0,
-          transform: "scaleX(0)",
-          transformOrigin: "left center",
-          transition: "opacity 260ms ease, transform 420ms cubic-bezier(.22,.61,.36,1)",
-        },
-        "&:hover::after": { opacity: 0.55, transform: "scaleX(1)" },
-      }),
-    }}>
-      <Typography sx={{
-        fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase",
-        color: INK_SOFT, fontWeight: 700, mb: 0.5
-      }}>
-        {label}
-      </Typography>
-      <Typography sx={{
-        fontSize: { xs: 22, md: 26 }, fontWeight: 800, color: accentColor,
-        letterSpacing: "-0.01em", lineHeight: 1.1
-      }}>
-        {value}
-      </Typography>
-    </Box>
-  );
-}
+// Tile + DonutLegend removed — the hub now renders KPI tiles via
+// AnimatedKpiCard and donut charts via ModernDonutChart (native legend),
+// matching the shared dashboard design system.

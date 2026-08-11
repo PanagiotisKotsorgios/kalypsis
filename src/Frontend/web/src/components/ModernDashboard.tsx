@@ -112,7 +112,13 @@ export function AnimatedKpiCard({
       sx={{
         position: "relative", overflow: "hidden",
         borderRadius: 2.5,
-        border: 1, borderColor: "divider",
+        // Permanent framed look — thick navy-tinted border at rest so the
+        // card reads as a distinct container even when the metric is zero.
+        // Deepens on hover into the metric's accent colour.
+        border: "1.5px solid",
+        borderColor: (theme) => theme.palette.mode === "dark"
+          ? "rgba(148,191,230,0.28)"
+          : "rgba(11,37,69,0.28)",
         transition: "transform 240ms, box-shadow 240ms, border-color 240ms",
         animation: "kpiCardIn 460ms cubic-bezier(.16,.84,.44,1) both",
         animationDelay: `${index * 60}ms`,
@@ -206,10 +212,15 @@ export function ChartCard({ title, subtitle, height = 300, action, children }: {
   return (
     <Card sx={{
       borderRadius: 2.5,
-      border: 1, borderColor: "divider",
+      // Same framed look as the KPI cards — permanent navy border so the
+      // chart reads as a distinct container without depending on hover.
+      border: "1.5px solid",
+      borderColor: (theme) => theme.palette.mode === "dark"
+        ? "rgba(148,191,230,0.28)"
+        : "rgba(11,37,69,0.28)",
       transition: "border-color 240ms ease, box-shadow 240ms ease",
       animation: "chartCardIn 500ms cubic-bezier(.16,.84,.44,1) both",
-      "&:hover": { borderColor: "primary.light" },
+      "&:hover": { borderColor: "primary.main" },
       "@keyframes chartCardIn": {
         from: { opacity: 0, transform: "translateY(8px)" },
         to:   { opacity: 1, transform: "translateY(0)" },
