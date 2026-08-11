@@ -23,7 +23,6 @@ import { api } from "../api/client";
 interface PackageMeta {
   code: PackageCode;
   icon: React.ReactNode;
-  tagKey: string;
   nameKey: string;
   bodyKey: string;
 }
@@ -31,8 +30,8 @@ interface PackageMeta {
 // Phase 15.1 — for now only BackOffice + Crm (client portal) are operational.
 // Other workspaces are intentionally hidden until they're production-ready.
 const PACKAGES: PackageMeta[] = [
-  { code: "BackOffice",   icon: <AccountBalanceIcon />, tagKey: "tag.I",   nameKey: "ws.BackOffice.name",   bodyKey: "ws.BackOffice.body" },
-  { code: "Crm",          icon: <PeopleIcon />,         tagKey: "tag.II",  nameKey: "ws.Crm.name",          bodyKey: "ws.Crm.body" }
+  { code: "BackOffice",   icon: <AccountBalanceIcon />, nameKey: "ws.BackOffice.name",   bodyKey: "ws.BackOffice.body" },
+  { code: "Crm",          icon: <PeopleIcon />,         nameKey: "ws.Crm.name",          bodyKey: "ws.Crm.body" }
 ];
 // Kept for type safety — re-enable these by moving them into PACKAGES above.
 void RequestQuoteIcon; void InsightsIcon; void HubIcon;
@@ -166,25 +165,25 @@ export function WorkspaceHubPage() {
               variant="outlined"
               sx={{
                 position: "relative",
-                borderColor: enabled ? INK : "divider",
-                borderWidth: enabled ? 1.5 : 1,
+                borderColor: "divider",
+                borderRadius: 2.5,
                 bgcolor: "background.paper",
                 opacity: enabled ? 1 : 0.65,
                 overflow: "hidden",
                 transition: "transform 220ms cubic-bezier(.22,.61,.36,1), box-shadow 220ms cubic-bezier(.22,.61,.36,1), border-color 220ms ease",
                 "&:hover": enabled ? {
                   transform: "translateY(-3px)",
-                  borderColor: INK,
-                  boxShadow: `0 12px 24px -12px ${INK}30, 0 2px 0 0 ${ACCENT}`
+                  borderColor: "primary.main",
+                  boxShadow: 6,
                 } : {},
                 "&:active": enabled ? { transform: "translateY(-1px)", transition: "transform 80ms ease" } : {},
-                // Cyan accent line that grows in on hover (was gold).
+                // Accent line pinned to the bottom — grows in on hover.
                 "&::after": enabled ? {
                   content: '""',
                   position: "absolute",
                   left: 0, right: 0, bottom: 0,
-                  height: 2,
-                  background: ACCENT,
+                  height: 3,
+                  background: `linear-gradient(90deg, ${ACCENT}, ${INK})`,
                   transform: "scaleX(0)",
                   transformOrigin: "left",
                   transition: "transform 360ms cubic-bezier(.22,.61,.36,1)"
@@ -202,40 +201,25 @@ export function WorkspaceHubPage() {
                 sx={{ height: "100%", alignItems: "stretch" }}
               >
                 <CardContent sx={{ p: { xs: 2.5, md: 3.5 }, height: "100%", display: "flex", flexDirection: "column" }}>
-                  {/* Header row */}
-                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
-                    <Box sx={{
-                      width: 44, height: 44,
-                      border: "1.5px solid",
-                      borderColor: INK,
-                      color: enabled ? INK : "text.disabled",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      borderRadius: 0,
-                      "& svg": { fontSize: 24 }
-                    }}>
-                      {enabled ? pkg.icon : <LockOutlinedIcon />}
-                    </Box>
-                    <Box sx={{
-                      px: 1, py: 0.5,
-                      border: "1px solid",
-                      borderColor: enabled ? ACCENT : "divider",
-                      color: enabled ? ACCENT : "text.disabled",
-                      fontFamily: "monospace",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      letterSpacing: "0.12em"
-                    }}>
-                      {t(`ws.${pkg.tagKey}`)}
-                    </Box>
-                  </Stack>
-
-                  <Typography sx={{
-                    fontFamily: "Georgia, 'Times New Roman', serif",
-                    fontSize: { xs: 19, md: 21 },
-                    fontWeight: 600,
+                  {/* Header — themed icon badge, matching the AnimatedKpiCard style
+                      used on the dashboards. No monospace I/II tag anymore. */}
+                  <Box sx={{
+                    width: 48, height: 48,
+                    borderRadius: 1.5,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    bgcolor: enabled ? `${INK}12` : "action.disabledBackground",
                     color: enabled ? INK : "text.disabled",
-                    lineHeight: 1.2,
-                    mb: 1.5,
+                    mb: 2,
+                    "& svg": { fontSize: 26 }
+                  }}>
+                    {enabled ? pkg.icon : <LockOutlinedIcon />}
+                  </Box>
+
+                  <Typography variant="h5" sx={{
+                    fontWeight: 700,
+                    color: enabled ? "text.primary" : "text.disabled",
+                    lineHeight: 1.25,
+                    mb: 1,
                     letterSpacing: "-0.005em"
                   }}>
                     {t(pkg.nameKey)}
@@ -243,7 +227,7 @@ export function WorkspaceHubPage() {
 
                   <Typography sx={{
                     color: "text.secondary",
-                    fontSize: 13.5,
+                    fontSize: 14,
                     lineHeight: 1.55,
                     flex: 1
                   }}>
@@ -255,7 +239,7 @@ export function WorkspaceHubPage() {
                     mt: 2.5, pt: 2,
                     borderTop: "1px solid",
                     borderColor: "divider",
-                    color: enabled ? INK : "text.disabled",
+                    color: enabled ? "primary.main" : "text.disabled",
                     fontWeight: 700,
                     fontSize: 13,
                     letterSpacing: "0.06em",
@@ -416,7 +400,9 @@ function MiniChartCard({ title, rightLabel, children, height = 76 }: {
   return (
     <Box sx={{
       border: "1px solid", borderColor: "divider",
-      borderRadius: 2, p: 1.5, bgcolor: "#fff"
+      borderRadius: 2.5, p: 1.75, bgcolor: "background.paper",
+      transition: "border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease",
+      "&:hover": { borderColor: "primary.light", boxShadow: 3, transform: "translateY(-1px)" }
     }}>
       <Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={{ px: 0.5, mb: 0.5 }}>
         <Typography sx={{
@@ -459,10 +445,37 @@ function DonutLegend({ items, colorOf }: {
 }
 
 function Tile({ label, value, accent }: { label: string; value: string; accent?: "warning" }) {
+  // If the number rendered here is a zero-ish placeholder ("0", "0 €" etc.),
+  // enable a subtle hover baseline so the tile still reacts and signals that
+  // the metric is tracked — matches the desktop app's affordance.
+  const isZero = /^0([.,]0+)?(\s.*)?$/.test(value.trim());
+  const accentColor = accent === "warning" ? "#a05a00" : INK;
   return (
     <Box sx={{
+      position: "relative",
+      overflow: "hidden",
       border: "1px solid", borderColor: "divider",
-      borderRadius: 2, p: 1.75, bgcolor: "#fff"
+      borderRadius: 2.5, p: 1.75, bgcolor: "background.paper",
+      transition: "border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease",
+      "&:hover": {
+        borderColor: accent === "warning" ? "warning.light" : "primary.light",
+        boxShadow: 3,
+        transform: "translateY(-1px)",
+      },
+      ...(isZero && {
+        "&::after": {
+          content: '""',
+          position: "absolute",
+          left: 12, right: 12, bottom: 8,
+          height: 0,
+          borderBottom: `1.5px dashed ${accentColor}`,
+          opacity: 0,
+          transform: "scaleX(0)",
+          transformOrigin: "left center",
+          transition: "opacity 260ms ease, transform 420ms cubic-bezier(.22,.61,.36,1)",
+        },
+        "&:hover::after": { opacity: 0.55, transform: "scaleX(1)" },
+      }),
     }}>
       <Typography sx={{
         fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase",
@@ -471,7 +484,7 @@ function Tile({ label, value, accent }: { label: string; value: string; accent?:
         {label}
       </Typography>
       <Typography sx={{
-        fontSize: { xs: 22, md: 26 }, fontWeight: 800, color: accent === "warning" ? "#a05a00" : INK,
+        fontSize: { xs: 22, md: 26 }, fontWeight: 800, color: accentColor,
         letterSpacing: "-0.01em", lineHeight: 1.1
       }}>
         {value}

@@ -101,19 +101,46 @@ export function AnimatedKpiCard({
     </Typography>
   );
 
+  // Zero-state: when the value collapses to 0 and no sparkline was supplied,
+  // the card is otherwise inert on hover. Render a subtle animated baseline
+  // that slides in from the left — signals the metric is *tracked*, just
+  // empty right now. Mirrors the desktop app's "empty axis at 0" affordance.
+  const showZeroBaseline = (value === 0) && (!spark || spark.length < 2 || spark.every(v => v === 0));
+
   return (
     <Card
       sx={{
         position: "relative", overflow: "hidden",
         borderRadius: 2.5,
-        transition: "transform 240ms, box-shadow 240ms",
+        border: 1, borderColor: "divider",
+        transition: "transform 240ms, box-shadow 240ms, border-color 240ms",
         animation: "kpiCardIn 460ms cubic-bezier(.16,.84,.44,1) both",
         animationDelay: `${index * 60}ms`,
-        "&:hover": { transform: "translateY(-2px)", boxShadow: 6 },
+        "&:hover": {
+          transform: "translateY(-2px)",
+          boxShadow: 6,
+          borderColor: color,
+        },
         "@keyframes kpiCardIn": {
           from: { opacity: 0, transform: "translateY(10px) scale(.985)" },
           to:   { opacity: 1, transform: "translateY(0)   scale(1)" },
         },
+        // Zero-baseline: full-width dashed line pinned to the bottom of the
+        // card. Grows in on hover so idle rows stay calm.
+        ...(showZeroBaseline && {
+          "&::after": {
+            content: '""',
+            position: "absolute",
+            left: 12, right: 12, bottom: 10,
+            height: 0,
+            borderBottom: `1.5px dashed ${color}`,
+            opacity: 0,
+            transform: "scaleX(0)",
+            transformOrigin: "left center",
+            transition: "opacity 260ms ease, transform 420ms cubic-bezier(.22,.61,.36,1)",
+          },
+          "&:hover::after": { opacity: 0.55, transform: "scaleX(1)" },
+        }),
       }}
     >
       {/* Gradient accent bar across the top */}
@@ -179,7 +206,10 @@ export function ChartCard({ title, subtitle, height = 300, action, children }: {
   return (
     <Card sx={{
       borderRadius: 2.5,
+      border: 1, borderColor: "divider",
+      transition: "border-color 240ms ease, box-shadow 240ms ease",
       animation: "chartCardIn 500ms cubic-bezier(.16,.84,.44,1) both",
+      "&:hover": { borderColor: "primary.light" },
       "@keyframes chartCardIn": {
         from: { opacity: 0, transform: "translateY(8px)" },
         to:   { opacity: 1, transform: "translateY(0)" },
