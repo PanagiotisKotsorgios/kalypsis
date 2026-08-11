@@ -2187,9 +2187,20 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             }
             else if (!string.IsNullOrEmpty(r.PolicyNumber) && inFileDups.Contains($"{r.Index}|{r.PolicyNumber}") && !IsLifecycle(rowType))
             {
-                status = "Duplicate";
-                r.Notes.Add(new BridgeImportNote("Συμβόλαιο", "warn",
-                    "Δεύτερη εμφάνιση του ίδιου ασφαλιστηρίου σε αυτό το αρχείο (π.χ. πρόσθετη πράξη) — θα παραλειφθεί στην εισαγωγή"));
+                // Second+ appearance of the same policy number inside a
+                // single ERGO file → convert to an Endorsement. The old
+                // behaviour marked the row Duplicate and dropped it on
+                // import, which lost the πρόσθετη πράξη line-item and made
+                // totals under-report. Now: reclassify as Endorsement so the
+                // commit path routes it through the lifecycle branch and
+                // creates one endorsement record per additional line.
+                // BridgeImportRow is a positional record → use `with` to
+                // rebuild it with the new RowType (init-only accessor).
+                rowType = "Endorsement";
+                rows[i] = r with { RowType = "Endorsement" };
+                r = rows[i];
+                r.Notes.Add(new BridgeImportNote("Συμβόλαιο", "info",
+                    "Δεύτερη εμφάνιση του ίδιου ασφαλιστηρίου — εισάγεται ως πρόσθετη πράξη υπάρχοντος συμβολαίου."));
             }
 
             // Renewal linking by customer name — if the row's start-date is within 90 days
@@ -3129,6 +3140,16 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
         IReadOnlyList<PendingBridgeMapping> pending, CancellationToken ct)
     {
         var now = DateTime.UtcNow;
+        // Per-commit caches for codes we've already resolved this call. Two
+        // pending items may reference the SAME CreateProducerCode (operator
+        // ticked "create" on many rows that all point at the same new
+        // producer, or the frontend produced duplicates). Without a cache
+        // we'd race: first Add succeeds, second Add hits the unique
+        // (TenantId, Code) index and throws — which is exactly the crash
+        // we've been debugging. Same shape for parametric codes.
+        var producerCache = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        var parametricCache = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var p in pending)
         {
             if (string.IsNullOrWhiteSpace(p.RawCode)) continue;
@@ -3146,28 +3167,53 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                 && !string.IsNullOrWhiteSpace(p.CreateProducerName))
             {
                 var code = p.CreateProducerCode.Trim().ToUpperInvariant();
-                var existingP = await _db.Producers.IgnoreQueryFilters()
-                    .FirstOrDefaultAsync(x => x.DeletedAt == null
-                        && x.TenantId == tenantId
-                        && x.Code == code, ct);
-                if (existingP is not null)
+                if (producerCache.TryGetValue(code, out var cachedId))
                 {
-                    targetProducerId = existingP.Id;
+                    targetProducerId = cachedId;
                 }
                 else
                 {
-                    var pr = new Producer
+                    var existingP = await _db.Producers.IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(x => x.DeletedAt == null
+                            && x.TenantId == tenantId
+                            && x.Code == code, ct);
+                    if (existingP is not null)
                     {
-                        Id = Guid.NewGuid(),
-                        TenantId = tenantId,
-                        Code = code,
-                        Name = p.CreateProducerName.Trim(),
-                        Status = ProducerStatus.Active,
-                        CreatedAt = now,
-                    };
-                    _db.Producers.Add(pr);
-                    await _db.SaveChangesAsync(ct);
-                    targetProducerId = pr.Id;
+                        targetProducerId = existingP.Id;
+                    }
+                    else
+                    {
+                        var pr = new Producer
+                        {
+                            Id = Guid.NewGuid(),
+                            TenantId = tenantId,
+                            Code = code,
+                            Name = p.CreateProducerName.Trim(),
+                            Status = ProducerStatus.Active,
+                            CreatedAt = now,
+                        };
+                        _db.Producers.Add(pr);
+                        try
+                        {
+                            await _db.SaveChangesAsync(ct);
+                            targetProducerId = pr.Id;
+                        }
+                        catch (DbUpdateException)
+                        {
+                            // Belt+suspenders: another concurrent request (or a
+                            // stale in-memory state) already committed the same
+                            // (TenantId, Code). Detach the failed insert, re-
+                            // lookup the winner, reuse its Id.
+                            ((DbContext)_db).Entry(pr).State = EntityState.Detached;
+                            var winner = await _db.Producers.IgnoreQueryFilters()
+                                .FirstOrDefaultAsync(x => x.DeletedAt == null
+                                    && x.TenantId == tenantId
+                                    && x.Code == code, ct);
+                            if (winner is null) throw;
+                            targetProducerId = winner.Id;
+                        }
+                    }
+                    producerCache[code] = targetProducerId!.Value;
                 }
             }
 
@@ -3189,6 +3235,12 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                     _ => CompanyParameterItemKind.Other
                 };
                 var code = p.CreateParametricCode.Trim().ToUpperInvariant();
+                var cacheKey = $"{kind}|{code}";
+                if (parametricCache.TryGetValue(cacheKey, out var cachedParamId))
+                {
+                    targetParamId = cachedParamId;
+                    goto after_parametric_upsert; // skip the block below, cache hit
+                }
                 var existing = await _db.CompanyParameterItems.IgnoreQueryFilters()
                     .FirstOrDefaultAsync(x => x.DeletedAt == null
                         && x.InsuranceCompanyId == carrier.Id
@@ -3214,9 +3266,26 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                         CreatedAt = now,
                     };
                     _db.CompanyParameterItems.Add(item);
-                    await _db.SaveChangesAsync(ct);
-                    targetParamId = item.Id;
+                    try
+                    {
+                        await _db.SaveChangesAsync(ct);
+                        targetParamId = item.Id;
+                    }
+                    catch (DbUpdateException)
+                    {
+                        ((DbContext)_db).Entry(item).State = EntityState.Detached;
+                        var winner = await _db.CompanyParameterItems.IgnoreQueryFilters()
+                            .FirstOrDefaultAsync(x => x.DeletedAt == null
+                                && x.InsuranceCompanyId == carrier.Id
+                                && x.Kind == kind
+                                && x.Code == code, ct);
+                        if (winner is null) throw;
+                        targetParamId = winner.Id;
+                    }
                 }
+                if (targetParamId.HasValue)
+                    parametricCache[cacheKey] = targetParamId.Value;
+                after_parametric_upsert:;
             }
 
             var carrierName = string.IsNullOrWhiteSpace(p.SourceCarrier) ? null : p.SourceCarrier.Trim();

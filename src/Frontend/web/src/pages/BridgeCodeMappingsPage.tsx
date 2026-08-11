@@ -13,7 +13,10 @@ import { api, extractErrorMessage } from "../api/client";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { InlineCreateInsuranceCompanyDialog } from "../components/InlineCreateInsuranceCompanyDialog";
 
-type Kind = "Company" | "Branch" | "Coverage" | "Use" | "Package";
+// Keep in sync with BridgeMappingKind in the backend. ERGO πινάκια imports
+// persist Producer-kind rows too, so this page needs to render them or the
+// operator sees «δεν έχει συνδεθεί ακόμη» on every producer link.
+type Kind = "Company" | "Branch" | "Coverage" | "Use" | "Package" | "Producer";
 
 const KIND_LABELS: Record<Kind, string> = {
   Company: "Εταιρεία",
@@ -21,6 +24,7 @@ const KIND_LABELS: Record<Kind, string> = {
   Coverage: "Κάλυψη",
   Use: "Χρήση",
   Package: "Πακέτο",
+  Producer: "Συνεργάτης",
 };
 
 interface Mapping {
@@ -34,6 +38,9 @@ interface Mapping {
   targetParameterItemId: string | null;
   targetParameterItemCode: string | null;
   targetParameterItemName: string | null;
+  targetProducerId: string | null;
+  targetProducerCode: string | null;
+  targetProducerName: string | null;
   notes: string | null;
   confirmedAt: string | null;
   createdAt: string;
@@ -163,14 +170,29 @@ export function BridgeCodeMappingsPage() {
                 <TableCell>
                   {m.kind === "Company"
                     ? (m.targetInsuranceCompanyName ?? <Chip size="small" color="warning" label="δεν έχει συνδεθεί ακόμη" />)
-                    : (m.targetParameterItemCode
-                      ? <>
-                          <Typography component="span" sx={{ fontFamily: "monospace", fontWeight: 700 }}>
-                            {m.targetParameterItemCode}
-                          </Typography>
-                          {m.targetParameterItemName && <> · {m.targetParameterItemName}</>}
-                        </>
-                      : <Chip size="small" color="warning" label="δεν έχει συνδεθεί ακόμη" />)}
+                    : m.kind === "Producer"
+                      /* Producer-kind rows link via TargetProducerId, not
+                         TargetParameterItemId — showing the parametric fields
+                         here made every ERGO producer mapping read as
+                         «δεν έχει συνδεθεί ακόμη» even when perfectly linked. */
+                      ? (m.targetProducerCode || m.targetProducerName
+                          ? <>
+                              {m.targetProducerCode && (
+                                <Typography component="span" sx={{ fontFamily: "monospace", fontWeight: 700 }}>
+                                  {m.targetProducerCode}
+                                </Typography>
+                              )}
+                              {m.targetProducerName && <> · {m.targetProducerName}</>}
+                            </>
+                          : <Chip size="small" color="warning" label="δεν έχει συνδεθεί ακόμη" />)
+                      : (m.targetParameterItemCode
+                        ? <>
+                            <Typography component="span" sx={{ fontFamily: "monospace", fontWeight: 700 }}>
+                              {m.targetParameterItemCode}
+                            </Typography>
+                            {m.targetParameterItemName && <> · {m.targetParameterItemName}</>}
+                          </>
+                        : <Chip size="small" color="warning" label="δεν έχει συνδεθεί ακόμη" />)}
                 </TableCell>
                 <TableCell align="right">
                   <Tooltip title="Επεξεργασία">

@@ -327,6 +327,13 @@ public class AppDbContext : DbContext, IAppDbContext
         modelBuilder.Entity<CarrierBridgeConfig>().ToTable("carrier_bridge_configs");
         modelBuilder.Entity<DesktopLicense>().ToTable("desktop_licenses");
         modelBuilder.Entity<DesktopLicensePayment>().ToTable("desktop_license_payments");
+        // SupportTicket / SupportTicketReply also live in seeder-managed
+        // snake_case tables. Without these mappings EF pluralises to
+        // `SupportTickets` and the platform backup job explodes on Linux
+        // (case-sensitive) with «Table 'kalypsis.SupportTickets' doesn't
+        // exist». Both live in DataSeeder.EnsureSchemaSafetyAsync().
+        modelBuilder.Entity<SupportTicket>().ToTable("support_tickets");
+        modelBuilder.Entity<SupportTicketReply>().ToTable("support_ticket_replies");
 
         modelBuilder.Entity<DesktopLicense>(entity =>
         {
