@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress, MenuItem, Stack, Table, TableBody, TableCell,
-  TableHead, TableRow, Typography
+  TableHead, TablePagination, TableRow, TextField, Tooltip as MuiTooltip, Typography
 } from "@mui/material";
 import SavingsOutlinedIcon from "@mui/icons-material/SavingsOutlined";
 import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
@@ -43,10 +43,36 @@ interface SummaryDto {
   partnerCharges: number; companyCharges: number; monthly: { month: number; receipts: number; payments: number; }[];
 }
 
+// Bridge writes descriptions like:
+//   "[bridge:BRG-XXXX:CommissionEarned] Bridge agency commission for policy 02078092291"
+// which reads as machine output. Humanize into a short Greek label and
+// keep the raw text on a tooltip so the operator can still see the tag.
+function humanizeMovementDesc(desc: string | null): { label: string; raw: string } {
+  const raw = desc ?? "";
+  const m = /^\[bridge:[^:]+:([^\]]+)\]\s*(.*)$/i.exec(raw);
+  if (!m) return { label: raw || "—", raw };
+  const [, kindRaw, rest] = m;
+  const policy = /for policy\s+([^\s]+)/i.exec(rest)?.[1]
+    ?? /cancellation\s+([^\s]+)/i.exec(rest)?.[1]
+    ?? "";
+  const isReversal = /reversal|cancellation/i.test(rest);
+  const kindLabel =
+    /commission/i.test(kindRaw) ? (isReversal ? "Αναστροφή προμήθειας" : "Προμήθεια γραφείου")
+    : /customercharge|charge/i.test(kindRaw) ? "Χρέωση πελάτη"
+    : /adjust|cancel/i.test(kindRaw) ? "Ακύρωση συμβολαίου"
+    : rest || raw;
+  return { label: policy ? `${kindLabel} · συμβ. ${policy}` : kindLabel, raw };
+}
+
 export function FinancialMovementsPage() {
   const { t } = useTranslation();
   const [year, setYear] = useState(new Date().getFullYear());
   const [kind, setKind] = useState<Kind | "">("");
+  const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const q = useQuery({
     queryKey: ["financial-movements", year, kind],
@@ -64,21 +90,32 @@ export function FinancialMovementsPage() {
     ({ name: ["Ι","Φ","Μ","Α","Μ","Ι","Ι","Α","Σ","Ο","Ν","Δ"][m.month - 1], receipts: m.receipts, payments: m.payments })),
     [summary.data]);
 
+  // Enrich + client-side filter — humanized description text feeds both
+  // the search hay and the on-screen label.
+  const enriched = useMemo(() =>
+    (q.data ?? []).map(m => ({ ...m, friendly: humanizeMovementDesc(m.description) })),
+  [q.data]);
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return enriched.filter(m => {
+      if (needle) {
+        const hay = `${m.friendly.label} ${m.description ?? ""} ${m.customerName ?? ""} ${m.producerName ?? ""} ${m.insuranceCompanyName ?? ""} ${m.policyNumber ?? ""}`.toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      if (fromDate && m.movementDate < fromDate) return false;
+      if (toDate && m.movementDate > toDate) return false;
+      return true;
+    });
+  }, [enriched, search, fromDate, toDate]);
+  useEffect(() => { setPage(0); }, [search, fromDate, toDate, kind, year]);
+  const paged = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Box><Typography variant="h4" sx={{ fontWeight: 800 }}>{t("financials.title")}</Typography>
           <Typography color="text.secondary">{t("financials.subtitle")}</Typography></Box>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <SearchableTextField size="small" label={t("financials.year")} value={year} onChange={e => setYear(Number(e.target.value))} sx={{ minWidth: 100 }}>
-            {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
-          </SearchableTextField>
-          <SearchableTextField size="small" label={t("financials.kind")} value={kind} onChange={e => setKind(e.target.value as Kind | "")} sx={{ minWidth: 200 }}>
-            <MenuItem value="">{t("common.all")}</MenuItem>
-            {KINDS.map(k => <MenuItem key={k} value={k}>{t(`financials.kindLabel.${k}`)}</MenuItem>)}
-          </SearchableTextField>
-          <ExportButton href={`/api/exports/financial-movements.csv?year=${year}`} />
-        </Stack>
+        <ExportButton href={`/api/exports/financial-movements.csv?year=${year}`} />
       </Stack>
 
       <Alert severity="info" sx={{ mb: 2 }}>
@@ -134,6 +171,40 @@ export function FinancialMovementsPage() {
         </Box>
       </CardContent></Card>
 
+      {/* Filter card — mirrors the pattern used on the other list pages.
+          The year + kind selectors moved from the header into the grid so
+          they wrap alongside search + date-window controls. */}
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Box sx={{
+          display: "grid", gap: 1,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+          alignItems: "center",
+        }}>
+          <TextField size="small" placeholder="Αναζήτηση: πελάτης, συνεργάτης, συμβόλαιο, περιγραφή…" fullWidth
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            sx={{ gridColumn: { md: "span 2" } }} />
+          <SearchableTextField size="small" label={t("financials.year")} fullWidth value={year}
+            onChange={e => setYear(Number(e.target.value))}>
+            {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map(y =>
+              <MenuItem key={y} value={y}>{y}</MenuItem>)}
+          </SearchableTextField>
+          <SearchableTextField size="small" label={t("financials.kind")} fullWidth value={kind}
+            onChange={e => setKind(e.target.value as Kind | "")}>
+            <MenuItem value="">{t("common.all")}</MenuItem>
+            {KINDS.map(k => <MenuItem key={k} value={k}>{t(`financials.kindLabel.${k}`)}</MenuItem>)}
+          </SearchableTextField>
+          <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} fullWidth
+            value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} fullWidth
+            value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          <Button size="small" fullWidth color="error" variant="contained"
+            onClick={() => { setSearch(""); setKind(""); setFromDate(""); setToDate(""); }}
+            sx={{ gridColumn: { md: "span 2" } }}>
+            Καθαρισμός φίλτρων
+          </Button>
+        </Box>
+      </Card>
+
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
@@ -145,10 +216,10 @@ export function FinancialMovementsPage() {
               <TableCell align="right">{t("financials.amount")}</TableCell>
             </TableRow></TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
+              {paged.length === 0 && (
                 <TableRow><TableCell colSpan={5} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("financials.empty")}</TableCell></TableRow>
               )}
-              {(q.data ?? []).map(m => (
+              {paged.map(m => (
                 <TableRow key={m.id} hover>
                   <TableCell>{date(m.movementDate)}</TableCell>
                   <TableCell><Chip label={t(`financials.kindLabel.${m.kind}`)} size="small" /></TableCell>
@@ -160,12 +231,29 @@ export function FinancialMovementsPage() {
                       {m.policyNumber && <Chip label={m.policyNumber} size="small" variant="outlined" />}
                     </Stack>
                   </TableCell>
-                  <TableCell sx={{ color: "text.secondary" }}>{m.description ?? "—"}</TableCell>
+                  <TableCell>
+                    <MuiTooltip title={m.friendly.raw || ""} placement="top-start">
+                      <Typography variant="body2" sx={{ cursor: m.friendly.raw ? "help" : "default" }}>
+                        {m.friendly.label}
+                      </Typography>
+                    </MuiTooltip>
+                  </TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700 }}>{money(m.amount, m.currency)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            component="div"
+            count={filtered.length}
+            page={page}
+            onPageChange={(_e, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={ev => { setRowsPerPage(parseInt(ev.target.value, 10)); setPage(0); }}
+            rowsPerPageOptions={[10, 25, 50, 100, 250]}
+            labelRowsPerPage="Ανά σελίδα"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+          />
         </Card>
       )}
     </Box>
