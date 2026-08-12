@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination,
+  TableRow, TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -27,12 +28,33 @@ export function AdvancePaymentsPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [partyFilter, setPartyFilter] = useState<string>("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
   const q = useQuery({ queryKey: ["advance-payments", filter], queryFn: async () =>
     (await api.get("/advance-payments", { params: filter ? { status: filter } : {} })).data });
 
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return ((q.data ?? []) as any[]).filter(a => {
+      if (needle) {
+        const hay = `${a.number} ${a.customerName ?? ""} ${a.producerName ?? ""} ${a.insuranceCompanyName ?? ""} ${a.reference ?? ""}`.toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      if (partyFilter && a.partyType !== partyFilter) return false;
+      return true;
+    });
+  }, [q.data, search, partyFilter]);
+  useEffect(() => { setPage(0); }, [search, partyFilter, filter]);
+  const paged = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
   return (
     <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+      {/* Header — title on the left, «Νέα προκαταβολή» on the right on its
+          own line so the button gets its full label without collapsing. */}
+      <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between"
+        alignItems={{ xs: "stretch", sm: "center" }} mb={3} gap={2}>
         <Stack direction="row" alignItems="center" spacing={2}>
           <SavingsIcon sx={{ fontSize: 36 }} color="primary" />
           <Box>
@@ -43,14 +65,42 @@ export function AdvancePaymentsPage() {
             <Typography color="text.secondary">{t("advance.subtitle")}</Typography>
           </Box>
         </Stack>
-        <Stack direction="row" spacing={2}>
-          <SearchableTextField size="small" label={t("common.status")} value={filter} onChange={e => setFilter(e.target.value)} sx={{ width: 200 }}>
-            <MenuItem value="">{t("common.all")}</MenuItem>
-            {["Open", "PartiallyAllocated", "FullyAllocated", "Refunded"].map(s => <MenuItem key={s} value={s}>{t(`batchStatus.${s}`, s)}</MenuItem>)}
-          </SearchableTextField>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>{t("advance.create")}</Button>
-        </Stack>
+        <Button variant="contained" size="large" startIcon={<AddIcon />} onClick={() => setOpen(true)}
+          sx={{ whiteSpace: "nowrap", flexShrink: 0, minWidth: 200 }}>
+          {t("advance.create")}
+        </Button>
       </Stack>
+
+      {/* Filter card — search + status + party in one compact grid. */}
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Box sx={{
+          display: "grid", gap: 1,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+          alignItems: "center",
+        }}>
+          <TextField size="small" placeholder="Αναζήτηση: αρ. προκαταβολής, όνομα, reference…" fullWidth
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            sx={{ gridColumn: { md: "span 2" } }} />
+          <SearchableTextField size="small" label={t("common.status")} fullWidth
+            value={filter} onChange={e => setFilter(e.target.value)}>
+            <MenuItem value="">{t("common.all")}</MenuItem>
+            {["Open", "PartiallyAllocated", "FullyAllocated", "Refunded"].map(s =>
+              <MenuItem key={s} value={s}>{t(`batchStatus.${s}`, s)}</MenuItem>)}
+          </SearchableTextField>
+          <SearchableTextField size="small" label="Τύπος αντισυμβαλλόμενου" fullWidth
+            value={partyFilter} onChange={e => setPartyFilter(e.target.value)}>
+            <MenuItem value="">Όλοι</MenuItem>
+            {["Customer", "Producer", "Carrier"].map(p =>
+              <MenuItem key={p} value={p}>{t(`payeeType.${p}`, p)}</MenuItem>)}
+          </SearchableTextField>
+          <Button size="small" fullWidth color="error" variant="contained"
+            onClick={() => { setSearch(""); setFilter(""); setPartyFilter(""); }}
+            sx={{ gridColumn: { md: "1 / -1" } }}>
+            Καθαρισμός φίλτρων
+          </Button>
+        </Box>
+      </Card>
+
       {q.isLoading ? <CircularProgress /> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
@@ -65,8 +115,8 @@ export function AdvancePaymentsPage() {
               <TableCell>{t("common.status")}</TableCell>
             </TableRow></TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && <TableRow><TableCell colSpan={8} align="center" sx={{ py: 4, color: "text.secondary" }}>{t("advance.empty")}</TableCell></TableRow>}
-              {(q.data ?? []).map((a: any) => (
+              {paged.length === 0 && <TableRow><TableCell colSpan={8} align="center" sx={{ py: 4, color: "text.secondary" }}>{t("advance.empty")}</TableCell></TableRow>}
+              {paged.map((a: any) => (
                 <TableRow key={a.id} hover>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{a.number}</TableCell>
                   <TableCell>{a.receivedOn}</TableCell>
@@ -80,6 +130,17 @@ export function AdvancePaymentsPage() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            component="div"
+            count={filtered.length}
+            page={page}
+            onPageChange={(_e, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={ev => { setRowsPerPage(parseInt(ev.target.value, 10)); setPage(0); }}
+            rowsPerPageOptions={[10, 25, 50, 100, 250]}
+            labelRowsPerPage="Ανά σελίδα"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+          />
         </Card>
       )}
       <CreateAdvanceDialog open={open} onClose={() => setOpen(false)} onSaved={() => { qc.invalidateQueries({ queryKey: ["advance-payments"] }); setOpen(false); }} />
@@ -179,6 +240,13 @@ function CreateAdvanceDialog({ open, onClose, onSaved }: { open: boolean; onClos
 export function ReconciliationPage() {
   const { t } = useTranslation();
   const q = useQuery({ queryKey: ["unmatched"], queryFn: async () => (await api.get("/reconciliation/unmatched")).data });
+  // Global filters shared across all three sections — one search box +
+  // date window keeps the reconciliation flow «check everything today»
+  // fast instead of forcing three separate filter cards.
+  const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
   return (
     <Box>
       <Stack direction="row" alignItems="center" spacing={2} mb={3}>
@@ -191,22 +259,68 @@ export function ReconciliationPage() {
           <Typography color="text.secondary">{t("reconciliation.subtitle")}</Typography>
         </Box>
       </Stack>
+
+      {/* Shared filter card — applies to all three tables below. */}
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Box sx={{
+          display: "grid", gap: 1,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+          alignItems: "center",
+        }}>
+          <TextField size="small" placeholder="Αναζήτηση: reference ή συμβαλλόμενος…" fullWidth
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            sx={{ gridColumn: { md: "span 2" } }} />
+          <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} fullWidth
+            value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} fullWidth
+            value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          <Button size="small" fullWidth color="error" variant="contained"
+            onClick={() => { setSearch(""); setFromDate(""); setToDate(""); }}
+            sx={{ gridColumn: { md: "1 / -1" } }}>
+            Καθαρισμός φίλτρων
+          </Button>
+        </Box>
+      </Card>
+
       {q.isLoading ? <CircularProgress /> : (
         <Stack spacing={3}>
-          <Section title={t("reconciliation.unmatchedReceipts")} rows={q.data?.receipts ?? []} />
-          <Section title={t("reconciliation.unmatchedPayments")} rows={q.data?.payments ?? []} />
-          <Section title={t("reconciliation.openAdvances")} rows={q.data?.advances ?? []} />
+          <Section title={t("reconciliation.unmatchedReceipts")} rows={q.data?.receipts ?? []}
+            search={search} fromDate={fromDate} toDate={toDate} />
+          <Section title={t("reconciliation.unmatchedPayments")} rows={q.data?.payments ?? []}
+            search={search} fromDate={fromDate} toDate={toDate} />
+          <Section title={t("reconciliation.openAdvances")} rows={q.data?.advances ?? []}
+            search={search} fromDate={fromDate} toDate={toDate} />
         </Stack>
       )}
     </Box>
   );
 }
 
-function Section({ title, rows }: { title: string; rows: any[] }) {
+function Section({ title, rows, search, fromDate, toDate }: {
+  title: string; rows: any[]; search: string; fromDate: string; toDate: string;
+}) {
   const { t } = useTranslation();
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return rows.filter(r => {
+      if (needle) {
+        const hay = `${r.reference ?? ""} ${r.partyName ?? ""}`.toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      if (fromDate && (r.date ?? "") < fromDate) return false;
+      if (toDate && (r.date ?? "") > toDate) return false;
+      return true;
+    });
+  }, [rows, search, fromDate, toDate]);
+  useEffect(() => { setPage(0); }, [search, fromDate, toDate]);
+  const paged = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
   return (
     <Card variant="outlined">
-      <Typography sx={{ p: 2, fontWeight: 700 }}>{title} ({rows.length})</Typography>
+      <Typography sx={{ p: 2, fontWeight: 700 }}>{title} ({filtered.length}{filtered.length !== rows.length ? ` / ${rows.length}` : ""})</Typography>
       <Table size="small">
         <TableHead><TableRow>
           <TableCell>{t("reconciliation.reference")}</TableCell>
@@ -216,8 +330,8 @@ function Section({ title, rows }: { title: string; rows: any[] }) {
           <TableCell align="right" />
         </TableRow></TableHead>
         <TableBody>
-          {rows.length === 0 && <TableRow><TableCell colSpan={5} align="center" sx={{ py: 3, color: "text.secondary" }}>{t("reconciliation.allMatched")}</TableCell></TableRow>}
-          {rows.map((r, i) => (
+          {paged.length === 0 && <TableRow><TableCell colSpan={5} align="center" sx={{ py: 3, color: "text.secondary" }}>{t("reconciliation.allMatched")}</TableCell></TableRow>}
+          {paged.map((r, i) => (
             <TableRow key={r.id || i}>
               <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.reference}</TableCell>
               <TableCell>{r.date}</TableCell>
@@ -228,6 +342,17 @@ function Section({ title, rows }: { title: string; rows: any[] }) {
           ))}
         </TableBody>
       </Table>
+      <TablePagination
+        component="div"
+        count={filtered.length}
+        page={page}
+        onPageChange={(_e, p) => setPage(p)}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={ev => { setRowsPerPage(parseInt(ev.target.value, 10)); setPage(0); }}
+        rowsPerPageOptions={[10, 25, 50, 100, 250]}
+        labelRowsPerPage="Ανά σελίδα"
+        labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+      />
     </Card>
   );
 }

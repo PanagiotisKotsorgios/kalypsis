@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Card, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  IconButton, MenuItem, Stack, Tab, Tabs, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
+  IconButton, MenuItem, Stack, Tab, Tabs, Table, TableBody, TableCell, TableHead, TablePagination,
+  TableRow, TextField, Tooltip, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -27,6 +28,49 @@ interface SummaryDto {
 }
 
 const ACCOUNT_TYPES = ["Asset", "Liability", "Equity", "Revenue", "Expense"];
+
+// The bridge writes ledger descriptions like:
+//   "[bridge:BRG-XXXX:CommissionEarned] Bridge agency commission for policy 02078092291"
+// which reads as machine output. Humanize it into two parts: a short
+// Greek phrase and the raw bridge tag as a hover-only «Λεπτομέρειες».
+type BridgeKind = "CommissionEarned" | "CustomerCharge" | "Adjustment" | "Other";
+interface FriendlyDesc {
+  label: string;          // e.g. "Προμήθεια γραφείου · συμβ. 02078…"
+  kind: BridgeKind;
+  raw: string;            // full original description for tooltip
+}
+function humanizeDescription(desc: string): FriendlyDesc {
+  const m = /^\[bridge:([^:]+):([^\]]+)\]\s*(.*)$/i.exec(desc ?? "");
+  if (!m) return { label: desc || "—", kind: "Other", raw: desc || "" };
+  const [, _bridgeId, kindRaw, rest] = m;
+  const kind: BridgeKind = /commission/i.test(kindRaw) ? "CommissionEarned"
+    : /customercharge|charge/i.test(kindRaw) ? "CustomerCharge"
+    : /adjust|cancel/i.test(kindRaw) ? "Adjustment" : "Other";
+  const policy = /for policy\s+([^\s]+)/i.exec(rest)?.[1]
+    ?? /cancellation\s+([^\s]+)/i.exec(rest)?.[1]
+    ?? "";
+  const isReversal = /reversal|cancellation/i.test(rest);
+  const label =
+    kind === "CommissionEarned"
+      ? `${isReversal ? "Αναστροφή προμήθειας" : "Προμήθεια γραφείου"}${policy ? ` · συμβ. ${policy}` : ""}`
+    : kind === "CustomerCharge"
+      ? `Χρέωση πελάτη${policy ? ` · συμβ. ${policy}` : ""}`
+    : kind === "Adjustment"
+      ? `Ακύρωση συμβολαίου${policy ? ` · συμβ. ${policy}` : ""}`
+      : (rest || desc);
+  return { label, kind, raw: desc };
+}
+function bridgeKindChip(kind: BridgeKind) {
+  const style: Record<BridgeKind, { label: string; color: "success" | "info" | "warning" | "default" }> = {
+    CommissionEarned: { label: "Προμήθεια",     color: "success" },
+    CustomerCharge:   { label: "Χρέωση πελάτη", color: "info"    },
+    Adjustment:       { label: "Ακύρωση",       color: "warning" },
+    Other:            { label: "—",             color: "default" },
+  };
+  const s = style[kind];
+  if (s.label === "—") return null;
+  return <Chip size="small" color={s.color} label={s.label} sx={{ fontWeight: 700, mr: 0.5 }} />;
+}
 
 export function GeneralLedgerPage() {
   const { t } = useTranslation();
@@ -61,6 +105,14 @@ function EntriesPanel() {
   const [err, setErr] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
+  const [search, setSearch] = useState("");
+  const [kindFilter, setKindFilter] = useState<BridgeKind | "">("");
+  const [accountFilter, setAccountFilter] = useState<string>("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+
   const q = useQuery({ queryKey: ["gl-entries"], queryFn: async () => (await api.get<EntryDto[]>("/gl/entries")).data });
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/gl/entries/${id}`),
@@ -68,10 +120,77 @@ function EntriesPanel() {
     onError: e => setErr(extractErrorMessage(e))
   });
 
+  // Distinct accounts present in the current dataset — powers the filter
+  // without a separate roundtrip.
+  const accountsInSet = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const e of (q.data ?? [])) seen.set(e.accountId, `${e.accountCode} — ${e.accountName}`);
+    return Array.from(seen.entries()).map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [q.data]);
+
+  const enriched = useMemo(() =>
+    (q.data ?? []).map(e => ({ ...e, friendly: humanizeDescription(e.description) })),
+  [q.data]);
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return enriched.filter(e => {
+      if (needle) {
+        const hay = `${e.entryNumber} ${e.accountCode} ${e.accountName} ${e.friendly.label} ${e.description}`.toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      if (kindFilter && e.friendly.kind !== kindFilter) return false;
+      if (accountFilter && e.accountId !== accountFilter) return false;
+      if (fromDate && e.entryDate < fromDate) return false;
+      if (toDate && e.entryDate > toDate) return false;
+      return true;
+    });
+  }, [enriched, search, kindFilter, accountFilter, fromDate, toDate]);
+  useEffect(() => { setPage(0); }, [search, kindFilter, accountFilter, fromDate, toDate]);
+  const paged = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
   return (
     <Box>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
-      <Button startIcon={<AddIcon />} variant="contained" onClick={() => setCreateOpen(true)} sx={{ mb: 2 }}>{t("gl.createEntry")}</Button>
+      <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center" mb={1}>
+        <Button startIcon={<AddIcon />} variant="contained" onClick={() => setCreateOpen(true)}>{t("gl.createEntry")}</Button>
+      </Stack>
+
+      {/* Filters — same 4-col dense grid pattern used elsewhere. */}
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Box sx={{
+          display: "grid", gap: 1,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+          alignItems: "center",
+        }}>
+          <TextField size="small" placeholder="Αναζήτηση: αρ. εγγραφής, λογαριασμός, περιγραφή…" fullWidth
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            sx={{ gridColumn: { md: "span 2" } }} />
+          <TextField select size="small" label="Τύπος" fullWidth
+            value={kindFilter} onChange={(e) => setKindFilter(e.target.value as BridgeKind | "")}>
+            <MenuItem value="">Όλοι</MenuItem>
+            <MenuItem value="CommissionEarned">Προμήθεια γραφείου</MenuItem>
+            <MenuItem value="CustomerCharge">Χρέωση πελάτη</MenuItem>
+            <MenuItem value="Adjustment">Ακύρωση / Διόρθωση</MenuItem>
+            <MenuItem value="Other">Άλλο</MenuItem>
+          </TextField>
+          <TextField select size="small" label="Λογαριασμός" fullWidth
+            value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)}>
+            <MenuItem value="">Όλοι</MenuItem>
+            {accountsInSet.map(a => <MenuItem key={a.id} value={a.id}>{a.label}</MenuItem>)}
+          </TextField>
+          <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} fullWidth
+            value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} fullWidth
+            value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          <Button size="small" fullWidth color="error" variant="contained"
+            onClick={() => { setSearch(""); setKindFilter(""); setAccountFilter(""); setFromDate(""); setToDate(""); }}
+            sx={{ gridColumn: { md: "span 2" } }}>
+            Καθαρισμός φίλτρων
+          </Button>
+        </Box>
+      </Card>
+
       {q.isLoading ? <CircularProgress /> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
@@ -85,16 +204,23 @@ function EntriesPanel() {
               <TableCell align="right" />
             </TableRow></TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
+              {paged.length === 0 && (
                 <TableRow><TableCell colSpan={7} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("gl.empty")}</TableCell></TableRow>
               )}
-              {(q.data ?? []).map(e => (
+              {paged.map(e => (
                 <TableRow key={e.id} hover>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{e.entryNumber}</TableCell>
                   <TableCell>{e.entryDate}</TableCell>
                   <TableCell><Typography fontWeight={600}>{e.accountCode}</Typography>
                     <Typography variant="caption" color="text.secondary">{e.accountName}</Typography></TableCell>
-                  <TableCell>{e.description}</TableCell>
+                  <TableCell>
+                    <Stack direction="row" alignItems="center" spacing={0.5} flexWrap="wrap">
+                      {bridgeKindChip(e.friendly.kind)}
+                      <Tooltip title={e.friendly.raw} placement="top-start">
+                        <Typography variant="body2" sx={{ cursor: "help" }}>{e.friendly.label}</Typography>
+                      </Tooltip>
+                    </Stack>
+                  </TableCell>
                   <TableCell align="right" sx={{ color: "success.main" }}>{e.debit > 0 ? num(e.debit) : "—"}</TableCell>
                   <TableCell align="right" sx={{ color: "error.main" }}>{e.credit > 0 ? num(e.credit) : "—"}</TableCell>
                   <TableCell align="right">
@@ -106,6 +232,17 @@ function EntriesPanel() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            component="div"
+            count={filtered.length}
+            page={page}
+            onPageChange={(_e, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={ev => { setRowsPerPage(parseInt(ev.target.value, 10)); setPage(0); }}
+            rowsPerPageOptions={[10, 25, 50, 100, 250]}
+            labelRowsPerPage="Ανά σελίδα"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+          />
         </Card>
       )}
       <EntryDialog open={createOpen} onClose={() => setCreateOpen(false)}

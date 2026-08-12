@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Autocomplete, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, MenuItem, Stack, Table, TableBody, TableCell,
-  TableHead, TableRow, TextField, Tooltip, Typography
+  TableHead, TablePagination, TableRow, TextField, Tooltip, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
@@ -64,6 +64,8 @@ export function GeneralFinancialEntriesPage() {
   const [search, setSearch] = useState("");
   const [dialog, setDialog] = useState<EntryDto | "new" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const listQ = useQuery({
     queryKey: ["general-financial-entries", year, month, kindFilter, search],
@@ -86,6 +88,8 @@ export function GeneralFinancialEntriesPage() {
   });
 
   const rows = listQ.data ?? [];
+  useEffect(() => { setPage(0); }, [year, month, kindFilter, search]);
+  const paged = rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
   const rollup = rollupQ.data ?? [];
   const totals = useMemo(() => {
     const income = rollup.filter(r => r.kind === "Income").reduce((s, r) => s + r.total, 0);
@@ -118,30 +122,36 @@ export function GeneralFinancialEntriesPage() {
              color={totals.net >= 0 ? "success.main" : "error.main"} />
       </Box>
 
-      {/* Filters */}
-      <Card sx={{ p: 2, mb: 2 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }}>
-          <TextField type="number" size="small" label="Έτος" value={year}
-            onChange={(e) => setYear(Number(e.target.value) || year)} sx={{ width: 110 }} />
-          <TextField select size="small" label="Μήνας" value={month}
-            onChange={(e) => setMonth(e.target.value === "" ? "" : Number(e.target.value))}
-            sx={{ minWidth: 160 }}>
+      {/* Filters — compact 4-col grid, single row on desktop. */}
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Box sx={{
+          display: "grid", gap: 1,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+          alignItems: "center",
+        }}>
+          <TextField type="number" size="small" label="Έτος" fullWidth value={year}
+            onChange={(e) => setYear(Number(e.target.value) || year)} />
+          <TextField select size="small" label="Μήνας" fullWidth value={month}
+            onChange={(e) => setMonth(e.target.value === "" ? "" : Number(e.target.value))}>
             <MenuItem value="">Όλοι</MenuItem>
             {MONTHS.map(m => <MenuItem key={m.v} value={m.v}>{m.n}</MenuItem>)}
           </TextField>
-          <TextField select size="small" label="Τύπος" value={kindFilter}
-            onChange={(e) => setKindFilter(e.target.value as "Income" | "Expense" | "")}
-            sx={{ minWidth: 160 }}>
+          <TextField select size="small" label="Τύπος" fullWidth value={kindFilter}
+            onChange={(e) => setKindFilter(e.target.value as "Income" | "Expense" | "")}>
             <MenuItem value="">Όλα</MenuItem>
             <MenuItem value="Income">Έσοδα</MenuItem>
             <MenuItem value="Expense">Έξοδα</MenuItem>
           </TextField>
-          <TextField size="small" label="Αναζήτηση" value={search}
+          <TextField size="small" label="Αναζήτηση" fullWidth value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="κατηγορία / περιγραφή / reference" sx={{ minWidth: 240 }} />
-          <Box sx={{ flex: 1 }} />
-          <Chip label={`${rows.length} γραμμές`} />
-        </Stack>
+            placeholder="κατηγορία / περιγραφή / reference" />
+          <Chip label={`${rows.length} γραμμές`}
+            sx={{ gridColumn: { md: "span 3" }, justifySelf: "start" }} />
+          <Button size="small" fullWidth color="error" variant="contained"
+            onClick={() => { setKindFilter(""); setSearch(""); setMonth(""); }}>
+            Καθαρισμός φίλτρων
+          </Button>
+        </Box>
       </Card>
 
       {/* Rollup chips */}
@@ -183,7 +193,7 @@ export function GeneralFinancialEntriesPage() {
                 <TableRow><TableCell colSpan={8} sx={{ py: 4, textAlign: "center", color: "text.secondary" }}>
                   Καμία εγγραφή. Πάτα «Νέα εγγραφή» για να ξεκινήσεις.
                 </TableCell></TableRow>
-              ) : rows.map(r => (
+              ) : paged.map(r => (
                 <TableRow key={r.id} hover>
                   <TableCell>{new Date(r.entryDate).toLocaleDateString("el-GR")}</TableCell>
                   <TableCell>
@@ -217,6 +227,17 @@ export function GeneralFinancialEntriesPage() {
             </TableBody>
           </Table>
         </Box>
+        <TablePagination
+          component="div"
+          count={rows.length}
+          page={page}
+          onPageChange={(_e, p) => setPage(p)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={ev => { setRowsPerPage(parseInt(ev.target.value, 10)); setPage(0); }}
+          rowsPerPageOptions={[10, 25, 50, 100, 250]}
+          labelRowsPerPage="Ανά σελίδα"
+          labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+        />
       </Card>
 
       <EntryDialog

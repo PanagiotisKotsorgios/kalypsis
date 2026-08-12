@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
+import { FilterHelp } from "../components/FilterHelp";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
@@ -202,43 +202,42 @@ export function CashPositionPage() {
         </Card>
       )}
 
-      {/* Filters */}
+      {/* Filters — 4-col grid, 2 rows max on desktop. */}
       <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1} flexWrap="wrap" alignItems={{ md: "center" }} useFlexGap>
-          <TextField size="small" placeholder="Αναζήτηση…"
-            value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 200 }}
+        <Box sx={{
+          display: "grid", gap: 1,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+          alignItems: "center",
+        }}>
+          <TextField size="small" placeholder="Αναζήτηση σε λόγο, αναφορά ή ταμείο…" fullWidth
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            sx={{ gridColumn: { md: "span 2" } }}
             InputProps={{
               endAdornment: <FilterHelp title="Αναζήτηση σε λόγο, αναφορά ή ταμείο της κίνησης." />
             }} />
-          <FilterFieldWrap tip="Φιλτράρετε ανά κατεύθυνση κίνησης: Είσοδοι (χρήματα που μπαίνουν) ή Έξοδοι.">
-            <SearchableTextField size="small" label="Κατεύθυνση"
-              value={directionFilter} onChange={(e) => setDirectionFilter(e.target.value as any)}
-              sx={{ minWidth: 130, width: "100%" }}>
-              <MenuItem value="">Όλες</MenuItem>
-              <MenuItem value="In">Είσοδοι</MenuItem>
-              <MenuItem value="Out">Έξοδοι</MenuItem>
-            </SearchableTextField>
-          </FilterFieldWrap>
-          <FilterFieldWrap tip="Φιλτράρετε ανά προκαθορισμένη κατηγορία λόγου (Ασφάλιστρα, Προμήθειες κ.λπ.).">
-            <SearchableTextField size="small" label="Κατηγορία λόγου"
-              value={reasonFilter} onChange={(e) => setReasonFilter(e.target.value)}
-              sx={{ minWidth: 180, width: "100%" }}>
-              <MenuItem value="">Όλες</MenuItem>
-              {REASON_PRESETS.map(r => <MenuItem key={r} value={r}>{r}</MenuItem>)}
-            </SearchableTextField>
-          </FilterFieldWrap>
-          <FilterFieldWrap tip="Ημερομηνία κίνησης από — εμφανίζει κινήσεις από αυτήν την ημέρα και μετά.">
-            <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
-              value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 140, width: "100%" }} />
-          </FilterFieldWrap>
-          <FilterFieldWrap tip="Ημερομηνία κίνησης έως — εμφανίζει κινήσεις μέχρι αυτήν την ημέρα.">
-            <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
-              value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 140, width: "100%" }} />
-          </FilterFieldWrap>
-          <Button size="small" onClick={() => {
-            setSearch(""); setDirectionFilter(""); setReasonFilter(""); setFromDate(""); setToDate("");
-          }} color="error" variant="contained">Καθαρισμός</Button>
-        </Stack>
+          <SearchableTextField size="small" label="Κατεύθυνση" fullWidth
+            value={directionFilter} onChange={(e) => setDirectionFilter(e.target.value as any)}>
+            <MenuItem value="">Όλες</MenuItem>
+            <MenuItem value="In">Είσοδοι</MenuItem>
+            <MenuItem value="Out">Έξοδοι</MenuItem>
+          </SearchableTextField>
+          <SearchableTextField size="small" label="Κατηγορία λόγου" fullWidth
+            value={reasonFilter} onChange={(e) => setReasonFilter(e.target.value)}>
+            <MenuItem value="">Όλες</MenuItem>
+            {REASON_PRESETS.map(r => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+          </SearchableTextField>
+          <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} fullWidth
+            value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} fullWidth
+            value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          <Button size="small" fullWidth color="error" variant="contained"
+            onClick={() => {
+              setSearch(""); setDirectionFilter(""); setReasonFilter(""); setFromDate(""); setToDate("");
+            }}
+            sx={{ gridColumn: { md: "span 2" } }}>
+            Καθαρισμός φίλτρων
+          </Button>
+        </Box>
       </Card>
 
       <Card variant="outlined" sx={{ overflowX: "auto" }}>

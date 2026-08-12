@@ -9,7 +9,6 @@ import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import RestoreIcon from "@mui/icons-material/Restore";
 import ClearAllIcon from "@mui/icons-material/ClearAll";
 import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
@@ -434,13 +433,17 @@ export function OverCommissionGridEditor({
     return Array.from({ length: 5 }, () => emptyRow(defaultYear, defaultMonth, defaultCarrierId));
   });
 
-  const [savedAt, setSavedAt] = useState<string | null>(null);
+  // Still track savedAt so the draft persistence flow keeps working;
+  // the visible «Αποθηκεύτηκε στα πρόχειρα» chip was removed on request.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_savedAt, setSavedAt] = useState<string | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<{ inserted: number; updated: number; failed: number } | null>(null);
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const [visibleCols, setVisibleCols] = useState<Record<OptionalCol, boolean>>(() => loadColVisibility());
   const [colMenuAnchor, setColMenuAnchor] = useState<HTMLElement | null>(null);
   const [exportMenuAnchor, setExportMenuAnchor] = useState<HTMLElement | null>(null);
+  const [importMenuAnchor, setImportMenuAnchor] = useState<HTMLElement | null>(null);
   const [importPreview, setImportPreview] = useState<ExcelImportPreview | null>(null);
   const [importCarrierId, setImportCarrierId] = useState<string>(defaultCarrierId);
   const [importLayout, setImportLayout] = useState<ImportLayout>(initialLayout ?? "auto");
@@ -789,29 +792,28 @@ export function OverCommissionGridEditor({
             </Typography>
           </Box>
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-            {savedAt && (
-              <Tooltip title={new Date(savedAt).toLocaleString("el-GR")}>
-                <Chip size="small" color="default" variant="outlined" icon={<RestoreIcon />}
-                  label="Αποθηκεύτηκε στα πρόχειρα" />
-              </Tooltip>
-            )}
+            {/* Draft-persisted indicator + Layout picker removed —
+                autosave is already implicit and layout only matters at
+                file-parse time (see the import button menu below). */}
             <Button size="small" startIcon={<ViewColumnIcon />} variant="outlined"
               onClick={(e) => setColMenuAnchor(e.currentTarget)}>
               Στήλες
             </Button>
-            {canErgo && (
-              <TextField select size="small" value={importLayout}
-                onChange={(e) => setImportLayout(e.target.value as ImportLayout)}
-                sx={{ minWidth: 180 }}
-                helperText="Layout του αρχείου">
-                <MenuItem value="auto">Αυτόματο (γενικό)</MenuItem>
-                <MenuItem value="ergo">ERGO ΠΙΝΑΚΙΟ</MenuItem>
-              </TextField>
-            )}
+            {/* Split-button style: click the file button once, we ask which
+                layout to parse with, then open the file picker. Keeps the
+                header clean while preserving ERGO-vs-generic parsing. */}
             <Button size="small" startIcon={<UploadFileIcon />} variant="outlined"
-              onClick={() => fileInputRef.current?.click()}>
+              onClick={(e) => canErgo ? setImportMenuAnchor(e.currentTarget) : fileInputRef.current?.click()}>
               Εισαγωγή από Excel
             </Button>
+            <Menu anchorEl={importMenuAnchor} open={!!importMenuAnchor} onClose={() => setImportMenuAnchor(null)}>
+              <MenuItem onClick={() => { setImportLayout("auto"); setImportMenuAnchor(null); fileInputRef.current?.click(); }}>
+                Αυτόματο (γενικό)
+              </MenuItem>
+              <MenuItem onClick={() => { setImportLayout("ergo"); setImportMenuAnchor(null); fileInputRef.current?.click(); }}>
+                ERGO ΠΙΝΑΚΙΟ
+              </MenuItem>
+            </Menu>
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv"
               style={{ display: "none" }}
               onChange={async (e) => {
@@ -847,7 +849,7 @@ export function OverCommissionGridEditor({
             <Button size="small" startIcon={<ClearAllIcon />}
               onClick={() => setConfirmClearOpen(true)}
               disabled={rows.every(isRowEmpty)} color="error" variant="contained">Καθαρισμός</Button>
-            <Button size="small" onClick={onClose}>Κλείσιμο</Button>
+            <Button size="small" onClick={onClose} color="error" variant="contained">Κλείσιμο</Button>
           </Stack>
         </Stack>
       </Box>
@@ -884,20 +886,22 @@ export function OverCommissionGridEditor({
         <Table sx={{ "& td, & th": { verticalAlign: "top", py: 1 } }}>
           <TableHead>
             <TableRow>
+              {/* Wider min-widths so numeric editors fit «12 345,67» and
+                  the month dropdown always shows a full name («Δεκέμβριος»). */}
               <TableCell sx={{ width: 48 }}>#</TableCell>
               <TableCell sx={{ minWidth: 240 }}>Ασφαλιστική *</TableCell>
               <TableCell sx={{ minWidth: 280 }}>Παραγωγός *</TableCell>
-              <TableCell sx={{ width: 110 }}>Έτος *</TableCell>
-              <TableCell sx={{ width: 160 }}>Μήνας *</TableCell>
-              <TableCell sx={{ width: 160 }} align="right">Μικτά (€) *</TableCell>
-              {visibleCols.netAmount            && <TableCell sx={{ width: 160 }} align="right">Καθαρά (€)</TableCell>}
-              {visibleCols.producerSharePercent && <TableCell sx={{ width: 110 }} align="right">% Παρ.</TableCell>}
-              {visibleCols.producerAmount       && <TableCell sx={{ width: 140 }} align="right">Παραγωγός</TableCell>}
-              {visibleCols.officeAmount         && <TableCell sx={{ width: 140 }} align="right">Έδρα</TableCell>}
-              {visibleCols.reference            && <TableCell sx={{ width: 180 }}>Reference</TableCell>}
-              {visibleCols.paidOn               && <TableCell sx={{ width: 170 }}>Πληρωμή</TableCell>}
-              {visibleCols.notes                && <TableCell sx={{ minWidth: 220 }}>Σημείωση</TableCell>}
-              <TableCell sx={{ width: 110 }} align="center">Status</TableCell>
+              <TableCell sx={{ minWidth: 130 }}>Έτος *</TableCell>
+              <TableCell sx={{ minWidth: 180 }}>Μήνας *</TableCell>
+              <TableCell sx={{ minWidth: 180 }} align="right">Μικτά (€) *</TableCell>
+              {visibleCols.netAmount            && <TableCell sx={{ minWidth: 180 }} align="right">Καθαρά (€)</TableCell>}
+              {visibleCols.producerSharePercent && <TableCell sx={{ minWidth: 130 }} align="right">% Παρ.</TableCell>}
+              {visibleCols.producerAmount       && <TableCell sx={{ minWidth: 160 }} align="right">Παραγωγός</TableCell>}
+              {visibleCols.officeAmount         && <TableCell sx={{ minWidth: 160 }} align="right">Έδρα</TableCell>}
+              {visibleCols.reference            && <TableCell sx={{ minWidth: 200 }}>Reference</TableCell>}
+              {visibleCols.paidOn               && <TableCell sx={{ minWidth: 190 }}>Πληρωμή</TableCell>}
+              {visibleCols.notes                && <TableCell sx={{ minWidth: 240 }}>Σημείωση</TableCell>}
+              <TableCell sx={{ minWidth: 120 }} align="center">Status</TableCell>
               <TableCell sx={{ width: 48 }} />
             </TableRow>
           </TableHead>
@@ -1033,9 +1037,13 @@ export function OverCommissionGridEditor({
       {/* Footer with add-row and import controls */}
       <Box sx={{ p: 2, borderTop: 1, borderColor: "divider" }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }}>
-          <Button size="medium" startIcon={<AddIcon />} onClick={addRow}>Νέα γραμμή</Button>
-          <Button size="small" onClick={() => addManyRows(5)}>+5</Button>
-          <Button size="small" onClick={() => addManyRows(10)}>+10</Button>
+          <Button size="medium" variant="contained" color="primary" startIcon={<AddIcon />} onClick={addRow}>
+            Νέα γραμμή
+          </Button>
+          <Button size="small" variant="outlined" color="primary" onClick={() => addManyRows(5)}
+            sx={{ minWidth: 56, fontWeight: 700 }}>+5</Button>
+          <Button size="small" variant="outlined" color="primary" onClick={() => addManyRows(10)}
+            sx={{ minWidth: 56, fontWeight: 700 }}>+10</Button>
           <Box sx={{ flex: 1 }} />
           <Typography variant="caption" color="text.secondary">
             {stats.complete} έτοιμες γραμμές θα εισαχθούν
