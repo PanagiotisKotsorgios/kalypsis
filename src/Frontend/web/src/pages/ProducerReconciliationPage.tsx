@@ -20,6 +20,7 @@ import {
   TableBody,
   TableCell,
   TableHead,
+  TablePagination,
   TableRow,
   TextField,
   ToggleButton,
@@ -215,13 +216,13 @@ export function ProducerReconciliationPage() {
 
       <Card sx={{ mb: 2 }}>
         <CardContent sx={{ p: 2 }}>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }}>
+          {/* Mode toggle on its own row so it never has to fight the
+              filter fields for horizontal space. Search + Συνεργάτης +
+              Κατάσταση + clear button then wrap into a clean 3-col grid. */}
+          <Stack direction="row" mb={1.5}>
             <ToggleButtonGroup
-              value={mode}
-              exclusive
-              size="small"
+              value={mode} exclusive size="small"
               onChange={(_e, v) => v && setMode(v)}
-              sx={{ mr: { md: 1 } }}
             >
               <ToggleButton value="rule" sx={{ px: 1.5, textTransform: "none", fontWeight: 700, whiteSpace: "nowrap" }}>
                 <RuleIcon fontSize="small" sx={{ mr: 0.75 }} />
@@ -232,20 +233,24 @@ export function ProducerReconciliationPage() {
                 Ανά συμβόλαιο
               </ToggleButton>
             </ToggleButtonGroup>
+          </Stack>
+          <Box sx={{
+            display: "grid", gap: 1,
+            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)" },
+            alignItems: "center",
+          }}>
             <TextField
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              size="small"
-              fullWidth
+              size="small" fullWidth
               placeholder={mode === "rule"
                 ? "Αναζήτηση σε συνεργάτη, εταιρεία, πακέτο, κάλυψη…"
                 : "Αναζήτηση σε συμβόλαιο, συνεργάτη, σημείωση…"}
               InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
             />
             <SearchableTextField
-              select size="small" label="Συνεργάτης"
+              select size="small" label="Συνεργάτης" fullWidth
               value={producerId} onChange={(e) => setProducerId(e.target.value)}
-              sx={{ minWidth: 220 }}
             >
               <MenuItem value="">Όλοι</MenuItem>
               {(producersQ.data ?? []).map(p => (
@@ -253,9 +258,8 @@ export function ProducerReconciliationPage() {
               ))}
             </SearchableTextField>
             <SearchableTextField
-              select size="small" label="Κατάσταση"
+              select size="small" label="Κατάσταση" fullWidth
               value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-              sx={{ minWidth: 200 }}
             >
               <MenuItem value="">Όλες</MenuItem>
               {Object.entries(STATUS_LABEL)
@@ -266,7 +270,12 @@ export function ProducerReconciliationPage() {
                   <MenuItem key={k} value={k}>{v}</MenuItem>
                 ))}
             </SearchableTextField>
-          </Stack>
+            <Button size="small" fullWidth color="error" variant="contained"
+              onClick={() => { setSearch(""); setProducerId(""); setStatusFilter(""); }}
+              sx={{ gridColumn: { md: "1 / -1" } }}>
+              Καθαρισμός φίλτρων
+            </Button>
+          </Box>
         </CardContent>
       </Card>
 
@@ -318,6 +327,8 @@ function RuleTable({ rows, onExplain }: {
 }) {
   const [sortKey, setSortKey] = useState<keyof RuleReconciliationDto | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
   const sortedRows = useMemo(() => {
     if (!sortKey) return rows;
     const arr = rows.slice();
@@ -345,7 +356,8 @@ function RuleTable({ rows, onExplain }: {
   const inferType = (key: string): ColumnType =>
     (key === "pct" || key === "declared" || key === "office" || key === "diff") ? "number" : "string";
   return (
-    <Table size="small">
+    <Box>
+      <Table size="small">
       <TableHead>
         <TableRow>
           <TableCell sx={{ userSelect: "none" }}
@@ -371,7 +383,7 @@ function RuleTable({ rows, onExplain }: {
         </TableRow>
       </TableHead>
       <TableBody>
-        {sortedRows.map(r => {
+        {sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map(r => {
           const statusKey = r.status;
           const color = STATUS_COLOR[statusKey] ?? "default";
           return (
@@ -408,7 +420,19 @@ function RuleTable({ rows, onExplain }: {
           );
         })}
       </TableBody>
-    </Table>
+      </Table>
+      <TablePagination
+        component="div"
+        count={sortedRows.length}
+        page={page}
+        onPageChange={(_e, p) => setPage(p)}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={ev => { setRowsPerPage(parseInt(ev.target.value, 10)); setPage(0); }}
+        rowsPerPageOptions={[10, 25, 50, 100, 250]}
+        labelRowsPerPage="Ανά σελίδα"
+        labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+      />
+    </Box>
   );
 }
 
@@ -420,6 +444,8 @@ function ContractTable({ rows, onExplain }: {
 }) {
   const [sortKey, setSortKey] = useState<keyof ProducerDeclarationDto | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
   const sortedRows = useMemo(() => {
     if (!sortKey) return rows;
     const arr = rows.slice();
@@ -444,6 +470,7 @@ function ContractTable({ rows, onExplain }: {
     },
   });
   return (
+    <Box>
     <Table size="small">
       <TableHead>
         <TableRow>
@@ -468,7 +495,7 @@ function ContractTable({ rows, onExplain }: {
         </TableRow>
       </TableHead>
       <TableBody>
-        {sortedRows.map(r => {
+        {sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map(r => {
           const statusKey = r.reconciliationStatus in STATUS_LABEL ? r.reconciliationStatus : "missing";
           const color = STATUS_COLOR[statusKey] ?? "default";
           return (
@@ -504,6 +531,18 @@ function ContractTable({ rows, onExplain }: {
         })}
       </TableBody>
     </Table>
+    <TablePagination
+      component="div"
+      count={sortedRows.length}
+      page={page}
+      onPageChange={(_e, p) => setPage(p)}
+      rowsPerPage={rowsPerPage}
+      onRowsPerPageChange={ev => { setRowsPerPage(parseInt(ev.target.value, 10)); setPage(0); }}
+      rowsPerPageOptions={[10, 25, 50, 100, 250]}
+      labelRowsPerPage="Ανά σελίδα"
+      labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+    />
+    </Box>
   );
 }
 

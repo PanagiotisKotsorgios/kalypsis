@@ -72,6 +72,7 @@
     "quoteBuilder": "Multi-Carrier Quoting",
     "riskProfiles": "Saved Risk Profiles",
     "workflows": "Automations",
+    "ermes": "HERMES — Encrypted Messaging",
     "churn": "Churn AI",
     "reportBuilder": "Report Builder",
     "printPay": "Print-Pay (Τ-Π)",
@@ -132,7 +133,9 @@
       "params": "Parameters",
       "admin": "Administration",
       "quotes": "Quotes",
-      "automation": "Reports & Automation"
+      "automation": "Reports & Automation",
+      "integrations": "Messaging & Integrations",
+      "intelligence": "Reports & Intelligence"
     },
     "broadcastParametric": "Carrier Parametric Files",
     "desktopReleases": "Desktop Releases",
@@ -3274,6 +3277,7 @@
     "printPay": "Print & pay batch printing",
     "plafond": "Producer plafond (limits)",
     "workflows": "Automation rules",
+    "ermes": "Kalypsis-native messaging: end-to-end encrypted messages between agencies, producers and carriers, with automatic email forwarding and no spam.",
     "churn": "Customer churn prediction",
     "reportBuilder": "Custom report builder",
     "namedReports": "Named reports (4500, 506, 507, 610)",

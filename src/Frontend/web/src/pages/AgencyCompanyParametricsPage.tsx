@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  IconButton, MenuItem, Stack, Tab, Tabs, Table, TableBody, TableCell, TableHead, TableRow, TextField,
-  Tooltip, Typography
+  IconButton, MenuItem, Stack, Tab, Tabs, Table, TableBody, TableCell, TableHead, TablePagination,
+  TableRow, TextField, Tooltip, Typography
 } from "@mui/material";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import AddIcon from "@mui/icons-material/Add";
@@ -62,6 +62,10 @@ export function AgencyCompanyParametricsPage() {
   const [creating, setCreating] = useState(false);
   const [inlineCarrierCreate, setInlineCarrierCreate] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  // Pagination for the parameter list — carriers with many πακέτα /
+  // καλύψεις can push past 100 rows in a single tab.
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const carriersQ = useQuery({
     queryKey: ["insurance-companies", "for-parametrics"],
@@ -93,6 +97,8 @@ export function AgencyCompanyParametricsPage() {
       || p.name.toLowerCase().includes(s)
       || (p.parentCode ?? "").toLowerCase().includes(s));
   }, [paramsQ.data, search]);
+  useEffect(() => { setPage(0); }, [search, tab, selectedCarrierId]);
+  const pagedParams = filteredParams.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   const remove = useMutation({
     mutationFn: async (id: string) => api.delete(`/company-parameters/${id}`),
@@ -197,7 +203,7 @@ export function AgencyCompanyParametricsPage() {
                     Δεν υπάρχουν {KIND_LABEL[tab].toLowerCase()} για αυτή την εταιρεία.
                   </TableCell></TableRow>
                 )}
-                {filteredParams.map(p => (
+                {pagedParams.map(p => (
                   <TableRow key={p.id} hover>
                     <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{p.code}</TableCell>
                     <TableCell>{p.name}</TableCell>
@@ -219,6 +225,17 @@ export function AgencyCompanyParametricsPage() {
               </TableBody>
             </Table>
           </Box>
+          <TablePagination
+            component="div"
+            count={filteredParams.length}
+            page={page}
+            onPageChange={(_e, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={ev => { setRowsPerPage(parseInt(ev.target.value, 10)); setPage(0); }}
+            rowsPerPageOptions={[10, 25, 50, 100, 250]}
+            labelRowsPerPage="Ανά σελίδα"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+          />
         </Card>
       )}
 

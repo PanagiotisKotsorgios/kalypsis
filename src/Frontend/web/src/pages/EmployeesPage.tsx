@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import {
   Alert,
@@ -18,6 +18,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   TextField,
   Typography
@@ -59,11 +60,30 @@ export function EmployeesPage() {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [permsUserId, setPermsUserId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"" | "AgencyAdmin" | "AgencyUser">("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const usersQuery = useQuery({
     queryKey: ["users"],
     queryFn: async () => (await api.get<UserDto[]>("/users")).data
   });
+
+  const filteredUsers = useMemo(() => {
+    const all = usersQuery.data ?? [];
+    const needle = search.trim().toLowerCase();
+    return all.filter(u => {
+      if (needle) {
+        const hay = `${u.firstName} ${u.lastName} ${u.email} ${u.phone ?? ""}`.toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      if (roleFilter && u.role !== roleFilter) return false;
+      return true;
+    });
+  }, [usersQuery.data, search, roleFilter]);
+  useEffect(() => { setPage(0); }, [search, roleFilter]);
+  const pagedUsers = filteredUsers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   const createMutation = useMutation({
     mutationFn: async (body: CreateBody) => (await api.post<{ user: UserDto }>("/users", body)).data,
@@ -92,6 +112,29 @@ export function EmployeesPage() {
         </Alert>
       )}
 
+      {/* Filter card — search + role picker with matching red clear button. */}
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Box sx={{
+          display: "grid", gap: 1,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+          alignItems: "center",
+        }}>
+          <TextField size="small" placeholder="Αναζήτηση: όνομα, email, τηλέφωνο…" fullWidth
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            sx={{ gridColumn: { md: "span 2" } }} />
+          <SearchableTextField size="small" label={t("users.role")} fullWidth
+            value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as "" | "AgencyAdmin" | "AgencyUser")}>
+            <MenuItem value="">Όλοι</MenuItem>
+            <MenuItem value="AgencyAdmin">{t("roles.AgencyAdmin")}</MenuItem>
+            <MenuItem value="AgencyUser">{t("roles.AgencyUser")}</MenuItem>
+          </SearchableTextField>
+          <Button size="small" fullWidth color="error" variant="contained"
+            onClick={() => { setSearch(""); setRoleFilter(""); }}>
+            Καθαρισμός φίλτρων
+          </Button>
+        </Box>
+      </Card>
+
       {usersQuery.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
           <CircularProgress />
@@ -110,7 +153,7 @@ export function EmployeesPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {(usersQuery.data ?? []).map((u) => (
+                {pagedUsers.map((u) => (
                   <TableRow key={u.id} hover>
                     <TableCell><Typography fontWeight={600}>{u.firstName} {u.lastName}</Typography></TableCell>
                     <TableCell>{u.email}</TableCell>
@@ -125,7 +168,7 @@ export function EmployeesPage() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {(usersQuery.data ?? []).length === 0 && (
+                {pagedUsers.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={5}>
                       <Typography color="text.secondary" textAlign="center" py={4}>
@@ -137,6 +180,17 @@ export function EmployeesPage() {
               </TableBody>
             </Table>
           </TableContainer>
+          <TablePagination
+            component="div"
+            count={filteredUsers.length}
+            page={page}
+            onPageChange={(_e, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={ev => { setRowsPerPage(parseInt(ev.target.value, 10)); setPage(0); }}
+            rowsPerPageOptions={[10, 25, 50, 100, 250]}
+            labelRowsPerPage="Ανά σελίδα"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+          />
         </Card>
       )}
 

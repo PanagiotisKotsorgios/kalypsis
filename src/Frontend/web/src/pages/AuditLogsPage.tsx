@@ -1,9 +1,10 @@
 import { useDeferredValue, useState, type ReactNode } from "react";
-import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
+import { FilterHelp } from "../components/FilterHelp";
 import { HelpHint } from "../components/HelpHint";
 import {
   Alert,
   Box,
+  Button,
   Card,
   Chip,
   CircularProgress,
@@ -161,90 +162,101 @@ export function AuditLogsPage() {
         <Metric icon={<ManageSearchIcon color="primary" />} value={data?.totalCount ?? 0} label="Αποτελέσματα φίλτρων" />
       </Stack>
 
+      {/* Filter card — 3-col grid so 7 controls spread across 3 clear
+          rows on desktop without any field getting cropped or squeezed.
+          Search + Υπάλληλος are wider (span 2 cols) because their values
+          are long strings; the rest fit a single column. */}
       <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
-        <Stack spacing={1}>
-          <Stack direction={{ xs: "column", lg: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
-            <TextField
-              label="Γρήγορη αναζήτηση"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); resetPage(); }}
-              placeholder="Αναζήτηση…"
-              sx={{ flex: 1, minWidth: 220 }}
-              size="small"
-              inputProps={{ "data-audit-search": "audit-log-search" }}
-              InputProps={{
-                endAdornment: <FilterHelp title="Αναζήτηση σε ονοματεπώνυμο υπαλλήλου, ενέργεια, σελίδα ή στόχο." />
-              }}
-            />
-            <FilterFieldWrap tip="Φιλτράρετε τα audit logs ανά συγκεκριμένο υπάλληλο που εκτέλεσε τις ενέργειες.">
-              <SearchableTextField
-                select
-                label="Υπάλληλος"
-                value={userId}
-                onChange={(e) => { setUserId(e.target.value); resetPage(); }}
-                sx={{ minWidth: 180, width: "100%" }}
-                size="small"
-              >
-                <MenuItem value="">Όλοι οι υπάλληλοι</MenuItem>
-                {(employeesQuery.data ?? []).map((employee) => (
-                  <MenuItem key={employee.id} value={employee.id}>
-                    {employee.firstName} {employee.lastName} — {employee.email}
-                  </MenuItem>
-                ))}
-              </SearchableTextField>
-            </FilterFieldWrap>
-            <FilterFieldWrap tip="Φιλτράρετε ανά κατηγορία λειτουργίας (Auth, Data, Settings κ.λπ.).">
-              <SearchableTextField
-                select
-                label="Κατηγορία"
-                value={category}
-                onChange={(e) => { setCategory(e.target.value); resetPage(); }}
-                sx={{ minWidth: 170, width: "100%" }}
-                size="small"
-              >
-                <MenuItem value="">Όλες οι κατηγορίες</MenuItem>
-                {Object.entries(CATEGORY_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
-              </SearchableTextField>
-            </FilterFieldWrap>
-          </Stack>
-          <Stack direction={{ xs: "column", lg: "row" }} spacing={1.5}>
-            <SearchableTextField
-              select
-              label="Ενέργεια"
-              value={action}
-              onChange={(e) => { setAction(e.target.value); resetPage(); }}
-              sx={{ minWidth: { lg: 230 } }}
-              size="small"
-            >
-              <MenuItem value="">Όλες οι ενέργειες</MenuItem>
-              {Object.entries(ACTION_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
-            </SearchableTextField>
-            <TextField
-              label="Εγγραφή / ενότητα"
-              value={entityName}
-              onChange={(e) => { setEntityName(e.target.value); resetPage(); }}
-              placeholder="π.χ. Policy, Customer"
-              fullWidth
-              size="small"
-            />
-            <TextField
-              label="Από ημερομηνία"
-              type="date"
-              value={from}
-              onChange={(e) => { setFrom(e.target.value); resetPage(); }}
-              InputLabelProps={{ shrink: true }}
-              size="small"
-            />
-            <TextField
-              label="Έως ημερομηνία"
-              type="date"
-              value={to}
-              onChange={(e) => { setTo(e.target.value); resetPage(); }}
-              InputLabelProps={{ shrink: true }}
-              size="small"
-            />
-          </Stack>
-        </Stack>
+        <Box sx={{
+          display: "grid", gap: 1,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)" },
+          alignItems: "center",
+        }}>
+          <TextField
+            label="Γρήγορη αναζήτηση"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); resetPage(); }}
+            placeholder="ονοματεπώνυμο / ενέργεια / σελίδα / στόχος"
+            fullWidth
+            size="small"
+            sx={{ gridColumn: { md: "span 2" } }}
+            inputProps={{ "data-audit-search": "audit-log-search" }}
+            InputProps={{
+              endAdornment: <FilterHelp title="Αναζήτηση σε ονοματεπώνυμο υπαλλήλου, ενέργεια, σελίδα ή στόχο." />
+            }}
+          />
+          <SearchableTextField
+            select
+            label="Υπάλληλος"
+            value={userId}
+            onChange={(e) => { setUserId(e.target.value); resetPage(); }}
+            fullWidth
+            size="small"
+          >
+            <MenuItem value="">Όλοι οι υπάλληλοι</MenuItem>
+            {(employeesQuery.data ?? []).map((employee) => (
+              <MenuItem key={employee.id} value={employee.id}>
+                {employee.firstName} {employee.lastName} — {employee.email}
+              </MenuItem>
+            ))}
+          </SearchableTextField>
+          <SearchableTextField
+            select
+            label="Κατηγορία"
+            value={category}
+            onChange={(e) => { setCategory(e.target.value); resetPage(); }}
+            fullWidth
+            size="small"
+          >
+            <MenuItem value="">Όλες οι κατηγορίες</MenuItem>
+            {Object.entries(CATEGORY_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
+          </SearchableTextField>
+          <SearchableTextField
+            select
+            label="Ενέργεια"
+            value={action}
+            onChange={(e) => { setAction(e.target.value); resetPage(); }}
+            fullWidth
+            size="small"
+          >
+            <MenuItem value="">Όλες οι ενέργειες</MenuItem>
+            {Object.entries(ACTION_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
+          </SearchableTextField>
+          <TextField
+            label="Εγγραφή / ενότητα"
+            value={entityName}
+            onChange={(e) => { setEntityName(e.target.value); resetPage(); }}
+            placeholder="π.χ. Policy, Customer"
+            fullWidth
+            size="small"
+          />
+          <TextField
+            label="Από ημερομηνία"
+            type="date"
+            value={from}
+            onChange={(e) => { setFrom(e.target.value); resetPage(); }}
+            InputLabelProps={{ shrink: true }}
+            fullWidth
+            size="small"
+          />
+          <TextField
+            label="Έως ημερομηνία"
+            type="date"
+            value={to}
+            onChange={(e) => { setTo(e.target.value); resetPage(); }}
+            InputLabelProps={{ shrink: true }}
+            fullWidth
+            size="small"
+          />
+          <Button size="small" fullWidth color="error" variant="contained"
+            onClick={() => {
+              setSearch(""); setUserId(""); setCategory(""); setAction("");
+              setEntityName(""); setFrom(""); setTo(""); resetPage();
+            }}
+            sx={{ gridColumn: { md: "span 2" } }}>
+            Καθαρισμός φίλτρων
+          </Button>
+        </Box>
       </Card>
 
       {auditQuery.isLoading ? (

@@ -73,6 +73,7 @@
     "quoteBuilder": "Πολυτιμολόγηση",
     "riskProfiles": "Υπερτιμολόγηση",
     "workflows": "Αυτοματισμοί",
+    "ermes": "ΕΡΜΗΣ — Κρυπτογραφημένη Επικοινωνία",
     "churn": "AI Πρόβλεψη Απώλειας",
     "reportBuilder": "Δημιουργός Αναφορών",
     "printPay": "Τυπώνω-Πληρώνω",
@@ -133,7 +134,9 @@
       "params": "Παραμετροποίηση",
       "admin": "Διοίκηση",
       "quotes": "Προσφορές",
-      "automation": "Αναφορές & Αυτοματισμός"
+      "automation": "Αναφορές & Αυτοματισμός",
+      "integrations": "Επικοινωνία & Ολοκληρώσεις",
+      "intelligence": "Αναφορές & Νοημοσύνη"
     },
     "broadcastParametric": "Παραμετρικά Ασφαλιστικών",
     "desktopReleases": "Εκδόσεις Desktop",
@@ -3602,6 +3605,7 @@
     "printPay": "Εκτύπωση πληρωμών — print & pay",
     "plafond": "Plafond παραγωγών (όρια)",
     "workflows": "Κανόνες αυτοματισμού",
+    "ermes": "Kalypsis-native messaging: end-to-end κρυπτογραφημένα μηνύματα μεταξύ πρακτορείων, συνεργατών και ασφαλιστικών με αυτόματη προώθηση email, χωρίς spam.",
     "churn": "Πρόβλεψη φυγής πελατών (churn)",
     "reportBuilder": "Custom report builder",
     "namedReports": "Επώνυμες αναφορές (4500, 506, 507, 610)",

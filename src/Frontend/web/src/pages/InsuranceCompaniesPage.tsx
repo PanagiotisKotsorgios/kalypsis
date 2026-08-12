@@ -3,7 +3,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import {
   Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  FormControlLabel, IconButton, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Tooltip, Typography
+  FormControlLabel, IconButton, Stack, Switch, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -247,6 +247,11 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
     });
     return arr;
   }, [rows, sortKey, sortDir]);
+  // Pagination — carrier catalogs can grow past 100 rows once a tenant
+  // opts-in to a bunch of global entries, so slice client-side.
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+  useEffect(() => { setPage(0); }, [rows.length]);
   const inferType = (key: string): ColumnType =>
     (key === "params" || key === "rules") ? "number" : "string";
   const headerMenu = useHeaderContextMenu({
@@ -303,7 +308,7 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
           </TableRow>
         </TableHead>
         <TableBody>
-          {sortedRows.map((r) => (
+          {sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((r) => (
             <TableRow key={r.id} hover
               onContextMenu={(e) => rowMenu.open(e, r)}
               onClick={onRowClick ? (e) => {
@@ -384,6 +389,17 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
           ))}
         </TableBody>
       </Table>
+      <TablePagination
+        component="div"
+        count={sortedRows.length}
+        page={page}
+        onPageChange={(_e, p) => setPage(p)}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={ev => { setRowsPerPage(parseInt(ev.target.value, 10)); setPage(0); }}
+        rowsPerPageOptions={[10, 25, 50, 100, 250]}
+        labelRowsPerPage="Ανά σελίδα"
+        labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+      />
       {headerMenu.menu}
       {rowMenu.menu}
     </Box>
