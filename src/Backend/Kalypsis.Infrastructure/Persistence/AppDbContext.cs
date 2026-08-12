@@ -237,6 +237,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<SupportTicket> SupportTickets => Set<SupportTicket>();
     public DbSet<SupportTicketReply> SupportTicketReplies => Set<SupportTicketReply>();
     public DbSet<PlatformJobOverride> PlatformJobOverrides => Set<PlatformJobOverride>();
+    public DbSet<PlatformCarrierReference> PlatformCarrierReferences => Set<PlatformCarrierReference>();
     public DbSet<PlatformBackup> PlatformBackups => Set<PlatformBackup>();
     public DbSet<CarrierBridgeConfig> CarrierBridgeConfigs => Set<CarrierBridgeConfig>();
     public DbSet<OverCommissionStatement> OverCommissionStatements => Set<OverCommissionStatement>();
@@ -337,6 +338,8 @@ public class AppDbContext : DbContext, IAppDbContext
         // Same story — seeder creates `platform_job_overrides`, EF pluralised
         // to `PlatformJobOverrides` and the daily backup job blew up on Linux.
         modelBuilder.Entity<PlatformJobOverride>().ToTable("platform_job_overrides");
+        modelBuilder.Entity<PlatformCarrierReference>().ToTable("platform_carrier_references")
+            .HasIndex(x => x.InsuranceCompanyId).IsUnique();
 
         modelBuilder.Entity<DesktopLicense>(entity =>
         {

@@ -13,6 +13,9 @@ import BuildIcon from "@mui/icons-material/Build";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ConstructionIcon from "@mui/icons-material/Construction";
 import SettingsSuggestIcon from "@mui/icons-material/SettingsSuggest";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
+import DownloadIcon from "@mui/icons-material/Download";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
@@ -59,6 +62,7 @@ export function PlatformCarriersPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [builder, setBuilder] = useState<CarrierRow | null>(null);
+  const [uploadingReferenceFor, setUploadingReferenceFor] = useState<CarrierRow | null>(null);
 
   const carriers = useQuery({
     queryKey: ["platform-carriers"],
@@ -215,6 +219,10 @@ export function PlatformCarriersPage() {
                       disabled={r.bridgeStatus === "Ready"}>
                       <BuildIcon fontSize="small" />
                     </IconButton>
+                    <IconButton size="small" title="Ανέβασμα οδηγού παραμετρικών"
+                      onClick={() => setUploadingReferenceFor(r)}>
+                      <UploadFileIcon fontSize="small" />
+                    </IconButton>
                     <IconButton size="small" title="Επεξεργασία"
                       onClick={() => setEditing({
                         id: r.id, name: r.name, code: r.code,
@@ -291,7 +299,110 @@ export function PlatformCarriersPage() {
           void qc.invalidateQueries({ queryKey: ["platform-carriers"] });
         }}
       />
+
+      <ReferenceUploadDialog
+        carrier={uploadingReferenceFor}
+        onClose={() => setUploadingReferenceFor(null)}
+        onDone={() => { setUploadingReferenceFor(null); setSuccess("Ο οδηγός παραμετρικών ανανεώθηκε."); }}
+      />
     </Box>
+  );
+}
+
+/**
+ * PlatformAdmin dialog for uploading / replacing / removing a carrier's
+ * «οδηγός παραμετρικών» reference file. Shows current meta if a reference
+ * already exists so admins can decide to replace or keep it.
+ */
+function ReferenceUploadDialog({ carrier, onClose, onDone }: {
+  carrier: CarrierRow | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const qc = useQueryClient();
+  const meta = useQuery({
+    queryKey: ["platform-carrier-reference-meta", carrier?.id],
+    queryFn: async () => {
+      if (!carrier) return null;
+      const res = await api.get<any>(`/platform/carriers/${carrier.id}/reference/meta`);
+      return res.data || null;
+    },
+    enabled: !!carrier,
+  });
+  const [file, setFile] = useState<File | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const upload$ = useMutation({
+    mutationFn: async () => {
+      if (!carrier || !file) return null;
+      const fd = new FormData();
+      fd.append("file", file);
+      return (await api.put(`/platform/carriers/${carrier.id}/reference`, fd, {
+        headers: { "Content-Type": "multipart/form-data" }
+      })).data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["platform-carrier-reference-meta"] });
+      setFile(null); onDone();
+    },
+    onError: (e: any) => setErr(extractErrorMessage(e)),
+  });
+  const del$ = useMutation({
+    mutationFn: async () => carrier ? api.delete(`/platform/carriers/${carrier.id}/reference`) : null,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["platform-carrier-reference-meta"] });
+      onDone();
+    },
+    onError: (e: any) => setErr(extractErrorMessage(e)),
+  });
+
+  return (
+    <Dialog open={!!carrier} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <MenuBookIcon color="primary" />
+          <span>Οδηγός παραμετρικών — {carrier?.name}</span>
+        </Stack>
+      </DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} mt={1}>
+          {err && <Alert severity="error" onClose={() => setErr(null)}>{err}</Alert>}
+          <Typography variant="body2" color="text.secondary">
+            Ανεβάστε το επίσημο αρχείο κωδικοποίησης (PDF ή XLSX) που συμβουλεύεται
+            το γραφείο κατά την αντιστοίχιση κωδικών. Όριο 16 MB. Ένα αρχείο ανά ασφαλιστική.
+          </Typography>
+          {meta.data && (
+            <Alert severity="info" action={
+              <Stack direction="row" spacing={0.5}>
+                <Button size="small" color="inherit" startIcon={<DownloadIcon />}
+                  onClick={() => {
+                    if (!carrier) return;
+                    // Trigger a browser download through the same URL.
+                    window.open(`/api/platform/carriers/${carrier.id}/reference/download`, "_blank");
+                  }}>Λήψη</Button>
+                <Button size="small" color="inherit" onClick={() => {
+                  if (confirm("Διαγραφή τρέχοντος οδηγού;")) del$.mutate();
+                }}>Διαγραφή</Button>
+              </Stack>
+            }>
+              Ήδη ανεβασμένο: <b>{meta.data.fileName}</b> — {Math.round(meta.data.sizeBytes / 1024)} KB
+            </Alert>
+          )}
+          <Button variant="outlined" component="label" startIcon={<UploadFileIcon />}>
+            {file ? `Επιλέχθηκε: ${file.name}` : "Επιλογή αρχείου"}
+            <input type="file" hidden accept=".pdf,.xlsx,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              onChange={e => setFile(e.target.files?.[0] ?? null)} />
+          </Button>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Κλείσιμο</Button>
+        <Button variant="contained" disabled={!file || upload$.isPending}
+          onClick={() => upload$.mutate()}>
+          {upload$.isPending ? <CircularProgress size={18} /> : "Ανέβασμα"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 

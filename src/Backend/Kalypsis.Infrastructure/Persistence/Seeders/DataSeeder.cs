@@ -1365,6 +1365,29 @@ public static class DataSeeder
                 UNIQUE KEY `UX_platform_job_overrides_JobKey` (`JobKey`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
 
+        // --- platform_carrier_references table ----------------------------
+        // Optional reference document («οδηγός παραμετρικών») per
+        // InsuranceCompany. Uploaded by PlatformAdmin, consulted by every
+        // signed-in agency operator from the bridge preview. LONGBLOB so a
+        // full PDF (few MB) fits. Unique index on InsuranceCompanyId means
+        // one reference per carrier — PUT is idempotent.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "platform_carrier_references",
+            createSql: @"CREATE TABLE IF NOT EXISTS `platform_carrier_references` (
+                `Id` char(36) NOT NULL,
+                `InsuranceCompanyId` char(36) NOT NULL,
+                `FileName` varchar(400) NOT NULL,
+                `MimeType` varchar(200) NOT NULL DEFAULT 'application/octet-stream',
+                `SizeBytes` bigint NOT NULL DEFAULT 0,
+                `ContentBytes` longblob NOT NULL,
+                `UpdatedByUserId` char(36) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_platform_carrier_references_CarrierId` (`InsuranceCompanyId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         // --- over_commission_statements table -----------------------------
         // Monthly over-commission actuals per (carrier, producer). Entered
         // manually from the carrier's πινάκιο or (later) auto-imported.

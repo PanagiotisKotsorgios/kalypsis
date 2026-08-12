@@ -117,6 +117,25 @@ public class PlatformJobOverride : BaseEntity
 }
 
 /// <summary>
+/// Optional «οδηγός παραμετρικών» reference file per InsuranceCompany —
+/// uploaded by the PlatformAdmin, consulted by every agency operator while
+/// resolving bridge codes. PDF renders inline in the floating viewer;
+/// other MIME types download only. One row per carrier (upserted on PUT).
+/// </summary>
+public class PlatformCarrierReference : BaseEntity
+{
+    public Guid InsuranceCompanyId { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public string MimeType { get; set; } = "application/octet-stream";
+    public long SizeBytes { get; set; }
+    /// <summary>Full file contents. LONGBLOB in MySQL — capped at 16 MB
+    /// application-side so we never blow the packet limit. Big enough for
+    /// carrier parametric xlsx / pdf references.</summary>
+    public byte[] ContentBytes { get; set; } = Array.Empty<byte>();
+    public Guid? UpdatedByUserId { get; set; }
+}
+
+/// <summary>
 /// Manifest row for a platform-wide backup archive. Distinct from
 /// <see cref="TenantBackup"/> (which is per-tenant) — this is the full DB
 /// dump the SuperAdmin creates. Scope indicates what's included: full,

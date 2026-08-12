@@ -19,10 +19,12 @@ import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import FolderZipIcon from "@mui/icons-material/FolderZip";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import AddIcon from "@mui/icons-material/Add";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
+import { CarrierReferenceViewer } from "../components/CarrierReferenceViewer";
 import { HelpHint } from "../components/HelpHint";
 import { NumberedPager } from "../components/TableToolbar";
 import { num } from "../utils/format";
@@ -132,6 +134,9 @@ export function CarrierBridgesPage() {
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [revealedIndex, setRevealedIndex] = useState(0);
   const [err, setErr] = useState<string | null>(null);
+  // Floating «Οδηγός παραμετρικών» viewer — opens by carrier id, stays
+  // draggable + minimisable while the operator resolves mappings.
+  const [referenceCarrierId, setReferenceCarrierId] = useState<string | null>(null);
   const [committed, setCommitted] = useState<{
     created: number; skipped: number; failed: number;
     lifecycles: number; financialMovements: number; documentWarnings: number;
@@ -170,6 +175,11 @@ export function CarrierBridgesPage() {
   });
   const companyLink = (companyMappings.data ?? []).find(m => !!m.targetInsuranceCompanyId);
   const [linkCarrierOpen, setLinkCarrierOpen] = useState(false);
+  // Carrier id the reference viewer should open — prefer the operator's
+  // linked in-house carrier so uploaded references stay per-broker even
+  // when a bridge points at multiple sub-carriers.
+  const effectiveCarrierIdForViewer =
+    companyLink?.targetInsuranceCompanyId ?? selected?.insuranceCompanyId ?? null;
 
   // Undo a mis-picked carrier link. Deletes the BridgeCodeMapping row,
   // which triggers the useEffect below to re-open LinkCarrierDialog on
@@ -822,6 +832,19 @@ export function CarrierBridgesPage() {
                       : `Όλες οι αντιστοιχίσεις έτοιμες — ${total}`}
                   </Typography>
                   <Box sx={{ flex: 1 }} />
+                  {/* Opens the floating «Οδηγός παραμετρικών» viewer for
+                      this carrier so the operator can consult the carrier's
+                      code list while resolving. Button is always visible;
+                      the viewer itself shows a friendly empty state if the
+                      PlatformAdmin hasn't uploaded a reference yet. */}
+                  <Button
+                    size="small" variant="outlined" color="primary"
+                    startIcon={<MenuBookIcon />}
+                    onClick={() => setReferenceCarrierId(effectiveCarrierIdForViewer)}
+                    disabled={!effectiveCarrierIdForViewer}
+                  >
+                    Οδηγός παραμετρικών
+                  </Button>
                   <Button
                     size="small" variant="outlined"
                     onClick={() => setBulkPanelOpen(v => !v)}
@@ -1028,6 +1051,13 @@ export function CarrierBridgesPage() {
         producers={producers.data ?? []}
         unmapKey={unmapKey}
         isResolved={isResolved}
+      />
+      {/* Floating «Οδηγός παραμετρικών» — mounted once, opens by carrier id,
+          survives navigation inside the same page. */}
+      <CarrierReferenceViewer
+        carrierId={referenceCarrierId}
+        carrierName={selected?.name}
+        onClose={() => setReferenceCarrierId(null)}
       />
     </Box>
   );

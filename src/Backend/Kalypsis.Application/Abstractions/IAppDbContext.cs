@@ -262,6 +262,7 @@ public interface IAppDbContext
     DbSet<SupportTicket> SupportTickets { get; }
     DbSet<SupportTicketReply> SupportTicketReplies { get; }
     DbSet<PlatformJobOverride> PlatformJobOverrides { get; }
+    DbSet<PlatformCarrierReference> PlatformCarrierReferences { get; }
     DbSet<PlatformBackup> PlatformBackups { get; }
     DbSet<CarrierBridgeConfig> CarrierBridgeConfigs { get; }
     DbSet<OverCommissionStatement> OverCommissionStatements { get; }
