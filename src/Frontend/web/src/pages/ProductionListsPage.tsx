@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, MenuItem,
-  Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow,
+  TextField, Typography
 } from "@mui/material";
 import StackedBarChartIcon from "@mui/icons-material/StackedBarChart";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
@@ -185,6 +186,13 @@ export function ProductionListsPage() {
   // than round-tripping to the backend for every column tick.
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  // Pagination — the report can return hundreds of rows on a full-year
+  // window; slicing client-side keeps the table snappy.
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+  // Reset to the first page whenever the underlying result set changes
+  // (new filters, new group-by) so we don't land on an empty tail page.
+  useEffect(() => { setPage(0); }, [q.data?.rows.length, f]);
   const visibleColumns = columns.filter(c => selection.activeKeys.includes(c.key));
 
   const headerMenu = useHeaderContextMenu({
@@ -491,24 +499,28 @@ export function ProductionListsPage() {
                   </TableRow>
                 )}
                 {(() => {
-                  if (!sortKey) return q.data.rows;
-                  const col = columns.find(c => c.key === sortKey);
-                  if (!col) return q.data.rows;
-                  const type = inferColumnType(sortKey);
-                  const sorted = q.data.rows.slice();
-                  sorted.sort((a, b) => {
-                    const va: string = col.text(a) ?? "";
-                    const vb: string = col.text(b) ?? "";
-                    let cmp = 0;
-                    if (type === "number") {
-                      const parse = (s: string) => Number.parseFloat(s.replace(/[^\d.\-]/g, "")) || 0;
-                      cmp = parse(va) - parse(vb);
-                    } else {
-                      cmp = va.localeCompare(vb, "el");
-                    }
-                    return sortDir === "asc" ? cmp : -cmp;
-                  });
-                  return sorted;
+                  const sorted = (() => {
+                    if (!sortKey) return q.data.rows;
+                    const col = columns.find(c => c.key === sortKey);
+                    if (!col) return q.data.rows;
+                    const type = inferColumnType(sortKey);
+                    const arr = q.data.rows.slice();
+                    arr.sort((a, b) => {
+                      const va: string = col.text(a) ?? "";
+                      const vb: string = col.text(b) ?? "";
+                      let cmp = 0;
+                      if (type === "number") {
+                        const parse = (s: string) => Number.parseFloat(s.replace(/[^\d.\-]/g, "")) || 0;
+                        cmp = parse(va) - parse(vb);
+                      } else {
+                        cmp = va.localeCompare(vb, "el");
+                      }
+                      return sortDir === "asc" ? cmp : -cmp;
+                    });
+                    return arr;
+                  })();
+                  const start = page * rowsPerPage;
+                  return sorted.slice(start, start + rowsPerPage);
                 })().map(r => (
                   <TableRow key={r.policyId} hover>
                     {visibleColumns.map(c => (
@@ -518,6 +530,17 @@ export function ProductionListsPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination
+              component="div"
+              count={q.data.rows.length}
+              page={page}
+              onPageChange={(_e, p) => setPage(p)}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+              rowsPerPageOptions={[10, 25, 50, 100, 250]}
+              labelRowsPerPage="Γραμμές ανά σελίδα"
+              labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+            />
           </Card>
           {headerMenu.menu}
 

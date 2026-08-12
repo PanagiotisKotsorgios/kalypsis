@@ -32,7 +32,6 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import { IconButton, Tooltip } from "@mui/material";
-import { ExportButton } from "../components/ExportButton";
 import SearchIcon from "@mui/icons-material/Search";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -205,7 +204,8 @@ export function CustomersPage() {
           <HelpHint id="page.customers" />
         </Stack>
         <Stack direction="row" spacing={1}>
-          <Box data-tour="customers-export"><ExportButton href="/api/exports/customers.csv" /></Box>
+          {/* Export handled by the TableToolbar dropdown below — the old
+              header ExportButton was a duplicate CSV-only shortcut. */}
           <Button data-tour="customers-new" startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setOpen(true); }}>
             {t("customers.create")}
           </Button>
@@ -385,7 +385,8 @@ export function CustomersPage() {
             </Table>
           </TableContainer>
           <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} />
+            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage}
+              totalRows={table.filtered.length} pageSize={table.pageSize} />
           </Box>
         </Card>
       )}

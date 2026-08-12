@@ -274,7 +274,7 @@ export function ReceiptsPage() {
             </TableBody>
           </Table>
           <Box sx={{ display: "flex", justifyContent: "center", py: 1.5 }}>
-            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} />
+            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} totalRows={table.filtered.length} pageSize={table.pageSize} />
           </Box>
         </Card>
       )}

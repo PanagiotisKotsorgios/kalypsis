@@ -292,7 +292,7 @@ export function ProducersPage() {
             </Table>
           </TableContainer>
           <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} />
+            <NumberedPager page={table.page} totalPages={table.totalPages} onPage={table.setPage} totalRows={table.filtered.length} pageSize={table.pageSize} />
           </Box>
         </Card>
       )}

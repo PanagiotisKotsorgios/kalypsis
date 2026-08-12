@@ -6,24 +6,28 @@ import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import FirstPageIcon from "@mui/icons-material/FirstPage";
 import LastPageIcon from "@mui/icons-material/LastPage";
-import GridOnIcon from "@mui/icons-material/GridOn";
-import TableChartIcon from "@mui/icons-material/TableChart";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import PrintIcon from "@mui/icons-material/Print";
 import { useTranslation } from "react-i18next";
 import * as XLSX from "xlsx";
 import { api } from "../api/client";
 import { printTable } from "../utils/printableTable";
 import { ExportColumnPicker, useExportColumnSelection, type ExportColumnDescriptor } from "./ExportColumnPicker";
+import { ExportFormatMenu, type ExportFormat } from "./ExportFormatMenu";
 
 /* ============================================================================
    Numbered pager — renders 1, 2, … current ±2, … last, with prev/next/jumpers.
    ========================================================================= */
-export function NumberedPager({ page, totalPages, onPage }: {
+export function NumberedPager({ page, totalPages, onPage, totalRows, pageSize }: {
   page: number; totalPages: number; onPage: (p: number) => void;
+  /** Optional metadata — when both are supplied we show «1–25 από 137». */
+  totalRows?: number;
+  pageSize?: number;
 }) {
   const { t } = useTranslation();
-  if (totalPages <= 1) return null;
+
+  // Always render — even a single-page result gets a «1–17 από 17» count
+  // line so pagination looks and behaves consistently across every list
+  // in the app. Nav buttons are just disabled when there's nowhere to go.
 
   // Compute compact page list with ellipses.
   const pages = new Set<number>([1, totalPages, page]);
@@ -40,12 +44,26 @@ export function NumberedPager({ page, totalPages, onPage }: {
     last = p;
   }
 
+  const rangeLabel = (totalRows !== undefined && pageSize !== undefined)
+    ? (() => {
+        if (totalRows === 0) return "0 από 0";
+        const from = (page - 1) * pageSize + 1;
+        const to = Math.min(page * pageSize, totalRows);
+        return `${from}–${to} από ${totalRows}`;
+      })()
+    : null;
+
   return (
     <Stack direction="row" alignItems="center" spacing={0.5} flexWrap="wrap">
-      <IconButton size="small" disabled={page === 1} onClick={() => onPage(1)} title={t("pager.first")}>
+      {rangeLabel && (
+        <Typography variant="body2" color="text.secondary" sx={{ mr: 1, fontVariantNumeric: "tabular-nums" }}>
+          {rangeLabel}
+        </Typography>
+      )}
+      <IconButton size="small" disabled={page <= 1} onClick={() => onPage(1)} title={t("pager.first")}>
         <FirstPageIcon fontSize="small" />
       </IconButton>
-      <IconButton size="small" disabled={page === 1} onClick={() => onPage(page - 1)} title={t("pager.prev")}>
+      <IconButton size="small" disabled={page <= 1} onClick={() => onPage(page - 1)} title={t("pager.prev")}>
         <ChevronLeftIcon fontSize="small" />
       </IconButton>
       {items.map((it, i) =>
@@ -58,10 +76,10 @@ export function NumberedPager({ page, totalPages, onPage }: {
               {it}
             </Button>
       )}
-      <IconButton size="small" disabled={page === totalPages} onClick={() => onPage(page + 1)} title={t("pager.next")}>
+      <IconButton size="small" disabled={page >= totalPages} onClick={() => onPage(page + 1)} title={t("pager.next")}>
         <ChevronRightIcon fontSize="small" />
       </IconButton>
-      <IconButton size="small" disabled={page === totalPages} onClick={() => onPage(totalPages)} title={t("pager.last")}>
+      <IconButton size="small" disabled={page >= totalPages} onClick={() => onPage(totalPages)} title={t("pager.last")}>
         <LastPageIcon fontSize="small" />
       </IconButton>
     </Stack>
@@ -275,11 +293,16 @@ export function TableToolbar<T>({
             reset={selection.reset}
           />
         )}
-        <Button size="small" variant="outlined" startIcon={<TableChartIcon />} onClick={downloadCsv}>CSV</Button>
-        <Button size="small" variant="outlined" startIcon={<GridOnIcon />} onClick={downloadXlsx}>Excel</Button>
-        {serverEntity && (
-          <Button size="small" variant="outlined" color="error" startIcon={<PictureAsPdfIcon />} onClick={downloadPdf}>PDF</Button>
-        )}
+        {/* Consolidated CSV / Excel / PDF selector. PDF is server-side only,
+            so it appears in the menu only when a serverEntity is configured. */}
+        <ExportFormatMenu
+          formats={serverEntity ? ["csv", "xlsx", "pdf"] : ["csv", "xlsx"]}
+          onExport={(fmt: ExportFormat) => {
+            if (fmt === "csv") downloadCsv();
+            else if (fmt === "xlsx") downloadXlsx();
+            else downloadPdf();
+          }}
+        />
         <Button size="small" variant="outlined" startIcon={<PrintIcon />} onClick={openPrint}>
           {t("common.print", "Εκτύπωση")}
         </Button>
