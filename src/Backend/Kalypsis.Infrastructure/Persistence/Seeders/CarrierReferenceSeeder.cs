@@ -33,9 +33,13 @@ public static class CarrierReferenceSeeder
                 CarrierMatches: k => k.Contains("ERGO")
             ),
             new SeedEntry(
-                ResourceSuffix: "grand-cover-reference.xlsx",
-                MimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                DisplayName: "Grand Cover Παραμετρικά Αρχεία.xlsx",
+                // Rendered from Παραμετρικά_Αρχεία_IW.xlsx via xlsx2pdf.py so
+                // the viewer iframes it inline like the ERGO reference, one
+                // sheet per landscape A4 page. Regenerate + drop back into
+                // Resources whenever the source xlsx changes.
+                ResourceSuffix: "grand-cover-reference.pdf",
+                MimeType: "application/pdf",
+                DisplayName: "Grand Cover Παραμετρικά Αρχεία.pdf",
                 CarrierMatches: k => k.Contains("GRAND COVER") || k.Contains("GRANDCOVER") || k.Contains("IW")
             ),
         };
