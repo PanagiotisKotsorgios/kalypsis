@@ -79,7 +79,54 @@ public class PlatformCarrierReferencesController : ControllerBase
                 if (row is not null) return row;
             }
         }
+
+        // Fallback 3: fuzzy name overlap against every carrier that has a
+        // reference uploaded. Small set (usually < 20), safe to scan.
+        // Handles the «Grand Cover (IW)» vs «GRAND_COVER» family cases and
+        // works even if the operator's tenant carrier has a slightly renamed
+        // twin ("ERGO HELLAS" vs "ERGO"). Matches when either name contains
+        // a >=4-char token from the other (whole-word slot).
+        if (!string.IsNullOrWhiteSpace(carrier.Name))
+        {
+            var mine = Normalise(carrier.Name);
+            var candidates = await (from r in _db.PlatformCarrierReferences.IgnoreQueryFilters()
+                                    where r.DeletedAt == null
+                                    join c in _db.InsuranceCompanies.IgnoreQueryFilters()
+                                       on r.InsuranceCompanyId equals c.Id
+                                    where c.DeletedAt == null
+                                    select new { Ref = r, TheirName = c.Name, TheirCode = c.Code })
+                                    .ToListAsync(ct);
+            foreach (var cand in candidates)
+            {
+                if (NameOverlap(mine, Normalise(cand.TheirName ?? "")))
+                    return cand.Ref;
+                if (!string.IsNullOrWhiteSpace(cand.TheirCode)
+                    && NameOverlap(mine, Normalise(cand.TheirCode)))
+                    return cand.Ref;
+            }
+        }
         return null;
+    }
+
+    /// <summary>Strip punctuation + collapse whitespace + uppercase so
+    /// «Grand Cover (IW)» and «GRAND COVER IW» compare equal.</summary>
+    private static string Normalise(string s) => new string(
+        (s ?? "").ToUpperInvariant()
+            .Select(ch => char.IsLetterOrDigit(ch) ? ch : ' ')
+            .ToArray())
+        .Trim();
+
+    /// <summary>Any 4+ char whole token appearing in both strings counts as
+    /// overlap — "GRAND COVER IW" vs "GRAND_COVER" share "GRAND" and "COVER".</summary>
+    private static bool NameOverlap(string a, string b)
+    {
+        if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b)) return false;
+        var aTokens = a.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(t => t.Length >= 4).ToHashSet();
+        if (aTokens.Count == 0) return false;
+        var bTokens = b.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(t => t.Length >= 4).ToHashSet();
+        return aTokens.Overlaps(bTokens);
     }
 
     /// <summary>Metadata only — cheap to poll from the preview page to
