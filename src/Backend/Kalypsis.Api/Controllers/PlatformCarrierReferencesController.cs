@@ -32,19 +32,67 @@ public class PlatformCarrierReferencesController : ControllerBase
         Guid Id, Guid InsuranceCompanyId, string FileName, string MimeType,
         long SizeBytes, DateTime? UpdatedAt);
 
+    /// <summary>
+    /// Resolve which carrier's reference to serve for an incoming id.
+    /// Handles the tenant-copy vs global-catalog mismatch: the PlatformAdmin
+    /// uploaded against the global «Ασφαλιστικές (Platform)» row, but the
+    /// operator's bridge preview passes the tenant-owned copy's id. Walk
+    /// three fallbacks:
+    ///   1. exact id
+    ///   2. this carrier's ParentCompanyId (broker → parent)
+    ///   3. global-catalog carrier with the same Code (case-insensitive)
+    /// Returns the target reference row or null.
+    /// </summary>
+    private async Task<PlatformCarrierReference?> ResolveReferenceAsync(Guid carrierId, CancellationToken ct)
+    {
+        var row = await _db.PlatformCarrierReferences.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(r => r.InsuranceCompanyId == carrierId && r.DeletedAt == null, ct);
+        if (row is not null) return row;
+
+        // Fallback 1: parent carrier (sub-carrier under a broker → look at broker's ref)
+        var carrier = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.Id == carrierId && c.DeletedAt == null, ct);
+        if (carrier is null) return null;
+
+        if (carrier.ParentCompanyId is Guid parentId)
+        {
+            row = await _db.PlatformCarrierReferences.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(r => r.InsuranceCompanyId == parentId && r.DeletedAt == null, ct);
+            if (row is not null) return row;
+        }
+
+        // Fallback 2: any global-catalog (TenantId=null) carrier with the same Code.
+        // Catches the common case where the operator's tile is the tenant-owned
+        // copy but the PlatformAdmin uploaded against the identical-code global row.
+        if (!string.IsNullOrWhiteSpace(carrier.Code))
+        {
+            var code = carrier.Code;
+            var globalId = await _db.InsuranceCompanies.IgnoreQueryFilters()
+                .Where(c => c.TenantId == null && c.DeletedAt == null
+                    && c.Code == code && c.Id != carrierId)
+                .Select(c => (Guid?)c.Id)
+                .FirstOrDefaultAsync(ct);
+            if (globalId is Guid gid)
+            {
+                row = await _db.PlatformCarrierReferences.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(r => r.InsuranceCompanyId == gid && r.DeletedAt == null, ct);
+                if (row is not null) return row;
+            }
+        }
+        return null;
+    }
+
     /// <summary>Metadata only — cheap to poll from the preview page to
     /// decide whether to show the «Οδηγός» button.</summary>
     [HttpGet("meta")]
     [Authorize(Policy = "AgencyStaff")]
     public async Task<ActionResult<ReferenceMetaDto?>> GetMeta(Guid carrierId, CancellationToken ct)
     {
-        var row = await _db.PlatformCarrierReferences.IgnoreQueryFilters()
-            .Where(r => r.InsuranceCompanyId == carrierId && r.DeletedAt == null)
-            .Select(r => new ReferenceMetaDto(
-                r.Id, r.InsuranceCompanyId, r.FileName, r.MimeType, r.SizeBytes,
-                r.UpdatedAt ?? r.CreatedAt))
-            .FirstOrDefaultAsync(ct);
-        return row is null ? NoContent() : Ok(row);
+        var row = await ResolveReferenceAsync(carrierId, ct);
+        if (row is null) return NoContent();
+        return Ok(new ReferenceMetaDto(
+            row.Id, row.InsuranceCompanyId, row.FileName, row.MimeType, row.SizeBytes,
+            row.UpdatedAt ?? row.CreatedAt));
     }
 
     /// <summary>Serves the file inline — browsers with a native PDF viewer
@@ -54,8 +102,7 @@ public class PlatformCarrierReferencesController : ControllerBase
     [Authorize(Policy = "AgencyStaff")]
     public async Task<IActionResult> Download(Guid carrierId, CancellationToken ct)
     {
-        var row = await _db.PlatformCarrierReferences.IgnoreQueryFilters()
-            .FirstOrDefaultAsync(r => r.InsuranceCompanyId == carrierId && r.DeletedAt == null, ct);
+        var row = await ResolveReferenceAsync(carrierId, ct);
         if (row is null) return NotFound();
         // Content-Disposition: inline so the browser tries to preview (PDF)
         // and falls back to a Save-As on unsupported MIME types (xlsx).
