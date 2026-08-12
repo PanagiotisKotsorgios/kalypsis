@@ -2522,7 +2522,12 @@ public record PendingBridgeMapping(
     string? CreateParametricParentCode = null,
     // Producer-kind inline creation
     string? CreateProducerCode = null,
-    string? CreateProducerName = null);
+    string? CreateProducerName = null,
+    // Company-kind inline creation — for broker sub-carriers (Grand Cover,
+    // ΑΤΛΑΝΤΙΚΗ) that arrive as raw codes without a standalone entry in
+    // the carrier catalogue. Parented under the source carrier automatically.
+    string? CreateCompanyCode = null,
+    string? CreateCompanyName = null);
 
 public record CompanyBridgeRunSummary(
     Guid RunId,
@@ -3303,6 +3308,7 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
         // we've been debugging. Same shape for parametric codes.
         var producerCache = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
         var parametricCache = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        var companyCache = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var p in pending)
         {
@@ -3311,6 +3317,81 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
             Guid? targetParamId = p.TargetParameterItemId;
             Guid? targetCompanyId = p.TargetInsuranceCompanyId;
             Guid? targetProducerId = p.TargetProducerId;
+
+            // Company-kind inline create — broker sub-carriers arriving as
+            // raw codes (Grand Cover ships "15" / "17" / "26" for its
+            // partner-list companies). We materialise them as a tenant-scoped
+            // InsuranceCompany parented under the source carrier (which IS
+            // the broker) so downstream matching, financials + reports keep
+            // the hierarchy the operator expects.
+            if (p.Kind == BridgeMappingKind.Company
+                && !targetCompanyId.HasValue
+                && !string.IsNullOrWhiteSpace(p.CreateCompanyName))
+            {
+                var rawSubCode = (p.CreateCompanyCode ?? p.RawCode).Trim().ToUpperInvariant();
+                var subName = p.CreateCompanyName.Trim();
+                if (companyCache.TryGetValue(rawSubCode, out var cachedCompanyId))
+                {
+                    targetCompanyId = cachedCompanyId;
+                }
+                else
+                {
+                    // Uniqueness key: (tenant, code, parent). Look including
+                    // soft-deleted to resurrect a twin if the operator once
+                    // removed the sub-carrier and it's coming back.
+                    var existingC = await _db.InsuranceCompanies.IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(x => x.TenantId == tenantId
+                            && x.Code == rawSubCode
+                            && x.ParentCompanyId == carrier.Id, ct);
+                    if (existingC is not null)
+                    {
+                        if (existingC.DeletedAt is not null)
+                        {
+                            existingC.DeletedAt = null;
+                            existingC.UpdatedAt = now;
+                            await _db.SaveChangesAsync(ct);
+                        }
+                        targetCompanyId = existingC.Id;
+                    }
+                    else
+                    {
+                        var sub = new InsuranceCompany
+                        {
+                            Id = Guid.NewGuid(),
+                            TenantId = tenantId,
+                            Code = rawSubCode,
+                            Name = subName,
+                            ParentCompanyId = carrier.Id,
+                            IsBroker = false,
+                            IsActive = true,
+                            CreatedAt = now,
+                        };
+                        _db.InsuranceCompanies.Add(sub);
+                        try
+                        {
+                            await _db.SaveChangesAsync(ct);
+                            targetCompanyId = sub.Id;
+                        }
+                        catch (DbUpdateException)
+                        {
+                            ((DbContext)_db).Entry(sub).State = EntityState.Detached;
+                            var winner = await _db.InsuranceCompanies.IgnoreQueryFilters()
+                                .FirstOrDefaultAsync(x => x.TenantId == tenantId
+                                    && x.Code == rawSubCode
+                                    && x.ParentCompanyId == carrier.Id, ct);
+                            if (winner is null) throw;
+                            if (winner.DeletedAt is not null)
+                            {
+                                winner.DeletedAt = null;
+                                winner.UpdatedAt = now;
+                                await _db.SaveChangesAsync(ct);
+                            }
+                            targetCompanyId = winner.Id;
+                        }
+                    }
+                    companyCache[rawSubCode] = targetCompanyId!.Value;
+                }
+            }
 
             // Producer-kind mapping. Same inline-create dance as parametrics
             // but against the Producer table. Once persisted, every import

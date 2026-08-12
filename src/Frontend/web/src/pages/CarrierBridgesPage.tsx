@@ -74,6 +74,11 @@ interface MappingResolution {
   createParametricName?: string;
   createProducerCode?: string;
   createProducerName?: string;
+  // Inline-create for a NEW child insurance company when the source
+  // carrier is a broker (Grand Cover ships sub-companies as codes
+  // like "15", "17", "26" that don't exist standalone).
+  createCompanyName?: string;
+  createCompanyCode?: string;
 }
 /** Company-parametric row as returned by /api/company-parameters. */
 interface CompanyParameterItemLite {
@@ -237,7 +242,8 @@ export function CarrierBridgesPage() {
   const unmapKey = (u: UnmappedCode) => `${u.kind}|${u.rawCode}`;
   const isResolved = (u: UnmappedCode) => {
     const r = resolutions[unmapKey(u)] ?? {};
-    if (u.kind === "Company") return !!r.targetInsuranceCompanyId;
+    if (u.kind === "Company") return !!r.targetInsuranceCompanyId
+      || !!r.createCompanyName?.trim();
     if (u.kind === "Producer")
       return !!r.targetProducerId
         || (!!r.createProducerCode?.trim() && !!r.createProducerName?.trim());
@@ -283,6 +289,8 @@ export function CarrierBridgesPage() {
           createParametricName: r.createParametricName?.trim() || null,
           createProducerCode: r.createProducerCode?.trim() || null,
           createProducerName: r.createProducerName?.trim() || null,
+          createCompanyName: r.createCompanyName?.trim() || null,
+          createCompanyCode: r.createCompanyCode?.trim() || null,
         };
       });
       const effectiveCarrierId = companyLink?.targetInsuranceCompanyId ?? selected!.insuranceCompanyId;
@@ -1576,14 +1584,40 @@ function UnmappedCodesPanel({ unmapped, resolutions, onChange, parametrics, para
                 <Chip size="small" variant="outlined" label={`${u.occurrences}×`} />
                 <Box sx={{ flex: 1 }}>
                   {u.kind === "Company" ? (
-                    <Autocomplete
-                      size="small"
-                      options={insuranceCompanies}
-                      getOptionLabel={o => `${o.name} · ${o.code}`}
-                      value={insuranceCompanies.find(c => c.id === r.targetInsuranceCompanyId) ?? null}
-                      onChange={(_, v) => patch(key, { ...r, targetInsuranceCompanyId: v?.id ?? undefined, targetParameterItemId: undefined })}
-                      renderInput={params => <TextField {...params} label="Αντιστοίχιση σε ασφαλιστική" />}
-                    />
+                    <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
+                      <Autocomplete
+                        sx={{ flex: 1 }}
+                        size="small"
+                        options={insuranceCompanies}
+                        getOptionLabel={o => `${o.name} · ${o.code}`}
+                        value={insuranceCompanies.find(c => c.id === r.targetInsuranceCompanyId) ?? null}
+                        onChange={(_, v) => patch(key, {
+                          ...r,
+                          targetInsuranceCompanyId: v?.id ?? undefined,
+                          targetParameterItemId: undefined,
+                          createCompanyName: v ? undefined : r.createCompanyName,
+                          createCompanyCode: v ? undefined : r.createCompanyCode,
+                        })}
+                        renderInput={params => <TextField {...params} label="Αντιστοίχιση σε ασφαλιστική" />}
+                      />
+                      {/* Inline-create for broker sub-carriers — Grand Cover
+                          ships codes «15» / «17» / «26» that aren't in the
+                          catalogue standalone. New rows get parented under
+                          the source broker (auto-detected from context). */}
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="caption" color="text.secondary">ή νέα →</Typography>
+                        <TextField
+                          size="small" label="Κωδικός" sx={{ width: 110 }}
+                          value={r.createCompanyCode ?? ""}
+                          onChange={e => patch(key, { ...r, createCompanyCode: e.target.value.toUpperCase(), targetInsuranceCompanyId: undefined })}
+                        />
+                        <TextField
+                          size="small" label="Ονομασία" sx={{ minWidth: 200 }}
+                          value={r.createCompanyName ?? ""}
+                          onChange={e => patch(key, { ...r, createCompanyName: e.target.value, targetInsuranceCompanyId: undefined })}
+                        />
+                      </Stack>
+                    </Stack>
                   ) : u.kind === "Producer" ? (
                     <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
                       <Autocomplete
