@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Box, Chip, IconButton, Stack, Tooltip, Typography, LinearProgress, Alert
+  Box, Chip, IconButton, Stack, Tab, Tabs, Tooltip, Typography, LinearProgress, Alert
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import MinimizeIcon from "@mui/icons-material/Remove";
@@ -8,6 +8,7 @@ import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import DownloadIcon from "@mui/icons-material/Download";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
+import * as XLSX from "xlsx";
 import { api } from "../api/client";
 
 /**
@@ -43,8 +44,13 @@ export function CarrierReferenceViewer({ carrierId, carrierName, onClose }: Prop
   const [minimised, setMinimised] = useState(false);
   const [maximised, setMaximised] = useState(false);
   const [pos, setPos] = useState({ x: 40, y: 80 });
-  const [size] = useState({ w: 760, h: 620 });
+  const [size] = useState({ w: 900, h: 680 });
   const dragging = useRef<{ dx: number; dy: number } | null>(null);
+  // xlsx sheets — parsed client-side via SheetJS. Each sheet renders as
+  // an <table> HTML string so the operator can browse it inline instead
+  // of downloading + opening Excel externally.
+  const [sheets, setSheets] = useState<Array<{ name: string; html: string }>>([]);
+  const [activeSheet, setActiveSheet] = useState(0);
 
   // Fetch meta whenever the carrier changes; only fetch bytes when the
   // pane is actually open (not minimised) to keep memory small.
@@ -52,6 +58,7 @@ export function CarrierReferenceViewer({ carrierId, carrierName, onClose }: Prop
     if (!carrierId) return;
     let alive = true;
     setLoading(true); setErr(null); setMeta(null); setBlobUrl(null);
+    setSheets([]); setActiveSheet(0);
     (async () => {
       try {
         const res = await api.get<CarrierReferenceMeta | ''>(
@@ -66,6 +73,23 @@ export function CarrierReferenceViewer({ carrierId, carrierName, onClose }: Prop
         if (!alive) return;
         const url = URL.createObjectURL(blob.data);
         setBlobUrl(url);
+        // Detect xlsx and parse inline so operators can browse without
+        // leaving the app. SheetJS is already in the bundle for
+        // Over-Commission grid + table-export flows.
+        const isXlsxLocal = (res.data.mimeType.toLowerCase().includes("spreadsheet"))
+          || res.data.fileName.toLowerCase().endsWith(".xlsx");
+        if (isXlsxLocal) {
+          try {
+            const buf = await blob.data.arrayBuffer();
+            if (!alive) return;
+            const wb = XLSX.read(new Uint8Array(buf), { type: "array" });
+            const parsed = wb.SheetNames.map(name => ({
+              name,
+              html: XLSX.utils.sheet_to_html(wb.Sheets[name], { editable: false }),
+            }));
+            if (alive) setSheets(parsed);
+          } catch { /* keep the download-only fallback if parse fails */ }
+        }
       } catch (e: any) {
         if (alive) setErr(e?.message ?? "Αδυναμία φόρτωσης οδηγού.");
       } finally {
@@ -188,6 +212,38 @@ export function CarrierReferenceViewer({ carrierId, carrierName, onClose }: Prop
             isPdf ? (
               <iframe src={blobUrl} title="Οδηγός παραμετρικών"
                 style={{ border: 0, width: "100%", height: "100%" }} />
+            ) : sheets.length > 0 ? (
+              /* xlsx rendered inline via SheetJS — sheet tabs on top,
+                 scrollable html-table body below. Injected via
+                 dangerouslySetInnerHTML because sheet_to_html emits a
+                 fully-formed <table> string; the content came from a
+                 platform-admin-uploaded file so we trust it. */
+              <Stack sx={{ height: "100%" }}>
+                {sheets.length > 1 && (
+                  <Tabs
+                    value={activeSheet}
+                    onChange={(_, v) => setActiveSheet(v)}
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    sx={{ minHeight: 36, borderBottom: 1, borderColor: "divider",
+                      bgcolor: "background.paper",
+                      "& .MuiTab-root": { minHeight: 36, py: 0.5, fontSize: 12 } }}
+                  >
+                    {sheets.map((s, i) => (
+                      <Tab key={i} label={s.name} />
+                    ))}
+                  </Tabs>
+                )}
+                <Box sx={{
+                  flex: 1, overflow: "auto", p: 1, bgcolor: "background.paper",
+                  "& table": { borderCollapse: "collapse", fontSize: 12 },
+                  "& td, & th": { border: "1px solid #ddd", padding: "4px 8px",
+                    whiteSpace: "nowrap" },
+                  "& th": { bgcolor: "rgba(11,37,69,0.08)", fontWeight: 700 },
+                  "& tr:nth-of-type(even) td": { bgcolor: "rgba(255,244,196,0.30)" },
+                }}
+                  dangerouslySetInnerHTML={{ __html: sheets[activeSheet]?.html ?? "" }} />
+              </Stack>
             ) : (
               <Stack alignItems="center" spacing={1.5} sx={{ p: 4, textAlign: "center" }}>
                 <Typography variant="h6">{meta.fileName}</Typography>
