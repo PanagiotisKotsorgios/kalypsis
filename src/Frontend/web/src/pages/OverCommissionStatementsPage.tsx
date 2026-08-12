@@ -311,60 +311,66 @@ export function OverCommissionStatementsPage() {
         );
       })()}
 
-      {/* Filters */}
-      <Card sx={{ p: 2, mb: 2 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }}>
-          <TextField type="number" size="small" label="Έτος" value={year}
-            onChange={(e) => setYear(Number(e.target.value) || year)}
-            sx={{ width: 110 }} />
-          <TextField select size="small" label="Μήνας" value={month}
-            onChange={(e) => setMonth(e.target.value === "" ? "" : Number(e.target.value))}
-            sx={{ minWidth: 160 }}>
+      {/* Filters — dense 4-col grid, ~2 lines on desktop (9 controls +
+          clear + counter). Exports moved to their own row above so the
+          filter bar stays a single visual block. */}
+      <Stack direction="row" spacing={1} justifyContent="flex-end" mb={1}>
+        <Button size="small" variant="outlined" onClick={() => exportRows("csv")}>Εξαγωγή CSV</Button>
+        <Button size="small" variant="outlined" onClick={() => exportRows("xlsx")}>Εξαγωγή XLSX</Button>
+        <Button size="small" variant="outlined" onClick={() => exportRows("print")}>🖨 Εκτύπωση</Button>
+      </Stack>
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Box sx={{
+          display: "grid",
+          gap: 1,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+          alignItems: "center",
+        }}>
+          <TextField type="number" size="small" label="Έτος" fullWidth value={year}
+            onChange={(e) => setYear(Number(e.target.value) || year)} />
+          <TextField select size="small" label="Μήνας" fullWidth value={month}
+            onChange={(e) => setMonth(e.target.value === "" ? "" : Number(e.target.value))}>
             <MenuItem value="">Όλοι</MenuItem>
             {MONTHS.map(m => <MenuItem key={m.v} value={m.v}>{m.n}</MenuItem>)}
           </TextField>
-          <TextField select size="small" label="Ασφαλιστική" value={carrierFilter}
-            onChange={(e) => setCarrierFilter(e.target.value)} sx={{ minWidth: 220 }}>
+          <TextField select size="small" label="Ασφαλιστική" fullWidth value={carrierFilter}
+            onChange={(e) => setCarrierFilter(e.target.value)}>
             <MenuItem value="">Όλες</MenuItem>
             {(carriersQ.data ?? []).map(c => (
               <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
             ))}
           </TextField>
-          <TextField select size="small" label="Παραγωγός" value={producerFilter}
-            onChange={(e) => setProducerFilter(e.target.value)} sx={{ minWidth: 240 }}>
+          <TextField select size="small" label="Παραγωγός" fullWidth value={producerFilter}
+            onChange={(e) => setProducerFilter(e.target.value)}>
             <MenuItem value="">Όλοι</MenuItem>
             {(producersQ.data ?? []).map(p => (
               <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
             ))}
           </TextField>
-          <TextField size="small" label="Αναζήτηση" value={search}
+          <TextField size="small" label="Αναζήτηση" fullWidth value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="όνομα / κωδικός / reference" sx={{ minWidth: 220 }} />
-          <TextField type="date" size="small" label="Από" InputLabelProps={{ shrink: true }}
-            value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-            sx={{ minWidth: 160 }} />
-          <TextField type="date" size="small" label="Έως" InputLabelProps={{ shrink: true }}
-            value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-            sx={{ minWidth: 160 }} />
-          <TextField select size="small" label="Πληρωμή" value={paidFilter}
-            onChange={(e) => setPaidFilter(e.target.value as "" | "paid" | "unpaid")}
-            sx={{ minWidth: 140 }}>
+            placeholder="όνομα / κωδικός / reference"
+            sx={{ gridColumn: { md: "span 2" } }} />
+          <TextField type="date" size="small" label="Από" InputLabelProps={{ shrink: true }} fullWidth
+            value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          <TextField type="date" size="small" label="Έως" InputLabelProps={{ shrink: true }} fullWidth
+            value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          <TextField select size="small" label="Πληρωμή" fullWidth value={paidFilter}
+            onChange={(e) => setPaidFilter(e.target.value as "" | "paid" | "unpaid")}>
             <MenuItem value="">Όλα</MenuItem>
             <MenuItem value="paid">Πληρωμένα</MenuItem>
             <MenuItem value="unpaid">Απλήρωτα</MenuItem>
           </TextField>
-          <Box sx={{ flex: 1 }} />
-          <Button size="small" variant="outlined" onClick={() => exportRows("csv")}>
-            Εξαγωγή CSV
+          <Chip label={`${rows.length} γραμμές · ${moneyFmt.format(totals.office)} στην έδρα`}
+            sx={{ gridColumn: { md: "span 2" }, justifySelf: "start" }} />
+          <Button size="small" fullWidth color="error" variant="contained"
+            onClick={() => {
+              setCarrierFilter(""); setProducerFilter(""); setSearch("");
+              setDateFrom(""); setDateTo(""); setPaidFilter(""); setMonth("");
+            }}>
+            Καθαρισμός φίλτρων
           </Button>
-          <Button size="small" variant="outlined" onClick={() => exportRows("xlsx")}>
-            Εξαγωγή XLSX
-          </Button>
-          <Button size="small" variant="outlined" onClick={() => exportRows("print")}>
-            🖨 Εκτύπωση
-          </Button>
-          <Chip label={`${rows.length} γραμμές · ${moneyFmt.format(totals.office)} στην έδρα`} />
-        </Stack>
+        </Box>
       </Card>
 
       {/* Table */}

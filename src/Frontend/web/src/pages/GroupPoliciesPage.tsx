@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow,
+  TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -44,8 +45,36 @@ export function GroupPoliciesPage({ embedded = false }: GroupPoliciesPageProps =
   const [err, setErr] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [membersOf, setMembersOf] = useState<GroupPolicyDto | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [carrierFilter, setCarrierFilter] = useState<string>("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const q = useQuery({ queryKey: ["group-policies"], queryFn: async () => (await api.get<GroupPolicyDto[]>("/group-policies")).data });
+
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return (q.data ?? []).filter(g => {
+      if (needle) {
+        const hay = `${g.groupNumber} ${g.name} ${g.policyHolderName} ${g.insuranceCompanyName}`.toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      if (statusFilter && g.status !== statusFilter) return false;
+      if (carrierFilter && g.insuranceCompanyId !== carrierFilter) return false;
+      return true;
+    });
+  }, [q.data, search, statusFilter, carrierFilter]);
+  useEffect(() => { setPage(0); }, [search, statusFilter, carrierFilter]);
+  const paged = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  // Distinct carriers present in the current dataset — powers the filter
+  // dropdown without a separate query.
+  const carriersInSet = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const g of (q.data ?? [])) seen.set(g.insuranceCompanyId, g.insuranceCompanyName);
+    return Array.from(seen.entries()).map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [q.data]);
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/group-policies/${id}`),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["group-policies"] }),
@@ -88,6 +117,35 @@ export function GroupPoliciesPage({ embedded = false }: GroupPoliciesPageProps =
       )}
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
 
+      {/* Filter bar — same dense grid pattern the other list pages use. */}
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Box sx={{
+          display: "grid",
+          gap: 1,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+          alignItems: "center",
+        }}>
+          <TextField size="small" placeholder="Αναζήτηση: αρ. ομάδας, ονομασία, συμβαλλόμενος…" fullWidth
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            sx={{ gridColumn: { md: "span 2" } }} />
+          <TextField select size="small" label="Ασφαλιστική" fullWidth
+            value={carrierFilter} onChange={(e) => setCarrierFilter(e.target.value)}>
+            <MenuItem value="">Όλες</MenuItem>
+            {carriersInSet.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label="Κατάσταση" fullWidth
+            value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <MenuItem value="">Όλες</MenuItem>
+            {STATUSES.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+          </TextField>
+          <Button size="small" fullWidth color="error" variant="contained"
+            onClick={() => { setSearch(""); setStatusFilter(""); setCarrierFilter(""); }}
+            sx={{ gridColumn: { md: "1 / -1" } }}>
+            Καθαρισμός φίλτρων
+          </Button>
+        </Box>
+      </Card>
+
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
@@ -103,10 +161,10 @@ export function GroupPoliciesPage({ embedded = false }: GroupPoliciesPageProps =
               <TableCell align="right" />
             </TableRow></TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
+              {paged.length === 0 && (
                 <TableRow><TableCell colSpan={9} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("groupPolicies.empty")}</TableCell></TableRow>
               )}
-              {(q.data ?? []).map(g => (
+              {paged.map(g => (
                 <TableRow key={g.id} hover>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{g.groupNumber}</TableCell>
                   <TableCell>{g.name}</TableCell>
@@ -126,6 +184,17 @@ export function GroupPoliciesPage({ embedded = false }: GroupPoliciesPageProps =
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            component="div"
+            count={filtered.length}
+            page={page}
+            onPageChange={(_e, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+            rowsPerPageOptions={[10, 25, 50, 100, 250]}
+            labelRowsPerPage="Ανά σελίδα"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+          />
         </Card>
       )}
 

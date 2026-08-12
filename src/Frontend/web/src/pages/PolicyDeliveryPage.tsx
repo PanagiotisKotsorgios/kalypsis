@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Typography
 } from "@mui/material";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -29,9 +29,31 @@ export function PolicyDeliveryPage({ embedded = false }: PolicyDeliveryPageProps
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [markOpen, setMarkOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Filter + pagination — undelivered lists can grow into the hundreds
+  // on a busy office, so slicing client-side keeps the table responsive.
+  const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const q = useQuery({ queryKey: ["delivery-pending"], queryFn: async () =>
     (await api.get<DeliveryRow[]>("/policy-delivery/pending")).data });
+
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return (q.data ?? []).filter(r => {
+      if (needle) {
+        const hay = `${r.policyNumber} ${r.customerName}`.toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      if (fromDate && r.startDate < fromDate) return false;
+      if (toDate && r.startDate > toDate) return false;
+      return true;
+    });
+  }, [q.data, search, fromDate, toDate]);
+  useEffect(() => { setPage(0); }, [search, fromDate, toDate]);
+  const paged = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   const toggle = (id: string) => {
     const ns = new Set(selected);
@@ -39,9 +61,18 @@ export function PolicyDeliveryPage({ embedded = false }: PolicyDeliveryPageProps
     setSelected(ns);
   };
   const toggleAll = () => {
-    if (selected.size === (q.data ?? []).length) setSelected(new Set());
-    else setSelected(new Set((q.data ?? []).map(r => r.policyId)));
+    // «Select all» targets the current page slice so the operator's
+    // action matches what they actually see on-screen.
+    const pageIds = paged.map(r => r.policyId);
+    const allOnPage = pageIds.every(id => selected.has(id));
+    setSelected(prev => {
+      const ns = new Set(prev);
+      if (allOnPage) pageIds.forEach(id => ns.delete(id));
+      else pageIds.forEach(id => ns.add(id));
+      return ns;
+    });
   };
+  const pageSelectedCount = paged.filter(r => selected.has(r.policyId)).length;
 
   const markButton = (
     <Button variant="contained" size="large" disabled={selected.size === 0} onClick={() => setMarkOpen(true)}>
@@ -78,13 +109,39 @@ export function PolicyDeliveryPage({ embedded = false }: PolicyDeliveryPageProps
         </Stack>
       )}
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+
+      {/* Filter bar — dense 4-col grid, mirrors the pattern used across
+          the other list pages so the operator gets the same controls in
+          the same place. */}
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Box sx={{
+          display: "grid",
+          gap: 1,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+          alignItems: "center",
+        }}>
+          <TextField size="small" placeholder="Αναζήτηση: αρ. συμβολαίου ή πελάτης…" fullWidth
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            sx={{ gridColumn: { md: "span 2" } }} />
+          <TextField size="small" type="date" label="Έναρξη από" InputLabelProps={{ shrink: true }} fullWidth
+            value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          <TextField size="small" type="date" label="Έναρξη έως" InputLabelProps={{ shrink: true }} fullWidth
+            value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          <Button size="small" fullWidth color="error" variant="contained"
+            onClick={() => { setSearch(""); setFromDate(""); setToDate(""); }}
+            sx={{ gridColumn: { md: "1 / -1" } }}>
+            Καθαρισμός φίλτρων
+          </Button>
+        </Box>
+      </Card>
+
       {q.isLoading ? <CircularProgress /> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
             <TableHead><TableRow>
               <TableCell padding="checkbox">
-                <Checkbox indeterminate={selected.size > 0 && selected.size < (q.data ?? []).length}
-                  checked={selected.size > 0 && selected.size === (q.data ?? []).length}
+                <Checkbox indeterminate={pageSelectedCount > 0 && pageSelectedCount < paged.length}
+                  checked={paged.length > 0 && pageSelectedCount === paged.length}
                   onChange={toggleAll} />
               </TableCell>
               <TableCell>{t("delivery.policyNumber")}</TableCell>
@@ -93,10 +150,10 @@ export function PolicyDeliveryPage({ embedded = false }: PolicyDeliveryPageProps
               <TableCell align="right">{t("delivery.premium")}</TableCell>
             </TableRow></TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
+              {paged.length === 0 && (
                 <TableRow><TableCell colSpan={5} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("delivery.pendingEmpty")}</TableCell></TableRow>
               )}
-              {(q.data ?? []).map(r => (
+              {paged.map(r => (
                 <TableRow key={r.policyId} hover selected={selected.has(r.policyId)} onClick={() => toggle(r.policyId)} sx={{ cursor: "pointer" }}>
                   <TableCell padding="checkbox"><Checkbox checked={selected.has(r.policyId)} /></TableCell>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.policyNumber}</TableCell>
@@ -107,6 +164,17 @@ export function PolicyDeliveryPage({ embedded = false }: PolicyDeliveryPageProps
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            component="div"
+            count={filtered.length}
+            page={page}
+            onPageChange={(_e, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+            rowsPerPageOptions={[10, 25, 50, 100, 250]}
+            labelRowsPerPage="Ανά σελίδα"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+          />
         </Card>
       )}
       <MarkDialog open={markOpen} onClose={() => setMarkOpen(false)} policyIds={Array.from(selected)}
