@@ -196,7 +196,7 @@ export function CarrierReferenceViewer({ carrierId, carrierName, onClose }: Prop
         </Tooltip>
       </Stack>
       {!minimised && (
-        <Box sx={{ flex: 1, position: "relative", bgcolor: "action.hover" }}>
+        <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, position: "relative", bgcolor: "action.hover", display: "flex", flexDirection: "column" }}>
           {loading && <LinearProgress />}
           {err && <Alert severity="error" sx={{ m: 2 }}>{err}</Alert>}
           {!loading && !err && !meta && (
@@ -217,8 +217,13 @@ export function CarrierReferenceViewer({ carrierId, carrierName, onClose }: Prop
                  scrollable html-table body below. Injected via
                  dangerouslySetInnerHTML because sheet_to_html emits a
                  fully-formed <table> string; the content came from a
-                 platform-admin-uploaded file so we trust it. */
-              <Stack sx={{ height: "100%" }}>
+                 platform-admin-uploaded file so we trust it.
+
+                 minHeight/minWidth: 0 on flex children is the classic
+                 gotcha that lets `overflow: auto` actually trigger — the
+                 default `min-content` sizing on flex items would grow the
+                 child to fit its content and hide the scrollbars. */
+              <Stack sx={{ height: "100%", minHeight: 0 }}>
                 {sheets.length > 1 && (
                   <Tabs
                     value={activeSheet}
@@ -226,7 +231,7 @@ export function CarrierReferenceViewer({ carrierId, carrierName, onClose }: Prop
                     variant="scrollable"
                     scrollButtons="auto"
                     sx={{ minHeight: 36, borderBottom: 1, borderColor: "divider",
-                      bgcolor: "background.paper",
+                      bgcolor: "background.paper", flexShrink: 0,
                       "& .MuiTab-root": { minHeight: 36, py: 0.5, fontSize: 12 } }}
                   >
                     {sheets.map((s, i) => (
@@ -235,11 +240,19 @@ export function CarrierReferenceViewer({ carrierId, carrierName, onClose }: Prop
                   </Tabs>
                 )}
                 <Box sx={{
-                  flex: 1, overflow: "auto", p: 1, bgcolor: "background.paper",
-                  "& table": { borderCollapse: "collapse", fontSize: 12 },
+                  flex: 1, minHeight: 0, minWidth: 0,
+                  overflow: "auto",     // both axes scroll when the table exceeds
+                  p: 1, bgcolor: "background.paper",
+                  "& table": {
+                    borderCollapse: "collapse",
+                    fontSize: 12,
+                    width: "max-content", // let it grow → horizontal scrollbar appears
+                    minWidth: "100%",
+                  },
                   "& td, & th": { border: "1px solid #ddd", padding: "4px 8px",
                     whiteSpace: "nowrap" },
-                  "& th": { bgcolor: "rgba(11,37,69,0.08)", fontWeight: 700 },
+                  "& th": { bgcolor: "rgba(11,37,69,0.08)", fontWeight: 700,
+                    position: "sticky", top: 0, zIndex: 1 },
                   "& tr:nth-of-type(even) td": { bgcolor: "rgba(255,244,196,0.30)" },
                 }}
                   dangerouslySetInnerHTML={{ __html: sheets[activeSheet]?.html ?? "" }} />
