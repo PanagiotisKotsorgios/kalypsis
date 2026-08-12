@@ -11,6 +11,14 @@ import { api } from "../api/client";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { FilterFieldWrap } from "../components/FilterHelp";
+import {
+  AnimatedKpiCard, ChartCard, ModernBarChart, ModernDonutChart,
+} from "../components/ModernDashboard";
+import PolicyIcon from "@mui/icons-material/Policy";
+import EuroIcon from "@mui/icons-material/Euro";
+import PaymentsIcon from "@mui/icons-material/Payments";
+import HandshakeIcon from "@mui/icons-material/Handshake";
+import { useTheme } from "@mui/material/styles";
 
 interface ProductionRow {
   groupKey: string;
@@ -176,7 +184,7 @@ export function ProductionReportPage() {
               setFrom(`${y}-01-01`); setTo(`${y}-12-31`);
               setCarrierId(""); setProducerId(""); setPolicyType("");
               setGroupBy("month"); setIncludeCancelled(false);
-            }}>Καθαρισμός</Button>
+            }} color="error" variant="contained">Καθαρισμός</Button>
             <Button size="small" variant="contained" startIcon={<DownloadIcon />}
               disabled={!rows.length} onClick={downloadCsv}>Εξαγωγή CSV</Button>
           </Stack>
@@ -189,15 +197,7 @@ export function ProductionReportPage() {
         <Alert severity="info">Δεν βρέθηκαν συμβόλαια για τα φίλτρα που επιλέξατε.</Alert>
       ) : (
         <>
-          {/* KPI strip — always visible above the table so the operator sees
-              the annual totals at a glance before scanning the breakdown. */}
-          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, mb: 2 }}>
-            <Kpi label="Συμβόλαια" value={totals?.policyCount.toLocaleString("el-GR") ?? "0"}
-              hint={`${totals?.newCount ?? 0} νέα · ${totals?.renewalCount ?? 0} ανανεώσεις`} />
-            <Kpi label="Μικτό ασφάλιστρο" value={eur(totals?.grossPremium ?? 0)} />
-            <Kpi label="Προμήθεια γραφείου" value={eur(totals?.agencyCommission ?? 0)} accent="success" />
-            <Kpi label="Προμήθεια συνεργατών" value={eur(totals?.producerCommission ?? 0)} />
-          </Box>
+          <ChartPanel totals={totals ?? null} rows={rows} groupBy={groupBy} />
 
           <Card variant="outlined" sx={{ overflowX: "auto" }}>
             <Table size="small">
@@ -249,6 +249,8 @@ export function ProductionReportPage() {
   );
 }
 
+// Legacy Kpi kept for callers that still use it (this file no longer does —
+// ChartPanel below owns the KPI + chart layout above the table).
 function Kpi({ label, value, hint, accent }: {
   label: string; value: string; hint?: string; accent?: "success";
 }) {
@@ -260,5 +262,78 @@ function Kpi({ label, value, hint, accent }: {
         {hint && <Typography variant="caption" color="text.secondary">{hint}</Typography>}
       </CardContent>
     </Card>
+  );
+}
+void Kpi;
+
+/**
+ * Chart-first summary strip for the production report. Row 1: 4 animated KPI
+ * cards with count-up + trend delta feel. Row 2: two charts — gross-premium
+ * bar per group + New vs Renewal donut. Uses the ModernDashboard components
+ * so the look matches the main dashboards + hub minicharts.
+ */
+function ChartPanel({ totals, rows, groupBy }: {
+  totals: ProductionRow | null;
+  rows: ProductionRow[];
+  groupBy: string;
+}) {
+  const theme = useTheme();
+  const t = totals ?? { policyCount: 0, newCount: 0, renewalCount: 0,
+    grossPremium: 0, netPremium: 0, agencyCommission: 0, producerCommission: 0 } as ProductionRow;
+
+  // Bar chart: gross premium per group (month / carrier / producer / branch).
+  // For long series (many months, many carriers) we cap to top 12 by gross
+  // so the bars stay readable in the narrow strip above the table.
+  const barSeries = [...rows]
+    .sort((a, b) => b.grossPremium - a.grossPremium)
+    .slice(0, 12)
+    .map(r => ({ label: r.groupLabel, value: Number(r.grossPremium) }))
+    // Restore ascending order by groupLabel when the axis is time-based, so
+    // a 12-month chart reads left-to-right chronologically instead of
+    // biggest-first.
+    .sort((a, b) => groupBy === "month" ? a.label.localeCompare(b.label) : 0);
+
+  const donutData = [
+    { label: "Νέα",       value: t.newCount },
+    { label: "Ανανεώσεις", value: t.renewalCount },
+  ].filter(d => d.value > 0);
+
+  return (
+    <>
+      <Box sx={{
+        display: "grid", gap: 2, mb: 2,
+        gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }
+      }}>
+        <AnimatedKpiCard index={0} label="Συμβόλαια" value={t.policyCount}
+          accent={theme.palette.primary.main} icon={<PolicyIcon />} />
+        <AnimatedKpiCard index={1} label="Μικτό ασφάλιστρο" value={t.grossPremium} currency
+          accent={theme.palette.secondary.main} icon={<EuroIcon />} />
+        <AnimatedKpiCard index={2} label="Προμήθεια γραφείου" value={t.agencyCommission} currency
+          accent="#16a34a" icon={<PaymentsIcon />} />
+        <AnimatedKpiCard index={3} label="Προμήθεια συνεργατών" value={t.producerCommission} currency
+          accent="#d97706" icon={<HandshakeIcon />} />
+      </Box>
+      <Box sx={{
+        display: "grid", gap: 2, mb: 2,
+        gridTemplateColumns: { xs: "1fr", lg: "2fr 1fr" }
+      }}>
+        <ChartCard title={`Μικτό ασφάλιστρο ${GROUP_LABEL[groupBy] ?? ""}`.trim()}
+          subtitle={rows.length > 12 ? "Top 12 ομάδες" : "Όλες οι ομάδες"}
+          height={260}>
+          <ModernBarChart
+            data={barSeries}
+            color={theme.palette.primary.main}
+            format={(v) => `€${Math.round(v).toLocaleString("el-GR")}`}
+          />
+        </ChartCard>
+        <ChartCard title="Νέα vs Ανανεώσεις" subtitle="Κατανομή συμβολαίων" height={260}>
+          <ModernDonutChart
+            data={donutData}
+            colors={[theme.palette.primary.main, theme.palette.info.main]}
+            format={(v) => v.toLocaleString("el-GR")}
+          />
+        </ChartCard>
+      </Box>
+    </>
   );
 }

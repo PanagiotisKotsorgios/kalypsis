@@ -844,11 +844,9 @@ export function OverCommissionGridEditor({
               disabled={stats.complete === 0}>
               Εξαγωγή
             </Button>
-            <Button size="small" variant="text" startIcon={<ClearAllIcon />}
+            <Button size="small" startIcon={<ClearAllIcon />}
               onClick={() => setConfirmClearOpen(true)}
-              disabled={rows.every(isRowEmpty)}>
-              Καθαρισμός
-            </Button>
+              disabled={rows.every(isRowEmpty)} color="error" variant="contained">Καθαρισμός</Button>
             <Button size="small" onClick={onClose}>Κλείσιμο</Button>
           </Stack>
         </Stack>
@@ -1083,7 +1081,7 @@ export function OverCommissionGridEditor({
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmClearOpen(false)} color="error" variant="contained">Ακύρωση</Button>
-          <Button color="error" variant="contained" onClick={clearAll}>Καθαρισμός</Button>
+          <Button onClick={clearAll} color="error" variant="contained">Καθαρισμός</Button>
         </DialogActions>
       </Dialog>
 

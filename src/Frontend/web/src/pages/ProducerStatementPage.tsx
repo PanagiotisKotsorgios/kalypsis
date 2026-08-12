@@ -101,9 +101,7 @@ export function ProducerStatementPage() {
             value={to} onChange={e => setTo(e.target.value)} InputLabelProps={{ shrink: true }} />
         </Box>
         <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 1 }}>
-          <Button size="small" onClick={() => { setFrom(`${y}-01-01`); setTo(`${y}-12-31`); setProducerId(""); }}>
-            Καθαρισμός
-          </Button>
+          <Button size="small" onClick={() => { setFrom(`${y}-01-01`); setTo(`${y}-12-31`); setProducerId(""); }} color="error" variant="contained">Καθαρισμός</Button>
           <Button size="small" variant="contained" startIcon={<DownloadIcon />}
             disabled={!producerId || !data?.lines.length} onClick={downloadCsv}>Εξαγωγή CSV</Button>
         </Stack>

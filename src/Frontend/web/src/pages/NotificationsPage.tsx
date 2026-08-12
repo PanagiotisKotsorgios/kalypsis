@@ -323,9 +323,7 @@ export function NotificationsPage() {
                   setSort("newest");
                   resetPage();
                 }}
-              >
-                Καθαρισμός φίλτρων
-              </Button>
+               color="error" variant="contained">Καθαρισμός φίλτρων</Button>
             </Stack>
           )}
         </CardContent>

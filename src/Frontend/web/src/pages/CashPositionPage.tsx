@@ -237,7 +237,7 @@ export function CashPositionPage() {
           </FilterFieldWrap>
           <Button size="small" onClick={() => {
             setSearch(""); setDirectionFilter(""); setReasonFilter(""); setFromDate(""); setToDate("");
-          }}>Καθαρισμός</Button>
+          }} color="error" variant="contained">Καθαρισμός</Button>
         </Stack>
       </Card>
 

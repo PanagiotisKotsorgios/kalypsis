@@ -143,7 +143,7 @@ export function CommissionDistributionPage() {
           <Button size="small" onClick={() => {
             setFrom(`${y}-01-01`); setTo(`${y}-12-31`);
             setProducerId(""); setCarrierId(""); setLevel(""); setScope("policies");
-          }}>Καθαρισμός</Button>
+          }} color="error" variant="contained">Καθαρισμός</Button>
           <Button size="small" variant="contained" startIcon={<DownloadIcon />}
             disabled={!rows.length} onClick={downloadCsv}>Εξαγωγή CSV</Button>
         </Stack>

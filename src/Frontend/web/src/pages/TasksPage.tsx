@@ -248,9 +248,7 @@ export function TasksPage() {
           <Typography variant="subtitle1" color="text.secondary" mb={1}>
             Κανένα αποτέλεσμα με τα τρέχοντα φίλτρα.
           </Typography>
-          <Button size="small" onClick={() => setFilters(EMPTY_FILTERS)} startIcon={<ClearIcon />}>
-            Καθαρισμός φίλτρων
-          </Button>
+          <Button size="small" onClick={() => setFilters(EMPTY_FILTERS)} startIcon={<ClearIcon />} color="error" variant="contained">Καθαρισμός φίλτρων</Button>
         </Card>
       ) : allTasks.length === 0 ? (
         <Card variant="outlined" sx={{ p: 4, textAlign: "center", color: "text.secondary", borderStyle: "dashed" }}>
@@ -518,7 +516,7 @@ function BulkActionsBar({
   return (
     <Stack direction="row" alignItems="center" spacing={1} sx={{ bgcolor: "primary.main", color: "primary.contrastText", px: 1.5, py: 0.5, borderRadius: 1 }}>
       <Typography variant="body2" sx={{ fontWeight: 700 }}>{count} επιλεγμένες</Typography>
-      <Button size="small" sx={{ color: "inherit" }} onClick={onClear}>Καθαρισμός</Button>
+      <Button size="small" sx={{ color: "inherit" }} onClick={onClear} color="error" variant="contained">Καθαρισμός</Button>
       <Divider orientation="vertical" flexItem sx={{ borderColor: "rgba(255,255,255,0.3)" }} />
       {STATUS_COLUMN.filter(s => s !== "Cancelled").map(s => (
         <Button

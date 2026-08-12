@@ -187,9 +187,7 @@ export function ProducersPage() {
             </Box>
           </Stack>
           <Box sx={{ flex: 1 }} />
-          <Button size="small" onClick={() => { setStatusFilter(""); setTierFilter(""); setHasPoliciesOnly(false); }}>
-            Καθαρισμός
-          </Button>
+          <Button size="small" onClick={() => { setStatusFilter(""); setTierFilter(""); setHasPoliciesOnly(false); }} color="error" variant="contained">Καθαρισμός</Button>
         </Stack>
       </Card>
 

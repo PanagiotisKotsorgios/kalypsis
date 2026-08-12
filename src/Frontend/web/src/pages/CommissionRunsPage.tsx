@@ -219,7 +219,7 @@ export function CommissionRunsPage() {
           <Button size="small" onClick={() => {
             setSearch(""); setYearFilter(""); setMonthFilter(""); setStatusFilter("");
             setCarrierFilter(""); setProducerFilter("");
-          }}>Καθαρισμός</Button>
+          }} color="error" variant="contained">Καθαρισμός</Button>
         </Stack>
       </Card>
 

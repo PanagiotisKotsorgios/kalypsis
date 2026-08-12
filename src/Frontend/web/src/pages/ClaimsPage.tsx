@@ -315,7 +315,7 @@ export function ClaimsPage() {
               setStatusFilter(""); setCustomerFilter(""); setCarrierFilter(""); setSubCarrierFilter([]);
               setTypeFilter(""); setUseFilter(""); setCoverFilter(""); setPackageFilter("");
               setFromDate(""); setToDate("");
-            }}>Καθαρισμός</Button>
+            }} color="error" variant="contained">Καθαρισμός</Button>
           </Stack>
         </Card>
       )}

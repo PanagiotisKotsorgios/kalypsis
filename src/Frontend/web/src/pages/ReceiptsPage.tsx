@@ -207,7 +207,7 @@ export function ReceiptsPage() {
           </FilterFieldWrap>
           <Button size="small" onClick={() => {
             setSearch(""); setMethodFilter(""); setFromDate(""); setToDate(""); setCustomerFilter("");
-          }}>Καθαρισμός</Button>
+          }} color="error" variant="contained">Καθαρισμός</Button>
         </Stack>
       </Card>
 

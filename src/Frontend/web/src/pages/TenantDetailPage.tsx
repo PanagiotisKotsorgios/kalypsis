@@ -1046,7 +1046,7 @@ function ActivityTab({ tenantId }: { tenantId: string }) {
             onChange={(e) => setToDate(e.target.value)}
             InputLabelProps={{ shrink: true }} sx={{ minWidth: 150 }} />
           {hasActiveFilter && (
-            <Button size="small" onClick={resetFilters}>Καθαρισμός</Button>
+            <Button size="small" onClick={resetFilters} color="error" variant="contained">Καθαρισμός</Button>
           )}
           <Box sx={{ flex: 1 }} />
           <TextField select size="small" label="Ανά σελίδα" value={pageSize}

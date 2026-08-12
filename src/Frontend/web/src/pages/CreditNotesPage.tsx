@@ -119,7 +119,7 @@ export function CreditNotesPage() {
           </Box>
           <Button size="small" onClick={() => {
             setSearch(""); setKindFilter(""); setStatusFilter(""); setFromDate(""); setToDate("");
-          }}>Καθαρισμός</Button>
+          }} color="error" variant="contained">Καθαρισμός</Button>
         </Stack>
       </Card>
 

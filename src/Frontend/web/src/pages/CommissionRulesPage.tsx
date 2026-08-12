@@ -360,7 +360,7 @@ export function CommissionRulesPage() {
         <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1 }}>
           <Button size="small" onClick={() => {
             setSearch(""); setCarrierFilter(""); setSubCarrierFilter([]); setTierFilter(""); setTypeFilter(""); setUseFilter(""); setCoverFilter("");
-          }}>Καθαρισμός</Button>
+          }} color="error" variant="contained">Καθαρισμός</Button>
         </Stack>
       </Card>
 

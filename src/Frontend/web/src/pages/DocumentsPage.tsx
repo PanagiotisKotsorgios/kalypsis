@@ -247,9 +247,7 @@ export function DocumentsPage() {
             />
           </FilterFieldWrap>
           {anyFilterActive && (
-            <Button size="small" onClick={() => { setQ(""); setType(""); setFrom(""); setTo(""); }}>
-              Καθαρισμός
-            </Button>
+            <Button size="small" onClick={() => { setQ(""); setType(""); setFrom(""); setTo(""); }} color="error" variant="contained">Καθαρισμός</Button>
           )}
           <Chip
             size="small"

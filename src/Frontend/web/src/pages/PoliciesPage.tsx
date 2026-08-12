@@ -461,7 +461,7 @@ export function PoliciesPage() {
                 setCarrierFilter(""); setSubCarrierFilter([]); setProducerFilter("");
                 setFromDate(""); setToDate(""); setStatusFilter(""); setTypeFilter(""); setSearch("");
                 setPlateFilter(""); setAppNumberFilter(""); setPremiumMin(""); setPremiumMax("");
-              }}>Καθαρισμός</Button>
+              }} color="error" variant="contained">Καθαρισμός</Button>
             </Stack>
             {/* ALIS-parity row — plate / application number / premium range.
                 Kept as a separate Stack so it wraps cleanly on medium widths
@@ -533,7 +533,7 @@ export function PoliciesPage() {
               <Button variant="contained" color="secondary" onClick={() => setBulkOpen(true)}>
                 Μαζική αλλαγή…
               </Button>
-              <Button color="inherit" onClick={() => setSelectedIds(new Set())}>Καθαρισμός</Button>
+              <Button onClick={() => setSelectedIds(new Set())} color="error" variant="contained">Καθαρισμός</Button>
             </Box>
           )}
           <TableContainer>
@@ -915,7 +915,7 @@ function PolicyFormDialog({
         {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
         {!editing && hasDraft && (
           <Alert severity="info" sx={{ mb: 2 }} action={
-            <Button size="small" onClick={() => { clearDraft(); window.location.reload(); }}>Καθαρισμός</Button>
+            <Button size="small" onClick={() => { clearDraft(); window.location.reload(); }} color="error" variant="contained">Καθαρισμός</Button>
           }>
             Επαναφέραμε τα δεδομένα από την προηγούμενη σύνοδο.
           </Alert>

@@ -183,7 +183,7 @@ export function PaymentsPage() {
           </FilterFieldWrap>
           <Button size="small" onClick={() => {
             setSearch(""); setMethodFilter(""); setBenFilter(""); setFromDate(""); setToDate("");
-          }}>Καθαρισμός</Button>
+          }} color="error" variant="contained">Καθαρισμός</Button>
         </Stack>
       </Card>
 
