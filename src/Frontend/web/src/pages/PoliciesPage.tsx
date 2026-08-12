@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
-import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
+import { FilterHelp } from "../components/FilterHelp";
 import {
   Alert,
   Autocomplete,
@@ -373,126 +373,105 @@ export function PoliciesPage() {
         <>
       {!isCustomer && (
         <Card sx={{ px: 1.5, py: 1.25, mb: 2 }} data-tour="policies-search">
-          <Stack spacing={1}>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
-              <TextField
-                fullWidth size="small"
-                placeholder="Αναζήτηση: αρ. συμβολαίου, πελάτης, ΑΦΜ, πινακίδα…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                sx={{ flex: 1, minWidth: 220 }}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
-                  endAdornment: <FilterHelp title="Αναζήτηση σε αριθμό συμβολαίου, πελάτη, ΑΦΜ, αρ. απόδειξης ή πινακίδα οχήματος." />
-                }}
-              />
-              <FilterFieldWrap tip="Φιλτράρετε τα συμβόλαια ανά κατάσταση (Ενεργά, Ληγμένα, Ακυρωμένα κ.λπ.).">
-                <SearchableTextField size="small" label={t("policies.col.status")}
-                  value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as PolicyStatus | "")}
-                  sx={{ minWidth: 150, width: "100%" }}>
-                  <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
-                  {(["Draft","Active","Expired","Cancelled","Renewed","PendingRenewal","Undelivered","AwaitingIssue"] as const).map(s =>
-                    <MenuItem key={s} value={s}>{t(`policies.statuses.${s}`)}</MenuItem>)}
-                </SearchableTextField>
-              </FilterFieldWrap>
-              <FilterFieldWrap tip="Φιλτράρετε ανά είδος συμβολαίου (Οχήματα, Κατοικία, Υγεία κ.λπ.). Επιλέξτε πρώτα εταιρία.">
-                <SearchableTextField size="small" label={t("policies.col.type")}
-                  value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as PolicyType | "")}
-                  sx={{ minWidth: 180, width: "100%" }}
-                  disabled={!carrierFilter}
-                  helperText={!carrierFilter
-                    ? "Επιλέξτε εταιρία"
-                    : filterCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
-                  <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
-                  {filterCatalogue.branches.map(b => (
-                    <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
-                  ))}
-                </SearchableTextField>
-              </FilterFieldWrap>
-            </Stack>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
-              <SearchableSelect
-                label="Εταιρία"
-                value={carrierFilter}
-                onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); }}
-                emptyLabel="Όλες"
-                options={(carriersQuery.data ?? [])
-                  .filter(c => !c.parentCompanyId)
-                  .map(c => ({
-                    value: c.id,
-                    label: c.name,
-                    hint: c.isBroker ? "πρακτορείο" : c.code,
-                  }))}
-              />
-              {(() => {
-                const selected = (carriersQuery.data ?? []).find(c => c.id === carrierFilter);
-                if (!selected?.isBroker) return null;
-                const subs = (carriersQuery.data ?? []).filter(c => c.parentCompanyId === selected.id);
-                return (
-                  <Autocomplete<CarrierDto, true>
-                    multiple size="small" sx={{ minWidth: 280, flex: 1 }}
-                    options={subs}
-                    value={subs.filter(s => subCarrierFilter.includes(s.id))}
-                    onChange={(_, value) => setSubCarrierFilter(value.map(v => v.id))}
-                    getOptionLabel={(s) => s.name}
-                    isOptionEqualToValue={(a, b) => a.id === b.id}
-                    renderInput={(params) => <TextField {...params} label="Υποασφαλιστικές" />}
-                  />
-                );
-              })()}
-              <SearchableSelect
-                label="Συνεργάτης"
-                value={producerFilter}
-                onChange={(v) => setProducerFilter(v)}
-                emptyLabel="Όλοι"
-                options={(producersQuery.data ?? []).map(p => ({
-                  value: p.id, label: p.name, hint: p.code,
+          {/* Dense 4-col grid — search spans the full first row so it stays
+              scannable, all other filters (~11) share the grid below so the
+              whole block fits in 3–4 lines on desktop instead of six. */}
+          <Box sx={{
+            display: "grid",
+            gap: 1,
+            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+            alignItems: "center",
+          }}>
+            <TextField
+              size="small" fullWidth
+              placeholder="Αναζήτηση: αρ. συμβολαίου, πελάτης, ΑΦΜ, πινακίδα…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              sx={{ gridColumn: { xs: "1", sm: "1 / -1", md: "1 / -1" } }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                endAdornment: <FilterHelp title="Αναζήτηση σε αριθμό συμβολαίου, πελάτη, ΑΦΜ, αρ. απόδειξης ή πινακίδα οχήματος." />
+              }}
+            />
+            <SearchableTextField size="small" label={t("policies.col.status")} fullWidth
+              value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as PolicyStatus | "")}>
+              <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
+              {(["Draft","Active","Expired","Cancelled","Renewed","PendingRenewal","Undelivered","AwaitingIssue"] as const).map(s =>
+                <MenuItem key={s} value={s}>{t(`policies.statuses.${s}`)}</MenuItem>)}
+            </SearchableTextField>
+            <SearchableTextField size="small" label={t("policies.col.type")} fullWidth
+              value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as PolicyType | "")}
+              disabled={!carrierFilter}
+              helperText={!carrierFilter
+                ? "Επιλέξτε εταιρία"
+                : filterCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}>
+              <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
+              {filterCatalogue.branches.map(b => (
+                <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>
+              ))}
+            </SearchableTextField>
+            <SearchableSelect
+              label="Εταιρία"
+              value={carrierFilter}
+              onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); }}
+              emptyLabel="Όλες"
+              sx={{ width: "100%" }}
+              options={(carriersQuery.data ?? [])
+                .filter(c => !c.parentCompanyId)
+                .map(c => ({
+                  value: c.id,
+                  label: c.name,
+                  hint: c.isBroker ? "πρακτορείο" : c.code,
                 }))}
-              />
-              <FilterFieldWrap tip="Ημερομηνία έναρξης — εμφανίζει συμβόλαια από αυτήν την ημέρα και μετά.">
-                <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
-                  value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 140, width: "100%" }} />
-              </FilterFieldWrap>
-              <FilterFieldWrap tip="Ημερομηνία λήξης — εμφανίζει συμβόλαια μέχρι αυτήν την ημέρα.">
-                <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
-                  value={toDate}   onChange={(e) => setToDate(e.target.value)}   sx={{ minWidth: 140, width: "100%" }} />
-              </FilterFieldWrap>
-              <Button size="small" onClick={() => {
-                setCarrierFilter(""); setSubCarrierFilter([]); setProducerFilter("");
-                setFromDate(""); setToDate(""); setStatusFilter(""); setTypeFilter(""); setSearch("");
-                setPlateFilter(""); setAppNumberFilter(""); setPremiumMin(""); setPremiumMax("");
-              }} color="error" variant="contained">Καθαρισμός</Button>
-            </Stack>
-            {/* ALIS-parity row — plate / application number / premium range.
-                Kept as a separate Stack so it wraps cleanly on medium widths
-                without pushing the primary filters below the fold. */}
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
-              <FilterFieldWrap tip="Αναζήτηση με πινακίδα οχήματος. Ταιριάζει και μερική συμπλήρωση (π.χ. «ΥΗΜ» βρίσκει «ΥΗΜ-1234»).">
-                <TextField size="small" label="Αρ. κυκλοφορίας"
-                  value={plateFilter}
-                  onChange={(e) => setPlateFilter(e.target.value.toUpperCase())}
-                  sx={{ minWidth: 180, width: "100%" }} />
-              </FilterFieldWrap>
-              <FilterFieldWrap tip="Αναζήτηση με αριθμό αίτησης (τον προσωρινό αριθμό πριν εκδοθεί το οριστικό συμβόλαιο).">
-                <TextField size="small" label="Αρ. αίτησης"
-                  value={appNumberFilter}
-                  onChange={(e) => setAppNumberFilter(e.target.value)}
-                  sx={{ minWidth: 160, width: "100%" }} />
-              </FilterFieldWrap>
-              <FilterFieldWrap tip="Ελάχιστο μικτό ασφάλιστρο — εμφανίζει συμβόλαια από αυτό το ποσό και πάνω.">
-                <TextField size="small" type="number" label="Μικτά από"
-                  value={premiumMin}
-                  onChange={(e) => setPremiumMin(e.target.value)}
-                  sx={{ minWidth: 140, width: "100%" }} />
-              </FilterFieldWrap>
-              <FilterFieldWrap tip="Μέγιστο μικτό ασφάλιστρο — εμφανίζει συμβόλαια μέχρι αυτό το ποσό.">
-                <TextField size="small" type="number" label="Μικτά έως"
-                  value={premiumMax}
-                  onChange={(e) => setPremiumMax(e.target.value)}
-                  sx={{ minWidth: 140, width: "100%" }} />
-              </FilterFieldWrap>
-            </Stack>
-          </Stack>
+            />
+            <SearchableSelect
+              label="Συνεργάτης"
+              value={producerFilter}
+              onChange={(v) => setProducerFilter(v)}
+              emptyLabel="Όλοι"
+              sx={{ width: "100%" }}
+              options={(producersQuery.data ?? []).map(p => ({
+                value: p.id, label: p.name, hint: p.code,
+              }))}
+            />
+            {(() => {
+              const selected = (carriersQuery.data ?? []).find(c => c.id === carrierFilter);
+              if (!selected?.isBroker) return null;
+              const subs = (carriersQuery.data ?? []).filter(c => c.parentCompanyId === selected.id);
+              return (
+                <Autocomplete<CarrierDto, true>
+                  multiple size="small"
+                  options={subs}
+                  value={subs.filter(s => subCarrierFilter.includes(s.id))}
+                  onChange={(_, value) => setSubCarrierFilter(value.map(v => v.id))}
+                  getOptionLabel={(s) => s.name}
+                  isOptionEqualToValue={(a, b) => a.id === b.id}
+                  renderInput={(params) => <TextField {...params} label="Υποασφαλιστικές" size="small" />}
+                />
+              );
+            })()}
+            <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} fullWidth
+              value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+            <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} fullWidth
+              value={toDate} onChange={(e) => setToDate(e.target.value)} />
+            <TextField size="small" label="Αρ. κυκλοφορίας" fullWidth
+              value={plateFilter}
+              onChange={(e) => setPlateFilter(e.target.value.toUpperCase())} />
+            <TextField size="small" label="Αρ. αίτησης" fullWidth
+              value={appNumberFilter}
+              onChange={(e) => setAppNumberFilter(e.target.value)} />
+            <TextField size="small" type="number" label="Μικτά από" fullWidth
+              value={premiumMin}
+              onChange={(e) => setPremiumMin(e.target.value)} />
+            <TextField size="small" type="number" label="Μικτά έως" fullWidth
+              value={premiumMax}
+              onChange={(e) => setPremiumMax(e.target.value)} />
+            <Button size="small" fullWidth onClick={() => {
+              setCarrierFilter(""); setSubCarrierFilter([]); setProducerFilter("");
+              setFromDate(""); setToDate(""); setStatusFilter(""); setTypeFilter(""); setSearch("");
+              setPlateFilter(""); setAppNumberFilter(""); setPremiumMin(""); setPremiumMax("");
+            }} color="error" variant="contained">Καθαρισμός</Button>
+          </Box>
         </Card>
       )}
 
@@ -1121,7 +1100,29 @@ function RenewDialog({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [premium, setPremium] = useState(0);
+  // Optional overrides for the new policy — leaving any of these blank
+  // keeps the source policy's value. Covers the common «I need to tweak
+  // the coverage/producer/plate before ανανέωση» flow so the operator
+  // doesn't have to re-open the new policy in edit mode.
+  const [producerIdOverride, setProducerIdOverride] = useState<string>("");
+  const [vehicleUse, setVehicleUse] = useState<string>("");
+  const [coverCode, setCoverCode] = useState<string>("");
+  const [packageCode, setPackageCode] = useState<string>("");
+  const [applicationNumber, setApplicationNumber] = useState<string>("");
+  const [plate, setPlate] = useState<string>("");
+  const [specialCommissionPercent, setSpecialCommissionPercent] = useState<string>("");
+  const [showExtras, setShowExtras] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Carrier catalogue — drives Κάλυψη / Πακέτο / Χρήση οχήματος dropdowns
+  // for the source policy's carrier so overrides stay in-parametric.
+  const catalogue = useCarrierCatalogue(policy?.insuranceCompanyId ?? "");
+
+  const producersQ = useQuery({
+    queryKey: ["producers-for-renew"],
+    queryFn: async () => (await api.get<{ id: string; name: string; code: string }[]>("/producers")).data,
+    enabled: !!policy
+  });
 
   useEffect(() => {
     if (policy) {
@@ -1130,18 +1131,37 @@ function RenewDialog({
       setStartDate(nextStart);
       setEndDate(nextEnd);
       setPremium(policy.premium);
+      // Overrides start blank — «leave alone» is the safe default.
+      setProducerIdOverride("");
+      setVehicleUse("");
+      setCoverCode("");
+      setPackageCode("");
+      setApplicationNumber("");
+      setPlate("");
+      setSpecialCommissionPercent("");
+      setShowExtras(false);
     }
   }, [policy?.id, policy?.endDate, policy?.premium]);
 
   const mutation = useMutation({
-    mutationFn: async () => (await api.post<PolicyDto>(`/policies/${policy!.id}/renew`,
-      { startDate, endDate, premium })).data,
+    mutationFn: async () => (await api.post<PolicyDto>(`/policies/${policy!.id}/renew`, {
+      startDate, endDate, premium,
+      producerId: producerIdOverride || null,
+      vehicleUseCategory: vehicleUse || null,
+      coverCode: coverCode.trim() || null,
+      packageCode: packageCode.trim() || null,
+      applicationNumber: applicationNumber.trim() || null,
+      vehicleRegistrationPlate: plate.trim() || null,
+      specialCommissionPercent: specialCommissionPercent.trim()
+        ? Number(specialCommissionPercent)
+        : null,
+    })).data,
     onSuccess: onSaved,
     onError: (err) => setError(extractErrorMessage(err))
   });
 
   return (
-    <Dialog open={!!policy} onClose={onClose} fullWidth maxWidth="xs">
+    <Dialog open={!!policy} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>{t("policies.renew.title")}</DialogTitle>
       <DialogContent>
         {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
@@ -1167,6 +1187,65 @@ function RenewDialog({
               )
             }}
             fullWidth required />
+
+          <Button size="small" variant="text" onClick={() => setShowExtras(x => !x)}
+            sx={{ alignSelf: "flex-start" }}>
+            {showExtras ? "− Απόκρυψη επιπλέον λεπτομερειών" : "+ Επιπλέον λεπτομέρειες (καλύψεις, χρήση, προμήθεια)"}
+          </Button>
+
+          {showExtras && (
+            <Stack spacing={2}>
+              <Alert severity="info" sx={{ fontSize: 13 }}>
+                Αφήστε κενό όποιο πεδίο θέλετε να παραμείνει όπως ήταν στο αρχικό συμβόλαιο.
+              </Alert>
+              <SearchableSelect
+                label="Συνεργάτης (μεταφορά)" value={producerIdOverride}
+                onChange={setProducerIdOverride}
+                emptyLabel="— διατήρηση —"
+                options={(producersQ.data ?? []).map(p => ({
+                  value: p.id, label: p.name, hint: p.code,
+                }))}
+              />
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <SearchableTextField label="Χρήση οχήματος" value={vehicleUse}
+                  onChange={(e) => setVehicleUse(e.target.value)} fullWidth
+                  disabled={catalogue.uses.length === 0}
+                  helperText={catalogue.uses.length === 0 ? "Δεν υπάρχουν παραμετρικά χρήσης" : ""}>
+                  <MenuItem value="">— διατήρηση —</MenuItem>
+                  {catalogue.uses.map(u => <MenuItem key={u.key} value={u.value}>{u.label}</MenuItem>)}
+                </SearchableTextField>
+                <SearchableTextField label="Κάλυψη" value={coverCode}
+                  onChange={(e) => setCoverCode(e.target.value)} fullWidth
+                  disabled={catalogue.coverages.length === 0}
+                  helperText={catalogue.coverages.length === 0 ? "Δεν υπάρχουν παραμετρικές καλύψεις" : ""}>
+                  <MenuItem value="">— διατήρηση —</MenuItem>
+                  {catalogue.coverages.map(c => <MenuItem key={c.key} value={c.value}>{c.label}</MenuItem>)}
+                </SearchableTextField>
+              </Stack>
+              <SearchableTextField label="Πακέτο" value={packageCode}
+                onChange={(e) => setPackageCode(e.target.value)} fullWidth
+                disabled={catalogue.packages.length === 0}
+                helperText={catalogue.packages.length === 0 ? "Δεν υπάρχουν παραμετρικά πακέτα" : ""}>
+                <MenuItem value="">— διατήρηση —</MenuItem>
+                {catalogue.packages.map(p => <MenuItem key={p.key} value={p.value}>{p.label}</MenuItem>)}
+              </SearchableTextField>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField label="Αρ. αίτησης" fullWidth
+                  value={applicationNumber}
+                  onChange={(e) => setApplicationNumber(e.target.value)} />
+                <TextField label="Αρ. κυκλοφορίας" fullWidth
+                  value={plate}
+                  onChange={(e) => setPlate(e.target.value.toUpperCase())} />
+              </Stack>
+              <TextField
+                type="number" label="Ειδική προμήθεια συνεργάτη (%)"
+                value={specialCommissionPercent}
+                onChange={(e) => setSpecialCommissionPercent(e.target.value)}
+                inputProps={{ step: "0.01", min: 0, max: 100 }}
+                helperText="Παρακάμπτει την προμήθεια του CommissionRule. Άδειο = χρήση παραμετροποίησης."
+                fullWidth />
+            </Stack>
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>

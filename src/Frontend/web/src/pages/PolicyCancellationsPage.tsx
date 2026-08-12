@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Autocomplete, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  DialogTitle, IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination,
+  TableRow, TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
@@ -33,11 +34,35 @@ export function PolicyCancellationsPage() {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<Status | "">("");
+  const [methodFilter, setMethodFilter] = useState<string>("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const q = useQuery({
     queryKey: ["policy-cancellations"],
     queryFn: async () => (await api.get<CancellationDto[]>("/policy-cancellations")).data
   });
+
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return (q.data ?? []).filter(c => {
+      if (needle) {
+        const hay = `${c.cancellationNumber} ${c.policyNumber} ${c.reasonName ?? ""} ${c.reasonText ?? ""}`.toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      if (statusFilter && c.status !== statusFilter) return false;
+      if (methodFilter && c.refundMethod !== methodFilter) return false;
+      if (fromDate && c.effectiveFrom < fromDate) return false;
+      if (toDate && c.effectiveFrom > toDate) return false;
+      return true;
+    });
+  }, [q.data, search, statusFilter, methodFilter, fromDate, toDate]);
+  useEffect(() => { setPage(0); }, [search, statusFilter, methodFilter, fromDate, toDate]);
+  const paged = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   const approve = useMutation({
     mutationFn: async (id: string) => api.post(`/policy-cancellations/${id}/approve`),
@@ -68,6 +93,42 @@ export function PolicyCancellationsPage() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 
+      {/* Filter bar — 4-col grid, ~2 rows on desktop. */}
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Box sx={{
+          display: "grid",
+          gap: 1,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+          alignItems: "center",
+        }}>
+          <TextField size="small" placeholder="Αναζήτηση: αρ. ακύρωσης, συμβόλαιο, αιτία…" fullWidth
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            sx={{ gridColumn: { md: "span 2" } }} />
+          <SearchableTextField size="small" label="Κατάσταση" value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as Status | "")} fullWidth>
+            <MenuItem value="">Όλες</MenuItem>
+            {(["Draft", "Submitted", "Approved", "Rejected", "Effective"] as const).map(s =>
+              <MenuItem key={s} value={s}>{s}</MenuItem>)}
+          </SearchableTextField>
+          <SearchableTextField size="small" label="Μέθοδος" value={methodFilter}
+            onChange={(e) => setMethodFilter(e.target.value)} fullWidth>
+            <MenuItem value="">Όλες</MenuItem>
+            <MenuItem value="ProRata">ProRata</MenuItem>
+            <MenuItem value="ShortRate">ShortRate</MenuItem>
+            <MenuItem value="Full">Full</MenuItem>
+            <MenuItem value="Custom">Custom</MenuItem>
+          </SearchableTextField>
+          <TextField size="small" type="date" label="Ισχύς από" InputLabelProps={{ shrink: true }} fullWidth
+            value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          <TextField size="small" type="date" label="Ισχύς έως" InputLabelProps={{ shrink: true }} fullWidth
+            value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          <Button size="small" fullWidth color="error" variant="contained"
+            onClick={() => { setSearch(""); setStatusFilter(""); setMethodFilter(""); setFromDate(""); setToDate(""); }}>
+            Καθαρισμός
+          </Button>
+        </Box>
+      </Card>
+
       {q.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
       ) : (
@@ -86,12 +147,12 @@ export function PolicyCancellationsPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
+              {paged.length === 0 && (
                 <TableRow><TableCell colSpan={8} align="center" sx={{ color: "text.secondary", py: 4 }}>
                   Δεν υπάρχουν ακυρώσεις.
                 </TableCell></TableRow>
               )}
-              {(q.data ?? []).map(c => (
+              {paged.map(c => (
                 <TableRow key={c.id} hover>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{c.cancellationNumber}</TableCell>
                   <TableCell sx={{ fontFamily: "monospace", fontSize: 13 }}>{c.policyNumber}</TableCell>
@@ -126,6 +187,17 @@ export function PolicyCancellationsPage() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            component="div"
+            count={filtered.length}
+            page={page}
+            onPageChange={(_e, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+            rowsPerPageOptions={[10, 25, 50, 100, 250]}
+            labelRowsPerPage="Ανά σελίδα"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+          />
         </Card>
       )}
 

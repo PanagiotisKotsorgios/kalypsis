@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
-import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
+import { FilterHelp } from "../components/FilterHelp";
 import {
   Alert,
   Box,
@@ -233,19 +233,24 @@ export function ClaimsPage() {
 
       {!isCustomer && (
         <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
-            <FilterFieldWrap tip="Φιλτράρετε τις ζημιές ανά κατάσταση (Αναφορά, Υπό έλεγχο, Εγκεκριμένη κ.λπ.).">
-              <SearchableTextField size="small" label={t("claims.col.status")}
-                value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "")}
-                sx={{ minWidth: 160, width: "100%" }}>
-                <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
-                {(["Reported","UnderReview","Approved","Rejected","Paid","Closed"] as const).map(s =>
-                  <MenuItem key={s} value={s}>{t(`claims.statuses.${s}`)}</MenuItem>)}
-              </SearchableTextField>
-            </FilterFieldWrap>
-            <TextField size="small" label="Πελάτης / Συμβόλαιο / ΑΦΜ" placeholder="Αναζήτηση…"
+          {/* Dense grid — search+status on line 1, carrier/branch/use/cover
+              on line 2, package/dates/clear on line 3 — 3 rows on desktop
+              instead of the ~6-row wrap the flex layout produced. */}
+          <Box sx={{
+            display: "grid",
+            gap: 1,
+            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+            alignItems: "center",
+          }}>
+            <SearchableTextField size="small" label={t("claims.col.status")} fullWidth
+              value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "")}>
+              <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
+              {(["Reported","UnderReview","Approved","Rejected","Paid","Closed"] as const).map(s =>
+                <MenuItem key={s} value={s}>{t(`claims.statuses.${s}`)}</MenuItem>)}
+            </SearchableTextField>
+            <TextField size="small" label="Πελάτης / Συμβόλαιο / ΑΦΜ" placeholder="Αναζήτηση…" fullWidth
               value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)}
-              sx={{ minWidth: 220, flex: 1 }}
+              sx={{ gridColumn: { md: "span 3" } }}
               InputProps={{
                 endAdornment: <FilterHelp title="Αναζήτηση σε ονοματεπώνυμο πελάτη, αριθμό συμβολαίου ή ΑΦΜ." />
               }} />
@@ -254,7 +259,7 @@ export function ClaimsPage() {
               value={carrierFilter}
               onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); setCoverFilter(""); setPackageFilter(""); }}
               emptyLabel="Όλες"
-              sx={{ minWidth: 170 }}
+              sx={{ width: "100%" }}
               options={(carriersQ.data ?? []).filter(c => !c.parentCompanyId).map(c => ({
                 value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : undefined,
               }))}
@@ -267,7 +272,7 @@ export function ClaimsPage() {
                 ? "Επιλέξτε εταιρία"
                 : filterCatalogue.branches.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
               emptyLabel="Όλοι"
-              sx={{ minWidth: 170 }}
+              sx={{ width: "100%" }}
               options={filterCatalogue.branches.map(b => ({ value: b.value, label: b.label }))}
             />
             <SearchableSelect
@@ -278,7 +283,7 @@ export function ClaimsPage() {
                 ? "Επιλέξτε εταιρία"
                 : filterCatalogue.uses.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
               emptyLabel="Όλες"
-              sx={{ minWidth: 170 }}
+              sx={{ width: "100%" }}
               options={filterCatalogue.uses.map(u => ({ value: u.value, label: u.label }))}
             />
             <SearchableSelect
@@ -289,7 +294,7 @@ export function ClaimsPage() {
                 ? "Επιλέξτε εταιρία"
                 : filterCatalogue.coverages.length === 0 ? "Δεν υπάρχουν παραμετρικά" : ""}
               emptyLabel="Όλες"
-              sx={{ minWidth: 170 }}
+              sx={{ width: "100%" }}
               options={filterCatalogue.coverages.map(c => ({ value: c.value, label: c.label }))}
             />
             <SearchableSelect
@@ -300,23 +305,19 @@ export function ClaimsPage() {
                 ? "Επιλέξτε εταιρία"
                 : filterCatalogue.packages.length === 0 ? "Δεν υπάρχουν πακέτα" : ""}
               emptyLabel="Όλα"
-              sx={{ minWidth: 170 }}
+              sx={{ width: "100%" }}
               options={filterCatalogue.packages.map(p => ({ value: p.value, label: p.label }))}
             />
-            <FilterFieldWrap tip="Ημερομηνία συμβάντος από — εμφανίζει ζημιές που συνέβησαν από αυτήν την ημέρα.">
-              <TextField size="small" type="date" label="Συμβάν από" InputLabelProps={{ shrink: true }}
-                value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 150, width: "100%" }} />
-            </FilterFieldWrap>
-            <FilterFieldWrap tip="Ημερομηνία συμβάντος έως — εμφανίζει ζημιές που συνέβησαν μέχρι αυτήν την ημέρα.">
-              <TextField size="small" type="date" label="Συμβάν έως" InputLabelProps={{ shrink: true }}
-                value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 150, width: "100%" }} />
-            </FilterFieldWrap>
-            <Button size="small" onClick={() => {
+            <TextField size="small" type="date" label="Συμβάν από" InputLabelProps={{ shrink: true }} fullWidth
+              value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+            <TextField size="small" type="date" label="Συμβάν έως" InputLabelProps={{ shrink: true }} fullWidth
+              value={toDate} onChange={(e) => setToDate(e.target.value)} />
+            <Button size="small" fullWidth onClick={() => {
               setStatusFilter(""); setCustomerFilter(""); setCarrierFilter(""); setSubCarrierFilter([]);
               setTypeFilter(""); setUseFilter(""); setCoverFilter(""); setPackageFilter("");
               setFromDate(""); setToDate("");
             }} color="error" variant="contained">Καθαρισμός</Button>
-          </Stack>
+          </Box>
         </Card>
       )}
 

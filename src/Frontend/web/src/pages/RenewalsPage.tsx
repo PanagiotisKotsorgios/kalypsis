@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert, Badge, Box, Button, Card, Checkbox, Chip, CircularProgress, IconButton,
-  MenuItem, Popover, Stack, Table, TableBody, TableCell, TableHead, TableRow,
-  ToggleButton, ToggleButtonGroup, Typography
+  MenuItem, Popover, Stack, Table, TableBody, TableCell, TableHead, TablePagination,
+  TableRow, ToggleButton, ToggleButtonGroup, Typography
 } from "@mui/material";
 import EventRepeatIcon from "@mui/icons-material/EventRepeat";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
@@ -50,6 +50,11 @@ export function RenewalsPage() {
   const [err, setErr] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [popover, setPopover] = useState<{ anchor: HTMLElement; rows: UpcomingRow[] } | null>(null);
+  // Pagination on the list view — the upcoming window can hold hundreds of
+  // policies on a full 12-month sweep; we slice globally then re-group the
+  // visible slice so month cards remain intact.
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const q = useQuery({
     queryKey: ["renewals-upcoming", windowDays],
@@ -72,15 +77,29 @@ export function RenewalsPage() {
 
   const rows = q.data ?? [];
 
+  // Sort by end date so pagination cuts cleanly along the timeline instead
+  // of shuffling months around.
+  const sortedRows = useMemo(
+    () => [...rows].sort((a, b) => a.endDate.localeCompare(b.endDate)),
+    [rows]
+  );
+  const pagedRows = useMemo(
+    () => sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [sortedRows, page, rowsPerPage]
+  );
+  // Reset to the first page whenever the underlying result set changes
+  // (window switched, bulk renew completed).
+  useEffect(() => { setPage(0); }, [rows.length, windowDays]);
+
   const grouped = useMemo(() => {
     const out = new Map<string, UpcomingRow[]>();
-    for (const r of rows) {
+    for (const r of pagedRows) {
       const key = r.endDate.slice(0, 7);
       if (!out.has(key)) out.set(key, []);
       out.get(key)!.push(r);
     }
     return Array.from(out.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [rows]);
+  }, [pagedRows]);
 
   const byDay = useMemo(() => {
     const out = new Map<string, UpcomingRow[]>();
@@ -180,6 +199,21 @@ export function RenewalsPage() {
         </Card>
       ) : view === "list" ? (
         <Stack spacing={2}>
+          {/* Global pagination — sits above the month cards so operators
+              always see «page 1 of N» before scrolling the first group. */}
+          <Card variant="outlined" sx={{ px: 1 }}>
+            <TablePagination
+              component="div"
+              count={rows.length}
+              page={page}
+              onPageChange={(_e, p) => setPage(p)}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+              rowsPerPageOptions={[10, 25, 50, 100, 250]}
+              labelRowsPerPage="Ανά σελίδα"
+              labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+            />
+          </Card>
           {grouped.map(([month, monthRows]) => {
             const monthTotal = monthRows.reduce((s, r) => s + r.premium, 0);
             const allSel = monthRows.every(r => selected.has(r.policyId));

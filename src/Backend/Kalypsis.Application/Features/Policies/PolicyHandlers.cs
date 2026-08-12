@@ -471,6 +471,10 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
         var count = await _db.Policies.IgnoreQueryFilters().CountAsync(x => x.TenantId == tenantId, ct);
         var number = $"P-{(count + 1):D6}";
 
+        var b = request.Body;
+        // Body overrides win over the source policy's values so operators
+        // can adjust coverages, producer, plate, etc. at renewal time
+        // without re-opening the new policy for editing.
         var newPolicy = new Policy
         {
             Id = Guid.NewGuid(),
@@ -478,15 +482,25 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
             PolicyNumber = number,
             CustomerId = src.CustomerId,
             InsuranceCompanyId = src.InsuranceCompanyId,
-            ProducerId = src.ProducerId,
+            ProducerId = b.ProducerId ?? src.ProducerId,
             PolicyType = src.PolicyType,
             Status = PolicyStatus.Active,
-            StartDate = request.Body.StartDate,
-            EndDate = request.Body.EndDate,
-            Premium = request.Body.Premium,
+            StartDate = b.StartDate,
+            EndDate = b.EndDate,
+            Premium = b.Premium,
             Currency = src.Currency,
             CreatedByUserId = _current.UserId,
-            RenewedFromPolicyId = src.Id
+            RenewedFromPolicyId = src.Id,
+            VehicleUseCategory = b.VehicleUseCategory ?? src.VehicleUseCategory,
+            ApplicationNumber = b.ApplicationNumber ?? src.ApplicationNumber,
+            VehicleRegistrationPlate = b.VehicleRegistrationPlate ?? src.VehicleRegistrationPlate,
+            SpecialCommissionPercent = b.SpecialCommissionPercent
+                ?? (src.RetainSpecialCommissionsOnRenewal ? src.SpecialCommissionPercent : null),
+            // Merge new cover/package codes into fresh SpecsJson — falls back
+            // to the source's SpecsJson blob when both codes are blank.
+            SpecsJson = (b.CoverCode is null && b.PackageCode is null)
+                ? src.SpecsJson
+                : PolicySpecsJsonHelper.MergeCodes(src.SpecsJson, b.CoverCode, b.PackageCode),
         };
         _db.Policies.Add(newPolicy);
 

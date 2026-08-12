@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Autocomplete, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField,
-  Typography
+  DialogTitle, IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination,
+  TableRow, TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -41,6 +41,12 @@ export function EndorsementsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<EndorsementDto | null>(null);
   const [statusFilter, setStatusFilter] = useState<EndorsementStatus | "all">("all");
+  const [typeFilter, setTypeFilter] = useState<string>("");
+  const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const q = useQuery({
     queryKey: ["endorsements", statusFilter],
@@ -50,6 +56,25 @@ export function EndorsementsPage() {
       return (await api.get<EndorsementDto[]>("/endorsements", { params })).data;
     }
   });
+
+  // Client-side filter chain — search across endorsement/policy number,
+  // type filter, and effective-date window. Server already narrows on
+  // status, so keep that as a chip toggle.
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return (q.data ?? []).filter(e => {
+      if (needle) {
+        const hay = `${e.endorsementNumber} ${e.policyNumber} ${e.description ?? ""} ${e.carrierReference ?? ""}`.toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      if (typeFilter && String(e.type) !== typeFilter) return false;
+      if (fromDate && e.effectiveFrom < fromDate) return false;
+      if (toDate && e.effectiveFrom > toDate) return false;
+      return true;
+    });
+  }, [q.data, search, typeFilter, fromDate, toDate]);
+  useEffect(() => { setPage(0); }, [search, typeFilter, fromDate, toDate, statusFilter]);
+  const paged = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   const issue = useMutation({
     mutationFn: async (id: string) => api.post(`/endorsements/${id}/issue`),
@@ -87,7 +112,7 @@ export function EndorsementsPage() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 
-      <Stack direction="row" spacing={1} mb={2}>
+      <Stack direction="row" spacing={1} mb={2} flexWrap="wrap" gap={1}>
         {(["all", "Draft", "Issued", "Cancelled"] as const).map(s => (
           <Chip key={s} label={s === "all" ? "Όλες" : s === "Draft" ? "Πρόχειρες" : s === "Issued" ? "Εκδοθείσες" : "Ακυρωμένες"}
             color={statusFilter === s ? "primary" : "default"}
@@ -96,6 +121,39 @@ export function EndorsementsPage() {
             sx={{ cursor: "pointer" }} />
         ))}
       </Stack>
+
+      {/* Search / type / date filters — dense 4-col grid to stay compact. */}
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Box sx={{
+          display: "grid",
+          gap: 1,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+          alignItems: "center",
+        }}>
+          <TextField size="small" placeholder="Αναζήτηση: αρ. πράξης, συμβόλαιο, περιγραφή…" fullWidth
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            sx={{ gridColumn: { md: "span 2" } }} />
+          <SearchableTextField size="small" label="Τύπος" value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)} fullWidth>
+            <MenuItem value="">Όλοι</MenuItem>
+            {Object.entries(TYPE_LABELS).map(([k, v]) =>
+              <MenuItem key={k} value={k}>{v}</MenuItem>)}
+          </SearchableTextField>
+          <Button size="small" fullWidth color="error" variant="contained"
+            onClick={() => { setSearch(""); setTypeFilter(""); setFromDate(""); setToDate(""); }}>
+            Καθαρισμός
+          </Button>
+          <TextField size="small" type="date" label="Ισχύς από" InputLabelProps={{ shrink: true }} fullWidth
+            value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          <TextField size="small" type="date" label="Ισχύς έως" InputLabelProps={{ shrink: true }} fullWidth
+            value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          <Typography variant="body2" color="text.secondary" sx={{ gridColumn: { md: "span 2" }, fontVariantNumeric: "tabular-nums" }}>
+            {filtered.length === (q.data?.length ?? 0)
+              ? `${filtered.length} εγγραφές`
+              : `${filtered.length} από ${q.data?.length ?? 0}`}
+          </Typography>
+        </Box>
+      </Card>
 
       {q.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
@@ -115,12 +173,12 @@ export function EndorsementsPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
+              {paged.length === 0 && (
                 <TableRow><TableCell colSpan={8} align="center" sx={{ color: "text.secondary", py: 4 }}>
                   Δεν υπάρχουν πρόσθετες πράξεις.
                 </TableCell></TableRow>
               )}
-              {(q.data ?? []).map(e => (
+              {paged.map(e => (
                 <TableRow key={e.id} hover>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{e.endorsementNumber}</TableCell>
                   <TableCell sx={{ fontFamily: "monospace", fontSize: 13 }}>{e.policyNumber}</TableCell>
@@ -164,6 +222,17 @@ export function EndorsementsPage() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            component="div"
+            count={filtered.length}
+            page={page}
+            onPageChange={(_e, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+            rowsPerPageOptions={[10, 25, 50, 100, 250]}
+            labelRowsPerPage="Ανά σελίδα"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+          />
         </Card>
       )}
 

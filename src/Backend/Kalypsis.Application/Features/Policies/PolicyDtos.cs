@@ -69,7 +69,18 @@ public record UpdatePolicyBody(
 public record RenewPolicyBody(
     DateOnly StartDate,
     DateOnly EndDate,
-    decimal Premium);
+    decimal Premium,
+    // Optional overrides for the new policy — leaving any of these null
+    // keeps the source policy's value. Covers common renewal-time edits
+    // so the operator doesn't have to open the policy in edit mode after
+    // renewal to tweak coverages, producer, or the commission override.
+    Guid? ProducerId = null,
+    VehicleUseCategory? VehicleUseCategory = null,
+    string? CoverCode = null,
+    string? PackageCode = null,
+    string? ApplicationNumber = null,
+    string? VehicleRegistrationPlate = null,
+    decimal? SpecialCommissionPercent = null);
 
 public record CancelPolicyBody(string? Reason);
 
