@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow,
+  TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -30,6 +31,13 @@ export function SecuritiesPage() {
   const [err, setErr] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<SecurityDto | null>(null);
+  const [search, setSearch] = useState("");
+  const [kindFilter, setKindFilter] = useState<Kind | "">("");
+  const [statusFilter, setStatusFilter] = useState<Status | "">("");
+  const [maturityFrom, setMaturityFrom] = useState("");
+  const [maturityTo, setMaturityTo] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const q = useQuery({ queryKey: ["securities"], queryFn: async () => (await api.get<SecurityDto[]>("/securities")).data });
   const del = useMutation({ mutationFn: async (id: string) => api.delete(`/securities/${id}`),
@@ -38,14 +46,67 @@ export function SecuritiesPage() {
 
   const colors: Record<Status, "info"|"success"|"error"|"default"> = { Open: "info", Paid: "success", Bounced: "error", Cancelled: "default" };
 
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return (q.data ?? []).filter(s => {
+      if (needle) {
+        const hay = `${s.number} ${s.customerName} ${s.issuingBankName ?? ""} ${s.notes ?? ""}`.toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      if (kindFilter && s.kind !== kindFilter) return false;
+      if (statusFilter && s.status !== statusFilter) return false;
+      if (maturityFrom && s.maturityDate < maturityFrom) return false;
+      if (maturityTo && s.maturityDate > maturityTo) return false;
+      return true;
+    });
+  }, [q.data, search, kindFilter, statusFilter, maturityFrom, maturityTo]);
+  useEffect(() => { setPage(0); }, [search, kindFilter, statusFilter, maturityFrom, maturityTo]);
+  const paged = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Box><Typography variant="h4" sx={{ fontWeight: 800 }}>{t("securities.title")}</Typography>
           <Typography color="text.secondary">{t("securities.subtitle")}</Typography></Box>
-        <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("securities.create")}</Button>
+        <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}
+          sx={{ whiteSpace: "nowrap", flexShrink: 0, minWidth: 200 }}>
+          {t("securities.create")}
+        </Button>
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+
+      {/* Filter card — same dense grid pattern used across the app. */}
+      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <Box sx={{
+          display: "grid", gap: 1,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+          alignItems: "center",
+        }}>
+          <TextField size="small" placeholder="Αναζήτηση: αριθμός, πελάτης, τράπεζα…" fullWidth
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            sx={{ gridColumn: { md: "span 2" } }} />
+          <SearchableTextField size="small" label={t("securities.kind")} fullWidth
+            value={kindFilter} onChange={(e) => setKindFilter(e.target.value as Kind | "")}>
+            <MenuItem value="">Όλοι</MenuItem>
+            {KINDS.map(k => <MenuItem key={k} value={k}>{t(`securities.kindLabel.${k}`)}</MenuItem>)}
+          </SearchableTextField>
+          <SearchableTextField size="small" label={t("common.status")} fullWidth
+            value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as Status | "")}>
+            <MenuItem value="">Όλες</MenuItem>
+            {STATUSES.map(s => <MenuItem key={s} value={s}>{t(`securities.statusLabel.${s}`)}</MenuItem>)}
+          </SearchableTextField>
+          <TextField size="small" type="date" label="Λήξη από" InputLabelProps={{ shrink: true }} fullWidth
+            value={maturityFrom} onChange={(e) => setMaturityFrom(e.target.value)} />
+          <TextField size="small" type="date" label="Λήξη έως" InputLabelProps={{ shrink: true }} fullWidth
+            value={maturityTo} onChange={(e) => setMaturityTo(e.target.value)} />
+          <Button size="small" fullWidth color="error" variant="contained"
+            onClick={() => { setSearch(""); setKindFilter(""); setStatusFilter(""); setMaturityFrom(""); setMaturityTo(""); }}
+            sx={{ gridColumn: { md: "span 2" } }}>
+            Καθαρισμός φίλτρων
+          </Button>
+        </Box>
+      </Card>
+
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (
         <Card variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small">
@@ -61,10 +122,10 @@ export function SecuritiesPage() {
               <TableCell align="right" />
             </TableRow></TableHead>
             <TableBody>
-              {(q.data ?? []).length === 0 && (
+              {paged.length === 0 && (
                 <TableRow><TableCell colSpan={9} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("securities.empty")}</TableCell></TableRow>
               )}
-              {(q.data ?? []).map(s => {
+              {paged.map(s => {
                 const overdue = s.status === "Open" && new Date(s.maturityDate) < new Date();
                 return (
                   <TableRow key={s.id} hover>
@@ -87,6 +148,17 @@ export function SecuritiesPage() {
               })}
             </TableBody>
           </Table>
+          <TablePagination
+            component="div"
+            count={filtered.length}
+            page={page}
+            onPageChange={(_e, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={ev => { setRowsPerPage(parseInt(ev.target.value, 10)); setPage(0); }}
+            rowsPerPageOptions={[10, 25, 50, 100, 250]}
+            labelRowsPerPage="Ανά σελίδα"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+          />
         </Card>
       )}
       <FormDialog open={createOpen} onClose={() => setCreateOpen(false)} item={null}

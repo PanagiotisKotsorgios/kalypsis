@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Autocomplete, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  DialogTitle, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow,
+  TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
@@ -39,13 +39,15 @@ export function CreditNotesPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const q = useQuery({
     queryKey: ["credit-notes"],
     queryFn: async () => (await api.get<CreditNoteDto[]>("/credit-notes")).data
   });
 
-  const filtered = (q.data ?? []).filter(c => {
+  const filtered = useMemo(() => (q.data ?? []).filter(c => {
     if (kindFilter   && String(c.kind)  !== kindFilter)   return false;
     if (statusFilter && c.status        !== statusFilter) return false;
     if (fromDate && c.issuedAt < fromDate) return false;
@@ -55,7 +57,9 @@ export function CreditNotesPage() {
       if (!`${c.creditNoteNumber} ${c.description} ${c.relatedDocumentRef ?? ""}`.toLowerCase().includes(s)) return false;
     }
     return true;
-  });
+  }), [q.data, search, kindFilter, statusFilter, fromDate, toDate]);
+  useEffect(() => { setPage(0); }, [search, kindFilter, statusFilter, fromDate, toDate]);
+  const paged = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
   const total = filtered.reduce((s, c) => s + c.amount, 0);
 
   return (
@@ -80,47 +84,46 @@ export function CreditNotesPage() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 
+      {/* Filter card — 4-col dense grid so 5 filter fields + clear stay
+          in exactly 2 lines on desktop without any field getting cropped
+          or squeezed. */}
       <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1} flexWrap="wrap" useFlexGap alignItems={{ md: "center" }}>
-          <TextField size="small" placeholder="Αναζήτηση…"
-            value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 200 }}
-            InputProps={{
-              endAdornment: <FilterHelp title="Αναζήτηση σε αριθμό, περιγραφή ή σχετικό έγγραφο." />
-            }} />
-          <FilterFieldWrap tip="Φιλτράρετε τα πιστωτικά ανά είδος (Έκπτωση, Επιστροφή, Ακύρωση κ.λπ.).">
-            <SearchableTextField size="small" label="Είδος"
-              value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} sx={{ minWidth: 170, width: "100%" }}>
-              <MenuItem value="">Όλα</MenuItem>
-              {Object.entries(KIND_LABELS).map(([k, label]) =>
-                <MenuItem key={k} value={k}>{label}</MenuItem>)}
-            </SearchableTextField>
-          </FilterFieldWrap>
-          <FilterFieldWrap tip="Φιλτράρετε ανά κατάσταση: Εκδόθηκε, Εφαρμόστηκε ή Ακυρώθηκε.">
-            <SearchableTextField size="small" label="Κατάσταση"
-              value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 150, width: "100%" }}>
-              <MenuItem value="">Όλες</MenuItem>
-              <MenuItem value="Issued">Εκδόθηκε</MenuItem>
-              <MenuItem value="Applied">Εφαρμόστηκε</MenuItem>
-              <MenuItem value="Cancelled">Ακυρώθηκε</MenuItem>
-            </SearchableTextField>
-          </FilterFieldWrap>
-          <FilterFieldWrap tip="Ημερομηνία έκδοσης από — εμφανίζει πιστωτικά από αυτήν την ημέρα και μετά.">
-            <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
-              value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 140, width: "100%" }} />
-          </FilterFieldWrap>
-          <FilterFieldWrap tip="Ημερομηνία έκδοσης έως — εμφανίζει πιστωτικά μέχρι αυτήν την ημέρα.">
-            <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
-              value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 140, width: "100%" }} />
-          </FilterFieldWrap>
-          <Box sx={{ flex: 1 }} />
+        <Box sx={{
+          display: "grid", gap: 1,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+          alignItems: "center",
+        }}>
+          <TextField size="small" placeholder="Αναζήτηση: αριθμός, περιγραφή, σχετικό έγγραφο…" fullWidth
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            sx={{ gridColumn: { md: "span 2" } }} />
+          <SearchableTextField size="small" label="Είδος" fullWidth
+            value={kindFilter} onChange={(e) => setKindFilter(e.target.value)}>
+            <MenuItem value="">Όλα</MenuItem>
+            {Object.entries(KIND_LABELS).map(([k, label]) =>
+              <MenuItem key={k} value={k}>{label}</MenuItem>)}
+          </SearchableTextField>
+          <SearchableTextField size="small" label="Κατάσταση" fullWidth
+            value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <MenuItem value="">Όλες</MenuItem>
+            <MenuItem value="Issued">Εκδόθηκε</MenuItem>
+            <MenuItem value="Applied">Εφαρμόστηκε</MenuItem>
+            <MenuItem value="Cancelled">Ακυρώθηκε</MenuItem>
+          </SearchableTextField>
+          <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} fullWidth
+            value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} fullWidth
+            value={toDate} onChange={(e) => setToDate(e.target.value)} />
           <Box sx={{ textAlign: "right" }}>
-            <Typography variant="caption" color="text.secondary">Σύνολο φιλτραρισμένα</Typography>
+            <Typography variant="caption" color="text.secondary" display="block">Σύνολο φιλτραρισμένα</Typography>
             <Typography fontWeight={800}>{money(total)}</Typography>
           </Box>
-          <Button size="small" onClick={() => {
-            setSearch(""); setKindFilter(""); setStatusFilter(""); setFromDate(""); setToDate("");
-          }} color="error" variant="contained">Καθαρισμός</Button>
-        </Stack>
+          <Button size="small" fullWidth color="error" variant="contained"
+            onClick={() => {
+              setSearch(""); setKindFilter(""); setStatusFilter(""); setFromDate(""); setToDate("");
+            }}>
+            Καθαρισμός φίλτρων
+          </Button>
+        </Box>
       </Card>
 
       {q.isLoading ? (
@@ -140,12 +143,12 @@ export function CreditNotesPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filtered.length === 0 && (
+              {paged.length === 0 && (
                 <TableRow><TableCell colSpan={7} align="center" sx={{ color: "text.secondary", py: 4 }}>
                   Δεν υπάρχουν πιστωτικά σημειώματα.
                 </TableCell></TableRow>
               )}
-              {filtered.map(n => (
+              {paged.map(n => (
                 <TableRow key={n.id} hover>
                   <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{n.creditNoteNumber}</TableCell>
                   <TableCell>{KIND_LABELS[n.kind] ?? "—"}</TableCell>
@@ -160,6 +163,17 @@ export function CreditNotesPage() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            component="div"
+            count={filtered.length}
+            page={page}
+            onPageChange={(_e, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={ev => { setRowsPerPage(parseInt(ev.target.value, 10)); setPage(0); }}
+            rowsPerPageOptions={[10, 25, 50, 100, 250]}
+            labelRowsPerPage="Ανά σελίδα"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+          />
         </Card>
       )}
 

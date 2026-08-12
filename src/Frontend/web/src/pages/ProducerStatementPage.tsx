@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Divider,
-  Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow,
+  TextField, Typography
 } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
@@ -48,6 +49,9 @@ export function ProducerStatementPage() {
   const [from, setFrom] = useState(`${y}-01-01`);
   const [to, setTo] = useState(`${y}-12-31`);
   const [producerId, setProducerId] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const producers = useQuery({
     queryKey: ["producers", "lite"],
@@ -74,6 +78,17 @@ export function ProducerStatementPage() {
   };
 
   const data = report.data;
+  const filteredLines = useMemo(() => {
+    if (!data) return [];
+    const needle = search.trim().toLowerCase();
+    if (!needle) return data.lines;
+    return data.lines.filter(l => {
+      const hay = `${l.policyNumber} ${l.customerName} ${l.carrierName} ${l.level}`.toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [data, search]);
+  useEffect(() => { setPage(0); }, [search, producerId, from, to]);
+  const pagedLines = filteredLines.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   return (
     <Box>
@@ -86,10 +101,14 @@ export function ProducerStatementPage() {
         πληρωμές και υπόλοιπο.
       </Typography>
 
+      {/* Filter card — search across policy lines is client-side because
+          the statement fits comfortably in memory. Layout matches the
+          rest of the app so operators see the same controls in the same
+          spots. */}
       <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
         <Box sx={{
           display: "grid", gap: 1,
-          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)" },
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
           alignItems: "start",
         }}>
           <SearchableSelect label="Συνεργάτης" value={producerId} onChange={setProducerId}
@@ -99,9 +118,13 @@ export function ProducerStatementPage() {
             value={from} onChange={e => setFrom(e.target.value)} InputLabelProps={{ shrink: true }} />
           <TextField label="Έως" type="date" size="small" fullWidth
             value={to} onChange={e => setTo(e.target.value)} InputLabelProps={{ shrink: true }} />
+          <TextField size="small" placeholder="Αναζήτηση: συμβόλαιο, πελάτης, εταιρεία…" fullWidth
+            value={search} onChange={e => setSearch(e.target.value)} />
         </Box>
         <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 1 }}>
-          <Button size="small" onClick={() => { setFrom(`${y}-01-01`); setTo(`${y}-12-31`); setProducerId(""); }} color="error" variant="contained">Καθαρισμός</Button>
+          <Button size="small" onClick={() => {
+            setFrom(`${y}-01-01`); setTo(`${y}-12-31`); setProducerId(""); setSearch("");
+          }} color="error" variant="contained">Καθαρισμός φίλτρων</Button>
           <Button size="small" variant="contained" startIcon={<DownloadIcon />}
             disabled={!producerId || !data?.lines.length} onClick={downloadCsv}>Εξαγωγή CSV</Button>
         </Stack>
@@ -154,7 +177,7 @@ export function ProducerStatementPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {data.lines.map((l, i) => (
+                {pagedLines.map((l, i) => (
                   <TableRow key={`${l.policyId}-${l.level}-${i}`} hover>
                     <TableCell sx={{ fontFamily: "monospace" }}>{l.policyNumber}</TableCell>
                     <TableCell>{l.customerName}</TableCell>
@@ -170,6 +193,17 @@ export function ProducerStatementPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination
+              component="div"
+              count={filteredLines.length}
+              page={page}
+              onPageChange={(_e, p) => setPage(p)}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={ev => { setRowsPerPage(parseInt(ev.target.value, 10)); setPage(0); }}
+              rowsPerPageOptions={[10, 25, 50, 100, 250]}
+              labelRowsPerPage="Ανά σελίδα"
+              labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+            />
             <Divider />
             <Box sx={{ p: 2, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 0.5 }}>
               <Typography variant="body2">Μικτή προμήθεια: <b>{eur(data.grossTotal)}</b></Typography>
