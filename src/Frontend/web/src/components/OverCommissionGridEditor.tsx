@@ -976,14 +976,43 @@ export function OverCommissionGridEditor({
                         sx={cellField} fullWidth />
                     </TableCell>
                   )}
+                  {/* Ποσό παραγωγού + Ποσό έδρας — editable. Typing in
+                      either cell back-solves the % share so the two stay
+                      consistent (their sum is always the gross). Empty
+                      cell shows the computed value; typing overrides it
+                      immediately. */}
                   {visibleCols.producerAmount && (
-                    <TableCell align="right" sx={{ fontFamily: "monospace", color: gross > 0 ? "success.main" : "text.disabled", fontSize: 14, pt: 2 }}>
-                      {gross > 0 ? moneyFmt.format(producer) : "—"}
+                    <TableCell align="right">
+                      <TextField
+                        value={gross > 0 ? producer.toFixed(2).replace(".", ",") : ""}
+                        onChange={e => {
+                          const v = Number(e.target.value.replace(",", ".")) || 0;
+                          if (gross <= 0) return;
+                          const newPct = Math.max(0, Math.min(100, (v / gross) * 100));
+                          updateRow(r.key, { producerSharePercent: newPct.toFixed(2) });
+                        }}
+                        placeholder={gross > 0 ? "0,00" : "—"}
+                        disabled={gross <= 0}
+                        inputProps={{ style: { textAlign: "right", fontFamily: "monospace",
+                          color: gross > 0 ? "#2e7d32" : undefined } }}
+                        sx={cellField} fullWidth />
                     </TableCell>
                   )}
                   {visibleCols.officeAmount && (
-                    <TableCell align="right" sx={{ fontFamily: "monospace", color: gross > 0 && office > 0 ? "info.main" : "text.disabled", fontSize: 14, pt: 2 }}>
-                      {gross > 0 ? moneyFmt.format(office) : "—"}
+                    <TableCell align="right">
+                      <TextField
+                        value={gross > 0 ? office.toFixed(2).replace(".", ",") : ""}
+                        onChange={e => {
+                          const v = Number(e.target.value.replace(",", ".")) || 0;
+                          if (gross <= 0) return;
+                          const newPct = Math.max(0, Math.min(100, ((gross - v) / gross) * 100));
+                          updateRow(r.key, { producerSharePercent: newPct.toFixed(2) });
+                        }}
+                        placeholder={gross > 0 ? "0,00" : "—"}
+                        disabled={gross <= 0}
+                        inputProps={{ style: { textAlign: "right", fontFamily: "monospace",
+                          color: gross > 0 ? "#0277bd" : undefined } }}
+                        sx={cellField} fullWidth />
                     </TableCell>
                   )}
                   {visibleCols.reference && (
