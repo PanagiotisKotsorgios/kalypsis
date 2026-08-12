@@ -32,6 +32,8 @@
     <EmbeddedResource Include="Persistence\Seeders\Resources\grand-cover-seed.json" />
     <EmbeddedResource Include="Persistence\Seeders\Resources\atlantic-parametrics.json" />
     <EmbeddedResource Include="Persistence\Seeders\Resources\ergo-parametrics.json" />
+    <EmbeddedResource Include="Persistence\Seeders\Resources\ergo-reference.pdf" />
+    <EmbeddedResource Include="Persistence\Seeders\Resources\grand-cover-reference.xlsx" />
   </ItemGroup>
 
 </Project>

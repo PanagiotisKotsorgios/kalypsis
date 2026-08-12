@@ -67,6 +67,13 @@ public static class DataSeeder
         try { await SeedGlobalCarriersAsync(db, logger, cancellationToken); }
         catch (Exception ex) { logger.LogError(ex, "SeedGlobalCarriersAsync failed — continuing boot."); }
 
+        // Ship the two «Οδηγός παραμετρικών» reference files that live inside
+        // the assembly as embedded resources — ERGO PDF + Grand Cover xlsx.
+        // Idempotent (SHA-256 no-op re-run). Must come AFTER the global
+        // catalogue seed so the target carriers exist.
+        try { await CarrierReferenceSeeder.SeedAsync(db, logger, cancellationToken); }
+        catch (Exception ex) { logger.LogError(ex, "CarrierReferenceSeeder failed — continuing boot without reference upload."); }
+
         var seedEmail = (config["Seed:PlatformAdminEmail"] ?? "superadmin@kalypsis.gr").ToLowerInvariant();
         var seedPassword = config["Seed:PlatformAdminPassword"] ?? "Kalypsis@2026!";
         var seedFirstName = config["Seed:PlatformAdminFirstName"] ?? "Super";
