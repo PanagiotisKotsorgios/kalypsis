@@ -6,10 +6,8 @@ import {
 import StackedBarChartIcon from "@mui/icons-material/StackedBarChart";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import DownloadIcon from "@mui/icons-material/Download";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import TableChartIcon from "@mui/icons-material/TableChart";
-import GridOnIcon from "@mui/icons-material/GridOn";
 import PrintIcon from "@mui/icons-material/Print";
+import { ExportFormatMenu } from "../components/ExportFormatMenu";
 import CalculateIcon from "@mui/icons-material/Calculate";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -272,9 +270,7 @@ export function ProductionListsPage() {
             setAll={selection.setAll}
             reset={selection.reset}
           />
-          <Button variant="outlined" startIcon={<TableChartIcon />} onClick={() => downloadExport("csv")}>CSV</Button>
-          <Button variant="outlined" startIcon={<GridOnIcon />} onClick={() => downloadExport("xlsx")}>Excel</Button>
-          <Button variant="outlined" color="error" startIcon={<PictureAsPdfIcon />} onClick={() => downloadExport("pdf")}>PDF</Button>
+          <ExportFormatMenu onExport={downloadExport} />
           <Button variant="outlined" startIcon={<PrintIcon />} onClick={openPrint}>
             {t("common.print", "Εκτύπωση")}
           </Button>

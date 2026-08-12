@@ -154,25 +154,32 @@ export function CommissionRunsPage() {
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
 
-      {/* Filter bar — compact single-row layout, fields at min widths so
-          more can fit before wrapping. Same ? position at the page title. */}
+      {/* Filter bar — dense grid, capped at 2 rows on desktop so the
+          filter block never eats more than a strip of vertical space.
+          4-col grid on md+ (7 fields + clear button = 2 rows), 2-col on
+          tablet, 1-col on phones. */}
       <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1} flexWrap="wrap" alignItems={{ md: "center" }} useFlexGap>
-          <TextField size="small" placeholder="Αναζήτηση…"
-            value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 180 }} />
-          <SearchableTextField size="small" label="Έτος" value={yearFilter}
-            onChange={(e) => setYearFilter(e.target.value)} sx={{ minWidth: 100 }}>
+        <Box sx={{
+          display: "grid",
+          gap: 1,
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+          alignItems: "center",
+        }}>
+          <TextField size="small" placeholder="Αναζήτηση…" fullWidth
+            value={search} onChange={(e) => setSearch(e.target.value)} />
+          <SearchableTextField size="small" label="Έτος" value={yearFilter} fullWidth
+            onChange={(e) => setYearFilter(e.target.value)}>
             <MenuItem value="">Όλα</MenuItem>
             {years.map(y => <MenuItem key={y} value={String(y)}>{y}</MenuItem>)}
           </SearchableTextField>
-          <SearchableTextField size="small" label="Μήνας" value={monthFilter}
-            onChange={(e) => setMonthFilter(e.target.value)} sx={{ minWidth: 100 }}>
+          <SearchableTextField size="small" label="Μήνας" value={monthFilter} fullWidth
+            onChange={(e) => setMonthFilter(e.target.value)}>
             <MenuItem value="">Όλοι</MenuItem>
             {Array.from({ length: 12 }, (_, i) => i + 1).map(m =>
               <MenuItem key={m} value={String(m)}>{m.toString().padStart(2, "0")}</MenuItem>)}
           </SearchableTextField>
-          <SearchableTextField size="small" label="Κατάσταση" value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 130 }}>
+          <SearchableTextField size="small" label="Κατάσταση" value={statusFilter} fullWidth
+            onChange={(e) => setStatusFilter(e.target.value)}>
             <MenuItem value="">Όλες</MenuItem>
             <MenuItem value="Draft">Πρόχειρη</MenuItem>
             <MenuItem value="Finalised">Οριστική</MenuItem>
@@ -182,7 +189,7 @@ export function CommissionRunsPage() {
             label="Εταιρία" value={carrierFilter}
             onChange={(v) => setCarrierFilter(v)}
             emptyLabel="Όλες"
-            sx={{ minWidth: 170 }}
+            sx={{ width: "100%" }}
             options={(carriersQ.data ?? []).filter(c => !c.parentCompanyId).map(c => ({
               value: c.id, label: c.name, hint: c.isBroker ? "πρακτορείο" : undefined,
             }))}
@@ -204,7 +211,7 @@ export function CommissionRunsPage() {
                 value={subValue}
                 onChange={(v) => setCarrierFilter(v || broker.id)}
                 emptyLabel="— όλες οι υποασφαλιστικές —"
-                sx={{ minWidth: 170 }}
+                sx={{ width: "100%" }}
                 options={subs.map(s => ({ value: s.id, label: s.name }))}
               />
             );
@@ -213,14 +220,14 @@ export function CommissionRunsPage() {
             label="Συνεργάτης" value={producerFilter}
             onChange={(v) => setProducerFilter(v)}
             emptyLabel="Όλοι"
-            sx={{ minWidth: 160 }}
+            sx={{ width: "100%" }}
             options={(producersQ.data ?? []).map(p => ({ value: p.id, label: p.name }))}
           />
-          <Button size="small" onClick={() => {
+          <Button size="small" fullWidth onClick={() => {
             setSearch(""); setYearFilter(""); setMonthFilter(""); setStatusFilter("");
             setCarrierFilter(""); setProducerFilter("");
           }} color="error" variant="contained">Καθαρισμός</Button>
-        </Stack>
+        </Box>
       </Card>
 
       {/* KPI strip (filter-aware) */}
