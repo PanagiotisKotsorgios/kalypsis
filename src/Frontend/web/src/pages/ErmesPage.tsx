@@ -1903,7 +1903,7 @@ function WelcomePane({
             <MailOutlineIcon sx={{ fontSize: 32 }} />
           </Avatar>
           <Box>
-            <Typography variant="h5" fontWeight={800}>Καλωσόρισες στον ΕΡΜΗ</Typography>
+            <Typography variant="h5" fontWeight={800}>Καλωσόρισες στο σύστημα ΕΡΜΗΣ</Typography>
             <Typography variant="body2" color="text.secondary">
               Επιλέξτε μήνυμα από τη λίστα ή ξεκινήστε νέο.
             </Typography>
