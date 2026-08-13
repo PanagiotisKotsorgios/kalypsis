@@ -261,6 +261,11 @@ const navByRole: Record<Role, NavItem[]> = {
     // ===== Top home link, every workspace =====
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />,
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+    // ΕΡΜΗΣ — Kalypsis-native messaging, pinned to every workspace so
+    // operators reach their inbox regardless of which package they're
+    // working in. Sits right under Πίνακας Ελέγχου for prominence.
+    { to: "/ermes", labelKey: "nav.ermes", icon: <MailOutlineIcon />,
+      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
 
     // ===== BackOffice — Γέφυρες Εταιρειών (hub for 4 carrier-import screens) =====
     { to: "/carrier-bridges-hub", labelKey: "nav.carrierBridgesHub", icon: <CloudUploadIcon />, package: "BackOffice" },
@@ -401,6 +406,8 @@ const navByRole: Record<Role, NavItem[]> = {
   ],
   AgencyUser: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />,
+      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+    { to: "/ermes", labelKey: "nav.ermes", icon: <MailOutlineIcon />,
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
     // BackOffice
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
