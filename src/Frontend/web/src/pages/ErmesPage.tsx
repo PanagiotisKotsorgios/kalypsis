@@ -36,6 +36,11 @@ import TableChartIcon from "@mui/icons-material/TableChart";
 import ArticleIcon from "@mui/icons-material/Article";
 import CategoryIcon from "@mui/icons-material/Category";
 import AlternateEmailIcon from "@mui/icons-material/AlternateEmail";
+import PrintIcon from "@mui/icons-material/Print";
+import ContactsIcon from "@mui/icons-material/Contacts";
+import KeyboardIcon from "@mui/icons-material/Keyboard";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutline";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -163,6 +168,43 @@ const dateShort = (iso: string) => {
 };
 
 /**
+ * Open a new tab with a print-friendly thread view. Kalypsis branding
+ * is intentionally minimal so the operator can slap this into a customer
+ * folder or forward it via email.
+ */
+function printThread(messages: ErmesMessageDto[], subject: string) {
+  const esc = (s: string) => (s ?? "").replace(/[&<>]/g,
+    c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] as string));
+  const items = messages.map(m => `
+    <section style="border-bottom:1px solid #ddd;padding:12px 0">
+      <div style="font-weight:700;font-size:13px">${esc(m.senderDisplay)}
+        <span style="color:#666;font-weight:400">&lt;${esc(m.senderEmail)}&gt;</span></div>
+      <div style="color:#666;font-size:12px;margin-bottom:6px">
+        προς: ${esc((m.recipients ?? []).map(r => r.display).join(", "))}
+        · ${new Date(m.sentAt ?? m.createdAt).toLocaleString("el-GR")}
+      </div>
+      <div style="font-size:13px;line-height:1.5">${m.bodyHtml || ""}</div>
+    </section>`).join("");
+  const html = `<!doctype html><html><head><meta charset="utf-8">
+    <title>${esc(subject)}</title>
+    <style>
+      body{font-family:Arial,sans-serif;color:#111;padding:24px;max-width:800px;margin:auto}
+      h1{font-size:18px;margin:0 0 12px}
+      @media print { body{padding:0} }
+    </style></head><body>
+    <h1>${esc(subject)}</h1>
+    ${items}
+    <p style="color:#999;font-size:11px;margin-top:24px">
+      Εκτυπώθηκε από Kalypsis · ΕΡΜΗΣ · ${new Date().toLocaleString("el-GR")}
+    </p>
+    <script>window.onload=()=>setTimeout(()=>window.print(),120);</script>
+    </body></html>`;
+  const w = window.open("", "_blank");
+  if (!w) return;
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
+/**
  * ΕΡΜΗΣ — Kalypsis-native messaging workspace.
  *
  * 3-column Outlook-style layout:
@@ -186,7 +228,21 @@ export function ErmesPage() {
   const [composeOpen, setComposeOpen] = useState(false);
   const [replyTo, setReplyTo] = useState<{ msg: ErmesMessageDto; mode: "reply" | "replyAll" | "forward" } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [manageOpen, setManageOpen] = useState<null | "teams" | "blocks">(null);
+  const [manageOpen, setManageOpen] = useState<null | "teams" | "blocks" | "contacts" | "automations">(null);
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // Signature persisted per-user in localStorage — never leaves the browser
+  // until the user actually composes with «Χρήση υπογραφής» toggled on.
+  const sigKey = `kalypsis.ermes.signature.${myId ?? "anon"}`;
+  const [signature, setSignatureState] = useState<string>(() => {
+    try { return window.localStorage.getItem(sigKey) ?? ""; } catch { return ""; }
+  });
+  const setSignature = (v: string) => {
+    setSignatureState(v);
+    try { window.localStorage.setItem(sigKey, v); } catch { /* quota */ }
+  };
+  const [signatureEditorOpen, setSignatureEditorOpen] = useState(false);
   // Beta notice — shown the first time a user lands on ΕΡΜΗΣ. The
   // localStorage flag is scoped per-user so a shared browser still nags
   // each teammate individually once. Re-opening from the header chip
@@ -222,6 +278,33 @@ export function ErmesPage() {
 
   // Reset the reader + selection whenever the folder or search changes.
   useEffect(() => { setSelected(new Set()); setOpenThreadId(null); }, [folder, search]);
+
+  // Keyboard shortcuts — only fire while nothing editable is focused,
+  // so typing in composer / search / reply body never triggers them.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (!t) return;
+      const tag = t.tagName.toLowerCase();
+      if (tag === "input" || tag === "textarea" || t.isContentEditable) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      switch (e.key) {
+        case "c": setReplyTo(null); setComposeOpen(true); break;
+        case "?": setShortcutsOpen(true); break;
+        case "/":
+          {
+            const el = document.querySelector<HTMLInputElement>('input[placeholder*="Αναζήτηση"]');
+            if (el) { e.preventDefault(); el.focus(); }
+          }
+          break;
+        case "Escape":
+          if (openThreadId) setOpenThreadId(null);
+          break;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openThreadId]);
 
   const openMessage = (m: ErmesMessageDto) => {
     if (m.isDraft) {
@@ -322,9 +405,49 @@ export function ErmesPage() {
             ))}
           </List>
           <Divider />
+          {/* Category quick-filter chips — click to narrow the middle
+              list to a single category. Click again to clear. */}
+          <Box sx={{ px: 1.5, py: 1 }}>
+            <Typography variant="overline" color="text.secondary" display="block" mb={0.5}>
+              Κατηγορίες
+            </Typography>
+            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+              <Chip size="small" label="Όλες" color={!categoryFilter ? "primary" : "default"}
+                variant={!categoryFilter ? "filled" : "outlined"}
+                onClick={() => setCategoryFilter("")} sx={{ height: 22 }} />
+              {CATEGORIES.map(c => (
+                <Chip key={c.key} size="small" label={c.label}
+                  color={categoryFilter === c.key ? c.color : "default"}
+                  variant={categoryFilter === c.key ? "filled" : "outlined"}
+                  onClick={() => setCategoryFilter(categoryFilter === c.key ? "" : c.key)}
+                  sx={{ height: 22 }} />
+              ))}
+            </Stack>
+          </Box>
+          <Divider />
           <Box sx={{ px: 1.5, py: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Typography variant="overline" color="text.secondary">Ρυθμίσεις</Typography>
           </Box>
+          <ListItemButton onClick={() => setManageOpen("contacts")} sx={{ py: 0.75 }}>
+            <ContactsIcon fontSize="small" sx={{ mr: 1, color: "text.secondary" }} />
+            <ListItemText primary="Επαφές" primaryTypographyProps={{ variant: "body2" }} />
+            <Typography variant="caption" color="text.secondary">
+              {overview.data?.contacts?.length ?? 0}
+            </Typography>
+          </ListItemButton>
+          <ListItemButton onClick={() => setManageOpen("automations")} sx={{ py: 0.75 }}>
+            <ConstructionIcon fontSize="small" sx={{ mr: 1, color: "text.secondary" }} />
+            <ListItemText primary="Αυτοματισμοί" primaryTypographyProps={{ variant: "body2" }} />
+          </ListItemButton>
+          <ListItemButton onClick={() => setSignatureEditorOpen(true)} sx={{ py: 0.75 }}>
+            <DriveFileRenameOutlineIcon fontSize="small" sx={{ mr: 1, color: "text.secondary" }} />
+            <ListItemText primary="Υπογραφή" primaryTypographyProps={{ variant: "body2" }} />
+            {signature && <Chip size="small" label="ok" color="success" sx={{ height: 18, fontSize: 10 }} />}
+          </ListItemButton>
+          <ListItemButton onClick={() => setShortcutsOpen(true)} sx={{ py: 0.75 }}>
+            <KeyboardIcon fontSize="small" sx={{ mr: 1, color: "text.secondary" }} />
+            <ListItemText primary="Συντομεύσεις" primaryTypographyProps={{ variant: "body2" }} />
+          </ListItemButton>
           <ListItemButton onClick={() => setManageOpen("blocks")} sx={{ py: 0.75 }}>
             <BlockIcon fontSize="small" sx={{ mr: 1, color: "text.secondary" }} />
             <ListItemText primary="Ανεπιθύμητοι / Μπλοκ" primaryTypographyProps={{ variant: "body2" }} />
@@ -345,7 +468,25 @@ export function ErmesPage() {
               indeterminate={selected.size > 0 && selected.size < (list.data?.length ?? 0)}
               onChange={toggleAll} />
             {selected.size === 0 ? (
-              <Typography variant="caption" color="text.secondary">{(list.data ?? []).length} μηνύματα</Typography>
+              <>
+                <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
+                  {(() => {
+                    const all = list.data ?? [];
+                    const filtered = all.filter(m =>
+                      (!categoryFilter || m.category === categoryFilter) &&
+                      (!unreadOnly || !m.isRead));
+                    return filtered.length === all.length
+                      ? `${all.length} μηνύματα`
+                      : `${filtered.length} / ${all.length}`;
+                  })()}
+                </Typography>
+                <Chip size="small"
+                  label="Μη αναγνωσμένα"
+                  color={unreadOnly ? "primary" : "default"}
+                  variant={unreadOnly ? "filled" : "outlined"}
+                  onClick={() => setUnreadOnly(v => !v)}
+                  sx={{ height: 22 }} />
+              </>
             ) : (
               <BulkBar folder={folder} disabled={bulk.isPending}
                 onAction={(a) => bulk.mutate({ action: a, ids: Array.from(selected) })} />
@@ -354,17 +495,27 @@ export function ErmesPage() {
           <Box sx={{ flex: 1, overflowY: "auto" }}>
             {list.isLoading ? (
               <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}><CircularProgress size={24} /></Box>
-            ) : (list.data ?? []).length === 0 ? (
-              <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
-                Καμία εγγραφή σε αυτόν τον φάκελο.
-              </Box>
-            ) : (list.data ?? []).map(m => (
-              <MessageRow key={m.id} msg={m} selected={selected.has(m.id)}
-                active={openThreadId === m.threadId}
-                onToggle={() => toggleOne(m.id)}
-                onOpen={() => openMessage(m)}
-                onStar={() => bulk.mutate({ action: m.isStarred ? "Unstar" : "Star", ids: [m.id] })} />
-            ))}
+            ) : (() => {
+              const filtered = (list.data ?? []).filter(m =>
+                (!categoryFilter || m.category === categoryFilter) &&
+                (!unreadOnly || !m.isRead));
+              if (filtered.length === 0) {
+                return (
+                  <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
+                    {categoryFilter || unreadOnly
+                      ? "Καμία εγγραφή που να ταιριάζει με τα φίλτρα."
+                      : "Καμία εγγραφή σε αυτόν τον φάκελο."}
+                  </Box>
+                );
+              }
+              return filtered.map(m => (
+                <MessageRow key={m.id} msg={m} selected={selected.has(m.id)}
+                  active={openThreadId === m.threadId}
+                  onToggle={() => toggleOne(m.id)}
+                  onOpen={() => openMessage(m)}
+                  onStar={() => bulk.mutate({ action: m.isStarred ? "Unstar" : "Star", ids: [m.id] })} />
+              ));
+            })()}
           </Box>
         </Card>
 
@@ -404,14 +555,40 @@ export function ErmesPage() {
         teams={overview.data?.teams ?? []}
         reply={replyTo}
         meDisplay={((user?.firstName ?? "") + " " + (user?.lastName ?? "")).trim()}
+        signature={signature}
         onSent={() => {
           setComposeOpen(false); setReplyTo(null);
           void qc.invalidateQueries({ queryKey: ["ermes"] });
         }} />
 
-      {/* Manage teams / blocks */}
+      {/* Manage teams / blocks / contacts / automations */}
       <ManageDialog kind={manageOpen} onClose={() => setManageOpen(null)}
-        contacts={overview.data?.contacts ?? []} teams={overview.data?.teams ?? []} />
+        contacts={overview.data?.contacts ?? []} teams={overview.data?.teams ?? []}
+        onCompose={(c) => {
+          // Opening a compose window pre-populated with a single "To" —
+          // wire it via replyTo with a synthetic message so the composer's
+          // reply-hydration logic seeds the To list.
+          setReplyTo({
+            msg: {
+              id: "", threadId: "", inReplyToMessageId: null,
+              senderUserId: c.userId, senderDisplay: c.display, senderEmail: c.email,
+              subject: "", bodyHtml: "", preview: "",
+              folder: "Inbox", isRead: true, isStarred: false, isImportant: false,
+              isDraft: false, automationSource: null, category: null,
+              externalEmailRequested: false, externalEmailDelivered: false, externalEmailStatus: null,
+              createdAt: new Date().toISOString(), sentAt: null,
+              recipients: [], attachments: [],
+            },
+            mode: "reply",
+          });
+          setComposeOpen(true);
+        }} />
+
+      {/* Signature editor + keyboard-shortcuts sheet */}
+      <SignatureEditor open={signatureEditorOpen} html={signature}
+        onClose={() => setSignatureEditorOpen(false)}
+        onSave={(v) => setSignature(v)} />
+      <ShortcutsSheet open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
       {/* Beta / early-access notice — first visit, dismissible; the header
           chip re-opens it any time. */}
@@ -544,6 +721,10 @@ function ThreadReader({
   const last = messages[messages.length - 1];
   if (!last) return null;
   const subject = messages[0]?.subject || "(Χωρίς θέμα)";
+  // Read receipts for the last message — number of recipients who have
+  // opened it. Rendered as a small info bar above the body.
+  const lastReadCount = (last.recipients ?? []).filter(r => r.isRead).length;
+  const lastRecipientCount = (last.recipients ?? []).length;
   return (
     <>
       <Box sx={{ p: 1.5, borderBottom: 1, borderColor: "divider",
@@ -561,8 +742,31 @@ function ThreadReader({
         {last.senderUserId !== myId && (
           <Tip title="Μπλοκάρισμα αποστολέα"><IconButton onClick={() => onBlockSender(last.senderUserId)}><BlockIcon /></IconButton></Tip>
         )}
+        <Tip title="Εκτύπωση συνομιλίας">
+          <IconButton onClick={() => printThread(messages, subject)}><PrintIcon /></IconButton>
+        </Tip>
         <Tip title="Κλείσιμο"><IconButton onClick={onClose}><CloseIcon /></IconButton></Tip>
       </Box>
+      {lastRecipientCount > 0 && last.senderUserId === myId && (
+        <Box sx={{ px: 1.5, py: 0.5, borderBottom: 1, borderColor: "divider",
+          bgcolor: "action.hover", display: "flex", alignItems: "center", gap: 1 }}>
+          <VisibilityIcon fontSize="small" sx={{ color: lastReadCount > 0 ? "success.main" : "text.disabled" }} />
+          <Typography variant="caption" color="text.secondary">
+            Αναγνώστηκε από {lastReadCount} / {lastRecipientCount}
+          </Typography>
+          <Tooltip title={
+            <Box>
+              {(last.recipients ?? []).map(r => (
+                <div key={r.userId}>{r.display} — {r.isRead ? "διαβασμένο" : "μη διαβασμένο"}</div>
+              ))}
+            </Box>
+          }>
+            <Typography variant="caption" color="primary" sx={{ cursor: "help", textDecoration: "underline" }}>
+              λεπτομέρειες
+            </Typography>
+          </Tooltip>
+        </Box>
+      )}
       <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
         {messages.map((m, i) => (
           <Box key={m.id} sx={{ mb: i === messages.length - 1 ? 0 : 2, pb: 2,
@@ -644,13 +848,14 @@ function ThreadReader({
  *    HTML table into the body.
  */
 function ComposeDialog({
-  open, onClose, contacts, teams, reply, onSent, meDisplay,
+  open, onClose, contacts, teams, reply, onSent, meDisplay, signature,
 }: {
   open: boolean; onClose: () => void;
   contacts: Contact[]; teams: Team[];
   reply: { msg: ErmesMessageDto; mode: "reply" | "replyAll" | "forward" } | null;
   onSent: () => void;
   meDisplay: string;
+  signature: string;
 }) {
   const [subject, setSubject] = useState("");
   const [bodyHtml, setBodyHtml] = useState("");
@@ -661,6 +866,7 @@ function ComposeDialog({
   const [important, setImportant] = useState(false);
   const [category, setCategory] = useState<string>("");
   const [sendExternal, setSendExternal] = useState(false);
+  const [useSignature, setUseSignature] = useState<boolean>(true);
   const [attachments, setAttachments] = useState<AttachmentDto[]>([]);
   const [tplAnchor, setTplAnchor] = useState<HTMLElement | null>(null);
   const [catAnchor, setCatAnchor] = useState<HTMLElement | null>(null);
@@ -701,7 +907,10 @@ function ComposeDialog({
 
   const send = useMutation({
     mutationFn: async (saveAsDraft: boolean) => api.post("/ermes/messages", {
-      subject, bodyHtml,
+      subject,
+      bodyHtml: (useSignature && signature)
+        ? `${bodyHtml}<br/><br/><div class="kx-signature">${signature}</div>`
+        : bodyHtml,
       recipients: [
         ...to.map(c => ({ userId: c.userId, kind: "To" })),
         ...cc.map(c => ({ userId: c.userId, kind: "Cc" })),
@@ -837,6 +1046,16 @@ function ComposeDialog({
                     onDelete={() => setCategory("")} />
                 )}
                 <Box sx={{ flex: 1 }} />
+                {signature && (
+                  <FormControlLabel
+                    sx={{ ml: 0 }}
+                    control={<Switch size="small" checked={useSignature}
+                      onChange={(_e, v) => setUseSignature(v)} />}
+                    label={<Stack direction="row" alignItems="center" spacing={0.5}>
+                      <DriveFileRenameOutlineIcon fontSize="small" />
+                      <Typography variant="body2">Υπογραφή</Typography>
+                    </Stack>} />
+                )}
                 <FormControlLabel
                   sx={{ ml: 0 }}
                   control={<Switch size="small" checked={sendExternal}
@@ -1013,17 +1232,34 @@ function ProductionListInsertDialog({
 // ─── Manage dialog (teams + blocks) ─────────────────────────────────
 
 function ManageDialog({
-  kind, onClose, contacts, teams,
+  kind, onClose, contacts, teams, onCompose,
 }: {
-  kind: "teams" | "blocks" | null; onClose: () => void;
+  kind: "teams" | "blocks" | "contacts" | "automations" | null; onClose: () => void;
   contacts: Contact[]; teams: Team[];
+  onCompose?: (c: Contact) => void;
 }) {
   const qc = useQueryClient();
-  const isTeams = kind === "teams";
   const [addTeamName, setAddTeamName] = useState("");
   const [addTeamMembers, setAddTeamMembers] = useState<Contact[]>([]);
   const [addBlockUser, setAddBlockUser] = useState<Contact | null>(null);
   const [addBlockReason, setAddBlockReason] = useState("");
+  const [contactsSearch, setContactsSearch] = useState("");
+  const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
+  const [teamMembers, setTeamMembers] = useState<Contact[]>([]);
+  // Favourite contacts — pure client-side (localStorage), keeps the
+  // starred contacts pinned to the top of the Contacts view.
+  const favKey = "kalypsis.ermes.favContacts.v1";
+  const [favs, setFavs] = useState<Set<string>>(() => {
+    try { return new Set<string>(JSON.parse(window.localStorage.getItem(favKey) ?? "[]")); } catch { return new Set(); }
+  });
+  const toggleFav = (id: string) => {
+    setFavs(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      try { window.localStorage.setItem(favKey, JSON.stringify(Array.from(next))); } catch { /* quota */ }
+      return next;
+    });
+  };
 
   const blocks = useQuery({
     queryKey: ["ermes", "blocks"],
@@ -1060,14 +1296,36 @@ function ManageDialog({
     mutationFn: async (id: string) => api.delete(`/ermes/blocks/${id}`),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["ermes"] }),
   });
+  const editTeamMembers = useMutation({
+    // Recreates the team with the new member list — cheap because a team
+    // is essentially just name + members, and this saves us needing an
+    // extra add/remove endpoint pair on the backend.
+    mutationFn: async (v: { teamId: string; name: string; members: Contact[] }) => {
+      await api.delete(`/ermes/teams/${v.teamId}`);
+      return api.post("/ermes/teams", {
+        name: v.name, description: null,
+        memberUserIds: v.members.map(c => c.userId),
+      });
+    },
+    onSuccess: () => { setExpandedTeam(null); void qc.invalidateQueries({ queryKey: ["ermes"] }); },
+  });
 
   return (
-    <Dialog open={!!kind} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={!!kind} onClose={onClose} fullWidth maxWidth={kind === "contacts" ? "md" : "sm"}>
       <DialogTitle sx={{ fontWeight: 800 }}>
-        {isTeams ? "Ομάδες παραληπτών" : "Ανεπιθύμητοι αποστολείς"}
+        {kind === "teams" ? "Ομάδες παραληπτών"
+          : kind === "contacts" ? "Επαφές γραφείου"
+          : kind === "automations" ? "Αυτοματισμοί ΕΡΜΗΣ"
+          : "Ανεπιθύμητοι αποστολείς"}
       </DialogTitle>
       <DialogContent>
-        {isTeams ? (
+        {kind === "contacts" ? (
+          <ContactsView contacts={contacts} search={contactsSearch}
+            onSearch={setContactsSearch} favs={favs} onToggleFav={toggleFav}
+            onCompose={(c) => { onCompose?.(c); onClose(); }} />
+        ) : kind === "automations" ? (
+          <AutomationsView contacts={contacts} teams={teams} />
+        ) : kind === "teams" ? (
           <Stack spacing={2}>
             <Card variant="outlined" sx={{ p: 2 }}>
               <Typography variant="body2" fontWeight={700} mb={1}>Νέα ομάδα</Typography>
@@ -1087,14 +1345,52 @@ function ManageDialog({
             </Card>
             <List dense>
               {teams.map(t => (
-                <ListItem key={t.id} secondaryAction={
-                  <IconButton onClick={(e) => setMenuFor({ el: e.currentTarget, id: t.id, kind: "team" })}>
-                    <CloseIcon fontSize="small" />
-                  </IconButton>
-                }>
-                  <ListItemAvatar><Avatar><GroupsIcon /></Avatar></ListItemAvatar>
-                  <ListItemText primary={t.name} secondary={t.members.map(m => m.display).join(", ")} />
-                </ListItem>
+                <Box key={t.id}>
+                  <ListItem
+                    secondaryAction={
+                      <Stack direction="row">
+                        <Tip title="Προεπισκόπηση / Επεξεργασία μελών">
+                          <IconButton onClick={() => {
+                            const opening = expandedTeam !== t.id;
+                            setExpandedTeam(opening ? t.id : null);
+                            if (opening) setTeamMembers([...t.members]);
+                          }}>
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </Tip>
+                        <IconButton onClick={(e) => setMenuFor({ el: e.currentTarget, id: t.id, kind: "team" })}>
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    }>
+                    <ListItemAvatar><Avatar><GroupsIcon /></Avatar></ListItemAvatar>
+                    <ListItemText primary={t.name}
+                      secondary={`${t.members.length} μέλη — ${t.members.slice(0, 3).map(m => m.display).join(", ")}${t.members.length > 3 ? "…" : ""}`} />
+                  </ListItem>
+                  {expandedTeam === t.id && (
+                    <Card variant="outlined" sx={{ mx: 2, mb: 1, p: 2, bgcolor: "action.hover" }}>
+                      <Typography variant="caption" color="text.secondary" mb={1} display="block">
+                        Επεξεργασία μελών ομάδας «{t.name}»
+                      </Typography>
+                      <Stack spacing={1.5}>
+                        <Autocomplete<Contact, true>
+                          multiple size="small" options={contacts}
+                          value={teamMembers} onChange={(_e, v) => setTeamMembers(v)}
+                          getOptionLabel={(c) => `${c.display} <${c.email}>`}
+                          isOptionEqualToValue={(a, b) => a.userId === b.userId}
+                          renderInput={(p) => <TextField {...p} label="Μέλη" />}
+                        />
+                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                          <Button size="small" onClick={() => setExpandedTeam(null)}>Άκυρο</Button>
+                          <Button size="small" variant="contained" disabled={editTeamMembers.isPending}
+                            onClick={() => editTeamMembers.mutate({ teamId: t.id, name: t.name, members: teamMembers })}>
+                            Αποθήκευση
+                          </Button>
+                        </Stack>
+                      </Stack>
+                    </Card>
+                  )}
+                </Box>
               ))}
               {teams.length === 0 && <Typography variant="caption" color="text.secondary" sx={{ pl: 2 }}>Καμία ομάδα ακόμη.</Typography>}
             </List>
@@ -1141,6 +1437,276 @@ function ManageDialog({
       <Menu open={!!menuFor} anchorEl={menuFor?.el} onClose={() => setMenuFor(null)}>
         <MenuItem onClick={() => { if (menuFor) deleteTeam.mutate(menuFor.id); setMenuFor(null); }}>Διαγραφή</MenuItem>
       </Menu>
+    </Dialog>
+  );
+}
+
+// ─── Contacts view (inside ManageDialog) ─────────────────────────────
+
+function ContactsView({
+  contacts, search, onSearch, favs, onToggleFav, onCompose,
+}: {
+  contacts: Contact[]; search: string; onSearch: (s: string) => void;
+  favs: Set<string>; onToggleFav: (id: string) => void;
+  onCompose: (c: Contact) => void;
+}) {
+  const filtered = contacts.filter(c => {
+    const s = search.trim().toLowerCase();
+    if (!s) return true;
+    return `${c.display} ${c.email} ${c.role}`.toLowerCase().includes(s);
+  });
+  // Pin favourites to the top.
+  const sorted = filtered.slice().sort((a, b) => {
+    const fa = favs.has(a.userId) ? 0 : 1;
+    const fb = favs.has(b.userId) ? 0 : 1;
+    if (fa !== fb) return fa - fb;
+    return a.display.localeCompare(b.display, "el");
+  });
+  return (
+    <Stack spacing={2}>
+      <TextField size="small" fullWidth
+        placeholder="Αναζήτηση σε όνομα, email ή ρόλο…"
+        value={search} onChange={e => onSearch(e.target.value)}
+        InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }} />
+      <Typography variant="caption" color="text.secondary">
+        {sorted.length} επαφές — αστέρι για γρήγορη πρόσβαση, κλικ στο «Μήνυμα» για compose.
+      </Typography>
+      <List dense sx={{ maxHeight: 480, overflowY: "auto" }}>
+        {sorted.map(c => (
+          <ListItem key={c.userId} secondaryAction={
+            <Stack direction="row" spacing={0.5}>
+              <Tip title={favs.has(c.userId) ? "Αφαίρεση από αγαπημένα" : "Προσθήκη στα αγαπημένα"}>
+                <IconButton size="small" onClick={() => onToggleFav(c.userId)}>
+                  {favs.has(c.userId) ? <StarIcon fontSize="small" sx={{ color: "warning.main" }} /> : <StarBorderIcon fontSize="small" />}
+                </IconButton>
+              </Tip>
+              <Button size="small" variant="outlined" startIcon={<CreateIcon />}
+                onClick={() => onCompose(c)}>Μήνυμα</Button>
+            </Stack>
+          }>
+            <ListItemAvatar>
+              <Avatar sx={{ bgcolor: "primary.main" }}>
+                {c.display.split(" ").filter(Boolean).slice(0, 2).map(s => s[0]).join("").toUpperCase() || "?"}
+              </Avatar>
+            </ListItemAvatar>
+            <ListItemText primary={c.display}
+              secondary={<>
+                {c.email}
+                {c.role && <Chip size="small" label={c.role} sx={{ ml: 1, height: 16, fontSize: 10 }} />}
+              </>} />
+          </ListItem>
+        ))}
+        {sorted.length === 0 && (
+          <Typography variant="caption" color="text.secondary" sx={{ pl: 2 }}>
+            Δεν υπάρχουν επαφές που να ταιριάζουν.
+          </Typography>
+        )}
+      </List>
+    </Stack>
+  );
+}
+
+// ─── Automations view (client-only stub while backend cron ships) ────
+
+interface AutomationRule {
+  id: string;
+  name: string;
+  kind: "MonthlyProductionList" | "WeeklySummary" | "Custom";
+  schedule: string;
+  recipientIds: string[];
+  teamIds: string[];
+  category: string;
+  sendExternalEmail: boolean;
+  enabled: boolean;
+  createdAt: string;
+}
+
+function AutomationsView({ contacts, teams }: { contacts: Contact[]; teams: Team[] }) {
+  const key = "kalypsis.ermes.automations.v1";
+  const [rules, setRules] = useState<AutomationRule[]>(() => {
+    try { return JSON.parse(window.localStorage.getItem(key) ?? "[]"); } catch { return []; }
+  });
+  const persist = (next: AutomationRule[]) => {
+    setRules(next);
+    try { window.localStorage.setItem(key, JSON.stringify(next)); } catch { /* quota */ }
+  };
+  const [addOpen, setAddOpen] = useState(false);
+  return (
+    <Stack spacing={2}>
+      <Alert severity="info" icon={<ConstructionIcon />}>
+        Ρυθμίστε αυτόματες αποστολές — π.χ. μηνιαία λίστα παραγωγής στους συνεργάτες.
+        Ο scheduler θα ενεργοποιηθεί μαζί με το επίσημο release του ΕΡΜΗΣ (Beta:
+        οι κανόνες αποθηκεύονται τοπικά ώστε να είναι έτοιμοι όταν σηκωθεί ο cron).
+      </Alert>
+      <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAddOpen(true)} sx={{ alignSelf: "flex-start" }}>
+        Νέος αυτοματισμός
+      </Button>
+      <List dense>
+        {rules.map(r => (
+          <ListItem key={r.id} secondaryAction={
+            <Stack direction="row" spacing={0.5}>
+              <FormControlLabel
+                control={<Switch size="small" checked={r.enabled}
+                  onChange={(_e, v) => persist(rules.map(x => x.id === r.id ? { ...x, enabled: v } : x))} />}
+                label="" sx={{ ml: 0 }} />
+              <IconButton onClick={() => persist(rules.filter(x => x.id !== r.id))}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Stack>
+          }>
+            <ListItemAvatar><Avatar sx={{ bgcolor: r.enabled ? "success.main" : "grey.500" }}>
+              <ConstructionIcon />
+            </Avatar></ListItemAvatar>
+            <ListItemText primary={r.name}
+              secondary={`${AUTOMATION_KIND_LABEL[r.kind]} · ${r.schedule}${r.sendExternalEmail ? " · email nudge" : ""}`} />
+          </ListItem>
+        ))}
+        {rules.length === 0 && (
+          <Typography variant="caption" color="text.secondary" sx={{ pl: 2 }}>
+            Δεν έχετε ορίσει αυτοματισμούς ακόμη.
+          </Typography>
+        )}
+      </List>
+      <AutomationEditor open={addOpen} onClose={() => setAddOpen(false)}
+        contacts={contacts} teams={teams}
+        onSave={(rule) => { persist([...rules, rule]); setAddOpen(false); }} />
+    </Stack>
+  );
+}
+
+const AUTOMATION_KIND_LABEL: Record<AutomationRule["kind"], string> = {
+  MonthlyProductionList: "Μηνιαία λίστα παραγωγής",
+  WeeklySummary: "Εβδομαδιαία σύνοψη",
+  Custom: "Προσαρμοσμένο",
+};
+
+function AutomationEditor({
+  open, onClose, contacts, teams, onSave,
+}: {
+  open: boolean; onClose: () => void;
+  contacts: Contact[]; teams: Team[];
+  onSave: (rule: AutomationRule) => void;
+}) {
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState<AutomationRule["kind"]>("MonthlyProductionList");
+  const [schedule, setSchedule] = useState("Τέλος κάθε μήνα");
+  const [recipients, setRecipients] = useState<Contact[]>([]);
+  const [selTeams, setSelTeams] = useState<Team[]>([]);
+  const [category, setCategory] = useState<string>("Production");
+  const [sendExt, setSendExt] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    setName(""); setKind("MonthlyProductionList"); setSchedule("Τέλος κάθε μήνα");
+    setRecipients([]); setSelTeams([]); setCategory("Production"); setSendExt(false);
+  }, [open]);
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle sx={{ fontWeight: 800 }}>Νέος αυτοματισμός</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} mt={1}>
+          <TextField size="small" label="Όνομα" value={name} onChange={e => setName(e.target.value)} fullWidth
+            placeholder="π.χ. Μηνιαία παραγωγή προς συνεργάτες" />
+          <TextField select size="small" label="Τύπος" value={kind} fullWidth
+            onChange={e => setKind(e.target.value as AutomationRule["kind"])}>
+            {(Object.keys(AUTOMATION_KIND_LABEL) as AutomationRule["kind"][]).map(k =>
+              <MenuItem key={k} value={k}>{AUTOMATION_KIND_LABEL[k]}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label="Πρόγραμμα" value={schedule} fullWidth
+            onChange={e => setSchedule(e.target.value)}>
+            {["Τέλος κάθε μήνα", "Αρχή κάθε μήνα", "Κάθε Δευτέρα", "Κάθε Παρασκευή", "Κάθε 1η ημέρα εργασίας"]
+              .map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+          </TextField>
+          <Autocomplete<Contact, true>
+            multiple size="small" options={contacts}
+            value={recipients} onChange={(_e, v) => setRecipients(v)}
+            getOptionLabel={(c) => `${c.display} <${c.email}>`}
+            isOptionEqualToValue={(a, b) => a.userId === b.userId}
+            renderInput={(p) => <TextField {...p} label="Παραλήπτες" />}
+          />
+          <Autocomplete<Team, true>
+            multiple size="small" options={teams}
+            value={selTeams} onChange={(_e, v) => setSelTeams(v)}
+            getOptionLabel={(t) => `${t.name} (${t.members.length})`}
+            isOptionEqualToValue={(a, b) => a.id === b.id}
+            renderInput={(p) => <TextField {...p} label="Ομάδες παραληπτών" />}
+          />
+          <TextField select size="small" label="Κατηγορία" value={category} fullWidth
+            onChange={e => setCategory(e.target.value)}>
+            <MenuItem value="">— Καμία —</MenuItem>
+            {CATEGORIES.map(c => <MenuItem key={c.key} value={c.key}>{c.label}</MenuItem>)}
+          </TextField>
+          <FormControlLabel
+            control={<Switch checked={sendExt} onChange={(_e, v) => setSendExt(v)} />}
+            label="Παράλληλη αποστολή σε email" />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Άκυρο</Button>
+        <Button variant="contained" disabled={!name.trim() || (recipients.length === 0 && selTeams.length === 0)}
+          onClick={() => onSave({
+            id: crypto.randomUUID?.() ?? `a-${Date.now()}`,
+            name: name.trim(), kind, schedule,
+            recipientIds: recipients.map(r => r.userId),
+            teamIds: selTeams.map(t => t.id),
+            category, sendExternalEmail: sendExt, enabled: true,
+            createdAt: new Date().toISOString(),
+          })}>
+          Αποθήκευση
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// ─── Signature editor + shortcuts sheet ──────────────────────────────
+
+function SignatureEditor({ open, html, onClose, onSave }: {
+  open: boolean; html: string; onClose: () => void; onSave: (v: string) => void;
+}) {
+  const [draft, setDraft] = useState(html);
+  useEffect(() => { if (open) setDraft(html); }, [open, html]);
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle sx={{ fontWeight: 800 }}>Υπογραφή</DialogTitle>
+      <DialogContent>
+        <Typography variant="caption" color="text.secondary" mb={1} display="block">
+          Η υπογραφή προστίθεται αυτόματα κάτω από κάθε μήνυμα όταν πατήσετε
+          το «Προσθήκη υπογραφής» στη μπάρα του composer.
+        </Typography>
+        <RichTextEditor html={draft} onHtmlChange={setDraft} minHeight={220}
+          placeholder="π.χ. Με εκτίμηση, — {όνομα} — τηλ. …" />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => onSave("")} color="error">Καθαρισμός</Button>
+        <Button onClick={onClose}>Άκυρο</Button>
+        <Button variant="contained" onClick={() => { onSave(draft); onClose(); }}>Αποθήκευση</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function ShortcutsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const rows = [
+    ["c", "Νέο μήνυμα"],
+    ["/", "Εστίαση στην αναζήτηση"],
+    ["Esc", "Κλείσιμο ανοιχτής συνομιλίας"],
+    ["?", "Άνοιγμα αυτής της βοήθειας"],
+  ];
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle sx={{ fontWeight: 800 }}>Συντομεύσεις πληκτρολογίου</DialogTitle>
+      <DialogContent>
+        <List dense>
+          {rows.map(([k, l]) => (
+            <ListItem key={k} secondaryAction={<Typography variant="body2">{l}</Typography>}>
+              <Chip label={k} size="small" sx={{ fontFamily: "monospace", fontWeight: 700 }} />
+            </ListItem>
+          ))}
+        </List>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} variant="contained">Κλείσιμο</Button>
+      </DialogActions>
     </Dialog>
   );
 }
