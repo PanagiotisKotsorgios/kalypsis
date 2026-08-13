@@ -41,6 +41,8 @@ import ContactsIcon from "@mui/icons-material/Contacts";
 import KeyboardIcon from "@mui/icons-material/Keyboard";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutline";
+import OpenInFullIcon from "@mui/icons-material/OpenInFull";
+import CloseFullscreenIcon from "@mui/icons-material/CloseFullscreen";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -225,7 +227,13 @@ export function ErmesPage() {
   const [search, setSearch]   = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [openThreadId, setOpenThreadId] = useState<string | null>(null);
-  const [composeOpen, setComposeOpen] = useState(false);
+  // Composer lives in three modes:
+  //   • closed     — reader / welcome pane owns the right column
+  //   • inline     — composer takes over the right column (Gmail-style)
+  //   • fullscreen — composer opens as a full-screen dialog overlay
+  const [composerMode, setComposerMode] = useState<"closed" | "inline" | "fullscreen">("closed");
+  const openCompose = () => { setComposerMode("inline"); setOpenThreadId(null); };
+  const closeCompose = () => { setComposerMode("closed"); setReplyTo(null); };
   const [replyTo, setReplyTo] = useState<{ msg: ErmesMessageDto; mode: "reply" | "replyAll" | "forward" } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [manageOpen, setManageOpen] = useState<null | "teams" | "blocks" | "contacts" | "automations">(null);
@@ -289,7 +297,7 @@ export function ErmesPage() {
       if (tag === "input" || tag === "textarea" || t.isContentEditable) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       switch (e.key) {
-        case "c": setReplyTo(null); setComposeOpen(true); break;
+        case "c": setReplyTo(null); openCompose(); break;
         case "?": setShortcutsOpen(true); break;
         case "/":
           {
@@ -309,8 +317,8 @@ export function ErmesPage() {
   const openMessage = (m: ErmesMessageDto) => {
     if (m.isDraft) {
       // Editing a draft — pop the composer with the draft prefilled.
-      setReplyTo({ msg: m, mode: "reply" }); // reused as "prefill body/recipients"
-      setComposeOpen(true);
+      setReplyTo({ msg: m, mode: "reply" });
+      openCompose();
       return;
     }
     setOpenThreadId(m.threadId);
@@ -361,7 +369,7 @@ export function ErmesPage() {
           </Typography>
         </Box>
         <Button variant="contained" size="large" startIcon={<CreateIcon />}
-          onClick={() => { setReplyTo(null); setComposeOpen(true); }}>
+          onClick={() => { setReplyTo(null); openCompose(); }}>
           Νέο μήνυμα
         </Button>
       </Stack>
@@ -519,55 +527,86 @@ export function ErmesPage() {
           </Box>
         </Card>
 
-        {/* ── Right: reader ───────────────────────────────────────── */}
+        {/* ── Right: composer (inline) / reader / welcome pane ─── */}
         <Card variant="outlined" sx={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          {!openThreadId ? (
-            <Box sx={{ flex: 1, display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center", color: "text.secondary", gap: 1 }}>
-              <MailOutlineIcon sx={{ fontSize: 56, opacity: 0.35 }} />
-              <Typography variant="body2">Επιλέξτε μήνυμα για να διαβάσετε τη συνομιλία.</Typography>
-            </Box>
-          ) : thread.isLoading ? (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
+          {composerMode === "inline" ? (
+            <ComposeDialog
+              variant="inline"
+              onExpand={() => setComposerMode("fullscreen")}
+              onClose={closeCompose}
+              contacts={overview.data?.contacts ?? []}
+              teams={overview.data?.teams ?? []}
+              reply={replyTo}
+              meDisplay={((user?.firstName ?? "") + " " + (user?.lastName ?? "")).trim()}
+              signature={signature}
+              onSent={() => { closeCompose(); void qc.invalidateQueries({ queryKey: ["ermes"] }); }}
+            />
+          ) : openThreadId ? (
+            thread.isLoading ? (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
+            ) : (
+              <ThreadReader
+                messages={thread.data ?? []}
+                myId={myId ?? ""}
+                onClose={() => setOpenThreadId(null)}
+                onReply={(m, mode) => { setReplyTo({ msg: m, mode }); openCompose(); }}
+                onDelete={(id) => bulk.mutate({ action: "Delete", ids: [id] })}
+                onMoveSpam={(id) => bulk.mutate({ action: "MoveSpam", ids: [id] })}
+                onArchive={(id) => bulk.mutate({ action: "MoveArchive", ids: [id] })}
+                onRestore={(id) => bulk.mutate({ action: "Restore", ids: [id] })}
+                onBlockSender={(uid) => api.post("/ermes/blocks", { blockedUserId: uid })
+                  .then(() => qc.invalidateQueries({ queryKey: ["ermes"] }))
+                  .catch(e => setError(extractErrorMessage(e)))}
+              />
+            )
           ) : (
-            <ThreadReader
-              messages={thread.data ?? []}
-              myId={myId ?? ""}
-              onClose={() => setOpenThreadId(null)}
-              onReply={(m, mode) => { setReplyTo({ msg: m, mode }); setComposeOpen(true); }}
-              onDelete={(id) => bulk.mutate({ action: "Delete", ids: [id] })}
-              onMoveSpam={(id) => bulk.mutate({ action: "MoveSpam", ids: [id] })}
-              onArchive={(id) => bulk.mutate({ action: "MoveArchive", ids: [id] })}
-              onRestore={(id) => bulk.mutate({ action: "Restore", ids: [id] })}
-              onBlockSender={(uid) => api.post("/ermes/blocks", { blockedUserId: uid })
-                .then(() => qc.invalidateQueries({ queryKey: ["ermes"] }))
-                .catch(e => setError(extractErrorMessage(e)))}
+            <WelcomePane
+              onCompose={() => { setReplyTo(null); openCompose(); }}
+              onOpenContacts={() => setManageOpen("contacts")}
+              onOpenAutomations={() => setManageOpen("automations")}
+              onOpenTeams={() => setManageOpen("teams")}
+              counts={counts}
+              contacts={overview.data?.contacts ?? []}
+              onQuickCompose={(c) => {
+                setReplyTo({
+                  msg: {
+                    id: "", threadId: "", inReplyToMessageId: null,
+                    senderUserId: c.userId, senderDisplay: c.display, senderEmail: c.email,
+                    subject: "", bodyHtml: "", preview: "",
+                    folder: "Inbox", isRead: true, isStarred: false, isImportant: false,
+                    isDraft: false, automationSource: null, category: null,
+                    externalEmailRequested: false, externalEmailDelivered: false, externalEmailStatus: null,
+                    createdAt: new Date().toISOString(), sentAt: null,
+                    recipients: [], attachments: [],
+                  },
+                  mode: "reply",
+                });
+                openCompose();
+              }}
             />
           )}
         </Card>
       </Box>
 
-      {/* Composer dialog */}
-      <ComposeDialog
-        open={composeOpen}
-        onClose={() => { setComposeOpen(false); setReplyTo(null); }}
-        contacts={overview.data?.contacts ?? []}
-        teams={overview.data?.teams ?? []}
-        reply={replyTo}
-        meDisplay={((user?.firstName ?? "") + " " + (user?.lastName ?? "")).trim()}
-        signature={signature}
-        onSent={() => {
-          setComposeOpen(false); setReplyTo(null);
-          void qc.invalidateQueries({ queryKey: ["ermes"] });
-        }} />
+      {/* Full-screen composer overlay — only rendered on user demand */}
+      {composerMode === "fullscreen" && (
+        <ComposeDialog
+          variant="fullscreen"
+          onCollapse={() => setComposerMode("inline")}
+          onClose={closeCompose}
+          contacts={overview.data?.contacts ?? []}
+          teams={overview.data?.teams ?? []}
+          reply={replyTo}
+          meDisplay={((user?.firstName ?? "") + " " + (user?.lastName ?? "")).trim()}
+          signature={signature}
+          onSent={() => { closeCompose(); void qc.invalidateQueries({ queryKey: ["ermes"] }); }}
+        />
+      )}
 
       {/* Manage teams / blocks / contacts / automations */}
       <ManageDialog kind={manageOpen} onClose={() => setManageOpen(null)}
         contacts={overview.data?.contacts ?? []} teams={overview.data?.teams ?? []}
         onCompose={(c) => {
-          // Opening a compose window pre-populated with a single "To" —
-          // wire it via replyTo with a synthetic message so the composer's
-          // reply-hydration logic seeds the To list.
           setReplyTo({
             msg: {
               id: "", threadId: "", inReplyToMessageId: null,
@@ -581,7 +620,7 @@ export function ErmesPage() {
             },
             mode: "reply",
           });
-          setComposeOpen(true);
+          openCompose();
         }} />
 
       {/* Signature editor + keyboard-shortcuts sheet */}
@@ -848,9 +887,12 @@ function ThreadReader({
  *    HTML table into the body.
  */
 function ComposeDialog({
-  open, onClose, contacts, teams, reply, onSent, meDisplay, signature,
+  variant, onExpand, onCollapse, onClose, contacts, teams, reply, onSent, meDisplay, signature,
 }: {
-  open: boolean; onClose: () => void;
+  variant: "inline" | "fullscreen";
+  onExpand?: () => void;
+  onCollapse?: () => void;
+  onClose: () => void;
   contacts: Contact[]; teams: Team[];
   reply: { msg: ErmesMessageDto; mode: "reply" | "replyAll" | "forward" } | null;
   onSent: () => void;
@@ -873,9 +915,20 @@ function ComposeDialog({
   const [prodOpen, setProdOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Custom templates persisted per-browser in localStorage; merged with
+  // the built-in TEMPLATES in the picker menu.
+  const [customTemplates, setCustomTemplates] = useState<Template[]>(() => {
+    try { return JSON.parse(window.localStorage.getItem("kalypsis.ermes.customTemplates.v1") ?? "[]"); }
+    catch { return []; }
+  });
+  const persistCustomTemplates = (next: Template[]) => {
+    setCustomTemplates(next);
+    try { window.localStorage.setItem("kalypsis.ermes.customTemplates.v1", JSON.stringify(next)); }
+    catch { /* quota */ }
+  };
+  const [tplManagerOpen, setTplManagerOpen] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
     if (reply) {
       const { msg, mode } = reply;
       if (mode === "reply") {
@@ -903,7 +956,7 @@ function ComposeDialog({
       setSelTeams([]); setImportant(false); setCategory(""); setSendExternal(false); setAttachments([]);
     }
     setErr(null);
-  }, [open, reply]);
+  }, [reply]);
 
   const send = useMutation({
     mutationFn: async (saveAsDraft: boolean) => api.post("/ermes/messages", {
@@ -957,22 +1010,28 @@ function ComposeDialog({
 
   const catMeta = CATEGORIES.find(c => c.key === category);
 
-  return (
-    <>
-      <Dialog open={open} onClose={onClose} fullScreen>
-        <Box sx={{ p: 1.25, borderBottom: 1, borderColor: "divider",
-          display: "flex", alignItems: "center", gap: 1, bgcolor: "background.paper" }}>
-          <Tooltip title="Πίσω">
-            <IconButton onClick={onClose}><ArrowBackIcon /></IconButton>
-          </Tooltip>
-          <Typography variant="h6" fontWeight={800} sx={{ flex: 1 }}>
-            {reply ? (reply.mode === "forward" ? "Προώθηση μηνύματος" : "Απάντηση") : "Νέο μήνυμα"}
-          </Typography>
-          <Button size="small" startIcon={<DraftsIcon />} disabled={send.isPending}
-            onClick={() => send.mutate(true)}>Πρόχειρο</Button>
-          <Button size="small" variant="contained" startIcon={<SendIcon />} disabled={send.isPending}
-            onClick={() => send.mutate(false)}>Αποστολή</Button>
-        </Box>
+  const isFull = variant === "fullscreen";
+  const header = (
+    <Box sx={{ p: 1.25, borderBottom: 1, borderColor: "divider",
+      display: "flex", alignItems: "center", gap: 1, bgcolor: "background.paper" }}>
+      <Tooltip title={isFull ? "Πίσω" : "Κλείσιμο"}>
+        <IconButton onClick={onClose}>
+          {isFull ? <ArrowBackIcon /> : <CloseIcon />}
+        </IconButton>
+      </Tooltip>
+      <Typography variant="h6" fontWeight={800} sx={{ flex: 1 }}>
+        {reply ? (reply.mode === "forward" ? "Προώθηση μηνύματος" : "Απάντηση") : "Νέο μήνυμα"}
+      </Typography>
+      {isFull
+        ? <Tooltip title="Ενσωμάτωση στη σελίδα"><IconButton size="small" onClick={onCollapse}><CloseFullscreenIcon /></IconButton></Tooltip>
+        : <Tooltip title="Πλήρης οθόνη"><IconButton size="small" onClick={onExpand}><OpenInFullIcon /></IconButton></Tooltip>}
+      <Button size="small" startIcon={<DraftsIcon />} disabled={send.isPending}
+        onClick={() => send.mutate(true)}>Πρόχειρο</Button>
+      <Button size="small" variant="contained" startIcon={<SendIcon />} disabled={send.isPending}
+        onClick={() => send.mutate(false)}>Αποστολή</Button>
+    </Box>
+  );
+  const body = (
 
         <Box sx={{ flex: 1, overflowY: "auto", px: { xs: 2, md: 6 }, py: 3, bgcolor: "background.default" }}>
           <Box sx={{ maxWidth: 960, mx: "auto" }}>
@@ -1077,18 +1136,42 @@ function ComposeDialog({
                 </Stack>
               )}
 
-              <RichTextEditor html={bodyHtml} onHtmlChange={setBodyHtml} minHeight={420} />
+              <RichTextEditor html={bodyHtml} onHtmlChange={setBodyHtml} minHeight={isFull ? 420 : 260} />
             </Stack>
           </Box>
         </Box>
-      </Dialog>
+  );
+  const wrapper = isFull
+    ? <Dialog open onClose={onClose} fullScreen>{header}{body}</Dialog>
+    : <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>{header}{body}</Box>;
 
-      {/* Template picker menu */}
+  return (
+    <>
+      {wrapper}
+
+      {/* Template picker menu — built-in + custom user templates */}
       <Menu anchorEl={tplAnchor} open={!!tplAnchor} onClose={() => setTplAnchor(null)}>
         {TEMPLATES.map(t => (
           <MenuItem key={t.key} onClick={() => insertTemplate(t)}>{t.label}</MenuItem>
         ))}
+        {customTemplates.length > 0 && <Divider />}
+        {customTemplates.map(t => (
+          <MenuItem key={t.key} onClick={() => insertTemplate(t)}>
+            <ArticleIcon fontSize="small" sx={{ mr: 1, color: "primary.main" }} />
+            {t.label}
+          </MenuItem>
+        ))}
+        <Divider />
+        <MenuItem onClick={() => { setTplAnchor(null); setTplManagerOpen(true); }}>
+          <AddIcon fontSize="small" sx={{ mr: 1 }} />
+          Διαχείριση προτύπων…
+        </MenuItem>
       </Menu>
+
+      {/* Custom-templates CRUD */}
+      <TemplateManager open={tplManagerOpen} onClose={() => setTplManagerOpen(false)}
+        templates={customTemplates} onChange={persistCustomTemplates} />
+
 
       {/* Category picker menu */}
       <Menu anchorEl={catAnchor} open={!!catAnchor} onClose={() => setCatAnchor(null)}>
@@ -1708,5 +1791,198 @@ function ShortcutsSheet({ open, onClose }: { open: boolean; onClose: () => void 
         <Button onClick={onClose} variant="contained">Κλείσιμο</Button>
       </DialogActions>
     </Dialog>
+  );
+}
+
+// ─── Custom template manager (CRUD) ──────────────────────────────────
+
+function TemplateManager({ open, onClose, templates, onChange }: {
+  open: boolean; onClose: () => void;
+  templates: Template[]; onChange: (t: Template[]) => void;
+}) {
+  const [editing, setEditing] = useState<Template | null>(null);
+  const [draft, setDraft] = useState<Template>({ key: "", label: "", subject: "", bodyHtml: "" });
+  const startNew = () => {
+    const t: Template = {
+      key: crypto.randomUUID?.() ?? `t-${Date.now()}`,
+      label: "", subject: "", bodyHtml: "",
+    };
+    setEditing(t); setDraft(t);
+  };
+  const startEdit = (t: Template) => { setEditing(t); setDraft({ ...t }); };
+  const save = () => {
+    if (!draft.label.trim()) return;
+    const exists = templates.some(t => t.key === draft.key);
+    onChange(exists ? templates.map(t => t.key === draft.key ? draft : t) : [...templates, draft]);
+    setEditing(null);
+  };
+  const remove = (key: string) => onChange(templates.filter(t => t.key !== key));
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+      <DialogTitle sx={{ fontWeight: 800 }}>Διαχείριση προτύπων μηνυμάτων</DialogTitle>
+      <DialogContent>
+        {editing ? (
+          <Stack spacing={2} mt={1}>
+            <Typography variant="caption" color="text.secondary">
+              Χρησιμοποιήστε <code>{"{{month}}"}</code> και <code>{"{{me}}"}</code> για αυτόματη
+              αντικατάσταση με τον τρέχοντα μήνα και το όνομά σας.
+            </Typography>
+            <TextField size="small" label="Όνομα προτύπου" value={draft.label}
+              onChange={e => setDraft({ ...draft, label: e.target.value })} fullWidth />
+            <TextField size="small" label="Θέμα" value={draft.subject}
+              onChange={e => setDraft({ ...draft, subject: e.target.value })} fullWidth />
+            <RichTextEditor html={draft.bodyHtml}
+              onHtmlChange={(v) => setDraft({ ...draft, bodyHtml: v })} minHeight={220}
+              placeholder="Σώμα προτύπου…" />
+            <Stack direction="row" spacing={1} justifyContent="flex-end">
+              <Button onClick={() => setEditing(null)}>Άκυρο</Button>
+              <Button variant="contained" onClick={save} disabled={!draft.label.trim()}>Αποθήκευση</Button>
+            </Stack>
+          </Stack>
+        ) : (
+          <Stack spacing={2}>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={startNew} sx={{ alignSelf: "flex-start" }}>
+              Νέο πρότυπο
+            </Button>
+            <List dense>
+              {templates.map(t => (
+                <ListItem key={t.key} secondaryAction={
+                  <Stack direction="row" spacing={0.5}>
+                    <Button size="small" onClick={() => startEdit(t)}>Επεξεργασία</Button>
+                    <IconButton color="error" onClick={() => remove(t.key)}><CloseIcon fontSize="small" /></IconButton>
+                  </Stack>
+                }>
+                  <ListItemAvatar><Avatar><ArticleIcon /></Avatar></ListItemAvatar>
+                  <ListItemText primary={t.label} secondary={t.subject || "(χωρίς θέμα)"} />
+                </ListItem>
+              ))}
+              {templates.length === 0 && (
+                <Typography variant="caption" color="text.secondary" sx={{ pl: 2 }}>
+                  Δεν έχετε προσαρμοσμένα πρότυπα. Πατήστε «Νέο πρότυπο» για να ξεκινήσετε.
+                </Typography>
+              )}
+            </List>
+          </Stack>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Κλείσιμο</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// ─── Welcome pane (right column when nothing selected) ───────────────
+
+function WelcomePane({
+  onCompose, onOpenContacts, onOpenAutomations, onOpenTeams,
+  counts, contacts, onQuickCompose,
+}: {
+  onCompose: () => void;
+  onOpenContacts: () => void;
+  onOpenAutomations: () => void;
+  onOpenTeams: () => void;
+  counts: Record<string, FolderCount>;
+  contacts: Contact[];
+  onQuickCompose: (c: Contact) => void;
+}) {
+  // Reuse the favourites list as "quick contacts" so the pane feels
+  // personalised even before the operator has any conversation history.
+  const favKey = "kalypsis.ermes.favContacts.v1";
+  const favIds = (() => {
+    try { return new Set<string>(JSON.parse(window.localStorage.getItem(favKey) ?? "[]")); }
+    catch { return new Set<string>(); }
+  })();
+  const favouriteContacts = contacts.filter(c => favIds.has(c.userId)).slice(0, 8);
+
+  return (
+    <Box sx={{ flex: 1, overflowY: "auto", p: { xs: 2, md: 4 } }}>
+      <Box sx={{ maxWidth: 720, mx: "auto" }}>
+        <Stack direction="row" alignItems="center" spacing={2} mb={3}>
+          <Avatar sx={{ bgcolor: "primary.main", width: 56, height: 56 }}>
+            <MailOutlineIcon sx={{ fontSize: 32 }} />
+          </Avatar>
+          <Box>
+            <Typography variant="h5" fontWeight={800}>Καλωσόρισες στον ΕΡΜΗ</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Επιλέξτε μήνυμα από τη λίστα ή ξεκινήστε νέο.
+            </Typography>
+          </Box>
+        </Stack>
+
+        {/* Quick stats */}
+        <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: "repeat(4, 1fr)", mb: 3 }}>
+          {(["Inbox", "Sent", "Drafts", "Starred"] as const).map(k => {
+            const c = counts[k];
+            const label = FOLDERS.find(f => f.key === k)?.label ?? k;
+            return (
+              <Card key={k} variant="outlined" sx={{ p: 1.5, textAlign: "center" }}>
+                <Typography variant="caption" color="text.secondary" display="block">{label}</Typography>
+                <Typography variant="h5" fontWeight={800}>{c?.total ?? 0}</Typography>
+                {(c?.unread ?? 0) > 0 && (
+                  <Chip size="small" color="primary" label={`${c!.unread} νέα`}
+                    sx={{ height: 18, fontSize: 10 }} />
+                )}
+              </Card>
+            );
+          })}
+        </Box>
+
+        {/* Quick actions */}
+        <Card variant="outlined" sx={{ p: 2, mb: 3 }}>
+          <Typography variant="overline" color="text.secondary" display="block" mb={1}>
+            Γρήγορες ενέργειες
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Button variant="contained" startIcon={<CreateIcon />} onClick={onCompose}>
+              Νέο μήνυμα
+            </Button>
+            <Button variant="outlined" startIcon={<ContactsIcon />} onClick={onOpenContacts}>
+              Επαφές γραφείου
+            </Button>
+            <Button variant="outlined" startIcon={<GroupsIcon />} onClick={onOpenTeams}>
+              Ομάδες
+            </Button>
+            <Button variant="outlined" startIcon={<ConstructionIcon />} onClick={onOpenAutomations}>
+              Αυτοματισμοί
+            </Button>
+          </Stack>
+        </Card>
+
+        {/* Favourite contacts */}
+        <Card variant="outlined" sx={{ p: 2 }}>
+          <Stack direction="row" alignItems="center" mb={1}>
+            <StarIcon fontSize="small" sx={{ mr: 0.5, color: "warning.main" }} />
+            <Typography variant="overline" color="text.secondary" sx={{ flex: 1 }}>
+              Αγαπημένες επαφές
+            </Typography>
+            <Button size="small" onClick={onOpenContacts}>Όλες</Button>
+          </Stack>
+          {favouriteContacts.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              Ανοίξτε τις «Επαφές» και προσθέστε αστέρι στους ανθρώπους που επικοινωνείτε συχνά — θα εμφανίζονται εδώ.
+            </Typography>
+          ) : (
+            <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))" }}>
+              {favouriteContacts.map(c => (
+                <Card key={c.userId} variant="outlined" sx={{ p: 1, cursor: "pointer",
+                  "&:hover": { borderColor: "primary.main", boxShadow: 1 } }}
+                  onClick={() => onQuickCompose(c)}>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Avatar sx={{ bgcolor: "primary.main", width: 32, height: 32, fontSize: 12 }}>
+                      {c.display.split(" ").filter(Boolean).slice(0, 2).map(s => s[0]).join("").toUpperCase() || "?"}
+                    </Avatar>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" fontWeight={700} noWrap>{c.display}</Typography>
+                      <Typography variant="caption" color="text.secondary" noWrap>{c.email}</Typography>
+                    </Box>
+                  </Stack>
+                </Card>
+              ))}
+            </Box>
+          )}
+        </Card>
+      </Box>
+    </Box>
   );
 }
