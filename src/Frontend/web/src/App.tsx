@@ -230,6 +230,7 @@ import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import { AllToolsPage } from "./pages/AllToolsPage";
+import { ErmesPage } from "./pages/ErmesPage";
 import { CarrierBridgesPage } from "./pages/CarrierBridgesPage";
 import { CarrierBridgesHubPage } from "./pages/CarrierBridgesHubPage";
 import { OverCommissionBridgesPage } from "./pages/OverCommissionBridgesPage";
@@ -875,6 +876,7 @@ export default function App() {
                   <Route path="caller-id" element={<Navigate to="/app" replace />} />
                   <Route path="usae" element={<UsaeSubmissionsPage />} />
                   <Route path="all-tools" element={<AllToolsPage />} />
+                  <Route path="ermes" element={<ErmesPage />} />
                   <Route path="default-value-rules" element={<Navigate to="/app/commission-rules" replace />} />
                   <Route path="carrier-bridges-hub" element={<CarrierBridgesHubPage />} />
                   <Route path="carrier-bridges" element={<CarrierBridgesPage />} />

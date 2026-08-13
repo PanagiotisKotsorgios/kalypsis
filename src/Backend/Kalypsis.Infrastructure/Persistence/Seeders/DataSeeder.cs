@@ -1809,6 +1809,109 @@ public static class DataSeeder
             table: "registration_requests", column: "DpaAcceptedAt",
             addSql: "ALTER TABLE `registration_requests` ADD COLUMN `DpaAcceptedAt` datetime(6) NULL", ct);
 
+        // ==== Ermes messaging tables ==========================================
+        // Full inbox model — messages plus per-recipient fanout, teams and
+        // per-user block list. Every table is tenant-scoped so query filters
+        // in EF work without a join.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "ermes_messages",
+            createSql: @"CREATE TABLE IF NOT EXISTS `ermes_messages` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `SenderUserId` char(36) NOT NULL,
+                `SenderDisplay` varchar(200) NOT NULL,
+                `SenderEmail` varchar(200) NOT NULL,
+                `Subject` varchar(400) NOT NULL,
+                `BodyHtml` longtext NOT NULL,
+                `Preview` varchar(500) NOT NULL,
+                `InReplyToMessageId` char(36) NULL,
+                `ThreadId` char(36) NOT NULL,
+                `SenderFolder` varchar(20) NOT NULL DEFAULT 'Sent',
+                `SenderStarred` tinyint(1) NOT NULL DEFAULT 0,
+                `SentAt` datetime(6) NULL,
+                `IsImportant` tinyint(1) NOT NULL DEFAULT 0,
+                `AttachmentsJson` longtext NULL,
+                `AutomationSource` varchar(80) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_ermes_messages_Tenant_Thread` (`TenantId`, `ThreadId`),
+                KEY `IX_ermes_messages_Sender` (`TenantId`, `SenderUserId`, `SentAt`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "ermes_recipients",
+            createSql: @"CREATE TABLE IF NOT EXISTS `ermes_recipients` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `MessageId` char(36) NOT NULL,
+                `RecipientUserId` char(36) NOT NULL,
+                `RecipientDisplay` varchar(200) NOT NULL,
+                `RecipientEmail` varchar(200) NOT NULL,
+                `Kind` varchar(10) NOT NULL DEFAULT 'To',
+                `Folder` varchar(20) NOT NULL DEFAULT 'Inbox',
+                `IsRead` tinyint(1) NOT NULL DEFAULT 0,
+                `ReadAt` datetime(6) NULL,
+                `IsStarred` tinyint(1) NOT NULL DEFAULT 0,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_ermes_recipients_Tenant_User_Folder` (`TenantId`, `RecipientUserId`, `Folder`),
+                KEY `IX_ermes_recipients_Message` (`MessageId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "ermes_teams",
+            createSql: @"CREATE TABLE IF NOT EXISTS `ermes_teams` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `Name` varchar(200) NOT NULL,
+                `Description` varchar(500) NULL,
+                `CreatedByUserId` char(36) NOT NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_ermes_teams_Tenant` (`TenantId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "ermes_team_members",
+            createSql: @"CREATE TABLE IF NOT EXISTS `ermes_team_members` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `TeamId` char(36) NOT NULL,
+                `UserId` char(36) NOT NULL,
+                `UserDisplay` varchar(200) NOT NULL,
+                `UserEmail` varchar(200) NOT NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_ermes_team_members_TeamUser` (`TeamId`, `UserId`),
+                KEY `IX_ermes_team_members_Tenant_Team` (`TenantId`, `TeamId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "ermes_blocks",
+            createSql: @"CREATE TABLE IF NOT EXISTS `ermes_blocks` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `OwnerUserId` char(36) NOT NULL,
+                `BlockedUserId` char(36) NOT NULL,
+                `BlockedDisplay` varchar(200) NOT NULL,
+                `BlockedEmail` varchar(200) NOT NULL,
+                `Reason` varchar(500) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_ermes_blocks_Owner_Blocked` (`OwnerUserId`, `BlockedUserId`),
+                KEY `IX_ermes_blocks_Tenant_Owner` (`TenantId`, `OwnerUserId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         // ==== Widen encrypted columns to varchar(500) ==========================
         // See AppDbContext.OnModelCreating — every column below is now encrypted
         // via ASP.NET DataProtection at the EF layer, and the ciphertext balloons

@@ -7,6 +7,7 @@ import ConstructionIcon from "@mui/icons-material/Construction";
 import SearchIcon from "@mui/icons-material/Search";
 import AppsIcon from "@mui/icons-material/Apps";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { HelpHint } from "../components/HelpHint";
 
 interface Tool {
@@ -57,11 +58,19 @@ const CATEGORY_ORDER = ["claimsOps", "quotes", "intelligence", "integrations"];
 
 export function AllToolsPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [q, setQ] = useState("");
   // The whole catalogue is still WIP — clicking any tool opens a shared
   // «Coming soon» dialog instead of navigating. `pending` holds the tool
-  // the user clicked so the dialog can name it.
+  // the user clicked so the dialog can name it. Exceptions listed below
+  // navigate directly (ΕΡΜΗΣ shipped as a real workspace).
   const [pending, setPending] = useState<Tool | null>(null);
+  const LIVE_ROUTES: Record<string, string> = { "/ermes": "/app/ermes" };
+  const openTool = (tool: Tool) => {
+    const live = LIVE_ROUTES[tool.to];
+    if (live) { navigate(live); return; }
+    setPending(tool);
+  };
 
   const grouped = useMemo(() => {
     const filter = q.trim().toLowerCase();
@@ -123,7 +132,7 @@ export function AllToolsPage() {
                 transition: "transform 120ms, box-shadow 120ms",
                 "&:hover": { transform: "translateY(-2px)", boxShadow: 3, borderColor: "primary.light" }
               }}>
-                <CardActionArea onClick={() => setPending(tool)} sx={{ p: 2, height: "100%" }}>
+                <CardActionArea onClick={() => openTool(tool)} sx={{ p: 2, height: "100%" }}>
                   <Typography fontWeight={700} sx={{ mb: 0.5 }} noWrap>{t(tool.labelKey)}</Typography>
                   <Typography variant="caption" color="text.secondary" sx={{
                     display: "-webkit-box",
@@ -137,10 +146,14 @@ export function AllToolsPage() {
                   </Typography>
                   <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 1 }}>
                     <Chip size="small" label={tool.pkg} sx={{ fontWeight: 600, fontSize: 10, height: 18 }} />
-                    <Chip size="small" color="warning" variant="outlined"
-                      icon={<ConstructionIcon sx={{ fontSize: 12 }} />}
-                      label="Υπό ανάπτυξη"
-                      sx={{ fontWeight: 600, fontSize: 10, height: 18 }} />
+                    {LIVE_ROUTES[tool.to]
+                      ? <Chip size="small" color="success"
+                          label="Νέο"
+                          sx={{ fontWeight: 700, fontSize: 10, height: 18 }} />
+                      : <Chip size="small" color="warning" variant="outlined"
+                          icon={<ConstructionIcon sx={{ fontSize: 12 }} />}
+                          label="Υπό ανάπτυξη"
+                          sx={{ fontWeight: 600, fontSize: 10, height: 18 }} />}
                   </Stack>
                 </CardActionArea>
               </Card>

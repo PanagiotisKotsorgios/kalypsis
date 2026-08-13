@@ -268,6 +268,13 @@ public interface IAppDbContext
     DbSet<OverCommissionStatement> OverCommissionStatements { get; }
     DbSet<GeneralFinancialEntry>   GeneralFinancialEntries   { get; }
 
+    // ==== Ermes — Kalypsis-native messaging ==================================
+    DbSet<ErmesMessage>     ErmesMessages     { get; }
+    DbSet<ErmesRecipient>   ErmesRecipients   { get; }
+    DbSet<ErmesTeam>        ErmesTeams        { get; }
+    DbSet<ErmesTeamMember>  ErmesTeamMembers  { get; }
+    DbSet<ErmesBlock>       ErmesBlocks       { get; }
+
     // ==== Federation module (championships / clubs / athletes / results) ====
     DbSet<Championship> Championships { get; }
     DbSet<ChampionshipCategory> ChampionshipCategories { get; }

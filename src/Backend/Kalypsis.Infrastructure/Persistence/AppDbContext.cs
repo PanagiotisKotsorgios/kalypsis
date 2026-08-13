@@ -243,6 +243,13 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<OverCommissionStatement> OverCommissionStatements => Set<OverCommissionStatement>();
     public DbSet<GeneralFinancialEntry>   GeneralFinancialEntries   => Set<GeneralFinancialEntry>();
 
+    // ==== Ermes — Kalypsis-native messaging ==================================
+    public DbSet<ErmesMessage>     ErmesMessages     => Set<ErmesMessage>();
+    public DbSet<ErmesRecipient>   ErmesRecipients   => Set<ErmesRecipient>();
+    public DbSet<ErmesTeam>        ErmesTeams        => Set<ErmesTeam>();
+    public DbSet<ErmesTeamMember>  ErmesTeamMembers  => Set<ErmesTeamMember>();
+    public DbSet<ErmesBlock>       ErmesBlocks       => Set<ErmesBlock>();
+
     // ==== Federation module ==================================================
     public DbSet<Championship> Championships => Set<Championship>();
     public DbSet<ChampionshipCategory> ChampionshipCategories => Set<ChampionshipCategory>();
@@ -335,6 +342,18 @@ public class AppDbContext : DbContext, IAppDbContext
         // exist». Both live in DataSeeder.EnsureSchemaSafetyAsync().
         modelBuilder.Entity<SupportTicket>().ToTable("support_tickets");
         modelBuilder.Entity<SupportTicketReply>().ToTable("support_ticket_replies");
+
+        // Ermes messaging — every table snake-cased so the schema safety
+        // net's raw `CREATE TABLE IF NOT EXISTS ermes_*` maps 1:1 with EF.
+        modelBuilder.Entity<ErmesMessage>().ToTable("ermes_messages")
+            .HasIndex(x => new { x.TenantId, x.ThreadId });
+        modelBuilder.Entity<ErmesRecipient>().ToTable("ermes_recipients")
+            .HasIndex(x => new { x.TenantId, x.RecipientUserId, x.Folder });
+        modelBuilder.Entity<ErmesTeam>().ToTable("ermes_teams");
+        modelBuilder.Entity<ErmesTeamMember>().ToTable("ermes_team_members")
+            .HasIndex(x => new { x.TenantId, x.TeamId });
+        modelBuilder.Entity<ErmesBlock>().ToTable("ermes_blocks")
+            .HasIndex(x => new { x.TenantId, x.OwnerUserId });
         // Same story — seeder creates `platform_job_overrides`, EF pluralised
         // to `PlatformJobOverrides` and the daily backup job blew up on Linux.
         modelBuilder.Entity<PlatformJobOverride>().ToTable("platform_job_overrides");
