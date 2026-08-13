@@ -28,6 +28,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import MarkEmailUnreadIcon from "@mui/icons-material/MarkEmailUnread";
 import MarkEmailReadIcon from "@mui/icons-material/MarkEmailRead";
 import PriorityHighIcon from "@mui/icons-material/PriorityHigh";
+import ConstructionIcon from "@mui/icons-material/Construction";
+import CardGiftcardIcon from "@mui/icons-material/CardGiftcard";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { RichTextEditor } from "../components/RichTextEditor";
@@ -100,6 +102,18 @@ export function ErmesPage() {
   const [replyTo, setReplyTo] = useState<{ msg: ErmesMessageDto; mode: "reply" | "replyAll" | "forward" } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [manageOpen, setManageOpen] = useState<null | "teams" | "blocks">(null);
+  // Beta notice — shown the first time a user lands on ΕΡΜΗΣ. The
+  // localStorage flag is scoped per-user so a shared browser still nags
+  // each teammate individually once. Re-opening from the header chip
+  // ignores the flag and always shows the dialog.
+  const betaKey = `kalypsis.ermes.betaNoticeSeen.${myId ?? "anon"}`;
+  const [betaOpen, setBetaOpen] = useState<boolean>(() => {
+    try { return !window.localStorage.getItem(betaKey); } catch { return true; }
+  });
+  const closeBeta = () => {
+    try { window.localStorage.setItem(betaKey, "1"); } catch { /* quota */ }
+    setBetaOpen(false);
+  };
 
   const overview = useQuery({
     queryKey: ["ermes", "overview"],
@@ -164,7 +178,16 @@ export function ErmesPage() {
       <Stack direction="row" alignItems="center" spacing={2}>
         <MailOutlineIcon color="primary" sx={{ fontSize: 32 }} />
         <Box sx={{ flex: 1 }}>
-          <Typography variant="h5" fontWeight={800}>ΕΡΜΗΣ — Επικοινωνία</Typography>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Typography variant="h5" fontWeight={800}>ΕΡΜΗΣ — Επικοινωνία</Typography>
+            <Chip
+              size="small" color="warning" variant="filled"
+              icon={<ConstructionIcon sx={{ fontSize: 14 }} />}
+              label="BETA · Δωρεάν εφ'όρου ζωής για τους early users"
+              onClick={() => setBetaOpen(true)}
+              sx={{ fontWeight: 700, cursor: "pointer" }}
+            />
+          </Stack>
           <Typography variant="caption" color="text.secondary">
             Kalypsis-native, end-to-end εντός της πλατφόρμας. Χωρίς spam, χωρίς Outlook.
           </Typography>
@@ -303,6 +326,42 @@ export function ErmesPage() {
       {/* Manage teams / blocks */}
       <ManageDialog kind={manageOpen} onClose={() => setManageOpen(null)}
         contacts={overview.data?.contacts ?? []} teams={overview.data?.teams ?? []} />
+
+      {/* Beta / early-access notice — first visit, dismissible; the header
+          chip re-opens it any time. */}
+      <Dialog open={betaOpen} onClose={closeBeta} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.5, fontWeight: 800 }}>
+          <ConstructionIcon color="warning" />
+          ΕΡΜΗΣ — Υπό ενεργή ανάπτυξη
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} mt={1}>
+            <Alert severity="warning" icon={<ConstructionIcon />}>
+              Ο <b>ΕΡΜΗΣ</b> βρίσκεται σε <b>ενεργή ανάπτυξη (Beta)</b>.
+              Ορισμένες λειτουργίες (cross-tenant μηνύματα σε εξωτερικούς
+              συνεργάτες, αυτόματη αποστολή μηνιαίων λιστών παραγωγής,
+              email nudges, real-time push) έρχονται σταδιακά.
+            </Alert>
+            <Alert severity="success" icon={<CardGiftcardIcon />}>
+              <Typography fontWeight={800} mb={0.5}>
+                Χρησιμοποιήστε τον τώρα — μείνει δωρεάν εφ'όρου ζωής.
+              </Typography>
+              <Typography variant="body2">
+                Κάθε γραφείο που ξεκινά με τον ΕΡΜΗΣ κατά την Beta φάση
+                θα τον διατηρήσει <b>δωρεάν για πάντα</b> μετά την
+                επίσημη κυκλοφορία, ακόμη κι όταν το plan μετακινηθεί
+                σε πληρωμένη συνδρομή.
+              </Typography>
+            </Alert>
+            <Typography variant="caption" color="text.secondary">
+              Για αναφορές, feedback ή προτάσεις: <a href="mailto:info@mykalypsis.gr">info@mykalypsis.gr</a>
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeBeta} variant="contained">Το κατάλαβα, ας ξεκινήσω</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
