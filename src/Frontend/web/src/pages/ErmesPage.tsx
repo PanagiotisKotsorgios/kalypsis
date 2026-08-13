@@ -927,6 +927,15 @@ function ComposeDialog({
     catch { /* quota */ }
   };
   const [tplManagerOpen, setTplManagerOpen] = useState(false);
+  // Autosave — the composer creates a Draft row after the first ~2.5s
+  // of activity, then updates that same row on subsequent typing so the
+  // Drafts folder doesn't accumulate one row per keystroke.
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  // Reset the draft id whenever we start a fresh composer (reply switches
+  // subject → we want a fresh draft, not to keep updating the old one).
+  useEffect(() => { setDraftId(null); setAutoSaveStatus("idle"); setLastSavedAt(null); }, [reply?.msg.id, reply?.mode]);
 
   useEffect(() => {
     if (reply) {
@@ -976,9 +985,70 @@ function ComposeDialog({
       sendExternalEmail: sendExternal,
       attachmentIds: attachments.map(a => a.id),
     }),
-    onSuccess: onSent,
+    onSuccess: () => {
+      // A real send just superseded the autosaved draft — clear the id
+      // so opening the composer again starts fresh.
+      setDraftId(null); setAutoSaveStatus("idle"); setLastSavedAt(null);
+      onSent();
+    },
     onError: (e) => setErr(extractErrorMessage(e)),
   });
+
+  // ── Autosave (debounced) ──────────────────────────────────────
+  // Every 2.5s of «no typing» we push the current state as a draft. If
+  // we already have a draft id we PUT to update it in place; otherwise
+  // we POST once, capture the id, and PUT for every subsequent tick so
+  // the Drafts folder shows exactly one row per compose session.
+  useEffect(() => {
+    // Only autosave when the operator has actually put SOMETHING in.
+    const hasContent = subject.trim() !== "" || (bodyHtml.replace(/<[^>]+>/g, "").trim() !== "")
+      || to.length > 0 || cc.length > 0 || selTeams.length > 0;
+    if (!hasContent) return;
+    const t = setTimeout(async () => {
+      try {
+        setAutoSaveStatus("saving");
+        const finalBody = (useSignature && signature)
+          ? `${bodyHtml}<br/><br/><div class="kx-signature">${signature}</div>`
+          : bodyHtml;
+        if (draftId) {
+          await api.put(`/ermes/messages/${draftId}/draft`, {
+            subject, bodyHtml: finalBody,
+            recipients: [
+              ...to.map(c => ({ userId: c.userId, kind: "To" })),
+              ...cc.map(c => ({ userId: c.userId, kind: "Cc" })),
+            ],
+            teamIds: selTeams.map(t => t.id),
+            isImportant: important,
+            category: category || null,
+            sendExternalEmail: sendExternal,
+            attachmentIds: attachments.map(a => a.id),
+          });
+        } else {
+          const res = await api.post<string>("/ermes/messages", {
+            subject, bodyHtml: finalBody,
+            recipients: [
+              ...to.map(c => ({ userId: c.userId, kind: "To" })),
+              ...cc.map(c => ({ userId: c.userId, kind: "Cc" })),
+            ],
+            teamIds: selTeams.map(t => t.id),
+            inReplyToMessageId: reply?.msg.id ?? null,
+            isImportant: important,
+            saveAsDraft: true,
+            category: category || null,
+            sendExternalEmail: sendExternal,
+            attachmentIds: attachments.map(a => a.id),
+          });
+          setDraftId(res.data);
+        }
+        setAutoSaveStatus("saved");
+        setLastSavedAt(new Date());
+      } catch {
+        setAutoSaveStatus("error");
+      }
+    }, 2500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subject, bodyHtml, to, cc, selTeams, important, category, sendExternal, attachments, useSignature]);
 
   const insertTemplate = (t: Template) => {
     const { subject: s, bodyHtml: b } = fillTemplate(t, meDisplay);
@@ -1019,9 +1089,22 @@ function ComposeDialog({
           {isFull ? <ArrowBackIcon /> : <CloseIcon />}
         </IconButton>
       </Tooltip>
-      <Typography variant="h6" fontWeight={800} sx={{ flex: 1 }}>
+      <Typography variant="h6" fontWeight={800} sx={{ mr: 1 }}>
         {reply ? (reply.mode === "forward" ? "Προώθηση μηνύματος" : "Απάντηση") : "Νέο μήνυμα"}
       </Typography>
+      <Box sx={{ flex: 1 }}>
+        {autoSaveStatus === "saving" && (
+          <Typography variant="caption" color="text.secondary">Αποθήκευση…</Typography>
+        )}
+        {autoSaveStatus === "saved" && lastSavedAt && (
+          <Typography variant="caption" color="text.secondary">
+            Αποθηκευμένο πρόχειρο · {lastSavedAt.toLocaleTimeString("el-GR", { hour: "2-digit", minute: "2-digit" })}
+          </Typography>
+        )}
+        {autoSaveStatus === "error" && (
+          <Typography variant="caption" color="error.main">Σφάλμα αυτόματης αποθήκευσης</Typography>
+        )}
+      </Box>
       {isFull
         ? <Tooltip title="Ενσωμάτωση στη σελίδα"><IconButton size="small" onClick={onCollapse}><CloseFullscreenIcon /></IconButton></Tooltip>
         : <Tooltip title="Πλήρης οθόνη"><IconButton size="small" onClick={onExpand}><OpenInFullIcon /></IconButton></Tooltip>}

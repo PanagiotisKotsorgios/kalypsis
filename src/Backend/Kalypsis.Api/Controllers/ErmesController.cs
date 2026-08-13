@@ -80,6 +80,29 @@ public class ErmesController : ControllerBase
         return File(bytes, mime, name);
     }
 
+    // ── Autosave (update an existing draft in place) ───────────────
+    public record UpdateDraftBody(
+        string Subject, string BodyHtml,
+        IReadOnlyList<ErmesRecipientInput> Recipients,
+        IReadOnlyList<Guid>? TeamIds,
+        bool IsImportant,
+        string? Category,
+        bool SendExternalEmail,
+        IReadOnlyList<Guid>? AttachmentIds);
+
+    [HttpPut("messages/{id:guid}/draft")]
+    public async Task<IActionResult> UpdateDraft(Guid id, [FromBody] UpdateDraftBody body, CancellationToken ct)
+    {
+        await _m.Send(new UpdateErmesDraftCommand(
+            id,
+            body.Subject ?? "", body.BodyHtml ?? "",
+            body.Recipients ?? new List<ErmesRecipientInput>(),
+            body.TeamIds ?? new List<Guid>(),
+            body.IsImportant, body.Category, body.SendExternalEmail,
+            body.AttachmentIds ?? new List<Guid>()), ct);
+        return NoContent();
+    }
+
     // ── Bulk actions (move / read / star / delete / restore) ───────
     public record BulkBody(IReadOnlyList<Guid> MessageIds, string Action, string? Reason);
 

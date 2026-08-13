@@ -555,6 +555,60 @@ public class SendErmesHandler : IRequestHandler<SendErmesCommand, Guid>
     }
 }
 
+// ─── Update-in-place draft (powers composer autosave) ───────────────
+
+public record UpdateErmesDraftCommand(
+    Guid MessageId,
+    string Subject, string BodyHtml,
+    IReadOnlyList<ErmesRecipientInput> Recipients,
+    IReadOnlyList<Guid> TeamIds,
+    bool IsImportant,
+    string? Category,
+    bool SendExternalEmail,
+    IReadOnlyList<Guid>? AttachmentIds = null) : IRequest;
+
+public class UpdateErmesDraftHandler : IRequestHandler<UpdateErmesDraftCommand>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public UpdateErmesDraftHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
+
+    public async Task Handle(UpdateErmesDraftCommand r, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var userId   = _current.UserId   ?? throw AppException.Forbidden();
+        var draft = await _db.ErmesMessages
+            .FirstOrDefaultAsync(x => x.Id == r.MessageId
+                && x.TenantId == tenantId
+                && x.SenderUserId == userId
+                && x.SenderFolder == "Draft", ct)
+            ?? throw AppException.NotFound("Draft");
+
+        var bodyHtml = ErmesHtml.Sanitise(r.BodyHtml);
+        draft.Subject  = string.IsNullOrWhiteSpace(r.Subject) ? "(Πρόχειρο)" : r.Subject.Trim();
+        if (draft.Subject.Length > 400) draft.Subject = draft.Subject[..400];
+        draft.BodyHtml = bodyHtml;
+        draft.Preview  = ErmesHtml.BuildPreview(bodyHtml);
+        draft.IsImportant = r.IsImportant;
+        draft.Category = string.IsNullOrWhiteSpace(r.Category) ? null : r.Category.Trim();
+        draft.ExternalEmailRequested = r.SendExternalEmail;
+        draft.UpdatedAt = DateTime.UtcNow;
+
+        // Re-parent any newly-uploaded scratch attachments to this draft
+        // so autosave hangs on to them just like a real send would.
+        if (r.AttachmentIds != null && r.AttachmentIds.Count > 0)
+        {
+            var wantedIds = r.AttachmentIds.Distinct().ToList();
+            var scratch = await _db.ErmesAttachments
+                .Where(a => a.TenantId == tenantId && a.UploadedByUserId == userId
+                    && a.MessageId == Guid.Empty && wantedIds.Contains(a.Id))
+                .ToListAsync(ct);
+            foreach (var a in scratch) a.MessageId = draft.Id;
+        }
+        await _db.SaveChangesAsync(ct);
+    }
+}
+
 // ─── Bulk folder move / read / star / delete ─────────────────────────
 
 public record ErmesBulkCommand(
