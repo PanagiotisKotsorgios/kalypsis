@@ -249,6 +249,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<ErmesTeam>        ErmesTeams        => Set<ErmesTeam>();
     public DbSet<ErmesTeamMember>  ErmesTeamMembers  => Set<ErmesTeamMember>();
     public DbSet<ErmesBlock>       ErmesBlocks       => Set<ErmesBlock>();
+    public DbSet<ErmesAttachment>  ErmesAttachments  => Set<ErmesAttachment>();
 
     // ==== Federation module ==================================================
     public DbSet<Championship> Championships => Set<Championship>();
@@ -354,6 +355,8 @@ public class AppDbContext : DbContext, IAppDbContext
             .HasIndex(x => new { x.TenantId, x.TeamId });
         modelBuilder.Entity<ErmesBlock>().ToTable("ermes_blocks")
             .HasIndex(x => new { x.TenantId, x.OwnerUserId });
+        modelBuilder.Entity<ErmesAttachment>().ToTable("ermes_attachments")
+            .HasIndex(x => new { x.TenantId, x.MessageId });
         // Same story — seeder creates `platform_job_overrides`, EF pluralised
         // to `PlatformJobOverrides` and the daily backup job blew up on Linux.
         modelBuilder.Entity<PlatformJobOverride>().ToTable("platform_job_overrides");

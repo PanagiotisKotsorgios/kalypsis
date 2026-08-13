@@ -72,6 +72,35 @@ public class ErmesMessage : TenantEntity
     /// on the tenant's behalf (e.g. «monthly-production-list»). Lets the UI
     /// badge the row and lets an admin filter automations out of the search.</summary>
     public string? AutomationSource { get; set; }
+
+    /// <summary>Free-form category / label chosen by the sender at compose
+    /// time («Εργασία», «Παραγωγή», «Πελάτης», …). Displayed as a chip in
+    /// the list row and searchable in the filter box.</summary>
+    public string? Category { get; set; }
+
+    /// <summary>True → also fire an external email to every recipient's
+    /// registered address via the platform's Brevo integration. Best-
+    /// effort: failures are logged but never abort the in-app send.</summary>
+    public bool ExternalEmailRequested { get; set; }
+    public bool ExternalEmailDelivered { get; set; }
+    public string? ExternalEmailStatus { get; set; }
+}
+
+/// <summary>
+/// Physical attachment stored on the tenant's DB (base64 blob column) —
+/// keeps ΕΡΜΗΣ self-contained without depending on the tenant having an
+/// object storage bucket configured. Cap enforced client-side + server-
+/// side; base64 balloon means a 5 MB file lands at ~7 MB in the column.
+/// </summary>
+public class ErmesAttachment : TenantEntity
+{
+    public Guid MessageId { get; set; }
+    public ErmesMessage? Message { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public string MimeType { get; set; } = "application/octet-stream";
+    public long SizeBytes { get; set; }
+    public byte[] ContentBytes { get; set; } = Array.Empty<byte>();
+    public Guid UploadedByUserId { get; set; }
 }
 
 /// <summary>

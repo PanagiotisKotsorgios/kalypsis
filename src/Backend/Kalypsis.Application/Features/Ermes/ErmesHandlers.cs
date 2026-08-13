@@ -4,12 +4,16 @@ using Kalypsis.Application.Common;
 using Kalypsis.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Kalypsis.Application.Features.Ermes;
 
 // ─── DTOs ─────────────────────────────────────────────────────────────
 
 public record ErmesFolderCountDto(string Folder, int Total, int Unread);
+
+public record ErmesAttachmentDto(
+    Guid Id, string FileName, string MimeType, long SizeBytes);
 
 public record ErmesRecipientDto(
     Guid UserId, string Display, string Email, string Kind,
@@ -22,8 +26,11 @@ public record ErmesMessageDto(
     string Folder,               // resolved from the caller's perspective
     bool IsRead, bool IsStarred, bool IsImportant, bool IsDraft,
     string? AutomationSource,
+    string? Category,
+    bool ExternalEmailRequested, bool ExternalEmailDelivered, string? ExternalEmailStatus,
     DateTime CreatedAt, DateTime? SentAt,
-    IReadOnlyList<ErmesRecipientDto> Recipients);
+    IReadOnlyList<ErmesRecipientDto> Recipients,
+    IReadOnlyList<ErmesAttachmentDto> Attachments);
 
 public record ErmesContactDto(
     Guid UserId, string Display, string Email, string Role);
@@ -229,10 +236,14 @@ public class ListErmesHandler : IRequestHandler<ListErmesQuery, IReadOnlyList<Er
             myRec = recRows.ToDictionary(x => x.MessageId, x => (ErmesRecipient?)x);
         }
 
-        // Preload recipient chips for each message.
+        // Preload recipient chips + attachment stubs for each message.
         var msgIdsAll = msgs.Select(x => x.Id).ToList();
         var allRec = await _db.ErmesRecipients
             .Where(x => x.TenantId == tenantId && msgIdsAll.Contains(x.MessageId))
+            .ToListAsync(ct);
+        var allAtt = await _db.ErmesAttachments
+            .Where(x => x.TenantId == tenantId && msgIdsAll.Contains(x.MessageId))
+            .Select(x => new { x.Id, x.MessageId, x.FileName, x.MimeType, x.SizeBytes })
             .ToListAsync(ct);
 
         return msgs.Select(m =>
@@ -249,12 +260,19 @@ public class ListErmesHandler : IRequestHandler<ListErmesQuery, IReadOnlyList<Er
                 IsImportant: m.IsImportant,
                 IsDraft: m.SenderFolder == "Draft",
                 AutomationSource: m.AutomationSource,
+                Category: m.Category,
+                ExternalEmailRequested: m.ExternalEmailRequested,
+                ExternalEmailDelivered: m.ExternalEmailDelivered,
+                ExternalEmailStatus: m.ExternalEmailStatus,
                 CreatedAt: m.CreatedAt, SentAt: m.SentAt,
                 Recipients: allRec
                     .Where(rr => rr.MessageId == m.Id && rr.Kind != "Bcc")
                     .Select(rr => new ErmesRecipientDto(
                         rr.RecipientUserId, rr.RecipientDisplay, rr.RecipientEmail,
                         rr.Kind, rr.IsRead, rr.IsStarred))
+                    .ToList(),
+                Attachments: allAtt.Where(a => a.MessageId == m.Id)
+                    .Select(a => new ErmesAttachmentDto(a.Id, a.FileName, a.MimeType, a.SizeBytes))
                     .ToList());
         }).ToList();
     }
@@ -300,6 +318,11 @@ public class GetErmesThreadHandler : IRequestHandler<GetErmesThreadQuery, IReadO
             await _db.SaveChangesAsync(ct);
         }
 
+        var msgIdsList = msgs.Select(x => x.Id).ToList();
+        var atts = await _db.ErmesAttachments
+            .Where(x => x.TenantId == tenantId && msgIdsList.Contains(x.MessageId))
+            .Select(x => new { x.Id, x.MessageId, x.FileName, x.MimeType, x.SizeBytes })
+            .ToListAsync(ct);
         var myRec = recs.Where(x => x.RecipientUserId == userId).ToDictionary(x => x.MessageId, x => x);
         return msgs.Select(m =>
         {
@@ -315,12 +338,19 @@ public class GetErmesThreadHandler : IRequestHandler<GetErmesThreadQuery, IReadO
                 IsImportant: m.IsImportant,
                 IsDraft: m.SenderFolder == "Draft",
                 AutomationSource: m.AutomationSource,
+                Category: m.Category,
+                ExternalEmailRequested: m.ExternalEmailRequested,
+                ExternalEmailDelivered: m.ExternalEmailDelivered,
+                ExternalEmailStatus: m.ExternalEmailStatus,
                 CreatedAt: m.CreatedAt, SentAt: m.SentAt,
                 Recipients: recs.Where(rr => rr.MessageId == m.Id
                         && (rr.Kind != "Bcc" || rr.RecipientUserId == userId || isSender))
                     .Select(rr => new ErmesRecipientDto(
                         rr.RecipientUserId, rr.RecipientDisplay, rr.RecipientEmail,
                         rr.Kind, rr.IsRead, rr.IsStarred))
+                    .ToList(),
+                Attachments: atts.Where(a => a.MessageId == m.Id)
+                    .Select(a => new ErmesAttachmentDto(a.Id, a.FileName, a.MimeType, a.SizeBytes))
                     .ToList());
         }).ToList();
     }
@@ -337,13 +367,20 @@ public record SendErmesCommand(
     Guid? InReplyToMessageId,
     bool IsImportant,
     bool SaveAsDraft,
-    string? AutomationSource) : IRequest<Guid>;
+    string? AutomationSource,
+    string? Category,
+    bool SendExternalEmail,
+    IReadOnlyList<Guid>? AttachmentIds = null) : IRequest<Guid>;
 
 public class SendErmesHandler : IRequestHandler<SendErmesCommand, Guid>
 {
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _current;
-    public SendErmesHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
+    private readonly IEmailSender _email;
+    private readonly ILogger<SendErmesHandler> _logger;
+    public SendErmesHandler(IAppDbContext db, ICurrentUser current,
+        IEmailSender email, ILogger<SendErmesHandler> logger)
+    { _db = db; _current = current; _email = email; _logger = logger; }
 
     public async Task<Guid> Handle(SendErmesCommand r, CancellationToken ct)
     {
@@ -425,8 +462,24 @@ public class SendErmesHandler : IRequestHandler<SendErmesCommand, Guid>
             SentAt = r.SaveAsDraft ? null : now,
             IsImportant = r.IsImportant,
             AutomationSource = r.AutomationSource,
+            Category = string.IsNullOrWhiteSpace(r.Category) ? null : r.Category.Trim(),
+            ExternalEmailRequested = r.SendExternalEmail && !r.SaveAsDraft,
         };
         _db.ErmesMessages.Add(msg);
+
+        // Re-parent freshly-uploaded attachments (uploaded with MessageId
+        // == Guid.Empty as scratch rows) to this message. Only the
+        // uploader's own scratch rows are re-parented so a caller can't
+        // steal someone else's uploads.
+        if (r.AttachmentIds != null && r.AttachmentIds.Count > 0)
+        {
+            var wantedIds = r.AttachmentIds.Distinct().ToList();
+            var scratch = await _db.ErmesAttachments
+                .Where(a => a.TenantId == tenantId && a.UploadedByUserId == userId
+                    && a.MessageId == Guid.Empty && wantedIds.Contains(a.Id))
+                .ToListAsync(ct);
+            foreach (var a in scratch) a.MessageId = msg.Id;
+        }
 
         if (!r.SaveAsDraft)
         {
@@ -447,7 +500,58 @@ public class SendErmesHandler : IRequestHandler<SendErmesCommand, Guid>
         }
 
         await _db.SaveChangesAsync(ct);
+
+        // ─── External email nudge via Brevo (best-effort) ────────
+        // Kalypsis remains the source of truth; Brevo is just a
+        // notification transport pointing recipients back to the app.
+        // Any failure is logged + stamped on the message row but never
+        // aborts the in-app delivery.
+        if (msg.ExternalEmailRequested)
+        {
+            try
+            {
+                var recipients = recipientMap.Values.ToList();
+                var deliveredCount = 0; var failCount = 0;
+                foreach (var u in recipients)
+                {
+                    if (string.IsNullOrWhiteSpace(u.Email)) continue;
+                    var html = BuildExternalEmailHtml(msg, u);
+                    var res = await _email.SendAsync(new EmailMessage(
+                        u.Email, ($"{u.FirstName} {u.LastName}").Trim(),
+                        subject, html), ct);
+                    if (res.Success) deliveredCount++; else failCount++;
+                }
+                msg.ExternalEmailDelivered = deliveredCount > 0 && failCount == 0;
+                msg.ExternalEmailStatus = $"delivered={deliveredCount} failed={failCount}";
+                await _db.SaveChangesAsync(ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Ermes external email send failed for message {MessageId}", msg.Id);
+                msg.ExternalEmailStatus = ex.Message.Length > 400 ? ex.Message[..400] : ex.Message;
+                try { await _db.SaveChangesAsync(ct); } catch { /* best-effort */ }
+            }
+        }
         return msg.Id;
+    }
+
+    /// <summary>Wraps the Ermes body in a minimal HTML shell for the
+    /// external nudge. Deliberately terse — the source of truth stays
+    /// inside Kalypsis.</summary>
+    private static string BuildExternalEmailHtml(ErmesMessage m, User to)
+    {
+        var name = ($"{to.FirstName} {to.LastName}").Trim();
+        return $@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111"">
+<p>Γεια σας {System.Net.WebUtility.HtmlEncode(name)},</p>
+<p>Έχετε λάβει νέο μήνυμα ΕΡΜΗΣ από τον/την
+<strong>{System.Net.WebUtility.HtmlEncode(m.SenderDisplay)}</strong>:</p>
+<hr style=""border:none;border-top:1px solid #eee;margin:12px 0"" />
+<div>{m.BodyHtml}</div>
+<hr style=""border:none;border-top:1px solid #eee;margin:12px 0"" />
+<p style=""color:#666"">Απαντήστε από την πλατφόρμα Kalypsis
+(ενότητα ΕΡΜΗΣ). Αυτό το email είναι ενημερωτικό —
+οι απαντήσεις σε αυτή τη διεύθυνση δεν παρακολουθούνται.</p>
+</div>";
     }
 }
 
@@ -695,5 +799,88 @@ public class UnblockErmesUserHandler : IRequestHandler<UnblockErmesUserCommand>
             ?? throw AppException.NotFound("Block");
         b.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
+    }
+}
+
+// ─── Attachments (upload while composing, download while reading) ────
+
+/// <summary>
+/// Uploads live under a scratch row (MessageId = Guid.Empty) until the
+/// composing user actually sends the message — the SendErmesHandler
+/// then re-parents the scratch rows into the freshly-created message.
+/// Cap at 16 MB per file, matching the /documents upload limit.
+/// </summary>
+public record UploadErmesAttachmentCommand(
+    string FileName, string MimeType, byte[] Content) : IRequest<ErmesAttachmentDto>;
+
+public class UploadErmesAttachmentHandler : IRequestHandler<UploadErmesAttachmentCommand, ErmesAttachmentDto>
+{
+    private const int MaxBytes = 16 * 1024 * 1024;   // 16 MB
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public UploadErmesAttachmentHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
+
+    public async Task<ErmesAttachmentDto> Handle(UploadErmesAttachmentCommand r, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var userId   = _current.UserId   ?? throw AppException.Forbidden();
+        if (r.Content == null || r.Content.Length == 0)
+            throw AppException.Validation("Το αρχείο είναι κενό.");
+        if (r.Content.Length > MaxBytes)
+            throw AppException.Validation($"Μέγιστο μέγεθος {MaxBytes / (1024 * 1024)} MB.");
+
+        var att = new ErmesAttachment
+        {
+            TenantId = tenantId,
+            MessageId = Guid.Empty,           // scratch — SendCommand re-parents
+            FileName = string.IsNullOrWhiteSpace(r.FileName) ? "attachment" : r.FileName,
+            MimeType = string.IsNullOrWhiteSpace(r.MimeType) ? "application/octet-stream" : r.MimeType,
+            SizeBytes = r.Content.LongLength,
+            ContentBytes = r.Content,
+            UploadedByUserId = userId,
+        };
+        _db.ErmesAttachments.Add(att);
+        await _db.SaveChangesAsync(ct);
+        return new ErmesAttachmentDto(att.Id, att.FileName, att.MimeType, att.SizeBytes);
+    }
+}
+
+public record DownloadErmesAttachmentQuery(Guid Id)
+    : IRequest<(string FileName, string MimeType, byte[] Content)>;
+
+public class DownloadErmesAttachmentHandler
+    : IRequestHandler<DownloadErmesAttachmentQuery, (string FileName, string MimeType, byte[] Content)>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public DownloadErmesAttachmentHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
+
+    public async Task<(string FileName, string MimeType, byte[] Content)> Handle(
+        DownloadErmesAttachmentQuery r, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var userId   = _current.UserId   ?? throw AppException.Forbidden();
+
+        var att = await _db.ErmesAttachments
+            .FirstOrDefaultAsync(a => a.Id == r.Id && a.TenantId == tenantId, ct)
+            ?? throw AppException.NotFound("Attachment");
+
+        // Scratch rows (unsent) can only be seen by the uploader.
+        if (att.MessageId == Guid.Empty)
+        {
+            if (att.UploadedByUserId != userId) throw AppException.Forbidden();
+        }
+        else
+        {
+            // Sent messages: sender + any recipient may fetch.
+            var msg = await _db.ErmesMessages
+                .FirstOrDefaultAsync(m => m.Id == att.MessageId && m.TenantId == tenantId, ct)
+                ?? throw AppException.NotFound("Message");
+            var isRecipient = await _db.ErmesRecipients
+                .AnyAsync(rr => rr.TenantId == tenantId && rr.MessageId == msg.Id
+                    && rr.RecipientUserId == userId, ct);
+            if (msg.SenderUserId != userId && !isRecipient) throw AppException.Forbidden();
+        }
+        return (att.FileName, att.MimeType, att.ContentBytes);
     }
 }

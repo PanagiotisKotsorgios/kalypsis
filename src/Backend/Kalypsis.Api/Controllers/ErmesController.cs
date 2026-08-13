@@ -45,7 +45,10 @@ public class ErmesController : ControllerBase
         Guid? InReplyToMessageId,
         bool IsImportant,
         bool SaveAsDraft,
-        string? AutomationSource);
+        string? AutomationSource,
+        string? Category,
+        bool SendExternalEmail,
+        IReadOnlyList<Guid>? AttachmentIds);
 
     [HttpPost("messages")]
     public async Task<ActionResult<Guid>> Send([FromBody] SendBody body, CancellationToken ct)
@@ -54,7 +57,28 @@ public class ErmesController : ControllerBase
             body.Recipients ?? new List<ErmesRecipientInput>(),
             body.TeamIds ?? new List<Guid>(),
             body.InReplyToMessageId, body.IsImportant, body.SaveAsDraft,
-            body.AutomationSource), ct));
+            body.AutomationSource, body.Category, body.SendExternalEmail,
+            body.AttachmentIds ?? new List<Guid>()), ct));
+
+    // ── Attachments ────────────────────────────────────────────────
+    [HttpPost("attachments")]
+    [RequestSizeLimit(20_000_000)] // 20 MB request body, ~16 MB payload
+    public async Task<ActionResult<ErmesAttachmentDto>> Upload(
+        [FromForm] IFormFile file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0) return BadRequest("Απαιτείται αρχείο.");
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+        return Ok(await _m.Send(new UploadErmesAttachmentCommand(
+            file.FileName, file.ContentType, ms.ToArray()), ct));
+    }
+
+    [HttpGet("attachments/{id:guid}")]
+    public async Task<IActionResult> Download(Guid id, CancellationToken ct)
+    {
+        var (name, mime, bytes) = await _m.Send(new DownloadErmesAttachmentQuery(id), ct);
+        return File(bytes, mime, name);
+    }
 
     // ── Bulk actions (move / read / star / delete / restore) ───────
     public record BulkBody(IReadOnlyList<Guid> MessageIds, string Action, string? Reason);

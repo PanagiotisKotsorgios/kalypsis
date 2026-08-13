@@ -30,6 +30,14 @@ import MarkEmailReadIcon from "@mui/icons-material/MarkEmailRead";
 import PriorityHighIcon from "@mui/icons-material/PriorityHigh";
 import ConstructionIcon from "@mui/icons-material/Construction";
 import CardGiftcardIcon from "@mui/icons-material/CardGiftcard";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import AttachFileIcon from "@mui/icons-material/AttachFile";
+import TableChartIcon from "@mui/icons-material/TableChart";
+import ArticleIcon from "@mui/icons-material/Article";
+import CategoryIcon from "@mui/icons-material/Category";
+import AlternateEmailIcon from "@mui/icons-material/AlternateEmail";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { RichTextEditor } from "../components/RichTextEditor";
@@ -41,20 +49,97 @@ interface ErmesRecipientDto {
   userId: string; display: string; email: string; kind: string;
   isRead: boolean; isStarred: boolean;
 }
+interface AttachmentDto { id: string; fileName: string; mimeType: string; sizeBytes: number; }
 interface ErmesMessageDto {
   id: string; threadId: string; inReplyToMessageId: string | null;
   senderUserId: string; senderDisplay: string; senderEmail: string;
   subject: string; bodyHtml: string; preview: string;
   folder: string; isRead: boolean; isStarred: boolean; isImportant: boolean;
   isDraft: boolean; automationSource: string | null;
+  category: string | null;
+  externalEmailRequested: boolean; externalEmailDelivered: boolean; externalEmailStatus: string | null;
   createdAt: string; sentAt: string | null;
   recipients: ErmesRecipientDto[];
+  attachments: AttachmentDto[];
 }
 interface FolderCount { folder: string; total: number; unread: number; }
 interface Contact { userId: string; display: string; email: string; role: string; }
 interface Team { id: string; name: string; description: string | null; members: Contact[]; }
 interface BlockDto { id: string; blockedUserId: string; blockedDisplay: string; blockedEmail: string; reason: string | null; createdAt: string; }
 interface OverviewDto { folders: FolderCount[]; teams: Team[]; contacts: Contact[]; }
+
+// ─── Categories + canned templates (composer helpers) ──────────────
+
+const CATEGORIES = [
+  { key: "General",     label: "Γενικά",       color: "default" as const },
+  { key: "Production",  label: "Παραγωγή",     color: "primary" as const },
+  { key: "Commissions", label: "Προμήθειες",   color: "success" as const },
+  { key: "Customer",    label: "Πελάτης",      color: "info"    as const },
+  { key: "Claim",       label: "Ζημιά",        color: "warning" as const },
+  { key: "Urgent",      label: "Επείγον",      color: "error"   as const },
+];
+
+interface Template { key: string; label: string; subject: string; bodyHtml: string; }
+const TEMPLATES: Template[] = [
+  {
+    key: "monthly-production",
+    label: "Ενημέρωση παραγωγής μηνός",
+    subject: "Ενημέρωση παραγωγής — {{month}}",
+    bodyHtml:
+      "<p>Καλησπέρα,</p>" +
+      "<p>Επισυνάπτω τη λίστα παραγωγής για τον μήνα <b>{{month}}</b>. Παρακαλώ ενημερώστε αν χρειάζεται διόρθωση κάποιας εγγραφής.</p>" +
+      "<p>Ευχαριστώ,<br/>{{me}}</p>",
+  },
+  {
+    key: "commission-reminder",
+    label: "Υπενθύμιση εκκαθάρισης προμηθειών",
+    subject: "Υπενθύμιση εκκαθάρισης προμηθειών",
+    bodyHtml:
+      "<p>Καλησπέρα,</p>" +
+      "<p>Παρακαλώ για την εκκαθάριση των προμηθειών του τρέχοντος μήνα. Οι λεπτομέρειες βρίσκονται στην εφαρμογή, στην ενότητα <b>Εκκαθαρίσεις Προμηθειών</b>.</p>" +
+      "<p>Ευχαριστώ,<br/>{{me}}</p>",
+  },
+  {
+    key: "renewal-heads-up",
+    label: "Ενημέρωση για ληξιπρόθεσμα συμβόλαια",
+    subject: "Ληξιπρόθεσμα συμβόλαια — υπενθύμιση",
+    bodyHtml:
+      "<p>Καλησπέρα,</p>" +
+      "<p>Έχω εντοπίσει συμβόλαια που λήγουν εντός των επόμενων 30 ημερών. Παρακαλώ ενημερώστε τους πελάτες σας για ανανέωση.</p>" +
+      "<p>Ευχαριστώ,<br/>{{me}}</p>",
+  },
+  {
+    key: "welcome",
+    label: "Καλωσόρισμα νέου συνεργάτη",
+    subject: "Καλωσορίσατε στο δίκτυο συνεργατών",
+    bodyHtml:
+      "<p>Καλησπέρα σας,</p>" +
+      "<p>Σας καλωσορίζουμε στο δίκτυό μας. Το γραφείο μας είναι στη διάθεσή σας για κάθε αίτημα ή απορία.</p>" +
+      "<p>Με εκτίμηση,<br/>{{me}}</p>",
+  },
+  {
+    key: "thank-you",
+    label: "Ευχαριστήριο μήνυμα",
+    subject: "Σας ευχαριστούμε",
+    bodyHtml:
+      "<p>Καλησπέρα,</p>" +
+      "<p>Θέλαμε να σας ευχαριστήσουμε για τη συνεργασία σας. Είμαστε στη διάθεσή σας.</p>" +
+      "<p>Με εκτίμηση,<br/>{{me}}</p>",
+  },
+];
+
+const fillTemplate = (tpl: Template, meName: string) => {
+  const now = new Date();
+  const month = now.toLocaleDateString("el-GR", { month: "long", year: "numeric" });
+  const replace = (s: string) => s.replace(/\{\{month\}\}/g, month).replace(/\{\{me\}\}/g, meName);
+  return { subject: replace(tpl.subject), bodyHtml: replace(tpl.bodyHtml) };
+};
+
+const formatBytes = (n: number) => {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+};
 
 // ─── Folder metadata ────────────────────────────────────────────────
 
@@ -318,6 +403,7 @@ export function ErmesPage() {
         contacts={overview.data?.contacts ?? []}
         teams={overview.data?.teams ?? []}
         reply={replyTo}
+        meDisplay={((user?.firstName ?? "") + " " + (user?.lastName ?? "")).trim()}
         onSent={() => {
           setComposeOpen(false); setReplyTo(null);
           void qc.invalidateQueries({ queryKey: ["ermes"] });
@@ -425,6 +511,12 @@ function MessageRow({ msg, selected, active, onToggle, onOpen, onStar }: {
         </Stack>
         <Typography variant="body2" fontWeight={msg.isRead ? 500 : 700} noWrap>
           {msg.isDraft && <Chip label="Πρόχειρο" size="small" color="warning" sx={{ mr: 0.5, height: 16, fontSize: 10 }} />}
+          {msg.category && (() => {
+            const cm = CATEGORIES.find(c => c.key === msg.category);
+            return cm ? <Chip label={cm.label} size="small" color={cm.color} sx={{ mr: 0.5, height: 16, fontSize: 10 }} /> : null;
+          })()}
+          {msg.attachments?.length > 0 && <AttachFileIcon fontSize="small" sx={{ verticalAlign: "middle", mr: 0.5, color: "text.secondary" }} />}
+          {msg.externalEmailRequested && <AlternateEmailIcon fontSize="small" sx={{ verticalAlign: "middle", mr: 0.5, color: msg.externalEmailDelivered ? "success.main" : "text.secondary" }} />}
           {msg.subject || "(Χωρίς θέμα)"}
         </Typography>
         <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
@@ -497,8 +589,40 @@ function ThreadReader({
               "& blockquote": { borderLeft: 3, borderColor: "divider",
                 pl: 1.5, ml: 0, my: 1, color: "text.secondary" },
               "& p": { my: 0.5 },
+              "& table": { borderCollapse: "collapse", width: "100%", fontSize: 13 },
               fontSize: 14, lineHeight: 1.6,
             }} dangerouslySetInnerHTML={{ __html: m.bodyHtml || "" }} />
+            {m.attachments && m.attachments.length > 0 && (
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap mt={1.5}>
+                {m.attachments.map(a => (
+                  <Chip key={a.id} icon={<AttachFileIcon />}
+                    label={`${a.fileName} · ${formatBytes(a.sizeBytes)}`}
+                    onClick={async () => {
+                      const res = await api.get<Blob>(`/ermes/attachments/${a.id}`, { responseType: "blob" });
+                      const url = window.URL.createObjectURL(res.data);
+                      const el = document.createElement("a");
+                      el.href = url; el.download = a.fileName; el.click();
+                      window.URL.revokeObjectURL(url);
+                    }}
+                    sx={{ cursor: "pointer" }} />
+                ))}
+              </Stack>
+            )}
+            {m.category && (() => {
+              const cm = CATEGORIES.find(c => c.key === m.category);
+              return cm ? (
+                <Stack direction="row" spacing={1} mt={1.5}>
+                  <Chip icon={<CategoryIcon />} label={cm.label} size="small" color={cm.color} />
+                  {m.externalEmailRequested && (
+                    <Chip size="small" icon={<AlternateEmailIcon />}
+                      color={m.externalEmailDelivered ? "success" : "default"}
+                      label={m.externalEmailDelivered
+                        ? "Στάλθηκε και σε email"
+                        : (m.externalEmailStatus ?? "Email σε αναμονή")} />
+                  )}
+                </Stack>
+              ) : null;
+            })()}
           </Box>
         ))}
       </Box>
@@ -508,13 +632,25 @@ function ThreadReader({
 
 // ─── Compose dialog ──────────────────────────────────────────────────
 
+/**
+ * Full-screen composer. Ships with:
+ *  • Header «Πίσω» button that mirrors mail-app UX.
+ *  • Rich text editor + subject + To/Cc + team fan-out.
+ *  • Category chip picker + external-email switch (routes through Brevo).
+ *  • Attachment upload chips (drag/click, 16MB cap).
+ *  • Template picker menu with 5 canned bodies.
+ *  • «Εισαγωγή λίστας παραγωγής» dialog that pulls /production-lists
+ *    with period + carrier + producer filters and drops a formatted
+ *    HTML table into the body.
+ */
 function ComposeDialog({
-  open, onClose, contacts, teams, reply, onSent,
+  open, onClose, contacts, teams, reply, onSent, meDisplay,
 }: {
   open: boolean; onClose: () => void;
   contacts: Contact[]; teams: Team[];
   reply: { msg: ErmesMessageDto; mode: "reply" | "replyAll" | "forward" } | null;
   onSent: () => void;
+  meDisplay: string;
 }) {
   const [subject, setSubject] = useState("");
   const [bodyHtml, setBodyHtml] = useState("");
@@ -523,6 +659,13 @@ function ComposeDialog({
   const [showCc, setShowCc] = useState(false);
   const [selTeams, setSelTeams] = useState<Team[]>([]);
   const [important, setImportant] = useState(false);
+  const [category, setCategory] = useState<string>("");
+  const [sendExternal, setSendExternal] = useState(false);
+  const [attachments, setAttachments] = useState<AttachmentDto[]>([]);
+  const [tplAnchor, setTplAnchor] = useState<HTMLElement | null>(null);
+  const [catAnchor, setCatAnchor] = useState<HTMLElement | null>(null);
+  const [prodOpen, setProdOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -547,10 +690,11 @@ function ComposeDialog({
       const quoted = `<br/><br/><blockquote>—— Αρχικό μήνυμα ——<br/>Από: ${msg.senderDisplay}<br/>Θέμα: ${msg.subject}<br/><br/>${msg.bodyHtml}</blockquote>`;
       setBodyHtml(quoted);
       setImportant(msg.isImportant);
-      setSelTeams([]);
+      setCategory(msg.category ?? "");
+      setSelTeams([]); setSendExternal(false); setAttachments([]);
     } else {
       setSubject(""); setBodyHtml(""); setTo([]); setCc([]); setShowCc(false);
-      setSelTeams([]); setImportant(false);
+      setSelTeams([]); setImportant(false); setCategory(""); setSendExternal(false); setAttachments([]);
     }
     setErr(null);
   }, [open, reply]);
@@ -566,67 +710,301 @@ function ComposeDialog({
       inReplyToMessageId: reply?.msg.id ?? null,
       isImportant: important,
       saveAsDraft,
+      category: category || null,
+      sendExternalEmail: sendExternal,
+      attachmentIds: attachments.map(a => a.id),
     }),
     onSuccess: onSent,
     onError: (e) => setErr(extractErrorMessage(e)),
   });
 
+  const insertTemplate = (t: Template) => {
+    const { subject: s, bodyHtml: b } = fillTemplate(t, meDisplay);
+    if (!subject) setSubject(s);
+    // Prepend the template body so any reply-quoted content stays below.
+    setBodyHtml(b + (bodyHtml ? "<br/>" + bodyHtml : ""));
+    setTplAnchor(null);
+  };
+
+  const uploadFile = async (file: File) => {
+    if (file.size > 16 * 1024 * 1024) {
+      setErr("Μέγιστο μέγεθος αρχείου: 16 MB.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await api.post<AttachmentDto>("/ermes/attachments", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setAttachments(prev => [...prev, res.data]);
+    } catch (e) {
+      setErr(extractErrorMessage(e));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const catMeta = CATEGORIES.find(c => c.key === category);
+
+  return (
+    <>
+      <Dialog open={open} onClose={onClose} fullScreen>
+        <Box sx={{ p: 1.25, borderBottom: 1, borderColor: "divider",
+          display: "flex", alignItems: "center", gap: 1, bgcolor: "background.paper" }}>
+          <Tooltip title="Πίσω">
+            <IconButton onClick={onClose}><ArrowBackIcon /></IconButton>
+          </Tooltip>
+          <Typography variant="h6" fontWeight={800} sx={{ flex: 1 }}>
+            {reply ? (reply.mode === "forward" ? "Προώθηση μηνύματος" : "Απάντηση") : "Νέο μήνυμα"}
+          </Typography>
+          <Button size="small" startIcon={<DraftsIcon />} disabled={send.isPending}
+            onClick={() => send.mutate(true)}>Πρόχειρο</Button>
+          <Button size="small" variant="contained" startIcon={<SendIcon />} disabled={send.isPending}
+            onClick={() => send.mutate(false)}>Αποστολή</Button>
+        </Box>
+
+        <Box sx={{ flex: 1, overflowY: "auto", px: { xs: 2, md: 6 }, py: 3, bgcolor: "background.default" }}>
+          <Box sx={{ maxWidth: 960, mx: "auto" }}>
+            {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+            <Stack spacing={1.5}>
+              <Autocomplete<Contact, true>
+                multiple size="small" options={contacts}
+                value={to} onChange={(_e, v) => setTo(v)}
+                getOptionLabel={(c) => `${c.display} <${c.email}>`}
+                isOptionEqualToValue={(a, b) => a.userId === b.userId}
+                renderInput={(p) => <TextField {...p} label="Προς"
+                  InputProps={{ ...p.InputProps,
+                    endAdornment: <>
+                      {!showCc && <Button size="small" onClick={() => setShowCc(true)}>+Cc</Button>}
+                      {p.InputProps.endAdornment}
+                    </> }} />}
+              />
+              {showCc && (
+                <Autocomplete<Contact, true>
+                  multiple size="small" options={contacts}
+                  value={cc} onChange={(_e, v) => setCc(v)}
+                  getOptionLabel={(c) => `${c.display} <${c.email}>`}
+                  isOptionEqualToValue={(a, b) => a.userId === b.userId}
+                  renderInput={(p) => <TextField {...p} label="Κοιν." />}
+                />
+              )}
+              <Autocomplete<Team, true>
+                multiple size="small" options={teams}
+                value={selTeams} onChange={(_e, v) => setSelTeams(v)}
+                getOptionLabel={(t) => `${t.name} (${t.members.length})`}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                renderInput={(p) => <TextField {...p} label="Ομάδες παραληπτών" />}
+              />
+              <TextField size="small" label="Θέμα" value={subject}
+                onChange={e => setSubject(e.target.value)}
+                InputProps={{ endAdornment: (
+                  <Tip title="Σημαντικό (κόκκινο σήμα στον παραλήπτη)">
+                    <IconButton size="small" color={important ? "error" : "default"}
+                      onClick={() => setImportant(v => !v)}>
+                      <PriorityHighIcon fontSize="small" />
+                    </IconButton>
+                  </Tip>
+                ) }} />
+
+              {/* Composer toolbar — templates / production list insert /
+                  attachments / category / external email */}
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+                <Button size="small" startIcon={<ArticleIcon />} variant="outlined"
+                  onClick={(e) => setTplAnchor(e.currentTarget)}>
+                  Πρότυπα
+                </Button>
+                <Button size="small" startIcon={<TableChartIcon />} variant="outlined"
+                  onClick={() => setProdOpen(true)}>
+                  Λίστα παραγωγής
+                </Button>
+                <Button size="small" startIcon={<AttachFileIcon />} variant="outlined" component="label"
+                  disabled={uploading}>
+                  {uploading ? "Ανέβασμα…" : "Επισύναψη"}
+                  <input type="file" hidden multiple onChange={(e) => {
+                    const files = Array.from(e.target.files ?? []);
+                    files.forEach(f => uploadFile(f));
+                    e.target.value = "";
+                  }} />
+                </Button>
+                <Button size="small" startIcon={<CategoryIcon />} variant="outlined"
+                  onClick={(e) => setCatAnchor(e.currentTarget)}>
+                  {catMeta ? `Κατηγορία: ${catMeta.label}` : "Κατηγορία"}
+                </Button>
+                {catMeta && (
+                  <Chip label={catMeta.label} size="small" color={catMeta.color}
+                    onDelete={() => setCategory("")} />
+                )}
+                <Box sx={{ flex: 1 }} />
+                <FormControlLabel
+                  sx={{ ml: 0 }}
+                  control={<Switch size="small" checked={sendExternal}
+                    onChange={(_e, v) => setSendExternal(v)} />}
+                  label={<Stack direction="row" alignItems="center" spacing={0.5}>
+                    <AlternateEmailIcon fontSize="small" />
+                    <Typography variant="body2">Αποστολή και σε email</Typography>
+                  </Stack>} />
+              </Stack>
+
+              {/* Attachment chips */}
+              {attachments.length > 0 && (
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  {attachments.map(a => (
+                    <Chip key={a.id} icon={<AttachFileIcon />}
+                      label={`${a.fileName} · ${formatBytes(a.sizeBytes)}`}
+                      onDelete={() => setAttachments(prev => prev.filter(x => x.id !== a.id))} />
+                  ))}
+                </Stack>
+              )}
+
+              <RichTextEditor html={bodyHtml} onHtmlChange={setBodyHtml} minHeight={420} />
+            </Stack>
+          </Box>
+        </Box>
+      </Dialog>
+
+      {/* Template picker menu */}
+      <Menu anchorEl={tplAnchor} open={!!tplAnchor} onClose={() => setTplAnchor(null)}>
+        {TEMPLATES.map(t => (
+          <MenuItem key={t.key} onClick={() => insertTemplate(t)}>{t.label}</MenuItem>
+        ))}
+      </Menu>
+
+      {/* Category picker menu */}
+      <Menu anchorEl={catAnchor} open={!!catAnchor} onClose={() => setCatAnchor(null)}>
+        <MenuItem onClick={() => { setCategory(""); setCatAnchor(null); }}>— Καμία —</MenuItem>
+        {CATEGORIES.map(c => (
+          <MenuItem key={c.key} onClick={() => { setCategory(c.key); setCatAnchor(null); }}>
+            <Chip size="small" label={c.label} color={c.color} sx={{ mr: 1 }} />
+          </MenuItem>
+        ))}
+      </Menu>
+
+      {/* Production-list inserter */}
+      <ProductionListInsertDialog open={prodOpen} onClose={() => setProdOpen(false)}
+        onInsert={(html) => { setBodyHtml(prev => (prev ? prev + "<br/>" : "") + html); setProdOpen(false); }} />
+    </>
+  );
+}
+
+/**
+ * Small dialog that fetches /production-lists with a period + carrier +
+ * producer filter and inserts a formatted HTML table into the message
+ * body. Reuses the same endpoint the ProductionLists page already
+ * consumes so there's a single source of truth.
+ */
+function ProductionListInsertDialog({
+  open, onClose, onInsert,
+}: {
+  open: boolean; onClose: () => void; onInsert: (html: string) => void;
+}) {
+  const y = new Date().getFullYear();
+  const [from, setFrom] = useState(`${y}-01-01`);
+  const [to, setTo]     = useState(`${y}-12-31`);
+  const [carrierId, setCarrierId] = useState("");
+  const [producerId, setProducerId] = useState("");
+
+  const carriers = useQuery({
+    queryKey: ["ermes-carriers"], enabled: open,
+    queryFn: async () => (await api.get<{ id: string; name: string }[]>(
+      "/insurance-companies", { params: { onlyUsed: true } })).data,
+  });
+  const producers = useQuery({
+    queryKey: ["ermes-producers"], enabled: open,
+    queryFn: async () => (await api.get<{ id: string; name: string }[]>("/producers")).data,
+  });
+
+  const [rows, setRows] = useState<any[]>([]);
+  const [totals, setTotals] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const fetchData = async () => {
+    setLoading(true); setErr(null);
+    try {
+      const res = await api.get<{ rows: any[]; grand: any }>("/production-lists", {
+        params: { from, to,
+          insuranceCompanyId: carrierId || undefined,
+          producerId: producerId || undefined,
+          groupBy: "carrier" },
+      });
+      setRows(res.data.rows ?? []);
+      setTotals(res.data.grand ?? null);
+    } catch (e) {
+      setErr(extractErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const insert = () => {
+    if (rows.length === 0) return;
+    const money = (n: number) =>
+      `€${(n ?? 0).toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const escape = (s: any) => String(s ?? "").replace(/[&<>]/g,
+      c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] as string));
+    const head = `<thead><tr>
+      <th style="text-align:left;padding:4px 8px;border-bottom:1px solid #ccc">Συμβόλαιο</th>
+      <th style="text-align:left;padding:4px 8px;border-bottom:1px solid #ccc">Πελάτης</th>
+      <th style="text-align:left;padding:4px 8px;border-bottom:1px solid #ccc">Εταιρία</th>
+      <th style="text-align:right;padding:4px 8px;border-bottom:1px solid #ccc">Μικτό</th>
+      <th style="text-align:right;padding:4px 8px;border-bottom:1px solid #ccc">Προμ. γραφείου</th>
+    </tr></thead>`;
+    const body = rows.slice(0, 200).map(r => `<tr>
+      <td style="padding:4px 8px;border-bottom:1px solid #eee;font-family:monospace">${escape(r.policyNumber)}</td>
+      <td style="padding:4px 8px;border-bottom:1px solid #eee">${escape(r.customerName)}</td>
+      <td style="padding:4px 8px;border-bottom:1px solid #eee">${escape(r.insuranceCompany)}</td>
+      <td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right">${money(r.gross)}</td>
+      <td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right">${money(r.agencyCommission)}</td>
+    </tr>`).join("");
+    const foot = totals ? `<tfoot><tr>
+      <td colspan="3" style="padding:6px 8px;font-weight:700">Σύνολο (${rows.length} συμβόλαια)</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:700">${money(totals.gross)}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:700">${money(totals.agencyCommission)}</td>
+    </tr></tfoot>` : "";
+    const table = `<p><b>Λίστα παραγωγής</b> (${from} → ${to})</p>
+      <table style="border-collapse:collapse;width:100%;font-size:13px">${head}<tbody>${body}</tbody>${foot}</table>`;
+    onInsert(table);
+  };
+
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-      <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1, fontWeight: 800 }}>
-        {reply ? (reply.mode === "forward" ? "Προώθηση μηνύματος" : "Απάντηση") : "Νέο μήνυμα"}
-        <Box sx={{ flex: 1 }} />
-        <IconButton size="small" onClick={onClose}><CloseIcon /></IconButton>
-      </DialogTitle>
+      <DialogTitle sx={{ fontWeight: 800 }}>Εισαγωγή λίστας παραγωγής</DialogTitle>
       <DialogContent>
-        {err && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setErr(null)}>{err}</Alert>}
+        {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={1.5} mt={1}>
-          <Autocomplete<Contact, true>
-            multiple size="small" options={contacts}
-            value={to} onChange={(_e, v) => setTo(v)}
-            getOptionLabel={(c) => `${c.display} <${c.email}>`}
-            isOptionEqualToValue={(a, b) => a.userId === b.userId}
-            renderInput={(p) => <TextField {...p} label="Προς"
-              InputProps={{ ...p.InputProps,
-                endAdornment: <>
-                  {!showCc && <Button size="small" onClick={() => setShowCc(true)}>+Cc</Button>}
-                  {p.InputProps.endAdornment}
-                </> }} />}
-          />
-          {showCc && (
-            <Autocomplete<Contact, true>
-              multiple size="small" options={contacts}
-              value={cc} onChange={(_e, v) => setCc(v)}
-              getOptionLabel={(c) => `${c.display} <${c.email}>`}
-              isOptionEqualToValue={(a, b) => a.userId === b.userId}
-              renderInput={(p) => <TextField {...p} label="Κοιν." />}
-            />
-          )}
-          <Autocomplete<Team, true>
-            multiple size="small" options={teams}
-            value={selTeams} onChange={(_e, v) => setSelTeams(v)}
-            getOptionLabel={(t) => `${t.name} (${t.members.length})`}
-            isOptionEqualToValue={(a, b) => a.id === b.id}
-            renderInput={(p) => <TextField {...p} label="Ομάδες παραληπτών" />}
-          />
-          <TextField size="small" label="Θέμα" value={subject} onChange={e => setSubject(e.target.value)}
-            InputProps={{ endAdornment: (
-              <Tip title="Σημαντικό (κόκκινο σήμα στον παραλήπτη)">
-                <IconButton size="small" color={important ? "error" : "default"}
-                  onClick={() => setImportant(v => !v)}>
-                  <PriorityHighIcon fontSize="small" />
-                </IconButton>
-              </Tip>
-            ) }} />
-          <RichTextEditor html={bodyHtml} onHtmlChange={setBodyHtml} minHeight={260} />
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+            <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} fullWidth
+              value={from} onChange={e => setFrom(e.target.value)} />
+            <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} fullWidth
+              value={to} onChange={e => setTo(e.target.value)} />
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+            <TextField select size="small" label="Ασφαλιστική" fullWidth
+              value={carrierId} onChange={e => setCarrierId(e.target.value)}>
+              <MenuItem value="">Όλες</MenuItem>
+              {(carriers.data ?? []).map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+            </TextField>
+            <TextField select size="small" label="Συνεργάτης" fullWidth
+              value={producerId} onChange={e => setProducerId(e.target.value)}>
+              <MenuItem value="">Όλοι</MenuItem>
+              {(producers.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
+            </TextField>
+          </Stack>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Button variant="outlined" onClick={fetchData} disabled={loading}>
+              {loading ? <CircularProgress size={16} /> : "Ανάκτηση"}
+            </Button>
+            <Typography variant="caption" color="text.secondary">
+              {rows.length > 0 ? `${rows.length} εγγραφές — μέγιστο 200 στην εισαγωγή.` : "Πατήστε «Ανάκτηση» για δείγμα."}
+            </Typography>
+          </Stack>
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
+      <DialogActions>
         <Button onClick={onClose}>Άκυρο</Button>
-        <Button startIcon={<DraftsIcon />} disabled={send.isPending}
-          onClick={() => send.mutate(true)}>Αποθήκευση προχείρου</Button>
-        <Button variant="contained" startIcon={<SendIcon />} disabled={send.isPending}
-          onClick={() => send.mutate(false)}>Αποστολή</Button>
+        <Button variant="contained" onClick={insert} disabled={rows.length === 0}>Εισαγωγή στο μήνυμα</Button>
       </DialogActions>
     </Dialog>
   );

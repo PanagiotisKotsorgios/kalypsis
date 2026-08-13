@@ -274,6 +274,7 @@ public interface IAppDbContext
     DbSet<ErmesTeam>        ErmesTeams        { get; }
     DbSet<ErmesTeamMember>  ErmesTeamMembers  { get; }
     DbSet<ErmesBlock>       ErmesBlocks       { get; }
+    DbSet<ErmesAttachment>  ErmesAttachments  { get; }
 
     // ==== Federation module (championships / clubs / athletes / results) ====
     DbSet<Championship> Championships { get; }

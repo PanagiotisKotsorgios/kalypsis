@@ -1894,6 +1894,35 @@ public static class DataSeeder
                 KEY `IX_ermes_team_members_Tenant_Team` (`TenantId`, `TeamId`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
 
+        // Later-added columns on ermes_messages (idempotent ALTER for
+        // tenants that got the first Beta cut with the narrower schema).
+        await EnsureColumnAsync(db, logger, dbName, "ermes_messages", "Category",
+            "ALTER TABLE `ermes_messages` ADD COLUMN `Category` varchar(80) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName, "ermes_messages", "ExternalEmailRequested",
+            "ALTER TABLE `ermes_messages` ADD COLUMN `ExternalEmailRequested` tinyint(1) NOT NULL DEFAULT 0", ct);
+        await EnsureColumnAsync(db, logger, dbName, "ermes_messages", "ExternalEmailDelivered",
+            "ALTER TABLE `ermes_messages` ADD COLUMN `ExternalEmailDelivered` tinyint(1) NOT NULL DEFAULT 0", ct);
+        await EnsureColumnAsync(db, logger, dbName, "ermes_messages", "ExternalEmailStatus",
+            "ALTER TABLE `ermes_messages` ADD COLUMN `ExternalEmailStatus` varchar(500) NULL", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "ermes_attachments",
+            createSql: @"CREATE TABLE IF NOT EXISTS `ermes_attachments` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `MessageId` char(36) NOT NULL,
+                `FileName` varchar(400) NOT NULL,
+                `MimeType` varchar(200) NOT NULL DEFAULT 'application/octet-stream',
+                `SizeBytes` bigint NOT NULL DEFAULT 0,
+                `ContentBytes` longblob NOT NULL,
+                `UploadedByUserId` char(36) NOT NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_ermes_attachments_Tenant_Msg` (`TenantId`, `MessageId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         await EnsureTableAsync(db, logger, dbName,
             table: "ermes_blocks",
             createSql: @"CREATE TABLE IF NOT EXISTS `ermes_blocks` (
