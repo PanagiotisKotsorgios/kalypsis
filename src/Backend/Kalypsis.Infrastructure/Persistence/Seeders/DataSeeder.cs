@@ -67,6 +67,24 @@ public static class DataSeeder
         try { await SeedGlobalCarriersAsync(db, logger, cancellationToken); }
         catch (Exception ex) { logger.LogError(ex, "SeedGlobalCarriersAsync failed — continuing boot."); }
 
+        // Targeted boot-time pruning of retired global carrier codes.
+        // Boot-time cleanup as a whole is disabled (see comment above), but
+        // we do want specific rows the platform has explicitly retired to
+        // disappear from every tenant's Γέφυρες Εταιρειών dropdown.
+        // «GRAND_COVER_2» is a duplicate of the canonical Grand Cover row
+        // and was removed on request; soft-delete it here so the browser
+        // stops surfacing it. Idempotent (only touches un-deleted rows).
+        try
+        {
+            var pruned = await db.Database.ExecuteSqlRawAsync(@"
+                UPDATE `insurance_companies`
+                SET `DeletedAt` = UTC_TIMESTAMP(6), `IsActive` = 0
+                WHERE `Code` = 'GRAND_COVER_2' AND `DeletedAt` IS NULL", cancellationToken);
+            if (pruned > 0)
+                logger.LogInformation("Boot prune: soft-deleted {Count} legacy GRAND_COVER_2 row(s).", pruned);
+        }
+        catch (Exception ex) { logger.LogError(ex, "Boot prune of GRAND_COVER_2 failed — continuing boot."); }
+
         // Ship the two «Οδηγός παραμετρικών» reference files that live inside
         // the assembly as embedded resources — ERGO PDF + Grand Cover xlsx.
         // Idempotent (SHA-256 no-op re-run). Must come AFTER the global
