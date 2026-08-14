@@ -45,17 +45,22 @@ export function OnboardingWizard() {
   const [step, setStep] = useState(0);
   const [err, setErr] = useState<string | null>(null);
 
-  const stateQ = useQuery({
+  // Wizard is opt-in — auto-open removed on request. Only fires when
+  // the user asks for it explicitly by dispatching «kalypsis:open-
+  // onboarding» (there's a button in Agency Settings that does this).
+  // Prefetch onboarding state once the dialog is open so downstream
+  // step components see the same query cache the mutation invalidates.
+  useQuery({
     queryKey: ["onboarding"],
-    enabled: user?.role === "AgencyAdmin",
+    enabled: open && user?.role === "AgencyAdmin",
     queryFn: async () => (await api.get<OnboardingState>("/agency-profile/onboarding")).data
   });
 
   useEffect(() => {
-    if (stateQ.data && !stateQ.data.completed && user?.role === "AgencyAdmin") {
-      setOpen(true);
-    }
-  }, [stateQ.data, user?.role]);
+    const handler = () => { if (user?.role === "AgencyAdmin") { setStep(0); setOpen(true); } };
+    window.addEventListener("kalypsis:open-onboarding", handler);
+    return () => window.removeEventListener("kalypsis:open-onboarding", handler);
+  }, [user?.role]);
 
   const complete = useMutation({
     mutationFn: async () => (await api.post<OnboardingState>("/agency-profile/onboarding/complete")).data,
@@ -64,7 +69,7 @@ export function OnboardingWizard() {
   });
 
   return (
-    <Dialog open={open} onClose={() => { /* mandatory until Skip or Complete */ }} maxWidth="md" fullWidth disableEscapeKeyDown>
+    <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
       <DialogTitle>
         <Stack direction="row" alignItems="center" spacing={2}>
           <CheckCircleIcon sx={{ color: "primary.main", fontSize: 32 }} />

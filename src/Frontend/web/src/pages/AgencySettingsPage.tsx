@@ -155,6 +155,18 @@ export function AgencySettingsPage() {
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
       {saved && <Alert severity="success" sx={{ mb: 2 }}>{t("agencySettings.saved")}</Alert>}
 
+      {/* Onboarding relaunch — the first-run wizard no longer auto-opens
+          on sign-in. Admins who want to run it again can trigger it here. */}
+      <Alert severity="info" sx={{ mb: 2 }} action={
+        <Button size="small" variant="outlined"
+          onClick={() => window.dispatchEvent(new CustomEvent("kalypsis:open-onboarding"))}>
+          Άνοιγμα οδηγού
+        </Button>
+      }>
+        Ο οδηγός πρώτης εγκατάστασης (branding, επικοινωνία, προμήθεια) είναι πλέον προαιρετικός.
+        Πατήστε «Άνοιγμα οδηγού» για να τον ξανατρέξετε.
+      </Alert>
+
       <Stack spacing={3}>
         <Card>
           <CardContent sx={{ p: 4 }}>
