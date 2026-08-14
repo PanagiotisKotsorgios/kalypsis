@@ -43,6 +43,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutline";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import CloseFullscreenIcon from "@mui/icons-material/CloseFullscreen";
+import VideocamIcon from "@mui/icons-material/Videocam";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1170,6 +1171,27 @@ function ComposeDialog({
                   onClick={() => setProdOpen(true)}>
                   Λίστα παραγωγής
                 </Button>
+                <Button size="small" startIcon={<VideocamIcon />} variant="outlined"
+                  onClick={() => {
+                    // Generate a short random room id, inject the invite
+                    // block at the top of the body, prefill the subject.
+                    const id = (crypto.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`).slice(0, 12);
+                    const url = `${window.location.origin}/app/ermes/meeting/${id}`;
+                    const inviteBlock =
+                      `<div style="border:1px solid #dbeafe;background:#eff6ff;border-radius:8px;padding:12px;margin-bottom:12px;font-family:Arial,sans-serif">
+                        <div style="font-weight:700;color:#1d4ed8;margin-bottom:4px">📹 Πρόσκληση σε συνάντηση ΕΡΜΗΣ</div>
+                        <div style="color:#334155;font-size:13px;margin-bottom:8px">
+                          Voice / video κλήση εντός Kalypsis. Ανοίγει κατευθείαν στον browser.
+                        </div>
+                        <a href="${url}" style="display:inline-block;padding:8px 14px;background:#1d4ed8;color:#fff;
+                          border-radius:6px;text-decoration:none;font-weight:700">Σύνδεση στη συνάντηση</a>
+                        <div style="color:#64748b;font-size:11px;margin-top:8px">${url}</div>
+                      </div>`;
+                    setBodyHtml(inviteBlock + (bodyHtml || ""));
+                    if (!subject) setSubject("Πρόσκληση σε συνάντηση ΕΡΜΗΣ");
+                  }}>
+                  Συνάντηση
+                </Button>
                 <Button size="small" startIcon={<AttachFileIcon />} variant="outlined" component="label"
                   disabled={uploading}>
                   {uploading ? "Ανέβασμα…" : "Επισύναψη"}
@@ -1198,14 +1220,21 @@ function ComposeDialog({
                       <Typography variant="body2">Υπογραφή</Typography>
                     </Stack>} />
                 )}
-                <FormControlLabel
-                  sx={{ ml: 0 }}
-                  control={<Switch size="small" checked={sendExternal}
-                    onChange={(_e, v) => setSendExternal(v)} />}
-                  label={<Stack direction="row" alignItems="center" spacing={0.5}>
-                    <AlternateEmailIcon fontSize="small" />
-                    <Typography variant="body2">Αποστολή και σε email</Typography>
-                  </Stack>} />
+                {/* External email is BETA-locked to keep the platform
+                    safe from bounces/spam-flagging while ΕΡΜΗΣ stabilises.
+                    Switch is disabled + explains why on hover. */}
+                <Tooltip title="Απενεργοποιημένο κατά την Beta φάση — τα μηνύματα παραδίδονται μόνο εντός Kalypsis, όχι σε εξωτερικό email.">
+                  <span>
+                    <FormControlLabel
+                      sx={{ ml: 0, opacity: 0.55 }}
+                      control={<Switch size="small" checked={false} disabled
+                        onChange={(_e, v) => setSendExternal(v)} />}
+                      label={<Stack direction="row" alignItems="center" spacing={0.5}>
+                        <AlternateEmailIcon fontSize="small" />
+                        <Typography variant="body2">Αποστολή και σε email (BETA)</Typography>
+                      </Stack>} />
+                  </span>
+                </Tooltip>
               </Stack>
 
               {/* Attachment chips */}
@@ -2028,6 +2057,13 @@ function WelcomePane({
             </Button>
             <Button variant="outlined" startIcon={<ConstructionIcon />} onClick={onOpenAutomations}>
               Αυτοματισμοί
+            </Button>
+            <Button variant="outlined" color="secondary" startIcon={<VideocamIcon />}
+              onClick={() => {
+                const id = (crypto.randomUUID?.() ?? `${Date.now().toString(36)}`).slice(0, 12);
+                window.open(`/app/ermes/meeting/${id}`, "_blank");
+              }}>
+              Έναρξη συνάντησης
             </Button>
           </Stack>
         </Card>

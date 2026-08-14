@@ -319,7 +319,8 @@ public static class DataSeeder
         ("CROMAR",           "Cromar Insurance Brokers"),
         ("DIN",              "DIN Ασφαλιστικοί Πράκτορες"),
         ("HOWDEN",           "Howden"),
-        ("GRAND_COVER_2",    "Grand Cover 2"),
+        // «Grand Cover 2» removed on request — Grand Cover (IW) is the
+        // single canonical carrier row for this broker.
         ("COSMOS_UNION",     "Cosmos Union"),
         ("INFOTRUST",        "InfoTrust"),
         ("BROKINS",          "Brokins"),
@@ -341,6 +342,17 @@ public static class DataSeeder
     /// </summary>
     public static async Task CleanupNonGrandCoverGlobalsAsync(AppDbContext db, ILogger logger, CancellationToken ct)
     {
+        // Prune «GRAND_COVER_2» — duplicate carrier row that used to be
+        // seeded alongside GRAND_COVER. On boot we soft-delete every
+        // remaining row with that code so agencies no longer see it in
+        // the bridges list. Idempotent.
+        var pruned = await db.Database.ExecuteSqlRawAsync(@"
+            UPDATE `insurance_companies`
+            SET `DeletedAt` = UTC_TIMESTAMP(6), `IsActive` = 0
+            WHERE `Code` = 'GRAND_COVER_2' AND `DeletedAt` IS NULL", ct);
+        if (pruned > 0)
+            logger.LogInformation("Cleanup: soft-deleted {Count} legacy GRAND_COVER_2 row(s).", pruned);
+
         // (0) Force-mark every row with Code='GRAND_COVER' OR IsBroker=1 as a
         // global, active broker — so we don't lose any of them yet.
         var pinned = await db.Database.ExecuteSqlRawAsync(@"
