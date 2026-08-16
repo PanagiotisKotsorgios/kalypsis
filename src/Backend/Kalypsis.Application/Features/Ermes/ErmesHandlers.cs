@@ -370,7 +370,8 @@ public record SendErmesCommand(
     string? AutomationSource,
     string? Category,
     bool SendExternalEmail,
-    IReadOnlyList<Guid>? AttachmentIds = null) : IRequest<Guid>;
+    IReadOnlyList<Guid>? AttachmentIds = null,
+    Guid? ChannelId = null) : IRequest<Guid>;
 
 public class SendErmesHandler : IRequestHandler<SendErmesCommand, Guid>
 {
@@ -464,6 +465,7 @@ public class SendErmesHandler : IRequestHandler<SendErmesCommand, Guid>
             AutomationSource = r.AutomationSource,
             Category = string.IsNullOrWhiteSpace(r.Category) ? null : r.Category.Trim(),
             ExternalEmailRequested = r.SendExternalEmail && !r.SaveAsDraft,
+            ChannelId = r.ChannelId,
         };
         _db.ErmesMessages.Add(msg);
 
@@ -936,5 +938,72 @@ public class DownloadErmesAttachmentHandler
             if (msg.SenderUserId != userId && !isRecipient) throw AppException.Forbidden();
         }
         return (att.FileName, att.MimeType, att.ContentBytes);
+    }
+}
+
+// ─── Channel feed (Discord-style shared thread per team) ────────────
+
+public record ListErmesChannelMessagesQuery(Guid TeamId, int Take = 100)
+    : IRequest<IReadOnlyList<ErmesMessageDto>>;
+
+public class ListErmesChannelMessagesHandler
+    : IRequestHandler<ListErmesChannelMessagesQuery, IReadOnlyList<ErmesMessageDto>>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public ListErmesChannelMessagesHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
+
+    public async Task<IReadOnlyList<ErmesMessageDto>> Handle(
+        ListErmesChannelMessagesQuery r, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var userId   = _current.UserId   ?? throw AppException.Forbidden();
+
+        // Membership check — only team members (or its author) may read
+        // the channel feed. Everyone else gets Forbidden.
+        var team = await _db.ErmesTeams
+            .FirstOrDefaultAsync(t => t.Id == r.TeamId && t.TenantId == tenantId, ct)
+            ?? throw AppException.NotFound("Channel");
+        var isMember = await _db.ErmesTeamMembers.AnyAsync(m =>
+            m.TenantId == tenantId && m.TeamId == r.TeamId && m.UserId == userId, ct);
+        if (!isMember && team.CreatedByUserId != userId) throw AppException.Forbidden();
+
+        var take = Math.Clamp(r.Take, 1, 200);
+        var msgs = await _db.ErmesMessages
+            .Where(x => x.TenantId == tenantId && x.ChannelId == r.TeamId
+                && x.SenderFolder != "Draft")
+            .OrderByDescending(x => x.SentAt ?? x.CreatedAt)
+            .Take(take)
+            .ToListAsync(ct);
+
+        var msgIds = msgs.Select(x => x.Id).ToList();
+        var recs = await _db.ErmesRecipients
+            .Where(x => x.TenantId == tenantId && msgIds.Contains(x.MessageId))
+            .ToListAsync(ct);
+        var atts = await _db.ErmesAttachments
+            .Where(x => x.TenantId == tenantId && msgIds.Contains(x.MessageId))
+            .Select(x => new { x.Id, x.MessageId, x.FileName, x.MimeType, x.SizeBytes })
+            .ToListAsync(ct);
+
+        return msgs.Select(m => new ErmesMessageDto(
+            m.Id, m.ThreadId, m.InReplyToMessageId,
+            m.SenderUserId, m.SenderDisplay, m.SenderEmail,
+            m.Subject, m.BodyHtml, m.Preview,
+            Folder: m.SenderFolder,
+            IsRead: true, IsStarred: m.SenderStarred,
+            IsImportant: m.IsImportant, IsDraft: false,
+            AutomationSource: m.AutomationSource,
+            Category: m.Category,
+            ExternalEmailRequested: m.ExternalEmailRequested,
+            ExternalEmailDelivered: m.ExternalEmailDelivered,
+            ExternalEmailStatus: m.ExternalEmailStatus,
+            CreatedAt: m.CreatedAt, SentAt: m.SentAt,
+            Recipients: recs.Where(rr => rr.MessageId == m.Id && rr.Kind != "Bcc")
+                .Select(rr => new ErmesRecipientDto(
+                    rr.RecipientUserId, rr.RecipientDisplay, rr.RecipientEmail,
+                    rr.Kind, rr.IsRead, rr.IsStarred)).ToList(),
+            Attachments: atts.Where(a => a.MessageId == m.Id)
+                .Select(a => new ErmesAttachmentDto(a.Id, a.FileName, a.MimeType, a.SizeBytes)).ToList()
+        )).ToList();
     }
 }

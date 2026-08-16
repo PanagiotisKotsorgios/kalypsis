@@ -1934,6 +1934,8 @@ public static class DataSeeder
             "ALTER TABLE `ermes_messages` ADD COLUMN `ExternalEmailDelivered` tinyint(1) NOT NULL DEFAULT 0", ct);
         await EnsureColumnAsync(db, logger, dbName, "ermes_messages", "ExternalEmailStatus",
             "ALTER TABLE `ermes_messages` ADD COLUMN `ExternalEmailStatus` varchar(500) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName, "ermes_messages", "ChannelId",
+            "ALTER TABLE `ermes_messages` ADD COLUMN `ChannelId` char(36) NULL", ct);
 
         await EnsureTableAsync(db, logger, dbName,
             table: "ermes_attachments",

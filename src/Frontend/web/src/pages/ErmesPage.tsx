@@ -44,6 +44,9 @@ import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutli
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import CloseFullscreenIcon from "@mui/icons-material/CloseFullscreen";
 import VideocamIcon from "@mui/icons-material/Videocam";
+import MicIcon from "@mui/icons-material/Mic";
+import TagIcon from "@mui/icons-material/Tag";
+import { VoiceRecorder } from "../components/VoiceRecorder";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -252,6 +255,7 @@ export function ErmesPage() {
     try { window.localStorage.setItem(sigKey, v); } catch { /* quota */ }
   };
   const [signatureEditorOpen, setSignatureEditorOpen] = useState(false);
+  const [channelTeam, setChannelTeam] = useState<Team | null>(null);
   // Beta notice — shown the first time a user lands on ΕΡΜΗΣ. The
   // localStorage flag is scoped per-user so a shared browser still nags
   // each teammate individually once. Re-opening from the header chip
@@ -401,17 +405,22 @@ export function ErmesPage() {
           </List>
           <Divider />
           <Box sx={{ px: 1.5, py: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography variant="overline" color="text.secondary">Ομάδες</Typography>
+            <Typography variant="overline" color="text.secondary">Κανάλια · Ομάδες</Typography>
             <IconButton size="small" onClick={() => setManageOpen("teams")}><AddIcon fontSize="small" /></IconButton>
           </Box>
           <List dense disablePadding>
             {(overview.data?.teams ?? []).map(t => (
-              <ListItemButton key={t.id} sx={{ py: 0.5 }}>
-                <GroupsIcon fontSize="small" sx={{ mr: 1, color: "text.secondary" }} />
+              <ListItemButton key={t.id} sx={{ py: 0.5 }} onClick={() => setChannelTeam(t)}>
+                <TagIcon fontSize="small" sx={{ mr: 1, color: "text.secondary" }} />
                 <ListItemText primary={t.name} secondary={`${t.members.length} μέλη`}
                   primaryTypographyProps={{ variant: "body2" }} />
               </ListItemButton>
             ))}
+            {(overview.data?.teams ?? []).length === 0 && (
+              <Typography variant="caption" color="text.secondary" sx={{ px: 2, py: 0.5, display: "block" }}>
+                Καμία ομάδα ακόμη. Πατήστε «+» για νέα.
+              </Typography>
+            )}
           </List>
           <Divider />
           {/* Category quick-filter chips — click to narrow the middle
@@ -629,6 +638,10 @@ export function ErmesPage() {
         onClose={() => setSignatureEditorOpen(false)}
         onSave={(v) => setSignature(v)} />
       <ShortcutsSheet open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+
+      {/* Channel view (Discord-style feed for a team) */}
+      <ChannelDialog team={channelTeam} onClose={() => setChannelTeam(null)}
+        meDisplay={((user?.firstName ?? "") + " " + (user?.lastName ?? "")).trim()} />
 
       {/* Beta / early-access notice — first visit, dismissible; the header
           chip re-opens it any time. */}
@@ -928,6 +941,38 @@ function ComposeDialog({
     catch { /* quota */ }
   };
   const [tplManagerOpen, setTplManagerOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const uploadVoiceBlob = async (blob: Blob, durationMs: number) => {
+    setUploading(true);
+    try {
+      const ext = blob.type.includes("mp4") ? "m4a" : "webm";
+      const file = new File([blob], `voice-message-${Date.now()}.${ext}`, { type: blob.type });
+      const form = new FormData();
+      form.append("file", file);
+      const res = await api.post<AttachmentDto>("/ermes/attachments", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setAttachments(prev => [...prev, res.data]);
+      // Insert an inline audio player pointing at the attachment
+      // download URL. The reader renders it via dangerouslySetInnerHTML
+      // and every recipient can play it inside the message.
+      const audioUrl = `/api/ermes/attachments/${res.data.id}`;
+      const secs = Math.max(1, Math.round(durationMs / 1000));
+      const audioBlock =
+        `<div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin:8px 0;` +
+        `background:#f8fafc;display:flex;align-items:center;gap:10px;font-family:Arial,sans-serif;font-size:13px">` +
+          `<span style="width:28px;height:28px;border-radius:50%;background:#1d4ed8;color:#fff;display:inline-flex;align-items:center;justify-content:center">🎤</span>` +
+          `<span style="font-weight:700;color:#0f172a">Ηχητικό μήνυμα · ${Math.floor(secs / 60)}:${(secs % 60).toString().padStart(2, "0")}</span>` +
+          `<audio controls preload="none" src="${audioUrl}" style="height:32px;max-width:280px;margin-left:auto"></audio>` +
+        `</div>`;
+      setBodyHtml(prev => (prev || "") + audioBlock);
+      setVoiceOpen(false);
+    } catch (e) {
+      setErr(extractErrorMessage(e));
+    } finally {
+      setUploading(false);
+    }
+  };
   // Autosave — the composer creates a Draft row after the first ~2.5s
   // of activity, then updates that same row on subsequent typing so the
   // Drafts folder doesn't accumulate one row per keystroke.
@@ -1171,6 +1216,10 @@ function ComposeDialog({
                   onClick={() => setProdOpen(true)}>
                   Λίστα παραγωγής
                 </Button>
+                <Button size="small" startIcon={<MicIcon />} variant="outlined" color="error"
+                  onClick={() => setVoiceOpen(v => !v)}>
+                  Ηχητικό μήνυμα
+                </Button>
                 <Button size="small" startIcon={<VideocamIcon />} variant="outlined"
                   onClick={() => {
                     // Generate a short random room id, inject the invite
@@ -1236,6 +1285,13 @@ function ComposeDialog({
                   </span>
                 </Tooltip>
               </Stack>
+
+              {/* Voice recorder panel */}
+              {voiceOpen && (
+                <VoiceRecorder
+                  onCancel={() => setVoiceOpen(false)}
+                  onFinished={(blob, ms) => uploadVoiceBlob(blob, ms)} />
+              )}
 
               {/* Attachment chips */}
               {attachments.length > 0 && (
@@ -2103,5 +2159,130 @@ function WelcomePane({
         </Card>
       </Box>
     </Box>
+  );
+}
+
+// ─── Channel view (Discord-style shared feed per team) ──────────────
+
+function ChannelDialog({ team, onClose, meDisplay }: {
+  team: Team | null; onClose: () => void; meDisplay: string;
+}) {
+  const qc = useQueryClient();
+  const [postHtml, setPostHtml] = useState("");
+  const feed = useQuery({
+    queryKey: ["ermes", "channel", team?.id],
+    enabled: !!team,
+    refetchInterval: 15_000,
+    queryFn: async () => (await api.get<ErmesMessageDto[]>(`/ermes/channels/${team!.id}/messages`)).data,
+  });
+  useEffect(() => { if (team) setPostHtml(""); }, [team?.id]);
+
+  const post = useMutation({
+    mutationFn: async () => api.post("/ermes/messages", {
+      subject: `#${team!.name}`,
+      bodyHtml: postHtml,
+      recipients: [],
+      teamIds: [team!.id],
+      channelId: team!.id,
+      inReplyToMessageId: null,
+      isImportant: false,
+      saveAsDraft: false,
+      sendExternalEmail: false,
+      attachmentIds: [],
+    }),
+    onSuccess: () => {
+      setPostHtml("");
+      void qc.invalidateQueries({ queryKey: ["ermes", "channel", team?.id] });
+      void qc.invalidateQueries({ queryKey: ["ermes"] });
+    },
+  });
+
+  if (!team) return null;
+
+  // Chronological reading order — oldest first, newest at the bottom.
+  const ordered = (feed.data ?? []).slice().reverse();
+
+  return (
+    <Dialog open onClose={onClose} fullScreen>
+      <Box sx={{ p: 1.5, borderBottom: 1, borderColor: "divider",
+        display: "flex", alignItems: "center", gap: 1 }}>
+        <Tooltip title="Πίσω">
+          <IconButton onClick={onClose}><ArrowBackIcon /></IconButton>
+        </Tooltip>
+        <TagIcon sx={{ color: "primary.main" }} />
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="h6" fontWeight={800}>{team.name}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Κανάλι · {team.members.length} μέλη · {team.members.map(m => m.display).join(", ") || "χωρίς μέλη"}
+          </Typography>
+        </Box>
+        <Chip size="small" color="warning" variant="filled"
+          icon={<ConstructionIcon sx={{ fontSize: 14 }} />}
+          label="BETA" sx={{ fontWeight: 700 }} />
+      </Box>
+
+      <Box sx={{ flex: 1, overflowY: "auto", px: { xs: 2, md: 4 }, py: 2, bgcolor: "background.default" }}>
+        <Box sx={{ maxWidth: 900, mx: "auto" }}>
+          {feed.isLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
+          ) : ordered.length === 0 ? (
+            <Alert severity="info">
+              Καμία δημοσίευση ακόμη σε αυτό το κανάλι. Πληκτρολογήστε παρακάτω για να ξεκινήσετε.
+            </Alert>
+          ) : ordered.map((m) => (
+            <Box key={m.id} sx={{ mb: 2, pb: 2, borderBottom: 1, borderColor: "divider" }}>
+              <Stack direction="row" spacing={1.5} alignItems="flex-start" mb={0.5}>
+                <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main", fontSize: 12 }}>
+                  {m.senderDisplay.split(" ").filter(Boolean).slice(0, 2).map(s => s[0]).join("").toUpperCase() || "?"}
+                </Avatar>
+                <Box sx={{ flex: 1 }}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography variant="body2" fontWeight={800}>{m.senderDisplay}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {new Date(m.sentAt ?? m.createdAt).toLocaleString("el-GR")}
+                    </Typography>
+                  </Stack>
+                  <Box sx={{ mt: 0.5, "& p": { my: 0.5 }, fontSize: 14, lineHeight: 1.55 }}
+                    dangerouslySetInnerHTML={{ __html: m.bodyHtml || "" }} />
+                  {m.attachments?.length > 0 && (
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap mt={1}>
+                      {m.attachments.map(a => (
+                        <Chip key={a.id} size="small" icon={<AttachFileIcon />}
+                          label={a.fileName}
+                          onClick={async () => {
+                            const res = await api.get<Blob>(`/ermes/attachments/${a.id}`, { responseType: "blob" });
+                            const url = window.URL.createObjectURL(res.data);
+                            const el = document.createElement("a");
+                            el.href = url; el.download = a.fileName; el.click();
+                            window.URL.revokeObjectURL(url);
+                          }}
+                          sx={{ cursor: "pointer" }} />
+                      ))}
+                    </Stack>
+                  )}
+                </Box>
+              </Stack>
+            </Box>
+          ))}
+        </Box>
+      </Box>
+
+      <Box sx={{ p: 1.5, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
+        <Box sx={{ maxWidth: 900, mx: "auto" }}>
+          <RichTextEditor html={postHtml} onHtmlChange={setPostHtml}
+            minHeight={120} placeholder={`Μήνυμα στο #${team.name} — φαίνεται σε όλα τα μέλη`} />
+          <Stack direction="row" spacing={1} justifyContent="flex-end" mt={1}>
+            <Typography variant="caption" color="text.secondary" sx={{ flex: 1, alignSelf: "center" }}>
+              Ο {meDisplay || "χρήστης"} δημοσιεύει στο #{team.name}
+            </Typography>
+            <Button variant="contained" startIcon={<SendIcon />}
+              disabled={post.isPending || !postHtml.replace(/<[^>]+>/g, "").trim()}
+              onClick={() => post.mutate()}>
+              Δημοσίευση
+            </Button>
+          </Stack>
+        </Box>
+      </Box>
+    </Dialog>
   );
 }

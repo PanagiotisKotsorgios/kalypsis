@@ -84,6 +84,13 @@ public class ErmesMessage : TenantEntity
     public bool ExternalEmailRequested { get; set; }
     public bool ExternalEmailDelivered { get; set; }
     public string? ExternalEmailStatus { get; set; }
+
+    /// <summary>Optional channel this message was posted to — set when the
+    /// operator sends from the ΕΡΜΗΣ Channel view (Discord-style feed).
+    /// Points at an ErmesTeam.Id; the channel query filters by this
+    /// column so a channel is a persistent chronological feed even if
+    /// individual recipients later archive or delete their copies.</summary>
+    public Guid? ChannelId { get; set; }
 }
 
 /// <summary>

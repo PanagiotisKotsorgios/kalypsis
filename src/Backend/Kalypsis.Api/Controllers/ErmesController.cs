@@ -48,7 +48,8 @@ public class ErmesController : ControllerBase
         string? AutomationSource,
         string? Category,
         bool SendExternalEmail,
-        IReadOnlyList<Guid>? AttachmentIds);
+        IReadOnlyList<Guid>? AttachmentIds,
+        Guid? ChannelId);
 
     [HttpPost("messages")]
     public async Task<ActionResult<Guid>> Send([FromBody] SendBody body, CancellationToken ct)
@@ -58,7 +59,14 @@ public class ErmesController : ControllerBase
             body.TeamIds ?? new List<Guid>(),
             body.InReplyToMessageId, body.IsImportant, body.SaveAsDraft,
             body.AutomationSource, body.Category, body.SendExternalEmail,
-            body.AttachmentIds ?? new List<Guid>()), ct));
+            body.AttachmentIds ?? new List<Guid>(),
+            body.ChannelId), ct));
+
+    // ── Channel feed (Discord-style shared thread per team) ────────
+    [HttpGet("channels/{teamId:guid}/messages")]
+    public async Task<ActionResult<IReadOnlyList<ErmesMessageDto>>> Channel(
+        Guid teamId, [FromQuery] int take = 100, CancellationToken ct = default)
+        => Ok(await _m.Send(new ListErmesChannelMessagesQuery(teamId, take), ct));
 
     // ── Attachments ────────────────────────────────────────────────
     [HttpPost("attachments")]
