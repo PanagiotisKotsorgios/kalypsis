@@ -36,6 +36,40 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// ── Global 401 handler ───────────────────────────────────────────────
+// When the server rejects with 401 (expired access token, missing
+// refresh grant, tenant impersonation revoked, etc.) we've lost the
+// session. Fire a window event that AuthContext listens for → signs
+// the user out cleanly → redirects to /login. Without this the UI
+// stayed on the last page showing empty data because every API call
+// silently failed, and the user had to hit F5 to get bounced back to
+// the login screen.
+//
+// /auth/* endpoints are excluded so a wrong-password login attempt
+// doesn't nuke the sign-in form — they surface their 401 to the
+// caller as a normal error.
+let signalledExpiry = false;
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      const url = error.config?.url ?? "";
+      const isAuthCall = url.includes("/auth/");
+      if (!isAuthCall && currentToken && !signalledExpiry) {
+        // Latch so a burst of parallel failing calls only fires once.
+        signalledExpiry = true;
+        // Reset the latch after the redirect settles so a subsequent
+        // session that also expires still triggers the flow.
+        setTimeout(() => { signalledExpiry = false; }, 5000);
+        try {
+          window.dispatchEvent(new CustomEvent("kalypsis:session-expired"));
+        } catch { /* SSR or CSP — fall back below */ }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export interface ApiError {
   code?: string;
   message?: string;

@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useTranslation } from "react-i18next";
-import { useNavigate, Link as RouterLink } from "react-router-dom";
+import { useNavigate, Link as RouterLink, useSearchParams } from "react-router-dom";
 import { useAuth, TwoFactorRequiredError, EmailCodeRequiredError } from "../auth/AuthContext";
 import { KalypsisLogo } from "../components/KalypsisLogo";
 import { LanguageToggle } from "../components/LanguageToggle";
@@ -50,6 +50,8 @@ export function LoginPage() {
   const { t } = useTranslation();
   const { signIn, completeTwoFactor, completeEmailCode } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const sessionExpired = searchParams.get("expired") === "1";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
@@ -187,6 +189,11 @@ export function LoginPage() {
               </Typography>
             </Stack>
 
+            {sessionExpired && !error && (
+              <Alert severity="warning" sx={{ mb: 3, borderRadius: 2, fontSize: 14 }}>
+                Η συνεδρία σας έληξε λόγω αδράνειας. Παρακαλώ συνδεθείτε ξανά.
+              </Alert>
+            )}
             {error && (
               <Alert severity="error" sx={{ mb: 3, borderRadius: 2, fontSize: 15 }} onClose={() => setError(null)}>
                 {error}

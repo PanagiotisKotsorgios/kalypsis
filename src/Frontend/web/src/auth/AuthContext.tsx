@@ -263,6 +263,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  // Global session-expired hook — the axios response interceptor
+  // dispatches «kalypsis:session-expired» on any non-auth 401. We sign
+  // the user out cleanly and bounce them to /login with a note so they
+  // know why. Without this the app stayed on the last page rendering
+  // empty data and only redirected after a manual F5.
+  useEffect(() => {
+    const handler = () => {
+      // Only react if we actually had a session — a stray 401 with no
+      // stored user is either the login screen itself or a stale
+      // background call, either way not our problem.
+      if (!user && !sessionStorage.getItem(STORAGE_KEY) && !localStorage.getItem(STORAGE_KEY)) return;
+      signOut();
+      const target = new URL("/login", window.location.origin);
+      target.searchParams.set("expired", "1");
+      // Preserve where we were so the login page can bounce back after
+      // re-auth if it wants to.
+      const here = window.location.pathname + window.location.search;
+      if (here !== "/login" && here !== "/") target.searchParams.set("next", here);
+      window.location.replace(target.toString());
+    };
+    window.addEventListener("kalypsis:session-expired", handler);
+    return () => window.removeEventListener("kalypsis:session-expired", handler);
+  }, [user, signOut]);
+
   const startUserImpersonation = useCallback(async (userId: string) => {
     // Back up current admin session
     const currentRaw = sessionStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(STORAGE_KEY);
