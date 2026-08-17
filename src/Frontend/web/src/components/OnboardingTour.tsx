@@ -40,13 +40,13 @@ export function OnboardingTour({ tourId, steps, forceOpen, onDismiss }: Onboardi
 
   const storageKey = `kalypsis.tour.${tourId}.completed`;
 
-  // Decide whether to run on mount.
+  // The tour NEVER auto-opens. Operators found the "Βήμα 1 από X" popup
+  // intrusive when signing in for real work, so it now runs only when the
+  // user explicitly restarts it from Ρυθμίσεις / Προφίλ (which calls this
+  // component with forceOpen=true via KalypsisOnboarding).
   useEffect(() => {
     if (forceOpen) { setActive(true); setStepIdx(0); return; }
-    if (typeof window === "undefined") return;
-    const seen = localStorage.getItem(storageKey);
-    if (!seen) setActive(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setActive(false);
   }, [forceOpen]);
 
   // Locate the anchor for the current step. Re-run when step changes or after a
