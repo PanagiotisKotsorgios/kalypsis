@@ -1,12 +1,16 @@
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Card, Chip,
-  CircularProgress, Divider, Stack, Typography
+  CircularProgress, Divider, Stack, TextField, Tooltip, Typography
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PrintIcon from "@mui/icons-material/Print";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import GavelIcon from "@mui/icons-material/Gavel";
+import EditIcon from "@mui/icons-material/Edit";
+import SaveIcon from "@mui/icons-material/Save";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
@@ -14,9 +18,9 @@ import { api } from "../api/client";
 // Νομικά templates ανά γραφείο. Κάθε γραφείο-controller έχει την υποχρέωση
 // να δώσει στους πελάτες του συγκεκριμένα έντυπα ενημέρωσης + να συλλέξει
 // ρητές συγκαταθέσεις όπου απαιτείται. Η σελίδα αυτή τα παρέχει έτοιμα με
-// pre-fill από τα Ρυθμίσεις Γραφείου, με κουμπί Εκτύπωσης (browser print)
-// και Αντιγραφής (clipboard) ώστε ο operator να τα εκτυπώσει και να τα δώσει
-// στον πελάτη ή να τα ενσωματώσει σε δικό του PDF.
+// pre-fill από τα Ρυθμίσεις Γραφείου· ο operator μπορεί να τα προσαρμόσει,
+// να τα σώσει τοπικά στο γραφείο του, να τα εκτυπώσει, να τα αποθηκεύσει ως
+// PDF (μέσω του native print dialog) ή να τα επαναφέρει στην προεπιλογή.
 
 interface AgencyProfile {
   name: string;
@@ -38,10 +42,39 @@ const AGENCY_PLACEHOLDER: AgencyProfile = {
   tteRegistrationYear: null,
 };
 
+type TemplateKey = "gdpr13" | "gdpr9" | "idd" | "aml";
+const STORAGE_PREFIX = "kalypsis.legalTemplate.";
+
+interface TemplateMeta {
+  key: TemplateKey;
+  title: string;
+  legalBase: string;
+  when: string;
+  build: (p: AgencyProfile) => string;
+}
+
+const TEMPLATES: TemplateMeta[] = [
+  { key: "gdpr13", title: "1. Ενημέρωση Υποκειμένου Δεδομένων",
+    legalBase: "Άρθρο 13 GDPR",
+    when: "Δίδεται σε ΚΑΘΕ πελάτη κατά τη στιγμή συλλογής των στοιχείων του.",
+    build: buildGdpr13Text },
+  { key: "gdpr9", title: "2. Ρητή Συγκατάθεση Επεξεργασίας Δεδομένων Υγείας",
+    legalBase: "Άρθρο 9 GDPR",
+    when: "Απαιτείται ΜΟΝΟ για συμβόλαια Ζωής, Υγείας, Ατυχημάτων ή όπου συλλέγονται ιατρικά δεδομένα.",
+    build: buildGdpr9Text },
+  { key: "idd", title: "3. Ανάλυση Απαιτήσεων και Αναγκών Πελάτη (Demands & Needs)",
+    legalBase: "Ν. 4583/2018, Άρθρο 27 (IDD)",
+    when: "Υποχρεωτικό για ΚΑΘΕ πρόταση ασφαλιστικού προϊόντος πριν την υπογραφή.",
+    build: buildIddText },
+  { key: "aml", title: "4. Δήλωση Πραγματικού Δικαιούχου & Πηγής Χρημάτων (KYC/AML)",
+    legalBase: "Ν. 4557/2018 (Anti-Money Laundering)",
+    when: "Υποχρεωτικό για συμβόλαια Ζωής/Επενδυτικά ή συμβόλαια αξίας ≥15.000€ ετησίως.",
+    build: buildAmlText },
+];
+
 export function LegalTemplatesPage() {
   const { t } = useTranslation();
-  const [opened, setOpened] = useState<string | false>("gdpr13");
-  const printRef = useRef<HTMLDivElement>(null);
+  const [opened, setOpened] = useState<TemplateKey | false>("gdpr13");
 
   const q = useQuery({
     queryKey: ["agency-profile"],
@@ -56,30 +89,9 @@ export function LegalTemplatesPage() {
   if (!p.tteRegistrationNumber) missingFields.push("Αρ. Μητρώου ΤτΕ");
   if (!p.contactEmail) missingFields.push("Email");
 
-  const [copied, setCopied] = useState<string | null>(null);
-  const doCopy = async (key: string, text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(key);
-      setTimeout(() => setCopied(null), 2000);
-    } catch { /* clipboard blocked */ }
-  };
-
-  // Print μόνο του τρέχοντος template — κρύβει το υπόλοιπο app μέσω CSS class.
-  const doPrint = () => window.print();
-
   return (
     <Box>
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          .print-target, .print-target * { visibility: visible; }
-          .print-target { position: absolute; top: 0; left: 0; width: 100%; padding: 24px; }
-          .no-print { display: none !important; }
-        }
-      `}</style>
-
-      <Stack direction="row" alignItems="center" spacing={2} mb={3} className="no-print">
+      <Stack direction="row" alignItems="center" spacing={2} mb={3}>
         <GavelIcon sx={{ fontSize: 36 }} color="primary" />
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 800 }}>
@@ -93,13 +105,13 @@ export function LegalTemplatesPage() {
       </Stack>
 
       {q.isLoading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 6 }} className="no-print">
+        <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
           <CircularProgress />
         </Box>
       ) : (
         <>
           {missingFields.length > 0 && (
-            <Alert severity="warning" sx={{ mb: 2 }} className="no-print">
+            <Alert severity="warning" sx={{ mb: 2 }}>
               {t("legalTemplates.missingFields",
                 "Λείπουν στοιχεία γραφείου: {{list}}. Συμπληρώστε τα στις Ρυθμίσεις Γραφείου για πλήρη προ-γέμιση.", {
                 list: missingFields.join(", ")
@@ -107,71 +119,25 @@ export function LegalTemplatesPage() {
             </Alert>
           )}
 
-          <Card variant="outlined" sx={{ p: 2, mb: 2 }} className="no-print">
+          <Card variant="outlined" sx={{ p: 2, mb: 2 }}>
             <Typography variant="body2" color="text.secondary">
-              <strong>Οδηγία χρήσης:</strong> Ανοίξτε το έντυπο που θέλετε, πατήστε
-              «Εκτύπωση» για φυσικό αντίγραφο ή «Αντιγραφή» για να το ενσωματώσετε σε
-              δικό σας PDF. Κάθε έντυπο έχει pre-filled τα στοιχεία σας από τα{" "}
-              <em>Ρυθμίσεις Γραφείου</em>. Παραδίδονται στον πελάτη κατά τη στιγμή
-              συλλογής των δεδομένων (Άρθρο 13 GDPR).
+              <strong>Οδηγία χρήσης:</strong> Ανοίξτε το έντυπο, επεξεργαστείτε αν
+              χρειάζεται με «Επεξεργασία» και αποθηκεύστε τις αλλαγές με «Αποθήκευση».
+              Οι αλλαγές παραμένουν στο γραφείο σας. Πατήστε «Εκτύπωση» ή
+              «Αποθήκευση PDF» και επιλέξτε <em>«Αποθήκευση ως PDF»</em> στον διάλογο
+              εκτύπωσης του browser. Με «Επαναφορά» επιστρέφετε στο πρότυπο κείμενο.
             </Typography>
           </Card>
 
-          <TemplateAccordion
-            id="gdpr13"
-            opened={opened}
-            onToggle={setOpened}
-            title="1. Ενημέρωση Υποκειμένου Δεδομένων"
-            legalBase="Άρθρο 13 GDPR"
-            when="Δίδεται σε ΚΑΘΕ πελάτη κατά τη στιγμή συλλογής των στοιχείων του."
-            content={buildGdpr13Text(p)}
-            copied={copied === "gdpr13"}
-            onCopy={txt => doCopy("gdpr13", txt)}
-            onPrint={doPrint}
-            printRef={opened === "gdpr13" ? printRef : undefined}
-          />
-
-          <TemplateAccordion
-            id="gdpr9"
-            opened={opened}
-            onToggle={setOpened}
-            title="2. Ρητή Συγκατάθεση Επεξεργασίας Δεδομένων Υγείας"
-            legalBase="Άρθρο 9 GDPR"
-            when="Απαιτείται ΜΟΝΟ για συμβόλαια Ζωής, Υγείας, Ατυχημάτων ή όπου συλλέγονται ιατρικά δεδομένα."
-            content={buildGdpr9Text(p)}
-            copied={copied === "gdpr9"}
-            onCopy={txt => doCopy("gdpr9", txt)}
-            onPrint={doPrint}
-            printRef={opened === "gdpr9" ? printRef : undefined}
-          />
-
-          <TemplateAccordion
-            id="idd"
-            opened={opened}
-            onToggle={setOpened}
-            title="3. Ανάλυση Απαιτήσεων και Αναγκών Πελάτη (Demands & Needs)"
-            legalBase="Ν. 4583/2018, Άρθρο 27 (IDD)"
-            when="Υποχρεωτικό για ΚΑΘΕ πρόταση ασφαλιστικού προϊόντος πριν την υπογραφή."
-            content={buildIddText(p)}
-            copied={copied === "idd"}
-            onCopy={txt => doCopy("idd", txt)}
-            onPrint={doPrint}
-            printRef={opened === "idd" ? printRef : undefined}
-          />
-
-          <TemplateAccordion
-            id="aml"
-            opened={opened}
-            onToggle={setOpened}
-            title="4. Δήλωση Πραγματικού Δικαιούχου & Πηγής Χρημάτων (KYC/AML)"
-            legalBase="Ν. 4557/2018 (Anti-Money Laundering)"
-            when="Υποχρεωτικό για συμβόλαια Ζωής/Επενδυτικά ή συμβόλαια αξίας ≥15.000€ ετησίως."
-            content={buildAmlText(p)}
-            copied={copied === "aml"}
-            onCopy={txt => doCopy("aml", txt)}
-            onPrint={doPrint}
-            printRef={opened === "aml" ? printRef : undefined}
-          />
+          {TEMPLATES.map(meta => (
+            <TemplateAccordion
+              key={meta.key}
+              meta={meta}
+              agency={p}
+              opened={opened}
+              onToggle={setOpened}
+            />
+          ))}
         </>
       )}
     </Box>
@@ -181,61 +147,187 @@ export function LegalTemplatesPage() {
 /* ---------------------- Reusable accordion + preview ---------------------- */
 
 function TemplateAccordion({
-  id, opened, onToggle, title, legalBase, when, content, copied, onCopy, onPrint, printRef
+  meta, agency, opened, onToggle
 }: {
-  id: string;
-  opened: string | false;
-  onToggle: (v: string | false) => void;
-  title: string;
-  legalBase: string;
-  when: string;
-  content: string;
-  copied: boolean;
-  onCopy: (text: string) => void;
-  onPrint: () => void;
-  printRef?: React.RefObject<HTMLDivElement>;
+  meta: TemplateMeta;
+  agency: AgencyProfile;
+  opened: TemplateKey | false;
+  onToggle: (v: TemplateKey | false) => void;
 }) {
+  const storageKey = STORAGE_PREFIX + meta.key;
+  const defaultText = useMemo(() => meta.build(agency), [meta, agency]);
+
+  // Load persisted override on mount. Falls back to defaultText when none.
+  const [text, setText] = useState<string>(defaultText);
+  const [hasOverride, setHasOverride] = useState<boolean>(false);
+  const [editing, setEditing] = useState<boolean>(false);
+  const [draft, setDraft] = useState<string>("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [copied, setCopied] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = localStorage.getItem(storageKey);
+    if (stored) { setText(stored); setHasOverride(true); }
+    else       { setText(defaultText); setHasOverride(false); }
+  }, [storageKey, defaultText]);
+
+  const beginEdit = () => { setDraft(text); setEditing(true); };
+  const cancelEdit = () => { setEditing(false); };
+  const saveEdit = () => {
+    setText(draft);
+    try {
+      localStorage.setItem(storageKey, draft);
+      setHasOverride(true);
+      setNotice("Το έντυπο αποθηκεύτηκε τοπικά στον browser του γραφείου σας.");
+      setTimeout(() => setNotice(null), 3000);
+    } catch { setNotice("Δεν ήταν δυνατή η αποθήκευση (localStorage)."); }
+    setEditing(false);
+  };
+  const resetToDefault = () => {
+    if (!confirm("Επαναφορά του εντύπου στο αρχικό πρότυπο κείμενο; Οι αλλαγές σας θα χαθούν.")) return;
+    localStorage.removeItem(storageKey);
+    setText(defaultText);
+    setHasOverride(false);
+    setEditing(false);
+    setNotice("Το έντυπο επαναφέρθηκε στην προεπιλογή.");
+    setTimeout(() => setNotice(null), 3000);
+  };
+
+  const doCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* clipboard blocked */ }
+  };
+
+  // Renders the template into a hidden iframe and fires the browser's print
+  // dialog against it. The dialog offers "Save as PDF" natively on all
+  // modern browsers, so we don't need a client-side PDF library.
+  const printOrPdf = (mode: "print" | "pdf") => {
+    const safeTitle = meta.title.replace(/[<>&"']/g, "");
+    const escaped = text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+    const html = `<!doctype html><html lang="el"><head><meta charset="utf-8" /><title>${safeTitle}</title>
+<style>
+  @page { size: A4 portrait; margin: 16mm 14mm; }
+  html, body { margin: 0; padding: 0; color: #0b2545; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  main { padding: 8px 10px; }
+  h1 { font-size: 18px; color: #0b2545; margin: 0 0 12px; letter-spacing: 0.2px; border-bottom: 2px solid #0b2545; padding-bottom: 6px; }
+  pre { white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: 11.5px; line-height: 1.7; margin: 0; }
+  footer { margin-top: 18px; font-size: 9px; color: #888; border-top: 1px solid #e5e7eb; padding-top: 6px; text-align: center; }
+</style>
+</head><body><main>
+  <h1>${safeTitle}</h1>
+  <pre>${escaped}</pre>
+  <footer>Δημιουργήθηκε από το Kalypsis · https://mykalypsis.gr</footer>
+</main></body></html>`;
+
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.position = "fixed"; iframe.style.right = "0"; iframe.style.bottom = "0";
+    iframe.style.width = "0"; iframe.style.height = "0"; iframe.style.border = "0";
+    iframe.style.opacity = "0"; iframe.style.pointerEvents = "none";
+    let printed = false;
+    iframe.addEventListener("load", () => {
+      if (printed) return;
+      const win = iframe.contentWindow;
+      const doc = win?.document;
+      if (!win || !doc?.body || doc.body.children.length === 0) return;
+      printed = true;
+      try {
+        win.addEventListener("afterprint", () => setTimeout(() => iframe.remove(), 500), { once: true });
+        win.focus();
+        win.print();
+      } catch { iframe.remove(); }
+    });
+    iframe.srcdoc = html;
+    document.body.appendChild(iframe);
+    if (mode === "pdf") {
+      setNotice("Στον διάλογο εκτύπωσης επιλέξτε «Save as PDF» / «Αποθήκευση ως PDF».");
+      setTimeout(() => setNotice(null), 5000);
+    }
+  };
+
   return (
     <Accordion
-      expanded={opened === id}
-      onChange={(_, exp) => onToggle(exp ? id : false)}
+      expanded={opened === meta.key}
+      onChange={(_, exp) => onToggle(exp ? meta.key : false)}
       sx={{ mb: 1 }}
-      className={opened === id ? "" : "no-print"}
     >
-      <AccordionSummary expandIcon={<ExpandMoreIcon />} className="no-print">
+      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Box sx={{ flex: 1 }}>
-          <Typography fontWeight={700}>{title}</Typography>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Typography fontWeight={700}>{meta.title}</Typography>
+            {hasOverride && <Chip size="small" color="warning" variant="outlined" label="Προσαρμοσμένο" />}
+          </Stack>
           <Stack direction="row" spacing={1} mt={0.5} flexWrap="wrap">
-            <Chip size="small" label={legalBase} color="primary" variant="outlined" />
-            <Typography variant="caption" color="text.secondary">{when}</Typography>
+            <Chip size="small" label={meta.legalBase} color="primary" variant="outlined" />
+            <Typography variant="caption" color="text.secondary">{meta.when}</Typography>
           </Stack>
         </Box>
       </AccordionSummary>
       <AccordionDetails>
-        <Stack direction="row" spacing={1} mb={2} className="no-print">
-          <Button size="small" startIcon={<PrintIcon />} variant="contained"
-            onClick={onPrint}>Εκτύπωση</Button>
-          <Button size="small" startIcon={<ContentCopyIcon />} variant="outlined"
-            onClick={() => onCopy(content)}
-            color={copied ? "success" : "primary"}>
-            {copied ? "Αντιγράφηκε" : "Αντιγραφή κειμένου"}
-          </Button>
+        {notice && <Alert severity="info" sx={{ mb: 2 }} onClose={() => setNotice(null)}>{notice}</Alert>}
+        <Stack direction="row" spacing={1} mb={2} flexWrap="wrap" useFlexGap>
+          {!editing ? (
+            <>
+              <Button size="small" startIcon={<EditIcon />} variant="outlined" onClick={beginEdit}>
+                Επεξεργασία
+              </Button>
+              <Button size="small" startIcon={<PrintIcon />} variant="contained" onClick={() => printOrPdf("print")}>
+                Εκτύπωση
+              </Button>
+              <Button size="small" startIcon={<PictureAsPdfIcon />} variant="outlined" onClick={() => printOrPdf("pdf")}>
+                Αποθήκευση PDF
+              </Button>
+              <Button size="small" startIcon={<ContentCopyIcon />} variant="outlined"
+                onClick={doCopy}
+                color={copied ? "success" : "primary"}>
+                {copied ? "Αντιγράφηκε" : "Αντιγραφή κειμένου"}
+              </Button>
+              <Box sx={{ flex: 1 }} />
+              <Tooltip title={hasOverride ? "Αναιρεί τις αποθηκευμένες αλλαγές σας" : "Ήδη στο πρότυπο κείμενο"}>
+                <span>
+                  <Button size="small" startIcon={<RestartAltIcon />} variant="outlined" color="error"
+                    disabled={!hasOverride} onClick={resetToDefault}>
+                    Επαναφορά προεπιλογής
+                  </Button>
+                </span>
+              </Tooltip>
+            </>
+          ) : (
+            <>
+              <Button size="small" startIcon={<SaveIcon />} variant="contained" color="success" onClick={saveEdit}>
+                Αποθήκευση
+              </Button>
+              <Button size="small" variant="outlined" onClick={cancelEdit}>
+                Άκυρο
+              </Button>
+            </>
+          )}
         </Stack>
-        <Divider sx={{ mb: 2 }} className="no-print" />
-        <Box
-          ref={printRef}
-          className="print-target"
-          sx={{
+        <Divider sx={{ mb: 2 }} />
+        {editing ? (
+          <TextField
+            fullWidth multiline minRows={22} value={draft}
+            onChange={e => setDraft(e.target.value)}
+            InputProps={{
+              sx: { fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 13, lineHeight: 1.55 }
+            }}
+          />
+        ) : (
+          <Box sx={{
             fontFamily: "'Segoe UI', system-ui, sans-serif",
-            fontSize: 13.5,
-            lineHeight: 1.7,
-            whiteSpace: "pre-wrap",
-            color: "#0b2545",
-            "@media print": { fontSize: 11.5 }
-          }}
-        >
-          {content}
-        </Box>
+            fontSize: 13.5, lineHeight: 1.7, whiteSpace: "pre-wrap", color: "#0b2545"
+          }}>
+            {text}
+          </Box>
+        )}
       </AccordionDetails>
     </Accordion>
   );
@@ -355,8 +447,7 @@ ${agencyHeader(p)}
 
 Έχω ενημερωθεί ότι:
 - Η συγκατάθεσή μου είναι ελεύθερη και ρητή, και μπορώ να την ανακαλέσω
-  οποτεδήποτε χωρίς αναδρομική επίπτωση, με έγγραφη δήλωση στο{" "}
-${p.contactEmail ?? "[email γραφείου]"}.
+  οποτεδήποτε χωρίς αναδρομική επίπτωση, με έγγραφη δήλωση στο ${p.contactEmail ?? "[email γραφείου]"}.
 - Χωρίς τη συγκατάθεσή μου δεν είναι εφικτή η σύναψη ή η εξέλιξη του
   συμβολαίου Ζωής/Υγείας/Ατυχημάτων.
 - Έχω δικαίωμα πρόσβασης, διόρθωσης, περιορισμού και διαγραφής των
