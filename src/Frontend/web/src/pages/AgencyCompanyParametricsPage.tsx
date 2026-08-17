@@ -8,12 +8,31 @@ import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
+import PrintIcon from "@mui/icons-material/Print";
+import DownloadIcon from "@mui/icons-material/Download";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { InlineCreateInsuranceCompanyDialog } from "../components/InlineCreateInsuranceCompanyDialog";
+import { printTable } from "../utils/printableTable";
+import { exportRowsCsv } from "../utils/exportCsv";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type ParameterKind = "Branch" | "Coverage" | "Use" | "Package";
+type VehicleUseCategory =
+  | "EIX" | "EDX" | "FIX" | "FDX" | "LIX" | "LDX"
+  | "Motorcycle" | "Agricultural" | "Construction";
+
+const VEHICLE_USE_OPTIONS: { value: VehicleUseCategory; label: string }[] = [
+  { value: "EIX",          label: "ΕΙΧ — Επιβατικό Ι.Χ." },
+  { value: "EDX",          label: "ΕΔΧ — Ταξί / Δημ.Χρ." },
+  { value: "FIX",          label: "ΦΙΧ — Φορτηγό Ι.Χ." },
+  { value: "FDX",          label: "ΦΔΧ — Φορτηγό Δ.Χ." },
+  { value: "LIX",          label: "ΛΙΧ — Λεωφορείο Ι.Χ." },
+  { value: "LDX",          label: "ΛΔΧ — Λεωφορείο Δ.Χ." },
+  { value: "Motorcycle",   label: "ΜΟΤ — Μοτοσικλέτα" },
+  { value: "Agricultural", label: "ΑΓΡ — Αγροτικό" },
+  { value: "Construction", label: "ΕΡΓ — Εργοταξιακό" },
+];
 
 interface CompanyDto {
   id: string; name: string; code: string;
@@ -28,6 +47,7 @@ interface ParameterDto {
   code: string;
   name: string;
   policyType: PolicyType | null;
+  vehicleUseCategory: VehicleUseCategory | null;
   parentCode: string | null;
   isActive: boolean;
   displayOrder: number;
@@ -119,6 +139,48 @@ export function AgencyCompanyParametricsPage() {
             Οι γέφυρες θα δείχνουν σε αυτά κατά την εισαγωγή.
           </Typography>
         </Box>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" size="small" startIcon={<DownloadIcon />}
+            disabled={!selectedCarrierId || filteredParams.length === 0}
+            onClick={() => exportRowsCsv<ParameterDto>({
+              fileName: `parametrics-${selectedCarrier?.code ?? "carrier"}-${tab}`,
+              columns: [
+                { key: "code",               label: "Κωδικός" },
+                { key: "name",               label: "Όνομα" },
+                { key: "kind",               label: "Τύπος", map: p => KIND_LABEL[p.kind] },
+                { key: "policyType",         label: "Κλάδος" },
+                { key: "vehicleUseCategory", label: "Χρήση οχήματος" },
+                { key: "parentCode",         label: "Γονέας" },
+                { key: "displayOrder",       label: "Σειρά" },
+                { key: "isActive",           label: "Ενεργό", map: p => p.isActive ? "Ναι" : "Όχι" },
+                { key: "source",             label: "Προέλευση" },
+                { key: "notes",              label: "Σημειώσεις" },
+              ],
+              rows: filteredParams,
+            })}>
+            Εξαγωγή CSV
+          </Button>
+          <Button variant="outlined" size="small" startIcon={<PrintIcon />}
+            disabled={!selectedCarrierId || filteredParams.length === 0}
+            onClick={() => printTable<ParameterDto>({
+              title: `Παραμετρικά · ${selectedCarrier?.name ?? ""} · ${KIND_LABEL[tab]}`,
+              subtitle: [
+                search && `Αναζήτηση: ${search}`,
+                `Εγγραφές: ${filteredParams.length}`,
+              ].filter(Boolean).join(" · "),
+              columns: [
+                { key: "code",               label: "Κωδικός" },
+                { key: "name",               label: "Όνομα" },
+                { key: "policyType",         label: "Κλάδος",   map: p => p.policyType ?? "—" },
+                { key: "vehicleUseCategory", label: "Χρήση",    map: p => p.vehicleUseCategory ?? "—" },
+                { key: "parentCode",         label: "Γονέας",   map: p => p.parentCode ?? "—" },
+                { key: "isActive",           label: "Ενεργό",   map: p => p.isActive ? "Ναι" : "Όχι" },
+              ],
+              rows: filteredParams,
+            })}>
+            Εκτύπωση
+          </Button>
+        </Stack>
       </Stack>
 
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
@@ -189,6 +251,7 @@ export function AgencyCompanyParametricsPage() {
                   <TableCell>Κωδικός</TableCell>
                   <TableCell>Όνομα</TableCell>
                   <TableCell>Κλάδος</TableCell>
+                  {tab === "Use" && <TableCell>Χρήση</TableCell>}
                   <TableCell>Γονέας</TableCell>
                   <TableCell>Ενεργό</TableCell>
                   <TableCell align="right" width={100} />
@@ -196,10 +259,10 @@ export function AgencyCompanyParametricsPage() {
               </TableHead>
               <TableBody>
                 {paramsQ.isLoading && (
-                  <TableRow><TableCell colSpan={6} align="center" sx={{ py: 3 }}><CircularProgress size={20} /></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={tab === "Use" ? 7 : 6} align="center" sx={{ py: 3 }}><CircularProgress size={20} /></TableCell></TableRow>
                 )}
                 {!paramsQ.isLoading && filteredParams.length === 0 && (
-                  <TableRow><TableCell colSpan={6} align="center" sx={{ py: 6, color: "text.secondary" }}>
+                  <TableRow><TableCell colSpan={tab === "Use" ? 7 : 6} align="center" sx={{ py: 6, color: "text.secondary" }}>
                     Δεν υπάρχουν {KIND_LABEL[tab].toLowerCase()} για αυτή την εταιρεία.
                   </TableCell></TableRow>
                 )}
@@ -208,6 +271,15 @@ export function AgencyCompanyParametricsPage() {
                     <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{p.code}</TableCell>
                     <TableCell>{p.name}</TableCell>
                     <TableCell>{p.policyType ?? "—"}</TableCell>
+                    {tab === "Use" && (
+                      <TableCell>
+                        {p.vehicleUseCategory
+                          ? <Chip size="small" label={p.vehicleUseCategory} />
+                          : <Tooltip title="Χωρίς κατηγορία χρήσης — δεν εμφανίζεται στα dropdown Χρήσης. Πατήστε Επεξεργασία για να την ορίσετε.">
+                              <Chip size="small" color="warning" label="—" />
+                            </Tooltip>}
+                      </TableCell>
+                    )}
                     <TableCell sx={{ fontFamily: "monospace" }}>{p.parentCode ?? ""}</TableCell>
                     <TableCell>{p.isActive ? <Chip size="small" color="success" label="Ναι" /> : <Chip size="small" label="Όχι" />}</TableCell>
                     <TableCell align="right">
@@ -270,7 +342,8 @@ function EditDialog({ open, item, carrierId, carrierName, kind, onClose, onSaved
   const [form, setForm] = useState({
     code: item?.code ?? "",
     name: item?.name ?? "",
-    policyType: (item?.policyType ?? (kind === "Branch" ? "Auto" : "")) as PolicyType | "",
+    policyType: (item?.policyType ?? (kind === "Branch" ? "Auto" : kind === "Use" ? "Auto" : "")) as PolicyType | "",
+    vehicleUseCategory: (item?.vehicleUseCategory ?? "") as VehicleUseCategory | "",
     parentCode: item?.parentCode ?? "",
     isActive: item?.isActive ?? true,
     displayOrder: item?.displayOrder ?? 0,
@@ -286,7 +359,7 @@ function EditDialog({ open, item, carrierId, carrierName, kind, onClose, onSaved
         code: form.code.trim(),
         name: form.name.trim(),
         policyType: form.policyType || null,
-        vehicleUseCategory: null,
+        vehicleUseCategory: kind === "Use" ? (form.vehicleUseCategory || null) : null,
         parentCode: form.parentCode.trim() || null,
         bridgeSystem: null,
         bridgeCode: null,
@@ -307,8 +380,10 @@ function EditDialog({ open, item, carrierId, carrierName, kind, onClose, onSaved
   });
 
   const requiresPolicyType = kind === "Branch" || kind === "Coverage" || kind === "Package";
+  const requiresVehicleUse = kind === "Use";
   const canSave = !!form.code.trim() && !!form.name.trim()
     && (!requiresPolicyType || !!form.policyType)
+    && (!requiresVehicleUse || !!form.vehicleUseCategory)
     && (kind !== "Coverage" && kind !== "Package" ? true : !!form.parentCode.trim());
 
   return (
@@ -331,6 +406,15 @@ function EditDialog({ open, item, carrierId, carrierName, kind, onClose, onSaved
               onChange={e => setForm({ ...form, policyType: e.target.value as PolicyType })}
               fullWidth>
               {POLICY_TYPES.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+            </TextField>
+          )}
+          {requiresVehicleUse && (
+            <TextField select label="Κατηγορία χρήσης οχήματος" required
+              value={form.vehicleUseCategory}
+              onChange={e => setForm({ ...form, vehicleUseCategory: e.target.value as VehicleUseCategory })}
+              fullWidth
+              helperText="Επιλέξτε την τυποποιημένη κατηγορία (ΕΙΧ / ΕΔΧ / …). Χωρίς αυτή, το dropdown Χρήσεις σε άλλες σελίδες δεν την εμφανίζει.">
+              {VEHICLE_USE_OPTIONS.map(o => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
             </TextField>
           )}
           {(kind === "Coverage" || kind === "Package") && (
