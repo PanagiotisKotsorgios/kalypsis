@@ -1490,7 +1490,34 @@ function PolicyCoversTabInner({ policyId }: { policyId: string }) {
             <TextField size="small" type="number" label="Προμ. συνεργάτη %"
               value={form.commissionPercent}
               onChange={e => setForm({ ...form, commissionPercent: e.target.value })}
-              helperText="Κενό = από κανόνα"
+              helperText={(() => {
+                const pct = parseFloat(form.commissionPercent);
+                const net = parseFloat(form.netPremium);
+                if (Number.isFinite(pct) && Number.isFinite(net) && pct > 0 && net > 0) {
+                  return `≈ ${((pct * net) / 100).toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+                }
+                return "Κενό = από κανόνα";
+              })()}
+              sx={{ flex: 1 }} />
+            <TextField size="small" type="number" label="Ή σε €"
+              value={(() => {
+                const pct = parseFloat(form.commissionPercent);
+                const net = parseFloat(form.netPremium);
+                if (Number.isFinite(pct) && Number.isFinite(net) && net > 0) {
+                  return ((pct * net) / 100).toFixed(2);
+                }
+                return "";
+              })()}
+              onChange={e => {
+                const amount = parseFloat(e.target.value);
+                const net = parseFloat(form.netPremium);
+                if (Number.isFinite(amount) && Number.isFinite(net) && net > 0) {
+                  setForm({ ...form, commissionPercent: ((amount / net) * 100).toFixed(4) });
+                } else if (e.target.value === "") {
+                  setForm({ ...form, commissionPercent: "" });
+                }
+              }}
+              helperText="Ενημερώνει αυτόματα το %"
               sx={{ flex: 1 }} />
             <TextField size="small" type="number" label="Προμ. γραφείου %"
               value={form.agencyCommissionPercent}
