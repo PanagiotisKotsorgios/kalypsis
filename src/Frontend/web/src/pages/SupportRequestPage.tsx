@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
+  Accordion, AccordionDetails, AccordionSummary,
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress,
   Dialog, DialogActions, DialogContent, DialogTitle, Divider,
   IconButton, MenuItem, Snackbar, Stack, Table, TableBody, TableCell,
   TableHead, TablePagination, TableRow, TextField, Tooltip, Typography
 } from "@mui/material";
 import BugReportIcon from "@mui/icons-material/BugReport";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import CloseIcon from "@mui/icons-material/Close";
 import HistoryIcon from "@mui/icons-material/History";
 import SearchIcon from "@mui/icons-material/Search";
@@ -277,14 +279,48 @@ ${diagnosticsText}`
         </DialogTitle>
         <DialogContent dividers>
           <Typography variant="overline" color="text.secondary">Μήνυμα</Typography>
-          <Box sx={{
-            fontFamily: "inherit", fontSize: 14, lineHeight: 1.6,
-            whiteSpace: "pre-wrap", wordBreak: "break-word",
-            bgcolor: "rgba(11,37,69,0.03)", p: 2, borderRadius: 1, mb: 2,
-            border: "1px solid rgba(11,37,69,0.08)"
-          }}>
-            {detailTicket?.body}
-          </Box>
+          {(() => {
+            // Body has the JSON diagnostics appended below a sentinel
+            // separator so ops staff have context; split it here so the
+            // operator sees a clean message + an optional collapsed
+            // «Διαγνωστικά» accordion instead of the raw JSON dump that
+            // used to shove technical output in their face.
+            const raw = detailTicket?.body ?? "";
+            const marker = "──────────────── Διαγνωστικά (αυτόματα) ────────────────";
+            const idx = raw.indexOf(marker);
+            const userMsg = idx >= 0 ? raw.slice(0, idx).trim() : raw;
+            const diag = idx >= 0 ? raw.slice(idx + marker.length).trim() : "";
+            return (
+              <>
+                <Box sx={{
+                  fontFamily: "inherit", fontSize: 14, lineHeight: 1.6,
+                  whiteSpace: "pre-wrap", wordBreak: "break-word",
+                  bgcolor: "rgba(11,37,69,0.03)", p: 2, borderRadius: 1, mb: 2,
+                  border: "1px solid rgba(11,37,69,0.08)"
+                }}>
+                  {userMsg || "—"}
+                </Box>
+                {diag && (
+                  <Accordion sx={{ mb: 2, "&:before": { display: "none" }, boxShadow: "none",
+                    border: "1px solid rgba(11,37,69,0.08)", borderRadius: 1 }} disableGutters>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}
+                      sx={{ minHeight: 40, "& .MuiAccordionSummary-content": { my: 0.5 } }}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                        Τεχνικά διαγνωστικά (auto)
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails sx={{ pt: 0 }}>
+                      <Box component="pre" sx={{
+                        m: 0, p: 1.5, fontSize: 11.5, lineHeight: 1.5,
+                        bgcolor: "rgba(11,37,69,0.03)", borderRadius: 1,
+                        whiteSpace: "pre-wrap", wordBreak: "break-word",
+                      }}>{diag}</Box>
+                    </AccordionDetails>
+                  </Accordion>
+                )}
+              </>
+            );
+          })()}
           {(detailTicket?.replies?.length ?? 0) > 0 && (
             <>
               <Divider sx={{ my: 2 }}>Απαντήσεις</Divider>

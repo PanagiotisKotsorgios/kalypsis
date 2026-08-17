@@ -46,6 +46,13 @@ import { SearchableTextField } from "../components/SearchableTextField";
 
 type CustomerType = "Individual" | "Company";
 const NEED_KINDS = ["Home", "Vehicle", "Health", "Life", "Business", "Travel", "Pet", "Liability", "Cyber", "Other"] as const;
+// Localise the Ανάγκη / περιουσία dropdown values into Greek — the enum
+// names ship straight to the API but the operator sees the label.
+const NEED_KIND_LABEL: Record<string, string> = {
+  Home: "Κατοικία", Vehicle: "Όχημα", Health: "Υγεία", Life: "Ζωή",
+  Business: "Επιχείρηση", Travel: "Ταξίδι", Pet: "Κατοικίδιο",
+  Liability: "Ευθύνη", Cyber: "Cyber", Other: "Άλλο",
+};
 
 interface CustomerDto {
   id: string;
@@ -234,7 +241,7 @@ export function CustomersPage() {
             <SearchableTextField size="small" label="Ανάγκη / περιουσία" value={needKind}
               onChange={(e) => setNeedKind(e.target.value)} sx={{ minWidth: 180, width: "100%" }}>
               <MenuItem value="">Όλες</MenuItem>
-              {NEED_KINDS.map(kind => <MenuItem key={kind} value={kind}>{kind}</MenuItem>)}
+              {NEED_KINDS.map(kind => <MenuItem key={kind} value={kind}>{NEED_KIND_LABEL[kind] ?? kind}</MenuItem>)}
             </SearchableTextField>
           </FilterFieldWrap>
           <FormControlLabel control={<Switch checked={onlyUninsuredNeeds} disabled={!needKind}

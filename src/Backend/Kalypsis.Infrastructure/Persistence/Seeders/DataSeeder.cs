@@ -79,11 +79,11 @@ public static class DataSeeder
             var pruned = await db.Database.ExecuteSqlRawAsync(@"
                 UPDATE `insurance_companies`
                 SET `DeletedAt` = UTC_TIMESTAMP(6), `IsActive` = 0
-                WHERE `Code` = 'GRAND_COVER_2' AND `DeletedAt` IS NULL", cancellationToken);
+                WHERE `Code` IN ('GRAND_COVER_2', 'PERSONAL_2') AND `DeletedAt` IS NULL", cancellationToken);
             if (pruned > 0)
-                logger.LogInformation("Boot prune: soft-deleted {Count} legacy GRAND_COVER_2 row(s).", pruned);
+                logger.LogInformation("Boot prune: soft-deleted {Count} legacy duplicate carrier row(s).", pruned);
         }
-        catch (Exception ex) { logger.LogError(ex, "Boot prune of GRAND_COVER_2 failed — continuing boot."); }
+        catch (Exception ex) { logger.LogError(ex, "Boot prune of duplicate carriers failed — continuing boot."); }
 
         // Ship the two «Οδηγός παραμετρικών» reference files that live inside
         // the assembly as embedded resources — ERGO PDF + Grand Cover xlsx.
@@ -313,7 +313,7 @@ public static class DataSeeder
         ("MEDITERRANIA",     "Mediterrania"),
         ("MODIAL",           "Modial Insurance"),
         ("PERSONAL",         "Personal"),
-        ("PERSONAL_2",       "Personal 2"),
+        // «Personal 2» removed on request — Personal is the single row.
         ("PRIME_DEMCO",      "Prime Demco Υγείας"),
         ("QEL",              "Qel"),
         ("APEIRON",          "Άπειρον"),

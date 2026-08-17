@@ -74,6 +74,28 @@ const STATUS_PALETTE: Record<string, string> = {
   Cancelled: "#dc2626", Renewed: "#1f7bb3", Draft: "#94a3b8"
 };
 
+// Backend returns PolicyStatus / PolicyType / ClaimStatus / ServiceRequestStatus
+// enum names verbatim. The workspace hub previously piped them into charts
+// unchanged, so operators saw «Active / Cancelled / Auto / …» instead of
+// the Greek strings the rest of the app uses. Map them here so every donut,
+// bar and area chart on the hub reads natively.
+const STATUS_LABELS: Record<string, string> = {
+  Draft: "Πρόχειρο", Active: "Ενεργό", Expired: "Έληξε", Cancelled: "Ακυρωμένο",
+  Renewed: "Ανανεώθηκε", PendingRenewal: "Προς ανανέωση",
+  Undelivered: "Απαράδοτο", AwaitingIssue: "Προς έκδοση",
+  // Claim / request breakdowns share this map — enum names are unique.
+  Open: "Ανοιχτή", Reported: "Αναφέρθηκε", UnderReview: "Υπό εξέταση", InReview: "Υπό εξέταση",
+  Approved: "Εγκεκριμένη", Rejected: "Απορρίφθηκε", Closed: "Κλειστή",
+  Reopened: "Επανάνοιξη", Pending: "Εκκρεμεί", InProgress: "Σε εξέλιξη",
+  Completed: "Ολοκληρώθηκε", Resolved: "Επιλύθηκε", Paid: "Πληρώθηκε",
+};
+const TYPE_LABELS: Record<string, string> = {
+  Auto: "Οχήματα", Home: "Κατοικία", Health: "Υγεία", Life: "Ζωή",
+  Business: "Επιχείρηση", Travel: "Ταξίδι", Marine: "Μεταφορές", Other: "Άλλο"
+};
+const trStatus = (v: string) => STATUS_LABELS[v] ?? v;
+const trType   = (v: string) => TYPE_LABELS[v] ?? v;
+
 export function WorkspaceHubPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -367,7 +389,7 @@ function DashboardSummary() {
           rightLabel={`${intFmt.format(statuses.reduce((s, x) => s + x.value, 0))}`} height={150}
           kind="donut" isEmpty={statuses.length === 0 || statuses.every(s => !s.value)}>
           <ModernDonutChart
-            data={statuses.map(s => ({ label: s.label, value: s.value }))}
+            data={statuses.map(s => ({ label: trStatus(s.label), value: s.value }))}
             colors={statusColors}
             format={(v) => intFmt.format(v)}
           />
@@ -389,7 +411,10 @@ function DashboardSummary() {
           height={150}
           kind="area" isEmpty={secondaryData.length === 0 || secondaryData.every(x => !x.value)}>
           <ModernAreaChart
-            data={secondaryData.map(x => ({ label: x.label, value: x.value }))}
+            data={secondaryData.map(x => ({
+              label: claims.length > 0 ? trStatus(x.label) : trType(x.label),
+              value: x.value,
+            }))}
             color={INK}
             format={(v) => intFmt.format(v)}
           />

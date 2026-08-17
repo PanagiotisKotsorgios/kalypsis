@@ -1,7 +1,5 @@
 import { Box, Card, CardActionArea, Chip, Stack, Typography } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import StackedLineChartIcon from "@mui/icons-material/StackedLineChart";
-import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import SyncAltIcon from "@mui/icons-material/SyncAlt";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -11,6 +9,9 @@ import { Link as RouterLink } from "react-router-dom";
  * still gets a one-click path to each specific tool.
  */
 export function CarrierBridgesHubPage() {
+  // «Αρχεία είσπραξης» + «Πινάκια υπερπρομηθειών» tiles removed on
+  // request — their standalone pages still resolve for bookmarks, but
+  // the hub only surfaces the two flows tenants actually use daily.
   const tiles = [
     {
       to: "/app/carrier-bridges",
@@ -18,20 +19,6 @@ export function CarrierBridgesHubPage() {
       body: "Ανέβασμα αρχείων παραγωγής (πωλήσεις / εκδόσεις) από κάθε ασφαλιστική. Παρακολουθήστε τι έχει εισαχθεί και ξανατρέξτε ένα batch.",
       icon: <CloudUploadIcon />,
       color: "#0b2545",
-    },
-    {
-      to: "/app/collection-files-bridges",
-      title: "Αρχεία είσπραξης",
-      body: "Εισαγωγή αρχείων εισπράξεων από ασφαλιστικές και συμφωνία με τα δικά μας παραστατικά.",
-      icon: <ReceiptLongIcon />,
-      color: "#1f7bb3",
-    },
-    {
-      to: "/app/over-commission-bridges",
-      title: "Πινάκια υπερπρομηθειών",
-      body: "Ανέβασμα των μηνιαίων πινακίων υπερπρομηθειών και αυτόματη καταχώρηση ανά παραγωγό.",
-      icon: <StackedLineChartIcon />,
-      color: "#16a34a",
     },
     {
       to: "/app/bridge-code-mappings",
