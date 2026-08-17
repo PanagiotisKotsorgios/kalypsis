@@ -25,6 +25,8 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import VpnKeyIcon from "@mui/icons-material/VpnKey";
+import PrintIcon from "@mui/icons-material/Print";
+import DownloadIcon from "@mui/icons-material/Download";
 import IconButton from "@mui/material/IconButton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -32,6 +34,9 @@ import { api, extractErrorMessage } from "../api/client";
 import { PasswordField } from "../components/PasswordField";
 import { UserPermissionsDialog } from "../components/UserPermissionsDialog";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { printTable } from "../utils/printableTable";
+import { exportRowsCsv } from "../utils/exportCsv";
+import { date } from "../utils/format";
 
 interface UserDto {
   id: string;
@@ -101,9 +106,45 @@ export function EmployeesPage() {
           <Typography variant="h4">{t("users.title")}</Typography>
           <HelpHint id="page.users" />
         </Stack>
-        <Button startIcon={<AddIcon />} variant="contained" onClick={() => { setError(null); setOpen(true); }}>
-          {t("users.create")}
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" startIcon={<DownloadIcon />} disabled={!filteredUsers.length}
+            onClick={() => exportRowsCsv<UserDto>({
+              fileName: "employees",
+              columns: [
+                { key: "lastName",  label: "Επώνυμο" },
+                { key: "firstName", label: "Όνομα" },
+                { key: "email",     label: "Email" },
+                { key: "phone",     label: "Τηλέφωνο" },
+                { key: "role",      label: "Ρόλος",   map: (u) => t(`roles.${u.role}`, u.role) as string },
+                { key: "isActive",  label: "Ενεργός", map: (u) => u.isActive ? "Ναι" : "Όχι" },
+                { key: "createdAt", label: "Δημιουργήθηκε", map: (u) => date(u.createdAt) },
+                { key: "lastLoginAt", label: "Τελευταία σύνδεση", map: (u) => u.lastLoginAt ? date(u.lastLoginAt) : "" },
+              ],
+              rows: filteredUsers,
+            })}>
+            Εξαγωγή CSV
+          </Button>
+          <Button variant="outlined" startIcon={<PrintIcon />} disabled={!filteredUsers.length}
+            onClick={() => printTable<UserDto>({
+              title: t("users.title"),
+              subtitle: `Καταχωρημένοι: ${filteredUsers.length}`,
+              columns: [
+                { key: "lastName",  label: "Επώνυμο" },
+                { key: "firstName", label: "Όνομα" },
+                { key: "email",     label: "Email" },
+                { key: "phone",     label: "Τηλέφωνο", map: (u) => u.phone ?? "—" },
+                { key: "role",      label: "Ρόλος",   map: (u) => t(`roles.${u.role}`, u.role) as string },
+                { key: "isActive",  label: "Κατάσταση", map: (u) => u.isActive ? "Ενεργός" : "Ανενεργός" },
+                { key: "lastLoginAt", label: "Τελευταία σύνδεση", map: (u) => u.lastLoginAt ? date(u.lastLoginAt) : "—" },
+              ],
+              rows: filteredUsers,
+            })}>
+            Εκτύπωση
+          </Button>
+          <Button startIcon={<AddIcon />} variant="contained" onClick={() => { setError(null); setOpen(true); }}>
+            {t("users.create")}
+          </Button>
+        </Stack>
       </Stack>
 
       {error && (

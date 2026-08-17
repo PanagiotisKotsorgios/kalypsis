@@ -141,7 +141,24 @@ export function InsuranceCompaniesPage() {
             onChange={e => setSearch(e.target.value)}
             sx={{ minWidth: 280 }}
           />
-          <DataExportButton entity="insurance-companies" />
+          <DataExportButton
+            entity="insurance-companies"
+            search={search || undefined}
+            printTitle="Ασφαλιστικές Εταιρείες"
+            printSubtitle={`Συνολικά: ${ownRows.length}`}
+            printRows={ownRows}
+            printColumns={[
+              { key: "code", label: "Κωδικός" },
+              { key: "name", label: "Επωνυμία" },
+              { key: "agentCode", label: "Αρ. Πρακτ.", map: (c) => c.agentCode ?? "—" },
+              { key: "contactName", label: "Επαφή", map: (c) => c.contactName ?? "—" },
+              { key: "contactEmail", label: "Email", map: (c) => c.contactEmail ?? "—" },
+              { key: "contactPhone", label: "Τηλέφωνο", map: (c) => c.contactPhone ?? "—" },
+              { key: "afmVat", label: "ΑΦΜ", map: (c) => c.afmVat ?? "—" },
+              { key: "isActive", label: "Ενεργή", map: (c) => (c.isActive ? "Ναι" : "Όχι") },
+              { key: "bridgeLinked", label: "Γέφυρα", map: (c) => (c.bridgeLinked || linkedCarrierIds.has(c.id) ? "Συνδεδεμένη" : "—") },
+            ]}
+          />
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
             Νέα ασφαλιστική
           </Button>

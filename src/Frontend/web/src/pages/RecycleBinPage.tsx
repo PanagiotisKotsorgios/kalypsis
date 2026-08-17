@@ -3,6 +3,7 @@ import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert,
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
@@ -25,9 +26,13 @@ import RestoreFromTrashIcon from "@mui/icons-material/RestoreFromTrash";
 import RestoreIcon from "@mui/icons-material/Restore";
 import SearchIcon from "@mui/icons-material/Search";
 import CategoryIcon from "@mui/icons-material/Category";
+import PrintIcon from "@mui/icons-material/Print";
+import DownloadIcon from "@mui/icons-material/Download";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { printTable } from "../utils/printableTable";
+import { exportRowsCsv } from "../utils/exportCsv";
 
 interface RecycleCategoryDto {
   key: string;
@@ -124,11 +129,48 @@ export function RecycleBinPage() {
             </Typography>
           </Box>
         </Stack>
-        <Chip
-          icon={<CategoryIcon />}
-          label={`${totalCount.toLocaleString("el-GR")} διαγραμμένες εγγραφές`}
-          sx={{ fontWeight: 800, bgcolor: "rgba(11,37,69,0.06)" }}
-        />
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Chip
+            icon={<CategoryIcon />}
+            label={`${totalCount.toLocaleString("el-GR")} διαγραμμένες εγγραφές`}
+            sx={{ fontWeight: 800, bgcolor: "rgba(11,37,69,0.06)" }}
+          />
+          <Button variant="outlined" size="small" startIcon={<DownloadIcon />} disabled={!data?.items?.length}
+            onClick={() => exportRowsCsv<RecycleItemDto>({
+              fileName: "recycle-bin",
+              columns: [
+                { key: "categoryLabel", label: "Κατηγορία" },
+                { key: "title",         label: "Τίτλος" },
+                { key: "subtitle",      label: "Περιγραφή" },
+                { key: "deletedAt",     label: "Διαγράφηκε",  map: (r) => fmt(r.deletedAt) },
+                { key: "expiresAt",     label: "Λήγει",       map: (r) => fmt(r.expiresAt) },
+                { key: "daysLeft",      label: "Μέρες που απομένουν" },
+              ],
+              rows: data?.items ?? [],
+            })}>
+            Εξαγωγή CSV
+          </Button>
+          <Button variant="outlined" size="small" startIcon={<PrintIcon />} disabled={!data?.items?.length}
+            onClick={() => printTable<RecycleItemDto>({
+              title: "Κάδος ανακύκλωσης",
+              subtitle: [
+                category !== "all" && `Κατηγορία: ${(data?.categories ?? []).find(c => c.key === category)?.label ?? category}`,
+                search && `Αναζήτηση: ${search}`,
+                `Εγγραφές σελίδας: ${data?.items?.length ?? 0}`,
+              ].filter(Boolean).join(" · "),
+              columns: [
+                { key: "categoryLabel", label: "Κατηγορία" },
+                { key: "title",         label: "Τίτλος" },
+                { key: "subtitle",      label: "Περιγραφή", map: (r) => r.subtitle ?? "—" },
+                { key: "deletedAt",     label: "Διαγράφηκε", map: (r) => fmt(r.deletedAt) },
+                { key: "expiresAt",     label: "Λήγει",      map: (r) => fmt(r.expiresAt) },
+                { key: "daysLeft",      label: "Μέρες πριν την οριστική διαγραφή" },
+              ],
+              rows: data?.items ?? [],
+            })}>
+            Εκτύπωση
+          </Button>
+        </Stack>
       </Stack>
 
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}

@@ -8,11 +8,15 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import InventoryIcon from "@mui/icons-material/Inventory";
+import PrintIcon from "@mui/icons-material/Print";
+import DownloadIcon from "@mui/icons-material/Download";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { ErrorPopup, useDescriptiveError } from "../components/ErrorPopup";
 import { date } from "../utils/format";
+import { printTable } from "../utils/printableTable";
+import { exportRowsCsv } from "../utils/exportCsv";
 
 interface CatalogEntry {
   broadcastId: string;
@@ -73,7 +77,46 @@ export function ParametricFilesPage() {
             </Typography>
           </Box>
         </Stack>
-        <Button startIcon={<RefreshIcon />} onClick={() => q.refetch()}>Ανανέωση</Button>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" startIcon={<DownloadIcon />} disabled={!q.data?.length}
+            onClick={() => exportRowsCsv<CatalogEntry>({
+              fileName: "parametric-files",
+              columns: [
+                { key: "insuranceCompanyName", label: "Ασφαλιστική" },
+                { key: "insuranceCompanyCode", label: "Κωδικός" },
+                { key: "kind", label: "Τύπος" },
+                { key: "version", label: "Έκδοση" },
+                { key: "effectiveFrom", label: "Ισχύει από", map: e => e.effectiveFrom ? date(e.effectiveFrom) : "" },
+                { key: "effectiveTo", label: "Ισχύει έως", map: e => e.effectiveTo ? date(e.effectiveTo) : "" },
+                { key: "originalFileName", label: "Αρχείο" },
+                { key: "fileSizeBytes", label: "Μέγεθος (KB)", map: e => e.fileSizeBytes ? Math.round(e.fileSizeBytes / 1024) : "" },
+                { key: "isInstalled", label: "Εγκατεστημένο", map: e => e.isInstalled ? "Ναι" : "Όχι" },
+                { key: "installedVersion", label: "Εγκατεστημένη έκδοση" },
+                { key: "isOutdated", label: "Ξεπερασμένο", map: e => e.isOutdated ? "Ναι" : "" },
+              ],
+              rows: q.data ?? [],
+            })}>
+            Εξαγωγή CSV
+          </Button>
+          <Button variant="outlined" startIcon={<PrintIcon />} disabled={!q.data?.length}
+            onClick={() => printTable<CatalogEntry>({
+              title: "Παραμετρικά Αρχεία Ασφαλιστικών",
+              subtitle: `Καταχωρήσεις: ${q.data?.length ?? 0}`,
+              columns: [
+                { key: "insuranceCompanyName", label: "Ασφαλιστική" },
+                { key: "kind", label: "Τύπος" },
+                { key: "version", label: "Έκδοση" },
+                { key: "effectiveFrom", label: "Ισχύει από", map: e => e.effectiveFrom ? date(e.effectiveFrom) : "—" },
+                { key: "effectiveTo", label: "Ισχύει έως", map: e => e.effectiveTo ? date(e.effectiveTo) : "—" },
+                { key: "originalFileName", label: "Αρχείο", map: e => e.originalFileName ?? "—" },
+                { key: "isInstalled", label: "Κατάσταση", map: e => e.isInstalled ? (e.isOutdated ? "Παρωχημένο" : "Εγκατεστημένο") : "Διαθέσιμο" },
+              ],
+              rows: q.data ?? [],
+            })}>
+            Εκτύπωση
+          </Button>
+          <Button startIcon={<RefreshIcon />} onClick={() => q.refetch()}>Ανανέωση</Button>
+        </Stack>
       </Stack>
 
       <ErrorPopup error={error} onClose={clear} />

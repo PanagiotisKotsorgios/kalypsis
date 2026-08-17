@@ -31,10 +31,15 @@ import CloseIcon from "@mui/icons-material/Close";
 import ManageSearchIcon from "@mui/icons-material/ManageSearch";
 import GroupIcon from "@mui/icons-material/Group";
 import HistoryIcon from "@mui/icons-material/History";
+import PrintIcon from "@mui/icons-material/Print";
+import DownloadIcon from "@mui/icons-material/Download";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { printTable } from "../utils/printableTable";
+import { exportRowsCsv } from "../utils/exportCsv";
+import { date } from "../utils/format";
 
 interface AuditLog {
   id: string;
@@ -144,13 +149,58 @@ export function AuditLogsPage() {
   const data = auditQuery.data;
   const resetPage = () => setPage(0);
 
+  const items = data?.items ?? [];
   return (
     <Box>
-      <Stack direction="row" alignItems="center" spacing={0.5}>
-        <Typography variant="h4" sx={{ fontWeight: 800 }}>
-          Ιστορικό ενεργειών προσωπικού
-        </Typography>
-        <HelpHint id="page.audit" />
+      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} flexWrap="wrap">
+        <Stack direction="row" alignItems="center" spacing={0.5}>
+          <Typography variant="h4" sx={{ fontWeight: 800 }}>
+            Ιστορικό ενεργειών προσωπικού
+          </Typography>
+          <HelpHint id="page.audit" />
+        </Stack>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" size="small" startIcon={<DownloadIcon />} disabled={!items.length}
+            onClick={() => exportRowsCsv<AuditLog>({
+              fileName: "audit-logs",
+              columns: [
+                { key: "createdAt",   label: "Ημερομηνία",  map: (r) => new Date(r.createdAt).toLocaleString("el-GR") },
+                { key: "userEmail",   label: "Χρήστης",     map: (r) => r.userEmail ?? "" },
+                { key: "category",    label: "Κατηγορία",   map: (r) => CATEGORY_LABEL[r.category] ?? r.category },
+                { key: "action",      label: "Ενέργεια",    map: (r) => ACTION_LABEL[r.action] ?? r.action },
+                { key: "entityName",  label: "Ενότητα" },
+                { key: "target",      label: "Στόχος" },
+                { key: "pagePath",    label: "Σελίδα" },
+                { key: "ipAddress",   label: "IP" },
+              ],
+              rows: items,
+            })}>
+            Εξαγωγή CSV
+          </Button>
+          <Button variant="outlined" size="small" startIcon={<PrintIcon />} disabled={!items.length}
+            onClick={() => printTable<AuditLog>({
+              title: "Ιστορικό ενεργειών προσωπικού",
+              subtitle: [
+                search && `Αναζήτηση: ${search}`,
+                from && `Από: ${date(from)}`,
+                to && `Έως: ${date(to)}`,
+                `Εγγραφές σελίδας: ${items.length}`,
+              ].filter(Boolean).join(" · "),
+              columns: [
+                { key: "createdAt",  label: "Ημερομηνία", map: (r) => new Date(r.createdAt).toLocaleString("el-GR") },
+                { key: "userEmail",  label: "Χρήστης",    map: (r) => r.userEmail ?? "—" },
+                { key: "category",   label: "Κατηγορία",  map: (r) => CATEGORY_LABEL[r.category] ?? r.category },
+                { key: "action",     label: "Ενέργεια",   map: (r) => ACTION_LABEL[r.action] ?? r.action },
+                { key: "entityName", label: "Ενότητα" },
+                { key: "target",     label: "Στόχος",     map: (r) => r.target ?? "—" },
+                { key: "pagePath",   label: "Σελίδα",     map: (r) => r.pagePath ?? "—" },
+              ],
+              rows: items,
+              orientation: "landscape",
+            })}>
+            Εκτύπωση
+          </Button>
+        </Stack>
       </Stack>
       <Typography color="text.secondary" sx={{ mb: 3 }}>
         Πλήρες αρχείο για το ποιος έκανε τι, πότε και από ποια σελίδα. Οι τιμές που πληκτρολογούνται σε φόρμες και αναζητήσεις δεν αποθηκεύονται.

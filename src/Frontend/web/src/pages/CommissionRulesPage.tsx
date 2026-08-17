@@ -262,7 +262,22 @@ export function CommissionRulesPage() {
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>
             Νέος κανόνας
           </Button>
-          <DataExportButton entity="commission-rules" />
+          <DataExportButton
+            entity="commission-rules"
+            search={search || undefined}
+            printTitle="Παραμετροποίηση προμηθειών"
+            printSubtitle={`Ορατοί κανόνες: ${sortedFiltered.length}`}
+            printRows={sortedFiltered}
+            printColumns={[
+              { key: "insuranceCompanyName", label: "Ασφαλιστική", map: (r) => r.insuranceCompanyName ?? "—" },
+              { key: "policyType", label: "Κλάδος", map: (r) => r.policyType ?? "—" },
+              { key: "vehicleUseCategory", label: "Χρήση", map: (r) => r.vehicleUseCategory ?? "—" },
+              { key: "coverCode", label: "Κάλυψη", map: (r) => r.coverCode ?? "—" },
+              { key: "producerName", label: "Συνεργάτης", map: (r) => r.producerName ?? (r.producerTier && r.producerTier !== "None" ? `Κατ. ${r.producerTier}` : "—") },
+              { key: "agencyPercent", label: "Έδρας %", map: (r) => r.agencyPercent !== null ? `${r.agencyPercent.toFixed(2)}%` : "—" },
+              { key: "producerPercent", label: "Συνεργάτη %", map: (r) => r.producerPercent !== null ? `${r.producerPercent.toFixed(2)}%` : "—" },
+            ]}
+          />
         </Stack>
       </Stack>
 

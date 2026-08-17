@@ -5,12 +5,16 @@ import {
   TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import PrintIcon from "@mui/icons-material/Print";
+import DownloadIcon from "@mui/icons-material/Download";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money, date } from "../utils/format";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { printTable } from "../utils/printableTable";
+import { exportRowsCsv } from "../utils/exportCsv";
 
 const KIND_LABELS: Record<number, string> = {
   1: "Επιστροφή λόγω ακύρωσης",
@@ -77,9 +81,46 @@ export function CreditNotesPage() {
             </Typography>
           </Box>
         </Stack>
-        <Button size="large" variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
-          Νέο πιστωτικό
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" startIcon={<DownloadIcon />} onClick={() => exportRowsCsv({
+            fileName: "credit-notes",
+            columns: [
+              { key: "creditNoteNumber", label: "Αρ. πιστωτικού" },
+              { key: "kind", label: "Είδος", map: (n) => KIND_LABELS[n.kind] ?? String(n.kind) },
+              { key: "issuedAt", label: "Ημ. έκδοσης", map: (n) => date(n.issuedAt) },
+              { key: "description", label: "Περιγραφή" },
+              { key: "relatedDocumentRef", label: "Σχετικό" },
+              { key: "amount", label: "Ποσό", map: (n) => n.amount.toFixed(2) },
+              { key: "currency", label: "Νόμισμα" },
+              { key: "status", label: "Κατάσταση" },
+            ],
+            rows: filtered,
+          })}>Εξαγωγή CSV</Button>
+          <Button variant="outlined" startIcon={<PrintIcon />} onClick={() => printTable<CreditNoteDto>({
+            title: "Πιστωτικά Σημειώματα",
+            subtitle: [
+              search && `Αναζήτηση: ${search}`,
+              kindFilter && `Είδος: ${KIND_LABELS[Number(kindFilter)] ?? kindFilter}`,
+              statusFilter && `Κατάσταση: ${statusFilter}`,
+              fromDate && `Από: ${fromDate}`,
+              toDate && `Έως: ${toDate}`,
+              `Σύνολο: ${money(total)}`,
+            ].filter(Boolean).join(" · "),
+            columns: [
+              { key: "creditNoteNumber", label: "Αρ. πιστωτικού" },
+              { key: "kind", label: "Είδος", map: (n) => KIND_LABELS[n.kind] ?? String(n.kind) },
+              { key: "issuedAt", label: "Ημ. έκδοσης", map: (n) => date(n.issuedAt) },
+              { key: "description", label: "Περιγραφή" },
+              { key: "relatedDocumentRef", label: "Σχετικό", map: (n) => n.relatedDocumentRef ?? "—" },
+              { key: "amount", label: "Ποσό", map: (n) => money(n.amount, n.currency) },
+              { key: "status", label: "Κατάσταση" },
+            ],
+            rows: filtered,
+          })}>Εκτύπωση</Button>
+          <Button size="large" variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
+            Νέο πιστωτικό
+          </Button>
+        </Stack>
       </Stack>
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}

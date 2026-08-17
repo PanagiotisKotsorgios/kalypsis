@@ -8,10 +8,14 @@ import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import LinkIcon from "@mui/icons-material/Link";
+import PrintIcon from "@mui/icons-material/Print";
+import DownloadIcon from "@mui/icons-material/Download";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { InlineCreateInsuranceCompanyDialog } from "../components/InlineCreateInsuranceCompanyDialog";
+import { printTable } from "../utils/printableTable";
+import { exportRowsCsv } from "../utils/exportCsv";
 
 // Keep in sync with BridgeMappingKind in the backend. ERGO πινάκια imports
 // persist Producer-kind rows too, so this page needs to render them or the
@@ -106,9 +110,57 @@ export function BridgeCodeMappingsPage() {
             Μία φορά τα συνδέετε — από εκεί και πέρα κάθε αρχείο γέφυρας βρίσκει μόνο του πού πάει.
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreating(true)}>
-          Νέα αντιστοίχιση
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" startIcon={<DownloadIcon />} disabled={!(mappings.data?.length)}
+            onClick={() => exportRowsCsv<Mapping>({
+              fileName: "bridge-code-mappings",
+              columns: [
+                { key: "kind",          label: "Τύπος",       map: m => KIND_LABELS[m.kind] ?? m.kind },
+                { key: "sourceCarrier", label: "Πάροχος (πηγή)" },
+                { key: "rawCode",       label: "Κωδικός πηγής" },
+                { key: "rawLabel",      label: "Περιγραφή πηγής" },
+                { key: "target",        label: "Στόχος στο γραφείο", map: m =>
+                    m.targetInsuranceCompanyName
+                      ?? [m.targetParameterItemCode, m.targetParameterItemName].filter(Boolean).join(" — ")
+                      ?? [m.targetProducerCode, m.targetProducerName].filter(Boolean).join(" — ")
+                      ?? "" },
+                { key: "notes",         label: "Σημειώσεις" },
+                { key: "confirmedAt",   label: "Επιβεβαιώθηκε", map: m => m.confirmedAt ?? "" },
+                { key: "createdAt",     label: "Δημιουργήθηκε",  map: m => m.createdAt },
+              ],
+              rows: mappings.data ?? [],
+            })}>
+            Εξαγωγή CSV
+          </Button>
+          <Button variant="outlined" startIcon={<PrintIcon />} disabled={!(mappings.data?.length)}
+            onClick={() => printTable<Mapping>({
+              title: "Αντιστοιχίσεις γεφυρών",
+              subtitle: [
+                kindFilter && `Τύπος: ${KIND_LABELS[kindFilter as Kind] ?? kindFilter}`,
+                carrierFilter && `Πάροχος: ${carrierFilter}`,
+                search && `Αναζήτηση: ${search}`,
+                `Καταχωρήσεις: ${mappings.data?.length ?? 0}`,
+              ].filter(Boolean).join(" · "),
+              columns: [
+                { key: "kind",          label: "Τύπος",         map: m => KIND_LABELS[m.kind] ?? m.kind },
+                { key: "sourceCarrier", label: "Πάροχος (πηγή)", map: m => m.sourceCarrier ?? "—" },
+                { key: "rawCode",       label: "Κωδικός πηγής" },
+                { key: "rawLabel",      label: "Περιγραφή",     map: m => m.rawLabel ?? "—" },
+                { key: "target",        label: "Στόχος",        map: m =>
+                    m.targetInsuranceCompanyName
+                      ?? [m.targetParameterItemCode, m.targetParameterItemName].filter(Boolean).join(" — ")
+                      ?? [m.targetProducerCode, m.targetProducerName].filter(Boolean).join(" — ")
+                      ?? "—" },
+              ],
+              rows: mappings.data ?? [],
+              orientation: "landscape",
+            })}>
+            Εκτύπωση
+          </Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreating(true)}>
+            Νέα αντιστοίχιση
+          </Button>
+        </Stack>
       </Stack>
 
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
