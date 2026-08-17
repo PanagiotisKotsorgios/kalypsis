@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  Stack, Switch, Tab, Tabs, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+  Stack, Switch, Tab, Tabs, Table, TableBody, TableCell, TableHead, TableRow, TextField, Tooltip, Typography
 } from "@mui/material";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import KeyIcon from "@mui/icons-material/Key";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
@@ -13,15 +14,28 @@ import { HelpHint } from "../components/HelpHint";
 
 interface SettingDto { id: string; service: string; keyName: string; value: string | null; isSecret: boolean; notes: string | null; }
 
-const SERVICES = [
-  { code: "Aade", label: "ΑΑΔΕ (myDATA + ΑΦΜ lookup)", keys: ["Username", "Password", "AfmCalled", "Endpoint"] },
-  { code: "Gemi", label: "ΓΕΜΗ", keys: ["ApiKey", "Endpoint"] },
-  { code: "Usae", label: "ΥΣΑΕ", keys: ["MemberCode", "ApiKey", "Endpoint"] },
-  { code: "Dias", label: "ΔΙΑΣ Debit", keys: ["MerchantId", "MerchantSecret", "Endpoint"] },
-  { code: "Tachypay", label: "Ταχυπληρωμές (ΕΛ.ΤΑ.)", keys: ["AgreementNumber", "PostOfficeCode"] },
-  { code: "Sap", label: "SAP Bridge", keys: ["Server", "Username", "Password", "Company"] },
-  { code: "InfoCenter", label: "Greek Info Center", keys: ["MemberId", "ApiKey", "Endpoint"] },
-  { code: "Brevo", label: "Brevo (Email)", keys: ["ApiKey", "FromAddress", "FromName"] }
+const SERVICES: { code: string; label: string; keys: string[]; hint: string; keyHints?: Record<string, string> }[] = [
+  { code: "Aade",       label: "ΑΑΔΕ (myDATA + ΑΦΜ lookup)", keys: ["Username", "Password", "AfmCalled", "Endpoint"],
+    hint: "Σύνδεση με myDATA για υποβολή παραστατικών και επαλήθευση ΑΦΜ πελατών. Χρειάζεται λογαριασμός στο taxisnet του γραφείου.",
+    keyHints: { Username: "Το Username myDATA του γραφείου (όχι το προσωπικό taxisnet).", Password: "Ο κωδικός Subscription Key από τη σελίδα myDATA.", AfmCalled: "Ο ΑΦΜ του γραφείου (καλών) όπως εμφανίζεται στο myDATA.", Endpoint: "Το URL του myDATA (production ή sandbox)." } },
+  { code: "Gemi",       label: "ΓΕΜΗ",                       keys: ["ApiKey", "Endpoint"],
+    hint: "Αναζήτηση εταιρικών στοιχείων από το ΓΕΜΗ — χρειάζεται εγγεγραμμένο API key.",
+    keyHints: { ApiKey: "Το API key που έχετε λάβει από τη διεύθυνση businessregistry.gr.", Endpoint: "Το URL του REST API του ΓΕΜΗ." } },
+  { code: "Usae",       label: "ΥΣΑΕ",                       keys: ["MemberCode", "ApiKey", "Endpoint"],
+    hint: "Ενιαία Ψηφιακή Πύλη Ασφαλιστικών Επιχειρήσεων — υποβολή ανάγκης αναγγελίας/ασφαλιστηρίων.",
+    keyHints: { MemberCode: "Ο κωδικός μέλους του γραφείου στο ΥΣΑΕ.", ApiKey: "Το API key που εκδόθηκε στο portal του ΥΣΑΕ.", Endpoint: "Το endpoint υποβολής (production ή sandbox)." } },
+  { code: "Dias",       label: "ΔΙΑΣ Debit",                 keys: ["MerchantId", "MerchantSecret", "Endpoint"],
+    hint: "Πάγιες εντολές SEPA Direct Debit μέσω ΔΙΑΣ.",
+    keyHints: { MerchantId: "Ο κωδικός συνεργαζόμενης επιχείρησης στη ΔΙΑΣ.", MerchantSecret: "Το shared secret για την υπογραφή αιτημάτων.", Endpoint: "Το endpoint της ΔΙΑΣ (production ή sandbox)." } },
+  { code: "Tachypay",   label: "Ταχυπληρωμές (ΕΛ.ΤΑ.)",       keys: ["AgreementNumber", "PostOfficeCode"],
+    hint: "Είσπραξη ασφαλίστρων μέσω των ΕΛ.ΤΑ. Ταχυπληρωμές — αριθμός σύμβασης και κωδικός καταστήματος.",
+    keyHints: { AgreementNumber: "Ο αριθμός σύμβασης Ταχυπληρωμών του γραφείου.", PostOfficeCode: "Ο κωδικός καταστήματος ΕΛ.ΤΑ. για κατάθεση." } },
+  { code: "InfoCenter", label: "Greek Info Center",           keys: ["MemberId", "ApiKey", "Endpoint"],
+    hint: "Ενημερώσεις κλάδου και κοινοποιήσεις από την Ένωση Ασφαλιστικών Εταιρειών.",
+    keyHints: { MemberId: "Ο κωδικός μέλους στο Info Center.", ApiKey: "Το API key που δόθηκε στο γραφείο.", Endpoint: "Το endpoint του Info Center." } },
+  { code: "Brevo",      label: "Brevo (Email)",              keys: ["ApiKey", "FromAddress", "FromName"],
+    hint: "Αποστολή email (ενημερώσεις, ανανεώσεις, campaigns) μέσω Brevo (πρώην Sendinblue).",
+    keyHints: { ApiKey: "Το API key από το dashboard του Brevo (Account → SMTP & API).", FromAddress: "Η διεύθυνση αποστολέα (πρέπει να έχει επαληθευτεί στο Brevo).", FromName: "Το εμφανιζόμενο όνομα του γραφείου στα εξερχόμενα mail." } }
 ];
 
 export function IntegrationSettingsPage() {
@@ -42,15 +56,24 @@ export function IntegrationSettingsPage() {
         </Box>
       </Stack>
       <Alert severity="info" sx={{ mb: 2 }}>{t("integrations.note")}</Alert>
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" sx={{ mb: 3 }}>
-        {SERVICES.map(s => <Tab key={s.code} label={s.label} />)}
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" sx={{ mb: 2 }}>
+        {SERVICES.map(s => (
+          <Tab key={s.code} label={
+            <Tooltip title={s.hint} arrow placement="top">
+              <span>{s.label}</span>
+            </Tooltip>
+          } />
+        ))}
       </Tabs>
-      <ServicePanel service={service.code} keys={service.keys} />
+      <Alert severity="info" icon={<HelpOutlineIcon />} sx={{ mb: 2, bgcolor: "background.default" }}>
+        {service.hint}
+      </Alert>
+      <ServicePanel service={service.code} keys={service.keys} keyHints={service.keyHints} />
     </Box>
   );
 }
 
-function ServicePanel({ service, keys }: { service: string; keys: string[] }) {
+function ServicePanel({ service, keys, keyHints }: { service: string; keys: string[]; keyHints?: Record<string, string> }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);
@@ -76,9 +99,19 @@ function ServicePanel({ service, keys }: { service: string; keys: string[] }) {
           <TableBody>
             {keys.map(k => {
               const ex = map.get(k);
+              const hint = keyHints?.[k];
               return (
                 <TableRow key={k}>
-                  <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{k}</TableCell>
+                  <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>
+                    {hint ? (
+                      <Tooltip title={hint} arrow placement="right">
+                        <Stack direction="row" alignItems="center" spacing={0.5} sx={{ display: "inline-flex", cursor: "help" }}>
+                          <span>{k}</span>
+                          <HelpOutlineIcon fontSize="inherit" sx={{ color: "text.disabled", fontSize: 14 }} />
+                        </Stack>
+                      </Tooltip>
+                    ) : k}
+                  </TableCell>
                   <TableCell>
                     {ex ? (
                       <span style={{ fontFamily: "monospace", fontSize: 13 }}>{ex.value || <em>{t("integrations.empty")}</em>}</span>

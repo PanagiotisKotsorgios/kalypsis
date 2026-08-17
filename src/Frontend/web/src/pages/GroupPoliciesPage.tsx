@@ -243,7 +243,7 @@ function CreateDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
   const customerLabel = (c: CustomerLite) => c.companyName ?? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim();
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
       <DialogTitle>{t("groupPolicies.createTitle")}</DialogTitle>
       <DialogContent>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
@@ -329,7 +329,7 @@ function MembersDialog({ group, onClose }: { group: GroupPolicyDto | null; onClo
   });
 
   return (
-    <Dialog open={!!group} onClose={onClose} fullWidth maxWidth="md">
+    <Dialog open={!!group} onClose={onClose} fullWidth maxWidth="lg">
       <DialogTitle>{t("groupPolicies.membersOf")} {group?.name}</DialogTitle>
       <DialogContent>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}

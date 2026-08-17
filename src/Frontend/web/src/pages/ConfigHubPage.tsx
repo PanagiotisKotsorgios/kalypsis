@@ -11,11 +11,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
-import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 
 // Unified configuration hub — Movement Types, Bonus-Malus, Renewal Rules,
-// Register Templates, Custom Fields, SAP Bridge, Period Locks.
+// Register Templates, Custom Fields, Period Locks.
 
 export function ConfigHubPage() {
   const { t } = useTranslation();
@@ -38,7 +37,6 @@ export function ConfigHubPage() {
         <Tab label={t("configHub.renewalRules")} />
         <Tab label={t("configHub.registerTemplates")} />
         <Tab label={t("configHub.customFields")} />
-        <Tab label={t("configHub.sapBridge")} />
         <Tab label={t("configHub.periodLocks")} />
       </Tabs>
       {tab === 0 && <MovementTypesPanel />}
@@ -46,8 +44,7 @@ export function ConfigHubPage() {
       {tab === 2 && <RenewalRulesPanel />}
       {tab === 3 && <RegisterTemplatesPanel />}
       {tab === 4 && <CustomFieldsPanel />}
-      {tab === 5 && <SapBridgePanel />}
-      {tab === 6 && <PeriodLocksPanel />}
+      {tab === 5 && <PeriodLocksPanel />}
     </Box>
   );
 }
@@ -561,95 +558,6 @@ function CustomFieldDialog({ item, onClose, onSaved }: { item: any | null; onClo
       <DialogActions>
         <Button onClick={onClose}>{t("common.cancel")}</Button>
         <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.code.trim() || !form.label.trim()}>{t("common.save")}</Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
-
-/* ---------- SAP Bridge ---------- */
-function SapBridgePanel() {
-  const { t } = useTranslation();
-  const qc = useQueryClient();
-  const [open, setOpen] = useState<any | null>(null);
-  const q = useQuery({ queryKey: ["sap-bridge"], queryFn: async () => (await api.get("/sap-bridge")).data });
-  return (
-    <Box>
-      <Button startIcon={<AddIcon />} variant="contained" onClick={() => setOpen({})} sx={{ mb: 2 }}>{t("configHub.newSapMapping")}</Button>
-      <Card variant="outlined">
-        <Table size="small">
-          <TableHead><TableRow>
-            <TableCell>{t("configHub.movementType")}</TableCell>
-            <TableCell>{t("configHub.sapAccount")}</TableCell>
-            <TableCell>{t("configHub.costCenter")}</TableCell>
-            <TableCell>{t("configHub.profitCenter")}</TableCell>
-            <TableCell>{t("configHub.exportEnabled")}</TableCell>
-            <TableCell align="right" />
-          </TableRow></TableHead>
-          <TableBody>
-            {(q.data ?? []).map((m: any) => (
-              <TableRow key={m.id} hover>
-                <TableCell>{m.movementTypeName}</TableCell>
-                <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{m.sapAccount}</TableCell>
-                <TableCell>{m.costCenter ?? "—"}</TableCell>
-                <TableCell>{m.profitCenter ?? "—"}</TableCell>
-                <TableCell>{m.exportEnabled && <Chip size="small" color="success" label="✓" />}</TableCell>
-                <TableCell align="right"><IconButton size="small" onClick={() => setOpen(m)}><EditIcon fontSize="small" /></IconButton></TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
-      <SapMappingDialog item={open} onClose={() => setOpen(null)} onSaved={() => { qc.invalidateQueries({ queryKey: ["sap-bridge"] }); setOpen(null); }} />
-    </Box>
-  );
-}
-
-function SapMappingDialog({ item, onClose, onSaved }: { item: any | null; onClose: () => void; onSaved: () => void }) {
-  const { t } = useTranslation();
-  const [form, setForm] = useState({ movementTypeId: "", sapAccount: "", costCenter: "", profitCenter: "", exportEnabled: true });
-  const [err, setErr] = useState<string | null>(null);
-  const mts = useQuery({ queryKey: ["movement-types-for-sap"], enabled: !!item,
-    queryFn: async () => (await api.get("/movement-types")).data });
-  useEffect(() => {
-    if (item && item.id) setForm({ ...item, costCenter: item.costCenter ?? "", profitCenter: item.profitCenter ?? "" });
-    else if (item) setForm({ movementTypeId: "", sapAccount: "", costCenter: "", profitCenter: "", exportEnabled: true });
-  }, [item]);
-  const save = useMutation({
-    mutationFn: async () => {
-      const body = { ...form, costCenter: form.costCenter || null, profitCenter: form.profitCenter || null };
-      if (item?.id) return (await api.put(`/sap-bridge/${item.id}`, body)).data;
-      return (await api.post("/sap-bridge", body)).data;
-    },
-    onSuccess: onSaved, onError: e => setErr(extractErrorMessage(e))
-  });
-  if (!item) return null;
-  return (
-    <Dialog open onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>{item.id ? t("common.edit") : t("configHub.newSapMapping")}</DialogTitle>
-      <DialogContent>
-        {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
-        <Stack spacing={2} mt={1}>
-          <SearchableSelect
-            label={t("configHub.movementType")}
-            required
-            value={form.movementTypeId}
-            onChange={(v) => setForm({ ...form, movementTypeId: v })}
-            options={(mts.data ?? []).map((m: any) => ({ value: m.id, label: m.name }))}
-          />
-          <TextField required label={t("configHub.sapAccount")} value={form.sapAccount} onChange={e => setForm({ ...form, sapAccount: e.target.value })} fullWidth />
-          <Stack direction="row" spacing={2}>
-            <TextField label={t("configHub.costCenter")} value={form.costCenter} onChange={e => setForm({ ...form, costCenter: e.target.value })} fullWidth />
-            <TextField label={t("configHub.profitCenter")} value={form.profitCenter} onChange={e => setForm({ ...form, profitCenter: e.target.value })} fullWidth />
-          </Stack>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Switch checked={form.exportEnabled} onChange={e => setForm({ ...form, exportEnabled: e.target.checked })} />
-            <Typography>{t("configHub.exportEnabled")}</Typography>
-          </Stack>
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.movementTypeId || !form.sapAccount.trim()}>{t("common.save")}</Button>
       </DialogActions>
     </Dialog>
   );
