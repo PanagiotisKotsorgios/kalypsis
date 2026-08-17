@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { WysiwygEditor } from "../components/WysiwygEditor";
 
 interface TemplateDto {
   id: string; code: string; name: string; kind: string;
@@ -168,9 +169,15 @@ function TemplateDialog({ open, onClose, item, onSaved }: { open: boolean; onClo
               {ORIENTATIONS.map(o => <MenuItem key={o} value={o}>{String(t(`pageOrientation.${o}`, o))}</MenuItem>)}
             </SearchableTextField>
           </Stack>
-          <TextField label={t("docDesigner.headerHtml")} value={form.headerHtml} onChange={e => setForm({ ...form, headerHtml: e.target.value })} fullWidth multiline rows={3} placeholder='<div><img src="{{logo}}" /></div>' />
-          <TextField label={t("docDesigner.bodyHtml")} value={form.bodyHtml} onChange={e => setForm({ ...form, bodyHtml: e.target.value })} fullWidth multiline rows={6} placeholder="<h1>{{title}}</h1><p>{{description}}</p>" />
-          <TextField label={t("docDesigner.footerHtml")} value={form.footerHtml} onChange={e => setForm({ ...form, footerHtml: e.target.value })} fullWidth multiline rows={2} />
+          <WysiwygEditor label={t("docDesigner.headerHtml")} minRows={3}
+            placeholder="π.χ. λογότυπο γραφείου, στοιχεία επαφής, ΑΦΜ…"
+            value={form.headerHtml} onChange={v => setForm({ ...form, headerHtml: v })} />
+          <WysiwygEditor label={t("docDesigner.bodyHtml")} minRows={8}
+            placeholder="Κύριο σώμα εντύπου. Χρησιμοποιήστε {{customerName}}, {{policyNumber}} κτλ. για δυναμικές τιμές."
+            value={form.bodyHtml} onChange={v => setForm({ ...form, bodyHtml: v })} />
+          <WysiwygEditor label={t("docDesigner.footerHtml")} minRows={2}
+            placeholder="π.χ. υπογραφή, όροι, νομικές σημειώσεις"
+            value={form.footerHtml} onChange={v => setForm({ ...form, footerHtml: v })} />
           <Stack direction="row" spacing={3}>
             <Stack direction="row" alignItems="center" spacing={1}>
               <Switch checked={form.isDefault} onChange={e => setForm({ ...form, isDefault: e.target.checked })} />
