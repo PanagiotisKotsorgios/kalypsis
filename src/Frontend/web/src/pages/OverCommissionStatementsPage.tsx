@@ -168,21 +168,63 @@ export function OverCommissionStatementsPage() {
     unpaidGross: rows.filter(r => !r.paidOn).reduce((s, r) => s + r.grossAmount, 0),
   }), [rows]);
 
+  // Print-column picker — operators asked for the ability to pick which
+  // columns to show on the printed πινάκιο (some just want carrier /
+  // producer / office amount; others want the full 13-column set). Ticks
+  // are persisted in localStorage so the operator's choice sticks.
+  const PRINT_COL_STORAGE = "kalypsis.overCommission.printCols.v1";
+  const PRINT_COLS: { key: string; label: string; numeric?: boolean; get: (r: StatementDto) => string | number }[] = [
+    { key: "year",           label: "Έτος",                                 get: r => r.year },
+    { key: "month",          label: "Μήνας",                                get: r => r.month },
+    { key: "carrier",        label: "Ασφαλιστική",                          get: r => r.insuranceCompanyName },
+    { key: "producer",       label: "Παραγωγός",                            get: r => r.producerName },
+    { key: "producerCode",   label: "Κωδικός",                              get: r => r.producerCode ?? "" },
+    { key: "gross",          label: "Μικτά (€)",                     numeric:true, get: r => r.grossAmount },
+    { key: "net",            label: "Καθαρά (€)",                    numeric:true, get: r => r.netAmount },
+    { key: "sharePercent",   label: "% Παραγωγού",                   numeric:true, get: r => r.producerSharePercent },
+    { key: "producerAmount", label: "Στον παραγωγό (€)",             numeric:true, get: r => r.producerAmount ?? r.grossAmount },
+    { key: "officeAmount",   label: "Στην έδρα / υπερπρομήθεια (€)", numeric:true, get: r => r.officeAmount ?? 0 },
+    { key: "reference",      label: "Reference",                            get: r => r.reference ?? "" },
+    { key: "paidOn",         label: "Πληρωμή",                              get: r => r.paidOn ?? "" },
+    { key: "notes",          label: "Σημείωση",                             get: r => r.notes ?? "" },
+  ];
+  const DEFAULT_PRINT_COLS = new Set(PRINT_COLS.map(c => c.key));
+  const [printColsOpen, setPrintColsOpen] = useState(false);
+  const [selectedPrintCols, setSelectedPrintCols] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set(DEFAULT_PRINT_COLS);
+    try {
+      const stored = localStorage.getItem(PRINT_COL_STORAGE);
+      if (stored) return new Set(JSON.parse(stored) as string[]);
+    } catch { /* ignore */ }
+    return new Set(DEFAULT_PRINT_COLS);
+  });
+  const togglePrintCol = (key: string) => setSelectedPrintCols(prev => {
+    const n = new Set(prev);
+    if (n.has(key)) n.delete(key); else n.add(key);
+    try { localStorage.setItem(PRINT_COL_STORAGE, JSON.stringify(Array.from(n))); } catch { /* ignore */ }
+    return n;
+  });
+  const setAllPrintCols = (mode: "all" | "none" | "reset") => setSelectedPrintCols(() => {
+    const n = mode === "none" ? new Set<string>() : new Set(DEFAULT_PRINT_COLS);
+    try { localStorage.setItem(PRINT_COL_STORAGE, JSON.stringify(Array.from(n))); } catch { /* ignore */ }
+    return n;
+  });
+
   /** Export the currently-filtered rows in CSV / XLSX / print. */
   const exportRows = (kind: "csv" | "xlsx" | "print") => {
     if (rows.length === 0) { setError("Δεν υπάρχουν γραμμές για εξαγωγή."); return; }
-    const headers = [
-      "Έτος","Μήνας","Ασφαλιστική","Παραγωγός","Κωδικός",
-      "Μικτά (€)","Καθαρά (€)","% Παραγωγού",
-      "Στον παραγωγό (€)","Στην έδρα / υπερπρομήθεια (€)",
-      "Reference","Πληρωμή","Σημείωση"
-    ];
-    const data = rows.map(r => [
-      r.year, r.month, r.insuranceCompanyName, r.producerName, r.producerCode ?? "",
-      r.grossAmount, r.netAmount, r.producerSharePercent,
-      r.producerAmount ?? r.grossAmount, r.officeAmount ?? 0,
-      r.reference ?? "", r.paidOn ?? "", r.notes ?? ""
-    ]);
+    // Print uses whatever the operator ticked; CSV/XLSX keep the full 13-col
+    // set — you'd never want a partial export of a bookkeeping sheet.
+    const activeCols = kind === "print"
+      ? PRINT_COLS.filter(c => selectedPrintCols.has(c.key))
+      : PRINT_COLS;
+    if (kind === "print" && activeCols.length === 0) {
+      setError("Επιλέξτε τουλάχιστον μία στήλη για εκτύπωση.");
+      return;
+    }
+    const headers = activeCols.map(c => c.label);
+    const data = rows.map(r => activeCols.map(c => c.get(r)));
+    const numericFlags = activeCols.map(c => !!c.numeric);
     if (kind === "csv") {
       const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
       const lines = [headers.join(";"), ...data.map(row => row.map(esc).join(";"))];
@@ -222,7 +264,7 @@ export function OverCommissionStatementsPage() {
       <table>
         <thead><tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr></thead>
         <tbody>${data.map(r => `<tr>${r.map((v,i)=>
-          `<td class="${i>=5&&i<=9?"num":""}">${v ?? ""}</td>`).join("")}</tr>`).join("")}</tbody>
+          `<td class="${numericFlags[i]?"num":""}">${v ?? ""}</td>`).join("")}</tr>`).join("")}</tbody>
       </table>
       <script>window.onload=()=>setTimeout(()=>window.print(),100);</script>
       </body></html>`;
@@ -314,11 +356,40 @@ export function OverCommissionStatementsPage() {
       {/* Filters — dense 4-col grid, ~2 lines on desktop (9 controls +
           clear + counter). Exports moved to their own row above so the
           filter bar stays a single visual block. */}
-      <Stack direction="row" spacing={1} justifyContent="flex-end" mb={1}>
+      <Stack direction="row" spacing={1} justifyContent="flex-end" mb={1} alignItems="center">
+        <Tooltip title="Επιλέξτε ποιές στήλες θα εμφανίζονται στο εκτυπωμένο πινάκιο">
+          <Button size="small" variant="text" onClick={() => setPrintColsOpen(true)}>
+            Στήλες εκτύπωσης ({selectedPrintCols.size}/{PRINT_COLS.length})
+          </Button>
+        </Tooltip>
         <Button size="small" variant="outlined" onClick={() => exportRows("csv")}>Εξαγωγή CSV</Button>
         <Button size="small" variant="outlined" onClick={() => exportRows("xlsx")}>Εξαγωγή XLSX</Button>
         <Button size="small" variant="outlined" onClick={() => exportRows("print")}>🖨 Εκτύπωση</Button>
       </Stack>
+
+      <Dialog open={printColsOpen} onClose={() => setPrintColsOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Στήλες προς εκτύπωση</DialogTitle>
+        <DialogContent>
+          <Typography variant="caption" color="text.secondary" mb={1} display="block">
+            Επιλέξτε ποιές στήλες θέλετε να τυπωθούν στο πινάκιο. Οι εξαγωγές CSV/XLSX
+            περιέχουν πάντα όλες τις στήλες. Η επιλογή αποθηκεύεται τοπικά.
+          </Typography>
+          <Stack>
+            {PRINT_COLS.map(c => (
+              <FormControlLabel key={c.key}
+                control={<Checkbox size="small" checked={selectedPrintCols.has(c.key)} onChange={() => togglePrintCol(c.key)} />}
+                label={c.label} />
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAllPrintCols("none")}>Καμία</Button>
+          <Button onClick={() => setAllPrintCols("all")}>Όλες</Button>
+          <Button onClick={() => setAllPrintCols("reset")}>Επαναφορά</Button>
+          <Box sx={{ flex: 1 }} />
+          <Button variant="contained" onClick={() => setPrintColsOpen(false)}>Κλείσιμο</Button>
+        </DialogActions>
+      </Dialog>
       <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
         <Box sx={{
           display: "grid",
