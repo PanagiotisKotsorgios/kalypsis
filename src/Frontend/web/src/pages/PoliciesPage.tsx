@@ -165,6 +165,15 @@ export function PoliciesPage() {
   const [renewing, setRenewing] = useState<PolicyDto | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Deep-link support — the customer card sends operators here as
+  // /app/policies?focus=<policyId>. Read the id once on mount and open
+  // the detail drawer so it feels like «click policy → see full policy».
+  useEffect(() => {
+    const id = searchParams.get("focus");
+    if (id && !detailId) setDetailId(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.get("focus")]);
+
   const policiesQuery = useQuery({
     queryKey: ["policies", search, statusFilter, typeFilter, plateFilter, appNumberFilter, premiumMin, premiumMax],
     queryFn: async () => {

@@ -830,13 +830,13 @@ export default function App() {
                   <Route path="cover-notes" element={<CoverNotesPage />} />
                   <Route path="branches" element={<BranchesPage />} />
                   <Route path="securities" element={<SecuritiesPage />} />
-                  <Route path="bank-connections" element={<BankConnectionsPage />} />
+                  <Route path="bank-connections" element={<PackageGate package="Integrations"><BankConnectionsPage /></PackageGate>} />
                   <Route path="marketing" element={<PackageGate package="Crm"><MarketingCampaignsPage /></PackageGate>} />
                   <Route path="delivery-tracking" element={<PackageGate package="Crm"><DeliveryTrackingPage /></PackageGate>} />
                   <Route path="document-manager" element={<PackageGate package="Crm"><DocumentManagerPage /></PackageGate>} />
-                  <Route path="partner-portals" element={<PartnerPortalsPage />} />
-                  <Route path="api-keys" element={<ApiKeysPage />} />
-                  <Route path="dias" element={<DiasCodesPage />} />
+                  <Route path="partner-portals" element={<PackageGate package="Integrations"><PartnerPortalsPage /></PackageGate>} />
+                  <Route path="api-keys" element={<PackageGate package="Integrations"><ApiKeysPage /></PackageGate>} />
+                  <Route path="dias" element={<PackageGate package="Integrations"><DiasCodesPage /></PackageGate>} />
                   <Route path="accounting" element={<AccountingExportsPage />} />
                   <Route path="kepyo" element={<KepyoReportsPage />} />
                   <Route path="magnetic-import" element={<MagneticImportsPage />} />
@@ -875,14 +875,14 @@ export default function App() {
                   <Route path="instructions" element={<AgencyInstructionsPage />} />
                   <Route path="backups" element={<BackupsPage />} />
                   <Route path="support-request" element={<SupportRequestPage />} />
-                  <Route path="mydata" element={<MyDataSubmissionsPage />} />
+                  <Route path="mydata" element={<PackageGate package="Integrations"><MyDataSubmissionsPage /></PackageGate>} />
                   <Route path="document-designer" element={<DocumentDesignerPage />} />
                   <Route path="friendly-settlements" element={<FriendlySettlementsPage />} />
                   <Route path="customer-merge" element={<CustomerMergePage />} />
                   <Route path="persistency" element={<PersistencyPage />} />
                   <Route path="policy-delivery" element={<Navigate to="/app/policies?view=delivery" replace />} />
                   <Route path="caller-id" element={<Navigate to="/app" replace />} />
-                  <Route path="usae" element={<UsaeSubmissionsPage />} />
+                  <Route path="usae" element={<PackageGate package="Integrations"><UsaeSubmissionsPage /></PackageGate>} />
                   <Route path="all-tools" element={<AllToolsPage />} />
                   <Route path="ermes" element={<ErmesPage />} />
                   <Route path="ermes/meeting/:roomId" element={<ErmesMeetingPage />} />
@@ -916,13 +916,13 @@ export default function App() {
                   <Route path="platform/breach-incidents" element={<BreachIncidentsPage />} />
                   <Route path="platform/compliance" element={<PlatformCompliancePage />} />
                   <Route path="platform/support" element={<PlatformSupportPage />} />
-                  <Route path="integration-settings" element={<IntegrationSettingsPage />} />
+                  <Route path="integration-settings" element={<PackageGate package="Integrations"><IntegrationSettingsPage /></PackageGate>} />
                   <Route path="named-reports" element={<NamedReportsPage />} />
                   <Route path="config-hub" element={<ConfigHubPage />} />
                   <Route path="advance-payments" element={<AdvancePaymentsPage />} />
                   <Route path="reconciliation" element={<ReconciliationPage />} />
                   <Route path="tachypayments" element={<TachyPaymentsPage />} />
-                  <Route path="info-center" element={<InfoCenterPage />} />
+                  <Route path="info-center" element={<PackageGate package="Integrations"><InfoCenterPage /></PackageGate>} />
                   <Route path="vehicle-models" element={<VehicleModelsPage />} />
                   <Route path="*" element={<Navigate to="/app" replace />} />
                 </Routes>

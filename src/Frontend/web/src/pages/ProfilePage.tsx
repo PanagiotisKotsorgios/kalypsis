@@ -17,7 +17,10 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { PasswordField } from "../components/PasswordField";
 import { resetTourForRole } from "../components/KalypsisOnboarding";
-import { TwoFactorSection } from "../components/TwoFactorSection";
+// TwoFactorSection intentionally not rendered — TOTP hidden per product
+// decision; only email-based 2FA is offered to the user for now.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { TwoFactorSection as _TwoFactorSection } from "../components/TwoFactorSection";
 import { EmailTwoFactorSection } from "../components/EmailTwoFactorSection";
 import { UsageMonitorSection } from "../components/UsageMonitorSection";
 
@@ -175,7 +178,10 @@ export function ProfilePage() {
 
         <UserPreferencesSection role={profileQuery.data?.role} />
 
-        <TwoFactorSection />
+        {/* TOTP authenticator 2FA hidden on request — email-based 2FA
+            is the only supported second factor for now. Import kept
+            behind an alias so the section code stays available for a
+            future re-enable. */}
         <EmailTwoFactorSection />
         <UsageMonitorSection />
       </Stack>

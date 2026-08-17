@@ -2515,8 +2515,8 @@
     "subtitle": "Over-commission bridges per insurance carrier.",
     "pickCarrier": "Select an insurance carrier",
     "noCompanies": "No insurance carriers are available.",
-    "underDevTitle": "Under development",
-    "underDevBody": "The over-commission bridge for «{{carrier}}» is still under development and will be enabled soon."
+    "underDevTitle": "Needs per-office setup",
+    "underDevBody": "The over-commission bridge for «{{carrier}}» is configured per office so it correctly maps your producer + commission codes. Please email info@mykalypsis.gr and we will finish the setup for you."
   },
   "overCommissions": {
     "title": "Over-commissions", "subtitle": "9-level commission hierarchy.",

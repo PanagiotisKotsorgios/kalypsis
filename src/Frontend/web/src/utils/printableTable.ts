@@ -49,7 +49,15 @@ const formatCell = (value: unknown, locale: string): string => {
 
 export function printTable<T>(opts: PrintOptions<T>): void {
   const locale = opts.locale ?? "el-GR";
-  const orientation = opts.orientation ?? "portrait";
+  // When the caller doesn't force an orientation, ask the operator —
+  // most exports look better landscape once there are more than ~5
+  // columns. Native confirm() is intentional: no imports, no library
+  // dependency, works from the .ts utility layer.
+  const orientation: "portrait" | "landscape" = opts.orientation ?? (
+    typeof window !== "undefined" && window.confirm(
+      "Οριζόντια εκτύπωση;\n\n· OK  → Οριζόντιος προσανατολισμός (landscape)\n· Cancel → Κάθετος προσανατολισμός (portrait)"
+    ) ? "landscape" : "portrait"
+  );
   const now = new Date().toLocaleString(locale);
 
   const head = opts.columns.map(c => `<th>${escapeHtml(c.label)}</th>`).join("");
