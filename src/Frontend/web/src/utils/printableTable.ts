@@ -118,7 +118,7 @@ export function printTable<T>(opts: PrintOptions<T>): void {
   header .subtitle { color: #444; font-size: 12px; }
   header .meta { color: #888; font-size: 11px; margin-top: 4px; }
   table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
-  thead th { background: #f0f4fa; color: #0d47a1; text-align: left; padding: 6px 8px; border-bottom: 1.5px solid #b6c8e0; font-weight: 700; }
+  thead th { background: #f0f4fa; color: #0d47a1; text-align: left; padding: 6px 8px; border-bottom: 1.5px solid #b6c8e0; font-weight: 700; white-space: nowrap; }
   tbody td { padding: 5px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
   tbody tr:nth-child(even) td { background: #fafbfd; }
   footer { margin-top: 18px; font-size: 10px; color: #888; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e5e7eb; padding-top: 6px; }

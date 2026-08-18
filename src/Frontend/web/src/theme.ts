@@ -75,6 +75,11 @@ export function buildKalypsisTheme(mode: "light" | "dark", density: "comfortable
         styleOverrides: {
           asterisk: { color: "#d32f2f", fontWeight: 700, marginLeft: 2 }
         }
+      },
+      MuiTableCell: {
+        styleOverrides: {
+          head: { whiteSpace: "nowrap" }
+        }
       }
     }
   });
