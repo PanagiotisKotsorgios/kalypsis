@@ -15,14 +15,42 @@ import { HelpHint } from "../components/HelpHint";
 import { money, date } from "../utils/format";
 import { SearchableTextField } from "../components/SearchableTextField";
 
-type EndorsementType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 99;
+type EndorsementType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 99;
 type EndorsementStatus = "Draft" | "Issued" | "Cancelled";
 
 const TYPE_LABELS: Record<number, string> = {
   1: "Προσθήκη κάλυψης", 2: "Αφαίρεση κάλυψης", 3: "Αλλαγή στοιχείων",
   4: "Μερική ακύρωση", 5: "Αναπροσαρμογή ασφαλίστρου", 6: "Αλλαγή διεύθυνσης",
-  7: "Αλλαγή δικαιούχου", 8: "Αλλαγή αντικειμένου", 9: "Επανέκδοση", 99: "Άλλο"
+  7: "Αλλαγή δικαιούχου", 8: "Αλλαγή αντικειμένου", 9: "Επανέκδοση",
+  10: "Πιστωτικό (πράξη πίστωσης)", 11: "Χρεωστικό (πράξη χρέωσης)",
+  99: "Άλλο"
 };
+
+// Common policy fields operators change through an endorsement. The list
+// is not exhaustive — the "custom" field lets them type any label so
+// unusual changes still get recorded.
+const FIELD_CHANGE_PRESETS: string[] = [
+  "Διεύθυνση", "Τηλέφωνο", "Email", "IBAN πληρωμής",
+  "Ημ. λήξης συμβολαίου", "Δικαιούχος", "Πινακίδα οχήματος",
+  "Χρήση οχήματος", "Κάτοχος (αντικείμενο)", "Καλύψεις",
+  "Επάγγελμα δικαιούχου", "Δικαιούχος αποζημίωσης",
+];
+
+interface FieldChange { field: string; oldValue: string; newValue: string; }
+
+function parseChanges(raw: string | null | undefined): FieldChange[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .filter((r): r is FieldChange =>
+          !!r && typeof r === "object" && typeof r.field === "string")
+        .map(r => ({ field: r.field, oldValue: String(r.oldValue ?? ""), newValue: String(r.newValue ?? "") }));
+    }
+  } catch { /* raw wasn't JSON */ }
+  return [];
+}
 
 interface EndorsementDto {
   id: string; policyId: string; policyNumber: string;
@@ -260,6 +288,7 @@ function EndorsementDialog({ open, item, onClose, onSaved }: {
     premiumDelta: 0, commissionDelta: 0,
     changesJson: "", notes: ""
   });
+  const [changes, setChanges] = useState<FieldChange[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   const policies = useQuery({
@@ -279,6 +308,7 @@ function EndorsementDialog({ open, item, onClose, onSaved }: {
         premiumDelta: item.premiumDelta, commissionDelta: item.commissionDelta,
         changesJson: item.changesJson ?? "", notes: item.notes ?? ""
       });
+      setChanges(parseChanges(item.changesJson));
       setPolicy({ id: item.policyId, policyNumber: item.policyNumber, premium: 0 });
     } else if (open) {
       setForm({
@@ -288,6 +318,7 @@ function EndorsementDialog({ open, item, onClose, onSaved }: {
         premiumDelta: 0, commissionDelta: 0,
         changesJson: "", notes: ""
       });
+      setChanges([]);
       setPolicy(null);
     }
   }, [item, open, today]);
@@ -295,6 +326,13 @@ function EndorsementDialog({ open, item, onClose, onSaved }: {
   const save = useMutation({
     mutationFn: async () => {
       if (!policy && !item) throw new Error("Επιλέξτε συμβόλαιο.");
+      // Serialize field-change rows as JSON. Empty rows are dropped so we
+      // don't persist noise; if the operator entered any, the structured
+      // changes take precedence over the free-text changesJson pane.
+      const trimmed = changes
+        .map(c => ({ field: c.field.trim(), oldValue: c.oldValue.trim(), newValue: c.newValue.trim() }))
+        .filter(c => c.field && (c.oldValue || c.newValue));
+      const serializedChanges = trimmed.length > 0 ? JSON.stringify(trimmed) : (form.changesJson.trim() || null);
       const body = {
         policyId: item?.policyId ?? policy?.id,
         type: form.type,
@@ -305,7 +343,7 @@ function EndorsementDialog({ open, item, onClose, onSaved }: {
         carrierReference: form.carrierReference || null,
         premiumDelta: Number(form.premiumDelta),
         commissionDelta: Number(form.commissionDelta),
-        changesJson: form.changesJson || null,
+        changesJson: serializedChanges,
         notes: form.notes || null
       };
       if (item) return (await api.put(`/endorsements/${item.id}`, body)).data;
@@ -314,6 +352,11 @@ function EndorsementDialog({ open, item, onClose, onSaved }: {
     onSuccess: onSaved,
     onError: (e) => setErr(extractErrorMessage(e))
   });
+
+  const addChange = () => setChanges(c => [...c, { field: "", oldValue: "", newValue: "" }]);
+  const updateChange = (i: number, patch: Partial<FieldChange>) =>
+    setChanges(c => c.map((r, idx) => idx === i ? { ...r, ...patch } : r));
+  const removeChange = (i: number) => setChanges(c => c.filter((_, idx) => idx !== i));
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
@@ -372,6 +415,44 @@ function EndorsementDialog({ open, item, onClose, onSaved }: {
 
           <TextField label="Αναφορά ασφαλιστικής (προαιρετικό)" value={form.carrierReference}
             onChange={(e) => setForm({ ...form, carrierReference: e.target.value })} fullWidth />
+
+          {/* Αλλαγές πεδίων — ρητή καταγραφή τι άλλαξε (π.χ. Διεύθυνση,
+              Δικαιούχος, IBAN). Αποθηκεύεται ως JSON στο changesJson. */}
+          <Box sx={{ p: 1.5, border: "1px dashed", borderColor: "divider", borderRadius: 1 }}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
+              <Typography variant="body2" fontWeight={700}>Αλλαγές πεδίων</Typography>
+              <Button size="small" startIcon={<AddIcon />} onClick={addChange}>Προσθήκη</Button>
+            </Stack>
+            {changes.length === 0 ? (
+              <Typography variant="caption" color="text.secondary">
+                Καταγράψτε ρητά τι άλλαξε — π.χ. Διεύθυνση από «Χ» σε «Y». Για ελεύθερο κείμενο, χρησιμοποιήστε την Περιγραφή παραπάνω.
+              </Typography>
+            ) : (
+              <Stack spacing={1}>
+                {changes.map((c, i) => (
+                  <Stack key={i} direction={{ xs: "column", md: "row" }} spacing={1} alignItems="center">
+                    <Autocomplete
+                      freeSolo
+                      options={FIELD_CHANGE_PRESETS}
+                      value={c.field}
+                      onChange={(_, v) => updateChange(i, { field: v ?? "" })}
+                      onInputChange={(_, v) => updateChange(i, { field: v })}
+                      renderInput={(p) => <TextField {...p} size="small" label="Πεδίο" />}
+                      sx={{ flex: 1, minWidth: 180 }}
+                    />
+                    <TextField size="small" label="Παλιά τιμή" value={c.oldValue}
+                      onChange={(e) => updateChange(i, { oldValue: e.target.value })} sx={{ flex: 1 }} />
+                    <TextField size="small" label="Νέα τιμή" value={c.newValue}
+                      onChange={(e) => updateChange(i, { newValue: e.target.value })} sx={{ flex: 1 }} />
+                    <IconButton size="small" color="error" onClick={() => removeChange(i)} title="Αφαίρεση">
+                      <CancelIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                ))}
+              </Stack>
+            )}
+          </Box>
+
           <TextField label="Σημειώσεις" value={form.notes} fullWidth multiline minRows={2}
             onChange={(e) => setForm({ ...form, notes: e.target.value })} />
         </Stack>
