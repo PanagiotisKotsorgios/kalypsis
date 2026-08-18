@@ -85,6 +85,7 @@ export function ProductionListsPage() {
     queryKey: ["producers-prod-list"],
     queryFn: async () => (await api.get<Producer[]>("/producers")).data
   });
+  // Per-carrier params (what the operator sees once they pick a carrier).
   const carrierParams = useQuery({
     queryKey: ["company-parameters-prod-list", f.insuranceCompanyId],
     queryFn: async () => (await api.get<ParamItem[]>("/company-parameters", {
@@ -93,38 +94,54 @@ export function ProductionListsPage() {
     enabled: !!f.insuranceCompanyId,
   });
 
-  // Strict: only show real παραμετρικά. No enum fallback.
+  // Tenant-wide params: union of every carrier's Κλάδος/Χρήση/Κάλυψη/Πακέτο,
+  // used as the fallback options when no carrier is selected. Distinct
+  // per-value so operators see one entry per branch/use/cover/package
+  // regardless of how many carriers have it in their catalogue.
+  const tenantParams = useQuery({
+    queryKey: ["company-parameters-prod-list", "tenant-wide"],
+    queryFn: async () => (await api.get<ParamItem[]>("/company-parameters")).data,
+  });
+
+  // Distinct helper — first entry wins for label. Every option keeps a
+  // `key` so React can render them without warnings.
+  const distinctBy = <T extends { value: string; label: string; key: string }>(rows: T[]): T[] => {
+    const seen = new Map<string, T>();
+    for (const r of rows) if (!seen.has(r.value)) seen.set(r.value, r);
+    return Array.from(seen.values());
+  };
+
   const branchOptions = useMemo(() => {
-    if (!f.insuranceCompanyId) return [];
-    return (carrierParams.data ?? [])
+    const source = f.insuranceCompanyId ? (carrierParams.data ?? []) : (tenantParams.data ?? []);
+    const rows = source
       .filter(p => p.kind === "Branch" && p.policyType)
-      .map(p => ({ key: `param:${p.id}`, value: p.policyType!, label: p.name }));
-  }, [carrierParams.data, f.insuranceCompanyId]);
+      .map(p => ({ key: `branch:${p.policyType}:${p.id}`, value: p.policyType!, label: p.name }));
+    return f.insuranceCompanyId ? rows : distinctBy(rows);
+  }, [carrierParams.data, tenantParams.data, f.insuranceCompanyId]);
 
   const useOptions = useMemo(() => {
-    if (!f.insuranceCompanyId) return [];
-    return (carrierParams.data ?? [])
+    const source = f.insuranceCompanyId ? (carrierParams.data ?? []) : (tenantParams.data ?? []);
+    const rows = source
       .filter(p => p.kind === "Use" && p.vehicleUseCategory && p.vehicleUseCategory !== "None")
-      .map(p => ({ key: `param:${p.id}`, value: p.vehicleUseCategory!, label: p.name }));
-  }, [carrierParams.data, f.insuranceCompanyId]);
+      .map(p => ({ key: `use:${p.vehicleUseCategory}:${p.id}`, value: p.vehicleUseCategory!, label: p.name }));
+    return f.insuranceCompanyId ? rows : distinctBy(rows);
+  }, [carrierParams.data, tenantParams.data, f.insuranceCompanyId]);
 
-  // Carrier-driven coverages and packages, identical scoping rules to the
-  // Κλάδος / Χρήση dropdowns. The /company-parameters endpoint already
-  // cascades broker → all subs' packages when the user picks a broker, and
-  // returns just the sub's packages when they drill into one.
   const coverageOptions = useMemo(() => {
-    if (!f.insuranceCompanyId) return [];
-    return (carrierParams.data ?? [])
+    const source = f.insuranceCompanyId ? (carrierParams.data ?? []) : (tenantParams.data ?? []);
+    const rows = source
       .filter(p => p.kind === "Coverage" && p.code)
-      .map(p => ({ key: `cov:${p.id}`, value: p.code, label: `${p.name} (${p.code})` }));
-  }, [carrierParams.data, f.insuranceCompanyId]);
+      .map(p => ({ key: `cov:${p.code}:${p.id}`, value: p.code, label: `${p.name} (${p.code})` }));
+    return f.insuranceCompanyId ? rows : distinctBy(rows);
+  }, [carrierParams.data, tenantParams.data, f.insuranceCompanyId]);
 
   const packageOptions = useMemo(() => {
-    if (!f.insuranceCompanyId) return [];
-    return (carrierParams.data ?? [])
+    const source = f.insuranceCompanyId ? (carrierParams.data ?? []) : (tenantParams.data ?? []);
+    const rows = source
       .filter(p => p.kind === "Package" && p.code)
-      .map(p => ({ key: `pkg:${p.id}`, value: p.code, label: `${p.name} (${p.code})` }));
-  }, [carrierParams.data, f.insuranceCompanyId]);
+      .map(p => ({ key: `pkg:${p.code}:${p.id}`, value: p.code, label: `${p.name} (${p.code})` }));
+    return f.insuranceCompanyId ? rows : distinctBy(rows);
+  }, [carrierParams.data, tenantParams.data, f.insuranceCompanyId]);
 
   const params = {
     from: f.from || undefined,
@@ -347,40 +364,40 @@ export function ProductionListsPage() {
           <SearchableSelect
             label={t("productionList.type")}
             value={f.policyType} onChange={(v) => setF({ ...f, policyType: v })}
-            disabled={!f.insuranceCompanyId}
-            helperText={!f.insuranceCompanyId
-              ? "Επιλέξτε εταιρία"
-              : branchOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : "Από παραμετρικά"}
+            disabled={branchOptions.length === 0}
+            helperText={branchOptions.length === 0
+              ? "Δεν υπάρχουν παραμετρικά"
+              : f.insuranceCompanyId ? "Από παραμετρικά εταιρίας" : "Από όλα τα παραμετρικά γραφείου"}
             emptyLabel={t("common.all")}
             options={branchOptions.map(o => ({ value: o.value, label: o.label }))}
           />
           <SearchableSelect
             label="Χρήση οχήματος"
             value={f.vehicleUseCategory} onChange={(v) => setF({ ...f, vehicleUseCategory: v })}
-            disabled={!f.insuranceCompanyId}
-            helperText={!f.insuranceCompanyId
-              ? "Επιλέξτε εταιρία"
-              : useOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : "Από παραμετρικά"}
+            disabled={useOptions.length === 0}
+            helperText={useOptions.length === 0
+              ? "Δεν υπάρχουν παραμετρικά"
+              : f.insuranceCompanyId ? "Από παραμετρικά εταιρίας" : "Από όλα τα παραμετρικά γραφείου"}
             emptyLabel={t("common.all")}
             options={useOptions.map(o => ({ value: o.value, label: o.label }))}
           />
           <SearchableSelect
             label="Κάλυψη"
             value={f.coverCode} onChange={(v) => setF({ ...f, coverCode: v })}
-            disabled={!f.insuranceCompanyId}
-            helperText={!f.insuranceCompanyId
-              ? "Επιλέξτε εταιρία"
-              : coverageOptions.length === 0 ? "Δεν υπάρχουν παραμετρικά" : "Από παραμετρικά"}
+            disabled={coverageOptions.length === 0}
+            helperText={coverageOptions.length === 0
+              ? "Δεν υπάρχουν παραμετρικά"
+              : f.insuranceCompanyId ? "Από παραμετρικά εταιρίας" : "Από όλα τα παραμετρικά γραφείου"}
             emptyLabel={t("common.all")}
             options={coverageOptions.map(o => ({ value: o.value, label: o.label }))}
           />
           <SearchableSelect
             label="Πακέτο"
             value={f.packageCode} onChange={(v) => setF({ ...f, packageCode: v })}
-            disabled={!f.insuranceCompanyId}
-            helperText={!f.insuranceCompanyId
-              ? "Επιλέξτε εταιρία"
-              : packageOptions.length === 0 ? "Δεν υπάρχουν πακέτα" : "Από παραμετρικά"}
+            disabled={packageOptions.length === 0}
+            helperText={packageOptions.length === 0
+              ? "Δεν υπάρχουν παραμετρικά"
+              : f.insuranceCompanyId ? "Από παραμετρικά εταιρίας" : "Από όλα τα παραμετρικά γραφείου"}
             emptyLabel={t("common.all")}
             options={packageOptions.map(o => ({ value: o.value, label: o.label }))}
           />
