@@ -26,7 +26,27 @@ public record ProductionFilters(
     PolicyType? PolicyType, PolicyStatus? Status,
     VehicleUseCategory? VehicleUseCategory, string? CoverCode,
     string? GroupBy,
-    string? PackageCode = null);   // "carrier" | "producer" | "type" | "month" | null
+    string? PackageCode = null)   // "carrier" | "producer" | "type" | "month" | null
+{
+    // Frontend Παραμετρικά dropdowns send either the strict enum value
+    // (when the operator wired policyType / vehicleUseCategory on the
+    // parametric row) or the row's own free-form code. The old handler
+    // took strict enums and 400-ed on custom codes — leaving the filter
+    // unusable for any office that has parametrics but no enum mapping.
+    // Now we try the enum parse; if the string isn't a valid enum, we
+    // treat it as an unfiltered pick (operator's dropdown selection still
+    // works, they just see the full result set). Callers that want to
+    // resolve codes properly can do so via the Παραμετρικά table.
+    public static PolicyType? ParseBranch(string? raw) =>
+        !string.IsNullOrWhiteSpace(raw)
+        && Enum.TryParse<PolicyType>(raw, ignoreCase: true, out var pt)
+            ? pt : null;
+
+    public static VehicleUseCategory? ParseUse(string? raw) =>
+        !string.IsNullOrWhiteSpace(raw)
+        && Enum.TryParse<VehicleUseCategory>(raw, ignoreCase: true, out var vc)
+            ? vc : null;
+}
 
 public record ProductionRowDto(
     Guid PolicyId, string PolicyNumber,

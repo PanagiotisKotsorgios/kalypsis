@@ -9,29 +9,18 @@ import { api } from "../api/client";
  * and any selected subcompanies (when the primary is a broker), then exposes
  * them as ready-to-use dropdown option arrays.
  *
- * When the carrier's Παραμετρικά don't cover Κλάδοι / Χρήσεις (many were
- * seeded before policyType / vehicleUseCategory were wired), the hook falls
- * back to the PolicyType / VehicleUseCategory enum lists so the filter
- * dropdowns still populate instead of rendering «Δεν υπάρχουν παραμετρικά».
- * Coverages and Packages have no fallback — they're carrier-specific codes
- * and there's no sensible enum to substitute.
+ * Every option — Branch, Use, Coverage, Package — comes from the office's
+ * Παραμετρικά. Nothing is hardcoded; if a carrier has no rows for a kind,
+ * that list comes back empty (and the caller renders «Δεν υπάρχουν
+ * παραμετρικά» with a nudge to add them in Παραμετροποίηση → Παραμετρικά
+ * ασφαλιστικών).
  *
- * Each returned CarrierOption carries `source: "parametric" | "fallback"`
- * so consumers can nudge the operator when they're looking at fallback
- * values instead of the carrier's own catalogue.
+ * For Branch and Use we use the item's PolicyType / VehicleUseCategory enum
+ * as the submitted value when the operator has filled it in (backend gets
+ * a strict enum filter); otherwise we fall back to the item's own `code`,
+ * which the backend accepts as an opaque string filter and looks up in the
+ * Παραμετρικά to determine what to match.
  */
-
-const POLICY_TYPE_FALLBACK_LABELS: Record<string, string> = {
-  Auto: "Αυτοκίνητο", Home: "Κατοικία", Health: "Υγεία", Life: "Ζωής",
-  Business: "Επιχείρηση", Travel: "Ταξιδιωτικό", Other: "Άλλο",
-};
-const VEHICLE_USE_FALLBACK_LABELS: Record<string, string> = {
-  EIX: "Ε.Ι.Χ. — Επιβατικό Ι.Χ.", EDX: "Ε.Δ.Χ. — Ταξί / Δημ.Χρ.",
-  FIX: "Φ.Ι.Χ. — Φορτηγό Ι.Χ.",   FDX: "Φ.Δ.Χ. — Φορτηγό Δ.Χ.",
-  LIX: "Λ.Ι.Χ. — Λεωφορείο Ι.Χ.", LDX: "Λ.Δ.Χ. — Λεωφορείο Δ.Χ.",
-  Motorcycle: "ΜΟΤ — Μοτοσικλέτα", Agricultural: "ΑΓΡ — Αγροτικό",
-  Construction: "ΕΡΓ — Εργοταξιακό",
-};
 
 export type ParameterKind =
   | "Branch" | "Coverage" | "Use" | "Package" | "BridgeCode" | "Field" | "Other";
@@ -108,39 +97,30 @@ export function useCarrierCatalogue(
     return out;
   }, [primaryQ.data, subQs.map(q => q.data).join(",")]);
 
-  const branches = useMemo<CarrierOption[]>(() => {
-    const parametric = merged
-      .filter(p => p.kind === "Branch" && p.policyType)
-      .map<CarrierOption>(p => ({
-        key: `branch:${p.id}`,
-        value: p.policyType!,
-        label: p.name,
-        code: p.code,
-        parentCode: p.parentCode,
-        source: "parametric",
-      }));
-    if (parametric.length > 0) return parametric;
-    return Object.entries(POLICY_TYPE_FALLBACK_LABELS).map<CarrierOption>(([value, label]) => ({
-      key: `branch:fb:${value}`, value, label, code: value, parentCode: null, source: "fallback",
-    }));
-  }, [merged]);
+  const branches = useMemo<CarrierOption[]>(() =>
+    merged.filter(p => p.kind === "Branch").map<CarrierOption>(p => ({
+      key: `branch:${p.id}`,
+      // Prefer the enum when the operator has set it (backend gets strict
+      // PolicyType filtering); otherwise submit the item's own code — the
+      // backend accepts either and resolves the code via Παραμετρικά.
+      value: p.policyType ?? p.code,
+      label: p.name,
+      code: p.code,
+      parentCode: p.parentCode,
+      source: "parametric",
+    })), [merged]);
 
-  const uses = useMemo<CarrierOption[]>(() => {
-    const parametric = merged
-      .filter(p => p.kind === "Use" && p.vehicleUseCategory && p.vehicleUseCategory !== "None")
-      .map<CarrierOption>(p => ({
-        key: `use:${p.id}`,
-        value: p.vehicleUseCategory!,
-        label: p.name,
-        code: p.code,
-        parentCode: p.parentCode,
-        source: "parametric",
-      }));
-    if (parametric.length > 0) return parametric;
-    return Object.entries(VEHICLE_USE_FALLBACK_LABELS).map<CarrierOption>(([value, label]) => ({
-      key: `use:fb:${value}`, value, label, code: value, parentCode: null, source: "fallback",
-    }));
-  }, [merged]);
+  const uses = useMemo<CarrierOption[]>(() =>
+    merged.filter(p => p.kind === "Use").map<CarrierOption>(p => ({
+      key: `use:${p.id}`,
+      value: p.vehicleUseCategory && p.vehicleUseCategory !== "None"
+        ? p.vehicleUseCategory
+        : p.code,
+      label: p.name,
+      code: p.code,
+      parentCode: p.parentCode,
+      source: "parametric",
+    })), [merged]);
 
   const coverages = useMemo<CarrierOption[]>(() =>
     merged.filter(p => p.kind === "Coverage").map<CarrierOption>(p => ({

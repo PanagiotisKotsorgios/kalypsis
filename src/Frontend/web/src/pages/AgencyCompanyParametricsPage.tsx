@@ -244,25 +244,39 @@ export function AgencyCompanyParametricsPage() {
               {KIND_HELP[tab]}
             </Typography>
           </Box>
+          {(() => {
+            // Data-driven column visibility — a column with «—» in every
+            // row is noise. Only render Κλάδος / Γονέας when the current
+            // tab actually has values to show; empty tabs (like a fresh
+            // office's Χρήσεις that don't yet have policyType wired)
+            // collapse to the columns that carry information.
+            const showBranchCol = filteredParams.some(p => !!p.policyType);
+            const showParentCol = filteredParams.some(p => !!p.parentCode);
+            const colCount = 3 // Κωδικός, Όνομα, Ενεργό
+              + (showBranchCol ? 1 : 0)
+              + (tab === "Use" ? 1 : 0)
+              + (showParentCol ? 1 : 0)
+              + 1; // actions
+            return (
           <Box sx={{ overflowX: "auto" }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
                   <TableCell>Κωδικός</TableCell>
                   <TableCell>Όνομα</TableCell>
-                  <TableCell>Κλάδος</TableCell>
+                  {showBranchCol && <TableCell>Κλάδος</TableCell>}
                   {tab === "Use" && <TableCell>Χρήση</TableCell>}
-                  <TableCell>Γονέας</TableCell>
+                  {showParentCol && <TableCell>Γονέας</TableCell>}
                   <TableCell>Ενεργό</TableCell>
                   <TableCell align="right" width={100} />
                 </TableRow>
               </TableHead>
               <TableBody>
                 {paramsQ.isLoading && (
-                  <TableRow><TableCell colSpan={tab === "Use" ? 7 : 6} align="center" sx={{ py: 3 }}><CircularProgress size={20} /></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={colCount} align="center" sx={{ py: 3 }}><CircularProgress size={20} /></TableCell></TableRow>
                 )}
                 {!paramsQ.isLoading && filteredParams.length === 0 && (
-                  <TableRow><TableCell colSpan={tab === "Use" ? 7 : 6} align="center" sx={{ py: 6, color: "text.secondary" }}>
+                  <TableRow><TableCell colSpan={colCount} align="center" sx={{ py: 6, color: "text.secondary" }}>
                     Δεν υπάρχουν {KIND_LABEL[tab].toLowerCase()} για αυτή την εταιρεία.
                   </TableCell></TableRow>
                 )}
@@ -270,7 +284,7 @@ export function AgencyCompanyParametricsPage() {
                   <TableRow key={p.id} hover>
                     <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{p.code}</TableCell>
                     <TableCell>{p.name}</TableCell>
-                    <TableCell>{p.policyType ?? "—"}</TableCell>
+                    {showBranchCol && <TableCell>{p.policyType ?? "—"}</TableCell>}
                     {tab === "Use" && (
                       <TableCell>
                         {p.vehicleUseCategory
@@ -280,7 +294,7 @@ export function AgencyCompanyParametricsPage() {
                             </Tooltip>}
                       </TableCell>
                     )}
-                    <TableCell sx={{ fontFamily: "monospace" }}>{p.parentCode ?? ""}</TableCell>
+                    {showParentCol && <TableCell sx={{ fontFamily: "monospace" }}>{p.parentCode ?? ""}</TableCell>}
                     <TableCell>{p.isActive ? <Chip size="small" color="success" label="Ναι" /> : <Chip size="small" label="Όχι" />}</TableCell>
                     <TableCell align="right">
                       <Tooltip title="Επεξεργασία">
@@ -297,6 +311,8 @@ export function AgencyCompanyParametricsPage() {
               </TableBody>
             </Table>
           </Box>
+            );
+          })()}
           <TablePagination
             component="div"
             count={filteredParams.length}

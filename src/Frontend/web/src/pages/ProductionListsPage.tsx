@@ -51,34 +51,6 @@ interface Result {
 
 const STATUSES = ["Draft", "Active", "Expired", "Cancelled", "Renewed", "PendingRenewal"];
 
-// Backend /production-lists filters PolicyType and VehicleUseCategory as
-// strict enums. When a tenant's Παραμετρικά rows don't carry those enum
-// values (many carriers seeded before Ε.Ι.Χ./Φ.Ι.Χ. wiring), the
-// parametric-derived dropdown lists came out empty and the two filters
-// showed «Δεν υπάρχουν παραμετρικά». These fixed enum lists are the
-// fallback so the filters always populate — labelled the way the office
-// speaks about them.
-const POLICY_TYPE_FALLBACK: { value: string; label: string }[] = [
-  { value: "Auto",     label: "Αυτοκίνητο" },
-  { value: "Home",     label: "Κατοικία" },
-  { value: "Health",   label: "Υγεία" },
-  { value: "Life",     label: "Ζωής" },
-  { value: "Business", label: "Επιχείρηση" },
-  { value: "Travel",   label: "Ταξιδιωτικό" },
-  { value: "Other",    label: "Άλλο" },
-];
-const VEHICLE_USE_FALLBACK: { value: string; label: string }[] = [
-  { value: "EIX",          label: "Ε.Ι.Χ. — Επιβατικό Ι.Χ." },
-  { value: "EDX",          label: "Ε.Δ.Χ. — Ταξί / Δημ.Χρ." },
-  { value: "FIX",          label: "Φ.Ι.Χ. — Φορτηγό Ι.Χ." },
-  { value: "FDX",          label: "Φ.Δ.Χ. — Φορτηγό Δ.Χ." },
-  { value: "LIX",          label: "Λ.Ι.Χ. — Λεωφορείο Ι.Χ." },
-  { value: "LDX",          label: "Λ.Δ.Χ. — Λεωφορείο Δ.Χ." },
-  { value: "Motorcycle",   label: "ΜΟΤ — Μοτοσικλέτα" },
-  { value: "Agricultural", label: "ΑΓΡ — Αγροτικό" },
-  { value: "Construction", label: "ΕΡΓ — Εργοταξιακό" },
-];
-
 interface ParamItem {
   id: string;
   kind: "Branch" | "Coverage" | "Use" | "Package" | "BridgeCode" | "Field" | "Other";
@@ -136,27 +108,35 @@ export function ProductionListsPage() {
     return Array.from(seen.values());
   };
 
+  // Show every Branch / Use item the office has entered in Παραμετρικά —
+  // whether they filled in the PolicyType / VehicleUseCategory enum on
+  // the row or not. The submitted value is the enum when set (strict
+  // filter server-side) or the item's own code (the backend accepts it
+  // as a string and looks it up via Παραμετρικά). No hardcoded fallbacks.
   const branchOptions = useMemo(() => {
     const source = f.insuranceCompanyId ? (carrierParams.data ?? []) : (tenantParams.data ?? []);
     const rows = source
-      .filter(p => p.kind === "Branch" && p.policyType)
-      .map(p => ({ key: `branch:${p.policyType}:${p.id}`, value: p.policyType!, label: p.name }));
-    const scoped = f.insuranceCompanyId ? rows : distinctBy(rows);
-    // Fallback to the PolicyType enum list when the carrier's Παραμετρικά
-    // don't carry policyType on their Branch rows — keeps the filter usable
-    // instead of showing «Δεν υπάρχουν παραμετρικά».
-    if (scoped.length > 0) return scoped;
-    return POLICY_TYPE_FALLBACK.map(o => ({ key: `branch:fb:${o.value}`, value: o.value, label: o.label }));
+      .filter(p => p.kind === "Branch")
+      .map(p => ({
+        key: `branch:${p.id}`,
+        value: p.policyType ?? p.code,
+        label: p.name,
+      }));
+    return f.insuranceCompanyId ? rows : distinctBy(rows);
   }, [carrierParams.data, tenantParams.data, f.insuranceCompanyId]);
 
   const useOptions = useMemo(() => {
     const source = f.insuranceCompanyId ? (carrierParams.data ?? []) : (tenantParams.data ?? []);
     const rows = source
-      .filter(p => p.kind === "Use" && p.vehicleUseCategory && p.vehicleUseCategory !== "None")
-      .map(p => ({ key: `use:${p.vehicleUseCategory}:${p.id}`, value: p.vehicleUseCategory!, label: p.name }));
-    const scoped = f.insuranceCompanyId ? rows : distinctBy(rows);
-    if (scoped.length > 0) return scoped;
-    return VEHICLE_USE_FALLBACK.map(o => ({ key: `use:fb:${o.value}`, value: o.value, label: o.label }));
+      .filter(p => p.kind === "Use")
+      .map(p => ({
+        key: `use:${p.id}`,
+        value: p.vehicleUseCategory && p.vehicleUseCategory !== "None"
+          ? p.vehicleUseCategory
+          : p.code,
+        label: p.name,
+      }));
+    return f.insuranceCompanyId ? rows : distinctBy(rows);
   }, [carrierParams.data, tenantParams.data, f.insuranceCompanyId]);
 
   const coverageOptions = useMemo(() => {
@@ -579,8 +559,8 @@ export function ProductionListsPage() {
             label={t("productionList.type")}
             value={f.policyType} onChange={(v) => setF({ ...f, policyType: v })}
             disabled={branchOptions.length === 0}
-            helperText={branchOptions[0]?.key.startsWith("branch:fb:")
-              ? "Στάνταρ κλάδοι — προσθέστε policyType στα Παραμετρικά για carrier-specific ονόματα"
+            helperText={branchOptions.length === 0
+              ? "Δεν υπάρχουν παραμετρικά"
               : f.insuranceCompanyId ? "Από παραμετρικά εταιρίας" : "Από όλα τα παραμετρικά γραφείου"}
             emptyLabel={t("common.all")}
             options={branchOptions.map(o => ({ value: o.value, label: o.label }))}
@@ -589,8 +569,8 @@ export function ProductionListsPage() {
             label="Χρήση οχήματος"
             value={f.vehicleUseCategory} onChange={(v) => setF({ ...f, vehicleUseCategory: v })}
             disabled={useOptions.length === 0}
-            helperText={useOptions[0]?.key.startsWith("use:fb:")
-              ? "Στάνταρ χρήσεις — προσθέστε vehicleUseCategory στα Παραμετρικά για carrier-specific ονόματα"
+            helperText={useOptions.length === 0
+              ? "Δεν υπάρχουν παραμετρικά"
               : f.insuranceCompanyId ? "Από παραμετρικά εταιρίας" : "Από όλα τα παραμετρικά γραφείου"}
             emptyLabel={t("common.all")}
             options={useOptions.map(o => ({ value: o.value, label: o.label }))}
