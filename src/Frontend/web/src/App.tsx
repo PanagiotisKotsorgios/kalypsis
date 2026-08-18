@@ -943,9 +943,16 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      {!location.pathname.startsWith("/app") && !location.pathname.startsWith("/download") && <PreloginDesktopDownload />}
-      <CookieBanner />
-      <CookiePreferencesButton />
+      {/* Prelogin overlays skip authed app shells: /app/* (main app) AND
+          /ermes-app (standalone ΕΡΜΗΣ shell) — no cookie banner or
+          «Download for Windows» pill in either. /download itself hides
+          the download pill so it doesn't self-recurse. */}
+      {!location.pathname.startsWith("/app")
+        && !location.pathname.startsWith("/ermes-app")
+        && !location.pathname.startsWith("/download") && <PreloginDesktopDownload />}
+      {!location.pathname.startsWith("/app")
+        && !location.pathname.startsWith("/ermes-app") && <CookieBanner />}
+      {!location.pathname.startsWith("/ermes-app") && <CookiePreferencesButton />}
       {user?.role === "AgencyAdmin" && !impersonatedTenantId && <OnboardingWizard />}
     </>
   );
