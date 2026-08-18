@@ -685,6 +685,36 @@ public static class DataSeeder
             table: "policies", column: "Notes",
             addSql: "ALTER TABLE `policies` ADD COLUMN `Notes` longtext NULL", ct);
 
+        // --- policies: 2026-08-18 carrier-code columns for filter targeting
+        // (belt-and-braces alongside 20260818200000 + 20260818201000). Each
+        // column holds the raw «Κλάδος/Χρήση/Πακέτο/Κάλυψη» token the bridge
+        // (or the manual form) captured, so the production-list filter can
+        // hit even when the tenant hasn't wired the strict enum on their
+        // Παραμετρικά rows.
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "CarrierUseCode",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `CarrierUseCode` varchar(64) NULL, ADD INDEX `IX_policies_CarrierUseCode` (`CarrierUseCode`)", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "CarrierBranchCode",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `CarrierBranchCode` varchar(64) NULL, ADD INDEX `IX_policies_CarrierBranchCode` (`CarrierBranchCode`)", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "CarrierPackageCode",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `CarrierPackageCode` varchar(120) NULL, ADD INDEX `IX_policies_CarrierPackageCode` (`CarrierPackageCode`)", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "policies", column: "CarrierCoverageCode",
+            addSql: "ALTER TABLE `policies` ADD COLUMN `CarrierCoverageCode` varchar(255) NULL, ADD INDEX `IX_policies_CarrierCoverageCode` (`CarrierCoverageCode`)", ct);
+
+        // Automatic one-time backfill for older bridge-imported / manual
+        // policies whose Παραμετρικά codes live only inside SpecsJson. Runs
+        // once per boot but is a no-op once every row has been populated
+        // (WHERE covers only rows still NULL). Extracts SpecsJson's
+        // coverCode / packageCode / cover_code / coverage_code / package_code
+        // keys into the indexed CarrierCoverageCode / CarrierPackageCode
+        // columns. CarrierUseCode / CarrierBranchCode aren't in SpecsJson
+        // for legacy imports — they get populated by any new bridge run.
+        try { await BackfillCarrierCodesFromSpecsJsonAsync(db, logger, ct); }
+        catch (Exception ex) { logger.LogWarning(ex, "BackfillCarrierCodesFromSpecsJson skipped — continuing boot."); }
+
         // --- OverCommissionStatements: optional custom period (from/to) ---
         await EnsureColumnAsync(db, logger, dbName,
             table: "over_commission_statements", column: "PeriodFrom",
@@ -2038,6 +2068,57 @@ public static class DataSeeder
         {
             logger.LogError(ex, "Schema safety: widening {Table}.{Column} failed, continuing.", table, column);
         }
+    }
+
+    /// <summary>
+    /// Idempotent one-shot backfill for policies whose Παραμετρικά codes
+    /// live only inside SpecsJson (imported before CarrierPackageCode /
+    /// CarrierCoverageCode existed as first-class columns). Runs on every
+    /// boot but does nothing once every row is populated — the WHERE
+    /// filter targets only NULL columns. Uses MySQL's JSON functions so
+    /// the whole thing is one UPDATE per column.
+    /// </summary>
+    private static async Task BackfillCarrierCodesFromSpecsJsonAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        // Only attempt if SpecsJson holds valid JSON — malformed rows are
+        // skipped by JSON_VALID. Keys we've seen in the wild:
+        //   coverCode, cover_code, coverageCode, coverage_code  →  coverage
+        //   packageCode, package_code                           →  package
+        var coverageUpdated = await db.Database.ExecuteSqlRawAsync(@"
+            UPDATE `policies`
+               SET `CarrierCoverageCode` = COALESCE(
+                     JSON_UNQUOTE(JSON_EXTRACT(`SpecsJson`, '$.coverCode')),
+                     JSON_UNQUOTE(JSON_EXTRACT(`SpecsJson`, '$.cover_code')),
+                     JSON_UNQUOTE(JSON_EXTRACT(`SpecsJson`, '$.coverageCode')),
+                     JSON_UNQUOTE(JSON_EXTRACT(`SpecsJson`, '$.coverage_code'))
+                   )
+             WHERE `CarrierCoverageCode` IS NULL
+               AND `SpecsJson` IS NOT NULL
+               AND JSON_VALID(`SpecsJson`) = 1
+               AND COALESCE(
+                     JSON_UNQUOTE(JSON_EXTRACT(`SpecsJson`, '$.coverCode')),
+                     JSON_UNQUOTE(JSON_EXTRACT(`SpecsJson`, '$.cover_code')),
+                     JSON_UNQUOTE(JSON_EXTRACT(`SpecsJson`, '$.coverageCode')),
+                     JSON_UNQUOTE(JSON_EXTRACT(`SpecsJson`, '$.coverage_code'))
+                   ) IS NOT NULL", ct);
+
+        var packageUpdated = await db.Database.ExecuteSqlRawAsync(@"
+            UPDATE `policies`
+               SET `CarrierPackageCode` = COALESCE(
+                     JSON_UNQUOTE(JSON_EXTRACT(`SpecsJson`, '$.packageCode')),
+                     JSON_UNQUOTE(JSON_EXTRACT(`SpecsJson`, '$.package_code'))
+                   )
+             WHERE `CarrierPackageCode` IS NULL
+               AND `SpecsJson` IS NOT NULL
+               AND JSON_VALID(`SpecsJson`) = 1
+               AND COALESCE(
+                     JSON_UNQUOTE(JSON_EXTRACT(`SpecsJson`, '$.packageCode')),
+                     JSON_UNQUOTE(JSON_EXTRACT(`SpecsJson`, '$.package_code'))
+                   ) IS NOT NULL", ct);
+
+        if (coverageUpdated > 0 || packageUpdated > 0)
+            logger.LogInformation("Carrier-code backfill: filled {Coverage} coverage + {Package} package codes from SpecsJson.",
+                coverageUpdated, packageUpdated);
     }
 
     private static async Task EnsureColumnAsync(AppDbContext db, ILogger logger, string dbName, string table, string column, string addSql, CancellationToken ct)
