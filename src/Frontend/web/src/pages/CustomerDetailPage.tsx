@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -1137,6 +1138,19 @@ function DriverLicenseCard({ customerId }: { customerId: string }) {
 function CustomerProfileCard({ customerId, profile }: { customerId: string; profile: FamilyProfile["profile"] }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
+  // Reference-catalog lookups feed the two free-text-lite fields the operators
+  // actually fill in every day. Kept lazy — only fetched when the operator
+  // starts editing the profile card.
+  const occupationsQ = useQuery({
+    queryKey: ["lookup", "occupations"],
+    enabled: editing,
+    queryFn: async () => (await api.get<Array<{ id: string; name: string; category?: string | null }>>("/lookups/occupations")).data
+  });
+  const nationalitiesQ = useQuery({
+    queryKey: ["lookup", "nationalities"],
+    enabled: editing,
+    queryFn: async () => (await api.get<Array<{ id: string; iso2: string; name: string }>>("/lookups/nationalities")).data
+  });
   const [form, setForm] = useState({
     maritalStatus: "", occupation: "", employer: "", mobilePhone: "", notes: "",
     fatherName: "", motherName: "", spouseName: "",
@@ -1170,7 +1184,15 @@ function CustomerProfileCard({ customerId, profile }: { customerId: string; prof
               <MenuItem value="">—</MenuItem>
               {["Single", "Married", "Divorced", "Widowed", "Other"].map(status => <MenuItem key={status} value={status}>{status}</MenuItem>)}
             </SearchableTextField>
-            <TextField label="Επάγγελμα / κλάδος" value={form.occupation} onChange={e => setForm({ ...form, occupation: e.target.value })} fullWidth />
+            <Autocomplete
+              freeSolo fullWidth
+              options={(occupationsQ.data ?? []).map(o => o.name)}
+              value={form.occupation}
+              onChange={(_, v) => setForm({ ...form, occupation: v ?? "" })}
+              onInputChange={(_, v) => setForm({ ...form, occupation: v })}
+              renderInput={(p) => <TextField {...p} label="Επάγγελμα / κλάδος"
+                helperText="Ελεύθερο κείμενο ή επιλογή από τον κατάλογο «Επαγγέλματα» (Λίστες & Καταλόγοι)." />}
+            />
             <TextField label="Εργοδότης / επιχείρηση" value={form.employer} onChange={e => setForm({ ...form, employer: e.target.value })} fullWidth />
           </Stack>
           <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
@@ -1181,8 +1203,14 @@ function CustomerProfileCard({ customerId, profile }: { customerId: string; prof
               helperText="Ελεύθερο κείμενο. Για δομημένη σχέση χρησιμοποιήστε την ενότητα Οικογένεια." />
           </Stack>
           <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
-            <TextField label="Εθνικότητα" value={form.nationality} onChange={e => setForm({ ...form, nationality: e.target.value })} fullWidth
-              placeholder="π.χ. Ελληνική" />
+            <Autocomplete
+              freeSolo fullWidth
+              options={(nationalitiesQ.data ?? []).map(n => n.name)}
+              value={form.nationality}
+              onChange={(_, v) => setForm({ ...form, nationality: v ?? "" })}
+              onInputChange={(_, v) => setForm({ ...form, nationality: v })}
+              renderInput={(p) => <TextField {...p} label="Εθνικότητα" placeholder="π.χ. Ελληνική" />}
+            />
             <TextField label="Ζώνη" value={form.zone} onChange={e => setForm({ ...form, zone: e.target.value })} fullWidth
               helperText="Γεωγραφική ή εμπορική ζώνη για πολιτικές τιμολόγησης." />
             <TextField label="Κωδικός δραστηριότητας" value={form.activityCode} onChange={e => setForm({ ...form, activityCode: e.target.value })} fullWidth

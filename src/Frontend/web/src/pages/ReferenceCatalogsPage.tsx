@@ -16,10 +16,15 @@ interface CatalogDef {
   endpoint: string;
   fields: { key: string; label: string; required?: boolean; defaultValue?: unknown; type?: "text" | "number" | "checkbox" }[];
   columns: { key: string; label: string }[];
+  /** Which dropdowns / forms in the app currently consume this list.
+   *  Displayed to the operator so they know whether an entry will
+   *  actually surface anywhere. Empty means "not yet wired". */
+  usedIn: string[];
 }
 
 const CATALOGS: CatalogDef[] = [
   { id: "banks", label: "Τράπεζες", endpoint: "/lookups/banks",
+    usedIn: ["Πληρωμές: επιλογή τράπεζας κατά την καταχώρηση εξόδου / εντολής πληρωμής", "Είσπραξη ασφαλίστρων μέσω τραπεζικής κατάθεσης"],
     fields: [
       { key: "code", label: "Κωδικός", required: true },
       { key: "name", label: "Όνομα", required: true },
@@ -33,6 +38,7 @@ const CATALOGS: CatalogDef[] = [
       { key: "swift", label: "SWIFT" }, { key: "accountIban", label: "IBAN" }, { key: "isActive", label: "Ενεργή" }
     ] },
   { id: "tax-offices", label: "Δ.Ο.Υ.", endpoint: "/lookups/tax-offices",
+    usedIn: ["Καρτέλα πελάτη: πεδίο Δ.Ο.Υ.", "Έντυπα ΑΑΔΕ / myDATA"],
     fields: [
       { key: "code", label: "Κωδικός Δ.Ο.Υ.", required: true },
       { key: "name", label: "Όνομα", required: true },
@@ -41,6 +47,7 @@ const CATALOGS: CatalogDef[] = [
     ],
     columns: [{ key: "code", label: "Κωδ." }, { key: "name", label: "Όνομα" }, { key: "city", label: "Πόλη" }, { key: "isActive", label: "Ενεργή" }] },
   { id: "customer-categories", label: "Κατηγορίες πελατών", endpoint: "/lookups/customer-categories",
+    usedIn: ["Λίστα πελατών: φίλτρο κατηγορίας", "Στατιστικά καρτέλας πελάτη"],
     fields: [
       { key: "code", label: "Κωδικός", required: true },
       { key: "name", label: "Όνομα", required: true },
@@ -50,6 +57,7 @@ const CATALOGS: CatalogDef[] = [
     ],
     columns: [{ key: "code", label: "Κωδ." }, { key: "name", label: "Όνομα" }, { key: "colorHex", label: "Χρώμα" }, { key: "isActive", label: "Ενεργή" }] },
   { id: "producer-categories", label: "Κατηγορίες συνεργατών", endpoint: "/lookups/producer-categories",
+    usedIn: ["Καρτέλα συνεργάτη: πεδίο κατηγορίας", "Παραμετροποίηση προμηθειών ανά κατηγορία συνεργάτη"],
     fields: [
       { key: "code", label: "Κωδικός", required: true },
       { key: "name", label: "Όνομα", required: true },
@@ -58,6 +66,7 @@ const CATALOGS: CatalogDef[] = [
     ],
     columns: [{ key: "code", label: "Κωδ." }, { key: "name", label: "Όνομα" }, { key: "isActive", label: "Ενεργή" }] },
   { id: "legal-forms", label: "Νομικές μορφές", endpoint: "/lookups/legal-forms",
+    usedIn: ["Καρτέλα πελάτη (νομικό πρόσωπο): επιλογή νομικής μορφής (Α.Ε., Ε.Π.Ε., Ι.Κ.Ε., …)"],
     fields: [
       { key: "code", label: "Κωδικός", required: true },
       { key: "name", label: "Όνομα", required: true },
@@ -65,6 +74,7 @@ const CATALOGS: CatalogDef[] = [
     ],
     columns: [{ key: "code", label: "Κωδ." }, { key: "name", label: "Όνομα" }, { key: "isActive", label: "Ενεργή" }] },
   { id: "nationalities", label: "Υπηκοότητες", endpoint: "/lookups/nationalities",
+    usedIn: ["Καρτέλα πελάτη: πεδίο Εθνικότητα (autocomplete)"],
     fields: [
       { key: "iso2", label: "ISO2", required: true },
       { key: "name", label: "Όνομα", required: true },
@@ -72,6 +82,7 @@ const CATALOGS: CatalogDef[] = [
     ],
     columns: [{ key: "iso2", label: "ISO" }, { key: "name", label: "Όνομα" }, { key: "isActive", label: "Ενεργή" }] },
   { id: "cities", label: "Πόλεις", endpoint: "/lookups/cities",
+    usedIn: ["Καρτέλα πελάτη / συνεργάτη: πεδίο πόλης", "Παράρτημα διεύθυνσης σε έντυπα"],
     fields: [
       { key: "name", label: "Όνομα", required: true },
       { key: "region", label: "Νομός" },
@@ -80,6 +91,7 @@ const CATALOGS: CatalogDef[] = [
     ],
     columns: [{ key: "name", label: "Όνομα" }, { key: "region", label: "Νομός" }, { key: "postalCode", label: "ΤΚ" }] },
   { id: "occupations", label: "Επαγγέλματα", endpoint: "/lookups/occupations",
+    usedIn: ["Καρτέλα πελάτη: πεδίο Επάγγελμα / κλάδος (autocomplete)"],
     fields: [
       { key: "code", label: "Κωδικός", required: true },
       { key: "name", label: "Όνομα", required: true },
@@ -88,6 +100,7 @@ const CATALOGS: CatalogDef[] = [
     ],
     columns: [{ key: "code", label: "Κωδ." }, { key: "name", label: "Όνομα" }, { key: "category", label: "Κατηγορία" }, { key: "isActive", label: "Ενεργό" }] },
   { id: "cancellation-reasons", label: "Λόγοι ακύρωσης", endpoint: "/cancellation-reasons",
+    usedIn: ["Ακυρώσεις συμβολαίων: λόγος ακύρωσης + αυτόματο πιστωτικό / επιστροφή"],
     fields: [
       { key: "code", label: "Κωδικός", required: true },
       { key: "name", label: "Όνομα", required: true },
@@ -155,6 +168,20 @@ function CatalogTab({ def }: { def: CatalogDef }) {
           Νέα εγγραφή
         </Button>
       </Stack>
+
+      {def.usedIn.length > 0 ? (
+        <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
+          <strong>Πού χρησιμοποιείται:</strong>
+          <ul style={{ margin: "4px 0 0", paddingLeft: 20 }}>
+            {def.usedIn.map((u, i) => <li key={i}>{u}</li>)}
+          </ul>
+        </Alert>
+      ) : (
+        <Alert severity="warning" variant="outlined" sx={{ mb: 2 }}>
+          Αυτός ο κατάλογος δεν χρησιμοποιείται ακόμη σε άλλες φόρμες της εφαρμογής.
+          Οι καταχωρήσεις σας θα φυλάσσονται και θα ενεργοποιηθούν σε επόμενη έκδοση.
+        </Alert>
+      )}
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 
