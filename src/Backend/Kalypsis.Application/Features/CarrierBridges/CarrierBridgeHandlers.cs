@@ -2889,8 +2889,10 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                             EndDate = row.EndDate ?? (row.StartDate ?? DateOnly.FromDateTime(DateTime.Today)).AddYears(1),
                             Premium = Math.Abs(row.GrossPremium ?? 0m),
                             Currency = "EUR",
-                            CarrierUseCode = row.Raw.TryGetValue("Χρήση.Code", out var uCode)
-                                && !string.IsNullOrWhiteSpace(uCode) ? uCode.Trim() : null,
+                            CarrierUseCode      = row.Raw.TryGetValue("Χρήση.Code",   out var uC) && !string.IsNullOrWhiteSpace(uC) ? uC.Trim() : null,
+                            CarrierBranchCode   = row.Raw.TryGetValue("Κλάδος.Code",  out var bC) && !string.IsNullOrWhiteSpace(bC) ? bC.Trim() : null,
+                            CarrierPackageCode  = row.Raw.TryGetValue("Πακέτο.Code",  out var pC) && !string.IsNullOrWhiteSpace(pC) ? pC.Trim() : null,
+                            CarrierCoverageCode = row.Raw.TryGetValue("Καλύψεις",     out var cC) && !string.IsNullOrWhiteSpace(cC) ? cC.Trim() : null,
                             SpecsJson = System.Text.Json.JsonSerializer.Serialize(new {
                                 plate = row.PlateNumber,
                                 proposal = row.ProposalNumber,
@@ -3134,13 +3136,21 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                     _              => PolicyStatus.Active
                 };
 
-                // «Χρήση.Code» is populated by every bridge parser (ERGO
-                // pulls it from HEADER col 29, ATLANTIC from Filpolhd, etc.).
-                // Store the raw carrier token on the policy so the
-                // production-list Use filter can hit even when the tenant's
-                // Παραμετρικά rows don't carry a VehicleUseCategory enum.
-                var carrierUseCode = row.Raw.TryGetValue("Χρήση.Code", out var uc)
-                    && !string.IsNullOrWhiteSpace(uc) ? uc.Trim() : null;
+                // Every bridge parser writes the four Παραμετρικά-linked
+                // tokens into row.Raw under stable Greek keys — ERGO from
+                // HEADER cols 27/29 + DETAIL branchLabel + cover regex,
+                // ATLANTIC from Filpolhd, GRAND COVER from Objects.csv, etc.
+                // We snap them onto the policy so the production-list
+                // Κλάδος / Χρήση / Κάλυψη / Πακέτο filters can hit
+                // regardless of whether the tenant has wired the strict
+                // enums on their Παραμετρικά rows.
+                string? RawTrim(string key) =>
+                    row.Raw.TryGetValue(key, out var v)
+                    && !string.IsNullOrWhiteSpace(v) ? v.Trim() : null;
+                var carrierUseCode      = RawTrim("Χρήση.Code");
+                var carrierBranchCode   = RawTrim("Κλάδος.Code");
+                var carrierPackageCode  = RawTrim("Πακέτο.Code");
+                var carrierCoverageCode = RawTrim("Καλύψεις");
 
                 var policy = new Policy
                 {
@@ -3155,7 +3165,10 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                     EndDate = row.EndDate ?? (row.StartDate ?? DateOnly.FromDateTime(DateTime.Today)).AddYears(1),
                     Premium = Math.Abs(row.GrossPremium ?? 0m),
                     Currency = "EUR",
-                    CarrierUseCode = carrierUseCode,
+                    CarrierUseCode      = carrierUseCode,
+                    CarrierBranchCode   = carrierBranchCode,
+                    CarrierPackageCode  = carrierPackageCode,
+                    CarrierCoverageCode = carrierCoverageCode,
                     RenewedFromPolicyId = row.LinkedPolicyId,
                     SpecsJson = !string.IsNullOrEmpty(row.PlateNumber) || !string.IsNullOrEmpty(row.ProposalNumber)
                         ? System.Text.Json.JsonSerializer.Serialize(new {

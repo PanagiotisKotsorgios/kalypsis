@@ -238,6 +238,7 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
         var number = $"P-{(count + 1):D6}";
 
         var (useEnum, useRaw) = VehicleUseCategorySplit.Parse(r.VehicleUseCategory);
+        var (branchEnum, branchRaw) = PolicyTypeSplit.Parse(r.PolicyType);
         var p = new Policy
         {
             Id = Guid.NewGuid(),
@@ -246,9 +247,12 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
             CustomerId = customer.Id,
             InsuranceCompanyId = r.InsuranceCompanyId,
             ProducerId = r.ProducerId,
-            PolicyType = r.PolicyType,
+            PolicyType = branchEnum,
             VehicleUseCategory = useEnum,
-            CarrierUseCode = useRaw,
+            CarrierBranchCode   = branchRaw,
+            CarrierUseCode      = useRaw,
+            CarrierPackageCode  = string.IsNullOrWhiteSpace(r.PackageCode) ? null : r.PackageCode.Trim(),
+            CarrierCoverageCode = string.IsNullOrWhiteSpace(r.CoverCode)   ? null : r.CoverCode.Trim(),
             Status = r.Status,
             StartDate = r.StartDate,
             EndDate = r.EndDate,
@@ -363,11 +367,15 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
 
         var b = request.Body;
         var (updUseEnum, updUseRaw) = VehicleUseCategorySplit.Parse(b.VehicleUseCategory);
+        var (updBranchEnum, updBranchRaw) = PolicyTypeSplit.Parse(b.PolicyType);
         p.InsuranceCompanyId = b.InsuranceCompanyId;
         p.ProducerId = b.ProducerId;
-        p.PolicyType = b.PolicyType;
+        p.PolicyType = updBranchEnum;
+        p.CarrierBranchCode = updBranchRaw;
         p.VehicleUseCategory = updUseEnum;
         p.CarrierUseCode = updUseRaw;
+        p.CarrierPackageCode = string.IsNullOrWhiteSpace(b.PackageCode) ? null : b.PackageCode.Trim();
+        p.CarrierCoverageCode = string.IsNullOrWhiteSpace(b.CoverCode)  ? null : b.CoverCode.Trim();
         p.StartDate = b.StartDate;
         p.EndDate = b.EndDate;
         p.Premium = b.Premium;
@@ -561,6 +569,23 @@ internal static class VehicleUseCategorySplit
         if (Enum.TryParse<VehicleUseCategory>(s, ignoreCase: true, out var vc))
             return (vc, null);
         return (null, s);
+    }
+}
+
+/// <summary>
+/// Same shape for «Κλάδος». PolicyType is required on the entity, so an
+/// unmappable Παραμετρικά code (LANCA «ΑΥΤΟ», etc.) falls back to
+/// PolicyType.Other and the raw token lives on Policy.CarrierBranchCode.
+/// </summary>
+internal static class PolicyTypeSplit
+{
+    public static (PolicyType Enum, string? Raw) Parse(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return (PolicyType.Other, null);
+        var s = raw.Trim();
+        if (Enum.TryParse<PolicyType>(s, ignoreCase: true, out var pt))
+            return (pt, null);
+        return (PolicyType.Other, s);
     }
 }
 

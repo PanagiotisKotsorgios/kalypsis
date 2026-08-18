@@ -31,15 +31,17 @@ public record CreatePolicyBody(
     Guid CustomerId,
     Guid InsuranceCompanyId,
     Guid? ProducerId,
-    PolicyType PolicyType,
+    // Accepts the strict PolicyType enum name ("Auto", "Home", …) OR a
+    // Παραμετρικά code the office invented (e.g. LANCA's «ΑΥΤΟ»). Handler
+    // parses: enum-match → Policy.PolicyType; non-match → PolicyType.Other
+    // + Policy.CarrierBranchCode.
+    string PolicyType,
     DateOnly StartDate,
     DateOnly EndDate,
     decimal Premium,
     string Currency = "EUR",
     PolicyStatus Status = PolicyStatus.Active,
-    // Accepts either the strict VehicleUseCategory enum name ("EIX", "FIX", …)
-    // or a free-form Παραμετρικά code (e.g. «Ε.Ι.Χ.ΜΟΤ»). Handler parses:
-    // enum-match → Policy.VehicleUseCategory; non-match → Policy.CarrierUseCode.
+    // Same split contract for VehicleUseCategory (enum vs Παραμετρικά code).
     string? VehicleUseCategory = null,
     string? CoverCode = null,
     string? PackageCode = null,
@@ -53,15 +55,12 @@ public record CreatePolicyBody(
 public record UpdatePolicyBody(
     Guid InsuranceCompanyId,
     Guid? ProducerId,
-    PolicyType PolicyType,
+    string PolicyType,
     DateOnly StartDate,
     DateOnly EndDate,
     decimal Premium,
     string Currency,
     PolicyStatus Status,
-    // Accepts either the strict VehicleUseCategory enum name ("EIX", "FIX", …)
-    // or a free-form Παραμετρικά code (e.g. «Ε.Ι.Χ.ΜΟΤ»). Handler parses:
-    // enum-match → Policy.VehicleUseCategory; non-match → Policy.CarrierUseCode.
     string? VehicleUseCategory = null,
     string? CoverCode = null,
     string? PackageCode = null,

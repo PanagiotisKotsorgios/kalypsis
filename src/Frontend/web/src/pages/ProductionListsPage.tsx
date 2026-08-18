@@ -504,6 +504,9 @@ export function ProductionListsPage() {
         Οι λίστες παραγωγής είναι αναφορά και εξαγωγή του χαρτοφυλακίου. Από το «Εκκαθαρίσεις προμηθειών» δημιουργείτε, ελέγχετε και οριστικοποιείτε τις μηνιαίες εκκαθαρίσεις συνεργατών.
       </Alert>
 
+      <BackfillCarrierCodesRow />
+
+
       <Card sx={{ px: 1.75, py: 1.25, mb: 3 }}>
         <Stack direction="row" alignItems="center" spacing={1} mb={1}>
           <FilterAltIcon color="primary" fontSize="small" />
@@ -849,5 +852,58 @@ function Kpi({ label, value, color }: { label: string; value: React.ReactNode; c
       <Typography variant="caption" color="text.secondary">{label}</Typography>
       <Typography variant="h6" fontWeight={800} sx={{ color: color ?? "text.primary" }}>{value}</Typography>
     </Box>
+  );
+}
+
+/**
+ * One-off maintenance action for offices that had bridge-imported policies
+ * before the CarrierPackageCode / CarrierCoverageCode columns existed.
+ * Reads codes out of SpecsJson and populates the new columns, then reports
+ * how many rows still can't be filtered (bridge re-import needed for those).
+ */
+interface BackfillResult {
+  policiesScanned: number;
+  packageCodeSet: number;
+  coverageCodeSet: number;
+  remainingWithoutUseCode: number;
+  remainingWithoutBranchCode: number;
+  note: string;
+}
+function BackfillCarrierCodesRow() {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<BackfillResult | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const run = async () => {
+    setBusy(true); setErr(null); setResult(null);
+    try {
+      const r = await api.post<BackfillResult>("/production-lists/backfill-carrier-codes");
+      setResult(r.data);
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Σφάλμα κατά τη συμπλήρωση");
+    } finally { setBusy(false); }
+  };
+  return (
+    <Alert severity="warning" sx={{ mb: 3 }}
+      action={
+        <Button size="small" variant="outlined" color="warning"
+          disabled={busy} onClick={run}>
+          {busy ? "Εκτέλεση…" : "Συμπλήρωση carrier codes"}
+        </Button>
+      }>
+      <strong>Παλαιότερα συμβόλαια:</strong> Αν εισήγατε αρχεία γεφυρών πριν την προσθήκη
+      των στηλών «Χρήση/Κλάδος/Πακέτο/Κάλυψη carrier code», τα φίλτρα δεν θα κόβουν
+      σωστά για αυτά. Πατήστε το κουμπί μια φορά για να συμπληρωθούν από το SpecsJson.
+      Για Χρήση/Κλάδος που δεν αποθηκεύτηκαν, χρειάζεται επανεισαγωγή του xlsx.
+      {result && (
+        <Box sx={{ mt: 1, fontSize: 13 }}>
+          Ενημερώθηκαν <strong>{result.packageCodeSet}</strong> πακέτα και{" "}
+          <strong>{result.coverageCodeSet}</strong> καλύψεις σε{" "}
+          {result.policiesScanned} συμβόλαια. Χωρίς Χρήση: <strong>{result.remainingWithoutUseCode}</strong>,{" "}
+          χωρίς Κλάδο: <strong>{result.remainingWithoutBranchCode}</strong>.
+          <br />{result.note}
+        </Box>
+      )}
+      {err && <Box sx={{ mt: 1, color: "error.main", fontSize: 13 }}>{err}</Box>}
+    </Alert>
   );
 }

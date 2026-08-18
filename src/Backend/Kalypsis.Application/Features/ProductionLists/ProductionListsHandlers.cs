@@ -27,7 +27,12 @@ public record ProductionFilters(
     VehicleUseCategory? VehicleUseCategory, string? CoverCode,
     string? GroupBy,
     string? PackageCode = null,
-    string? UseCodeRaw = null)   // "carrier" | "producer" | "type" | "month" | null
+    string? UseCodeRaw = null,
+    // When the incoming Κλάδος value doesn't parse as the PolicyType enum,
+    // BranchCodeRaw holds the raw carrier token that the handler queries
+    // against Policy.CarrierBranchCode. Πακέτο / Κάλυψη use the always-
+    // string PackageCode / CoverCode fields — no separate raw variant.
+    string? BranchCodeRaw = null)   // "carrier" | "producer" | "type" | "month" | null
 {
     // Frontend Παραμετρικά dropdowns send either the strict enum value
     // (when the operator wired policyType / vehicleUseCategory on the
@@ -53,6 +58,13 @@ public record ProductionFilters(
     public static string? RawUseFallback(string? raw) =>
         !string.IsNullOrWhiteSpace(raw)
         && !Enum.TryParse<VehicleUseCategory>(raw, ignoreCase: true, out _)
+            ? raw.Trim() : null;
+
+    /// <summary>Non-null when the incoming Κλάδος string didn't parse as
+    /// PolicyType — filters by Policy.CarrierBranchCode instead.</summary>
+    public static string? RawBranchFallback(string? raw) =>
+        !string.IsNullOrWhiteSpace(raw)
+        && !Enum.TryParse<PolicyType>(raw, ignoreCase: true, out _)
             ? raw.Trim() : null;
 }
 
@@ -150,6 +162,10 @@ public static class ProductionListBuilder
         }
         if (f.ProducerId.HasValue)         query = query.Where(p => p.ProducerId == f.ProducerId);
         if (f.PolicyType.HasValue)         query = query.Where(p => p.PolicyType == f.PolicyType);
+        else if (!string.IsNullOrWhiteSpace(f.BranchCodeRaw))
+            // Παραμετρικά without a wired PolicyType enum — filter by
+            // the carrier's own Κλάδος token (e.g. LANCA «ΑΥΤΟ»).
+            query = query.Where(p => p.CarrierBranchCode == f.BranchCodeRaw);
         if (f.Status.HasValue)             query = query.Where(p => p.Status == f.Status);
         if (f.VehicleUseCategory.HasValue) query = query.Where(p => p.VehicleUseCategory == f.VehicleUseCategory);
         else if (!string.IsNullOrWhiteSpace(f.UseCodeRaw))
@@ -160,10 +176,22 @@ public static class ProductionListBuilder
         var policies = await query.OrderByDescending(p => p.StartDate).Take(5000).ToListAsync(ct);
         var requestedCover = CleanCode(f.CoverCode);
         if (requestedCover is not null)
-            policies = policies.Where(p => string.Equals(ExtractCoverCode(p.SpecsJson), requestedCover, StringComparison.OrdinalIgnoreCase)).ToList();
+            // Match either SpecsJson (legacy — manual policies from before
+            // CarrierCoverageCode existed) or CarrierCoverageCode, which
+            // bridge imports write as a comma-separated list of raw codes.
+            policies = policies.Where(p =>
+                string.Equals(ExtractCoverCode(p.SpecsJson), requestedCover, StringComparison.OrdinalIgnoreCase)
+                || (p.CarrierCoverageCode is not null
+                    && p.CarrierCoverageCode.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .Any(c => string.Equals(c, requestedCover, StringComparison.OrdinalIgnoreCase)))).ToList();
         var requestedPackage = CleanCode(f.PackageCode);
         if (requestedPackage is not null)
-            policies = policies.Where(p => string.Equals(ExtractPackageCode(p.SpecsJson), requestedPackage, StringComparison.OrdinalIgnoreCase)).ToList();
+            // Match either SpecsJson (manual policies from before the column
+            // existed) or the indexed CarrierPackageCode column that the
+            // bridge populates on import.
+            policies = policies.Where(p =>
+                string.Equals(ExtractPackageCode(p.SpecsJson), requestedPackage, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(p.CarrierPackageCode, requestedPackage, StringComparison.OrdinalIgnoreCase)).ToList();
 
         // Pull active commission rules so partner commission % can be read from
         // parameterization (NOT the bridge). Most-specific rule wins.

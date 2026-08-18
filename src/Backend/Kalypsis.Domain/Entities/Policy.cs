@@ -54,6 +54,19 @@ public class Policy : TenantEntity
     /// forcing every carrier's coding scheme through Kalypsis' enum shortlist.
     /// </summary>
     public string? CarrierUseCode { get; set; }
+    /// <summary>Raw «Κλάδος» code from the carrier's Παραμετρικά (e.g. «ΑΥΤΟ»
+    /// on LANCA). Sits alongside <see cref="PolicyType"/> — used by filters
+    /// when the parametric branch row hasn't been mapped to the strict
+    /// PolicyType enum.</summary>
+    public string? CarrierBranchCode { get; set; }
+    /// <summary>Raw «Πακέτο» code from the carrier's Παραμετρικά. Filterable
+    /// column so the production-list Πακέτο dropdown can hit without
+    /// spelunking through SpecsJson.</summary>
+    public string? CarrierPackageCode { get; set; }
+    /// <summary>Raw «Κάλυψη» code (or comma-separated list of codes) from the
+    /// carrier's Παραμετρικά. Filterable column so the production-list
+    /// Κάλυψη dropdown can hit without SpecsJson extraction.</summary>
+    public string? CarrierCoverageCode { get; set; }
     public PolicyStatus Status { get; set; } = PolicyStatus.Draft;
 
     public DateOnly StartDate { get; set; }
