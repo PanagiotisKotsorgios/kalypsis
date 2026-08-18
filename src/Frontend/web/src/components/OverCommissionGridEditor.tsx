@@ -447,6 +447,31 @@ export function OverCommissionGridEditor({
   const [importPreview, setImportPreview] = useState<ExcelImportPreview | null>(null);
   const [importCarrierId, setImportCarrierId] = useState<string>(defaultCarrierId);
   const [importLayout, setImportLayout] = useState<ImportLayout>(initialLayout ?? "auto");
+
+  // Which (year, month) does this import target? For ERGO the parser
+  // detects it from the sheet name; otherwise fall back to the grid's
+  // active period. Used to look up existing statements so the preview
+  // can flag rows that have already been imported.
+  const importYear  = (importPreview as { detectedYear?: number } | null)?.detectedYear  ?? defaultYear;
+  const importMonth = (importPreview as { detectedMonth?: number } | null)?.detectedMonth ?? defaultMonth;
+
+  // Fetch existing over-commission statements for the target (carrier,
+  // year, month) so we can mark preview rows «ΕΧΕΙ ΕΙΣΑΧΘΕΙ» when the
+  // office has already booked that producer's πινάκιο for the same
+  // period. Idempotency is fine on the server (upsert by natural key),
+  // but the operator still wants a visible warning before hitting
+  // «Εισαγωγή» so they don't accidentally re-import.
+  const existingStatementsQ = useQuery({
+    enabled: !!importPreview && !!importCarrierId,
+    queryKey: ["over-commission-statements", "for-import-preview", importCarrierId, importYear, importMonth],
+    queryFn: async () => (await api.get<Array<{ producerId: string }>>("/over-commission-statements", {
+      params: { insuranceCompanyId: importCarrierId, year: importYear, month: importMonth }
+    })).data,
+  });
+  const alreadyImportedProducerIds = useMemo(
+    () => new Set((existingStatementsQ.data ?? []).map(s => s.producerId)),
+    [existingStatementsQ.data]
+  );
   const premium = usePremium();
   const canErgo = premium.has("ergo-overcommission-bridge");
   // Tenant-saved producer-code mappings for ERGO. Fed into the parser so
@@ -1142,8 +1167,23 @@ export function OverCommissionGridEditor({
               {carriers.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
             </TextField>
             <Box sx={{ flex: 1 }} />
-            <Chip color="success" label={`${importPreview?.parsed.filter(p => !p.problem).length ?? 0} έτοιμες`} />
-            <Chip color="warning" label={`${importPreview?.parsed.filter(p => p.problem).length ?? 0} με πρόβλημα`} />
+            {(() => {
+              const alreadyCount = (importPreview?.parsed ?? []).filter(p =>
+                p.matchedProducer && alreadyImportedProducerIds.has(p.matchedProducer.id)).length;
+              const readyCount = (importPreview?.parsed ?? []).filter(p =>
+                !p.problem && p.matchedProducer && !alreadyImportedProducerIds.has(p.matchedProducer.id)).length;
+              const problemCount = (importPreview?.parsed ?? []).filter(p => p.problem).length;
+              return (
+                <>
+                  <Chip color="success" label={`${readyCount} έτοιμες`} />
+                  {alreadyCount > 0 && (
+                    <Chip color="info" variant="outlined" label={`${alreadyCount} ήδη εισαγμένες`}
+                      title="Οι γραμμές αυτές υπάρχουν ήδη για την ίδια (εταιρία × παραγωγός × μήνας) — εξαιρούνται από τη νέα εισαγωγή." />
+                  )}
+                  <Chip color="warning" label={`${problemCount} με πρόβλημα`} />
+                </>
+              );
+            })()}
             {importLayout === "ergo" && (importPreview?.parsed ?? []).some(p => !p.matchedProducer) && (
               <Button size="small" variant="outlined" color="warning"
                 onClick={async () => {
@@ -1175,13 +1215,26 @@ export function OverCommissionGridEditor({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {(importPreview?.parsed ?? []).map((p, i) => (
-                  <TableRow key={i} sx={{ bgcolor: p.problem ? "rgba(255,167,38,0.08)" : undefined }}>
+                {(importPreview?.parsed ?? []).map((p, i) => {
+                  const alreadyImported = !!p.matchedProducer && alreadyImportedProducerIds.has(p.matchedProducer.id);
+                  return (
+                  <TableRow key={i} sx={{
+                    bgcolor: alreadyImported ? "rgba(30,167,225,0.10)"
+                            : p.problem ? "rgba(255,167,38,0.08)" : undefined,
+                    opacity: alreadyImported ? 0.75 : 1,
+                  }}>
                     <TableCell>{p.producerName ?? "—"}</TableCell>
                     <TableCell sx={{ fontFamily: "monospace" }}>{p.producerCode ?? "—"}</TableCell>
                     <TableCell sx={{ minWidth: 320 }}>
                       {p.matchedProducer ? (
-                        <Chip size="small" color="success" label={p.matchedProducer.name} />
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Chip size="small" color="success" label={p.matchedProducer.name} />
+                          {alreadyImported && (
+                            <Chip size="small" color="info" variant="outlined"
+                              label="ΕΧΕΙ ΕΙΣΑΧΘΕΙ"
+                              title={`Υπάρχει ήδη πινάκιο για ${p.matchedProducer.name} τον ${String(importMonth).padStart(2,"0")}/${importYear}.`} />
+                          )}
+                        </Stack>
                       ) : (
                         <Stack direction="row" spacing={1} alignItems="center">
                           <Autocomplete
@@ -1208,9 +1261,12 @@ export function OverCommissionGridEditor({
                     <TableCell align="right" sx={{ fontFamily: "monospace" }}>{p.netAmount || "—"}</TableCell>
                     <TableCell align="right" sx={{ fontFamily: "monospace" }}>{p.producerSharePercent || "—"}</TableCell>
                     <TableCell>{p.reference || "—"}</TableCell>
-                    <TableCell sx={{ color: "warning.dark", fontSize: 12 }}>{p.problem ?? ""}</TableCell>
+                    <TableCell sx={{ color: "warning.dark", fontSize: 12 }}>
+                      {alreadyImported ? "Θα παραληφθεί (υπάρχει ήδη)." : (p.problem ?? "")}
+                    </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
                 {(importPreview?.parsed?.length ?? 0) === 0 && (
                   <TableRow>
                     <TableCell colSpan={8} sx={{ py: 4, textAlign: "center", color: "text.secondary" }}>
@@ -1237,7 +1293,8 @@ export function OverCommissionGridEditor({
               const targetYear  = ergoYear  ?? defaultYear;
               const targetMonth = ergoMonth ?? defaultMonth;
               const ready: GridRow[] = importPreview.parsed
-                .filter(p => !p.problem && p.matchedProducer)
+                .filter(p => !p.problem && p.matchedProducer
+                          && !alreadyImportedProducerIds.has(p.matchedProducer.id))
                 .map(p => ({
                   key: uid(),
                   insuranceCompanyId: importCarrierId,
@@ -1260,7 +1317,9 @@ export function OverCommissionGridEditor({
               });
               setImportPreview(null);
             }}>
-            Προσθήκη στον πίνακα ({importPreview?.parsed.filter(p => !p.problem).length ?? 0} γραμμές)
+            Προσθήκη στον πίνακα ({(importPreview?.parsed ?? []).filter(p =>
+              !p.problem && p.matchedProducer
+              && !alreadyImportedProducerIds.has(p.matchedProducer.id)).length} γραμμές)
           </Button>
         </DialogActions>
       </Dialog>
