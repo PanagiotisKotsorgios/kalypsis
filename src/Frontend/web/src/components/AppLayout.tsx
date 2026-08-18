@@ -271,6 +271,18 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
               return true;
             }
             return true;
+          }).filter((item, idx, arr) => {
+            // Some nav entries (e.g. «Όλα τα Εργαλεία») are defined once
+            // per workspace package so the workspace filter shows exactly
+            // one copy. When the operator is on the Hub (no workspace
+            // selected — happens on fresh load and on any new tab opened
+            // via right-click), the workspace filter no-ops and the
+            // duplicates all leak through. Dedupe by `(to, group)` so at
+            // most one copy of any given route lands in the sidebar. Kept
+            // as a post-filter step so it doesn't affect workspace-mode
+            // behaviour.
+            const key = `${item.to} ${item.group ?? ""}`;
+            return arr.findIndex(o => `${o.to} ${o.group ?? ""}` === key) === idx;
           });
 
           // Split: the Dashboard ("/") link is pinned at the very top,

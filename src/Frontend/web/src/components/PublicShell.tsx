@@ -2,7 +2,6 @@ import { Box, type SxProps, type Theme } from "@mui/material";
 import type { ReactNode } from "react";
 import { PublicNav } from "./PublicNav";
 import { PublicFooter } from "./PublicFooter";
-import { FloatingDownloadButton } from "./FloatingDownloadButton";
 
 interface PublicShellProps {
   overlayHero?: boolean;
@@ -33,7 +32,6 @@ export function PublicShell({ overlayHero, children, mainSx, hideFooter }: Publi
         {children}
       </Box>
       {!hideFooter && <PublicFooter />}
-      <FloatingDownloadButton />
     </Box>
   );
 }

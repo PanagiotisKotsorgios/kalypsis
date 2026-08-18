@@ -15,20 +15,35 @@ const Ctx = createContext<WorkspaceCtx | null>(null);
 /**
  * Phase 8 — workspace switcher state. After login the user lands on a 5-card
  * hub; entering a card sets the workspace state and filters the sidebar +
- * top-bar chips. The state survives a hard refresh via sessionStorage.
+ * top-bar chips.
+ *
+ * The active workspace is persisted to BOTH sessionStorage (per-tab identity,
+ * so different tabs can hold different workspaces once the user diverges) AND
+ * localStorage (per-browser last-known, so a NEW tab opened via
+ * right-click → «Open link in new tab» inherits the current workspace filter
+ * instead of dumping the full unfiltered sidebar with items the tenant
+ * doesn't own). Session wins over local; local is the fallback for fresh
+ * tabs where session is empty.
  */
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  // Phase 15.1 — restored hub flow: user lands on hub (workspace = null) and
-  // picks BackOffice or CRM Client Portal. State survives reload via sessionStorage.
   const [workspace, setW] = useState<PackageCode | null>(() => {
     if (typeof window === "undefined") return null;
-    const v = sessionStorage.getItem(STORAGE_KEY);
-    return (v as PackageCode | null) ?? null;
+    const sess = sessionStorage.getItem(STORAGE_KEY);
+    if (sess) return sess as PackageCode;
+    const local = localStorage.getItem(STORAGE_KEY);
+    return (local as PackageCode | null) ?? null;
   });
 
   useEffect(() => {
-    if (workspace) sessionStorage.setItem(STORAGE_KEY, workspace);
-    else sessionStorage.removeItem(STORAGE_KEY);
+    if (workspace) {
+      sessionStorage.setItem(STORAGE_KEY, workspace);
+      localStorage.setItem(STORAGE_KEY, workspace);
+    } else {
+      sessionStorage.removeItem(STORAGE_KEY);
+      // Intentionally leave localStorage untouched — an exitToHub in one
+      // tab shouldn't force every other open tab to snap back to Hub on
+      // their next render.
+    }
   }, [workspace]);
 
   const enter = useCallback((w: PackageCode) => setW(w), []);

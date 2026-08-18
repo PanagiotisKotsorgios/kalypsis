@@ -26,7 +26,6 @@ import { AccessibilityWidget } from "../components/AccessibilityWidget";
 import { PageEnter } from "../components/PageEnter";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { DesktopDownloadButton } from "../components/DesktopDownloadButton";
-import { FloatingDownloadButton } from "../components/FloatingDownloadButton";
 import { api } from "../api/client";
 
 // Restrained brand palette — navy for type, single accent blue, soft borders.
@@ -570,7 +569,6 @@ export function LandingPage() {
       </Container>
       <PublicFooter />
       <AccessibilityWidget />
-      <FloatingDownloadButton />
     </Box>
   );
 }
@@ -1339,30 +1337,96 @@ function ErmesShowcaseSection() {
   </g>
 </svg>`)}`;
 
-  const meetingSvg = `data:image/svg+xml;utf8,${encodeURIComponent(`
+  // Second «στιγμιότυπο» — reproduces the real ΕΡΜΗΣ welcome screen
+  // (Καλωσόρισες / KPIs / Γρήγορες ενέργειες / Αγαπημένες επαφές) so the
+  // pre-login pitch matches what the operator actually sees after login.
+  const welcomeSvg = `data:image/svg+xml;utf8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300">
-  <rect width="480" height="300" fill="#0b1a2f"/>
-  <g transform="translate(20,30)">
-    <rect width="200" height="160" fill="#1f4573" rx="10"/>
-    <circle cx="100" cy="70" r="28" fill="#a6b5c6"/>
-    <rect x="45" y="120" width="110" height="22" fill="#0b2545" rx="4"/>
-    <text x="100" y="135" fill="#e6eef7" text-anchor="middle" font-family="Segoe UI" font-size="11" font-weight="700">Παναγιώτης Κ.</text>
+  <rect width="480" height="300" fill="#f6f9fc"/>
+  <!-- top header -->
+  <rect x="0" y="0" width="480" height="26" fill="#ffffff" stroke="#e5e9ef"/>
+  <text x="12" y="17" fill="#0b2545" font-family="Segoe UI" font-size="11" font-weight="800">ΕΡΜΗΣ — Επικοινωνία</text>
+  <rect x="170" y="6" width="150" height="14" fill="#ff8c42" rx="7"/>
+  <text x="245" y="16" fill="#fff" font-family="Segoe UI" font-size="8" font-weight="700" text-anchor="middle">BETA · Δωρεάν εφ'όρου ζωής</text>
+  <!-- left sidebar -->
+  <rect x="0" y="26" width="90" height="274" fill="#eef2f7"/>
+  <rect x="4" y="34" width="82" height="16" fill="#0b2545" rx="4"/>
+  <text x="10" y="45" fill="#fff" font-family="Segoe UI" font-size="9" font-weight="700">Εισερχόμενα</text>
+  <text x="10" y="60" fill="#3d4f6b" font-family="Segoe UI" font-size="9">☆ Με αστέρι</text>
+  <text x="10" y="74" fill="#3d4f6b" font-family="Segoe UI" font-size="9">→ Απεσταλμένα</text>
+  <text x="10" y="88" fill="#3d4f6b" font-family="Segoe UI" font-size="9">📄 Πρόχειρα</text>
+  <text x="10" y="102" fill="#3d4f6b" font-family="Segoe UI" font-size="9">📥 Αρχειοθέτ.</text>
+  <text x="10" y="116" fill="#3d4f6b" font-family="Segoe UI" font-size="9">⊘ Ανεπιθύμητα</text>
+  <text x="10" y="130" fill="#3d4f6b" font-family="Segoe UI" font-size="9">🗑 Κάδος</text>
+  <text x="6" y="148" fill="#0b2545" font-family="Segoe UI" font-size="8" font-weight="700">ΚΑΝΑΛΙΑ · ΟΜΑΔΕΣ</text>
+  <text x="6" y="172" fill="#0b2545" font-family="Segoe UI" font-size="8" font-weight="700">ΚΑΤΗΓΟΡΙΕΣ</text>
+  <rect x="6" y="178" width="24" height="12" fill="#0b2545" rx="6"/>
+  <text x="18" y="187" fill="#fff" font-family="Segoe UI" font-size="7" text-anchor="middle" font-weight="700">Όλες</text>
+  <rect x="32" y="178" width="26" height="12" fill="#e5e9ef" rx="6"/>
+  <text x="45" y="187" fill="#0b2545" font-family="Segoe UI" font-size="7" text-anchor="middle">Γενικά</text>
+  <rect x="6" y="192" width="30" height="12" fill="#e5e9ef" rx="6"/>
+  <text x="21" y="201" fill="#0b2545" font-family="Segoe UI" font-size="7" text-anchor="middle">Παραγωγή</text>
+  <rect x="38" y="192" width="32" height="12" fill="#e5e9ef" rx="6"/>
+  <text x="54" y="201" fill="#0b2545" font-family="Segoe UI" font-size="7" text-anchor="middle">Προμήθειες</text>
+  <text x="6" y="222" fill="#0b2545" font-family="Segoe UI" font-size="8" font-weight="700">ΡΥΘΜΙΣΕΙΣ</text>
+  <text x="10" y="238" fill="#3d4f6b" font-family="Segoe UI" font-size="9">👥 Επαφές · 6</text>
+  <text x="10" y="252" fill="#3d4f6b" font-family="Segoe UI" font-size="9">⚙ Αυτοματισμοί</text>
+  <text x="10" y="266" fill="#3d4f6b" font-family="Segoe UI" font-size="9">✍ Υπογραφή</text>
+  <text x="10" y="280" fill="#3d4f6b" font-family="Segoe UI" font-size="9">⌨ Συντομεύσεις</text>
+  <!-- middle list column -->
+  <rect x="90" y="26" width="120" height="274" fill="#fbfcfd" stroke="#e5e9ef"/>
+  <rect x="98" y="38" width="104" height="16" fill="#fff" stroke="#e5e9ef" rx="4"/>
+  <text x="104" y="49" fill="#8a9bad" font-family="Segoe UI" font-size="8">🔍 Αναζήτηση...</text>
+  <text x="98" y="72" fill="#3d4f6b" font-family="Segoe UI" font-size="9">☐ 0 μηνύματα</text>
+  <rect x="146" y="66" width="60" height="12" fill="#eef2f7" stroke="#d5dee9" rx="6"/>
+  <text x="176" y="75" fill="#0b2545" font-family="Segoe UI" font-size="7" text-anchor="middle">Μη αναγν.</text>
+  <text x="150" y="160" fill="#8a9bad" font-family="Segoe UI" font-size="9" text-anchor="middle">Καμία εγγραφή</text>
+  <!-- right welcome card -->
+  <rect x="220" y="34" width="252" height="122" fill="#fff" stroke="#e5e9ef" rx="6"/>
+  <circle cx="240" cy="60" r="12" fill="#0b2545"/>
+  <text x="240" y="64" fill="#fff" font-family="Segoe UI" font-size="10" text-anchor="middle" font-weight="700">✉</text>
+  <text x="258" y="56" fill="#0b2545" font-family="Segoe UI" font-size="12" font-weight="800">Καλωσόρισες στο σύστημα ΕΡΜΗΣ</text>
+  <text x="258" y="70" fill="#3d4f6b" font-family="Segoe UI" font-size="8">Επιλέξτε μήνυμα ή ξεκινήστε νέο.</text>
+  <!-- 4 KPI cards -->
+  <g transform="translate(232,80)">
+    <rect width="56" height="36" fill="#fbfcfd" stroke="#e5e9ef" rx="4"/>
+    <text x="6" y="12" fill="#3d4f6b" font-family="Segoe UI" font-size="7">Εισερχόμενα</text>
+    <text x="6" y="28" fill="#0b2545" font-family="Segoe UI" font-size="16" font-weight="900">0</text>
   </g>
-  <g transform="translate(240,30)">
-    <rect width="200" height="160" fill="#2d4a7a" rx="10"/>
-    <circle cx="100" cy="70" r="28" fill="#a6b5c6"/>
-    <rect x="45" y="120" width="110" height="22" fill="#0b2545" rx="4"/>
-    <text x="100" y="135" fill="#e6eef7" text-anchor="middle" font-family="Segoe UI" font-size="11" font-weight="700">Ελένη Δ.</text>
+  <g transform="translate(292,80)">
+    <rect width="56" height="36" fill="#fbfcfd" stroke="#e5e9ef" rx="4"/>
+    <text x="6" y="12" fill="#3d4f6b" font-family="Segoe UI" font-size="7">Απεσταλμένα</text>
+    <text x="6" y="28" fill="#0b2545" font-family="Segoe UI" font-size="16" font-weight="900">0</text>
   </g>
-  <g transform="translate(140,210)">
-    <rect width="200" height="60" fill="#152640" rx="30"/>
-    <circle cx="40" cy="30" r="16" fill="#2ea44f"/>
-    <circle cx="100" cy="30" r="16" fill="#ff8c42"/>
-    <circle cx="160" cy="30" r="16" fill="#e34c4c"/>
-    <text x="40" y="34" fill="#fff" text-anchor="middle" font-size="12" font-weight="700">🎙</text>
-    <text x="100" y="34" fill="#fff" text-anchor="middle" font-size="12" font-weight="700">📷</text>
-    <text x="160" y="34" fill="#fff" text-anchor="middle" font-size="12" font-weight="700">✕</text>
+  <g transform="translate(352,80)">
+    <rect width="56" height="36" fill="#fbfcfd" stroke="#e5e9ef" rx="4"/>
+    <text x="6" y="12" fill="#3d4f6b" font-family="Segoe UI" font-size="7">Πρόχειρα</text>
+    <text x="6" y="28" fill="#0b2545" font-family="Segoe UI" font-size="16" font-weight="900">0</text>
   </g>
+  <g transform="translate(412,80)">
+    <rect width="56" height="36" fill="#fbfcfd" stroke="#e5e9ef" rx="4"/>
+    <text x="6" y="12" fill="#3d4f6b" font-family="Segoe UI" font-size="7">Με αστέρι</text>
+    <text x="6" y="28" fill="#0b2545" font-family="Segoe UI" font-size="16" font-weight="900">0</text>
+  </g>
+  <!-- quick actions row -->
+  <text x="232" y="132" fill="#3d4f6b" font-family="Segoe UI" font-size="7" font-weight="700">ΓΡΗΓΟΡΕΣ ΕΝΕΡΓΕΙΕΣ</text>
+  <rect x="232" y="138" width="60" height="16" fill="#0b2545" rx="3"/>
+  <text x="262" y="149" fill="#fff" font-family="Segoe UI" font-size="8" text-anchor="middle" font-weight="700">✎ Νέο μήνυμα</text>
+  <rect x="296" y="138" width="66" height="16" fill="#fff" stroke="#0b2545" rx="3"/>
+  <text x="329" y="149" fill="#0b2545" font-family="Segoe UI" font-size="8" text-anchor="middle" font-weight="700">👥 Επαφές</text>
+  <rect x="366" y="138" width="46" height="16" fill="#fff" stroke="#0b2545" rx="3"/>
+  <text x="389" y="149" fill="#0b2545" font-family="Segoe UI" font-size="8" text-anchor="middle" font-weight="700">Ομάδες</text>
+  <rect x="416" y="138" width="56" height="16" fill="#fff" stroke="#0b2545" rx="3"/>
+  <text x="444" y="149" fill="#0b2545" font-family="Segoe UI" font-size="8" text-anchor="middle" font-weight="700">Αυτοματ.</text>
+  <!-- favourites card -->
+  <rect x="220" y="166" width="252" height="122" fill="#fff" stroke="#e5e9ef" rx="6"/>
+  <text x="232" y="185" fill="#ff8c42" font-family="Segoe UI" font-size="9" font-weight="700">★ ΑΓΑΠΗΜΕΝΕΣ ΕΠΑΦΕΣ</text>
+  <text x="446" y="185" fill="#1f7bb3" font-family="Segoe UI" font-size="9" text-anchor="end">Όλες</text>
+  <text x="232" y="210" fill="#3d4f6b" font-family="Segoe UI" font-size="9">Ανοίξτε τις «Επαφές» και προσθέστε</text>
+  <text x="232" y="224" fill="#3d4f6b" font-family="Segoe UI" font-size="9">αστέρι στους ανθρώπους που</text>
+  <text x="232" y="238" fill="#3d4f6b" font-family="Segoe UI" font-size="9">επικοινωνείτε συχνά.</text>
+  <rect x="232" y="256" width="80" height="18" fill="#1f7bb3" rx="4"/>
+  <text x="272" y="268" fill="#fff" font-family="Segoe UI" font-size="9" text-anchor="middle" font-weight="700">📹 Έναρξη συνάντησης</text>
 </svg>`)}`;
 
   return (
@@ -1429,11 +1493,11 @@ function ErmesShowcaseSection() {
               boxShadow: "0 20px 40px -20px rgba(11,37,69,0.25)",
               bgcolor: "#fff",
             }}>
-              <Box component="img" src={meetingSvg} alt="Στιγμιότυπο meeting ΕΡΜΗΣ"
-                sx={{ width: "100%", display: "block", bgcolor: "#0b1a2f" }} />
+              <Box component="img" src={welcomeSvg} alt="Στιγμιότυπο υποδοχής ΕΡΜΗΣ"
+                sx={{ width: "100%", display: "block" }} />
               <Box sx={{ p: 2, borderTop: "1px solid", borderColor: RULE }}>
                 <Typography variant="body2" color="text.secondary">
-                  Video-call απευθείας από τη συνομιλία, χωρίς εγκατάσταση.
+                  Ενιαία υποδοχή με KPIs, γρήγορες ενέργειες και αγαπημένες επαφές.
                 </Typography>
               </Box>
             </Box>
