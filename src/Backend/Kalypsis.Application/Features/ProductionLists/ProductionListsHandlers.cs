@@ -26,7 +26,8 @@ public record ProductionFilters(
     PolicyType? PolicyType, PolicyStatus? Status,
     VehicleUseCategory? VehicleUseCategory, string? CoverCode,
     string? GroupBy,
-    string? PackageCode = null)   // "carrier" | "producer" | "type" | "month" | null
+    string? PackageCode = null,
+    string? UseCodeRaw = null)   // "carrier" | "producer" | "type" | "month" | null
 {
     // Frontend Παραμετρικά dropdowns send either the strict enum value
     // (when the operator wired policyType / vehicleUseCategory on the
@@ -34,9 +35,8 @@ public record ProductionFilters(
     // took strict enums and 400-ed on custom codes — leaving the filter
     // unusable for any office that has parametrics but no enum mapping.
     // Now we try the enum parse; if the string isn't a valid enum, we
-    // treat it as an unfiltered pick (operator's dropdown selection still
-    // works, they just see the full result set). Callers that want to
-    // resolve codes properly can do so via the Παραμετρικά table.
+    // hand the raw string to the query as UseCodeRaw and match against
+    // Policy.CarrierUseCode (the token the bridge stored at import time).
     public static PolicyType? ParseBranch(string? raw) =>
         !string.IsNullOrWhiteSpace(raw)
         && Enum.TryParse<PolicyType>(raw, ignoreCase: true, out var pt)
@@ -46,6 +46,14 @@ public record ProductionFilters(
         !string.IsNullOrWhiteSpace(raw)
         && Enum.TryParse<VehicleUseCategory>(raw, ignoreCase: true, out var vc)
             ? vc : null;
+
+    /// <summary>Non-null when the incoming string didn't parse as
+    /// VehicleUseCategory — hands it to the handler as a raw
+    /// Policy.CarrierUseCode filter.</summary>
+    public static string? RawUseFallback(string? raw) =>
+        !string.IsNullOrWhiteSpace(raw)
+        && !Enum.TryParse<VehicleUseCategory>(raw, ignoreCase: true, out _)
+            ? raw.Trim() : null;
 }
 
 public record ProductionRowDto(
@@ -144,6 +152,10 @@ public static class ProductionListBuilder
         if (f.PolicyType.HasValue)         query = query.Where(p => p.PolicyType == f.PolicyType);
         if (f.Status.HasValue)             query = query.Where(p => p.Status == f.Status);
         if (f.VehicleUseCategory.HasValue) query = query.Where(p => p.VehicleUseCategory == f.VehicleUseCategory);
+        else if (!string.IsNullOrWhiteSpace(f.UseCodeRaw))
+            // Παραμετρικά without a wired VehicleUseCategory enum — filter
+            // by the carrier's own token that the bridge captured at import.
+            query = query.Where(p => p.CarrierUseCode == f.UseCodeRaw);
 
         var policies = await query.OrderByDescending(p => p.StartDate).Take(5000).ToListAsync(ct);
         var requestedCover = CleanCode(f.CoverCode);

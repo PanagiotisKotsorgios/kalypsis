@@ -45,6 +45,15 @@ public class Policy : TenantEntity
     /// <summary>Vehicle-use sub-classification for motor policies (ΕΙΧ, ΦΔΧ, etc.).
     /// Optional and ignored on non-motor policies.</summary>
     public VehicleUseCategory? VehicleUseCategory { get; set; }
+    /// <summary>
+    /// Raw «Χρήση οχήματος» code as it comes from the carrier — either the
+    /// bridge's own token (ERGO "000", ATLANTIC "01" …) or the Παραμετρικά
+    /// code the operator picked on the manual form (e.g. «Ε.Ι.Χ.ΜΟΤ»). Used
+    /// when the underlying value can't be reduced to the VehicleUseCategory
+    /// enum, so filters and reports can still target it end-to-end without
+    /// forcing every carrier's coding scheme through Kalypsis' enum shortlist.
+    /// </summary>
+    public string? CarrierUseCode { get; set; }
     public PolicyStatus Status { get; set; } = PolicyStatus.Draft;
 
     public DateOnly StartDate { get; set; }

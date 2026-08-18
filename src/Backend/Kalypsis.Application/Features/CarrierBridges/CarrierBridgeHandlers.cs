@@ -2889,6 +2889,8 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                             EndDate = row.EndDate ?? (row.StartDate ?? DateOnly.FromDateTime(DateTime.Today)).AddYears(1),
                             Premium = Math.Abs(row.GrossPremium ?? 0m),
                             Currency = "EUR",
+                            CarrierUseCode = row.Raw.TryGetValue("Χρήση.Code", out var uCode)
+                                && !string.IsNullOrWhiteSpace(uCode) ? uCode.Trim() : null,
                             SpecsJson = System.Text.Json.JsonSerializer.Serialize(new {
                                 plate = row.PlateNumber,
                                 proposal = row.ProposalNumber,
@@ -3132,6 +3134,14 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                     _              => PolicyStatus.Active
                 };
 
+                // «Χρήση.Code» is populated by every bridge parser (ERGO
+                // pulls it from HEADER col 29, ATLANTIC from Filpolhd, etc.).
+                // Store the raw carrier token on the policy so the
+                // production-list Use filter can hit even when the tenant's
+                // Παραμετρικά rows don't carry a VehicleUseCategory enum.
+                var carrierUseCode = row.Raw.TryGetValue("Χρήση.Code", out var uc)
+                    && !string.IsNullOrWhiteSpace(uc) ? uc.Trim() : null;
+
                 var policy = new Policy
                 {
                     Id = Guid.NewGuid(),
@@ -3145,6 +3155,7 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                     EndDate = row.EndDate ?? (row.StartDate ?? DateOnly.FromDateTime(DateTime.Today)).AddYears(1),
                     Premium = Math.Abs(row.GrossPremium ?? 0m),
                     Currency = "EUR",
+                    CarrierUseCode = carrierUseCode,
                     RenewedFromPolicyId = row.LinkedPolicyId,
                     SpecsJson = !string.IsNullOrEmpty(row.PlateNumber) || !string.IsNullOrEmpty(row.ProposalNumber)
                         ? System.Text.Json.JsonSerializer.Serialize(new {

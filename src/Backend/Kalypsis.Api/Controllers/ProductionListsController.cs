@@ -27,7 +27,8 @@ public class ProductionListsController : ControllerBase
         => Ok(await _mediator.Send(new GetProductionListQuery(
             new ProductionFilters(from, to, insuranceCompanyId, producerId,
                 ProductionFilters.ParseBranch(policyType), status,
-                ProductionFilters.ParseUse(vehicleUseCategory), coverCode, groupBy, packageCode)), ct));
+                ProductionFilters.ParseUse(vehicleUseCategory), coverCode, groupBy, packageCode,
+                ProductionFilters.RawUseFallback(vehicleUseCategory))), ct));
 
     [HttpGet("export")]
     public async Task<IActionResult> Export(
@@ -42,7 +43,8 @@ public class ProductionListsController : ControllerBase
         var result = await _mediator.Send(new ExportProductionListQuery(
             new ProductionFilters(from, to, insuranceCompanyId, producerId,
                 ProductionFilters.ParseBranch(policyType), status,
-                ProductionFilters.ParseUse(vehicleUseCategory), coverCode, groupBy, packageCode),
+                ProductionFilters.ParseUse(vehicleUseCategory), coverCode, groupBy, packageCode,
+                ProductionFilters.RawUseFallback(vehicleUseCategory)),
             format), ct);
         return File(result.Content, result.MimeType, result.FileName);
     }

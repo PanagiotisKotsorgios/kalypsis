@@ -237,6 +237,7 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
         var count = await _db.Policies.IgnoreQueryFilters().CountAsync(p => p.TenantId == tenantId, ct);
         var number = $"P-{(count + 1):D6}";
 
+        var (useEnum, useRaw) = VehicleUseCategorySplit.Parse(r.VehicleUseCategory);
         var p = new Policy
         {
             Id = Guid.NewGuid(),
@@ -246,7 +247,8 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
             InsuranceCompanyId = r.InsuranceCompanyId,
             ProducerId = r.ProducerId,
             PolicyType = r.PolicyType,
-            VehicleUseCategory = r.VehicleUseCategory,
+            VehicleUseCategory = useEnum,
+            CarrierUseCode = useRaw,
             Status = r.Status,
             StartDate = r.StartDate,
             EndDate = r.EndDate,
@@ -360,10 +362,12 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
             ?? throw AppException.NotFound("Συμβόλαιο");
 
         var b = request.Body;
+        var (updUseEnum, updUseRaw) = VehicleUseCategorySplit.Parse(b.VehicleUseCategory);
         p.InsuranceCompanyId = b.InsuranceCompanyId;
         p.ProducerId = b.ProducerId;
         p.PolicyType = b.PolicyType;
-        p.VehicleUseCategory = b.VehicleUseCategory;
+        p.VehicleUseCategory = updUseEnum;
+        p.CarrierUseCode = updUseRaw;
         p.StartDate = b.StartDate;
         p.EndDate = b.EndDate;
         p.Premium = b.Premium;
@@ -491,7 +495,8 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
             Currency = src.Currency,
             CreatedByUserId = _current.UserId,
             RenewedFromPolicyId = src.Id,
-            VehicleUseCategory = b.VehicleUseCategory ?? src.VehicleUseCategory,
+            VehicleUseCategory = VehicleUseCategorySplit.Parse(b.VehicleUseCategory).Enum ?? src.VehicleUseCategory,
+            CarrierUseCode = VehicleUseCategorySplit.Parse(b.VehicleUseCategory).Raw ?? src.CarrierUseCode,
             ApplicationNumber = b.ApplicationNumber ?? src.ApplicationNumber,
             VehicleRegistrationPlate = b.VehicleRegistrationPlate ?? src.VehicleRegistrationPlate,
             SpecialCommissionPercent = b.SpecialCommissionPercent
@@ -541,6 +546,24 @@ public class ListInsuranceCompaniesQueryHandler : IRequestHandler<ListInsuranceC
 /// into the same blob. If both codes are null/blank the original JSON is
 /// returned unchanged.
 /// </summary>
+/// <summary>
+/// Splits an incoming «Χρήση οχήματος» value (from create / update / renew
+/// bodies) into the strict enum + carrier-code pair that Policy stores.
+/// Enum name → sets Policy.VehicleUseCategory; anything else → stashed on
+/// Policy.CarrierUseCode so the production-list filter still hits.
+/// </summary>
+internal static class VehicleUseCategorySplit
+{
+    public static (VehicleUseCategory? Enum, string? Raw) Parse(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return (null, null);
+        var s = raw.Trim();
+        if (Enum.TryParse<VehicleUseCategory>(s, ignoreCase: true, out var vc))
+            return (vc, null);
+        return (null, s);
+    }
+}
+
 internal static class PolicySpecsJsonHelper
 {
     public static string? MergeCodes(string? existingJson, string? coverCode, string? packageCode)

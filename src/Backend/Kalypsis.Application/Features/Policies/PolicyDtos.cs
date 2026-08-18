@@ -37,7 +37,10 @@ public record CreatePolicyBody(
     decimal Premium,
     string Currency = "EUR",
     PolicyStatus Status = PolicyStatus.Active,
-    VehicleUseCategory? VehicleUseCategory = null,
+    // Accepts either the strict VehicleUseCategory enum name ("EIX", "FIX", …)
+    // or a free-form Παραμετρικά code (e.g. «Ε.Ι.Χ.ΜΟΤ»). Handler parses:
+    // enum-match → Policy.VehicleUseCategory; non-match → Policy.CarrierUseCode.
+    string? VehicleUseCategory = null,
     string? CoverCode = null,
     string? PackageCode = null,
     // ALIS-parity fields
@@ -56,7 +59,10 @@ public record UpdatePolicyBody(
     decimal Premium,
     string Currency,
     PolicyStatus Status,
-    VehicleUseCategory? VehicleUseCategory = null,
+    // Accepts either the strict VehicleUseCategory enum name ("EIX", "FIX", …)
+    // or a free-form Παραμετρικά code (e.g. «Ε.Ι.Χ.ΜΟΤ»). Handler parses:
+    // enum-match → Policy.VehicleUseCategory; non-match → Policy.CarrierUseCode.
+    string? VehicleUseCategory = null,
     string? CoverCode = null,
     string? PackageCode = null,
     // ALIS-parity fields
@@ -75,7 +81,10 @@ public record RenewPolicyBody(
     // so the operator doesn't have to open the policy in edit mode after
     // renewal to tweak coverages, producer, or the commission override.
     Guid? ProducerId = null,
-    VehicleUseCategory? VehicleUseCategory = null,
+    // Accepts either the strict VehicleUseCategory enum name ("EIX", "FIX", …)
+    // or a free-form Παραμετρικά code (e.g. «Ε.Ι.Χ.ΜΟΤ»). Handler parses:
+    // enum-match → Policy.VehicleUseCategory; non-match → Policy.CarrierUseCode.
+    string? VehicleUseCategory = null,
     string? CoverCode = null,
     string? PackageCode = null,
     string? ApplicationNumber = null,
