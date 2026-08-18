@@ -231,6 +231,7 @@ import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import { AllToolsPage } from "./pages/AllToolsPage";
 import { ErmesPage } from "./pages/ErmesPage";
+import { ErmesStandalonePage } from "./pages/ErmesStandalonePage";
 import { ErmesMeetingPage } from "./pages/ErmesMeetingPage";
 import { CarrierBridgesPage } from "./pages/CarrierBridgesPage";
 import { CarrierBridgesHubPage } from "./pages/CarrierBridgesHubPage";
@@ -265,7 +266,7 @@ const navByRole: Record<Role, NavItem[]> = {
     // ΕΡΜΗΣ — Kalypsis-native messaging, pinned to every workspace so
     // operators reach their inbox regardless of which package they're
     // working in. Sits right under Πίνακας Ελέγχου for prominence.
-    { to: "/ermes", labelKey: "nav.ermes", icon: <MailOutlineIcon />,
+    { to: "/ermes-app", labelKey: "nav.ermes", icon: <MailOutlineIcon />, openInNewTab: true,
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
 
     // ===== BackOffice — Γέφυρες Εταιρειών (hub for 4 carrier-import screens) =====
@@ -408,7 +409,7 @@ const navByRole: Record<Role, NavItem[]> = {
   AgencyUser: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />,
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
-    { to: "/ermes", labelKey: "nav.ermes", icon: <MailOutlineIcon />,
+    { to: "/ermes-app", labelKey: "nav.ermes", icon: <MailOutlineIcon />, openInNewTab: true,
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
     // BackOffice
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
@@ -614,6 +615,14 @@ export default function App() {
         <Route path="/code-of-conduct" element={<CodeOfConductPage />} />
         <Route path="/oss-licenses" element={<OssAttributionsPage />} />
         <Route path="/ropa" element={<RopaPage />} />
+        {/* Full-screen ΕΡΜΗΣ shell — the sidebar nav item opens this in a
+            new browser tab so operators get a dedicated messaging window
+            without the whole Kalypsis chrome. */}
+        <Route path="/ermes-app" element={
+          <ProtectedRoute>
+            <ErmesStandalonePage />
+          </ProtectedRoute>
+        } />
         <Route path="/data-retention-schedule" element={<DataRetentionPage />} />
         <Route
           path="/app/*"

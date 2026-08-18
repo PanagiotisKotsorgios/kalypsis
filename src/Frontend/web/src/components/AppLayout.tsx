@@ -97,6 +97,14 @@ export interface NavItem {
    * for support purposes. Omit to leave the item unrestricted.
    */
   permission?: string;
+  /**
+   * When true, clicking the sidebar entry opens `to` in a new browser
+   * tab instead of navigating in-place. Used for ΕΡΜΗΣ which lives in
+   * its own full-screen shell — operators typically want it side-by-side
+   * with their Kalypsis window rather than replacing the current tab.
+   * When set, `to` is used as an absolute path (not prefixed with /app).
+   */
+  openInNewTab?: boolean;
 }
 
 interface AppLayoutProps {
@@ -279,8 +287,10 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           }
 
           const renderItem = (item: NavItem, indented = false) => {
-            const route = `/app${item.to === "/" ? "" : item.to}`;
-            const selected = item.to === "/" ? location.pathname === "/app" : location.pathname.startsWith(route);
+            const route = item.openInNewTab ? item.to : `/app${item.to === "/" ? "" : item.to}`;
+            const selected = item.openInNewTab
+              ? false
+              : item.to === "/" ? location.pathname === "/app" : location.pathname.startsWith(route);
             const target = item.comingSoon ? "/app/coming-soon?key=" + encodeURIComponent(item.labelKey) : route;
             // Tour anchor — derive from the route so KalypsisOnboarding selectors stay stable.
             const tourKey = item.to === "/" ? "dashboard"
@@ -292,7 +302,9 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                 key={item.to + item.labelKey}
                 {...(premiumLocked
                   ? { onClick: (e: React.MouseEvent) => { e.preventDefault(); premium.promptUpgrade(item.premium!); } }
-                  : { component: RouterLink, to: target })}
+                  : item.openInNewTab
+                    ? { component: "a" as const, href: target, target: "_blank", rel: "noopener noreferrer" }
+                    : { component: RouterLink, to: target })}
                 selected={selected && !premiumLocked}
                 data-tour={`sidebar-${tourKey}`}
                 sx={{
