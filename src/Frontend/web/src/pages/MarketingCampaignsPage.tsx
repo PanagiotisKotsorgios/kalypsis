@@ -1435,15 +1435,26 @@ function ProvidersTab() {
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2} flexWrap="wrap" gap={2}>
         <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>{t("marketing.providers.title", "Πάροχοι αποστολής")}</Typography>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>{t("marketing.providers.title", "Πάροχοι αποστολής")}</Typography>
+            <Chip size="small" color="info" variant="outlined" label="backoffice" title="Οι ρυθμίσεις παρόχων και τα όρια απαιτούν έγκριση από το backoffice της Kalypsis." />
+          </Stack>
           <Typography variant="body2" color="text.secondary">
             {t("marketing.providers.subtitle", "Ρύθμιση παρόχων email / SMS / Viber, όρια χρήσης και υπολογιστής επιπλέον χρέωσης.")}
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreating(true)}>
-          {t("marketing.providers.new", "Νέος πάροχος")}
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <BuyMoreButton />
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreating(true)}>
+            {t("marketing.providers.new", "Νέος πάροχος")}
+          </Button>
+        </Stack>
       </Stack>
+
+      <Alert severity="info" sx={{ mb: 2 }}>
+        <strong>Backoffice-only:</strong> τα όρια αποστολής και οι πάροχοι ρυθμίζονται εξατομικευμένα από την Kalypsis.
+        Για αύξηση ορίου ή αλλαγή παρόχου, πατήστε <em>«Αγορά πακέτου»</em> ή επικοινωνήστε στο <a href="mailto:info@mykalypsis.gr">info@mykalypsis.gr</a>.
+      </Alert>
 
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, mb: 3 }}>
         {providers.map(p => <ProviderCard key={p.id} p={p} onEdit={() => setEditing(p)} onDelete={() => remove(p.id)} onToggle={() => upsert({ ...p, active: !p.active })} />)}
@@ -1552,10 +1563,105 @@ function OverageCalculator({ providers }: { providers: MarketingProvider[] }) {
       </Box>
       {extra > 0 && (
         <Stack direction="row" spacing={1} mt={2}>
-          <Button variant="outlined" size="small" color="warning">Αγορά επιπλέον πακέτου</Button>
+          <BuyMoreButton size="small" color="warning" />
         </Stack>
       )}
     </Card>
+  );
+}
+
+// Buy-more UI — Brevo email packages + SMS/Viber top-up options operators
+// can request from the backoffice. The tenant can't self-provision more
+// capacity (Brevo API keys / Twilio credit belong to the platform), so
+// the button opens a request dialog and generates a pre-filled mailto:
+// link to info@mykalypsis.gr. Backoffice replies with an activation
+// confirmation and updates the quota.
+const COMMS_PACKAGES: { code: string; title: string; qty: number; kind: "Email" | "SMS" | "Viber"; price: string; brevoTemplate?: string; note?: string }[] = [
+  { code: "EM-05K", title: "Brevo — 5.000 emails / μήνα",  qty: 5000,  kind: "Email", price: "€20 / μήνα",  brevoTemplate: "Kalypsis · Marketing · Ενημερώσεις", note: "Ιδανικό για μικρή/μεσαία επικοινωνία πελατολογίου." },
+  { code: "EM-20K", title: "Brevo — 20.000 emails / μήνα", qty: 20000, kind: "Email", price: "€45 / μήνα",  brevoTemplate: "Kalypsis · Marketing · Ενημερώσεις", note: "Καλύπτει καμπάνιες σε όλη τη βάση + ανανεώσεις." },
+  { code: "EM-60K", title: "Brevo — 60.000 emails / μήνα", qty: 60000, kind: "Email", price: "€99 / μήνα",  brevoTemplate: "Kalypsis · Marketing · Ενημερώσεις", note: "Για γραφεία με έντονη επικοινωνία & bulk νομικές ενημερώσεις." },
+  { code: "SM-01K", title: "SMS — 1.000 μηνύματα",         qty: 1000,  kind: "SMS",   price: "€45 (μία χρέωση)", note: "Πληρωμή προ-αγοράς. Ισχύει 12 μήνες." },
+  { code: "SM-05K", title: "SMS — 5.000 μηνύματα",         qty: 5000,  kind: "SMS",   price: "€199 (μία χρέωση)", note: "Πληρωμή προ-αγοράς. Ισχύει 12 μήνες." },
+  { code: "VB-01K", title: "Viber Business — 1.000 μηνύματα", qty: 1000, kind: "Viber", price: "€28 (μία χρέωση)", note: "Απαιτεί ταυτότητα αποστολέα (sender ID) εγκεκριμένη από Rakuten Viber." },
+];
+
+function BuyMoreButton({ size = "medium", color = "primary" as "primary" | "warning" }: { size?: "small" | "medium"; color?: "primary" | "warning" }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="outlined" size={size} color={color} startIcon={<AddIcon />} onClick={() => setOpen(true)}>
+        Αγορά πακέτου
+      </Button>
+      <BuyMoreDialog open={open} onClose={() => setOpen(false)} />
+    </>
+  );
+}
+
+function BuyMoreDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  useEffect(() => { if (open) setSelected(null); }, [open]);
+  const active = COMMS_PACKAGES.find(p => p.code === selected);
+
+  const requestMailto = () => {
+    if (!active) return;
+    const subject = `[Kalypsis] Αίτημα αγοράς πακέτου επικοινωνιών: ${active.code}`;
+    const body = [
+      `Καλησπέρα,`,
+      ``,
+      `Παρακαλώ ενεργοποιήστε το ακόλουθο πακέτο για το γραφείο μου:`,
+      ``,
+      `Κωδικός πακέτου: ${active.code}`,
+      `Περιγραφή: ${active.title}`,
+      `Ποσότητα: ${active.qty.toLocaleString("el-GR")} ${active.kind === "Email" ? "emails" : "μηνύματα"}`,
+      `Τιμή: ${active.price}`,
+      active.brevoTemplate ? `Πρότυπο Brevo προς χρήση: ${active.brevoTemplate}` : "",
+      ``,
+      `Ευχαριστώ πολύ.`,
+    ].filter(Boolean).join("\n");
+    window.location.href = `mailto:info@mykalypsis.gr?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+      <DialogTitle sx={{ fontWeight: 800 }}>Αγορά επιπλέον πακέτου επικοινωνιών</DialogTitle>
+      <DialogContent>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Τα πακέτα ενεργοποιούνται από το backoffice της Kalypsis. Επιλέξτε τι χρειάζεστε
+          και θα σας σταλεί επιβεβαίωση εντός 1 εργάσιμης. Οι Brevo καμπάνιες αποστέλλονται
+          με πιστοποιημένα πρότυπα του γραφείου σας (θα σας ζητηθούν αν δεν υπάρχουν ήδη).
+        </Alert>
+        <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1fr 1fr 1fr" } }}>
+          {COMMS_PACKAGES.map(p => {
+            const isActive = selected === p.code;
+            return (
+              <Card key={p.code} variant="outlined"
+                onClick={() => setSelected(p.code)}
+                sx={{
+                  p: 2, cursor: "pointer",
+                  borderColor: isActive ? "primary.main" : undefined,
+                  borderWidth: isActive ? 2 : 1,
+                  bgcolor: isActive ? "action.selected" : undefined,
+                }}>
+                <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+                  <Chip size="small" variant="outlined" label={p.kind} />
+                  <Chip size="small" color="primary" variant="outlined" label={p.code} sx={{ fontFamily: "monospace" }} />
+                </Stack>
+                <Typography fontWeight={800}>{p.title}</Typography>
+                <Typography variant="h6" color="primary.main" sx={{ fontWeight: 900, my: 0.5 }}>{p.price}</Typography>
+                {p.brevoTemplate && <Typography variant="caption" color="text.secondary" display="block">Brevo: {p.brevoTemplate}</Typography>}
+                {p.note && <Typography variant="caption" color="text.secondary" display="block" mt={1}>{p.note}</Typography>}
+              </Card>
+            );
+          })}
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Κλείσιμο</Button>
+        <Button variant="contained" disabled={!active} onClick={requestMailto}>
+          Αποστολή αιτήματος
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
