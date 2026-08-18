@@ -25,6 +25,20 @@ export interface PrintOptions<T> {
   locale?: string;
   /** Page orientation hint for @page CSS. Defaults to portrait. */
   orientation?: "portrait" | "landscape";
+  /**
+   * Optional grouping. When provided, the flat table is replaced by one
+   * subsection per group — each with a section header (title + optional
+   * summary) followed by the same column layout for the group's rows.
+   * `rows` is still the full row set and drives the "Σύνολο εγγραφών"
+   * meta line, so callers don't have to pre-flatten anything.
+   */
+  groups?: Array<{
+    /** Section header shown above the group's table. */
+    title: string;
+    /** Optional right-aligned summary next to the group title (e.g. totals). */
+    summary?: string;
+    rows: T[];
+  }>;
 }
 
 const escapeHtml = (s: unknown): string => {
@@ -61,7 +75,7 @@ export function printTable<T>(opts: PrintOptions<T>): void {
   const now = new Date().toLocaleString(locale);
 
   const head = opts.columns.map(c => `<th>${escapeHtml(c.label)}</th>`).join("");
-  const body = opts.rows
+  const renderBody = (rows: T[]) => rows
     .map(r => {
       const cells = opts.columns
         .map(c => {
@@ -72,6 +86,18 @@ export function printTable<T>(opts: PrintOptions<T>): void {
       return `<tr>${cells}</tr>`;
     })
     .join("");
+  const body = renderBody(opts.rows);
+  const groupedHtml = opts.groups && opts.groups.length > 0
+    ? opts.groups.map(g => `
+      <section class="kalypsis-group">
+        <div class="group-header">
+          <span class="group-title">${escapeHtml(g.title)}</span>
+          <span class="group-count">${g.rows.length.toLocaleString(locale)} εγγραφές${g.summary ? ` · ${escapeHtml(g.summary)}` : ""}</span>
+        </div>
+        <table><thead><tr>${head}</tr></thead><tbody>${renderBody(g.rows)}</tbody></table>
+      </section>
+    `).join("")
+    : null;
 
   const html = `<!doctype html>
 <html lang="el">
@@ -96,9 +122,16 @@ export function printTable<T>(opts: PrintOptions<T>): void {
   footer .brand a { color: inherit; text-decoration: none; }
   .watermark { position: fixed; bottom: 6mm; left: 0; right: 0; text-align: center; font-size: 9px; color: #bbb; }
   .empty { text-align: center; padding: 24px; color: #888; font-style: italic; }
+  .kalypsis-group { margin-bottom: 14px; break-inside: avoid-page; }
+  .kalypsis-group + .kalypsis-group { border-top: 1px dashed #b6c8e0; padding-top: 10px; }
+  .group-header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+  .group-title { font-size: 13.5px; font-weight: 800; color: #0d47a1; letter-spacing: 0.2px; }
+  .group-count { font-size: 10.5px; color: #666; font-variant-numeric: tabular-nums; }
   @media print {
     header { break-after: avoid; }
     tr { break-inside: avoid; }
+    .kalypsis-group { break-inside: avoid; }
+    .kalypsis-group + .kalypsis-group { break-before: auto; }
   }
 </style>
 </head>
@@ -111,7 +144,9 @@ export function printTable<T>(opts: PrintOptions<T>): void {
   </header>
   ${opts.rows.length === 0
       ? `<div class="empty">Δεν υπάρχουν εγγραφές για εκτύπωση.</div>`
-      : `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`}
+      : groupedHtml !== null
+        ? groupedHtml
+        : `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`}
   <footer>
     <span class="brand">
       Kalypsis — Πλατφόρμα Διαχείρισης Ασφαλιστικού Γραφείου

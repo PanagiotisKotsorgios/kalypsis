@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Card, Chip, CircularProgress, MenuItem,
+  Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, FormControlLabel, MenuItem,
   Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow,
-  TextField, Typography
+  TextField, Tooltip, Typography
 } from "@mui/material";
 import StackedBarChartIcon from "@mui/icons-material/StackedBarChart";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
@@ -226,7 +226,83 @@ export function ProductionListsPage() {
     return "string";
   };
 
+  // «Ανά συνεργάτη» — group printed / CSV output by producer, with each
+  // producer's policies laid out one-by-one in detail below their name.
+  // Persisted per browser so the operator's preference sticks across
+  // sessions and reloads.
+  const [perProducer, setPerProducer] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("kalypsis.productionList.perProducer") === "1";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("kalypsis.productionList.perProducer", perProducer ? "1" : "0");
+  }, [perProducer]);
+
+  // Group the currently-visible (filtered) row set by producer. Producers
+  // are sorted alphabetically with «Χωρίς συνεργάτη» pinned at the end.
+  // Policies inside each group sort by startDate desc so the newest is on
+  // top — matches what operators expect in a monthly πινάκιο.
+  const groupsByProducer = useMemo(() => {
+    const rows = q.data?.rows ?? [];
+    const byProducer = new Map<string, Row[]>();
+    for (const r of rows) {
+      const key = (r.producer ?? "Χωρίς συνεργάτη").trim();
+      const bucket = byProducer.get(key);
+      if (bucket) bucket.push(r); else byProducer.set(key, [r]);
+    }
+    const groups = Array.from(byProducer.entries())
+      .sort(([a], [b]) => {
+        if (a === "Χωρίς συνεργάτη") return 1;
+        if (b === "Χωρίς συνεργάτη") return -1;
+        return a.localeCompare(b, "el");
+      })
+      .map(([producer, list]) => {
+        const sorted = list.slice().sort((x, y) =>
+          (y.startDate ?? "").localeCompare(x.startDate ?? ""));
+        const gross = sorted.reduce((s, r) => s + (r.gross ?? 0), 0);
+        const partner = sorted.reduce((s, r) => s + (r.partnerCommission ?? 0), 0);
+        return {
+          title: producer,
+          summary: `${money(gross)} μικτά · ${money(partner)} προμήθεια`,
+          rows: sorted,
+        };
+      });
+    return groups;
+  }, [q.data?.rows]);
+
   async function downloadExport(fmt: "csv" | "xlsx" | "pdf") {
+    if (perProducer && fmt === "csv") {
+      // Ανά συνεργάτη CSV — client-built so the section headers survive.
+      // xlsx / pdf still go through the server export (sections don't
+      // translate cleanly to those formats).
+      const rows = q.data?.rows ?? [];
+      if (rows.length === 0) return;
+      const activeCols = visibleColumns;
+      const esc = (v: unknown) => {
+        const s = v === null || v === undefined ? "" : String(v);
+        return /[",\n\r;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const header = activeCols.map(c => esc(c.label)).join(",");
+      const lines: string[] = [];
+      for (const g of groupsByProducer) {
+        lines.push("");
+        lines.push(esc(`Συνεργάτης: ${g.title} — ${g.rows.length} συμβόλαια — ${g.summary}`));
+        lines.push(header);
+        for (const r of g.rows) {
+          lines.push(activeCols.map(c => esc(c.text(r))).join(","));
+        }
+      }
+      const csv = `﻿${lines.join("\r\n")}\r\n`;
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const ts = new Date().toISOString().slice(0, 10);
+      a.href = url; a.download = `production-per-producer-${ts}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return;
+    }
     const activeKeys = selection.activeKeys;
     const columnsParam = activeKeys.length > 0 && activeKeys.length < columns.length
       ? activeKeys.join(",")
@@ -249,7 +325,8 @@ export function ProductionListsPage() {
 
   // Client-side Print — always uses the currently loaded (filtered) rows
   // and the current column-picker selection so the printed sheet mirrors
-  // exactly what's on screen.
+  // exactly what's on screen. When «Ανά συνεργάτη» is on, the flat table
+  // is replaced by one section per producer (title + summary + rows).
   const openPrint = () => {
     const rows = q.data?.rows ?? [];
     const filterBits: string[] = [];
@@ -260,13 +337,18 @@ export function ProductionListsPage() {
     const selectedProducer = (producers.data ?? []).find(p => p.id === f.producerId);
     if (selectedProducer) filterBits.push(`Συνεργάτης: ${selectedProducer.name}`);
     if (f.status) filterBits.push(`Κατάσταση: ${f.status}`);
+    if (perProducer) filterBits.push("Ομαδοποίηση: ανά συνεργάτη");
 
+    const printCols = visibleColumns.map(c => ({ key: c.key, label: c.label, map: c.text }));
     printTable<Row>({
       title: t("productionList.title"),
       subtitle: filterBits.join(" · "),
-      columns: visibleColumns.map(c => ({ key: c.key, label: c.label, map: c.text })),
+      columns: printCols,
       rows,
       orientation: "landscape",
+      groups: perProducer ? groupsByProducer.map(g => ({
+        title: g.title, summary: g.summary, rows: g.rows,
+      })) : undefined,
     });
   };
 
@@ -299,6 +381,16 @@ export function ProductionListsPage() {
             setAll={selection.setAll}
             reset={selection.reset}
           />
+          <Tooltip title="Ομαδοποίηση εκτύπωσης / εξαγωγής CSV ανά συνεργάτη — αναλυτικά συμβόλαια, χωρίς σύνολα ομάδας.">
+            <FormControlLabel
+              sx={{ ml: 0.5, mr: 0.5, "& .MuiFormControlLabel-label": { fontSize: 13 } }}
+              control={
+                <Checkbox size="small" checked={perProducer}
+                  onChange={e => setPerProducer(e.target.checked)} />
+              }
+              label="Ανά συνεργάτη"
+            />
+          </Tooltip>
           <ExportFormatMenu onExport={downloadExport} />
           <Button variant="outlined" startIcon={<PrintIcon />} onClick={openPrint}>
             {t("common.print", "Εκτύπωση")}
