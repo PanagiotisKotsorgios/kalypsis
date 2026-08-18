@@ -72,6 +72,10 @@ export function ProductionListsPage() {
     policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "",
     status: "", groupBy: "carrier"
   });
+  // Drill-down: click a group row to filter the detail table below to just
+  // that group. Cleared automatically when the groupBy changes.
+  const [focusedGroupKey, setFocusedGroupKey] = useState<string | null>(null);
+  useEffect(() => { setFocusedGroupKey(null); }, [f.groupBy]);
 
   const carriers = useQuery({
     queryKey: ["carriers-prod-list"],
@@ -419,10 +423,16 @@ export function ProductionListsPage() {
             </Stack>
           </Card>
 
-          {/* Group totals (if grouping enabled) */}
+          {/* Group totals (if grouping enabled) — click a row to filter the
+              detail table below to just that group (drill-down). */}
           {q.data.groups.length > 0 && (
             <Card sx={{ p: 2, mb: 2 }} variant="outlined">
-              <Typography fontWeight={700} mb={1}>{t("productionList.groupTotals")}</Typography>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
+                <Typography fontWeight={700}>{t("productionList.groupTotals")}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Πατήστε σε γραμμή για να φιλτράρετε το αναλυτικό πίνακα σε αυτήν την ομάδα.
+                </Typography>
+              </Stack>
               <Table size="small">
                 <TableHead><TableRow>
                   <TableCell>{t("productionList.group")}</TableCell>
@@ -433,18 +443,37 @@ export function ProductionListsPage() {
                   <TableCell align="right">{t("productionList.kpi.agencyComm")}</TableCell>
                 </TableRow></TableHead>
                 <TableBody>
-                  {q.data.groups.map(g => (
-                    <TableRow key={g.key} hover>
-                      <TableCell sx={{ fontWeight: 600 }}>{g.key}</TableCell>
-                      <TableCell align="right">{g.count}</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700 }}>{money(g.gross)}</TableCell>
-                      <TableCell align="right">{money(g.net)}</TableCell>
-                      <TableCell align="right" sx={{ color: "warning.main" }}>{money(g.partnerCommission)}</TableCell>
-                      <TableCell align="right" sx={{ color: "success.main", fontWeight: 700 }}>{money(g.agencyCommission)}</TableCell>
-                    </TableRow>
-                  ))}
+                  {q.data.groups.map(g => {
+                    const isFocused = focusedGroupKey === g.key;
+                    return (
+                      <TableRow key={g.key} hover
+                        onClick={() => setFocusedGroupKey(isFocused ? null : g.key)}
+                        selected={isFocused}
+                        sx={{ cursor: "pointer" }}>
+                        <TableCell sx={{ fontWeight: 600 }}>
+                          {isFocused && <Chip size="small" color="primary" label="Επιλεγμένη" sx={{ mr: 1 }} />}
+                          {g.key}
+                        </TableCell>
+                        <TableCell align="right">{g.count}</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700 }}>{money(g.gross)}</TableCell>
+                        <TableCell align="right">{money(g.net)}</TableCell>
+                        <TableCell align="right" sx={{ color: "warning.main" }}>{money(g.partnerCommission)}</TableCell>
+                        <TableCell align="right" sx={{ color: "success.main", fontWeight: 700 }}>{money(g.agencyCommission)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
+              {focusedGroupKey !== null && (
+                <Stack direction="row" alignItems="center" spacing={1} mt={1}>
+                  <Chip color="primary" size="small"
+                    label={`Εστίαση: ${focusedGroupKey}`}
+                    onDelete={() => setFocusedGroupKey(null)} />
+                  <Typography variant="caption" color="text.secondary">
+                    Πατήστε το «×» για να δείτε ξανά όλες τις γραμμές.
+                  </Typography>
+                </Stack>
+              )}
             </Card>
           )}
 
@@ -499,12 +528,30 @@ export function ProductionListsPage() {
                   </TableRow>
                 )}
                 {(() => {
+                  // Drill-down filter — when the operator has clicked a
+                  // group row above, narrow the visible rows to just that
+                  // group. Matching is per-groupBy dimension so producer
+                  // grouping compares against r.producer, carrier against
+                  // r.insuranceCompany, and so on.
+                  const focused = focusedGroupKey;
+                  const matchesGroup = (r: Row): boolean => {
+                    if (!focused) return true;
+                    switch (f.groupBy) {
+                      case "carrier":  return (r.insuranceCompany ?? "") === focused;
+                      case "producer": return (r.producer ?? "") === focused
+                                            || (!r.producer && focused === "Χωρίς συνεργάτη");
+                      case "type":     return (r.policyType ?? "") === focused;
+                      case "month":    return (r.startDate ?? "").slice(0, 7) === focused;
+                      default:         return true;
+                    }
+                  };
+                  const focusedRows = q.data.rows.filter(matchesGroup);
                   const sorted = (() => {
-                    if (!sortKey) return q.data.rows;
+                    if (!sortKey) return focusedRows;
                     const col = columns.find(c => c.key === sortKey);
-                    if (!col) return q.data.rows;
+                    if (!col) return focusedRows;
                     const type = inferColumnType(sortKey);
-                    const arr = q.data.rows.slice();
+                    const arr = focusedRows.slice();
                     arr.sort((a, b) => {
                       const va: string = col.text(a) ?? "";
                       const vb: string = col.text(b) ?? "";
@@ -532,7 +579,20 @@ export function ProductionListsPage() {
             </Table>
             <TablePagination
               component="div"
-              count={q.data.rows.length}
+              count={
+                focusedGroupKey
+                  ? q.data.rows.filter(r => {
+                      switch (f.groupBy) {
+                        case "carrier":  return (r.insuranceCompany ?? "") === focusedGroupKey;
+                        case "producer": return (r.producer ?? "") === focusedGroupKey
+                                             || (!r.producer && focusedGroupKey === "Χωρίς συνεργάτη");
+                        case "type":     return (r.policyType ?? "") === focusedGroupKey;
+                        case "month":    return (r.startDate ?? "").slice(0, 7) === focusedGroupKey;
+                        default:         return true;
+                      }
+                    }).length
+                  : q.data.rows.length
+              }
               page={page}
               onPageChange={(_e, p) => setPage(p)}
               rowsPerPage={rowsPerPage}
