@@ -26,6 +26,7 @@ import { AccessibilityWidget } from "../components/AccessibilityWidget";
 import { PageEnter } from "../components/PageEnter";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { DesktopDownloadButton } from "../components/DesktopDownloadButton";
+import { FloatingDownloadButton } from "../components/FloatingDownloadButton";
 import { api } from "../api/client";
 
 // Restrained brand palette — navy for type, single accent blue, soft borders.
@@ -569,6 +570,7 @@ export function LandingPage() {
       </Container>
       <PublicFooter />
       <AccessibilityWidget />
+      <FloatingDownloadButton />
     </Box>
   );
 }
