@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
-  Alert, Box, Button, CircularProgress, Container, Divider, Drawer, IconButton,
+  Alert, Box, Button, Chip, CircularProgress, Container, Divider, Drawer, IconButton,
   Stack, TextField, Typography
 } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
@@ -554,6 +554,10 @@ export function LandingPage() {
       {/* Full-width dark section — Kalypsis Desktop presentation. Sits outside
           the max-width Container so the black bleeds edge-to-edge. */}
       <DesktopAppSection />
+
+      {/* ΕΡΜΗΣ pre-login showcase — Kalypsis-native messaging pitched to
+          visitors before they sign up. Free-for-life callout is the anchor. */}
+      <ErmesShowcaseSection />
 
       <Container maxWidth={false} sx={{
         maxWidth: { xs: "100%", md: "82%", xl: "1600px" },
@@ -1262,6 +1266,220 @@ function DesktopAppSection() {
           to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
+    </Box>
+  );
+}
+
+/* ============================================================================
+   ΕΡΜΗΣ pre-login showcase — pitched to visitors before signup. Highlights
+   end-to-end encryption, meetings, contacts, and hammers the "δωρεάν για
+   πάντα" pricing angle that ΕΡΜΗΣ is included with every Kalypsis plan.
+   ============================================================================ */
+function ErmesShowcaseSection() {
+  const features = [
+    {
+      title: "Κρυπτογραφημένη επικοινωνία",
+      body: "Απευθείας μηνύματα, θέματα και ομαδικά κανάλια end-to-end encrypted. Ούτε η Kalypsis ούτε τρίτοι μπορούν να διαβάσουν το περιεχόμενο.",
+      chip: "E2EE",
+    },
+    {
+      title: "Meetings χωρίς download",
+      body: "Ξεκινήστε τηλεδιάσκεψη με έναν συνεργάτη ή ασφαλιστική εταιρεία μέσα από τη συνομιλία. Δεν χρειάζεται εγκατάσταση εφαρμογής.",
+      chip: "Meet",
+    },
+    {
+      title: "Επαφές πρακτορείου έτοιμες",
+      body: "Οι συνεργάτες με λογαριασμό Kalypsis εμφανίζονται αυτόματα στις επαφές — δεν χρειάζεται να ζητήσετε emails ή τηλέφωνα.",
+      chip: "Auto-contacts",
+    },
+  ];
+
+  // Inline SVG "screenshots" so the section always renders even without
+  // real assets. They mimic the ΕΡΜΗΣ layout at a distance so visitors
+  // get an idea of what the app looks like before signing up.
+  const inboxSvg = `data:image/svg+xml;utf8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300">
+  <defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#0b2545"/><stop offset="1" stop-color="#1f4573"/></linearGradient></defs>
+  <rect width="480" height="300" fill="#f6f9fc"/>
+  <rect width="480" height="28" fill="url(#g)"/>
+  <text x="14" y="19" fill="#fff" font-family="Segoe UI" font-size="12" font-weight="700">ΕΡΜΗΣ · Kalypsis</text>
+  <rect x="0" y="28" width="130" height="272" fill="#eef2f7"/>
+  <text x="12" y="52" fill="#0b2545" font-size="10" font-weight="700">Φάκελοι</text>
+  <rect x="8" y="60" width="114" height="20" fill="#1f7bb3" opacity="0.15" rx="4"/>
+  <text x="14" y="74" fill="#0b2545" font-size="10">Εισερχόμενα · 12</text>
+  <text x="14" y="94" fill="#3d4f6b" font-size="10">Απεσταλμένα</text>
+  <text x="14" y="114" fill="#3d4f6b" font-size="10">Πρόχειρα</text>
+  <text x="14" y="134" fill="#3d4f6b" font-size="10">Αρχειοθετημένα</text>
+  <text x="12" y="164" fill="#0b2545" font-size="10" font-weight="700">Κανάλια</text>
+  <rect x="8" y="172" width="114" height="16" fill="#fff" rx="4"/>
+  <text x="14" y="184" fill="#0b2545" font-size="10"># γενικά</text>
+  <rect x="8" y="192" width="114" height="16" fill="#fff" rx="4"/>
+  <text x="14" y="204" fill="#0b2545" font-size="10"># ενημερώσεις</text>
+  <g transform="translate(140,40)">
+    <rect width="320" height="60" fill="#fff" rx="6" stroke="#e5e9ef"/>
+    <text x="12" y="20" fill="#0b2545" font-size="11" font-weight="700">Ενημέρωση ανανεώσεων 09/2026</text>
+    <text x="12" y="38" fill="#3d4f6b" font-size="10">Καλησπέρα, στέλνω αναλυτικά πινάκια για την Πέμπτη...</text>
+    <text x="270" y="20" fill="#1f7bb3" font-size="9" font-weight="700">10:24</text>
+    <circle cx="285" cy="34" r="6" fill="#2ea44f"/>
+    <text x="282" y="37" fill="#fff" font-size="8" font-weight="700">3</text>
+  </g>
+  <g transform="translate(140,110)">
+    <rect width="320" height="60" fill="#fff" rx="6" stroke="#e5e9ef"/>
+    <text x="12" y="20" fill="#0b2545" font-size="11" font-weight="700">ERGO · Πινάκιο υπερπρομηθειών Αυγούστου</text>
+    <text x="12" y="38" fill="#3d4f6b" font-size="10">Επισυνάπτω το πινάκιο του μήνα με 42 γραμμές...</text>
+    <text x="272" y="20" fill="#1f7bb3" font-size="9" font-weight="700">Χθες</text>
+  </g>
+  <g transform="translate(140,180)">
+    <rect width="320" height="60" fill="#fff" rx="6" stroke="#e5e9ef"/>
+    <text x="12" y="20" fill="#0b2545" font-size="11" font-weight="700">Γιώργος Λ. · Ερώτηση για κατοικία 4Y</text>
+    <text x="12" y="38" fill="#3d4f6b" font-size="10">Καλησπέρα, ο πελάτης ρωτά αν καλύπτεται...</text>
+    <text x="270" y="20" fill="#1f7bb3" font-size="9" font-weight="700">2 μέρες</text>
+  </g>
+</svg>`)}`;
+
+  const meetingSvg = `data:image/svg+xml;utf8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300">
+  <rect width="480" height="300" fill="#0b1a2f"/>
+  <g transform="translate(20,30)">
+    <rect width="200" height="160" fill="#1f4573" rx="10"/>
+    <circle cx="100" cy="70" r="28" fill="#a6b5c6"/>
+    <rect x="45" y="120" width="110" height="22" fill="#0b2545" rx="4"/>
+    <text x="100" y="135" fill="#e6eef7" text-anchor="middle" font-family="Segoe UI" font-size="11" font-weight="700">Παναγιώτης Κ.</text>
+  </g>
+  <g transform="translate(240,30)">
+    <rect width="200" height="160" fill="#2d4a7a" rx="10"/>
+    <circle cx="100" cy="70" r="28" fill="#a6b5c6"/>
+    <rect x="45" y="120" width="110" height="22" fill="#0b2545" rx="4"/>
+    <text x="100" y="135" fill="#e6eef7" text-anchor="middle" font-family="Segoe UI" font-size="11" font-weight="700">Ελένη Δ.</text>
+  </g>
+  <g transform="translate(140,210)">
+    <rect width="200" height="60" fill="#152640" rx="30"/>
+    <circle cx="40" cy="30" r="16" fill="#2ea44f"/>
+    <circle cx="100" cy="30" r="16" fill="#ff8c42"/>
+    <circle cx="160" cy="30" r="16" fill="#e34c4c"/>
+    <text x="40" y="34" fill="#fff" text-anchor="middle" font-size="12" font-weight="700">🎙</text>
+    <text x="100" y="34" fill="#fff" text-anchor="middle" font-size="12" font-weight="700">📷</text>
+    <text x="160" y="34" fill="#fff" text-anchor="middle" font-size="12" font-weight="700">✕</text>
+  </g>
+</svg>`)}`;
+
+  return (
+    <Box component="section" sx={{
+      position: "relative",
+      py: { xs: 7, md: 10 },
+      background: "linear-gradient(180deg, #f6f9fc 0%, #eaf3fb 100%)",
+      overflow: "hidden",
+      my: { xs: 4, md: 6 },
+    }}>
+      <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1 }}>
+        <Reveal>
+          <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+            <Typography sx={{
+              fontSize: 11, letterSpacing: "0.25em", textTransform: "uppercase",
+              color: ACCENT, fontWeight: 700
+            }}>
+              ΕΡΜΗΣ · Kalypsis-native επικοινωνία
+            </Typography>
+            <Chip label="ΔΩΡΕΑΝ ΓΙΑ ΠΑΝΤΑ" size="small" color="success"
+              sx={{ fontWeight: 800, letterSpacing: "0.06em" }} />
+          </Stack>
+          <Typography variant="h3" sx={{
+            fontWeight: 900, fontSize: { xs: 28, sm: 36, md: 44 },
+            color: NAVY, mb: 1.5, letterSpacing: "-0.01em"
+          }}>
+            Ο ΕΡΜΗΣ ενώνει το γραφείο σας
+          </Typography>
+          <Typography sx={{ color: NAVY_SOFT, maxWidth: 780, fontSize: { xs: 15, md: 17 }, lineHeight: 1.6 }}>
+            Κρυπτογραφημένα μηνύματα, θέματα και meetings ανάμεσα σε συνεργάτες,
+            πελάτες και ασφαλιστικές — χωρίς Viber, χωρίς Messenger, χωρίς email
+            spam. Περιλαμβάνεται σε κάθε πλάνο Kalypsis <strong>δωρεάν για πάντα</strong>,
+            χωρίς όριο χρηστών.
+          </Typography>
+        </Reveal>
+
+        {/* Screenshot strip */}
+        <Box sx={{
+          mt: 4,
+          display: "grid",
+          gap: 3,
+          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+        }}>
+          <Reveal delay={100}>
+            <Box sx={{
+              borderRadius: 3, overflow: "hidden",
+              border: "1px solid", borderColor: RULE,
+              boxShadow: "0 20px 40px -20px rgba(11,37,69,0.25)",
+              bgcolor: "#fff",
+            }}>
+              <Box component="img" src={inboxSvg} alt="Στιγμιότυπο εισερχομένων ΕΡΜΗΣ"
+                sx={{ width: "100%", display: "block" }} />
+              <Box sx={{ p: 2, borderTop: "1px solid", borderColor: RULE }}>
+                <Typography variant="body2" color="text.secondary">
+                  Εισερχόμενα, κανάλια και ομαδικές συνομιλίες σε ένα inbox.
+                </Typography>
+              </Box>
+            </Box>
+          </Reveal>
+          <Reveal delay={200}>
+            <Box sx={{
+              borderRadius: 3, overflow: "hidden",
+              border: "1px solid", borderColor: RULE,
+              boxShadow: "0 20px 40px -20px rgba(11,37,69,0.25)",
+              bgcolor: "#fff",
+            }}>
+              <Box component="img" src={meetingSvg} alt="Στιγμιότυπο meeting ΕΡΜΗΣ"
+                sx={{ width: "100%", display: "block", bgcolor: "#0b1a2f" }} />
+              <Box sx={{ p: 2, borderTop: "1px solid", borderColor: RULE }}>
+                <Typography variant="body2" color="text.secondary">
+                  Video-call απευθείας από τη συνομιλία, χωρίς εγκατάσταση.
+                </Typography>
+              </Box>
+            </Box>
+          </Reveal>
+        </Box>
+
+        {/* Feature grid */}
+        <Box sx={{
+          mt: 4,
+          display: "grid", gap: 3,
+          gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
+        }}>
+          {features.map((f, i) => (
+            <Reveal key={f.title} delay={100 * (i + 1)}>
+              <Box sx={{
+                p: 3, borderRadius: 3,
+                bgcolor: "#fff",
+                border: "1px solid", borderColor: RULE,
+                boxShadow: "0 6px 20px -12px rgba(11,37,69,0.20)",
+                height: "100%",
+              }}>
+                <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+                  <Chip size="small" label={f.chip} color="primary" variant="outlined"
+                    sx={{ fontWeight: 800, letterSpacing: "0.04em" }} />
+                </Stack>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: NAVY, mb: 1 }}>
+                  {f.title}
+                </Typography>
+                <Typography variant="body2" sx={{ color: NAVY_SOFT, lineHeight: 1.65 }}>
+                  {f.body}
+                </Typography>
+              </Box>
+            </Reveal>
+          ))}
+        </Box>
+
+        <Reveal delay={400}>
+          <Box sx={{ mt: 4, textAlign: "center" }}>
+            <Typography sx={{ color: NAVY_SOFT, mb: 1 }}>
+              Δεν χρειάζεται πιστωτική κάρτα · Δωρεάν για κάθε πλάνο Kalypsis · Ελληνική φιλοξενία
+            </Typography>
+            <Button component={RouterLink} to="/register" variant="contained" size="large"
+              sx={{ fontWeight: 700, px: 4, mt: 1 }}>
+              Ξεκινήστε δωρεάν με τον ΕΡΜΗ
+            </Button>
+          </Box>
+        </Reveal>
+      </Container>
     </Box>
   );
 }
