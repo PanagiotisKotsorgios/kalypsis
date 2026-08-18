@@ -75,28 +75,32 @@ export function printTable<T>(opts: PrintOptions<T>): void {
   const now = new Date().toLocaleString(locale);
 
   const head = opts.columns.map(c => `<th>${escapeHtml(c.label)}</th>`).join("");
-  const renderBody = (rows: T[]) => rows
-    .map(r => {
-      const cells = opts.columns
-        .map(c => {
-          const raw = c.map ? c.map(r) : (r as Record<string, unknown>)[c.key];
-          return `<td>${escapeHtml(formatCell(raw, locale))}</td>`;
-        })
-        .join("");
-      return `<tr>${cells}</tr>`;
-    })
-    .join("");
+  const renderRow = (r: T) => {
+    const cells = opts.columns
+      .map(c => {
+        const raw = c.map ? c.map(r) : (r as Record<string, unknown>)[c.key];
+        return `<td>${escapeHtml(formatCell(raw, locale))}</td>`;
+      })
+      .join("");
+    return `<tr>${cells}</tr>`;
+  };
+  const renderBody = (rows: T[]) => rows.map(renderRow).join("");
   const body = renderBody(opts.rows);
-  const groupedHtml = opts.groups && opts.groups.length > 0
-    ? opts.groups.map(g => `
-      <section class="kalypsis-group">
-        <div class="group-header">
+  const colCount = opts.columns.length;
+  // Grouped output — one UNIFIED table so column widths stay consistent
+  // across every section (auto-width based on the whole dataset, not
+  // per-group), the <thead> repeats on every page automatically, and
+  // groups can flow across page breaks without leaving a nearly-empty
+  // first page. Each group emits a full-width header row (colspan) and,
+  // optionally, a subtotal row at the end.
+  const groupedBody = opts.groups && opts.groups.length > 0
+    ? opts.groups.map(g => {
+        const headerRow = `<tr class="group-header-row"><td colspan="${colCount}">
           <span class="group-title">${escapeHtml(g.title)}</span>
-          <span class="group-count">${g.rows.length.toLocaleString(locale)} εγγραφές${g.summary ? ` · ${escapeHtml(g.summary)}` : ""}</span>
-        </div>
-        <table><thead><tr>${head}</tr></thead><tbody>${renderBody(g.rows)}</tbody></table>
-      </section>
-    `).join("")
+          <span class="group-count"> — ${g.rows.length.toLocaleString(locale)} εγγραφές${g.summary ? ` · ${escapeHtml(g.summary)}` : ""}</span>
+        </td></tr>`;
+        return `${headerRow}${g.rows.map(renderRow).join("")}`;
+      }).join("")
     : null;
 
   const html = `<!doctype html>
@@ -122,16 +126,30 @@ export function printTable<T>(opts: PrintOptions<T>): void {
   footer .brand a { color: inherit; text-decoration: none; }
   .watermark { position: fixed; bottom: 6mm; left: 0; right: 0; text-align: center; font-size: 9px; color: #bbb; }
   .empty { text-align: center; padding: 24px; color: #888; font-style: italic; }
-  .kalypsis-group { margin-bottom: 14px; break-inside: avoid-page; }
-  .kalypsis-group + .kalypsis-group { border-top: 1px dashed #b6c8e0; padding-top: 10px; }
-  .group-header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 6px; }
-  .group-title { font-size: 13.5px; font-weight: 800; color: #0d47a1; letter-spacing: 0.2px; }
-  .group-count { font-size: 10.5px; color: #666; font-variant-numeric: tabular-nums; }
+  /* Group header rows live inside the same table as the data rows so
+     the browser auto-sizes every column consistently across sections
+     and repeats the <thead> on every printed page. */
+  tr.group-header-row td {
+    background: #eef2f7 !important;
+    padding: 8px 10px !important;
+    border-top: 2px solid #0d47a1;
+    border-bottom: 1px solid #b6c8e0;
+  }
+  tr.group-header-row .group-title {
+    font-size: 12.5px; font-weight: 800; color: #0d47a1; letter-spacing: 0.2px;
+  }
+  tr.group-header-row .group-count {
+    font-size: 10.5px; color: #444; font-variant-numeric: tabular-nums;
+  }
   @media print {
     header { break-after: avoid; }
     tr { break-inside: avoid; }
-    .kalypsis-group { break-inside: avoid; }
-    .kalypsis-group + .kalypsis-group { break-before: auto; }
+    /* Keep a group header attached to its first row rather than dangling
+       at the bottom of a page, but allow the group ITSELF to span pages
+       so an 11-row producer doesn't push everything to the next sheet. */
+    tr.group-header-row { break-after: avoid; break-inside: avoid; }
+    thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
   }
 </style>
 </head>
@@ -144,9 +162,7 @@ export function printTable<T>(opts: PrintOptions<T>): void {
   </header>
   ${opts.rows.length === 0
       ? `<div class="empty">Δεν υπάρχουν εγγραφές για εκτύπωση.</div>`
-      : groupedHtml !== null
-        ? groupedHtml
-        : `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`}
+      : `<table><thead><tr>${head}</tr></thead><tbody>${groupedBody !== null ? groupedBody : body}</tbody></table>`}
   <footer>
     <span class="brand">
       Kalypsis — Πλατφόρμα Διαχείρισης Ασφαλιστικού Γραφείου

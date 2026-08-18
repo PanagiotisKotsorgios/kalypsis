@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Card, Chip, CircularProgress, MenuItem,
+  Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, FormControlLabel, MenuItem,
   Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow,
-  TextField, Typography
+  TextField, Tooltip, Typography
 } from "@mui/material";
 import StackedBarChartIcon from "@mui/icons-material/StackedBarChart";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
@@ -26,6 +26,7 @@ import {
 } from "../components/ExportColumnPicker";
 import { printTable } from "../utils/printableTable";
 import { useHeaderContextMenu, type ColumnType } from "../components/TableContextMenu";
+import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
 
 interface Carrier { id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null; }
 interface Producer { id: string; name: string; }
@@ -170,8 +171,26 @@ export function ProductionListsPage() {
     text: (r: Row) => string;
     defaultOff?: boolean;
   }
+  // Open the PolicyDetailDrawer (καρτέλα with καλύψεις / πακέτα / τα
+  // πάντα ανά συμβόλαιο) when the operator clicks a row's Αρ. Συμβ.
+  const [detailPolicyId, setDetailPolicyId] = useState<string | null>(null);
   const columns: ProductionColumn[] = [
-    { key: "policyNumber",   label: t("productionList.col.policy"),   render: r => <Box component="span" sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.policyNumber}</Box>, text: r => r.policyNumber },
+    { key: "policyNumber",   label: t("productionList.col.policy"),
+      render: r => (
+        <Box component="button" type="button"
+          onClick={() => setDetailPolicyId(r.policyId)}
+          sx={{
+            fontFamily: "monospace", fontWeight: 700, color: "primary.main",
+            border: 0, bgcolor: "transparent", padding: 0, cursor: "pointer",
+            textAlign: "left", textDecoration: "underline",
+            textUnderlineOffset: 2, textDecorationColor: "transparent",
+            "&:hover": { textDecorationColor: "inherit" },
+          }}
+          title="Άνοιγμα καρτέλας συμβολαίου (καλύψεις, πακέτα, ιστορικό)">
+          {r.policyNumber}
+        </Box>
+      ),
+      text: r => r.policyNumber },
     { key: "startDate",      label: t("productionList.col.start"),    render: r => <Box component="span" sx={{ fontSize: 12 }}>{date(r.startDate)}</Box>, text: r => date(r.startDate) },
     { key: "endDate",        label: "Λήξη",                            render: r => <Box component="span" sx={{ fontSize: 12 }}>{date(r.endDate)}</Box>,   text: r => date(r.endDate), defaultOff: true },
     { key: "customerName",   label: t("productionList.col.customer"), render: r => r.customerName,      text: r => r.customerName },
@@ -210,7 +229,48 @@ export function ProductionListsPage() {
   // Reset to the first page whenever the underlying result set changes
   // (new filters, new group-by) so we don't land on an empty tail page.
   useEffect(() => { setPage(0); }, [q.data?.rows.length, f]);
-  const visibleColumns = columns.filter(c => selection.activeKeys.includes(c.key));
+
+  // «Απόκρυψη προμ. έδρας» — when the operator prints/exports the sheet
+  // to send it to a συνεργάτης, they typically don't want the producer
+  // seeing what the agency (έδρα) keeps. Toggle drops the "bridgeComm"
+  // (Προμ. γέφυρας/έδρας) and "agency" (Προμ. έδρας) columns from both
+  // the on-screen table and the print / CSV output, plus strips the
+  // matching bits from the group section headers. Persisted per browser.
+  const [hideAgencyCols, setHideAgencyCols] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("kalypsis.productionList.hideAgency") === "1";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("kalypsis.productionList.hideAgency", hideAgencyCols ? "1" : "0");
+  }, [hideAgencyCols]);
+
+  // Data-driven auto-hide for ΦΠΑ: bridge-imported policies come with a
+  // real VAT value from the carrier, manual policies usually don't. If
+  // no visible row carries a non-zero VAT, drop the column entirely
+  // regardless of the picker — otherwise it renders «0,00 €» in every
+  // cell for no reason. When any row has a real VAT (data «came from
+  // γέφυρες or something») OR the operator has explicitly enabled it in
+  // the picker, keep it visible.
+  const hasAnyVat = useMemo(
+    () => (q.data?.rows ?? []).some(r => (r.vat ?? 0) > 0),
+    [q.data?.rows]
+  );
+  const vatExplicitlyOn = selection.activeKeys.includes("vat");
+
+  const visibleColumns = columns.filter(c => {
+    if (c.key === "vat") {
+      // ΦΠΑ: user's explicit picker choice wins. When the picker is at
+      // its default (defaultOff), still surface it if the current data
+      // actually has VAT values — that signals data «came from γέφυρες
+      // or something». If neither, hide it so we don't render 0,00 € in
+      // every row.
+      return vatExplicitlyOn || hasAnyVat;
+    }
+    if (!selection.activeKeys.includes(c.key)) return false;
+    if (hideAgencyCols && (c.key === "bridgeComm" || c.key === "agency")) return false;
+    return true;
+  });
 
   const headerMenu = useHeaderContextMenu({
     onSort: (key, dir) => { setSortKey(key); setSortDir(dir); },
@@ -296,7 +356,14 @@ export function ProductionListsPage() {
         for (const r of s.rows) {
           lines.push(activeCols.map(c => esc(c.text(r))).join(","));
         }
-        lines.push(esc(`Υποσύνολο: ${totals.count} συμβόλαια · ${money(totals.gross)} μικτά · ${money(totals.net)} καθαρά · ${money(totals.partner)} προμ. συν. · ${money(totals.agency)} προμ. έδρας`));
+        const subtotalBits = [
+          `Υποσύνολο: ${totals.count} συμβόλαια`,
+          `${money(totals.gross)} μικτά`,
+          `${money(totals.net)} καθαρά`,
+          `${money(totals.partner)} προμ. συν.`,
+        ];
+        if (!hideAgencyCols) subtotalBits.push(`${money(totals.agency)} προμ. έδρας`);
+        lines.push(esc(subtotalBits.join(" · ")));
       }
       const csv = `﻿${lines.join("\r\n")}\r\n`;
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -360,11 +427,13 @@ export function ProductionListsPage() {
       groups: sections.length > 0
         ? sections.map(s => {
             const t = groupSummary(s.rows);
-            return {
-              title: s.key,
-              summary: `${t.count} συμβόλαια · ${money(t.gross)} μικτά · ${money(t.partner)} προμ. συν. · ${money(t.agency)} προμ. έδρας`,
-              rows: s.rows,
-            };
+            const bits = [
+              `${t.count} συμβόλαια`,
+              `${money(t.gross)} μικτά`,
+              `${money(t.partner)} προμ. συν.`,
+            ];
+            if (!hideAgencyCols) bits.push(`${money(t.agency)} προμ. έδρας`);
+            return { title: s.key, summary: bits.join(" · "), rows: s.rows };
           })
         : undefined,
     });
@@ -399,6 +468,16 @@ export function ProductionListsPage() {
             setAll={selection.setAll}
             reset={selection.reset}
           />
+          <Tooltip title="Κρύβει τη στήλη «Προμ. γέφυρας/έδρας», τη στήλη «Προμ. έδρας» και το «Χ€ προμ. έδρας» από τα υποσύνολα ομάδας — για αποστολή πινακίου σε συνεργάτη.">
+            <FormControlLabel
+              sx={{ ml: 0.5, mr: 0.5, "& .MuiFormControlLabel-label": { fontSize: 13 } }}
+              control={
+                <Checkbox size="small" checked={hideAgencyCols}
+                  onChange={e => setHideAgencyCols(e.target.checked)} />
+              }
+              label="Απόκρυψη προμ. έδρας"
+            />
+          </Tooltip>
           <ExportFormatMenu onExport={downloadExport} />
           <Button variant="outlined" startIcon={<PrintIcon />} onClick={openPrint}>
             {t("common.print", "Εκτύπωση")}
@@ -662,7 +741,8 @@ export function ProductionListsPage() {
                             sx={{ fontWeight: 800, color: "primary.main", py: 1 }}>
                             {sec.key}
                             <Typography component="span" sx={{ ml: 1, fontWeight: 500, color: "text.secondary", fontSize: 12 }}>
-                              — {totals.count} συμβόλαια · {money(totals.gross)} μικτά · {money(totals.partner)} προμ. συν. · {money(totals.agency)} προμ. έδρας
+                              — {totals.count} συμβόλαια · {money(totals.gross)} μικτά · {money(totals.partner)} προμ. συν.
+                              {!hideAgencyCols && <> · {money(totals.agency)} προμ. έδρας</>}
                             </Typography>
                           </TableCell>
                         </TableRow>,
@@ -738,6 +818,11 @@ export function ProductionListsPage() {
           </Alert>
         </>
       )}
+      <PolicyDetailDrawer
+        policyId={detailPolicyId}
+        open={detailPolicyId !== null}
+        onClose={() => setDetailPolicyId(null)}
+      />
     </Box>
   );
 }
