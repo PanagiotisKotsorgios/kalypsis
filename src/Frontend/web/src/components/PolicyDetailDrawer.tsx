@@ -310,9 +310,61 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
 
   const p = q.data;
 
+  // Drawer is user-resizable from its left edge — same UX as the app
+  // sidebar. Width persists per browser in localStorage so a wider drag
+  // for high-res monitors sticks. Bounded so it can't disappear or
+  // cover the whole viewport.
+  const DRAWER_MIN = 520;
+  const DRAWER_DEFAULT = 1200;
+  const [drawerWidth, setDrawerWidth] = useState<number>(() => {
+    if (typeof window === "undefined") return DRAWER_DEFAULT;
+    const stored = Number(localStorage.getItem("kalypsis.policyDetailDrawer.width"));
+    if (Number.isFinite(stored) && stored >= DRAWER_MIN) return stored;
+    return DRAWER_DEFAULT;
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("kalypsis.policyDetailDrawer.width", String(drawerWidth));
+  }, [drawerWidth]);
+  const [resizing, setResizing] = useState(false);
+  useEffect(() => {
+    if (!resizing) return;
+    const onMove = (e: PointerEvent) => {
+      const max = Math.max(DRAWER_MIN, Math.floor(window.innerWidth * 0.98));
+      const next = Math.min(max, Math.max(DRAWER_MIN, window.innerWidth - e.clientX));
+      setDrawerWidth(next);
+    };
+    const onUp = () => setResizing(false);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [resizing]);
+
   return (
     <Drawer anchor="right" open={open} onClose={onClose}
-      PaperProps={{ sx: { width: { xs: "100%", md: "min(1200px, 92vw)" } } }}>
+      PaperProps={{ sx: { width: { xs: "100%", md: `min(${drawerWidth}px, 98vw)` }, overflow: "visible" } }}>
+      {/* Left-edge drag handle — same UX as sidebar. Positioned outside
+          the scroll area so it stays reachable while the operator scrolls
+          the drawer content. */}
+      <Box
+        role="separator" aria-orientation="vertical"
+        aria-label="Λαβή αλλαγής μεγέθους πλευρικής"
+        onPointerDown={(e) => { setResizing(true); e.preventDefault(); }}
+        sx={{
+          position: "absolute", top: 0, bottom: 0, left: -5, width: 10, zIndex: 5,
+          cursor: "col-resize", display: { xs: "none", md: "flex" },
+          alignItems: "center", justifyContent: "center",
+          "&::before": {
+            content: '""', width: 4, height: "min(80px, 60%)", borderRadius: 2,
+            bgcolor: resizing ? "primary.main" : "divider",
+            transition: "background-color 120ms ease",
+          },
+          "&:hover::before": { bgcolor: "primary.main" }
+        }}
+      />
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
         {/* Sticky header */}
         <Box sx={{ p: 2.5, borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.paper" }}>
