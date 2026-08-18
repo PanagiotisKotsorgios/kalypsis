@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, FormControlLabel, MenuItem,
+  Alert, Box, Button, Card, Chip, CircularProgress, MenuItem,
   Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow,
-  TextField, Tooltip, Typography
+  TextField, Typography
 } from "@mui/material";
 import StackedBarChartIcon from "@mui/icons-material/StackedBarChart";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
@@ -72,10 +72,6 @@ export function ProductionListsPage() {
     policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "",
     status: "", groupBy: "carrier"
   });
-  // Drill-down: click a group row to filter the detail table below to just
-  // that group. Cleared automatically when the groupBy changes.
-  const [focusedGroupKey, setFocusedGroupKey] = useState<string | null>(null);
-  useEffect(() => { setFocusedGroupKey(null); }, [f.groupBy]);
 
   const carriers = useQuery({
     queryKey: ["carriers-prod-list"],
@@ -226,56 +222,59 @@ export function ProductionListsPage() {
     return "string";
   };
 
-  // «Ανά συνεργάτη» — group printed / CSV output by producer, with each
-  // producer's policies laid out one-by-one in detail below their name.
-  // Persisted per browser so the operator's preference sticks across
-  // sessions and reloads.
-  const [perProducer, setPerProducer] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("kalypsis.productionList.perProducer") === "1";
-  });
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem("kalypsis.productionList.perProducer", perProducer ? "1" : "0");
-  }, [perProducer]);
-
-  // Group the currently-visible (filtered) row set by producer. Producers
-  // are sorted alphabetically with «Χωρίς συνεργάτη» pinned at the end.
-  // Policies inside each group sort by startDate desc so the newest is on
-  // top — matches what operators expect in a monthly πινάκιο.
-  const groupsByProducer = useMemo(() => {
-    const rows = q.data?.rows ?? [];
-    const byProducer = new Map<string, Row[]>();
-    for (const r of rows) {
-      const key = (r.producer ?? "Χωρίς συνεργάτη").trim();
-      const bucket = byProducer.get(key);
-      if (bucket) bucket.push(r); else byProducer.set(key, [r]);
+  // Groupers per «Ομαδοποίηση» dimension — the on-screen table lays out
+  // one section per group when this returns a non-null classifier.
+  const groupClassifier: ((r: Row) => string) | null = (() => {
+    switch (f.groupBy) {
+      case "carrier":  return r => r.insuranceCompany || "—";
+      case "producer": return r => (r.producer ?? "Χωρίς συνεργάτη").trim() || "Χωρίς συνεργάτη";
+      case "type":     return r => r.policyType || "—";
+      case "month":    return r => (r.startDate ?? "").slice(0, 7) || "—";
+      default:         return null;
     }
-    const groups = Array.from(byProducer.entries())
-      .sort(([a], [b]) => {
-        if (a === "Χωρίς συνεργάτη") return 1;
-        if (b === "Χωρίς συνεργάτη") return -1;
-        return a.localeCompare(b, "el");
-      })
-      .map(([producer, list]) => {
-        const sorted = list.slice().sort((x, y) =>
-          (y.startDate ?? "").localeCompare(x.startDate ?? ""));
-        const gross = sorted.reduce((s, r) => s + (r.gross ?? 0), 0);
-        const partner = sorted.reduce((s, r) => s + (r.partnerCommission ?? 0), 0);
-        return {
-          title: producer,
-          summary: `${money(gross)} μικτά · ${money(partner)} προμήθεια`,
-          rows: sorted,
-        };
-      });
-    return groups;
-  }, [q.data?.rows]);
+  })();
+
+  const groupSummary = (rows: Row[]) => {
+    const gross = rows.reduce((s, r) => s + (r.gross ?? 0), 0);
+    const net = rows.reduce((s, r) => s + (r.net ?? 0), 0);
+    const partner = rows.reduce((s, r) => s + (r.partnerCommission ?? 0), 0);
+    const agency = rows.reduce((s, r) => s + (r.agencyCommission ?? 0), 0);
+    return { gross, net, partner, agency, count: rows.length };
+  };
+
+  // Turn the filtered row set into ordered sections based on the current
+  // «Ομαδοποίηση». String groups sort alphabetically (Greek locale) with
+  // «Χωρίς συνεργάτη» / «—» pinned at the end; month groups sort
+  // chronologically desc so the newest lands on top.
+  const sections = useMemo(() => {
+    const rows = q.data?.rows ?? [];
+    if (!groupClassifier) return [] as Array<{ key: string; rows: Row[] }>;
+    const byKey = new Map<string, Row[]>();
+    for (const r of rows) {
+      const key = groupClassifier(r);
+      const bucket = byKey.get(key);
+      if (bucket) bucket.push(r); else byKey.set(key, [r]);
+    }
+    const entries = Array.from(byKey.entries());
+    const isEmpty = (v: string) => v === "Χωρίς συνεργάτη" || v === "—";
+    entries.sort(([a], [b]) => {
+      if (isEmpty(a) && !isEmpty(b)) return 1;
+      if (!isEmpty(a) && isEmpty(b)) return -1;
+      if (f.groupBy === "month") return b.localeCompare(a);
+      return a.localeCompare(b, "el");
+    });
+    return entries.map(([key, list]) => {
+      const sorted = list.slice().sort((x, y) =>
+        (y.startDate ?? "").localeCompare(x.startDate ?? ""));
+      return { key, rows: sorted };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q.data?.rows, f.groupBy]);
 
   async function downloadExport(fmt: "csv" | "xlsx" | "pdf") {
-    if (perProducer && fmt === "csv") {
-      // Ανά συνεργάτη CSV — client-built so the section headers survive.
-      // xlsx / pdf still go through the server export (sections don't
-      // translate cleanly to those formats).
+    // Client-side CSV when a grouping is active — need per-section subtotals
+    // interleaved with the rows, and the server export doesn't emit those.
+    if (fmt === "csv" && sections.length > 0) {
       const rows = q.data?.rows ?? [];
       if (rows.length === 0) return;
       const activeCols = visibleColumns;
@@ -284,21 +283,27 @@ export function ProductionListsPage() {
         return /[",\n\r;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
       };
       const header = activeCols.map(c => esc(c.label)).join(",");
+      const dimLabel = f.groupBy === "carrier"  ? "Εταιρία"
+                     : f.groupBy === "producer" ? "Συνεργάτης"
+                     : f.groupBy === "type"     ? "Κλάδος"
+                     : "Μήνας";
       const lines: string[] = [];
-      for (const g of groupsByProducer) {
+      for (const s of sections) {
+        const totals = groupSummary(s.rows);
         lines.push("");
-        lines.push(esc(`Συνεργάτης: ${g.title} — ${g.rows.length} συμβόλαια — ${g.summary}`));
+        lines.push(esc(`${dimLabel}: ${s.key} — ${totals.count} συμβόλαια`));
         lines.push(header);
-        for (const r of g.rows) {
+        for (const r of s.rows) {
           lines.push(activeCols.map(c => esc(c.text(r))).join(","));
         }
+        lines.push(esc(`Υποσύνολο: ${totals.count} συμβόλαια · ${money(totals.gross)} μικτά · ${money(totals.net)} καθαρά · ${money(totals.partner)} προμ. συν. · ${money(totals.agency)} προμ. έδρας`));
       }
       const csv = `﻿${lines.join("\r\n")}\r\n`;
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       const ts = new Date().toISOString().slice(0, 10);
-      a.href = url; a.download = `production-per-producer-${ts}.csv`;
+      a.href = url; a.download = `production-grouped-${f.groupBy}-${ts}.csv`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       return;
@@ -323,10 +328,10 @@ export function ProductionListsPage() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  // Client-side Print — always uses the currently loaded (filtered) rows
-  // and the current column-picker selection so the printed sheet mirrors
-  // exactly what's on screen. When «Ανά συνεργάτη» is on, the flat table
-  // is replaced by one section per producer (title + summary + rows).
+  // Client-side Print — mirrors what's on screen. When a grouping is
+  // active, prints one section per group with per-group subtotals at the
+  // bottom, before the next group starts. When no grouping, prints the
+  // flat table as-is.
   const openPrint = () => {
     const rows = q.data?.rows ?? [];
     const filterBits: string[] = [];
@@ -337,7 +342,13 @@ export function ProductionListsPage() {
     const selectedProducer = (producers.data ?? []).find(p => p.id === f.producerId);
     if (selectedProducer) filterBits.push(`Συνεργάτης: ${selectedProducer.name}`);
     if (f.status) filterBits.push(`Κατάσταση: ${f.status}`);
-    if (perProducer) filterBits.push("Ομαδοποίηση: ανά συνεργάτη");
+    if (f.groupBy) {
+      const dim = f.groupBy === "carrier"  ? "εταιρία"
+                : f.groupBy === "producer" ? "συνεργάτη"
+                : f.groupBy === "type"     ? "κλάδο"
+                : "μήνα";
+      filterBits.push(`Ομαδοποίηση: ανά ${dim}`);
+    }
 
     const printCols = visibleColumns.map(c => ({ key: c.key, label: c.label, map: c.text }));
     printTable<Row>({
@@ -346,9 +357,16 @@ export function ProductionListsPage() {
       columns: printCols,
       rows,
       orientation: "landscape",
-      groups: perProducer ? groupsByProducer.map(g => ({
-        title: g.title, summary: g.summary, rows: g.rows,
-      })) : undefined,
+      groups: sections.length > 0
+        ? sections.map(s => {
+            const t = groupSummary(s.rows);
+            return {
+              title: s.key,
+              summary: `${t.count} συμβόλαια · ${money(t.gross)} μικτά · ${money(t.partner)} προμ. συν. · ${money(t.agency)} προμ. έδρας`,
+              rows: s.rows,
+            };
+          })
+        : undefined,
     });
   };
 
@@ -381,16 +399,6 @@ export function ProductionListsPage() {
             setAll={selection.setAll}
             reset={selection.reset}
           />
-          <Tooltip title="Ομαδοποίηση εκτύπωσης / εξαγωγής CSV ανά συνεργάτη — αναλυτικά συμβόλαια, χωρίς σύνολα ομάδας.">
-            <FormControlLabel
-              sx={{ ml: 0.5, mr: 0.5, "& .MuiFormControlLabel-label": { fontSize: 13 } }}
-              control={
-                <Checkbox size="small" checked={perProducer}
-                  onChange={e => setPerProducer(e.target.checked)} />
-              }
-              label="Ανά συνεργάτη"
-            />
-          </Tooltip>
           <ExportFormatMenu onExport={downloadExport} />
           <Button variant="outlined" startIcon={<PrintIcon />} onClick={openPrint}>
             {t("common.print", "Εκτύπωση")}
@@ -532,16 +540,13 @@ export function ProductionListsPage() {
             </Stack>
           </Card>
 
-          {/* Group totals (if grouping enabled) — click a row to filter the
-              detail table below to just that group (drill-down). */}
+          {/* Aggregate totals per group — read-only summary above the
+              detail table. When the operator selects an «Ομαδοποίηση» in
+              the filters, the detail table below also lays itself out in
+              matching sections with per-group subtotals inline. */}
           {q.data.groups.length > 0 && (
             <Card sx={{ p: 2, mb: 2 }} variant="outlined">
-              <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
-                <Typography fontWeight={700}>{t("productionList.groupTotals")}</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Πατήστε σε γραμμή για να φιλτράρετε το αναλυτικό πίνακα σε αυτήν την ομάδα.
-                </Typography>
-              </Stack>
+              <Typography fontWeight={700} mb={1}>{t("productionList.groupTotals")}</Typography>
               <Table size="small">
                 <TableHead><TableRow>
                   <TableCell>{t("productionList.group")}</TableCell>
@@ -552,37 +557,18 @@ export function ProductionListsPage() {
                   <TableCell align="right">{t("productionList.kpi.agencyComm")}</TableCell>
                 </TableRow></TableHead>
                 <TableBody>
-                  {q.data.groups.map(g => {
-                    const isFocused = focusedGroupKey === g.key;
-                    return (
-                      <TableRow key={g.key} hover
-                        onClick={() => setFocusedGroupKey(isFocused ? null : g.key)}
-                        selected={isFocused}
-                        sx={{ cursor: "pointer" }}>
-                        <TableCell sx={{ fontWeight: 600 }}>
-                          {isFocused && <Chip size="small" color="primary" label="Επιλεγμένη" sx={{ mr: 1 }} />}
-                          {g.key}
-                        </TableCell>
-                        <TableCell align="right">{g.count}</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700 }}>{money(g.gross)}</TableCell>
-                        <TableCell align="right">{money(g.net)}</TableCell>
-                        <TableCell align="right" sx={{ color: "warning.main" }}>{money(g.partnerCommission)}</TableCell>
-                        <TableCell align="right" sx={{ color: "success.main", fontWeight: 700 }}>{money(g.agencyCommission)}</TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {q.data.groups.map(g => (
+                    <TableRow key={g.key} hover>
+                      <TableCell sx={{ fontWeight: 600 }}>{g.key}</TableCell>
+                      <TableCell align="right">{g.count}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>{money(g.gross)}</TableCell>
+                      <TableCell align="right">{money(g.net)}</TableCell>
+                      <TableCell align="right" sx={{ color: "warning.main" }}>{money(g.partnerCommission)}</TableCell>
+                      <TableCell align="right" sx={{ color: "success.main", fontWeight: 700 }}>{money(g.agencyCommission)}</TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
-              {focusedGroupKey !== null && (
-                <Stack direction="row" alignItems="center" spacing={1} mt={1}>
-                  <Chip color="primary" size="small"
-                    label={`Εστίαση: ${focusedGroupKey}`}
-                    onDelete={() => setFocusedGroupKey(null)} />
-                  <Typography variant="caption" color="text.secondary">
-                    Πατήστε το «×» για να δείτε ξανά όλες τις γραμμές.
-                  </Typography>
-                </Stack>
-              )}
             </Card>
           )}
 
@@ -637,30 +623,12 @@ export function ProductionListsPage() {
                   </TableRow>
                 )}
                 {(() => {
-                  // Drill-down filter — when the operator has clicked a
-                  // group row above, narrow the visible rows to just that
-                  // group. Matching is per-groupBy dimension so producer
-                  // grouping compares against r.producer, carrier against
-                  // r.insuranceCompany, and so on.
-                  const focused = focusedGroupKey;
-                  const matchesGroup = (r: Row): boolean => {
-                    if (!focused) return true;
-                    switch (f.groupBy) {
-                      case "carrier":  return (r.insuranceCompany ?? "") === focused;
-                      case "producer": return (r.producer ?? "") === focused
-                                            || (!r.producer && focused === "Χωρίς συνεργάτη");
-                      case "type":     return (r.policyType ?? "") === focused;
-                      case "month":    return (r.startDate ?? "").slice(0, 7) === focused;
-                      default:         return true;
-                    }
-                  };
-                  const focusedRows = q.data.rows.filter(matchesGroup);
-                  const sorted = (() => {
-                    if (!sortKey) return focusedRows;
+                  const sortRows = (list: Row[]): Row[] => {
+                    if (!sortKey) return list;
                     const col = columns.find(c => c.key === sortKey);
-                    if (!col) return focusedRows;
+                    if (!col) return list;
                     const type = inferColumnType(sortKey);
-                    const arr = focusedRows.slice();
+                    const arr = list.slice();
                     arr.sort((a, b) => {
                       const va: string = col.text(a) ?? "";
                       const vb: string = col.text(b) ?? "";
@@ -674,42 +642,94 @@ export function ProductionListsPage() {
                       return sortDir === "asc" ? cmp : -cmp;
                     });
                     return arr;
-                  })();
+                  };
+
+                  // GROUPED VIEW — one section per group with a header row
+                  // (colspan across the whole width), the group's rows, and
+                  // a subtotal footer row before the next group starts.
+                  // Pagination is disabled in grouped mode: operators
+                  // grouping by producer/carrier/etc want the whole picture
+                  // in one go, and paginating across group boundaries
+                  // splits sections mid-flow.
+                  if (sections.length > 0) {
+                    return sections.flatMap(sec => {
+                      const rows = sortRows(sec.rows);
+                      const totals = groupSummary(rows);
+                      return [
+                        <TableRow key={`hdr-${sec.key}`}
+                          sx={{ bgcolor: "action.hover" }}>
+                          <TableCell colSpan={visibleColumns.length}
+                            sx={{ fontWeight: 800, color: "primary.main", py: 1 }}>
+                            {sec.key}
+                            <Typography component="span" sx={{ ml: 1, fontWeight: 500, color: "text.secondary", fontSize: 12 }}>
+                              — {totals.count} συμβόλαια · {money(totals.gross)} μικτά · {money(totals.partner)} προμ. συν. · {money(totals.agency)} προμ. έδρας
+                            </Typography>
+                          </TableCell>
+                        </TableRow>,
+                        ...rows.map(r => (
+                          <TableRow key={r.policyId} hover>
+                            {visibleColumns.map(c => (
+                              <TableCell key={c.key} align={c.align}>{c.render(r)}</TableCell>
+                            ))}
+                          </TableRow>
+                        )),
+                        <TableRow key={`sub-${sec.key}`}
+                          sx={{ bgcolor: "rgba(11,37,69,0.04)" }}>
+                          {visibleColumns.map(c => {
+                            const label = c.key === "policyNumber"
+                              ? `Υποσύνολο · ${sec.key}` : "";
+                            if (c.key === "gross")  return <TableCell key={c.key} align="right" sx={{ fontWeight: 800 }}>{money(totals.gross)}</TableCell>;
+                            if (c.key === "net")    return <TableCell key={c.key} align="right" sx={{ fontWeight: 700 }}>{money(totals.net)}</TableCell>;
+                            if (c.key === "partner") return <TableCell key={c.key} align="right" sx={{ fontWeight: 700, color: "warning.main" }}>{money(totals.partner)}</TableCell>;
+                            if (c.key === "agency")  return <TableCell key={c.key} align="right" sx={{ fontWeight: 800, color: "success.main" }}>{money(totals.agency)}</TableCell>;
+                            return (
+                              <TableCell key={c.key} align={c.align}
+                                sx={{ fontWeight: 800, color: "text.primary" }}>
+                                {label}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>,
+                      ];
+                    });
+                  }
+
+                  // FLAT VIEW — original behaviour, with pagination.
+                  const sorted = sortRows(q.data.rows);
                   const start = page * rowsPerPage;
-                  return sorted.slice(start, start + rowsPerPage);
-                })().map(r => (
-                  <TableRow key={r.policyId} hover>
-                    {visibleColumns.map(c => (
-                      <TableCell key={c.key} align={c.align}>{c.render(r)}</TableCell>
-                    ))}
-                  </TableRow>
-                ))}
+                  return sorted.slice(start, start + rowsPerPage).map(r => (
+                    <TableRow key={r.policyId} hover>
+                      {visibleColumns.map(c => (
+                        <TableCell key={c.key} align={c.align}>{c.render(r)}</TableCell>
+                      ))}
+                    </TableRow>
+                  ));
+                })()}
               </TableBody>
             </Table>
-            <TablePagination
-              component="div"
-              count={
-                focusedGroupKey
-                  ? q.data.rows.filter(r => {
-                      switch (f.groupBy) {
-                        case "carrier":  return (r.insuranceCompany ?? "") === focusedGroupKey;
-                        case "producer": return (r.producer ?? "") === focusedGroupKey
-                                             || (!r.producer && focusedGroupKey === "Χωρίς συνεργάτη");
-                        case "type":     return (r.policyType ?? "") === focusedGroupKey;
-                        case "month":    return (r.startDate ?? "").slice(0, 7) === focusedGroupKey;
-                        default:         return true;
-                      }
-                    }).length
-                  : q.data.rows.length
-              }
-              page={page}
-              onPageChange={(_e, p) => setPage(p)}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
-              rowsPerPageOptions={[10, 25, 50, 100, 250]}
-              labelRowsPerPage="Γραμμές ανά σελίδα"
-              labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
-            />
+            {sections.length === 0 && (
+              <TablePagination
+                component="div"
+                count={q.data.rows.length}
+                page={page}
+                onPageChange={(_e, p) => setPage(p)}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+                rowsPerPageOptions={[10, 25, 50, 100, 250]}
+                labelRowsPerPage="Γραμμές ανά σελίδα"
+                labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`}
+              />
+            )}
+            {sections.length > 0 && (
+              <Box sx={{ px: 2, py: 1, borderTop: "1px solid", borderColor: "divider" }}>
+                <Typography variant="caption" color="text.secondary">
+                  Ομαδοποίηση ανά {f.groupBy === "carrier" ? "εταιρία"
+                    : f.groupBy === "producer" ? "συνεργάτη"
+                    : f.groupBy === "type" ? "κλάδο" : "μήνα"} — {sections.length} ομάδες · {q.data.rows.length} συμβόλαια συνολικά.
+                  Η σελιδοποίηση απενεργοποιείται σε αναλυτική ομαδοποίηση.
+                </Typography>
+              </Box>
+            )}
           </Card>
           {headerMenu.menu}
 
