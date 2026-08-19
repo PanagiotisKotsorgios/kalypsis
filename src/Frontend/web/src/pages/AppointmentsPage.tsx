@@ -204,9 +204,9 @@ export function AppointmentsPage() {
                             <Chip label={t(`appointments.status.${a.status}`)} size="small" color={STATUS_COLOR[a.status]} />
                           </Stack>
                           <Typography variant="body2" color="text.secondary">
-                            {new Date(a.startsAt).toLocaleTimeString("el-GR", { hour: "2-digit", minute: "2-digit" })}
+                            {new Date(a.startsAt).toLocaleTimeString("el-GR", { hour: "2-digit", minute: "2-digit", hour12: false, hourCycle: "h23", timeZone: "Europe/Athens" })}
                             {" – "}
-                            {new Date(a.endsAt).toLocaleTimeString("el-GR", { hour: "2-digit", minute: "2-digit" })}
+                            {new Date(a.endsAt).toLocaleTimeString("el-GR", { hour: "2-digit", minute: "2-digit", hour12: false, hourCycle: "h23", timeZone: "Europe/Athens" })}
                             {a.location && <> · {a.location}</>}
                           </Typography>
                           {a.description && <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}>{a.description}</Typography>}

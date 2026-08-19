@@ -33,15 +33,25 @@ export function num(n: number | null | undefined): string {
   return NUM.format(n);
 }
 
-/** «dd/MM/yyyy» from an ISO date or Date. */
+// Every date / time the app renders should be in Athens local time in a
+// 24-hour format — an office in Θεσσαλονίκη viewing a UTC-stamped
+// activity feed should see «16:28» not «1:27 μ.μ.» or the browser's
+// arbitrary local zone. Toolkit-wide options passed to every formatter.
+const ATHENS_TZ = "Europe/Athens";
+const HOUR_CYCLE_24 = { hour12: false, hourCycle: "h23" as const };
+
+/** «dd/MM/yyyy» from an ISO date or Date, Athens-time. */
 export function date(input: string | Date | null | undefined): string {
   if (!input) return "";
   const d = typeof input === "string" ? new Date(input) : input;
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("el-GR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return d.toLocaleDateString("el-GR", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    timeZone: ATHENS_TZ,
+  });
 }
 
-/** «dd/MM/yyyy HH:mm» for timestamps. */
+/** «dd/MM/yyyy HH:mm» for timestamps, Athens-time, 24-hour. */
 export function dateTime(input: string | Date | null | undefined): string {
   if (!input) return "";
   const d = typeof input === "string" ? new Date(input) : input;
@@ -49,6 +59,20 @@ export function dateTime(input: string | Date | null | undefined): string {
   return d.toLocaleString("el-GR", {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit",
+    timeZone: ATHENS_TZ,
+    ...HOUR_CYCLE_24,
+  });
+}
+
+/** «HH:mm» — Athens-time, 24-hour, time only (activity feeds, chat, etc.). */
+export function time(input: string | Date | null | undefined): string {
+  if (!input) return "";
+  const d = typeof input === "string" ? new Date(input) : input;
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString("el-GR", {
+    hour: "2-digit", minute: "2-digit",
+    timeZone: ATHENS_TZ,
+    ...HOUR_CYCLE_24,
   });
 }
 

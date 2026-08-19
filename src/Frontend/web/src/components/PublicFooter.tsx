@@ -29,6 +29,7 @@ export function PublicFooter() {
           </Typography>
 
           <Stack direction="row" spacing={3} sx={{ flexWrap: "wrap" }}>
+            <FooterLink to="/documentation" label="Οδηγίες Χρήσης" emphasized />
             <FooterLink to="/contact" label="Επικοινωνία / Αναφορά Προβλήματος" emphasized />
             <FooterLink to="/terms"   label="Όροι Χρήσης" />
             <FooterLink to="/privacy" label="Απόρρητο" />

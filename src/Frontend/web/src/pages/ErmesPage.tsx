@@ -169,7 +169,7 @@ const dateShort = (iso: string) => {
   const today = new Date();
   const isToday = d.toDateString() === today.toDateString();
   return isToday
-    ? d.toLocaleTimeString("el-GR", { hour: "2-digit", minute: "2-digit" })
+    ? d.toLocaleTimeString("el-GR", { hour: "2-digit", minute: "2-digit", hour12: false, hourCycle: "h23", timeZone: "Europe/Athens" })
     : d.toLocaleDateString("el-GR", { day: "2-digit", month: "2-digit" });
 };
 
@@ -187,7 +187,7 @@ function printThread(messages: ErmesMessageDto[], subject: string) {
         <span style="color:#666;font-weight:400">&lt;${esc(m.senderEmail)}&gt;</span></div>
       <div style="color:#666;font-size:12px;margin-bottom:6px">
         προς: ${esc((m.recipients ?? []).map(r => r.display).join(", "))}
-        · ${new Date(m.sentAt ?? m.createdAt).toLocaleString("el-GR")}
+        · ${new Date(m.sentAt ?? m.createdAt).toLocaleString("el-GR", { hour12: false, hourCycle: "h23", timeZone: "Europe/Athens" })}
       </div>
       <div style="font-size:13px;line-height:1.5">${m.bodyHtml || ""}</div>
     </section>`).join("");
@@ -201,7 +201,7 @@ function printThread(messages: ErmesMessageDto[], subject: string) {
     <h1>${esc(subject)}</h1>
     ${items}
     <p style="color:#999;font-size:11px;margin-top:24px">
-      Εκτυπώθηκε από Kalypsis · ΕΡΜΗΣ · ${new Date().toLocaleString("el-GR")}
+      Εκτυπώθηκε από Kalypsis · ΕΡΜΗΣ · ${new Date().toLocaleString("el-GR", { hour12: false, hourCycle: "h23", timeZone: "Europe/Athens" })}
     </p>
     <script>window.onload=()=>setTimeout(()=>window.print(),120);</script>
     </body></html>`;
@@ -839,7 +839,7 @@ function ThreadReader({
                 </Typography>
               </Box>
               <Typography variant="caption" color="text.secondary">
-                {new Date(m.sentAt ?? m.createdAt).toLocaleString("el-GR")}
+                {new Date(m.sentAt ?? m.createdAt).toLocaleString("el-GR", { hour12: false, hourCycle: "h23", timeZone: "Europe/Athens" })}
               </Typography>
             </Stack>
             <Box sx={{
@@ -1144,7 +1144,7 @@ function ComposeDialog({
         )}
         {autoSaveStatus === "saved" && lastSavedAt && (
           <Typography variant="caption" color="text.secondary">
-            Αποθηκευμένο πρόχειρο · {lastSavedAt.toLocaleTimeString("el-GR", { hour: "2-digit", minute: "2-digit" })}
+            Αποθηκευμένο πρόχειρο · {lastSavedAt.toLocaleTimeString("el-GR", { hour: "2-digit", minute: "2-digit", hour12: false, hourCycle: "h23", timeZone: "Europe/Athens" })}
           </Typography>
         )}
         {autoSaveStatus === "error" && (
@@ -2239,7 +2239,7 @@ function ChannelDialog({ team, onClose, meDisplay }: {
                   <Stack direction="row" spacing={1} alignItems="center">
                     <Typography variant="body2" fontWeight={800}>{m.senderDisplay}</Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {new Date(m.sentAt ?? m.createdAt).toLocaleString("el-GR")}
+                      {new Date(m.sentAt ?? m.createdAt).toLocaleString("el-GR", { hour12: false, hourCycle: "h23", timeZone: "Europe/Athens" })}
                     </Typography>
                   </Stack>
                   <Box sx={{ mt: 0.5, "& p": { my: 0.5 }, fontSize: 14, lineHeight: 1.55 }}

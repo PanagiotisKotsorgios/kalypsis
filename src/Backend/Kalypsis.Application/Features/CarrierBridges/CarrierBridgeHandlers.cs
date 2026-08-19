@@ -2933,7 +2933,7 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                             PolicyId = parentPolicy.Id,
                             CancellationNumber = $"AK-{accountingDate.Year}-BRG-{bridgeReference[^8..]}",
                             Status = PolicyCancellationStatus.Effective,
-                            ReasonText = "Automatic carrier bridge cancellation.",
+                            ReasonText = "Αυτόματη ακύρωση από γέφυρα ασφαλιστικής.",
                             RequestedAt = accountingDate,
                             EffectiveFrom = row.StartDate ?? accountingDate,
                             RefundMethod = "Custom",

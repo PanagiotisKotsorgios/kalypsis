@@ -65,6 +65,7 @@ import { DownloadPage } from "./pages/DownloadPage";
 import { DesktopReleasesPage } from "./pages/DesktopReleasesPage";
 import { DesktopReleaseGuidePage } from "./pages/DesktopReleaseGuidePage";
 import { FaqPage } from "./pages/FaqPage";
+import { DocumentationPage } from "./pages/DocumentationPage";
 import { ContactPage } from "./pages/ContactPage";
 import { TermsPage } from "./pages/TermsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
@@ -268,6 +269,10 @@ const navByRole: Record<Role, NavItem[]> = {
     // working in. Sits right under Πίνακας Ελέγχου for prominence.
     { to: "/ermes-app", labelKey: "nav.ermes", icon: <MailOutlineIcon />, openInNewTab: true,
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+    // Οδηγίες χρήσης — ενσωματωμένος οδηγός βήμα-προς-βήμα, εκτυπώσιμος
+    // σε PDF από κάθε σελίδα.
+    { to: "/documentation", labelKey: "nav.documentation", icon: <MenuBookIcon />,
+      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
 
     // ===== BackOffice — Γέφυρες Εταιρειών (hub for 4 carrier-import screens) =====
     { to: "/carrier-bridges-hub", labelKey: "nav.carrierBridgesHub", icon: <CloudUploadIcon />, package: "BackOffice" },
@@ -410,6 +415,10 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />,
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
     { to: "/ermes-app", labelKey: "nav.ermes", icon: <MailOutlineIcon />, openInNewTab: true,
+      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+    // Οδηγίες χρήσης — ενσωματωμένος οδηγός βήμα-προς-βήμα, εκτυπώσιμος
+    // σε PDF από κάθε σελίδα.
+    { to: "/documentation", labelKey: "nav.documentation", icon: <MenuBookIcon />,
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
     // BackOffice
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
@@ -597,6 +606,9 @@ export default function App() {
         <Route path="/download/releases/guide/:assetId" element={<DesktopReleaseGuidePage />} />
         <Route path="/desktop-releases" element={<Navigate to="/download/releases" replace />} />
         <Route path="/faq" element={<FaqPage />} />
+        <Route path="/documentation" element={<DocumentationPage />} />
+        <Route path="/docs" element={<Navigate to="/documentation" replace />} />
+        <Route path="/help" element={<Navigate to="/documentation" replace />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
@@ -895,6 +907,9 @@ export default function App() {
                   <Route path="all-tools" element={<AllToolsPage />} />
                   <Route path="ermes" element={<ErmesPage />} />
                   <Route path="ermes/meeting/:roomId" element={<ErmesMeetingPage />} />
+                  <Route path="documentation" element={<DocumentationPage />} />
+                  <Route path="help" element={<Navigate to="/app/documentation" replace />} />
+                  <Route path="docs" element={<Navigate to="/app/documentation" replace />} />
                   <Route path="default-value-rules" element={<Navigate to="/app/commission-rules" replace />} />
                   <Route path="carrier-bridges-hub" element={<CarrierBridgesHubPage />} />
                   <Route path="carrier-bridges" element={<CarrierBridgesPage />} />

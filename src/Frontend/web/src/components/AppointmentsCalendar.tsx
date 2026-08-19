@@ -358,7 +358,7 @@ export function AppointmentsCalendar({ events, onCreateForDay, onEventClick }: P
 function shortTime(iso: string) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("el-GR", { hour: "2-digit", minute: "2-digit", hour12: false, hourCycle: "h23", timeZone: "Europe/Athens" });
 }
 
 function Legend() {

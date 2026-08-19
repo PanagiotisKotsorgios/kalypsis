@@ -37,6 +37,7 @@ export function PublicNav(_: PublicNavProps = {}) {
     { to: "/#features", labelKey: "publicNav.platform" },
     { to: "/pricing", labelKey: "publicNav.pricing" },
     { to: "/faq", labelKey: "footer.faq" },
+    { to: "/documentation", labelKey: "publicNav.documentation" },
     { to: "/contact", labelKey: "publicNav.contact" }
   ];
   const desktopLinks = mobileLinks.filter((l) => l.labelKey !== "publicNav.home");

@@ -16,6 +16,17 @@ import { money, date } from "../utils/format";
 
 type Status = "Draft" | "Submitted" | "Approved" | "Rejected" | "Effective";
 
+// Greek labels for the status + refund-method values the backend returns as
+// English enum strings. Kept close to the render so the mapping is obvious
+// to anyone reading a Chip that shows «Ενεργή» instead of «Effective».
+const STATUS_LABEL: Record<Status, string> = {
+  Draft: "Πρόχειρο", Submitted: "Υποβλήθηκε", Approved: "Εγκρίθηκε",
+  Rejected: "Απορρίφθηκε", Effective: "Ενεργή",
+};
+const METHOD_LABEL: Record<string, string> = {
+  ProRata: "Αναλογική", ShortRate: "Ποινή πρόωρης", Full: "Πλήρης", Custom: "Χειροκίνητη",
+};
+
 interface CancellationDto {
   id: string; policyId: string; policyNumber: string;
   cancellationNumber: string; status: Status;
@@ -108,15 +119,13 @@ export function PolicyCancellationsPage() {
             onChange={(e) => setStatusFilter(e.target.value as Status | "")} fullWidth>
             <MenuItem value="">Όλες</MenuItem>
             {(["Draft", "Submitted", "Approved", "Rejected", "Effective"] as const).map(s =>
-              <MenuItem key={s} value={s}>{s}</MenuItem>)}
+              <MenuItem key={s} value={s}>{STATUS_LABEL[s]}</MenuItem>)}
           </SearchableTextField>
           <SearchableTextField size="small" label="Μέθοδος" value={methodFilter}
             onChange={(e) => setMethodFilter(e.target.value)} fullWidth>
             <MenuItem value="">Όλες</MenuItem>
-            <MenuItem value="ProRata">ProRata</MenuItem>
-            <MenuItem value="ShortRate">ShortRate</MenuItem>
-            <MenuItem value="Full">Full</MenuItem>
-            <MenuItem value="Custom">Custom</MenuItem>
+            {Object.entries(METHOD_LABEL).map(([v, label]) =>
+              <MenuItem key={v} value={v}>{label}</MenuItem>)}
           </SearchableTextField>
           <TextField size="small" type="date" label="Ισχύς από" InputLabelProps={{ shrink: true }} fullWidth
             value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
@@ -162,7 +171,7 @@ export function PolicyCancellationsPage() {
                   </TableCell>
                   <TableCell>{date(c.effectiveFrom)}</TableCell>
                   <TableCell>
-                    <Chip size="small" label={c.refundMethod} variant="outlined" />
+                    <Chip size="small" label={METHOD_LABEL[c.refundMethod] ?? c.refundMethod} variant="outlined" />
                   </TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700, color: "success.main" }}>
                     {money(c.refundAmount, c.currency)}
@@ -170,7 +179,7 @@ export function PolicyCancellationsPage() {
                   <TableCell>
                     <Chip size="small"
                       color={c.status === "Effective" ? "success" : c.status === "Rejected" ? "error" : "warning"}
-                      label={c.status} />
+                      label={STATUS_LABEL[c.status] ?? c.status} />
                   </TableCell>
                   <TableCell align="right">
                     {c.status !== "Effective" && c.status !== "Rejected" && (
@@ -301,10 +310,10 @@ function CancellationDialog({ open, onClose, onSaved }: { open: boolean; onClose
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <SearchableTextField label="Μέθοδος επιστροφής" value={refundMethod}
               onChange={(e) => setRefundMethod(e.target.value)} sx={{ flex: 1 }}>
-              <MenuItem value="ProRata">Pro Rata — αναλογικά</MenuItem>
-              <MenuItem value="ShortRate">Short Rate — με ποινή 20%</MenuItem>
+              <MenuItem value="ProRata">Αναλογική — pro rata για τις υπόλοιπες ημέρες</MenuItem>
+              <MenuItem value="ShortRate">Ποινή πρόωρης — αναλογικά με ποινή 20%</MenuItem>
               <MenuItem value="Full">Πλήρης επιστροφή</MenuItem>
-              <MenuItem value="Custom">Custom — χειροκίνητο</MenuItem>
+              <MenuItem value="Custom">Χειροκίνητη — δικό μας ποσό</MenuItem>
             </SearchableTextField>
             <HelpHint id="cancellation.refundMethod" />
             {refundMethod === "Custom" && (
