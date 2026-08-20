@@ -1,6 +1,7 @@
 using FluentValidation;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
+using Kalypsis.Domain.Common;
 using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
 using MediatR;
@@ -225,7 +226,8 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
                 fixLink: "/app/customers");
 
         var carrierExists = await _db.InsuranceCompanies.IgnoreQueryFilters()
-            .AnyAsync(c => c.Id == r.InsuranceCompanyId && c.DeletedAt == null, ct);
+            .AnyAsync(c => c.Id == r.InsuranceCompanyId && c.DeletedAt == null
+                && (c.TenantId == null || c.TenantId == tenantId), ct);
         if (!carrierExists)
             throw new AppException("carrier_not_found",
                 "Η ασφαλιστική εταιρεία δεν βρέθηκε.", 400,
@@ -233,6 +235,14 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
                 why: "Η ασφαλιστική που επιλέξατε δεν υπάρχει στον κατάλογό σας. Πιθανώς δεν την έχετε προσθέσει ακόμη ή διαγράφηκε.",
                 fix: "Μεταβείτε στις «Ασφαλιστικές Εταιρείες» και προσθέστε την, μετά ξαναπροσπαθήστε.",
                 fixLink: "/app/insurance-companies");
+
+        // Cross-tenant FK guards. Every nullable Guid the operator can
+        // set from the body MUST be validated against tenant scope so no
+        // cross-tenant GUID «planting» attack can leak Office B's data
+        // through PolicyDetail's IgnoreQueryFilters + Include chain.
+        var producerId  = await TenantFkGuard.RequireTenantOwnedAsync(_db.Producers, r.ProducerId, tenantId, "Συνεργάτης", ct);
+        var partyCustId = await TenantFkGuard.RequireTenantOwnedAsync(_db.Customers, r.ContractPartyCustomerId, tenantId, "Συμβαλλόμενος", ct);
+        var prevCarrier = await TenantFkGuard.RequireCarrierAsync(_db.InsuranceCompanies, r.PreviousInsuranceCompanyId, tenantId, ct);
 
         var count = await _db.Policies.IgnoreQueryFilters().CountAsync(p => p.TenantId == tenantId, ct);
         var number = $"P-{(count + 1):D6}";
@@ -246,7 +256,7 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
             PolicyNumber = number,
             CustomerId = customer.Id,
             InsuranceCompanyId = r.InsuranceCompanyId,
-            ProducerId = r.ProducerId,
+            ProducerId = producerId,
             PolicyType = branchEnum,
             VehicleUseCategory = useEnum,
             CarrierBranchCode   = branchRaw,
@@ -261,8 +271,8 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
             SpecsJson = PolicySpecsJsonHelper.MergeCodes(null, r.CoverCode, r.PackageCode),
             CreatedByUserId = _current.UserId,
             ApplicationNumber = string.IsNullOrWhiteSpace(r.ApplicationNumber) ? null : r.ApplicationNumber.Trim(),
-            ContractPartyCustomerId = r.ContractPartyCustomerId,
-            PreviousInsuranceCompanyId = r.PreviousInsuranceCompanyId,
+            ContractPartyCustomerId = partyCustId,
+            PreviousInsuranceCompanyId = prevCarrier,
             IssuedAt = r.IssuedAt,
             VehicleRegistrationPlate = string.IsNullOrWhiteSpace(r.VehicleRegistrationPlate)
                 ? null : r.VehicleRegistrationPlate.Trim().ToUpperInvariant()
@@ -322,8 +332,14 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
         }
         catch { /* splits are a read-side convenience — never block the write */ }
 
-        // Re-fetch with includes for display fields.
-        var saved = await _db.Policies.IgnoreQueryFilters()
+        // Re-fetch with includes for display fields. Keep the global tenant
+        // filter active — IgnoreQueryFilters() cascades to every Include(),
+        // so if this row's Producer/ContractParty/PreviousInsuranceCompany
+        // pointed to a foreign tenant (rejected upstream by TenantFkGuard,
+        // but defence-in-depth), the resolved name would leak. The default
+        // filter automatically scopes the top-level row and each Include to
+        // the caller's tenant.
+        var saved = await _db.Policies
             .Include(x => x.Customer).Include(x => x.InsuranceCompany).Include(x => x.Producer)
             .Include(x => x.ContractPartyCustomer).Include(x => x.PreviousInsuranceCompany)
             .FirstAsync(x => x.Id == p.Id, ct);
@@ -366,10 +382,20 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
             ?? throw AppException.NotFound("Συμβόλαιο");
 
         var b = request.Body;
+        // Cross-tenant FK guards — same rules as CreatePolicyCommand. See
+        // TenantFkGuard docs for the attack this blocks.
+        var carrierOk = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .AnyAsync(c => c.Id == b.InsuranceCompanyId && c.DeletedAt == null
+                && (c.TenantId == null || c.TenantId == tenantId), ct);
+        if (!carrierOk) throw AppException.NotFound("Ασφαλιστική");
+        var updProducerId  = await TenantFkGuard.RequireTenantOwnedAsync(_db.Producers, b.ProducerId, tenantId, "Συνεργάτης", ct);
+        var updPartyCustId = await TenantFkGuard.RequireTenantOwnedAsync(_db.Customers, b.ContractPartyCustomerId, tenantId, "Συμβαλλόμενος", ct);
+        var updPrevCarrier = await TenantFkGuard.RequireCarrierAsync(_db.InsuranceCompanies, b.PreviousInsuranceCompanyId, tenantId, ct);
+
         var (updUseEnum, updUseRaw) = VehicleUseCategorySplit.Parse(b.VehicleUseCategory);
         var (updBranchEnum, updBranchRaw) = PolicyTypeSplit.Parse(b.PolicyType);
         p.InsuranceCompanyId = b.InsuranceCompanyId;
-        p.ProducerId = b.ProducerId;
+        p.ProducerId = updProducerId;
         p.PolicyType = updBranchEnum;
         p.CarrierBranchCode = updBranchRaw;
         p.VehicleUseCategory = updUseEnum;
@@ -383,8 +409,8 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
         p.Status = b.Status;
         p.SpecsJson = PolicySpecsJsonHelper.MergeCodes(p.SpecsJson, b.CoverCode, b.PackageCode);
         p.ApplicationNumber = string.IsNullOrWhiteSpace(b.ApplicationNumber) ? null : b.ApplicationNumber.Trim();
-        p.ContractPartyCustomerId = b.ContractPartyCustomerId;
-        p.PreviousInsuranceCompanyId = b.PreviousInsuranceCompanyId;
+        p.ContractPartyCustomerId = updPartyCustId;
+        p.PreviousInsuranceCompanyId = updPrevCarrier;
         p.IssuedAt = b.IssuedAt;
         p.VehicleRegistrationPlate = string.IsNullOrWhiteSpace(b.VehicleRegistrationPlate)
             ? null : b.VehicleRegistrationPlate.Trim().ToUpperInvariant();
@@ -408,7 +434,8 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
         }
         catch { /* splits are a read-side convenience — never block the write */ }
 
-        var saved = await _db.Policies.IgnoreQueryFilters()
+        // Global tenant filter active on the reload — cascades to every Include().
+        var saved = await _db.Policies
             .Include(x => x.Customer).Include(x => x.InsuranceCompany).Include(x => x.Producer)
             .Include(x => x.ContractPartyCustomer).Include(x => x.PreviousInsuranceCompany)
             .FirstAsync(x => x.Id == p.Id, ct);
@@ -560,6 +587,47 @@ public class ListInsuranceCompaniesQueryHandler : IRequestHandler<ListInsuranceC
 /// Enum name → sets Policy.VehicleUseCategory; anything else → stashed on
 /// Policy.CarrierUseCode so the production-list filter still hits.
 /// </summary>
+/// <summary>
+/// Guards nullable FK writes against cross-tenant «GUID planting» — a class
+/// of bug where Office B's admin passes Office A's Producer / Customer /
+/// InsuranceCompany GUID in a policy body (RenewalTransferToProducerId,
+/// ContractPartyCustomerId, PreviousInsuranceCompanyId, etc.). Without a
+/// check, the FK gets stored, and the next detail-load resolves the name
+/// via IgnoreQueryFilters + Include and hands Office A's data back to
+/// Office B. Every write handler that accepts a foreign-key GUID from a
+/// body / route MUST pass it through these validators first.
+/// </summary>
+internal static class TenantFkGuard
+{
+    /// <summary>Validates a nullable FK on a strictly per-tenant entity
+    /// (Producer, Customer, Policy). Throws 400 if the GUID exists but
+    /// belongs to another tenant; returns the value unchanged otherwise.</summary>
+    public static async Task<Guid?> RequireTenantOwnedAsync<T>(
+        IQueryable<T> set, Guid? id, Guid tenantId, string entityName, CancellationToken ct)
+        where T : TenantEntity
+    {
+        if (id is null) return null;
+        var ok = await set.IgnoreQueryFilters()
+            .AnyAsync(x => x.Id == id.Value && x.TenantId == tenantId && x.DeletedAt == null, ct);
+        if (!ok) throw AppException.NotFound(entityName);
+        return id;
+    }
+
+    /// <summary>Same shape for InsuranceCompany — allows both the tenant's
+    /// own carriers and the global (TenantId == null) catalog. Throws 400
+    /// if the GUID exists but belongs to a DIFFERENT tenant.</summary>
+    public static async Task<Guid?> RequireCarrierAsync(
+        IQueryable<InsuranceCompany> set, Guid? id, Guid tenantId, CancellationToken ct)
+    {
+        if (id is null) return null;
+        var ok = await set.IgnoreQueryFilters()
+            .AnyAsync(x => x.Id == id.Value && x.DeletedAt == null
+                && (x.TenantId == null || x.TenantId == tenantId), ct);
+        if (!ok) throw AppException.NotFound("Ασφαλιστική");
+        return id;
+    }
+}
+
 internal static class VehicleUseCategorySplit
 {
     public static (VehicleUseCategory? Enum, string? Raw) Parse(string? raw)

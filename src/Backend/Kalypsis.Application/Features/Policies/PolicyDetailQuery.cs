@@ -112,14 +112,21 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
     public async Task<PolicyDetailDto> Handle(GetPolicyDetailQuery request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var p = await _db.Policies.IgnoreQueryFilters()
+        // KEEP the global tenant filter active here. IgnoreQueryFilters()
+        // cascades to every Include() — Producer, ContractPartyCustomer,
+        // PreviousInsuranceCompany — which means that if a bug ever let a
+        // foreign-tenant GUID land on one of those FKs, the resolved name
+        // would come back from a different office. With the default filter
+        // on, the top-level row is tenant-scoped AND every Include is too;
+        // any FK pointing to a foreign tenant naturally resolves to null.
+        var p = await _db.Policies
             .Include(x => x.Customer)
             .Include(x => x.InsuranceCompany)
             .Include(x => x.Producer)
             .Include(x => x.CreatedByUser)
             .Include(x => x.ContractPartyCustomer)
             .Include(x => x.PreviousInsuranceCompany)
-            .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            .FirstOrDefaultAsync(x => x.Id == request.Id, ct)
             ?? throw AppException.NotFound("Συμβόλαιο");
 
         // Role-based access check (Customer can only see their own).
@@ -188,18 +195,24 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
         var coversGrossTotal = covers.Sum(c => c.GrossPremium);
 
         // Renewal transfer-to names (so UI doesn't need a second lookup).
+        // Default query filter kept ACTIVE so a foreign-tenant Producer /
+        // Policy id planted into these FKs resolves as null instead of
+        // leaking the other office's name. InsuranceCompany allows the
+        // global catalog (TenantId==null) too.
         string? renewalProducerName = null;
         if (p.RenewalTransferToProducerId.HasValue)
-            renewalProducerName = await _db.Producers.IgnoreQueryFilters()
+            renewalProducerName = await _db.Producers
                 .Where(x => x.Id == p.RenewalTransferToProducerId).Select(x => x.Name).FirstOrDefaultAsync(ct);
         string? renewalCarrierName = null;
         if (p.RenewalTransferToCarrierId.HasValue)
             renewalCarrierName = await _db.InsuranceCompanies.IgnoreQueryFilters()
-                .Where(x => x.Id == p.RenewalTransferToCarrierId).Select(x => x.Name).FirstOrDefaultAsync(ct);
+                .Where(x => x.Id == p.RenewalTransferToCarrierId && x.DeletedAt == null
+                    && (x.TenantId == null || x.TenantId == tenantId))
+                .Select(x => x.Name).FirstOrDefaultAsync(ct);
 
         string? renewedFromNumber = null;
         if (p.RenewedFromPolicyId.HasValue)
-            renewedFromNumber = await _db.Policies.IgnoreQueryFilters()
+            renewedFromNumber = await _db.Policies
                 .Where(x => x.Id == p.RenewedFromPolicyId).Select(x => x.PolicyNumber).FirstOrDefaultAsync(ct);
 
         var customerDisplay = p.Customer.Type == CustomerType.Individual
@@ -299,18 +312,29 @@ public class UpdatePolicyExtendedHandler : IRequestHandler<UpdatePolicyExtendedC
     public async Task<PolicyDetailDto> Handle(UpdatePolicyExtendedCommand r, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var p = await _db.Policies.IgnoreQueryFilters()
-            .FirstOrDefaultAsync(x => x.Id == r.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
+        // Global filter active — cascades to any Include here (none currently).
+        var p = await _db.Policies
+            .FirstOrDefaultAsync(x => x.Id == r.Id, ct)
             ?? throw AppException.NotFound("Συμβόλαιο");
 
         var b = r.Body;
+        // Cross-tenant FK guards. Every nullable Guid the operator can plant
+        // via the body MUST be validated against tenant scope; otherwise a
+        // second office's Producer / Customer / InsuranceCompany id could
+        // land on this policy and the next detail-load would return that
+        // office's name through the tenant-filtered Include chain.
+        var renewalProducerId = await TenantFkGuard.RequireTenantOwnedAsync(_db.Producers, b.RenewalTransferToProducerId, tenantId, "Συνεργάτης ανανέωσης", ct);
+        var renewalCarrierId  = await TenantFkGuard.RequireCarrierAsync(_db.InsuranceCompanies, b.RenewalTransferToCarrierId, tenantId, ct);
+        var partyCustId       = await TenantFkGuard.RequireTenantOwnedAsync(_db.Customers, b.ContractPartyCustomerId, tenantId, "Συμβαλλόμενος", ct);
+        var prevCarrierId     = await TenantFkGuard.RequireCarrierAsync(_db.InsuranceCompanies, b.PreviousInsuranceCompanyId, tenantId, ct);
+
         p.PaymentFrequency = b.PaymentFrequency;
         p.PremiumIncludesVat = b.PremiumIncludesVat;
         p.SpecialCommissionPercent = b.SpecialCommissionPercent;
         p.SpecsJson = b.SpecsJson;
         p.NextRenewalDate = b.NextRenewalDate;
-        p.RenewalTransferToProducerId = b.RenewalTransferToProducerId;
-        p.RenewalTransferToCarrierId = b.RenewalTransferToCarrierId;
+        p.RenewalTransferToProducerId = renewalProducerId;
+        p.RenewalTransferToCarrierId = renewalCarrierId;
         p.RetainCommissionsOnRenewal = b.RetainCommissionsOnRenewal;
         p.RetainDocumentNumberOnRenewal = b.RetainDocumentNumberOnRenewal;
         p.RetainSpecialCommissionsOnRenewal = b.RetainSpecialCommissionsOnRenewal;
@@ -325,8 +349,8 @@ public class UpdatePolicyExtendedHandler : IRequestHandler<UpdatePolicyExtendedC
         p.InsuranceContributionAmount = b.InsuranceContributionAmount;
         p.OtherChargesAmount = b.OtherChargesAmount;
         p.ApplicationNumber = string.IsNullOrWhiteSpace(b.ApplicationNumber) ? null : b.ApplicationNumber.Trim();
-        p.ContractPartyCustomerId = b.ContractPartyCustomerId;
-        p.PreviousInsuranceCompanyId = b.PreviousInsuranceCompanyId;
+        p.ContractPartyCustomerId = partyCustId;
+        p.PreviousInsuranceCompanyId = prevCarrierId;
         p.IssuedAt = b.IssuedAt;
         p.VehicleRegistrationPlate = string.IsNullOrWhiteSpace(b.VehicleRegistrationPlate)
             ? null : b.VehicleRegistrationPlate.Trim().ToUpperInvariant();

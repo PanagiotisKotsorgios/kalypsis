@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Abstractions;
+using Kalypsis.Application.Common;
 using Kalypsis.Domain.Enums;
 using Kalypsis.Infrastructure.Persistence;
 using MediatR;
@@ -84,9 +85,10 @@ public class QuotesController : ControllerBase
     private readonly ICarrierAdapterRegistry _registry;
     private readonly AppDbContext _db;
     private readonly IDateTimeProvider _clock;
+    private readonly ICurrentUser _current;
 
-    public QuotesController(ICarrierAdapterRegistry registry, AppDbContext db, IDateTimeProvider clock)
-    { _registry = registry; _db = db; _clock = clock; }
+    public QuotesController(ICarrierAdapterRegistry registry, AppDbContext db, IDateTimeProvider clock, ICurrentUser current)
+    { _registry = registry; _db = db; _clock = clock; _current = current; }
 
     public record CreateQuoteBody(string ProductType, string RiskInputsJson, Guid? CustomerId, IReadOnlyList<string>? OnlyCarriers);
     public record OfferDto(Guid OfferId, string CarrierCode, decimal? Premium, decimal? Commission, string? CarrierProductCode, string? Summary, DateTime? ValidUntil);
@@ -98,6 +100,17 @@ public class QuotesController : ControllerBase
         // Validate JSON shape
         try { _ = JsonDocument.Parse(body.RiskInputsJson); }
         catch { return BadRequest(new { code = "invalid_json", message = "RiskInputsJson is not valid JSON" }); }
+
+        // Cross-tenant FK guard — same class as the Policies bug. Without
+        // this, Office B could POST a quote with Office A's CustomerId and
+        // silently attach a Quote row to a foreign-tenant customer.
+        if (body.CustomerId is Guid cid)
+        {
+            var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+            var owns = await _db.Customers.IgnoreQueryFilters()
+                .AnyAsync(c => c.Id == cid && c.TenantId == tenantId && c.DeletedAt == null, ct);
+            if (!owns) throw AppException.NotFound("Πελάτης");
+        }
 
         var quote = new Domain.Entities.Quote
         {

@@ -19,6 +19,26 @@ public class PolicyExtensionsController : ControllerBase
     public PolicyExtensionsController(IAppDbContext db, ICurrentUser current, IDateTimeProvider clock)
     { _db = db; _current = current; _clock = clock; }
 
+    /// <summary>
+    /// Prevents orphan-row leaks: every write endpoint on this controller
+    /// accepts a `policyId` from the URL and stamps children with the
+    /// caller's TenantId. Without this gate, Office B could POST
+    /// /api/policies/{Office-A-policy-id}/covers and pollute Office A's
+    /// data model with children they'll never see (their queries are all
+    /// tenant-scoped) while corrupting Office A's premium computation on
+    /// the next SyncPolicyPremiumFromCoversAsync run — which reads BY
+    /// tenant, so only Office A's own children are counted, but the row
+    /// they never authored still exists in the DB. This gate + the
+    /// SyncPolicyPremiumFromCoversAsync's own tenant filter close both
+    /// legs of the attack.
+    /// </summary>
+    private async Task EnsureOwnPolicyAsync(Guid tenantId, Guid policyId, CancellationToken ct)
+    {
+        var owns = await _db.Policies.IgnoreQueryFilters()
+            .AnyAsync(p => p.Id == policyId && p.TenantId == tenantId && p.DeletedAt == null, ct);
+        if (!owns) throw AppException.NotFound("Συμβόλαιο");
+    }
+
     /* ===================== POLICY OBJECTS ===================== */
 
     public record ObjectDto(Guid Id, string ObjectKind, string? FbcLinkCode, string? Identifier,
@@ -43,6 +63,7 @@ public class PolicyExtensionsController : ControllerBase
     public async Task<ActionResult<ObjectDto>> CreateObject(Guid policyId, [FromBody] ObjectBody body, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        await EnsureOwnPolicyAsync(tenantId, policyId, ct);
         if (string.IsNullOrWhiteSpace(body.ObjectKind))
             throw new AppException("object_kind_required", "Συμπληρώστε το είδος αντικειμένου.", 400);
         var o = new PolicyObject
@@ -114,6 +135,7 @@ public class PolicyExtensionsController : ControllerBase
     public async Task<ActionResult<CoverDto>> CreateCover(Guid policyId, [FromBody] CoverBody body, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        await EnsureOwnPolicyAsync(tenantId, policyId, ct);
         if (string.IsNullOrWhiteSpace(body.CoverCode))
             throw new AppException("cover_code_required", "Συμπληρώστε τον κωδικό κάλυψης.", 400);
         var c = new PolicyCover

@@ -79,7 +79,12 @@ public class CoverNotesController : ControllerBase
 public class BranchesController : ControllerBase
 {
     private readonly IMediator _m; public BranchesController(IMediator m) => _m = m;
-    [HttpGet] [AllowAnonymous] public async Task<ActionResult<IReadOnlyList<BranchDto>>> List(CancellationToken ct) => Ok(await _m.Send(new ListBranchesQuery(), ct));
+    // [AllowAnonymous] removed — Branch is a TenantEntity. Today Guid.Empty
+    // tenant on anonymous callers made the response empty, but the moment
+    // someone adds a global-branch feature (TenantId=null rows) the endpoint
+    // starts serving cross-tenant data with no auth. The class Authorize
+    // policy («AgencyAdmin» + Integrations package) applies now.
+    [HttpGet] public async Task<ActionResult<IReadOnlyList<BranchDto>>> List(CancellationToken ct) => Ok(await _m.Send(new ListBranchesQuery(), ct));
     [HttpPost] public async Task<ActionResult<BranchDto>> Create([FromBody] BranchBody body, CancellationToken ct) => Ok(await _m.Send(new CreateBranchCommand(body), ct));
     [HttpPut("{id:guid}")] public async Task<ActionResult<BranchDto>> Update(Guid id, [FromBody] BranchBody body, CancellationToken ct) => Ok(await _m.Send(new UpdateBranchCommand(id, body), ct));
     [HttpDelete("{id:guid}")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteBranchCommand(id), ct); return NoContent(); }
