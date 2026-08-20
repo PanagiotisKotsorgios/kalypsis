@@ -1,7 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { useAuth } from "./auth/AuthContext";
 import { I18nextProvider } from "react-i18next";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 
@@ -27,6 +29,29 @@ const queryClient = new QueryClient({
   }
 });
 
+/**
+ * Purges the react-query cache whenever the signed-in user changes.
+ * Without this, user-A's cached /customers, /policies, /reports etc.
+ * would briefly render for user-B on the next login before individual
+ * queries re-fired — a real data-leak on any shared browser. Uses a
+ * ref to detect actual transitions (undefined → id, id-a → id-b) and
+ * skips same-user re-renders + first mount.
+ */
+function AuthQueryCacheReset() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const last = useRef<string | null | undefined>(user?.userId);
+  useEffect(() => {
+    const prev = last.current;
+    const now = user?.userId;
+    if (prev !== undefined && prev !== now) {
+      qc.clear();
+    }
+    last.current = now;
+  }, [user?.userId, qc]);
+  return null;
+}
+
 // Provider stack:
 //
 //   ThemeProvider(staticLightTheme)   ← outer, always-light theme for
@@ -48,6 +73,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <CssBaseline enableColorScheme />
           <MaintenanceProvider>
             <AuthProvider>
+              <AuthQueryCacheReset />
               <AuthenticatedThemeGate>
                 {/* Impersonation must sit ABOVE PackagesProvider so the
                     packages hook can react to «entered as tenant X» and

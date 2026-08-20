@@ -135,6 +135,43 @@ function clearStored() {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(PERSISTENCE_KEY);
   clearAllSessionDeadlines();
+  clearPerUserBrowserState();
+}
+
+// Keys that store per-user UI state or content — anything that could
+// mislead or leak the previous session if a different user signs in on
+// the same browser. Cleared on both logout and detected user switch.
+// Browser-level preferences (cookie consent, accessibility settings)
+// intentionally NOT included — those belong to the device, not the user.
+const PER_USER_LOCALSTORAGE_KEYS = [
+  "kalypsis.workspace",                     // active workspace pill
+  "kalypsis.ermes.customTemplates.v1",      // saved ΕΡΜΗΣ chat templates
+  "kalypsis.productionList.hideAgency",     // «Απόκρυψη προμ. έδρας» toggle
+  "kalypsis.policyDetailDrawer.width",      // drawer layout preference
+  "kalypsis:appointments:view",             // ημερολόγιο view (day/week/month)
+  "kalypsis:backups:tab",                   // last-opened settings tab
+  "kalypsis:delivery:tab",
+  "kalypsis:marketing:tab",
+  "kalypsis:nameDays:tab",
+];
+export function clearPerUserBrowserState() {
+  if (typeof window === "undefined") return;
+  for (const key of PER_USER_LOCALSTORAGE_KEYS) {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  }
+  // Extend automatically: any localStorage key with these prefixes is
+  // treated as per-user session state (e.g. saved-report drafts,
+  // production-list column pickers keyed by entity).
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const k = localStorage.key(i);
+    if (k && (k.startsWith("kalypsis.saved-reports.")
+           || k.startsWith("kalypsis.exportColumns.")
+           || k.startsWith("kalypsis:draft:")
+           || k.startsWith("kalypsis.filter."))) {
+      localStorage.removeItem(k);
+    }
+  }
 }
 
 function clearSessionDeadline(userId: string) {
@@ -190,6 +227,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Fresh login always lands on a clean sidebar: any group-open state left
     // over from a previous user/session gets wiped so dropdowns start closed.
     try { localStorage.removeItem("nav.openGroups"); } catch { /* ignore */ }
+    // Wipe any per-user UI state a previous session on this browser wrote —
+    // workspace pill, ΕΡΜΗΣ templates, filter toggles, drawer widths, etc.
+    // Prevents user-A state from leaking into user-B's fresh login (the
+    // «empty sidebar because localStorage had stale workspace» bug class).
+    clearPerUserBrowserState();
     clearSessionDeadline(payload.user.userId);
     localStorage.setItem(PERSISTENCE_KEY, rememberMe ? "local" : "session");
     (rememberMe ? localStorage : sessionStorage).setItem(STORAGE_KEY, JSON.stringify(stored));
