@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { PackageCode } from "./PackagesContext";
+import { useAuth } from "./AuthContext";
 
 const STORAGE_KEY = "kalypsis.workspace";
 
@@ -26,6 +27,7 @@ const Ctx = createContext<WorkspaceCtx | null>(null);
  * tabs where session is empty.
  */
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [workspace, setW] = useState<PackageCode | null>(() => {
     if (typeof window === "undefined") return null;
     const sess = sessionStorage.getItem(STORAGE_KEY);
@@ -45,6 +47,26 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       // their next render.
     }
   }, [workspace]);
+
+  // Reset workspace when the SIGNED-IN USER changes (login switch on the
+  // same browser). Persistence across page reloads for the SAME user is
+  // preserved — we compare against the last-seen userId in a ref instead
+  // of firing on first mount. Without this, a previous user's persisted
+  // workspace (say «FrontOffice») would leak into a fresh login and the
+  // sidebar filter downstream would hide every package-gated item because
+  // item.package !== stale workspace.
+  const lastUserRef = useRef<string | null | undefined>(user?.userId);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const prev = lastUserRef.current;
+    const now = user?.userId;
+    if (prev !== undefined && prev !== now) {
+      localStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(STORAGE_KEY);
+      setW(null);
+    }
+    lastUserRef.current = now;
+  }, [user?.userId]);
 
   const enter = useCallback((w: PackageCode) => setW(w), []);
   const exitToHub = useCallback(() => setW(null), []);

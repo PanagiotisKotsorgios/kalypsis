@@ -264,7 +264,16 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
             if (item.package && !hasPackage(item.package)) return false;
             if (item.permission && !bypassPermissions && !heldPermissions.has(item.permission))
               return false;
-            if (useWorkspaceUi && workspace) {
+            // Only apply the workspace filter when the persisted workspace
+            // actually corresponds to a package the CURRENT user owns. Fixes
+            // a bug where a previous user's «FrontOffice» workspace was
+            // still in localStorage when a BackOffice-only tenant logged
+            // in on the same browser: every BackOffice-gated sidebar item
+            // got hidden because item.package ("BackOffice") !==
+            // workspace ("FrontOffice"). Treating stale workspace state as
+            // «no workspace selected» is safe — the workspace pill UI is
+            // hidden anyway (see WorkspacePill row wrapped in `false && …`).
+            if (useWorkspaceUi && workspace && hasPackage(workspace)) {
               if (item.workspaces && item.workspaces.length > 0)
                 return item.workspaces.includes(workspace);
               if (item.package) return item.package === workspace;
