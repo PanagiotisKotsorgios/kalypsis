@@ -260,6 +260,9 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<RegistrationAthlete> RegistrationAthletes => Set<RegistrationAthlete>();
     public DbSet<ChampionshipResult> ChampionshipResults => Set<ChampionshipResult>();
 
+    public DbSet<DocumentationSection> DocumentationSections => Set<DocumentationSection>();
+    public DbSet<DocumentationAsset> DocumentationAssets => Set<DocumentationAsset>();
+
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
 
     // PlatformAdmin / PlatformEmployee normally bypass the tenant filter, but

@@ -614,6 +614,50 @@ public static class DataSeeder
             await conn.OpenAsync(ct);
         var dbName = conn.Database;
 
+        // --- documentation_sections / documentation_assets: public
+        // «Οδηγίες Χρήσης» rendered at /documentation + /app/documentation.
+        // Global content (no TenantId) authored by PlatformAdmin. Safe-
+        // create so a fresh DB boots without a migration.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "documentation_sections",
+            createSql: @"CREATE TABLE IF NOT EXISTS `documentation_sections` (
+                `Id`             char(36) NOT NULL,
+                `Slug`           varchar(120) NOT NULL,
+                `ParentSlug`     varchar(120) NULL,
+                `Title`          varchar(200) NOT NULL,
+                `BodyHtml`       longtext NOT NULL,
+                `Keywords`       varchar(500) NULL,
+                `DisplayOrder`   int NOT NULL DEFAULT 0,
+                `IsPublished`    tinyint(1) NOT NULL DEFAULT 1,
+                `CreatedAt`      datetime(6) NOT NULL,
+                `UpdatedAt`      datetime(6) NULL,
+                `DeletedAt`      datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_docs_Slug` (`Slug`),
+                KEY `IX_docs_Parent_Order` (`ParentSlug`, `DisplayOrder`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "documentation_assets",
+            createSql: @"CREATE TABLE IF NOT EXISTS `documentation_assets` (
+                `Id`                char(36) NOT NULL,
+                `FileName`          varchar(255) NOT NULL,
+                `ContentType`       varchar(120) NOT NULL,
+                `SizeBytes`         bigint NOT NULL DEFAULT 0,
+                `StoragePath`       varchar(500) NOT NULL,
+                `UploadedByUserId`  char(36) NULL,
+                `CreatedAt`         datetime(6) NOT NULL,
+                `UpdatedAt`         datetime(6) NULL,
+                `DeletedAt`         datetime(6) NULL,
+                PRIMARY KEY (`Id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
+        // Seed the initial documentation tree once (only if the table is
+        // empty). PlatformAdmin edits from /app/platform/documentation
+        // update these rows going forward.
+        try { await Kalypsis.Infrastructure.Persistence.Seeders.DocumentationSeeder.SeedIfEmptyAsync(db, ct); }
+        catch (Exception ex) { logger.LogWarning(ex, "Documentation seed skipped — continuing boot."); }
+
         // --- general_financial_entries: free-form γενικά έσοδα/έξοδα γραφείου -
         // NEW table; safe-create so an empty tenant boots without a migration.
         await EnsureTableAsync(db, logger, dbName,

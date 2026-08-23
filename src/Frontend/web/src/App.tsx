@@ -66,6 +66,7 @@ import { DesktopReleasesPage } from "./pages/DesktopReleasesPage";
 import { DesktopReleaseGuidePage } from "./pages/DesktopReleaseGuidePage";
 import { FaqPage } from "./pages/FaqPage";
 import { DocumentationPage } from "./pages/DocumentationPage";
+import { DocumentationEditorPage } from "./pages/DocumentationEditorPage";
 import { ContactPage } from "./pages/ContactPage";
 import { TermsPage } from "./pages/TermsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
@@ -462,6 +463,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/platform/billing", labelKey: "nav.billing", icon: <PaymentsIcon /> },
     { to: "/platform/invoices", labelKey: "nav.invoices", icon: <ReceiptLongIcon /> },
     { to: "/platform/email-templates", labelKey: "nav.emailTemplates", icon: <EmailIcon /> },
+    { to: "/platform/documentation", labelKey: "nav.editDocumentation", icon: <MenuBookIcon /> },
     { to: "/platform/broadcast", labelKey: "nav.broadcast", icon: <CampaignIcon /> },
     { to: "/platform/api-keys", labelKey: "nav.apiKeys", icon: <KeyIcon /> },
     { to: "/platform/integrations", labelKey: "nav.integrations", icon: <ExtensionIcon /> },
@@ -908,6 +910,7 @@ export default function App() {
                   <Route path="ermes" element={<ErmesPage />} />
                   <Route path="ermes/meeting/:roomId" element={<ErmesMeetingPage />} />
                   <Route path="documentation" element={<DocumentationPage />} />
+                  <Route path="platform/documentation" element={<DocumentationEditorPage />} />
                   <Route path="help" element={<Navigate to="/app/documentation" replace />} />
                   <Route path="docs" element={<Navigate to="/app/documentation" replace />} />
                   <Route path="default-value-rules" element={<Navigate to="/app/commission-rules" replace />} />
