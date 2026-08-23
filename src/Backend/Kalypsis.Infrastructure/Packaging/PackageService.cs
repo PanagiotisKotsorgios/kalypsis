@@ -92,5 +92,45 @@ public sealed class PackageService : IPackageService
         InvalidateCache(tenantId);
     }
 
+    public async Task GrantAllDefaultsAsync(Guid tenantId, Guid? enabledByUserId, CancellationToken ct = default)
+    {
+        // Pull existing (incl. soft-deleted) grants first so we can revive
+        // instead of double-insert — matches the SetAsync pattern above and
+        // stays safe when called repeatedly on the same tenant (idempotent).
+        var existing = await _db.TenantPackageGrants
+            .IgnoreQueryFilters()
+            .Where(g => g.TenantId == tenantId)
+            .ToListAsync(ct);
+        var byPackage = existing.ToDictionary(g => g.Package);
+        var now = _clock.UtcNow;
+
+        foreach (var pkg in Enum.GetValues<PackageCode>())
+        {
+            if (byPackage.TryGetValue(pkg, out var g))
+            {
+                if (g.DeletedAt != null)
+                {
+                    g.DeletedAt = null;
+                    g.EnabledAt = now;
+                    g.EnabledByUserId = enabledByUserId;
+                }
+                // Already active — leave alone.
+                continue;
+            }
+            _db.TenantPackageGrants.Add(new TenantPackageGrant
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                Package = pkg,
+                EnabledAt = now,
+                EnabledByUserId = enabledByUserId,
+                Notes = "Auto-granted at tenant creation"
+            });
+        }
+
+        await _db.SaveChangesAsync(ct);
+        InvalidateCache(tenantId);
+    }
+
     public void InvalidateCache(Guid tenantId) => Cache.TryRemove(tenantId, out _);
 }

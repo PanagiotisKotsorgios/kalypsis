@@ -47,13 +47,16 @@ public class WipeAndReseedDemoCommandHandler
     private readonly IAppDbContext _db;
     private readonly IPasswordHasher _hasher;
     private readonly IDateTimeProvider _clock;
+    private readonly IPackageService _packages;
     private (int usersDeleted, int tenantsDeleted) _wipeCounts;
 
-    public WipeAndReseedDemoCommandHandler(IAppDbContext db, IPasswordHasher hasher, IDateTimeProvider clock)
+    public WipeAndReseedDemoCommandHandler(IAppDbContext db, IPasswordHasher hasher,
+        IDateTimeProvider clock, IPackageService packages)
     {
         _db = db;
         _hasher = hasher;
         _clock = clock;
+        _packages = packages;
     }
 
     public async Task<WipeAndReseedDemoResult> Handle(WipeAndReseedDemoCommand r, CancellationToken ct)
@@ -235,6 +238,11 @@ public class WipeAndReseedDemoCommandHandler
         var rng = new Random(42);   // deterministic seeds keep testing predictable
         var pwd = _hasher.Hash("Passw0rd!");
         int tenantIndex = 0;
+        // Collect every demo tenant id so we can grant default packages
+        // after SaveChangesAsync. Without this the demo tenants have zero
+        // TenantPackageGrant rows and their AgencyAdmin logs into an empty
+        // sidebar — same bug as the manual-create path.
+        var createdTenantIds = new List<Guid>();
         foreach (var (name, size) in largeTenants.Select(n => (n, "large"))
                      .Concat(smallTenants.Select(n => (n, "small"))))
         {
@@ -251,6 +259,7 @@ public class WipeAndReseedDemoCommandHandler
                 OnboardingCompletedAt = now
             };
             _db.Tenants.Add(tenant);
+            createdTenantIds.Add(tenant.Id);
             tenantsCreated++;
 
             // Users: 1 admin + 1 staff per tenant.
@@ -777,6 +786,13 @@ public class WipeAndReseedDemoCommandHandler
             }
         }
         await _db.SaveChangesAsync(ct);
+
+        // Now that tenant rows exist in the DB, grant every default package
+        // to each fresh demo tenant so the AgencyAdmin lands on a working
+        // sidebar. GrantAllDefaultsAsync is idempotent, so re-running the
+        // reseed is safe.
+        foreach (var tid in createdTenantIds)
+            await _packages.GrantAllDefaultsAsync(tid, enabledByUserId: null, ct);
 
         return new WipeAndReseedDemoResult(
             usersDeleted, tenantsDeleted, tenantsCreated, usersCreated,

@@ -27,11 +27,16 @@ public class CreateTenantCommandHandler : IRequestHandler<CreateTenantCommand, C
 {
     private readonly IAppDbContext _db;
     private readonly IPasswordHasher _hasher;
+    private readonly IPackageService _packages;
+    private readonly ICurrentUser _current;
 
-    public CreateTenantCommandHandler(IAppDbContext db, IPasswordHasher hasher)
+    public CreateTenantCommandHandler(IAppDbContext db, IPasswordHasher hasher,
+        IPackageService packages, ICurrentUser current)
     {
         _db = db;
         _hasher = hasher;
+        _packages = packages;
+        _current = current;
     }
 
     public async Task<CreateTenantResponse> Handle(CreateTenantCommand request, CancellationToken cancellationToken)
@@ -82,6 +87,15 @@ public class CreateTenantCommandHandler : IRequestHandler<CreateTenantCommand, C
         _db.Users.Add(admin);
 
         await _db.SaveChangesAsync(cancellationToken);
+
+        // Every new γραφείο needs default package grants — without this,
+        // the AgencyAdmin's first login shows an empty sidebar because
+        // every BackOffice / FrontOffice / Crm / Intelligence / Integrations
+        // nav item is package-gated. BackfillPackageGrantsAsync only runs
+        // at app boot, so a tenant created between restarts has zero grants
+        // in the DB. Superadmin can later revoke individual packages via
+        // /app/tenants/{id} — this call just ensures a working default.
+        await _packages.GrantAllDefaultsAsync(tenant.Id, _current.UserId, cancellationToken);
 
         var dto = new TenantDto(tenant.Id, tenant.Name, tenant.Code, tenant.IsActive, tenant.SubscriptionPlan, tenant.CreatedAt, 1, 0);
         return new CreateTenantResponse(dto, admin.Id, admin.Email);

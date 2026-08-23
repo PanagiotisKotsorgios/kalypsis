@@ -319,14 +319,17 @@ public class ApproveRegistrationRequestCommandHandler
     private readonly IPasswordHasher _hasher;
     private readonly IEmailSender _email;
     private readonly ICurrentUser _currentUser;
+    private readonly IPackageService _packages;
 
     public ApproveRegistrationRequestCommandHandler(
-        IAppDbContext db, IPasswordHasher hasher, IEmailSender email, ICurrentUser currentUser)
+        IAppDbContext db, IPasswordHasher hasher, IEmailSender email,
+        ICurrentUser currentUser, IPackageService packages)
     {
         _db = db;
         _hasher = hasher;
         _email = email;
         _currentUser = currentUser;
+        _packages = packages;
     }
 
     public async Task<ApproveRegistrationRequestResult> Handle(
@@ -401,6 +404,14 @@ public class ApproveRegistrationRequestCommandHandler
             : $"{rec.ReviewNotes}\n{stamp}";
 
         await _db.SaveChangesAsync(ct);
+
+        // Grant every package to the fresh γραφείο so the AgencyAdmin's
+        // first login has a working sidebar (BackOffice/FrontOffice/Crm/
+        // Intelligence/Integrations items are all package-gated). Without
+        // this the operator sees only Dashboard + Ermes + Docs and thinks
+        // the app is broken. Superadmin can revoke individually later from
+        // /app/tenants/{id}.
+        await _packages.GrantAllDefaultsAsync(tenant.Id, _currentUser.UserId, ct);
 
         // Welcome email is fire-and-forget for the request — if Brevo is down
         // we still want the user provisioned. We surface any error to the UI
