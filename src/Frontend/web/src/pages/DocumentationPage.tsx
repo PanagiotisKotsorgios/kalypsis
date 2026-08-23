@@ -126,28 +126,51 @@ export function DocumentationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  // Scrollspy — highlight the currently-in-view section in the sidebar
+  // Scrollspy — highlight the currently-in-view section. Reads scroll
+  // position from BOTH the content pane (docs-app layout, where the
+  // right column scrolls independently) AND the window (public route
+  // + print). Whichever fires first wins.
   useEffect(() => {
     const all = sections.map(s => s.slug);
-    const onScroll = () => {
+    const compute = (offset = 140) => {
       let current = all[0] ?? "";
       for (const slug of all) {
         const el = document.getElementById(`doc-${slug}`);
         if (!el) continue;
-        const rect = el.getBoundingClientRect();
-        if (rect.top < 140) current = slug; else break;
+        // For the content-pane scroller we compare against its scrollTop
+        // instead of viewport top so headings inside the pane track properly.
+        const pane = document.getElementById("kal-doc-content-scroll");
+        const top = pane
+          ? el.offsetTop - pane.offsetTop - offset
+          : el.getBoundingClientRect().top - offset;
+        if (top < 0) current = slug; else break;
       }
       setActiveSlug(current);
     };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
+    const onWindowScroll = () => compute();
+    const pane = document.getElementById("kal-doc-content-scroll");
+    const onPaneScroll = () => compute();
+    window.addEventListener("scroll", onWindowScroll, { passive: true });
+    pane?.addEventListener("scroll", onPaneScroll, { passive: true });
+    onWindowScroll();
+    return () => {
+      window.removeEventListener("scroll", onWindowScroll);
+      pane?.removeEventListener("scroll", onPaneScroll);
+    };
   }, [sections]);
 
   const scrollTo = (slug: string) => {
     setTocOpen(false);
     const el = document.getElementById(`doc-${slug}`);
-    if (el) {
+    if (!el) return;
+    // Prefer the content pane when it exists (docs-app layout with its
+    // own independent scroll). Falls back to window scroll for the
+    // public hero-fronted route.
+    const pane = document.getElementById("kal-doc-content-scroll");
+    if (pane) {
+      const top = el.offsetTop - pane.offsetTop - 24;
+      pane.scrollTo({ top, behavior: "smooth" });
+    } else {
       const top = el.getBoundingClientRect().top + window.scrollY - 80;
       window.scrollTo({ top, behavior: "smooth" });
     }
@@ -311,18 +334,33 @@ export function DocumentationPage() {
         )}
 
         {!q.isLoading && !q.isError && (
-          <Box sx={{ display: "grid", gap: 3.5, gridTemplateColumns: { xs: "1fr", md: "280px 1fr" } }}>
+          <Box sx={{
+            display: "grid",
+            gap: { xs: 0, md: 3 },
+            gridTemplateColumns: { xs: "1fr", md: "280px 1fr" },
+            // Fix the whole layout to the viewport height so BOTH columns
+            // manage their own scroll — the sidebar TOC never scrolls with
+            // the content, only its own overflow when it's taller than the
+            // pane. Public route accounts for the hero + toolbar; in-app
+            // accounts only for the toolbar since AppLayout owns its header.
+            height: {
+              xs: "auto",
+              md: isPublic ? "calc(100vh - 96px)" : "calc(100vh - 200px)",
+            },
+            minHeight: 480,
+          }}>
             <Box className="kal-doc-sidebar" sx={{
               display: { xs: "none", md: "block" },
-              position: "sticky", top: 90, alignSelf: "flex-start",
-              maxHeight: "calc(100vh - 120px)", overflowY: "auto",
-              pr: 1,
+              overflowY: "auto",
+              pr: 1, pt: 0.5,
+              borderRight: { md: "1px solid" }, borderColor: { md: "divider" },
               // subtle scrollbar
               "&::-webkit-scrollbar": { width: 6 },
               "&::-webkit-scrollbar-thumb": { bgcolor: "divider", borderRadius: 3 },
+              "&::-webkit-scrollbar-thumb:hover": { bgcolor: (t) => t.palette.mode === "dark" ? "rgba(255,255,255,0.24)" : "rgba(11,37,69,0.4)" },
             }}>
               <Typography variant="overline" sx={{
-                display: "block", mb: 1.25, px: 1.25,
+                display: "block", mb: 1.25, px: 1.25, pt: 0.5,
                 color: "text.secondary", fontWeight: 800, letterSpacing: "0.1em",
               }}>
                 Περιεχόμενα
@@ -337,9 +375,15 @@ export function DocumentationPage() {
               </Box>
             </Drawer>
 
-            <Box className="kal-doc-content" component="article" sx={{
+            <Box className="kal-doc-content" id="kal-doc-content-scroll" component="article" sx={{
               minWidth: 0,
-              "& h2, & h3": { scrollMarginTop: 100 },
+              overflowY: { xs: "visible", md: "auto" },
+              pr: { md: 3 }, pl: { md: 0.5 },
+              // subtle scrollbar
+              "&::-webkit-scrollbar": { width: 8 },
+              "&::-webkit-scrollbar-thumb": { bgcolor: "divider", borderRadius: 4 },
+              "&::-webkit-scrollbar-thumb:hover": { bgcolor: (t) => t.palette.mode === "dark" ? "rgba(255,255,255,0.24)" : "rgba(11,37,69,0.4)" },
+              "& h2, & h3": { scrollMarginTop: 24 },
               "& img": { maxWidth: "100%", borderRadius: 2, my: 2,
                 boxShadow: "0 10px 28px -14px rgba(11,37,69,0.25)" },
               "& blockquote": {
