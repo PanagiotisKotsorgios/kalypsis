@@ -339,6 +339,13 @@ public class AppDbContext : DbContext, IAppDbContext
         modelBuilder.Entity<CarrierBridgeConfig>().ToTable("carrier_bridge_configs");
         modelBuilder.Entity<DesktopLicense>().ToTable("desktop_licenses");
         modelBuilder.Entity<DesktopLicensePayment>().ToTable("desktop_license_payments");
+        // Public «Οδηγίες Χρήσης» CMS. Explicit snake_case table names so the
+        // safety-net's CREATE TABLE and EF's SELECT hit the same physical
+        // tables — the default PascalCase naming would produce
+        // DocumentationSections / DocumentationAssets and 500 on every read.
+        modelBuilder.Entity<DocumentationSection>().ToTable("documentation_sections")
+            .HasIndex(x => x.Slug).IsUnique();
+        modelBuilder.Entity<DocumentationAsset>().ToTable("documentation_assets");
         // SupportTicket / SupportTicketReply also live in seeder-managed
         // snake_case tables. Without these mappings EF pluralises to
         // `SupportTickets` and the platform backup job explodes on Linux
