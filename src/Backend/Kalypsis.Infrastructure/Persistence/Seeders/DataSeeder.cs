@@ -718,6 +718,123 @@ public static class DataSeeder
                 KEY `IX_upk_Tenant_User` (`TenantId`, `UserId`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
 
+        // --- Μηχανογράφιση («bookkeeping as a service») tables ────────
+        // Small offices that outsource data entry to the platform team
+        // work through a shared folder tree per tenant. Files are stored
+        // as blobs (matches ΕΡΜΗΣ attachments). Portal credentials are
+        // AES-GCM encrypted via EncryptedStringConverter at the app
+        // layer — the DB column holds ciphertext.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "bookkeeping_programs",
+            createSql: @"CREATE TABLE IF NOT EXISTS `bookkeeping_programs` (
+                `Id`                    char(36) NOT NULL,
+                `TenantId`              char(36) NOT NULL,
+                `Enabled`               tinyint(1) NOT NULL DEFAULT 0,
+                `Mode`                  varchar(20) NOT NULL DEFAULT 'files',
+                `ContactRequestNote`    varchar(2000) NULL,
+                `Onboarded`             tinyint(1) NOT NULL DEFAULT 0,
+                `OnboardedAt`           datetime(6) NULL,
+                `CreatedAt`             datetime(6) NOT NULL,
+                `UpdatedAt`             datetime(6) NULL,
+                `DeletedAt`             datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_bkprog_Tenant` (`TenantId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "bookkeeping_folders",
+            createSql: @"CREATE TABLE IF NOT EXISTS `bookkeeping_folders` (
+                `Id`               char(36) NOT NULL,
+                `TenantId`         char(36) NOT NULL,
+                `ParentFolderId`   char(36) NULL,
+                `Name`             varchar(200) NOT NULL,
+                `Origin`           varchar(20) NOT NULL DEFAULT 'custom',
+                `DisplayOrder`     int NOT NULL DEFAULT 0,
+                `CreatedAt`        datetime(6) NOT NULL,
+                `UpdatedAt`        datetime(6) NULL,
+                `DeletedAt`        datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_bkfld_Tenant_Parent` (`TenantId`, `ParentFolderId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "bookkeeping_files",
+            createSql: @"CREATE TABLE IF NOT EXISTS `bookkeeping_files` (
+                `Id`                char(36) NOT NULL,
+                `TenantId`          char(36) NOT NULL,
+                `FolderId`          char(36) NOT NULL,
+                `FileName`          varchar(400) NOT NULL,
+                `MimeType`          varchar(200) NOT NULL,
+                `SizeBytes`         bigint NOT NULL,
+                `ContentBytes`      longblob NOT NULL,
+                `UploadedBy`        varchar(20) NOT NULL DEFAULT 'tenant',
+                `UploadedByUserId`  char(36) NOT NULL,
+                `Notes`             varchar(2000) NULL,
+                `Status`            varchar(20) NOT NULL DEFAULT 'pending',
+                `CreatedAt`         datetime(6) NOT NULL,
+                `UpdatedAt`         datetime(6) NULL,
+                `DeletedAt`         datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_bkfile_Tenant_Folder` (`TenantId`, `FolderId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "bookkeeping_notes",
+            createSql: @"CREATE TABLE IF NOT EXISTS `bookkeeping_notes` (
+                `Id`              char(36) NOT NULL,
+                `TenantId`        char(36) NOT NULL,
+                `FolderId`        char(36) NULL,
+                `FileId`          char(36) NULL,
+                `AuthorUserId`    char(36) NOT NULL,
+                `AuthorDisplay`   varchar(200) NOT NULL,
+                `AuthorRole`      varchar(20) NOT NULL DEFAULT 'tenant',
+                `Body`            varchar(4000) NOT NULL,
+                `CreatedAt`       datetime(6) NOT NULL,
+                `UpdatedAt`       datetime(6) NULL,
+                `DeletedAt`       datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_bknote_Tenant_Folder_File` (`TenantId`, `FolderId`, `FileId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "bookkeeping_activities",
+            createSql: @"CREATE TABLE IF NOT EXISTS `bookkeeping_activities` (
+                `Id`                       char(36) NOT NULL,
+                `TenantId`                 char(36) NOT NULL,
+                `Kind`                     varchar(40) NOT NULL DEFAULT 'note',
+                `Title`                    varchar(400) NOT NULL,
+                `Body`                     varchar(4000) NULL,
+                `AuthorUserId`             char(36) NOT NULL,
+                `AuthorDisplay`            varchar(200) NOT NULL,
+                `AutoNotified`             tinyint(1) NOT NULL DEFAULT 0,
+                `NotificationMessageId`    char(36) NULL,
+                `Category`                 varchar(80) NULL,
+                `CreatedAt`                datetime(6) NOT NULL,
+                `UpdatedAt`                datetime(6) NULL,
+                `DeletedAt`                datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_bkact_Tenant_Created` (`TenantId`, `CreatedAt`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "bookkeeping_portal_credentials",
+            createSql: @"CREATE TABLE IF NOT EXISTS `bookkeeping_portal_credentials` (
+                `Id`               char(36) NOT NULL,
+                `TenantId`         char(36) NOT NULL,
+                `CarrierName`      varchar(200) NOT NULL,
+                `PortalUrl`        varchar(500) NOT NULL,
+                `UsernameCipher`   varchar(500) NOT NULL,
+                `PasswordCipher`   varchar(500) NOT NULL,
+                `Notes`            varchar(2000) NULL,
+                `Active`           tinyint(1) NOT NULL DEFAULT 1,
+                `LastVerifiedAt`   datetime(6) NULL,
+                `CreatedAt`        datetime(6) NOT NULL,
+                `UpdatedAt`        datetime(6) NULL,
+                `DeletedAt`        datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_bkcred_Tenant_Carrier` (`TenantId`, `CarrierName`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
         // --- user_key_backups: passphrase-wrapped private-key backup.
         // Encrypted client-side with a KEK derived from the user's
         // passphrase via PBKDF2 (200k SHA-256). Server holds only

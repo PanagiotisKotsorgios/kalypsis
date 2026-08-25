@@ -266,6 +266,15 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<UserPublicKey> UserPublicKeys => Set<UserPublicKey>();
     public DbSet<UserKeyBackup> UserKeyBackups => Set<UserKeyBackup>();
 
+    // Bookkeeping («μηχανογράφιση») — platform team does the data entry
+    // for small offices that opted in.
+    public DbSet<BookkeepingProgram> BookkeepingPrograms => Set<BookkeepingProgram>();
+    public DbSet<BookkeepingFolder> BookkeepingFolders => Set<BookkeepingFolder>();
+    public DbSet<BookkeepingFile> BookkeepingFiles => Set<BookkeepingFile>();
+    public DbSet<BookkeepingNote> BookkeepingNotes => Set<BookkeepingNote>();
+    public DbSet<BookkeepingActivity> BookkeepingActivities => Set<BookkeepingActivity>();
+    public DbSet<BookkeepingPortalCredential> BookkeepingPortalCredentials => Set<BookkeepingPortalCredential>();
+
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
 
     // PlatformAdmin / PlatformEmployee normally bypass the tenant filter, but
@@ -325,6 +334,14 @@ public class AppDbContext : DbContext, IAppDbContext
         Encrypt<TelephonyConnection>(x => x.AccountSidEncrypted);
         Encrypt<TelephonyConnection>(x => x.AuthTokenEncrypted);
         Encrypt<BackofficeBridgeConnection>(x => x.SecretEncrypted);
+        // Insurance-carrier portal codes handed over by tenants who want
+        // us to log in on their behalf. These live in the μηχανογράφιση
+        // module; only PlatformAdmin can read them (enforced in the
+        // controller — the entity itself is TenantEntity so agency
+        // staff of the same tenant CAN'T see other users' credentials
+        // either).
+        Encrypt<BookkeepingPortalCredential>(x => x.UsernameCipher, maxLength: 500);
+        Encrypt<BookkeepingPortalCredential>(x => x.PasswordCipher, maxLength: 500);
 
         // ==== Explicit table-name mapping for entities the schema safety-net
         // creates as snake_case tables. EF Core's default pluralised-PascalCase
@@ -355,6 +372,21 @@ public class AppDbContext : DbContext, IAppDbContext
             .HasIndex(x => new { x.TenantId, x.UserId });
         modelBuilder.Entity<UserKeyBackup>().ToTable("user_key_backups")
             .HasIndex(x => new { x.TenantId, x.UserId, x.KeyId }).IsUnique();
+
+        // Bookkeeping tables — snake_case names, matching the seeder
+        // safety-net so a fresh DB and a migrated DB agree.
+        modelBuilder.Entity<BookkeepingProgram>().ToTable("bookkeeping_programs")
+            .HasIndex(x => x.TenantId).IsUnique();
+        modelBuilder.Entity<BookkeepingFolder>().ToTable("bookkeeping_folders")
+            .HasIndex(x => new { x.TenantId, x.ParentFolderId });
+        modelBuilder.Entity<BookkeepingFile>().ToTable("bookkeeping_files")
+            .HasIndex(x => new { x.TenantId, x.FolderId });
+        modelBuilder.Entity<BookkeepingNote>().ToTable("bookkeeping_notes")
+            .HasIndex(x => new { x.TenantId, x.FolderId, x.FileId });
+        modelBuilder.Entity<BookkeepingActivity>().ToTable("bookkeeping_activities")
+            .HasIndex(x => new { x.TenantId, x.CreatedAt });
+        modelBuilder.Entity<BookkeepingPortalCredential>().ToTable("bookkeeping_portal_credentials")
+            .HasIndex(x => new { x.TenantId, x.CarrierName });
         // SupportTicket / SupportTicketReply also live in seeder-managed
         // snake_case tables. Without these mappings EF pluralises to
         // `SupportTickets` and the platform backup job explodes on Linux

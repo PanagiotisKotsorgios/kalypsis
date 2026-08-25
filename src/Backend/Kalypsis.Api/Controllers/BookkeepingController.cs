@@ -1,0 +1,763 @@
+using System.Text.Json;
+using Kalypsis.Application.Abstractions;
+using Kalypsis.Application.Common;
+using Kalypsis.Application.Features.Ermes;
+using Kalypsis.Domain.Entities;
+using Kalypsis.Infrastructure.Persistence;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace Kalypsis.Api.Controllers;
+
+/// <summary>
+/// Μηχανογράφιση («bookkeeping as a service») — endpoints that let
+/// the Platform team run the day-to-day data entry for small offices
+/// that opted in.
+///
+/// TWO SURFACES:
+///   /api/bookkeeping/*                          — tenant self-service
+///   /api/platform/bookkeeping/tenants/{id}/*    — platform admin
+///
+/// Tenant isolation: tenant-surface endpoints run under the normal
+/// tenant filter; platform-surface endpoints use IgnoreQueryFilters()
+/// on the specific tenant id passed in the URL. Cross-tenant access
+/// requires PlatformAdmin AND the tenant id in the URL — no route
+/// returns "the whole world" for a non-platform caller.
+/// </summary>
+[ApiController]
+public class BookkeepingController : ControllerBase
+{
+    private readonly AppDbContext _db;
+    private readonly ICurrentUser _current;
+    private readonly IDateTimeProvider _clock;
+    private readonly IMediator _mediator;
+    private readonly ILogger<BookkeepingController> _logger;
+
+    public BookkeepingController(AppDbContext db, ICurrentUser current, IDateTimeProvider clock,
+        IMediator mediator, ILogger<BookkeepingController> logger)
+    { _db = db; _current = current; _clock = clock; _mediator = mediator; _logger = logger; }
+
+    // ── DTOs shared across both surfaces ────────────────────────────
+    public record ProgramDto(bool Enabled, string Mode, string? ContactRequestNote,
+        bool Onboarded, DateTime? OnboardedAt, DateTime? CreatedAt);
+    public record FolderDto(Guid Id, Guid? ParentFolderId, string Name, string Origin,
+        int DisplayOrder, DateTime CreatedAt, int FileCount);
+    public record FileDto(Guid Id, Guid FolderId, string FileName, string MimeType,
+        long SizeBytes, string UploadedBy, string? Notes, string Status,
+        DateTime CreatedAt, string? UploadedByDisplay);
+    public record NoteDto(Guid Id, Guid? FolderId, Guid? FileId,
+        Guid AuthorUserId, string AuthorDisplay, string AuthorRole,
+        string Body, DateTime CreatedAt);
+    public record ActivityDto(Guid Id, string Kind, string Title, string? Body,
+        Guid AuthorUserId, string AuthorDisplay, string? Category,
+        bool AutoNotified, DateTime CreatedAt);
+    public record CredentialDto(Guid Id, string CarrierName, string PortalUrl,
+        string? Notes, bool Active, DateTime? LastVerifiedAt, DateTime CreatedAt);
+    public record TenantOverviewDto(Guid TenantId, string TenantName, string Mode,
+        bool Onboarded, DateTime? OnboardedAt, int FolderCount, int FileCount,
+        int PendingFiles, DateTime? LastActivityAt);
+
+    public record TogglePlanBody(bool Enabled, string? Mode, string? ContactRequestNote);
+    public record CreateFolderBody(Guid? ParentFolderId, string Name, int DisplayOrder = 0);
+    public record RenameFolderBody(string Name, int DisplayOrder = 0);
+    public record UpdateFileBody(string? Notes, string? Status);
+    public record CreateNoteBody(Guid? FolderId, Guid? FileId, string Body);
+    public record CreateActivityBody(string Kind, string Title, string? Body,
+        string? Category, bool AutoNotify);
+    public record UpsertCredentialBody(string CarrierName, string PortalUrl,
+        string Username, string Password, string? Notes);
+
+    // ═══════════════════════════════════════════════════════════════
+    // TENANT SELF-SERVICE
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>Read this tenant's μηχανογράφιση opt-in state. Returns
+    /// a default disabled record when nothing exists yet — no 404 to
+    /// keep the frontend logic simple.</summary>
+    [HttpGet("/api/bookkeeping/program")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<ProgramDto>> MyProgram(CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var row = await _db.BookkeepingPrograms.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.DeletedAt == null, ct);
+        if (row is null) return Ok(new ProgramDto(false, "files", null, false, null, null));
+        return Ok(new ProgramDto(row.Enabled, row.Mode, row.ContactRequestNote,
+            row.Onboarded, row.OnboardedAt, row.CreatedAt));
+    }
+
+    /// <summary>Turn μηχανογράφιση on/off + optionally leave a contact-
+    /// request note («Θέλω πληροφορίες για το πώς παραδίδουμε τα
+    /// αρχεία»). Kept upsert-style — the tenant may flip the switch
+    /// multiple times.</summary>
+    [HttpPut("/api/bookkeeping/program")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<ProgramDto>> ToggleProgram([FromBody] TogglePlanBody body, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var row = await _db.BookkeepingPrograms
+            .FirstOrDefaultAsync(x => x.TenantId == tenantId, ct);
+        if (row is null)
+        {
+            row = new BookkeepingProgram
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CreatedAt = _clock.UtcNow,
+            };
+            _db.BookkeepingPrograms.Add(row);
+        }
+        row.DeletedAt = null;
+        row.Enabled = body.Enabled;
+        if (!string.IsNullOrWhiteSpace(body.Mode)) row.Mode = body.Mode!;
+        row.ContactRequestNote = body.ContactRequestNote;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new ProgramDto(row.Enabled, row.Mode, row.ContactRequestNote,
+            row.Onboarded, row.OnboardedAt, row.CreatedAt));
+    }
+
+    /// <summary>List folders + files for the caller's tenant. Sorted
+    /// depth-first by DisplayOrder so the frontend can render a tree
+    /// without another round trip.</summary>
+    [HttpGet("/api/bookkeeping/tree")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<object>> MyTree(CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        return Ok(await LoadTree(tenantId, ct));
+    }
+
+    /// <summary>Tenant-side file upload. Same 16 MB cap as ΕΡΜΗΣ
+    /// attachments. Tenants can only upload into their OWN folders —
+    /// the server double-checks the folder's TenantId to prevent
+    /// folder-id spoofing across tenants.</summary>
+    [HttpPost("/api/bookkeeping/files")]
+    [RequestSizeLimit(20_000_000)]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<FileDto>> UploadOwnFile(
+        [FromForm] IFormFile file, [FromForm] Guid folderId, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var userId = _current.UserId ?? throw AppException.Unauthorized();
+        var folder = await _db.BookkeepingFolders
+            .FirstOrDefaultAsync(f => f.Id == folderId && f.TenantId == tenantId && f.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Folder");
+        var dto = await UploadFileInternal(tenantId, userId, folder, file, "tenant", ct);
+        return Ok(dto);
+    }
+
+    [HttpGet("/api/bookkeeping/files/{id:guid}")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<IActionResult> DownloadOwnFile(Guid id, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var f = await _db.BookkeepingFiles
+            .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("File");
+        return File(f.ContentBytes, f.MimeType, f.FileName);
+    }
+
+    [HttpPost("/api/bookkeeping/notes")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<NoteDto>> CreateOwnNote([FromBody] CreateNoteBody body, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var userId = _current.UserId ?? throw AppException.Unauthorized();
+        var display = await _db.Users.Where(u => u.Id == userId).Select(u => u.FirstName + " " + u.LastName).FirstOrDefaultAsync(ct) ?? "";
+        return Ok(await CreateNoteInternal(tenantId, userId, display, "tenant", body, ct));
+    }
+
+    [HttpGet("/api/bookkeeping/activities")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<IReadOnlyList<ActivityDto>>> MyActivities(CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var rows = await _db.BookkeepingActivities.AsNoTracking()
+            .Where(a => a.TenantId == tenantId && a.DeletedAt == null)
+            .OrderByDescending(a => a.CreatedAt)
+            .Take(200)
+            .ToListAsync(ct);
+        return Ok(rows.Select(a => new ActivityDto(a.Id, a.Kind, a.Title, a.Body,
+            a.AuthorUserId, a.AuthorDisplay, a.Category, a.AutoNotified, a.CreatedAt)).ToList());
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PLATFORM ADMIN
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>List every tenant that has μηχανογράφιση enabled. Feeds
+    /// the platform admin's tenant picker in «Διοίκηση → Μηχανογράφιση
+    /// γραφείων».</summary>
+    [HttpGet("/api/platform/bookkeeping/tenants")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<IReadOnlyList<TenantOverviewDto>>> ListTenants(CancellationToken ct)
+    {
+        // We use IgnoreQueryFilters everywhere on the platform surface —
+        // the caller is a PlatformAdmin, they must see every tenant.
+        var progs = await _db.BookkeepingPrograms.IgnoreQueryFilters()
+            .Where(p => p.Enabled && p.DeletedAt == null)
+            .ToListAsync(ct);
+        var tenantIds = progs.Select(p => p.TenantId).ToList();
+        var tenants = await _db.Tenants.IgnoreQueryFilters()
+            .Where(t => tenantIds.Contains(t.Id))
+            .ToDictionaryAsync(t => t.Id, t => t.Name, ct);
+        var folderCounts = await _db.BookkeepingFolders.IgnoreQueryFilters()
+            .Where(f => tenantIds.Contains(f.TenantId) && f.DeletedAt == null)
+            .GroupBy(f => f.TenantId)
+            .Select(g => new { TenantId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.TenantId, x => x.Count, ct);
+        var fileGroups = await _db.BookkeepingFiles.IgnoreQueryFilters()
+            .Where(f => tenantIds.Contains(f.TenantId) && f.DeletedAt == null)
+            .GroupBy(f => f.TenantId)
+            .Select(g => new {
+                TenantId = g.Key,
+                Total = g.Count(),
+                Pending = g.Count(x => x.Status == "pending"),
+            }).ToListAsync(ct);
+        var fileByTenant = fileGroups.ToDictionary(x => x.TenantId);
+        var lastAct = await _db.BookkeepingActivities.IgnoreQueryFilters()
+            .Where(a => tenantIds.Contains(a.TenantId) && a.DeletedAt == null)
+            .GroupBy(a => a.TenantId)
+            .Select(g => new { TenantId = g.Key, LastAt = g.Max(x => x.CreatedAt) })
+            .ToDictionaryAsync(x => x.TenantId, x => x.LastAt, ct);
+        var result = progs.Select(p => new TenantOverviewDto(
+            p.TenantId,
+            tenants.TryGetValue(p.TenantId, out var name) ? name : "(unknown)",
+            p.Mode,
+            p.Onboarded,
+            p.OnboardedAt,
+            folderCounts.GetValueOrDefault(p.TenantId, 0),
+            fileByTenant.TryGetValue(p.TenantId, out var fg) ? fg.Total : 0,
+            fileByTenant.TryGetValue(p.TenantId, out fg) ? fg.Pending : 0,
+            lastAct.TryGetValue(p.TenantId, out var last) ? last : null
+        )).OrderByDescending(x => x.LastActivityAt ?? DateTime.MinValue).ToList();
+        return Ok(result);
+    }
+
+    [HttpGet("/api/platform/bookkeeping/tenants/{tenantId:guid}/tree")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<object>> AdminTree(Guid tenantId, CancellationToken ct)
+        => Ok(await LoadTree(tenantId, ct, ignoreFilters: true));
+
+    [HttpPost("/api/platform/bookkeeping/tenants/{tenantId:guid}/folders")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<FolderDto>> AdminCreateFolder(Guid tenantId,
+        [FromBody] CreateFolderBody body, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(body.Name)) throw AppException.Validation("Όνομα φακέλου κενό.");
+        // Guard: parent folder must belong to the same tenant.
+        if (body.ParentFolderId is Guid pid)
+        {
+            var parentOk = await _db.BookkeepingFolders.IgnoreQueryFilters()
+                .AnyAsync(x => x.Id == pid && x.TenantId == tenantId && x.DeletedAt == null, ct);
+            if (!parentOk) throw AppException.NotFound("Parent folder");
+        }
+        var f = new BookkeepingFolder
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            ParentFolderId = body.ParentFolderId,
+            Name = body.Name.Trim(),
+            Origin = "custom",
+            DisplayOrder = body.DisplayOrder,
+            CreatedAt = _clock.UtcNow,
+        };
+        _db.BookkeepingFolders.Add(f);
+        await _db.SaveChangesAsync(ct);
+        return Ok(new FolderDto(f.Id, f.ParentFolderId, f.Name, f.Origin, f.DisplayOrder, f.CreatedAt, 0));
+    }
+
+    [HttpPut("/api/platform/bookkeeping/tenants/{tenantId:guid}/folders/{folderId:guid}")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<FolderDto>> AdminRenameFolder(Guid tenantId, Guid folderId,
+        [FromBody] RenameFolderBody body, CancellationToken ct)
+    {
+        var f = await _db.BookkeepingFolders.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == folderId && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Folder");
+        if (string.IsNullOrWhiteSpace(body.Name)) throw AppException.Validation("Όνομα κενό.");
+        f.Name = body.Name.Trim();
+        f.DisplayOrder = body.DisplayOrder;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new FolderDto(f.Id, f.ParentFolderId, f.Name, f.Origin, f.DisplayOrder, f.CreatedAt, 0));
+    }
+
+    [HttpDelete("/api/platform/bookkeeping/tenants/{tenantId:guid}/folders/{folderId:guid}")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<IActionResult> AdminDeleteFolder(Guid tenantId, Guid folderId, CancellationToken ct)
+    {
+        var f = await _db.BookkeepingFolders.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == folderId && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Folder");
+        // Soft-delete the folder + its files. Children (subfolders + files
+        // deep) are NOT recursively touched — the platform admin has to
+        // clean them out first. Keeps accidental drops recoverable.
+        var hasChildren = await _db.BookkeepingFolders.IgnoreQueryFilters()
+            .AnyAsync(x => x.ParentFolderId == folderId && x.DeletedAt == null, ct);
+        var hasFiles = await _db.BookkeepingFiles.IgnoreQueryFilters()
+            .AnyAsync(x => x.FolderId == folderId && x.DeletedAt == null, ct);
+        if (hasChildren || hasFiles)
+            throw AppException.Validation("Ο φάκελος δεν είναι άδειος — καθαρίστε πρώτα το περιεχόμενο.");
+        f.DeletedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    [HttpPost("/api/platform/bookkeeping/tenants/{tenantId:guid}/files")]
+    [RequestSizeLimit(20_000_000)]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<FileDto>> AdminUploadFile(Guid tenantId,
+        [FromForm] IFormFile file, [FromForm] Guid folderId, CancellationToken ct)
+    {
+        var userId = _current.UserId ?? throw AppException.Unauthorized();
+        var folder = await _db.BookkeepingFolders.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(f => f.Id == folderId && f.TenantId == tenantId && f.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Folder");
+        return Ok(await UploadFileInternal(tenantId, userId, folder, file, "admin", ct));
+    }
+
+    [HttpGet("/api/platform/bookkeeping/tenants/{tenantId:guid}/files/{fileId:guid}")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<IActionResult> AdminDownloadFile(Guid tenantId, Guid fileId, CancellationToken ct)
+    {
+        var f = await _db.BookkeepingFiles.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == fileId && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("File");
+        return File(f.ContentBytes, f.MimeType, f.FileName);
+    }
+
+    [HttpPut("/api/platform/bookkeeping/tenants/{tenantId:guid}/files/{fileId:guid}")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<FileDto>> AdminUpdateFile(Guid tenantId, Guid fileId,
+        [FromBody] UpdateFileBody body, CancellationToken ct)
+    {
+        var f = await _db.BookkeepingFiles.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == fileId && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("File");
+        if (body.Notes is not null) f.Notes = body.Notes;
+        if (body.Status is not null) f.Status = body.Status;
+        await _db.SaveChangesAsync(ct);
+        return Ok(FileToDto(f, null));
+    }
+
+    /// <summary>«Replace» semantics — same folder, delete old + upload
+    /// new. Kept as an explicit endpoint so admins can swap a corrupted
+    /// document without having to re-create the metadata (status,
+    /// notes) from scratch.</summary>
+    [HttpPost("/api/platform/bookkeeping/tenants/{tenantId:guid}/files/{fileId:guid}/replace")]
+    [RequestSizeLimit(20_000_000)]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<FileDto>> AdminReplaceFile(Guid tenantId, Guid fileId,
+        [FromForm] IFormFile file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0) throw AppException.Validation("Απαιτείται αρχείο.");
+        var f = await _db.BookkeepingFiles.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == fileId && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("File");
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+        f.FileName = string.IsNullOrWhiteSpace(file.FileName) ? f.FileName : file.FileName;
+        f.MimeType = string.IsNullOrWhiteSpace(file.ContentType) ? f.MimeType : file.ContentType;
+        f.SizeBytes = ms.Length;
+        f.ContentBytes = ms.ToArray();
+        await _db.SaveChangesAsync(ct);
+        return Ok(FileToDto(f, null));
+    }
+
+    [HttpDelete("/api/platform/bookkeeping/tenants/{tenantId:guid}/files/{fileId:guid}")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<IActionResult> AdminDeleteFile(Guid tenantId, Guid fileId, CancellationToken ct)
+    {
+        var f = await _db.BookkeepingFiles.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == fileId && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("File");
+        f.DeletedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    [HttpDelete("/api/platform/bookkeeping/tenants/{tenantId:guid}/files")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<IActionResult> AdminDeleteAllFiles(Guid tenantId, [FromQuery] Guid? folderId, CancellationToken ct)
+    {
+        // Bulk-clear either a folder's files or the entire tenant's files.
+        // Aggressive — the platform admin invokes it deliberately from
+        // the «Καθαρισμός» toolbar button.
+        var q = _db.BookkeepingFiles.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null);
+        if (folderId is Guid fid) q = q.Where(x => x.FolderId == fid);
+        var toGo = await q.ToListAsync(ct);
+        foreach (var f in toGo) f.DeletedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { deleted = toGo.Count });
+    }
+
+    [HttpPost("/api/platform/bookkeeping/tenants/{tenantId:guid}/notes")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<NoteDto>> AdminCreateNote(Guid tenantId,
+        [FromBody] CreateNoteBody body, CancellationToken ct)
+    {
+        var userId = _current.UserId ?? throw AppException.Unauthorized();
+        var display = await _db.Users.IgnoreQueryFilters()
+            .Where(u => u.Id == userId).Select(u => u.FirstName + " " + u.LastName).FirstOrDefaultAsync(ct) ?? "Kalypsis";
+        return Ok(await CreateNoteInternal(tenantId, userId, display, "admin", body, ct));
+    }
+
+    [HttpGet("/api/platform/bookkeeping/tenants/{tenantId:guid}/notes")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<IReadOnlyList<NoteDto>>> AdminListNotes(Guid tenantId,
+        [FromQuery] Guid? folderId, [FromQuery] Guid? fileId, CancellationToken ct)
+    {
+        var q = _db.BookkeepingNotes.IgnoreQueryFilters()
+            .Where(n => n.TenantId == tenantId && n.DeletedAt == null);
+        if (folderId is Guid fld) q = q.Where(n => n.FolderId == fld);
+        if (fileId is Guid fil) q = q.Where(n => n.FileId == fil);
+        var rows = await q.OrderByDescending(n => n.CreatedAt).Take(500).ToListAsync(ct);
+        return Ok(rows.Select(n => new NoteDto(n.Id, n.FolderId, n.FileId,
+            n.AuthorUserId, n.AuthorDisplay, n.AuthorRole, n.Body, n.CreatedAt)).ToList());
+    }
+
+    /// <summary>Log a «latest thing done» activity for the tenant. If
+    /// AutoNotify is set, immediately fires an ΕΡΜΗΣ message to every
+    /// AgencyAdmin of that tenant so they know the work is done
+    /// («Μηχανογραφήθηκε ο μήνας 08/2026»). Notification failures are
+    /// logged but never abort the activity write.</summary>
+    [HttpPost("/api/platform/bookkeeping/tenants/{tenantId:guid}/activities")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<ActivityDto>> AdminCreateActivity(Guid tenantId,
+        [FromBody] CreateActivityBody body, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(body.Title)) throw AppException.Validation("Τίτλος κενός.");
+        var userId = _current.UserId ?? throw AppException.Unauthorized();
+        var display = await _db.Users.IgnoreQueryFilters()
+            .Where(u => u.Id == userId).Select(u => u.FirstName + " " + u.LastName).FirstOrDefaultAsync(ct) ?? "Kalypsis";
+        var act = new BookkeepingActivity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            Kind = string.IsNullOrWhiteSpace(body.Kind) ? "note" : body.Kind,
+            Title = body.Title.Trim(),
+            Body = body.Body,
+            AuthorUserId = userId,
+            AuthorDisplay = display,
+            Category = string.IsNullOrWhiteSpace(body.Category) ? null : body.Category.Trim(),
+            CreatedAt = _clock.UtcNow,
+        };
+        _db.BookkeepingActivities.Add(act);
+        await _db.SaveChangesAsync(ct);
+
+        if (body.AutoNotify)
+        {
+            try
+            {
+                var admins = await _db.Users.IgnoreQueryFilters()
+                    .Where(u => u.TenantId == tenantId && u.DeletedAt == null
+                        && (u.Role == Kalypsis.Domain.Enums.Role.AgencyAdmin
+                            || u.Role == Kalypsis.Domain.Enums.Role.AgencyUser))
+                    .Select(u => u.Id).ToListAsync(ct);
+                if (admins.Count > 0)
+                {
+                    var subject = $"Μηχανογράφιση — {act.Title}";
+                    var bodyHtml = $"<p>{System.Net.WebUtility.HtmlEncode(act.Title)}</p>" +
+                        (string.IsNullOrWhiteSpace(act.Body)
+                            ? ""
+                            : $"<p>{System.Net.WebUtility.HtmlEncode(act.Body)}</p>") +
+                        (string.IsNullOrWhiteSpace(act.Category) ? "" :
+                            $"<p><em>Κατηγορία: {System.Net.WebUtility.HtmlEncode(act.Category)}</em></p>");
+                    var msgId = await _mediator.Send(new SendErmesCommand(
+                        Subject: subject,
+                        BodyHtml: bodyHtml,
+                        Recipients: admins.Select(a => new ErmesRecipientInput(a, "To")).ToList(),
+                        TeamIds: new List<Guid>(),
+                        InReplyToMessageId: null,
+                        IsImportant: false,
+                        SaveAsDraft: false,
+                        AutomationSource: "bookkeeping-activity",
+                        Category: act.Category,
+                        SendExternalEmail: false), ct);
+                    act.AutoNotified = true;
+                    act.NotificationMessageId = msgId;
+                    await _db.SaveChangesAsync(ct);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Bookkeeping activity notify failed for tenant {TenantId}", tenantId);
+            }
+        }
+        return Ok(new ActivityDto(act.Id, act.Kind, act.Title, act.Body,
+            act.AuthorUserId, act.AuthorDisplay, act.Category, act.AutoNotified, act.CreatedAt));
+    }
+
+    [HttpGet("/api/platform/bookkeeping/tenants/{tenantId:guid}/activities")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<IReadOnlyList<ActivityDto>>> AdminListActivities(Guid tenantId, CancellationToken ct)
+    {
+        var rows = await _db.BookkeepingActivities.IgnoreQueryFilters()
+            .Where(a => a.TenantId == tenantId && a.DeletedAt == null)
+            .OrderByDescending(a => a.CreatedAt).Take(500).ToListAsync(ct);
+        return Ok(rows.Select(a => new ActivityDto(a.Id, a.Kind, a.Title, a.Body,
+            a.AuthorUserId, a.AuthorDisplay, a.Category, a.AutoNotified, a.CreatedAt)).ToList());
+    }
+
+    [HttpPut("/api/platform/bookkeeping/tenants/{tenantId:guid}/onboarded")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<ProgramDto>> AdminMarkOnboarded(Guid tenantId, [FromBody] bool onboarded, CancellationToken ct)
+    {
+        var p = await _db.BookkeepingPrograms.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.TenantId == tenantId, ct)
+            ?? throw AppException.NotFound("Program");
+        p.Onboarded = onboarded;
+        p.OnboardedAt = onboarded ? _clock.UtcNow : null;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new ProgramDto(p.Enabled, p.Mode, p.ContactRequestNote, p.Onboarded, p.OnboardedAt, p.CreatedAt));
+    }
+
+    /// <summary>Apply the platform-wide default folder structure to a
+    /// tenant that just onboarded. Idempotent — folders with the same
+    /// name are skipped, so re-applying doesn't duplicate.</summary>
+    [HttpPost("/api/platform/bookkeeping/tenants/{tenantId:guid}/apply-defaults")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<IReadOnlyList<FolderDto>>> AdminApplyDefaultStructure(Guid tenantId, CancellationToken ct)
+    {
+        var defaults = await GetOrDefaultStructureAsync(ct);
+        var existing = await _db.BookkeepingFolders.IgnoreQueryFilters()
+            .Where(f => f.TenantId == tenantId && f.DeletedAt == null && f.ParentFolderId == null)
+            .Select(f => f.Name).ToListAsync(ct);
+        var existingSet = existing.ToHashSet();
+        var added = new List<BookkeepingFolder>();
+        var order = 0;
+        foreach (var name in defaults)
+        {
+            order++;
+            if (existingSet.Contains(name)) continue;
+            var f = new BookkeepingFolder
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                ParentFolderId = null,
+                Name = name,
+                Origin = "default",
+                DisplayOrder = order,
+                CreatedAt = _clock.UtcNow,
+            };
+            _db.BookkeepingFolders.Add(f);
+            added.Add(f);
+        }
+        if (added.Count > 0) await _db.SaveChangesAsync(ct);
+        return Ok(added.Select(f => new FolderDto(f.Id, null, f.Name, f.Origin, f.DisplayOrder, f.CreatedAt, 0)).ToList());
+    }
+
+    // ── Default structure (platform-wide, stored in LandingContent as JSON) ─
+    // Reuse the KV store we already have for editable settings — one row
+    // per SectionKey, PayloadJson = JSON array of folder names. Saves us
+    // adding another table for a single-row config.
+    private const string DefaultStructureKey = "bookkeeping-default-folders";
+    private static readonly string[] BuiltInDefaults = new[]
+    {
+        "Έσοδα", "Έξοδα", "Παραστατικά", "Βιβλία",
+        "Προμήθειες", "Υπερπρομήθειες", "Πληρωμές",
+        "Τραπεζικές κινήσεις", "Παρακρατούμενοι φόροι", "Λοιπά",
+    };
+
+    private async Task<List<string>> GetOrDefaultStructureAsync(CancellationToken ct)
+    {
+        var row = await _db.LandingContents.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.SectionKey == DefaultStructureKey && x.DeletedAt == null, ct);
+        if (row is null) return BuiltInDefaults.ToList();
+        try
+        {
+            var arr = JsonSerializer.Deserialize<List<string>>(row.PayloadJson);
+            return (arr ?? new List<string>()).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+        }
+        catch { return BuiltInDefaults.ToList(); }
+    }
+
+    [HttpGet("/api/platform/bookkeeping/default-structure")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<IReadOnlyList<string>>> AdminGetDefaults(CancellationToken ct)
+        => Ok(await GetOrDefaultStructureAsync(ct));
+
+    [HttpPut("/api/platform/bookkeeping/default-structure")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<IReadOnlyList<string>>> AdminSetDefaults(
+        [FromBody] IReadOnlyList<string> folders, CancellationToken ct)
+    {
+        var userId = _current.UserId ?? throw AppException.Unauthorized();
+        var clean = folders.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Distinct().Take(50).ToList();
+        var row = await _db.LandingContents
+            .FirstOrDefaultAsync(x => x.SectionKey == DefaultStructureKey, ct);
+        var json = JsonSerializer.Serialize(clean);
+        if (row is null)
+        {
+            _db.LandingContents.Add(new LandingContent
+            {
+                Id = Guid.NewGuid(),
+                SectionKey = DefaultStructureKey,
+                PayloadJson = json,
+                UpdatedByUserId = userId,
+                CreatedAt = _clock.UtcNow,
+            });
+        }
+        else { row.DeletedAt = null; row.PayloadJson = json; row.UpdatedByUserId = userId; }
+        await _db.SaveChangesAsync(ct);
+        return Ok(clean);
+    }
+
+    // ── Portal credentials (encrypted at rest, PlatformAdmin-only) ──
+    [HttpGet("/api/platform/bookkeeping/tenants/{tenantId:guid}/credentials")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<IReadOnlyList<CredentialDto>>> AdminListCredentials(Guid tenantId, CancellationToken ct)
+    {
+        var rows = await _db.BookkeepingPortalCredentials.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null)
+            .OrderBy(x => x.CarrierName).ToListAsync(ct);
+        return Ok(rows.Select(c => new CredentialDto(c.Id, c.CarrierName, c.PortalUrl,
+            c.Notes, c.Active, c.LastVerifiedAt, c.CreatedAt)).ToList());
+    }
+
+    /// <summary>Reveals the plaintext for a single credential. Kept as a
+    /// separate endpoint (not part of the list response) so PlatformAdmin
+    /// has to explicitly request each secret — matches how password
+    /// managers show credentials on click, not on list.</summary>
+    [HttpGet("/api/platform/bookkeeping/tenants/{tenantId:guid}/credentials/{id:guid}/reveal")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<object>> AdminRevealCredential(Guid tenantId, Guid id, CancellationToken ct)
+    {
+        var c = await _db.BookkeepingPortalCredentials.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Credential");
+        // EncryptedStringConverter auto-decrypts on load — the values on
+        // the entity are already plaintext. We just return them.
+        return Ok(new { c.CarrierName, c.PortalUrl, c.UsernameCipher, c.PasswordCipher });
+    }
+
+    [HttpPost("/api/platform/bookkeeping/tenants/{tenantId:guid}/credentials")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<CredentialDto>> AdminUpsertCredential(Guid tenantId,
+        [FromBody] UpsertCredentialBody body, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(body.CarrierName)) throw AppException.Validation("Carrier κενός.");
+        var c = await _db.BookkeepingPortalCredentials.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.CarrierName == body.CarrierName && x.DeletedAt == null, ct);
+        if (c is null)
+        {
+            c = new BookkeepingPortalCredential
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                CarrierName = body.CarrierName.Trim(),
+                CreatedAt = _clock.UtcNow,
+            };
+            _db.BookkeepingPortalCredentials.Add(c);
+        }
+        c.PortalUrl = body.PortalUrl?.Trim() ?? "";
+        c.UsernameCipher = body.Username ?? "";
+        c.PasswordCipher = body.Password ?? "";
+        c.Notes = body.Notes;
+        c.Active = true;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new CredentialDto(c.Id, c.CarrierName, c.PortalUrl, c.Notes, c.Active, c.LastVerifiedAt, c.CreatedAt));
+    }
+
+    [HttpDelete("/api/platform/bookkeeping/tenants/{tenantId:guid}/credentials/{id:guid}")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<IActionResult> AdminDeleteCredential(Guid tenantId, Guid id, CancellationToken ct)
+    {
+        var c = await _db.BookkeepingPortalCredentials.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Credential");
+        c.DeletedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Shared helpers
+    // ═══════════════════════════════════════════════════════════════
+
+    private async Task<object> LoadTree(Guid tenantId, CancellationToken ct, bool ignoreFilters = false)
+    {
+        IQueryable<BookkeepingFolder> foldersQ = _db.BookkeepingFolders;
+        IQueryable<BookkeepingFile> filesQ = _db.BookkeepingFiles;
+        if (ignoreFilters)
+        {
+            foldersQ = foldersQ.IgnoreQueryFilters();
+            filesQ = filesQ.IgnoreQueryFilters();
+        }
+        var folders = await foldersQ.AsNoTracking()
+            .Where(f => f.TenantId == tenantId && f.DeletedAt == null)
+            .OrderBy(f => f.DisplayOrder).ThenBy(f => f.Name).ToListAsync(ct);
+        var files = await filesQ.AsNoTracking()
+            .Where(f => f.TenantId == tenantId && f.DeletedAt == null)
+            .OrderByDescending(f => f.CreatedAt).ToListAsync(ct);
+        var uploaderIds = files.Select(f => f.UploadedByUserId).Distinct().ToList();
+        var uploaders = await _db.Users.IgnoreQueryFilters()
+            .Where(u => uploaderIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => (u.FirstName + " " + u.LastName).Trim(), ct);
+        var fileCounts = files.GroupBy(x => x.FolderId).ToDictionary(g => g.Key, g => g.Count());
+        return new
+        {
+            folders = folders.Select(f => new FolderDto(f.Id, f.ParentFolderId, f.Name, f.Origin,
+                f.DisplayOrder, f.CreatedAt, fileCounts.GetValueOrDefault(f.Id, 0))).ToList(),
+            files = files.Select(f => FileToDto(f, uploaders.GetValueOrDefault(f.UploadedByUserId, ""))).ToList(),
+        };
+    }
+
+    private static FileDto FileToDto(BookkeepingFile f, string? uploader)
+        => new(f.Id, f.FolderId, f.FileName, f.MimeType, f.SizeBytes,
+            f.UploadedBy, f.Notes, f.Status, f.CreatedAt, uploader);
+
+    private async Task<FileDto> UploadFileInternal(Guid tenantId, Guid userId, BookkeepingFolder folder,
+        IFormFile file, string uploadedBy, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0) throw AppException.Validation("Απαιτείται αρχείο.");
+        const long max = 16L * 1024 * 1024;
+        if (file.Length > max) throw AppException.Validation($"Μέγιστο {max / (1024 * 1024)} MB.");
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+        var f = new BookkeepingFile
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            FolderId = folder.Id,
+            FileName = string.IsNullOrWhiteSpace(file.FileName) ? "file" : file.FileName,
+            MimeType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
+            SizeBytes = ms.Length,
+            ContentBytes = ms.ToArray(),
+            UploadedBy = uploadedBy,
+            UploadedByUserId = userId,
+            Status = "pending",
+            CreatedAt = _clock.UtcNow,
+        };
+        _db.BookkeepingFiles.Add(f);
+        await _db.SaveChangesAsync(ct);
+        return FileToDto(f, null);
+    }
+
+    private async Task<NoteDto> CreateNoteInternal(Guid tenantId, Guid userId, string display,
+        string authorRole, CreateNoteBody body, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(body.Body)) throw AppException.Validation("Κείμενο κενό.");
+        if (body.FolderId is null && body.FileId is null)
+            throw AppException.Validation("Απαιτείται φάκελος ή αρχείο.");
+        var n = new BookkeepingNote
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            FolderId = body.FolderId,
+            FileId = body.FileId,
+            AuthorUserId = userId,
+            AuthorDisplay = display,
+            AuthorRole = authorRole,
+            Body = body.Body.Trim(),
+            CreatedAt = _clock.UtcNow,
+        };
+        _db.BookkeepingNotes.Add(n);
+        await _db.SaveChangesAsync(ct);
+        return new NoteDto(n.Id, n.FolderId, n.FileId, n.AuthorUserId, n.AuthorDisplay,
+            n.AuthorRole, n.Body, n.CreatedAt);
+    }
+}

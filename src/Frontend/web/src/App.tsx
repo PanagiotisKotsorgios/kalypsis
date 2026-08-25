@@ -250,6 +250,8 @@ import {
   PlatformStoragePage, PlatformJobsPage, PlatformStatusPage, PlatformCompliancePage, PlatformSupportPage
 } from "./pages/PlatformAdminPages";
 import { PlatformCarriersPage } from "./pages/PlatformCarriersPage";
+import { PlatformBookkeepingPage } from "./pages/PlatformBookkeepingPage";
+import { BookkeepingPage } from "./pages/BookkeepingPage";
 import { PlatformDesktopReleasesPage } from "./pages/PlatformDesktopReleasesPage";
 import { PlatformDesktopLicensesPage } from "./pages/PlatformDesktopLicensesPage";
 
@@ -275,6 +277,10 @@ const navByRole: Record<Role, NavItem[]> = {
     // Οδηγίες χρήσης — ενσωματωμένος οδηγός βήμα-προς-βήμα, εκτυπώσιμος
     // σε PDF από κάθε σελίδα.
     { to: "/documentation", labelKey: "nav.documentation", icon: <MenuBookIcon />,
+      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+    // Μηχανογράφιση (tenant surface) — opt in to the service or
+    // browse the folder tree the platform team maintains for you.
+    { to: "/bookkeeping", labelKey: "nav.bookkeeping", icon: <FolderIcon />,
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
 
     // ===== BackOffice — Γέφυρες Εταιρειών (hub for 4 carrier-import screens) =====
@@ -423,6 +429,10 @@ const navByRole: Record<Role, NavItem[]> = {
     // σε PDF από κάθε σελίδα.
     { to: "/documentation", labelKey: "nav.documentation", icon: <MenuBookIcon />,
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+    // Μηχανογράφιση (tenant surface) — opt in to the service or
+    // browse the folder tree the platform team maintains for you.
+    { to: "/bookkeeping", labelKey: "nav.bookkeeping", icon: <FolderIcon />,
+      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
     // BackOffice
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice" },
@@ -479,6 +489,10 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/platform/support", labelKey: "nav.support", icon: <SupportAgentIcon /> },
     { to: "/platform/economics", labelKey: "nav.platformEconomics", icon: <AnalyticsIcon /> },
     { to: "/platform/contractors", labelKey: "nav.contractors", icon: <EngineeringIcon /> },
+    // Μηχανογράφιση («bookkeeping as a service») — platform team runs
+    // data entry for small offices that opted in. Sits under Διοίκηση
+    // so it lives alongside the other tenant-management surfaces.
+    { to: "/platform/bookkeeping", labelKey: "nav.platformBookkeeping", icon: <FolderIcon /> },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
   PlatformEmployee: [
@@ -868,6 +882,8 @@ export default function App() {
                   <Route path="platform/registrations" element={<PlatformRegistrationsPage />} />
                   <Route path="platform/economics" element={<PlatformEconomicsPage />} />
                   <Route path="platform/contractors" element={<PlatformContractorsPage />} />
+                  <Route path="platform/bookkeeping" element={<PlatformBookkeepingPage />} />
+                  <Route path="bookkeeping" element={<BookkeepingPage />} />
                   <Route path="platform/email-templates" element={<PlatformEmailTemplatesPage />} />
                   <Route path="platform/maintenance" element={<PlatformMaintenancePage />} />
                   <Route path="platform/*" element={<ComingSoonPage />} />
