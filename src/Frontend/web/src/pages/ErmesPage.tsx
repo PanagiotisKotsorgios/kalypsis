@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { ensureE2EKeypair } from "../ermes/keyManager";
+import LockIcon from "@mui/icons-material/Lock";
 import {
   Alert, Autocomplete, Avatar, Box, Button, Card, Checkbox, Chip,
   CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
@@ -292,6 +294,43 @@ export function ErmesPage() {
   // Reset the reader + selection whenever the folder or search changes.
   useEffect(() => { setSelected(new Set()); setOpenThreadId(null); }, [folder, search]);
 
+  // ── E2E keypair provisioning ─────────────────────────────────────
+  // On first ErmesPage load, generate an ECDH P-256 keypair (private
+  // half pinned to this browser via IndexedDB, extractable:false) and
+  // publish the public half to /api/ermes/keys/mine so peers can encrypt
+  // for us. Idempotent — future loads see the existing keypair, don't
+  // re-generate. See src/ermes/keyManager.ts for the crypto primitives.
+  const [e2eStatus, setE2eStatus] = useState<"idle" | "ready" | "unsupported" | "error">("idle");
+  useEffect(() => {
+    if (!myId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const env = await ensureE2EKeypair(myId);
+        if (cancelled) return;
+        setE2eStatus(env ? "ready" : "unsupported");
+      } catch (e) {
+        console.warn("Ermes E2E keypair provisioning failed", e);
+        if (!cancelled) setE2eStatus("error");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [myId]);
+
+  // ── Jitsi Meet dialog ────────────────────────────────────────────
+  // «Έναρξη meeting» on an open thread fetches a deterministic room
+  // name from the backend + opens the Jitsi Meet URL in an iframe
+  // (or a new tab if the browser blocks embedding). Jitsi handles the
+  // WebRTC signalling + TURN — we own only the room-name derivation.
+  const [meetingUrl, setMeetingUrl] = useState<string | null>(null);
+  const startMeetingForThread = async (threadId: string) => {
+    try {
+      const r = await api.get<{ url: string; roomName: string }>("/ermes/meeting/room",
+        { params: { threadId } });
+      setMeetingUrl(r.data.url);
+    } catch (e) { setError(extractErrorMessage(e)); }
+  };
+
   // ── Real-time SSE stream ───────────────────────────────────────────
   // Opens a long-lived fetch stream to /api/ermes/stream. Every «message»
   // event pushed by the backend invalidates the ermes react-query cache,
@@ -451,6 +490,23 @@ export function ErmesPage() {
             />
           </Stack>
         </Box>
+        {/* E2E status chip — «Κρυπτογραφημένη» when a keypair is
+            provisioned in this browser + registered on the server. Users
+            know at a glance that this session is E2E-ready. */}
+        {e2eStatus === "ready" && (
+          <Tooltip title="Το πρόγραμμα περιήγησής σας έχει ζεύγος κλειδιών E2E — το ιδιωτικό μένει τοπικά, το δημόσιο δημοσιεύθηκε στους συνεργάτες σας.">
+            <Chip icon={<LockIcon sx={{ fontSize: 15 }} />} label="Κρυπτογραφημένη"
+              size="small" color="success" variant="outlined"
+              sx={{ fontWeight: 700, mr: 1 }} />
+          </Tooltip>
+        )}
+        {openThreadId && (
+          <Button variant="outlined" size="medium" startIcon={<VideocamIcon />}
+            onClick={() => startMeetingForThread(openThreadId)}
+            sx={{ fontWeight: 700, mr: 1 }}>
+            Έναρξη meeting
+          </Button>
+        )}
         <Button variant="contained" size="medium" startIcon={<CreateIcon />}
           onClick={() => { setReplyTo(null); openCompose(); }}
           sx={{
@@ -806,6 +862,33 @@ export function ErmesPage() {
         <DialogActions>
           <Button onClick={closeBeta} variant="contained">Το κατάλαβα, ας ξεκινήσω</Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Jitsi Meet dialog — deterministic room name comes from
+          /api/ermes/meeting/room?threadId. Every participant on the
+          same thread who hits the button lands in the same call.
+          If iframe embedding is blocked, users can open the room in a
+          new tab from the header of the dialog. */}
+      <Dialog open={!!meetingUrl} onClose={() => setMeetingUrl(null)} maxWidth="lg" fullWidth
+        PaperProps={{ sx: { height: { xs: "90vh", md: "80vh" } } }}>
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.5, fontWeight: 800 }}>
+          <VideocamIcon color="primary" />
+          Συνάντηση συζήτησης
+          <Box sx={{ flex: 1 }} />
+          {meetingUrl && (
+            <Button size="small" component="a" href={meetingUrl} target="_blank" rel="noopener noreferrer">
+              Άνοιγμα σε νέα καρτέλα
+            </Button>
+          )}
+          <IconButton onClick={() => setMeetingUrl(null)} size="small"><CloseIcon /></IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, height: "100%" }}>
+          {meetingUrl && (
+            <iframe src={meetingUrl} title="Kalypsis meeting"
+              allow="camera; microphone; fullscreen; display-capture; autoplay"
+              style={{ border: 0, width: "100%", height: "100%" }} />
+          )}
+        </DialogContent>
       </Dialog>
     </Box>
   );

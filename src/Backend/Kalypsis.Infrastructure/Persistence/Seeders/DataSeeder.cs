@@ -658,6 +658,26 @@ public static class DataSeeder
         try { await Kalypsis.Infrastructure.Persistence.Seeders.DocumentationSeeder.SeedIfEmptyAsync(db, ct); }
         catch (Exception ex) { logger.LogWarning(ex, "Documentation seed skipped — continuing boot."); }
 
+        // --- user_public_keys: ΕΡΜΗΣ E2E public-key registry. Private
+        // half lives in the user's browser only. See UserPublicKey entity
+        // + ErmesKeysController for the auth + storage contract.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "user_public_keys",
+            createSql: @"CREATE TABLE IF NOT EXISTS `user_public_keys` (
+                `Id`                     char(36) NOT NULL,
+                `TenantId`               char(36) NOT NULL,
+                `UserId`                 char(36) NOT NULL,
+                `Algorithm`              varchar(40) NOT NULL DEFAULT 'ECDH-P256',
+                `PublicKeySpkiBase64`    longtext NOT NULL,
+                `KeyId`                  varchar(64) NOT NULL,
+                `RotatedAt`              datetime(6) NULL,
+                `CreatedAt`              datetime(6) NOT NULL,
+                `UpdatedAt`              datetime(6) NULL,
+                `DeletedAt`              datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_upk_Tenant_User` (`TenantId`, `UserId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
         // --- landing_contents: editable content blocks for the public
         // landing page (ERMES showcase, hero copy, feature grids). One
         // JSON row per section. Frontend reads with hardcoded defaults
