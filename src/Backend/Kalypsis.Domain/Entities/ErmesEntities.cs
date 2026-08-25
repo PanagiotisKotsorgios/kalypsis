@@ -91,6 +91,25 @@ public class ErmesMessage : TenantEntity
     /// column so a channel is a persistent chronological feed even if
     /// individual recipients later archive or delete their copies.</summary>
     public Guid? ChannelId { get; set; }
+
+    /// <summary>Per-recipient E2E envelopes for this message. When set,
+    /// <see cref="BodyHtml"/> is a UI placeholder («[Κρυπτογραφημένο μήνυμα]»)
+    /// and the actual plaintext lives inside the envelope keyed by each
+    /// recipient's user id. The server NEVER holds the plaintext — decryption
+    /// happens in the recipient's browser with a private key that never
+    /// leaves IndexedDB.
+    ///
+    /// Shape (serialised JSON):
+    /// {
+    ///   "&lt;recipientUserId&gt;": {
+    ///     "ivB64": "…", "ctB64": "…", "senderPubSpkiB64": "…"
+    ///   }, …
+    /// }
+    ///
+    /// Null / empty → the message is plain HTML (older messages, senders
+    /// without a keypair yet, or recipients missing keys). The client
+    /// falls back to <see cref="BodyHtml"/> in that case.</summary>
+    public string? EncryptedEnvelopesJson { get; set; }
 }
 
 /// <summary>

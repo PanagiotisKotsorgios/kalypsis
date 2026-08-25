@@ -114,6 +114,15 @@ export async function ensureE2EKeypair(myUserId: string): Promise<KeyEnvelope | 
   return { publicKey: pair.publicKey, privateKey: pair.privateKey, keyId, publicSpkiB64 };
 }
 
+/** Read the caller's private key from IndexedDB (does NOT go to the
+ *  server or touch the network). Returns null when there's no keypair yet
+ *  — callers should treat that as "cannot decrypt, show placeholder". */
+export async function getStoredPrivateKey(myUserId: string): Promise<CryptoKey | null> {
+  if (typeof indexedDB === "undefined") return null;
+  const row = await idbGet<{ id: string; privateKey: CryptoKey }>(myUserId);
+  return row?.privateKey ?? null;
+}
+
 /** Fetch a peer's public key from the server + import it for ECDH. */
 export async function fetchPeerPublicKey(userId: string): Promise<CryptoKey | null> {
   try {
@@ -148,11 +157,41 @@ export async function encryptBodyFor(bodyPlainUtf8: string, recipientPublicKey: 
   return { ivB64: b64encode(iv.buffer), ctB64: b64encode(ct), senderPubSpkiB64: senderKeys.publicSpkiB64 };
 }
 
+export interface WireEnvelope { ivB64: string; ctB64: string; senderPubSpkiB64: string }
+export type EnvelopeMap = Record<string, WireEnvelope>;
+
+/**
+ * ENCRYPT-FOR-MANY. Builds the per-recipient envelope map the wire
+ * format expects. Returns null when ANY recipient is missing a public
+ * key — the caller MUST then fall back to plaintext send (the composer
+ * shows a clear warning: «Ένας ή περισσότεροι παραλήπτες δεν έχουν
+ * ζεύγος κλειδιών — το μήνυμα θα σταλεί χωρίς κρυπτογράφηση»).
+ *
+ * We include the sender in the envelope map so the sender's own copy
+ * (rendered in the Sent folder) can be decrypted the same way as any
+ * other recipient's — no special case in the reader.
+ */
+export async function buildEnvelopesForRecipients(
+  bodyPlainUtf8: string,
+  recipientUserIds: string[],
+  senderKeys: KeyEnvelope,
+  senderUserId: string,
+): Promise<EnvelopeMap | null> {
+  const all = Array.from(new Set([...recipientUserIds, senderUserId]));
+  const map: EnvelopeMap = {};
+  for (const uid of all) {
+    const pub = await fetchPeerPublicKey(uid);
+    if (!pub) return null; // hard-fail — one missing key breaks the whole envelope
+    map[uid] = await encryptBodyFor(bodyPlainUtf8, pub, senderKeys);
+  }
+  return map;
+}
+
 /**
  * Decrypt an incoming envelope with my private key + the sender's public
  * key that traveled inside the envelope.
  */
-export async function decryptBody(env: { ivB64: string; ctB64: string; senderPubSpkiB64: string }, myPrivateKey: CryptoKey): Promise<string> {
+export async function decryptBody(env: WireEnvelope, myPrivateKey: CryptoKey): Promise<string> {
   const senderPub = await window.crypto.subtle.importKey(
     "spki", b64decode(env.senderPubSpkiB64),
     { name: "ECDH", namedCurve: "P-256" }, false, [],

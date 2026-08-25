@@ -30,7 +30,11 @@ public record ErmesMessageDto(
     bool ExternalEmailRequested, bool ExternalEmailDelivered, string? ExternalEmailStatus,
     DateTime CreatedAt, DateTime? SentAt,
     IReadOnlyList<ErmesRecipientDto> Recipients,
-    IReadOnlyList<ErmesAttachmentDto> Attachments);
+    IReadOnlyList<ErmesAttachmentDto> Attachments,
+    // Per-recipient E2E envelopes. Opaque JSON — the client decrypts
+    // the entry keyed by its own userId. Null → the message is plain
+    // HTML and BodyHtml has the real body.
+    string? EncryptedEnvelopesJson = null);
 
 public record ErmesContactDto(
     Guid UserId, string Display, string Email, string Role);
@@ -273,7 +277,8 @@ public class ListErmesHandler : IRequestHandler<ListErmesQuery, IReadOnlyList<Er
                     .ToList(),
                 Attachments: allAtt.Where(a => a.MessageId == m.Id)
                     .Select(a => new ErmesAttachmentDto(a.Id, a.FileName, a.MimeType, a.SizeBytes))
-                    .ToList());
+                    .ToList(),
+                EncryptedEnvelopesJson: m.EncryptedEnvelopesJson);
         }).ToList();
     }
 }
@@ -351,7 +356,8 @@ public class GetErmesThreadHandler : IRequestHandler<GetErmesThreadQuery, IReadO
                     .ToList(),
                 Attachments: atts.Where(a => a.MessageId == m.Id)
                     .Select(a => new ErmesAttachmentDto(a.Id, a.FileName, a.MimeType, a.SizeBytes))
-                    .ToList());
+                    .ToList(),
+                EncryptedEnvelopesJson: m.EncryptedEnvelopesJson);
         }).ToList();
     }
 }
@@ -371,7 +377,15 @@ public record SendErmesCommand(
     string? Category,
     bool SendExternalEmail,
     IReadOnlyList<Guid>? AttachmentIds = null,
-    Guid? ChannelId = null) : IRequest<Guid>;
+    Guid? ChannelId = null,
+    // ── E2E encryption envelope (optional) ─────────────────────────
+    // When present, the client has already encrypted the body for
+    // each recipient using their ECDH public key. The server stores
+    // the JSON opaquely alongside BodyHtml (which becomes a UI
+    // placeholder like "[Κρυπτογραφημένο μήνυμα]"). The plaintext
+    // NEVER reaches the server — decryption happens in each
+    // recipient's browser with their IndexedDB-pinned private key.
+    string? EncryptedEnvelopesJson = null) : IRequest<Guid>;
 
 public class SendErmesHandler : IRequestHandler<SendErmesCommand, Guid>
 {
@@ -468,6 +482,12 @@ public class SendErmesHandler : IRequestHandler<SendErmesCommand, Guid>
             Category = string.IsNullOrWhiteSpace(r.Category) ? null : r.Category.Trim(),
             ExternalEmailRequested = r.SendExternalEmail && !r.SaveAsDraft,
             ChannelId = r.ChannelId,
+            // Trust the client's envelope opaquely — never inspect it. The
+            // server has no way to tell the difference between a valid
+            // envelope and gibberish, but bad JSON would only break
+            // decryption for the recipients, not for anyone else.
+            EncryptedEnvelopesJson = string.IsNullOrWhiteSpace(r.EncryptedEnvelopesJson)
+                ? null : r.EncryptedEnvelopesJson,
         };
         _db.ErmesMessages.Add(msg);
 
@@ -1019,7 +1039,8 @@ public class ListErmesChannelMessagesHandler
                     rr.RecipientUserId, rr.RecipientDisplay, rr.RecipientEmail,
                     rr.Kind, rr.IsRead, rr.IsStarred)).ToList(),
             Attachments: atts.Where(a => a.MessageId == m.Id)
-                .Select(a => new ErmesAttachmentDto(a.Id, a.FileName, a.MimeType, a.SizeBytes)).ToList()
+                .Select(a => new ErmesAttachmentDto(a.Id, a.FileName, a.MimeType, a.SizeBytes)).ToList(),
+            EncryptedEnvelopesJson: m.EncryptedEnvelopesJson
         )).ToList();
     }
 }

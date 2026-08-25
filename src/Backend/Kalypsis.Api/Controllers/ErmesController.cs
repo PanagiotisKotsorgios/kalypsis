@@ -112,7 +112,11 @@ public class ErmesController : ControllerBase
         string? Category,
         bool SendExternalEmail,
         IReadOnlyList<Guid>? AttachmentIds,
-        Guid? ChannelId);
+        Guid? ChannelId,
+        // Optional per-recipient E2E envelope JSON. When set, `BodyHtml`
+        // is a placeholder like "[Κρυπτογραφημένο μήνυμα]" and the real
+        // plaintext lives inside the envelope keyed by recipient user id.
+        string? EncryptedEnvelopesJson);
 
     [HttpPost("messages")]
     public async Task<ActionResult<Guid>> Send([FromBody] SendBody body, CancellationToken ct)
@@ -123,7 +127,8 @@ public class ErmesController : ControllerBase
             body.InReplyToMessageId, body.IsImportant, body.SaveAsDraft,
             body.AutomationSource, body.Category, body.SendExternalEmail,
             body.AttachmentIds ?? new List<Guid>(),
-            body.ChannelId), ct));
+            body.ChannelId,
+            body.EncryptedEnvelopesJson), ct));
 
     // ── Channel feed (Discord-style shared thread per team) ────────
     [HttpGet("channels/{teamId:guid}/messages")]

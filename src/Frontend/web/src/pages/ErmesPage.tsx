@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ensureE2EKeypair } from "../ermes/keyManager";
+import { ensureE2EKeypair, buildEnvelopesForRecipients, decryptBody,
+  getStoredPrivateKey, type WireEnvelope } from "../ermes/keyManager";
 import LockIcon from "@mui/icons-material/Lock";
 import {
   Alert, Autocomplete, Avatar, Box, Button, Card, Checkbox, Chip,
@@ -82,6 +83,9 @@ interface ErmesMessageDto {
   createdAt: string; sentAt: string | null;
   recipients: ErmesRecipientDto[];
   attachments: AttachmentDto[];
+  /** JSON: { [userId]: { ivB64, ctB64, senderPubSpkiB64 } }. When set,
+   *  bodyHtml is a placeholder; real plaintext is decrypted client-side. */
+  encryptedEnvelopesJson?: string | null;
 }
 interface FolderCount { folder: string; total: number; unread: number; }
 interface Contact { userId: string; display: string; email: string; role: string; }
@@ -296,6 +300,7 @@ export function ErmesPage() {
   // for us. Idempotent — future loads see the existing keypair, don't
   // re-generate. See src/ermes/keyManager.ts for the crypto primitives.
   const [e2eStatus, setE2eStatus] = useState<"idle" | "ready" | "unsupported" | "error">("idle");
+  const [e2eKeys, setE2eKeys] = useState<Awaited<ReturnType<typeof ensureE2EKeypair>> | null>(null);
   useEffect(() => {
     if (!myId) return;
     let cancelled = false;
@@ -303,6 +308,7 @@ export function ErmesPage() {
       try {
         const env = await ensureE2EKeypair(myId);
         if (cancelled) return;
+        setE2eKeys(env);
         setE2eStatus(env ? "ready" : "unsupported");
       } catch (e) {
         console.warn("Ermes E2E keypair provisioning failed", e);
@@ -729,6 +735,8 @@ export function ErmesPage() {
               reply={replyTo}
               meDisplay={((user?.firstName ?? "") + " " + (user?.lastName ?? "")).trim()}
               signature={signature}
+              e2eKeys={e2eKeys ?? null}
+              myUserId={myId ?? ""}
               onSent={() => { closeCompose(); void qc.invalidateQueries({ queryKey: ["ermes"] }); }}
             />
           ) : openThreadId ? (
@@ -789,6 +797,8 @@ export function ErmesPage() {
           reply={replyTo}
           meDisplay={((user?.firstName ?? "") + " " + (user?.lastName ?? "")).trim()}
           signature={signature}
+          e2eKeys={e2eKeys ?? null}
+          myUserId={myId ?? ""}
           onSent={() => { closeCompose(); void qc.invalidateQueries({ queryKey: ["ermes"] }); }}
         />
       )}
@@ -956,6 +966,64 @@ function MessageRow({ msg, selected, active, onToggle, onOpen, onStar }: {
   );
 }
 
+// ─── E2E-aware message body ─────────────────────────────────────────
+/**
+ * Renders `m.bodyHtml`, but when the message has a per-recipient E2E
+ * envelope AND we can find our own envelope, decrypts it in the
+ * browser using the private key pinned to IndexedDB.
+ *
+ * Failure modes (all rendered inline, never crash the reader):
+ *  • Envelope has no entry for me   → show plaintext bodyHtml (I was
+ *    Bcc'd on a message the sender only encrypted for To/Cc; the
+ *    server would already have blocked the envelope reaching me if
+ *    the sender did their job, but we fall back gracefully).
+ *  • Private key missing            → show the placeholder + a note
+ *    prompting the user to open ΕΡΜΗΣ on the browser that holds the
+ *    key.
+ *  • Decryption throws              → same as above; log to console.
+ */
+function MessageBody({ m, myId, sxBase }: {
+  m: ErmesMessageDto; myId: string; sxBase: React.CSSProperties | object;
+}) {
+  const [html, setHtml] = useState<string>(m.bodyHtml || "");
+  const [state, setState] = useState<"ok" | "encrypted-locked" | "decrypting">(
+    m.encryptedEnvelopesJson ? "decrypting" : "ok");
+  useEffect(() => {
+    if (!m.encryptedEnvelopesJson) { setHtml(m.bodyHtml || ""); setState("ok"); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const map = JSON.parse(m.encryptedEnvelopesJson || "{}") as Record<string, WireEnvelope>;
+        const mine = map[myId];
+        if (!mine) { if (!cancelled) { setHtml(m.bodyHtml || ""); setState("ok"); } return; }
+        const priv = await getStoredPrivateKey(myId);
+        if (!priv) { if (!cancelled) setState("encrypted-locked"); return; }
+        const plain = await decryptBody(mine, priv);
+        if (!cancelled) { setHtml(plain); setState("ok"); }
+      } catch (e) {
+        console.warn("Ermes decrypt failed", e);
+        if (!cancelled) setState("encrypted-locked");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [m.id, m.encryptedEnvelopesJson, myId]);
+
+  if (state === "decrypting") {
+    return <Box sx={sxBase as object}><CircularProgress size={16} sx={{ mr: 1 }} />Αποκρυπτογράφηση…</Box>;
+  }
+  if (state === "encrypted-locked") {
+    return (
+      <Box sx={sxBase as object}>
+        <Alert severity="warning" icon={<LockIcon />}>
+          Το μήνυμα είναι κρυπτογραφημένο και το ιδιωτικό κλειδί δεν υπάρχει σε αυτόν τον browser.
+          Ανοίξτε τον ΕΡΜΗ από το browser που έχετε ήδη χρησιμοποιήσει για να το διαβάσετε.
+        </Alert>
+      </Box>
+    );
+  }
+  return <Box sx={sxBase as object} dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
 // ─── Thread reader (right column) ────────────────────────────────────
 
 function ThreadReader({
@@ -1041,13 +1109,13 @@ function ThreadReader({
                 {new Date(m.sentAt ?? m.createdAt).toLocaleString("el-GR", { hour12: false, hourCycle: "h23", timeZone: "Europe/Athens" })}
               </Typography>
             </Stack>
-            <Box sx={{
+            <MessageBody m={m} myId={myId} sxBase={{
               "& blockquote": { borderLeft: 3, borderColor: "divider",
                 pl: 1.5, ml: 0, my: 1, color: "text.secondary" },
               "& p": { my: 0.5 },
               "& table": { borderCollapse: "collapse", width: "100%", fontSize: 13 },
               fontSize: 14, lineHeight: 1.6,
-            }} dangerouslySetInnerHTML={{ __html: m.bodyHtml || "" }} />
+            }} />
             {m.attachments && m.attachments.length > 0 && (
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap mt={1.5}>
                 {m.attachments.map(a => (
@@ -1101,6 +1169,7 @@ function ThreadReader({
  */
 function ComposeDialog({
   variant, onExpand, onCollapse, onClose, contacts, teams, reply, onSent, meDisplay, signature,
+  e2eKeys, myUserId,
 }: {
   variant: "inline" | "fullscreen";
   onExpand?: () => void;
@@ -1111,6 +1180,16 @@ function ComposeDialog({
   onSent: () => void;
   meDisplay: string;
   signature: string;
+  // ── E2E ──
+  // Sender's keypair + user id. When e2eKeys is non-null AND every
+  // direct recipient has a registered public key, the composer
+  // encrypts the body for each recipient and sends the envelope.
+  // Falls back to plaintext (with an inline warning) when any
+  // recipient is missing a key, or when teams are selected (the
+  // server expands team → members, so we can't build the envelope
+  // client-side without extra round-trips).
+  e2eKeys: Awaited<ReturnType<typeof ensureE2EKeypair>> | null;
+  myUserId: string;
 }) {
   const [subject, setSubject] = useState("");
   const [bodyHtml, setBodyHtml] = useState("");
@@ -1218,23 +1297,57 @@ function ComposeDialog({
   }, [reply]);
 
   const send = useMutation({
-    mutationFn: async (saveAsDraft: boolean) => api.post("/ermes/messages", {
-      subject,
-      bodyHtml: (useSignature && signature)
+    mutationFn: async (saveAsDraft: boolean) => {
+      const finalBody = (useSignature && signature)
         ? `${bodyHtml}<br/><br/><div class="kx-signature">${signature}</div>`
-        : bodyHtml,
-      recipients: [
-        ...to.map(c => ({ userId: c.userId, kind: "To" })),
-        ...cc.map(c => ({ userId: c.userId, kind: "Cc" })),
-      ],
-      teamIds: selTeams.map(t => t.id),
-      inReplyToMessageId: reply?.msg.id ?? null,
-      isImportant: important,
-      saveAsDraft,
-      category: category || null,
-      sendExternalEmail: sendExternal,
-      attachmentIds: attachments.map(a => a.id),
-    }),
+        : bodyHtml;
+
+      // ── E2E: try to encrypt for every recipient ──
+      // Only attempt when: (a) we have a local keypair, (b) this is a
+      // real send (not a draft — drafts stay plaintext so the sender
+      // can keep editing later), and (c) no teams are selected (server
+      // expands teams → members, so client-side envelope-building
+      // would miss those recipients).
+      let encryptedEnvelopesJson: string | null = null;
+      let wireBody = finalBody;
+      const directRecipientIds = [
+        ...to.map(c => c.userId),
+        ...cc.map(c => c.userId),
+      ].filter(id => id && id !== myUserId);
+      if (!saveAsDraft && e2eKeys && myUserId && selTeams.length === 0
+          && directRecipientIds.length > 0) {
+        try {
+          const envelopes = await buildEnvelopesForRecipients(
+            finalBody, directRecipientIds, e2eKeys, myUserId);
+          if (envelopes) {
+            encryptedEnvelopesJson = JSON.stringify(envelopes);
+            wireBody = "<i>[Κρυπτογραφημένο μήνυμα — ο διακομιστής δεν έχει πρόσβαση στο περιεχόμενο]</i>";
+          }
+          // envelopes === null means at least one recipient has no
+          // registered public key. Fall through to plaintext send —
+          // the recipient sees the message as normal HTML.
+        } catch (e) {
+          console.warn("Ermes E2E encrypt failed — sending plaintext", e);
+        }
+      }
+
+      return api.post("/ermes/messages", {
+        subject,
+        bodyHtml: wireBody,
+        recipients: [
+          ...to.map(c => ({ userId: c.userId, kind: "To" })),
+          ...cc.map(c => ({ userId: c.userId, kind: "Cc" })),
+        ],
+        teamIds: selTeams.map(t => t.id),
+        inReplyToMessageId: reply?.msg.id ?? null,
+        isImportant: important,
+        saveAsDraft,
+        category: category || null,
+        sendExternalEmail: sendExternal,
+        attachmentIds: attachments.map(a => a.id),
+        encryptedEnvelopesJson,
+      });
+    },
     onSuccess: () => {
       // A real send just superseded the autosaved draft — clear the id
       // so opening the composer again starts fresh.

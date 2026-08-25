@@ -2088,6 +2088,9 @@ public static class DataSeeder
             "ALTER TABLE `ermes_messages` ADD COLUMN `ExternalEmailStatus` varchar(500) NULL", ct);
         await EnsureColumnAsync(db, logger, dbName, "ermes_messages", "ChannelId",
             "ALTER TABLE `ermes_messages` ADD COLUMN `ChannelId` char(36) NULL", ct);
+        // Per-recipient E2E envelope JSON — see UserPublicKey + keyManager.ts.
+        await EnsureColumnAsync(db, logger, dbName, "ermes_messages", "EncryptedEnvelopesJson",
+            "ALTER TABLE `ermes_messages` ADD COLUMN `EncryptedEnvelopesJson` longtext NULL", ct);
 
         await EnsureTableAsync(db, logger, dbName,
             table: "ermes_attachments",
