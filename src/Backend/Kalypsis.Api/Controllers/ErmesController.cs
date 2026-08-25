@@ -149,13 +149,17 @@ public class ErmesController : ControllerBase
     [HttpPost("attachments")]
     [RequestSizeLimit(20_000_000)] // 20 MB request body, ~16 MB payload
     public async Task<ActionResult<ErmesAttachmentDto>> Upload(
-        [FromForm] IFormFile file, CancellationToken ct)
+        [FromForm] IFormFile file, CancellationToken ct,
+        // Optional E2E metadata — when set, `file` bytes are ciphertext.
+        [FromForm] string? encryptionIvB64 = null,
+        [FromForm] string? encryptedFileNameB64 = null)
     {
         if (file is null || file.Length == 0) return BadRequest("Απαιτείται αρχείο.");
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms, ct);
         return Ok(await _m.Send(new UploadErmesAttachmentCommand(
-            file.FileName, file.ContentType, ms.ToArray()), ct));
+            file.FileName, file.ContentType, ms.ToArray(),
+            encryptionIvB64, encryptedFileNameB64), ct));
     }
 
     [HttpGet("attachments/{id:guid}")]

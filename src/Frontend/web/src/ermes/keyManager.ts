@@ -161,6 +161,80 @@ export interface WireEnvelope { ivB64: string; ctB64: string; senderPubSpkiB64: 
 export type EnvelopeMap = Record<string, WireEnvelope>;
 
 /**
+ * Payload carried INSIDE a WireEnvelope's ciphertext. Now that we support
+ * attachment encryption, the envelope has to carry more than just a body
+ * string — it needs to hand the recipient's browser one AES-GCM key per
+ * attached file too. We encode the payload as JSON and encrypt the whole
+ * thing with ECDH → AES-256-GCM.
+ *
+ * Old messages (pre-attachment-E2E) have envelopes whose plaintext is
+ * just the raw HTML body — the decrypter tries JSON.parse first, falls
+ * back to treating the plaintext as legacy body if the parse fails.
+ */
+export interface InnerPayload {
+  body: string;                       // sanitised HTML
+  attachmentKeys?: Record<string, string>;  // attachmentId → raw AES-256 key, base64
+}
+
+// ── Attachment file-key primitives ──────────────────────────────────
+
+/** Generate a fresh AES-256-GCM key + return its raw bytes as base64 so
+ *  the composer can (a) encrypt the blob and (b) put the key inside the
+ *  per-recipient envelope for later decryption. */
+export async function generateFileKeyB64(): Promise<string> {
+  const bytes = window.crypto.getRandomValues(new Uint8Array(32));
+  return b64encode(bytes.buffer);
+}
+
+/** Encrypt a file blob with the given raw AES-256 key. Returns the
+ *  ciphertext blob + the 12-byte IV as base64 for storage in the
+ *  attachment row. */
+export async function encryptFileBlob(blob: Blob, rawKeyB64: string): Promise<{ ciphertext: Blob; ivB64: string }> {
+  const key = await window.crypto.subtle.importKey(
+    "raw", b64decode(rawKeyB64), { name: "AES-GCM" }, false, ["encrypt"]);
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const plain = await blob.arrayBuffer();
+  const ct = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plain);
+  return { ciphertext: new Blob([ct], { type: "application/octet-stream" }), ivB64: b64encode(iv.buffer) };
+}
+
+/** Decrypt a downloaded ciphertext blob using the file key from the
+ *  envelope + the IV stored on the attachment row. */
+export async function decryptFileBlob(cipherBlob: Blob, rawKeyB64: string, ivB64: string, mimeType: string): Promise<Blob> {
+  const key = await window.crypto.subtle.importKey(
+    "raw", b64decode(rawKeyB64), { name: "AES-GCM" }, false, ["decrypt"]);
+  const ct = await cipherBlob.arrayBuffer();
+  const pt = await window.crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: new Uint8Array(b64decode(ivB64)) }, key, ct);
+  return new Blob([pt], { type: mimeType });
+}
+
+/** Encrypt a short string (the original filename) with a random IV
+ *  prefixed to the ciphertext. Returned as a single base64 blob so the
+ *  wire schema stays a single column. */
+export async function encryptFileNameB64(name: string, rawKeyB64: string): Promise<string> {
+  const key = await window.crypto.subtle.importKey(
+    "raw", b64decode(rawKeyB64), { name: "AES-GCM" }, false, ["encrypt"]);
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const ct = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, key,
+    new TextEncoder().encode(name));
+  const out = new Uint8Array(iv.length + ct.byteLength);
+  out.set(iv, 0);
+  out.set(new Uint8Array(ct), iv.length);
+  return b64encode(out.buffer);
+}
+
+export async function decryptFileNameB64(payloadB64: string, rawKeyB64: string): Promise<string> {
+  const key = await window.crypto.subtle.importKey(
+    "raw", b64decode(rawKeyB64), { name: "AES-GCM" }, false, ["decrypt"]);
+  const raw = new Uint8Array(b64decode(payloadB64));
+  const iv = raw.slice(0, 12);
+  const ct = raw.slice(12);
+  const pt = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
+  return new TextDecoder().decode(pt);
+}
+
+/**
  * ENCRYPT-FOR-MANY. Builds the per-recipient envelope map the wire
  * format expects. Returns null when ANY recipient is missing a public
  * key — the caller MUST then fall back to plaintext send (the composer
@@ -176,15 +250,36 @@ export async function buildEnvelopesForRecipients(
   recipientUserIds: string[],
   senderKeys: KeyEnvelope,
   senderUserId: string,
+  attachmentKeys?: Record<string, string>,   // attachmentId → raw AES-256 key (base64)
 ): Promise<EnvelopeMap | null> {
   const all = Array.from(new Set([...recipientUserIds, senderUserId]));
+  const payload: InnerPayload = { body: bodyPlainUtf8 };
+  if (attachmentKeys && Object.keys(attachmentKeys).length > 0) {
+    payload.attachmentKeys = attachmentKeys;
+  }
+  const payloadJson = JSON.stringify(payload);
   const map: EnvelopeMap = {};
   for (const uid of all) {
     const pub = await fetchPeerPublicKey(uid);
     if (!pub) return null; // hard-fail — one missing key breaks the whole envelope
-    map[uid] = await encryptBodyFor(bodyPlainUtf8, pub, senderKeys);
+    map[uid] = await encryptBodyFor(payloadJson, pub, senderKeys);
   }
   return map;
+}
+
+/** Decrypt an envelope and return the InnerPayload. Handles the legacy
+ *  case where the plaintext is just an HTML body (no JSON wrapper) —
+ *  wraps it in {body} for uniform callers. */
+export async function decryptEnvelopePayload(env: WireEnvelope, myPrivateKey: CryptoKey): Promise<InnerPayload> {
+  const plain = await decryptBody(env, myPrivateKey);
+  const trimmed = plain.trimStart();
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(plain) as InnerPayload;
+      if (typeof parsed?.body === "string") return parsed;
+    } catch { /* fall through — treat as legacy body */ }
+  }
+  return { body: plain };
 }
 
 /**

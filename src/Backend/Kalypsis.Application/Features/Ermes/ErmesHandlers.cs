@@ -13,7 +13,12 @@ namespace Kalypsis.Application.Features.Ermes;
 public record ErmesFolderCountDto(string Folder, int Total, int Unread);
 
 public record ErmesAttachmentDto(
-    Guid Id, string FileName, string MimeType, long SizeBytes);
+    Guid Id, string FileName, string MimeType, long SizeBytes,
+    // Non-null when the ContentBytes on the server is ciphertext. Client
+    // decrypts using the per-attachment file key it finds inside the
+    // parent message's per-recipient envelope.
+    string? EncryptionIvB64 = null,
+    string? EncryptedFileNameB64 = null);
 
 public record ErmesRecipientDto(
     Guid UserId, string Display, string Email, string Kind,
@@ -247,7 +252,7 @@ public class ListErmesHandler : IRequestHandler<ListErmesQuery, IReadOnlyList<Er
             .ToListAsync(ct);
         var allAtt = await _db.ErmesAttachments
             .Where(x => x.TenantId == tenantId && msgIdsAll.Contains(x.MessageId))
-            .Select(x => new { x.Id, x.MessageId, x.FileName, x.MimeType, x.SizeBytes })
+            .Select(x => new { x.Id, x.MessageId, x.FileName, x.MimeType, x.SizeBytes, x.EncryptionIvB64, x.EncryptedFileNameB64 })
             .ToListAsync(ct);
 
         return msgs.Select(m =>
@@ -276,7 +281,7 @@ public class ListErmesHandler : IRequestHandler<ListErmesQuery, IReadOnlyList<Er
                         rr.Kind, rr.IsRead, rr.IsStarred))
                     .ToList(),
                 Attachments: allAtt.Where(a => a.MessageId == m.Id)
-                    .Select(a => new ErmesAttachmentDto(a.Id, a.FileName, a.MimeType, a.SizeBytes))
+                    .Select(a => new ErmesAttachmentDto(a.Id, a.FileName, a.MimeType, a.SizeBytes, a.EncryptionIvB64, a.EncryptedFileNameB64))
                     .ToList(),
                 EncryptedEnvelopesJson: m.EncryptedEnvelopesJson);
         }).ToList();
@@ -326,7 +331,7 @@ public class GetErmesThreadHandler : IRequestHandler<GetErmesThreadQuery, IReadO
         var msgIdsList = msgs.Select(x => x.Id).ToList();
         var atts = await _db.ErmesAttachments
             .Where(x => x.TenantId == tenantId && msgIdsList.Contains(x.MessageId))
-            .Select(x => new { x.Id, x.MessageId, x.FileName, x.MimeType, x.SizeBytes })
+            .Select(x => new { x.Id, x.MessageId, x.FileName, x.MimeType, x.SizeBytes, x.EncryptionIvB64, x.EncryptedFileNameB64 })
             .ToListAsync(ct);
         var myRec = recs.Where(x => x.RecipientUserId == userId).ToDictionary(x => x.MessageId, x => x);
         return msgs.Select(m =>
@@ -355,7 +360,7 @@ public class GetErmesThreadHandler : IRequestHandler<GetErmesThreadQuery, IReadO
                         rr.Kind, rr.IsRead, rr.IsStarred))
                     .ToList(),
                 Attachments: atts.Where(a => a.MessageId == m.Id)
-                    .Select(a => new ErmesAttachmentDto(a.Id, a.FileName, a.MimeType, a.SizeBytes))
+                    .Select(a => new ErmesAttachmentDto(a.Id, a.FileName, a.MimeType, a.SizeBytes, a.EncryptionIvB64, a.EncryptedFileNameB64))
                     .ToList(),
                 EncryptedEnvelopesJson: m.EncryptedEnvelopesJson);
         }).ToList();
@@ -914,7 +919,12 @@ public class UnblockErmesUserHandler : IRequestHandler<UnblockErmesUserCommand>
 /// Cap at 16 MB per file, matching the /documents upload limit.
 /// </summary>
 public record UploadErmesAttachmentCommand(
-    string FileName, string MimeType, byte[] Content) : IRequest<ErmesAttachmentDto>;
+    string FileName, string MimeType, byte[] Content,
+    // E2E fields — populated when the client encrypted the blob before
+    // uploading. Server stores them opaquely; the key never leaves the
+    // client. If unset the upload is plaintext (backward compat).
+    string? EncryptionIvB64 = null,
+    string? EncryptedFileNameB64 = null) : IRequest<ErmesAttachmentDto>;
 
 public class UploadErmesAttachmentHandler : IRequestHandler<UploadErmesAttachmentCommand, ErmesAttachmentDto>
 {
@@ -941,10 +951,13 @@ public class UploadErmesAttachmentHandler : IRequestHandler<UploadErmesAttachmen
             SizeBytes = r.Content.LongLength,
             ContentBytes = r.Content,
             UploadedByUserId = userId,
+            EncryptionIvB64 = string.IsNullOrWhiteSpace(r.EncryptionIvB64) ? null : r.EncryptionIvB64,
+            EncryptedFileNameB64 = string.IsNullOrWhiteSpace(r.EncryptedFileNameB64) ? null : r.EncryptedFileNameB64,
         };
         _db.ErmesAttachments.Add(att);
         await _db.SaveChangesAsync(ct);
-        return new ErmesAttachmentDto(att.Id, att.FileName, att.MimeType, att.SizeBytes);
+        return new ErmesAttachmentDto(att.Id, att.FileName, att.MimeType, att.SizeBytes,
+            att.EncryptionIvB64, att.EncryptedFileNameB64);
     }
 }
 
@@ -1029,7 +1042,7 @@ public class ListErmesChannelMessagesHandler
             .ToListAsync(ct);
         var atts = await _db.ErmesAttachments
             .Where(x => x.TenantId == tenantId && msgIds.Contains(x.MessageId))
-            .Select(x => new { x.Id, x.MessageId, x.FileName, x.MimeType, x.SizeBytes })
+            .Select(x => new { x.Id, x.MessageId, x.FileName, x.MimeType, x.SizeBytes, x.EncryptionIvB64, x.EncryptedFileNameB64 })
             .ToListAsync(ct);
 
         return msgs.Select(m => new ErmesMessageDto(
@@ -1050,7 +1063,7 @@ public class ListErmesChannelMessagesHandler
                     rr.RecipientUserId, rr.RecipientDisplay, rr.RecipientEmail,
                     rr.Kind, rr.IsRead, rr.IsStarred)).ToList(),
             Attachments: atts.Where(a => a.MessageId == m.Id)
-                .Select(a => new ErmesAttachmentDto(a.Id, a.FileName, a.MimeType, a.SizeBytes)).ToList(),
+                .Select(a => new ErmesAttachmentDto(a.Id, a.FileName, a.MimeType, a.SizeBytes, a.EncryptionIvB64, a.EncryptedFileNameB64)).ToList(),
             EncryptedEnvelopesJson: m.EncryptedEnvelopesJson
         )).ToList();
     }

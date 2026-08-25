@@ -2109,6 +2109,11 @@ public static class DataSeeder
                 PRIMARY KEY (`Id`),
                 KEY `IX_ermes_attachments_Tenant_Msg` (`TenantId`, `MessageId`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+        // E2E attachment fields — see ErmesAttachment entity.
+        await EnsureColumnAsync(db, logger, dbName, "ermes_attachments", "EncryptionIvB64",
+            "ALTER TABLE `ermes_attachments` ADD COLUMN `EncryptionIvB64` varchar(64) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName, "ermes_attachments", "EncryptedFileNameB64",
+            "ALTER TABLE `ermes_attachments` ADD COLUMN `EncryptedFileNameB64` varchar(2000) NULL", ct);
 
         await EnsureTableAsync(db, logger, dbName,
             table: "ermes_blocks",

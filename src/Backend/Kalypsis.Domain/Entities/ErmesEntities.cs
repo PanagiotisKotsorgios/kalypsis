@@ -127,6 +127,22 @@ public class ErmesAttachment : TenantEntity
     public long SizeBytes { get; set; }
     public byte[] ContentBytes { get; set; } = Array.Empty<byte>();
     public Guid UploadedByUserId { get; set; }
+
+    /// <summary>When non-null, <see cref="ContentBytes"/> holds AES-256-GCM
+    /// ciphertext encrypted with a per-attachment file key that lives INSIDE
+    /// the parent message's per-recipient envelope — the server never has
+    /// the key and cannot decrypt. The IV lives here (base64 of a 12-byte
+    /// nonce) so the client can decrypt after fetching the ciphertext.
+    /// Null → the attachment is plaintext (older uploads, or messages
+    /// sent to peers that don't all have keypairs).</summary>
+    public string? EncryptionIvB64 { get; set; }
+
+    /// <summary>The original file name, encrypted with the same file key.
+    /// When set, <see cref="FileName"/> is a placeholder («encrypted.bin»)
+    /// and the real name is inside the ciphertext (client decrypts before
+    /// showing it in the reader). Stored as base64 of AES-GCM ciphertext
+    /// with its own IV prefixed (first 12 bytes).</summary>
+    public string? EncryptedFileNameB64 { get; set; }
 }
 
 /// <summary>

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { ensureE2EKeypair, buildEnvelopesForRecipients, decryptBody,
-  getStoredPrivateKey, type WireEnvelope } from "../ermes/keyManager";
+import { ensureE2EKeypair, buildEnvelopesForRecipients, decryptEnvelopePayload,
+  getStoredPrivateKey, generateFileKeyB64, encryptFileBlob, encryptFileNameB64,
+  decryptFileBlob, decryptFileNameB64,
+  type WireEnvelope } from "../ermes/keyManager";
 import LockIcon from "@mui/icons-material/Lock";
 import {
   Alert, Autocomplete, Avatar, Box, Button, Card, Checkbox, Chip,
@@ -71,7 +73,11 @@ interface ErmesRecipientDto {
   userId: string; display: string; email: string; kind: string;
   isRead: boolean; isStarred: boolean;
 }
-interface AttachmentDto { id: string; fileName: string; mimeType: string; sizeBytes: number; }
+interface AttachmentDto {
+  id: string; fileName: string; mimeType: string; sizeBytes: number;
+  encryptionIvB64?: string | null;      // ciphertext IV — client decrypts
+  encryptedFileNameB64?: string | null; // encrypted original filename
+}
 interface ErmesMessageDto {
   id: string; threadId: string; inReplyToMessageId: string | null;
   senderUserId: string; senderDisplay: string; senderEmail: string;
@@ -999,40 +1005,47 @@ function ExternalEmailSwitch({ value, onChange }: {
   );
 }
 
-// ─── E2E-aware message body ─────────────────────────────────────────
+// ─── E2E envelope decryption ────────────────────────────────────────
 /**
- * Renders `m.bodyHtml`, but when the message has a per-recipient E2E
- * envelope AND we can find our own envelope, decrypts it in the
- * browser using the private key pinned to IndexedDB.
+ * Decrypts a message's per-recipient envelope in the reader. Returns
+ * both the body HTML and the map of attachmentId → raw AES-256 key so
+ * the attachment click handler can fetch + decrypt ciphertext blobs.
  *
- * Failure modes (all rendered inline, never crash the reader):
- *  • Envelope has no entry for me   → show plaintext bodyHtml (I was
- *    Bcc'd on a message the sender only encrypted for To/Cc; the
- *    server would already have blocked the envelope reaching me if
- *    the sender did their job, but we fall back gracefully).
- *  • Private key missing            → show the placeholder + a note
- *    prompting the user to open ΕΡΜΗΣ on the browser that holds the
- *    key.
- *  • Decryption throws              → same as above; log to console.
+ * State semantics:
+ *  • "ok"                → plaintext body ready, attachment keys ready
+ *  • "decrypting"        → Web Crypto call in flight
+ *  • "encrypted-locked"  → no private key or decrypt failed → the reader
+ *    should show a polite «Ανοίξτε ΕΡΜΗ από τον browser που έχει το κλειδί»
+ *
+ * Falls back gracefully: envelope with no entry for me → treat as
+ * plaintext (I was Bcc'd; the sender didn't include me in the envelope).
  */
-function MessageBody({ m, myId, sxBase }: {
-  m: ErmesMessageDto; myId: string; sxBase: React.CSSProperties | object;
-}) {
-  const [html, setHtml] = useState<string>(m.bodyHtml || "");
+function useDecryptedEnvelope(m: ErmesMessageDto, myId: string) {
+  const [body, setBody] = useState<string>(m.bodyHtml || "");
+  const [attachmentKeys, setAttachmentKeys] = useState<Record<string, string>>({});
   const [state, setState] = useState<"ok" | "encrypted-locked" | "decrypting">(
     m.encryptedEnvelopesJson ? "decrypting" : "ok");
   useEffect(() => {
-    if (!m.encryptedEnvelopesJson) { setHtml(m.bodyHtml || ""); setState("ok"); return; }
+    if (!m.encryptedEnvelopesJson) {
+      setBody(m.bodyHtml || ""); setAttachmentKeys({}); setState("ok"); return;
+    }
     let cancelled = false;
     (async () => {
       try {
         const map = JSON.parse(m.encryptedEnvelopesJson || "{}") as Record<string, WireEnvelope>;
         const mine = map[myId];
-        if (!mine) { if (!cancelled) { setHtml(m.bodyHtml || ""); setState("ok"); } return; }
+        if (!mine) {
+          if (!cancelled) { setBody(m.bodyHtml || ""); setAttachmentKeys({}); setState("ok"); }
+          return;
+        }
         const priv = await getStoredPrivateKey(myId);
         if (!priv) { if (!cancelled) setState("encrypted-locked"); return; }
-        const plain = await decryptBody(mine, priv);
-        if (!cancelled) { setHtml(plain); setState("ok"); }
+        const payload = await decryptEnvelopePayload(mine, priv);
+        if (!cancelled) {
+          setBody(payload.body);
+          setAttachmentKeys(payload.attachmentKeys ?? {});
+          setState("ok");
+        }
       } catch (e) {
         console.warn("Ermes decrypt failed", e);
         if (!cancelled) setState("encrypted-locked");
@@ -1040,7 +1053,14 @@ function MessageBody({ m, myId, sxBase }: {
     })();
     return () => { cancelled = true; };
   }, [m.id, m.encryptedEnvelopesJson, myId]);
+  return { body, attachmentKeys, state };
+}
 
+function MessageBody({ body, state, sxBase }: {
+  body: string;
+  state: "ok" | "encrypted-locked" | "decrypting";
+  sxBase: React.CSSProperties | object;
+}) {
   if (state === "decrypting") {
     return <Box sx={sxBase as object}><CircularProgress size={16} sx={{ mr: 1 }} />Αποκρυπτογράφηση…</Box>;
   }
@@ -1054,7 +1074,7 @@ function MessageBody({ m, myId, sxBase }: {
       </Box>
     );
   }
-  return <Box sx={sxBase as object} dangerouslySetInnerHTML={{ __html: html }} />;
+  return <Box sx={sxBase as object} dangerouslySetInnerHTML={{ __html: body }} />;
 }
 
 // ─── Thread reader (right column) ────────────────────────────────────
@@ -1122,68 +1142,117 @@ function ThreadReader({
       )}
       <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
         {messages.map((m, i) => (
-          <Box key={m.id} sx={{ mb: i === messages.length - 1 ? 0 : 2, pb: 2,
-            borderBottom: i === messages.length - 1 ? "none" : 1, borderColor: "divider" }}>
-            <Stack direction="row" alignItems="center" spacing={1.5} mb={1}>
-              <Avatar sx={{ width: 40, height: 40, bgcolor: "primary.main" }}>
-                {m.senderDisplay.split(" ").filter(Boolean).slice(0,2).map(s => s[0]).join("").toUpperCase()}
-              </Avatar>
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="body2" fontWeight={700}>{m.senderDisplay}
-                  <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
-                    &lt;{m.senderEmail}&gt;
-                  </Typography>
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  προς: {m.recipients.map(r => r.display).join(", ") || "—"}
-                </Typography>
-              </Box>
-              <Typography variant="caption" color="text.secondary">
-                {new Date(m.sentAt ?? m.createdAt).toLocaleString("el-GR", { hour12: false, hourCycle: "h23", timeZone: "Europe/Athens" })}
-              </Typography>
-            </Stack>
-            <MessageBody m={m} myId={myId} sxBase={{
-              "& blockquote": { borderLeft: 3, borderColor: "divider",
-                pl: 1.5, ml: 0, my: 1, color: "text.secondary" },
-              "& p": { my: 0.5 },
-              "& table": { borderCollapse: "collapse", width: "100%", fontSize: 13 },
-              fontSize: 14, lineHeight: 1.6,
-            }} />
-            {m.attachments && m.attachments.length > 0 && (
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap mt={1.5}>
-                {m.attachments.map(a => (
-                  <Chip key={a.id} icon={<AttachFileIcon />}
-                    label={`${a.fileName} · ${formatBytes(a.sizeBytes)}`}
-                    onClick={async () => {
-                      const res = await api.get<Blob>(`/ermes/attachments/${a.id}`, { responseType: "blob" });
-                      const url = window.URL.createObjectURL(res.data);
-                      const el = document.createElement("a");
-                      el.href = url; el.download = a.fileName; el.click();
-                      window.URL.revokeObjectURL(url);
-                    }}
-                    sx={{ cursor: "pointer" }} />
-                ))}
-              </Stack>
-            )}
-            {m.category && (() => {
-              const cm = CATEGORIES.find(c => c.key === m.category);
-              return cm ? (
-                <Stack direction="row" spacing={1} mt={1.5}>
-                  <Chip icon={<CategoryIcon />} label={cm.label} size="small" color={cm.color} />
-                  {m.externalEmailRequested && (
-                    <Chip size="small" icon={<AlternateEmailIcon />}
-                      color={m.externalEmailDelivered ? "success" : "default"}
-                      label={m.externalEmailDelivered
-                        ? "Στάλθηκε και σε email"
-                        : (m.externalEmailStatus ?? "Email σε αναμονή")} />
-                  )}
-                </Stack>
-              ) : null;
-            })()}
-          </Box>
+          <ThreadMessageRow key={m.id} m={m} myId={myId}
+            isLast={i === messages.length - 1} />
         ))}
       </Box>
     </>
+  );
+}
+
+/** One rendered message inside the thread reader. Split out of the
+ *  ThreadReader loop so we can call `useDecryptedEnvelope` per message —
+ *  hooks can't be called inside a .map() closure. */
+function ThreadMessageRow({ m, myId, isLast }: {
+  m: ErmesMessageDto; myId: string; isLast: boolean;
+}) {
+  const { body, attachmentKeys, state } = useDecryptedEnvelope(m, myId);
+  return (
+    <Box sx={{ mb: isLast ? 0 : 2, pb: 2,
+      borderBottom: isLast ? "none" : 1, borderColor: "divider" }}>
+      <Stack direction="row" alignItems="center" spacing={1.5} mb={1}>
+        <Avatar sx={{ width: 40, height: 40, bgcolor: "primary.main" }}>
+          {m.senderDisplay.split(" ").filter(Boolean).slice(0,2).map(s => s[0]).join("").toUpperCase()}
+        </Avatar>
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="body2" fontWeight={700}>{m.senderDisplay}
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+              &lt;{m.senderEmail}&gt;
+            </Typography>
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            προς: {m.recipients.map(r => r.display).join(", ") || "—"}
+          </Typography>
+        </Box>
+        <Typography variant="caption" color="text.secondary">
+          {new Date(m.sentAt ?? m.createdAt).toLocaleString("el-GR", { hour12: false, hourCycle: "h23", timeZone: "Europe/Athens" })}
+        </Typography>
+      </Stack>
+      <MessageBody body={body} state={state} sxBase={{
+        "& blockquote": { borderLeft: 3, borderColor: "divider",
+          pl: 1.5, ml: 0, my: 1, color: "text.secondary" },
+        "& p": { my: 0.5 },
+        "& table": { borderCollapse: "collapse", width: "100%", fontSize: 13 },
+        fontSize: 14, lineHeight: 1.6,
+      }} />
+      {m.attachments && m.attachments.length > 0 && (
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap mt={1.5}>
+          {m.attachments.map(a => (
+            <AttachmentChip key={a.id} a={a} decryptedKeyB64={attachmentKeys[a.id]} />
+          ))}
+        </Stack>
+      )}
+      {m.category && (() => {
+        const cm = CATEGORIES.find(c => c.key === m.category);
+        return cm ? (
+          <Stack direction="row" spacing={1} mt={1.5}>
+            <Chip icon={<CategoryIcon />} label={cm.label} size="small" color={cm.color} />
+            {m.externalEmailRequested && (
+              <Chip size="small" icon={<AlternateEmailIcon />}
+                color={m.externalEmailDelivered ? "success" : "default"}
+                label={m.externalEmailDelivered
+                  ? "Στάλθηκε και σε email"
+                  : (m.externalEmailStatus ?? "Email σε αναμονή")} />
+            )}
+          </Stack>
+        ) : null;
+      })()}
+    </Box>
+  );
+}
+
+/** Attachment chip — click to download. When the attachment is E2E
+ *  encrypted (has `encryptionIvB64`) AND we have the file key from the
+ *  parent envelope, decrypts the ciphertext locally. Falls back to
+ *  showing "no key" tooltip when we can't decrypt. */
+function AttachmentChip({ a, decryptedKeyB64 }: {
+  a: AttachmentDto; decryptedKeyB64: string | undefined;
+}) {
+  const isEncrypted = !!a.encryptionIvB64;
+  const canDecrypt = !isEncrypted || !!decryptedKeyB64;
+  // Try to decrypt the original filename for the chip label.
+  const [displayName, setDisplayName] = useState<string>(a.fileName);
+  useEffect(() => {
+    if (a.encryptedFileNameB64 && decryptedKeyB64) {
+      decryptFileNameB64(a.encryptedFileNameB64, decryptedKeyB64)
+        .then(n => setDisplayName(n))
+        .catch(() => { /* keep placeholder */ });
+    }
+  }, [a.id, a.encryptedFileNameB64, decryptedKeyB64]);
+
+  const download = async () => {
+    const res = await api.get<Blob>(`/ermes/attachments/${a.id}`, { responseType: "blob" });
+    let blob: Blob = res.data;
+    let outName = displayName;
+    if (isEncrypted && a.encryptionIvB64 && decryptedKeyB64) {
+      blob = await decryptFileBlob(blob, decryptedKeyB64, a.encryptionIvB64, a.mimeType || "application/octet-stream");
+    }
+    const url = window.URL.createObjectURL(blob);
+    const el = document.createElement("a");
+    el.href = url; el.download = outName; el.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Tooltip title={canDecrypt ? "Λήψη" : "Χωρίς κλειδί αποκρυπτογράφησης — ανοίξτε τον ΕΡΜΗ από τον browser που έχει το κλειδί"}>
+      <span>
+        <Chip icon={isEncrypted ? <LockIcon /> : <AttachFileIcon />}
+          label={`${displayName} · ${formatBytes(a.sizeBytes)}`}
+          disabled={!canDecrypt}
+          onClick={canDecrypt ? download : undefined}
+          sx={{ cursor: canDecrypt ? "pointer" : "not-allowed" }} />
+      </span>
+    </Tooltip>
   );
 }
 
@@ -1235,6 +1304,11 @@ function ComposeDialog({
   const [sendExternal, setSendExternal] = useState(false);
   const [useSignature, setUseSignature] = useState<boolean>(true);
   const [attachments, setAttachments] = useState<AttachmentDto[]>([]);
+  // Per-attachment raw AES-256 keys (base64), keyed by attachmentId.
+  // Populated by uploadFile() when it encrypts client-side. Consumed by
+  // the send mutation which wraps each key into the per-recipient
+  // envelope so recipients can decrypt after fetching the ciphertext.
+  const [attachmentKeys, setAttachmentKeys] = useState<Record<string, string>>({});
   const [tplAnchor, setTplAnchor] = useState<HTMLElement | null>(null);
   const [catAnchor, setCatAnchor] = useState<HTMLElement | null>(null);
   const [prodOpen, setProdOpen] = useState(false);
@@ -1347,11 +1421,17 @@ function ComposeDialog({
         ...to.map(c => c.userId),
         ...cc.map(c => c.userId),
       ].filter(id => id && id !== myUserId);
+      // If ANY attachment failed to encrypt (missing raw key), we can't
+      // ship an encrypted envelope — every attached file must be either
+      // all-plaintext or all-E2E to keep the mental model coherent.
+      const allAttachmentsEncrypted = attachments.length === 0
+        || attachments.every(a => attachmentKeys[a.id]);
       if (!saveAsDraft && e2eKeys && myUserId && selTeams.length === 0
-          && directRecipientIds.length > 0) {
+          && directRecipientIds.length > 0 && allAttachmentsEncrypted) {
         try {
           const envelopes = await buildEnvelopesForRecipients(
-            finalBody, directRecipientIds, e2eKeys, myUserId);
+            finalBody, directRecipientIds, e2eKeys, myUserId,
+            attachments.length > 0 ? attachmentKeys : undefined);
           if (envelopes) {
             encryptedEnvelopesJson = JSON.stringify(envelopes);
             wireBody = "<i>[Κρυπτογραφημένο μήνυμα — ο διακομιστής δεν έχει πρόσβαση στο περιεχόμενο]</i>";
@@ -1462,11 +1542,48 @@ function ComposeDialog({
     setUploading(true);
     try {
       const form = new FormData();
-      form.append("file", file);
+      // ── Attachment E2E ──
+      // If the sender has a keypair, generate a fresh AES-256 file key,
+      // encrypt the blob + filename client-side, and upload only the
+      // ciphertext. The raw file key is retained locally in
+      // `attachmentKeys` state so we can wrap it into the per-recipient
+      // envelope at send time. Falls back to plaintext upload if the
+      // browser has no crypto support.
+      let encryptionIvB64: string | null = null;
+      let encryptedFileNameB64: string | null = null;
+      let payloadBlob: Blob = file;
+      let payloadName = file.name;
+      let payloadType = file.type;
+      let rawFileKeyB64: string | null = null;
+      if (e2eKeys) {
+        try {
+          rawFileKeyB64 = await generateFileKeyB64();
+          const enc = await encryptFileBlob(file, rawFileKeyB64);
+          payloadBlob = enc.ciphertext;
+          encryptionIvB64 = enc.ivB64;
+          encryptedFileNameB64 = await encryptFileNameB64(file.name, rawFileKeyB64);
+          payloadName = "encrypted.bin";
+          payloadType = "application/octet-stream";
+        } catch (e) {
+          console.warn("Ermes attachment encrypt failed — uploading plaintext", e);
+          rawFileKeyB64 = null;
+          encryptionIvB64 = null;
+          encryptedFileNameB64 = null;
+          payloadBlob = file; payloadName = file.name; payloadType = file.type;
+        }
+      }
+      form.append("file", new File([payloadBlob], payloadName, { type: payloadType }));
+      if (encryptionIvB64) form.append("encryptionIvB64", encryptionIvB64);
+      if (encryptedFileNameB64) form.append("encryptedFileNameB64", encryptedFileNameB64);
       const res = await api.post<AttachmentDto>("/ermes/attachments", form, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setAttachments(prev => [...prev, res.data]);
+      // Client keeps the ORIGINAL filename + mimetype in the local list
+      // so the chip label shows the real name. The server row stays
+      // encrypted («encrypted.bin»).
+      const localDto: AttachmentDto = { ...res.data, fileName: file.name, mimeType: file.type };
+      setAttachments(prev => [...prev, localDto]);
+      if (rawFileKeyB64) setAttachmentKeys(prev => ({ ...prev, [res.data.id]: rawFileKeyB64! }));
     } catch (e) {
       setErr(extractErrorMessage(e));
     } finally {
