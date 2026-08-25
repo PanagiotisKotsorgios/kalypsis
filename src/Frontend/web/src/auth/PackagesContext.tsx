@@ -3,13 +3,17 @@ import { api } from "../api/client";
 import { useAuth } from "./AuthContext";
 import { useImpersonation } from "../impersonation/ImpersonationContext";
 
-export type PackageCode = "BackOffice" | "FrontOffice" | "Crm" | "Intelligence" | "Integrations";
+export type PackageCode = "BackOffice" | "FrontOffice" | "Crm" | "Intelligence" | "Integrations" | "Ermes";
 
 interface PackagesContextValue {
   packages: Set<PackageCode>;
   isPlatformBypass: boolean;
   loading: boolean;
   has: (pkg: PackageCode) => boolean;
+  /** True when the tenant is licensed for ΕΡΜΗΣ ONLY — no back-office
+   *  package at all. Used by the router to bypass the full app shell and
+   *  drop the user straight into the standalone ΕΡΜΗΣ workspace. */
+  isErmesOnly: boolean;
   refresh: () => Promise<void>;
 }
 
@@ -87,13 +91,23 @@ export function PackagesProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.userId, accessToken]);
 
-  const value = useMemo<PackagesContextValue>(() => ({
-    packages,
-    isPlatformBypass,
-    loading,
-    has: (pkg: PackageCode) => isPlatformBypass || packages.has(pkg),
-    refresh
-  }), [packages, isPlatformBypass, loading]);
+  const value = useMemo<PackagesContextValue>(() => {
+    // «Ermes only» means the tenant is licensed for ΕΡΜΗΣ AND nothing
+    // else. PlatformAdmin bypass is never Ermes-only — they see the
+    // whole app. Zero packages → not Ermes-only either (that's a
+    // misconfigured tenant, not an intentional Ermes-only setup).
+    const isErmesOnly = !isPlatformBypass
+      && packages.has("Ermes")
+      && packages.size === 1;
+    return {
+      packages,
+      isPlatformBypass,
+      loading,
+      isErmesOnly,
+      has: (pkg: PackageCode) => isPlatformBypass || packages.has(pkg),
+      refresh,
+    };
+  }, [packages, isPlatformBypass, loading]);
 
   return <PackagesContext.Provider value={value}>{children}</PackagesContext.Provider>;
 }

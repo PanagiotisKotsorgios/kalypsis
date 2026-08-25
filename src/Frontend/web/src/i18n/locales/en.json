@@ -1817,7 +1817,8 @@
       "FrontOffice": "FrontOffice — Online carrier interface",
       "Crm": "CRM & Customer Portal",
       "Intelligence": "Reports & Intelligence",
-      "Integrations": "Integrations & Compliance"
+      "Integrations": "Integrations & Compliance",
+      "Ermes": "ΕΡΜΗΣ — Office messaging"
     }
   },
   "footer": {
@@ -2631,7 +2632,8 @@
         "FrontOffice":  { "name": "FrontOffice",  "tag": "Package II",  "body": "Multi-carrier quoting, saved risk profiles, applications & issuance, Print-Pay, Pay-Print, Piggy Bank, Carrier Orders." },
         "Crm":          { "name": "CRM & Customer Portal", "tag": "Package III", "body": "Customer portal, mobile app, requests, appointments, marketing campaigns, bulk Email/SMS/Viber." },
         "Intelligence": { "name": "Reports & Intelligence", "tag": "Package IV", "body": "Production goals, report builder, audit logs, AI churn prediction, AI PDF extraction, communication drafting, workflows." },
-        "Integrations": { "name": "Integrations & Compliance", "tag": "Package V", "body": "myDATA, online payments (e-pos, ePay, DIAS, Viva), telephony with recording, mailbox sync, branches, B2B portal." }
+        "Integrations": { "name": "Integrations & Compliance", "tag": "Package V", "body": "myDATA, online payments (e-pos, ePay, DIAS, Viva), telephony with recording, mailbox sync, branches, B2B portal." },
+        "Ermes":        { "name": "ΕΡΜΗΣ — Office Messaging",  "tag": "Package VI", "body": "Secure office messaging + meetings. Grant this ALONE (without BackOffice/FrontOffice/CRM) for very small offices that only want ΕΡΜΗΣ." }
       }
     },
     "stat": {

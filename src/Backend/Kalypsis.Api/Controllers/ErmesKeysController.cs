@@ -1,6 +1,8 @@
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Domain.Entities;
+using Kalypsis.Domain.Enums;
 using Kalypsis.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,6 +28,7 @@ namespace Kalypsis.Api.Controllers;
 [ApiController]
 [Route("api/ermes")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.Ermes)]
 public class ErmesKeysController : ControllerBase
 {
     private readonly AppDbContext _db;

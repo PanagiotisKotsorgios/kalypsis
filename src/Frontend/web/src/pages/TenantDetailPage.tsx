@@ -231,14 +231,15 @@ interface TenantPackagesResponse {
   packages: PackageCode[];
 }
 
-const PACKAGE_ORDER: PackageCode[] = ["BackOffice", "FrontOffice", "Crm", "Intelligence", "Integrations"];
+const PACKAGE_ORDER: PackageCode[] = ["BackOffice", "FrontOffice", "Crm", "Intelligence", "Integrations", "Ermes"];
 
 const PACKAGE_META: Record<PackageCode, { nameKey: string; tagKey: string; bodyKey: string }> = {
   BackOffice:   { nameKey: "tenants.packagesTab.items.BackOffice.name",   tagKey: "tenants.packagesTab.items.BackOffice.tag",   bodyKey: "tenants.packagesTab.items.BackOffice.body" },
   FrontOffice:  { nameKey: "tenants.packagesTab.items.FrontOffice.name",  tagKey: "tenants.packagesTab.items.FrontOffice.tag",  bodyKey: "tenants.packagesTab.items.FrontOffice.body" },
   Crm:          { nameKey: "tenants.packagesTab.items.Crm.name",          tagKey: "tenants.packagesTab.items.Crm.tag",          bodyKey: "tenants.packagesTab.items.Crm.body" },
   Intelligence: { nameKey: "tenants.packagesTab.items.Intelligence.name", tagKey: "tenants.packagesTab.items.Intelligence.tag", bodyKey: "tenants.packagesTab.items.Intelligence.body" },
-  Integrations: { nameKey: "tenants.packagesTab.items.Integrations.name", tagKey: "tenants.packagesTab.items.Integrations.tag", bodyKey: "tenants.packagesTab.items.Integrations.body" }
+  Integrations: { nameKey: "tenants.packagesTab.items.Integrations.name", tagKey: "tenants.packagesTab.items.Integrations.tag", bodyKey: "tenants.packagesTab.items.Integrations.body" },
+  Ermes:        { nameKey: "tenants.packagesTab.items.Ermes.name",        tagKey: "tenants.packagesTab.items.Ermes.tag",        bodyKey: "tenants.packagesTab.items.Ermes.body" }
 };
 
 function PackagesTab({ tenantId, onError }: { tenantId: string; onError: (m: string | null) => void }) {

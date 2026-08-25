@@ -1,7 +1,9 @@
 using System.Text.Json;
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.Ermes;
+using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,6 +18,7 @@ namespace Kalypsis.Api.Controllers;
 [ApiController]
 [Route("api/ermes")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.Ermes)]
 public class ErmesController : ControllerBase
 {
     private readonly IMediator _m;

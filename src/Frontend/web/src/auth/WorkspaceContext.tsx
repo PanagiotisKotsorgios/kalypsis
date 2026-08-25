@@ -91,5 +91,6 @@ export const WORKSPACE_DEFAULT_ROUTE: Record<PackageCode, string> = {
   FrontOffice:  "/app/quote-builder",
   Crm:          "/app/customers",
   Intelligence: "/app/report-builder",
-  Integrations: "/app/dias"
+  Integrations: "/app/dias",
+  Ermes:        "/app/ermes"
 };

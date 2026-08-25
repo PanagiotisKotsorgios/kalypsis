@@ -10,7 +10,8 @@ const PACKAGE_KEYS: Record<PackageCode, string> = {
   FrontOffice:  "packageLocked.names.FrontOffice",
   Crm:          "packageLocked.names.Crm",
   Intelligence: "packageLocked.names.Intelligence",
-  Integrations: "packageLocked.names.Integrations"
+  Integrations: "packageLocked.names.Integrations",
+  Ermes:        "packageLocked.names.Ermes"
 };
 
 /**

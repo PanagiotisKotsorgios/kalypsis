@@ -54,6 +54,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { RichTextEditor } from "../components/RichTextEditor";
 import { useAuth } from "../auth/AuthContext";
+import { usePackages } from "../auth/PackagesContext";
+
+/** True when the tenant has any back-office package that would let it use
+ *  «Λίστα παραγωγής» (data pulled from /production-lists). Ermes-only
+ *  tenants return false so BackOffice-specific composer affordances hide. */
+function hasBackofficeAccess(): boolean {
+  const p = usePackages();
+  return p.has("BackOffice") || p.has("FrontOffice");
+}
 
 // ─── Types matching the backend DTOs ────────────────────────────────
 
@@ -1119,6 +1128,11 @@ function ComposeDialog({
   const [prodOpen, setProdOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // «Λίστα παραγωγής» pulls /production-lists which is a BackOffice
+  // endpoint — Ermes-only tenants (very small offices with ONLY the
+  // ΕΡΜΗΣ package) don't have that data, so we hide the button rather
+  // than let it 403 with a scary error.
+  const canInsertProductionList = hasBackofficeAccess();
   // Custom templates persisted per-browser in localStorage; merged with
   // the built-in TEMPLATES in the picker menu.
   const [customTemplates, setCustomTemplates] = useState<Template[]>(() => {
@@ -1402,10 +1416,12 @@ function ComposeDialog({
                   onClick={(e) => setTplAnchor(e.currentTarget)}>
                   Πρότυπα
                 </Button>
-                <Button size="small" startIcon={<TableChartIcon />} variant="outlined"
-                  onClick={() => setProdOpen(true)}>
-                  Λίστα παραγωγής
-                </Button>
+                {canInsertProductionList && (
+                  <Button size="small" startIcon={<TableChartIcon />} variant="outlined"
+                    onClick={() => setProdOpen(true)}>
+                    Λίστα παραγωγής
+                  </Button>
+                )}
                 <Button size="small" startIcon={<MicIcon />} variant="outlined" color="error"
                   onClick={() => setVoiceOpen(v => !v)}>
                   Ηχητικό μήνυμα

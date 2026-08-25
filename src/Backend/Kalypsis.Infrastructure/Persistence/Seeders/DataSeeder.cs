@@ -172,26 +172,34 @@ public static class DataSeeder
     {
         var tenants = await db.Tenants.IgnoreQueryFilters().Select(t => t.Id).ToListAsync(cancellationToken);
         var all = Enum.GetValues<PackageCode>();
+
         // We include soft-deleted rows because the (TenantId, Package) unique
         // index in MySQL is NOT filtered — re-inserting would violate it.
         var existing = await db.TenantPackageGrants.IgnoreQueryFilters()
             .Select(g => new { g.TenantId, g.Package })
             .ToListAsync(cancellationToken);
-        var existingSet = existing.Select(e => (e.TenantId, e.Package)).ToHashSet();
+        var existingByTenant = existing.GroupBy(e => e.TenantId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Package).ToHashSet());
 
         var inserted = 0;
         foreach (var tenantId in tenants)
         {
+            // If the tenant already has ANY grant row (active or soft-deleted),
+            // assume they were explicitly configured by an admin and skip.
+            // Otherwise a small-office tenant with SetAsync([Ermes]) would get
+            // widened back to full-plan on the next redeploy — a silent, bad
+            // plan-change that would also billing-loop over-charge them.
+            if (existingByTenant.ContainsKey(tenantId)) continue;
+
             foreach (var pkg in all)
             {
-                if (existingSet.Contains((tenantId, pkg))) continue;
                 db.TenantPackageGrants.Add(new TenantPackageGrant
                 {
                     Id = Guid.NewGuid(),
                     TenantId = tenantId,
                     Package = pkg,
                     EnabledAt = DateTime.UtcNow,
-                    Notes = "Backfill — Phase 5 rollout"
+                    Notes = "Backfill — un-provisioned tenant, granted default full plan"
                 });
                 inserted++;
             }
@@ -199,7 +207,39 @@ public static class DataSeeder
         if (inserted > 0)
         {
             await db.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("Backfilled {Count} package grants across {Tenants} tenants.", inserted, tenants.Count);
+            logger.LogInformation("Backfilled {Count} package grants across un-provisioned tenants.", inserted);
+        }
+
+        // ── Ermes back-compat backfill ────────────────────────────────
+        // Historic tenants (pre-Ermes package) got messaging under the Crm
+        // package. Now that Ermes is its own PackageCode, any tenant with
+        // an ACTIVE Crm grant but no Ermes grant gets Ermes granted so
+        // they keep ΕΡΜΗΣ access without an admin round-trip. Also
+        // idempotent — soft-deleted Ermes rows are LEFT alone (that means
+        // an admin already opted this tenant OUT).
+        var crmActive = existing
+            .GroupBy(e => e.TenantId)
+            .Where(g => g.Any(x => x.Package == PackageCode.Crm)
+                     && !g.Any(x => x.Package == PackageCode.Ermes))
+            .Select(g => g.Key)
+            .ToList();
+        var ermesInserted = 0;
+        foreach (var tenantId in crmActive)
+        {
+            db.TenantPackageGrants.Add(new TenantPackageGrant
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                Package = PackageCode.Ermes,
+                EnabledAt = DateTime.UtcNow,
+                Notes = "Auto-granted — historic Crm tenant carried over to dedicated Ermes package"
+            });
+            ermesInserted++;
+        }
+        if (ermesInserted > 0)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Granted Ermes package to {Count} historic Crm tenants.", ermesInserted);
         }
     }
 

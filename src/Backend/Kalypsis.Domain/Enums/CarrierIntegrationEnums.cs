@@ -49,5 +49,9 @@ public enum PackageCode
     /// <summary>Reports/report-builder, goals, audit logs, AI assistants, workflows.</summary>
     Intelligence = 4,
     /// <summary>myDATA, online payments, telephony, mailbox sync, multi-branch, backoffice bridges.</summary>
-    Integrations = 5
+    Integrations = 5,
+    /// <summary>ΕΡΜΗΣ messaging + meetings. Assign ALONE for very-small
+    /// offices that only want the ΕΡΜΗΣ system — no back-office at all.
+    /// Full-plan tenants get this automatically alongside Crm.</summary>
+    Ermes = 6
 }

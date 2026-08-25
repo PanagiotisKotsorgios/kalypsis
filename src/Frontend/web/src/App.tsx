@@ -129,6 +129,7 @@ import { AgencySettingsPage } from "./pages/AgencySettingsPage";
 import { AgencySettingsHubPage } from "./pages/AgencySettingsHubPage";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { PackageGate } from "./pages/PackageLockedPage";
+import { usePackages } from "./auth/PackagesContext";
 import { CustomerContractDetailsPage } from "./pages/CustomerContractDetailsPage";
 import { NewContractWizardPage } from "./pages/NewContractWizardPage";
 import { AppointmentsPage } from "./pages/AppointmentsPage";
@@ -526,6 +527,22 @@ function RoutedErrorBoundary({ children }: { children: React.ReactNode }) {
   return <ErrorBoundary resetKey={location.pathname}>{children}</ErrorBoundary>;
 }
 
+/**
+ * Redirects Ermes-only tenants (offices that only bought the ΕΡΜΗΣ package —
+ * no back-office at all) from /app to the standalone ΕΡΜΗΣ workspace at
+ * /ermes-app. Every other tenant sees the normal AppShell.
+ *
+ * We wait for `usePackages()` to finish loading before deciding — otherwise
+ * the first render sees an empty package set and would kick the user out to
+ * ΕΡΜΗΣ even if they're on a full plan.
+ */
+function ErmesOnlyGate({ children }: { children: React.ReactNode }) {
+  const { isErmesOnly, loading } = usePackages();
+  if (loading) return <PageLoader minHeight="60vh" />;
+  if (isErmesOnly) return <Navigate to="/ermes-app" replace />;
+  return <>{children}</>;
+}
+
 export default function App() {
   const { user, loading } = useAuth();
   const { tenantId: impersonatedTenantId } = useImpersonation();
@@ -644,6 +661,12 @@ export default function App() {
           path="/app/*"
           element={
             <ProtectedRoute>
+              {/* Ermes-only tenants (very small offices that only use ΕΡΜΗΣ
+                  for talking to συνεργάτες) skip the full back-office shell
+                  entirely and land in the standalone messaging workspace.
+                  isErmesOnly is `false` for PlatformAdmin (bypass) and for
+                  any tenant that also has BackOffice/FrontOffice/etc. */}
+              <ErmesOnlyGate>
               {isGated ? <UnderMaintenancePage title={maintenance.launchGateTitle} message={maintenance.launchGateMessage} /> : (
               <AppShell navItems={effectiveRole ? navByRole[effectiveRole] : []} role={effectiveRole}>
                 <GlobalKeyboardShortcuts />
@@ -959,6 +982,7 @@ export default function App() {
                 </RoutedErrorBoundary>
               </AppShell>
               )}
+              </ErmesOnlyGate>
             </ProtectedRoute>
           }
         />
