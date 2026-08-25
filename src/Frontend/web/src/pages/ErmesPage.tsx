@@ -31,7 +31,6 @@ import MarkEmailUnreadIcon from "@mui/icons-material/MarkEmailUnread";
 import MarkEmailReadIcon from "@mui/icons-material/MarkEmailRead";
 import PriorityHighIcon from "@mui/icons-material/PriorityHigh";
 import ConstructionIcon from "@mui/icons-material/Construction";
-import CardGiftcardIcon from "@mui/icons-material/CardGiftcard";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import TableChartIcon from "@mui/icons-material/TableChart";
@@ -258,19 +257,6 @@ export function ErmesPage() {
   };
   const [signatureEditorOpen, setSignatureEditorOpen] = useState(false);
   const [channelTeam, setChannelTeam] = useState<Team | null>(null);
-  // Beta notice — shown the first time a user lands on ΕΡΜΗΣ. The
-  // localStorage flag is scoped per-user so a shared browser still nags
-  // each teammate individually once. Re-opening from the header chip
-  // ignores the flag and always shows the dialog.
-  const betaKey = `kalypsis.ermes.betaNoticeSeen.${myId ?? "anon"}`;
-  const [betaOpen, setBetaOpen] = useState<boolean>(() => {
-    try { return !window.localStorage.getItem(betaKey); } catch { return true; }
-  });
-  const closeBeta = () => {
-    try { window.localStorage.setItem(betaKey, "1"); } catch { /* quota */ }
-    setBetaOpen(false);
-  };
-
   const overview = useQuery({
     queryKey: ["ermes", "overview"],
     queryFn: async () => (await api.get<OverviewDto>("/ermes/overview")).data,
@@ -481,13 +467,13 @@ export function ErmesPage() {
             <Typography variant="body2" color="text.secondary" sx={{ mt: "1px" }}>
               · κρυπτογραφημένη επικοινωνία
             </Typography>
-            <Chip
-              size="small" color="warning" variant="filled"
-              icon={<ConstructionIcon sx={{ fontSize: 14 }} />}
-              label="BETA · Δωρεάν εφ'όρου ζωής για τους early users"
-              onClick={() => setBetaOpen(true)}
-              sx={{ fontWeight: 700, cursor: "pointer", ml: 0.5 }}
-            />
+            <Stack direction="row" alignItems="center" spacing={0.5}
+              sx={{ ml: 0.5, color: "text.secondary" }}>
+              <ConstructionIcon sx={{ fontSize: 14 }} />
+              <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                Υπό κατασκευή
+              </Typography>
+            </Stack>
           </Stack>
         </Box>
         {/* E2E status chip — «Κρυπτογραφημένη» when a keypair is
@@ -827,42 +813,6 @@ export function ErmesPage() {
       {/* Channel view (Discord-style feed for a team) */}
       <ChannelDialog team={channelTeam} onClose={() => setChannelTeam(null)}
         meDisplay={((user?.firstName ?? "") + " " + (user?.lastName ?? "")).trim()} />
-
-      {/* Beta / early-access notice — first visit, dismissible; the header
-          chip re-opens it any time. */}
-      <Dialog open={betaOpen} onClose={closeBeta} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.5, fontWeight: 800 }}>
-          <ConstructionIcon color="warning" />
-          ΕΡΜΗΣ — Υπό ενεργή ανάπτυξη
-        </DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} mt={1}>
-            <Alert severity="warning" icon={<ConstructionIcon />}>
-              Ο <b>ΕΡΜΗΣ</b> βρίσκεται σε <b>ενεργή ανάπτυξη (Beta)</b>.
-              Ορισμένες λειτουργίες (cross-tenant μηνύματα σε εξωτερικούς
-              συνεργάτες, αυτόματη αποστολή μηνιαίων λιστών παραγωγής,
-              email nudges, real-time push) έρχονται σταδιακά.
-            </Alert>
-            <Alert severity="success" icon={<CardGiftcardIcon />}>
-              <Typography fontWeight={800} mb={0.5}>
-                Χρησιμοποιήστε τον τώρα — μείνει δωρεάν εφ'όρου ζωής.
-              </Typography>
-              <Typography variant="body2">
-                Κάθε γραφείο που ξεκινά με τον ΕΡΜΗΣ κατά την Beta φάση
-                θα τον διατηρήσει <b>δωρεάν για πάντα</b> μετά την
-                επίσημη κυκλοφορία, ακόμη κι όταν το plan μετακινηθεί
-                σε πληρωμένη συνδρομή.
-              </Typography>
-            </Alert>
-            <Typography variant="caption" color="text.secondary">
-              Για αναφορές, feedback ή προτάσεις: <a href="mailto:info@mykalypsis.gr">info@mykalypsis.gr</a>
-            </Typography>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeBeta} variant="contained">Το κατάλαβα, ας ξεκινήσω</Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Jitsi Meet dialog — deterministic room name comes from
           /api/ermes/meeting/room?threadId. Every participant on the
@@ -1509,10 +1459,10 @@ function ComposeDialog({
                       <Typography variant="body2">Υπογραφή</Typography>
                     </Stack>} />
                 )}
-                {/* External email is BETA-locked to keep the platform
-                    safe from bounces/spam-flagging while ΕΡΜΗΣ stabilises.
-                    Switch is disabled + explains why on hover. */}
-                <Tooltip title="Απενεργοποιημένο κατά την Beta φάση — τα μηνύματα παραδίδονται μόνο εντός Kalypsis, όχι σε εξωτερικό email.">
+                {/* External email is locked until the outbound gateway
+                    finishes stabilising. Switch is disabled + explains
+                    why on hover. */}
+                <Tooltip title="Υπό κατασκευή — τα μηνύματα παραδίδονται μόνο εντός Kalypsis, όχι σε εξωτερικό email.">
                   <span>
                     <FormControlLabel
                       sx={{ ml: 0, opacity: 0.55 }}
@@ -1520,7 +1470,7 @@ function ComposeDialog({
                         onChange={(_e, v) => setSendExternal(v)} />}
                       label={<Stack direction="row" alignItems="center" spacing={0.5}>
                         <AlternateEmailIcon fontSize="small" />
-                        <Typography variant="body2">Αποστολή και σε email (BETA)</Typography>
+                        <Typography variant="body2">Αποστολή και σε email (υπό κατασκευή)</Typography>
                       </Stack>} />
                   </span>
                 </Tooltip>
@@ -2026,8 +1976,8 @@ function AutomationsView({ contacts, teams }: { contacts: Contact[]; teams: Team
     <Stack spacing={2}>
       <Alert severity="info" icon={<ConstructionIcon />}>
         Ρυθμίστε αυτόματες αποστολές — π.χ. μηνιαία λίστα παραγωγής στους συνεργάτες.
-        Ο scheduler θα ενεργοποιηθεί μαζί με το επίσημο release του ΕΡΜΗΣ (Beta:
-        οι κανόνες αποθηκεύονται τοπικά ώστε να είναι έτοιμοι όταν σηκωθεί ο cron).
+        Ο scheduler είναι υπό κατασκευή· οι κανόνες αποθηκεύονται τοπικά ώστε να
+        είναι έτοιμοι μόλις ενεργοποιηθεί.
       </Alert>
       <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAddOpen(true)} sx={{ alignSelf: "flex-start" }}>
         Νέος αυτοματισμός
@@ -2456,9 +2406,13 @@ function ChannelDialog({ team, onClose, meDisplay }: {
             Κανάλι · {team.members.length} μέλη · {team.members.map(m => m.display).join(", ") || "χωρίς μέλη"}
           </Typography>
         </Box>
-        <Chip size="small" color="warning" variant="filled"
-          icon={<ConstructionIcon sx={{ fontSize: 14 }} />}
-          label="BETA" sx={{ fontWeight: 700 }} />
+        <Stack direction="row" alignItems="center" spacing={0.5}
+          sx={{ color: "text.secondary" }}>
+          <ConstructionIcon sx={{ fontSize: 14 }} />
+          <Typography variant="caption" sx={{ fontWeight: 600 }}>
+            Υπό κατασκευή
+          </Typography>
+        </Stack>
       </Box>
 
       <Box sx={{ flex: 1, overflowY: "auto", px: { xs: 2, md: 4 }, py: 2, bgcolor: "background.default" }}>
