@@ -849,7 +849,8 @@ export function ErmesPage() {
 
       {/* Channel view (Discord-style feed for a team) */}
       <ChannelDialog team={channelTeam} onClose={() => setChannelTeam(null)}
-        meDisplay={((user?.firstName ?? "") + " " + (user?.lastName ?? "")).trim()} />
+        meDisplay={((user?.firstName ?? "") + " " + (user?.lastName ?? "")).trim()}
+        e2eKeys={e2eKeys ?? null} myUserId={myId ?? ""} />
 
       {/* E2E key backup + restore */}
       <KeyBackupDialog open={backupOpen} onClose={() => setBackupOpen(false)}
@@ -2779,8 +2780,45 @@ function WelcomePane({
 
 // ─── Channel view (Discord-style shared feed per team) ──────────────
 
-function ChannelDialog({ team, onClose, meDisplay }: {
+/** Individual post in the channel feed — split into its own component
+ *  so we can call `useDecryptedEnvelope` per post (hooks can't live
+ *  inside .map). Renders through MessageBody + AttachmentChip for
+ *  consistent E2E behaviour across the DM reader and the channel feed. */
+function ChannelPostRow({ m, myId }: { m: ErmesMessageDto; myId: string }) {
+  const { body, attachmentKeys, state } = useDecryptedEnvelope(m, myId);
+  return (
+    <Box sx={{ mb: 2, pb: 2, borderBottom: 1, borderColor: "divider" }}>
+      <Stack direction="row" spacing={1.5} alignItems="flex-start" mb={0.5}>
+        <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main", fontSize: 12 }}>
+          {m.senderDisplay.split(" ").filter(Boolean).slice(0, 2).map(s => s[0]).join("").toUpperCase() || "?"}
+        </Avatar>
+        <Box sx={{ flex: 1 }}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="body2" fontWeight={800}>{m.senderDisplay}</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {new Date(m.sentAt ?? m.createdAt).toLocaleString("el-GR", { hour12: false, hourCycle: "h23", timeZone: "Europe/Athens" })}
+            </Typography>
+          </Stack>
+          <MessageBody body={body} state={state} sxBase={{ mt: 0.5, "& p": { my: 0.5 }, fontSize: 14, lineHeight: 1.55 }} />
+          {m.attachments?.length > 0 && (
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap mt={1}>
+              {m.attachments.map(a => (
+                <AttachmentChip key={a.id} a={a} decryptedKeyB64={attachmentKeys[a.id]} />
+              ))}
+            </Stack>
+          )}
+        </Box>
+      </Stack>
+    </Box>
+  );
+}
+
+function ChannelDialog({ team, onClose, meDisplay, e2eKeys, myUserId }: {
   team: Team | null; onClose: () => void; meDisplay: string;
+  // Same E2E envelope wiring as DM composer. When present + every
+  // channel member has a registered public key, encrypt the post.
+  e2eKeys: Awaited<ReturnType<typeof ensureE2EKeypair>> | null;
+  myUserId: string;
 }) {
   const qc = useQueryClient();
   const [postHtml, setPostHtml] = useState("");
@@ -2793,18 +2831,39 @@ function ChannelDialog({ team, onClose, meDisplay }: {
   useEffect(() => { if (team) setPostHtml(""); }, [team?.id]);
 
   const post = useMutation({
-    mutationFn: async () => api.post("/ermes/messages", {
-      subject: `#${team!.name}`,
-      bodyHtml: postHtml,
-      recipients: [],
-      teamIds: [team!.id],
-      channelId: team!.id,
-      inReplyToMessageId: null,
-      isImportant: false,
-      saveAsDraft: false,
-      sendExternalEmail: false,
-      attachmentIds: [],
-    }),
+    mutationFn: async () => {
+      // Try to E2E-encrypt the post for every channel member. Falls
+      // back to plaintext if the sender lacks a keypair, or if any
+      // member is missing a registered public key. All-or-nothing —
+      // we NEVER send a mixed message.
+      let encryptedEnvelopesJson: string | null = null;
+      let wireBody = postHtml;
+      const memberIds = (team?.members ?? [])
+        .map(m => m.userId).filter(id => id && id !== myUserId);
+      if (e2eKeys && myUserId && memberIds.length > 0) {
+        try {
+          const envelopes = await buildEnvelopesForRecipients(
+            postHtml, memberIds, e2eKeys, myUserId);
+          if (envelopes) {
+            encryptedEnvelopesJson = JSON.stringify(envelopes);
+            wireBody = "<i>[Κρυπτογραφημένο μήνυμα καναλιού]</i>";
+          }
+        } catch (e) { console.warn("Channel E2E encrypt failed — plaintext", e); }
+      }
+      return api.post("/ermes/messages", {
+        subject: `#${team!.name}`,
+        bodyHtml: wireBody,
+        recipients: [],
+        teamIds: [team!.id],
+        channelId: team!.id,
+        inReplyToMessageId: null,
+        isImportant: false,
+        saveAsDraft: false,
+        sendExternalEmail: false,
+        attachmentIds: [],
+        encryptedEnvelopesJson,
+      });
+    },
     onSuccess: () => {
       setPostHtml("");
       void qc.invalidateQueries({ queryKey: ["ermes", "channel", team?.id] });
@@ -2849,39 +2908,7 @@ function ChannelDialog({ team, onClose, meDisplay }: {
               Καμία δημοσίευση ακόμη σε αυτό το κανάλι. Πληκτρολογήστε παρακάτω για να ξεκινήσετε.
             </Alert>
           ) : ordered.map((m) => (
-            <Box key={m.id} sx={{ mb: 2, pb: 2, borderBottom: 1, borderColor: "divider" }}>
-              <Stack direction="row" spacing={1.5} alignItems="flex-start" mb={0.5}>
-                <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main", fontSize: 12 }}>
-                  {m.senderDisplay.split(" ").filter(Boolean).slice(0, 2).map(s => s[0]).join("").toUpperCase() || "?"}
-                </Avatar>
-                <Box sx={{ flex: 1 }}>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="body2" fontWeight={800}>{m.senderDisplay}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {new Date(m.sentAt ?? m.createdAt).toLocaleString("el-GR", { hour12: false, hourCycle: "h23", timeZone: "Europe/Athens" })}
-                    </Typography>
-                  </Stack>
-                  <Box sx={{ mt: 0.5, "& p": { my: 0.5 }, fontSize: 14, lineHeight: 1.55 }}
-                    dangerouslySetInnerHTML={{ __html: m.bodyHtml || "" }} />
-                  {m.attachments?.length > 0 && (
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap mt={1}>
-                      {m.attachments.map(a => (
-                        <Chip key={a.id} size="small" icon={<AttachFileIcon />}
-                          label={a.fileName}
-                          onClick={async () => {
-                            const res = await api.get<Blob>(`/ermes/attachments/${a.id}`, { responseType: "blob" });
-                            const url = window.URL.createObjectURL(res.data);
-                            const el = document.createElement("a");
-                            el.href = url; el.download = a.fileName; el.click();
-                            window.URL.revokeObjectURL(url);
-                          }}
-                          sx={{ cursor: "pointer" }} />
-                      ))}
-                    </Stack>
-                  )}
-                </Box>
-              </Stack>
-            </Box>
+            <ChannelPostRow key={m.id} m={m} myId={myUserId} />
           ))}
         </Box>
       </Box>
