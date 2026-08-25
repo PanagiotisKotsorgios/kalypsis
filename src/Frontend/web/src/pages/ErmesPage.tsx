@@ -355,50 +355,102 @@ export function ErmesPage() {
   for (const f of overview.data?.folders ?? []) counts[f.folder] = f;
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "calc(100vh - 120px)", gap: 1 }}>
-      <Stack direction="row" alignItems="center" spacing={2}>
-        <MailOutlineIcon color="primary" sx={{ fontSize: 32 }} />
-        <Box sx={{ flex: 1 }}>
+    <Box sx={{
+      display: "flex", flexDirection: "column",
+      height: "calc(100vh - 120px)", gap: 1.25,
+      // Frame the whole page with a subtle app-background so the 3-column
+      // Cards feel elevated — matches the Outlook / modern-mail vibe.
+      bgcolor: (t) => t.palette.mode === "dark" ? "transparent" : "#f7f9fc",
+      mx: -2, px: 2, pt: 1.5,
+    }}>
+      {/* Command bar — sharper hierarchy, prominent primary action */}
+      <Box sx={{
+        display: "flex", alignItems: "center", gap: 2,
+        bgcolor: "background.paper",
+        border: "1px solid", borderColor: "divider",
+        borderRadius: 2, px: 2, py: 1.25,
+        boxShadow: "0 4px 12px -8px rgba(11,37,69,0.14)",
+      }}>
+        <Box sx={{
+          width: 40, height: 40, borderRadius: 1.5, display: "grid", placeItems: "center",
+          bgcolor: (t) => t.palette.mode === "dark" ? "rgba(78,138,206,0.20)" : "#e7f0fa",
+          color: "primary.main",
+        }}>
+          <MailOutlineIcon sx={{ fontSize: 22 }} />
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" alignItems="center" spacing={1}>
-            <Typography variant="h5" fontWeight={800}>ΕΡΜΗΣ — Επικοινωνία</Typography>
+            <Typography variant="h6" fontWeight={800} sx={{ letterSpacing: "-0.01em" }}>
+              ΕΡΜΗΣ
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: "1px" }}>
+              · κρυπτογραφημένη επικοινωνία
+            </Typography>
             <Chip
               size="small" color="warning" variant="filled"
               icon={<ConstructionIcon sx={{ fontSize: 14 }} />}
               label="BETA · Δωρεάν εφ'όρου ζωής για τους early users"
               onClick={() => setBetaOpen(true)}
-              sx={{ fontWeight: 700, cursor: "pointer" }}
+              sx={{ fontWeight: 700, cursor: "pointer", ml: 0.5 }}
             />
           </Stack>
-          <Typography variant="caption" color="text.secondary">
-            Kalypsis-native, end-to-end εντός της πλατφόρμας. Χωρίς spam, χωρίς Outlook.
-          </Typography>
         </Box>
-        <Button variant="contained" size="large" startIcon={<CreateIcon />}
-          onClick={() => { setReplyTo(null); openCompose(); }}>
+        <Button variant="contained" size="medium" startIcon={<CreateIcon />}
+          onClick={() => { setReplyTo(null); openCompose(); }}
+          sx={{
+            fontWeight: 700, px: 2.5,
+            boxShadow: "0 8px 20px -10px rgba(31,123,179,0.55)",
+          }}>
           Νέο μήνυμα
         </Button>
-      </Stack>
+      </Box>
 
       {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
 
-      <Box sx={{ display: "grid", gridTemplateColumns: "240px 380px 1fr", gap: 1.5, flex: 1, minHeight: 0 }}>
+      <Box sx={{
+        display: "grid",
+        // Slightly narrower rail + slightly wider middle for a more Outlook-
+        // like feel. Reading pane still owns the remaining width.
+        gridTemplateColumns: "224px 400px 1fr",
+        gap: 1.5, flex: 1, minHeight: 0,
+      }}>
         {/* ── Left rail: folders + teams + blocks ─────────────────── */}
-        <Card variant="outlined" sx={{ overflowY: "auto", p: 0 }}>
-          <List dense disablePadding>
+        <Card variant="outlined" sx={{
+          overflowY: "auto", p: 0,
+          // Denser, sharper rail with Outlook-style active-item bar
+          "& .MuiListItemButton-root": {
+            borderLeft: "3px solid transparent",
+            transition: "border-color 140ms, background-color 140ms",
+          },
+          "& .MuiListItemButton-root.Mui-selected": {
+            borderLeftColor: "primary.main",
+            bgcolor: (t) => t.palette.mode === "dark"
+              ? "rgba(78,138,206,0.16)"
+              : "rgba(31,123,179,0.09)",
+          },
+          "&::-webkit-scrollbar": { width: 5 },
+          "&::-webkit-scrollbar-thumb": { bgcolor: "divider", borderRadius: 3 },
+        }}>
+          <List dense disablePadding sx={{ py: 0.5 }}>
             {FOLDERS.map(f => {
               const c = counts[f.key];
               const active = folder === f.key;
               return (
                 <ListItemButton key={f.key} selected={active} onClick={() => setFolder(f.key)}
-                  sx={{ py: 0.75 }}>
-                  <Box sx={{ mr: 1, color: active ? "primary.main" : "text.secondary" }}>{f.icon}</Box>
+                  sx={{ py: 0.9, pl: 1.75 }}>
+                  <Box sx={{ mr: 1.25, color: active ? "primary.main" : "text.secondary", display: "flex" }}>{f.icon}</Box>
                   <ListItemText
                     primary={f.label}
-                    primaryTypographyProps={{ fontWeight: active ? 800 : 500 }}
+                    primaryTypographyProps={{
+                      fontWeight: active ? 700 : 500,
+                      fontSize: 13.5,
+                      color: active ? "primary.main" : "text.primary",
+                    }}
                   />
                   {c && (c.unread > 0
-                    ? <Chip label={c.unread} size="small" color="primary" sx={{ height: 20 }} />
-                    : c.total > 0 && <Typography variant="caption" color="text.secondary">{c.total}</Typography>)}
+                    ? <Chip label={c.unread} size="small" color="primary"
+                        sx={{ height: 20, fontWeight: 700, fontSize: 11 }} />
+                    : c.total > 0 && <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>{c.total}</Typography>)}
                 </ListItemButton>
               );
             })}
@@ -473,38 +525,59 @@ export function ErmesPage() {
         </Card>
 
         {/* ── Middle: message list ───────────────────────────────── */}
-        <Card variant="outlined" sx={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <Box sx={{ p: 1, borderBottom: 1, borderColor: "divider" }}>
+        <Card variant="outlined" sx={{
+          display: "flex", flexDirection: "column", overflow: "hidden",
+        }}>
+          {/* Search + Focused/Other tabs */}
+          <Box sx={{ p: 1.25, borderBottom: 1, borderColor: "divider" }}>
             <TextField size="small" fullWidth placeholder="Αναζήτηση σε θέμα, αποστολέα, περιεχόμενο…"
               value={search} onChange={e => setSearch(e.target.value)}
-              InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }} />
+              InputProps={{
+                startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                sx: { bgcolor: (t) => t.palette.mode === "dark" ? "rgba(255,255,255,0.04)" : "#f4f6fa" },
+              }} />
+            <Stack direction="row" spacing={0.25} sx={{
+              mt: 1.25, borderBottom: "2px solid transparent",
+              "& .tab": {
+                px: 1.5, py: 0.5, cursor: "pointer", fontSize: 13,
+                fontWeight: 700, color: "text.secondary",
+                borderBottom: "2px solid transparent", marginBottom: "-2px",
+                letterSpacing: "0.01em",
+              },
+              "& .tab.active": {
+                color: "primary.main",
+                borderBottomColor: "primary.main",
+              },
+              "& .tab:hover:not(.active)": { color: "text.primary" },
+            }}>
+              <Box className={`tab ${!unreadOnly ? "active" : ""}`} onClick={() => setUnreadOnly(false)}>
+                Εστιασμένα
+              </Box>
+              <Box className={`tab ${unreadOnly ? "active" : ""}`} onClick={() => setUnreadOnly(true)}>
+                Μη αναγνωσμένα
+              </Box>
+            </Stack>
           </Box>
-          <Box sx={{ px: 1, py: 0.75, borderBottom: 1, borderColor: "divider",
-            display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Box sx={{ px: 1.25, py: 0.6, borderBottom: 1, borderColor: "divider",
+            display: "flex", alignItems: "center", gap: 0.5,
+            bgcolor: (t) => t.palette.mode === "dark" ? "rgba(255,255,255,0.02)" : "#fafbfd",
+            minHeight: 40 }}>
             <Checkbox size="small"
               checked={(list.data?.length ?? 0) > 0 && selected.size === (list.data?.length ?? 0)}
               indeterminate={selected.size > 0 && selected.size < (list.data?.length ?? 0)}
               onChange={toggleAll} />
             {selected.size === 0 ? (
-              <>
-                <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
-                  {(() => {
-                    const all = list.data ?? [];
-                    const filtered = all.filter(m =>
-                      (!categoryFilter || m.category === categoryFilter) &&
-                      (!unreadOnly || !m.isRead));
-                    return filtered.length === all.length
-                      ? `${all.length} μηνύματα`
-                      : `${filtered.length} / ${all.length}`;
-                  })()}
-                </Typography>
-                <Chip size="small"
-                  label="Μη αναγνωσμένα"
-                  color={unreadOnly ? "primary" : "default"}
-                  variant={unreadOnly ? "filled" : "outlined"}
-                  onClick={() => setUnreadOnly(v => !v)}
-                  sx={{ height: 22 }} />
-              </>
+              <Typography variant="caption" color="text.secondary" sx={{ flex: 1, fontWeight: 600 }}>
+                {(() => {
+                  const all = list.data ?? [];
+                  const filtered = all.filter(m =>
+                    (!categoryFilter || m.category === categoryFilter) &&
+                    (!unreadOnly || !m.isRead));
+                  return filtered.length === all.length
+                    ? `${all.length} μηνύματα`
+                    : `${filtered.length} από ${all.length}`;
+                })()}
+              </Typography>
             ) : (
               <BulkBar folder={folder} disabled={bulk.isPending}
                 onAction={(a) => bulk.mutate({ action: a, ids: Array.from(selected) })} />
@@ -713,33 +786,61 @@ function MessageRow({ msg, selected, active, onToggle, onOpen, onStar }: {
 }) {
   const initials = msg.senderDisplay
     .split(" ").filter(Boolean).slice(0, 2).map(s => s[0]).join("").toUpperCase();
+  // Deterministic avatar tint from sender's name so each contact keeps
+  // a stable colour across the list — makes scanning easier.
+  const avatarTint = (() => {
+    const palette = ["#1f7bb3", "#0b2545", "#7c6feb", "#2ea44f", "#c26aa0", "#d97706", "#4b5563"];
+    let h = 0;
+    for (let i = 0; i < msg.senderDisplay.length; i++) h = (h * 31 + msg.senderDisplay.charCodeAt(i)) | 0;
+    return palette[Math.abs(h) % palette.length];
+  })();
+
   return (
     <Box onClick={onOpen}
       sx={{
         display: "flex", alignItems: "center", gap: 1,
-        px: 1, py: 1.25, cursor: "pointer",
-        borderLeft: 3, borderColor: active ? "primary.main" : "transparent",
-        bgcolor: active ? "action.selected" : msg.isRead ? "transparent" : "rgba(30,167,225,0.06)",
-        "&:hover": { bgcolor: "action.hover" },
+        px: 1.25, py: 1.25, cursor: "pointer",
+        // 3px accent bar on active OR unread — Outlook-style
+        borderLeft: 3,
+        borderColor: active
+          ? "primary.main"
+          : msg.isRead ? "transparent" : "rgba(31,123,179,0.55)",
+        bgcolor: active
+          ? (t) => t.palette.mode === "dark" ? "rgba(78,138,206,0.20)" : "#e7f0fa"
+          : "transparent",
+        "&:hover": { bgcolor: active
+          ? (t) => t.palette.mode === "dark" ? "rgba(78,138,206,0.24)" : "#dce9f6"
+          : "action.hover" },
         borderBottom: 1, borderBottomColor: "divider",
+        transition: "background-color 120ms",
       }}>
       <Checkbox size="small" checked={selected}
         onClick={(e) => { e.stopPropagation(); onToggle(); }} />
-      <IconButton size="small" onClick={(e) => { e.stopPropagation(); onStar(); }}>
+      <IconButton size="small" onClick={(e) => { e.stopPropagation(); onStar(); }}
+        sx={{ p: 0.4 }}>
         {msg.isStarred ? <StarIcon fontSize="small" sx={{ color: "warning.main" }} />
-          : <StarBorderIcon fontSize="small" />}
+          : <StarBorderIcon fontSize="small" sx={{ color: "text.disabled" }} />}
       </IconButton>
-      <Avatar sx={{ width: 32, height: 32, fontSize: 13, bgcolor: "primary.main" }}>{initials || "?"}</Avatar>
+      <Avatar sx={{
+        width: 34, height: 34, fontSize: 12.5, fontWeight: 700,
+        bgcolor: avatarTint, color: "#fff",
+      }}>{initials || "?"}</Avatar>
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Stack direction="row" alignItems="center" spacing={0.5}>
-          <Typography variant="body2" fontWeight={msg.isRead ? 500 : 800} noWrap sx={{ flex: 1 }}>
+          <Typography variant="body2" fontWeight={msg.isRead ? 500 : 800} noWrap
+            sx={{ flex: 1, fontSize: 13.5, color: msg.isRead ? "text.primary" : "text.primary" }}>
             {msg.senderDisplay}
           </Typography>
           {msg.isImportant && <PriorityHighIcon fontSize="small" sx={{ color: "error.main" }} />}
           {msg.automationSource && <Chip label="auto" size="small" sx={{ height: 16, fontSize: 10 }} />}
-          <Typography variant="caption" color="text.secondary">{dateShort(msg.sentAt ?? msg.createdAt)}</Typography>
+          <Typography variant="caption" sx={{
+            color: msg.isRead ? "text.secondary" : "primary.main",
+            fontWeight: msg.isRead ? 500 : 700, fontSize: 11.5,
+          }}>{dateShort(msg.sentAt ?? msg.createdAt)}</Typography>
         </Stack>
-        <Typography variant="body2" fontWeight={msg.isRead ? 500 : 700} noWrap>
+        <Typography variant="body2" fontWeight={msg.isRead ? 500 : 700} noWrap
+          sx={{ fontSize: 13, mt: 0.25 }}>
+
           {msg.isDraft && <Chip label="Πρόχειρο" size="small" color="warning" sx={{ mr: 0.5, height: 16, fontSize: 10 }} />}
           {msg.category && (() => {
             const cm = CATEGORIES.find(c => c.key === msg.category);
