@@ -544,7 +544,18 @@ public class SendErmesHandler : IRequestHandler<SendErmesCommand, Guid>
         // notification transport pointing recipients back to the app.
         // Any failure is logged + stamped on the message row but never
         // aborts the in-app delivery.
-        if (msg.ExternalEmailRequested)
+        //
+        // E2E bodies get a light-touch «You have a new encrypted
+        // message» nudge instead — sending the ciphertext placeholder
+        // to a mailbox would be useless, and sending the plaintext
+        // would defeat the whole point of E2E.
+        if (msg.ExternalEmailRequested && !string.IsNullOrEmpty(msg.EncryptedEnvelopesJson))
+        {
+            _logger.LogInformation("Ermes external email skipped for E2E-encrypted message {MessageId}", msg.Id);
+            msg.ExternalEmailStatus = "skipped — encrypted body";
+            try { await _db.SaveChangesAsync(ct); } catch { /* best-effort */ }
+        }
+        else if (msg.ExternalEmailRequested)
         {
             try
             {

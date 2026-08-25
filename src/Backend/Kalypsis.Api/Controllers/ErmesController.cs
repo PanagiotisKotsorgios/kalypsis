@@ -24,13 +24,22 @@ public class ErmesController : ControllerBase
     private readonly IMediator _m;
     private readonly IErmesRealtimeService _realtime;
     private readonly ICurrentUser _current;
-    public ErmesController(IMediator m, IErmesRealtimeService realtime, ICurrentUser current)
-    { _m = m; _realtime = realtime; _current = current; }
+    private readonly IEmailSender _email;
+    public ErmesController(IMediator m, IErmesRealtimeService realtime, ICurrentUser current,
+        IEmailSender email)
+    { _m = m; _realtime = realtime; _current = current; _email = email; }
 
     // ── Overview: folder counts + teams + contacts ─────────────────
     [HttpGet("overview")]
     public async Task<ActionResult<ErmesOverviewDto>> Overview(CancellationToken ct)
         => Ok(await _m.Send(new ErmesOverviewQuery(), ct));
+
+    /// <summary>Fast probe the composer uses to decide whether to enable
+    /// the «Αποστολή και σε email» switch. Configured on the platform
+    /// level — no per-tenant Brevo key.</summary>
+    [HttpGet("external-email/status")]
+    public async Task<ActionResult<object>> ExternalEmailStatus(CancellationToken ct)
+        => Ok(new { configured = await _email.IsConfiguredAsync(ct) });
 
     /// <summary>
     /// Server-Sent Events stream: keeps a long-lived HTTP connection open

@@ -966,6 +966,39 @@ function MessageRow({ msg, selected, active, onToggle, onOpen, onStar }: {
   );
 }
 
+// ─── External email switch ──────────────────────────────────────────
+/** Composer control that queries /api/ermes/external-email/status and
+ *  enables the "Αποστολή και σε email" toggle only when the platform
+ *  has a Brevo API key configured. Prevents users from turning on a
+ *  feature that would silently fail server-side. */
+function ExternalEmailSwitch({ value, onChange }: {
+  value: boolean; onChange: (v: boolean) => void;
+}) {
+  const cfg = useQuery({
+    queryKey: ["ermes", "external-email", "status"],
+    queryFn: async () => (await api.get<{ configured: boolean }>("/ermes/external-email/status")).data,
+    staleTime: 5 * 60 * 1000,
+  });
+  const configured = cfg.data?.configured === true;
+  const tip = configured
+    ? "Στέλνει και ένα «Έχετε νέο μήνυμα» email στους παραλήπτες μέσω του gateway της πλατφόρμας (δεν λειτουργεί για κρυπτογραφημένα E2E μηνύματα — σε αυτά η αποστολή email παραλείπεται server-side)."
+    : "Ο διαχειριστής της πλατφόρμας δεν έχει ρυθμίσει ακόμη το Brevo API key. Δεν είναι δυνατή η αποστολή σε εξωτερικό email.";
+  return (
+    <Tooltip title={tip}>
+      <span>
+        <FormControlLabel
+          sx={{ ml: 0, opacity: configured ? 1 : 0.55 }}
+          control={<Switch size="small" checked={configured && value} disabled={!configured}
+            onChange={(_e, v) => onChange(v)} />}
+          label={<Stack direction="row" alignItems="center" spacing={0.5}>
+            <AlternateEmailIcon fontSize="small" />
+            <Typography variant="body2">Αποστολή και σε email</Typography>
+          </Stack>} />
+      </span>
+    </Tooltip>
+  );
+}
+
 // ─── E2E-aware message body ─────────────────────────────────────────
 /**
  * Renders `m.bodyHtml`, but when the message has a per-recipient E2E
@@ -1588,21 +1621,12 @@ function ComposeDialog({
                       <Typography variant="body2">Υπογραφή</Typography>
                     </Stack>} />
                 )}
-                {/* External email is locked until the outbound gateway
-                    finishes stabilising. Switch is disabled + explains
-                    why on hover. */}
-                <Tooltip title="Υπό κατασκευή — τα μηνύματα παραδίδονται μόνο εντός Kalypsis, όχι σε εξωτερικό email.">
-                  <span>
-                    <FormControlLabel
-                      sx={{ ml: 0, opacity: 0.55 }}
-                      control={<Switch size="small" checked={false} disabled
-                        onChange={(_e, v) => setSendExternal(v)} />}
-                      label={<Stack direction="row" alignItems="center" spacing={0.5}>
-                        <AlternateEmailIcon fontSize="small" />
-                        <Typography variant="body2">Αποστολή και σε email (υπό κατασκευή)</Typography>
-                      </Stack>} />
-                  </span>
-                </Tooltip>
+                {/* External email routed through the platform's Brevo
+                    integration. Switch is only enabled when a platform
+                    admin has configured the API key + verified sender
+                    address in PlatformSettings. Refuses to fire for
+                    E2E-encrypted bodies server-side. */}
+                <ExternalEmailSwitch value={sendExternal} onChange={setSendExternal} />
               </Stack>
 
               {/* Voice recorder panel */}
