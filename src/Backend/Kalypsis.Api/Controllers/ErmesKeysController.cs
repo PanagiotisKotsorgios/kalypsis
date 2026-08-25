@@ -41,6 +41,13 @@ public class ErmesKeysController : ControllerBase
     public record PublicKeyDto(Guid UserId, string Algorithm, string PublicKeySpkiBase64, string KeyId);
     public record UploadKeyBody(string Algorithm, string PublicKeySpkiBase64, string KeyId);
     public record MeetingDto(string RoomName, string Url, string Provider);
+    public record KeyBackupDto(
+        string KeyId, string SaltB64, string IvB64, string WrappedB64,
+        string PublicSpkiB64, string KdfName, int KdfIterations,
+        DateTime CreatedAt);
+    public record UploadKeyBackupBody(
+        string KeyId, string SaltB64, string IvB64, string WrappedB64,
+        string PublicSpkiB64);
 
     /// <summary>Do I have a key registered? Fast probe so the client
     /// avoids re-generating a keypair every time it loads.</summary>
@@ -111,6 +118,84 @@ public class ErmesKeysController : ControllerBase
             .FirstOrDefaultAsync(ct);
         if (row is null) return Ok(null);
         return Ok(new PublicKeyDto(row.UserId, row.Algorithm, row.PublicKeySpkiBase64, row.KeyId));
+    }
+
+    // ── Passphrase-wrapped private-key backup ────────────────────
+    //
+    // The client wraps its private key with a KEK derived from the
+    // user's passphrase via PBKDF2 and uploads the encrypted blob here.
+    // We NEVER see the passphrase or the plaintext key — restore is done
+    // fully client-side. Enables multi-device + browser-data-clear
+    // recovery for E2E messages that would otherwise be lost forever.
+
+    /// <summary>Fetch this user's latest backup blob. Returns 404 when
+    /// no backup exists — the client should prompt the user to create
+    /// one on their current device.</summary>
+    [HttpGet("keys/backup")]
+    public async Task<ActionResult<KeyBackupDto>> GetBackup(CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var userId = _current.UserId ?? throw AppException.Unauthorized();
+        var row = await _db.UserKeyBackups.AsNoTracking()
+            .Where(b => b.TenantId == tenantId && b.UserId == userId && b.DeletedAt == null)
+            .OrderByDescending(b => b.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+        if (row is null) return NotFound();
+        return Ok(new KeyBackupDto(row.KeyId, row.SaltB64, row.IvB64,
+            row.WrappedB64, row.PublicSpkiB64, row.KdfName, row.KdfIterations,
+            row.CreatedAt));
+    }
+
+    /// <summary>Upload / replace the user's key backup. Idempotent per
+    /// keyId — subsequent uploads with the same keyId overwrite in place
+    /// (user changed their passphrase); a new keyId adds a new row
+    /// (user rotated their keypair; old backup kept in case older
+    /// ciphertext needs decrypting).</summary>
+    [HttpPut("keys/backup")]
+    public async Task<ActionResult<KeyBackupDto>> PutBackup([FromBody] UploadKeyBackupBody body, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var userId = _current.UserId ?? throw AppException.Unauthorized();
+        if (string.IsNullOrWhiteSpace(body.KeyId)
+            || string.IsNullOrWhiteSpace(body.SaltB64)
+            || string.IsNullOrWhiteSpace(body.IvB64)
+            || string.IsNullOrWhiteSpace(body.WrappedB64)
+            || string.IsNullOrWhiteSpace(body.PublicSpkiB64))
+            throw new AppException("bad_backup", "Missing backup fields.", 400);
+
+        // Sanity size bounds — wrapped PKCS8 for ECDH-P256 is ~150-200
+        // bytes → ~250 base64. Refuse anything wildly wrong to keep an
+        // attacker from filling the column with garbage.
+        if (body.WrappedB64.Length > 4000)
+            throw new AppException("bad_backup_size", "Wrapped key is unexpectedly large.", 400);
+
+        var existing = await _db.UserKeyBackups
+            .FirstOrDefaultAsync(b => b.TenantId == tenantId && b.UserId == userId && b.KeyId == body.KeyId, ct);
+        if (existing is not null)
+        {
+            existing.DeletedAt = null;
+            existing.SaltB64 = body.SaltB64;
+            existing.IvB64 = body.IvB64;
+            existing.WrappedB64 = body.WrappedB64;
+            existing.PublicSpkiB64 = body.PublicSpkiB64;
+        }
+        else
+        {
+            _db.UserKeyBackups.Add(new UserKeyBackup
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                UserId = userId,
+                KeyId = body.KeyId,
+                SaltB64 = body.SaltB64,
+                IvB64 = body.IvB64,
+                WrappedB64 = body.WrappedB64,
+                PublicSpkiB64 = body.PublicSpkiB64,
+                CreatedAt = _clock.UtcNow,
+            });
+        }
+        await _db.SaveChangesAsync(ct);
+        return await GetBackup(ct);
     }
 
     /// <summary>Deterministic Jitsi Meet room name + URL for a thread.

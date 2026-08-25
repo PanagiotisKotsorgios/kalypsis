@@ -96,12 +96,22 @@ export async function ensureE2EKeypair(myUserId: string): Promise<KeyEnvelope | 
     return { publicKey: stored.publicKey, privateKey: stored.privateKey, keyId: stored.keyId, publicSpkiB64: b64encode(spki) };
   }
 
-  // Generate a fresh pair. `extractable: true` on the PUBLIC key so we can
-  // export it as SPKI; the PRIVATE key stays extractable:false — pinned
-  // to this browser, never leaves.
+  // If the server ALREADY knows a public key for this user but this
+  // browser doesn't have the matching private key, do NOT silently
+  // rotate — that would orphan every past encrypted message. Return
+  // null; the UI shows the «Επαναφορά κλειδιού» chip which opens the
+  // KeyBackupDialog for the user to restore from their backup.
+  if (serverKeyId && (!stored || stored.keyId !== serverKeyId)) return null;
+
+  // Generate a fresh pair. We now use `extractable: true` so the user
+  // can back up their private key with a passphrase (see
+  // exportPrivateKeyWrapped below) — otherwise clearing browser data or
+  // switching devices means every past encrypted message becomes
+  // permanently unreadable. The key STILL never leaves this browser
+  // unless the user explicitly opts in to backup.
   const pair = await window.crypto.subtle.generateKey(
     { name: "ECDH", namedCurve: "P-256" },
-    false, // extractable — private key MUST NOT be exportable
+    true,
     ["deriveKey", "deriveBits"],
   );
   // ECDH keys don't need "sign/verify" — we only need to export the
@@ -112,6 +122,91 @@ export async function ensureE2EKeypair(myUserId: string): Promise<KeyEnvelope | 
   await idbPut({ id: myUserId, keyId, privateKey: pair.privateKey, publicKey: pair.publicKey });
   await api.put("/ermes/keys/mine", { algorithm: "ECDH-P256", publicKeySpkiBase64: publicSpkiB64, keyId });
   return { publicKey: pair.publicKey, privateKey: pair.privateKey, keyId, publicSpkiB64 };
+}
+
+// ── Passphrase-wrapped key backup ────────────────────────────────────
+//
+// The user picks a passphrase → we derive a KEK with PBKDF2 (200 000
+// SHA-256 rounds) → wrap the PKCS8-exported private key with AES-256-GCM.
+// The wrapped blob is uploaded to the server (indexed by userId) and
+// stored opaquely — the server never sees the passphrase and can't
+// unwrap the key. Restore reverses the flow on a new device.
+//
+// Threat model: the passphrase is the ONLY thing between an attacker with
+// server access and the user's private key. Encourage a long passphrase.
+
+const KDF_ITERS = 200_000;
+
+async function deriveKekFromPassphrase(passphrase: string, saltB64: string): Promise<CryptoKey> {
+  const material = await window.crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(passphrase),
+    { name: "PBKDF2" }, false, ["deriveKey"]);
+  return window.crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: b64decode(saltB64), iterations: KDF_ITERS, hash: "SHA-256" },
+    material,
+    { name: "AES-GCM", length: 256 },
+    false, ["wrapKey", "unwrapKey", "encrypt", "decrypt"],
+  );
+}
+
+/** Wrap the browser's private key with a passphrase-derived KEK. The
+ *  returned blob is safe to store server-side — the passphrase never
+ *  travels. Throws if the private key was generated non-extractable
+ *  (pre-backup-support users must rotate to enable backups). */
+export async function exportPrivateKeyWrapped(myUserId: string, passphrase: string): Promise<{
+  saltB64: string; ivB64: string; wrappedB64: string; publicSpkiB64: string; keyId: string;
+}> {
+  const stored = await idbGet<{ id: string; keyId: string; privateKey: CryptoKey; publicKey: CryptoKey }>(myUserId);
+  if (!stored) throw new Error("Δεν βρέθηκε ζεύγος κλειδιών στον browser.");
+  const salt = window.crypto.getRandomValues(new Uint8Array(16));
+  const saltB64 = b64encode(salt.buffer);
+  const kek = await deriveKekFromPassphrase(passphrase, saltB64);
+  // Export the private key as PKCS8 → encrypt with AES-GCM under the KEK.
+  const pkcs8 = await window.crypto.subtle.exportKey("pkcs8", stored.privateKey);
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const wrapped = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, kek, pkcs8);
+  const publicSpki = await window.crypto.subtle.exportKey("spki", stored.publicKey);
+  return {
+    saltB64,
+    ivB64: b64encode(iv.buffer),
+    wrappedB64: b64encode(wrapped),
+    publicSpkiB64: b64encode(publicSpki),
+    keyId: stored.keyId,
+  };
+}
+
+/** Restore a keypair from a server-stored wrapped blob using the user's
+ *  passphrase. Imports the keys into IndexedDB so this browser can now
+ *  read past encrypted messages. */
+export async function importPrivateKeyWrapped(
+  myUserId: string, passphrase: string,
+  blob: { saltB64: string; ivB64: string; wrappedB64: string; publicSpkiB64: string; keyId: string },
+): Promise<KeyEnvelope> {
+  const kek = await deriveKekFromPassphrase(passphrase, blob.saltB64);
+  let pkcs8: ArrayBuffer;
+  try {
+    pkcs8 = await window.crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: new Uint8Array(b64decode(blob.ivB64)) },
+      kek,
+      b64decode(blob.wrappedB64),
+    );
+  } catch {
+    throw new Error("Λάθος κωδικός επαναφοράς.");
+  }
+  const privateKey = await window.crypto.subtle.importKey(
+    "pkcs8", pkcs8, { name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey", "deriveBits"]);
+  const publicKey = await window.crypto.subtle.importKey(
+    "spki", b64decode(blob.publicSpkiB64), { name: "ECDH", namedCurve: "P-256" }, true, []);
+  await idbPut({ id: myUserId, keyId: blob.keyId, privateKey, publicKey });
+  return { publicKey, privateKey, keyId: blob.keyId, publicSpkiB64: blob.publicSpkiB64 };
+}
+
+/** True when this browser holds an EXTRACTABLE private key — i.e. one
+ *  we could actually export in a backup. Older keys were generated as
+ *  extractable:false and cannot be backed up without a key rotation. */
+export async function canBackupCurrentKey(myUserId: string): Promise<boolean> {
+  const stored = await idbGet<{ privateKey: CryptoKey }>(myUserId);
+  return !!stored && stored.privateKey.extractable === true;
 }
 
 /** Read the caller's private key from IndexedDB (does NOT go to the

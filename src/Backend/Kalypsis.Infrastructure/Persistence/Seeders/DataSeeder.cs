@@ -718,6 +718,30 @@ public static class DataSeeder
                 KEY `IX_upk_Tenant_User` (`TenantId`, `UserId`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
 
+        // --- user_key_backups: passphrase-wrapped private-key backup.
+        // Encrypted client-side with a KEK derived from the user's
+        // passphrase via PBKDF2 (200k SHA-256). Server holds only
+        // ciphertext + salt + IV — no way to unwrap without the pass.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "user_key_backups",
+            createSql: @"CREATE TABLE IF NOT EXISTS `user_key_backups` (
+                `Id`             char(36) NOT NULL,
+                `TenantId`       char(36) NOT NULL,
+                `UserId`         char(36) NOT NULL,
+                `KeyId`          varchar(64) NOT NULL,
+                `SaltB64`        varchar(64) NOT NULL,
+                `IvB64`          varchar(64) NOT NULL,
+                `WrappedB64`     longtext NOT NULL,
+                `PublicSpkiB64`  longtext NOT NULL,
+                `KdfName`        varchar(40) NOT NULL DEFAULT 'PBKDF2-SHA256',
+                `KdfIterations`  int NOT NULL DEFAULT 200000,
+                `CreatedAt`      datetime(6) NOT NULL,
+                `UpdatedAt`      datetime(6) NULL,
+                `DeletedAt`      datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_ukb_Tenant_User_KeyId` (`TenantId`, `UserId`, `KeyId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
         // --- landing_contents: editable content blocks for the public
         // landing page (ERMES showcase, hero copy, feature grids). One
         // JSON row per section. Frontend reads with hardcoded defaults

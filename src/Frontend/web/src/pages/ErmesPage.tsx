@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { ensureE2EKeypair, buildEnvelopesForRecipients, decryptEnvelopePayload,
   getStoredPrivateKey, generateFileKeyB64, encryptFileBlob, encryptFileNameB64,
   decryptFileBlob, decryptFileNameB64,
+  exportPrivateKeyWrapped, importPrivateKeyWrapped, canBackupCurrentKey,
   type WireEnvelope } from "../ermes/keyManager";
 import LockIcon from "@mui/icons-material/Lock";
 import {
   Alert, Autocomplete, Avatar, Box, Button, Card, Checkbox, Chip,
   CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   Divider, IconButton, InputAdornment, List, ListItem, ListItemAvatar,
+  Tab, Tabs,
   ListItemButton, ListItemText, Menu, MenuItem, Stack, TextField, Tooltip,
   Typography
 } from "@mui/material";
@@ -330,6 +332,7 @@ export function ErmesPage() {
   // (or a new tab if the browser blocks embedding). Jitsi handles the
   // WebRTC signalling + TURN — we own only the room-name derivation.
   const [meetingUrl, setMeetingUrl] = useState<string | null>(null);
+  const [backupOpen, setBackupOpen] = useState(false);
   const startMeetingForThread = async (threadId: string) => {
     try {
       const r = await api.get<{ url: string; roomName: string }>("/ermes/meeting/room",
@@ -501,10 +504,19 @@ export function ErmesPage() {
             provisioned in this browser + registered on the server. Users
             know at a glance that this session is E2E-ready. */}
         {e2eStatus === "ready" && (
-          <Tooltip title="Το πρόγραμμα περιήγησής σας έχει ζεύγος κλειδιών E2E — το ιδιωτικό μένει τοπικά, το δημόσιο δημοσιεύθηκε στους συνεργάτες σας.">
+          <Tooltip title="Κρυπτογραφημένη σύνοδος. Κάντε κλικ για αντίγραφο ασφαλείας / επαναφορά του ιδιωτικού κλειδιού σε άλλη συσκευή.">
             <Chip icon={<LockIcon sx={{ fontSize: 15 }} />} label="Κρυπτογραφημένη"
               size="small" color="success" variant="outlined"
-              sx={{ fontWeight: 700, mr: 1 }} />
+              onClick={() => setBackupOpen(true)}
+              sx={{ fontWeight: 700, mr: 1, cursor: "pointer" }} />
+          </Tooltip>
+        )}
+        {e2eStatus === "unsupported" && myId && (
+          <Tooltip title="Δεν βρέθηκε κλειδί σε αυτόν τον browser. Κάντε επαναφορά από αντίγραφο ασφαλείας για να διαβάσετε κρυπτογραφημένα μηνύματα.">
+            <Chip icon={<LockIcon sx={{ fontSize: 15 }} />} label="Επαναφορά κλειδιού"
+              size="small" color="warning" variant="outlined"
+              onClick={() => setBackupOpen(true)}
+              sx={{ fontWeight: 700, mr: 1, cursor: "pointer" }} />
           </Tooltip>
         )}
         {openThreadId && (
@@ -839,6 +851,15 @@ export function ErmesPage() {
       <ChannelDialog team={channelTeam} onClose={() => setChannelTeam(null)}
         meDisplay={((user?.firstName ?? "") + " " + (user?.lastName ?? "")).trim()} />
 
+      {/* E2E key backup + restore */}
+      <KeyBackupDialog open={backupOpen} onClose={() => setBackupOpen(false)}
+        myId={myId ?? ""}
+        onRestored={(env) => {
+          setE2eKeys(env);
+          setE2eStatus("ready");
+          void qc.invalidateQueries({ queryKey: ["ermes"] });
+        }} />
+
       {/* Jitsi Meet dialog — deterministic room name comes from
           /api/ermes/meeting/room?threadId. Every participant on the
           same thread who hits the button lands in the same call.
@@ -969,6 +990,140 @@ function MessageRow({ msg, selected, active, onToggle, onOpen, onStar }: {
         </Typography>
       </Box>
     </Box>
+  );
+}
+
+// ─── Key backup + restore dialog ─────────────────────────────────────
+/**
+ * Passphrase-protected backup/restore for the ΕΡΜΗΣ E2E private key.
+ *
+ * Backup flow:
+ *   user enters a passphrase → PBKDF2 → wrap PKCS8 private key with
+ *   AES-256-GCM → PUT /api/ermes/keys/backup with the encrypted blob.
+ *   Server never sees the passphrase or the key.
+ *
+ * Restore flow (new device / after clearing browser data):
+ *   GET /api/ermes/keys/backup → user enters the same passphrase →
+ *   PBKDF2 → unwrap → import into IndexedDB → this browser can now
+ *   read every past encrypted message.
+ *
+ * NEVER offer to "reset" the passphrase — that would silently drop
+ * every historical encrypted message. Losing the passphrase = losing
+ * old messages, full stop. The dialog says so explicitly.
+ */
+function KeyBackupDialog({ open, onClose, myId, onRestored }: {
+  open: boolean; onClose: () => void; myId: string;
+  onRestored: (env: Awaited<ReturnType<typeof importPrivateKeyWrapped>>) => void;
+}) {
+  const [mode, setMode] = useState<"backup" | "restore">("backup");
+  const [pass, setPass] = useState("");
+  const [pass2, setPass2] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+  const [canBackup, setCanBackup] = useState<boolean>(true);
+  const [hasServerBackup, setHasServerBackup] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!open || !myId) return;
+    setErr(null); setOk(null); setPass(""); setPass2("");
+    (async () => {
+      try { setCanBackup(await canBackupCurrentKey(myId)); } catch { setCanBackup(false); }
+      try {
+        const r = await api.get("/ermes/keys/backup");
+        setHasServerBackup(!!r.data);
+      } catch (e: any) {
+        if (e?.response?.status === 404) setHasServerBackup(false);
+      }
+    })();
+  }, [open, myId]);
+
+  const backup = async () => {
+    setErr(null); setOk(null);
+    if (pass.length < 10) { setErr("Επιλέξτε ισχυρή φράση (≥10 χαρακτήρες)."); return; }
+    if (pass !== pass2) { setErr("Οι φράσεις δεν συμφωνούν."); return; }
+    setBusy(true);
+    try {
+      const wrapped = await exportPrivateKeyWrapped(myId, pass);
+      await api.put("/ermes/keys/backup", wrapped);
+      setOk("Το αντίγραφο ασφαλείας αποθηκεύθηκε. Φυλάξτε τη φράση — χωρίς αυτήν δεν γίνεται επαναφορά.");
+      setHasServerBackup(true);
+    } catch (e) { setErr(extractErrorMessage(e)); } finally { setBusy(false); }
+  };
+
+  const restore = async () => {
+    setErr(null); setOk(null);
+    if (!pass) { setErr("Απαιτείται η φράση επαναφοράς."); return; }
+    setBusy(true);
+    try {
+      const r = await api.get<{
+        keyId: string; saltB64: string; ivB64: string; wrappedB64: string;
+        publicSpkiB64: string; kdfName: string; kdfIterations: number;
+      }>("/ermes/keys/backup");
+      const env = await importPrivateKeyWrapped(myId, pass, r.data);
+      setOk("Το κλειδί επαναφέρθηκε — μπορείτε τώρα να διαβάσετε παλιά κρυπτογραφημένα μηνύματα.");
+      onRestored(env);
+    } catch (e) { setErr(extractErrorMessage(e)); } finally { setBusy(false); }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ fontWeight: 800, display: "flex", alignItems: "center", gap: 1 }}>
+        <LockIcon color="primary" />
+        Αντίγραφο ασφαλείας κλειδιού E2E
+      </DialogTitle>
+      <DialogContent>
+        <Tabs value={mode} onChange={(_e, v) => { setMode(v); setErr(null); setOk(null); }} sx={{ mb: 2 }}>
+          <Tab value="backup" label={hasServerBackup ? "Ενημέρωση αντιγράφου" : "Δημιουργία αντιγράφου"} />
+          <Tab value="restore" label="Επαναφορά σε αυτόν τον browser" disabled={!hasServerBackup} />
+        </Tabs>
+
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Η φράση επαναφοράς <b>ΔΕΝ αποθηκεύεται</b> στη πλατφόρμα. Αν την ξεχάσετε,
+          τα ήδη κρυπτογραφημένα μηνύματα σας γίνονται μη-αναγνώσιμα για πάντα.
+        </Alert>
+
+        {mode === "backup" && !canBackup && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Το τρέχον κλειδί δημιουργήθηκε πριν την υποστήριξη backup. Θα πρέπει
+            να δημιουργηθεί νέο ζεύγος κλειδιών (rotation) για να ενεργοποιηθεί
+            το αντίγραφο ασφαλείας — μελλοντικά μηνύματα θα κρυπτογραφηθούν με
+            το νέο, τα παλιά παραμένουν αναγνώσιμα από τον υπάρχοντα browser.
+          </Alert>
+        )}
+
+        {mode === "backup" ? (
+          <Stack spacing={2}>
+            <TextField label="Φράση επαναφοράς" type="password" value={pass} disabled={!canBackup || busy}
+              onChange={e => setPass(e.target.value)} fullWidth autoFocus
+              helperText="Τουλάχιστον 10 χαρακτήρες. Συνιστάται μια πρόταση που θυμάστε." />
+            <TextField label="Επιβεβαίωση" type="password" value={pass2} disabled={!canBackup || busy}
+              onChange={e => setPass2(e.target.value)} fullWidth />
+          </Stack>
+        ) : (
+          <Stack spacing={2}>
+            <TextField label="Φράση επαναφοράς" type="password" value={pass} disabled={busy}
+              onChange={e => setPass(e.target.value)} fullWidth autoFocus
+              helperText="Η ίδια φράση που δώσατε όταν δημιουργήσατε το αντίγραφο." />
+          </Stack>
+        )}
+
+        {err && <Alert severity="error" sx={{ mt: 2 }}>{err}</Alert>}
+        {ok && <Alert severity="success" sx={{ mt: 2 }}>{ok}</Alert>}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={busy}>Κλείσιμο</Button>
+        {mode === "backup" ? (
+          <Button variant="contained" onClick={backup} disabled={!canBackup || busy}>
+            {busy ? "Αποθήκευση…" : (hasServerBackup ? "Ενημέρωση" : "Δημιουργία")}
+          </Button>
+        ) : (
+          <Button variant="contained" onClick={restore} disabled={busy || !hasServerBackup}>
+            {busy ? "Επαναφορά…" : "Επαναφορά"}
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
   );
 }
 

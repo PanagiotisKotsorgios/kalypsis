@@ -264,6 +264,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<DocumentationAsset> DocumentationAssets => Set<DocumentationAsset>();
     public DbSet<LandingContent> LandingContents => Set<LandingContent>();
     public DbSet<UserPublicKey> UserPublicKeys => Set<UserPublicKey>();
+    public DbSet<UserKeyBackup> UserKeyBackups => Set<UserKeyBackup>();
 
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
 
@@ -352,6 +353,8 @@ public class AppDbContext : DbContext, IAppDbContext
             .HasIndex(x => x.SectionKey).IsUnique();
         modelBuilder.Entity<UserPublicKey>().ToTable("user_public_keys")
             .HasIndex(x => new { x.TenantId, x.UserId });
+        modelBuilder.Entity<UserKeyBackup>().ToTable("user_key_backups")
+            .HasIndex(x => new { x.TenantId, x.UserId, x.KeyId }).IsUnique();
         // SupportTicket / SupportTicketReply also live in seeder-managed
         // snake_case tables. Without these mappings EF pluralises to
         // `SupportTickets` and the platform backup job explodes on Linux
