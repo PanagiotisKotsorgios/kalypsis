@@ -262,6 +262,7 @@ public class AppDbContext : DbContext, IAppDbContext
 
     public DbSet<DocumentationSection> DocumentationSections => Set<DocumentationSection>();
     public DbSet<DocumentationAsset> DocumentationAssets => Set<DocumentationAsset>();
+    public DbSet<LandingContent> LandingContents => Set<LandingContent>();
 
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
 
@@ -346,6 +347,8 @@ public class AppDbContext : DbContext, IAppDbContext
         modelBuilder.Entity<DocumentationSection>().ToTable("documentation_sections")
             .HasIndex(x => x.Slug).IsUnique();
         modelBuilder.Entity<DocumentationAsset>().ToTable("documentation_assets");
+        modelBuilder.Entity<LandingContent>().ToTable("landing_contents")
+            .HasIndex(x => x.SectionKey).IsUnique();
         // SupportTicket / SupportTicketReply also live in seeder-managed
         // snake_case tables. Without these mappings EF pluralises to
         // `SupportTickets` and the platform backup job explodes on Linux

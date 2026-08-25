@@ -658,6 +658,24 @@ public static class DataSeeder
         try { await Kalypsis.Infrastructure.Persistence.Seeders.DocumentationSeeder.SeedIfEmptyAsync(db, ct); }
         catch (Exception ex) { logger.LogWarning(ex, "Documentation seed skipped — continuing boot."); }
 
+        // --- landing_contents: editable content blocks for the public
+        // landing page (ERMES showcase, hero copy, feature grids). One
+        // JSON row per section. Frontend reads with hardcoded defaults
+        // as fallback so a fresh DB still renders the marketing page.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "landing_contents",
+            createSql: @"CREATE TABLE IF NOT EXISTS `landing_contents` (
+                `Id`               char(36) NOT NULL,
+                `SectionKey`       varchar(80) NOT NULL,
+                `PayloadJson`      longtext NOT NULL,
+                `UpdatedByUserId`  char(36) NULL,
+                `CreatedAt`        datetime(6) NOT NULL,
+                `UpdatedAt`        datetime(6) NULL,
+                `DeletedAt`        datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_landing_SectionKey` (`SectionKey`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
         // --- general_financial_entries: free-form γενικά έσοδα/έξοδα γραφείου -
         // NEW table; safe-create so an empty tenant boots without a migration.
         await EnsureTableAsync(db, logger, dbName,

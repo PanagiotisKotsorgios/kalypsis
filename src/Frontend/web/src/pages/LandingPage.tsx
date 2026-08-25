@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Alert, Box, Button, Chip, CircularProgress, Container, Divider, Drawer, IconButton,
   Stack, TextField, Typography
@@ -1275,24 +1276,69 @@ function DesktopAppSection() {
    end-to-end encryption, meetings, contacts, and hammers the "δωρεάν για
    πάντα" pricing angle that ΕΡΜΗΣ is included with every Kalypsis plan.
    ============================================================================ */
+// The full editable payload for the ΕΡΜΗΣ landing section — hardcoded
+// here as the default. PlatformAdmin overrides land in landing_contents
+// keyed by "ermes-showcase" and get merged on top field-by-field, so a
+// missing field always falls back to the default. Keeps the marketing
+// page rendering even before the admin customises anything.
+export interface ErmesShowcaseContent {
+  eyebrow: string;
+  chip: string;
+  title: string;
+  subtitle: string;
+  screenshot1Url: string | null;
+  screenshot1Caption: string;
+  screenshot2Url: string | null;
+  screenshot2Caption: string;
+  features: { chip: string; title: string; body: string }[];
+  footerNote: string;
+  ctaLabel: string;
+  ctaTo: string;
+}
+
+export const ERMES_SHOWCASE_DEFAULTS: ErmesShowcaseContent = {
+  eyebrow: "ΕΡΜΗΣ · Kalypsis-native επικοινωνία",
+  chip: "ΔΩΡΕΑΝ ΓΙΑ ΠΑΝΤΑ",
+  title: "Ο ΕΡΜΗΣ ενώνει το γραφείο σας",
+  subtitle: "Κρυπτογραφημένα μηνύματα, θέματα και meetings ανάμεσα σε συνεργάτες, πελάτες και ασφαλιστικές — χωρίς Viber, χωρίς Messenger, χωρίς email spam. Περιλαμβάνεται σε κάθε πλάνο Kalypsis δωρεάν για πάντα, χωρίς όριο χρηστών.",
+  screenshot1Url: null,
+  screenshot1Caption: "Εισερχόμενα, κανάλια και ομαδικές συνομιλίες σε ένα inbox.",
+  screenshot2Url: null,
+  screenshot2Caption: "Ενιαία υποδοχή με KPIs, γρήγορες ενέργειες και αγαπημένες επαφές.",
+  features: [
+    { chip: "E2EE", title: "Κρυπτογραφημένη επικοινωνία",
+      body: "Απευθείας μηνύματα, θέματα και ομαδικά κανάλια end-to-end encrypted. Ούτε η Kalypsis ούτε τρίτοι μπορούν να διαβάσουν το περιεχόμενο." },
+    { chip: "Meet", title: "Meetings χωρίς download",
+      body: "Ξεκινήστε τηλεδιάσκεψη με έναν συνεργάτη ή ασφαλιστική εταιρεία μέσα από τη συνομιλία. Δεν χρειάζεται εγκατάσταση εφαρμογής." },
+    { chip: "Auto-contacts", title: "Επαφές πρακτορείου έτοιμες",
+      body: "Οι συνεργάτες με λογαριασμό Kalypsis εμφανίζονται αυτόματα στις επαφές — δεν χρειάζεται να ζητήσετε emails ή τηλέφωνα." },
+  ],
+  footerNote: "Δεν χρειάζεται πιστωτική κάρτα · Δωρεάν για κάθε πλάνο Kalypsis · Ελληνική φιλοξενία",
+  ctaLabel: "Ξεκινήστε δωρεάν με τον ΕΡΜΗ",
+  ctaTo: "/register",
+};
+
 function ErmesShowcaseSection() {
-  const features = [
-    {
-      title: "Κρυπτογραφημένη επικοινωνία",
-      body: "Απευθείας μηνύματα, θέματα και ομαδικά κανάλια end-to-end encrypted. Ούτε η Kalypsis ούτε τρίτοι μπορούν να διαβάσουν το περιεχόμενο.",
-      chip: "E2EE",
+  // Pull the admin's overrides. 404 (no row saved yet) is a valid state —
+  // react-query catches the error and we fall back to defaults silently.
+  const q = useQuery({
+    queryKey: ["landing-content", "ermes-showcase"],
+    queryFn: async () => {
+      try {
+        const r = await api.get<{ payloadJson: string }>("/landing/content/ermes-showcase");
+        return JSON.parse(r.data.payloadJson) as Partial<ErmesShowcaseContent>;
+      } catch { return {} as Partial<ErmesShowcaseContent>; }
     },
-    {
-      title: "Meetings χωρίς download",
-      body: "Ξεκινήστε τηλεδιάσκεψη με έναν συνεργάτη ή ασφαλιστική εταιρεία μέσα από τη συνομιλία. Δεν χρειάζεται εγκατάσταση εφαρμογής.",
-      chip: "Meet",
-    },
-    {
-      title: "Επαφές πρακτορείου έτοιμες",
-      body: "Οι συνεργάτες με λογαριασμό Kalypsis εμφανίζονται αυτόματα στις επαφές — δεν χρειάζεται να ζητήσετε emails ή τηλέφωνα.",
-      chip: "Auto-contacts",
-    },
-  ];
+    staleTime: 60_000,
+  });
+  const content: ErmesShowcaseContent = useMemo(() => ({
+    ...ERMES_SHOWCASE_DEFAULTS,
+    ...(q.data ?? {}),
+    features: (q.data?.features && q.data.features.length > 0)
+      ? q.data.features
+      : ERMES_SHOWCASE_DEFAULTS.features,
+  }), [q.data]);
+  const features = content.features;
 
   // Inline SVG "screenshots" so the section always renders even without
   // real assets. They mimic the ΕΡΜΗΣ layout at a distance so visitors
@@ -1444,22 +1490,19 @@ function ErmesShowcaseSection() {
               fontSize: 11, letterSpacing: "0.25em", textTransform: "uppercase",
               color: ACCENT, fontWeight: 700
             }}>
-              ΕΡΜΗΣ · Kalypsis-native επικοινωνία
+              {content.eyebrow}
             </Typography>
-            <Chip label="ΔΩΡΕΑΝ ΓΙΑ ΠΑΝΤΑ" size="small" color="success"
+            <Chip label={content.chip} size="small" color="success"
               sx={{ fontWeight: 800, letterSpacing: "0.06em" }} />
           </Stack>
           <Typography variant="h3" sx={{
             fontWeight: 900, fontSize: { xs: 28, sm: 36, md: 44 },
             color: NAVY, mb: 1.5, letterSpacing: "-0.01em"
           }}>
-            Ο ΕΡΜΗΣ ενώνει το γραφείο σας
+            {content.title}
           </Typography>
           <Typography sx={{ color: NAVY_SOFT, maxWidth: 780, fontSize: { xs: 15, md: 17 }, lineHeight: 1.6 }}>
-            Κρυπτογραφημένα μηνύματα, θέματα και meetings ανάμεσα σε συνεργάτες,
-            πελάτες και ασφαλιστικές — χωρίς Viber, χωρίς Messenger, χωρίς email
-            spam. Περιλαμβάνεται σε κάθε πλάνο Kalypsis <strong>δωρεάν για πάντα</strong>,
-            χωρίς όριο χρηστών.
+            {content.subtitle}
           </Typography>
         </Reveal>
 
@@ -1477,11 +1520,11 @@ function ErmesShowcaseSection() {
               boxShadow: "0 20px 40px -20px rgba(11,37,69,0.25)",
               bgcolor: "#fff",
             }}>
-              <Box component="img" src={inboxSvg} alt="Στιγμιότυπο εισερχομένων ΕΡΜΗΣ"
+              <Box component="img" src={content.screenshot1Url ?? inboxSvg} alt="Στιγμιότυπο εισερχομένων ΕΡΜΗΣ"
                 sx={{ width: "100%", display: "block" }} />
               <Box sx={{ p: 2, borderTop: "1px solid", borderColor: RULE }}>
                 <Typography variant="body2" color="text.secondary">
-                  Εισερχόμενα, κανάλια και ομαδικές συνομιλίες σε ένα inbox.
+                  {content.screenshot1Caption}
                 </Typography>
               </Box>
             </Box>
@@ -1493,11 +1536,11 @@ function ErmesShowcaseSection() {
               boxShadow: "0 20px 40px -20px rgba(11,37,69,0.25)",
               bgcolor: "#fff",
             }}>
-              <Box component="img" src={welcomeSvg} alt="Στιγμιότυπο υποδοχής ΕΡΜΗΣ"
+              <Box component="img" src={content.screenshot2Url ?? welcomeSvg} alt="Στιγμιότυπο υποδοχής ΕΡΜΗΣ"
                 sx={{ width: "100%", display: "block" }} />
               <Box sx={{ p: 2, borderTop: "1px solid", borderColor: RULE }}>
                 <Typography variant="body2" color="text.secondary">
-                  Ενιαία υποδοχή με KPIs, γρήγορες ενέργειες και αγαπημένες επαφές.
+                  {content.screenshot2Caption}
                 </Typography>
               </Box>
             </Box>
@@ -1537,11 +1580,11 @@ function ErmesShowcaseSection() {
         <Reveal delay={400}>
           <Box sx={{ mt: 4, textAlign: "center" }}>
             <Typography sx={{ color: NAVY_SOFT, mb: 1 }}>
-              Δεν χρειάζεται πιστωτική κάρτα · Δωρεάν για κάθε πλάνο Kalypsis · Ελληνική φιλοξενία
+              {content.footerNote}
             </Typography>
-            <Button component={RouterLink} to="/register" variant="contained" size="large"
+            <Button component={RouterLink} to={content.ctaTo} variant="contained" size="large"
               sx={{ fontWeight: 700, px: 4, mt: 1 }}>
-              Ξεκινήστε δωρεάν με τον ΕΡΜΗ
+              {content.ctaLabel}
             </Button>
           </Box>
         </Reveal>
