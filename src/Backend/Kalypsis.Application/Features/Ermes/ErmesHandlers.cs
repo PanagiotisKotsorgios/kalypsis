@@ -379,9 +379,11 @@ public class SendErmesHandler : IRequestHandler<SendErmesCommand, Guid>
     private readonly ICurrentUser _current;
     private readonly IEmailSender _email;
     private readonly ILogger<SendErmesHandler> _logger;
+    private readonly IErmesRealtimeService _realtime;
     public SendErmesHandler(IAppDbContext db, ICurrentUser current,
-        IEmailSender email, ILogger<SendErmesHandler> logger)
-    { _db = db; _current = current; _email = email; _logger = logger; }
+        IEmailSender email, ILogger<SendErmesHandler> logger,
+        IErmesRealtimeService realtime)
+    { _db = db; _current = current; _email = email; _logger = logger; _realtime = realtime; }
 
     public async Task<Guid> Handle(SendErmesCommand r, CancellationToken ct)
     {
@@ -502,6 +504,20 @@ public class SendErmesHandler : IRequestHandler<SendErmesCommand, Guid>
         }
 
         await _db.SaveChangesAsync(ct);
+
+        // ─── Real-time push to open browser tabs ─────────────────
+        // Every recipient with an active /api/ermes/stream subscription
+        // gets an SSE event immediately, so their react-query cache
+        // invalidates and the inbox row appears without a manual
+        // refresh. Fire-and-forget in-process; multi-instance deploys
+        // need this replaced with a shared bus.
+        try
+        {
+            var recipientIds = recipientMap.Keys.ToList();
+            if (recipientIds.Count > 0)
+                _realtime.NotifyNewMessage(tenantId, recipientIds, msg.ThreadId, msg.Id);
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Ermes realtime notify failed for message {MessageId}", msg.Id); }
 
         // ─── External email nudge via Brevo (best-effort) ────────
         // Kalypsis remains the source of truth; Brevo is just a

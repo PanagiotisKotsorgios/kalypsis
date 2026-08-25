@@ -1,3 +1,6 @@
+using System.Text.Json;
+using Kalypsis.Application.Abstractions;
+using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.Ermes;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -16,12 +19,69 @@ namespace Kalypsis.Api.Controllers;
 public class ErmesController : ControllerBase
 {
     private readonly IMediator _m;
-    public ErmesController(IMediator m) => _m = m;
+    private readonly IErmesRealtimeService _realtime;
+    private readonly ICurrentUser _current;
+    public ErmesController(IMediator m, IErmesRealtimeService realtime, ICurrentUser current)
+    { _m = m; _realtime = realtime; _current = current; }
 
     // ── Overview: folder counts + teams + contacts ─────────────────
     [HttpGet("overview")]
     public async Task<ActionResult<ErmesOverviewDto>> Overview(CancellationToken ct)
         => Ok(await _m.Send(new ErmesOverviewQuery(), ct));
+
+    /// <summary>
+    /// Server-Sent Events stream: keeps a long-lived HTTP connection open
+    /// and pushes «message» events whenever a new ΕΡΜΗΣ message lands for
+    /// the caller. Frontend uses EventSource to invalidate its react-query
+    /// cache, so the inbox refreshes without polling. Auth via the normal
+    /// bearer token (the frontend uses a fetch-based SSE client that can
+    /// set Authorization headers).
+    /// </summary>
+    [HttpGet("stream")]
+    public async Task Stream(CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var userId = _current.UserId ?? throw AppException.Unauthorized();
+        Response.Headers.CacheControl = "no-cache, no-store";
+        Response.Headers.Append("X-Accel-Buffering", "no"); // disable nginx buffering
+        Response.ContentType = "text/event-stream";
+        await Response.Body.FlushAsync(ct);
+
+        var writeLock = new SemaphoreSlim(1, 1);
+        async Task WriteAsync(string payload)
+        {
+            await writeLock.WaitAsync(ct);
+            try
+            {
+                var bytes = System.Text.Encoding.UTF8.GetBytes(payload);
+                await Response.Body.WriteAsync(bytes, ct);
+                await Response.Body.FlushAsync(ct);
+            }
+            finally { writeLock.Release(); }
+        }
+
+        // Announce connect so the client knows the stream is live.
+        await WriteAsync(": connected\n\n");
+
+        await using var sub = _realtime.Subscribe(tenantId, userId, async evt =>
+        {
+            var json = JsonSerializer.Serialize(evt);
+            await WriteAsync($"event: {evt.Kind}\ndata: {json}\n\n");
+        });
+
+        // Keep-alive comment every 25s so proxies don't idle-timeout, and
+        // so we notice a broken client sooner via WriteAsync throwing.
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(25), ct);
+                await WriteAsync(": keep-alive\n\n");
+            }
+        }
+        catch (OperationCanceledException) { /* client disconnected — sub disposed by using */ }
+        catch { /* write failure means client is gone; fall through to dispose */ }
+    }
 
     // ── List a folder ──────────────────────────────────────────────
     [HttpGet("messages")]

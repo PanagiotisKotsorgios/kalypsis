@@ -142,6 +142,11 @@ public static class DependencyInjection
         // === Phase 5: Modular packaging ======================================
         services.AddScoped<IPackageService, Kalypsis.Infrastructure.Packaging.PackageService>();
 
+        // === ΕΡΜΗΣ realtime — in-process SSE pub/sub =========================
+        // Singleton: send-handlers fan-out to per-user Channels that stream
+        // out via /api/ermes/stream. Multi-instance deploys need a shared bus.
+        services.AddSingleton<IErmesRealtimeService, Kalypsis.Infrastructure.Services.ErmesRealtimeService>();
+
         return services;
     }
 }

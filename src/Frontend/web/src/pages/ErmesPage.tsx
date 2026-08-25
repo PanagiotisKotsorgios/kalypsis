@@ -292,6 +292,62 @@ export function ErmesPage() {
   // Reset the reader + selection whenever the folder or search changes.
   useEffect(() => { setSelected(new Set()); setOpenThreadId(null); }, [folder, search]);
 
+  // ── Real-time SSE stream ───────────────────────────────────────────
+  // Opens a long-lived fetch stream to /api/ermes/stream. Every «message»
+  // event pushed by the backend invalidates the ermes react-query cache,
+  // so the inbox refreshes instantly without polling. Uses fetch (not
+  // EventSource) so we can send the Authorization header via the axios
+  // interceptor's baseURL — reads chunks manually and parses `event: X /
+  // data: Y` framing. Auto-reconnects with a 5-second backoff. Cleans up
+  // on unmount / route change / logout.
+  useEffect(() => {
+    let cancelled = false;
+    const ac = new AbortController();
+    const token = (() => {
+      try { return JSON.parse(sessionStorage.getItem("kalypsis_auth") || localStorage.getItem("kalypsis_auth") || "null")?.accessToken as string | undefined; }
+      catch { return undefined; }
+    })();
+    if (!token) return; // no session — nothing to stream
+
+    async function connect() {
+      while (!cancelled) {
+        try {
+          const res = await fetch("/api/ermes/stream", {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: ac.signal,
+          });
+          if (!res.ok || !res.body) throw new Error(`stream ${res.status}`);
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buf = "";
+          while (!cancelled) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            // Frames end with a blank line — split, parse `event: X` and
+            // `data: Y` inside each block.
+            let idx: number;
+            while ((idx = buf.indexOf("\n\n")) !== -1) {
+              const frame = buf.slice(0, idx); buf = buf.slice(idx + 2);
+              if (frame.startsWith(":")) continue; // comment / keep-alive
+              let evt = "message";
+              for (const line of frame.split("\n")) {
+                if (line.startsWith("event:")) evt = line.slice(6).trim();
+              }
+              if (evt === "message") {
+                void qc.invalidateQueries({ queryKey: ["ermes"] });
+              }
+            }
+          }
+        } catch (_) { /* network drop → retry */ }
+        if (cancelled) return;
+        await new Promise(r => setTimeout(r, 5000)); // backoff
+      }
+    }
+    void connect();
+    return () => { cancelled = true; ac.abort(); };
+  }, [qc]);
+
   // Keyboard shortcuts — only fire while nothing editable is focused,
   // so typing in composer / search / reply body never triggers them.
   useEffect(() => {
