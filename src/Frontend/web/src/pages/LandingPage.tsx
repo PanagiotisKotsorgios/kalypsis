@@ -1336,7 +1336,7 @@ export const ERMES_SHOWCASE_DEFAULTS: ErmesShowcaseContent = {
       body: "Οι συνεργάτες με λογαριασμό Kalypsis εμφανίζονται αυτόματα στις επαφές — δεν χρειάζεται να ζητήσετε emails ή τηλέφωνα." },
   ],
   footerNote: "Δεν χρειάζεται πιστωτική κάρτα · Δωρεάν για κάθε πλάνο Kalypsis · Ελληνική φιλοξενία",
-  ctaLabel: "Ξεκινήστε δωρεάν με τον ΕΡΜΗΣ",
+  ctaLabel: "Ξεκινήστε δωρεάν με το ΕΡΜΗΣ",
   ctaTo: "/register",
 };
 
@@ -1386,9 +1386,35 @@ function ErmesShowcaseSection() {
   const content: ErmesShowcaseContent = useMemo(() => {
     const admin = q.data ?? {};
     // Base merge: defaults + admin's saved (Greek) values.
+    // IMPORTANT: skip admin fields that are null/undefined/empty-string.
+    // Old admin payloads have `screenshot1Url: null` etc — spreading
+    // them over the defaults would wipe out the real screenshots we
+    // ship in ERMES_SHOWCASE_DEFAULTS and force the SVG fallback.
+    // Only actual non-empty admin values should override.
+    const cleanAdmin: Partial<ErmesShowcaseContent> = {};
+    for (const [k, v] of Object.entries(admin) as [keyof ErmesShowcaseContent, unknown][]) {
+      if (v === null || v === undefined) continue;
+      if (typeof v === "string" && v.trim() === "") continue;
+      // features array handled separately below (needs its own emptiness check)
+      if (k === "features") continue;
+      // en is a nested object; leave as-is for the EN overlay code path
+      (cleanAdmin as Record<string, unknown>)[k] = v;
+    }
+    // Auto-heal historical CTA labels. Older admin saves shipped with
+    // «με τον ΕΡΜΗ» (missing final -ς, wrong article gender). Rewrite
+    // in-place to the current canonical form «με το ΕΡΜΗΣ» so the
+    // button reads correctly without requiring the admin to re-save.
+    // No-op when the admin's saved value is already correct or when
+    // they've written something entirely different (custom copy wins).
+    if (typeof cleanAdmin.ctaLabel === "string") {
+      cleanAdmin.ctaLabel = cleanAdmin.ctaLabel
+        .replace(/με τον ΕΡΜΗΣ\b/g, "με το ΕΡΜΗΣ")
+        .replace(/με τον ΕΡΜΗ\b/g, "με το ΕΡΜΗΣ");
+    }
     const base: ErmesShowcaseContent = {
       ...localisedDefaults,
-      ...admin,
+      ...cleanAdmin,
+      en: admin.en,
       features: (admin.features && admin.features.length > 0)
         ? admin.features
         : localisedDefaults.features,
