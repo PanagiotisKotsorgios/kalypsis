@@ -502,6 +502,14 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
   const uploadFile = useCallback(async (file: File) => {
     if (uploadBlockedReason) { setErr(uploadBlockedReason); return; }
     if (!selectedFolderId) return;
+    // eslint-disable-next-line no-console
+    console.log("[BookkeepingUpload] selected:", {
+      name: file.name, size: file.size, type: file.type, folderId: selectedFolderId
+    });
+    if (file.size === 0) {
+      setErr(`Το αρχείο «${file.name}» έχει μέγεθος 0 bytes — προσπαθήστε ξανά.`);
+      return;
+    }
     // 16 MB cap enforced server-side; catch it early so the user
     // doesn't wait for an upload that will 400.
     if (file.size > 16 * 1024 * 1024) {
@@ -510,12 +518,24 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
     }
     setUploading(true);
     try {
+      // Mirror the working pattern from DocumentsPage.handleUpload
+      // exactly: same FormData shape, same explicit Content-Type
+      // header. Any deviation from that path is suspect.
       const form = new FormData();
       form.append("file", file);
       form.append("folderId", selectedFolderId);
-      await api.post("/bookkeeping/files", form, { headers: { "Content-Type": "multipart/form-data" } });
+      const r = await api.post("/bookkeeping/files", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      // eslint-disable-next-line no-console
+      console.log("[BookkeepingUpload] success:", r.status, r.data);
       qc.invalidateQueries({ queryKey: ["bookkeeping", "tree"] });
-    } catch (e) { setErr(extractErrorMessage(e)); } finally { setUploading(false); }
+    } catch (e) {
+      const msg = extractErrorMessage(e);
+      setErr(msg);
+      // eslint-disable-next-line no-console
+      console.error("[BookkeepingUpload] failed:", e);
+    } finally { setUploading(false); }
   }, [selectedFolderId, qc, setErr, uploadBlockedReason]);
 
   // Visual drop-zone highlight — true while the user is dragging OS
