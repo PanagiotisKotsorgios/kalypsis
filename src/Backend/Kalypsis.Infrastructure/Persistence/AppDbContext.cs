@@ -266,6 +266,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<UserPublicKey> UserPublicKeys => Set<UserPublicKey>();
     public DbSet<UserKeyBackup> UserKeyBackups => Set<UserKeyBackup>();
     public DbSet<PlatformBackupSchedule> PlatformBackupSchedules => Set<PlatformBackupSchedule>();
+    public DbSet<AdminActionChallenge> AdminActionChallenges => Set<AdminActionChallenge>();
 
     // Bookkeeping («μηχανογράφιση») — platform team does the data entry
     // for small offices that opted in.
@@ -401,6 +402,8 @@ public class AppDbContext : DbContext, IAppDbContext
         modelBuilder.Entity<UserKeyBackup>().ToTable("user_key_backups")
             .HasIndex(x => new { x.TenantId, x.UserId, x.KeyId }).IsUnique();
         modelBuilder.Entity<PlatformBackupSchedule>().ToTable("platform_backup_schedules");
+        modelBuilder.Entity<AdminActionChallenge>().ToTable("admin_action_challenges")
+            .HasIndex(x => x.TokenHash);
 
         // Bookkeeping tables — snake_case names, matching the seeder
         // safety-net so a fresh DB and a migrated DB agree.

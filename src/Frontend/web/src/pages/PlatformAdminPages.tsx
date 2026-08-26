@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { AdminOtpConfirmDialog } from "../components/AdminOtpConfirmDialog";
 import { extractErrorMessage } from "../api/client";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Divider,
@@ -1012,13 +1013,20 @@ export function PlatformBackupsPage() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: async (id: string) => api.delete(`/platform/backups/${id}`),
+    // Destructive → carries the OTP token as X-Admin-OTP-Token header.
+    // The AdminOtpConfirmDialog above obtained + verified the token.
+    mutationFn: async (args: { id: string; otpToken: string }) =>
+      api.delete(`/platform/backups/${args.id}`,
+        { headers: { "X-Admin-OTP-Token": args.otpToken } }),
     onSuccess: () => {
       setStatus({ kind: "info", msg: "Το backup διαγράφηκε (row + file)." });
       void qcBackups.invalidateQueries({ queryKey: ["platform-backups"] });
     },
     onError: (e) => setStatus({ kind: "error", msg: extractErrorMessage(e) })
   });
+  // Which backup is currently gated by the OTP dialog — set on delete
+  // click, cleared on dialog close.
+  const [deleteOtpFor, setDeleteOtpFor] = useState<{ id: string; fileName: string } | null>(null);
 
   const storageHealth = useQuery({
     queryKey: ["platform-backups", "storage-health"],
@@ -1172,14 +1180,11 @@ export function PlatformBackupsPage() {
                       </IconButton>
                     </span>
                   </Tooltip>
-                  <Tooltip title="Διαγραφή backup (row + file)">
+                  <Tooltip title="Διαγραφή backup (row + file) — απαιτεί 6ψήφιο κωδικό από το info@mykalypsis.gr">
                     <span>
                       <IconButton size="small" color="error"
                         disabled={deleteMut.isPending}
-                        onClick={() => {
-                          if (window.confirm(`Διαγραφή του ${b.fileName}; Η ενέργεια είναι μη αναστρέψιμη.`))
-                            deleteMut.mutate(b.id);
-                        }}>
+                        onClick={() => setDeleteOtpFor({ id: b.id, fileName: b.fileName })}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </span>
@@ -1219,6 +1224,25 @@ export function PlatformBackupsPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* OTP-gated backup deletion — the "Διαγραφή" button on each row
+          opens this dialog. Only after a code emailed to
+          info@mykalypsis.gr is entered + verified does the DELETE
+          request fire (with the OTP token as X-Admin-OTP-Token header). */}
+      {deleteOtpFor && (
+        <AdminOtpConfirmDialog
+          open={!!deleteOtpFor}
+          onClose={() => setDeleteOtpFor(null)}
+          action="platform-backup.delete"
+          target={deleteOtpFor.id}
+          actionLabel={`Διαγραφή backup ${deleteOtpFor.fileName}`}
+          destructiveWarning="Θα διαγραφεί οριστικά τόσο το manifest όσο και το αρχείο από το storage. Η ενέργεια δεν αναιρείται."
+          onConfirm={async (token) => {
+            await deleteMut.mutateAsync({ id: deleteOtpFor.id, otpToken: token });
+            setDeleteOtpFor(null);
+          }}
+        />
+      )}
 
       {/* Restore confirmation */}
       <Dialog open={!!restoreConfirmId} onClose={() => setRestoreConfirmId(null)} maxWidth="xs" fullWidth>

@@ -728,6 +728,30 @@ public static class DataSeeder
                 PRIMARY KEY (`Id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
 
+        // --- admin_action_challenges: 6-digit OTP verification for
+        // destructive platform-admin actions (delete, wipe, mass ops).
+        // See AdminActionChallenge entity + AdminOtpController.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "admin_action_challenges",
+            createSql: @"CREATE TABLE IF NOT EXISTS `admin_action_challenges` (
+                `Id`                 char(36) NOT NULL,
+                `Action`             varchar(80) NOT NULL,
+                `Target`             varchar(200) NULL,
+                `TokenHash`          char(64) NOT NULL,
+                `CodeHash`           char(64) NOT NULL,
+                `RequestedByUserId`  char(36) NOT NULL,
+                `ExpiresAt`          datetime(6) NOT NULL,
+                `Attempts`           int NOT NULL DEFAULT 0,
+                `VerifiedAt`         datetime(6) NULL,
+                `ConsumedAt`         datetime(6) NULL,
+                `EmailedTo`          varchar(200) NULL,
+                `CreatedAt`          datetime(6) NOT NULL,
+                `UpdatedAt`          datetime(6) NULL,
+                `DeletedAt`          datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_aac_TokenHash` (`TokenHash`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
         // --- user_public_keys: ΕΡΜΗΣ E2E public-key registry. Private
         // half lives in the user's browser only. See UserPublicKey entity
         // + ErmesKeysController for the auth + storage contract.

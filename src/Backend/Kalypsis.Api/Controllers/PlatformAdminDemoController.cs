@@ -1,3 +1,4 @@
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Features.PlatformAdmin;
 using MediatR;
@@ -36,6 +37,7 @@ public class PlatformAdminDemoController : ControllerBase
     ///   3. Every call is LogCritical-audited.
     /// See WipeAndReseedDemoCommand for details.</summary>
     [HttpPost("wipe-and-reseed")]
+    [RequiresAdminOtp("wipe-and-reseed")]
     public async Task<ActionResult<WipeAndReseedDemoResult>> WipeAndReseed(
         [FromBody] WipeAndReseedBody body, CancellationToken ct)
     {

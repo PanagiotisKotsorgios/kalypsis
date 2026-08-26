@@ -40,6 +40,7 @@ import { useNavigate } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 import { useImpersonation } from "../impersonation/ImpersonationContext";
 import { PasswordField } from "../components/PasswordField";
+import { AdminOtpConfirmDialog } from "../components/AdminOtpConfirmDialog";
 import { SearchableTextField } from "../components/SearchableTextField";
 
 interface Tenant {
@@ -134,10 +135,11 @@ export function TenantsPage() {
     staleTime: 5 * 60_000,
   });
   const [wipeConfirmOpen, setWipeConfirmOpen] = useState(false);
+  const [wipeOtpOpen, setWipeOtpOpen] = useState(false);
   const [wipeTyped, setWipeTyped] = useState("");
 
   const wipeReseed = useMutation({
-    mutationFn: async () => (await api.post<{
+    mutationFn: async (args: { otpToken: string }) => (await api.post<{
       usersDeleted: number; tenantsDeleted: number;
       tenantsCreated: number; usersCreated: number;
       customersCreated: number; producersCreated: number;
@@ -148,7 +150,11 @@ export function TenantsPage() {
       notificationsCreated: number; communicationsCreated: number;
       commissionRulesCreated: number; commissionRunsCreated: number;
     }>("/platform/demo/wipe-and-reseed",
-      { confirmationPhrase: wipeTyped })).data,
+      { confirmationPhrase: wipeTyped },
+      // OTP header — the AdminOtpConfirmDialog obtained + verified the
+      // token. Backend's [RequiresAdminOtp] filter rejects requests
+      // without it.
+      { headers: { "X-Admin-OTP-Token": args.otpToken } })).data,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["tenants"] });
       setWipeConfirmOpen(false);
@@ -371,11 +377,35 @@ export function TenantsPage() {
               !wipeStatus.data?.requiredPhrase ||
               wipeTyped !== wipeStatus.data.requiredPhrase
             }
-            onClick={() => wipeReseed.mutate()}>
-            {wipeReseed.isPending ? <CircularProgress size={16} /> : "Διαγραφή τώρα"}
+            onClick={() => {
+              // Phrase accepted → close this dialog, open OTP gate.
+              // The wipeReseed mutation now fires only after OTP verification.
+              setWipeConfirmOpen(false);
+              setWipeOtpOpen(true);
+            }}>
+            {wipeReseed.isPending ? <CircularProgress size={16} /> : "Συνέχεια → 6ψήφιος κωδικός"}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* OTP gate on wipe-and-reseed — 4th safeguard on top of:
+          env-var, typed phrase, and the initial confirmation dialog above.
+          A hacker who steals PlatformAdmin creds can't destroy data
+          without ALSO having access to info@mykalypsis.gr. */}
+      {wipeOtpOpen && (
+        <AdminOtpConfirmDialog
+          open={wipeOtpOpen}
+          onClose={() => setWipeOtpOpen(false)}
+          action="wipe-and-reseed"
+          actionLabel="Wipe & Reseed Demo — κατεδάφιση όλων των γραφείων + χρηστών"
+          destructiveWarning="ΘΑ ΔΙΑΓΡΑΦΟΥΝ οριστικά όλα τα γραφεία και όλοι οι χρήστες. Καμία αναίρεση από το app — μόνο restore από backup."
+          onConfirm={async (token) => {
+            await wipeReseed.mutateAsync({ otpToken: token });
+            setWipeOtpOpen(false);
+            setWipeTyped("");
+          }}
+        />
+      )}
 
       <EditTenantDialog
         tenant={editing}

@@ -24,6 +24,7 @@ import DriveFileMoveIcon from "@mui/icons-material/SwapHoriz";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
 import SettingsIcon from "@mui/icons-material/Settings";
 import { api, extractErrorMessage } from "../api/client";
+import { AdminOtpConfirmDialog } from "../components/AdminOtpConfirmDialog";
 
 /**
  * Platform-admin Μηχανογράφιση workspace. Renders as three-column:
@@ -225,10 +226,16 @@ function FilesTab({ tenantId, qc, setErr }: {
 
   // ── Bulk mutations ─────────────────────────────────────────────
   const bulkDelete = useMutation({
-    mutationFn: (ids: string[]) => api.post(`/platform/bookkeeping/tenants/${tenantId}/files/bulk-delete`, { fileIds: ids }),
+    // OTP-gated on the server: [RequiresAdminOtp("bookkeeping.file.bulk-delete", TargetFromRoute="tenantId")].
+    // Frontend gets the token via <AdminOtpConfirmDialog>, we send it as header.
+    mutationFn: (args: { ids: string[]; otpToken: string }) =>
+      api.post(`/platform/bookkeeping/tenants/${tenantId}/files/bulk-delete`,
+        { fileIds: args.ids },
+        { headers: { "X-Admin-OTP-Token": args.otpToken } }),
     onSuccess: () => { setSelectedFileIds(new Set()); qc.invalidateQueries({ queryKey: ["platform-bookkeeping", "tree", tenantId] }); },
     onError: e => setErr(extractErrorMessage(e)),
   });
+  const [bulkDeleteOtpOpen, setBulkDeleteOtpOpen] = useState(false);
   const bulkStatus = useMutation({
     mutationFn: (p: { ids: string[]; status: string }) => api.post(`/platform/bookkeeping/tenants/${tenantId}/files/bulk-status`, { fileIds: p.ids, status: p.status }),
     onSuccess: () => { setSelectedFileIds(new Set()); qc.invalidateQueries({ queryKey: ["platform-bookkeeping", "tree", tenantId] }); },
@@ -352,10 +359,7 @@ function FilesTab({ tenantId, qc, setErr }: {
           </Typography>
           {selectedFileIds.size > 0 && (
             <BulkToolbar
-              onDelete={() => {
-                if (window.confirm(`Διαγραφή ${selectedFileIds.size} αρχείων;`))
-                  bulkDelete.mutate(Array.from(selectedFileIds));
-              }}
+              onDelete={() => setBulkDeleteOtpOpen(true)}
               onSetStatus={s => bulkStatus.mutate({ ids: Array.from(selectedFileIds), status: s })}
               onOpenMove={() => setMoveToFolderOpen(true)}
               disabled={bulkDelete.isPending || bulkStatus.isPending || bulkMove.isPending}
@@ -404,6 +408,23 @@ function FilesTab({ tenantId, qc, setErr }: {
           bulkMove.mutate({ ids: Array.from(selectedFileIds), targetFolderId: target });
           setMoveToFolderOpen(false);
         }} />
+      {/* OTP-gated bulk delete — server enforces via [RequiresAdminOtp]
+          on POST /files/bulk-delete. We must have a fresh token before
+          the destructive mutation fires. */}
+      {bulkDeleteOtpOpen && (
+        <AdminOtpConfirmDialog
+          open={bulkDeleteOtpOpen}
+          onClose={() => setBulkDeleteOtpOpen(false)}
+          action="bookkeeping.file.bulk-delete"
+          target={tenantId}
+          actionLabel={`Διαγραφή ${selectedFileIds.size} αρχείων μηχανογράφισης`}
+          destructiveWarning="Τα επιλεγμένα αρχεία θα διαγραφούν από το γραφείο. Δεν αναιρείται από το app."
+          onConfirm={async (token) => {
+            await bulkDelete.mutateAsync({ ids: Array.from(selectedFileIds), otpToken: token });
+            setBulkDeleteOtpOpen(false);
+          }}
+        />
+      )}
     </Box>
   );
 }

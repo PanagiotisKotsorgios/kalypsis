@@ -65,6 +65,10 @@ public static class DependencyInjection
 
         services.AddHttpClient("brevo");
         services.AddScoped<IEmailSender, BrevoEmailSender>();
+        // Out-of-band OTP verification for destructive PlatformAdmin
+        // actions. See AdminActionChallenge entity + RequiresAdminOtp attribute.
+        services.AddScoped<Kalypsis.Application.Abstractions.IAdminActionOtpService,
+            Kalypsis.Infrastructure.Services.AdminActionOtpService>();
         services.AddScoped<ISmsSender, DevSmsSender>();
         services.AddSingleton<ITotpService, TotpService>();
 

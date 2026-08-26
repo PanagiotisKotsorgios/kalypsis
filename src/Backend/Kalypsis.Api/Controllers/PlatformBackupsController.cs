@@ -1,3 +1,4 @@
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.PlatformBackups;
@@ -60,6 +61,7 @@ public class PlatformBackupsController : ControllerBase
     /// underlying file from IFileStorage. Storage errors don't block the
     /// tombstone — the DB row still disappears from the list.</summary>
     [HttpDelete("{id:guid}")]
+    [RequiresAdminOtp("platform-backup.delete", TargetFromRoute = "id")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var row = await _db.PlatformBackups

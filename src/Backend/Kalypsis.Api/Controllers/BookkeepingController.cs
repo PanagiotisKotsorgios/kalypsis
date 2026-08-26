@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.Ermes;
@@ -538,6 +539,7 @@ public class BookkeepingController : ControllerBase
     /// <summary>Batch-delete files by id.</summary>
     [HttpPost("/api/platform/bookkeeping/tenants/{tenantId:guid}/files/bulk-delete")]
     [Authorize(Policy = "PlatformAdmin")]
+    [RequiresAdminOtp("bookkeeping.file.bulk-delete", TargetFromRoute = "tenantId")]
     public async Task<ActionResult<object>> AdminBulkDeleteFiles(Guid tenantId,
         [FromBody] BulkFilesBody body, CancellationToken ct)
     {
@@ -571,6 +573,7 @@ public class BookkeepingController : ControllerBase
 
     [HttpDelete("/api/platform/bookkeeping/tenants/{tenantId:guid}/files")]
     [Authorize(Policy = "PlatformAdmin")]
+    [RequiresAdminOtp("bookkeeping.files.delete-all", TargetFromRoute = "tenantId")]
     public async Task<IActionResult> AdminDeleteAllFiles(Guid tenantId, [FromQuery] Guid? folderId, CancellationToken ct)
     {
         // Bulk-clear either a folder's files or the entire tenant's files.
