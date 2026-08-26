@@ -761,6 +761,10 @@
     "months": "μήνες"
   },
   "landing": {
+    "nav": {
+      "contact": "Επικοινωνία",
+      "contactLong": "Επικοινωνία / Αναφορά Προβλήματος"
+    },
     "ermes": {
       "eyebrow": "ΕΡΜΗΣ · Kalypsis-native επικοινωνία",
       "chip": "ΔΩΡΕΑΝ ΓΙΑ ΠΑΝΤΑ",

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Alert, Box, Button, Card, CircularProgress, Divider, IconButton, Stack,
-  TextField, Tooltip, Typography,
+  Tab, Tabs, TextField, Tooltip, Typography,
 } from "@mui/material";
 import ImageIcon from "@mui/icons-material/Image";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
@@ -107,6 +107,51 @@ function ErmesEditor({ onError, onSuccess }: { onError: (m: string) => void; onS
     setDraft(ERMES_SHOWCASE_DEFAULTS);
   };
 
+  // ── Bilingual editor state ────────────────────────────────────────
+  // The base draft holds Greek fields. When lang="en" every text input
+  // reads from / writes to draft.en instead — so the operator can
+  // type an English translation without a second dialog. Screenshot
+  // URLs + CTA link are shared across languages (see the
+  // ErmesShowcaseContent.en Omit list). Feature cards mirror the
+  // count of the Greek ones so the display order stays aligned.
+  const [lang, setLang] = useState<"el" | "en">("el");
+  type ElField =
+    | "eyebrow" | "chip" | "title" | "subtitle"
+    | "screenshot1Caption" | "screenshot2Caption"
+    | "footerNote" | "ctaLabel";
+  const getStr = (key: ElField): string => {
+    if (lang === "en") return draft.en?.[key] ?? "";
+    return draft[key] ?? "";
+  };
+  const setStr = (key: ElField, value: string) => {
+    if (lang === "en") {
+      setDraft({ ...draft, en: { ...(draft.en ?? {}), [key]: value } });
+    } else {
+      setDraft({ ...draft, [key]: value });
+    }
+  };
+  const getFeature = (i: number): { chip: string; title: string; body: string } => {
+    if (lang === "en") {
+      const enFeatures = draft.en?.features ?? [];
+      return enFeatures[i] ?? { chip: "", title: "", body: "" };
+    }
+    return draft.features[i] ?? { chip: "", title: "", body: "" };
+  };
+  const setFeature = (i: number, patch: Partial<{ chip: string; title: string; body: string }>) => {
+    if (lang === "en") {
+      const base = draft.en?.features ?? draft.features.map(() => ({ chip: "", title: "", body: "" }));
+      const next = [...base];
+      // Pad up to the requested index so a sparse EN array stays aligned with EL.
+      while (next.length <= i) next.push({ chip: "", title: "", body: "" });
+      next[i] = { ...next[i], ...patch };
+      setDraft({ ...draft, en: { ...(draft.en ?? {}), features: next } });
+    } else {
+      const next = [...draft.features];
+      next[i] = { ...next[i], ...patch };
+      setDraft({ ...draft, features: next });
+    }
+  };
+
   if (q.isLoading) return (
     <Box sx={{ py: 6, textAlign: "center" }}><CircularProgress /></Box>
   );
@@ -124,94 +169,146 @@ function ErmesEditor({ onError, onSuccess }: { onError: (m: string) => void; onS
         </Button>
       </Stack>
 
+      {/* Language tab — swaps every text field between EL (default) and
+          EN (Αγγλικά). Screenshots + CTA link stay shared across langs.
+          Blank fields in EN fall back to EL at render time (see
+          LandingPage → ErmesShowcaseSection merge logic). */}
+      <Tabs value={lang} onChange={(_, v) => setLang(v)} sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}>
+        <Tab value="el" label="🇬🇷 Ελληνικά (κύρια γλώσσα)" />
+        <Tab value="en" label="🇬🇧 English (translation)" />
+      </Tabs>
+      {lang === "en" && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Συμπληρώστε τα Αγγλικά για κάθε πεδίο. Ό,τι αφήσετε κενό εμφανίζεται
+          στα Ελληνικά όταν ο επισκέπτης επιλέξει EN.
+        </Alert>
+      )}
+
       <Stack spacing={2.5}>
-        <Section title="Επάνω μέρος">
-          <TextField label="Ετικέτα πάνω" fullWidth size="small"
-            value={draft.eyebrow} onChange={e => setDraft({ ...draft, eyebrow: e.target.value })}
-            helperText="Πχ «ΕΡΜΗΣ · Kalypsis-native επικοινωνία»" />
+        <Section title={lang === "en" ? "Top (English)" : "Επάνω μέρος"}>
+          <TextField label={lang === "en" ? "Eyebrow" : "Ετικέτα πάνω"} fullWidth size="small"
+            value={getStr("eyebrow")} onChange={e => setStr("eyebrow", e.target.value)}
+            placeholder={lang === "en" ? draft.eyebrow : ""}
+            helperText={lang === "en" ? `EL: «${draft.eyebrow}»` : "Πχ «ΕΡΜΗΣ · Kalypsis-native επικοινωνία»"} />
           <TextField label="Chip" size="small" sx={{ maxWidth: 260 }}
-            value={draft.chip} onChange={e => setDraft({ ...draft, chip: e.target.value })}
-            helperText="Πχ «ΔΩΡΕΑΝ ΓΙΑ ΠΑΝΤΑ»" />
-          <TextField label="Τίτλος" fullWidth
-            value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })}
-            helperText="Ο κύριος τίτλος της ενότητας" />
-          <TextField label="Υπότιτλος" multiline minRows={3} fullWidth
-            value={draft.subtitle} onChange={e => setDraft({ ...draft, subtitle: e.target.value })}
-            helperText="1-2 φράσεις κάτω από τον τίτλο" />
+            value={getStr("chip")} onChange={e => setStr("chip", e.target.value)}
+            placeholder={lang === "en" ? draft.chip : ""}
+            helperText={lang === "en" ? `EL: «${draft.chip}»` : "Πχ «ΔΩΡΕΑΝ ΓΙΑ ΠΑΝΤΑ»"} />
+          <TextField label={lang === "en" ? "Title" : "Τίτλος"} fullWidth
+            value={getStr("title")} onChange={e => setStr("title", e.target.value)}
+            placeholder={lang === "en" ? draft.title : ""}
+            helperText={lang === "en" ? `EL: «${draft.title}»` : "Ο κύριος τίτλος της ενότητας"} />
+          <TextField label={lang === "en" ? "Subtitle" : "Υπότιτλος"} multiline minRows={3} fullWidth
+            value={getStr("subtitle")} onChange={e => setStr("subtitle", e.target.value)}
+            placeholder={lang === "en" ? draft.subtitle : ""}
+            helperText={lang === "en" ? `EL: «${draft.subtitle.slice(0, 80)}…»` : "1-2 φράσεις κάτω από τον τίτλο"} />
         </Section>
 
-        <Section title="Στιγμιότυπα (2 εικόνες)">
-          <ImagePickerRow
-            label="Εικόνα 1 (Εισερχόμενα)"
-            url={draft.screenshot1Url}
-            onChange={u => setDraft({ ...draft, screenshot1Url: u })}
-            captionValue={draft.screenshot1Caption}
-            onCaptionChange={c => setDraft({ ...draft, screenshot1Caption: c })}
-          />
-          <ImagePickerRow
-            label="Εικόνα 2 (Υποδοχή)"
-            url={draft.screenshot2Url}
-            onChange={u => setDraft({ ...draft, screenshot2Url: u })}
-            captionValue={draft.screenshot2Caption}
-            onCaptionChange={c => setDraft({ ...draft, screenshot2Caption: c })}
-          />
+        <Section title={lang === "en" ? "Screenshots (captions in English)" : "Στιγμιότυπα (2 εικόνες)"}>
+          {lang === "el" && (
+            <>
+              <ImagePickerRow
+                label="Εικόνα 1 (Εισερχόμενα)"
+                url={draft.screenshot1Url}
+                onChange={u => setDraft({ ...draft, screenshot1Url: u })}
+                captionValue={draft.screenshot1Caption}
+                onCaptionChange={c => setDraft({ ...draft, screenshot1Caption: c })}
+              />
+              <ImagePickerRow
+                label="Εικόνα 2 (Υποδοχή)"
+                url={draft.screenshot2Url}
+                onChange={u => setDraft({ ...draft, screenshot2Url: u })}
+                captionValue={draft.screenshot2Caption}
+                onCaptionChange={c => setDraft({ ...draft, screenshot2Caption: c })}
+              />
+            </>
+          )}
+          {lang === "en" && (
+            <Stack spacing={1.5}>
+              <Alert severity="info" icon={false}>
+                Οι εικόνες είναι κοινές για EL/EN — μόνο οι λεζάντες αλλάζουν.
+              </Alert>
+              <TextField label="Caption 1 (Inbox)" size="small" fullWidth
+                value={getStr("screenshot1Caption")}
+                onChange={e => setStr("screenshot1Caption", e.target.value)}
+                placeholder={draft.screenshot1Caption}
+                helperText={`EL: «${draft.screenshot1Caption}»`} />
+              <TextField label="Caption 2 (Reception)" size="small" fullWidth
+                value={getStr("screenshot2Caption")}
+                onChange={e => setStr("screenshot2Caption", e.target.value)}
+                placeholder={draft.screenshot2Caption}
+                helperText={`EL: «${draft.screenshot2Caption}»`} />
+            </Stack>
+          )}
         </Section>
 
-        <Section title="Κάρτες χαρακτηριστικών">
-          {draft.features.map((f, i) => (
-            <Card key={i} variant="outlined" sx={{ p: 2 }}>
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.25 }}>
-                <Typography sx={{ fontWeight: 700, fontSize: 13 }}>Κάρτα {i + 1}</Typography>
-                <Box sx={{ flex: 1 }} />
-                <Tooltip title="Διαγραφή κάρτας">
-                  <IconButton size="small" color="error" onClick={() => {
-                    const next = [...draft.features]; next.splice(i, 1);
-                    setDraft({ ...draft, features: next });
-                  }}><DeleteIcon fontSize="small" /></IconButton>
-                </Tooltip>
-              </Stack>
-              <Stack spacing={1.5}>
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                  <TextField label="Chip" size="small" sx={{ width: 180 }}
-                    value={f.chip} onChange={e => {
-                      const next = [...draft.features];
-                      next[i] = { ...next[i], chip: e.target.value };
-                      setDraft({ ...draft, features: next });
-                    }} />
-                  <TextField label="Τίτλος" size="small" fullWidth
-                    value={f.title} onChange={e => {
-                      const next = [...draft.features];
-                      next[i] = { ...next[i], title: e.target.value };
-                      setDraft({ ...draft, features: next });
-                    }} />
+        <Section title={lang === "en" ? "Feature cards (English)" : "Κάρτες χαρακτηριστικών"}>
+          {draft.features.map((elCard, i) => {
+            const shown = getFeature(i);
+            return (
+              <Card key={i} variant="outlined" sx={{ p: 2 }}>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.25 }}>
+                  <Typography sx={{ fontWeight: 700, fontSize: 13 }}>
+                    {lang === "en" ? `Card ${i + 1}` : `Κάρτα ${i + 1}`}
+                  </Typography>
+                  <Box sx={{ flex: 1 }} />
+                  {lang === "el" && (
+                    <Tooltip title="Διαγραφή κάρτας">
+                      <IconButton size="small" color="error" onClick={() => {
+                        const next = [...draft.features]; next.splice(i, 1);
+                        const enFeatures = draft.en?.features ? [...draft.en.features] : undefined;
+                        if (enFeatures) enFeatures.splice(i, 1);
+                        setDraft({ ...draft, features: next,
+                          en: enFeatures ? { ...draft.en, features: enFeatures } : draft.en });
+                      }}><DeleteIcon fontSize="small" /></IconButton>
+                    </Tooltip>
+                  )}
                 </Stack>
-                <TextField label="Περιγραφή" size="small" multiline minRows={2} fullWidth
-                  value={f.body} onChange={e => {
-                    const next = [...draft.features];
-                    next[i] = { ...next[i], body: e.target.value };
-                    setDraft({ ...draft, features: next });
-                  }} />
-              </Stack>
-            </Card>
-          ))}
-          <Button size="small" startIcon={<AddIcon />} sx={{ alignSelf: "flex-start" }}
-            onClick={() => setDraft({
-              ...draft,
-              features: [...draft.features, { chip: "New", title: "Νέο χαρακτηριστικό", body: "Περιγραφή…" }],
-            })}>
-            Νέα κάρτα
-          </Button>
+                <Stack spacing={1.5}>
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                    <TextField label="Chip" size="small" sx={{ width: 180 }}
+                      value={shown.chip} onChange={e => setFeature(i, { chip: e.target.value })}
+                      placeholder={lang === "en" ? elCard.chip : ""}
+                      helperText={lang === "en" ? `EL: «${elCard.chip}»` : undefined} />
+                    <TextField label={lang === "en" ? "Title" : "Τίτλος"} size="small" fullWidth
+                      value={shown.title} onChange={e => setFeature(i, { title: e.target.value })}
+                      placeholder={lang === "en" ? elCard.title : ""}
+                      helperText={lang === "en" ? `EL: «${elCard.title}»` : undefined} />
+                  </Stack>
+                  <TextField label={lang === "en" ? "Description" : "Περιγραφή"} size="small" multiline minRows={2} fullWidth
+                    value={shown.body} onChange={e => setFeature(i, { body: e.target.value })}
+                    placeholder={lang === "en" ? elCard.body : ""}
+                    helperText={lang === "en" ? `EL: «${elCard.body.slice(0, 80)}…»` : undefined} />
+                </Stack>
+              </Card>
+            );
+          })}
+          {lang === "el" && (
+            <Button size="small" startIcon={<AddIcon />} sx={{ alignSelf: "flex-start" }}
+              onClick={() => setDraft({
+                ...draft,
+                features: [...draft.features, { chip: "New", title: "Νέο χαρακτηριστικό", body: "Περιγραφή…" }],
+              })}>
+              Νέα κάρτα
+            </Button>
+          )}
         </Section>
 
-        <Section title="Κάτω μέρος (call-to-action)">
-          <TextField label="Σημείωση κάτω από τις κάρτες" fullWidth
-            value={draft.footerNote} onChange={e => setDraft({ ...draft, footerNote: e.target.value })} />
+        <Section title={lang === "en" ? "Bottom / call-to-action (English)" : "Κάτω μέρος (call-to-action)"}>
+          <TextField label={lang === "en" ? "Footer note under cards" : "Σημείωση κάτω από τις κάρτες"} fullWidth
+            value={getStr("footerNote")} onChange={e => setStr("footerNote", e.target.value)}
+            placeholder={lang === "en" ? draft.footerNote : ""}
+            helperText={lang === "en" ? `EL: «${draft.footerNote}»` : undefined} />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-            <TextField label="Κείμενο κουμπιού" size="small" fullWidth
-              value={draft.ctaLabel} onChange={e => setDraft({ ...draft, ctaLabel: e.target.value })} />
-            <TextField label="Link κουμπιού" size="small" sx={{ minWidth: 240 }}
-              value={draft.ctaTo} onChange={e => setDraft({ ...draft, ctaTo: e.target.value })}
-              helperText="Πχ /register" />
+            <TextField label={lang === "en" ? "Button label" : "Κείμενο κουμπιού"} size="small" fullWidth
+              value={getStr("ctaLabel")} onChange={e => setStr("ctaLabel", e.target.value)}
+              placeholder={lang === "en" ? draft.ctaLabel : ""}
+              helperText={lang === "en" ? `EL: «${draft.ctaLabel}»` : undefined} />
+            {lang === "el" && (
+              <TextField label="Link κουμπιού" size="small" sx={{ minWidth: 240 }}
+                value={draft.ctaTo} onChange={e => setDraft({ ...draft, ctaTo: e.target.value })}
+                helperText="Πχ /register" />
+            )}
           </Stack>
         </Section>
 
@@ -258,8 +355,16 @@ function ImagePickerRow({ label, url, onChange, captionValue, onCaptionChange }:
   const [error, setError] = useState<string | null>(null);
   const upload = async (file: File) => {
     setError(null);
-    // Client-side gate against the server's 10 MB cap. Firing an
-    // upload that will 400 is worse than telling the user upfront.
+    // eslint-disable-next-line no-console
+    console.log("[LandingImageUpload] selected:", { name: file.name, size: file.size, type: file.type });
+    // Client-side pre-flight — surface every failure mode with a
+    // specific message BEFORE hitting the network, so the user never
+    // sees the old «flicker + nothing happens» silence again.
+    if (file.size === 0) {
+      setError(`Το αρχείο «${file.name}» έχει μέγεθος 0 bytes. Ίσως δεν έχει τελειώσει το κατέβασμα του original;`);
+      if (ref.current) ref.current.value = "";
+      return;
+    }
     if (file.size > 10 * 1024 * 1024) {
       setError(`Το αρχείο «${file.name}» είναι ${(file.size / 1024 / 1024).toFixed(1)} MB · μέγιστο 10 MB.`);
       if (ref.current) ref.current.value = "";
@@ -273,17 +378,26 @@ function ImagePickerRow({ label, url, onChange, captionValue, onCaptionChange }:
     setBusy(true);
     try {
       const fd = new FormData(); fd.append("file", file);
-      const r = await api.post<{ url: string }>("/documentation/assets", fd,
-        { headers: { "Content-Type": "multipart/form-data" } });
+      // Deliberately do NOT set Content-Type. When axios sees a FormData
+      // body it lets the browser add the header WITH boundary — setting
+      // "multipart/form-data" without a boundary can break ASP.NET Core
+      // multipart parsing on some proxies. Nothing enforces the header
+      // for other endpoints in the codebase that DO set it because
+      // axios 1.x is smart enough to preserve the boundary in most
+      // cases, but here we play it safe.
+      const r = await api.post<{ url: string }>("/documentation/assets", fd);
+      // eslint-disable-next-line no-console
+      console.log("[LandingImageUpload] success:", r.status, r.data);
+      if (!r.data?.url) {
+        setError(`Ο server επέστρεψε επιτυχία αλλά χωρίς URL. Ελέγξτε τη μορφή απόκρισης (data: ${JSON.stringify(r.data)}).`);
+        return;
+      }
       onChange(r.data.url);
     } catch (e) {
-      // Route through extractErrorMessage so backend AppException codes
-      // (file_too_large / image_only / etc.) surface with their Greek text.
       const msg = extractErrorMessage(e);
       setError(msg);
-      // Also log so ops can see the raw axios error in devtools.
       // eslint-disable-next-line no-console
-      console.error("Landing image upload failed:", e);
+      console.error("[LandingImageUpload] failed:", e);
     } finally {
       setBusy(false); if (ref.current) ref.current.value = "";
     }

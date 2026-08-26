@@ -720,6 +720,10 @@
     "months": "months"
   },
   "landing": {
+    "nav": {
+      "contact": "Contact",
+      "contactLong": "Contact / Report an issue"
+    },
     "ermes": {
       "eyebrow": "HERMES · Kalypsis-native messaging",
       "chip": "FREE FOREVER",

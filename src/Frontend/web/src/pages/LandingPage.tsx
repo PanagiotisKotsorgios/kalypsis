@@ -91,6 +91,7 @@ const FEATURE_KEYS: { icon: typeof HubOutlinedIcon; t: string; b: string }[] = [
 ];
 
 export function LandingPage() {
+  const { t: tHeader } = useTranslation();
   // Mobile drawer for the login/register/contact actions — desktop keeps them
   // inline on the top bar, mobile collapses everything behind a hamburger on
   // the right side of the glass card.
@@ -274,9 +275,15 @@ export function LandingPage() {
             >
               {/* Between md-lg the shelf can't afford the full long label
                   next to the auth links + language toggle, so trim to
-                  just «Επικοινωνία». The full label reappears at lg+. */}
-              <Box sx={{ display: { md: "inline", lg: "none" } }}>Επικοινωνία</Box>
-              <Box sx={{ display: { md: "none", lg: "inline" } }}>Επικοινωνία / Αναφορά Προβλήματος</Box>
+                  just «Επικοινωνία». The full label reappears at lg+.
+                  Both labels flow through t() so the header follows the
+                  LanguageToggle without a page reload. */}
+              <Box sx={{ display: { md: "inline", lg: "none" } }}>
+                {tHeader("landing.nav.contact", "Επικοινωνία")}
+              </Box>
+              <Box sx={{ display: { md: "none", lg: "inline" } }}>
+                {tHeader("landing.nav.contactLong", "Επικοινωνία / Αναφορά Προβλήματος")}
+              </Box>
             </Button>
             <LanguageToggle />
           </Stack>
@@ -1294,6 +1301,12 @@ export interface ErmesShowcaseContent {
   footerNote: string;
   ctaLabel: string;
   ctaTo: string;
+  /** Optional English overrides for every text field. Admin fills these
+   *  from the "EN" tab in /platform/landing. Empty/missing values fall
+   *  back to the Greek defaults so a partially-translated section still
+   *  reads sensibly. Screenshot URLs are shared across languages
+   *  (screenshots have their own captions per language). */
+  en?: Partial<Omit<ErmesShowcaseContent, "en" | "screenshot1Url" | "screenshot2Url" | "ctaTo">>;
 }
 
 export const ERMES_SHOWCASE_DEFAULTS: ErmesShowcaseContent = {
@@ -1319,11 +1332,13 @@ export const ERMES_SHOWCASE_DEFAULTS: ErmesShowcaseContent = {
 };
 
 function ErmesShowcaseSection() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isEn = i18n.resolvedLanguage?.startsWith("en") ?? false;
   // Locale-aware defaults. Read fresh on every language change so switching
   // EL ↔ EN in the toggle updates the visible copy without a page reload.
-  // Admin overrides (saved to the DB) still win — those are single-authored
-  // whatever the writer's locale is.
+  // Admin overrides (saved to the DB) still win — those can now be
+  // bilingual (see ErmesShowcaseContent.en) so switching to English
+  // shows the admin's EN copy when present.
   const localisedDefaults: ErmesShowcaseContent = useMemo(() => ({
     ...ERMES_SHOWCASE_DEFAULTS,
     eyebrow: t("landing.ermes.eyebrow", ERMES_SHOWCASE_DEFAULTS.eyebrow),
@@ -1359,13 +1374,43 @@ function ErmesShowcaseSection() {
     },
     staleTime: 60_000,
   });
-  const content: ErmesShowcaseContent = useMemo(() => ({
-    ...localisedDefaults,
-    ...(q.data ?? {}),
-    features: (q.data?.features && q.data.features.length > 0)
-      ? q.data.features
-      : localisedDefaults.features,
-  }), [q.data, localisedDefaults]);
+  const content: ErmesShowcaseContent = useMemo(() => {
+    const admin = q.data ?? {};
+    // Base merge: defaults + admin's saved (Greek) values.
+    const base: ErmesShowcaseContent = {
+      ...localisedDefaults,
+      ...admin,
+      features: (admin.features && admin.features.length > 0)
+        ? admin.features
+        : localisedDefaults.features,
+    };
+    // When the visitor's language is English AND the admin has EN
+    // overrides, layer those on top field-by-field. Empty strings
+    // are treated as «not translated» and fall back to base — so
+    // admin can leave a field blank and it stays Greek.
+    if (isEn && admin.en) {
+      const en = admin.en;
+      return {
+        ...base,
+        eyebrow: en.eyebrow || base.eyebrow,
+        chip: en.chip || base.chip,
+        title: en.title || base.title,
+        subtitle: en.subtitle || base.subtitle,
+        screenshot1Caption: en.screenshot1Caption || base.screenshot1Caption,
+        screenshot2Caption: en.screenshot2Caption || base.screenshot2Caption,
+        footerNote: en.footerNote || base.footerNote,
+        ctaLabel: en.ctaLabel || base.ctaLabel,
+        features: (en.features && en.features.length > 0)
+          ? en.features.map((f, i) => ({
+              chip:  f.chip  || base.features[i]?.chip  || "",
+              title: f.title || base.features[i]?.title || "",
+              body:  f.body  || base.features[i]?.body  || "",
+            }))
+          : base.features,
+      };
+    }
+    return base;
+  }, [q.data, localisedDefaults, isEn]);
   const features = content.features;
 
   // Inline SVG "screenshots" so the section always renders even without
