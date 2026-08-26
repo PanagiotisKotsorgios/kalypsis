@@ -4,6 +4,7 @@ using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Kalypsis.Application.Features.PlatformAdmin;
 
@@ -18,7 +19,22 @@ namespace Kalypsis.Application.Features.PlatformAdmin;
 /// reseeded tenants can immediately start writing policies against ERGO /
 /// Atlantic / Grand Cover / the rest without a re-import.
 /// </summary>
-public record WipeAndReseedDemoCommand(string SuperAdminEmail) : IRequest<WipeAndReseedDemoResult>;
+/// <summary>
+/// Confirmation phrase the caller must type verbatim into the request
+/// body. A single browser confirm() proved to be a footgun — a stray
+/// double-click can wipe an entire production instance. Requiring the
+/// operator to TYPE this string means muscle-memory clicks aren't
+/// enough. Server side compares it byte-for-byte.
+/// </summary>
+public static class WipeAndReseedConfirmation
+{
+    // Greek so a copy-paste out of English docs won't accidentally work.
+    public const string RequiredPhrase = "ΔΙΑΓΡΑΦΩ-ΤΑ-ΠΑΝΤΑ";
+}
+
+public record WipeAndReseedDemoCommand(
+    string SuperAdminEmail,
+    string ConfirmationPhrase) : IRequest<WipeAndReseedDemoResult>;
 
 public record WipeAndReseedDemoResult(
     int UsersDeleted,
@@ -48,19 +64,74 @@ public class WipeAndReseedDemoCommandHandler
     private readonly IPasswordHasher _hasher;
     private readonly IDateTimeProvider _clock;
     private readonly IPackageService _packages;
+    private readonly ILogger<WipeAndReseedDemoCommandHandler> _logger;
     private (int usersDeleted, int tenantsDeleted) _wipeCounts;
 
     public WipeAndReseedDemoCommandHandler(IAppDbContext db, IPasswordHasher hasher,
-        IDateTimeProvider clock, IPackageService packages)
+        IDateTimeProvider clock, IPackageService packages,
+        ILogger<WipeAndReseedDemoCommandHandler> logger)
     {
         _db = db;
         _hasher = hasher;
         _clock = clock;
         _packages = packages;
+        _logger = logger;
     }
+
+    /// <summary>Overridable for tests — inject the "allowed" env-var value
+    /// directly instead of touching Environment. Static, process-scoped;
+    /// null (default) means fall back to the real env var.</summary>
+    public static string? AllowedOverrideForTests { get; set; }
 
     public async Task<WipeAndReseedDemoResult> Handle(WipeAndReseedDemoCommand r, CancellationToken ct)
     {
+        // ── SAFETY GUARDS ─────────────────────────────────────────
+        //
+        // A previous incident wiped a production tenant because a stray
+        // click on the "Wipe & Reseed Demo" button ran this handler
+        // behind a single browser confirm(). Never again. THREE layers
+        // of guarding must all pass before we touch a single row.
+
+        // 1. Env-var opt-in. This handler is DEAD in every environment
+        //    that hasn't explicitly set KALYPSIS_ALLOW_DEMO_WIPE=true
+        //    (or the settings key `PlatformAdmin:AllowDemoWipe`). The
+        //    production Coolify env MUST NOT set this — the demo wipe
+        //    is a dev-instance-only tool.
+        var flagValue = AllowedOverrideForTests ?? Environment.GetEnvironmentVariable("KALYPSIS_ALLOW_DEMO_WIPE");
+        var allowed = string.Equals(flagValue, "true", StringComparison.OrdinalIgnoreCase);
+        if (!allowed)
+        {
+            _logger.LogCritical(
+                "REFUSED wipe-and-reseed by user {Email}: KALYPSIS_ALLOW_DEMO_WIPE is not 'true' on this environment. " +
+                "This handler is intended for demo/dev instances only. To enable in a dev environment, set the env var explicitly.",
+                r.SuperAdminEmail);
+            throw new AppException("wipe_not_permitted",
+                "Το wipe-and-reseed δεν είναι ενεργοποιημένο σε αυτό το περιβάλλον. " +
+                "Πρόκειται για εργαλείο demo/dev instances — δεν εκτελείται σε production. " +
+                "Επικοινωνήστε με το ops αν χρειάζεται.", 403);
+        }
+
+        // 2. Typed confirmation phrase. Guards against muscle-memory
+        //    clicks + auto-generated integration tests that might reach
+        //    this endpoint with default/empty bodies. Byte-for-byte.
+        if (!string.Equals(r.ConfirmationPhrase, WipeAndReseedConfirmation.RequiredPhrase, StringComparison.Ordinal))
+        {
+            _logger.LogCritical(
+                "REFUSED wipe-and-reseed by user {Email}: confirmation phrase mismatch. Given: '{Given}'.",
+                r.SuperAdminEmail, r.ConfirmationPhrase?.Length > 40 ? r.ConfirmationPhrase[..40] + "…" : r.ConfirmationPhrase);
+            throw new AppException("wipe_confirmation_missing",
+                $"Απαιτείται η φράση επιβεβαίωσης «{WipeAndReseedConfirmation.RequiredPhrase}» ΑΚΡΙΒΩΣ.",
+                400);
+        }
+
+        // 3. Loud audit trail — anyone reading logs after an incident
+        //    can see exactly who fired it + when. LogCritical so this
+        //    lands even under a minimal log filter.
+        _logger.LogCritical(
+            "PROCEEDING with wipe-and-reseed at {At}. Superadmin email: {Email}. " +
+            "Every tenant + user (except the superadmin + Kalypsis Platform tenant) will be HARD DELETED.",
+            _clock.UtcNow, r.SuperAdminEmail);
+
         var now = _clock.UtcNow;
         var superEmail = r.SuperAdminEmail.Trim().ToLowerInvariant();
 

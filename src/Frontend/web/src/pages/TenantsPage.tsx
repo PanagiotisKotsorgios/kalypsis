@@ -123,6 +123,19 @@ export function TenantsPage() {
     onError: (err) => setError(extractErrorMessage(err))
   });
 
+  // Discovery: is wipe-and-reseed even allowed in this environment?
+  // Production has KALYPSIS_ALLOW_DEMO_WIPE unset → `allowed: false`
+  // → the destructive button stays disabled with a tooltip explanation
+  // and NEVER opens the confirmation dialog.
+  const wipeStatus = useQuery({
+    queryKey: ["wipe-reseed-status"],
+    queryFn: async () => (await api.get<{ allowed: boolean; requiredPhrase: string }>(
+      "/platform/demo/wipe-and-reseed/status")).data,
+    staleTime: 5 * 60_000,
+  });
+  const [wipeConfirmOpen, setWipeConfirmOpen] = useState(false);
+  const [wipeTyped, setWipeTyped] = useState("");
+
   const wipeReseed = useMutation({
     mutationFn: async () => (await api.post<{
       usersDeleted: number; tenantsDeleted: number;
@@ -134,8 +147,13 @@ export function TenantsPage() {
       tasksCreated: number; appointmentsCreated: number;
       notificationsCreated: number; communicationsCreated: number;
       commissionRulesCreated: number; commissionRunsCreated: number;
-    }>("/platform/demo/wipe-and-reseed")).data,
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["tenants"] }); },
+    }>("/platform/demo/wipe-and-reseed",
+      { confirmationPhrase: wipeTyped })).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["tenants"] });
+      setWipeConfirmOpen(false);
+      setWipeTyped("");
+    },
     onError: (e) => setError(extractErrorMessage(e))
   });
 
@@ -160,14 +178,19 @@ export function TenantsPage() {
             }}>
             Κατέβασμα Bridge Samples
           </Button>
-          <Button variant="outlined" color="error"
-            onClick={() => {
-              if (!confirm("Θα διαγραφούν ΟΛΟΙ οι χρήστες + όλα τα γραφεία εκτός από τον superadmin και το Kalypsis Platform tenant, και θα δημιουργηθούν 5 νέα demo γραφεία. Είστε σίγουρος;")) return;
-              wipeReseed.mutate();
-            }}
-            disabled={wipeReseed.isPending}>
-            {wipeReseed.isPending ? <CircularProgress size={16} /> : "Wipe & Reseed Demo"}
-          </Button>
+          {/* Wipe & Reseed — HIDDEN entirely when the environment doesn't
+              allow it (production sets KALYPSIS_ALLOW_DEMO_WIPE to
+              nothing → the /status endpoint returns allowed:false).
+              Even when visible, it opens a modal that requires the
+              operator to TYPE the confirmation phrase — a click alone
+              can't fire the destructive request any more. */}
+          {wipeStatus.data?.allowed && (
+            <Button variant="outlined" color="error"
+              onClick={() => { setWipeTyped(""); setWipeConfirmOpen(true); }}
+              disabled={wipeReseed.isPending}>
+              {wipeReseed.isPending ? <CircularProgress size={16} /> : "Wipe & Reseed Demo"}
+            </Button>
+          )}
           <Button variant="outlined"
             onClick={() => setStandaloneProducerOpen(true)}
             startIcon={<PersonAddIcon />}>
@@ -311,6 +334,48 @@ export function TenantsPage() {
         onSubmit={(b) => createMutation.mutate(b)}
         submitting={createMutation.isPending}
       />
+
+      {/* Wipe & Reseed — typed-confirmation dialog.
+          Replaces the old browser confirm(). Enter button stays
+          disabled until the operator types the exact server-required
+          phrase (returned by /wipe-and-reseed/status). Backend
+          double-checks. Even with muscle-memory clicks, nothing
+          destructive happens without keystrokes. */}
+      <Dialog open={wipeConfirmOpen} onClose={() => setWipeConfirmOpen(false)}
+        fullWidth maxWidth="sm">
+        <DialogTitle sx={{ color: "error.main", fontWeight: 800 }}>
+          Wipe & Reseed — καταστροφική ενέργεια
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            Θα <b>διαγραφούν HARD</b> όλα τα γραφεία και όλοι οι χρήστες εκτός
+            από τον καλούντα superadmin και το Kalypsis Platform tenant.
+            Στη συνέχεια θα δημιουργηθούν 5 demo γραφεία με ψεύτικα δεδομένα.
+            Η ενέργεια <b>δεν αναιρείται</b> — δεν υπάρχει «undo».
+          </Alert>
+          <Typography variant="body2" mb={1}>
+            Για να συνεχίσετε, γράψτε την ακόλουθη φράση ΑΚΡΙΒΩΣ:
+          </Typography>
+          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, mb: 2, p: 1, bgcolor: "rgba(255,0,0,0.06)" }}>
+            {wipeStatus.data?.requiredPhrase ?? "…"}
+          </Typography>
+          <TextField autoFocus fullWidth value={wipeTyped}
+            onChange={e => setWipeTyped(e.target.value)}
+            placeholder="Πληκτρολογήστε τη φράση εδώ" />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setWipeConfirmOpen(false)}>Άκυρο</Button>
+          <Button variant="contained" color="error"
+            disabled={
+              wipeReseed.isPending ||
+              !wipeStatus.data?.requiredPhrase ||
+              wipeTyped !== wipeStatus.data.requiredPhrase
+            }
+            onClick={() => wipeReseed.mutate()}>
+            {wipeReseed.isPending ? <CircularProgress size={16} /> : "Διαγραφή τώρα"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <EditTenantDialog
         tenant={editing}

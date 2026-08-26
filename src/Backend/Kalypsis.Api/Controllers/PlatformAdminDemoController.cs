@@ -24,16 +24,40 @@ public class PlatformAdminDemoController : ControllerBase
         _current = current;
     }
 
+    public record WipeAndReseedBody(string? ConfirmationPhrase);
+
     /// <summary>Wipes every tenant + user except the calling superadmin and
     /// the Kalypsis Platform tenant, then reseeds 5 demo agencies with
-    /// representative data. See WipeAndReseedDemoCommand for details.</summary>
+    /// representative data. GATED:
+    ///   1. Server env var KALYPSIS_ALLOW_DEMO_WIPE must be "true" —
+    ///      production instances MUST NOT set this.
+    ///   2. Request body must include ConfirmationPhrase exactly equal
+    ///      to WipeAndReseedConfirmation.RequiredPhrase.
+    ///   3. Every call is LogCritical-audited.
+    /// See WipeAndReseedDemoCommand for details.</summary>
     [HttpPost("wipe-and-reseed")]
-    public async Task<ActionResult<WipeAndReseedDemoResult>> WipeAndReseed(CancellationToken ct)
+    public async Task<ActionResult<WipeAndReseedDemoResult>> WipeAndReseed(
+        [FromBody] WipeAndReseedBody body, CancellationToken ct)
     {
-        // Use the calling user's email as the "preserve" hint so no-one
-        // else on the platform-admin role can wipe someone else's account.
         var email = _current.Email ?? throw new UnauthorizedAccessException("Missing current-user email.");
-        return Ok(await _mediator.Send(new WipeAndReseedDemoCommand(email), ct));
+        return Ok(await _mediator.Send(
+            new WipeAndReseedDemoCommand(email, body?.ConfirmationPhrase ?? ""), ct));
+    }
+
+    /// <summary>Discovery endpoint the UI hits before rendering the
+    /// destructive button — returns whether this environment allows
+    /// wipe-and-reseed at all. If false, the button stays HIDDEN so
+    /// even a scripted click can't fire.</summary>
+    [HttpGet("wipe-and-reseed/status")]
+    public ActionResult<object> WipeAndReseedStatus()
+    {
+        var flag = WipeAndReseedDemoCommandHandler.AllowedOverrideForTests
+            ?? Environment.GetEnvironmentVariable("KALYPSIS_ALLOW_DEMO_WIPE");
+        var allowed = string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase);
+        return Ok(new {
+            allowed,
+            requiredPhrase = WipeAndReseedConfirmation.RequiredPhrase,
+        });
     }
 
     /// <summary>
