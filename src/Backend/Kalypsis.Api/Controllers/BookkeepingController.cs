@@ -68,6 +68,10 @@ public class BookkeepingController : ControllerBase
         string? Category, bool AutoNotify);
     public record UpsertCredentialBody(string CarrierName, string PortalUrl,
         string Username, string Password, string? Notes);
+    public record MoveFolderBody(Guid? NewParentFolderId, int? NewDisplayOrder);
+    public record MoveFilesBody(IReadOnlyList<Guid> FileIds, Guid TargetFolderId);
+    public record BulkFilesBody(IReadOnlyList<Guid> FileIds);
+    public record BulkStatusBody(IReadOnlyList<Guid> FileIds, string Status);
 
     // ═══════════════════════════════════════════════════════════════
     // TENANT SELF-SERVICE
@@ -284,6 +288,48 @@ public class BookkeepingController : ControllerBase
         return Ok(new FolderDto(f.Id, f.ParentFolderId, f.Name, f.Origin, f.DisplayOrder, f.CreatedAt, 0));
     }
 
+    /// <summary>Move a folder — reparent it under a different folder (or
+    /// to root) AND/OR change its DisplayOrder among siblings. Powers
+    /// the drag-drop tree UI. Guards against creating cycles by refusing
+    /// to reparent a folder under itself or any of its descendants.</summary>
+    [HttpPatch("/api/platform/bookkeeping/tenants/{tenantId:guid}/folders/{folderId:guid}/move")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<FolderDto>> AdminMoveFolder(Guid tenantId, Guid folderId,
+        [FromBody] MoveFolderBody body, CancellationToken ct)
+    {
+        var f = await _db.BookkeepingFolders.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == folderId && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Folder");
+        if (body.NewParentFolderId is Guid pid)
+        {
+            if (pid == folderId)
+                throw AppException.Validation("Ένας φάκελος δεν μπορεί να είναι γονέας του εαυτού του.");
+            // Cycle guard: walk the target's ancestry, refuse if we hit folderId.
+            var cursorId = (Guid?)pid;
+            var seen = new HashSet<Guid>();
+            while (cursorId is Guid cid)
+            {
+                if (cid == folderId)
+                    throw AppException.Validation("Ο φάκελος δεν μπορεί να μετακινηθεί κάτω από κάποιον υποφάκελό του.");
+                if (!seen.Add(cid)) break; // corrupted cycle in existing data — bail out
+                var next = await _db.BookkeepingFolders.IgnoreQueryFilters()
+                    .Where(x => x.Id == cid && x.TenantId == tenantId && x.DeletedAt == null)
+                    .Select(x => x.ParentFolderId).FirstOrDefaultAsync(ct);
+                cursorId = next;
+            }
+            // Parent must exist in this tenant.
+            var parentOk = await _db.BookkeepingFolders.IgnoreQueryFilters()
+                .AnyAsync(x => x.Id == pid && x.TenantId == tenantId && x.DeletedAt == null, ct);
+            if (!parentOk) throw AppException.NotFound("Parent folder");
+        }
+        f.ParentFolderId = body.NewParentFolderId;
+        if (body.NewDisplayOrder is int ord) f.DisplayOrder = ord;
+        await _db.SaveChangesAsync(ct);
+        var count = await _db.BookkeepingFiles.IgnoreQueryFilters()
+            .CountAsync(x => x.FolderId == f.Id && x.DeletedAt == null, ct);
+        return Ok(new FolderDto(f.Id, f.ParentFolderId, f.Name, f.Origin, f.DisplayOrder, f.CreatedAt, count));
+    }
+
     [HttpDelete("/api/platform/bookkeeping/tenants/{tenantId:guid}/folders/{folderId:guid}")]
     [Authorize(Policy = "PlatformAdmin")]
     public async Task<IActionResult> AdminDeleteFolder(Guid tenantId, Guid folderId, CancellationToken ct)
@@ -376,6 +422,63 @@ public class BookkeepingController : ControllerBase
         f.DeletedAt = _clock.UtcNow;
         await _db.SaveChangesAsync(ct);
         return NoContent();
+    }
+
+    /// <summary>Move a batch of files into a target folder. Powers both
+    /// drag-drop of a single file across folders and the multi-select
+    /// «Μετακίνηση σε…» bulk action. Silently skips any id that isn't
+    /// in this tenant — no cross-tenant leak, no confusing 404 when
+    /// the frontend ships a stale selection.</summary>
+    [HttpPost("/api/platform/bookkeeping/tenants/{tenantId:guid}/files/bulk-move")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<object>> AdminBulkMoveFiles(Guid tenantId,
+        [FromBody] MoveFilesBody body, CancellationToken ct)
+    {
+        if (body.FileIds == null || body.FileIds.Count == 0)
+            return Ok(new { moved = 0 });
+        var target = await _db.BookkeepingFolders.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(f => f.Id == body.TargetFolderId && f.TenantId == tenantId && f.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Target folder");
+        var files = await _db.BookkeepingFiles.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && body.FileIds.Contains(x.Id) && x.DeletedAt == null)
+            .ToListAsync(ct);
+        foreach (var f in files) f.FolderId = target.Id;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { moved = files.Count });
+    }
+
+    /// <summary>Batch-delete files by id.</summary>
+    [HttpPost("/api/platform/bookkeeping/tenants/{tenantId:guid}/files/bulk-delete")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<object>> AdminBulkDeleteFiles(Guid tenantId,
+        [FromBody] BulkFilesBody body, CancellationToken ct)
+    {
+        if (body.FileIds == null || body.FileIds.Count == 0) return Ok(new { deleted = 0 });
+        var files = await _db.BookkeepingFiles.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && body.FileIds.Contains(x.Id) && x.DeletedAt == null)
+            .ToListAsync(ct);
+        foreach (var f in files) f.DeletedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { deleted = files.Count });
+    }
+
+    /// <summary>Batch-set status on a selection of files. Feeds the
+    /// «Επιλέξτε όλα → Σημείωση ως processed» toolbar action.</summary>
+    [HttpPost("/api/platform/bookkeeping/tenants/{tenantId:guid}/files/bulk-status")]
+    [Authorize(Policy = "PlatformAdmin")]
+    public async Task<ActionResult<object>> AdminBulkStatus(Guid tenantId,
+        [FromBody] BulkStatusBody body, CancellationToken ct)
+    {
+        if (body.FileIds == null || body.FileIds.Count == 0) return Ok(new { updated = 0 });
+        var allowed = new HashSet<string> { "pending", "processed", "rejected" };
+        if (!allowed.Contains(body.Status ?? ""))
+            throw AppException.Validation("Άκυρη κατάσταση.");
+        var files = await _db.BookkeepingFiles.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && body.FileIds.Contains(x.Id) && x.DeletedAt == null)
+            .ToListAsync(ct);
+        foreach (var f in files) f.Status = body.Status;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { updated = files.Count });
     }
 
     [HttpDelete("/api/platform/bookkeeping/tenants/{tenantId:guid}/files")]

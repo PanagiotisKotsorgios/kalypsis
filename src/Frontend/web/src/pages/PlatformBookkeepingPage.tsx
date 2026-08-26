@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
-  Alert, Box, Button, Card, Chip, CircularProgress, Container,
+  Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Container,
   Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, IconButton, InputLabel, LinearProgress, List, ListItem,
-  ListItemButton, ListItemIcon, ListItemText, MenuItem, Paper, Select,
+  ListItemButton, ListItemIcon, ListItemText, MenuItem, Menu, Paper, Select,
   Stack, Switch, Tab, Tabs, TextField, Tooltip, Typography,
 } from "@mui/material";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,6 +20,8 @@ import VpnKeyIcon from "@mui/icons-material/VpnKey";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import HistoryIcon from "@mui/icons-material/History";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import DriveFileMoveIcon from "@mui/icons-material/SwapHoriz";
+import DoneAllIcon from "@mui/icons-material/DoneAll";
 import SettingsIcon from "@mui/icons-material/Settings";
 import { api, extractErrorMessage } from "../api/client";
 
@@ -170,6 +172,13 @@ function TenantListPanel({ tenants, loading, selectedId, onSelect }: {
   );
 }
 
+// ── DnD payload keys ────────────────────────────────────────────────
+// We use custom mime types on `dataTransfer` so the browser distinguishes
+// intra-app drags (folder ids / file ids) from the OS-native file drops
+// used for upload from PC. Both branches are handled by the same handler.
+const DND_FILE_IDS = "application/x-bk-file-ids";
+const DND_FOLDER_ID = "application/x-bk-folder-id";
+
 function FilesTab({ tenantId, qc, setErr }: {
   tenantId: string; qc: ReturnType<typeof useQueryClient>; setErr: (s: string | null) => void;
 }) {
@@ -180,12 +189,17 @@ function FilesTab({ tenantId, qc, setErr }: {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // Multi-select — set of fileIds currently ticked in the right column.
+  // Cleared whenever the user switches folders so selection can't
+  // silently span two different views.
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
+  const [moveToFolderOpen, setMoveToFolderOpen] = useState(false);
 
   useEffect(() => {
-    // Auto-select the first root folder when tree changes.
     const roots = tree.data?.folders.filter(f => !f.parentFolderId) ?? [];
     if (!selectedFolderId && roots.length > 0) setSelectedFolderId(roots[0].id);
   }, [tree.data, selectedFolderId]);
+  useEffect(() => { setSelectedFileIds(new Set()); }, [selectedFolderId]);
 
   const applyDefaults = useMutation({
     mutationFn: () => api.post(`/platform/bookkeeping/tenants/${tenantId}/apply-defaults`),
@@ -209,7 +223,58 @@ function FilesTab({ tenantId, qc, setErr }: {
     } catch (e) { setErr(extractErrorMessage(e)); } finally { setUploading(false); }
   }, [tenantId, selectedFolderId, qc, setErr]);
 
+  // ── Bulk mutations ─────────────────────────────────────────────
+  const bulkDelete = useMutation({
+    mutationFn: (ids: string[]) => api.post(`/platform/bookkeeping/tenants/${tenantId}/files/bulk-delete`, { fileIds: ids }),
+    onSuccess: () => { setSelectedFileIds(new Set()); qc.invalidateQueries({ queryKey: ["platform-bookkeeping", "tree", tenantId] }); },
+    onError: e => setErr(extractErrorMessage(e)),
+  });
+  const bulkStatus = useMutation({
+    mutationFn: (p: { ids: string[]; status: string }) => api.post(`/platform/bookkeeping/tenants/${tenantId}/files/bulk-status`, { fileIds: p.ids, status: p.status }),
+    onSuccess: () => { setSelectedFileIds(new Set()); qc.invalidateQueries({ queryKey: ["platform-bookkeeping", "tree", tenantId] }); },
+    onError: e => setErr(extractErrorMessage(e)),
+  });
+  const bulkMove = useMutation({
+    mutationFn: (p: { ids: string[]; targetFolderId: string }) => api.post(`/platform/bookkeeping/tenants/${tenantId}/files/bulk-move`, { fileIds: p.ids, targetFolderId: p.targetFolderId }),
+    onSuccess: () => { setSelectedFileIds(new Set()); qc.invalidateQueries({ queryKey: ["platform-bookkeeping", "tree", tenantId] }); },
+    onError: e => setErr(extractErrorMessage(e)),
+  });
+
+  const moveFolder = useMutation({
+    mutationFn: (p: { folderId: string; newParentFolderId: string | null }) =>
+      api.patch(`/platform/bookkeeping/tenants/${tenantId}/folders/${p.folderId}/move`,
+        { newParentFolderId: p.newParentFolderId, newDisplayOrder: null }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["platform-bookkeeping", "tree", tenantId] }),
+    onError: e => setErr(extractErrorMessage(e)),
+  });
+
+  // Called by folder tree drop targets. `payload` is what the source
+  // set on dataTransfer — either file ids (bulk move) or a folder id
+  // (reparent). Duplicates the drop logic into one place so both the
+  // right-column drag AND the sidebar's own drag land here.
+  const handleDropOnFolder = useCallback((targetFolderId: string, dt: DataTransfer) => {
+    const fileIdsRaw = dt.getData(DND_FILE_IDS);
+    const folderId = dt.getData(DND_FOLDER_ID);
+    if (fileIdsRaw) {
+      try {
+        const ids = JSON.parse(fileIdsRaw) as string[];
+        if (ids.length > 0) bulkMove.mutate({ ids, targetFolderId });
+      } catch { /* ignore */ }
+      return;
+    }
+    if (folderId && folderId !== targetFolderId) {
+      moveFolder.mutate({ folderId, newParentFolderId: targetFolderId });
+    }
+  }, [bulkMove, moveFolder]);
+
   if (tree.isLoading) return <Box sx={{ p: 3 }}><CircularProgress size={20} /></Box>;
+
+  const allChecked = filesInFolder.length > 0 && filesInFolder.every(f => selectedFileIds.has(f.id));
+  const someChecked = filesInFolder.some(f => selectedFileIds.has(f.id)) && !allChecked;
+  const toggleAll = () => {
+    if (allChecked) setSelectedFileIds(new Set());
+    else setSelectedFileIds(new Set(filesInFolder.map(f => f.id)));
+  };
 
   return (
     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "260px 1fr" }, height: "100%", minHeight: 0 }}>
@@ -228,25 +293,74 @@ function FilesTab({ tenantId, qc, setErr }: {
             </Tooltip>
           )}
         </Stack>
-        <List dense sx={{ flex: 1, overflowY: "auto" }}>
+        <List dense sx={{ flex: 1, overflowY: "auto" }}
+          onDragOver={e => {
+            // Root-level drop = reparent to root (no folder id set). Allow
+            // ONLY when the drag carries a folder id — file drops must
+            // pick a target folder, not «no folder».
+            if (e.dataTransfer.types.includes(DND_FOLDER_ID)) e.preventDefault();
+          }}
+          onDrop={e => {
+            const folderId = e.dataTransfer.getData(DND_FOLDER_ID);
+            if (folderId) {
+              e.preventDefault();
+              moveFolder.mutate({ folderId, newParentFolderId: null });
+            }
+          }}>
           <FolderTreeNode folders={tree.data?.folders ?? []} parentId={null} depth={0}
             selectedId={selectedFolderId} onSelect={setSelectedFolderId}
-            tenantId={tenantId} qc={qc} setErr={setErr} />
+            tenantId={tenantId} qc={qc} setErr={setErr}
+            onDropOnFolder={handleDropOnFolder} />
         </List>
       </Box>
 
-      {/* Files list + upload */}
+      {/* Files list + upload — accepts BOTH intra-app moves (bulk-move
+          the selection into the current folder) AND OS-native file
+          drops (upload from PC). Two different types on dataTransfer. */}
       <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0 }}
-        onDragOver={e => { if (selectedFolderId) e.preventDefault(); }}
+        onDragOver={e => {
+          if (!selectedFolderId) return;
+          if (e.dataTransfer.types.includes(DND_FILE_IDS)) { e.preventDefault(); return; }
+          if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); return; }
+        }}
         onDrop={e => {
           if (!selectedFolderId) return;
-          e.preventDefault();
-          for (const f of Array.from(e.dataTransfer.files ?? [])) void uploadFile(f);
+          const fileIdsRaw = e.dataTransfer.getData(DND_FILE_IDS);
+          if (fileIdsRaw) {
+            e.preventDefault();
+            try {
+              const ids = JSON.parse(fileIdsRaw) as string[];
+              if (ids.length > 0) bulkMove.mutate({ ids, targetFolderId: selectedFolderId });
+            } catch { /* ignore */ }
+            return;
+          }
+          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            e.preventDefault();
+            for (const f of Array.from(e.dataTransfer.files)) void uploadFile(f);
+          }
         }}>
         <Stack direction="row" alignItems="center" spacing={1} sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}>
+          {filesInFolder.length > 0 && (
+            <Tooltip title={allChecked ? "Καθαρισμός επιλογής" : "Επιλογή όλων"}>
+              <Checkbox size="small" checked={allChecked} indeterminate={someChecked}
+                onChange={toggleAll} />
+            </Tooltip>
+          )}
           <Typography variant="body2" fontWeight={700} sx={{ flex: 1 }}>
             Αρχεία {filesInFolder.length > 0 && `(${filesInFolder.length})`}
+            {selectedFileIds.size > 0 && ` — επιλεγμένα ${selectedFileIds.size}`}
           </Typography>
+          {selectedFileIds.size > 0 && (
+            <BulkToolbar
+              onDelete={() => {
+                if (window.confirm(`Διαγραφή ${selectedFileIds.size} αρχείων;`))
+                  bulkDelete.mutate(Array.from(selectedFileIds));
+              }}
+              onSetStatus={s => bulkStatus.mutate({ ids: Array.from(selectedFileIds), status: s })}
+              onOpenMove={() => setMoveToFolderOpen(true)}
+              disabled={bulkDelete.isPending || bulkStatus.isPending || bulkMove.isPending}
+            />
+          )}
           <Button size="small" variant="contained" startIcon={<UploadFileIcon />} component="label"
             disabled={!selectedFolderId || uploading}>
             Ανέβασμα
@@ -259,7 +373,7 @@ function FilesTab({ tenantId, qc, setErr }: {
         {uploading && <LinearProgress />}
         {!selectedFolderId ? (
           <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
-            Επιλέξτε φάκελο για να δείτε ή να ανεβάσετε αρχεία. Μπορείτε επίσης να σύρετε αρχεία εδώ.
+            Επιλέξτε φάκελο για να δείτε ή να ανεβάσετε αρχεία. Σύρετε αρχεία από τον υπολογιστή σας εδώ.
           </Box>
         ) : filesInFolder.length === 0 ? (
           <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
@@ -268,7 +382,15 @@ function FilesTab({ tenantId, qc, setErr }: {
         ) : (
           <List dense sx={{ flex: 1, overflowY: "auto" }}>
             {filesInFolder.map(f => (
-              <FileRow key={f.id} f={f} tenantId={tenantId} qc={qc} setErr={setErr} />
+              <FileRow key={f.id} f={f} tenantId={tenantId} qc={qc} setErr={setErr}
+                selected={selectedFileIds.has(f.id)}
+                onToggle={() => setSelectedFileIds(prev => {
+                  const next = new Set(prev);
+                  if (next.has(f.id)) next.delete(f.id); else next.add(f.id);
+                  return next;
+                })}
+                selectedFileIds={selectedFileIds}
+              />
             ))}
           </List>
         )}
@@ -276,14 +398,104 @@ function FilesTab({ tenantId, qc, setErr }: {
 
       <NewFolderDialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)}
         tenantId={tenantId} parentFolderId={selectedFolderId} qc={qc} setErr={setErr} />
+      <MoveFilesDialog open={moveToFolderOpen} onClose={() => setMoveToFolderOpen(false)}
+        folders={tree.data?.folders ?? []}
+        onConfirm={target => {
+          bulkMove.mutate({ ids: Array.from(selectedFileIds), targetFolderId: target });
+          setMoveToFolderOpen(false);
+        }} />
     </Box>
   );
 }
 
-function FolderTreeNode({ folders, parentId, depth, selectedId, onSelect, tenantId, qc, setErr }: {
+/** Toolbar that appears when at least one file is selected. Delete + a
+ *  three-item status menu + «Move to…» that opens a target-folder picker. */
+function BulkToolbar({ onDelete, onSetStatus, onOpenMove, disabled }: {
+  onDelete: () => void; onSetStatus: (s: string) => void;
+  onOpenMove: () => void; disabled: boolean;
+}) {
+  const [statusMenu, setStatusMenu] = useState<HTMLElement | null>(null);
+  return (
+    <>
+      <Tooltip title="Μετακίνηση σε…">
+        <IconButton size="small" onClick={onOpenMove} disabled={disabled}>
+          <DriveFileMoveIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Αλλαγή κατάστασης">
+        <IconButton size="small" onClick={e => setStatusMenu(e.currentTarget)} disabled={disabled}>
+          <DoneAllIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Menu open={!!statusMenu} anchorEl={statusMenu} onClose={() => setStatusMenu(null)}>
+        {["pending", "processed", "rejected"].map(s => (
+          <MenuItem key={s} onClick={() => { onSetStatus(s); setStatusMenu(null); }}>{s}</MenuItem>
+        ))}
+      </Menu>
+      <Tooltip title="Διαγραφή επιλεγμένων">
+        <IconButton size="small" onClick={onDelete} disabled={disabled}>
+          <DeleteOutlineIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+    </>
+  );
+}
+
+/** Modal that lists every folder in the tenant's tree so the admin can
+ *  pick one as the target for a bulk-move. Indents by depth so the tree
+ *  layout is preserved. */
+function MoveFilesDialog({ open, onClose, folders, onConfirm }: {
+  open: boolean; onClose: () => void; folders: FolderDto[];
+  onConfirm: (targetId: string) => void;
+}) {
+  const [target, setTarget] = useState<string | null>(null);
+  useEffect(() => { if (open) setTarget(null); }, [open]);
+  // Depth-first flatten so the picker shows the same tree order as the sidebar.
+  const flat = useMemo(() => {
+    const out: { id: string; label: string; depth: number }[] = [];
+    const byParent = new Map<string | null, FolderDto[]>();
+    for (const f of folders) {
+      const key = f.parentFolderId ?? null;
+      const arr = byParent.get(key) ?? []; arr.push(f); byParent.set(key, arr);
+    }
+    const walk = (parent: string | null, depth: number) => {
+      for (const f of (byParent.get(parent) ?? []).sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name))) {
+        out.push({ id: f.id, label: f.name, depth });
+        walk(f.id, depth + 1);
+      }
+    };
+    walk(null, 0);
+    return out;
+  }, [folders]);
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle>Μετακίνηση σε φάκελο</DialogTitle>
+      <DialogContent>
+        <List dense sx={{ maxHeight: 400, overflowY: "auto" }}>
+          {flat.map(f => (
+            <ListItemButton key={f.id} selected={target === f.id} onClick={() => setTarget(f.id)}
+              sx={{ pl: 1 + f.depth * 2 }}>
+              <ListItemIcon sx={{ minWidth: 28 }}><FolderIcon fontSize="small" /></ListItemIcon>
+              <ListItemText primary={<Typography variant="body2">{f.label}</Typography>} />
+            </ListItemButton>
+          ))}
+        </List>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Ακύρωση</Button>
+        <Button variant="contained" onClick={() => target && onConfirm(target)} disabled={!target}>
+          Μετακίνηση
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function FolderTreeNode({ folders, parentId, depth, selectedId, onSelect, tenantId, qc, setErr, onDropOnFolder }: {
   folders: FolderDto[]; parentId: string | null; depth: number;
   selectedId: string | null; onSelect: (id: string) => void;
   tenantId: string; qc: ReturnType<typeof useQueryClient>; setErr: (s: string | null) => void;
+  onDropOnFolder: (targetFolderId: string, dt: DataTransfer) => void;
 }) {
   const children = folders.filter(f => (f.parentFolderId ?? null) === parentId);
   const del = useMutation({
@@ -291,12 +503,40 @@ function FolderTreeNode({ folders, parentId, depth, selectedId, onSelect, tenant
     onSuccess: () => qc.invalidateQueries({ queryKey: ["platform-bookkeeping", "tree", tenantId] }),
     onError: e => setErr(extractErrorMessage(e)),
   });
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   return (
     <>
       {children.map(f => (
         <Box key={f.id}>
           <ListItemButton selected={f.id === selectedId}
-            onClick={() => onSelect(f.id)} sx={{ pl: 1 + depth * 2 }}>
+            onClick={() => onSelect(f.id)}
+            draggable
+            onDragStart={e => {
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData(DND_FOLDER_ID, f.id);
+            }}
+            onDragOver={e => {
+              const t = e.dataTransfer.types;
+              if (t.includes(DND_FILE_IDS) || t.includes(DND_FOLDER_ID)) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDragOverId(f.id);
+              }
+            }}
+            onDragLeave={() => setDragOverId(v => v === f.id ? null : v)}
+            onDrop={e => {
+              e.preventDefault();
+              setDragOverId(null);
+              onDropOnFolder(f.id, e.dataTransfer);
+            }}
+            sx={{
+              pl: 1 + depth * 2,
+              cursor: "grab",
+              // Visual highlight while a compatible drag is hovering.
+              bgcolor: dragOverId === f.id ? "rgba(31,123,179,0.15)" : undefined,
+              outline: dragOverId === f.id ? "2px dashed rgba(31,123,179,0.6)" : undefined,
+              outlineOffset: dragOverId === f.id ? -2 : undefined,
+            }}>
             <ListItemIcon sx={{ minWidth: 28 }}>
               {f.id === selectedId ? <FolderSpecialIcon fontSize="small" color="primary" /> : <FolderIcon fontSize="small" />}
             </ListItemIcon>
@@ -312,16 +552,19 @@ function FolderTreeNode({ folders, parentId, depth, selectedId, onSelect, tenant
           </ListItemButton>
           <FolderTreeNode folders={folders} parentId={f.id} depth={depth + 1}
             selectedId={selectedId} onSelect={onSelect}
-            tenantId={tenantId} qc={qc} setErr={setErr} />
+            tenantId={tenantId} qc={qc} setErr={setErr}
+            onDropOnFolder={onDropOnFolder} />
         </Box>
       ))}
     </>
   );
 }
 
-function FileRow({ f, tenantId, qc, setErr }: {
+function FileRow({ f, tenantId, qc, setErr, selected, onToggle, selectedFileIds }: {
   f: FileDto; tenantId: string;
   qc: ReturnType<typeof useQueryClient>; setErr: (s: string | null) => void;
+  selected: boolean; onToggle: () => void;
+  selectedFileIds: Set<string>;
 }) {
   const del = useMutation({
     mutationFn: () => api.delete(`/platform/bookkeeping/tenants/${tenantId}/files/${f.id}`),
@@ -349,25 +592,40 @@ function FileRow({ f, tenantId, qc, setErr }: {
     window.URL.revokeObjectURL(url);
   };
   return (
-    <ListItem divider secondaryAction={
-      <Stack direction="row" spacing={0.5}>
-        <Tooltip title="Λήψη"><IconButton size="small" onClick={download}><DownloadIcon fontSize="small" /></IconButton></Tooltip>
-        <Tooltip title="Αντικατάσταση">
-          <IconButton size="small" component="label">
-            <SwapHorizIcon fontSize="small" />
-            <input type="file" hidden onChange={e => {
-              const file = e.target.files?.[0]; if (file) replaceMut.mutate(file);
-              e.target.value = "";
-            }} />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Διαγραφή">
-          <IconButton size="small" onClick={() => {
-            if (window.confirm(`Διαγραφή «${f.fileName}»;`)) del.mutate();
-          }}><DeleteOutlineIcon fontSize="small" /></IconButton>
-        </Tooltip>
-      </Stack>
-    }>
+    <ListItem divider
+      // If dragging with a selection, move ALL selected files together —
+      // matches how Finder / Explorer treat a drag on a selected item.
+      // Otherwise drag just this one.
+      draggable
+      onDragStart={e => {
+        const ids = selected && selectedFileIds.size > 0
+          ? Array.from(selectedFileIds)
+          : [f.id];
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData(DND_FILE_IDS, JSON.stringify(ids));
+      }}
+      sx={{ cursor: "grab", bgcolor: selected ? "rgba(31,123,179,0.06)" : undefined }}
+      secondaryAction={
+        <Stack direction="row" spacing={0.5}>
+          <Tooltip title="Λήψη"><IconButton size="small" onClick={download}><DownloadIcon fontSize="small" /></IconButton></Tooltip>
+          <Tooltip title="Αντικατάσταση">
+            <IconButton size="small" component="label">
+              <SwapHorizIcon fontSize="small" />
+              <input type="file" hidden onChange={e => {
+                const file = e.target.files?.[0]; if (file) replaceMut.mutate(file);
+                e.target.value = "";
+              }} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Διαγραφή">
+            <IconButton size="small" onClick={() => {
+              if (window.confirm(`Διαγραφή «${f.fileName}»;`)) del.mutate();
+            }}><DeleteOutlineIcon fontSize="small" /></IconButton>
+          </Tooltip>
+        </Stack>
+      }>
+      <Checkbox size="small" checked={selected} onChange={onToggle}
+        sx={{ mr: 0.5, p: 0.5 }} />
       <ListItemText
         primary={<Stack direction="row" spacing={1} alignItems="center">
           <Typography variant="body2" fontWeight={600}>{f.fileName}</Typography>
