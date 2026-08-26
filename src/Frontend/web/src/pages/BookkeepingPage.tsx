@@ -59,6 +59,14 @@ export function BookkeepingPage() {
   const prog = useQuery({
     queryKey: ["bookkeeping", "program"],
     queryFn: async () => (await api.get<ProgramDto>("/bookkeeping/program")).data,
+    // Program state (opt-in, terms) barely changes — long staleTime so a
+    // background refetch never briefly enters isLoading=true and swaps
+    // WorkspaceScreen for a spinner, which would unmount all dialogs
+    // and lose the user's position.
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    staleTime: 10 * 60_000,
   });
   if (prog.isLoading) return <Container sx={{ py: 4 }}><CircularProgress /></Container>;
   if (!prog.data?.enabled) return <OptInScreen program={prog.data ?? null} qc={qc} setErr={setErr} err={err} />;
@@ -343,14 +351,27 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
   const tree = useQuery({
     queryKey: ["bookkeeping", "tree"],
     queryFn: async () => (await api.get<TreeResp>("/bookkeeping/tree")).data,
-    // Stabilise: don't refetch on every window-focus (opening the OS
-    // file picker briefly loses focus and used to cause a visible
-    // tree re-render / flicker as the user clicked «Ανέβασμα»).
+    // Stabilise: don't refetch on every window-focus, on every remount,
+    // or on network reconnect. The tree is heavy (folders + files) and
+    // a background refetch used to blank the file list mid-scroll and
+    // sometimes reset controlled dialog children — the user described
+    // this as "the page refreshes and closes what I have open".
+    // Refetches now happen only when a mutation explicitly invalidates
+    // ["bookkeeping","tree"] (upload, delete, move, folder CRUD).
     refetchOnWindowFocus: false,
-    staleTime: 30_000,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    staleTime: 5 * 60_000,
   });
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  // Drag-and-drop popup — opened by the «Ανέβασμα» button. All uploads
+  // happen inside this dialog, so nothing gets uploaded by accident
+  // (a stray drop on the file list used to trigger uploads, which
+  // combined with the tree query auto-invalidation felt like the page
+  // was "refreshing itself and closing what I had open").
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadDialogDrag, setUploadDialogDrag] = useState(false);
 
   // ── Search + filter state ───────────────────────────────────────
   // `search` filters BOTH folders (by name, transitively — matched
@@ -559,11 +580,6 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
     } finally { setUploading(false); diag("done"); }
   }, [selectedFolderId, qc, setErr, uploadBlockedReason]);
 
-  // Visual drop-zone highlight — true while the user is dragging OS
-  // files over the file panel. Different from `draggingFileId` which
-  // is for internal file rearranging.
-  const [isOsFileDragOver, setIsOsFileDragOver] = useState(false);
-
   if (tree.isLoading) return <Box sx={{ p: 3 }}><CircularProgress size={20} /></Box>;
 
   const emptyState = (tree.data?.folders.length ?? 0) === 0;
@@ -644,41 +660,10 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
       </Box>
 
       {/* ── Right column: files + filters + upload ─────────────── */}
-      <Box sx={{
-        display: "flex", flexDirection: "column", minHeight: 0,
-        // Blue tint + dashed outline while an OS file is being dragged
-        // over — the user can now SEE that the panel is ready to accept
-        // the drop, instead of guessing.
-        outline: isOsFileDragOver ? "3px dashed" : undefined,
-        outlineColor: isOsFileDragOver ? "primary.main" : undefined,
-        outlineOffset: -3,
-        bgcolor: isOsFileDragOver ? "rgba(31, 123, 179, 0.06)" : undefined,
-        transition: "background-color 0.1s",
-      }}
-        onDragOver={e => {
-          const isOsUpload = e.dataTransfer.types.includes("Files")
-            && !e.dataTransfer.types.includes("text/kalypsis-file");
-          if (!isOsUpload) return;
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "copy";
-          if (!isOsFileDragOver) setIsOsFileDragOver(true);
-        }}
-        onDragLeave={e => {
-          // Only clear when we actually leave the whole panel — dragleave
-          // fires on every child boundary crossing otherwise (annoying flicker).
-          if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-          setIsOsFileDragOver(false);
-        }}
-        onDrop={e => {
-          const isOsUpload = e.dataTransfer.types.includes("Files")
-            && !e.dataTransfer.types.includes("text/kalypsis-file");
-          if (!isOsUpload) return;
-          e.preventDefault();
-          setIsOsFileDragOver(false);
-          // Let uploadFile() surface any blocked reason via setErr —
-          // we no longer silently drop the file on the floor.
-          for (const f of Array.from(e.dataTransfer.files ?? [])) void uploadFile(f);
-        }}>
+      {/* No panel-wide DnD any more. All OS-file drops happen inside
+          the upload dialog instead, so an accidental drop can't fire an
+          upload + auto-invalidate the tree query mid-interaction. */}
+      <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
         {/* Search + filter row */}
         <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }}
           sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}>
@@ -722,21 +707,17 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
           <Typography variant="body2" fontWeight={700} sx={{ flex: 1 }}>
             Αρχεία {filesToShow.length > 0 && `(${filesToShow.length}${q || statusFilter !== "all" || uploaderFilter !== "all" ? " εμφανίζονται" : ""})`}
           </Typography>
-          {/* Drag-and-drop-only mode — the file-picker button was removed
-              entirely per user request. Firefox 154+ blocked programmatic
-              picker opens on hidden inputs, and every workaround (label,
-              invisible-input-over-button, sibling pattern) had at least
-              one browser it failed in. Drag-and-drop into the panel
-              always works, so we just show a subtle hint here and rely
-              on the whole-panel drop handler further down. If pre-flight
-              is blocked, surface the reason as a warning chip. */}
+          {/* «Ανέβασμα» button — opens a modal dialog with a big drag-and-
+              drop zone. Uploads only happen inside the dialog so nothing
+              can fire from an accidental drop on the file list. */}
           {uploadBlockedReason ? (
             <Chip size="small" color="warning" variant="outlined" icon={<UploadFileIcon />}
               label="Ανέβασμα μπλοκαρισμένο" onClick={() => setErr(uploadBlockedReason)} />
           ) : (
-            <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic" }}>
-              Σύρετε αρχεία από τον υπολογιστή σας οπουδήποτε στη δεξιά περιοχή.
-            </Typography>
+            <Button size="small" variant="contained" startIcon={<UploadFileIcon />}
+              onClick={() => setUploadDialogOpen(true)}>
+              Ανέβασμα
+            </Button>
           )}
         </Stack>
         {uploading && <LinearProgress />}
@@ -750,7 +731,7 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
           <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
             {q || statusFilter !== "all" || uploaderFilter !== "all"
               ? "Δεν βρέθηκαν αρχεία με τα τρέχοντα φίλτρα."
-              : "Δεν υπάρχουν αρχεία εδώ ακόμη. Σύρετε αρχεία από τον υπολογιστή σας σε αυτή την περιοχή."}
+              : "Δεν υπάρχουν αρχεία εδώ ακόμη. Πατήστε «Ανέβασμα» για να προσθέσετε."}
           </Box>
         ) : (
           <List dense sx={{ flex: 1, overflowY: "auto" }}>
@@ -820,6 +801,55 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
           </List>
         )}
       </Box>
+
+      {/* ── Upload dialog (drag-and-drop only) ─────────────────── */}
+      <Dialog open={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)}
+        fullWidth maxWidth="sm">
+        <DialogTitle>
+          Ανέβασμα αρχείων
+          {selectedFolderId && (
+            <Typography variant="caption" component="div" color="text.secondary">
+              στον φάκελο: <b>{folders.find(f => f.id === selectedFolderId)?.name ?? "—"}</b>
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent>
+          <Box
+            onDragOver={e => { e.preventDefault(); setUploadDialogDrag(true); }}
+            onDragLeave={e => {
+              if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+              setUploadDialogDrag(false);
+            }}
+            onDrop={async e => {
+              e.preventDefault(); setUploadDialogDrag(false);
+              const files = Array.from(e.dataTransfer.files ?? []);
+              for (const f of files) await uploadFile(f);
+              // Leave the dialog OPEN so the user can drop more files
+              // without re-clicking the button. They close it manually.
+            }}
+            sx={{
+              mt: 1, p: 5, borderRadius: 2,
+              border: "2px dashed",
+              borderColor: uploadDialogDrag ? "primary.main" : "divider",
+              bgcolor: uploadDialogDrag ? "rgba(31,123,179,0.08)" : "transparent",
+              textAlign: "center",
+              transition: "border-color 0.15s, background 0.15s",
+            }}>
+            <UploadFileIcon sx={{ fontSize: 48, color: uploadDialogDrag ? "primary.main" : "text.disabled", mb: 1 }} />
+            <Typography variant="body1" fontWeight={700} mb={0.5}>
+              Σύρετε τα αρχεία εδώ
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Ανοίξτε Explorer/Finder, επιλέξτε ένα ή περισσότερα αρχεία
+              και σύρετέ τα σε αυτό το πλαίσιο. Max 16 MB ανά αρχείο.
+            </Typography>
+            {uploading && <Box mt={2}><CircularProgress size={22} /></Box>}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setUploadDialogOpen(false)}>Κλείσιμο</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ── Folder dialogs ─────────────────────────────────────── */}
       <Dialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} fullWidth maxWidth="xs">

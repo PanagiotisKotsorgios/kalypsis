@@ -25,7 +25,19 @@ import { AuthenticatedThemeGate } from "./theme/AuthenticatedThemeGate";
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false }
+    queries: {
+      // Long default staleTime + no auto-refetch on mount / reconnect
+      // keeps background refetches from firing while a modal / drawer
+      // is open — which was closing dialogs and losing scroll/filter
+      // state on data-heavy pages. Individual pages that DO want
+      // polling (Ermes inbox, notification bell, bridge imports) opt
+      // in explicitly via `refetchInterval` on their own query.
+      staleTime: 5 * 60_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+    }
   }
 });
 
