@@ -56,7 +56,12 @@ public sealed partial class DesktopReleasesController : ControllerBase
         var releases = await GetPublicReleasesAsync(ct);
         var asset = releases.SelectMany(release => release.Assets)
             .FirstOrDefault(candidate => candidate.Id == assetId);
-        if (asset is null || !IsMarkdown(asset.Name))
+        // Also refuse when the asset name matches an internal-only doc,
+        // even if a stale bookmark still holds a valid asset id from
+        // when it WAS listed. Belt-and-braces: the catalog filter above
+        // already prevents this id from surfacing; this makes URL-guessing
+        // fail too.
+        if (asset is null || !IsMarkdown(asset.Name) || IsInternalOnlyAsset(asset.Name))
             throw new AppException("desktop_guide_not_found", "Ο οδηγός έκδοσης δεν βρέθηκε.", 404);
         if (asset.Size > MaxMarkdownBytes)
             throw new AppException("desktop_guide_too_large", "Ο οδηγός ξεπερνά το επιτρεπόμενο μέγεθος των 2 MB.", 413);
@@ -379,8 +384,29 @@ public sealed partial class DesktopReleasesController : ControllerBase
         name.EndsWith(".md", StringComparison.OrdinalIgnoreCase) ||
         name.EndsWith(".markdown", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Filenames that live on the GitHub release for internal / ops use
+    /// but must NOT be exposed to anonymous visitors on kalypsis.gr.
+    /// SIGNING.md and DEPLOYMENT.md contain developer-level setup
+    /// instructions (code-signing certificate options, database wiring,
+    /// mysqld service commands) that random downloaders don't need
+    /// and that read as scary / confusing on a marketing surface.
+    /// Match is case-insensitive on the bare filename — anything under
+    /// this exact name is dropped from both the public catalog listing
+    /// AND the /markdown endpoint (404).
+    /// </summary>
+    private static readonly HashSet<string> InternalOnlyAssetNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "SIGNING.md",
+        "DEPLOYMENT.md",
+    };
+
+    private static bool IsInternalOnlyAsset(string name) =>
+        InternalOnlyAssetNames.Contains(name);
+
     private static bool IsPublicCatalogAsset(string name)
     {
+        if (IsInternalOnlyAsset(name)) return false;
         if (IsMarkdown(name)) return true;
         return Path.GetExtension(name).ToLowerInvariant() is
             ".exe" or ".msi" or ".msix" or ".appx" or ".zip" or
