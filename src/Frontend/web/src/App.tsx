@@ -280,10 +280,10 @@ const navByRole: Record<Role, NavItem[]> = {
     // working in. Sits right under Πίνακας Ελέγχου for prominence.
     { to: "/ermes-app", labelKey: "nav.ermes", icon: <MailOutlineIcon />, openInNewTab: true,
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
-    // Οδηγίες χρήσης — ενσωματωμένος οδηγός βήμα-προς-βήμα, εκτυπώσιμος
-    // σε PDF από κάθε σελίδα.
-    { to: "/documentation", labelKey: "nav.documentation", icon: <MenuBookIcon />,
-      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+    // Οδηγίες χρήσης now live as a tab inside /agency-and-profile
+    // (see the footer entry below). Removed the standalone sidebar
+    // row to save space — old /app/documentation URL still resolves
+    // to the same content via the route registration further down.
     // Μηχανογράφιση (tenant surface) — opt in to the service or
     // browse the folder tree the platform team maintains for you.
     { to: "/bookkeeping", labelKey: "nav.bookkeeping", icon: <FolderIcon />,

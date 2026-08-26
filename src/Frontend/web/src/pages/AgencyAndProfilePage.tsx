@@ -2,10 +2,12 @@ import { useMemo } from "react";
 import { Box, Stack, Tab, Tabs, Typography } from "@mui/material";
 import SettingsIcon from "@mui/icons-material/Settings";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AgencySettingsHubPage } from "./AgencySettingsHubPage";
 import { ProfilePage } from "./ProfilePage";
+import { DocumentationPage } from "./DocumentationPage";
 
 /**
  * Merged agency-settings + personal-profile surface for AgencyAdmin.
@@ -24,7 +26,9 @@ export function AgencyAndProfilePage() {
   const [params, setParams] = useSearchParams();
   const active = useMemo(() => {
     const p = params.get("tab");
-    return p === "profile" ? "profile" : "agency";
+    if (p === "profile") return "profile";
+    if (p === "documentation") return "documentation";
+    return "agency";
   }, [params]);
 
   return (
@@ -50,9 +54,12 @@ export function AgencyAndProfilePage() {
           label={t("agencyProfile.tabs.agency", "Γραφείο")} />
         <Tab value="profile" icon={<AccountCircleIcon fontSize="small" />} iconPosition="start"
           label={t("agencyProfile.tabs.profile", "Προσωπικό προφίλ")} />
+        <Tab value="documentation" icon={<MenuBookIcon fontSize="small" />} iconPosition="start"
+          label={t("agencyProfile.tabs.documentation", "Οδηγίες χρήσης")} />
       </Tabs>
       {active === "agency" && <AgencySettingsHubPage />}
       {active === "profile" && <ProfilePage />}
+      {active === "documentation" && <DocumentationPage />}
     </Box>
   );
 }
