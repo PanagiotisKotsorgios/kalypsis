@@ -154,6 +154,7 @@
     "desktopLicenses": "Desktop Licenses",
     "companyParameters": "Carrier Parameters",
     "platformCarriers": "Global Carriers",
+    "platformOcBridges": "OC Bridges (per-tenant)",
     "renewals": "Renewals",
     "coverNotes": "Cover Notes",
     "branchDesigner": "Branch Designer",

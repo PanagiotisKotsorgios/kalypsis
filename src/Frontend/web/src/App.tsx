@@ -253,6 +253,7 @@ import {
   PlatformStoragePage, PlatformJobsPage, PlatformStatusPage, PlatformCompliancePage, PlatformSupportPage
 } from "./pages/PlatformAdminPages";
 import { PlatformFinancePage } from "./pages/PlatformFinancePage";
+import { PlatformOverCommissionBridgesPage } from "./pages/PlatformOverCommissionBridgesPage";
 import { PlatformCarriersPage } from "./pages/PlatformCarriersPage";
 import { PlatformBookkeepingPage } from "./pages/PlatformBookkeepingPage";
 import { BookkeepingPage } from "./pages/BookkeepingPage";
@@ -501,6 +502,8 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/platform/bookkeeping", labelKey: "nav.platformBookkeeping", icon: <FolderIcon />,
       group: "nav.group.adminOperations", groupIcon: <EngineeringIcon /> },
     { to: "/platform/carriers", labelKey: "nav.platformCarriers", icon: <SecurityIcon />,
+      group: "nav.group.adminOperations" },
+    { to: "/platform/oc-bridges", labelKey: "nav.platformOcBridges", icon: <SecurityIcon />,
       group: "nav.group.adminOperations" },
     { to: "/platform/email-templates", labelKey: "nav.emailTemplates", icon: <EmailIcon />,
       group: "nav.group.adminOperations" },
@@ -1013,6 +1016,7 @@ export default function App() {
                   <Route path="company-bridges" element={<Navigate to="/app/carrier-bridges" replace />} />
                   <Route path="bridge-import" element={<Navigate to="/app/carrier-bridges" replace />} />
                   <Route path="platform/carriers" element={<PlatformCarriersPage />} />
+                  <Route path="platform/oc-bridges" element={<PlatformOverCommissionBridgesPage />} />
                   {/* Merged finance surface — one tabbed page for
                       plans + billing + invoices. Old direct URLs still
                       work by redirecting into the corresponding tab. */}
