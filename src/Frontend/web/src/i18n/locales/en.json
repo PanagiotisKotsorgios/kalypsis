@@ -1933,7 +1933,7 @@
       "i4": { "q": "Do you integrate with accounting systems?", "a": "Direct connectors for the most common Greek accounting systems (BlueByte and others), XML/CSV export for the rest. Auto journal entries from every financial movement." },
       "u1": { "q": "How do I get support?", "a": "In-app chat, email at support@kalypsis.gr and phone for Enterprise. Average response under 2 hours on business days." },
       "u2": { "q": "Do you provide training?", "a": "Yes. Free 2-hour online training for your agency, detailed Greek manuals, video tutorials and a monthly webinar." },
-      "u3": { "q": "What are your hours?", "a": "Monday through Friday, 09:00–18:00 EET. Enterprise plans include 24/7 support for critical issues." },
+      "u3": { "q": "What are your hours?", "a": "Monday through Friday, 10:00–16:00 EET. Enterprise plans include 24/7 support for critical issues." },
       "u4": { "q": "How do you ship updates?", "a": "New features every week, zero downtime and no action required from you. All updates and improvements are included in your subscription." }
     }
   },
@@ -2772,7 +2772,7 @@
       },
       "hours": {
         "title": "Hours",
-        "weekdays": "Monday – Friday · 09:00 – 18:00 EET",
+        "weekdays": "Monday – Friday · 10:00 – 16:00 EET",
         "support": "24/7 emergency support for Enterprise customers"
       }
     },
