@@ -125,6 +125,7 @@ import { ProducerStatementPage } from "./pages/ProducerStatementPage";
 import { FederationChampionshipsPage } from "./pages/FederationChampionshipsPage";
 import { AgencySettingsPage } from "./pages/AgencySettingsPage";
 import { AgencySettingsHubPage } from "./pages/AgencySettingsHubPage";
+import { AgencyAndProfilePage } from "./pages/AgencyAndProfilePage";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { PackageGate } from "./pages/PackageLockedPage";
 import { usePackages } from "./auth/PackagesContext";
@@ -421,9 +422,12 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/agency-offices", labelKey: "nav.agencyOffices", icon: <HomeWorkIcon />, package: "Integrations", group: "setup" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Integrations" },
 
-    // Always-visible footer
-    { to: "/agency-settings-hub", labelKey: "nav.agencySettingsHub", icon: <SettingsIcon /> },
-    { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
+    // Always-visible footer.
+    // Merged: previously two separate entries («Ρυθμίσεις γραφείου»
+    // + «Προφίλ»). Both live at /agency-and-profile now as tabs to
+    // save one row in the sidebar. Old /agency-settings-hub and
+    // /profile URLs still work — redirected below into the right tab.
+    { to: "/agency-and-profile", labelKey: "nav.agencyAndProfile", icon: <SettingsIcon /> }
   ],
   AgencyUser: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />,
@@ -923,6 +927,11 @@ export default function App() {
                   <Route path="profile" element={<ProfilePage />} />
                   <Route path="agency-settings" element={<AgencySettingsPage />} />
                   <Route path="agency-settings-hub" element={<AgencySettingsHubPage />} />
+                  {/* Merged surface for AgencyAdmin — one sidebar row
+                      that tabs between agency + profile. Old direct
+                      routes above stay as-is so bookmarks + non-Admin
+                      roles' /profile links keep working. */}
+                  <Route path="agency-and-profile" element={<AgencyAndProfilePage />} />
                   <Route path="coming-soon" element={<ComingSoonPage />} />
                   <Route path="platform/registrations" element={<PlatformRegistrationsPage />} />
                   <Route path="platform/economics" element={<PlatformEconomicsPage />} />
