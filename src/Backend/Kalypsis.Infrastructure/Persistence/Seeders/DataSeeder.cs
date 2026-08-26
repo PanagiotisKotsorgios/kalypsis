@@ -728,6 +728,28 @@ public static class DataSeeder
                 PRIMARY KEY (`Id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
 
+        // --- tenant_over_commission_bridge_enables: per-tenant enable
+        // flag for over-commission bridges. Presence of a row means the
+        // (tenant, carrier) pair has been parametrised for OC bridging
+        // and shows «Διαθέσιμο» on /app/over-commission-bridges. Absent
+        // rows show as «Μη διαθέσιμο». Distinct from tenant_carrier_optins
+        // which is general-purpose visibility.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "tenant_over_commission_bridge_enables",
+            createSql: @"CREATE TABLE IF NOT EXISTS `tenant_over_commission_bridge_enables` (
+                `Id`                    char(36) NOT NULL,
+                `TenantId`              char(36) NOT NULL,
+                `InsuranceCompanyId`    char(36) NOT NULL,
+                `EnabledAt`             datetime(6) NOT NULL,
+                `EnabledByUserId`       char(36) NULL,
+                `Notes`                 varchar(500) NULL,
+                `CreatedAt`             datetime(6) NOT NULL,
+                `UpdatedAt`             datetime(6) NULL,
+                `DeletedAt`             datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_ocbridge_Tenant_Carrier` (`TenantId`, `InsuranceCompanyId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
         // --- admin_action_challenges: 6-digit OTP verification for
         // destructive platform-admin actions (delete, wipe, mass ops).
         // See AdminActionChallenge entity + AdminOtpController.

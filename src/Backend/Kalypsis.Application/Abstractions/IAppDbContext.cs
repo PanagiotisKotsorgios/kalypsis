@@ -212,6 +212,7 @@ public interface IAppDbContext
     // Per-tenant opt-in to universal carriers — restricts Γέφυρες / dashboard /
     // policy pickers to the carriers the office actually uses.
     DbSet<TenantCarrierOptIn> TenantCarrierOptIns { get; }
+    DbSet<TenantOverCommissionBridgeEnable> TenantOverCommissionBridgeEnables { get; }
 
     // Audit trail: agency-commission-% changes on a PolicyCover, and the
     // proportional adjustment applied to the producer % as a result. Written

@@ -20,6 +20,15 @@ public class CarrierBridgesController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<AvailableCarrierDto>>> Available(CancellationToken ct)
         => Ok(await _mediator.Send(new ListAvailableCarrierBridgesQuery(), ct));
 
+    /// <summary>Same list, but the availability flag ALSO requires the
+    /// tenant to have been explicitly enabled for the carrier's over-
+    /// commission bridge. Used by /app/over-commission-bridges — the
+    /// production-bridges Hub still uses the plain `available` endpoint
+    /// above and is unaffected. See ListAvailableOverCommissionBridgesHandler.</summary>
+    [HttpGet("available-over-commission")]
+    public async Task<ActionResult<IReadOnlyList<AvailableCarrierDto>>> AvailableOverCommission(CancellationToken ct)
+        => Ok(await _mediator.Send(new ListAvailableOverCommissionBridgesQuery(), ct));
+
     /// <summary>Parse an xlsx and return preview rows (no DB writes).</summary>
     [HttpPost("preview")]
     [RequirePermission("bridges.sync")]

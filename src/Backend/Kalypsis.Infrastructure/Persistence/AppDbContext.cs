@@ -219,6 +219,7 @@ public class AppDbContext : DbContext, IAppDbContext
 
     // Per-tenant opt-in to universal carriers.
     public DbSet<TenantCarrierOptIn> TenantCarrierOptIns => Set<TenantCarrierOptIn>();
+    public DbSet<TenantOverCommissionBridgeEnable> TenantOverCommissionBridgeEnables => Set<TenantOverCommissionBridgeEnable>();
 
     public DbSet<PolicyCoverAdjustment> PolicyCoverAdjustments => Set<PolicyCoverAdjustment>();
 
@@ -404,6 +405,9 @@ public class AppDbContext : DbContext, IAppDbContext
         modelBuilder.Entity<PlatformBackupSchedule>().ToTable("platform_backup_schedules");
         modelBuilder.Entity<AdminActionChallenge>().ToTable("admin_action_challenges")
             .HasIndex(x => x.TokenHash);
+        modelBuilder.Entity<TenantOverCommissionBridgeEnable>()
+            .ToTable("tenant_over_commission_bridge_enables")
+            .HasIndex(x => new { x.TenantId, x.InsuranceCompanyId }).IsUnique();
 
         // Bookkeeping tables — snake_case names, matching the seeder
         // safety-net so a fresh DB and a migrated DB agree.

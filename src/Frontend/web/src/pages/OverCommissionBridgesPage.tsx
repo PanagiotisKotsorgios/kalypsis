@@ -45,8 +45,13 @@ export function OverCommissionBridgesPage() {
   };
 
   const carriers = useQuery({
-    queryKey: ["available-bridges"],
-    queryFn: async () => (await api.get<AvailableCarrier[]>("/carrier-bridges/available")).data
+    // Scoped to OC bridges — the endpoint hides ERGO/Grand Cover/
+    // Interlife/Ατλαντική etc. as «Μη διαθέσιμο» unless this tenant
+    // has been explicitly enabled for that carrier in
+    // tenant_over_commission_bridge_enables. Production-bridges hub
+    // still uses /carrier-bridges/available and is unaffected.
+    queryKey: ["available-over-commission-bridges"],
+    queryFn: async () => (await api.get<AvailableCarrier[]>("/carrier-bridges/available-over-commission")).data
   });
 
   const all = carriers.data ?? [];

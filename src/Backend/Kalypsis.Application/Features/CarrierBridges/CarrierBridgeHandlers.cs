@@ -44,6 +44,68 @@ public record AvailableCarrierDto(
     bool BridgeAvailable, string? BridgeFormat, string? UnavailableReason);
 
 public record ListAvailableCarrierBridgesQuery() : IRequest<IReadOnlyList<AvailableCarrierDto>>;
+
+/// <summary>Same shape as <see cref="ListAvailableCarrierBridgesQuery"/> but
+/// scoped to OVER-COMMISSION bridges only. Adds a second gate on top of the
+/// «is a parser wired for this carrier?» check: the tenant must ALSO have
+/// an explicit row in <c>tenant_over_commission_bridge_enables</c> for
+/// this carrier — otherwise it shows as «Μη διαθέσιμο» even if the parser
+/// exists. Prevents random tenants from stumbling into an OC bridge that
+/// wasn't parametrised for their producer hierarchy.</summary>
+public record ListAvailableOverCommissionBridgesQuery() : IRequest<IReadOnlyList<AvailableCarrierDto>>;
+
+public class ListAvailableOverCommissionBridgesHandler
+    : IRequestHandler<ListAvailableOverCommissionBridgesQuery, IReadOnlyList<AvailableCarrierDto>>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public ListAvailableOverCommissionBridgesHandler(IAppDbContext db, ICurrentUser current)
+    { _db = db; _current = current; }
+
+    public async Task<IReadOnlyList<AvailableCarrierDto>> Handle(
+        ListAvailableOverCommissionBridgesQuery _, CancellationToken ct)
+    {
+        if (!_current.TenantId.HasValue) throw AppException.Forbidden();
+        var tenantId = _current.TenantId.Value;
+
+        var carriers = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .Where(c => c.DeletedAt == null && c.TenantId == null && c.ParentCompanyId == null)
+            .OrderBy(c => c.Name)
+            .ToListAsync(ct);
+
+        // Per-tenant OC enable set — presence = «Διαθέσιμο», absence =
+        // «Μη διαθέσιμο» even if the parser is wired for that carrier.
+        var enabledCarrierIds = await _db.TenantOverCommissionBridgeEnables
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null)
+            .Select(x => x.InsuranceCompanyId)
+            .ToListAsync(ct);
+        var enabledSet = new HashSet<Guid>(enabledCarrierIds);
+
+        // Same parser catalogue as ListAvailableCarrierBridgesHandler.
+        // Keep in sync — a new parser here means it CAN be used, but only
+        // once the tenant is enabled for it.
+        var supported = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "ERGO", "GRAND COVER", "GRANDCOVER",
+            "ATLANTIC", "ATLANTIKI", "ΑΤΛΑΝΤΙΚΗ",
+            "INTERLIFE", "ΙΝΤΕΡΛΑΪΦ", "ΙΝΤΕΡΛΑΙΦ",
+        };
+
+        return carriers.Select(c =>
+        {
+            var token = supported.FirstOrDefault(s =>
+                (c.Code ?? "").ToUpperInvariant().Contains(s) ||
+                (c.Name ?? "").ToUpperInvariant().Contains(s));
+            var parserWired = token is not null;
+            var tenantEnabled = enabledSet.Contains(c.Id);
+            var isAvailable = parserWired && tenantEnabled;
+            string? reason = null;
+            if (!parserWired) reason = "format_not_supported_yet";
+            else if (!tenantEnabled) reason = "requires_tenant_setup";
+            return new AvailableCarrierDto(c.Id, c.Name, c.Code, isAvailable, token, reason);
+        }).ToList();
+    }
+}
 public class ListAvailableCarrierBridgesHandler : IRequestHandler<ListAvailableCarrierBridgesQuery, IReadOnlyList<AvailableCarrierDto>>
 {
     private readonly IAppDbContext _db;
