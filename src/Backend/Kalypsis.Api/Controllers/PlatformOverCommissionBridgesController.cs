@@ -41,7 +41,8 @@ public class PlatformOverCommissionBridgesController : ControllerBase
 
     public record CarrierEnableRow(
         Guid CarrierId, string CarrierName, string CarrierCode,
-        bool Enabled, DateTime? EnabledAt, string? Notes);
+        bool Enabled, DateTime? EnabledAt, string? Notes,
+        bool MappingConfigured, bool MappingReady);
 
     public record TenantOcMatrixRow(
         Guid TenantId, string TenantName, string TenantCode,
@@ -78,10 +79,19 @@ public class PlatformOverCommissionBridgesController : ControllerBase
             .Where(x => x.DeletedAt == null)
             .Select(x => new { x.TenantId, x.InsuranceCompanyId, x.EnabledAt, x.Notes })
             .ToListAsync(ct);
-        // Keyed for O(1) lookup while building the matrix.
         var enableMap = enables.ToDictionary(
             e => (e.TenantId, e.InsuranceCompanyId),
             e => (e.EnabledAt, e.Notes));
+
+        // Mapping presence + ready state per pair — feeds the UI cell so
+        // operators can tell «switch on, not mapped yet» from «configured».
+        var mappings = await _db.TenantOverCommissionBridgeMappings.IgnoreQueryFilters()
+            .Where(x => x.DeletedAt == null)
+            .Select(x => new { x.TenantId, x.InsuranceCompanyId, x.IsReady })
+            .ToListAsync(ct);
+        var mappingMap = mappings.ToDictionary(
+            m => (m.TenantId, m.InsuranceCompanyId),
+            m => m.IsReady);
 
         return Ok(tenants.Select(t => new TenantOcMatrixRow(
             t.Id, t.Name, t.Code,
@@ -89,9 +99,12 @@ public class PlatformOverCommissionBridgesController : ControllerBase
             {
                 enableMap.TryGetValue((t.Id, c.Id), out var info);
                 var enabled = enableMap.ContainsKey((t.Id, c.Id));
+                var mappingConfigured = mappingMap.ContainsKey((t.Id, c.Id));
+                var mappingReady = mappingConfigured && mappingMap[(t.Id, c.Id)];
                 return new CarrierEnableRow(c.Id, c.Name, c.Code, enabled,
                     enabled ? info.EnabledAt : null,
-                    enabled ? info.Notes : null);
+                    enabled ? info.Notes : null,
+                    mappingConfigured, mappingReady);
             }).ToList()
         )).ToList());
     }
@@ -146,7 +159,14 @@ public class PlatformOverCommissionBridgesController : ControllerBase
             existing.UpdatedAt = _clock.UtcNow;
         }
         await _db.SaveChangesAsync(ct);
-        return Ok(new CarrierEnableRow(carrierId, carrier.Name, carrier.Code, true, _clock.UtcNow, body?.Notes));
+        var mapReady = await _db.TenantOverCommissionBridgeMappings.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.InsuranceCompanyId == carrierId && x.DeletedAt == null)
+            .Select(x => new { x.IsReady, HasRow = true })
+            .FirstOrDefaultAsync(ct);
+        return Ok(new CarrierEnableRow(
+            carrierId, carrier.Name, carrier.Code, true, _clock.UtcNow, body?.Notes,
+            MappingConfigured: mapReady is not null,
+            MappingReady:     mapReady?.IsReady ?? false));
     }
 
     /// <summary>Disable OC bridge for (tenant, carrier). Soft-deletes so
@@ -162,5 +182,84 @@ public class PlatformOverCommissionBridgesController : ControllerBase
         row.UpdatedAt = _clock.UtcNow;
         await _db.SaveChangesAsync(ct);
         return NoContent();
+    }
+
+    // ── Per-(tenant, carrier) mapping configuration ─────────────────
+    // Enable alone isn't enough; each agency gets a different file
+    // format from each carrier, so we need column-mapping / sheet name /
+    // encoding overrides per pair. See TenantOverCommissionBridgeMapping
+    // for the JSON schema shape. IsReady gates availability on the
+    // tenant surface — the OC list refuses to expose a carrier whose
+    // mapping hasn't been marked ready by the operator.
+
+    public record MappingDto(
+        Guid TenantId, Guid CarrierId, string CarrierName, string CarrierCode,
+        string ConfigJson, bool IsReady,
+        DateTime? LastTestedAt, string? LastTestResult, DateTime? UpdatedAt);
+
+    public record UpsertMappingBody(string ConfigJson, bool IsReady);
+
+    [HttpGet("tenants/{tenantId:guid}/carriers/{carrierId:guid}/mapping")]
+    public async Task<ActionResult<MappingDto>> GetMapping(Guid tenantId, Guid carrierId, CancellationToken ct)
+    {
+        var carrier = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.Id == carrierId && c.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Carrier");
+        var row = await _db.TenantOverCommissionBridgeMappings.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.InsuranceCompanyId == carrierId && x.DeletedAt == null, ct);
+        // Return a default-shape empty mapping when nothing is saved yet
+        // so the editor UI has something to render.
+        return Ok(new MappingDto(
+            tenantId, carrierId, carrier.Name, carrier.Code,
+            row?.ConfigJson ?? "{}",
+            row?.IsReady ?? false,
+            row?.LastTestedAt, row?.LastTestResult, row?.UpdatedAt));
+    }
+
+    [HttpPut("tenants/{tenantId:guid}/carriers/{carrierId:guid}/mapping")]
+    public async Task<ActionResult<MappingDto>> UpsertMapping(
+        Guid tenantId, Guid carrierId,
+        [FromBody] UpsertMappingBody body, CancellationToken ct)
+    {
+        if (body is null) throw AppException.Validation("Body required.");
+        // Cheap JSON validity check — we don't verify the shape (that lives
+        // in the parser at import time), just that it parses. Prevents a
+        // typo like «{,,}» from bricking the record.
+        try { _ = System.Text.Json.JsonDocument.Parse(body.ConfigJson ?? "{}"); }
+        catch { throw AppException.Validation("Το ConfigJson δεν είναι έγκυρο JSON."); }
+
+        var carrier = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.Id == carrierId && c.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Carrier");
+
+        var row = await _db.TenantOverCommissionBridgeMappings.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.InsuranceCompanyId == carrierId, ct);
+        if (row is null)
+        {
+            row = new TenantOverCommissionBridgeMapping
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                InsuranceCompanyId = carrierId,
+                ConfigJson = body.ConfigJson ?? "{}",
+                IsReady = body.IsReady,
+                LastEditedByUserId = _current.UserId,
+                CreatedAt = _clock.UtcNow,
+            };
+            _db.TenantOverCommissionBridgeMappings.Add(row);
+        }
+        else
+        {
+            row.DeletedAt = null;
+            row.ConfigJson = body.ConfigJson ?? "{}";
+            row.IsReady = body.IsReady;
+            row.LastEditedByUserId = _current.UserId;
+            row.UpdatedAt = _clock.UtcNow;
+        }
+        await _db.SaveChangesAsync(ct);
+        return Ok(new MappingDto(
+            tenantId, carrierId, carrier.Name, carrier.Code,
+            row.ConfigJson, row.IsReady,
+            row.LastTestedAt, row.LastTestResult, row.UpdatedAt));
     }
 }

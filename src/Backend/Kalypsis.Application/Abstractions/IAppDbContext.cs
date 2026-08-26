@@ -213,6 +213,7 @@ public interface IAppDbContext
     // policy pickers to the carriers the office actually uses.
     DbSet<TenantCarrierOptIn> TenantCarrierOptIns { get; }
     DbSet<TenantOverCommissionBridgeEnable> TenantOverCommissionBridgeEnables { get; }
+    DbSet<TenantOverCommissionBridgeMapping> TenantOverCommissionBridgeMappings { get; }
 
     // Audit trail: agency-commission-% changes on a PolicyCover, and the
     // proportional adjustment applied to the producer % as a result. Written

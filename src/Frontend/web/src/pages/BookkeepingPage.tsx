@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Container,
   Dialog, DialogActions, DialogContent, DialogTitle,
@@ -351,16 +351,6 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
   });
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  // ref to the hidden file input so we can .click() it programmatically
-  // from the label's onClick — bypasses browser-specific label→htmlFor
-  // quirks (Firefox 154+ refused to open the picker on delegated clicks).
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  // Fallback UI when the OS file picker refuses to open — a big
-  // drop-files-here dialog that doesn't require the browser to open
-  // any picker at all. Triggered by the «Άλλος τρόπος» button next
-  // to the primary Ανέβασμα button.
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [uploadDialogDrag, setUploadDialogDrag] = useState(false);
 
   // ── Search + filter state ───────────────────────────────────────
   // `search` filters BOTH folders (by name, transitively — matched
@@ -433,6 +423,12 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
     onError: e => setErr(extractErrorMessage(e)),
   });
   const [draggingFileId, setDraggingFileId] = useState<string | null>(null);
+
+  const deleteFile = useMutation({
+    mutationFn: async (id: string) => api.delete(`/bookkeeping/files/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["bookkeeping", "tree"] }),
+    onError: e => setErr(extractErrorMessage(e)),
+  });
 
   /** Returns true if `descendantId` is inside the subtree rooted at
    *  `ancestorId`. Used to disable drop targets that would create a
@@ -726,158 +722,23 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
           <Typography variant="body2" fontWeight={700} sx={{ flex: 1 }}>
             Αρχεία {filesToShow.length > 0 && `(${filesToShow.length}${q || statusFilter !== "all" || uploaderFilter !== "all" ? " εμφανίζονται" : ""})`}
           </Typography>
-          {/* Upload button is ALWAYS clickable when nothing is currently
-              in-flight — if a pre-flight blocker exists (no folder, no
-              terms accepted, no folders at all) the click surfaces
-              the reason via setErr instead of silently doing nothing.
-              Previous behaviour disabled the button which left users
-              staring at a greyed-out control with no feedback. */}
-          {/* DELIBERATELY no Tooltip wrapper around the upload button.
-              MUI Tooltip's ref-forwarding does not play nicely with
-              Button component="label" — clicks on the label sometimes
-              don't reach the nested hidden input and the OS file
-              picker never opens. That's the «τρεμόπαιγμα και τίποτα
-              δεν ανεβαίνει» symptom the user reported. Working
-              /app/documents upload has no Tooltip either. */}
+          {/* Drag-and-drop-only mode — the file-picker button was removed
+              entirely per user request. Firefox 154+ blocked programmatic
+              picker opens on hidden inputs, and every workaround (label,
+              invisible-input-over-button, sibling pattern) had at least
+              one browser it failed in. Drag-and-drop into the panel
+              always works, so we just show a subtle hint here and rely
+              on the whole-panel drop handler further down. If pre-flight
+              is blocked, surface the reason as a warning chip. */}
           {uploadBlockedReason ? (
-            <Button size="small" variant="outlined" color="warning" startIcon={<UploadFileIcon />}
-              onClick={() => setErr(uploadBlockedReason)}>
-              Ανέβασμα (μπλοκαρισμένο)
-            </Button>
+            <Chip size="small" color="warning" variant="outlined" icon={<UploadFileIcon />}
+              label="Ανέβασμα μπλοκαρισμένο" onClick={() => setErr(uploadBlockedReason)} />
           ) : (
-            // SIBLING pattern (label + input as siblings, not nested).
-            // Everything nested inside a label / MUI Button proved
-            // unreliable for this user's browser — the picker never
-            // opens. Rewriting as: input hidden via display:none as a
-            // page-level sibling, label with htmlFor pointing at it,
-            // no ref, no MUI Button in the click path, no wrapping
-            // <span>. This is the reference pattern MDN documents for
-            // file uploads. If it STILL fails, the browser itself is
-            // blocking file inputs (extension / policy / sandbox).
-            <>
-              {/* INVISIBLE-INPUT-OVER-BUTTON pattern. Everything else
-                  (component=label, ref.click, label htmlFor) failed on
-                  Firefox 154 — the picker never opened. This wraps
-                  the input DIRECTLY inside a positioned box, with the
-                  input stretched to fill the box and opacity: 0. The
-                  user's click lands on the input itself (not on a
-                  label or button that has to delegate). No programmatic
-                  .click(), no htmlFor, no ref delegation — the click
-                  IS the input's own click event, which every browser
-                  (including Firefox 154) MUST honour to open the
-                  picker. Button behind is only for the visual look. */}
-              <Box sx={{
-                position: "relative", display: "inline-flex",
-                cursor: uploading ? "default" : "pointer",
-              }}>
-                {/* Visual button — non-interactive so clicks fall through
-                    to the overlay input. */}
-                <Box sx={{
-                  display: "inline-flex", alignItems: "center", gap: 1,
-                  px: 1.6, py: 0.7, borderRadius: 1,
-                  bgcolor: uploading ? "action.disabledBackground" : "primary.main",
-                  color: uploading ? "text.disabled" : "primary.contrastText",
-                  fontSize: 13, fontWeight: 600, textTransform: "uppercase",
-                  letterSpacing: "0.02em",
-                  userSelect: "none",
-                  transition: "background 120ms",
-                  pointerEvents: "none",   // clicks pass through to input
-                }}>
-                  <UploadFileIcon fontSize="small" />
-                  {uploading ? "Ανέβασμα…" : "Ανέβασμα"}
-                </Box>
-                {/* Real input — invisible but full-cover, so the user's
-                    click is delivered to it natively. Disabled during
-                    upload so double-picks don't stack requests. */}
-                <input ref={fileInputRef} id="bookkeeping-file-input" type="file"
-                  disabled={uploading}
-                  onClick={() => {
-                    // eslint-disable-next-line no-console
-                    console.log("[BookkeepingUpload] input clicked, folderSelected:", selectedFolderId);
-                    void api.post("/diag/client", {
-                      flow: "bookkeeping.upload", step: "input-click",
-                      detail: `folder=${selectedFolderId ?? "none"} uploading=${uploading}`,
-                      ua: navigator.userAgent, ts: Date.now(),
-                    }).catch(() => {});
-                  }}
-                  onChange={e => {
-                    const n = e.target.files?.length ?? 0;
-                    // eslint-disable-next-line no-console
-                    console.log("[BookkeepingUpload] onChange fired, files:", n);
-                    void api.post("/diag/client", {
-                      flow: "bookkeeping.upload", step: "input-onchange",
-                      detail: `files=${n}`,
-                      ua: navigator.userAgent, ts: Date.now(),
-                    }).catch(() => {});
-                    const f = e.target.files?.[0];
-                    if (f) void uploadFile(f);
-                    e.target.value = "";
-                  }}
-                  style={{
-                    position: "absolute", inset: 0,
-                    width: "100%", height: "100%",
-                    opacity: 0,
-                    cursor: uploading ? "default" : "pointer",
-                    fontSize: 0,   // otherwise the button's picker text takes width
-                  }} />
-              </Box>
-              {/* Guaranteed alternative — a big drop-here dialog that
-                  doesn't require the browser to open any file picker.
-                  If the primary Ανέβασμα button fails (e.g. Firefox
-                  refuses the OS dialog for hidden inputs), the user
-                  can click «Άλλος τρόπος» and drag files from
-                  Explorer/Finder into the dialog area. */}
-              <Button size="small" variant="text" color="inherit"
-                onClick={() => setUploadDialogOpen(true)}
-                sx={{ textTransform: "none", fontSize: 12 }}>
-                Άλλος τρόπος (drag & drop)
-              </Button>
-            </>
+            <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic" }}>
+              Σύρετε αρχεία από τον υπολογιστή σας οπουδήποτε στη δεξιά περιοχή.
+            </Typography>
           )}
         </Stack>
-
-        {/* Drop-only upload dialog — no file picker required. */}
-        <Dialog open={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)}
-          fullWidth maxWidth="sm">
-          <DialogTitle>Ανέβασμα αρχείων — drag & drop</DialogTitle>
-          <DialogContent>
-            <Box
-              onDragOver={e => { e.preventDefault(); setUploadDialogDrag(true); }}
-              onDragLeave={e => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setUploadDialogDrag(false); }}
-              onDrop={async e => {
-                e.preventDefault(); setUploadDialogDrag(false);
-                const files = Array.from(e.dataTransfer.files ?? []);
-                for (const f of files) await uploadFile(f);
-                if (files.length > 0) setUploadDialogOpen(false);
-              }}
-              sx={{
-                mt: 1, p: 5, borderRadius: 2,
-                border: "2px dashed",
-                borderColor: uploadDialogDrag ? "primary.main" : "divider",
-                bgcolor: uploadDialogDrag ? "rgba(31,123,179,0.08)" : "transparent",
-                textAlign: "center",
-                transition: "border-color 0.15s, background 0.15s",
-              }}>
-              <UploadFileIcon sx={{ fontSize: 48, color: uploadDialogDrag ? "primary.main" : "text.disabled", mb: 1 }} />
-              <Typography variant="body1" fontWeight={700} mb={0.5}>
-                Σύρετε τα αρχεία εδώ
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Ανοίξτε το Explorer/Finder, επιλέξτε ένα ή περισσότερα αρχεία
-                και σύρετέ τα σε αυτό το πλαίσιο. Max 16 MB ανά αρχείο.
-              </Typography>
-              {uploading && <Box mt={2}><CircularProgress size={20} /></Box>}
-            </Box>
-            <Alert severity="info" sx={{ mt: 2 }}>
-              Αν το κουμπί «Ανέβασμα» δεν άνοιξε παράθυρο επιλογής (bug σε
-              Firefox 154+), αυτή είναι η εγγυημένα λειτουργική εναλλακτική
-              — δεν χρειάζεται browser file-picker.
-            </Alert>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setUploadDialogOpen(false)}>Κλείσιμο</Button>
-          </DialogActions>
-        </Dialog>
         {uploading && <LinearProgress />}
         {emptyState ? (
           <Alert severity="info" sx={{ m: 3 }}>
@@ -889,7 +750,7 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
           <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
             {q || statusFilter !== "all" || uploaderFilter !== "all"
               ? "Δεν βρέθηκαν αρχεία με τα τρέχοντα φίλτρα."
-              : "Δεν υπάρχουν αρχεία εδώ ακόμη. Σύρετε αρχεία ή πατήστε «Ανέβασμα»."}
+              : "Δεν υπάρχουν αρχεία εδώ ακόμη. Σύρετε αρχεία από τον υπολογιστή σας σε αυτή την περιοχή."}
           </Box>
         ) : (
           <List dense sx={{ flex: 1, overflowY: "auto" }}>
@@ -915,14 +776,23 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
                     "&:active": { cursor: "grabbing" },
                   }}
                   secondaryAction={
-                  <Tooltip title="Λήψη">
-                    <IconButton size="small" onClick={async () => {
-                      const res = await api.get<Blob>(`/bookkeeping/files/${f.id}`, { responseType: "blob" });
-                      const url = window.URL.createObjectURL(res.data);
-                      const el = document.createElement("a"); el.href = url; el.download = f.fileName; el.click();
-                      window.URL.revokeObjectURL(url);
-                    }}><DownloadIcon fontSize="small" /></IconButton>
-                  </Tooltip>
+                  <Stack direction="row" spacing={0.5}>
+                    <Tooltip title="Λήψη">
+                      <IconButton size="small" onClick={async () => {
+                        const res = await api.get<Blob>(`/bookkeeping/files/${f.id}`, { responseType: "blob" });
+                        const url = window.URL.createObjectURL(res.data);
+                        const el = document.createElement("a"); el.href = url; el.download = f.fileName; el.click();
+                        window.URL.revokeObjectURL(url);
+                      }}><DownloadIcon fontSize="small" /></IconButton>
+                    </Tooltip>
+                    <Tooltip title="Διαγραφή">
+                      <IconButton size="small" color="error" disabled={deleteFile.isPending}
+                        onClick={() => {
+                          if (window.confirm(`Διαγραφή του αρχείου «${f.fileName}»;`))
+                            deleteFile.mutate(f.id);
+                        }}><DeleteIcon fontSize="small" /></IconButton>
+                    </Tooltip>
+                  </Stack>
                 }>
                   <ListItemText
                     primary={<Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>

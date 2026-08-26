@@ -394,6 +394,24 @@ public class BookkeepingController : ControllerBase
         return File(bytes, f.MimeType, f.FileName);
     }
 
+    /// <summary>Tenant-side file soft-delete. Sets DeletedAt so the file
+    /// disappears from the tree but is recoverable if the platform team
+    /// needs to. Tenants can only delete their own tenant's files —
+    /// enforced by the TenantId filter below.</summary>
+    [HttpDelete("/api/bookkeeping/files/{id:guid}")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<IActionResult> DeleteOwnFile(Guid id, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var userId = _current.UserId ?? throw AppException.Unauthorized();
+        var f = await _db.BookkeepingFiles
+            .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("File");
+        f.DeletedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     [HttpPost("/api/bookkeeping/notes")]
     [Authorize(Policy = "AgencyStaff")]
     public async Task<ActionResult<NoteDto>> CreateOwnNote([FromBody] CreateNoteBody body, CancellationToken ct)

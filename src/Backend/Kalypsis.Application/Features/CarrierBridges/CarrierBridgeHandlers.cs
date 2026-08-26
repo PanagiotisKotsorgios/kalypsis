@@ -75,11 +75,20 @@ public class ListAvailableOverCommissionBridgesHandler
 
         // Per-tenant OC enable set — presence = «Διαθέσιμο», absence =
         // «Μη διαθέσιμο» even if the parser is wired for that carrier.
+        // Additional gate: a per-(tenant, carrier) mapping row must
+        // exist AND be marked IsReady. Without that, importer can't
+        // know which sheet / columns to read from this tenant's
+        // specific export shape, so we keep it hidden.
         var enabledCarrierIds = await _db.TenantOverCommissionBridgeEnables
             .Where(x => x.TenantId == tenantId && x.DeletedAt == null)
             .Select(x => x.InsuranceCompanyId)
             .ToListAsync(ct);
         var enabledSet = new HashSet<Guid>(enabledCarrierIds);
+        var readyMappings = await _db.TenantOverCommissionBridgeMappings
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null && x.IsReady)
+            .Select(x => x.InsuranceCompanyId)
+            .ToListAsync(ct);
+        var readySet = new HashSet<Guid>(readyMappings);
 
         // Same parser catalogue as ListAvailableCarrierBridgesHandler.
         // Keep in sync — a new parser here means it CAN be used, but only
@@ -98,10 +107,12 @@ public class ListAvailableOverCommissionBridgesHandler
                 (c.Name ?? "").ToUpperInvariant().Contains(s));
             var parserWired = token is not null;
             var tenantEnabled = enabledSet.Contains(c.Id);
-            var isAvailable = parserWired && tenantEnabled;
+            var mappingReady = readySet.Contains(c.Id);
+            var isAvailable = parserWired && tenantEnabled && mappingReady;
             string? reason = null;
             if (!parserWired) reason = "format_not_supported_yet";
             else if (!tenantEnabled) reason = "requires_tenant_setup";
+            else if (!mappingReady) reason = "mapping_not_ready";
             return new AvailableCarrierDto(c.Id, c.Name, c.Code, isAvailable, token, reason);
         }).ToList();
     }

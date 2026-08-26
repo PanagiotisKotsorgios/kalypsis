@@ -1,18 +1,21 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Card, Chip, CircularProgress, IconButton, Stack,
+  Alert, Box, Button, Card, Chip, CircularProgress, Drawer,
+  FormControlLabel, IconButton, Stack,
   Switch, Table, TableBody, TableCell, TableContainer, TableHead,
   TableRow, TextField, Tooltip, Typography,
 } from "@mui/material";
 import LinkIcon from "@mui/icons-material/Link";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import BlockIcon from "@mui/icons-material/Block";
+import SettingsIcon from "@mui/icons-material/Settings";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 
 interface CarrierEnableRow {
   carrierId: string; carrierName: string; carrierCode: string;
   enabled: boolean; enabledAt: string | null; notes: string | null;
+  mappingConfigured: boolean; mappingReady: boolean;
 }
 interface TenantOcMatrixRow {
   tenantId: string; tenantName: string; tenantCode: string;
@@ -41,6 +44,15 @@ export function PlatformOverCommissionBridgesPage() {
     queryFn: async () => (await api.get<TenantOcMatrixRow[]>(
       "/platform/over-commission-bridges/matrix")).data,
   });
+
+  // Mapping editor state — populated when the operator clicks the
+  // «⚙» icon on any cell. Drawer opens on the right with a JSON
+  // editor + IsReady toggle. GET/PUT hit
+  // /platform/over-commission-bridges/tenants/{t}/carriers/{c}/mapping.
+  const [mappingCtx, setMappingCtx] = useState<{
+    tenantId: string; tenantName: string;
+    carrierId: string; carrierName: string;
+  } | null>(null);
 
   const toggle = useMutation({
     // Optimistic — flip the switch immediately, roll back on error.
@@ -131,19 +143,39 @@ export function PlatformOverCommissionBridgesPage() {
                     </TableCell>
                     {t.carriers.map(c => (
                       <TableCell key={c.carrierId} align="center">
-                        <Tooltip title={c.enabled
-                          ? `Ενεργό από ${c.enabledAt ? new Date(c.enabledAt).toLocaleDateString("el-GR") : "—"}`
-                          : "Ανενεργό — το γραφείο βλέπει «Μη διαθέσιμο»"}>
-                          <span>
-                            <Switch size="small" checked={c.enabled}
-                              disabled={toggle.isPending}
-                              onChange={e => toggle.mutate({
-                                tenantId: t.tenantId,
-                                carrierId: c.carrierId,
-                                enable: e.target.checked,
-                              })} />
-                          </span>
-                        </Tooltip>
+                        <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5}>
+                          <Tooltip title={c.enabled
+                            ? `Ενεργό από ${c.enabledAt ? new Date(c.enabledAt).toLocaleDateString("el-GR") : "—"}`
+                            : "Ανενεργό — το γραφείο βλέπει «Μη διαθέσιμο»"}>
+                            <span>
+                              <Switch size="small" checked={c.enabled}
+                                disabled={toggle.isPending}
+                                onChange={e => toggle.mutate({
+                                  tenantId: t.tenantId,
+                                  carrierId: c.carrierId,
+                                  enable: e.target.checked,
+                                })} />
+                            </span>
+                          </Tooltip>
+                          <Tooltip title={
+                            c.mappingReady ? "Mapping OK — «Διαθέσιμο» στο γραφείο"
+                            : c.mappingConfigured ? "Mapping υπάρχει αλλά δεν είναι marked-ready"
+                            : "Χωρίς mapping — άνοιξε ρυθμίσεις"
+                          }>
+                            <IconButton size="small"
+                              onClick={() => setMappingCtx({
+                                tenantId: t.tenantId, tenantName: t.tenantName,
+                                carrierId: c.carrierId, carrierName: c.carrierName,
+                              })}
+                              sx={{
+                                color: c.mappingReady ? "success.main"
+                                  : c.mappingConfigured ? "warning.main"
+                                  : "text.disabled",
+                              }}>
+                              <SettingsIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
                       </TableCell>
                     ))}
                   </TableRow>
@@ -166,6 +198,102 @@ export function PlatformOverCommissionBridgesPage() {
           </TableContainer>
         )}
       </Card>
+
+      {mappingCtx && (
+        <MappingEditorDrawer ctx={mappingCtx}
+          onClose={() => setMappingCtx(null)}
+          onSaved={() => qc.invalidateQueries({ queryKey: ["platform-oc-bridges-matrix"] })} />
+      )}
     </Box>
+  );
+}
+
+interface MappingDto {
+  tenantId: string; carrierId: string; carrierName: string; carrierCode: string;
+  configJson: string; isReady: boolean;
+  lastTestedAt: string | null; lastTestResult: string | null;
+  updatedAt: string | null;
+}
+
+function MappingEditorDrawer({ ctx, onClose, onSaved }: {
+  ctx: { tenantId: string; tenantName: string; carrierId: string; carrierName: string };
+  onClose: () => void; onSaved: () => void;
+}) {
+  const [config, setConfig] = useState("");
+  const [ready, setReady] = useState(false);
+  const [jsonError, setJsonError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const url = `/platform/over-commission-bridges/tenants/${ctx.tenantId}/carriers/${ctx.carrierId}/mapping`;
+
+  const q = useQuery({
+    queryKey: ["oc-mapping", ctx.tenantId, ctx.carrierId],
+    queryFn: async () => (await api.get<MappingDto>(url)).data,
+  });
+
+  useEffect(() => {
+    if (!q.data) return;
+    try {
+      const parsed = JSON.parse(q.data.configJson || "{}");
+      setConfig(JSON.stringify(parsed, null, 2));
+    } catch { setConfig(q.data.configJson || "{}"); }
+    setReady(q.data.isReady);
+  }, [q.data]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      try { JSON.parse(config); setJsonError(null); }
+      catch (e: any) { setJsonError(`Άκυρο JSON: ${e.message}`); throw e; }
+      await api.put(url, { configJson: config, isReady: ready });
+    },
+    onSuccess: () => { onSaved(); onClose(); },
+    onError: (e) => setSaveError(extractErrorMessage(e)),
+  });
+
+  return (
+    <Drawer anchor="right" open onClose={onClose}
+      PaperProps={{ sx: { width: { xs: "100%", sm: 560 } } }}>
+      <Box sx={{ p: 3, display: "flex", flexDirection: "column", height: "100%" }}>
+        <Typography variant="h6" fontWeight={700}>Mapping αρχείου</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {ctx.tenantName} · <b>{ctx.carrierName}</b>
+        </Typography>
+
+        {q.isLoading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
+        ) : (
+          <>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
+              Παραμετροποίηση parser (JSON) — headers, delimiter, column indexes κ.λπ.
+            </Typography>
+            <TextField multiline minRows={16} maxRows={24} fullWidth
+              value={config} onChange={e => { setConfig(e.target.value); setJsonError(null); }}
+              error={!!jsonError} helperText={jsonError ?? " "}
+              InputProps={{ sx: { fontFamily: "monospace", fontSize: 13 } }} />
+
+            <FormControlLabel sx={{ mt: 1 }}
+              control={<Switch checked={ready} onChange={e => setReady(e.target.checked)} />}
+              label="Mapping έτοιμο — το γραφείο μπορεί να δει «Διαθέσιμο»" />
+
+            {q.data?.lastTestedAt && (
+              <Typography variant="caption" color="text.secondary">
+                Τελευταίο τεστ: {new Date(q.data.lastTestedAt).toLocaleString("el-GR")}
+                {q.data.lastTestResult ? ` — ${q.data.lastTestResult}` : ""}
+              </Typography>
+            )}
+
+            {saveError && <Alert severity="error" sx={{ mt: 1 }} onClose={() => setSaveError(null)}>{saveError}</Alert>}
+
+            <Box sx={{ flex: 1 }} />
+            <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 2 }}>
+              <Button onClick={onClose}>Ακύρωση</Button>
+              <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>
+                Αποθήκευση
+              </Button>
+            </Stack>
+          </>
+        )}
+      </Box>
+    </Drawer>
   );
 }

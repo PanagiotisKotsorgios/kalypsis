@@ -220,6 +220,7 @@ public class AppDbContext : DbContext, IAppDbContext
     // Per-tenant opt-in to universal carriers.
     public DbSet<TenantCarrierOptIn> TenantCarrierOptIns => Set<TenantCarrierOptIn>();
     public DbSet<TenantOverCommissionBridgeEnable> TenantOverCommissionBridgeEnables => Set<TenantOverCommissionBridgeEnable>();
+    public DbSet<TenantOverCommissionBridgeMapping> TenantOverCommissionBridgeMappings => Set<TenantOverCommissionBridgeMapping>();
 
     public DbSet<PolicyCoverAdjustment> PolicyCoverAdjustments => Set<PolicyCoverAdjustment>();
 
@@ -407,6 +408,9 @@ public class AppDbContext : DbContext, IAppDbContext
             .HasIndex(x => x.TokenHash);
         modelBuilder.Entity<TenantOverCommissionBridgeEnable>()
             .ToTable("tenant_over_commission_bridge_enables")
+            .HasIndex(x => new { x.TenantId, x.InsuranceCompanyId }).IsUnique();
+        modelBuilder.Entity<TenantOverCommissionBridgeMapping>()
+            .ToTable("tenant_over_commission_bridge_mappings")
             .HasIndex(x => new { x.TenantId, x.InsuranceCompanyId }).IsUnique();
 
         // Bookkeeping tables — snake_case names, matching the seeder

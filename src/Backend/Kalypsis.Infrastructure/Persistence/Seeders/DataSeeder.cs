@@ -750,6 +750,29 @@ public static class DataSeeder
                 UNIQUE KEY `UX_ocbridge_Tenant_Carrier` (`TenantId`, `InsuranceCompanyId`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
 
+        // --- tenant_over_commission_bridge_mappings: per (tenant × carrier)
+        // parser mapping profile. Sheet name / header row / encoding /
+        // column→field map lives in ConfigJson so the schema can evolve
+        // without a migration each time a new carrier variant appears.
+        // IsReady = tenant has tested + approved the mapping.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "tenant_over_commission_bridge_mappings",
+            createSql: @"CREATE TABLE IF NOT EXISTS `tenant_over_commission_bridge_mappings` (
+                `Id`                    char(36) NOT NULL,
+                `TenantId`              char(36) NOT NULL,
+                `InsuranceCompanyId`    char(36) NOT NULL,
+                `ConfigJson`            longtext NOT NULL,
+                `IsReady`               tinyint(1) NOT NULL DEFAULT 0,
+                `LastTestedAt`          datetime(6) NULL,
+                `LastTestResult`        varchar(2000) NULL,
+                `LastEditedByUserId`    char(36) NULL,
+                `CreatedAt`             datetime(6) NOT NULL,
+                `UpdatedAt`             datetime(6) NULL,
+                `DeletedAt`             datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_ocmap_Tenant_Carrier` (`TenantId`, `InsuranceCompanyId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
         // --- admin_action_challenges: 6-digit OTP verification for
         // destructive platform-admin actions (delete, wipe, mass ops).
         // See AdminActionChallenge entity + AdminOtpController.
