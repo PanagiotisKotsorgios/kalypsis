@@ -418,26 +418,26 @@ function ImagePickerRow({ label, url, onChange, captionValue, onCaptionChange }:
         </Box>
         <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" spacing={1}>
-            {/* Switched from ref.click() → component="label" + child input.
-                The previous approach used a hidden <input> triggered via
-                a ref.current?.click() call from the button's onClick. That
-                pattern is intermittent in browsers where the input is
-                marked `hidden` — click doesn't bubble as a user gesture
-                and the file picker never opens. Same input never fires
-                onChange → no request → no server log → «τρεμοπαιγμα».
-                The MUI-idiomatic pattern is a button rendered AS a
-                <label> with the <input> nested inside. Clicking anywhere
-                on the label focuses the input's file picker natively —
-                works everywhere. Copied from BookkeepingPage upload. */}
-            <Button size="small" variant="outlined" component="label"
-              startIcon={<ImageIcon />} disabled={busy}>
+            {/* Firefox 154+ refuses to open the file picker when the
+                input is marked `hidden` or `display:none` (phishing
+                mitigation). Use sr-only visibility instead + trigger
+                the picker explicitly from the button's onClick via
+                ref.current.click(). Works in both Firefox + Chrome. */}
+            <Button size="small" variant="outlined"
+              startIcon={<ImageIcon />} disabled={busy}
+              onClick={() => ref.current?.click()}>
               {busy ? "Ανέβασμα…" : url ? "Αντικατάσταση" : "Ανέβασμα εικόνας"}
-              <input ref={ref} type="file" accept="image/*" hidden
-                onChange={e => {
-                  const f = e.target.files?.[0];
-                  if (f) void upload(f);
-                }} />
             </Button>
+            <input ref={ref} type="file" accept="image/*"
+              style={{
+                position: "absolute", left: -9999, top: "auto",
+                width: 1, height: 1, opacity: 0, overflow: "hidden",
+                border: 0, padding: 0, margin: 0, pointerEvents: "none",
+              }}
+              onChange={e => {
+                const f = e.target.files?.[0];
+                if (f) void upload(f);
+              }} />
             {url && (
               <Button size="small" color="error" startIcon={<DeleteIcon />}
                 onClick={() => onChange(null)}>

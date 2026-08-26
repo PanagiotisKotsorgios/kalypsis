@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Container,
   Dialog, DialogActions, DialogContent, DialogTitle,
@@ -351,6 +351,10 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
   });
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  // ref to the hidden file input so we can .click() it programmatically
+  // from the label's onClick — bypasses browser-specific label→htmlFor
+  // quirks (Firefox 154+ refused to open the picker on delegated clicks).
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // ── Search + filter state ───────────────────────────────────────
   // `search` filters BOTH folders (by name, transitively — matched
@@ -745,8 +749,19 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
             // file uploads. If it STILL fails, the browser itself is
             // blocking file inputs (extension / policy / sandbox).
             <>
-              <input id="bookkeeping-file-input" type="file"
-                style={{ display: "none" }}
+              {/* CRITICAL: the input must NOT be display:none.
+                  Firefox 154+ refuses to open the file picker when
+                  <input type=file> is display:none — anti-phishing
+                  hardening. Chrome accepts it (my Playwright test
+                  worked in Chromium). Use the sr-only pattern
+                  instead: 1px absolute + opacity 0. Input stays
+                  interactable, browser opens the picker on click. */}
+              <input ref={fileInputRef} id="bookkeeping-file-input" type="file"
+                style={{
+                  position: "absolute", left: -9999, top: "auto",
+                  width: 1, height: 1, opacity: 0, overflow: "hidden",
+                  border: 0, padding: 0, margin: 0, pointerEvents: "none",
+                }}
                 onChange={e => {
                   const n = e.target.files?.length ?? 0;
                   // eslint-disable-next-line no-console
@@ -761,10 +776,14 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
                   e.target.value = "";
                 }} />
               <Box component="label" htmlFor="bookkeeping-file-input"
-                onClick={() => {
-                  // Belt-and-braces logger — if the label click doesn't
-                  // reach the input, we still see the click here so we
-                  // can tell which layer is broken.
+                onClick={e => {
+                  // Firefox 154+ also sometimes refuses to open the picker
+                  // from a pure label→htmlFor delegation. Fire an
+                  // explicit .click() from a user-gesture handler so
+                  // both Firefox + Chrome go through the same path.
+                  // preventDefault() on the label to stop the browser's
+                  // own label click firing a second time.
+                  e.preventDefault();
                   // eslint-disable-next-line no-console
                   console.log("[BookkeepingUpload] label clicked, folderSelected:", selectedFolderId);
                   void api.post("/diag/client", {
@@ -772,6 +791,7 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
                     detail: `folder=${selectedFolderId ?? "none"} uploading=${uploading}`,
                     ua: navigator.userAgent, ts: Date.now(),
                   }).catch(() => {});
+                  fileInputRef.current?.click();
                 }}
                 sx={{
                   display: "inline-flex", alignItems: "center", gap: 1,
