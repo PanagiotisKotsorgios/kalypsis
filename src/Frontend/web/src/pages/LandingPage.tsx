@@ -1314,10 +1314,19 @@ export const ERMES_SHOWCASE_DEFAULTS: ErmesShowcaseContent = {
   chip: "ΔΩΡΕΑΝ ΓΙΑ ΠΑΝΤΑ",
   title: "Ο ΕΡΜΗΣ ενώνει το γραφείο σας",
   subtitle: "Κρυπτογραφημένα μηνύματα, θέματα και meetings ανάμεσα σε συνεργάτες, πελάτες και ασφαλιστικές — χωρίς Viber, χωρίς Messenger, χωρίς email spam. Περιλαμβάνεται σε κάθε πλάνο Kalypsis δωρεάν για πάντα, χωρίς όριο χρηστών.",
-  screenshot1Url: null,
+  // Ship 2 real ΕΡΜΗΣ screenshots as the default. These override the
+  // inline SVG placeholders so a fresh install shows real product art
+  // without waiting for the admin to upload. Admin can still replace
+  // them from /platform/landing. Files live in public/images so Vite
+  // serves them at the root — no build step, cached by the browser.
+  // TODO(image-upload-bug): the LandingEditor upload picker still
+  // doesn't open on click for this user's browser (component=label
+  // + ref both tried); until fixed, admins swap defaults by dropping
+  // new files in public/images and updating the paths below.
+  screenshot1Url: "/images/ermes-inbox.jpg",
   screenshot1Caption: "Εισερχόμενα, κανάλια και ομαδικές συνομιλίες σε ένα inbox.",
-  screenshot2Url: null,
-  screenshot2Caption: "Ενιαία υποδοχή με KPIs, γρήγορες ενέργειες και αγαπημένες επαφές.",
+  screenshot2Url: "/images/ermes-compose.jpg",
+  screenshot2Caption: "Έτοιμη σύνθεση μηνύματος με templates, ηχητικό, συναντήσεις και επισυνάψεις.",
   features: [
     { chip: "E2EE", title: "Κρυπτογραφημένη επικοινωνία",
       body: "Απευθείας μηνύματα, θέματα και ομαδικά κανάλια end-to-end encrypted. Ούτε η Kalypsis ούτε τρίτοι μπορούν να διαβάσουν το περιεχόμενο." },

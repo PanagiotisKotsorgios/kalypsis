@@ -499,17 +499,17 @@ const navByRole: Record<Role, NavItem[]> = {
     // Μηχανογράφιση («bookkeeping as a service») lives here — the
     // Ops team runs data-entry for small offices that opted in.
     { to: "/platform/bookkeeping", labelKey: "nav.platformBookkeeping", icon: <FolderIcon />,
-      group: "nav.group.operations", groupIcon: <EngineeringIcon /> },
+      group: "nav.group.adminOperations", groupIcon: <EngineeringIcon /> },
     { to: "/platform/carriers", labelKey: "nav.platformCarriers", icon: <SecurityIcon />,
-      group: "nav.group.operations" },
+      group: "nav.group.adminOperations" },
     { to: "/platform/email-templates", labelKey: "nav.emailTemplates", icon: <EmailIcon />,
-      group: "nav.group.operations" },
+      group: "nav.group.adminOperations" },
     { to: "/platform/broadcast", labelKey: "nav.broadcast", icon: <CampaignIcon />,
-      group: "nav.group.operations" },
+      group: "nav.group.adminOperations" },
     { to: "/platform/documentation", labelKey: "nav.editDocumentation", icon: <MenuBookIcon />,
-      group: "nav.group.operations" },
+      group: "nav.group.adminOperations" },
     { to: "/platform/landing", labelKey: "nav.editLanding", icon: <CampaignIcon />,
-      group: "nav.group.operations" },
+      group: "nav.group.adminOperations" },
 
     // ── Παρακολούθηση ──
     { to: "/platform/status", labelKey: "nav.status", icon: <MonitorHeartIcon />,

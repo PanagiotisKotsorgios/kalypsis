@@ -17,13 +17,6 @@
     "tryFree": "Try it free"
   },
   "nav": {
-    "group": {
-      "tenants": "Agencies & Users",
-      "finance": "Finance",
-      "operations": "Operations",
-      "monitoring": "Monitoring",
-      "tooling": "Tooling"
-    },
     "dashboard": "Dashboard",
     "customers": "Customers",
     "policies": "Policies",
@@ -149,7 +142,12 @@
       "quotes": "Quotes",
       "automation": "Reports & Automation",
       "integrations": "Messaging & Integrations",
-      "intelligence": "Reports & Intelligence"
+      "intelligence": "Reports & Intelligence",
+      "tenants": "Agencies & Users",
+      "finance": "Finance",
+      "adminOperations": "Operations",
+      "monitoring": "Monitoring",
+      "tooling": "Tooling"
     },
     "broadcastParametric": "Carrier Parametric Files",
     "desktopReleases": "Desktop Releases",
@@ -730,7 +728,7 @@
       "title": "HERMES connects your entire office",
       "subtitle": "Encrypted messages, threads and meetings between partners, clients and insurance carriers — no Viber, no Messenger, no email spam. Included in every Kalypsis plan free forever, with no user cap.",
       "shot1": "Inbox, channels and group chats in a single view.",
-      "shot2": "Unified reception with KPIs, quick actions and favourite contacts.",
+      "shot2": "Ready-to-send composer with templates, voice notes, meetings and attachments.",
       "footerNote": "No credit card required · Free on every Kalypsis plan · Greek-hosted",
       "cta": "Start free with HERMES",
       "f1": { "chip": "E2EE", "title": "Encrypted messaging",
