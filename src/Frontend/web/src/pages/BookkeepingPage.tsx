@@ -70,7 +70,11 @@ function OptInScreen({ program, qc, setErr, err }: {
   setErr: (s: string | null) => void; err: string | null;
 }) {
   const [note, setNote] = useState(program?.contactRequestNote ?? "");
-  const [mode, setMode] = useState(program?.mode ?? "files");
+  // Force "files" mode on opt-in. The «portals»/«hybrid» modes are
+  // no longer selectable (see JSX below) — coercing the initial
+  // state to "files" prevents a stale saved value from another
+  // session showing up as an implicit selection.
+  const [mode, setMode] = useState("files");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showTermsFull, setShowTermsFull] = useState(false);
   const enable = useMutation({
@@ -106,16 +110,18 @@ function OptInScreen({ program, qc, setErr, err }: {
           Επιλέξτε τον τρόπο συνεργασίας. Μπορείτε να αλλάξετε γνώμη οποτεδήποτε ή να
           απενεργοποιήσετε την υπηρεσία εντελώς.
         </Typography>
+        {/* Only «files» mode is offered on the tenant surface. The
+            «portals»/«hybrid» modes stored credentials for insurance-
+            carrier portals — a security + regulatory risk (phishing
+            target, GDPR liability). Kept the backend entity + admin
+            endpoints intact so any pre-existing rows still work, but
+            the tenant can no longer opt-IN to that flow from the UI.
+            Any office that legitimately needs it must arrange it
+            manually with the Kalypsis Ops team out-of-band. */}
         <Stack spacing={2}>
           <ModeOption title="Ανέβασμα αρχείων"
             selected={mode === "files"} onClick={() => setMode("files")}
-            description="Ανεβάζετε στο σύστημα τα παραστατικά (εβδομαδιαία ή μηνιαία)· η ομάδα μας τα ενσωματώνει. Δεν χρειάζεται να δίνετε κωδικούς πρόσβασης εξωτερικών portal." />
-          <ModeOption title="Έλεγχος portal ασφαλιστικών από εμάς"
-            selected={mode === "portals"} onClick={() => setMode("portals")}
-            description="Μας δίνετε τα κωδικά σας για τα portal των ασφαλιστικών εταιρειών· εμείς κατεβάζουμε αναλυτικά προμηθειών κ.λπ. Οι κωδικοί αποθηκεύονται κρυπτογραφημένοι και είναι ορατοί μόνο σε Platform Admin." />
-          <ModeOption title="Μικτό"
-            selected={mode === "hybrid"} onClick={() => setMode("hybrid")}
-            description="Συνδυασμός των παραπάνω — εσείς ανεβάζετε ορισμένα, εμείς κατεβάζουμε τα υπόλοιπα." />
+            description="Ανεβάζετε στο σύστημα τα παραστατικά (εβδομαδιαία ή μηνιαία)· η ομάδα μας τα ενσωματώνει. Ασφαλής επιλογή — δεν δίνετε ποτέ κωδικούς πρόσβασης εξωτερικών portal σε τρίτους." />
         </Stack>
         <TextField label="Ζητήστε μας να επικοινωνήσουμε (προαιρετικό)"
           value={note} onChange={e => setNote(e.target.value)}
