@@ -17,6 +17,13 @@
     "tryFree": "Δοκιμάστε δωρεάν"
   },
   "nav": {
+    "group": {
+      "tenants": "Γραφεία & Χρήστες",
+      "finance": "Οικονομικά",
+      "operations": "Λειτουργίες",
+      "monitoring": "Παρακολούθηση",
+      "tooling": "Εργαλεία"
+    },
     "dashboard": "Πίνακας Ελέγχου",
     "customers": "Πελάτες",
     "policies": "Συμβόλαια",

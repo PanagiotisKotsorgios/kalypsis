@@ -15,7 +15,6 @@ import EmailIcon from "@mui/icons-material/Email";
 import SecurityIcon from "@mui/icons-material/Security";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
-import KeyIcon from "@mui/icons-material/Key";
 import ExtensionIcon from "@mui/icons-material/Extension";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import SystemUpdateAltIcon from "@mui/icons-material/SystemUpdateAlt";
@@ -246,7 +245,10 @@ import { RenewalsPage } from "./pages/RenewalsPage";
 import { FinancialsPage } from "./pages/FinancialsPage";
 import {
   SubscriptionPlansPage, BroadcastPage,
-  PlatformApiKeysPage, PlatformIntegrationsPage, PlatformBackupsPage,
+  // PlatformApiKeysPage / PlatformIntegrationsPage removed from nav —
+  // the routes now redirect to /app (see App.tsx routes below), so the
+  // page components no longer need to be imported.
+  PlatformBackupsPage,
   PlatformStoragePage, PlatformJobsPage, PlatformStatusPage, PlatformCompliancePage, PlatformSupportPage
 } from "./pages/PlatformAdminPages";
 import { PlatformCarriersPage } from "./pages/PlatformCarriersPage";
@@ -458,41 +460,80 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/notifications", labelKey: "nav.notifications", icon: <NotificationsIcon /> },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
+  // PlatformAdmin nav — grouped into collapsible categories via the
+  // NavItem.group field (see AppLayout.tsx line 89). Ungrouped items
+  // stay at the top for daily-use surfaces (Dashboard, Profile). Every
+  // other item lives in one of six categories so the sidebar isn't a
+  // 27-item wall of icons. api-keys + integrations removed per request
+  // — the underlying pages are unused; the routes are also gone below.
   PlatformAdmin: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
-    { to: "/tenants", labelKey: "nav.tenants", icon: <BusinessIcon /> },
-    { to: "/all-users", labelKey: "nav.allUsers", icon: <GroupIcon /> },
-    { to: "/platform/registrations", labelKey: "nav.registrations", icon: <AssignmentIcon /> },
-    { to: "/audit", labelKey: "nav.audit", icon: <GavelIcon /> },
     { to: "/settings", labelKey: "nav.settings", icon: <SettingsIcon /> },
-    // Platform-wide operations (carriers, plans, comms, ops)
-    { to: "/platform/carriers", labelKey: "nav.platformCarriers", icon: <SecurityIcon /> },
-    { to: "/platform/maintenance", labelKey: "nav.maintenance", icon: <EngineeringIcon /> },
-    { to: "/platform/parametric-files", labelKey: "nav.broadcastParametric", icon: <InventoryIcon /> },
-    { to: "/platform/desktop-releases", labelKey: "nav.desktopReleases", icon: <SystemUpdateAltIcon /> },
-    { to: "/platform/desktop-licenses", labelKey: "nav.desktopLicenses", icon: <DesktopWindowsIcon /> },
-    { to: "/platform/plans", labelKey: "nav.subscriptionPlans", icon: <CreditCardIcon /> },
-    { to: "/platform/billing", labelKey: "nav.billing", icon: <PaymentsIcon /> },
-    { to: "/platform/invoices", labelKey: "nav.invoices", icon: <ReceiptLongIcon /> },
-    { to: "/platform/email-templates", labelKey: "nav.emailTemplates", icon: <EmailIcon /> },
-    { to: "/platform/documentation", labelKey: "nav.editDocumentation", icon: <MenuBookIcon /> },
-    { to: "/platform/landing", labelKey: "nav.editLanding", icon: <CampaignIcon /> },
-    { to: "/platform/broadcast", labelKey: "nav.broadcast", icon: <CampaignIcon /> },
-    { to: "/platform/api-keys", labelKey: "nav.apiKeys", icon: <KeyIcon /> },
-    { to: "/platform/integrations", labelKey: "nav.integrations", icon: <ExtensionIcon /> },
-    { to: "/platform/backups", labelKey: "nav.backups", icon: <CloudUploadIcon /> },
-    { to: "/platform/storage", labelKey: "nav.storage", icon: <StorageIcon /> },
-    { to: "/platform/jobs", labelKey: "nav.jobs", icon: <ScheduleIcon /> },
-    { to: "/platform/status", labelKey: "nav.status", icon: <MonitorHeartIcon /> },
-    { to: "/platform/breach-incidents", labelKey: "nav.breachIncidents", icon: <RuleFolderIcon /> },
-    { to: "/platform/compliance", labelKey: "nav.compliance", icon: <RuleFolderIcon /> },
-    { to: "/platform/support", labelKey: "nav.support", icon: <SupportAgentIcon /> },
-    { to: "/platform/economics", labelKey: "nav.platformEconomics", icon: <AnalyticsIcon /> },
-    { to: "/platform/contractors", labelKey: "nav.contractors", icon: <EngineeringIcon /> },
-    // Μηχανογράφιση («bookkeeping as a service») — platform team runs
-    // data entry for small offices that opted in. Sits under Διοίκηση
-    // so it lives alongside the other tenant-management surfaces.
-    { to: "/platform/bookkeeping", labelKey: "nav.platformBookkeeping", icon: <FolderIcon /> },
+
+    // ── Γραφεία & Χρήστες ──
+    { to: "/tenants", labelKey: "nav.tenants", icon: <BusinessIcon />,
+      group: "nav.group.tenants", groupIcon: <BusinessIcon /> },
+    { to: "/all-users", labelKey: "nav.allUsers", icon: <GroupIcon />,
+      group: "nav.group.tenants" },
+    { to: "/platform/registrations", labelKey: "nav.registrations", icon: <AssignmentIcon />,
+      group: "nav.group.tenants" },
+    { to: "/platform/support", labelKey: "nav.support", icon: <SupportAgentIcon />,
+      group: "nav.group.tenants" },
+    { to: "/audit", labelKey: "nav.audit", icon: <GavelIcon />,
+      group: "nav.group.tenants" },
+
+    // ── Οικονομικά ──
+    { to: "/platform/plans", labelKey: "nav.subscriptionPlans", icon: <CreditCardIcon />,
+      group: "nav.group.finance", groupIcon: <PaymentsIcon /> },
+    { to: "/platform/billing", labelKey: "nav.billing", icon: <PaymentsIcon />,
+      group: "nav.group.finance" },
+    { to: "/platform/invoices", labelKey: "nav.invoices", icon: <ReceiptLongIcon />,
+      group: "nav.group.finance" },
+    { to: "/platform/economics", labelKey: "nav.platformEconomics", icon: <AnalyticsIcon />,
+      group: "nav.group.finance" },
+    { to: "/platform/contractors", labelKey: "nav.contractors", icon: <EngineeringIcon />,
+      group: "nav.group.finance" },
+
+    // ── Λειτουργίες ──
+    // Μηχανογράφιση («bookkeeping as a service») lives here — the
+    // Ops team runs data-entry for small offices that opted in.
+    { to: "/platform/bookkeeping", labelKey: "nav.platformBookkeeping", icon: <FolderIcon />,
+      group: "nav.group.operations", groupIcon: <EngineeringIcon /> },
+    { to: "/platform/carriers", labelKey: "nav.platformCarriers", icon: <SecurityIcon />,
+      group: "nav.group.operations" },
+    { to: "/platform/email-templates", labelKey: "nav.emailTemplates", icon: <EmailIcon />,
+      group: "nav.group.operations" },
+    { to: "/platform/broadcast", labelKey: "nav.broadcast", icon: <CampaignIcon />,
+      group: "nav.group.operations" },
+    { to: "/platform/documentation", labelKey: "nav.editDocumentation", icon: <MenuBookIcon />,
+      group: "nav.group.operations" },
+    { to: "/platform/landing", labelKey: "nav.editLanding", icon: <CampaignIcon />,
+      group: "nav.group.operations" },
+
+    // ── Παρακολούθηση ──
+    { to: "/platform/status", labelKey: "nav.status", icon: <MonitorHeartIcon />,
+      group: "nav.group.monitoring", groupIcon: <MonitorHeartIcon /> },
+    { to: "/platform/jobs", labelKey: "nav.jobs", icon: <ScheduleIcon />,
+      group: "nav.group.monitoring" },
+    { to: "/platform/backups", labelKey: "nav.backups", icon: <CloudUploadIcon />,
+      group: "nav.group.monitoring" },
+    { to: "/platform/storage", labelKey: "nav.storage", icon: <StorageIcon />,
+      group: "nav.group.monitoring" },
+    { to: "/platform/breach-incidents", labelKey: "nav.breachIncidents", icon: <RuleFolderIcon />,
+      group: "nav.group.monitoring" },
+    { to: "/platform/compliance", labelKey: "nav.compliance", icon: <RuleFolderIcon />,
+      group: "nav.group.monitoring" },
+
+    // ── Εργαλεία (desktop / release train) ──
+    { to: "/platform/desktop-releases", labelKey: "nav.desktopReleases", icon: <SystemUpdateAltIcon />,
+      group: "nav.group.tooling", groupIcon: <DesktopWindowsIcon /> },
+    { to: "/platform/desktop-licenses", labelKey: "nav.desktopLicenses", icon: <DesktopWindowsIcon />,
+      group: "nav.group.tooling" },
+    { to: "/platform/parametric-files", labelKey: "nav.broadcastParametric", icon: <InventoryIcon />,
+      group: "nav.group.tooling" },
+    { to: "/platform/maintenance", labelKey: "nav.maintenance", icon: <EngineeringIcon />,
+      group: "nav.group.tooling" },
+
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
   PlatformEmployee: [
@@ -976,8 +1017,12 @@ export default function App() {
                   <Route path="platform/billing" element={<PlatformBillingConfigPage />} />
                   <Route path="platform/invoices" element={<PlatformInvoicesPage />} />
                   <Route path="platform/broadcast" element={<BroadcastPage />} />
-                  <Route path="platform/api-keys" element={<PlatformApiKeysPage />} />
-                  <Route path="platform/integrations" element={<PlatformIntegrationsPage />} />
+                  {/* Retired: /platform/api-keys and /platform/integrations —
+                      the pages weren't used in daily ops and their nav entries
+                      were removed. Old bookmarks now bounce to the dashboard
+                      instead of 404-ing. */}
+                  <Route path="platform/api-keys" element={<Navigate to="/app" replace />} />
+                  <Route path="platform/integrations" element={<Navigate to="/app" replace />} />
                   <Route path="platform/backups" element={<PlatformBackupsPage />} />
                   <Route path="platform/storage" element={<PlatformStoragePage />} />
                   <Route path="platform/jobs" element={<PlatformJobsPage />} />

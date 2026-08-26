@@ -41,18 +41,18 @@ internal static class JobCatalog
             "Ξανα-δοκιμάζει αποτυχημένες πληρωμές. Warn = >5 αποτυχίες σε 6h."),
         new("retention-cleanup",     "Retention cleanup",        "housekeeping",  "0 4 * * 0",
             "Εφαρμόζει το Data Retention Schedule — soft-delete + anonymization."),
-        new("mydata-submit",         "MyDATA submit",           "integrations",  "0 2 * * *",
-            "Στέλνει τιμολόγια στο ΑΑΔΕ MyDATA."),
         new("audit-archive",         "Audit archive",           "housekeeping",  "0 5 1 * *",
             "Παγιώνει audit logs > 12 μηνών σε cold storage."),
         new("email-digest",          "Weekly email digest",      "notifications", "0 9 * * 1",
             "Εβδομαδιαίο digest σε AgencyAdmins."),
-        new("kepyo-generator",       "ΚΕΠΥΟ generator",         "reports",       "0 6 15 * *",
-            "Δημιουργεί ΚΕΠΥΟ αναφορά μηνιαίως."),
         new("marketing-campaigns",   "Marketing campaigns",     "notifications", "*/10 * * * *",
             "Δρομολογεί προγραμματισμένες marketing καμπάνιες."),
         new("producer-snapshots",    "Producer monthly snapshot", "reports",     "0 3 1 * *",
             "Παγιώνει μηνιαία στοιχεία παραγωγής ανά producer για ιστορικές αναφορές."),
+        // Backoffice-only for now — MyDATA and ΚΕΠΥΟ jobs live in the
+        // integrations-category and are wired to external state that we
+        // don't hit in production yet. Reintroduce when the AAADE and
+        // ΚΕΠΥΟ pipelines are actually plumbed end-to-end.
     };
 }
 

@@ -17,6 +17,13 @@
     "tryFree": "Try it free"
   },
   "nav": {
+    "group": {
+      "tenants": "Agencies & Users",
+      "finance": "Finance",
+      "operations": "Operations",
+      "monitoring": "Monitoring",
+      "tooling": "Tooling"
+    },
     "dashboard": "Dashboard",
     "customers": "Customers",
     "policies": "Policies",

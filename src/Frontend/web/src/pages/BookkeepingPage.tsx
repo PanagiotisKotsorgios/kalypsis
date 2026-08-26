@@ -337,6 +337,11 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
   const tree = useQuery({
     queryKey: ["bookkeeping", "tree"],
     queryFn: async () => (await api.get<TreeResp>("/bookkeeping/tree")).data,
+    // Stabilise: don't refetch on every window-focus (opening the OS
+    // file picker briefly loses focus and used to cause a visible
+    // tree re-render / flicker as the user clicked «Ανέβασμα»).
+    refetchOnWindowFocus: false,
+    staleTime: 30_000,
   });
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -477,8 +482,26 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
     return list;
   }, [allFiles, selectedFolderId, q, showAllMatchingFiles, statusFilter, uploaderFilter]);
 
+  // Client-side pre-flight so the user gets a fast, specific reason
+  // when the upload can't proceed — no more silent-nothing-happens.
+  // Returns null if OK, else a human-readable Greek message that we
+  // stuff into `setErr` and show at the top of the panel.
+  const uploadBlockedReason = useMemo(() => {
+    if (!termsAccepted) return "Πρέπει πρώτα να αποδεχτείτε την Πολιτική Χρήσης (κίτρινο πλαίσιο στην κορυφή) πριν το upload.";
+    if ((tree.data?.folders.length ?? 0) === 0) return "Δεν υπάρχει κανένας φάκελος. Δημιουργήστε φάκελο από το «+» πάνω αριστερά.";
+    if (!selectedFolderId) return "Επιλέξτε πρώτα φάκελο από τη λίστα αριστερά.";
+    return null;
+  }, [termsAccepted, tree.data, selectedFolderId]);
+
   const uploadFile = useCallback(async (file: File) => {
+    if (uploadBlockedReason) { setErr(uploadBlockedReason); return; }
     if (!selectedFolderId) return;
+    // 16 MB cap enforced server-side; catch it early so the user
+    // doesn't wait for an upload that will 400.
+    if (file.size > 16 * 1024 * 1024) {
+      setErr(`Το αρχείο «${file.name}» ξεπερνά τα 16 MB. Παρακαλώ σπάστε το ή συμπιέστε το.`);
+      return;
+    }
     setUploading(true);
     try {
       const form = new FormData();
@@ -487,7 +510,12 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
       await api.post("/bookkeeping/files", form, { headers: { "Content-Type": "multipart/form-data" } });
       qc.invalidateQueries({ queryKey: ["bookkeeping", "tree"] });
     } catch (e) { setErr(extractErrorMessage(e)); } finally { setUploading(false); }
-  }, [selectedFolderId, qc, setErr]);
+  }, [selectedFolderId, qc, setErr, uploadBlockedReason]);
+
+  // Visual drop-zone highlight — true while the user is dragging OS
+  // files over the file panel. Different from `draggingFileId` which
+  // is for internal file rearranging.
+  const [isOsFileDragOver, setIsOsFileDragOver] = useState(false);
 
   if (tree.isLoading) return <Box sx={{ p: 3 }}><CircularProgress size={20} /></Box>;
 
@@ -569,24 +597,39 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
       </Box>
 
       {/* ── Right column: files + filters + upload ─────────────── */}
-      <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0 }}
-        // Upload-via-drop only accepts drags that carry OS files (uploads
-        // from the desktop). An internal file-row drag inside our tree
-        // carries type="Files" as false but sets a "text/kalypsis-file"
-        // custom type — we skip preventDefault in that case so the drag
-        // has no effect here and the tree-side handler takes over.
+      <Box sx={{
+        display: "flex", flexDirection: "column", minHeight: 0,
+        // Blue tint + dashed outline while an OS file is being dragged
+        // over — the user can now SEE that the panel is ready to accept
+        // the drop, instead of guessing.
+        outline: isOsFileDragOver ? "3px dashed" : undefined,
+        outlineColor: isOsFileDragOver ? "primary.main" : undefined,
+        outlineOffset: -3,
+        bgcolor: isOsFileDragOver ? "rgba(31, 123, 179, 0.06)" : undefined,
+        transition: "background-color 0.1s",
+      }}
         onDragOver={e => {
-          if (!selectedFolderId || !termsAccepted) return;
-          const isOsUpload = e.dataTransfer.types.includes("Files")
-            && !e.dataTransfer.types.includes("text/kalypsis-file");
-          if (isOsUpload) e.preventDefault();
-        }}
-        onDrop={e => {
-          if (!selectedFolderId || !termsAccepted) return;
           const isOsUpload = e.dataTransfer.types.includes("Files")
             && !e.dataTransfer.types.includes("text/kalypsis-file");
           if (!isOsUpload) return;
           e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+          if (!isOsFileDragOver) setIsOsFileDragOver(true);
+        }}
+        onDragLeave={e => {
+          // Only clear when we actually leave the whole panel — dragleave
+          // fires on every child boundary crossing otherwise (annoying flicker).
+          if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+          setIsOsFileDragOver(false);
+        }}
+        onDrop={e => {
+          const isOsUpload = e.dataTransfer.types.includes("Files")
+            && !e.dataTransfer.types.includes("text/kalypsis-file");
+          if (!isOsUpload) return;
+          e.preventDefault();
+          setIsOsFileDragOver(false);
+          // Let uploadFile() surface any blocked reason via setErr —
+          // we no longer silently drop the file on the floor.
           for (const f of Array.from(e.dataTransfer.files ?? [])) void uploadFile(f);
         }}>
         {/* Search + filter row */}
@@ -632,19 +675,30 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
           <Typography variant="body2" fontWeight={700} sx={{ flex: 1 }}>
             Αρχεία {filesToShow.length > 0 && `(${filesToShow.length}${q || statusFilter !== "all" || uploaderFilter !== "all" ? " εμφανίζονται" : ""})`}
           </Typography>
-          <Tooltip title={termsAccepted
-            ? "Ανέβασμα αρχείου (max 16 MB)"
-            : "Απαιτείται αποδοχή Πολιτικής Χρήσης πριν το upload."}>
-            <span>
+          {/* Upload button is ALWAYS clickable when nothing is currently
+              in-flight — if a pre-flight blocker exists (no folder, no
+              terms accepted, no folders at all) the click surfaces
+              the reason via setErr instead of silently doing nothing.
+              Previous behaviour disabled the button which left users
+              staring at a greyed-out control with no feedback. */}
+          <Tooltip title={uploadBlockedReason
+            ? `Πατήστε για εξήγηση: ${uploadBlockedReason.slice(0, 60)}…`
+            : "Ανέβασμα αρχείου (max 16 MB)"}>
+            {uploadBlockedReason ? (
+              <Button size="small" variant="outlined" color="warning" startIcon={<UploadFileIcon />}
+                onClick={() => setErr(uploadBlockedReason)}>
+                Ανέβασμα (μπλοκαρισμένο)
+              </Button>
+            ) : (
               <Button size="small" variant="contained" startIcon={<UploadFileIcon />} component="label"
-                disabled={!selectedFolderId || uploading || !termsAccepted}>
+                disabled={uploading}>
                 Ανέβασμα
                 <input type="file" hidden multiple onChange={async e => {
                   for (const f of Array.from(e.target.files ?? [])) await uploadFile(f);
                   e.target.value = "";
                 }} />
               </Button>
-            </span>
+            )}
           </Tooltip>
         </Stack>
         {uploading && <LinearProgress />}
@@ -907,7 +961,10 @@ function TenantTreeRow({ folder, depth, folders, selectedId, onSelect,
           outline: isDropOver && acceptsDrop ? "2px dashed" : undefined,
           outlineColor: isDropOver && acceptsDrop ? "primary.main" : undefined,
           outlineOffset: -2,
-          "& .row-actions": { opacity: 0, transition: "opacity 0.15s" },
+          // Kebab dims to 0.35 instead of fully hidden — makes the row
+          // feel stable (no fade-in on every hover) but still keeps the
+          // action button visually secondary to the folder name.
+          "& .row-actions": { opacity: 0.35 },
           "&:hover .row-actions, &.Mui-selected .row-actions": { opacity: 1 },
         }}>
         <ListItemIcon sx={{ minWidth: 28 }}>
