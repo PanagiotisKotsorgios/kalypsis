@@ -707,25 +707,30 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
               the reason via setErr instead of silently doing nothing.
               Previous behaviour disabled the button which left users
               staring at a greyed-out control with no feedback. */}
-          <Tooltip title={uploadBlockedReason
-            ? `Πατήστε για εξήγηση: ${uploadBlockedReason.slice(0, 60)}…`
-            : "Ανέβασμα αρχείου (max 16 MB)"}>
-            {uploadBlockedReason ? (
-              <Button size="small" variant="outlined" color="warning" startIcon={<UploadFileIcon />}
-                onClick={() => setErr(uploadBlockedReason)}>
-                Ανέβασμα (μπλοκαρισμένο)
-              </Button>
-            ) : (
-              <Button size="small" variant="contained" startIcon={<UploadFileIcon />} component="label"
-                disabled={uploading}>
-                Ανέβασμα
-                <input type="file" hidden multiple onChange={async e => {
-                  for (const f of Array.from(e.target.files ?? [])) await uploadFile(f);
+          {/* DELIBERATELY no Tooltip wrapper around the upload button.
+              MUI Tooltip's ref-forwarding does not play nicely with
+              Button component="label" — clicks on the label sometimes
+              don't reach the nested hidden input and the OS file
+              picker never opens. That's the «τρεμόπαιγμα και τίποτα
+              δεν ανεβαίνει» symptom the user reported. Working
+              /app/documents upload has no Tooltip either. */}
+          {uploadBlockedReason ? (
+            <Button size="small" variant="outlined" color="warning" startIcon={<UploadFileIcon />}
+              onClick={() => setErr(uploadBlockedReason)}>
+              Ανέβασμα (μπλοκαρισμένο)
+            </Button>
+          ) : (
+            <Button size="small" variant="contained" startIcon={<UploadFileIcon />} component="label"
+              disabled={uploading} sx={{ py: 1 }}>
+              {uploading ? "Ανέβασμα…" : "Ανέβασμα αρχείου"}
+              <input type="file" hidden
+                onChange={e => {
+                  const f = e.target.files?.[0];
+                  if (f) void uploadFile(f);
                   e.target.value = "";
                 }} />
-              </Button>
-            )}
-          </Tooltip>
+            </Button>
+          )}
         </Stack>
         {uploading && <LinearProgress />}
         {emptyState ? (
