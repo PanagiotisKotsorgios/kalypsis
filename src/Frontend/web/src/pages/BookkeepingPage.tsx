@@ -355,6 +355,12 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
   // from the label's onClick — bypasses browser-specific label→htmlFor
   // quirks (Firefox 154+ refused to open the picker on delegated clicks).
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Fallback UI when the OS file picker refuses to open — a big
+  // drop-files-here dialog that doesn't require the browser to open
+  // any picker at all. Triggered by the «Άλλος τρόπος» button next
+  // to the primary Ανέβασμα button.
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadDialogDrag, setUploadDialogDrag] = useState(false);
 
   // ── Search + filter state ───────────────────────────────────────
   // `search` filters BOTH folders (by name, transitively — matched
@@ -815,9 +821,63 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
                     fontSize: 0,   // otherwise the button's picker text takes width
                   }} />
               </Box>
+              {/* Guaranteed alternative — a big drop-here dialog that
+                  doesn't require the browser to open any file picker.
+                  If the primary Ανέβασμα button fails (e.g. Firefox
+                  refuses the OS dialog for hidden inputs), the user
+                  can click «Άλλος τρόπος» and drag files from
+                  Explorer/Finder into the dialog area. */}
+              <Button size="small" variant="text" color="inherit"
+                onClick={() => setUploadDialogOpen(true)}
+                sx={{ textTransform: "none", fontSize: 12 }}>
+                Άλλος τρόπος (drag & drop)
+              </Button>
             </>
           )}
         </Stack>
+
+        {/* Drop-only upload dialog — no file picker required. */}
+        <Dialog open={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)}
+          fullWidth maxWidth="sm">
+          <DialogTitle>Ανέβασμα αρχείων — drag & drop</DialogTitle>
+          <DialogContent>
+            <Box
+              onDragOver={e => { e.preventDefault(); setUploadDialogDrag(true); }}
+              onDragLeave={e => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setUploadDialogDrag(false); }}
+              onDrop={async e => {
+                e.preventDefault(); setUploadDialogDrag(false);
+                const files = Array.from(e.dataTransfer.files ?? []);
+                for (const f of files) await uploadFile(f);
+                if (files.length > 0) setUploadDialogOpen(false);
+              }}
+              sx={{
+                mt: 1, p: 5, borderRadius: 2,
+                border: "2px dashed",
+                borderColor: uploadDialogDrag ? "primary.main" : "divider",
+                bgcolor: uploadDialogDrag ? "rgba(31,123,179,0.08)" : "transparent",
+                textAlign: "center",
+                transition: "border-color 0.15s, background 0.15s",
+              }}>
+              <UploadFileIcon sx={{ fontSize: 48, color: uploadDialogDrag ? "primary.main" : "text.disabled", mb: 1 }} />
+              <Typography variant="body1" fontWeight={700} mb={0.5}>
+                Σύρετε τα αρχεία εδώ
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Ανοίξτε το Explorer/Finder, επιλέξτε ένα ή περισσότερα αρχεία
+                και σύρετέ τα σε αυτό το πλαίσιο. Max 16 MB ανά αρχείο.
+              </Typography>
+              {uploading && <Box mt={2}><CircularProgress size={20} /></Box>}
+            </Box>
+            <Alert severity="info" sx={{ mt: 2 }}>
+              Αν το κουμπί «Ανέβασμα» δεν άνοιξε παράθυρο επιλογής (bug σε
+              Firefox 154+), αυτή είναι η εγγυημένα λειτουργική εναλλακτική
+              — δεν χρειάζεται browser file-picker.
+            </Alert>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setUploadDialogOpen(false)}>Κλείσιμο</Button>
+          </DialogActions>
+        </Dialog>
         {uploading && <LinearProgress />}
         {emptyState ? (
           <Alert severity="info" sx={{ m: 3 }}>
