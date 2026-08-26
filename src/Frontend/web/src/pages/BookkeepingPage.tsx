@@ -720,42 +720,50 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
               Ανέβασμα (μπλοκαρισμένο)
             </Button>
           ) : (
-            // Native <label htmlFor> instead of MUI Button component="label".
-            // I already tried MUI Button + label (didn't open picker), MUI
-            // Button + ref.click() (didn't open picker), MUI Button + label
-            // wrapped in Tooltip (didn't open picker either). Reverting to
-            // plain HTML label + input styled as a MUI-looking button removes
-            // every ref-forwarding + wrapper layer that could swallow the
-            // click. This IS how <input type=file> was designed to be
-            // triggered — no JavaScript required.
-            <Box component="label" htmlFor="bookkeeping-file-input" sx={{
-              display: "inline-flex", alignItems: "center", gap: 1,
-              px: 1.6, py: 0.7, borderRadius: 1,
-              bgcolor: uploading ? "action.disabledBackground" : "primary.main",
-              color: uploading ? "text.disabled" : "primary.contrastText",
-              fontSize: 13, fontWeight: 600, textTransform: "uppercase",
-              letterSpacing: "0.02em",
-              cursor: uploading ? "default" : "pointer",
-              pointerEvents: uploading ? "none" : "auto",
-              transition: "background 120ms",
-              "&:hover": { bgcolor: uploading ? undefined : "primary.dark" },
-            }}>
-              <UploadFileIcon fontSize="small" />
-              {uploading ? "Ανέβασμα…" : "Ανέβασμα"}
+            // SIBLING pattern (label + input as siblings, not nested).
+            // Everything nested inside a label / MUI Button proved
+            // unreliable for this user's browser — the picker never
+            // opens. Rewriting as: input hidden via display:none as a
+            // page-level sibling, label with htmlFor pointing at it,
+            // no ref, no MUI Button in the click path, no wrapping
+            // <span>. This is the reference pattern MDN documents for
+            // file uploads. If it STILL fails, the browser itself is
+            // blocking file inputs (extension / policy / sandbox).
+            <>
               <input id="bookkeeping-file-input" type="file"
-                style={{
-                  position: "absolute", width: 1, height: 1,
-                  padding: 0, margin: -1, overflow: "hidden",
-                  clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0,
-                }}
+                style={{ display: "none" }}
                 onChange={e => {
                   // eslint-disable-next-line no-console
-                  console.log("[BookkeepingUpload] input onChange fired, files:", e.target.files?.length);
+                  console.log("[BookkeepingUpload] onChange fired, files:", e.target.files?.length);
                   const f = e.target.files?.[0];
                   if (f) void uploadFile(f);
                   e.target.value = "";
                 }} />
-            </Box>
+              <Box component="label" htmlFor="bookkeeping-file-input"
+                onClick={() => {
+                  // Belt-and-braces logger — if the label click doesn't
+                  // reach the input, we still see the click here so we
+                  // can tell which layer is broken.
+                  // eslint-disable-next-line no-console
+                  console.log("[BookkeepingUpload] label clicked, folderSelected:", selectedFolderId);
+                }}
+                sx={{
+                  display: "inline-flex", alignItems: "center", gap: 1,
+                  px: 1.6, py: 0.7, borderRadius: 1,
+                  bgcolor: uploading ? "action.disabledBackground" : "primary.main",
+                  color: uploading ? "text.disabled" : "primary.contrastText",
+                  fontSize: 13, fontWeight: 600, textTransform: "uppercase",
+                  letterSpacing: "0.02em",
+                  cursor: uploading ? "default" : "pointer",
+                  userSelect: "none",
+                  pointerEvents: uploading ? "none" : "auto",
+                  transition: "background 120ms",
+                  "&:hover": { bgcolor: uploading ? undefined : "primary.dark" },
+                }}>
+                <UploadFileIcon fontSize="small" />
+                {uploading ? "Ανέβασμα…" : "Ανέβασμα"}
+              </Box>
+            </>
           )}
         </Stack>
         {uploading && <LinearProgress />}
