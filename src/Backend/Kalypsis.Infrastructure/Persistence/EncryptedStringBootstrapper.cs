@@ -55,6 +55,12 @@ public sealed class EncryptedStringBootstrapper
         }
         var encryptor = SensitiveDataEncryptor.FromMasterKey(master);
         EncryptedStringConverter.Bootstrap(encryptor);
+        // Expose the same encryptor as a static accessor so ad-hoc
+        // callers (bookkeeping file blob encryption) don't need to
+        // wire DI through every controller. The instance lives for
+        // the lifetime of the process — same as the DI singleton
+        // pattern would give us.
+        SensitiveDataEncryptor.SetInstance(encryptor);
         _logger.LogInformation("EncryptedStringConverter primed (AES-256-GCM, master key derived via HKDF).");
     }
 }

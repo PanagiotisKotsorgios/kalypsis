@@ -37,12 +37,28 @@ public class BookkeepingProgram : TenantEntity
     /// and we log in ourselves. «hybrid» → both.</summary>
     public string Mode { get; set; } = "files";
     /// <summary>Free-form request-for-contact note from the tenant when
-    /// they opt in. Platform admin reads it to arrange the flow.</summary>
+    /// they opt in. Platform admin reads it to arrange the flow.
+    /// Encrypted at rest via EncryptedStringConverter.</summary>
     public string? ContactRequestNote { get; set; }
     /// <summary>Set by the platform admin once the account has been
     /// on-boarded and folders + credentials arranged.</summary>
     public bool Onboarded { get; set; }
     public DateTime? OnboardedAt { get; set; }
+
+    // ── Terms-of-use acceptance ────────────────────────────────────
+    // The tenant must explicitly accept the Bookkeeping AUP (Acceptable
+    // Use Policy) before any file upload is allowed:
+    //   • No copyrighted material they don't hold rights to
+    //   • No content prohibited by Greek/EU law
+    //   • Kalypsis is a storage / workflow platform — the tenant is
+    //     solely responsible for what they upload
+    // TermsAcceptedAt IS NULL → upload endpoints return 428 «terms not
+    // accepted». Version bumps invalidate the acceptance (a new
+    // TermsVersion the client doesn't recognise re-shows the acceptance
+    // gate) so legal can push a policy update without a data migration.
+    public DateTime? TermsAcceptedAt { get; set; }
+    public Guid? TermsAcceptedByUserId { get; set; }
+    public string? TermsAcceptedVersion { get; set; }
 }
 
 /// <summary>Folder in the tenant's μηχανογράφιση workspace. Can nest —

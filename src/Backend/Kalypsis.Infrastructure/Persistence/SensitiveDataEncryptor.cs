@@ -24,6 +24,17 @@ public sealed class SensitiveDataEncryptor
     private const int NonceSize = 12;   // AES-GCM standard nonce size
     private const int TagSize = 16;     // AES-GCM 128-bit auth tag
 
+    // Process-wide singleton — set by EncryptedStringBootstrapper right
+    // after app.Build(). Enables callers that need ProtectBytes/UnprotectBytes
+    // (bookkeeping file blobs) to reach the encryptor without threading
+    // it through DI on every controller.
+    private static SensitiveDataEncryptor? _instance;
+    public static SensitiveDataEncryptor Instance
+        => _instance ?? throw new InvalidOperationException(
+            "SensitiveDataEncryptor not initialised — did EncryptedStringBootstrapper.Initialize() run?");
+    public static void SetInstance(SensitiveDataEncryptor enc) => _instance = enc;
+    public static bool IsAvailable => _instance is not null;
+
     private readonly byte[] _key;
 
     public SensitiveDataEncryptor(byte[] key)
@@ -85,5 +96,55 @@ public sealed class SensitiveDataEncryptor
         using var aes = new AesGcm(_key, TagSize);
         aes.Decrypt(nonce, ct, tag, pt); // throws CryptographicException on tampering
         return Encoding.UTF8.GetString(pt);
+    }
+
+    // ── Byte-array (blob) protection ──────────────────────────────────
+    //
+    // Same envelope as the string API — nonce(12) || tag(16) || ct(n) —
+    // but returned as raw bytes instead of base64. Used for bookkeeping
+    // file blobs so a DB dump leak alone doesn't reveal tenant documents.
+    // A 1-byte magic prefix («0x01» = kx1-bytes-v1) lets Unprotect refuse
+    // legacy plaintext bytes safely: a stored blob that lacks the magic
+    // is passed through untouched (self-healing across the rollout, same
+    // pattern as the string converter's «kx1:» marker).
+
+    private const byte BlobMagic = 0x01;
+
+    public byte[] ProtectBytes(ReadOnlySpan<byte> plaintext)
+    {
+        var nonce = new byte[NonceSize];
+        RandomNumberGenerator.Fill(nonce);
+        var ct = new byte[plaintext.Length];
+        var tag = new byte[TagSize];
+        using var aes = new AesGcm(_key, TagSize);
+        aes.Encrypt(nonce, plaintext, ct, tag);
+
+        var payload = new byte[1 + NonceSize + TagSize + ct.Length];
+        payload[0] = BlobMagic;
+        Buffer.BlockCopy(nonce, 0, payload, 1, NonceSize);
+        Buffer.BlockCopy(tag,   0, payload, 1 + NonceSize, TagSize);
+        Buffer.BlockCopy(ct,    0, payload, 1 + NonceSize + TagSize, ct.Length);
+        return payload;
+    }
+
+    /// <summary>Reverses <see cref="ProtectBytes"/>. If the input does
+    /// not begin with the magic byte it is treated as legacy plaintext
+    /// and returned unchanged — safe rollout across pre-encryption rows.</summary>
+    public byte[] UnprotectBytes(byte[] payload)
+    {
+        if (payload is null || payload.Length == 0) return Array.Empty<byte>();
+        if (payload[0] != BlobMagic) return payload; // legacy plaintext
+        if (payload.Length < 1 + NonceSize + TagSize)
+            throw new CryptographicException("Blob payload too short for envelope.");
+        var nonce = new byte[NonceSize];
+        var tag = new byte[TagSize];
+        var ct = new byte[payload.Length - 1 - NonceSize - TagSize];
+        Buffer.BlockCopy(payload, 1,                            nonce, 0, NonceSize);
+        Buffer.BlockCopy(payload, 1 + NonceSize,                tag,   0, TagSize);
+        Buffer.BlockCopy(payload, 1 + NonceSize + TagSize,      ct,    0, ct.Length);
+        var pt = new byte[ct.Length];
+        using var aes = new AesGcm(_key, TagSize);
+        aes.Decrypt(nonce, ct, tag, pt);
+        return pt;
     }
 }

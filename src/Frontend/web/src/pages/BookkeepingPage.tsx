@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
-  Alert, Box, Button, Card, Chip, CircularProgress, Container,
+  Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Container,
   IconButton, LinearProgress, List, ListItem,
   ListItemButton, ListItemIcon, ListItemText, Paper,
   Stack, Tab, Tabs, TextField, Tooltip, Typography,
@@ -28,7 +28,8 @@ import { api, extractErrorMessage } from "../api/client";
  * normal tenant filter, no way to reach another tenant's data.
  */
 interface ProgramDto { enabled: boolean; mode: string; contactRequestNote: string | null;
-  onboarded: boolean; onboardedAt: string | null; createdAt: string | null; }
+  onboarded: boolean; onboardedAt: string | null; createdAt: string | null;
+  termsAcceptedAt: string | null; termsAcceptedVersion: string | null; currentTermsVersion: string; }
 interface FolderDto { id: string; parentFolderId: string | null; name: string;
   origin: string; displayOrder: number; createdAt: string; fileCount: number; }
 interface FileDto { id: string; folderId: string; fileName: string; mimeType: string;
@@ -63,9 +64,18 @@ function OptInScreen({ program, qc, setErr, err }: {
 }) {
   const [note, setNote] = useState(program?.contactRequestNote ?? "");
   const [mode, setMode] = useState(program?.mode ?? "files");
-  const toggle = useMutation({
-    mutationFn: (enabled: boolean) => api.put("/bookkeeping/program",
-      { enabled, mode, contactRequestNote: note }),
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showTermsFull, setShowTermsFull] = useState(false);
+  const enable = useMutation({
+    // Two-step so the user only sees one button: (1) enable program,
+    // (2) accept current AUP version. Both go through in one click.
+    mutationFn: async () => {
+      await api.put("/bookkeeping/program",
+        { enabled: true, mode, contactRequestNote: note });
+      if (program?.currentTermsVersion)
+        await api.post("/bookkeeping/program/accept-terms",
+          { version: program.currentTermsVersion });
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["bookkeeping", "program"] }),
     onError: e => setErr(extractErrorMessage(e)),
   });
@@ -104,8 +114,32 @@ function OptInScreen({ program, qc, setErr, err }: {
           value={note} onChange={e => setNote(e.target.value)}
           multiline minRows={3} fullWidth sx={{ mt: 2 }}
           helperText="Όποια προτίμηση θέλετε να ξέρουμε πριν κανονίσουμε την πρώτη συνάντηση — π.χ. προτιμώμενη ώρα, εταιρείες που δουλεύετε κ.λπ." />
+        {/* AUP acceptance — required to enable. Checkbox mirrors the
+            server-side gate; ενεργοποίηση button stays disabled until
+            checked. Full text is available inline via the toggle. */}
+        <Paper variant="outlined" sx={{ mt: 3, p: 2, bgcolor: "rgba(240,180,60,0.06)" }}>
+          <Stack direction="row" spacing={1} alignItems="flex-start">
+            <Checkbox size="small" checked={acceptedTerms}
+              onChange={e => setAcceptedTerms(e.target.checked)} sx={{ pt: 0 }} />
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="body2" fontWeight={700}>
+                Έχω διαβάσει και αποδέχομαι την Πολιτική Χρήσης Μηχανογράφισης
+              </Typography>
+              <Typography variant="caption" color="text.secondary" component="div">
+                Δεσμεύομαι ότι δεν θα ανεβάσω υλικό που παραβιάζει πνευματικά δικαιώματα (copyright),
+                τη νομοθεσία, ή είναι εκτός σκοπού της υπηρεσίας. Η Kalypsis δεν φέρει ευθύνη για το
+                περιεχόμενο που ανεβάζω.
+              </Typography>
+              <Button size="small" onClick={() => setShowTermsFull(v => !v)} sx={{ mt: 0.5, px: 0 }}>
+                {showTermsFull ? "Απόκρυψη κειμένου" : "Πλήρες κείμενο όρων"}
+              </Button>
+              {showTermsFull && <TermsFullText />}
+            </Box>
+          </Stack>
+        </Paper>
         <Stack direction="row" spacing={2} mt={3}>
-          <Button variant="contained" onClick={() => toggle.mutate(true)} disabled={toggle.isPending}>
+          <Button variant="contained" onClick={() => enable.mutate()}
+            disabled={enable.isPending || !acceptedTerms}>
             Ενεργοποίηση μηχανογράφισης
           </Button>
         </Stack>
@@ -172,13 +206,20 @@ function WorkspaceScreen({ program, qc, setErr, err }: {
       </Stack>
       {err && <Alert severity="error" onClose={() => setErr(null)} sx={{ mb: 2 }}>{err}</Alert>}
 
-      <Card variant="outlined" sx={{ display: "flex", flexDirection: "column", minHeight: "calc(100vh - 260px)" }}>
+      {/* AUP gate — server refuses uploads until this is accepted, so
+          we show it as a prominent inline card AND gate any upload
+          button on `termsAccepted`. Not a modal — the tenant may want
+          to browse existing files before deciding. */}
+      <TermsAcceptanceCard program={program} qc={qc} setErr={setErr} />
+
+      <Card variant="outlined" sx={{ display: "flex", flexDirection: "column", minHeight: "calc(100vh - 320px)" }}>
         <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ borderBottom: 1, borderColor: "divider", px: 1 }}>
           <Tab value="files" icon={<FolderSpecialIcon fontSize="small" />} iconPosition="start" label="Φάκελοι & αρχεία" />
           <Tab value="activities" icon={<HistoryIcon fontSize="small" />} iconPosition="start" label="Ενέργειες Kalypsis" />
         </Tabs>
         <Box sx={{ flex: 1, overflow: "hidden" }}>
-          {activeTab === "files" && <MyFilesTab qc={qc} setErr={setErr} />}
+          {activeTab === "files" && <MyFilesTab qc={qc} setErr={setErr}
+            termsAccepted={program.termsAcceptedVersion === program.currentTermsVersion} />}
           {activeTab === "activities" && <MyActivitiesTab />}
         </Box>
       </Card>
@@ -186,8 +227,107 @@ function WorkspaceScreen({ program, qc, setErr, err }: {
   );
 }
 
-function MyFilesTab({ qc, setErr }: {
+/** Full Acceptable Use Policy text + accept button. Rendered as a
+ *  banner above the workspace when the tenant hasn't yet accepted the
+ *  current AUP version. The text below is the load-bearing legal
+ *  disclaimer — Kalypsis is a passive storage / workflow platform, not
+ *  a content curator. Any breach of copyright or law is the tenant's
+ *  responsibility. Backend enforces the same gate — this UI just makes
+ *  the policy visible before the tenant is turned away by a 428. */
+function TermsAcceptanceCard({ program, qc, setErr }: {
+  program: ProgramDto; qc: ReturnType<typeof useQueryClient>;
+  setErr: (s: string | null) => void;
+}) {
+  const accepted = program.termsAcceptedVersion === program.currentTermsVersion;
+  const [showFull, setShowFull] = useState(false);
+  const accept = useMutation({
+    mutationFn: () => api.post("/bookkeeping/program/accept-terms",
+      { version: program.currentTermsVersion }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["bookkeeping", "program"] }),
+    onError: e => setErr(extractErrorMessage(e)),
+  });
+  if (accepted) return null;
+  return (
+    <Alert severity="warning" icon={<HelpOutlineIcon />} sx={{ mb: 2 }}
+      action={
+        <Stack direction="row" spacing={1}>
+          <Button size="small" onClick={() => setShowFull(v => !v)}>
+            {showFull ? "Απόκρυψη κειμένου" : "Εμφάνιση πλήρους κειμένου"}
+          </Button>
+          <Button size="small" variant="contained" onClick={() => accept.mutate()}>
+            Αποδοχή & ενεργοποίηση upload
+          </Button>
+        </Stack>
+      }>
+      <Typography fontWeight={800}>Πολιτική Χρήσης Μηχανογράφισης — απαιτείται αποδοχή πριν το upload</Typography>
+      {!showFull && (
+        <Typography variant="body2">
+          Ανεβάζοντας αρχεία στη μηχανογράφιση δεσμεύεστε ότι έχετε τα δικαιώματα χρήσης τους,
+          δεν παραβιάζουν πνευματική ιδιοκτησία τρίτων και δεν είναι απαγορευμένα από τη νομοθεσία.
+          Πατήστε «Εμφάνιση πλήρους κειμένου» για τους πλήρεις όρους.
+        </Typography>
+      )}
+      {showFull && <TermsFullText />}
+    </Alert>
+  );
+}
+
+/** The full AUP body — kept as a component so both the acceptance
+ *  banner and any «διαβάστε τους όρους» footer link render the same
+ *  copy. Version-tagged so legal updates are traceable. */
+function TermsFullText() {
+  return (
+    <Box sx={{ mt: 1, fontSize: 13, lineHeight: 1.7 }}>
+      <Typography variant="subtitle2" fontWeight={800} mt={1}>1. Πεδίο εφαρμογής</Typography>
+      Η υπηρεσία «Μηχανογράφιση» της Kalypsis σας παρέχει αποθηκευτικό χώρο και εργαλεία
+      συνεργασίας με την ομάδα μας για δεδομένα του ασφαλιστικού γραφείου σας
+      (παραστατικά, εκθέσεις, βιβλία κ.λπ.). Η Kalypsis λειτουργεί ως πάροχος υποδομής
+      και επεξεργαστής δεδομένων — δεν παρακολουθεί, αξιολογεί ή εγκρίνει το περιεχόμενο των αρχείων.
+
+      <Typography variant="subtitle2" fontWeight={800} mt={2}>2. Δηλώσεις & εγγυήσεις χρήστη</Typography>
+      Ανεβάζοντας οποιοδήποτε αρχείο ή δημιουργώντας φακέλους δηλώνετε ρητά ότι:
+      <ul>
+        <li>Έχετε τα νόμιμα δικαιώματα ή σχετική άδεια για κάθε αρχείο που ανεβάζετε.</li>
+        <li>Δεν θα ανεβάσετε υλικό που παραβιάζει πνευματικά δικαιώματα (copyright), εμπορικά σήματα ή άλλα δικαιώματα διανοητικής ιδιοκτησίας τρίτων.</li>
+        <li>Δεν θα ανεβάσετε περιεχόμενο που είναι απαγορευμένο από το ελληνικό ή ευρωπαϊκό δίκαιο (μεταξύ άλλων: απάτη, παιδικό υλικό, δεδομένα υγείας τρίτων χωρίς συγκατάθεση, malware, spam).</li>
+        <li>Δεν θα ανεβάσετε αρχεία εκτός σκοπού της υπηρεσίας (μηχανογράφιση ασφαλιστικού γραφείου) — π.χ. πολυμεσικό υλικό ψυχαγωγίας, personal cloud storage κ.λπ.</li>
+        <li>Για τυχόν δεδομένα προσωπικού χαρακτήρα (πελατών, εργαζομένων) έχετε νόμιμη βάση επεξεργασίας κατά GDPR και θα ενημερώσετε τα υποκείμενα όπου απαιτείται.</li>
+      </ul>
+
+      <Typography variant="subtitle2" fontWeight={800} mt={2}>3. Ευθύνη</Typography>
+      Η Kalypsis <b>δεν φέρει καμία ευθύνη</b> για το περιεχόμενο των αρχείων που ανεβάζετε.
+      Οποιαδήποτε νομική αξίωση από τρίτους (πνευματικά δικαιώματα, GDPR, ποινική νομοθεσία)
+      καλύπτεται αποκλειστικά από εσάς, ως χρήστη που ανέβασε ή δημιούργησε το περιεχόμενο.
+      Δεσμεύεστε να αποζημιώσετε την Kalypsis για κάθε ζημία, πρόστιμο ή δικαστικό κόστος
+      που ενδεχομένως προκύψει από παραβίαση των παραπάνω όρων.
+
+      <Typography variant="subtitle2" fontWeight={800} mt={2}>4. Δικαίωμα αφαίρεσης</Typography>
+      Η Kalypsis διατηρεί το δικαίωμα να αφαιρέσει άμεσα, χωρίς προηγούμενη ειδοποίηση,
+      περιεχόμενο που πιστεύει καλόπιστα ότι παραβιάζει τους παρόντες όρους, τη νομοθεσία,
+      ή τα δικαιώματα τρίτων — καθώς και να αναστείλει τον λογαριασμό σας σε περίπτωση
+      επαναλαμβανόμενων παραβάσεων.
+
+      <Typography variant="subtitle2" fontWeight={800} mt={2}>5. Ασφάλεια αποθήκευσης</Typography>
+      Τα αρχεία σας κρυπτογραφούνται εν αναπαύσει (AES-256-GCM) με κλειδί που ζει
+      στο περιβάλλον διακομιστή (Coolify env var, όχι στη βάση). Ένα σκέτο leak του
+      MySQL dump δεν αρκεί για ανάγνωση των αρχείων ή των ονομάτων φακέλων/αρχείων.
+
+      <Typography variant="subtitle2" fontWeight={800} mt={2}>6. Νομοθεσία</Typography>
+      Οι παρόντες όροι διέπονται από το ελληνικό δίκαιο. Αρμόδια δικαστήρια:
+      Αθηνών.
+
+      <Typography variant="caption" component="div" color="text.secondary" mt={2}>
+        Έκδοση όρων: {/* stays in sync with backend CurrentTermsVersion */}<b>2026-08-26.v1</b>
+      </Typography>
+    </Box>
+  );
+}
+
+function MyFilesTab({ qc, setErr, termsAccepted }: {
   qc: ReturnType<typeof useQueryClient>; setErr: (s: string | null) => void;
+  // Client-side gate that mirrors the backend's RequireTermsAsync 428.
+  // Uploads are disabled + tooltipped when false.
+  termsAccepted: boolean;
 }) {
   const tree = useQuery({
     queryKey: ["bookkeeping", "tree"],
@@ -236,23 +376,29 @@ function MyFilesTab({ qc, setErr }: {
         </List>
       </Box>
       <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0 }}
-        onDragOver={e => { if (selectedFolderId) e.preventDefault(); }}
+        onDragOver={e => { if (selectedFolderId && termsAccepted) e.preventDefault(); }}
         onDrop={e => {
-          if (!selectedFolderId) return; e.preventDefault();
+          if (!selectedFolderId || !termsAccepted) return; e.preventDefault();
           for (const f of Array.from(e.dataTransfer.files ?? [])) void uploadFile(f);
         }}>
         <Stack direction="row" alignItems="center" spacing={1} sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}>
           <Typography variant="body2" fontWeight={700} sx={{ flex: 1 }}>
             Αρχεία {filesInFolder.length > 0 && `(${filesInFolder.length})`}
           </Typography>
-          <Button size="small" variant="contained" startIcon={<UploadFileIcon />} component="label"
-            disabled={!selectedFolderId || uploading}>
-            Ανέβασμα
-            <input type="file" hidden multiple onChange={async e => {
-              for (const f of Array.from(e.target.files ?? [])) await uploadFile(f);
-              e.target.value = "";
-            }} />
-          </Button>
+          <Tooltip title={termsAccepted
+            ? "Ανέβασμα αρχείου (max 16 MB)"
+            : "Απαιτείται αποδοχή Πολιτικής Χρήσης πριν το upload."}>
+            <span>
+              <Button size="small" variant="contained" startIcon={<UploadFileIcon />} component="label"
+                disabled={!selectedFolderId || uploading || !termsAccepted}>
+                Ανέβασμα
+                <input type="file" hidden multiple onChange={async e => {
+                  for (const f of Array.from(e.target.files ?? [])) await uploadFile(f);
+                  e.target.value = "";
+                }} />
+              </Button>
+            </span>
+          </Tooltip>
         </Stack>
         {uploading && <LinearProgress />}
         {!selectedFolderId ? (

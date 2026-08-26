@@ -39,9 +39,18 @@ public class BookkeepingController : ControllerBase
         IMediator mediator, ILogger<BookkeepingController> logger)
     { _db = db; _current = current; _clock = clock; _mediator = mediator; _logger = logger; }
 
+    // ── Acceptable-Use Policy version ────────────────────────────
+    // Bumping this constant invalidates every tenant's prior acceptance
+    // — legal can push a new AUP without a data migration; the client's
+    // next upload attempt gets HTTP 428 and the acceptance dialog
+    // reopens. NEVER bump silently — always coordinate with a UX-side
+    // copy update.
+    public const string CurrentTermsVersion = "2026-08-26.v1";
+
     // ── DTOs shared across both surfaces ────────────────────────────
     public record ProgramDto(bool Enabled, string Mode, string? ContactRequestNote,
-        bool Onboarded, DateTime? OnboardedAt, DateTime? CreatedAt);
+        bool Onboarded, DateTime? OnboardedAt, DateTime? CreatedAt,
+        DateTime? TermsAcceptedAt, string? TermsAcceptedVersion, string CurrentTermsVersion);
     public record FolderDto(Guid Id, Guid? ParentFolderId, string Name, string Origin,
         int DisplayOrder, DateTime CreatedAt, int FileCount);
     public record FileDto(Guid Id, Guid FolderId, string FileName, string MimeType,
@@ -87,9 +96,11 @@ public class BookkeepingController : ControllerBase
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var row = await _db.BookkeepingPrograms.AsNoTracking()
             .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.DeletedAt == null, ct);
-        if (row is null) return Ok(new ProgramDto(false, "files", null, false, null, null));
+        if (row is null) return Ok(new ProgramDto(false, "files", null, false, null, null,
+            TermsAcceptedAt: null, TermsAcceptedVersion: null, CurrentTermsVersion: CurrentTermsVersion));
         return Ok(new ProgramDto(row.Enabled, row.Mode, row.ContactRequestNote,
-            row.Onboarded, row.OnboardedAt, row.CreatedAt));
+            row.Onboarded, row.OnboardedAt, row.CreatedAt,
+            row.TermsAcceptedAt, row.TermsAcceptedVersion, CurrentTermsVersion));
     }
 
     /// <summary>Turn μηχανογράφιση on/off + optionally leave a contact-
@@ -119,8 +130,44 @@ public class BookkeepingController : ControllerBase
         row.ContactRequestNote = body.ContactRequestNote;
         await _db.SaveChangesAsync(ct);
         return Ok(new ProgramDto(row.Enabled, row.Mode, row.ContactRequestNote,
-            row.Onboarded, row.OnboardedAt, row.CreatedAt));
+            row.Onboarded, row.OnboardedAt, row.CreatedAt,
+            row.TermsAcceptedAt, row.TermsAcceptedVersion, CurrentTermsVersion));
     }
+
+    /// <summary>Records the tenant's acceptance of the current Acceptable
+    /// Use Policy version. Required before any file upload — see
+    /// RequireTermsAsync. Any AgencyAdmin can accept on behalf of the
+    /// tenant; we log the user id for audit.</summary>
+    [HttpPost("/api/bookkeeping/program/accept-terms")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<ProgramDto>> AcceptTerms([FromBody] AcceptTermsBody body, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var userId = _current.UserId ?? throw AppException.Unauthorized();
+        if (body?.Version != CurrentTermsVersion)
+            throw new AppException("terms_version_mismatch",
+                "Ο κωδικός έκδοσης δεν ταιριάζει με το τρέχον AUP — ανανεώστε τη σελίδα.", 400);
+        var row = await _db.BookkeepingPrograms
+            .FirstOrDefaultAsync(x => x.TenantId == tenantId, ct);
+        if (row is null)
+        {
+            row = new BookkeepingProgram
+            {
+                Id = Guid.NewGuid(), TenantId = tenantId,
+                Enabled = false, CreatedAt = _clock.UtcNow,
+            };
+            _db.BookkeepingPrograms.Add(row);
+        }
+        row.TermsAcceptedAt = _clock.UtcNow;
+        row.TermsAcceptedByUserId = userId;
+        row.TermsAcceptedVersion = CurrentTermsVersion;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new ProgramDto(row.Enabled, row.Mode, row.ContactRequestNote,
+            row.Onboarded, row.OnboardedAt, row.CreatedAt,
+            row.TermsAcceptedAt, row.TermsAcceptedVersion, CurrentTermsVersion));
+    }
+
+    public record AcceptTermsBody(string Version);
 
     /// <summary>List folders + files for the caller's tenant. Sorted
     /// depth-first by DisplayOrder so the frontend can render a tree
@@ -145,11 +192,33 @@ public class BookkeepingController : ControllerBase
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var userId = _current.UserId ?? throw AppException.Unauthorized();
+        // Terms gate — tenant must have accepted the current AUP version
+        // before ANY upload. Enforced server-side so a modified client
+        // can't sneak files in without acknowledging the policy.
+        await RequireTermsAsync(tenantId, ct);
         var folder = await _db.BookkeepingFolders
             .FirstOrDefaultAsync(f => f.Id == folderId && f.TenantId == tenantId && f.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Folder");
         var dto = await UploadFileInternal(tenantId, userId, folder, file, "tenant", ct);
         return Ok(dto);
+    }
+
+    /// <summary>Throws 428 «Precondition Required» when the tenant has
+    /// not accepted the current AUP version. Called at the start of
+    /// every upload path (tenant + admin). Admin uploads also require
+    /// tenant acceptance — the platform team is uploading on the
+    /// tenant's behalf, and the tenant has to have agreed that
+    /// documents will be stored.</summary>
+    private async Task RequireTermsAsync(Guid tenantId, CancellationToken ct)
+    {
+        var row = await _db.BookkeepingPrograms.AsNoTracking().IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.DeletedAt == null, ct);
+        var accepted = row is { TermsAcceptedAt: not null }
+            && string.Equals(row.TermsAcceptedVersion, CurrentTermsVersion, StringComparison.Ordinal);
+        if (!accepted)
+            throw new AppException("terms_not_accepted",
+                "Το γραφείο πρέπει να αποδεχτεί την Πολιτική Χρήσης Μηχανογράφισης πριν από κάθε upload.",
+                428);
     }
 
     [HttpGet("/api/bookkeeping/files/{id:guid}")]
@@ -160,7 +229,10 @@ public class BookkeepingController : ControllerBase
         var f = await _db.BookkeepingFiles
             .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("File");
-        return File(f.ContentBytes, f.MimeType, f.FileName);
+        var bytes = SensitiveDataEncryptor.IsAvailable
+            ? SensitiveDataEncryptor.Instance.UnprotectBytes(f.ContentBytes)
+            : f.ContentBytes;
+        return File(bytes, f.MimeType, f.FileName);
     }
 
     [HttpPost("/api/bookkeeping/notes")]
@@ -358,6 +430,10 @@ public class BookkeepingController : ControllerBase
         [FromForm] IFormFile file, [FromForm] Guid folderId, CancellationToken ct)
     {
         var userId = _current.UserId ?? throw AppException.Unauthorized();
+        // Even a platform-admin upload requires the tenant to have
+        // accepted the AUP first — the tenant is the data controller,
+        // we're the processor, and consent is theirs to give.
+        await RequireTermsAsync(tenantId, ct);
         var folder = await _db.BookkeepingFolders.IgnoreQueryFilters()
             .FirstOrDefaultAsync(f => f.Id == folderId && f.TenantId == tenantId && f.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Folder");
@@ -371,7 +447,13 @@ public class BookkeepingController : ControllerBase
         var f = await _db.BookkeepingFiles.IgnoreQueryFilters()
             .FirstOrDefaultAsync(x => x.Id == fileId && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("File");
-        return File(f.ContentBytes, f.MimeType, f.FileName);
+        // Decrypt the stored blob before streaming. UnprotectBytes returns
+        // the input unchanged if the magic byte isn't present → legacy
+        // plaintext rows still work during the rollout.
+        var bytes = SensitiveDataEncryptor.IsAvailable
+            ? SensitiveDataEncryptor.Instance.UnprotectBytes(f.ContentBytes)
+            : f.ContentBytes;
+        return File(bytes, f.MimeType, f.FileName);
     }
 
     [HttpPut("/api/platform/bookkeeping/tenants/{tenantId:guid}/files/{fileId:guid}")]
@@ -399,6 +481,7 @@ public class BookkeepingController : ControllerBase
         [FromForm] IFormFile file, CancellationToken ct)
     {
         if (file is null || file.Length == 0) throw AppException.Validation("Απαιτείται αρχείο.");
+        await RequireTermsAsync(tenantId, ct);
         var f = await _db.BookkeepingFiles.IgnoreQueryFilters()
             .FirstOrDefaultAsync(x => x.Id == fileId && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("File");
@@ -407,7 +490,12 @@ public class BookkeepingController : ControllerBase
         f.FileName = string.IsNullOrWhiteSpace(file.FileName) ? f.FileName : file.FileName;
         f.MimeType = string.IsNullOrWhiteSpace(file.ContentType) ? f.MimeType : file.ContentType;
         f.SizeBytes = ms.Length;
-        f.ContentBytes = ms.ToArray();
+        // Encrypt at rest before persisting. SizeBytes stays the
+        // plaintext length so UX «X MB uploaded» stays honest.
+        var raw = ms.ToArray();
+        f.ContentBytes = SensitiveDataEncryptor.IsAvailable
+            ? SensitiveDataEncryptor.Instance.ProtectBytes(raw)
+            : raw;
         await _db.SaveChangesAsync(ct);
         return Ok(FileToDto(f, null));
     }
@@ -615,7 +703,8 @@ public class BookkeepingController : ControllerBase
         p.Onboarded = onboarded;
         p.OnboardedAt = onboarded ? _clock.UtcNow : null;
         await _db.SaveChangesAsync(ct);
-        return Ok(new ProgramDto(p.Enabled, p.Mode, p.ContactRequestNote, p.Onboarded, p.OnboardedAt, p.CreatedAt));
+        return Ok(new ProgramDto(p.Enabled, p.Mode, p.ContactRequestNote, p.Onboarded, p.OnboardedAt, p.CreatedAt,
+            p.TermsAcceptedAt, p.TermsAcceptedVersion, CurrentTermsVersion));
     }
 
     /// <summary>Apply the platform-wide default folder structure to a
@@ -821,6 +910,13 @@ public class BookkeepingController : ControllerBase
         if (file.Length > max) throw AppException.Validation($"Μέγιστο {max / (1024 * 1024)} MB.");
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms, ct);
+        var raw = ms.ToArray();
+        // Encrypt the payload at rest with AES-256-GCM before persisting.
+        // The magic-byte envelope lets old plaintext rows still decode
+        // through UnprotectBytes for a graceful rollout.
+        var stored = SensitiveDataEncryptor.IsAvailable
+            ? SensitiveDataEncryptor.Instance.ProtectBytes(raw)
+            : raw;
         var f = new BookkeepingFile
         {
             Id = Guid.NewGuid(),
@@ -828,8 +924,8 @@ public class BookkeepingController : ControllerBase
             FolderId = folder.Id,
             FileName = string.IsNullOrWhiteSpace(file.FileName) ? "file" : file.FileName,
             MimeType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
-            SizeBytes = ms.Length,
-            ContentBytes = ms.ToArray(),
+            SizeBytes = raw.LongLength,      // plaintext size — honest UX
+            ContentBytes = stored,           // ciphertext bytes on disk
             UploadedBy = uploadedBy,
             UploadedByUserId = userId,
             Status = "pending",

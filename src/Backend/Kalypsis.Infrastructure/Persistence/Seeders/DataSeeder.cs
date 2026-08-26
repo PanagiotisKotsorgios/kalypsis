@@ -835,6 +835,34 @@ public static class DataSeeder
                 KEY `IX_bkcred_Tenant_Carrier` (`TenantId`, `CarrierName`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
 
+        // ── Bookkeeping at-rest encryption widen + terms columns ──
+        // Encrypted (base64 AES-GCM + prefix) is ~2× the plaintext byte
+        // count. Existing plaintext rows stay readable — the converter
+        // passes anything without the "kx1:" marker through unchanged.
+        await EnsureColumnMinLengthAsync(db, logger, dbName, "bookkeeping_folders", "Name",
+            800, "ALTER TABLE `bookkeeping_folders` MODIFY COLUMN `Name` varchar(800) NOT NULL", ct);
+        await EnsureColumnMinLengthAsync(db, logger, dbName, "bookkeeping_files", "FileName",
+            1200, "ALTER TABLE `bookkeeping_files` MODIFY COLUMN `FileName` varchar(1200) NOT NULL", ct);
+        await EnsureColumnTypeAsync(db, logger, dbName, "bookkeeping_files", "Notes",
+            "longtext", "ALTER TABLE `bookkeeping_files` MODIFY COLUMN `Notes` longtext NULL", ct);
+        await EnsureColumnTypeAsync(db, logger, dbName, "bookkeeping_notes", "Body",
+            "longtext", "ALTER TABLE `bookkeeping_notes` MODIFY COLUMN `Body` longtext NOT NULL", ct);
+        await EnsureColumnMinLengthAsync(db, logger, dbName, "bookkeeping_activities", "Title",
+            1200, "ALTER TABLE `bookkeeping_activities` MODIFY COLUMN `Title` varchar(1200) NOT NULL", ct);
+        await EnsureColumnTypeAsync(db, logger, dbName, "bookkeeping_activities", "Body",
+            "longtext", "ALTER TABLE `bookkeeping_activities` MODIFY COLUMN `Body` longtext NULL", ct);
+        await EnsureColumnTypeAsync(db, logger, dbName, "bookkeeping_programs", "ContactRequestNote",
+            "longtext", "ALTER TABLE `bookkeeping_programs` MODIFY COLUMN `ContactRequestNote` longtext NULL", ct);
+        // Terms acceptance — added post-launch. Rows before the terms
+        // gate went live have NULL TermsAcceptedAt; the upload
+        // endpoints refuse them until the tenant accepts.
+        await EnsureColumnAsync(db, logger, dbName, "bookkeeping_programs", "TermsAcceptedAt",
+            "ALTER TABLE `bookkeeping_programs` ADD COLUMN `TermsAcceptedAt` datetime(6) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName, "bookkeeping_programs", "TermsAcceptedByUserId",
+            "ALTER TABLE `bookkeeping_programs` ADD COLUMN `TermsAcceptedByUserId` char(36) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName, "bookkeeping_programs", "TermsAcceptedVersion",
+            "ALTER TABLE `bookkeeping_programs` ADD COLUMN `TermsAcceptedVersion` varchar(40) NULL", ct);
+
         // --- user_key_backups: passphrase-wrapped private-key backup.
         // Encrypted client-side with a KEK derived from the user's
         // passphrase via PBKDF2 (200k SHA-256). Server holds only
@@ -2409,6 +2437,53 @@ public static class DataSeeder
             // cascade — one FK collation mismatch would skip every later
             // migration and leave subsequent columns unknown to the code).
             logger.LogError(ex, "Schema safety: adding {Table}.{Column} failed, continuing.", table, column);
+        }
+    }
+
+    /// <summary>Widens a varchar column if its current CHARACTER_MAXIMUM_LENGTH
+    /// is below <paramref name="minLength"/>. Idempotent — no-op when the
+    /// column is already wide enough. Runs whatever <paramref name="modifySql"/>
+    /// contains (typically a plain ALTER TABLE MODIFY COLUMN).</summary>
+    private static async Task EnsureColumnMinLengthAsync(AppDbContext db, ILogger logger,
+        string dbName, string table, string column, int minLength, string modifySql, CancellationToken ct)
+    {
+        try
+        {
+            var q = "SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS " +
+                    "WHERE TABLE_SCHEMA = {0} AND TABLE_NAME = {1} AND COLUMN_NAME = {2}";
+            var rows = await db.Database.SqlQueryRaw<long?>(q, dbName, table, column).ToListAsync(ct);
+            var current = rows.FirstOrDefault();
+            if (current is null || current >= minLength) return;
+            await db.Database.ExecuteSqlRawAsync(modifySql, ct);
+            logger.LogWarning("Schema safety: widened {Table}.{Column} to {Min} (was {Cur})",
+                table, column, minLength, current);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Schema safety: widening {Table}.{Column} failed, continuing.", table, column);
+        }
+    }
+
+    /// <summary>Converts a column's DATA_TYPE if it doesn't already match
+    /// <paramref name="expectedType"/> (e.g. varchar → longtext). Idempotent.</summary>
+    private static async Task EnsureColumnTypeAsync(AppDbContext db, ILogger logger,
+        string dbName, string table, string column, string expectedType, string modifySql, CancellationToken ct)
+    {
+        try
+        {
+            var q = "SELECT DATA_TYPE FROM information_schema.COLUMNS " +
+                    "WHERE TABLE_SCHEMA = {0} AND TABLE_NAME = {1} AND COLUMN_NAME = {2}";
+            var rows = await db.Database.SqlQueryRaw<string?>(q, dbName, table, column).ToListAsync(ct);
+            var current = rows.FirstOrDefault();
+            if (current is null) return; // column missing — a separate EnsureColumnAsync elsewhere handles that
+            if (string.Equals(current, expectedType, StringComparison.OrdinalIgnoreCase)) return;
+            await db.Database.ExecuteSqlRawAsync(modifySql, ct);
+            logger.LogWarning("Schema safety: retyped {Table}.{Column} from {Cur} → {Exp}",
+                table, column, current, expectedType);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Schema safety: retyping {Table}.{Column} failed, continuing.", table, column);
         }
     }
 

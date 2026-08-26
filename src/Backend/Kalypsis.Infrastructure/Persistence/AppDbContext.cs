@@ -343,6 +343,33 @@ public class AppDbContext : DbContext, IAppDbContext
         Encrypt<BookkeepingPortalCredential>(x => x.UsernameCipher, maxLength: 500);
         Encrypt<BookkeepingPortalCredential>(x => x.PasswordCipher, maxLength: 500);
 
+        // ── Bookkeeping content encryption ─────────────────────────
+        // Full at-rest encryption of tenant-uploaded material. A DB
+        // dump leak alone should reveal NOTHING about what a tenant
+        // stored — not the file bytes, not the filenames, not the
+        // folder names, not the notes admins/tenants leave for each
+        // other, not the activity titles. Only structural metadata
+        // (timestamps, sizes, folder tree shape) stays plaintext.
+        //
+        // Base64-of-AES-GCM adds ~33% overhead + 12+16 bytes envelope
+        // + "kx1:" prefix. Column max lengths sized ≥ 2× original with
+        // a safety margin.
+        Encrypt<BookkeepingFolder>(x => x.Name, maxLength: 800);
+        Encrypt<BookkeepingFile>(x => x.FileName, maxLength: 1200);
+        modelBuilder.Entity<BookkeepingFile>().Property(x => x.Notes)
+            .HasConversion(enc!);   // longtext column — no maxLength needed
+        modelBuilder.Entity<BookkeepingNote>().Property(x => x.Body)
+            .HasConversion(enc!);
+        Encrypt<BookkeepingActivity>(x => x.Title, maxLength: 1200);
+        modelBuilder.Entity<BookkeepingActivity>().Property(x => x.Body)
+            .HasConversion(enc!);
+        modelBuilder.Entity<BookkeepingProgram>().Property(x => x.ContactRequestNote)
+            .HasConversion(enc!);
+        // File byte blobs get encrypted through SensitiveDataEncryptor
+        // in the upload handler (ProtectBytes) + decrypted in download
+        // (UnprotectBytes) — the envelope's magic byte lets legacy
+        // plaintext pass through, so the rollout is safe over existing rows.
+
         // ==== Explicit table-name mapping for entities the schema safety-net
         // creates as snake_case tables. EF Core's default pluralised-PascalCase
         // conventions (PlatformBackups, TenantPaymentStatuses, …) collide with
