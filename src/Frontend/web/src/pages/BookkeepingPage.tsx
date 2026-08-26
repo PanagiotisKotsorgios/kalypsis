@@ -749,65 +749,71 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
             // file uploads. If it STILL fails, the browser itself is
             // blocking file inputs (extension / policy / sandbox).
             <>
-              {/* CRITICAL: the input must NOT be display:none.
-                  Firefox 154+ refuses to open the file picker when
-                  <input type=file> is display:none — anti-phishing
-                  hardening. Chrome accepts it (my Playwright test
-                  worked in Chromium). Use the sr-only pattern
-                  instead: 1px absolute + opacity 0. Input stays
-                  interactable, browser opens the picker on click. */}
-              <input ref={fileInputRef} id="bookkeeping-file-input" type="file"
-                style={{
-                  position: "absolute", left: -9999, top: "auto",
-                  width: 1, height: 1, opacity: 0, overflow: "hidden",
-                  border: 0, padding: 0, margin: 0, pointerEvents: "none",
-                }}
-                onChange={e => {
-                  const n = e.target.files?.length ?? 0;
-                  // eslint-disable-next-line no-console
-                  console.log("[BookkeepingUpload] onChange fired, files:", n);
-                  void api.post("/diag/client", {
-                    flow: "bookkeeping.upload", step: "input-onchange",
-                    detail: `files=${n}`,
-                    ua: navigator.userAgent, ts: Date.now(),
-                  }).catch(() => {});
-                  const f = e.target.files?.[0];
-                  if (f) void uploadFile(f);
-                  e.target.value = "";
-                }} />
-              <Box component="label" htmlFor="bookkeeping-file-input"
-                onClick={e => {
-                  // Firefox 154+ also sometimes refuses to open the picker
-                  // from a pure label→htmlFor delegation. Fire an
-                  // explicit .click() from a user-gesture handler so
-                  // both Firefox + Chrome go through the same path.
-                  // preventDefault() on the label to stop the browser's
-                  // own label click firing a second time.
-                  e.preventDefault();
-                  // eslint-disable-next-line no-console
-                  console.log("[BookkeepingUpload] label clicked, folderSelected:", selectedFolderId);
-                  void api.post("/diag/client", {
-                    flow: "bookkeeping.upload", step: "label-click",
-                    detail: `folder=${selectedFolderId ?? "none"} uploading=${uploading}`,
-                    ua: navigator.userAgent, ts: Date.now(),
-                  }).catch(() => {});
-                  fileInputRef.current?.click();
-                }}
-                sx={{
+              {/* INVISIBLE-INPUT-OVER-BUTTON pattern. Everything else
+                  (component=label, ref.click, label htmlFor) failed on
+                  Firefox 154 — the picker never opened. This wraps
+                  the input DIRECTLY inside a positioned box, with the
+                  input stretched to fill the box and opacity: 0. The
+                  user's click lands on the input itself (not on a
+                  label or button that has to delegate). No programmatic
+                  .click(), no htmlFor, no ref delegation — the click
+                  IS the input's own click event, which every browser
+                  (including Firefox 154) MUST honour to open the
+                  picker. Button behind is only for the visual look. */}
+              <Box sx={{
+                position: "relative", display: "inline-flex",
+                cursor: uploading ? "default" : "pointer",
+              }}>
+                {/* Visual button — non-interactive so clicks fall through
+                    to the overlay input. */}
+                <Box sx={{
                   display: "inline-flex", alignItems: "center", gap: 1,
                   px: 1.6, py: 0.7, borderRadius: 1,
                   bgcolor: uploading ? "action.disabledBackground" : "primary.main",
                   color: uploading ? "text.disabled" : "primary.contrastText",
                   fontSize: 13, fontWeight: 600, textTransform: "uppercase",
                   letterSpacing: "0.02em",
-                  cursor: uploading ? "default" : "pointer",
                   userSelect: "none",
-                  pointerEvents: uploading ? "none" : "auto",
                   transition: "background 120ms",
-                  "&:hover": { bgcolor: uploading ? undefined : "primary.dark" },
+                  pointerEvents: "none",   // clicks pass through to input
                 }}>
-                <UploadFileIcon fontSize="small" />
-                {uploading ? "Ανέβασμα…" : "Ανέβασμα"}
+                  <UploadFileIcon fontSize="small" />
+                  {uploading ? "Ανέβασμα…" : "Ανέβασμα"}
+                </Box>
+                {/* Real input — invisible but full-cover, so the user's
+                    click is delivered to it natively. Disabled during
+                    upload so double-picks don't stack requests. */}
+                <input ref={fileInputRef} id="bookkeeping-file-input" type="file"
+                  disabled={uploading}
+                  onClick={() => {
+                    // eslint-disable-next-line no-console
+                    console.log("[BookkeepingUpload] input clicked, folderSelected:", selectedFolderId);
+                    void api.post("/diag/client", {
+                      flow: "bookkeeping.upload", step: "input-click",
+                      detail: `folder=${selectedFolderId ?? "none"} uploading=${uploading}`,
+                      ua: navigator.userAgent, ts: Date.now(),
+                    }).catch(() => {});
+                  }}
+                  onChange={e => {
+                    const n = e.target.files?.length ?? 0;
+                    // eslint-disable-next-line no-console
+                    console.log("[BookkeepingUpload] onChange fired, files:", n);
+                    void api.post("/diag/client", {
+                      flow: "bookkeeping.upload", step: "input-onchange",
+                      detail: `files=${n}`,
+                      ua: navigator.userAgent, ts: Date.now(),
+                    }).catch(() => {});
+                    const f = e.target.files?.[0];
+                    if (f) void uploadFile(f);
+                    e.target.value = "";
+                  }}
+                  style={{
+                    position: "absolute", inset: 0,
+                    width: "100%", height: "100%",
+                    opacity: 0,
+                    cursor: uploading ? "default" : "pointer",
+                    fontSize: 0,   // otherwise the button's picker text takes width
+                  }} />
               </Box>
             </>
           )}

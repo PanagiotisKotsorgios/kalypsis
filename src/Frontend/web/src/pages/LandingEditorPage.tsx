@@ -418,26 +418,33 @@ function ImagePickerRow({ label, url, onChange, captionValue, onCaptionChange }:
         </Box>
         <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" spacing={1}>
-            {/* Firefox 154+ refuses to open the file picker when the
-                input is marked `hidden` or `display:none` (phishing
-                mitigation). Use sr-only visibility instead + trigger
-                the picker explicitly from the button's onClick via
-                ref.current.click(). Works in both Firefox + Chrome. */}
-            <Button size="small" variant="outlined"
-              startIcon={<ImageIcon />} disabled={busy}
-              onClick={() => ref.current?.click()}>
-              {busy ? "Ανέβασμα…" : url ? "Αντικατάσταση" : "Ανέβασμα εικόνας"}
-            </Button>
-            <input ref={ref} type="file" accept="image/*"
-              style={{
-                position: "absolute", left: -9999, top: "auto",
-                width: 1, height: 1, opacity: 0, overflow: "hidden",
-                border: 0, padding: 0, margin: 0, pointerEvents: "none",
-              }}
-              onChange={e => {
-                const f = e.target.files?.[0];
-                if (f) void upload(f);
-              }} />
+            {/* Invisible-input-over-button pattern. Firefox 154 refused
+                to open the picker for hidden/sr-only inputs even
+                through ref.click() — clicks that don't originate on
+                the input itself. Wrap the input as a full-cover overlay
+                on top of a visual button so the user's click lands
+                directly on the input's own event. Same fix as the
+                bookkeeping upload; both surfaces now share the pattern. */}
+            <Box sx={{ position: "relative", display: "inline-flex" }}>
+              <Button size="small" variant="outlined"
+                startIcon={<ImageIcon />} disabled={busy}
+                sx={{ pointerEvents: "none" }}
+                tabIndex={-1}>
+                {busy ? "Ανέβασμα…" : url ? "Αντικατάσταση" : "Ανέβασμα εικόνας"}
+              </Button>
+              <input ref={ref} type="file" accept="image/*"
+                disabled={busy}
+                onChange={e => {
+                  const f = e.target.files?.[0];
+                  if (f) void upload(f);
+                }}
+                style={{
+                  position: "absolute", inset: 0,
+                  width: "100%", height: "100%",
+                  opacity: 0, cursor: busy ? "default" : "pointer",
+                  fontSize: 0,
+                }} />
+            </Box>
             {url && (
               <Button size="small" color="error" startIcon={<DeleteIcon />}
                 onClick={() => onChange(null)}>
