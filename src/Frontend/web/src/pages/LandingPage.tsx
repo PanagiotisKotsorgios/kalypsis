@@ -1314,7 +1314,7 @@ export const ERMES_SHOWCASE_DEFAULTS: ErmesShowcaseContent = {
       body: "Οι συνεργάτες με λογαριασμό Kalypsis εμφανίζονται αυτόματα στις επαφές — δεν χρειάζεται να ζητήσετε emails ή τηλέφωνα." },
   ],
   footerNote: "Δεν χρειάζεται πιστωτική κάρτα · Δωρεάν για κάθε πλάνο Kalypsis · Ελληνική φιλοξενία",
-  ctaLabel: "Ξεκινήστε δωρεάν με τον ΕΡΜΗ",
+  ctaLabel: "Ξεκινήστε δωρεάν με τον ΕΡΜΗΣ",
   ctaTo: "/register",
 };
 
