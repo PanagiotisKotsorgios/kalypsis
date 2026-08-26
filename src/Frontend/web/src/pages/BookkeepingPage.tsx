@@ -387,6 +387,33 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
     onError: e => setErr(extractErrorMessage(e)),
   });
 
+  // Drag-and-drop reparenting. moveFolder posts to the tenant-side
+  // /folders/{id}/move endpoint which cycle-guards + tenant-isolates.
+  // Drag source = a folder in the tree; drop target = another folder
+  // (nest under it) OR the tree background (promote to root).
+  const moveFolder = useMutation({
+    mutationFn: async (p: { id: string; newParentId: string | null }) =>
+      api.patch(`/bookkeeping/folders/${p.id}/move`,
+        { newParentFolderId: p.newParentId, newDisplayOrder: null }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["bookkeeping", "tree"] }),
+    onError: e => setErr(extractErrorMessage(e)),
+  });
+  const [draggingFolderId, setDraggingFolderId] = useState<string | null>(null);
+
+  /** Returns true if `descendantId` is inside the subtree rooted at
+   *  `ancestorId`. Used to disable drop targets that would create a
+   *  cycle — matches the server-side guard so we don't send doomed
+   *  requests and flash red errors. */
+  const isDescendantOf = useCallback((descendantId: string, ancestorId: string) => {
+    const byId = new Map((tree.data?.folders ?? []).map(f => [f.id, f]));
+    let cur = byId.get(descendantId);
+    while (cur?.parentFolderId) {
+      if (cur.parentFolderId === ancestorId) return true;
+      cur = byId.get(cur.parentFolderId);
+    }
+    return false;
+  }, [tree.data]);
+
   useEffect(() => {
     const roots = tree.data?.folders.filter(f => !f.parentFolderId) ?? [];
     if (!selectedFolderId && roots.length > 0) setSelectedFolderId(roots[0].id);
@@ -470,10 +497,36 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
             Δεν υπάρχουν φάκελοι ακόμη. Πατήστε το «+» για να φτιάξετε τον πρώτο σας.
           </Alert>
         ) : (
-          <List dense sx={{ flex: 1, overflowY: "auto" }}>
+          <List dense sx={{ flex: 1, overflowY: "auto" }}
+            // Root-level drop target — dragging a folder onto empty space
+            // in the tree list promotes it to a root folder. The stopPropagation
+            // in the inner rows keeps a drop on a folder row from also
+            // hitting this handler.
+            onDragOver={e => {
+              if (draggingFolderId) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }
+            }}
+            onDrop={e => {
+              if (!draggingFolderId) return;
+              e.preventDefault();
+              const dragged = folders.find(f => f.id === draggingFolderId);
+              if (dragged && dragged.parentFolderId !== null)
+                moveFolder.mutate({ id: draggingFolderId, newParentId: null });
+              setDraggingFolderId(null);
+            }}>
             <TenantTreeNode folders={folders} parentId={null} depth={0}
               selectedId={selectedFolderId} onSelect={setSelectedFolderId}
               visibleFolderIds={visibleFolderIds}
+              draggingFolderId={draggingFolderId}
+              onDragStart={setDraggingFolderId}
+              onDragEnd={() => setDraggingFolderId(null)}
+              onDropOnFolder={(sourceId, targetId) => {
+                if (sourceId === targetId) return;
+                if (isDescendantOf(targetId, sourceId)) return;   // cycle guard
+                const src = folders.find(f => f.id === sourceId);
+                if (src?.parentFolderId === targetId) return;      // already there
+                moveFolder.mutate({ id: sourceId, newParentId: targetId });
+              }}
+              isDescendantOf={isDescendantOf}
               onNewSubfolder={pid => {
                 setNewFolderParentId(pid); setNewFolderName(""); setNewFolderOpen(true);
               }}
@@ -483,6 +536,11 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
                   deleteFolder.mutate(id);
               }} />
           </List>
+        )}
+        {draggingFolderId && (
+          <Typography variant="caption" sx={{ p: 1, color: "text.secondary", fontStyle: "italic" }}>
+            Αφήστε πάνω σε φάκελο για nesting, ή σε κενή περιοχή για ρίζα.
+          </Typography>
         )}
       </Box>
 
@@ -671,12 +729,16 @@ function highlightMatch(text: string, query: string): React.ReactNode {
 }
 
 function TenantTreeNode({ folders, parentId, depth, selectedId, onSelect,
-  visibleFolderIds, onNewSubfolder, onRename, onDelete }: {
+  visibleFolderIds, draggingFolderId, onDragStart, onDragEnd, onDropOnFolder,
+  isDescendantOf, onNewSubfolder, onRename, onDelete }: {
   folders: FolderDto[]; parentId: string | null; depth: number;
   selectedId: string | null; onSelect: (id: string) => void;
-  /** When non-null, only folders in this set are rendered — the search
-   *  filter's visibility passthrough. Null = render everything. */
   visibleFolderIds: Set<string> | null;
+  draggingFolderId: string | null;
+  onDragStart: (id: string) => void;
+  onDragEnd: () => void;
+  onDropOnFolder: (sourceId: string, targetId: string) => void;
+  isDescendantOf: (descendantId: string, ancestorId: string) => boolean;
   onNewSubfolder: (parentId: string) => void;
   onRename: (folder: FolderDto) => void;
   onDelete: (folderId: string) => void;
@@ -691,6 +753,9 @@ function TenantTreeNode({ folders, parentId, depth, selectedId, onSelect,
         <TenantTreeRow key={f.id} folder={f} depth={depth}
           folders={folders} selectedId={selectedId} onSelect={onSelect}
           visibleFolderIds={visibleFolderIds}
+          draggingFolderId={draggingFolderId}
+          onDragStart={onDragStart} onDragEnd={onDragEnd}
+          onDropOnFolder={onDropOnFolder} isDescendantOf={isDescendantOf}
           onNewSubfolder={onNewSubfolder} onRename={onRename} onDelete={onDelete} />
       ))}
     </>
@@ -700,23 +765,71 @@ function TenantTreeNode({ folders, parentId, depth, selectedId, onSelect,
 /** One folder row + a lazy inline action menu (subfolder / rename /
  *  delete). Kept as its own component so hover state stays local — a
  *  hover on one row doesn't re-render the whole tree. Recurses into
- *  its own <TenantTreeNode> for children so nesting works. */
+ *  its own <TenantTreeNode> for children so nesting works.
+ *
+ *  Also owns the row-level drag-and-drop UI:
+ *    • draggable="true" — the whole row can be picked up
+ *    • dragover shows an "about to drop here" outline when the drop
+ *      would land on a valid target (not self, not a descendant)
+ *    • drop calls the parent's onDropOnFolder which fires the move mutation */
 function TenantTreeRow({ folder, depth, folders, selectedId, onSelect,
-  visibleFolderIds, onNewSubfolder, onRename, onDelete }: {
+  visibleFolderIds, draggingFolderId, onDragStart, onDragEnd, onDropOnFolder,
+  isDescendantOf, onNewSubfolder, onRename, onDelete }: {
   folder: FolderDto; depth: number; folders: FolderDto[];
   selectedId: string | null; onSelect: (id: string) => void;
   visibleFolderIds: Set<string> | null;
+  draggingFolderId: string | null;
+  onDragStart: (id: string) => void;
+  onDragEnd: () => void;
+  onDropOnFolder: (sourceId: string, targetId: string) => void;
+  isDescendantOf: (descendantId: string, ancestorId: string) => boolean;
   onNewSubfolder: (parentId: string) => void;
   onRename: (folder: FolderDto) => void;
   onDelete: (folderId: string) => void;
 }) {
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+  const [isDropOver, setIsDropOver] = useState(false);
   const isSystem = folder.origin === "system";
+  // Is THIS row a valid drop target for whatever is being dragged?
+  const acceptsDrop = draggingFolderId !== null
+    && draggingFolderId !== folder.id
+    && !isDescendantOf(folder.id, draggingFolderId);
   return (
     <Box>
       <ListItemButton selected={folder.id === selectedId} onClick={() => onSelect(folder.id)}
+        draggable={!isSystem}
+        onDragStart={e => {
+          if (isSystem) { e.preventDefault(); return; }
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", folder.id);   // Firefox needs a payload
+          onDragStart(folder.id);
+        }}
+        onDragEnd={() => { onDragEnd(); setIsDropOver(false); }}
+        onDragOver={e => {
+          if (!acceptsDrop) return;
+          e.preventDefault();
+          e.stopPropagation();
+          e.dataTransfer.dropEffect = "move";
+          setIsDropOver(true);
+        }}
+        onDragLeave={() => setIsDropOver(false)}
+        onDrop={e => {
+          if (!acceptsDrop || !draggingFolderId) return;
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDropOver(false);
+          onDropOnFolder(draggingFolderId, folder.id);
+        }}
         sx={{
           pl: 1 + depth * 2, pr: 1,
+          opacity: draggingFolderId === folder.id ? 0.45 : 1,
+          // Highlight when this row is a live drop target — matches
+          // primary color at 12% so it reads as "you're dropping here"
+          // without competing with the row-selected background.
+          bgcolor: isDropOver && acceptsDrop ? "rgba(31, 123, 179, 0.16)" : undefined,
+          outline: isDropOver && acceptsDrop ? "2px dashed" : undefined,
+          outlineColor: isDropOver && acceptsDrop ? "primary.main" : undefined,
+          outlineOffset: -2,
           "& .row-actions": { opacity: 0, transition: "opacity 0.15s" },
           "&:hover .row-actions, &.Mui-selected .row-actions": { opacity: 1 },
         }}>
@@ -757,6 +870,9 @@ function TenantTreeRow({ folder, depth, folders, selectedId, onSelect,
       <TenantTreeNode folders={folders} parentId={folder.id} depth={depth + 1}
         selectedId={selectedId} onSelect={onSelect}
         visibleFolderIds={visibleFolderIds}
+        draggingFolderId={draggingFolderId}
+        onDragStart={onDragStart} onDragEnd={onDragEnd}
+        onDropOnFolder={onDropOnFolder} isDescendantOf={isDescendantOf}
         onNewSubfolder={onNewSubfolder} onRename={onRename} onDelete={onDelete} />
     </Box>
   );

@@ -263,6 +263,50 @@ public class BookkeepingController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Reparent (drag-and-drop) OR reorder a tenant-owned
+    /// folder. Passing <c>NewParentFolderId = null</c> promotes it to
+    /// root. Cycle-guarded — moving a folder under one of its own
+    /// descendants is refused. Same tenant-isolation checks as the
+    /// admin variant (<c>AdminMoveFolder</c>) — a folder id from
+    /// another tenant is rejected as NotFound, not silently ignored.</summary>
+    [HttpPatch("/api/bookkeeping/folders/{folderId:guid}/move")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<FolderDto>> MoveOwnFolder(Guid folderId,
+        [FromBody] MoveFolderBody body, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var f = await _db.BookkeepingFolders
+            .FirstOrDefaultAsync(x => x.Id == folderId && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Folder");
+        if (body.NewParentFolderId is Guid pid)
+        {
+            if (pid == folderId)
+                throw AppException.Validation("Ένας φάκελος δεν μπορεί να είναι γονέας του εαυτού του.");
+            // Cycle guard: walk the target's ancestry, refuse if we hit folderId.
+            var cursorId = (Guid?)pid;
+            var seen = new HashSet<Guid>();
+            while (cursorId is Guid cid)
+            {
+                if (cid == folderId)
+                    throw AppException.Validation("Ο φάκελος δεν μπορεί να μετακινηθεί κάτω από κάποιον υποφάκελό του.");
+                if (!seen.Add(cid)) break; // corrupted cycle in existing data — bail out
+                var next = await _db.BookkeepingFolders
+                    .Where(x => x.Id == cid && x.DeletedAt == null)
+                    .Select(x => x.ParentFolderId).FirstOrDefaultAsync(ct);
+                cursorId = next;
+            }
+            var parentOk = await _db.BookkeepingFolders
+                .AnyAsync(x => x.Id == pid && x.TenantId == tenantId && x.DeletedAt == null, ct);
+            if (!parentOk) throw AppException.NotFound("Parent folder");
+        }
+        f.ParentFolderId = body.NewParentFolderId;
+        if (body.NewDisplayOrder is int ord) f.DisplayOrder = ord;
+        await _db.SaveChangesAsync(ct);
+        var count = await _db.BookkeepingFiles
+            .CountAsync(x => x.FolderId == f.Id && x.DeletedAt == null, ct);
+        return Ok(new FolderDto(f.Id, f.ParentFolderId, f.Name, f.Origin, f.DisplayOrder, f.CreatedAt, count));
+    }
+
     /// <summary>Tenant-side file upload. Same 16 MB cap as ΕΡΜΗΣ
     /// attachments. Tenants can only upload into their OWN folders —
     /// the server double-checks the folder's TenantId to prevent
