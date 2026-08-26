@@ -500,42 +500,57 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
   }, [termsAccepted, tree.data, selectedFolderId]);
 
   const uploadFile = useCallback(async (file: File) => {
-    if (uploadBlockedReason) { setErr(uploadBlockedReason); return; }
-    if (!selectedFolderId) return;
-    // eslint-disable-next-line no-console
-    console.log("[BookkeepingUpload] selected:", {
-      name: file.name, size: file.size, type: file.type, folderId: selectedFolderId
-    });
+    // Every step below also POSTs to /api/diag/client so the flow is
+    // visible in the Coolify runtime log even when we can't get the
+    // user's F12 console. Grep the log for «CLIENT-DIAG · flow=bookkeeping.upload»
+    // to see the entire failing sequence.
+    const diag = (step: string, detail?: string) => {
+      // eslint-disable-next-line no-console
+      console.log(`[BookkeepingUpload] ${step}`, detail ?? "");
+      // Fire-and-forget — never await; a broken client shouldn't block itself.
+      void api.post("/diag/client", {
+        flow: "bookkeeping.upload", step, detail,
+        ua: navigator.userAgent, ts: Date.now(),
+      }).catch(() => {});
+    };
+    diag("uploadFile-called", `name=${file.name}, size=${file.size}, type=${file.type}, folderId=${selectedFolderId}`);
+    if (uploadBlockedReason) {
+      diag("blocked", uploadBlockedReason);
+      setErr(uploadBlockedReason); return;
+    }
+    if (!selectedFolderId) {
+      diag("no-folder-selected");
+      return;
+    }
     if (file.size === 0) {
+      diag("zero-bytes-rejected");
       setErr(`Το αρχείο «${file.name}» έχει μέγεθος 0 bytes — προσπαθήστε ξανά.`);
       return;
     }
-    // 16 MB cap enforced server-side; catch it early so the user
-    // doesn't wait for an upload that will 400.
     if (file.size > 16 * 1024 * 1024) {
+      diag("too-large-rejected", `${file.size} bytes`);
       setErr(`Το αρχείο «${file.name}» ξεπερνά τα 16 MB. Παρακαλώ σπάστε το ή συμπιέστε το.`);
       return;
     }
     setUploading(true);
+    diag("before-post");
     try {
-      // Mirror the working pattern from DocumentsPage.handleUpload
-      // exactly: same FormData shape, same explicit Content-Type
-      // header. Any deviation from that path is suspect.
       const form = new FormData();
       form.append("file", file);
       form.append("folderId", selectedFolderId);
       const r = await api.post("/bookkeeping/files", form, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      // eslint-disable-next-line no-console
-      console.log("[BookkeepingUpload] success:", r.status, r.data);
+      diag("post-success", `status=${r.status}`);
       qc.invalidateQueries({ queryKey: ["bookkeeping", "tree"] });
     } catch (e) {
       const msg = extractErrorMessage(e);
       setErr(msg);
       // eslint-disable-next-line no-console
       console.error("[BookkeepingUpload] failed:", e);
-    } finally { setUploading(false); }
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      diag("post-failed", `status=${status ?? "n/a"} msg=${msg}`);
+    } finally { setUploading(false); diag("done"); }
   }, [selectedFolderId, qc, setErr, uploadBlockedReason]);
 
   // Visual drop-zone highlight — true while the user is dragging OS
@@ -733,8 +748,14 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
               <input id="bookkeeping-file-input" type="file"
                 style={{ display: "none" }}
                 onChange={e => {
+                  const n = e.target.files?.length ?? 0;
                   // eslint-disable-next-line no-console
-                  console.log("[BookkeepingUpload] onChange fired, files:", e.target.files?.length);
+                  console.log("[BookkeepingUpload] onChange fired, files:", n);
+                  void api.post("/diag/client", {
+                    flow: "bookkeeping.upload", step: "input-onchange",
+                    detail: `files=${n}`,
+                    ua: navigator.userAgent, ts: Date.now(),
+                  }).catch(() => {});
                   const f = e.target.files?.[0];
                   if (f) void uploadFile(f);
                   e.target.value = "";
@@ -746,6 +767,11 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
                   // can tell which layer is broken.
                   // eslint-disable-next-line no-console
                   console.log("[BookkeepingUpload] label clicked, folderSelected:", selectedFolderId);
+                  void api.post("/diag/client", {
+                    flow: "bookkeeping.upload", step: "label-click",
+                    detail: `folder=${selectedFolderId ?? "none"} uploading=${uploading}`,
+                    ua: navigator.userAgent, ts: Date.now(),
+                  }).catch(() => {});
                 }}
                 sx={{
                   display: "inline-flex", alignItems: "center", gap: 1,
