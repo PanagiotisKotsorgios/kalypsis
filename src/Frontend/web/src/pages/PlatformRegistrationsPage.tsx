@@ -43,6 +43,12 @@ interface RegistrationDetail extends RegistrationSummary {
   reviewNotes: string | null;
   reviewedAt: string | null;
   ipAddress: string | null;
+  // Backend flags when the applicant's email matches an existing
+  // Producer row inside a tenant. When non-null the approve dialog
+  // offers a "provision as producer under {tenant}" mode.
+  matchedProducerId: string | null;
+  matchedProducerTenantId: string | null;
+  matchedProducerTenantName: string | null;
 }
 
 interface RegistrationStats {
@@ -300,6 +306,12 @@ function DetailDialog({ id, onClose, onAfterSave }: {
   const [showPassword, setShowPassword] = useState(false);
   const [sendWelcomeEmail, setSendWelcomeEmail] = useState(true);
   const [approveResult, setApproveResult] = useState<ApproveResult | null>(null);
+  // Provisioning mode. "producer" is only offered when the request has
+  // MatchedProducerTenantName populated (backend detected a Producer
+  // row with the same email in some tenant). Defaults to "agency"
+  // (create new tenant) so the historical path stays unchanged for
+  // requests without a match.
+  const [approveMode, setApproveMode] = useState<"agency" | "producer">("agency");
 
   const detail = useQuery({
     queryKey: ["registration-requests", "detail", id],
@@ -321,6 +333,8 @@ function DetailDialog({ id, onClose, onAfterSave }: {
     setSendWelcomeEmail(true);
     setApproveResult(null);
     setErr(null);
+    // Default: producer-mode when the backend detected a match; agency-mode otherwise.
+    setApproveMode(detail.data?.matchedProducerTenantName ? "producer" : "agency");
   }, [detail.data]);
 
   // When the admin flips status to Approved, drop in a strong default so the
@@ -341,7 +355,7 @@ function DetailDialog({ id, onClose, onAfterSave }: {
   const approve = useMutation({
     mutationFn: async () => (await api.post<ApproveResult>(
       `/platform/registration-requests/${id}/approve`,
-      { password, sendWelcomeEmail }
+      { password, sendWelcomeEmail, mode: approveMode }
     )).data,
     onSuccess: (data) => {
       setApproveResult(data);
@@ -465,6 +479,37 @@ function DetailDialog({ id, onClose, onAfterSave }: {
                     <Typography fontSize={13.5} color="text.secondary" mb={2}>
                       {t("registrations.approve.lead")}
                     </Typography>
+
+                    {/* Producer-match hint. When the backend flagged
+                        the applicant's email as an existing Producer
+                        row, offer «Provision as producer under X»
+                        instead of creating a new γραφείο. Default is
+                        producer-mode when the match exists. */}
+                    {detail.data?.matchedProducerTenantName && (
+                      <Alert severity="info" sx={{ mb: 2 }} icon={false}>
+                        <Typography fontWeight={700} fontSize={13.5} mb={0.5}>
+                          Το email {detail.data.email} υπάρχει ήδη ως συνεργάτης στο γραφείο{" "}
+                          <b>{detail.data.matchedProducerTenantName}</b>.
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" mb={1}>
+                          Μπορείτε να δημιουργήσετε λογαριασμό συνεργάτη μέσα σε αυτό το γραφείο
+                          (χωρίς νέο γραφείο) ή να αγνοήσετε το match και να στήσετε καινούριο γραφείο.
+                        </Typography>
+                        <Stack direction="row" spacing={1}>
+                          <Button size="small"
+                            variant={approveMode === "producer" ? "contained" : "outlined"}
+                            onClick={() => setApproveMode("producer")}>
+                            Ως συνεργάτης του {detail.data.matchedProducerTenantName}
+                          </Button>
+                          <Button size="small"
+                            variant={approveMode === "agency" ? "contained" : "outlined"}
+                            onClick={() => setApproveMode("agency")}>
+                            Νέο γραφείο (αγνόηση match)
+                          </Button>
+                        </Stack>
+                      </Alert>
+                    )}
+
                     <Stack spacing={2}>
                       <TextField
                         label={t("registrations.approve.password")}

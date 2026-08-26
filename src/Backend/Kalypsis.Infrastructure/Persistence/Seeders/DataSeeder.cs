@@ -2213,6 +2213,17 @@ public static class DataSeeder
         await EnsureColumnAsync(db, logger, dbName,
             table: "registration_requests", column: "DpaAcceptedAt",
             addSql: "ALTER TABLE `registration_requests` ADD COLUMN `DpaAcceptedAt` datetime(6) NULL", ct);
+        // Producer self-registration match (populated at submit time so
+        // the SuperAdmin sees «matches producer X in tenant Y» at review).
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "registration_requests", column: "MatchedProducerId",
+            addSql: "ALTER TABLE `registration_requests` ADD COLUMN `MatchedProducerId` char(36) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "registration_requests", column: "MatchedProducerTenantId",
+            addSql: "ALTER TABLE `registration_requests` ADD COLUMN `MatchedProducerTenantId` char(36) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "registration_requests", column: "MatchedProducerTenantName",
+            addSql: "ALTER TABLE `registration_requests` ADD COLUMN `MatchedProducerTenantName` varchar(200) NULL", ct);
 
         // ==== Ermes messaging tables ==========================================
         // Full inbox model — messages plus per-recipient fanout, teams and

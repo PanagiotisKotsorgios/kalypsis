@@ -14,7 +14,6 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import EmailIcon from "@mui/icons-material/Email";
 import SecurityIcon from "@mui/icons-material/Security";
 import PaymentsIcon from "@mui/icons-material/Payments";
-import CreditCardIcon from "@mui/icons-material/CreditCard";
 import ExtensionIcon from "@mui/icons-material/Extension";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import SystemUpdateAltIcon from "@mui/icons-material/SystemUpdateAlt";
@@ -152,8 +151,8 @@ import { ProductionGoalsPage } from "./pages/ProductionGoalsPage";
 import { ProductionStatsPage } from "./pages/ProductionStatsPage";
 import { TenantDetailPage } from "./pages/TenantDetailPage";
 import { PlatformRegistrationsPage } from "./pages/PlatformRegistrationsPage";
-import { PlatformBillingConfigPage } from "./pages/PlatformBillingConfigPage";
-import { PlatformInvoicesPage } from "./pages/PlatformInvoicesPage";
+// PlatformBillingConfigPage + PlatformInvoicesPage are now embedded as
+// tabs inside PlatformFinancePage — imported there, not directly here.
 import { CommissionRunsPage } from "./pages/CommissionRunsPage";
 import { CompanyBridgesPage } from "./pages/CompanyBridgesPage";
 import { QuoteBuilderPage } from "./pages/QuoteBuilderPage";
@@ -244,13 +243,16 @@ import { ProductionListsPage } from "./pages/ProductionListsPage";
 import { RenewalsPage } from "./pages/RenewalsPage";
 import { FinancialsPage } from "./pages/FinancialsPage";
 import {
-  SubscriptionPlansPage, BroadcastPage,
+  BroadcastPage,
   // PlatformApiKeysPage / PlatformIntegrationsPage removed from nav —
   // the routes now redirect to /app (see App.tsx routes below), so the
-  // page components no longer need to be imported.
+  // page components no longer need to be imported. SubscriptionPlansPage
+  // is still exported because the new PlatformFinancePage embeds it as
+  // one of its tabs.
   PlatformBackupsPage,
   PlatformStoragePage, PlatformJobsPage, PlatformStatusPage, PlatformCompliancePage, PlatformSupportPage
 } from "./pages/PlatformAdminPages";
+import { PlatformFinancePage } from "./pages/PlatformFinancePage";
 import { PlatformCarriersPage } from "./pages/PlatformCarriersPage";
 import { PlatformBookkeepingPage } from "./pages/PlatformBookkeepingPage";
 import { BookkeepingPage } from "./pages/BookkeepingPage";
@@ -483,12 +485,11 @@ const navByRole: Record<Role, NavItem[]> = {
       group: "nav.group.tenants" },
 
     // ── Οικονομικά ──
-    { to: "/platform/plans", labelKey: "nav.subscriptionPlans", icon: <CreditCardIcon />,
+    // Merged: /platform/plans + /platform/billing + /platform/invoices
+    // live under one tabbed page at /platform/finance now. The old
+    // URLs still work as redirects (see routes below).
+    { to: "/platform/finance", labelKey: "nav.financeMerged", icon: <PaymentsIcon />,
       group: "nav.group.finance", groupIcon: <PaymentsIcon /> },
-    { to: "/platform/billing", labelKey: "nav.billing", icon: <PaymentsIcon />,
-      group: "nav.group.finance" },
-    { to: "/platform/invoices", labelKey: "nav.invoices", icon: <ReceiptLongIcon />,
-      group: "nav.group.finance" },
     { to: "/platform/economics", labelKey: "nav.platformEconomics", icon: <AnalyticsIcon />,
       group: "nav.group.finance" },
     { to: "/platform/contractors", labelKey: "nav.contractors", icon: <EngineeringIcon />,
@@ -1012,10 +1013,14 @@ export default function App() {
                   <Route path="company-bridges" element={<Navigate to="/app/carrier-bridges" replace />} />
                   <Route path="bridge-import" element={<Navigate to="/app/carrier-bridges" replace />} />
                   <Route path="platform/carriers" element={<PlatformCarriersPage />} />
-                  <Route path="platform/plans" element={<SubscriptionPlansPage />} />
-                  <Route path="platform/chargeables" element={<Navigate to="/app/platform/billing?tab=chargeables" replace />} />
-                  <Route path="platform/billing" element={<PlatformBillingConfigPage />} />
-                  <Route path="platform/invoices" element={<PlatformInvoicesPage />} />
+                  {/* Merged finance surface — one tabbed page for
+                      plans + billing + invoices. Old direct URLs still
+                      work by redirecting into the corresponding tab. */}
+                  <Route path="platform/finance" element={<PlatformFinancePage />} />
+                  <Route path="platform/plans" element={<Navigate to="/app/platform/finance?tab=plans" replace />} />
+                  <Route path="platform/chargeables" element={<Navigate to="/app/platform/finance?tab=billing" replace />} />
+                  <Route path="platform/billing" element={<Navigate to="/app/platform/finance?tab=billing" replace />} />
+                  <Route path="platform/invoices" element={<Navigate to="/app/platform/finance?tab=invoices" replace />} />
                   <Route path="platform/broadcast" element={<BroadcastPage />} />
                   {/* Retired: /platform/api-keys and /platform/integrations —
                       the pages weren't used in daily ops and their nav entries

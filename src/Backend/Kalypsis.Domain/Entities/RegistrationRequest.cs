@@ -43,4 +43,17 @@ public class RegistrationRequest : BaseEntity
     public bool DpaAccepted { get; set; }
     public string? DpaVersion { get; set; }
     public DateTime? DpaAcceptedAt { get; set; }
+
+    // ── Producer self-registration link ────────────────────────────
+    // When someone registers with an email that already appears as a
+    // Producer inside an existing tenant (e.g. an agency added them by
+    // email before they created a login), we stamp the match here so
+    // the SuperAdmin sees «this is not a new agency — this is producer
+    // X from tenant Y» and can approve them straight into that tenant
+    // as a Producer user rather than spinning up a new γραφείο.
+    // Populated at submit time by DetectMatchingProducerAsync.
+    // Superadmin can override at approve time (mode=agency vs producer).
+    public Guid? MatchedProducerId { get; set; }
+    public Guid? MatchedProducerTenantId { get; set; }
+    public string? MatchedProducerTenantName { get; set; }
 }

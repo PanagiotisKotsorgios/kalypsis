@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
@@ -32,7 +32,7 @@ import LoginIcon from "@mui/icons-material/Login";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
-import { Menu } from "@mui/material";
+import { FormControl, InputLabel, Menu, Select } from "@mui/material";
 import { FormControlLabel, Switch } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -85,6 +85,13 @@ export function TenantsPage() {
   const [error, setError] = useState<string | null>(null);
   const [premiumMenu, setPremiumMenu] = useState<{ anchor: HTMLElement; tenantId: string } | null>(null);
   const [standaloneProducerOpen, setStandaloneProducerOpen] = useState(false);
+  // Search + status filter for the tenants table. Runs client-side over
+  // the /tenants response — the list is small enough (≤ 100s of rows in
+  // realistic ops) that in-memory filtering feels instant. If the list
+  // ever balloons this becomes a server-side query.
+  const [search, setSearch] = useState("");
+  const [planFilter, setPlanFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
 
   // Premium-grant presets that mirror the TenantDetailPage Premium tab.
   // One-click PUT lets the platform admin upgrade a tenant without drilling in.
@@ -112,6 +119,27 @@ export function TenantsPage() {
     queryKey: ["tenants"],
     queryFn: async () => (await api.get<Tenant[]>("/tenants")).data
   });
+
+  // Filtered view — search matches name/code/plan (case-insensitive),
+  // planFilter matches subscriptionPlan exactly, statusFilter matches
+  // isActive. Kept in useMemo so we don't recompute on unrelated renders.
+  const filteredTenants = useMemo(() => {
+    const rows = tenantsQuery.data ?? [];
+    const q = search.trim().toLowerCase();
+    return rows.filter(row => {
+      if (planFilter !== "all" && (row.subscriptionPlan ?? "") !== planFilter) return false;
+      if (statusFilter === "active" && !row.isActive) return false;
+      if (statusFilter === "inactive" && row.isActive) return false;
+      if (!q) return true;
+      const hay = `${row.name} ${row.code} ${row.subscriptionPlan ?? ""}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [tenantsQuery.data, search, planFilter, statusFilter]);
+  const availablePlans = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of tenantsQuery.data ?? []) if (t.subscriptionPlan) set.add(t.subscriptionPlan);
+    return Array.from(set).sort();
+  }, [tenantsQuery.data]);
 
   const createMutation = useMutation({
     mutationFn: async (body: CreateTenantBody) =>
@@ -242,6 +270,36 @@ export function TenantsPage() {
         </Box>
       ) : (
         <Card>
+          {/* Search + filter bar. Renders above the table so operators
+              can whittle down a long list without scrolling. Active
+              filters get a summary chip they can click to clear. */}
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ p: 2, borderBottom: 1, borderColor: "divider" }} alignItems={{ md: "center" }}>
+            <TextField size="small" placeholder="Αναζήτηση (όνομα / κωδικός / email)"
+              value={search} onChange={e => setSearch(e.target.value)}
+              sx={{ flex: 1, minWidth: 220 }} />
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <InputLabel>Πλάνο</InputLabel>
+              <Select label="Πλάνο" value={planFilter} onChange={e => setPlanFilter(String(e.target.value))}>
+                <MenuItem value="all">Όλα τα πλάνα</MenuItem>
+                {availablePlans.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <InputLabel>Κατάσταση</InputLabel>
+              <Select label="Κατάσταση" value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}>
+                <MenuItem value="all">Όλα</MenuItem>
+                <MenuItem value="active">Ενεργά</MenuItem>
+                <MenuItem value="inactive">Ανενεργά</MenuItem>
+              </Select>
+            </FormControl>
+            <Chip label={`${filteredTenants.length} / ${tenantsQuery.data?.length ?? 0}`}
+              variant="outlined" size="small" />
+            {(search || planFilter !== "all" || statusFilter !== "all") && (
+              <Button size="small" onClick={() => { setSearch(""); setPlanFilter("all"); setStatusFilter("all"); }}>
+                Καθαρισμός φίλτρων
+              </Button>
+            )}
+          </Stack>
           <TableContainer>
             <Table>
               <TableHead>
@@ -257,7 +315,7 @@ export function TenantsPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {tenantsQuery.data?.map((row) => {
+                {filteredTenants.map((row) => {
                   const isPlatform = row.code === "PLATFORM";
                   return (
                   <TableRow key={row.id} hover

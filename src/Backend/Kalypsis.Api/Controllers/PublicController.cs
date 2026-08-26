@@ -98,13 +98,13 @@ public class PlatformRegistrationRequestsController : ControllerBase
         Guid id, [FromBody] StatusUpdateBody body, CancellationToken ct)
         => Ok(await _m.Send(new UpdateRegistrationRequestStatusCommand(id, body.Status, body.ReviewNotes), ct));
 
-    public record ApproveBody(string Password, bool SendWelcomeEmail);
+    public record ApproveBody(string Password, bool SendWelcomeEmail, string? Mode = null);
 
     [HttpPost("{id:guid}/approve")]
     public async Task<ActionResult<ApproveRegistrationRequestResult>> Approve(
         Guid id, [FromBody] ApproveBody body, CancellationToken ct)
         => Ok(await _m.Send(new ApproveRegistrationRequestCommand(
-            id, body.Password, body.SendWelcomeEmail), ct));
+            id, body.Password, body.SendWelcomeEmail, body.Mode), ct));
 }
 
 [ApiController]

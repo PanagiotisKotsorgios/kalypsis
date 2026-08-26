@@ -26,7 +26,15 @@ public record RegistrationRequestDto(
     string? ReviewNotes,
     DateTime? ReviewedAt,
     string? IpAddress,
-    DateTime SubmittedAt
+    DateTime SubmittedAt,
+    // Producer-match hint surfaced to the SuperAdmin UI. When
+    // MatchedProducerTenantName is non-null, the applicant's email
+    // matches a Producer row inside an existing tenant — approving
+    // as "producer mode" attaches them there instead of creating a
+    // new γραφείο. See ApproveRegistrationRequestCommand.Mode.
+    Guid? MatchedProducerId,
+    Guid? MatchedProducerTenantId,
+    string? MatchedProducerTenantName
 );
 
 public record RegistrationRequestSummaryDto(
@@ -111,12 +119,33 @@ public class SubmitRegistrationRequestCommandHandler
         if (string.IsNullOrEmpty(code))
             code = "KLP-" + DateTime.UtcNow.Ticks.ToString()[^6..];
 
+        var email = r.Email.Trim().ToLowerInvariant();
+
+        // Producer-match detection. If an agency added this email as a
+        // Producer before the person clicked "Register", we stamp the
+        // match on the request so the SuperAdmin can approve them as a
+        // Producer under the existing tenant instead of provisioning a
+        // brand-new γραφείο. Only picks up the FIRST active match — if
+        // the same email is a producer in multiple tenants (rare) the
+        // SuperAdmin sees the first one and can pick manually.
+        var match = await _db.Producers.IgnoreQueryFilters()
+            .Where(p => p.DeletedAt == null && p.Email != null && p.Email.ToLower() == email)
+            .Select(p => new { p.Id, p.TenantId })
+            .FirstOrDefaultAsync(ct);
+        string? matchedTenantName = null;
+        if (match is not null)
+        {
+            matchedTenantName = await _db.Tenants.IgnoreQueryFilters()
+                .Where(t => t.Id == match.TenantId && t.DeletedAt == null)
+                .Select(t => t.Name).FirstOrDefaultAsync(ct);
+        }
+
         var rec = new RegistrationRequest
         {
             Id = Guid.NewGuid(),
             FirstName = r.FirstName.Trim(),
             LastName  = r.LastName.Trim(),
-            Email     = r.Email.Trim().ToLowerInvariant(),
+            Email     = email,
             Phone     = r.Phone.Trim(),
             OrganizationName = string.IsNullOrWhiteSpace(r.OrganizationName) ? null : r.OrganizationName.Trim(),
             VatNumber        = string.IsNullOrWhiteSpace(r.VatNumber)        ? null : r.VatNumber.Trim(),
@@ -130,6 +159,9 @@ public class SubmitRegistrationRequestCommandHandler
             DpaAccepted      = r.DpaAccepted,
             DpaVersion       = string.IsNullOrWhiteSpace(r.DpaVersion) ? null : r.DpaVersion.Trim(),
             DpaAcceptedAt    = r.DpaAccepted ? DateTime.UtcNow : (DateTime?)null,
+            MatchedProducerId       = match?.Id,
+            MatchedProducerTenantId = match?.TenantId,
+            MatchedProducerTenantName = matchedTenantName,
         };
         _db.RegistrationRequests.Add(rec);
         await _db.SaveChangesAsync(ct);
@@ -276,7 +308,8 @@ internal static class RegistrationRequestMapper
         r.Id, r.FirstName, r.LastName, r.Email, r.Phone,
         r.OrganizationName, r.VatNumber, r.LicenseNumber, r.City, r.Message,
         r.ReferenceCode, r.Status.ToString(), r.ReviewNotes, r.ReviewedAt,
-        r.IpAddress, r.CreatedAt
+        r.IpAddress, r.CreatedAt,
+        r.MatchedProducerId, r.MatchedProducerTenantId, r.MatchedProducerTenantName
     );
 }
 
@@ -301,7 +334,14 @@ public record ApproveRegistrationRequestResult(
 public record ApproveRegistrationRequestCommand(
     Guid Id,
     string Password,
-    bool SendWelcomeEmail
+    bool SendWelcomeEmail,
+    // Provisioning mode. Defaults to "agency" (create new tenant +
+    // AgencyAdmin user — original behaviour). Set to "producer" when
+    // the request has a MatchedProducerId and the SuperAdmin agrees
+    // to just create a Producer user under the existing tenant — no
+    // new γραφείο, no duplicate data. Client picks based on the
+    // matched-producer hint that /list surfaces.
+    string? Mode = null
 ) : IRequest<ApproveRegistrationRequestResult>;
 
 public class ApproveRegistrationRequestCommandValidator : AbstractValidator<ApproveRegistrationRequestCommand>
@@ -358,6 +398,52 @@ public class ApproveRegistrationRequestCommandHandler
                 fix: "Ζητήστε από τον αιτούντα ένα διαφορετικό email, ή απορρίψτε την αίτηση.",
                 fixLink: "/app/all-users");
 
+        // ── Producer-mode branch ────────────────────────────────
+        // When the registration was flagged as matching an existing
+        // Producer AND the SuperAdmin picked "producer" mode, we skip
+        // tenant creation entirely and just onboard a Producer user
+        // under the matched tenant. That's the "agency added the
+        // producer by email first, now the producer is signing up"
+        // flow the user asked for.
+        if (string.Equals(r.Mode, "producer", StringComparison.OrdinalIgnoreCase))
+        {
+            if (rec.MatchedProducerTenantId is not Guid producerTenantId)
+                throw new AppException("producer_mode_no_match",
+                    "Δεν βρέθηκε συνδεδεμένος συνεργάτης για producer-mode. Επιλέξτε agency-mode.", 400);
+            var producerTenant = await _db.Tenants.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(t => t.Id == producerTenantId && t.DeletedAt == null, ct)
+                ?? throw AppException.NotFound("Matched tenant");
+
+            var producerUser = new User
+            {
+                Id = Guid.NewGuid(),
+                TenantId = producerTenant.Id,
+                Email = email,
+                PasswordHash = _hasher.Hash(r.Password),
+                FirstName = rec.FirstName.Trim(),
+                LastName = rec.LastName.Trim(),
+                Phone = rec.Phone,
+                Role = Role.Producer,     // NOT AgencyAdmin — scoped to their own book
+                IsActive = true,
+                PreferredLanguage = "el",
+                ProducerId = rec.MatchedProducerId,   // link back to the Producer row
+            };
+            _db.Users.Add(producerUser);
+            rec.Status = RegistrationRequestStatus.Approved;
+            rec.ReviewedAt = DateTime.UtcNow;
+            rec.ReviewedByUserId = _currentUser.UserId;
+            var stampP = $"Provisioned as PRODUCER under tenant={producerTenant.Code} " +
+                         $"({producerTenant.Id}) linked to Producer={rec.MatchedProducerId}. user={producerUser.Id}";
+            rec.ReviewNotes = string.IsNullOrWhiteSpace(rec.ReviewNotes) ? stampP : $"{rec.ReviewNotes}\n{stampP}";
+            await _db.SaveChangesAsync(ct);
+
+            return new ApproveRegistrationRequestResult(
+                RegistrationRequestMapper.Map(rec),
+                producerTenant.Id, producerTenant.Code, producerUser.Id,
+                EmailSent: false, EmailError: "Producer-mode: welcome email skipped by design.");
+        }
+
+        // ── Agency-mode (default, original behaviour) ─────────────
         // Tenant code — derived from organization name (or last name fallback),
         // ascii-fied to A–Z0–9, uppercased. Suffix with -2, -3, … on collision.
         var seed = !string.IsNullOrWhiteSpace(rec.OrganizationName) ? rec.OrganizationName! : rec.LastName;

@@ -10,9 +10,13 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControl,
   FormControlLabel,
   IconButton,
+  InputLabel,
   LinearProgress,
+  MenuItem,
+  Select,
   Stack,
   Switch,
   Table,
@@ -46,6 +50,11 @@ export function PlatformDesktopReleasesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [notice, setNotice] = useState<{ severity: "success" | "error"; text: string } | null>(null);
   const [uploads, setUploads] = useState<Record<string, UploadStatus>>({});
+  // Search matches tagName / name / body substring (case-insensitive).
+  // Kind filter narrows to draft / published / prerelease. Client-side —
+  // the release list is tiny (dozens, not thousands) and instant.
+  const [search, setSearch] = useState("");
+  const [kindFilter, setKindFilter] = useState<"all" | "draft" | "published" | "prerelease">("all");
 
   const releasesQuery = useQuery({
     queryKey: ["platform-desktop-releases"],
@@ -140,6 +149,30 @@ export function PlatformDesktopReleasesPage() {
       </Alert>
       {notice && <Alert severity={notice.severity} onClose={() => setNotice(null)} sx={{ mb: 2.5 }}>{notice.text}</Alert>}
 
+      {/* Search + kind filter — released above the release list so the
+          user can whittle down long release histories fast. */}
+      {(releasesQuery.data?.length ?? 0) > 0 && (
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ mb: 2 }} alignItems={{ md: "center" }}>
+          <TextField size="small" placeholder="Αναζήτηση (tag / όνομα / notes)"
+            value={search} onChange={e => setSearch(e.target.value)}
+            sx={{ flex: 1, minWidth: 220 }} />
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel>Είδος</InputLabel>
+            <Select label="Είδος" value={kindFilter}
+              onChange={e => setKindFilter(e.target.value as typeof kindFilter)}>
+              <MenuItem value="all">Όλες</MenuItem>
+              <MenuItem value="draft">Draft (μη δημοσιευμένες)</MenuItem>
+              <MenuItem value="published">Δημοσιευμένες</MenuItem>
+              <MenuItem value="prerelease">Prerelease</MenuItem>
+            </Select>
+          </FormControl>
+          {(search || kindFilter !== "all") && (
+            <Button size="small" onClick={() => { setSearch(""); setKindFilter("all"); }}>
+              Καθαρισμός
+            </Button>
+          )}
+        </Stack>
+      )}
       {releasesQuery.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>
       ) : releasesQuery.isError ? (
@@ -150,7 +183,17 @@ export function PlatformDesktopReleasesPage() {
         <Alert severity="info">Δεν υπάρχουν εκδόσεις. Πατήστε «Νέα έκδοση» για να ξεκινήσετε.</Alert>
       ) : (
         <Stack spacing={3}>
-          {releasesQuery.data?.map((release) => (
+          {(releasesQuery.data ?? []).filter(release => {
+            if (kindFilter === "draft" && !release.draft) return false;
+            if (kindFilter === "published" && (release.draft || release.prerelease)) return false;
+            if (kindFilter === "prerelease" && !release.prerelease) return false;
+            if (search) {
+              const q = search.trim().toLowerCase();
+              const hay = `${release.tagName} ${release.name ?? ""} ${release.body ?? ""}`.toLowerCase();
+              if (!hay.includes(q)) return false;
+            }
+            return true;
+          }).map((release) => (
             <ReleaseManagerCard
               key={release.id}
               release={release}
