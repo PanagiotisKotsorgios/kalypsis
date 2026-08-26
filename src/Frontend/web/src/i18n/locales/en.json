@@ -720,6 +720,22 @@
     "months": "months"
   },
   "landing": {
+    "ermes": {
+      "eyebrow": "HERMES · Kalypsis-native messaging",
+      "chip": "FREE FOREVER",
+      "title": "HERMES connects your entire office",
+      "subtitle": "Encrypted messages, threads and meetings between partners, clients and insurance carriers — no Viber, no Messenger, no email spam. Included in every Kalypsis plan free forever, with no user cap.",
+      "shot1": "Inbox, channels and group chats in a single view.",
+      "shot2": "Unified reception with KPIs, quick actions and favourite contacts.",
+      "footerNote": "No credit card required · Free on every Kalypsis plan · Greek-hosted",
+      "cta": "Start free with HERMES",
+      "f1": { "chip": "E2EE", "title": "Encrypted messaging",
+        "body": "Direct messages, threads and group channels are end-to-end encrypted. Neither Kalypsis nor third parties can read the content." },
+      "f2": { "chip": "Meet", "title": "Meetings without a download",
+        "body": "Start a video call with a partner or insurance carrier straight from the conversation. No app installation needed." },
+      "f3": { "chip": "Auto-contacts", "title": "Agency contacts ready to go",
+        "body": "Partners with a Kalypsis account appear in your contacts automatically — no need to ask for emails or phone numbers." }
+    },
     "v2": {
       "heroWelcome": "Welcome.",
       "heroAction": "Sign in or get started today.",
@@ -1031,7 +1047,18 @@
   "login": {
     "noAccountQ": "Don't have an account yet?",
     "registerHere": "Sign up",
-    "forgot": "Forgot your password?"
+    "forgot": "Forgot your password?",
+    "emailChallenge": {
+      "sent": "We've sent a 6-digit code to {{email}}. It's valid for 10 minutes.",
+      "codeLabel": "Email code",
+      "verify": "Verify",
+      "verifying": "Checking…",
+      "back": "Back to sign in"
+    },
+    "twoFactor": {
+      "prompt": "Enter the 6-digit code from your authenticator app (or a recovery code).",
+      "codeLabel": "2FA code"
+    }
   },
   "forgot": {
     "title": "Reset your password",
@@ -2698,6 +2725,7 @@
   "contact": {
     "eyebrow": "CONTACT",
     "title": "How can we help?",
+    "replyWithin24h": "Reply within 24h",
     "editorial": {
       "titleA": "Tell us",
       "titleB": "what's on your mind"
@@ -2725,6 +2753,7 @@
       "agencyOrCity": "Agency / city (optional)",
       "subject": "Subject",
       "message": "Your message",
+      "messagePlaceholder": "Describe your issue in detail. For bugs, include the reproduction steps.",
       "consent": "I consent to the Kalypsis team contacting me about this request and accept the Privacy Policy.",
       "submit": "Send message",
       "submitting": "Sending..."

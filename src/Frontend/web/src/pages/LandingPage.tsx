@@ -1319,6 +1319,34 @@ export const ERMES_SHOWCASE_DEFAULTS: ErmesShowcaseContent = {
 };
 
 function ErmesShowcaseSection() {
+  const { t } = useTranslation();
+  // Locale-aware defaults. Read fresh on every language change so switching
+  // EL ↔ EN in the toggle updates the visible copy without a page reload.
+  // Admin overrides (saved to the DB) still win — those are single-authored
+  // whatever the writer's locale is.
+  const localisedDefaults: ErmesShowcaseContent = useMemo(() => ({
+    ...ERMES_SHOWCASE_DEFAULTS,
+    eyebrow: t("landing.ermes.eyebrow", ERMES_SHOWCASE_DEFAULTS.eyebrow),
+    chip: t("landing.ermes.chip", ERMES_SHOWCASE_DEFAULTS.chip),
+    title: t("landing.ermes.title", ERMES_SHOWCASE_DEFAULTS.title),
+    subtitle: t("landing.ermes.subtitle", ERMES_SHOWCASE_DEFAULTS.subtitle),
+    screenshot1Caption: t("landing.ermes.shot1", ERMES_SHOWCASE_DEFAULTS.screenshot1Caption),
+    screenshot2Caption: t("landing.ermes.shot2", ERMES_SHOWCASE_DEFAULTS.screenshot2Caption),
+    footerNote: t("landing.ermes.footerNote", ERMES_SHOWCASE_DEFAULTS.footerNote),
+    ctaLabel: t("landing.ermes.cta", ERMES_SHOWCASE_DEFAULTS.ctaLabel),
+    features: [
+      { chip: t("landing.ermes.f1.chip", "E2EE"),
+        title: t("landing.ermes.f1.title", ERMES_SHOWCASE_DEFAULTS.features[0].title),
+        body:  t("landing.ermes.f1.body",  ERMES_SHOWCASE_DEFAULTS.features[0].body) },
+      { chip: t("landing.ermes.f2.chip", "Meet"),
+        title: t("landing.ermes.f2.title", ERMES_SHOWCASE_DEFAULTS.features[1].title),
+        body:  t("landing.ermes.f2.body",  ERMES_SHOWCASE_DEFAULTS.features[1].body) },
+      { chip: t("landing.ermes.f3.chip", "Auto-contacts"),
+        title: t("landing.ermes.f3.title", ERMES_SHOWCASE_DEFAULTS.features[2].title),
+        body:  t("landing.ermes.f3.body",  ERMES_SHOWCASE_DEFAULTS.features[2].body) },
+    ],
+  }), [t]);
+
   // Pull the admin's overrides. 404 (no row saved yet) is a valid state —
   // react-query catches the error and we fall back to defaults silently.
   const q = useQuery({
@@ -1332,12 +1360,12 @@ function ErmesShowcaseSection() {
     staleTime: 60_000,
   });
   const content: ErmesShowcaseContent = useMemo(() => ({
-    ...ERMES_SHOWCASE_DEFAULTS,
+    ...localisedDefaults,
     ...(q.data ?? {}),
     features: (q.data?.features && q.data.features.length > 0)
       ? q.data.features
-      : ERMES_SHOWCASE_DEFAULTS.features,
-  }), [q.data]);
+      : localisedDefaults.features,
+  }), [q.data, localisedDefaults]);
   const features = content.features;
 
   // Inline SVG "screenshots" so the section always renders even without

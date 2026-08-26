@@ -250,13 +250,40 @@ function ImagePickerRow({ label, url, onChange, captionValue, onCaptionChange }:
 }) {
   const ref = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
+  // Inline error surface — the previous try/finally swallowed upload
+  // failures with zero user feedback («δεν αβνεβάζει τίποτα ούτε δείχνει
+  // κάτι να φορτώνει»). We now catch, translate the error, and render
+  // it inside the picker card so the operator sees exactly why the
+  // upload didn't take.
+  const [error, setError] = useState<string | null>(null);
   const upload = async (file: File) => {
+    setError(null);
+    // Client-side gate against the server's 10 MB cap. Firing an
+    // upload that will 400 is worse than telling the user upfront.
+    if (file.size > 10 * 1024 * 1024) {
+      setError(`Το αρχείο «${file.name}» είναι ${(file.size / 1024 / 1024).toFixed(1)} MB · μέγιστο 10 MB.`);
+      if (ref.current) ref.current.value = "";
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setError(`Δεκτά μόνο αρχεία εικόνας (jpg / png / webp / svg). Το «${file.name}» είναι ${file.type || "άγνωστο"}.`);
+      if (ref.current) ref.current.value = "";
+      return;
+    }
     setBusy(true);
     try {
       const fd = new FormData(); fd.append("file", file);
       const r = await api.post<{ url: string }>("/documentation/assets", fd,
         { headers: { "Content-Type": "multipart/form-data" } });
       onChange(r.data.url);
+    } catch (e) {
+      // Route through extractErrorMessage so backend AppException codes
+      // (file_too_large / image_only / etc.) surface with their Greek text.
+      const msg = extractErrorMessage(e);
+      setError(msg);
+      // Also log so ops can see the raw axios error in devtools.
+      // eslint-disable-next-line no-console
+      console.error("Landing image upload failed:", e);
     } finally {
       setBusy(false); if (ref.current) ref.current.value = "";
     }
@@ -288,8 +315,24 @@ function ImagePickerRow({ label, url, onChange, captionValue, onCaptionChange }:
               </Button>
             )}
             <input ref={ref} type="file" accept="image/*" hidden
-              onChange={e => { const f = e.target.files?.[0]; if (f) void upload(f); }} />
+              onChange={e => {
+                const f = e.target.files?.[0];
+                if (f) void upload(f);
+              }} />
           </Stack>
+          {busy && (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <CircularProgress size={14} />
+              <Typography variant="caption" color="text.secondary">
+                Ανέβασμα εικόνας…
+              </Typography>
+            </Stack>
+          )}
+          {error && (
+            <Alert severity="error" onClose={() => setError(null)} sx={{ py: 0.25 }}>
+              {error}
+            </Alert>
+          )}
           {url && (
             <Stack direction="row" spacing={0.5} alignItems="center">
               <LinkIcon fontSize="small" sx={{ color: "text.secondary" }} />

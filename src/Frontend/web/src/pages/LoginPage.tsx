@@ -204,11 +204,10 @@ export function LoginPage() {
               <form onSubmit={handleEmailCodeSubmit} noValidate>
                 <Stack spacing={3}>
                   <Alert severity="info" sx={{ borderRadius: 2 }}>
-                    Στείλαμε 6-ψήφιο κωδικό στο <strong>{email}</strong>. Ισχύει
-                    για 10 λεπτά.
+                    {t("login.emailChallenge.sent", { email })}
                   </Alert>
                   <TextField
-                    label="Κωδικός email"
+                    label={t("login.emailChallenge.codeLabel")}
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                     autoFocus required fullWidth
@@ -228,14 +227,14 @@ export function LoginPage() {
                     startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : null}
                     sx={{ ...authButtonSx, mt: 0.5 }}
                   >
-                    {submitting ? "Έλεγχος…" : "Επαλήθευση"}
+                    {submitting ? t("login.emailChallenge.verifying") : t("login.emailChallenge.verify")}
                   </Button>
                   <Button
                     onClick={() => { setEmailCode(null); setCode(""); setError(null); }}
                     disabled={submitting}
                     sx={{ textTransform: "none", color: "rgba(11,37,69,0.7)" }}
                   >
-                    Πίσω στη σύνδεση
+                    {t("login.emailChallenge.back")}
                   </Button>
                 </Stack>
               </form>
@@ -243,11 +242,10 @@ export function LoginPage() {
               <form onSubmit={handleTwoFactorSubmit} noValidate>
                 <Stack spacing={3}>
                   <Alert severity="info" sx={{ borderRadius: 2 }}>
-                    Πληκτρολογήστε τον 6-ψήφιο κωδικό από τον αυθεντικοποιητή σας
-                    (ή έναν κωδικό ανάκτησης).
+                    {t("login.twoFactor.prompt")}
                   </Alert>
                   <TextField
-                    label="Κωδικός 2FA"
+                    label={t("login.twoFactor.codeLabel")}
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                     autoFocus required fullWidth

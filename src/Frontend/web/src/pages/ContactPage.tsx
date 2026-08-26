@@ -322,7 +322,7 @@ export function ContactPage() {
                 letterSpacing: "0.02em"
               }}>
                 <ScheduleOutlinedIcon sx={{ fontSize: 14 }} />
-                <span>Απάντηση εντός 24h</span>
+                <span>{t("contact.replyWithin24h")}</span>
               </Box>
             </Box>
 
@@ -390,7 +390,8 @@ export function ContactPage() {
 
                 <TextField fullWidth required multiline rows={6} sx={FORM_INPUT_SX}
                   label={t("contact.form.message", "Μήνυμα")}
-                  placeholder="Περιγράψτε αναλυτικά το θέμα σας. Αν αφορά bug, αναφέρετε τα βήματα αναπαραγωγής."
+                  placeholder={t("contact.form.messagePlaceholder",
+                    "Περιγράψτε αναλυτικά το θέμα σας. Αν αφορά bug, αναφέρετε τα βήματα αναπαραγωγής.")}
                   value={form.message}
                   onChange={(e) => set("message", e.target.value)} />
 
