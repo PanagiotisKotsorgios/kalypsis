@@ -400,6 +400,19 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
   });
   const [draggingFolderId, setDraggingFolderId] = useState<string | null>(null);
 
+  // File drag-and-drop: pick up a file row and drop onto a folder to
+  // move it. Distinct from folder DnD by drag-type ("file" vs
+  // "folder") — the tree row's drop handler branches on that so a
+  // stray file drop can't accidentally reparent a folder.
+  const moveFiles = useMutation({
+    mutationFn: async (p: { ids: string[]; targetFolderId: string }) =>
+      api.post("/bookkeeping/files/move",
+        { fileIds: p.ids, targetFolderId: p.targetFolderId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["bookkeeping", "tree"] }),
+    onError: e => setErr(extractErrorMessage(e)),
+  });
+  const [draggingFileId, setDraggingFileId] = useState<string | null>(null);
+
   /** Returns true if `descendantId` is inside the subtree rooted at
    *  `ancestorId`. Used to disable drop targets that would create a
    *  cycle — matches the server-side guard so we don't send doomed
@@ -517,6 +530,7 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
               selectedId={selectedFolderId} onSelect={setSelectedFolderId}
               visibleFolderIds={visibleFolderIds}
               draggingFolderId={draggingFolderId}
+              draggingFileId={draggingFileId}
               onDragStart={setDraggingFolderId}
               onDragEnd={() => setDraggingFolderId(null)}
               onDropOnFolder={(sourceId, targetId) => {
@@ -525,6 +539,11 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
                 const src = folders.find(f => f.id === sourceId);
                 if (src?.parentFolderId === targetId) return;      // already there
                 moveFolder.mutate({ id: sourceId, newParentId: targetId });
+              }}
+              onDropFileOnFolder={(fileId, targetFolderId) => {
+                const file = allFiles.find(f => f.id === fileId);
+                if (!file || file.folderId === targetFolderId) return;   // already there
+                moveFiles.mutate({ ids: [fileId], targetFolderId });
               }}
               isDescendantOf={isDescendantOf}
               onNewSubfolder={pid => {
@@ -542,13 +561,32 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
             Αφήστε πάνω σε φάκελο για nesting, ή σε κενή περιοχή για ρίζα.
           </Typography>
         )}
+        {draggingFileId && (
+          <Typography variant="caption" sx={{ p: 1, color: "text.secondary", fontStyle: "italic" }}>
+            Αφήστε το αρχείο πάνω σε φάκελο για μεταφορά.
+          </Typography>
+        )}
       </Box>
 
       {/* ── Right column: files + filters + upload ─────────────── */}
       <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0 }}
-        onDragOver={e => { if (selectedFolderId && termsAccepted) e.preventDefault(); }}
+        // Upload-via-drop only accepts drags that carry OS files (uploads
+        // from the desktop). An internal file-row drag inside our tree
+        // carries type="Files" as false but sets a "text/kalypsis-file"
+        // custom type — we skip preventDefault in that case so the drag
+        // has no effect here and the tree-side handler takes over.
+        onDragOver={e => {
+          if (!selectedFolderId || !termsAccepted) return;
+          const isOsUpload = e.dataTransfer.types.includes("Files")
+            && !e.dataTransfer.types.includes("text/kalypsis-file");
+          if (isOsUpload) e.preventDefault();
+        }}
         onDrop={e => {
-          if (!selectedFolderId || !termsAccepted) return; e.preventDefault();
+          if (!selectedFolderId || !termsAccepted) return;
+          const isOsUpload = e.dataTransfer.types.includes("Files")
+            && !e.dataTransfer.types.includes("text/kalypsis-file");
+          if (!isOsUpload) return;
+          e.preventDefault();
           for (const f of Array.from(e.dataTransfer.files ?? [])) void uploadFile(f);
         }}>
         {/* Search + filter row */}
@@ -627,7 +665,25 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
             {filesToShow.map(f => {
               const folderName = folders.find(x => x.id === f.folderId)?.name;
               return (
-                <ListItem key={f.id} divider secondaryAction={
+                <ListItem key={f.id} divider
+                  // File row is draggable → the tree-side rows accept it as a
+                  // drop target and fire the /files/move endpoint. Setting
+                  // a custom mime type ("text/kalypsis-file") lets the upload
+                  // drop-zone tell "this is an internal move" apart from
+                  // "OS file being uploaded" without a global drag state.
+                  draggable
+                  onDragStart={e => {
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/kalypsis-file", f.id);
+                    setDraggingFileId(f.id);
+                  }}
+                  onDragEnd={() => setDraggingFileId(null)}
+                  sx={{
+                    cursor: "grab",
+                    opacity: draggingFileId === f.id ? 0.45 : 1,
+                    "&:active": { cursor: "grabbing" },
+                  }}
+                  secondaryAction={
                   <Tooltip title="Λήψη">
                     <IconButton size="small" onClick={async () => {
                       const res = await api.get<Blob>(`/bookkeeping/files/${f.id}`, { responseType: "blob" });
@@ -729,15 +785,18 @@ function highlightMatch(text: string, query: string): React.ReactNode {
 }
 
 function TenantTreeNode({ folders, parentId, depth, selectedId, onSelect,
-  visibleFolderIds, draggingFolderId, onDragStart, onDragEnd, onDropOnFolder,
+  visibleFolderIds, draggingFolderId, draggingFileId,
+  onDragStart, onDragEnd, onDropOnFolder, onDropFileOnFolder,
   isDescendantOf, onNewSubfolder, onRename, onDelete }: {
   folders: FolderDto[]; parentId: string | null; depth: number;
   selectedId: string | null; onSelect: (id: string) => void;
   visibleFolderIds: Set<string> | null;
   draggingFolderId: string | null;
+  draggingFileId: string | null;
   onDragStart: (id: string) => void;
   onDragEnd: () => void;
   onDropOnFolder: (sourceId: string, targetId: string) => void;
+  onDropFileOnFolder: (fileId: string, targetFolderId: string) => void;
   isDescendantOf: (descendantId: string, ancestorId: string) => boolean;
   onNewSubfolder: (parentId: string) => void;
   onRename: (folder: FolderDto) => void;
@@ -753,9 +812,10 @@ function TenantTreeNode({ folders, parentId, depth, selectedId, onSelect,
         <TenantTreeRow key={f.id} folder={f} depth={depth}
           folders={folders} selectedId={selectedId} onSelect={onSelect}
           visibleFolderIds={visibleFolderIds}
-          draggingFolderId={draggingFolderId}
+          draggingFolderId={draggingFolderId} draggingFileId={draggingFileId}
           onDragStart={onDragStart} onDragEnd={onDragEnd}
-          onDropOnFolder={onDropOnFolder} isDescendantOf={isDescendantOf}
+          onDropOnFolder={onDropOnFolder} onDropFileOnFolder={onDropFileOnFolder}
+          isDescendantOf={isDescendantOf}
           onNewSubfolder={onNewSubfolder} onRename={onRename} onDelete={onDelete} />
       ))}
     </>
@@ -773,15 +833,18 @@ function TenantTreeNode({ folders, parentId, depth, selectedId, onSelect,
  *      would land on a valid target (not self, not a descendant)
  *    • drop calls the parent's onDropOnFolder which fires the move mutation */
 function TenantTreeRow({ folder, depth, folders, selectedId, onSelect,
-  visibleFolderIds, draggingFolderId, onDragStart, onDragEnd, onDropOnFolder,
+  visibleFolderIds, draggingFolderId, draggingFileId,
+  onDragStart, onDragEnd, onDropOnFolder, onDropFileOnFolder,
   isDescendantOf, onNewSubfolder, onRename, onDelete }: {
   folder: FolderDto; depth: number; folders: FolderDto[];
   selectedId: string | null; onSelect: (id: string) => void;
   visibleFolderIds: Set<string> | null;
   draggingFolderId: string | null;
+  draggingFileId: string | null;
   onDragStart: (id: string) => void;
   onDragEnd: () => void;
   onDropOnFolder: (sourceId: string, targetId: string) => void;
+  onDropFileOnFolder: (fileId: string, targetFolderId: string) => void;
   isDescendantOf: (descendantId: string, ancestorId: string) => boolean;
   onNewSubfolder: (parentId: string) => void;
   onRename: (folder: FolderDto) => void;
@@ -791,9 +854,15 @@ function TenantTreeRow({ folder, depth, folders, selectedId, onSelect,
   const [isDropOver, setIsDropOver] = useState(false);
   const isSystem = folder.origin === "system";
   // Is THIS row a valid drop target for whatever is being dragged?
-  const acceptsDrop = draggingFolderId !== null
+  //   • Folder drag: reject self + descendants (cycle) — matches server guard.
+  //   • File drag: any folder is valid target, including THIS one if the
+  //     file lives elsewhere (the onDropFileOnFolder handler skips the
+  //     no-op case where the file is already here).
+  const acceptsFolderDrop = draggingFolderId !== null
     && draggingFolderId !== folder.id
     && !isDescendantOf(folder.id, draggingFolderId);
+  const acceptsFileDrop = draggingFileId !== null;
+  const acceptsDrop = acceptsFolderDrop || acceptsFileDrop;
   return (
     <Box>
       <ListItemButton selected={folder.id === selectedId} onClick={() => onSelect(folder.id)}
@@ -814,11 +883,19 @@ function TenantTreeRow({ folder, depth, folders, selectedId, onSelect,
         }}
         onDragLeave={() => setIsDropOver(false)}
         onDrop={e => {
-          if (!acceptsDrop || !draggingFolderId) return;
+          if (!acceptsDrop) return;
           e.preventDefault();
           e.stopPropagation();
           setIsDropOver(false);
-          onDropOnFolder(draggingFolderId, folder.id);
+          // Route by drag payload type. File drags carry
+          // "text/kalypsis-file" (set by the file row's dragStart);
+          // folder drags rely on the parent-owned draggingFolderId.
+          const fileId = e.dataTransfer.getData("text/kalypsis-file");
+          if (fileId) {
+            onDropFileOnFolder(fileId, folder.id);
+          } else if (draggingFolderId) {
+            onDropOnFolder(draggingFolderId, folder.id);
+          }
         }}
         sx={{
           pl: 1 + depth * 2, pr: 1,
@@ -870,9 +947,10 @@ function TenantTreeRow({ folder, depth, folders, selectedId, onSelect,
       <TenantTreeNode folders={folders} parentId={folder.id} depth={depth + 1}
         selectedId={selectedId} onSelect={onSelect}
         visibleFolderIds={visibleFolderIds}
-        draggingFolderId={draggingFolderId}
+        draggingFolderId={draggingFolderId} draggingFileId={draggingFileId}
         onDragStart={onDragStart} onDragEnd={onDragEnd}
-        onDropOnFolder={onDropOnFolder} isDescendantOf={isDescendantOf}
+        onDropOnFolder={onDropOnFolder} onDropFileOnFolder={onDropFileOnFolder}
+        isDescendantOf={isDescendantOf}
         onNewSubfolder={onNewSubfolder} onRename={onRename} onDelete={onDelete} />
     </Box>
   );

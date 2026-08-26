@@ -263,6 +263,38 @@ public class BookkeepingController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Move one or more tenant-owned files into a target
+    /// folder. Powers the tenant-side drag-and-drop of file rows onto
+    /// folder rows in the tree. Both the files AND the target folder
+    /// must belong to the caller's tenant — cross-tenant ids are
+    /// filtered out by the query scope, matching the admin variant's
+    /// silent-skip semantics for extras but returning 404 for a bogus
+    /// target folder id. Empty file list = no-op success.</summary>
+    [HttpPost("/api/bookkeeping/files/move")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<object>> MoveOwnFiles(
+        [FromBody] MoveFilesBody body, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        if (body.FileIds == null || body.FileIds.Count == 0)
+            return Ok(new { moved = 0 });
+        var target = await _db.BookkeepingFolders
+            .FirstOrDefaultAsync(f => f.Id == body.TargetFolderId && f.TenantId == tenantId && f.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Target folder");
+        var files = await _db.BookkeepingFiles
+            .Where(x => x.TenantId == tenantId && body.FileIds.Contains(x.Id) && x.DeletedAt == null)
+            .ToListAsync(ct);
+        var moved = 0;
+        foreach (var f in files)
+        {
+            if (f.FolderId == target.Id) continue;   // already there
+            f.FolderId = target.Id;
+            moved++;
+        }
+        if (moved > 0) await _db.SaveChangesAsync(ct);
+        return Ok(new { moved });
+    }
+
     /// <summary>Reparent (drag-and-drop) OR reorder a tenant-owned
     /// folder. Passing <c>NewParentFolderId = null</c> promotes it to
     /// root. Cycle-guarded — moving a folder under one of its own
