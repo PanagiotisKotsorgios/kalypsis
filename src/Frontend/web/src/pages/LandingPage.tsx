@@ -1404,12 +1404,15 @@ function ErmesShowcaseSection() {
     // «με τον ΕΡΜΗ» (missing final -ς, wrong article gender). Rewrite
     // in-place to the current canonical form «με το ΕΡΜΗΣ» so the
     // button reads correctly without requiring the admin to re-save.
-    // No-op when the admin's saved value is already correct or when
-    // they've written something entirely different (custom copy wins).
+    // NOTE: JavaScript's \b word-boundary is ASCII-only — Greek chars
+    // don't count as \w so a regex with \b never matched Greek text.
+    // Use plain string replace instead. Order matters: replace the
+    // LONGER variant («ΕΡΜΗΣ») first so its Σ isn't consumed by the
+    // shorter match («ΕΡΜΗ»).
     if (typeof cleanAdmin.ctaLabel === "string") {
       cleanAdmin.ctaLabel = cleanAdmin.ctaLabel
-        .replace(/με τον ΕΡΜΗΣ\b/g, "με το ΕΡΜΗΣ")
-        .replace(/με τον ΕΡΜΗ\b/g, "με το ΕΡΜΗΣ");
+        .split("με τον ΕΡΜΗΣ").join("με το ΕΡΜΗΣ")
+        .split("με τον ΕΡΜΗ").join("με το ΕΡΜΗΣ");
     }
     const base: ErmesShowcaseContent = {
       ...localisedDefaults,
