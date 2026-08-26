@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Container,
-  IconButton, LinearProgress, List, ListItem,
-  ListItemButton, ListItemIcon, ListItemText, Paper,
-  Stack, Tab, Tabs, TextField, Tooltip, Typography,
+  Dialog, DialogActions, DialogContent, DialogTitle,
+  FormControl, FormControlLabel, IconButton, InputLabel, LinearProgress,
+  List, ListItem, ListItemButton, ListItemIcon, ListItemText, Menu, MenuItem,
+  Paper, Select, Stack, Switch, Tab, Tabs, TextField, Tooltip, Typography,
 } from "@mui/material";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import FolderIcon from "@mui/icons-material/Folder";
@@ -13,6 +14,12 @@ import DownloadIcon from "@mui/icons-material/Download";
 import HistoryIcon from "@mui/icons-material/History";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/DeleteOutline";
+import SearchIcon from "@mui/icons-material/Search";
+import CloseIcon from "@mui/icons-material/Close";
 import { api, extractErrorMessage } from "../api/client";
 
 /**
@@ -325,8 +332,6 @@ function TermsFullText() {
 
 function MyFilesTab({ qc, setErr, termsAccepted }: {
   qc: ReturnType<typeof useQueryClient>; setErr: (s: string | null) => void;
-  // Client-side gate that mirrors the backend's RequireTermsAsync 428.
-  // Uploads are disabled + tooltipped when false.
   termsAccepted: boolean;
 }) {
   const tree = useQuery({
@@ -335,13 +340,102 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
   });
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // ── Search + filter state ───────────────────────────────────────
+  // `search` filters BOTH folders (by name, transitively — matched
+  // folders + their ancestors + their descendants stay visible) AND
+  // files (by name). `statusFilter` / `uploaderFilter` further scope
+  // the file list. All in-memory over the /tree response; no round
+  // trips per keystroke.
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "processed" | "rejected">("all");
+  const [uploaderFilter, setUploaderFilter] = useState<"all" | "tenant" | "admin">("all");
+  const [showAllMatchingFiles, setShowAllMatchingFiles] = useState(false);
+
+  // ── Folder CRUD dialogs ─────────────────────────────────────────
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [newFolderParentId, setNewFolderParentId] = useState<string | null>(null);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [renamingFolder, setRenamingFolder] = useState<FolderDto | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  const createFolder = useMutation({
+    mutationFn: async () => api.post("/bookkeeping/folders",
+      { parentFolderId: newFolderParentId, name: newFolderName.trim() }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bookkeeping", "tree"] });
+      setNewFolderOpen(false); setNewFolderName("");
+    },
+    onError: e => setErr(extractErrorMessage(e)),
+  });
+  const renameFolderMut = useMutation({
+    mutationFn: async () => api.put(`/bookkeeping/folders/${renamingFolder!.id}`,
+      { name: renameValue.trim(), displayOrder: renamingFolder!.displayOrder }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bookkeeping", "tree"] });
+      setRenamingFolder(null); setRenameValue("");
+    },
+    onError: e => setErr(extractErrorMessage(e)),
+  });
+  const deleteFolder = useMutation({
+    mutationFn: async (id: string) => api.delete(`/bookkeeping/folders/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bookkeeping", "tree"] });
+      if (selectedFolderId && tree.data?.folders.every(f => f.id !== selectedFolderId))
+        setSelectedFolderId(null);
+    },
+    onError: e => setErr(extractErrorMessage(e)),
+  });
+
   useEffect(() => {
     const roots = tree.data?.folders.filter(f => !f.parentFolderId) ?? [];
     if (!selectedFolderId && roots.length > 0) setSelectedFolderId(roots[0].id);
   }, [tree.data, selectedFolderId]);
 
-  const filesInFolder = useMemo(() => (tree.data?.files ?? [])
-    .filter(f => f.folderId === selectedFolderId), [tree.data, selectedFolderId]);
+  // ── Filter passes ─────────────────────────────────────────────
+  const folders = tree.data?.folders ?? [];
+  const allFiles = tree.data?.files ?? [];
+  const q = search.trim().toLowerCase();
+
+  // Folders that should stay visible in the tree:
+  //   • Empty search → all folders visible.
+  //   • Non-empty search → folders whose name matches, PLUS every
+  //     ancestor of a match (so the match is reachable in the tree)
+  //     PLUS folders that CONTAIN a matching file (so users can find
+  //     invoices by name even when the folder name doesn't match).
+  const visibleFolderIds = useMemo(() => {
+    if (!q) return null;   // null = «all visible»
+    const byId = new Map(folders.map(f => [f.id, f]));
+    const matches = new Set<string>();
+    for (const f of folders) if (f.name.toLowerCase().includes(q)) matches.add(f.id);
+    for (const file of allFiles)
+      if (file.fileName.toLowerCase().includes(q)) matches.add(file.folderId);
+    // Walk up ancestors so tree still branches down to each match.
+    const visible = new Set(matches);
+    for (const id of matches) {
+      let cur = byId.get(id);
+      while (cur?.parentFolderId) {
+        visible.add(cur.parentFolderId);
+        cur = byId.get(cur.parentFolderId);
+      }
+    }
+    return visible;
+  }, [q, folders, allFiles]);
+
+  const filesToShow = useMemo(() => {
+    let list = allFiles;
+    if (showAllMatchingFiles && q) {
+      // Cross-folder search: ignore the selected folder, show every
+      // matching file. Useful for «where did I put that invoice?».
+      list = list.filter(f => f.fileName.toLowerCase().includes(q));
+    } else {
+      list = list.filter(f => f.folderId === selectedFolderId);
+      if (q) list = list.filter(f => f.fileName.toLowerCase().includes(q));
+    }
+    if (statusFilter !== "all") list = list.filter(f => f.status === statusFilter);
+    if (uploaderFilter !== "all") list = list.filter(f => f.uploadedBy === uploaderFilter);
+    return list;
+  }, [allFiles, selectedFolderId, q, showAllMatchingFiles, statusFilter, uploaderFilter]);
 
   const uploadFile = useCallback(async (file: File) => {
     if (!selectedFolderId) return;
@@ -356,34 +450,91 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
   }, [selectedFolderId, qc, setErr]);
 
   if (tree.isLoading) return <Box sx={{ p: 3 }}><CircularProgress size={20} /></Box>;
-  if ((tree.data?.folders.length ?? 0) === 0) {
-    return (
-      <Alert severity="info" sx={{ m: 3 }}>
-        Οι φάκελοι σας ετοιμάζονται από την ομάδα μας. Θα σας ειδοποιήσουμε μέσω ΕΡΜΗ
-        μόλις είναι διαθέσιμοι για upload.
-      </Alert>
-    );
-  }
+
+  const emptyState = (tree.data?.folders.length ?? 0) === 0;
+
   return (
-    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "260px 1fr" }, height: "100%", minHeight: 0 }}>
+    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "300px 1fr" }, height: "100%", minHeight: 0 }}>
+      {/* ── Left column: folder tree + folder CRUD ─────────────── */}
       <Box sx={{ borderRight: 1, borderColor: "divider", display: "flex", flexDirection: "column", minHeight: 0 }}>
-        <Box sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}>
-          <Typography variant="body2" fontWeight={700}>Φάκελοι</Typography>
-        </Box>
-        <List dense sx={{ flex: 1, overflowY: "auto" }}>
-          <TenantTreeNode folders={tree.data?.folders ?? []} parentId={null} depth={0}
-            selectedId={selectedFolderId} onSelect={setSelectedFolderId} />
-        </List>
+        <Stack direction="row" alignItems="center" spacing={0.5} sx={{ p: 1, borderBottom: 1, borderColor: "divider" }}>
+          <Typography variant="body2" fontWeight={700} sx={{ flex: 1, pl: 0.5 }}>Φάκελοι</Typography>
+          <Tooltip title="Νέος φάκελος στη ρίζα">
+            <IconButton size="small" onClick={() => {
+              setNewFolderParentId(null); setNewFolderName(""); setNewFolderOpen(true);
+            }}><CreateNewFolderIcon fontSize="small" /></IconButton>
+          </Tooltip>
+        </Stack>
+        {emptyState ? (
+          <Alert severity="info" sx={{ m: 1.5 }}>
+            Δεν υπάρχουν φάκελοι ακόμη. Πατήστε το «+» για να φτιάξετε τον πρώτο σας.
+          </Alert>
+        ) : (
+          <List dense sx={{ flex: 1, overflowY: "auto" }}>
+            <TenantTreeNode folders={folders} parentId={null} depth={0}
+              selectedId={selectedFolderId} onSelect={setSelectedFolderId}
+              visibleFolderIds={visibleFolderIds}
+              onNewSubfolder={pid => {
+                setNewFolderParentId(pid); setNewFolderName(""); setNewFolderOpen(true);
+              }}
+              onRename={f => { setRenamingFolder(f); setRenameValue(f.name); }}
+              onDelete={id => {
+                if (window.confirm("Διαγραφή φακέλου; Ο φάκελος πρέπει να είναι ΚΕΝΟΣ."))
+                  deleteFolder.mutate(id);
+              }} />
+          </List>
+        )}
       </Box>
+
+      {/* ── Right column: files + filters + upload ─────────────── */}
       <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0 }}
         onDragOver={e => { if (selectedFolderId && termsAccepted) e.preventDefault(); }}
         onDrop={e => {
           if (!selectedFolderId || !termsAccepted) return; e.preventDefault();
           for (const f of Array.from(e.dataTransfer.files ?? [])) void uploadFile(f);
         }}>
+        {/* Search + filter row */}
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }}
+          sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}>
+          <TextField size="small" placeholder="Αναζήτηση φακέλων/αρχείων…"
+            value={search} onChange={e => setSearch(e.target.value)}
+            InputProps={{
+              startAdornment: <SearchIcon fontSize="small" sx={{ mr: 1, color: "text.secondary" }} />,
+              endAdornment: search
+                ? <IconButton size="small" onClick={() => setSearch("")}><CloseIcon fontSize="small" /></IconButton>
+                : undefined,
+            }}
+            sx={{ flex: 1, maxWidth: { md: 360 } }} />
+          <FormControl size="small" sx={{ minWidth: 140 }}>
+            <InputLabel>Κατάσταση</InputLabel>
+            <Select label="Κατάσταση" value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}>
+              <MenuItem value="all">Όλες</MenuItem>
+              <MenuItem value="pending">Σε αναμονή</MenuItem>
+              <MenuItem value="processed">Επεξεργασμένα</MenuItem>
+              <MenuItem value="rejected">Απορριφθέντα</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 140 }}>
+            <InputLabel>Ανέβασε</InputLabel>
+            <Select label="Ανέβασε" value={uploaderFilter}
+              onChange={e => setUploaderFilter(e.target.value as typeof uploaderFilter)}>
+              <MenuItem value="all">Όλοι</MenuItem>
+              <MenuItem value="tenant">Το γραφείο</MenuItem>
+              <MenuItem value="admin">Kalypsis</MenuItem>
+            </Select>
+          </FormControl>
+          {q && (
+            <FormControlLabel sx={{ ml: 0 }}
+              control={<Switch size="small" checked={showAllMatchingFiles}
+                onChange={e => setShowAllMatchingFiles(e.target.checked)} />}
+              label={<Typography variant="caption">Σε όλους τους φακέλους</Typography>} />
+          )}
+        </Stack>
+
         <Stack direction="row" alignItems="center" spacing={1} sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}>
           <Typography variant="body2" fontWeight={700} sx={{ flex: 1 }}>
-            Αρχεία {filesInFolder.length > 0 && `(${filesInFolder.length})`}
+            Αρχεία {filesToShow.length > 0 && `(${filesToShow.length}${q || statusFilter !== "all" || uploaderFilter !== "all" ? " εμφανίζονται" : ""})`}
           </Typography>
           <Tooltip title={termsAccepted
             ? "Ανέβασμα αρχείου (max 16 MB)"
@@ -401,69 +552,213 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
           </Tooltip>
         </Stack>
         {uploading && <LinearProgress />}
-        {!selectedFolderId ? (
+        {emptyState ? (
+          <Alert severity="info" sx={{ m: 3 }}>
+            Δεν έχετε φακέλους ακόμη. Δημιουργήστε τον πρώτο σας από το «+» πάνω αριστερά.
+          </Alert>
+        ) : !selectedFolderId && !showAllMatchingFiles ? (
           <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>Επιλέξτε φάκελο.</Box>
-        ) : filesInFolder.length === 0 ? (
+        ) : filesToShow.length === 0 ? (
           <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
-            Δεν υπάρχουν αρχεία εδώ ακόμη. Σύρετε αρχεία ή πατήστε «Ανέβασμα».
+            {q || statusFilter !== "all" || uploaderFilter !== "all"
+              ? "Δεν βρέθηκαν αρχεία με τα τρέχοντα φίλτρα."
+              : "Δεν υπάρχουν αρχεία εδώ ακόμη. Σύρετε αρχεία ή πατήστε «Ανέβασμα»."}
           </Box>
         ) : (
           <List dense sx={{ flex: 1, overflowY: "auto" }}>
-            {filesInFolder.map(f => (
-              <ListItem key={f.id} divider secondaryAction={
-                <Tooltip title="Λήψη">
-                  <IconButton size="small" onClick={async () => {
-                    const res = await api.get<Blob>(`/bookkeeping/files/${f.id}`, { responseType: "blob" });
-                    const url = window.URL.createObjectURL(res.data);
-                    const el = document.createElement("a"); el.href = url; el.download = f.fileName; el.click();
-                    window.URL.revokeObjectURL(url);
-                  }}><DownloadIcon fontSize="small" /></IconButton>
-                </Tooltip>
-              }>
-                <ListItemText
-                  primary={<Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="body2" fontWeight={600}>{f.fileName}</Typography>
-                    <Chip size="small" label={f.uploadedBy === "admin" ? "από Kalypsis" : "δικό μου"}
-                      color={f.uploadedBy === "admin" ? "primary" : "default"}
-                      variant="outlined" sx={{ height: 18, fontSize: 10 }} />
-                    <Chip size="small" label={f.status}
-                      color={f.status === "processed" ? "success" : f.status === "rejected" ? "error" : "warning"}
-                      sx={{ height: 18, fontSize: 10 }} />
-                  </Stack>}
-                  secondary={`${formatBytes(f.sizeBytes)} · ${new Date(f.createdAt).toLocaleString("el-GR")}`}
-                />
-              </ListItem>
-            ))}
+            {filesToShow.map(f => {
+              const folderName = folders.find(x => x.id === f.folderId)?.name;
+              return (
+                <ListItem key={f.id} divider secondaryAction={
+                  <Tooltip title="Λήψη">
+                    <IconButton size="small" onClick={async () => {
+                      const res = await api.get<Blob>(`/bookkeeping/files/${f.id}`, { responseType: "blob" });
+                      const url = window.URL.createObjectURL(res.data);
+                      const el = document.createElement("a"); el.href = url; el.download = f.fileName; el.click();
+                      window.URL.revokeObjectURL(url);
+                    }}><DownloadIcon fontSize="small" /></IconButton>
+                  </Tooltip>
+                }>
+                  <ListItemText
+                    primary={<Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                      <Typography variant="body2" fontWeight={600}>
+                        {highlightMatch(f.fileName, q)}
+                      </Typography>
+                      <Chip size="small" label={f.uploadedBy === "admin" ? "από Kalypsis" : "δικό μου"}
+                        color={f.uploadedBy === "admin" ? "primary" : "default"}
+                        variant="outlined" sx={{ height: 18, fontSize: 10 }} />
+                      <Chip size="small" label={f.status}
+                        color={f.status === "processed" ? "success" : f.status === "rejected" ? "error" : "warning"}
+                        sx={{ height: 18, fontSize: 10 }} />
+                      {showAllMatchingFiles && folderName && (
+                        <Chip size="small" icon={<FolderIcon sx={{ fontSize: 12 }} />}
+                          label={folderName} variant="outlined"
+                          onClick={() => { setShowAllMatchingFiles(false); setSelectedFolderId(f.folderId); }}
+                          sx={{ height: 18, fontSize: 10 }} />
+                      )}
+                    </Stack>}
+                    secondary={`${formatBytes(f.sizeBytes)} · ${new Date(f.createdAt).toLocaleString("el-GR")}`}
+                  />
+                </ListItem>
+              );
+            })}
           </List>
         )}
       </Box>
+
+      {/* ── Folder dialogs ─────────────────────────────────────── */}
+      <Dialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>
+          {newFolderParentId ? "Νέος υποφάκελος" : "Νέος φάκελος (ρίζα)"}
+        </DialogTitle>
+        <DialogContent>
+          {newFolderParentId && (
+            <Typography variant="caption" color="text.secondary" mb={1} component="div">
+              Μέσα στον φάκελο: <b>{folders.find(f => f.id === newFolderParentId)?.name ?? "—"}</b>
+            </Typography>
+          )}
+          <TextField autoFocus fullWidth label="Όνομα φακέλου"
+            value={newFolderName}
+            onChange={e => setNewFolderName(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && newFolderName.trim()) createFolder.mutate(); }}
+            sx={{ mt: 1 }} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNewFolderOpen(false)}>Άκυρο</Button>
+          <Button variant="contained" onClick={() => createFolder.mutate()}
+            disabled={!newFolderName.trim() || createFolder.isPending}>
+            Δημιουργία
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!renamingFolder} onClose={() => setRenamingFolder(null)} fullWidth maxWidth="xs">
+        <DialogTitle>Μετονομασία φακέλου</DialogTitle>
+        <DialogContent>
+          <TextField autoFocus fullWidth label="Νέο όνομα"
+            value={renameValue}
+            onChange={e => setRenameValue(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && renameValue.trim()) renameFolderMut.mutate(); }}
+            sx={{ mt: 1 }} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRenamingFolder(null)}>Άκυρο</Button>
+          <Button variant="contained" onClick={() => renameFolderMut.mutate()}
+            disabled={!renameValue.trim() || renameFolderMut.isPending}>
+            Αποθήκευση
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
 
-function TenantTreeNode({ folders, parentId, depth, selectedId, onSelect }: {
+/** Wraps every occurrence of `query` in a highlight span. Case-insensitive.
+ *  Returns the original string as a React fragment when query is empty. */
+function highlightMatch(text: string, query: string): React.ReactNode {
+  if (!query) return text;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx < 0) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <Box component="mark" sx={{ bgcolor: "rgba(255, 213, 0, 0.4)", px: 0.25 }}>
+        {text.slice(idx, idx + query.length)}
+      </Box>
+      {text.slice(idx + query.length)}
+    </>
+  );
+}
+
+function TenantTreeNode({ folders, parentId, depth, selectedId, onSelect,
+  visibleFolderIds, onNewSubfolder, onRename, onDelete }: {
   folders: FolderDto[]; parentId: string | null; depth: number;
   selectedId: string | null; onSelect: (id: string) => void;
+  /** When non-null, only folders in this set are rendered — the search
+   *  filter's visibility passthrough. Null = render everything. */
+  visibleFolderIds: Set<string> | null;
+  onNewSubfolder: (parentId: string) => void;
+  onRename: (folder: FolderDto) => void;
+  onDelete: (folderId: string) => void;
 }) {
-  const children = folders.filter(f => (f.parentFolderId ?? null) === parentId);
+  const children = folders
+    .filter(f => (f.parentFolderId ?? null) === parentId)
+    .filter(f => !visibleFolderIds || visibleFolderIds.has(f.id))
+    .sort((a, b) => (a.displayOrder - b.displayOrder) || a.name.localeCompare(b.name, "el"));
   return (
     <>
       {children.map(f => (
-        <Box key={f.id}>
-          <ListItemButton selected={f.id === selectedId} onClick={() => onSelect(f.id)}
-            sx={{ pl: 1 + depth * 2 }}>
-            <ListItemIcon sx={{ minWidth: 28 }}>
-              {f.id === selectedId ? <FolderSpecialIcon fontSize="small" color="primary" /> : <FolderIcon fontSize="small" />}
-            </ListItemIcon>
-            <ListItemText
-              primary={<Typography variant="body2" noWrap>{f.name}</Typography>}
-              secondary={f.fileCount > 0 ? `${f.fileCount} αρχεία` : undefined} />
-          </ListItemButton>
-          <TenantTreeNode folders={folders} parentId={f.id} depth={depth + 1}
-            selectedId={selectedId} onSelect={onSelect} />
-        </Box>
+        <TenantTreeRow key={f.id} folder={f} depth={depth}
+          folders={folders} selectedId={selectedId} onSelect={onSelect}
+          visibleFolderIds={visibleFolderIds}
+          onNewSubfolder={onNewSubfolder} onRename={onRename} onDelete={onDelete} />
       ))}
     </>
+  );
+}
+
+/** One folder row + a lazy inline action menu (subfolder / rename /
+ *  delete). Kept as its own component so hover state stays local — a
+ *  hover on one row doesn't re-render the whole tree. Recurses into
+ *  its own <TenantTreeNode> for children so nesting works. */
+function TenantTreeRow({ folder, depth, folders, selectedId, onSelect,
+  visibleFolderIds, onNewSubfolder, onRename, onDelete }: {
+  folder: FolderDto; depth: number; folders: FolderDto[];
+  selectedId: string | null; onSelect: (id: string) => void;
+  visibleFolderIds: Set<string> | null;
+  onNewSubfolder: (parentId: string) => void;
+  onRename: (folder: FolderDto) => void;
+  onDelete: (folderId: string) => void;
+}) {
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+  const isSystem = folder.origin === "system";
+  return (
+    <Box>
+      <ListItemButton selected={folder.id === selectedId} onClick={() => onSelect(folder.id)}
+        sx={{
+          pl: 1 + depth * 2, pr: 1,
+          "& .row-actions": { opacity: 0, transition: "opacity 0.15s" },
+          "&:hover .row-actions, &.Mui-selected .row-actions": { opacity: 1 },
+        }}>
+        <ListItemIcon sx={{ minWidth: 28 }}>
+          {folder.id === selectedId ? <FolderSpecialIcon fontSize="small" color="primary" /> : <FolderIcon fontSize="small" />}
+        </ListItemIcon>
+        <ListItemText
+          primary={<Typography variant="body2" noWrap>{folder.name}</Typography>}
+          secondary={folder.fileCount > 0 ? `${folder.fileCount} αρχεία` : undefined} />
+        <Box className="row-actions">
+          <IconButton size="small" edge="end"
+            onClick={e => { e.stopPropagation(); setMenuAnchor(e.currentTarget); }}>
+            <MoreVertIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      </ListItemButton>
+      <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}
+        onClick={e => e.stopPropagation()}>
+        <MenuItem onClick={() => { onNewSubfolder(folder.id); setMenuAnchor(null); }}>
+          <ListItemIcon><CreateNewFolderIcon fontSize="small" /></ListItemIcon>
+          Νέος υποφάκελος
+        </MenuItem>
+        {/* System folders (seeded by Kalypsis onboarding) can't be
+            renamed/deleted from the tenant side — protects the shared
+            taxonomy the Ops team relies on. */}
+        <MenuItem disabled={isSystem}
+          onClick={() => { onRename(folder); setMenuAnchor(null); }}>
+          <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
+          Μετονομασία
+        </MenuItem>
+        <MenuItem disabled={isSystem}
+          onClick={() => { onDelete(folder.id); setMenuAnchor(null); }}
+          sx={{ color: "error.main" }}>
+          <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+          Διαγραφή
+        </MenuItem>
+      </Menu>
+      <TenantTreeNode folders={folders} parentId={folder.id} depth={depth + 1}
+        selectedId={selectedId} onSelect={onSelect}
+        visibleFolderIds={visibleFolderIds}
+        onNewSubfolder={onNewSubfolder} onRename={onRename} onDelete={onDelete} />
+    </Box>
   );
 }
 

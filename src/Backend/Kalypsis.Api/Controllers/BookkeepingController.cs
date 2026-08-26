@@ -181,6 +181,88 @@ public class BookkeepingController : ControllerBase
         return Ok(await LoadTree(tenantId, ct));
     }
 
+    // ── Tenant-side folder management ────────────────────────────────
+    // Mirror of AdminCreateFolder / AdminRenameFolder / AdminDeleteFolder
+    // but scoped to the caller's tenant. Enables tenants to organise their
+    // own material — create subfolders, rename, remove empty folders —
+    // without asking Kalypsis Ops to touch anything. AgencyAdmin only for
+    // write actions: staff-level users can browse + upload but not
+    // restructure the tree.
+
+    /// <summary>Create a folder in the caller's tenant. Optionally nested
+    /// under <see cref="CreateFolderBody.ParentFolderId"/>. The parent
+    /// MUST belong to the same tenant — server double-checks to prevent
+    /// folder-id spoofing across tenants.</summary>
+    [HttpPost("/api/bookkeeping/folders")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<FolderDto>> CreateOwnFolder(
+        [FromBody] CreateFolderBody body, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        if (string.IsNullOrWhiteSpace(body.Name)) throw AppException.Validation("Όνομα φακέλου κενό.");
+        if (body.Name.Trim().Length > 200) throw AppException.Validation("Όνομα φακέλου πολύ μεγάλο (max 200).");
+        if (body.ParentFolderId is Guid pid)
+        {
+            var parentOk = await _db.BookkeepingFolders
+                .AnyAsync(x => x.Id == pid && x.TenantId == tenantId && x.DeletedAt == null, ct);
+            if (!parentOk) throw AppException.NotFound("Parent folder");
+        }
+        var f = new BookkeepingFolder
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            ParentFolderId = body.ParentFolderId,
+            Name = body.Name.Trim(),
+            Origin = "custom",
+            DisplayOrder = body.DisplayOrder,
+            CreatedAt = _clock.UtcNow,
+        };
+        _db.BookkeepingFolders.Add(f);
+        await _db.SaveChangesAsync(ct);
+        return Ok(new FolderDto(f.Id, f.ParentFolderId, f.Name, f.Origin, f.DisplayOrder, f.CreatedAt, 0));
+    }
+
+    [HttpPut("/api/bookkeeping/folders/{folderId:guid}")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<FolderDto>> RenameOwnFolder(Guid folderId,
+        [FromBody] RenameFolderBody body, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var f = await _db.BookkeepingFolders
+            .FirstOrDefaultAsync(x => x.Id == folderId && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Folder");
+        if (string.IsNullOrWhiteSpace(body.Name)) throw AppException.Validation("Όνομα κενό.");
+        f.Name = body.Name.Trim();
+        f.DisplayOrder = body.DisplayOrder;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new FolderDto(f.Id, f.ParentFolderId, f.Name, f.Origin, f.DisplayOrder, f.CreatedAt, 0));
+    }
+
+    /// <summary>Soft-delete a tenant-owned folder. REFUSES if the folder
+    /// still contains files or child folders — the tenant must clear
+    /// them first, no cascade. Prevents accidental mass-delete via a
+    /// mis-clicked «X» on a root folder.</summary>
+    [HttpDelete("/api/bookkeeping/folders/{folderId:guid}")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<IActionResult> DeleteOwnFolder(Guid folderId, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var f = await _db.BookkeepingFolders
+            .FirstOrDefaultAsync(x => x.Id == folderId && x.TenantId == tenantId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Folder");
+        var hasChildren = await _db.BookkeepingFolders
+            .AnyAsync(x => x.ParentFolderId == folderId && x.DeletedAt == null, ct);
+        if (hasChildren) throw new AppException("folder_has_children",
+            "Ο φάκελος περιέχει υποφακέλους. Διαγράψτε τους πρώτα.", 409);
+        var hasFiles = await _db.BookkeepingFiles
+            .AnyAsync(x => x.FolderId == folderId && x.DeletedAt == null, ct);
+        if (hasFiles) throw new AppException("folder_has_files",
+            "Ο φάκελος περιέχει αρχεία. Μεταφέρετε ή διαγράψτε τα πρώτα.", 409);
+        f.DeletedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     /// <summary>Tenant-side file upload. Same 16 MB cap as ΕΡΜΗΣ
     /// attachments. Tenants can only upload into their OWN folders —
     /// the server double-checks the folder's TenantId to prevent
