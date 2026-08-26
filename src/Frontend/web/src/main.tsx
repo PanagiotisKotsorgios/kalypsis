@@ -23,6 +23,26 @@ import { MaintenanceProvider } from "./auth/MaintenanceContext";
 import { ImpersonationProvider } from "./impersonation/ImpersonationContext";
 import { AuthenticatedThemeGate } from "./theme/AuthenticatedThemeGate";
 
+// Global drag defence — if the user drags files from Explorer/Finder
+// and drops them ANYWHERE on the page that isn't wired to accept an
+// upload, the browser's default action is to navigate the tab to the
+// file:// URL. That's a full-page navigation which the user perceives
+// as a "soft refresh": the SPA reloads, dialogs close, filters reset.
+// We swallow every stray dragover/drop at the window level; local
+// drop zones (upload dialogs, etc.) still work because their own
+// stopPropagation happens BEFORE the bubble reaches window.
+if (typeof window !== "undefined") {
+  const swallow = (e: DragEvent) => {
+    // If a nested handler explicitly said "yes, I'm accepting this
+    // drop" (called preventDefault) we still want to prevent the
+    // browser from navigating. If nothing accepted, still block —
+    // stray navigation is never the right outcome for a Kalypsis page.
+    e.preventDefault();
+  };
+  window.addEventListener("dragover", swallow, false);
+  window.addEventListener("drop", swallow, false);
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

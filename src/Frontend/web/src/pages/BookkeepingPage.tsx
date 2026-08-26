@@ -803,8 +803,35 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
       </Box>
 
       {/* ── Upload dialog (drag-and-drop only) ─────────────────── */}
+      {/* The ENTIRE dialog body is a dropzone — every gap, every padding
+          pixel, even the DialogTitle above. Dropping outside the visual
+          dashed box used to fall through to the browser default which
+          navigates the tab to the file:// URL (perceived as a "soft
+          refresh" that closed the dialog). Now every drop inside the
+          dialog paper is caught locally. A window-level defensive
+          handler in main.tsx catches any drop that lands outside the
+          dialog too, so no drop can ever navigate the page. */}
       <Dialog open={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)}
-        fullWidth maxWidth="sm">
+        fullWidth maxWidth="sm"
+        PaperProps={{
+          onDragOver: (e: React.DragEvent) => { e.preventDefault(); setUploadDialogDrag(true); },
+          onDragLeave: (e: React.DragEvent) => {
+            if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+            setUploadDialogDrag(false);
+          },
+          onDrop: async (e: React.DragEvent) => {
+            e.preventDefault(); setUploadDialogDrag(false);
+            const files = Array.from(e.dataTransfer.files ?? []);
+            for (const f of files) await uploadFile(f);
+            // Dialog stays OPEN — the user closes it manually when done.
+          },
+          sx: {
+            outline: uploadDialogDrag ? "3px dashed" : undefined,
+            outlineColor: uploadDialogDrag ? "primary.main" : undefined,
+            outlineOffset: -3,
+            transition: "outline-color 0.15s",
+          },
+        }}>
         <DialogTitle>
           Ανέβασμα αρχείων
           {selectedFolderId && (
@@ -814,26 +841,14 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
           )}
         </DialogTitle>
         <DialogContent>
-          <Box
-            onDragOver={e => { e.preventDefault(); setUploadDialogDrag(true); }}
-            onDragLeave={e => {
-              if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-              setUploadDialogDrag(false);
-            }}
-            onDrop={async e => {
-              e.preventDefault(); setUploadDialogDrag(false);
-              const files = Array.from(e.dataTransfer.files ?? []);
-              for (const f of files) await uploadFile(f);
-              // Leave the dialog OPEN so the user can drop more files
-              // without re-clicking the button. They close it manually.
-            }}
-            sx={{
+          <Box sx={{
               mt: 1, p: 5, borderRadius: 2,
               border: "2px dashed",
               borderColor: uploadDialogDrag ? "primary.main" : "divider",
               bgcolor: uploadDialogDrag ? "rgba(31,123,179,0.08)" : "transparent",
               textAlign: "center",
               transition: "border-color 0.15s, background 0.15s",
+              pointerEvents: "none",   // drop is captured by Paper — this is visual only
             }}>
             <UploadFileIcon sx={{ fontSize: 48, color: uploadDialogDrag ? "primary.main" : "text.disabled", mb: 1 }} />
             <Typography variant="body1" fontWeight={700} mb={0.5}>
@@ -841,7 +856,7 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Ανοίξτε Explorer/Finder, επιλέξτε ένα ή περισσότερα αρχεία
-              και σύρετέ τα σε αυτό το πλαίσιο. Max 16 MB ανά αρχείο.
+              και σύρετέ τα οπουδήποτε μέσα σε αυτό το παράθυρο. Max 16 MB ανά αρχείο.
             </Typography>
             {uploading && <Box mt={2}><CircularProgress size={22} /></Box>}
           </Box>

@@ -280,14 +280,11 @@ const navByRole: Record<Role, NavItem[]> = {
     // working in. Sits right under Πίνακας Ελέγχου for prominence.
     { to: "/ermes-app", labelKey: "nav.ermes", icon: <MailOutlineIcon />, openInNewTab: true,
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
-    // Οδηγίες χρήσης now live as a tab inside /agency-and-profile
-    // (see the footer entry below). Removed the standalone sidebar
-    // row to save space — old /app/documentation URL still resolves
-    // to the same content via the route registration further down.
-    // Μηχανογράφιση (tenant surface) — opt in to the service or
-    // browse the folder tree the platform team maintains for you.
-    { to: "/bookkeeping", labelKey: "nav.bookkeeping", icon: <FolderIcon />,
-      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+    // Οδηγίες χρήσης and Μηχανογράφιση now live as tabs inside
+    // /agency-and-profile (see the footer entry below). Removed the
+    // standalone sidebar rows to save space — old /app/documentation
+    // and /app/bookkeeping URLs still resolve to the same content via
+    // the route registrations further down.
 
     // ===== BackOffice — Γέφυρες Εταιρειών (hub for 4 carrier-import screens) =====
     { to: "/carrier-bridges-hub", labelKey: "nav.carrierBridgesHub", icon: <CloudUploadIcon />, package: "BackOffice" },
