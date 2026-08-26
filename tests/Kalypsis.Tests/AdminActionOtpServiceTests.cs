@@ -174,6 +174,8 @@ public class AdminActionOtpServiceTests
                 : new EmailResult(true));
         }
         public Task<bool> IsConfiguredAsync(CancellationToken ct = default) => Task.FromResult(true);
+        public Task<KeyValidationResult> ValidateKeyAsync(CancellationToken ct = default) =>
+            Task.FromResult(new KeyValidationResult(!AlwaysFail, "test@example.com", "test", "xkeysib-…test", AlwaysFail ? "simulated" : null));
         /// <summary>Pull the emailed 6-digit code out of the last HTML body.</summary>
         public string ExtractCodeFromLastEmail()
         {

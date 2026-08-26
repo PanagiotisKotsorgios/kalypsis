@@ -102,10 +102,37 @@ public class SendTestEmailCommandHandler : IRequestHandler<SendTestEmailCommand,
 
     public async Task<SendTestEmailResponse> Handle(SendTestEmailCommand request, CancellationToken cancellationToken)
     {
+        // Two-step diagnosis so the admin knows WHICH thing is broken:
+        //   1. Hit /v3/account with just the API key. This isolates the
+        //      «wrong key» failure (401 = key not found) from downstream
+        //      sender / DKIM / quota issues. If the key itself is bad,
+        //      we return early with the specific reason + a masked
+        //      preview of the stored key so the admin can cross-check
+        //      against what they see in the Brevo dashboard.
+        //   2. Only if the key validates, attempt an actual send.
+        //      Failures here are then clearly about sender verification
+        //      or DKIM/DMARC, not about auth.
+        var keyCheck = await _email.ValidateKeyAsync(cancellationToken);
+        if (!keyCheck.Valid)
+        {
+            var storedHint = string.IsNullOrEmpty(keyCheck.StoredKeyPreview)
+                ? ""
+                : $" (Αποθηκευμένο κλειδί: {keyCheck.StoredKeyPreview})";
+            return new SendTestEmailResponse(false,
+                $"❌ API key έλεγχος απέτυχε: {keyCheck.ErrorMessage}{storedHint}");
+        }
+        var accountHint = string.IsNullOrEmpty(keyCheck.AccountEmail)
+            ? ""
+            : $" (Brevo λογαριασμός: {keyCheck.AccountEmail}{(keyCheck.PlanName is null ? "" : $", plan={keyCheck.PlanName}")})";
+
         var html = @"<p>Αυτό είναι test email από την πλατφόρμα <strong>Kalypsis</strong>.</p>
 <p>Αν το λαμβάνετε, οι ρυθμίσεις Brevo είναι σωστές. ✅</p>";
         var result = await _email.SendAsync(new EmailMessage(
             request.ToEmail, "Kalypsis Test", "Kalypsis — Test email", html), cancellationToken);
-        return new SendTestEmailResponse(result.Success, result.ErrorMessage);
+        if (!result.Success)
+            return new SendTestEmailResponse(false,
+                $"✅ API key ισχύει{accountHint} · ❌ αποστολή απέτυχε: {result.ErrorMessage} — πιθανό sender-verification ή DKIM/DMARC πρόβλημα.");
+        return new SendTestEmailResponse(true, null,
+            $"Στάλθηκε επιτυχώς{accountHint}. Ελέγξτε το inbox του {request.ToEmail}.");
     }
 }

@@ -17,4 +17,4 @@ public record UpdatePlatformSettingsRequest(
     string? AppBaseUrl);
 
 public record SendTestEmailRequest(string ToEmail);
-public record SendTestEmailResponse(bool Success, string? ErrorMessage);
+public record SendTestEmailResponse(bool Success, string? ErrorMessage, string? DiagnosticMessage = null);

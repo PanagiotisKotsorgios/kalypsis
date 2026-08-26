@@ -87,12 +87,23 @@ export function AdminSettingsPage() {
   });
 
   const testMutation = useMutation({
+    // Backend now returns a diagnosticMessage on success (Brevo account
+    // + plan info) AND on partial-success failures (key valid but send
+    // failed). Prefer diagnosticMessage over the generic testSuccess
+    // key so the admin sees exactly which account they're authenticating
+    // as — cross-checks against the Brevo dashboard at a glance.
     mutationFn: async (toEmail: string) =>
-      (await api.post<{ success: boolean; errorMessage: string | null }>("/settings/test-email", { toEmail })).data,
+      (await api.post<{
+        success: boolean;
+        errorMessage: string | null;
+        diagnosticMessage: string | null;
+      }>("/settings/test-email", { toEmail })).data,
     onSuccess: (data) => {
       setTestResult({
         ok: data.success,
-        msg: data.success ? t("settings.testSuccess") : data.errorMessage ?? t("settings.testFailGeneric")
+        msg: data.success
+          ? (data.diagnosticMessage ?? t("settings.testSuccess"))
+          : (data.errorMessage ?? t("settings.testFailGeneric"))
       });
     },
     onError: (err) => setTestResult({ ok: false, msg: extractErrorMessage(err) })
