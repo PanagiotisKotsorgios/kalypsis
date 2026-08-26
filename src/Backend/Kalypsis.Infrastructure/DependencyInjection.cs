@@ -89,6 +89,10 @@ public static class DependencyInjection
         services.AddScoped<Kalypsis.Application.Abstractions.IPlatformBackupService,
             Kalypsis.Infrastructure.Scheduling.PlatformBackupService>();
         services.AddHostedService<Kalypsis.Infrastructure.Scheduling.PlatformBackupJob>();
+        // NEW: platform-wide scheduled backup runner. Reads the singleton
+        // PlatformBackupSchedule row, fires when cadence-window opens,
+        // prunes archives per grandfather-father-son retention policy.
+        services.AddHostedService<Kalypsis.Infrastructure.Scheduling.PlatformBackupSchedulerJob>();
 
         // === Phase 3: pluggable integration surface ==========================
         // Every carrier we already seed in InsuranceCompanies gets a stub adapter.

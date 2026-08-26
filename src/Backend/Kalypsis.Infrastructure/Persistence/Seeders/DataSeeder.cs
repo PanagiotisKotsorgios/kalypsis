@@ -698,6 +698,36 @@ public static class DataSeeder
         try { await Kalypsis.Infrastructure.Persistence.Seeders.DocumentationSeeder.SeedIfEmptyAsync(db, ct); }
         catch (Exception ex) { logger.LogWarning(ex, "Documentation seed skipped — continuing boot."); }
 
+        // --- platform_backup_schedules: SINGLETON row driving the
+        // platform-wide scheduled backup job. Enabled + cadence +
+        // retention parameters. See PlatformBackupSchedulerJob.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "platform_backup_schedules",
+            createSql: @"CREATE TABLE IF NOT EXISTS `platform_backup_schedules` (
+                `Id`                       char(36) NOT NULL,
+                `Enabled`                  tinyint(1) NOT NULL DEFAULT 0,
+                `Cadence`                  varchar(20) NOT NULL DEFAULT 'daily',
+                `HourOfDayUtc`             int NOT NULL DEFAULT 3,
+                `DayOfWeek`                int NOT NULL DEFAULT 0,
+                `DayOfMonth`               int NOT NULL DEFAULT 1,
+                `Scope`                    varchar(20) NOT NULL DEFAULT 'full',
+                `RetentionDaysDaily`       int NOT NULL DEFAULT 30,
+                `RetentionMonthsMonthly`   int NOT NULL DEFAULT 12,
+                `NotifyEmail`              varchar(500) NULL,
+                `LastRunFailed`            tinyint(1) NOT NULL DEFAULT 0,
+                `LastRunAt`                datetime(6) NULL,
+                `NextRunAt`                datetime(6) NULL,
+                `LastRunMessage`           varchar(2000) NULL,
+                `LastRunFileName`          varchar(400) NULL,
+                `LastRunSizeBytes`         bigint NOT NULL DEFAULT 0,
+                `LastRunDurationSeconds`   int NOT NULL DEFAULT 0,
+                `LastEditedByUserId`       char(36) NULL,
+                `CreatedAt`                datetime(6) NOT NULL,
+                `UpdatedAt`                datetime(6) NULL,
+                `DeletedAt`                datetime(6) NULL,
+                PRIMARY KEY (`Id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
         // --- user_public_keys: ΕΡΜΗΣ E2E public-key registry. Private
         // half lives in the user's browser only. See UserPublicKey entity
         // + ErmesKeysController for the auth + storage contract.

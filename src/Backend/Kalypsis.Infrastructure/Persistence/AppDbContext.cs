@@ -265,6 +265,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<LandingContent> LandingContents => Set<LandingContent>();
     public DbSet<UserPublicKey> UserPublicKeys => Set<UserPublicKey>();
     public DbSet<UserKeyBackup> UserKeyBackups => Set<UserKeyBackup>();
+    public DbSet<PlatformBackupSchedule> PlatformBackupSchedules => Set<PlatformBackupSchedule>();
 
     // Bookkeeping («μηχανογράφιση») — platform team does the data entry
     // for small offices that opted in.
@@ -399,6 +400,7 @@ public class AppDbContext : DbContext, IAppDbContext
             .HasIndex(x => new { x.TenantId, x.UserId });
         modelBuilder.Entity<UserKeyBackup>().ToTable("user_key_backups")
             .HasIndex(x => new { x.TenantId, x.UserId, x.KeyId }).IsUnique();
+        modelBuilder.Entity<PlatformBackupSchedule>().ToTable("platform_backup_schedules");
 
         // Bookkeeping tables — snake_case names, matching the seeder
         // safety-net so a fresh DB and a migrated DB agree.

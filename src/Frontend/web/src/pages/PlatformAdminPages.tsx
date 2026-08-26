@@ -4,7 +4,8 @@ import { extractErrorMessage } from "../api/client";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Divider,
   Dialog, DialogActions, DialogContent, DialogTitle,
-  IconButton, InputAdornment, LinearProgress, MenuItem, Stack,
+  FormControl, FormControlLabel, IconButton, InputAdornment, InputLabel,
+  LinearProgress, MenuItem, Select, Stack, Switch,
   Table, TableBody, TableCell, TableHead, TableRow,
   TextField, Tooltip, Typography
 } from "@mui/material";
@@ -26,6 +27,8 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import HistoryIcon from "@mui/icons-material/History";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
@@ -801,6 +804,139 @@ function humanSize(bytes: number): string {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
+/** Scheduler configuration card. GET /schedule fills the form; PUT
+ *  /schedule saves. NextRunAt / LastRunAt are read-only status lines
+ *  so the operator can verify the cadence is actually firing after
+ *  a save. */
+function PlatformBackupScheduleCard({ schedule, qc, onOk, onError }: {
+  schedule?: {
+    enabled: boolean; cadence: string; hourOfDayUtc: number;
+    dayOfWeek: number; dayOfMonth: number; scope: string;
+    retentionDaysDaily: number; retentionMonthsMonthly: number;
+    notifyEmail: string | null;
+    lastRunAt: string | null; nextRunAt: string | null;
+    lastRunFailed: boolean; lastRunMessage: string | null;
+    lastRunFileName: string | null; lastRunSizeBytes: number;
+    lastRunDurationSeconds: number;
+  } | undefined;
+  qc: ReturnType<typeof useQueryClient>;
+  onOk: (m: string) => void;
+  onError: (m: string) => void;
+}) {
+  const [draft, setDraft] = useState({
+    enabled: false, cadence: "daily", hourOfDayUtc: 3, dayOfWeek: 0, dayOfMonth: 1,
+    scope: "full", retentionDaysDaily: 30, retentionMonthsMonthly: 12, notifyEmail: "",
+  });
+  useEffect(() => {
+    if (!schedule) return;
+    setDraft({
+      enabled: schedule.enabled, cadence: schedule.cadence,
+      hourOfDayUtc: schedule.hourOfDayUtc, dayOfWeek: schedule.dayOfWeek,
+      dayOfMonth: schedule.dayOfMonth, scope: schedule.scope,
+      retentionDaysDaily: schedule.retentionDaysDaily,
+      retentionMonthsMonthly: schedule.retentionMonthsMonthly,
+      notifyEmail: schedule.notifyEmail ?? "",
+    });
+  }, [schedule]);
+  const save = useMutation({
+    mutationFn: () => api.put("/platform/backups/schedule", draft),
+    onSuccess: () => {
+      onOk("Το πρόγραμμα αντιγράφων αποθηκεύθηκε.");
+      void qc.invalidateQueries({ queryKey: ["platform-backups", "schedule"] });
+    },
+    onError: (e) => onError(extractErrorMessage(e)),
+  });
+  const days = ["Κυρ", "Δευ", "Τρι", "Τετ", "Πεμ", "Παρ", "Σαβ"];
+  return (
+    <Card sx={{ p: 3, mb: 3 }} variant="outlined">
+      <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+        <Typography fontWeight={800} fontSize={16} sx={{ flex: 1 }}>
+          Πρόγραμμα αυτόματων αντιγράφων
+        </Typography>
+        <FormControlLabel sx={{ m: 0 }}
+          control={<Switch checked={draft.enabled}
+            onChange={e => setDraft({ ...draft, enabled: e.target.checked })} />}
+          label={draft.enabled ? "Ενεργό" : "Ανενεργό"} />
+      </Stack>
+
+      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" } }}>
+        <FormControl size="small" fullWidth>
+          <InputLabel>Συχνότητα</InputLabel>
+          <Select label="Συχνότητα" value={draft.cadence}
+            onChange={e => setDraft({ ...draft, cadence: String(e.target.value) })}>
+            <MenuItem value="daily">Ημερήσια</MenuItem>
+            <MenuItem value="weekly">Εβδομαδιαία</MenuItem>
+            <MenuItem value="monthly">Μηνιαία</MenuItem>
+          </Select>
+        </FormControl>
+        <TextField size="small" label="Ώρα εκτέλεσης (UTC 0-23)" type="number"
+          inputProps={{ min: 0, max: 23 }} value={draft.hourOfDayUtc}
+          onChange={e => setDraft({ ...draft, hourOfDayUtc: parseInt(e.target.value || "0", 10) })} />
+        <FormControl size="small" fullWidth>
+          <InputLabel>Εύρος (scope)</InputLabel>
+          <Select label="Εύρος (scope)" value={draft.scope}
+            onChange={e => setDraft({ ...draft, scope: String(e.target.value) })}>
+            <MenuItem value="full">Πλήρες (platform + όλα τα γραφεία)</MenuItem>
+            <MenuItem value="tenants">Μόνο tenants</MenuItem>
+            <MenuItem value="platform">Μόνο platform</MenuItem>
+          </Select>
+        </FormControl>
+
+        {draft.cadence === "weekly" && (
+          <FormControl size="small" fullWidth>
+            <InputLabel>Ημέρα εβδομάδας</InputLabel>
+            <Select label="Ημέρα εβδομάδας" value={draft.dayOfWeek}
+              onChange={e => setDraft({ ...draft, dayOfWeek: Number(e.target.value) })}>
+              {days.map((d, i) => <MenuItem key={i} value={i}>{d}</MenuItem>)}
+            </Select>
+          </FormControl>
+        )}
+        {draft.cadence === "monthly" && (
+          <TextField size="small" label="Ημέρα μήνα (1-28)" type="number"
+            inputProps={{ min: 1, max: 28 }} value={draft.dayOfMonth}
+            onChange={e => setDraft({ ...draft, dayOfMonth: parseInt(e.target.value || "1", 10) })} />
+        )}
+
+        <TextField size="small" label="Retention: ημέρες (daily window)" type="number"
+          inputProps={{ min: 1, max: 365 }} value={draft.retentionDaysDaily}
+          onChange={e => setDraft({ ...draft, retentionDaysDaily: parseInt(e.target.value || "30", 10) })}
+          helperText="Κρατάει ΟΛΑ τα αρχεία των τελευταίων X ημερών" />
+        <TextField size="small" label="Retention: μήνες (monthly window)" type="number"
+          inputProps={{ min: 0, max: 60 }} value={draft.retentionMonthsMonthly}
+          onChange={e => setDraft({ ...draft, retentionMonthsMonthly: parseInt(e.target.value || "12", 10) })}
+          helperText="Επί των παραπάνω, κρατάει 1 αρχείο/μήνα για τους τελευταίους X μήνες" />
+        <TextField size="small" label="Email για ειδοποιήσεις (comma-separated)"
+          value={draft.notifyEmail}
+          onChange={e => setDraft({ ...draft, notifyEmail: e.target.value })}
+          helperText="Αφήστε κενό για να μην στέλνει email" />
+      </Box>
+
+      {schedule && (
+        <Stack direction="row" spacing={2} mt={2} flexWrap="wrap" useFlexGap>
+          <Chip size="small" icon={<HistoryIcon />}
+            label={schedule.lastRunAt
+              ? `Τελευταίο: ${new Date(schedule.lastRunAt).toLocaleString("el-GR")}`
+              : "Καμία εκτέλεση ακόμη"}
+            color={schedule.lastRunFailed ? "error" : "default"} />
+          <Chip size="small" icon={<ScheduleIcon />}
+            label={schedule.nextRunAt
+              ? `Επόμενο: ${new Date(schedule.nextRunAt).toLocaleString("el-GR")}`
+              : "—"} color="info" />
+          {schedule.lastRunFailed && schedule.lastRunMessage && (
+            <Chip size="small" color="error" label={schedule.lastRunMessage.slice(0, 80)} />
+          )}
+        </Stack>
+      )}
+
+      <Stack direction="row" spacing={1} mt={2}>
+        <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>
+          {save.isPending ? <CircularProgress size={16} /> : "Αποθήκευση προγράμματος"}
+        </Button>
+      </Stack>
+    </Card>
+  );
+}
+
 export function PlatformBackupsPage() {
   const { t } = useTranslation();
   const qcBackups = useQueryClient();
@@ -857,6 +993,55 @@ export function PlatformBackupsPage() {
     onError: (e) => setStatus({ kind: "error", msg: extractErrorMessage(e) })
   });
 
+  // Run-now: fires the platform backup synchronously and waits for the
+  // finished row. Fed by the "Δημιουργία τώρα" button — different from
+  // the old "Δημιουργία backup" which only queued a manifest that a
+  // separate job never picked up (root cause of «τα backups χάθηκαν»
+  // reports — the manifest existed but no file was ever written).
+  const runNowMut = useMutation({
+    mutationFn: async () => (await api.post<{
+      id: string; fileName: string; sizeBytes: number; status: string;
+      durationSeconds: number; message: string | null;
+    }>("/platform/backups/run-now")).data,
+    onSuccess: (row) => {
+      setStatus({ kind: "success",
+        msg: `Backup «${row.fileName}» ολοκληρώθηκε (${humanSize(row.sizeBytes)} σε ${row.durationSeconds}s).` });
+      void qcBackups.invalidateQueries({ queryKey: ["platform-backups"] });
+    },
+    onError: (e) => setStatus({ kind: "error", msg: extractErrorMessage(e) })
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: async (id: string) => api.delete(`/platform/backups/${id}`),
+    onSuccess: () => {
+      setStatus({ kind: "info", msg: "Το backup διαγράφηκε (row + file)." });
+      void qcBackups.invalidateQueries({ queryKey: ["platform-backups"] });
+    },
+    onError: (e) => setStatus({ kind: "error", msg: extractErrorMessage(e) })
+  });
+
+  const storageHealth = useQuery({
+    queryKey: ["platform-backups", "storage-health"],
+    queryFn: async () => (await api.get<{
+      configured: boolean; persistent: boolean; root: string; warning: string | null;
+    }>("/platform/backups/storage-health")).data,
+    staleTime: 5 * 60_000,
+  });
+
+  const schedQ = useQuery({
+    queryKey: ["platform-backups", "schedule"],
+    queryFn: async () => (await api.get<{
+      enabled: boolean; cadence: string; hourOfDayUtc: number;
+      dayOfWeek: number; dayOfMonth: number; scope: string;
+      retentionDaysDaily: number; retentionMonthsMonthly: number;
+      notifyEmail: string | null;
+      lastRunAt: string | null; nextRunAt: string | null;
+      lastRunFailed: boolean; lastRunMessage: string | null;
+      lastRunFileName: string | null; lastRunSizeBytes: number;
+      lastRunDurationSeconds: number;
+    }>("/platform/backups/schedule")).data,
+  });
+
   const runImport = () => {
     if (!importFile) { setStatus({ kind: "error", msg: "Επιλέξτε αρχείο .zip πρώτα." }); return; }
     importMut.mutate(importFile);
@@ -875,19 +1060,45 @@ export function PlatformBackupsPage() {
         <Kpi label="Off-site" value="Hetzner S3" hint="AES-256 at rest" />
       </Box>
 
+      {/* Storage-health warning — ROOT CAUSE of the «τα backups
+          εξαφανίστηκαν» incident. Coolify redeploys wipe the container
+          filesystem; if Storage:LocalRoot points inside AppContext.
+          BaseDirectory the backups are LOST on every redeploy. */}
+      {storageHealth.data && !storageHealth.data.persistent && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <b>Τα backups ΔΕΝ αποθηκεύονται σε persistent volume.</b> Το
+          Storage:LocalRoot ({storageHealth.data.root}) βρίσκεται μέσα στο
+          container filesystem — κάθε redeploy θα διαγράψει όλα τα backups.
+          Ρυθμίστε στο Coolify persistent volume στη διαδρομή
+          <code style={{ marginLeft: 4 }}>/data/uploads</code> (ή άλλη
+          διαδρομή) και βάλτε <code>Storage__LocalRoot</code> env var σε
+          αυτήν.
+        </Alert>
+      )}
+
+      {/* Scheduler configuration */}
+      <PlatformBackupScheduleCard schedule={schedQ.data} qc={qcBackups}
+        onError={m => setStatus({ kind: "error", msg: m })}
+        onOk={m => setStatus({ kind: "success", msg: m })} />
+
       {/* Action panel */}
       <Card sx={{ p: 3, mb: 3 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }}>
           <Box sx={{ flex: 1 }}>
             <Typography fontWeight={800} fontSize={16}>Νέο backup / Restore</Typography>
             <Typography variant="caption" color="text.secondary">
-              Δημιούργησε full-platform backup ή κάνε import από zip για restore.
+              Δημιούργησε full-platform backup ΤΩΡΑ ή κάνε import από zip για restore.
             </Typography>
           </Box>
-          <Button variant="contained" startIcon={<CloudUploadIcon />}
+          <Button variant="contained" startIcon={<PlayArrowIcon />}
+            disabled={runNowMut.isPending}
+            onClick={() => runNowMut.mutate()}>
+            {runNowMut.isPending ? <CircularProgress size={16} /> : "Δημιουργία τώρα (sync)"}
+          </Button>
+          <Button variant="outlined" startIcon={<CloudUploadIcon />}
             disabled={createMut.isPending}
             onClick={() => setScopeDialog(true)}>
-            {createMut.isPending ? <CircularProgress size={16} /> : "Δημιουργία backup"}
+            {createMut.isPending ? <CircularProgress size={16} /> : "Επιλογή scope…"}
           </Button>
           <Button variant="outlined" component="label" disabled={importMut.isPending}>
             Επιλογή zip
@@ -958,6 +1169,18 @@ export function PlatformBackupsPage() {
                         disabled={b.status !== "Completed" && b.status !== "AwaitingRestore"}
                         onClick={() => setRestoreConfirmId(b.id)}>
                         <RefreshIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                  <Tooltip title="Διαγραφή backup (row + file)">
+                    <span>
+                      <IconButton size="small" color="error"
+                        disabled={deleteMut.isPending}
+                        onClick={() => {
+                          if (window.confirm(`Διαγραφή του ${b.fileName}; Η ενέργεια είναι μη αναστρέψιμη.`))
+                            deleteMut.mutate(b.id);
+                        }}>
+                        <DeleteIcon fontSize="small" />
                       </IconButton>
                     </span>
                   </Tooltip>
