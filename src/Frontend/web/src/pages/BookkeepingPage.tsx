@@ -720,16 +720,42 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
               Ανέβασμα (μπλοκαρισμένο)
             </Button>
           ) : (
-            <Button size="small" variant="contained" startIcon={<UploadFileIcon />} component="label"
-              disabled={uploading} sx={{ py: 1 }}>
-              {uploading ? "Ανέβασμα…" : "Ανέβασμα αρχείου"}
-              <input type="file" hidden
+            // Native <label htmlFor> instead of MUI Button component="label".
+            // I already tried MUI Button + label (didn't open picker), MUI
+            // Button + ref.click() (didn't open picker), MUI Button + label
+            // wrapped in Tooltip (didn't open picker either). Reverting to
+            // plain HTML label + input styled as a MUI-looking button removes
+            // every ref-forwarding + wrapper layer that could swallow the
+            // click. This IS how <input type=file> was designed to be
+            // triggered — no JavaScript required.
+            <Box component="label" htmlFor="bookkeeping-file-input" sx={{
+              display: "inline-flex", alignItems: "center", gap: 1,
+              px: 1.6, py: 0.7, borderRadius: 1,
+              bgcolor: uploading ? "action.disabledBackground" : "primary.main",
+              color: uploading ? "text.disabled" : "primary.contrastText",
+              fontSize: 13, fontWeight: 600, textTransform: "uppercase",
+              letterSpacing: "0.02em",
+              cursor: uploading ? "default" : "pointer",
+              pointerEvents: uploading ? "none" : "auto",
+              transition: "background 120ms",
+              "&:hover": { bgcolor: uploading ? undefined : "primary.dark" },
+            }}>
+              <UploadFileIcon fontSize="small" />
+              {uploading ? "Ανέβασμα…" : "Ανέβασμα"}
+              <input id="bookkeeping-file-input" type="file"
+                style={{
+                  position: "absolute", width: 1, height: 1,
+                  padding: 0, margin: -1, overflow: "hidden",
+                  clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0,
+                }}
                 onChange={e => {
+                  // eslint-disable-next-line no-console
+                  console.log("[BookkeepingUpload] input onChange fired, files:", e.target.files?.length);
                   const f = e.target.files?.[0];
                   if (f) void uploadFile(f);
                   e.target.value = "";
                 }} />
-            </Button>
+            </Box>
           )}
         </Stack>
         {uploading && <LinearProgress />}
