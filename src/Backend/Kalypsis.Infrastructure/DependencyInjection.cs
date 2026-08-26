@@ -30,8 +30,19 @@ public static class DependencyInjection
             : new MySqlServerVersion(new Version(8, 0, 36));
 
         services.AddDbContext<AppDbContext>(opt =>
+        {
             opt.UseMySql(connectionString, serverVersion,
-                mysql => mysql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)));
+                mysql => mysql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
+            // The project uses a safety-net seeder (DataSeeder) that ALTERs /
+            // CREATEs tables idempotently on startup rather than EF migrations.
+            // EF emits a startup warning when the model has changes that aren't
+            // in a migration — silence it explicitly so the log is clean and
+            // ops don't chase a false alarm on every boot. If a real bug ever
+            // surfaces (missing safety-net for a new column), the runtime
+            // error will still fire from the query layer.
+            opt.ConfigureWarnings(w => w.Ignore(
+                Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+        });
 
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 

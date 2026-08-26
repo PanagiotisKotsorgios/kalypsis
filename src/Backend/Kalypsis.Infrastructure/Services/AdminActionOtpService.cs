@@ -84,8 +84,22 @@ public sealed class AdminActionOtpService : IAdminActionOtpService
             row.DeletedAt = now;
             try { await _db.SaveChangesAsync(ct); } catch { /* best effort */ }
             _log.LogError("Admin OTP challenge {Id}: email failed ({Err}). Refusing challenge.", row.Id, res.ErrorMessage);
+            // Surface the ACTUAL Brevo error to the admin so they can fix it
+            // fast (wrong API key / unverified sender / hit their quota, etc).
+            // Common cases:
+            //   • «Key not found / unauthorized» → API key wrong / expired,
+            //     open /app/settings and paste the current key from
+            //     https://app.brevo.com/settings/keys/api
+            //   • «Sender not verified» → verify info@mykalypsis.gr from
+            //     https://app.brevo.com/senders/list
+            //   • «Domain … not authenticated» → DKIM DNS record missing —
+            //     see the Brevo domain settings for the record to add
+            var hint = res.ErrorMessage?.Contains("unauthorized", StringComparison.OrdinalIgnoreCase) == true
+                       || res.ErrorMessage?.Contains("Key not found", StringComparison.OrdinalIgnoreCase) == true
+                ? " → Το Brevo API key δεν είναι έγκυρο. Ενημερώστε το στο /app/settings (Brevo API key)."
+                : "";
             throw new InvalidOperationException(
-                "Δεν στάλθηκε ο κωδικός στο info@mykalypsis.gr — έλεγξε την Brevo ρύθμιση στο Platform Settings.");
+                $"Ο 6-ψήφιος κωδικός ΔΕΝ στάλθηκε στο info@mykalypsis.gr μέσω Brevo. Απόκριση: {res.ErrorMessage}{hint}");
         }
         _log.LogInformation("Admin OTP challenge {Id} emailed for action='{Action}' target='{Target}'.",
             row.Id, row.Action, row.Target);

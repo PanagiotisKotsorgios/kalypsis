@@ -8,6 +8,7 @@ using Kalypsis.Application;
 using Kalypsis.Infrastructure;
 using Kalypsis.Infrastructure.Auth;
 using Kalypsis.Infrastructure.Persistence.Seeders;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
@@ -18,6 +19,22 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddMemoryCache();
+
+// ── DataProtection: persist keys across container restarts ────────────
+// The default provider stores keys under ~/.aspnet/DataProtection-Keys
+// which sits inside the container filesystem — every Coolify redeploy
+// wipes them, causing antiforgery + cookie decryption to fail for
+// existing sessions (users log out unexpectedly). Point at a persistent
+// folder inside the mounted volume so keys survive restarts.
+{
+    var storageRoot = builder.Configuration["Storage:LocalRoot"]
+        ?? System.IO.Path.Combine(AppContext.BaseDirectory, "uploads");
+    var dpDir = System.IO.Path.Combine(storageRoot, "dataprotection-keys");
+    try { System.IO.Directory.CreateDirectory(dpDir); } catch { /* readonly fs — fall through to default */ }
+    builder.Services.AddDataProtection()
+        .SetApplicationName("Kalypsis")
+        .PersistKeysToFileSystem(new System.IO.DirectoryInfo(dpDir));
+}
 builder.Services.AddHttpClient("desktop-releases-github", client =>
 {
     client.BaseAddress = new Uri("https://api.github.com/");

@@ -47,6 +47,20 @@ export function PlatformEmailTemplatesPage() {
     onError: (e) => setError(extractErrorMessage(e))
   });
 
+  // Inline on/off — hits the existing PUT endpoint with only isActive
+  // flipped so a template can be silenced without opening the editor.
+  const toggleActive = useMutation({
+    mutationFn: async (t: TemplateDto) => api.put(`/platform/email-templates/${t.id}`, {
+      code: t.code, name: t.name, subject: t.subject,
+      bodyHtml: t.bodyHtml, bodyPlain: t.bodyPlain,
+      language: t.language, triggerEvent: t.triggerEvent,
+      sampleVariablesJson: t.sampleVariablesJson,
+      brevoTemplateId: t.brevoTemplateId, isActive: !t.isActive,
+    }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["platform-email-templates"] }),
+    onError: (e) => setError(extractErrorMessage(e))
+  });
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
@@ -84,9 +98,14 @@ export function PlatformEmailTemplatesPage() {
                       {t.code}
                     </Typography>
                   </Box>
-                  <Stack direction="row" spacing={0.5}>
+                  <Stack direction="row" spacing={0.5} alignItems="center">
                     {t.isSystem && <Chip size="small" label="ΣΥΣΤΗΜΑΤΟΣ" color="warning" />}
-                    <Chip size="small" color={t.isActive ? "success" : "default"} label={t.isActive ? "Ενεργό" : "Ανενεργό"} />
+                    <FormControlLabel sx={{ m: 0 }}
+                      control={<Switch size="small" checked={t.isActive}
+                        disabled={toggleActive.isPending}
+                        onChange={() => toggleActive.mutate(t)} />}
+                      label={<Chip size="small" color={t.isActive ? "success" : "default"}
+                        label={t.isActive ? "Ενεργό" : "Ανενεργό"} />} />
                   </Stack>
                 </Stack>
                 <Typography variant="body2" sx={{ mb: 1 }}>
