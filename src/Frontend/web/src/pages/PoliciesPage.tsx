@@ -333,29 +333,9 @@ export function PoliciesPage() {
         </Box>
         <Stack direction="row" spacing={1}>
           {canEdit && activeView === "policies" && <ExportButton href="/api/exports/policies.csv" />}
-          {/* Ανανεώσεις moved out of the sidebar — reachable from here so the
-              sidebar has one fewer entry. Same underlying page. */}
-          {canEdit && activeView === "policies" && (
-            <Button component={RouterLink} to="/app/renewals"
-              variant="outlined" startIcon={<EventRepeatIcon />} size="large">
-              {t("nav.renewals", "Ανανεώσεις")}
-            </Button>
-          )}
-          {/* Πρόσθετες πράξεις + Ακυρώσεις moved out of the sidebar and
-              reachable from here. Same underlying pages — no functional
-              change, just one fewer sidebar row each. */}
-          {canEdit && activeView === "policies" && (
-            <Button component={RouterLink} to="/app/endorsements"
-              variant="outlined" startIcon={<EditNoteIcon />} size="large">
-              {t("nav.endorsements", "Πρόσθετες πράξεις")}
-            </Button>
-          )}
-          {canEdit && activeView === "policies" && (
-            <Button component={RouterLink} to="/app/cancellations"
-              variant="outlined" startIcon={<CancelPresentationIcon />} size="large">
-              {t("nav.cancellations", "Ακυρώσεις")}
-            </Button>
-          )}
+          {/* Ανανεώσεις / Πρόσθετες πράξεις / Ακυρώσεις were briefly here;
+              moved down next to the «Ομαδικά συμβόλαια» view-switcher
+              button so all lifecycle actions live in the same row. */}
           {canEdit && activeView === "policies" && (
             <Button data-tour="policies-new" startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateOpen(true); }}>
               {t("policies.create")}
@@ -366,7 +346,8 @@ export function PoliciesPage() {
 
       {canEdit && (
         <Card variant="outlined" sx={{ p: 1, mb: 2 }}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}
+            useFlexGap flexWrap="wrap" alignItems="center">
             <Button
               variant={activeView === "policies" ? "contained" : "outlined"}
               onClick={() => setActiveView("policies")}
@@ -386,6 +367,23 @@ export function PoliciesPage() {
               onClick={() => setActiveView("group")}
             >
               {t("groupPolicies.title")}
+            </Button>
+            {/* Cross-links to policy-lifecycle pages — visually separated
+                from the view switchers by a small vertical divider so the
+                user reads them as "go to another page" not "swap view".
+                Kept in the same card row per user request. */}
+            <Box sx={{ borderLeft: 1, borderColor: "divider", height: 28, mx: 0.5 }} />
+            <Button component={RouterLink} to="/app/renewals"
+              variant="outlined" startIcon={<EventRepeatIcon />}>
+              {t("nav.renewals", "Ανανεώσεις")}
+            </Button>
+            <Button component={RouterLink} to="/app/endorsements"
+              variant="outlined" startIcon={<EditNoteIcon />}>
+              {t("nav.endorsements", "Πρόσθετες πράξεις")}
+            </Button>
+            <Button component={RouterLink} to="/app/cancellations"
+              variant="outlined" startIcon={<CancelPresentationIcon />}>
+              {t("nav.cancellations", "Ακυρώσεις")}
             </Button>
           </Stack>
         </Card>
