@@ -32,7 +32,13 @@ public record ProductionFilters(
     // BranchCodeRaw holds the raw carrier token that the handler queries
     // against Policy.CarrierBranchCode. Πακέτο / Κάλυψη use the always-
     // string PackageCode / CoverCode fields — no separate raw variant.
-    string? BranchCodeRaw = null)   // "carrier" | "producer" | "type" | "month" | null
+    string? BranchCodeRaw = null,   // "carrier" | "producer" | "type" | "month" | null
+    // Which policy date field the From/To window applies to:
+    //   "start"    → Policy.StartDate (coverage begin) — DEFAULT, backward-compat
+    //   "issued"   → Policy.IssuedAt (carrier issuance / Έκδοση)
+    //   "recorded" → Policy.CreatedAt (row insert / Καταχώρηση)
+    // Anything else (or null) falls back to "start".
+    string? DateField = null)
 {
     // Frontend Παραμετρικά dropdowns send either the strict enum value
     // (when the operator wired policyType / vehicleUseCategory on the
@@ -145,8 +151,35 @@ public static class ProductionListBuilder
             .Include(p => p.Producer)
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null);
 
-        if (f.From.HasValue) query = query.Where(p => p.StartDate >= f.From);
-        if (f.To.HasValue)   query = query.Where(p => p.StartDate <= f.To);
+        // Date-field switch (Έναρξη κάλυψης | Έκδοση | Καταχώρηση).
+        //   IssuedAt is nullable — rows without a carrier issuance date
+        //   fall outside the window (correct: they aren't dated).
+        //   CreatedAt is a DateTime (row insert) → compare via DateOnly
+        //   conversion so the [from, to] window is inclusive on the day.
+        var dateField = (f.DateField ?? "start").ToLowerInvariant();
+        if (dateField == "issued")
+        {
+            if (f.From.HasValue) query = query.Where(p => p.IssuedAt != null && p.IssuedAt >= f.From);
+            if (f.To.HasValue)   query = query.Where(p => p.IssuedAt != null && p.IssuedAt <= f.To);
+        }
+        else if (dateField == "recorded")
+        {
+            if (f.From.HasValue)
+            {
+                var fromDt = f.From.Value.ToDateTime(TimeOnly.MinValue);
+                query = query.Where(p => p.CreatedAt >= fromDt);
+            }
+            if (f.To.HasValue)
+            {
+                var toDt = f.To.Value.ToDateTime(TimeOnly.MaxValue);
+                query = query.Where(p => p.CreatedAt <= toDt);
+            }
+        }
+        else
+        {
+            if (f.From.HasValue) query = query.Where(p => p.StartDate >= f.From);
+            if (f.To.HasValue)   query = query.Where(p => p.StartDate <= f.To);
+        }
         if (f.InsuranceCompanyId.HasValue)
         {
             // Cascade: when a broker is selected, also include all of its subs

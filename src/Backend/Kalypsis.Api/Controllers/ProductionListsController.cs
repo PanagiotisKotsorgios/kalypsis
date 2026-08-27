@@ -23,13 +23,14 @@ public class ProductionListsController : ControllerBase
         [FromQuery] string? policyType, [FromQuery] PolicyStatus? status,
         [FromQuery] string? vehicleUseCategory, [FromQuery] string? coverCode,
         [FromQuery] string? packageCode,
-        [FromQuery] string? groupBy, CancellationToken ct)
+        [FromQuery] string? groupBy, [FromQuery] string? dateField, CancellationToken ct)
         => Ok(await _mediator.Send(new GetProductionListQuery(
             new ProductionFilters(from, to, insuranceCompanyId, producerId,
                 ProductionFilters.ParseBranch(policyType), status,
                 ProductionFilters.ParseUse(vehicleUseCategory), coverCode, groupBy, packageCode,
                 ProductionFilters.RawUseFallback(vehicleUseCategory),
-                ProductionFilters.RawBranchFallback(policyType))), ct));
+                ProductionFilters.RawBranchFallback(policyType),
+                DateField: dateField)), ct));
 
     [HttpGet("export")]
     public async Task<IActionResult> Export(
@@ -38,7 +39,8 @@ public class ProductionListsController : ControllerBase
         [FromQuery] string? policyType, [FromQuery] PolicyStatus? status,
         [FromQuery] string? vehicleUseCategory, [FromQuery] string? coverCode,
         [FromQuery] string? packageCode,
-        [FromQuery] string? groupBy, [FromQuery] string format = "csv",
+        [FromQuery] string? groupBy, [FromQuery] string? dateField,
+        [FromQuery] string format = "csv",
         CancellationToken ct = default)
     {
         var result = await _mediator.Send(new ExportProductionListQuery(
@@ -46,7 +48,8 @@ public class ProductionListsController : ControllerBase
                 ProductionFilters.ParseBranch(policyType), status,
                 ProductionFilters.ParseUse(vehicleUseCategory), coverCode, groupBy, packageCode,
                 ProductionFilters.RawUseFallback(vehicleUseCategory),
-                ProductionFilters.RawBranchFallback(policyType)),
+                ProductionFilters.RawBranchFallback(policyType),
+                DateField: dateField),
             format), ct);
         return File(result.Content, result.MimeType, result.FileName);
     }

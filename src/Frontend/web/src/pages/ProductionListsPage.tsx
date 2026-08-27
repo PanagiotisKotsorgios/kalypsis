@@ -69,6 +69,14 @@ export function ProductionListsPage() {
 
   const [f, setF] = useState({
     from: monthStart, to: todayStr,
+    // Which policy date the from/to window applies to:
+    //   "start"    → Ημερομηνία έναρξης κάλυψης (default; backward-compat)
+    //   "issued"   → Ημερομηνία έκδοσης από την ασφαλιστική
+    //   "recorded" → Ημερομηνία καταχώρησης στο σύστημα
+    // «Ημερομηνία πληρωμής» is deliberately NOT here — payment lives on
+    // Receipts/Installments, not on Policy, so a payment-date filter
+    // would need a subquery join. Punted as a follow-up.
+    dateField: "start",
     insuranceCompanyId: "", producerId: "",
     policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "",
     status: "", groupBy: "carrier"
@@ -158,6 +166,9 @@ export function ProductionListsPage() {
   const params = {
     from: f.from || undefined,
     to: f.to || undefined,
+    // Omit when at the "start" default so the query key doesn't split
+    // the cache and old saved-report payloads keep matching.
+    dateField: f.dateField && f.dateField !== "start" ? f.dateField : undefined,
     insuranceCompanyId: f.insuranceCompanyId || undefined,
     producerId: f.producerId || undefined,
     policyType: f.policyType || undefined,
@@ -501,6 +512,21 @@ export function ProductionListsPage() {
         {/* Compact grid — 6 columns on lg, 3 on md. Same ? position unchanged
             (next to the page title above). */}
         <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)", lg: "repeat(6, 1fr)" } }}>
+          {/* «Πεδίο ημερομηνίας» — switches which policy date the Από/Έως
+              window filters on. Default «Έναρξη» preserves backward-compat
+              with saved reports. «Πληρωμή» is intentionally omitted for
+              now: payments live on Receipts, not Policy, so that filter
+              would need a join. */}
+          <SearchableSelect
+            label="Πεδίο ημερομηνίας"
+            value={f.dateField}
+            onChange={(v) => setF({ ...f, dateField: v || "start" })}
+            options={[
+              { value: "start", label: "Έναρξη κάλυψης" },
+              { value: "issued", label: "Έκδοση από ασφαλιστική" },
+              { value: "recorded", label: "Καταχώρηση στο σύστημα" },
+            ]}
+          />
           <TextField type="date" size="small" InputLabelProps={{ shrink: true }} label={t("productionList.from")}
             value={f.from} onChange={e => setF({ ...f, from: e.target.value })} />
           <TextField type="date" size="small" InputLabelProps={{ shrink: true }} label={t("productionList.to")}
@@ -601,7 +627,7 @@ export function ProductionListsPage() {
         <Stack direction="row" justifyContent="flex-end" mt={1.5}>
           <Button size="small"
             onClick={() => setF({
-              from: monthStart, to: todayStr,
+              from: monthStart, to: todayStr, dateField: "start",
               insuranceCompanyId: "", producerId: "",
               policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "",
               status: "", groupBy: "carrier"
