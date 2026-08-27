@@ -20,6 +20,8 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { api, extractErrorMessage } from "../api/client";
 
 /**
@@ -1018,6 +1020,27 @@ function TenantTreeRow({ folder, depth, folders, selectedId, onSelect,
 }) {
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [isDropOver, setIsDropOver] = useState(false);
+  // Collapsed sub-tree — kept per-row so deep trees stay manageable.
+  // Persisted per tenant/browser via localStorage so an expand-state
+  // survives navigation. Default collapsed so a fresh render shows
+  // just the roots; the user opens what they need.
+  const [expanded, setExpanded] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(`kalypsis.bk.expand.${folder.id}`) === "1";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (expanded) localStorage.setItem(`kalypsis.bk.expand.${folder.id}`, "1");
+    else localStorage.removeItem(`kalypsis.bk.expand.${folder.id}`);
+  }, [expanded, folder.id]);
+  const hasChildren = folders.some(f => (f.parentFolderId ?? null) === folder.id
+    && (!visibleFolderIds || visibleFolderIds.has(f.id)));
+  // When a search is active (visibleFolderIds set), force-expand every
+  // row so matches inside a collapsed subtree still surface. Also
+  // force-expand when this folder is a drop target ancestor — makes
+  // drag-to-nested-folder feasible even in the collapsed state.
+  const effectivelyExpanded = expanded || visibleFolderIds !== null
+    || (draggingFolderId !== null && isDropOver);
   const isSystem = folder.origin === "system";
   // Is THIS row a valid drop target for whatever is being dragged?
   //   • Folder drag: reject self + descendants (cycle) — matches server guard.
@@ -1079,6 +1102,22 @@ function TenantTreeRow({ folder, depth, folders, selectedId, onSelect,
           "& .row-actions": { opacity: 0.35 },
           "&:hover .row-actions, &.Mui-selected .row-actions": { opacity: 1 },
         }}>
+        {/* Collapse toggle — always reserved width so folders with and
+            without children align at the same left edge. Clicking the
+            chevron only toggles the sub-tree; it must NOT also select
+            the folder (stopPropagation). Hidden as a no-op arrow when
+            the row has no children. */}
+        <Box sx={{ width: 22, mr: 0.25, display: "flex", justifyContent: "center" }}>
+          {hasChildren ? (
+            <IconButton size="small" sx={{ p: 0.25 }}
+              onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
+              aria-label={effectivelyExpanded ? "Σύμπτυξη" : "Ανάπτυξη"}>
+              {effectivelyExpanded
+                ? <ExpandMoreIcon fontSize="small" />
+                : <ChevronRightIcon fontSize="small" />}
+            </IconButton>
+          ) : null}
+        </Box>
         <ListItemIcon sx={{ minWidth: 28 }}>
           {folder.id === selectedId ? <FolderSpecialIcon fontSize="small" color="primary" /> : <FolderIcon fontSize="small" />}
         </ListItemIcon>
@@ -1113,14 +1152,16 @@ function TenantTreeRow({ folder, depth, folders, selectedId, onSelect,
           Διαγραφή
         </MenuItem>
       </Menu>
-      <TenantTreeNode folders={folders} parentId={folder.id} depth={depth + 1}
-        selectedId={selectedId} onSelect={onSelect}
-        visibleFolderIds={visibleFolderIds}
-        draggingFolderId={draggingFolderId} draggingFileId={draggingFileId}
-        onDragStart={onDragStart} onDragEnd={onDragEnd}
-        onDropOnFolder={onDropOnFolder} onDropFileOnFolder={onDropFileOnFolder}
-        isDescendantOf={isDescendantOf}
-        onNewSubfolder={onNewSubfolder} onRename={onRename} onDelete={onDelete} />
+      {effectivelyExpanded && (
+        <TenantTreeNode folders={folders} parentId={folder.id} depth={depth + 1}
+          selectedId={selectedId} onSelect={onSelect}
+          visibleFolderIds={visibleFolderIds}
+          draggingFolderId={draggingFolderId} draggingFileId={draggingFileId}
+          onDragStart={onDragStart} onDragEnd={onDragEnd}
+          onDropOnFolder={onDropOnFolder} onDropFileOnFolder={onDropFileOnFolder}
+          isDescendantOf={isDescendantOf}
+          onNewSubfolder={onNewSubfolder} onRename={onRename} onDelete={onDelete} />
+      )}
     </Box>
   );
 }
