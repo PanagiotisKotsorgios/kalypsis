@@ -5,7 +5,6 @@ import {
 } from "@mui/material";
 import SavingsOutlinedIcon from "@mui/icons-material/SavingsOutlined";
 import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
-import CalculateIcon from "@mui/icons-material/Calculate";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
@@ -25,7 +24,7 @@ const FINANCIAL_TOOLS = [
   // through this screen day-to-day.
   { to: "/app/advance-payments", label: "Προκαταβολές", detail: "Προκαταβολές πελατών και συμψηφισμοί", icon: <SavingsOutlinedIcon /> },
   { to: "/app/reconciliation", label: "Συμφωνία κινήσεων", detail: "Έλεγχος εισπράξεων και εκκρεμοτήτων", icon: <CompareArrowsIcon /> },
-  { to: "/app/accounting", label: "Εξαγωγές λογιστικής", detail: "Αρχεία και παραδόσεις προς λογιστήριο", icon: <CalculateIcon /> }
+  // «Εξαγωγές λογιστικής» tile removed with the /app/accounting page.
 ];
 
 interface MovementDto {

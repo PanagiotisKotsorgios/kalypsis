@@ -143,7 +143,6 @@ import { DocumentManagerPage } from "./pages/DocumentManagerPage";
 import { PartnerPortalsPage } from "./pages/PartnerPortalsPage";
 import { ApiKeysPage } from "./pages/ApiKeysPage";
 import { DiasCodesPage } from "./pages/DiasCodesPage";
-import { AccountingExportsPage } from "./pages/AccountingExportsPage";
 import { KepyoReportsPage } from "./pages/KepyoReportsPage";
 import { MagneticImportsPage } from "./pages/MagneticImportsPage";
 import { OverCommissionsPage } from "./pages/OverCommissionsPage";
@@ -953,7 +952,9 @@ export default function App() {
                   <Route path="partner-portals" element={<PackageGate package="Integrations"><PartnerPortalsPage /></PackageGate>} />
                   <Route path="api-keys" element={<PackageGate package="Integrations"><ApiKeysPage /></PackageGate>} />
                   <Route path="dias" element={<PackageGate package="Integrations"><DiasCodesPage /></PackageGate>} />
-                  <Route path="accounting" element={<AccountingExportsPage />} />
+                  {/* /app/accounting removed per user request — the page had
+                      no consumer. Backend /api/accounting-exports left in
+                      place (still used by the BlueByte integration path). */}
                   <Route path="kepyo" element={<KepyoReportsPage />} />
                   <Route path="magnetic-import" element={<MagneticImportsPage />} />
                   <Route path="over-commissions" element={<OverCommissionsPage />} />
