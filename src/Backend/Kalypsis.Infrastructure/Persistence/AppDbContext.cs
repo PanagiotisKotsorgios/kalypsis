@@ -45,6 +45,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<PlatformSetting> PlatformSettings => Set<PlatformSetting>();
+    public DbSet<PlatformAnnouncement> PlatformAnnouncements => Set<PlatformAnnouncement>();
+    public DbSet<UserAnnouncementDismissal> UserAnnouncementDismissals => Set<UserAnnouncementDismissal>();
     public DbSet<ServiceRequest> ServiceRequests => Set<ServiceRequest>();
     public DbSet<ServiceRequestAttachment> ServiceRequestAttachments => Set<ServiceRequestAttachment>();
 
@@ -412,6 +414,13 @@ public class AppDbContext : DbContext, IAppDbContext
         modelBuilder.Entity<TenantOverCommissionBridgeMapping>()
             .ToTable("tenant_over_commission_bridge_mappings")
             .HasIndex(x => new { x.TenantId, x.InsuranceCompanyId }).IsUnique();
+        // Platform-wide announcement banners + per-user dismissals.
+        modelBuilder.Entity<PlatformAnnouncement>()
+            .ToTable("platform_announcements")
+            .HasIndex(x => new { x.IsEnabled, x.CreatedAt });
+        modelBuilder.Entity<UserAnnouncementDismissal>()
+            .ToTable("user_announcement_dismissals")
+            .HasIndex(x => new { x.UserId, x.AnnouncementId }).IsUnique();
 
         // Bookkeeping tables — snake_case names, matching the seeder
         // safety-net so a fresh DB and a migrated DB agree.

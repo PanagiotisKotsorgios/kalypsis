@@ -773,6 +773,46 @@ public static class DataSeeder
                 UNIQUE KEY `UX_ocmap_Tenant_Carrier` (`TenantId`, `InsuranceCompanyId`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
 
+        // --- platform_announcements: banners the platform admin publishes
+        // after redeploys (release notes / planned maintenance / etc.).
+        // Not tenant-scoped — one row reaches every office. IsEnabled
+        // toggles visibility without deleting so history survives.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "platform_announcements",
+            createSql: @"CREATE TABLE IF NOT EXISTS `platform_announcements` (
+                `Id`               char(36) NOT NULL,
+                `Title`            varchar(200) NOT NULL,
+                `Body`             text NOT NULL,
+                `Severity`         varchar(20) NOT NULL DEFAULT 'info',
+                `Version`          varchar(60) NULL,
+                `LinkUrl`          varchar(500) NULL,
+                `LinkLabel`        varchar(100) NULL,
+                `IsEnabled`        tinyint(1) NOT NULL DEFAULT 1,
+                `CreatedByUserId`  char(36) NULL,
+                `CreatedAt`        datetime(6) NOT NULL,
+                `UpdatedAt`        datetime(6) NULL,
+                `DeletedAt`        datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_announcements_Enabled_Created` (`IsEnabled`, `CreatedAt`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
+        // --- user_announcement_dismissals: one row per (user, announcement)
+        // means "never show this to me again". Backing store for the ×
+        // button on the banner.
+        await EnsureTableAsync(db, logger, dbName,
+            table: "user_announcement_dismissals",
+            createSql: @"CREATE TABLE IF NOT EXISTS `user_announcement_dismissals` (
+                `Id`               char(36) NOT NULL,
+                `AnnouncementId`   char(36) NOT NULL,
+                `UserId`           char(36) NOT NULL,
+                `DismissedAt`      datetime(6) NOT NULL,
+                `CreatedAt`        datetime(6) NOT NULL,
+                `UpdatedAt`        datetime(6) NULL,
+                `DeletedAt`        datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_announcement_dismissal_User_Ann` (`UserId`, `AnnouncementId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
+
         // --- admin_action_challenges: 6-digit OTP verification for
         // destructive platform-admin actions (delete, wipe, mass ops).
         // See AdminActionChallenge entity + AdminOtpController.

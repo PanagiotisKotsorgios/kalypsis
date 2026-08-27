@@ -4,6 +4,7 @@ import { Box } from "@mui/material";
 import { AppLayout, type NavItem } from "./AppLayout";
 import { BackOfficeActionHelp } from "./BackOfficeActionHelp";
 import { EmployeeActivityTracker } from "./EmployeeActivityTracker";
+import { AnnouncementsBanner } from "./AnnouncementsBanner";
 import type { Role } from "../auth/AuthContext";
 
 /**
@@ -33,6 +34,11 @@ export function AppShell({
   return (
     <AppLayout navItems={navItems}>
       {shouldTrackEmployeeActivity && <EmployeeActivityTracker />}
+      {/* Global banner rendered once per authenticated shell — every
+          logged-in role sees the platform admin's active announcements
+          until they dismiss each one individually. Mounted here rather
+          than per-page so the banner survives route changes. */}
+      <AnnouncementsBanner />
       {isAgencyRole ? (
         <Box data-backoffice-help-root>
           {children}

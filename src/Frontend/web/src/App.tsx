@@ -168,6 +168,7 @@ import { WorkspaceHubPage } from "./pages/WorkspaceHubPage";
 import { SupportRequestPage } from "./pages/SupportRequestPage";
 import { PlatformEmailTemplatesPage } from "./pages/PlatformEmailTemplatesPage";
 import { PlatformMaintenancePage } from "./pages/PlatformMaintenancePage";
+import { PlatformAnnouncementsPage } from "./pages/PlatformAnnouncementsPage";
 import { InsuranceCompaniesPage } from "./pages/InsuranceCompaniesPage";
 import { EndorsementsPage } from "./pages/EndorsementsPage";
 import { PolicyCancellationsPage } from "./pages/PolicyCancellationsPage";
@@ -537,6 +538,8 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/platform/parametric-files", labelKey: "nav.broadcastParametric", icon: <InventoryIcon />,
       group: "nav.group.tooling" },
     { to: "/platform/maintenance", labelKey: "nav.maintenance", icon: <EngineeringIcon />,
+      group: "nav.group.tooling" },
+    { to: "/platform/announcements", labelKey: "nav.platformAnnouncements", icon: <CampaignIcon />,
       group: "nav.group.tooling" },
 
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
@@ -937,6 +940,7 @@ export default function App() {
                   <Route path="bookkeeping" element={<BookkeepingPage />} />
                   <Route path="platform/email-templates" element={<PlatformEmailTemplatesPage />} />
                   <Route path="platform/maintenance" element={<PlatformMaintenancePage />} />
+                  <Route path="platform/announcements" element={<PlatformAnnouncementsPage />} />
                   <Route path="platform/*" element={<ComingSoonPage />} />
                   <Route path="agency/*" element={<ComingSoonPage />} />
 

@@ -32,6 +32,8 @@ public interface IAppDbContext
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<PasswordResetToken> PasswordResetTokens { get; }
     DbSet<PlatformSetting> PlatformSettings { get; }
+    DbSet<PlatformAnnouncement> PlatformAnnouncements { get; }
+    DbSet<UserAnnouncementDismissal> UserAnnouncementDismissals { get; }
     DbSet<ServiceRequest> ServiceRequests { get; }
     DbSet<ServiceRequestAttachment> ServiceRequestAttachments { get; }
 
