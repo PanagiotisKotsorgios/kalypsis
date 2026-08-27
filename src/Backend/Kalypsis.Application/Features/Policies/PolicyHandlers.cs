@@ -466,6 +466,45 @@ public class CancelPolicyCommandHandler : IRequestHandler<CancelPolicyCommand, P
             ?? throw AppException.NotFound("Συμβόλαιο");
 
         p.Status = PolicyStatus.Cancelled;
+
+        // Also stamp a PolicyCancellation row so the quick-cancel from
+        // the /app/policies row menu is visible on /app/cancellations —
+        // previously only the full "New cancellation" flow in the
+        // Ακυρώσεις page created one, and quick-cancels became invisible
+        // to the workflow (no credit note, no producer visibility, no
+        // history). Marked Effective immediately since this shortcut
+        // path skips carrier submission + approval. Skipped if the
+        // policy already has an active cancellation row — do not
+        // double-stamp.
+        var hasActiveCancellation = await _db.PolicyCancellations.IgnoreQueryFilters()
+            .AnyAsync(c => c.PolicyId == p.Id && c.DeletedAt == null
+                && c.Status != PolicyCancellationStatus.Rejected, ct);
+        if (!hasActiveCancellation)
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var yearPrefix = $"AK-{today.Year}-";
+            var lastSeq = await _db.PolicyCancellations.IgnoreQueryFilters()
+                .CountAsync(c => c.CancellationNumber.StartsWith(yearPrefix), ct);
+            _db.PolicyCancellations.Add(new PolicyCancellation
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                PolicyId = p.Id,
+                CancellationNumber = $"{yearPrefix}{(lastSeq + 1):D5}",
+                Status = PolicyCancellationStatus.Effective,
+                ReasonText = request.Body?.Reason,
+                RequestedAt = today,
+                EffectiveFrom = today,
+                RefundMethod = "None",
+                RefundAmount = 0m,
+                Currency = p.Currency,
+                CreatedByUserId = _current.UserId,
+                ApprovedByUserId = _current.UserId,
+                ApprovedAt = DateTime.UtcNow,
+                Notes = "Δημιουργήθηκε αυτόματα από άμεση ακύρωση συμβολαίου."
+            });
+        }
+
         await _db.SaveChangesAsync(ct);
 
         var saved = await _db.Policies.IgnoreQueryFilters()

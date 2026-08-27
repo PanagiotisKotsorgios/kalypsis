@@ -208,8 +208,8 @@ import VpnKeyIcon from "@mui/icons-material/VpnKey";
 import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
 import AppsIcon from "@mui/icons-material/Apps";
 // PriceChangeIcon (used for tariffs) is no longer referenced — tariffs removed from sidebar.
-import EditNoteIcon from "@mui/icons-material/EditNote";
-import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
+// EditNoteIcon / CancelPresentationIcon (endorsements + cancellations) are no
+// longer referenced — those two entries were moved into /app/policies as buttons.
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import DesignServicesIcon from "@mui/icons-material/DesignServices";
@@ -300,8 +300,9 @@ const navByRole: Record<Role, NavItem[]> = {
     // with the URL bookmarked keeps working.
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice", group: "production" },
     { to: "/producers", labelKey: "nav.producers", icon: <HandshakeIcon />, package: "BackOffice", group: "production" },
-    { to: "/endorsements", labelKey: "nav.endorsements", icon: <EditNoteIcon />, package: "BackOffice", group: "production" },
-    { to: "/cancellations", labelKey: "nav.cancellations", icon: <CancelPresentationIcon />, package: "BackOffice", group: "production" },
+    // «Πρόσθετες πράξεις» + «Ακυρώσεις» are reachable as buttons inside
+    // /app/policies. Legacy routes still resolve so old bookmarks keep
+    // working — see route registrations further down.
 
     // BackOffice → ΟΙΚΟΝΟΜΙΚΑ (unified — five sub-workspaces as tabs)
     { to: "/financials", labelKey: "nav.financials", icon: <AttachMoneyIcon />, package: "BackOffice", group: "financials" },

@@ -45,6 +45,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useSearchParams, Link as RouterLink } from "react-router-dom";
 import EventRepeatIcon from "@mui/icons-material/EventRepeat";
+import EditNoteIcon from "@mui/icons-material/EditNote";
+import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
 import { money, date } from "../utils/format";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
@@ -337,6 +339,21 @@ export function PoliciesPage() {
             <Button component={RouterLink} to="/app/renewals"
               variant="outlined" startIcon={<EventRepeatIcon />} size="large">
               {t("nav.renewals", "Ανανεώσεις")}
+            </Button>
+          )}
+          {/* Πρόσθετες πράξεις + Ακυρώσεις moved out of the sidebar and
+              reachable from here. Same underlying pages — no functional
+              change, just one fewer sidebar row each. */}
+          {canEdit && activeView === "policies" && (
+            <Button component={RouterLink} to="/app/endorsements"
+              variant="outlined" startIcon={<EditNoteIcon />} size="large">
+              {t("nav.endorsements", "Πρόσθετες πράξεις")}
+            </Button>
+          )}
+          {canEdit && activeView === "policies" && (
+            <Button component={RouterLink} to="/app/cancellations"
+              variant="outlined" startIcon={<CancelPresentationIcon />} size="large">
+              {t("nav.cancellations", "Ακυρώσεις")}
             </Button>
           )}
           {canEdit && activeView === "policies" && (
