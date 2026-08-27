@@ -11,6 +11,8 @@ import { FinancialMovementsPage } from "./FinancialMovementsPage";
 import { CashPositionPage } from "./CashPositionPage";
 import { GeneralLedgerPage } from "./GeneralLedgerPage";
 import { GeneralFinancialEntriesPage } from "./GeneralFinancialEntriesPage";
+import { SecuritiesPage } from "./SecuritiesPage";
+import { CreditNotesPage } from "./CreditNotesPage";
 
 /**
  * Wrapper that folds the previously separate «Ταμείο», «Εισπράξεις»,
@@ -61,6 +63,8 @@ const TABS = [
   { key: "cash", label: "Ταμείο / Εισπράξεις / Πληρωμές", Component: CashReceiptsPaymentsPage },
   { key: "movements", label: "Οικονομικές Κινήσεις", Component: FinancialMovementsPage },
   { key: "general", label: "Έσοδα / Έξοδα γραφείου", Component: GeneralFinancialEntriesPage },
+  { key: "securities", label: "Αξιόγραφα", Component: SecuritiesPage },
+  { key: "creditNotes", label: "Πιστωτικά", Component: CreditNotesPage },
   { key: "gl", label: "Λογιστική", Component: GeneralLedgerPage },
 ] as const;
 

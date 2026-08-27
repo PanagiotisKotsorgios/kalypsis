@@ -135,7 +135,6 @@ import { AppointmentsPage } from "./pages/AppointmentsPage";
 import { TariffsPage } from "./pages/TariffsPage";
 import { CoverNotesPage } from "./pages/CoverNotesPage";
 import { BranchesPage } from "./pages/BranchesPage";
-import { SecuritiesPage } from "./pages/SecuritiesPage";
 import { BankConnectionsPage } from "./pages/BankConnectionsPage";
 import { MarketingCampaignsPage } from "./pages/MarketingCampaignsPage";
 import { DeliveryTrackingPage } from "./pages/DeliveryTrackingPage";
@@ -172,7 +171,6 @@ import { PlatformMaintenancePage } from "./pages/PlatformMaintenancePage";
 import { InsuranceCompaniesPage } from "./pages/InsuranceCompaniesPage";
 import { EndorsementsPage } from "./pages/EndorsementsPage";
 import { PolicyCancellationsPage } from "./pages/PolicyCancellationsPage";
-import { CreditNotesPage } from "./pages/CreditNotesPage";
 import { CommissionRulesPage } from "./pages/CommissionRulesPage";
 import { ReferenceCatalogsPage } from "./pages/ReferenceCatalogsPage";
 import { ParametricFilesPage } from "./pages/ParametricFilesPage";
@@ -209,13 +207,11 @@ import AppsIcon from "@mui/icons-material/Apps";
 // PriceChangeIcon (used for tariffs) is no longer referenced — tariffs removed from sidebar.
 // EditNoteIcon / CancelPresentationIcon (endorsements + cancellations) are no
 // longer referenced — those two entries were moved into /app/policies as buttons.
-import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import DesignServicesIcon from "@mui/icons-material/DesignServices";
 // ΖΗΜΙΕΣ ΚΑΙ ΔΙΑΚΑΝΟΝΙΣΜΟΙ group icons (Build/Savings/PaymentsOutlined/HandshakeOutlined)
 // were removed from the sidebar; their imports are no longer needed.
 import RuleIcon from "@mui/icons-material/Rule";
-import RestoreIcon from "@mui/icons-material/Restore";
 import RestoreFromTrashIcon from "@mui/icons-material/RestoreFromTrash";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import StackedLineChartIcon from "@mui/icons-material/StackedLineChart";
@@ -305,8 +301,9 @@ const navByRole: Record<Role, NavItem[]> = {
 
     // BackOffice → ΟΙΚΟΝΟΜΙΚΑ (unified — five sub-workspaces as tabs)
     { to: "/financials", labelKey: "nav.financials", icon: <AttachMoneyIcon />, package: "BackOffice", group: "financials" },
-    { to: "/securities", labelKey: "nav.securities", icon: <RestoreIcon />, package: "BackOffice", group: "financials" },
-    { to: "/credit-notes", labelKey: "nav.creditNotes", icon: <ReceiptLongOutlinedIcon />, package: "BackOffice", group: "financials" },
+    // Αξιόγραφα + Πιστωτικά folded into /app/financials as tabs
+    // (?tab=securities, ?tab=creditNotes). Standalone routes redirect
+    // to the matching tab so old bookmarks keep working.
     // Consolidation: /commission-distribution moved into the "Ταυτοποιήσεις & Καταμερισμοί"
     // hub in the Admin group (below), alongside the two reconciliation screens.
     // Route still resolves for bookmarks.
@@ -944,7 +941,7 @@ export default function App() {
                   <Route path="tariffs" element={<TariffsPage />} />
                   <Route path="cover-notes" element={<CoverNotesPage />} />
                   <Route path="branches" element={<BranchesPage />} />
-                  <Route path="securities" element={<SecuritiesPage />} />
+                  <Route path="securities" element={<Navigate to="/app/financials?tab=securities" replace />} />
                   <Route path="bank-connections" element={<PackageGate package="Integrations"><BankConnectionsPage /></PackageGate>} />
                   <Route path="marketing" element={<PackageGate package="Crm"><MarketingCampaignsPage /></PackageGate>} />
                   <Route path="delivery-tracking" element={<PackageGate package="Crm"><DeliveryTrackingPage /></PackageGate>} />
@@ -967,7 +964,7 @@ export default function App() {
                   <Route path="insurance-companies" element={<InsuranceCompaniesPage />} />
                   <Route path="endorsements" element={<EndorsementsPage />} />
                   <Route path="cancellations" element={<PolicyCancellationsPage />} />
-                  <Route path="credit-notes" element={<CreditNotesPage />} />
+                  <Route path="credit-notes" element={<Navigate to="/app/financials?tab=creditNotes" replace />} />
                   <Route path="bulk-commissions" element={<Navigate to="/app/commission-rules" replace />} />
                   <Route path="commission-rules" element={<CommissionRulesPage />} />
                   <Route path="lookups" element={<ReferenceCatalogsPage />} />
