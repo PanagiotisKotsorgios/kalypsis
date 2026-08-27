@@ -8,6 +8,8 @@ import CampaignIcon from "@mui/icons-material/Campaign";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import MailLockIcon from "@mui/icons-material/MailLock";
+import ScienceIcon from "@mui/icons-material/Science";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 
@@ -113,6 +115,8 @@ export function PlatformAnnouncementsPage() {
       </Stack>
 
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
+
+      <AdminToolsPane onError={setErr} />
 
       <Card variant="outlined">
         {q.isLoading ? (
@@ -230,5 +234,94 @@ export function PlatformAnnouncementsPage() {
         </DialogActions>
       </Dialog>
     </Box>
+  );
+}
+
+/**
+ * Two utilities that live alongside the announcements list because
+ * they're the same "I'm about to do something broad, hold the world
+ * still" cohort of controls:
+ *   1. Toggle the global outbound-email kill switch — the API server
+ *      short-circuits every send call while this is on.
+ *   2. Trigger the tenant test-data seed — pastes a tenant id, hits
+ *      the endpoint, shows the count summary. The endpoint itself
+ *      refuses to run if the kill switch is off, so there's no way to
+ *      accidentally spam real recipients even if the operator forgets
+ *      to flip it first.
+ */
+function AdminToolsPane({ onError }: { onError: (msg: string) => void }) {
+  const qc = useQueryClient();
+  const [tenantId, setTenantId] = useState("");
+  const [result, setResult] = useState<any | null>(null);
+
+  const emailStatus = useQuery({
+    queryKey: ["platform-outbound-emails"],
+    queryFn: async () => (await api.get<{ disabled: boolean; lastChangedAt: string | null }>(
+      "/platform/admin-tools/outbound-emails")).data,
+  });
+
+  const setEmails = useMutation({
+    mutationFn: async (disabled: boolean) =>
+      (await api.post("/platform/admin-tools/outbound-emails", { disabled })).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["platform-outbound-emails"] }),
+    onError: (e) => onError(extractErrorMessage(e)),
+  });
+
+  const seed = useMutation({
+    mutationFn: async () =>
+      (await api.post(`/platform/admin-tools/tenants/${tenantId.trim()}/seed-test-data`, {})).data,
+    onSuccess: (data) => setResult(data),
+    onError: (e) => onError(extractErrorMessage(e)),
+  });
+
+  return (
+    <Card variant="outlined" sx={{ mb: 2, p: 2 }}>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }}>
+        {/* Outbound-email kill switch */}
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1 }}>
+          <MailLockIcon color={emailStatus.data?.disabled ? "error" : "action"} />
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="body2" fontWeight={700}>
+              Εξερχόμενα emails
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {emailStatus.data?.disabled
+                ? "ΑΠΕΝΕΡΓΟΠΟΙΗΜΕΝΑ — καμία αποστολή. Απαιτείται πριν κάθε test-data seed."
+                : "Ενεργά — κάθε ειδοποίηση αποστέλλεται κανονικά."}
+            </Typography>
+          </Box>
+          <Switch checked={!!emailStatus.data?.disabled}
+            disabled={setEmails.isPending}
+            onChange={e => setEmails.mutate(e.target.checked)} />
+        </Stack>
+
+        <Box sx={{ borderLeft: { md: 1 }, borderColor: "divider", height: { md: 44 } }} />
+
+        {/* Tenant test-data seed */}
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 2 }}>
+          <ScienceIcon color="action" />
+          <TextField size="small" label="Tenant ID" placeholder="π.χ. 8f3c…"
+            value={tenantId} onChange={e => setTenantId(e.target.value)}
+            sx={{ flex: 1 }}
+            helperText="Fills customers / producers / policies / receipts / endorsements / cancellations / credit notes / claims / movements / appointments." />
+          <Button variant="contained" color="warning"
+            disabled={!tenantId.trim() || seed.isPending || !emailStatus.data?.disabled}
+            onClick={() => { setResult(null); seed.mutate(); }}>
+            {seed.isPending ? <CircularProgress size={18} /> : "Seed test data"}
+          </Button>
+        </Stack>
+      </Stack>
+      {result && (
+        <Alert severity="success" sx={{ mt: 2 }} onClose={() => setResult(null)}>
+          <b>Seed complete.</b>{" "}
+          Customers: {result.customersCreated}, Producers: {result.producersCreated},
+          Policies: {result.policiesCreated}, Receipts: {result.receiptsCreated},
+          Endorsements: {result.endorsementsCreated}, Cancellations: {result.cancellationsCreated},
+          Credit notes: {result.creditNotesCreated}, Claims: {result.claimsCreated},
+          Movements: {result.movementsCreated}, Appointments: {result.appointmentsCreated}.
+          {result.notes && <Box component="div" sx={{ mt: 0.5, fontStyle: "italic", fontSize: 12 }}>{result.notes}</Box>}
+        </Alert>
+      )}
+    </Card>
   );
 }

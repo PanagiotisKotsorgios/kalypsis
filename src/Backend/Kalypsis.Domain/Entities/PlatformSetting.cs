@@ -47,4 +47,16 @@ public class PlatformSetting : BaseEntity
     public int? SmsMonthlyLimit { get; set; }
     public int? ViberMonthlyLimit { get; set; }
     public int? PhoneMonthlyLimit { get; set; }
+
+    /// <summary>
+    /// Global outbound-email kill switch. When true, every call to
+    /// <c>IEmailSender.SendAsync</c> returns a "disabled" result without
+    /// touching Brevo — used during test-data seeding and heavy QA runs
+    /// so bulk operations don't accidentally spam real customers /
+    /// producers / carriers. Toggled by the platform admin from
+    /// /app/platform/announcements (settings pane) — the kill switch
+    /// lives alongside the announcement banner tool because both are
+    /// «I'm about to do something broad, hold the world still» actions.
+    /// </summary>
+    public bool OutboundEmailsDisabled { get; set; }
 }

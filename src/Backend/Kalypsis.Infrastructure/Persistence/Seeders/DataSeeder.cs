@@ -1072,6 +1072,13 @@ public static class DataSeeder
                 KEY `IX_gfe_Tenant_Kind_Category` (`TenantId`, `Kind`, `Category`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", ct);
 
+        // --- platform_settings: global outbound-email kill switch used
+        // by the admin before test-data seeds / QA runs to prevent
+        // Brevo sends from reaching real recipients.
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "platform_settings", column: "OutboundEmailsDisabled",
+            addSql: "ALTER TABLE `platform_settings` ADD COLUMN `OutboundEmailsDisabled` tinyint(1) NOT NULL DEFAULT 0", ct);
+
         // --- policies: 2026-08-11 desktop-parity additions -----------------
         // Πιστωτικό / promise-to-pay + operations columns that were only
         // in the desktop entity.

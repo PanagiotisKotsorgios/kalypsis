@@ -31,6 +31,16 @@ public sealed class BrevoEmailSender : IEmailSender
     public async Task<EmailResult> SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
     {
         var settings = await GetSettingsAsync(cancellationToken);
+        // Global kill switch — set by the platform admin before bulk
+        // operations (test-data seeds, QA runs) so we don't spam real
+        // recipients. Returns a controlled "disabled" result rather
+        // than throwing so calling code that only cares about "did we
+        // send" keeps flowing.
+        if (settings is not null && settings.OutboundEmailsDisabled)
+        {
+            _logger.LogWarning("Outbound emails globally disabled; skipping send to {Email}", message.ToEmail);
+            return new EmailResult(false, "Outbound emails are temporarily disabled by the platform administrator.");
+        }
         if (settings is null
             || string.IsNullOrWhiteSpace(settings.BrevoApiKey)
             || string.IsNullOrWhiteSpace(settings.BrevoSenderEmail))
