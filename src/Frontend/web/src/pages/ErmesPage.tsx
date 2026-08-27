@@ -10,7 +10,7 @@ import {
   CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   Divider, IconButton, InputAdornment, List, ListItem, ListItemAvatar,
   Tab, Tabs,
-  ListItemButton, ListItemText, Menu, MenuItem, Stack, TextField, Tooltip,
+  ListItemButton, ListItemText, Menu, MenuItem, Popover, Stack, TextField, Tooltip,
   Typography
 } from "@mui/material";
 import InboxIcon from "@mui/icons-material/Inbox";
@@ -278,6 +278,11 @@ export function ErmesPage() {
   };
   const [signatureEditorOpen, setSignatureEditorOpen] = useState(false);
   const [channelTeam, setChannelTeam] = useState<Team | null>(null);
+  // Anchor elements for the two sidebar popovers that replaced the
+  // «Κανάλια · Ομάδες» + «Κατηγορίες» panels. Popovers keep sidebar
+  // real-estate free without hiding the features.
+  const [teamsAnchor, setTeamsAnchor] = useState<HTMLElement | null>(null);
+  const [categoriesAnchor, setCategoriesAnchor] = useState<HTMLElement | null>(null);
   const overview = useQuery({
     queryKey: ["ermes", "overview"],
     queryFn: async () => (await api.get<OverviewDto>("/ermes/overview")).data,
@@ -587,29 +592,63 @@ export function ErmesPage() {
             })}
           </List>
           <Divider />
-          <Box sx={{ px: 1.5, py: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography variant="overline" color="text.secondary">Κανάλια · Ομάδες</Typography>
-            <IconButton size="small" onClick={() => setManageOpen("teams")}><AddIcon fontSize="small" /></IconButton>
-          </Box>
-          <List dense disablePadding>
-            {(overview.data?.teams ?? []).map(t => (
-              <ListItemButton key={t.id} sx={{ py: 0.5 }} onClick={() => setChannelTeam(t)}>
-                <TagIcon fontSize="small" sx={{ mr: 1, color: "text.secondary" }} />
-                <ListItemText primary={t.name} secondary={`${t.members.length} μέλη`}
-                  primaryTypographyProps={{ variant: "body2" }} />
-              </ListItemButton>
-            ))}
-            {(overview.data?.teams ?? []).length === 0 && (
-              <Typography variant="caption" color="text.secondary" sx={{ px: 2, py: 0.5, display: "block" }}>
-                Καμία ομάδα ακόμη. Πατήστε «+» για νέα.
-              </Typography>
-            )}
-          </List>
-          <Divider />
-          {/* Category quick-filter chips — click to narrow the middle
-              list to a single category. Click again to clear. */}
-          <Box sx={{ px: 1.5, py: 1 }}>
-            <Typography variant="overline" color="text.secondary" display="block" mb={0.5}>
+          {/* Two former sidebar panels («Κανάλια · Ομάδες» + «Κατηγορίες»)
+              collapsed into a single compact button row. Each opens a
+              Popover with the same content — nothing removed, just less
+              vertical noise in the sidebar. A filled category chip on
+              the button surfaces the active filter at a glance. */}
+          <Stack direction="row" spacing={1} sx={{ px: 1.5, py: 1 }}>
+            <Button size="small" variant="outlined" startIcon={<TagIcon fontSize="small" />}
+              onClick={e => setTeamsAnchor(e.currentTarget)}
+              sx={{ flex: 1, textTransform: "none" }}>
+              Ομάδες
+              {(overview.data?.teams?.length ?? 0) > 0 && (
+                <Chip size="small" label={overview.data!.teams!.length}
+                  sx={{ ml: 0.75, height: 18, fontSize: 10 }} />
+              )}
+            </Button>
+            <Button size="small" variant="outlined"
+              onClick={e => setCategoriesAnchor(e.currentTarget)}
+              sx={{ flex: 1, textTransform: "none" }}>
+              Κατηγορίες
+              {categoryFilter && (
+                <Chip size="small" color="primary" label={
+                  CATEGORIES.find(c => c.key === categoryFilter)?.label ?? categoryFilter
+                } sx={{ ml: 0.75, height: 18, fontSize: 10 }} />
+              )}
+            </Button>
+          </Stack>
+
+          <Popover open={!!teamsAnchor} anchorEl={teamsAnchor} onClose={() => setTeamsAnchor(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+            PaperProps={{ sx: { width: 280, maxHeight: 360 } }}>
+            <Box sx={{ px: 1.5, py: 1, display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: 1, borderColor: "divider" }}>
+              <Typography variant="overline" color="text.secondary">Κανάλια · Ομάδες</Typography>
+              <IconButton size="small" onClick={() => { setTeamsAnchor(null); setManageOpen("teams"); }}>
+                <AddIcon fontSize="small" />
+              </IconButton>
+            </Box>
+            <List dense disablePadding>
+              {(overview.data?.teams ?? []).map(t => (
+                <ListItemButton key={t.id} sx={{ py: 0.5 }}
+                  onClick={() => { setTeamsAnchor(null); setChannelTeam(t); }}>
+                  <TagIcon fontSize="small" sx={{ mr: 1, color: "text.secondary" }} />
+                  <ListItemText primary={t.name} secondary={`${t.members.length} μέλη`}
+                    primaryTypographyProps={{ variant: "body2" }} />
+                </ListItemButton>
+              ))}
+              {(overview.data?.teams ?? []).length === 0 && (
+                <Typography variant="caption" color="text.secondary" sx={{ px: 2, py: 1.5, display: "block" }}>
+                  Καμία ομάδα ακόμη. Πατήστε «+» για νέα.
+                </Typography>
+              )}
+            </List>
+          </Popover>
+
+          <Popover open={!!categoriesAnchor} anchorEl={categoriesAnchor} onClose={() => setCategoriesAnchor(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+            PaperProps={{ sx: { width: 300, p: 1.5 } }}>
+            <Typography variant="overline" color="text.secondary" display="block" mb={1}>
               Κατηγορίες
             </Typography>
             <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
@@ -624,7 +663,7 @@ export function ErmesPage() {
                   sx={{ height: 22 }} />
               ))}
             </Stack>
-          </Box>
+          </Popover>
           <Divider />
           <Box sx={{ px: 1.5, py: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Typography variant="overline" color="text.secondary">Ρυθμίσεις</Typography>
