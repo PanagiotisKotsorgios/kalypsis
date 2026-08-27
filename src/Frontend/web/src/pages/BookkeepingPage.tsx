@@ -811,7 +811,19 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
           dialog paper is caught locally. A window-level defensive
           handler in main.tsx catches any drop that lands outside the
           dialog too, so no drop can ever navigate the page. */}
-      <Dialog open={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)}
+      <Dialog open={uploadDialogOpen}
+        // Sticky — only the explicit «Κλείσιμο» / × button closes it.
+        // Backdrop clicks and Escape are ignored because the user may
+        // switch focus to Explorer (which momentarily hides the tab,
+        // and on some window managers dispatches an inert click at the
+        // paper coordinates when refocusing). Not passing an onClose
+        // handler at all is also OK, but keeping this signature makes
+        // the intent obvious to readers.
+        onClose={(_, reason) => {
+          if (reason === "backdropClick" || reason === "escapeKeyDown") return;
+          setUploadDialogOpen(false);
+        }}
+        disableEscapeKeyDown
         fullWidth maxWidth="sm"
         PaperProps={{
           onDragOver: (e: React.DragEvent) => { e.preventDefault(); setUploadDialogDrag(true); },
@@ -832,13 +844,18 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
             transition: "outline-color 0.15s",
           },
         }}>
-        <DialogTitle>
+        <DialogTitle sx={{ pr: 6 }}>
           Ανέβασμα αρχείων
           {selectedFolderId && (
             <Typography variant="caption" component="div" color="text.secondary">
               στον φάκελο: <b>{folders.find(f => f.id === selectedFolderId)?.name ?? "—"}</b>
             </Typography>
           )}
+          <IconButton onClick={() => setUploadDialogOpen(false)}
+            sx={{ position: "absolute", right: 8, top: 8 }}
+            aria-label="Κλείσιμο">
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
         <DialogContent>
           <Box sx={{

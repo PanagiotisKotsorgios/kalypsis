@@ -569,7 +569,9 @@ public class AppDbContext : DbContext, IAppDbContext
             if (entry.State == EntityState.Modified)
             {
                 var changed = entry.Properties
-                    .Where(p => p.IsModified && !string.Equals(p.Metadata.Name, "UpdatedAt", StringComparison.Ordinal))
+                    .Where(p => p.IsModified
+                        && !string.Equals(p.Metadata.Name, "UpdatedAt", StringComparison.Ordinal)
+                        && !IsAuditExcluded(p))
                     .ToList();
                 if (changed.Count > 0)
                 {
@@ -580,7 +582,7 @@ public class AppDbContext : DbContext, IAppDbContext
             else if (entry.State == EntityState.Added)
             {
                 newValuesJson = JsonSerialize(entry.Properties
-                    .Where(p => p.CurrentValue is not null)
+                    .Where(p => p.CurrentValue is not null && !IsAuditExcluded(p))
                     .ToDictionary(p => p.Metadata.Name, p => RedactIfSensitive(p.Metadata.Name, p.CurrentValue)));
             }
 
@@ -611,6 +613,33 @@ public class AppDbContext : DbContext, IAppDbContext
     {
         try { return System.Text.Json.JsonSerializer.Serialize(value, _jsonOpts); }
         catch { return "{}"; }
+    }
+
+    /// <summary>Properties whose JSON serialisation would blow the audit
+    /// log's TEXT column (max 65 535 bytes on MySQL). File blobs, PDFs,
+    /// image bytes, encrypted payloads etc. are never audit-useful in
+    /// their body form — the row id + action already tell you what
+    /// happened. Excluding by CLR type covers ContentBytes, RawBytes,
+    /// Payload, Blob, and anything future contributors add as byte[].
+    /// Also excludes very large text fields (LONGTEXT columns declared
+    /// via HasColumnType) so a big HTML body / JSON blob doesn't blow
+    /// the audit row either. Fixes bookkeeping upload 500s:
+    /// "Data too long for column 'NewValues'".</summary>
+    private static bool IsAuditExcluded(Microsoft.EntityFrameworkCore.ChangeTracking.PropertyEntry p)
+    {
+        var clr = p.Metadata.ClrType;
+        if (clr == typeof(byte[]) || clr == typeof(byte?[])) return true;
+        // Explicit blob-ish property names — belt-and-braces for wrapper types.
+        var n = p.Metadata.Name;
+        if (n.Equals("ContentBytes", StringComparison.Ordinal)
+            || n.Equals("FileBytes", StringComparison.Ordinal)
+            || n.Equals("RawBytes", StringComparison.Ordinal)
+            || n.Equals("Payload", StringComparison.Ordinal)
+            || n.Equals("Blob", StringComparison.Ordinal)
+            || n.Equals("PdfBytes", StringComparison.Ordinal)
+            || n.Equals("ImageBytes", StringComparison.Ordinal))
+            return true;
+        return false;
     }
 
     private static object? RedactIfSensitive(string propertyName, object? value)
