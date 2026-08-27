@@ -69,17 +69,14 @@ public class SeedTenantTestDataCommandHandler
 
     public async Task<SeedTenantTestDataResult> Handle(SeedTenantTestDataCommand r, CancellationToken ct)
     {
-        // Refuse to touch anything until the platform admin has flipped
-        // the global outbound-email kill switch. This protects real
-        // customer inboxes from any downstream notification pipeline
-        // that might fire from the seeded rows (renewals reminders,
-        // welcome mails, etc.).
-        var settings = await _db.PlatformSettings.IgnoreQueryFilters()
-            .OrderBy(s => s.CreatedAt).FirstOrDefaultAsync(ct);
-        if (settings is null || !settings.OutboundEmailsDisabled)
-            throw new AppException("emails_not_disabled",
-                "Απενεργοποιήστε πρώτα τα εξερχόμενα emails από τη σελίδα «Ανακοινώσεις πλατφόρμας» πριν τρέξετε test-data seed. Ο handler αρνείται να προχωρήσει διαφορετικά, ώστε να μην φτάσει καμία ειδοποίηση σε πραγματικό πελάτη.",
-                428);
+        // The outbound-email guard used to require the global switch to
+        // be flipped before this could run; that also silenced staff
+        // password-resets and MFA codes, so it was replaced with a
+        // permanent customer/producer-recipient block inside
+        // BrevoEmailSender. Nothing to check here — seeded customer +
+        // producer rows use @example.invalid addresses anyway, and any
+        // real-recipient send that DID get triggered downstream would
+        // still be caught by the sender's block.
 
         var tenant = await _db.Tenants.IgnoreQueryFilters()
             .FirstOrDefaultAsync(t => t.Id == r.TenantId && t.DeletedAt == null, ct)

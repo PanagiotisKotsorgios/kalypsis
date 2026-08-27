@@ -31,11 +31,37 @@ public sealed class BrevoEmailSender : IEmailSender
     public async Task<EmailResult> SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
     {
         var settings = await GetSettingsAsync(cancellationToken);
-        // Global kill switch — set by the platform admin before bulk
-        // operations (test-data seeds, QA runs) so we don't spam real
-        // recipients. Returns a controlled "disabled" result rather
-        // than throwing so calling code that only cares about "did we
-        // send" keeps flowing.
+
+        // Hard policy — NEVER send an automated outbound email to any
+        // address that is on file as a Customer or Producer of any
+        // tenant. Password-reset codes, MFA challenges, staff invites
+        // etc. all still work because those go to `users` rows, not to
+        // customer/producer contact addresses. This is a permanent
+        // guard (no toggle) — earlier attempts at a global on/off
+        // switch also silenced admin flows the operator actually needed,
+        // so the block is scoped to the recipient category instead.
+        var to = (message.ToEmail ?? "").Trim().ToLowerInvariant();
+        if (!string.IsNullOrEmpty(to))
+        {
+            var isCustomer = await _db.Customers.IgnoreQueryFilters()
+                .AnyAsync(c => c.Email != null && c.Email.ToLower() == to, cancellationToken);
+            if (isCustomer)
+            {
+                _logger.LogWarning("Blocked send to customer email {Email}", to);
+                return new EmailResult(false, "Blocked: recipient is on file as a tenant customer.");
+            }
+            var isProducer = await _db.Producers.IgnoreQueryFilters()
+                .AnyAsync(p => p.Email != null && p.Email.ToLower() == to, cancellationToken);
+            if (isProducer)
+            {
+                _logger.LogWarning("Blocked send to producer email {Email}", to);
+                return new EmailResult(false, "Blocked: recipient is on file as a tenant producer.");
+            }
+        }
+
+        // Legacy global kill switch — kept working so an admin can still
+        // nuke every send when doing a heavy migration, but no longer
+        // required for the customer/producer block above.
         if (settings is not null && settings.OutboundEmailsDisabled)
         {
             _logger.LogWarning("Outbound emails globally disabled; skipping send to {Email}", message.ToEmail);

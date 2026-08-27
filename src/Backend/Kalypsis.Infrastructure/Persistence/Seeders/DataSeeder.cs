@@ -1079,6 +1079,23 @@ public static class DataSeeder
             table: "platform_settings", column: "OutboundEmailsDisabled",
             addSql: "ALTER TABLE `platform_settings` ADD COLUMN `OutboundEmailsDisabled` tinyint(1) NOT NULL DEFAULT 0", ct);
 
+        // One-shot auto-reset — clear a sticky ON state left over from a
+        // previous deploy. Now that BrevoEmailSender permanently blocks
+        // customer/producer recipient addresses, the nuclear "block
+        // EVERYTHING (including staff)" switch shouldn't survive a
+        // redeploy. Previous version required admins to flip it on
+        // before seeding, which then silently killed password-reset
+        // and MFA flows. Idempotent — UPDATE is a no-op if already 0.
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(
+                "UPDATE `platform_settings` SET `OutboundEmailsDisabled` = 0 WHERE `OutboundEmailsDisabled` = 1", ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not auto-reset OutboundEmailsDisabled on startup (safe to ignore).");
+        }
+
         // --- policies: 2026-08-11 desktop-parity additions -----------------
         // Πιστωτικό / promise-to-pay + operations columns that were only
         // in the desktop entity.

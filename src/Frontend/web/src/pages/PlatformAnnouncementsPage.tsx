@@ -286,17 +286,19 @@ function AdminToolsPane({ onError }: { onError: (msg: string) => void }) {
   return (
     <Card variant="outlined" sx={{ mb: 2, p: 2 }}>
       <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }}>
-        {/* Outbound-email kill switch */}
+        {/* Outbound-email kill switch — nuclear "no mail leaves at all"
+            toggle. Independent of the permanent customer/producer block
+            in BrevoEmailSender which is always on regardless of this. */}
         <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1 }}>
           <MailLockIcon color={emailStatus.data?.disabled ? "error" : "action"} />
           <Box sx={{ flex: 1 }}>
             <Typography variant="body2" fontWeight={700}>
-              Εξερχόμενα emails
+              Καθολικό stop email (και σε staff)
             </Typography>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" component="div">
               {emailStatus.data?.disabled
-                ? "ΑΠΕΝΕΡΓΟΠΟΙΗΜΕΝΑ — καμία αποστολή. Απαιτείται πριν κάθε test-data seed."
-                : "Ενεργά — κάθε ειδοποίηση αποστέλλεται κανονικά."}
+                ? "ΚΛΕΙΣΤΑ ΟΛΑ — καμία αποστολή σε καμία διεύθυνση, ούτε reset password ή MFA."
+                : "Ανοιχτά για staff/admin. Οι διευθύνσεις πελατών & συνεργατών μπλοκάρονται πάντα (μόνιμα)."}
             </Typography>
           </Box>
           <Switch checked={!!emailStatus.data?.disabled}
@@ -346,7 +348,7 @@ function AdminToolsPane({ onError }: { onError: (msg: string) => void }) {
             )}
           />
           <Button variant="contained" color="warning"
-            disabled={!tenantPick || seed.isPending || !emailStatus.data?.disabled}
+            disabled={!tenantPick || seed.isPending}
             onClick={() => { setResult(null); seed.mutate(); }}>
             {seed.isPending ? <CircularProgress size={18} /> : "Seed test data"}
           </Button>
