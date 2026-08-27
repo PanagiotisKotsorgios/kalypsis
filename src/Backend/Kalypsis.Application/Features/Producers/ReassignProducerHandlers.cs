@@ -1,5 +1,6 @@
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
+using Kalypsis.Application.Features.Policies;
 using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
 using MediatR;
@@ -115,10 +116,12 @@ public class ReassignProducerHandler
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _current;
     private readonly IDateTimeProvider _clock;
+    private readonly PolicyCommissionCalculator _commissionCalc;
 
-    public ReassignProducerHandler(IAppDbContext db, ICurrentUser current, IDateTimeProvider clock)
+    public ReassignProducerHandler(IAppDbContext db, ICurrentUser current, IDateTimeProvider clock,
+        PolicyCommissionCalculator commissionCalc)
     {
-        _db = db; _current = current; _clock = clock;
+        _db = db; _current = current; _clock = clock; _commissionCalc = commissionCalc;
     }
 
     public async Task<ReassignProducerResultDto> Handle(ReassignProducerCommand cmd, CancellationToken ct)
@@ -214,6 +217,24 @@ public class ReassignProducerHandler
         });
 
         await _db.SaveChangesAsync(ct);
+
+        // Recompute PolicyCommissionSplit rows for every moved policy so
+        // the new producer's rate ladder + chain is materialised. Without
+        // this, the /app/policies/{id} commission matrix and every
+        // /app/commission-runs draft would keep showing the OLD producer's
+        // percentages until a manual per-policy backfill fires. Same
+        // try/catch pattern as UpdatePolicyCommand — splits are a read-
+        // side convenience so a per-policy failure never breaks the batch.
+        foreach (var p in policies)
+        {
+            try { await _commissionCalc.RecomputeAsync(p, ct); }
+            catch { /* per-policy split failure never blocks the reassign */ }
+        }
+        if (policies.Count > 0)
+        {
+            try { await _db.SaveChangesAsync(ct); }
+            catch { /* same */ }
+        }
 
         return new ReassignProducerResultDto(policies.Count, pendingTxs.Count, pendingLines.Count);
     }
