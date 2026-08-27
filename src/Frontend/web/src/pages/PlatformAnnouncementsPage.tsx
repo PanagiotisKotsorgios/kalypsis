@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions,
+  Alert, Autocomplete, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, MenuItem, Stack, Switch,
   Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography,
 } from "@mui/material";
@@ -249,15 +249,22 @@ export function PlatformAnnouncementsPage() {
  *      accidentally spam real recipients even if the operator forgets
  *      to flip it first.
  */
+interface TenantPick { id: string; name: string; code: string; contactEmail: string | null; adminEmail: string | null; }
+
 function AdminToolsPane({ onError }: { onError: (msg: string) => void }) {
   const qc = useQueryClient();
-  const [tenantId, setTenantId] = useState("");
+  const [tenantPick, setTenantPick] = useState<TenantPick | null>(null);
   const [result, setResult] = useState<any | null>(null);
 
   const emailStatus = useQuery({
     queryKey: ["platform-outbound-emails"],
     queryFn: async () => (await api.get<{ disabled: boolean; lastChangedAt: string | null }>(
       "/platform/admin-tools/outbound-emails")).data,
+  });
+
+  const tenants = useQuery({
+    queryKey: ["platform-admin-tools-tenants"],
+    queryFn: async () => (await api.get<TenantPick[]>("/platform/admin-tools/tenants")).data,
   });
 
   const setEmails = useMutation({
@@ -268,8 +275,10 @@ function AdminToolsPane({ onError }: { onError: (msg: string) => void }) {
   });
 
   const seed = useMutation({
-    mutationFn: async () =>
-      (await api.post(`/platform/admin-tools/tenants/${tenantId.trim()}/seed-test-data`, {})).data,
+    mutationFn: async () => {
+      if (!tenantPick) throw new Error("Επιλέξτε γραφείο πρώτα.");
+      return (await api.post(`/platform/admin-tools/tenants/${tenantPick.id}/seed-test-data`, {})).data;
+    },
     onSuccess: (data) => setResult(data),
     onError: (e) => onError(extractErrorMessage(e)),
   });
@@ -300,12 +309,44 @@ function AdminToolsPane({ onError }: { onError: (msg: string) => void }) {
         {/* Tenant test-data seed */}
         <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 2 }}>
           <ScienceIcon color="action" />
-          <TextField size="small" label="Tenant ID" placeholder="π.χ. 8f3c…"
-            value={tenantId} onChange={e => setTenantId(e.target.value)}
-            sx={{ flex: 1 }}
-            helperText="Fills customers / producers / policies / receipts / endorsements / cancellations / credit notes / claims / movements / appointments." />
+          <Autocomplete
+            size="small"
+            sx={{ flex: 1, minWidth: 260 }}
+            options={tenants.data ?? []}
+            loading={tenants.isLoading}
+            value={tenantPick}
+            onChange={(_, v) => setTenantPick(v)}
+            getOptionLabel={(o) => `${o.name} · ${o.code}`}
+            isOptionEqualToValue={(a, b) => a.id === b.id}
+            filterOptions={(opts, state) => {
+              const q = state.inputValue.trim().toLowerCase();
+              if (!q) return opts;
+              return opts.filter(o =>
+                o.name.toLowerCase().includes(q)
+                || o.code.toLowerCase().includes(q)
+                || (o.contactEmail ?? "").toLowerCase().includes(q)
+                || (o.adminEmail ?? "").toLowerCase().includes(q)
+                || o.id.toLowerCase().includes(q));
+            }}
+            renderOption={(props, o) => (
+              <Box component="li" {...props} key={o.id}>
+                <Box>
+                  <Typography variant="body2" fontWeight={600}>{o.name}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {o.code}{o.adminEmail ? ` · ${o.adminEmail}` : ""}
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+            renderInput={(params) => (
+              <TextField {...params} label="Γραφείο (tenant)"
+                placeholder="Ψάξτε ανά όνομα, κωδικό ή email admin (π.χ. opengplms)"
+                helperText="Fills customers / producers / policies / receipts / endorsements / cancellations / credit notes / claims / movements / appointments."
+              />
+            )}
+          />
           <Button variant="contained" color="warning"
-            disabled={!tenantId.trim() || seed.isPending || !emailStatus.data?.disabled}
+            disabled={!tenantPick || seed.isPending || !emailStatus.data?.disabled}
             onClick={() => { setResult(null); seed.mutate(); }}>
             {seed.isPending ? <CircularProgress size={18} /> : "Seed test data"}
           </Button>

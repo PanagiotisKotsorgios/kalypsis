@@ -72,6 +72,35 @@ public class PlatformAdminToolsController : ControllerBase
 
     public record SetOutboundEmailsBody(bool Disabled);
 
+    /// <summary>Small tenant picker for the admin tools UI — id + display
+    /// name + code + admin email. Ordered by name, active tenants only.
+    /// Kept local to this controller so the admin-tools card doesn't
+    /// need to know about the fuller tenants API.</summary>
+    public record TenantPickDto(Guid Id, string Name, string Code,
+        string? ContactEmail, string? AdminEmail);
+
+    [HttpGet("tenants")]
+    public async Task<ActionResult<IReadOnlyList<TenantPickDto>>> ListTenants(CancellationToken ct)
+    {
+        // AgencyAdmin email = the tenant's first AgencyAdmin user's email.
+        // Handy way to identify a tenant when the operator only remembers
+        // whose office it is (e.g. "opengplms@gmail.com").
+        var tenants = await _db.Tenants.IgnoreQueryFilters()
+            .Where(t => t.DeletedAt == null)
+            .OrderBy(t => t.Name)
+            .Select(t => new
+            {
+                t.Id, t.Name, t.Code, t.ContactEmail,
+                AdminEmail = _db.Users.IgnoreQueryFilters()
+                    .Where(u => u.TenantId == t.Id && u.DeletedAt == null
+                        && u.Role == Kalypsis.Domain.Enums.Role.AgencyAdmin)
+                    .OrderBy(u => u.CreatedAt)
+                    .Select(u => u.Email).FirstOrDefault(),
+            })
+            .ToListAsync(ct);
+        return Ok(tenants.Select(t => new TenantPickDto(t.Id, t.Name, t.Code, t.ContactEmail, t.AdminEmail)).ToList());
+    }
+
     /// <summary>Seed test data into a target tenant. The command refuses
     /// to run when OutboundEmailsDisabled is false, so an accidental
     /// re-run cannot spam real customers.</summary>
