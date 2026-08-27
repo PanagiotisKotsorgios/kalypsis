@@ -825,6 +825,9 @@ function MyFilesTab({ qc, setErr, termsAccepted }: {
         }}
         disableEscapeKeyDown
         fullWidth maxWidth="sm"
+        // z-index bumped well above app bar (1100), tooltip (1500), and
+        // MUI modal default (1300) so nothing overlays or dismisses it.
+        sx={{ zIndex: 2000 }}
         PaperProps={{
           onDragOver: (e: React.DragEvent) => { e.preventDefault(); setUploadDialogDrag(true); },
           onDragLeave: (e: React.DragEvent) => {

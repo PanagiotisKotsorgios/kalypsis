@@ -39,6 +39,14 @@ export function PackagesProvider({ children }: { children: ReactNode }) {
   const [isPlatformBypass, setBypass] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // `initialLoad` gates the loading-Spinner render in ErmesOnlyGate.
+  // We flip it to false after the FIRST successful fetch and never
+  // flip it back to true — otherwise every background refresh (which
+  // used to happen every 30s + on every window-focus event) would
+  // briefly show `loading:true`, unmount the entire route tree, and
+  // wipe any open dialogs / drawers / scroll positions. That was the
+  // user-visible "the popup goes down when I switch to Explorer and
+  // come back" bug.
   async function refresh() {
     if (!user || !accessToken) {
       setPackages(new Set());
@@ -46,7 +54,6 @@ export function PackagesProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-    setLoading(true);
     try {
       const r = await api.get<MyPackagesResponse>("/me/packages");
       setPackages(new Set(r.data.packages as PackageCode[]));
@@ -64,32 +71,13 @@ export function PackagesProvider({ children }: { children: ReactNode }) {
 
   // Refresh on login/logout AND every time the impersonated tenant changes.
   // Without the impersonation dep, entering a tenant kept showing the
-  // SuperAdmin's bypass flag until the next 5-minute poll — LANCA-style
-  // «my BackOffice package is enabled but sidebar still empty» bug.
+  // SuperAdmin's bypass flag — LANCA-style «my BackOffice package is
+  // enabled but sidebar still empty» bug. No other polling — a package
+  // toggle from the superadmin console is rare enough that users can
+  // hit a hard refresh once when it happens, in exchange for the tab
+  // never re-mounting behind them mid-work.
   useEffect(() => { void refresh(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ },
     [user?.userId, accessToken, impersonatedTenantId]);
-
-  // Auto-refresh whenever the user returns to the tab or the browser
-  // reconnects. Also polls every 30s — down from 5min — so a package the
-  // superadmin toggles for a tenant surfaces within half a minute at
-  // worst. The endpoint returns ~150 bytes so the traffic is trivial.
-  useEffect(() => {
-    if (!user || !accessToken) return;
-    const onFocus = () => { void refresh(); };
-    const onOnline = () => { void refresh(); };
-    const onVisibility = () => { if (document.visibilityState === "visible") void refresh(); };
-    window.addEventListener("focus", onFocus);
-    window.addEventListener("online", onOnline);
-    document.addEventListener("visibilitychange", onVisibility);
-    const iv = window.setInterval(onFocus, 30 * 1000);
-    return () => {
-      window.removeEventListener("focus", onFocus);
-      window.removeEventListener("online", onOnline);
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.clearInterval(iv);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.userId, accessToken]);
 
   const value = useMemo<PackagesContextValue>(() => {
     // «Ermes only» means the tenant is licensed for ΕΡΜΗΣ AND nothing
