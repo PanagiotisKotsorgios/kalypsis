@@ -1,5 +1,6 @@
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
+using Kalypsis.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -59,6 +60,28 @@ public class DeletePolicyHandler : IRequestHandler<DeletePolicyCommand, DeletePo
         if (documents > 0)
             blockers.Add(new DeletePolicyBlocker("documents", documents,
                 $"Υπάρχουν {documents} έγγραφα συνδεδεμένα με το συμβόλαιο. Διαγράψτε πρώτα τα έγγραφα από την καρτέλα του συμβολαίου."));
+
+        // 5) Active cancellation workflows — a Draft/Submitted/Approved
+        // PolicyCancellation on this policy points here via FK. Deleting
+        // the policy would orphan the workflow row and 500 the Approve
+        // endpoint on its .Policy navigation. Rejected/Effective rows
+        // are terminal — safe to leave attached.
+        var activeCancellations = await _db.PolicyCancellations.IgnoreQueryFilters()
+            .CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null
+                && x.Status != PolicyCancellationStatus.Rejected
+                && x.Status != PolicyCancellationStatus.Effective, ct);
+        if (activeCancellations > 0)
+            blockers.Add(new DeletePolicyBlocker("cancellations", activeCancellations,
+                $"Υπάρχουν {activeCancellations} ανοιχτές ακυρώσεις σε εξέλιξη. Ολοκληρώστε ή απορρίψτε τις πρώτα από τη σελίδα Ακυρώσεις."));
+
+        // 6) Draft endorsements — same orphan risk (the Issue endpoint
+        // dereferences .Policy). Issued/Cancelled rows are terminal.
+        var draftEndorsements = await _db.PolicyEndorsements.IgnoreQueryFilters()
+            .CountAsync(x => x.PolicyId == policy.Id && x.DeletedAt == null
+                && x.Status == EndorsementStatus.Draft, ct);
+        if (draftEndorsements > 0)
+            blockers.Add(new DeletePolicyBlocker("endorsements", draftEndorsements,
+                $"Υπάρχουν {draftEndorsements} πρόχειρες πρόσθετες πράξεις. Εκδώστε ή ακυρώστε τις πρώτα από τη σελίδα Πρόσθετες πράξεις."));
 
         if (blockers.Count > 0)
             return new DeletePolicyResultDto(false, blockers);

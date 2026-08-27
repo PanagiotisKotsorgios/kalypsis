@@ -518,11 +518,22 @@ public class MergeCustomersHandler : IRequestHandler<MergeCustomersCommand, Merg
         var keep = await _db.Customers.FirstOrDefaultAsync(c => c.Id == r.KeepId, ct)
             ?? throw AppException.NotFound("Customer");
 
+        // Every Customer-scoped table that the app exposes via IAppDbContext
+        // must be re-parented onto the keeper — previously only Policies,
+        // Receipts and CustomerContacts moved, and the ~dozen other tables
+        // (appointments, agency tasks, consent records, communication log,
+        // service requests, securities, financial movements, credit notes,
+        // GDPR erasure requests, tariffs) stayed pointing at the soft-
+        // deleted row. That silently corrupted every downstream page
+        // (Appointments showed blank customer names, GDPR requests
+        // referenced a non-existent customer, etc.).
         int policiesMoved = await _db.Policies
             .Where(p => r.RemoveIds.Contains(p.CustomerId))
             .ExecuteUpdateAsync(s => s.SetProperty(p => p.CustomerId, r.KeepId), ct);
 
-        int claimsMoved = 0; // claims follow policies — no direct relink
+        // Claims follow their Policy — Policies just moved, so the join
+        // already lands on the keeper. Nothing to update directly.
+        int claimsMoved = 0;
         int receiptsMoved = await _db.Receipts
             .Where(p => r.RemoveIds.Contains(p.CustomerId))
             .ExecuteUpdateAsync(s => s.SetProperty(p => p.CustomerId, r.KeepId), ct);
@@ -530,6 +541,41 @@ public class MergeCustomersHandler : IRequestHandler<MergeCustomersCommand, Merg
             .Where(p => r.RemoveIds.Contains(p.CustomerId))
             .ExecuteUpdateAsync(s => s.SetProperty(p => p.CustomerId, r.KeepId), ct);
         int documentsMoved = 0;
+
+        // Non-nullable FKs — every row must re-point at the keeper.
+        await _db.CommunicationLogs
+            .Where(x => r.RemoveIds.Contains(x.CustomerId))
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.CustomerId, r.KeepId), ct);
+        await _db.ConsentRecords
+            .Where(x => r.RemoveIds.Contains(x.CustomerId))
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.CustomerId, r.KeepId), ct);
+        await _db.ServiceRequests
+            .Where(x => r.RemoveIds.Contains(x.CustomerId))
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.CustomerId, r.KeepId), ct);
+        await _db.CoverNotes
+            .Where(x => r.RemoveIds.Contains(x.CustomerId))
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.CustomerId, r.KeepId), ct);
+        await _db.Securities
+            .Where(x => r.RemoveIds.Contains(x.CustomerId))
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.CustomerId, r.KeepId), ct);
+
+        // Nullable FKs — filter with .Value against the removed set and
+        // still assign the raw keeper Guid (EF handles the widening).
+        await _db.AgencyTasks
+            .Where(x => x.CustomerId != null && r.RemoveIds.Contains(x.CustomerId.Value))
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.CustomerId, r.KeepId), ct);
+        await _db.Appointments
+            .Where(x => x.CustomerId != null && r.RemoveIds.Contains(x.CustomerId.Value))
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.CustomerId, r.KeepId), ct);
+        await _db.FinancialMovements
+            .Where(x => x.CustomerId != null && r.RemoveIds.Contains(x.CustomerId.Value))
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.CustomerId, r.KeepId), ct);
+        await _db.CreditNotes
+            .Where(x => x.CustomerId != null && r.RemoveIds.Contains(x.CustomerId.Value))
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.CustomerId, r.KeepId), ct);
+        await _db.GdprErasureRequests
+            .Where(x => x.CustomerId != null && r.RemoveIds.Contains(x.CustomerId.Value))
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.CustomerId, r.KeepId), ct);
 
         await _db.Customers
             .Where(c => r.RemoveIds.Contains(c.Id))

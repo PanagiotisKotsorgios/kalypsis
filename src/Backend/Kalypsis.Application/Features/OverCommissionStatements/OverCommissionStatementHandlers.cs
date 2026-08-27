@@ -2,10 +2,40 @@ using FluentValidation;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Domain.Entities;
+using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kalypsis.Application.Features.OverCommissionStatements;
+
+/// <summary>Small shared helper: whenever an OverCommissionStatement
+/// transitions from Unpaid → Paid (or lands Paid on insert), emit a
+/// matching FinancialMovement so /app/financials «Οικονομικές Κινήσεις»
+/// and every downstream KPI see the cash-in. Kind = OverCommissionEarned
+/// against the whole gross amount tagged to the carrier + producer so
+/// the movement joins back to both drill-downs.</summary>
+internal static class OverCommissionMovements
+{
+    public static void EmitPaid(IAppDbContext db, OverCommissionStatement row, DateTime? previousPaidOn)
+    {
+        // Only emit on the null → set transition (a re-Paid same date is
+        // a no-op). Row must be paid AND was NOT paid before.
+        if (row.PaidOn is null) return;
+        if (previousPaidOn is not null) return;
+        db.FinancialMovements.Add(new FinancialMovement
+        {
+            Id = Guid.NewGuid(),
+            TenantId = row.TenantId,
+            MovementDate = DateOnly.FromDateTime(row.PaidOn.Value),
+            Kind = FinancialMovementKind.OverCommissionEarned,
+            Amount = row.GrossAmount,
+            Currency = row.Currency,
+            InsuranceCompanyId = row.InsuranceCompanyId,
+            ProducerId = row.ProducerId,
+            Description = $"Υπερπρομήθεια {row.Year:0000}-{row.Month:00} — εξόφληση πινακίου"
+        });
+    }
+}
 
 public record OverCommissionStatementDto(
     Guid Id, Guid InsuranceCompanyId, string InsuranceCompanyName,
@@ -182,6 +212,7 @@ public class UpsertOverCommissionStatementHandler
                 _db.OverCommissionStatements.Add(row);
             }
         }
+        var previousPaidOn = row.PaidOn;
         row.InsuranceCompanyId = r.InsuranceCompanyId;
         row.ProducerId = r.ProducerId;
         row.Year = r.Year;
@@ -192,6 +223,7 @@ public class UpsertOverCommissionStatementHandler
         row.Reference = string.IsNullOrWhiteSpace(r.Reference) ? null : r.Reference.Trim();
         row.Notes = string.IsNullOrWhiteSpace(r.Notes) ? null : r.Notes.Trim();
         row.PaidOn = r.PaidOn;
+        OverCommissionMovements.EmitPaid(_db, row, previousPaidOn);
         row.ProducerSharePercent = Math.Clamp(r.ProducerSharePercent, 0m, 100m);
         row.PeriodFrom = r.PeriodFrom;
         row.PeriodTo = r.PeriodTo;
@@ -299,12 +331,14 @@ public class BulkUpsertOverCommissionStatementsHandler
                 var key = (row.InsuranceCompanyId, row.ProducerId, row.Year, row.Month);
                 if (existingByKey.TryGetValue(key, out var s))
                 {
+                    var previousPaidOn = s.PaidOn;
                     s.GrossAmount = row.GrossAmount;
                     s.NetAmount = row.NetAmount == 0 ? row.GrossAmount : row.NetAmount;
                     s.Currency = row.Currency;
                     s.Reference = string.IsNullOrWhiteSpace(row.Reference) ? null : row.Reference.Trim();
                     s.Notes = string.IsNullOrWhiteSpace(row.Notes) ? null : row.Notes.Trim();
                     s.PaidOn = row.PaidOn;
+                    OverCommissionMovements.EmitPaid(_db, s, previousPaidOn);
                     s.ProducerSharePercent = Math.Clamp(row.ProducerSharePercent, 0m, 100m);
                     s.PeriodFrom = row.PeriodFrom;
                     s.PeriodTo = row.PeriodTo;
@@ -338,6 +372,10 @@ public class BulkUpsertOverCommissionStatementsHandler
                         EnteredByUserId = _current.UserId
                     };
                     _db.OverCommissionStatements.Add(fresh);
+                    // New row already carrying PaidOn = paid statement entered
+                    // directly. Emit against a null "previous" so the movement
+                    // fires exactly once.
+                    OverCommissionMovements.EmitPaid(_db, fresh, previousPaidOn: null);
                     // Register in the dict so a duplicate (same natural key) later in
                     // the batch is treated as an update against the pending insert.
                     existingByKey[key] = fresh;

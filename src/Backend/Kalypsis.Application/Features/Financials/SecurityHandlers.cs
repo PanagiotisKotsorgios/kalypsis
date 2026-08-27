@@ -94,10 +94,32 @@ public class UpdateSecurityCommandHandler : IRequestHandler<UpdateSecurityComman
     {
         var s = await _db.Securities.FirstOrDefaultAsync(x => x.Id == r.Id, ct) ?? throw AppException.NotFound("Security");
         var b = r.Body;
+        var previousStatus = s.Status;
         s.Number = b.Number.Trim(); s.Kind = b.Kind; s.Status = b.Status;
         s.CustomerId = b.CustomerId; s.IssuingBankId = b.IssuingBankId;
         s.IssueDate = b.IssueDate; s.MaturityDate = b.MaturityDate; s.PaidDate = b.PaidDate;
         s.Amount = b.Amount; s.Currency = b.Currency.ToUpperInvariant(); s.Notes = b.Notes;
+
+        // When a security transitions Open → Paid (bank honoured the
+        // check / promissory note), emit a CustomerCredit FinancialMovement
+        // so /app/financials sees the cash-in. Previously operators had
+        // to manually enter a matching receipt or the money was invisible.
+        // Idempotent by state: we only emit on the actual transition,
+        // not on every save while Status is already Paid.
+        if (previousStatus != SecurityStatus.Paid && s.Status == SecurityStatus.Paid)
+        {
+            _db.FinancialMovements.Add(new FinancialMovement
+            {
+                Id = Guid.NewGuid(),
+                MovementDate = s.PaidDate ?? DateOnly.FromDateTime(DateTime.UtcNow),
+                Kind = FinancialMovementKind.CustomerCredit,
+                Amount = s.Amount,
+                Currency = s.Currency,
+                CustomerId = s.CustomerId,
+                Description = $"Εξόφληση αξιογράφου {s.Number} ({s.Kind})"
+            });
+        }
+
         await _db.SaveChangesAsync(ct);
         s = await _db.Securities.Include(x => x.Customer).Include(x => x.IssuingBank).FirstAsync(x => x.Id == s.Id, ct);
         return ListSecuritiesQueryHandler.Map(s);

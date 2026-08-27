@@ -100,6 +100,19 @@ public class DeleteBankConnectionCommandHandler : IRequestHandler<DeleteBankConn
     public async Task<Unit> Handle(DeleteBankConnectionCommand r, CancellationToken ct)
     {
         var bc = await _db.BankConnections.FirstOrDefaultAsync(x => x.Id == r.Id, ct) ?? throw AppException.NotFound("Bank");
+        // Block when any Security still references this bank — soft-deleting
+        // the bank silently would leave those rows with a broken FK (blank
+        // column in the Αξιόγραφα list, .Include(IssuingBank) returning
+        // null). Operator must reassign / clear the affected securities first.
+        var refCount = await _db.Securities
+            .CountAsync(s => s.IssuingBankId == bc.Id && s.DeletedAt == null, ct);
+        if (refCount > 0)
+            throw new AppException("bank_in_use",
+                $"Η τράπεζα χρησιμοποιείται σε {refCount} αξιόγραφα. Αλλάξτε την τράπεζα σε αυτά τα αξιόγραφα ή διαγράψτε τα πρώτα.",
+                409,
+                title: "Δεν είναι δυνατή η διαγραφή",
+                why: "Ενεργά αξιόγραφα αναφέρουν αυτή την τράπεζα.",
+                fix: "Αλλάξτε την τράπεζα σε αυτά τα αξιόγραφα ή διαγράψτε τα.");
         bc.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
         return Unit.Value;

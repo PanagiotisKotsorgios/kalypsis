@@ -1,5 +1,6 @@
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
+using Kalypsis.Application.Features.Policies;
 using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
 using Kalypsis.Infrastructure.Persistence;
@@ -25,8 +26,10 @@ public class EndorsementsController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IDateTimeProvider _clock;
     private readonly ICurrentUser _current;
-    public EndorsementsController(AppDbContext db, IDateTimeProvider clock, ICurrentUser current)
-    { _db = db; _clock = clock; _current = current; }
+    private readonly PolicyCommissionCalculator _commissionCalc;
+    public EndorsementsController(AppDbContext db, IDateTimeProvider clock, ICurrentUser current,
+        PolicyCommissionCalculator commissionCalc)
+    { _db = db; _clock = clock; _current = current; _commissionCalc = commissionCalc; }
 
     public record EndorsementDto(Guid Id, Guid PolicyId, string PolicyNumber,
         string EndorsementNumber, EndorsementType Type, EndorsementStatus Status,
@@ -105,7 +108,41 @@ public class EndorsementsController : ControllerBase
         // Apply premium delta to the parent policy
         e.Policy.Premium += e.PremiumDelta;
         e.UpdatedAt = _clock.UtcNow;
+
+        // Book the commission delta into the financial ledger — without
+        // this, /app/financials «Οικονομικές Κινήσεις» and every KPI
+        // reading FinancialMovements missed the endorsement entirely.
+        // Zero-delta endorsements (data-only corrections) skip the row.
+        if (e.CommissionDelta != 0m)
+        {
+            _db.FinancialMovements.Add(new FinancialMovement
+            {
+                Id = Guid.NewGuid(),
+                MovementDate = DateOnly.FromDateTime(_clock.UtcNow),
+                Kind = FinancialMovementKind.CommissionEarned,
+                Amount = e.CommissionDelta,
+                Currency = e.Currency,
+                CustomerId = e.Policy.CustomerId,
+                PolicyId = e.PolicyId,
+                InsuranceCompanyId = e.Policy.InsuranceCompanyId,
+                ProducerId = e.Policy.ProducerId,
+                Description = $"Πρόσθετη πράξη {e.EndorsementNumber} — μεταβολή προμήθειας"
+            });
+        }
         await _db.SaveChangesAsync(ct);
+
+        // Rebuild PolicyCommissionSplit rows — premium just changed, so
+        // the split matrix and every downstream commission run needs to
+        // pick up the new numbers. Same fire-and-forget pattern as
+        // UpdatePolicyCommand: splits are read-side data, a failure here
+        // must not roll back the endorsement itself.
+        try
+        {
+            await _commissionCalc.RecomputeAsync(e.Policy, ct);
+            await _db.SaveChangesAsync(ct);
+        }
+        catch { /* per-policy split failure never blocks the endorsement */ }
+
         return Ok(await GetDto(e.Id, ct));
     }
 
@@ -264,6 +301,21 @@ public class PolicyCancellationsController : ControllerBase
             };
             _db.CreditNotes.Add(note);
             c.CreditNoteId = note.Id;
+
+            // Also emit a FinancialMovement so /app/financials and every
+            // aggregate reading FinancialMovements sees the refund cash-
+            // out. CustomerCredit = money owed back to the customer.
+            _db.FinancialMovements.Add(new FinancialMovement
+            {
+                Id = Guid.NewGuid(),
+                MovementDate = DateOnly.FromDateTime(_clock.UtcNow),
+                Kind = FinancialMovementKind.CustomerCredit,
+                Amount = c.RefundAmount,
+                Currency = c.Currency,
+                CustomerId = c.Policy.CustomerId,
+                PolicyId = c.PolicyId,
+                Description = $"Επιστροφή από ακύρωση {c.CancellationNumber} (Πιστωτικό {note.CreditNoteNumber})"
+            });
         }
         await _db.SaveChangesAsync(ct);
         return NoContent();
@@ -390,6 +442,34 @@ public class CreditNotesController : ControllerBase
             CreatedByUserId = _current.UserId
         };
         _db.CreditNotes.Add(n);
+
+        // Emit a FinancialMovement so /app/financials sees the credit
+        // note as an actual cash-flow. Kind mapping:
+        //   * CustomerId set   → CustomerCredit (refund to customer)
+        //   * InsuranceCompanyId → CompanyCharge (we owe the carrier)
+        //   * ProducerId set   → PartnerCharge (we owe the producer)
+        //   * none of the above → Adjustment
+        // Amount is positive — sign is encoded by Kind.
+        var kind = body.CustomerId.HasValue
+            ? FinancialMovementKind.CustomerCredit
+            : body.InsuranceCompanyId.HasValue
+                ? FinancialMovementKind.CompanyCharge
+                : body.ProducerId.HasValue
+                    ? FinancialMovementKind.PartnerCharge
+                    : FinancialMovementKind.Adjustment;
+        _db.FinancialMovements.Add(new FinancialMovement
+        {
+            Id = Guid.NewGuid(),
+            MovementDate = body.IssuedAt,
+            Kind = kind,
+            Amount = body.Amount,
+            Currency = body.Currency,
+            CustomerId = body.CustomerId,
+            PolicyId = body.PolicyId,
+            InsuranceCompanyId = body.InsuranceCompanyId,
+            ProducerId = body.ProducerId,
+            Description = $"Πιστωτικό {n.CreditNoteNumber} — {body.Description.Trim()}"
+        });
         await _db.SaveChangesAsync(ct);
         return Ok(new CreditNoteDto(n.Id, n.CreditNoteNumber, n.Kind, n.Status, n.IssuedAt,
             n.CustomerId, n.PolicyId, n.Amount, n.Currency, n.Description, n.RelatedDocumentRef, n.CreatedAt));
