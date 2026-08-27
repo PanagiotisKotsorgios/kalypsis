@@ -3,6 +3,7 @@ import AssessmentIcon from "@mui/icons-material/Assessment";
 import VerifiedIcon from "@mui/icons-material/Verified";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import BalanceIcon from "@mui/icons-material/Balance";
+import MergeIcon from "@mui/icons-material/Merge";
 import { Link as RouterLink } from "react-router-dom";
 
 /**
@@ -33,6 +34,16 @@ export function ReconciliationHubPage() {
       body: "Ποιος πήρε τι, ανά ιεραρχία. Πηγή δεδομένων: συμβόλαια, μηνιαία πινάκια υπερπρομηθειών, ή όλα μαζί.",
       icon: <AccountTreeIcon />, color: "#16a34a",
     },
+    {
+      // Merged from a standalone sidebar entry — customer merge is a
+      // reconciliation-family task (identifying duplicate identities +
+      // consolidating history). Old /app/customer-merge URL still
+      // resolves for bookmarks.
+      to: "/app/customer-merge",
+      title: "Συγχώνευση Πελατών",
+      body: "Εντοπισμός διπλοεγγραφών πελατών με βάση ΑΦΜ ή email και συγχώνευση σε έναν πελάτη — συμβόλαια, εισπράξεις, ραντεβού και ιστορικό μεταφέρονται μαζί.",
+      icon: <MergeIcon />, color: "#c2410c",
+    },
   ];
   return (
     <Box>
@@ -44,7 +55,7 @@ export function ReconciliationHubPage() {
         Όλα τα εργαλεία οικονομικής ταυτοποίησης και κατανομής προμηθειών του γραφείου σε μία σελίδα —
         από τη μηνιαία ροή του ταμείου μέχρι το ποιος έβγαλε τι, μαζί ή χωριστά με τα πινάκια υπερπρομηθειών.
       </Typography>
-      <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", md: "repeat(3,1fr)" } }}>
+      <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(2,1fr)", lg: "repeat(4,1fr)" } }}>
         {tiles.map((t) => (
           <Card key={t.to} variant="outlined" sx={{
             borderRadius: 2.5,

@@ -208,7 +208,8 @@ import AppsIcon from "@mui/icons-material/Apps";
 // EditNoteIcon / CancelPresentationIcon (endorsements + cancellations) are no
 // longer referenced — those two entries were moved into /app/policies as buttons.
 import MenuBookIcon from "@mui/icons-material/MenuBook";
-import DesignServicesIcon from "@mui/icons-material/DesignServices";
+// DesignServicesIcon was the document-designer sidebar row — folded
+// into /config-hub as a tab, icon no longer needed here.
 // ΖΗΜΙΕΣ ΚΑΙ ΔΙΑΚΑΝΟΝΙΣΜΟΙ group icons (Build/Savings/PaymentsOutlined/HandshakeOutlined)
 // were removed from the sidebar; their imports are no longer needed.
 import RuleIcon from "@mui/icons-material/Rule";
@@ -219,7 +220,8 @@ import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import GavelOutlinedIcon from "@mui/icons-material/GavelOutlined";
 import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import CakeIcon from "@mui/icons-material/Cake";
-import MergeIcon from "@mui/icons-material/Merge";
+// MergeIcon was the customer-merge sidebar row — folded into
+// /reconciliation-hub as a tile, icon no longer needed here.
 // DirectionsCarIcon was the vehicle-models entry — removed from sidebar.
 import InventoryIcon from "@mui/icons-material/Inventory";
 import HubIcon from "@mui/icons-material/Hub";
@@ -340,10 +342,9 @@ const navByRole: Record<Role, NavItem[]> = {
     // Παραμετροποίηση προμηθειών sits right under «Παραμετρικά ασφαλιστικών»
     // — the two screens are used back-to-back when onboarding a new carrier.
     { to: "/commission-rules",    labelKey: "nav.commissionRules",    icon: <StackedLineChartIcon />,   package: "BackOffice", group: "params" },
-    { to: "/lookups",             labelKey: "nav.lookups",            icon: <MenuBookIcon />,           package: "BackOffice", group: "params" },
-    // — secondary configuration tools below the four primary items —
-    // /parametric-files removed from sidebar per user request (route still resolves for deep links).
-    { to: "/document-designer",   labelKey: "nav.docDesigner",        icon: <DesignServicesIcon />, package: "BackOffice", group: "params" },
+    // «Λίστες αναφοράς» + «Σχεδιαστής εγγράφων» folded into /config-hub
+    // as extra tabs; standalone sidebar rows removed. Deep-link routes
+    // /app/lookups + /app/document-designer still resolve.
     // Config Hub τραβάει μέσα του τα roadmap items (Dynamic Fields · Groupings ·
     // Period Locks) σαν tabs — έτσι το sidebar μένει καθαρό και τα coming-soon
     // δεν φαίνονται σαν «σπασμένα» links. Routes για /dynamic-fields κτλ. μένουν
@@ -360,7 +361,9 @@ const navByRole: Record<Role, NavItem[]> = {
     //   /reconciliation-dashboard, /producer-reconciliation, /commission-distribution
     // Individual routes still resolve for bookmarks.
     { to: "/reconciliation-hub", labelKey: "nav.reconciliationHub", icon: <AccountTreeIcon />, package: "BackOffice", group: "admin" },
-    { to: "/customer-merge", labelKey: "nav.merge", icon: <MergeIcon />, package: "BackOffice", group: "admin" },
+    // «Συγχώνευση Πελατών» folded into /reconciliation-hub as a 4th
+    // tile; standalone sidebar row removed. Deep-link /app/customer-merge
+    // still resolves.
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "BackOffice", group: "admin" },
 
     // Standalone top-level — agency-wide backup & document archive

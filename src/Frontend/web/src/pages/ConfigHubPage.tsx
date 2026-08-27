@@ -12,6 +12,8 @@ import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { ReferenceCatalogsPage } from "./ReferenceCatalogsPage";
+import { DocumentDesignerPage } from "./DocumentDesignerPage";
 
 // Unified configuration hub — Movement Types, Bonus-Malus, Renewal Rules,
 // Register Templates, Custom Fields, Period Locks.
@@ -38,6 +40,12 @@ export function ConfigHubPage() {
         <Tab label={t("configHub.registerTemplates")} />
         <Tab label={t("configHub.customFields")} />
         <Tab label={t("configHub.periodLocks")} />
+        {/* Folded from separate sidebar entries — Λίστες αναφοράς
+            (lookups) and Σχεδιαστής εγγράφων. Old /app/lookups and
+            /app/document-designer routes still resolve for old
+            bookmarks; the sidebar just has one entry now. */}
+        <Tab label={t("nav.lookups", "Λίστες αναφοράς")} />
+        <Tab label={t("nav.docDesigner", "Σχεδιαστής εγγράφων")} />
       </Tabs>
       {tab === 0 && <MovementTypesPanel />}
       {tab === 1 && <BonusMalusPanel />}
@@ -45,6 +53,8 @@ export function ConfigHubPage() {
       {tab === 3 && <RegisterTemplatesPanel />}
       {tab === 4 && <CustomFieldsPanel />}
       {tab === 5 && <PeriodLocksPanel />}
+      {tab === 6 && <ReferenceCatalogsPage />}
+      {tab === 7 && <DocumentDesignerPage />}
     </Box>
   );
 }
