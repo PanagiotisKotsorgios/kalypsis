@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, FormControlLabel, MenuItem,
+  Alert, Box, Button, Card, Chip, CircularProgress, MenuItem,
   Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow,
-  TextField, Tooltip, Typography
+  TextField, Typography
 } from "@mui/material";
 import StackedBarChartIcon from "@mui/icons-material/StackedBarChart";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
@@ -245,20 +245,11 @@ export function ProductionListsPage() {
   // (new filters, new group-by) so we don't land on an empty tail page.
   useEffect(() => { setPage(0); }, [q.data?.rows.length, f]);
 
-  // «Απόκρυψη προμ. έδρας» — when the operator prints/exports the sheet
-  // to send it to a συνεργάτης, they typically don't want the producer
-  // seeing what the agency (έδρα) keeps. Toggle drops the "bridgeComm"
-  // (Προμ. γέφυρας/έδρας) and "agency" (Προμ. έδρας) columns from both
-  // the on-screen table and the print / CSV output, plus strips the
-  // matching bits from the group section headers. Persisted per browser.
-  const [hideAgencyCols, setHideAgencyCols] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("kalypsis.productionList.hideAgency") === "1";
-  });
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem("kalypsis.productionList.hideAgency", hideAgencyCols ? "1" : "0");
-  }, [hideAgencyCols]);
+  // «Απόκρυψη προμ. έδρας» state removed — the operator now un-ticks the
+  // bridgeComm / agency columns directly in the ExportColumnPicker for
+  // the same effect. Legacy `kalypsis.productionList.hideAgency` key in
+  // localStorage is left as-is (harmless dead data) — no migration.
+  const hideAgencyCols = false;
 
   // Data-driven auto-hide for ΦΠΑ: bridge-imported policies come with a
   // real VAT value from the carrier, manual policies usually don't. If
@@ -470,9 +461,10 @@ export function ProductionListsPage() {
         <Box sx={{ flex: 1 }} />
         <Stack direction="row" spacing={1} alignItems="center">
           <SavedReportsButton entity="production-lists" currentFilters={f} onLoad={(next) => setF({ ...f, ...next })} />
-          <Button component={RouterLink} to="/app/production-report" variant="outlined" startIcon={<StackedBarChartIcon />}>
-            Ετήσια παραγωγή
-          </Button>
+          {/* «Ετήσια παραγωγή» button removed from the header. The report
+              is still reachable via /app/production-report (old bookmarks
+              keep working); it's no longer a standalone entry point in
+              the UI to reduce header clutter. */}
           <Button component={RouterLink} to="/app/commission-runs" variant="outlined" color="secondary" startIcon={<CalculateIcon />}>
             Εκκαθαρίσεις προμηθειών
           </Button>
@@ -483,16 +475,12 @@ export function ProductionListsPage() {
             setAll={selection.setAll}
             reset={selection.reset}
           />
-          <Tooltip title="Κρύβει τη στήλη «Προμ. γέφυρας/έδρας», τη στήλη «Προμ. έδρας» και το «Χ€ προμ. έδρας» από τα υποσύνολα ομάδας — για αποστολή πινακίου σε συνεργάτη.">
-            <FormControlLabel
-              sx={{ ml: 0.5, mr: 0.5, "& .MuiFormControlLabel-label": { fontSize: 13 } }}
-              control={
-                <Checkbox size="small" checked={hideAgencyCols}
-                  onChange={e => setHideAgencyCols(e.target.checked)} />
-              }
-              label="Απόκρυψη προμ. έδρας"
-            />
-          </Tooltip>
+          {/* «Απόκρυψη προμ. έδρας» checkbox removed. The ExportColumnPicker
+              above already lets the operator include/exclude any column
+              (bridgeComm, agency, both) for both the on-screen table and
+              the print/CSV export — so an extra checkbox for the same
+              intent was redundant. To send a producer sheet without the
+              agency's commission, un-tick those columns in the picker. */}
           <ExportFormatMenu onExport={downloadExport} />
           <Button variant="outlined" startIcon={<PrintIcon />} onClick={openPrint}>
             {t("common.print", "Εκτύπωση")}
