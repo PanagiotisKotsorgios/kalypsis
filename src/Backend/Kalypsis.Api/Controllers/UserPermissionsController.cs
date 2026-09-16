@@ -15,7 +15,8 @@ namespace Kalypsis.Api.Controllers;
 ///                                       dialog (UserPermissionsDialog) calls.
 ///   /api/users/{id}/permissions      — REST-conventional alternative.
 ///
-/// Same handlers back both; either path works.
+/// The legacy controller serves the established frontend route; this controller
+/// intentionally exposes only the REST-conventional alternatives.
 /// </summary>
 [ApiController]
 [Authorize(Policy = "AgencyAdmin")]
@@ -28,7 +29,6 @@ public class UserPermissionsController : ControllerBase
     // Catalog — the full list of grantable permission codes.
     // ---------------------------------------------------------------------
 
-    [HttpGet("api/permissions/catalog")]
     [HttpGet("api/permission-catalog")]
     public async Task<ActionResult<string[]>> GetCatalog(CancellationToken ct)
         => Ok(await _mediator.Send(new GetPermissionCatalogQuery(), ct));
@@ -37,14 +37,12 @@ public class UserPermissionsController : ControllerBase
     // Per-user permissions — GET / PUT.
     // ---------------------------------------------------------------------
 
-    [HttpGet("api/permissions/user/{id:guid}")]
     [HttpGet("api/users/{id:guid}/permissions")]
     public async Task<ActionResult<UserPermissionsDto>> Get(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetUserPermissionsQuery(id), ct));
 
     public record SetUserPermissionsBody(string[]? Permissions);
 
-    [HttpPut("api/permissions/user/{id:guid}")]
     [HttpPut("api/users/{id:guid}/permissions")]
     public async Task<ActionResult<UserPermissionsDto>> Set(
         Guid id,
