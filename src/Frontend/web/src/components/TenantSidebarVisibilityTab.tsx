@@ -19,7 +19,8 @@ import {
   pageContainerKey,
   sidebarGroupKey,
   sidebarItemKey,
-  type SidebarVisibilityItem
+  type SidebarVisibilityItem,
+  type SidebarVisibilitySection
 } from "../config/sidebarVisibility";
 import type { PackageCode } from "../auth/PackagesContext";
 
@@ -165,6 +166,95 @@ function VisibilitySwitch({
       }
       componentsProps={{ typography: { sx: { flex: 1 } } }}
     />
+  );
+}
+
+/**
+ * The editable version of the office navigation. It deliberately follows the
+ * sidebar's order and group containers instead of presenting a catalogue of
+ * cards, so an administrator can immediately see what each switch affects.
+ */
+function SidebarVisibilityEditor({
+  sections, groupContainers, hiddenItems, onChange
+}: {
+  sections: SidebarVisibilitySection[];
+  groupContainers: Map<string, SidebarVisibilityItem>;
+  hiddenItems: Set<string>;
+  onChange: (key: string, hidden: boolean) => void;
+}) {
+  return (
+    <Card variant="outlined">
+      <CardContent>
+        <Typography variant="h6" fontWeight={700}>Ρύθμιση δομής sidebar</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 1.5 }}>
+          Η ίδια σειρά και τα ίδια containers με το sidebar του γραφείου. Κλείστε μια γραμμή για να κρυφτεί μόνο αυτή,
+          ή κλείστε τον διακόπτη της κατηγορίας για να κρυφτεί ολόκληρο το πλαίσιο.
+        </Typography>
+        <Box sx={{ width: "100%", maxWidth: 540, border: "1px solid", borderColor: "divider", borderRadius: 2, overflow: "hidden", bgcolor: "background.paper", boxShadow: "0 8px 22px rgba(11,37,69,0.08)" }}>
+          <Box sx={{ px: 1.5, py: 1.1, bgcolor: "#0b2545", color: "common.white" }}>
+            <Typography fontSize={13} fontWeight={800}>Sidebar γραφείου</Typography>
+          </Box>
+          <List dense disablePadding sx={{ px: 0.75, py: 0.75, maxHeight: 720, overflowY: "auto" }}>
+            {sections.map((section, sectionIndex) => {
+              const group = section.groupKey ? groupContainers.get(section.groupKey) : undefined;
+              const groupHidden = !!section.groupKey && hiddenItems.has(sidebarGroupKey(section.groupKey));
+              return (
+                <Box key={section.title} sx={{ mb: 0.5 }}>
+                  {sectionIndex > 0 && <Divider sx={{ my: 0.75 }} />}
+                  {group ? (
+                    <ListItem disableGutters sx={{ px: 1.1, py: 0.4, minHeight: 38, bgcolor: "rgba(11,37,69,0.055)", borderRadius: 1 }}>
+                      <ListItemIcon sx={{ minWidth: 30, color: "text.secondary" }}><FolderIcon fontSize="small" /></ListItemIcon>
+                      <ListItemText
+                        primary={group.label}
+                        secondary="Ολόκληρη κατηγορία"
+                        primaryTypographyProps={{ fontSize: 12.5, fontWeight: 800, noWrap: true }}
+                        secondaryTypographyProps={{ fontSize: 10.5, noWrap: true }}
+                      />
+                      <Switch
+                        size="small"
+                        checked={!groupHidden}
+                        inputProps={{ "aria-label": `Εμφάνιση κατηγορίας ${group.label}` }}
+                        onChange={(_, checked) => onChange(sidebarGroupKey(section.groupKey!), !checked)}
+                      />
+                    </ListItem>
+                  ) : (
+                    <Typography variant="overline" color="text.secondary" sx={{ display: "block", px: 1.1, pb: 0.25, fontWeight: 800, letterSpacing: "0.06em" }}>
+                      {section.title}
+                    </Typography>
+                  )}
+                  {section.items.map((item) => {
+                    const itemHidden = hiddenItems.has(sidebarItemKey(item.path));
+                    return (
+                      <ListItem
+                        key={item.path}
+                        disableGutters
+                        sx={{ px: group ? 1.8 : 1.1, py: 0.15, minHeight: 36, opacity: groupHidden ? 0.5 : 1 }}
+                      >
+                        <ListItemIcon sx={{ minWidth: group ? 26 : 30, color: "text.secondary" }}>
+                          {group ? <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: "currentColor" }} /> : <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "currentColor" }} />}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={item.label}
+                          secondary={item.detail}
+                          primaryTypographyProps={{ fontSize: 13, fontWeight: 600, noWrap: true }}
+                          secondaryTypographyProps={{ fontSize: 10.5, noWrap: true }}
+                        />
+                        <Switch
+                          size="small"
+                          checked={!itemHidden}
+                          inputProps={{ "aria-label": `Εμφάνιση ${item.label}` }}
+                          onChange={(_, checked) => onChange(sidebarItemKey(item.path), !checked)}
+                        />
+                      </ListItem>
+                    );
+                  })}
+                </Box>
+              );
+            })}
+          </List>
+        </Box>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -325,39 +415,12 @@ export function TenantSidebarVisibilityTab({ tenantId, onError }: {
         </CardContent>
       </Card>
 
-      {availableSections.map((section) => (
-        <Card key={section.title} variant="outlined">
-          <CardContent>
-            <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
-              <Box>
-                <Typography variant="h6" fontWeight={700}>{section.title}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{section.description}</Typography>
-              </Box>
-              {section.groupKey && availableGroupContainers.get(section.groupKey) && (
-                <FormControlLabel
-                  label="Εμφάνιση κατηγορίας"
-                  labelPlacement="start"
-                  control={<Switch
-                    checked={!current.has(sidebarGroupKey(section.groupKey))}
-                    onChange={(_, checked) => update(sidebarGroupKey(section.groupKey!), !checked)}
-                  />}
-                />
-              )}
-            </Stack>
-            <Divider sx={{ mb: 1 }} />
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, columnGap: 4 }}>
-              {section.items.map((item) => (
-                <VisibilitySwitch
-                  key={item.path}
-                  item={item}
-                  hidden={current.has(sidebarItemKey(item.path))}
-                  onChange={(hidden) => update(sidebarItemKey(item.path), hidden)}
-                />
-              ))}
-            </Box>
-          </CardContent>
-        </Card>
-      ))}
+      <SidebarVisibilityEditor
+        sections={availableSections}
+        groupContainers={availableGroupContainers}
+        hiddenItems={current}
+        onChange={update}
+      />
 
       {availablePageContainerSections.map((section) => (
         <Card key={section.title} variant="outlined">
