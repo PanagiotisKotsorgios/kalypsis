@@ -259,7 +259,9 @@ import { BookkeepingPage } from "./pages/BookkeepingPage";
 import { PlatformDesktopReleasesPage } from "./pages/PlatformDesktopReleasesPage";
 import { PlatformDesktopLicensesPage } from "./pages/PlatformDesktopLicensesPage";
 
-const navByRole: Record<Role, NavItem[]> = {
+// Exported so Platform Admin can render a read-only, faithful sidebar preview
+// for an office user without starting an impersonation session.
+export const navByRole: Record<Role, NavItem[]> = {
   Customer: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon /> },

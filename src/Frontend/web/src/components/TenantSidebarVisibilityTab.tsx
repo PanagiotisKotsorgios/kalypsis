@@ -1,10 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Alert, Box, Button, Card, CardContent, CircularProgress, Divider,
-  FormControlLabel, Stack, Switch, Typography
+  FormControlLabel, List, ListItem, ListItemIcon, ListItemText, MenuItem,
+  Stack, Switch, TextField, Typography
 } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import FolderIcon from "@mui/icons-material/Folder";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { navByRole } from "../App";
+import type { NavItem } from "./AppLayout";
+import { useTranslation } from "react-i18next";
+import type { Role } from "../auth/AuthContext";
 import {
   BACKOFFICE_PAGE_CONTAINER_SECTIONS,
   SIDEBAR_GROUP_CONTAINERS,
@@ -22,6 +29,119 @@ interface SidebarVisibilityResponse {
 
 interface TenantPackagesResponse {
   packages: PackageCode[];
+}
+
+interface OfficeUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: Role;
+  isActive: boolean;
+}
+
+interface UserPermissionsResponse {
+  effective: string[];
+}
+
+const OFFICE_SIDEBAR_ROLES: Role[] = ["AgencyAdmin", "AgencyUser", "Producer", "Customer"];
+
+function SidebarPreview({
+  user, activePackages, hiddenItems, permissions
+}: {
+  user: OfficeUser;
+  activePackages: Set<PackageCode>;
+  hiddenItems: Set<string>;
+  permissions: Set<string>;
+}) {
+  const { t } = useTranslation();
+  const bypassPermissions = user.role === "AgencyAdmin";
+  const navItems = useMemo(() => {
+    const source = navByRole[user.role] ?? [];
+    return source.filter((item) => {
+      if (hiddenItems.has(sidebarItemKey(item.to))) return false;
+      if (item.group && hiddenItems.has(sidebarGroupKey(item.group))) return false;
+      if (item.package && !activePackages.has(item.package)) return false;
+      if (item.permission && !bypassPermissions && !permissions.has(item.permission)) return false;
+      return true;
+    }).filter((item, index, all) => {
+      const key = `${item.to}\u0000${item.group ?? ""}`;
+      return all.findIndex((other) => `${other.to}\u0000${other.group ?? ""}` === key) === index;
+    });
+  }, [activePackages, bypassPermissions, hiddenItems, permissions, user.role]);
+
+  const dashboard = navItems.find((item) => item.to === "/" && !item.group);
+  const topLevel = navItems.filter((item) => !item.group && item.to !== "/");
+  const groups = useMemo(() => {
+    const result: { key: string; icon?: ReactNode; items: NavItem[] }[] = [];
+    for (const item of navItems) {
+      if (!item.group) continue;
+      let group = result.find((entry) => entry.key === item.group);
+      if (!group) {
+        group = { key: item.group, icon: item.groupIcon, items: [] };
+        result.push(group);
+      }
+      if (item.groupIcon && !group.icon) group.icon = item.groupIcon;
+      group.items.push(item);
+    }
+    return result;
+  }, [navItems]);
+
+  const Item = ({ item, indented = false }: { item: NavItem; indented?: boolean }) => (
+    <ListItem disableGutters sx={{ px: indented ? 1.8 : 1.2, py: 0.18, minHeight: 31 }}>
+      <ListItemIcon sx={{ minWidth: 30, color: "text.secondary", "& > svg": { fontSize: 18 } }}>
+        {item.icon}
+      </ListItemIcon>
+      <ListItemText
+        primary={t(item.labelKey)}
+        primaryTypographyProps={{ fontSize: 12.5, fontWeight: indented ? 500 : 600, noWrap: true }}
+      />
+    </ListItem>
+  );
+
+  return (
+    <Box sx={{ width: "100%", maxWidth: 360, border: "1px solid", borderColor: "divider", borderRadius: 2, overflow: "hidden", bgcolor: "background.paper", boxShadow: "0 8px 22px rgba(11,37,69,0.10)" }}>
+      <Box sx={{ px: 1.5, py: 1.1, bgcolor: "#0b2545", color: "common.white" }}>
+        <Typography fontSize={13} fontWeight={800} noWrap>Kalypsis</Typography>
+      </Box>
+      <List dense disablePadding sx={{ px: 0.45, py: 0.6, maxHeight: 520, overflowY: "auto" }}>
+        {dashboard && <Item item={dashboard} />}
+        {dashboard && (topLevel.length > 0 || groups.length > 0) && <Divider sx={{ my: 0.5 }} />}
+        {topLevel.map((item) => <Item key={`${item.to}-${item.labelKey}`} item={item} />)}
+        {groups.length > 0 && topLevel.length > 0 && <Divider sx={{ my: 0.5 }} />}
+        {groups.map((group) => (
+          <Box key={group.key} sx={{ mb: 0.45 }}>
+            <ListItem disableGutters sx={{ px: 1.2, py: 0.4, minHeight: 32, bgcolor: "rgba(11,37,69,0.045)", borderRadius: 1 }}>
+              <ListItemIcon sx={{ minWidth: 30, color: "text.secondary", "& > svg": { fontSize: 18 } }}>
+                {group.icon ?? <FolderIcon fontSize="small" />}
+              </ListItemIcon>
+              <ListItemText
+                primary={t(`nav.group.${group.key}`, group.key)}
+                primaryTypographyProps={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", noWrap: true }}
+              />
+              <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>{group.items.length}</Typography>
+              <ExpandMoreIcon fontSize="small" color="action" />
+            </ListItem>
+            {group.items.map((item) => <Item key={`${item.to}-${item.labelKey}`} item={item} indented />)}
+          </Box>
+        ))}
+        {navItems.length === 0 && (
+          <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: "center" }}>
+            Δεν υπάρχουν ορατές επιλογές.
+          </Typography>
+        )}
+      </List>
+      <Divider />
+      <Box sx={{ px: 1.5, py: 1 }}>
+        <Typography variant="caption" fontWeight={700} noWrap display="block">
+          {user.firstName} {user.lastName}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" noWrap display="block">
+          {t(`roles.${user.role}`)}
+        </Typography>
+      </Box>
+    </Box>
+  );
 }
 
 function VisibilitySwitch({
@@ -54,6 +174,7 @@ export function TenantSidebarVisibilityTab({ tenantId, onError }: {
 }) {
   const qc = useQueryClient();
   const [draft, setDraft] = useState<Set<string> | null>(null);
+  const [previewUserId, setPreviewUserId] = useState("");
   const query = useQuery({
     queryKey: ["tenant-sidebar-visibility", tenantId],
     queryFn: async () => (await api.get<SidebarVisibilityResponse>(
@@ -65,6 +186,10 @@ export function TenantSidebarVisibilityTab({ tenantId, onError }: {
     queryFn: async () => (await api.get<TenantPackagesResponse>(
       `/platform/tenants/${tenantId}/packages`
     )).data
+  });
+  const usersQuery = useQuery({
+    queryKey: ["tenant-sidebar-preview-users", tenantId],
+    queryFn: async () => (await api.get<OfficeUser[]>("/platform/users", { params: { tenantId } })).data
   });
 
   const saved = useMemo(() => new Set(query.data?.hiddenItems ?? []), [query.data]);
@@ -95,6 +220,22 @@ export function TenantSidebarVisibilityTab({ tenantId, onError }: {
       items: section.items.filter(belongsToActivePackage)
     }))
     .filter((section) => section.items.length > 0);
+  const previewUsers = useMemo(
+    () => (usersQuery.data ?? []).filter((user) => user.isActive && OFFICE_SIDEBAR_ROLES.includes(user.role)),
+    [usersQuery.data]
+  );
+  useEffect(() => {
+    if (previewUsers.length === 0) return;
+    if (!previewUsers.some((user) => user.id === previewUserId)) {
+      setPreviewUserId(previewUsers[0].id);
+    }
+  }, [previewUserId, previewUsers]);
+  const previewUser = previewUsers.find((user) => user.id === previewUserId) ?? null;
+  const previewPermissionsQuery = useQuery({
+    queryKey: ["tenant-sidebar-preview-permissions", previewUser?.id],
+    enabled: !!previewUser,
+    queryFn: async () => (await api.get<UserPermissionsResponse>(`/permissions/user/${previewUser!.id}`)).data
+  });
 
   const update = (key: string, hidden: boolean) => {
     setDraft(previous => {
@@ -117,11 +258,11 @@ export function TenantSidebarVisibilityTab({ tenantId, onError }: {
     onError: (error) => onError(extractErrorMessage(error))
   });
 
-  if (query.isLoading || packagesQuery.isLoading) {
+  if (query.isLoading || packagesQuery.isLoading || usersQuery.isLoading) {
     return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
   }
-  if (query.error || packagesQuery.error) {
-    return <Alert severity="error">Δεν ήταν δυνατή η φόρτωση των ρυθμίσεων sidebar ή των ενεργών πακέτων.</Alert>;
+  if (query.error || packagesQuery.error || usersQuery.error) {
+    return <Alert severity="error">Δεν ήταν δυνατή η φόρτωση των ρυθμίσεων sidebar, των ενεργών πακέτων ή των χρηστών του γραφείου.</Alert>;
   }
 
   return (
@@ -130,6 +271,59 @@ export function TenantSidebarVisibilityTab({ tenantId, onError }: {
         Οι ρυθμίσεις αυτές αφορούν μόνο την εμφάνιση του sidebar για αυτό το γραφείο. Δεν αφαιρούν δικαιώματα,
         πακέτα ή πρόσβαση με απευθείας σύνδεσμο. Εμφανίζονται μόνο επιλογές από τα ενεργά πακέτα του γραφείου.
       </Alert>
+
+      <Card variant="outlined">
+        <CardContent>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={2.5} alignItems={{ md: "flex-start" }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="h6" fontWeight={700}>Προεπισκόπηση sidebar χρήστη</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
+                Δείτε τη navigation που θα έχει ο συγκεκριμένος χρήστης, με βάση τον ρόλο, τα ενεργά πακέτα,
+                τα δικαιώματά του και τις παραπάνω επιλογές του γραφείου. Η προεπισκόπηση ενημερώνεται αμέσως,
+                χωρίς είσοδο ή impersonation ως χρήστης.
+              </Typography>
+              {previewUsers.length > 0 ? (
+                <TextField
+                  select
+                  fullWidth
+                  label="Χρήστης για προεπισκόπηση"
+                  value={previewUserId}
+                  onChange={(event) => setPreviewUserId(event.target.value)}
+                  sx={{ maxWidth: 480 }}
+                >
+                  {previewUsers.map((user) => (
+                    <MenuItem key={user.id} value={user.id}>
+                      {user.firstName} {user.lastName} — {user.email}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              ) : (
+                <Alert severity="warning">Δεν υπάρχει ενεργός χρήστης αυτού του γραφείου για προεπισκόπηση.</Alert>
+              )}
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1.5 }}>
+                Οι κατηγορίες εμφανίζονται ανοιχτές μόνο στην προεπισκόπηση, ώστε να ελέγχετε όλα τα στοιχεία.
+                Το αν είναι ανοιχτές ή κλειστές στο πραγματικό sidebar παραμένει προσωπική επιλογή του χρήστη στη συσκευή του.
+              </Typography>
+            </Box>
+            {previewUser && (
+              previewPermissionsQuery.error ? (
+                <Alert severity="error" sx={{ width: 360 }}>
+                  Δεν ήταν δυνατός ο υπολογισμός των δικαιωμάτων του επιλεγμένου χρήστη.
+                </Alert>
+              ) : previewPermissionsQuery.isLoading ? (
+                <Box sx={{ width: 360, minHeight: 220, display: "grid", placeItems: "center" }}><CircularProgress size={28} /></Box>
+              ) : (
+                <SidebarPreview
+                  user={previewUser}
+                  activePackages={activePackages}
+                  hiddenItems={current}
+                  permissions={new Set(previewPermissionsQuery.data?.effective ?? [])}
+                />
+              )
+            )}
+          </Stack>
+        </CardContent>
+      </Card>
 
       {availableSections.map((section) => (
         <Card key={section.title} variant="outlined">
