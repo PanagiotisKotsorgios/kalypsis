@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Divider,
+  Alert, Box, Button, Card, CardContent, CircularProgress, Divider,
   FormControlLabel, Stack, Switch, Typography
 } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,9 +12,14 @@ import {
   sidebarItemKey,
   type SidebarVisibilityItem
 } from "../config/sidebarVisibility";
+import type { PackageCode } from "../auth/PackagesContext";
 
 interface SidebarVisibilityResponse {
   hiddenItems: string[];
+}
+
+interface TenantPackagesResponse {
+  packages: PackageCode[];
 }
 
 function VisibilitySwitch({
@@ -53,10 +58,34 @@ export function TenantSidebarVisibilityTab({ tenantId, onError }: {
       `/platform/tenants/${tenantId}/sidebar-visibility`
     )).data
   });
+  const packagesQuery = useQuery({
+    queryKey: ["tenant-packages", tenantId],
+    queryFn: async () => (await api.get<TenantPackagesResponse>(
+      `/platform/tenants/${tenantId}/packages`
+    )).data
+  });
 
   const saved = useMemo(() => new Set(query.data?.hiddenItems ?? []), [query.data]);
   const current = draft ?? saved;
   const changed = draft !== null;
+  const activePackages = useMemo(
+    () => new Set(packagesQuery.data?.packages ?? []),
+    [packagesQuery.data]
+  );
+  const belongsToActivePackage = (item: { packages?: readonly PackageCode[] }) =>
+    !item.packages || item.packages.some((pkg) => activePackages.has(pkg));
+  const availableGroupContainers = new Map(
+    SIDEBAR_GROUP_CONTAINERS
+      .filter(belongsToActivePackage)
+      .map((item) => [item.path, item])
+  );
+  const availableSections = SIDEBAR_VISIBILITY_SECTIONS
+    .filter(belongsToActivePackage)
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(belongsToActivePackage)
+    }))
+    .filter((section) => section.items.length > 0);
 
   const update = (key: string, hidden: boolean) => {
     setDraft(previous => {
@@ -79,50 +108,39 @@ export function TenantSidebarVisibilityTab({ tenantId, onError }: {
     onError: (error) => onError(extractErrorMessage(error))
   });
 
-  if (query.isLoading) {
+  if (query.isLoading || packagesQuery.isLoading) {
     return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
   }
-  if (query.error) {
-    return <Alert severity="error">Δεν ήταν δυνατή η φόρτωση των ρυθμίσεων sidebar.</Alert>;
+  if (query.error || packagesQuery.error) {
+    return <Alert severity="error">Δεν ήταν δυνατή η φόρτωση των ρυθμίσεων sidebar ή των ενεργών πακέτων.</Alert>;
   }
 
   return (
     <Stack spacing={2}>
       <Alert severity="info">
         Οι ρυθμίσεις αυτές αφορούν μόνο την εμφάνιση του sidebar για αυτό το γραφείο. Δεν αφαιρούν δικαιώματα,
-        πακέτα ή πρόσβαση με απευθείας σύνδεσμο.
+        πακέτα ή πρόσβαση με απευθείας σύνδεσμο. Εμφανίζονται μόνο επιλογές από τα ενεργά πακέτα του γραφείου.
       </Alert>
 
-      <Card variant="outlined">
-        <CardContent>
-          <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={2} mb={1}>
-            <Box>
-              <Typography variant="h6" fontWeight={700}>Πλαίσια sidebar</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Απενεργοποιήστε ένα πλαίσιο για να κρύψετε ολόκληρη την ομαδοποιημένη ενότητα και όλα τα στοιχεία της.
-              </Typography>
-            </Box>
-            <Chip label={`${current.size} κρυφές επιλογές`} size="small" />
-          </Stack>
-          <Divider sx={{ mb: 1 }} />
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, columnGap: 4 }}>
-            {SIDEBAR_GROUP_CONTAINERS.map((group) => (
-              <VisibilitySwitch
-                key={group.path}
-                item={group}
-                hidden={current.has(sidebarGroupKey(group.path))}
-                onChange={(hidden) => update(sidebarGroupKey(group.path), hidden)}
-              />
-            ))}
-          </Box>
-        </CardContent>
-      </Card>
-
-      {SIDEBAR_VISIBILITY_SECTIONS.map((section) => (
+      {availableSections.map((section) => (
         <Card key={section.title} variant="outlined">
           <CardContent>
-            <Typography variant="h6" fontWeight={700}>{section.title}</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{section.description}</Typography>
+            <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
+              <Box>
+                <Typography variant="h6" fontWeight={700}>{section.title}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{section.description}</Typography>
+              </Box>
+              {section.groupKey && availableGroupContainers.get(section.groupKey) && (
+                <FormControlLabel
+                  label="Εμφάνιση κατηγορίας"
+                  labelPlacement="start"
+                  control={<Switch
+                    checked={!current.has(sidebarGroupKey(section.groupKey))}
+                    onChange={(_, checked) => update(sidebarGroupKey(section.groupKey!), !checked)}
+                  />}
+                />
+              )}
+            </Stack>
             <Divider sx={{ mb: 1 }} />
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, columnGap: 4 }}>
               {section.items.map((item) => (

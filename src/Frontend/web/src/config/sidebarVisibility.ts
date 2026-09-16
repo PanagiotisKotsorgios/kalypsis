@@ -3,6 +3,8 @@
  * rather than translated labels, so language changes and label edits never
  * alter a saved office configuration.
  */
+import type { PackageCode } from "../auth/PackagesContext";
+
 export const sidebarItemKey = (path: string) => `item:${path}`;
 export const sidebarGroupKey = (group: string) => `group:${group}`;
 
@@ -10,23 +12,29 @@ export interface SidebarVisibilityItem {
   path: string;
   label: string;
   detail?: string;
+  /** Empty means the item is common; otherwise at least one package must be active. */
+  packages?: readonly PackageCode[];
 }
 
 export interface SidebarVisibilitySection {
   title: string;
   description: string;
   items: SidebarVisibilityItem[];
+  /** Hide this whole section when its package is not enabled for the office. */
+  packages?: readonly PackageCode[];
+  /** The matching collapsible group in the actual sidebar, when one exists. */
+  groupKey?: string;
 }
 
 /** Group headers (the boxed/collapsible sidebar containers) used by agency administrators. */
 export const SIDEBAR_GROUP_CONTAINERS: SidebarVisibilityItem[] = [
-  { path: "production", label: "Παραγωγή", detail: "Περιλαμβάνει πελάτες, συμβόλαια, ζημιές και συνεργάτες." },
-  { path: "financials", label: "Οικονομικά", detail: "Περιλαμβάνει τα οικονομικά και τις σχετικές αναφορές." },
-  { path: "params", label: "Παραμετροποίηση", detail: "Περιλαμβάνει εταιρείες, παραμετρικά και κανόνες." },
-  { path: "admin", label: "Διοίκηση", detail: "Περιλαμβάνει χρήστες, audit και εργαλεία διαχείρισης." },
-  { path: "crm", label: "CRM", detail: "Περιλαμβάνει τις ομαδοποιημένες λειτουργίες CRM." },
-  { path: "integrationsGrp", label: "Υπηρεσίες διασύνδεσης", detail: "Περιλαμβάνει τις ομαδοποιημένες διασυνδέσεις." },
-  { path: "setup", label: "Ρυθμίσεις διασυνδέσεων", detail: "Περιλαμβάνει υποκαταστήματα και σχεδιασμό κλάδων." }
+  { path: "production", label: "Παραγωγή", detail: "Περιλαμβάνει πελάτες, συμβόλαια, ζημιές και συνεργάτες.", packages: ["BackOffice"] },
+  { path: "financials", label: "Οικονομικά", detail: "Περιλαμβάνει τα οικονομικά και τις σχετικές αναφορές.", packages: ["BackOffice"] },
+  { path: "params", label: "Παραμετροποίηση", detail: "Περιλαμβάνει εταιρείες, παραμετρικά και κανόνες.", packages: ["BackOffice"] },
+  { path: "admin", label: "Διοίκηση", detail: "Περιλαμβάνει χρήστες, audit και εργαλεία διαχείρισης.", packages: ["BackOffice"] },
+  { path: "crm", label: "CRM", detail: "Περιλαμβάνει τις ομαδοποιημένες λειτουργίες CRM.", packages: ["Crm"] },
+  { path: "integrationsGrp", label: "Υπηρεσίες διασύνδεσης", detail: "Περιλαμβάνει τις ομαδοποιημένες διασυνδέσεις.", packages: ["Integrations"] },
+  { path: "setup", label: "Ρυθμίσεις διασυνδέσεων", detail: "Περιλαμβάνει υποκαταστήματα και σχεδιασμό κλάδων.", packages: ["Integrations"] }
 ];
 
 /** Every route currently rendered by an office-facing sidebar, across its roles. */
@@ -48,34 +56,69 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
   },
   {
     title: "BackOffice",
-    description: "Εμφανίζονται μόνο όταν το πακέτο BackOffice είναι ενεργό.",
+    description: "Αυτόνομες επιλογές του BackOffice, όπως εμφανίζονται εκτός κατηγορίας στο sidebar.",
+    packages: ["BackOffice"],
     items: [
       { path: "/carrier-bridges-hub", label: "Γέφυρες εταιρειών" },
-      { path: "/production-lists", label: "Λίστες παραγωγής" },
-      { path: "/customers", label: "Πελάτες" },
-      { path: "/policies", label: "Συμβόλαια" },
-      { path: "/claims", label: "Ζημιές" },
-      { path: "/producers", label: "Συνεργάτες" },
-      { path: "/financials", label: "Οικονομικά" },
-      { path: "/financial-report", label: "Οικονομική αναφορά" },
-      { path: "/producer-statement", label: "Πινάκιο συνεργάτη" },
-      { path: "/over-commission-statements", label: "Υπερπρομήθειες" },
-      { path: "/insurance-companies", label: "Ασφαλιστικές εταιρείες" },
-      { path: "/company-parametrics", label: "Παραμετρικά ασφαλιστικών" },
-      { path: "/commission-rules", label: "Κανόνες προμηθειών" },
-      { path: "/config-hub", label: "Κέντρο παραμετροποίησης" },
-      { path: "/legal-templates", label: "Νομικά πρότυπα" },
-      { path: "/users", label: "Χρήστες" },
-      { path: "/audit", label: "Ιστορικό ενεργειών" },
-      { path: "/recycle-bin", label: "Κάδος ανακύκλωσης" },
-      { path: "/reconciliation-hub", label: "Ταυτοποιήσεις & καταμερισμοί" },
       { path: "/documents", label: "Έγγραφα" },
       { path: "/over-commission-bridges", label: "Γέφυρες υπερπρομηθειών" }
     ]
   },
   {
+    title: "Παραγωγή",
+    description: "Ίδια κατηγορία με το πλαίσιο «Παραγωγή» του sidebar.",
+    packages: ["BackOffice"],
+    groupKey: "production",
+    items: [
+      { path: "/production-lists", label: "Λίστες παραγωγής" },
+      { path: "/customers", label: "Πελάτες" },
+      { path: "/policies", label: "Συμβόλαια" },
+      { path: "/claims", label: "Ζημιές" },
+      { path: "/producers", label: "Συνεργάτες" },
+      { path: "/over-commission-statements", label: "Υπερπρομήθειες" }
+    ]
+  },
+  {
+    title: "Οικονομικά",
+    description: "Ίδια κατηγορία με το πλαίσιο «Οικονομικά» του sidebar.",
+    packages: ["BackOffice"],
+    groupKey: "financials",
+    items: [
+      { path: "/financials", label: "Οικονομικά" },
+      { path: "/financial-report", label: "Οικονομική αναφορά" },
+      { path: "/producer-statement", label: "Πινάκιο συνεργάτη" }
+    ]
+  },
+  {
+    title: "Παραμετροποίηση",
+    description: "Ίδια κατηγορία με το πλαίσιο «Παραμετροποίηση» του sidebar.",
+    packages: ["BackOffice"],
+    groupKey: "params",
+    items: [
+      { path: "/insurance-companies", label: "Ασφαλιστικές εταιρείες" },
+      { path: "/company-parametrics", label: "Παραμετρικά ασφαλιστικών" },
+      { path: "/commission-rules", label: "Κανόνες προμηθειών" },
+      { path: "/config-hub", label: "Κέντρο παραμετροποίησης" },
+      { path: "/legal-templates", label: "Νομικά πρότυπα" }
+    ]
+  },
+  {
+    title: "Διοίκηση",
+    description: "Ίδια κατηγορία με το πλαίσιο «Διοίκηση» του sidebar.",
+    packages: ["BackOffice"],
+    groupKey: "admin",
+    items: [
+      { path: "/users", label: "Χρήστες" },
+      { path: "/audit", label: "Ιστορικό ενεργειών" },
+      { path: "/recycle-bin", label: "Κάδος ανακύκλωσης" },
+      { path: "/reconciliation-hub", label: "Ταυτοποιήσεις & καταμερισμοί" }
+    ]
+  },
+  {
     title: "CRM",
     description: "Εμφανίζονται μόνο όταν το πακέτο CRM είναι ενεργό.",
+    packages: ["Crm"],
+    groupKey: "crm",
     items: [
       { path: "/tasks", label: "Εργασίες" },
       { path: "/requests", label: "Αιτήματα" },
@@ -87,10 +130,18 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     ]
   },
   {
-    title: "FrontOffice & Intelligence",
-    description: "Εμφανίζονται μόνο όταν τα αντίστοιχα πακέτα είναι ενεργά.",
+    title: "FrontOffice",
+    description: "Εμφανίζονται μόνο όταν το πακέτο FrontOffice είναι ενεργό.",
+    packages: ["FrontOffice"],
     items: [
-      { path: "/cover-notes", label: "Σημειώματα κάλυψης" },
+      { path: "/cover-notes", label: "Σημειώματα κάλυψης" }
+    ]
+  },
+  {
+    title: "Intelligence",
+    description: "Εμφανίζονται μόνο όταν το πακέτο Intelligence είναι ενεργό.",
+    packages: ["Intelligence"],
+    items: [
       { path: "/reports", label: "Αναφορές" },
       { path: "/named-reports", label: "Ονομαστικές αναφορές" },
       { path: "/production-stats", label: "Στατιστικά παραγωγής" }
@@ -99,15 +150,32 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
   {
     title: "Διασυνδέσεις",
     description: "Εμφανίζονται μόνο όταν το πακέτο Διασυνδέσεις είναι ενεργό.",
+    packages: ["Integrations"],
     items: [
       { path: "/integration-settings", label: "Ρυθμίσεις διασυνδέσεων" },
-      { path: "/mydata", label: "myDATA" },
+      { path: "/mydata", label: "myDATA" }
+    ]
+  },
+  {
+    title: "Υπηρεσίες διασύνδεσης",
+    description: "Ίδια κατηγορία με το πλαίσιο «Υπηρεσίες διασύνδεσης» του sidebar.",
+    packages: ["Integrations"],
+    groupKey: "integrationsGrp",
+    items: [
       { path: "/usae", label: "ΥΣΑΕ" },
       { path: "/dias", label: "ΔΙΑΣ" },
       { path: "/bank-connections", label: "Τραπεζικές συνδέσεις" },
       { path: "/info-center", label: "Info Center" },
       { path: "/partner-portals", label: "Πύλες συνεργατών" },
-      { path: "/api-keys", label: "Κλειδιά API" },
+      { path: "/api-keys", label: "Κλειδιά API" }
+    ]
+  },
+  {
+    title: "Ρυθμίσεις διασυνδέσεων",
+    description: "Ίδια κατηγορία με το πλαίσιο ρυθμίσεων του sidebar.",
+    packages: ["Integrations"],
+    groupKey: "setup",
+    items: [
       { path: "/branches", label: "Σχεδιασμός κλάδων" },
       { path: "/agency-offices", label: "Υποκαταστήματα" }
     ]
@@ -115,6 +183,7 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
   {
     title: "Συντομεύσεις",
     description: "Το «Όλα τα εργαλεία» εμφανίζεται σε περισσότερα από ένα workspaces αλλά ρυθμίζεται μία φορά.",
+    packages: ["BackOffice", "FrontOffice", "Crm", "Intelligence", "Integrations"],
     items: [{ path: "/all-tools", label: "Όλα τα εργαλεία" }]
   }
 ];
