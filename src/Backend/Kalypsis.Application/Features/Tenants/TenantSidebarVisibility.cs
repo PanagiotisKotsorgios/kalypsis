@@ -44,7 +44,8 @@ public static class TenantSidebarVisibility
         var key = value.Trim();
         if (key.Length is < 7 or > 160) return false;
         if (!key.StartsWith("item:/", StringComparison.Ordinal)
-            && !key.StartsWith("group:", StringComparison.Ordinal)) return false;
+            && !key.StartsWith("group:", StringComparison.Ordinal)
+            && !key.StartsWith("container:/", StringComparison.Ordinal)) return false;
 
         return key.All(c => char.IsLetterOrDigit(c) || c is ':' or '/' or '-' or '_' or '.');
     }

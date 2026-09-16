@@ -4,6 +4,7 @@ import SyncAltIcon from "@mui/icons-material/SyncAlt";
 import StackedLineChartIcon from "@mui/icons-material/StackedLineChart";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import { Link as RouterLink } from "react-router-dom";
+import { usePageContainerVisibility } from "../hooks/usePageContainerVisibility";
 
 /**
  * «Γέφυρες Εταιρειών» hub — one sidebar entry replaces four. Presents the
@@ -11,8 +12,10 @@ import { Link as RouterLink } from "react-router-dom";
  * still gets a one-click path to each specific tool.
  */
 export function CarrierBridgesHubPage() {
+  const isContainerVisible = usePageContainerVisibility("carrier-bridges-hub");
   const tiles = [
     {
+      id: "production-bridges",
       to: "/app/carrier-bridges",
       title: "Παραγωγή / Γέφυρες εταιρειών",
       body: "Ανέβασμα αρχείων παραγωγής (πωλήσεις / εκδόσεις) από κάθε ασφαλιστική. Παρακολουθήστε τι έχει εισαχθεί και ξανατρέξτε ένα batch.",
@@ -20,6 +23,7 @@ export function CarrierBridgesHubPage() {
       color: "#0b2545",
     },
     {
+      id: "over-commission-bridges",
       to: "/app/over-commission-bridges",
       title: "Γέφυρες υπερπρομηθειών",
       body: "Εισαγωγή μηνιαίων πινακίων υπερπρομηθειών από κάθε ασφαλιστική. Το σύστημα τα αντιστοιχίζει σε συνεργάτες και ενημερώνει τα οικονομικά.",
@@ -27,6 +31,7 @@ export function CarrierBridgesHubPage() {
       color: "#1ea7e1",
     },
     {
+      id: "collection-file-bridges",
       to: "/app/collection-files-bridges",
       title: "Γέφυρες οικονομικών (Αρχεία είσπραξης)",
       body: "Ανέβασμα αρχείων είσπραξης από τις ασφαλιστικές για αυτόματη ενημέρωση πληρωμών ασφαλίστρων και συμφωνία με τα ημερολόγια.",
@@ -34,6 +39,7 @@ export function CarrierBridgesHubPage() {
       color: "#2ea44f",
     },
     {
+      id: "bridge-code-mappings",
       to: "/app/bridge-code-mappings",
       title: "Αντιστοιχίσεις κωδικών",
       body: "Χαρτογραφήστε τους κωδικούς ασφαλιστικών (κλάδοι, καλύψεις, καταστάσεις) με τους δικούς μας — μια φορά και για πάντα.",
@@ -58,7 +64,7 @@ export function CarrierBridgesHubPage() {
         gap: 2.5,
         gridTemplateColumns: { xs: "1fr", sm: "repeat(2,1fr)" }
       }}>
-        {tiles.map((t) => (
+        {tiles.filter((t) => isContainerVisible(t.id)).map((t) => (
           <Card key={t.to} variant="outlined" sx={{
             borderRadius: 2.5,
             // Permanent navy-tinted frame at rest so the tile reads as a

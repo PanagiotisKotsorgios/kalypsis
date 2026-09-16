@@ -7,6 +7,9 @@ import type { PackageCode } from "../auth/PackagesContext";
 
 export const sidebarItemKey = (path: string) => `item:${path}`;
 export const sidebarGroupKey = (group: string) => `group:${group}`;
+/** Stable key for a card/tile rendered inside an office-facing page. */
+export const pageContainerKey = (pageId: string, containerId: string) =>
+  `container:/${pageId}/${containerId}`;
 
 export interface SidebarVisibilityItem {
   path: string;
@@ -24,6 +27,21 @@ export interface SidebarVisibilitySection {
   packages?: readonly PackageCode[];
   /** The matching collapsible group in the actual sidebar, when one exists. */
   groupKey?: string;
+}
+
+export interface PageContainerVisibilityItem {
+  pageId: string;
+  containerId: string;
+  label: string;
+  detail?: string;
+  packages: readonly PackageCode[];
+}
+
+export interface PageContainerVisibilitySection {
+  title: string;
+  description: string;
+  packages: readonly PackageCode[];
+  items: PageContainerVisibilityItem[];
 }
 
 /** Group headers (the boxed/collapsible sidebar containers) used by agency administrators. */
@@ -185,5 +203,34 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     description: "Το «Όλα τα εργαλεία» εμφανίζεται σε περισσότερα από ένα workspaces αλλά ρυθμίζεται μία φορά.",
     packages: ["BackOffice", "FrontOffice", "Crm", "Intelligence", "Integrations"],
     items: [{ path: "/all-tools", label: "Όλα τα εργαλεία" }]
+  }
+];
+
+/**
+ * Per-page tiles that a Platform Admin can hide for a specific office. More
+ * BackOffice pages can opt in simply by using the same page/container key.
+ */
+export const BACKOFFICE_PAGE_CONTAINER_SECTIONS: PageContainerVisibilitySection[] = [
+  {
+    title: "Γέφυρες Εταιρειών",
+    description: "Tiles της σελίδας Γέφυρες Εταιρειών.",
+    packages: ["BackOffice"],
+    items: [
+      { pageId: "carrier-bridges-hub", containerId: "production-bridges", label: "Παραγωγή / Γέφυρες εταιρειών", packages: ["BackOffice"] },
+      { pageId: "carrier-bridges-hub", containerId: "over-commission-bridges", label: "Γέφυρες υπερπρομηθειών", packages: ["BackOffice"] },
+      { pageId: "carrier-bridges-hub", containerId: "collection-file-bridges", label: "Γέφυρες οικονομικών (αρχεία είσπραξης)", packages: ["BackOffice"] },
+      { pageId: "carrier-bridges-hub", containerId: "bridge-code-mappings", label: "Αντιστοιχίσεις κωδικών", packages: ["BackOffice"] }
+    ]
+  },
+  {
+    title: "Ταυτοποιήσεις & Καταμερισμοί",
+    description: "Tiles της αντίστοιχης BackOffice hub σελίδας.",
+    packages: ["BackOffice"],
+    items: [
+      { pageId: "reconciliation-hub", containerId: "financial-reconciliation", label: "Ταυτοποίηση οικονομικών", packages: ["BackOffice"] },
+      { pageId: "reconciliation-hub", containerId: "producer-reconciliation", label: "Ταυτοποίηση συνεργατών", packages: ["BackOffice"] },
+      { pageId: "reconciliation-hub", containerId: "commission-distribution", label: "Καταμερισμός προμηθειών", packages: ["BackOffice"] },
+      { pageId: "reconciliation-hub", containerId: "customer-merge", label: "Συγχώνευση πελατών", packages: ["BackOffice"] }
+    ]
   }
 ];

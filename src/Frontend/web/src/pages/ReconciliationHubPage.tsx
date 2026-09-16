@@ -5,6 +5,7 @@ import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import BalanceIcon from "@mui/icons-material/Balance";
 import MergeIcon from "@mui/icons-material/Merge";
 import { Link as RouterLink } from "react-router-dom";
+import { usePageContainerVisibility } from "../hooks/usePageContainerVisibility";
 
 /**
  * «Ταυτοποίηση & καταμερισμοί» hub — one sidebar entry now covers the three
@@ -15,26 +16,31 @@ import { Link as RouterLink } from "react-router-dom";
  * Individual routes still work for bookmarks.
  */
 export function ReconciliationHubPage() {
+  const isContainerVisible = usePageContainerVisibility("reconciliation-hub");
   const tiles = [
     {
+      id: "financial-reconciliation",
       to: "/app/reconciliation-dashboard",
       title: "Ταυτοποίηση Οικονομικών",
       body: "Μηνιαία σύνοψη ασφαλίστρων, εισπράξεων και προμηθειών του γραφείου. Εντοπίζει καθυστερήσεις είσπραξης και αποκλίσεις εκκαθαρίσεων.",
       icon: <AssessmentIcon />, color: "#0b2545",
     },
     {
+      id: "producer-reconciliation",
       to: "/app/producer-reconciliation",
       title: "Ταυτοποίηση Συνεργατών",
       body: "Σύγκριση δηλωμένων vs υπολογισμένων προμηθειών ανά συνεργάτη, ανά ασφαλιστική και ανά κανόνα προμήθειας.",
       icon: <VerifiedIcon />, color: "#1f7bb3",
     },
     {
+      id: "commission-distribution",
       to: "/app/commission-distribution",
       title: "Καταμερισμός Προμηθειών",
       body: "Ποιος πήρε τι, ανά ιεραρχία. Πηγή δεδομένων: συμβόλαια, μηνιαία πινάκια υπερπρομηθειών, ή όλα μαζί.",
       icon: <AccountTreeIcon />, color: "#16a34a",
     },
     {
+      id: "customer-merge",
       // Merged from a standalone sidebar entry — customer merge is a
       // reconciliation-family task (identifying duplicate identities +
       // consolidating history). Old /app/customer-merge URL still
@@ -56,7 +62,7 @@ export function ReconciliationHubPage() {
         από τη μηνιαία ροή του ταμείου μέχρι το ποιος έβγαλε τι, μαζί ή χωριστά με τα πινάκια υπερπρομηθειών.
       </Typography>
       <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(2,1fr)", lg: "repeat(4,1fr)" } }}>
-        {tiles.map((t) => (
+        {tiles.filter((t) => isContainerVisible(t.id)).map((t) => (
           <Card key={t.to} variant="outlined" sx={{
             borderRadius: 2.5,
             borderWidth: 1.5,

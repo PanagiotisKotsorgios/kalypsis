@@ -6,8 +6,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import {
+  BACKOFFICE_PAGE_CONTAINER_SECTIONS,
   SIDEBAR_GROUP_CONTAINERS,
   SIDEBAR_VISIBILITY_SECTIONS,
+  pageContainerKey,
   sidebarGroupKey,
   sidebarItemKey,
   type SidebarVisibilityItem
@@ -25,7 +27,7 @@ interface TenantPackagesResponse {
 function VisibilitySwitch({
   item, hidden, onChange, disabled = false
 }: {
-  item: SidebarVisibilityItem;
+  item: Pick<SidebarVisibilityItem, "label" | "detail">;
   hidden: boolean;
   onChange: (next: boolean) => void;
   disabled?: boolean;
@@ -80,6 +82,13 @@ export function TenantSidebarVisibilityTab({ tenantId, onError }: {
       .map((item) => [item.path, item])
   );
   const availableSections = SIDEBAR_VISIBILITY_SECTIONS
+    .filter(belongsToActivePackage)
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(belongsToActivePackage)
+    }))
+    .filter((section) => section.items.length > 0);
+  const availablePageContainerSections = BACKOFFICE_PAGE_CONTAINER_SECTIONS
     .filter(belongsToActivePackage)
     .map((section) => ({
       ...section,
@@ -149,6 +158,26 @@ export function TenantSidebarVisibilityTab({ tenantId, onError }: {
                   item={item}
                   hidden={current.has(sidebarItemKey(item.path))}
                   onChange={(hidden) => update(sidebarItemKey(item.path), hidden)}
+                />
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+      ))}
+
+      {availablePageContainerSections.map((section) => (
+        <Card key={section.title} variant="outlined">
+          <CardContent>
+            <Typography variant="h6" fontWeight={700}>{section.title}</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{section.description}</Typography>
+            <Divider sx={{ mb: 1 }} />
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, columnGap: 4 }}>
+              {section.items.map((item) => (
+                <VisibilitySwitch
+                  key={`${item.pageId}/${item.containerId}`}
+                  item={item}
+                  hidden={current.has(pageContainerKey(item.pageId, item.containerId))}
+                  onChange={(hidden) => update(pageContainerKey(item.pageId, item.containerId), hidden)}
                 />
               ))}
             </Box>
