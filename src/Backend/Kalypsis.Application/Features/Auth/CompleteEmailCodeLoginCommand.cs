@@ -1,6 +1,7 @@
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.Users;
+using Kalypsis.Application.Features.Tenants;
 using Kalypsis.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -83,7 +84,7 @@ public class CompleteEmailCodeLoginHandler : IRequestHandler<CompleteEmailCodeLo
             ? null
             : await _db.Tenants.IgnoreQueryFilters()
                 .Where(t => t.Id == user.TenantId)
-                .Select(t => new { t.Name, t.LogoUrl, t.BrandColorHex })
+                .Select(t => new { t.Name, t.LogoUrl, t.BrandColorHex, t.HiddenSidebarItemsJson })
                 .FirstOrDefaultAsync(ct);
 
         var tokens = _jwt.IssueTokens(user);
@@ -101,7 +102,8 @@ public class CompleteEmailCodeLoginHandler : IRequestHandler<CompleteEmailCodeLo
             tenantInfo?.Name,
             user.Email, user.FirstName, user.LastName, user.Role, user.PreferredLanguage,
             PermissionCatalog.ResolveEffective(user.Role, user.PermissionsJson),
-            tenantInfo?.LogoUrl, tenantInfo?.BrandColorHex);
+            tenantInfo?.LogoUrl, tenantInfo?.BrandColorHex,
+            TenantSidebarVisibility.Parse(tenantInfo?.HiddenSidebarItemsJson));
 
         return new LoginResponse(
             tokens.AccessToken,

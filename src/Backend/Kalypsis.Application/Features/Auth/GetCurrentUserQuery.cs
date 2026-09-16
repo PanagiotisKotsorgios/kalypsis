@@ -1,6 +1,7 @@
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.Users;
+using Kalypsis.Application.Features.Tenants;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,7 +39,7 @@ public class GetCurrentUserQueryHandler : IRequestHandler<GetCurrentUserQuery, A
             : await _db.Tenants
                 .IgnoreQueryFilters()
                 .Where(t => t.Id == user.TenantId)
-                .Select(t => new { t.Name, t.LogoUrl, t.BrandColorHex })
+                .Select(t => new { t.Name, t.LogoUrl, t.BrandColorHex, t.HiddenSidebarItemsJson })
                 .FirstOrDefaultAsync(cancellationToken);
 
         return new AuthenticatedUserDto(
@@ -52,6 +53,7 @@ public class GetCurrentUserQueryHandler : IRequestHandler<GetCurrentUserQuery, A
             user.PreferredLanguage,
             PermissionCatalog.ResolveEffective(user.Role, user.PermissionsJson),
             tenantInfo?.LogoUrl,
-            tenantInfo?.BrandColorHex);
+            tenantInfo?.BrandColorHex,
+            TenantSidebarVisibility.Parse(tenantInfo?.HiddenSidebarItemsJson));
     }
 }

@@ -31,6 +31,8 @@ export interface AuthUser {
   role: Role;
   preferredLanguage: string;
   permissions: string[];
+  /** Per-office presentation preferences; does not grant or revoke access. */
+  hiddenSidebarItems?: string[];
 }
 
 interface LoginResponse {
@@ -338,7 +340,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       accessToken: string;
       expiresAt: string;
       targetUser: { userId: string; email: string; firstName: string; lastName: string; role: string;
-        tenantId: string | null; tenantName: string | null };
+        tenantId: string | null; tenantName: string | null; hiddenSidebarItems?: string[] };
       impersonatorUserId: string;
       impersonatorEmail: string;
     }
@@ -365,7 +367,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lastName: imp.targetUser.lastName,
       role: imp.targetUser.role as Role,
       preferredLanguage: "el",
-      permissions: []
+      permissions: [],
+      hiddenSidebarItems: imp.targetUser.hiddenSidebarItems ?? []
     };
 
     // Swap in

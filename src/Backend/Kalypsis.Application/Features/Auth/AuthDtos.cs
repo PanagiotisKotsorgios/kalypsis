@@ -15,7 +15,8 @@ public record AuthenticatedUserDto(
     string PreferredLanguage,
     string[] Permissions,
     string? TenantLogoUrl = null,
-    string? TenantBrandColorHex = null);
+    string? TenantBrandColorHex = null,
+    string[]? HiddenSidebarItems = null);
 
 public record LoginResponse(
     string AccessToken,

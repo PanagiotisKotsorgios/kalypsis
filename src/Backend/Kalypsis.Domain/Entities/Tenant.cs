@@ -21,6 +21,14 @@ public class Tenant : BaseEntity
     public int DefaultPolicyDurationMonths { get; set; } = 12;
 
     /// <summary>
+    /// Per-office navigation preferences managed by Platform Admin. The value
+    /// is a JSON array of stable sidebar keys (for example
+    /// <c>item:/reports</c> or <c>group:financials</c>). An empty array keeps
+    /// the standard navigation, so existing offices are unaffected.
+    /// </summary>
+    public string HiddenSidebarItemsJson { get; set; } = "[]";
+
+    /// <summary>
     /// Παρακράτηση φόρου (%) που εφαρμόζεται σε προμήθειες συνεργατών —
     /// τυπικά 20% στην Ελλάδα. Ο calculator το χρησιμοποιεί ως προεπιλογή
     /// για όλα τα επίπεδα εκτός Agency (τα γραφεία δεν παρακρατούν από τον

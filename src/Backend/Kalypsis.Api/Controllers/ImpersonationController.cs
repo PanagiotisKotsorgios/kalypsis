@@ -1,5 +1,6 @@
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
+using Kalypsis.Application.Features.Tenants;
 using Kalypsis.Domain.Entities;
 using Kalypsis.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -31,7 +32,8 @@ public class ImpersonationController : ControllerBase
     public ImpersonationController(AppDbContext db, IJwtTokenService jwt, ICurrentUser current, IDateTimeProvider clock)
     { _db = db; _jwt = jwt; _current = current; _clock = clock; }
 
-    public record TargetInfo(Guid UserId, string Email, string FirstName, string LastName, string Role, Guid? TenantId, string? TenantName);
+    public record TargetInfo(Guid UserId, string Email, string FirstName, string LastName, string Role, Guid? TenantId, string? TenantName,
+        string[] HiddenSidebarItems);
     public record ImpersonationResponse(string AccessToken, DateTime ExpiresAt, TargetInfo TargetUser,
         Guid ImpersonatorUserId, string ImpersonatorEmail);
 
@@ -46,11 +48,11 @@ public class ImpersonationController : ControllerBase
             .FirstOrDefaultAsync(u => u.Id == userId, ct)
             ?? throw AppException.NotFound("Χρήστης");
 
-        var tenantName = target.TenantId == Guid.Empty
+        var tenantInfo = target.TenantId == Guid.Empty
             ? null
             : await _db.Tenants.IgnoreQueryFilters()
                 .Where(t => t.Id == target.TenantId)
-                .Select(t => t.Name).FirstOrDefaultAsync(ct);
+                .Select(t => new { t.Name, t.HiddenSidebarItemsJson }).FirstOrDefaultAsync(ct);
 
         if (!target.IsActive)
             return BadRequest(new { code = "user_inactive", message = "Δεν μπορείτε να συνδεθείτε ως ανενεργός χρήστης." });
@@ -79,7 +81,8 @@ public class ImpersonationController : ControllerBase
             token, expiresAt,
             new TargetInfo(target.Id, target.Email, target.FirstName, target.LastName,
                 target.Role.ToString(), target.TenantId == Guid.Empty ? null : target.TenantId,
-                tenantName),
+                tenantInfo?.Name,
+                TenantSidebarVisibility.Parse(tenantInfo?.HiddenSidebarItemsJson)),
             impersonator.UserId, impersonator.Email));
     }
 

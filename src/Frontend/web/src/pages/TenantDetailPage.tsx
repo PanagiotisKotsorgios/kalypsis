@@ -20,6 +20,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 import { money, date } from "../utils/format";
 import { useImpersonation } from "../impersonation/ImpersonationContext";
+import { TenantSidebarVisibilityTab } from "../components/TenantSidebarVisibilityTab";
 
 interface TenantOverview {
   tenantId: string; name: string; code: string; isActive: boolean;
@@ -43,8 +44,8 @@ export function TenantDetailPage() {
   // Deep-linkable tab — ?tab=contracts on the URL lands you straight on the
   // contracts pane. Used by the Economics page's "Χωρίς συμβόλαιο" shortcut.
   const [searchParams, setSearchParams] = useSearchParams();
-  type TabValue = "overview" | "packages" | "premium" | "billing" | "contracts" | "activity" | "users" | "customers" | "policies";
-  const validTabs: TabValue[] = ["overview", "packages", "premium", "billing", "contracts", "activity", "users", "customers", "policies"];
+  type TabValue = "overview" | "packages" | "premium" | "sidebar" | "billing" | "contracts" | "activity" | "users" | "customers" | "policies";
+  const validTabs: TabValue[] = ["overview", "packages", "premium", "sidebar", "billing", "contracts", "activity", "users", "customers", "policies"];
   const initialTab = (searchParams.get("tab") ?? "overview") as TabValue;
   const [tab, setTab] = useState<TabValue>(validTabs.includes(initialTab) ? initialTab : "overview");
   const changeTab = (next: TabValue) => {
@@ -129,6 +130,7 @@ export function TenantDetailPage() {
           <Tab label={t("tenants.tab.overview")} value="overview" />
           <Tab label={t("tenants.tab.packages")} value="packages" />
           <Tab label="Premium" value="premium" />
+          <Tab label="Sidebar" value="sidebar" />
           <Tab label={t("tenants.tab.billing")} value="billing" />
           <Tab label={t("tenants.tab.contracts")} value="contracts" />
           <Tab label={t("tenants.tab.activity")} value="activity" />
@@ -179,6 +181,10 @@ export function TenantDetailPage() {
 
       {tab === "premium" && id && (
         <PremiumTab tenantId={id} onError={setErr} />
+      )}
+
+      {tab === "sidebar" && id && (
+        <TenantSidebarVisibilityTab tenantId={id} onError={setErr} />
       )}
 
       {tab === "billing" && id && (

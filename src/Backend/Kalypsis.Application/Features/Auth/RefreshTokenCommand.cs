@@ -2,6 +2,7 @@ using FluentValidation;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.Users;
+using Kalypsis.Application.Features.Tenants;
 using Kalypsis.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -102,7 +103,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, L
             ? null
             : await _db.Tenants.IgnoreQueryFilters()
                 .Where(t => t.Id == user.TenantId)
-                .Select(t => new { t.Name, t.LogoUrl, t.BrandColorHex })
+                .Select(t => new { t.Name, t.LogoUrl, t.BrandColorHex, t.HiddenSidebarItemsJson })
                 .FirstOrDefaultAsync(ct);
 
         await _db.SaveChangesAsync(ct);
@@ -118,7 +119,8 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, L
             user.PreferredLanguage,
             PermissionCatalog.ResolveEffective(user.Role, user.PermissionsJson),
             tenantInfo?.LogoUrl,
-            tenantInfo?.BrandColorHex);
+            tenantInfo?.BrandColorHex,
+            TenantSidebarVisibility.Parse(tenantInfo?.HiddenSidebarItemsJson));
 
         return new LoginResponse(
             tokens.AccessToken,
