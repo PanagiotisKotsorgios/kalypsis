@@ -31,6 +31,7 @@ import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../com
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { money } from "../utils/format";
 
 type ProducerStatus = "Active" | "Suspended" | "Terminated" | "Prospect";
 type ProducerTier = "None" | "A" | "B" | "C" | "D" | "E";
@@ -702,6 +703,10 @@ interface ProducerGoalPlanDto {
   commissionIncreasePercent: number;
   maximumCommissionPercent: number;
   levelCount: number;
+  currentCommissionPercent: number;
+  currentCommissionAmount: number;
+  currentPremium: number;
+  currentPolicyCount: number;
 }
 
 /**
@@ -777,8 +782,13 @@ function ProducerGoalPlanDialog({ producer, onClose }: {
             <Typography color="text.secondary">
               {producer?.name}. Οι ρυθμίσεις είναι προσωπικές για αυτόν τον συνεργάτη και εμφανίζονται μόνο στο δικό του portal.
             </Typography>
+            {plan.data && (
+              <Alert severity="success">
+                <strong>Τρέχουσα πραγματική εικόνα:</strong> {plan.data.currentCommissionPercent.toFixed(2)}% μέσο ποσοστό στα {plan.data.currentPolicyCount} ενεργά συμβόλαια · {money(plan.data.currentCommissionAmount)} μικτή προμήθεια πάνω σε {money(plan.data.currentPremium)} παραγωγή.
+              </Alert>
+            )}
             <Alert severity="info">
-              Το πλάνο παρουσιάζει στόχους και εκτίμηση προμήθειας. Δεν αλλάζει αυτόματα κανόνες προμηθειών ή ήδη εκκαθαρισμένα ποσά.
+              <strong>Πώς λειτουργεί:</strong> ορίζετε checkpoints παραγωγής και την αύξηση που θα εμφανίζεται ως επόμενο επίπεδο. Το πλάνο παρουσιάζει στόχους και εκτίμηση προμήθειας· δεν αλλάζει αυτόματα κανόνες προμηθειών ή ήδη εκκαθαρισμένα ποσά.
             </Alert>
             <FormControlLabel
               control={<Switch checked={form.enabled} onChange={event => setForm({ ...form, enabled: event.target.checked })} />}
@@ -790,14 +800,14 @@ function ProducerGoalPlanDialog({ producer, onClose }: {
                 value={form.baseCommissionPercent}
                 onChange={event => setForm({ ...form, baseCommissionPercent: event.target.value })}
                 inputProps={{ min: 0, max: 100, step: 0.01 }}
-                helperText="Κενό: χρησιμοποιεί το μέσο πραγματικό ποσοστό του συνεργάτη."
+                helperText={`Αφετηρία υπολογισμού. Κενό = το τρέχον ${plan.data?.currentCommissionPercent.toFixed(2) ?? "πραγματικό"}% του συνεργάτη.`}
               />
               <TextField
                 type="number" fullWidth required label="Αύξηση ανά βαθμίδα (%)"
                 value={form.commissionIncreasePercent}
                 onChange={event => setForm({ ...form, commissionIncreasePercent: event.target.value })}
                 inputProps={{ min: 0, max: 100, step: 0.01 }}
-                helperText="Π.χ. 1 για +1% ανά επίπεδο."
+                helperText="Η αύξηση σε κάθε checkpoint. Π.χ. 1 = +1 μονάδα στο επόμενο επίπεδο."
               />
             </Stack>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -806,14 +816,14 @@ function ProducerGoalPlanDialog({ producer, onClose }: {
                 value={form.firstTargetPremium}
                 onChange={event => setForm({ ...form, firstTargetPremium: event.target.value })}
                 inputProps={{ min: 0, step: 100 }}
-                helperText="Κενό: υπολογίζεται από την τωρινή παραγωγή."
+                helperText="Το πρώτο checkpoint. Κενό = αυτόματα 25% πάνω από την τρέχουσα παραγωγή."
               />
               <TextField
                 type="number" fullWidth label="Βήμα παραγωγής ανά βαθμίδα (€)"
                 value={form.premiumStep}
                 onChange={event => setForm({ ...form, premiumStep: event.target.value })}
                 inputProps={{ min: 0, step: 100 }}
-                helperText="Κενό: προτείνεται αυτόματα από την παραγωγή."
+                helperText="Η απόσταση μεταξύ checkpoints. Κενό = αυτόματα προτεινόμενο βήμα."
               />
             </Stack>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -822,14 +832,14 @@ function ProducerGoalPlanDialog({ producer, onClose }: {
                 value={form.maximumCommissionPercent}
                 onChange={event => setForm({ ...form, maximumCommissionPercent: event.target.value })}
                 inputProps={{ min: 0, max: 100, step: 0.01 }}
-                helperText="Μπορεί να είναι πάνω από 14%, π.χ. 18 ή 20."
+                helperText="Το ανώτατο επιτρεπτό επίπεδο για αυτόν τον συνεργάτη. Π.χ. 14, 18 ή 20."
               />
               <TextField
                 type="number" fullWidth required label="Πλήθος βαθμίδων"
                 value={form.levelCount}
                 onChange={event => setForm({ ...form, levelCount: event.target.value })}
                 inputProps={{ min: 1, max: 12, step: 1 }}
-                helperText="Από 1 έως 12 επόμενους στόχους."
+                helperText="Πόσα checkpoints θα εμφανίζονται στο portal (1–12)."
               />
             </Stack>
           </Stack>
