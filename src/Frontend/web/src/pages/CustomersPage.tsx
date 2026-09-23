@@ -109,6 +109,7 @@ export function CustomersPage() {
   const [onlyUninsuredNeeds, setOnlyUninsuredNeeds] = useState(false);
   const [statusFilter, setStatusFilter] = useState<CustomerStatus | "">("");
   const [createStatus, setCreateStatus] = useState<CustomerStatus | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<CustomerDto | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const customersQuery = useQuery({
@@ -129,6 +130,11 @@ export function CustomersPage() {
       void qc.invalidateQueries({ queryKey: ["customers"] });
       setCreateStatus(null);
     },
+    onError: (err) => setError(extractErrorMessage(err))
+  });
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, body }: { id: string; body: CreateBody }) => api.put(`/customers/${id}`, body),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["customers"] }); setEditingCustomer(null); },
     onError: (err) => setError(extractErrorMessage(err))
   });
 
@@ -185,7 +191,7 @@ export function CustomersPage() {
 
   const rowMenu = useRowContextMenu<CustomerDto>({
     entityLabel: "πελάτη",
-    onEdit: (c) => { window.location.href = `/app/customers/${c.id}`; },
+    onEdit: (c) => { setError(null); setEditingCustomer(c); },
     onDelete: (c) => {
       const label = c.type === "Individual"
         ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() || c.customerNumber
@@ -359,7 +365,7 @@ export function CustomersPage() {
                     <TableCell align="right" sx={{ whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
                       <Tooltip title="Επεξεργασία">
                         <IconButton size="small"
-                          onClick={() => { window.location.href = `/app/customers/${c.id}`; }}>
+                          onClick={() => { setError(null); setEditingCustomer(c); }}>
                           <EditIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
@@ -405,6 +411,14 @@ export function CustomersPage() {
         onSubmit={(b) => createMutation.mutate(b)}
         submitting={createMutation.isPending}
       />
+      <CreateCustomerDialog
+        open={!!editingCustomer}
+        initialStatus={editingCustomer?.status ?? "Active"}
+        initialCustomer={editingCustomer}
+        onClose={() => setEditingCustomer(null)}
+        onSubmit={(b) => editingCustomer && updateMutation.mutate({ id: editingCustomer.id, body: b })}
+        submitting={updateMutation.isPending}
+      />
 
     </Box>
   );
@@ -413,12 +427,14 @@ export function CustomersPage() {
 function CreateCustomerDialog({
   open,
   initialStatus,
+  initialCustomer,
   onClose,
   onSubmit,
   submitting
 }: {
   open: boolean;
   initialStatus: CustomerStatus;
+  initialCustomer?: CustomerDto | null;
   onClose: () => void;
   onSubmit: (b: CreateBody) => void;
   submitting: boolean;
@@ -427,9 +443,15 @@ function CreateCustomerDialog({
   const [form, setForm] = useState<CreateBody>(() => newCustomerForm(initialStatus));
   useEffect(() => {
     if (open) {
-      setForm(newCustomerForm(initialStatus));
+      setForm(initialCustomer ? {
+        type: initialCustomer.type, status: initialCustomer.status,
+        firstName: initialCustomer.firstName ?? "", lastName: initialCustomer.lastName ?? "",
+        companyName: initialCustomer.companyName ?? "", vatNumber: initialCustomer.vatNumber ?? "",
+        email: initialCustomer.email ?? "", phone: initialCustomer.phone ?? "", city: initialCustomer.city ?? "",
+        notes: initialCustomer.notes ?? ""
+      } : newCustomerForm(initialStatus));
     }
-  }, [open, initialStatus]);
+  }, [open, initialStatus, initialCustomer]);
 
   const handleSubmit = () => {
     const payload: CreateBody = {

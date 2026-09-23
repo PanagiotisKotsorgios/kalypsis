@@ -68,6 +68,12 @@ public class CustomersController : ControllerBase
         return CreatedAtAction(nameof(List), null, result);
     }
 
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = "AgencyStaff")]
+    [RequirePermission("customers.write")]
+    public async Task<ActionResult<CustomerDto>> Update(Guid id, [FromBody] CreateCustomerRequest request, CancellationToken ct)
+        => Ok(await _mediator.Send(new UpdateCustomerCommand(id, request), ct));
+
     [HttpPatch("{id:guid}/status")]
     [Authorize(Policy = "AgencyStaff")]
     [RequirePermission("customers.write")]
