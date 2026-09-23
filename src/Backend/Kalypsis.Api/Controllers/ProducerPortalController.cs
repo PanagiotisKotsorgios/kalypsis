@@ -7,15 +7,14 @@ using Microsoft.AspNetCore.Mvc;
 namespace Kalypsis.Api.Controllers;
 
 /// <summary>
-/// Producer-portal endpoints — scoped to whichever Producer row the current
-/// user (Role=Producer) is linked to via User.ProducerId. Covers:
-///   • CRUD for the producer's own «παραμετροποίηση προμηθειών»
-///   • Comparison view: producer's expected rates vs the agency's CommissionRule
-///     at each (company × package × vehicle-use) key, with delta and status
+/// Legacy commission-expectation endpoints. Commission rules are now owned by
+/// the office, so Producer users are deliberately not authorized to call them.
+/// Existing rows are left intact for audit history; they are no longer exposed
+/// in the producer portal or used as a comparison surface.
 /// </summary>
 [ApiController]
 [Route("api/producer-portal")]
-[Authorize(Roles = "Producer")]
+[Authorize(Policy = "AgencyStaff")]
 public class ProducerPortalController : ControllerBase
 {
     private readonly IMediator _m;

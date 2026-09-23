@@ -78,6 +78,8 @@ interface Props {
   policyId: string | null;
   open: boolean;
   onClose: () => void;
+  /** Producer portal: show the office-assigned policy without any edits or office commission configuration. */
+  readOnly?: boolean;
 }
 
 const STATUS_COLOR: Record<string, "default" | "success" | "warning" | "info" | "error"> = {
@@ -97,7 +99,7 @@ const COLLECTION_METHODS_LABEL: Record<string, string> = {
   Other: "Άλλο",
 };
 
-export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
+export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }: Props) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [tab, setTab] = useState(0);
@@ -208,7 +210,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
     // Also enabled on the Οικονομικά tab (index 1) so its summary card can
     // show the parametrization-computed producer / agency totals alongside
     // the bridge-supplied premiums.
-    enabled: open && tab === 1 && !!policyId,
+    enabled: !readOnly && open && tab === 1 && !!policyId,
     queryFn: async () => (await api.get<PolicyCommissionMatrix>(`/policies/${policyId}/commission-splits`)).data
   });
 
@@ -399,10 +401,12 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                     {p.outstanding.toFixed(2)}
                   </Typography>
                 </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">{t("policyDetail.commissions")}</Typography>
-                  <Typography fontWeight={700}>{p.totalCommissions.toFixed(2)}</Typography>
-                </Box>
+                {!readOnly && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">{t("policyDetail.commissions")}</Typography>
+                    <Typography fontWeight={700}>{p.totalCommissions.toFixed(2)}</Typography>
+                  </Box>
+                )}
               </Stack>
               {p.documentCount === 0 && (
                 <Alert severity="warning" sx={{ mt: 2, fontWeight: 700 }} action={
@@ -438,7 +442,10 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
         </Tabs>
 
         {/* Scrollable content */}
-        <Box sx={{ flex: 1, overflowY: "auto", p: 3 }}>
+        <Box sx={{
+          flex: 1, overflowY: "auto", p: 3,
+          ...(readOnly ? { "& button, & input, & textarea, & [role=button]": { pointerEvents: "none" } } : {})
+        }}>
           {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
           {saved && <Alert severity="success" sx={{ mb: 2 }}>{t("common.savedOk")}</Alert>}
 
@@ -514,6 +521,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
 
               {/* FINANCIALS */}
               {tab === 1 && (
+                readOnly ? (
+                  <Alert severity="info">
+                    Η παραμετροποίηση και ο πίνακας προμηθειών ανήκουν στο γραφείο. Η δική σας ανάλυση ανά συμβόλαιο και μήνα είναι διαθέσιμη στον Πίνακα ελέγχου.
+                  </Alert>
+                ) : (
                 <Stack spacing={2.5}>
                   {/* ---------- Πηγή τιμών ---------- */}
                   {/* Bridge-imported vs Kalypsis-computed values at a glance.
@@ -595,6 +607,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                     }}
                   />
                 </Stack>
+                )
               )}
 
               {/* PARTIES */}
@@ -612,9 +625,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                   <Divider />
                   <Stack direction="row" alignItems="center" justifyContent="space-between">
                     <Typography variant="overline" color="text.secondary" fontWeight={700}>{t("policyDetail.producer")}</Typography>
+                    {!readOnly && (
                     <Button size="small" variant="text" onClick={() => setChangeProducerOpen(true)}>
                       Αλλαγή συνεργάτη
                     </Button>
+                    )}
                   </Stack>
                   <KV label={t("policyDetail.name")} value={p.producerName ?? "—"} />
                   {p.producerCode && <KV label={t("policyDetail.code")} value={p.producerCode} mono />}
@@ -758,9 +773,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
           <Box sx={{ p: 2, borderTop: "1px solid", borderColor: "divider" }}>
             <Stack direction="row" spacing={1} justifyContent="flex-end">
               <Button onClick={onClose}>{t("common.cancel")}</Button>
-              <Button variant="contained" startIcon={<SaveIcon />} disabled={save.isPending} onClick={() => save.mutate()}>
-                {save.isPending ? <CircularProgress size={18} /> : t("common.save")}
-              </Button>
+              {!readOnly && (
+                <Button variant="contained" startIcon={<SaveIcon />} disabled={save.isPending} onClick={() => save.mutate()}>
+                  {save.isPending ? <CircularProgress size={18} /> : t("common.save")}
+                </Button>
+              )}
             </Stack>
           </Box>
         )}
@@ -777,7 +794,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
         }}
       />
 
-      {p && (
+      {p && !readOnly && (
         <ChangeProducerDialog
           open={changeProducerOpen}
           onClose={() => setChangeProducerOpen(false)}

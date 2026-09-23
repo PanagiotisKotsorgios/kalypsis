@@ -22,7 +22,7 @@ import { api, extractErrorMessage } from "../api/client";
 
 interface ProducerLite {
   id: string; code: string; name: string;
-  status: "Active" | "Suspended" | "Terminated";
+  status: "Active" | "Suspended" | "Terminated" | "Prospect";
 }
 
 interface PreviewDto {

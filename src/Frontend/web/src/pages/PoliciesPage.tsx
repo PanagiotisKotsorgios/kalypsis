@@ -51,6 +51,7 @@ import { money, date } from "../utils/format";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
 import { ExportButton } from "../components/ExportButton";
+import { DataExportButton } from "../components/DataExportButton";
 import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
 import { useTableState } from "../components/useTableState";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
@@ -123,6 +124,7 @@ export function PoliciesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const isCustomer = user?.role === "Customer";
+  const isProducer = user?.role === "Producer";
   const canEdit = user?.role === "AgencyAdmin" || user?.role === "AgencyUser";
   const requestedView = searchParams.get("view");
   const activeView: "policies" | "delivery" | "group" = canEdit && (requestedView === "delivery" || requestedView === "group") ? requestedView : "policies";
@@ -334,6 +336,14 @@ export function PoliciesPage() {
         </Box>
         <Stack direction="row" spacing={1}>
           {canEdit && activeView === "policies" && <ExportButton href="/api/exports/policies.csv" />}
+          {isProducer && activeView === "policies" && (
+            <DataExportButton
+              entity="policies"
+              endpoint="/producer/me/exports/policies"
+              formats={["xlsx", "csv"]}
+              label="Εξαγωγή συμβολαίων"
+            />
+          )}
           {/* Ανανεώσεις / Πρόσθετες πράξεις / Ακυρώσεις were briefly here;
               moved down next to the «Ομαδικά συμβόλαια» view-switcher
               button so all lifecycle actions live in the same row. */}
@@ -401,6 +411,11 @@ export function PoliciesPage() {
         <GroupPoliciesPage embedded />
       ) : (
         <>
+      {isProducer && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Τα συμβόλαια καταχωρούνται και ανατίθενται από το γραφείο. Εδώ βλέπετε μόνο όσα έχουν ανατεθεί σε εσάς, μαζί με τυχόν πιθανά συμβόλαια.
+        </Alert>
+      )}
       {!isCustomer && (
         <Card sx={{ px: 1.5, py: 1.25, mb: 2 }} data-tour="policies-search">
           {/* Dense 4-col grid — search spans the full first row so it stays
@@ -722,6 +737,7 @@ export function PoliciesPage() {
         policyId={detailId}
         open={!!detailId}
         onClose={() => setDetailId(null)}
+        readOnly={isProducer}
       />
 
       {canEdit && (

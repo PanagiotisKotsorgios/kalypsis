@@ -67,9 +67,7 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
       { path: "/bookkeeping", label: "Μηχανογράφιση" },
       { path: "/agency-and-profile", label: "Ρυθμίσεις γραφείου & προφίλ" },
       { path: "/profile", label: "Προφίλ" },
-      { path: "/notifications", label: "Ειδοποιήσεις" },
-      { path: "/my-expected-rates", label: "Οι αναμενόμενες προμήθειές μου" },
-      { path: "/my-reconciliation", label: "Σύγκριση προμηθειών μου" }
+      { path: "/notifications", label: "Ειδοποιήσεις" }
     ]
   },
   {

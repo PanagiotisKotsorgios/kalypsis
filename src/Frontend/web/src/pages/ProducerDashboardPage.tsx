@@ -7,10 +7,11 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis
 } from "recharts";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../api/client";
-import { ProducerDeclarationForm } from "../components/ProducerDeclarationForm";
+import { DataExportButton } from "../components/DataExportButton";
 import { money, num } from "../utils/format";
 
 interface SeriesPoint { label: string; value: number }
@@ -77,6 +78,17 @@ export function ProducerDashboardPage() {
     queryFn: async () => (await api.get<MyRunLineDto[]>("/producer/me/commissions")).data
   });
 
+  const monthlyCommissions = useMemo(() => {
+    const totals = new Map<string, { label: string; value: number }>();
+    for (const line of myLines.data ?? []) {
+      const key = `${line.year}-${line.month.toString().padStart(2, "0")}`;
+      const current = totals.get(key) ?? { label: key, value: 0 };
+      current.value += line.commissionAmount;
+      totals.set(key, current);
+    }
+    return [...totals.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }, [myLines.data]);
+
   if (q.isLoading && self.isLoading) {
     return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
   }
@@ -108,6 +120,12 @@ export function ProducerDashboardPage() {
             {r.producerName}{r.producerCode ? ` · ${r.producerCode}` : ""}
           </Typography>
         </Box>
+        <DataExportButton
+          entity="commissions"
+          endpoint="/producer/me/exports/commissions"
+          formats={["xlsx", "csv"]}
+          label="Εξαγωγή προμηθειών"
+        />
       </Stack>
 
       {q.isError && (
@@ -186,6 +204,25 @@ export function ProducerDashboardPage() {
                 </Table>
               </TableContainer>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {monthlyCommissions.length > 0 && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Προμήθειες ανά μήνα</Typography>
+            <Box sx={{ height: 260 }}>
+              <ResponsiveContainer>
+                <BarChart data={monthlyCommissions}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e9f0" />
+                  <XAxis dataKey="label" stroke="#456079" fontSize={12} />
+                  <YAxis stroke="#456079" fontSize={12} tickFormatter={(v) => money(Number(v))} />
+                  <Tooltip formatter={(v) => money(Number(v))} />
+                  <Bar dataKey="value" name="Προμήθεια" fill="#1d4e89" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
           </CardContent>
         </Card>
       )}
@@ -286,13 +323,8 @@ export function ProducerDashboardPage() {
         </CardContent>
       </Card>
 
-      <ProducerDeclarationFormSection />
     </Box>
   );
-}
-
-function ProducerDeclarationFormSection() {
-  return <ProducerDeclarationForm />;
 }
 
 function Kpi({ label, value, accent }: { label: string; value: string; accent?: "warning" }) {

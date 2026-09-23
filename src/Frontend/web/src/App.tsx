@@ -194,13 +194,10 @@ import { BackupsPage } from "./pages/BackupsPage";
 import { ConfigHubPage } from "./pages/ConfigHubPage";
 import { RecycleBinPage } from "./pages/RecycleBinPage";
 import { ProducerReconciliationPage } from "./pages/ProducerReconciliationPage";
-import { MyExpectedRatesPage } from "./pages/MyExpectedRatesPage";
-import { MyReconciliationPage } from "./pages/MyReconciliationPage";
 import { ReconciliationDashboardPage } from "./pages/ReconciliationDashboardPage";
 import { ReconciliationHubPage } from "./pages/ReconciliationHubPage";
 import { PremiumGate } from "./components/PremiumGate";
 import { UpgradePlanDialogHost } from "./components/UpgradePlanDialog";
-import VerifiedIcon from "@mui/icons-material/Verified";
 import { AdvancePaymentsPage, ReconciliationPage, TachyPaymentsPage, InfoCenterPage, VehicleModelsPage } from "./pages/Phase13Pages";
 import VpnKeyIcon from "@mui/icons-material/VpnKey";
 import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
@@ -459,11 +456,6 @@ export const navByRole: Record<Role, NavItem[]> = {
     // filters /policies to their own ProducerId when Role=Producer.
     { to: "/policies", labelKey: "nav.policies", icon: <DescriptionIcon /> },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon /> },
-    // Producer's own «παραμετροποίηση προμηθειών» — what THEY expect per
-    // company × package. Feeds the comparison view below.
-    { to: "/my-expected-rates", labelKey: "nav.myExpectedRates", icon: <TuneOutlinedIcon /> },
-    // Live compare of my rates vs the office's rules, per company/package.
-    { to: "/my-reconciliation", labelKey: "nav.myReconciliation", icon: <VerifiedIcon /> },
     { to: "/notifications", labelKey: "nav.notifications", icon: <NotificationsIcon /> },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
@@ -763,10 +755,11 @@ export default function App() {
                   <Route path="audit" element={<AuditLogsPage />} />
                   <Route path="recycle-bin" element={<PremiumGate code="recycle-bin"><RecycleBinPage /></PremiumGate>} />
                   <Route path="producer-reconciliation" element={<ProducerReconciliationPage />} />
-                  {/* Producer portal — «Παραμετροποίηση μου» + «Σύγκριση με γραφείο». Both routes
-                      are backend-guarded by Role=Producer, so no client-side gating needed. */}
-                  <Route path="my-expected-rates" element={<MyExpectedRatesPage />} />
-                  <Route path="my-reconciliation" element={<MyReconciliationPage />} />
+                  {/* The office owns commission parametrization. Old producer
+                      self-service links are kept as safe redirects for any
+                      existing bookmarks, without exposing the old screens. */}
+                  <Route path="my-expected-rates" element={<Navigate to="/" replace />} />
+                  <Route path="my-reconciliation" element={<Navigate to="/" replace />} />
                   <Route path="reconciliation-dashboard" element={<ReconciliationDashboardPage />} />
                   <Route path="reconciliation-hub" element={<ReconciliationHubPage />} />
                   <Route path="tasks" element={<TasksPage />} />

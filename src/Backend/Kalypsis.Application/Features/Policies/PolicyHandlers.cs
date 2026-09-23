@@ -175,6 +175,13 @@ public class GetPolicyQueryHandler : IRequestHandler<GetPolicyQuery, PolicyDto>
                 .Where(u => u.Id == userId).Select(u => u.CustomerId).FirstOrDefaultAsync(ct);
             if (customerId != p.CustomerId) throw AppException.Forbidden();
         }
+        else if (_current.Role == Role.Producer)
+        {
+            var userId = _current.UserId ?? throw AppException.Unauthorized();
+            var producerId = await _db.Users.IgnoreQueryFilters()
+                .Where(u => u.Id == userId).Select(u => u.ProducerId).FirstOrDefaultAsync(ct);
+            if (producerId is null || producerId != p.ProducerId) throw AppException.Forbidden();
+        }
 
         return ListPoliciesQueryHandler.ToDto(p);
     }

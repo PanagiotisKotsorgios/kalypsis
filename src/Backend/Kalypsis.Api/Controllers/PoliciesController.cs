@@ -132,6 +132,7 @@ public class PoliciesController : ControllerBase
     /// shows something meaningful.
     /// </summary>
     [HttpGet("{id:guid}/commission-splits")]
+    [Authorize(Policy = "AgencyStaff")]
     [RequirePermission("commissions.read")]
     public async Task<ActionResult<PolicyCommissionMatrixDto>> CommissionSplits(
         Guid id, CancellationToken ct)

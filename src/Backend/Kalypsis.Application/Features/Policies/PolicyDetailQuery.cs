@@ -137,6 +137,13 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
                 .Where(u => u.Id == userId).Select(u => u.CustomerId).FirstOrDefaultAsync(ct);
             if (customerId != p.CustomerId) throw AppException.Forbidden();
         }
+        else if (_current.Role == Role.Producer)
+        {
+            var userId = _current.UserId ?? throw AppException.Unauthorized();
+            var producerId = await _db.Users.IgnoreQueryFilters()
+                .Where(u => u.Id == userId).Select(u => u.ProducerId).FirstOrDefaultAsync(ct);
+            if (producerId is null || producerId != p.ProducerId) throw AppException.Forbidden();
+        }
 
         // Pull related counts + totals in parallel-safe single-context order.
         var endorsementCount = await _db.PolicyEndorsements.IgnoreQueryFilters()

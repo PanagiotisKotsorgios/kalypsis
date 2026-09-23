@@ -25,10 +25,14 @@ type AnyAction = ExportFormat | "print";
 
 interface DataExportButtonProps<T = unknown> {
   entity: string;
+  /** Optional authenticated endpoint. Defaults to the universal office export route. */
+  endpoint?: string;
   search?: string;
   size?: "small" | "medium" | "large";
   label?: string;
   defaultFormat?: ExportFormat;
+  /** Formats exposed in the menu. Defaults to Excel, CSV and PDF. */
+  formats?: ExportFormat[];
   /** Whitelist of column keys — when set and non-empty, sent as a `columns=`
    *  query param to the export endpoint so backends can trim their output. */
   visibleColumnKeys?: string[];
@@ -64,10 +68,12 @@ const FORMAT_META: Record<ExportFormat, { label: string; icon: JSX.Element; mime
  */
 export function DataExportButton<T = unknown>({
   entity,
+  endpoint,
   search,
   size = "small",
   label = "Εξαγωγή",
   defaultFormat = "xlsx",
+  formats = ["xlsx", "csv", "pdf"],
   visibleColumnKeys,
   printRows,
   printColumns,
@@ -87,7 +93,7 @@ export function DataExportButton<T = unknown>({
       if (visibleColumnKeys && visibleColumnKeys.length > 0) {
         params.columns = visibleColumnKeys.join(",");
       }
-      const res = await api.get(`/data-exports/${entity}`, { params, responseType: "blob" });
+      const res = await api.get(endpoint ?? `/data-exports/${entity}`, { params, responseType: "blob" });
       const cd = res.headers["content-disposition"] as string | undefined;
       const match = cd?.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
       const fallback = `${entity}-${new Date().toISOString().slice(0,10)}.${FORMAT_META[format].ext}`;
@@ -128,8 +134,6 @@ export function DataExportButton<T = unknown>({
       setOpen(false);
     }
   };
-
-  const formats: ExportFormat[] = ["xlsx", "csv", "pdf"];
 
   return (
     <>
