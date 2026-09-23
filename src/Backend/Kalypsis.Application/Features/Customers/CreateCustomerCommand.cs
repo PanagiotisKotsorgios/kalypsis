@@ -89,7 +89,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
         var dto = new CustomerDto(
             customer.Id, customer.CustomerNumber, customer.Type, customer.Status,
             customer.FirstName, customer.LastName, customer.CompanyName,
-            customer.VatNumber, customer.Email, customer.Phone, customer.City,
+            customer.VatNumber, customer.Email, customer.Phone, customer.City, customer.Notes,
             customer.CreatedAt, false);
 
         return new CreateCustomerResponse(dto, null, null);

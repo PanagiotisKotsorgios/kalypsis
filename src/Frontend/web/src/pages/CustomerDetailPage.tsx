@@ -56,6 +56,7 @@ interface CustomerDto {
   companyName?: string;
   email?: string;
   phone?: string;
+  notes?: string;
 }
 
 interface ConsentRow {
@@ -519,6 +520,7 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
         <Row label="Κατάσταση">{customer.status}</Row>
         <Row label="Email">{customer.email ?? "—"}</Row>
         <Row label="Τηλέφωνο">{customer.phone ?? "—"}</Row>
+        <Row label="Σημειώσεις πελάτη">{customer.notes ?? "—"}</Row>
       </Stack>
     </Card>
   );

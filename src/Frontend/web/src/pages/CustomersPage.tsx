@@ -144,6 +144,7 @@ export function CustomersPage() {
     { key: "name",   label: "Ονοματεπώνυμο / Επωνυμία" },
     { key: "email",  label: "Email" },
     { key: "phone",  label: "Τηλέφωνο" },
+    { key: "notes",  label: "Σημειώσεις" },
     { key: "city",   label: "Πόλη", defaultVisible: false },
   ]);
 
@@ -160,7 +161,7 @@ export function CustomersPage() {
       // column keys back to the underlying field so sorting works everywhere.
       const map: Record<string, keyof CustomerDto> = {
         number: "customerNumber", type: "type", name: "lastName",
-        email: "email", phone: "phone", city: "city",
+        email: "email", phone: "phone", city: "city", notes: "notes",
       };
       const dtoKey = map[key];
       if (dtoKey) {
@@ -349,6 +350,8 @@ export function CustomersPage() {
                           return <TableCell key={col.key}>{c.phone ?? "-"}</TableCell>;
                         case "city":
                           return <TableCell key={col.key}>{c.city ?? "-"}</TableCell>;
+                        case "notes":
+                          return <TableCell key={col.key} sx={{ maxWidth: 260 }}>{c.notes ? <Typography variant="body2" noWrap title={c.notes}>{c.notes}</Typography> : "-"}</TableCell>;
                         default: return <TableCell key={col.key}>—</TableCell>;
                       }
                     })}

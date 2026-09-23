@@ -14,6 +14,7 @@ public record CustomerDto(
     string? Email,
     string? Phone,
     string? City,
+    string? Notes,
     DateTime CreatedAt,
     bool HasPortalAccount);
 
