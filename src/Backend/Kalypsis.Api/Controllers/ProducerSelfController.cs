@@ -1,6 +1,7 @@
 using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.Exports;
 using Kalypsis.Application.Features.Producers;
+using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,6 +23,20 @@ public class ProducerSelfController : ControllerBase
     [HttpGet("commissions")]
     public async Task<ActionResult<IReadOnlyList<ProducerRunLineDto>>> Commissions([FromQuery] int? year, CancellationToken ct)
         => Ok(await _m.Send(new GetProducerSelfCommissionsQuery(year), ct));
+
+    /// <summary>
+    /// The signed-in producer's monthly production book. The query is scoped
+    /// from the authenticated User -> Producer relationship, so query-string
+    /// values can only filter the producer's own policies.
+    /// </summary>
+    [HttpGet("production")]
+    public async Task<ActionResult<ProducerSelfProductionDto>> Production(
+        [FromQuery] int? year,
+        [FromQuery] int? month,
+        [FromQuery] PolicyType? policyType,
+        [FromQuery] PolicyStatus? status,
+        CancellationToken ct)
+        => Ok(await _m.Send(new GetProducerSelfProductionQuery(year, month, policyType, status), ct));
 
     /// <summary>
     /// Download only the signed-in producer's operational data. The office

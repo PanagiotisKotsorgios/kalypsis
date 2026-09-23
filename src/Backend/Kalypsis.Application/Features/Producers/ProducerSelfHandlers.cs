@@ -134,3 +134,163 @@ public class GetProducerSelfCommissionsQueryHandler : IRequestHandler<GetProduce
             l.IsOverCommission, l.OverCommissionLevel, l.OnBehalfOfProducer?.Name)).ToList();
     }
 }
+
+/// <summary>
+/// A read-only monthly view for the producer portal. Values are read from the
+/// materialised PolicyCommissionSplits that the office's commission rules
+/// produced when each policy was saved; this never exposes the office rule,
+/// the agency share, or another producer's book.
+/// </summary>
+public record ProducerSelfProductionRowDto(
+    Guid PolicyId,
+    string PolicyNumber,
+    string CustomerName,
+    string InsuranceCompanyName,
+    PolicyType PolicyType,
+    PolicyStatus Status,
+    DateOnly StartDate,
+    DateOnly EndDate,
+    decimal Premium,
+    bool HasCommissionEstimate,
+    decimal CommissionRatePercent,
+    decimal ExpectedGrossCommission,
+    decimal TaxWithholding,
+    decimal ExpectedNetCommission);
+
+public record ProducerSelfProductionDto(
+    int Year,
+    int Month,
+    int PolicyCount,
+    decimal TotalPremium,
+    decimal ExpectedGrossCommission,
+    decimal TotalTaxWithholding,
+    decimal ExpectedNetCommission,
+    IReadOnlyList<ProducerSelfProductionRowDto> Rows);
+
+public record GetProducerSelfProductionQuery(
+    int? Year,
+    int? Month,
+    PolicyType? PolicyType,
+    PolicyStatus? Status) : IRequest<ProducerSelfProductionDto>;
+
+public class GetProducerSelfProductionQueryHandler
+    : IRequestHandler<GetProducerSelfProductionQuery, ProducerSelfProductionDto>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+
+    public GetProducerSelfProductionQueryHandler(IAppDbContext db, ICurrentUser current)
+    {
+        _db = db;
+        _current = current;
+    }
+
+    public async Task<ProducerSelfProductionDto> Handle(GetProducerSelfProductionQuery request, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        var year = request.Year ?? now.Year;
+        var month = request.Month ?? now.Month;
+        if (year is < 2000 or > 2100 || month is < 1 or > 12)
+            throw new AppException("producer_production_invalid_period", "Επιλέξτε έγκυρο μήνα και έτος.", 400);
+
+        var userId = _current.UserId ?? throw AppException.Unauthorized();
+        var producerId = await _db.Users
+            .Where(u => u.Id == userId)
+            .Select(u => u.ProducerId)
+            .FirstOrDefaultAsync(ct)
+            ?? throw AppException.NotFound("Συνεργάτης");
+
+        var periodStart = new DateOnly(year, month, 1);
+        var periodEnd = periodStart.AddMonths(1);
+
+        // Prospects are intentionally kept in the normal "Συμβόλαια" area.
+        // This is the issued-production list and therefore does not promise a
+        // commission for a potential policy.
+        var policiesQuery = _db.Policies
+            .AsNoTracking()
+            .Where(p => p.ProducerId == producerId
+                && p.StartDate >= periodStart
+                && p.StartDate < periodEnd
+                && p.Status != PolicyStatus.Prospect);
+
+        if (request.PolicyType.HasValue)
+            policiesQuery = policiesQuery.Where(p => p.PolicyType == request.PolicyType.Value);
+        if (request.Status.HasValue)
+            policiesQuery = policiesQuery.Where(p => p.Status == request.Status.Value);
+
+        var policies = await policiesQuery
+            .OrderByDescending(p => p.StartDate)
+            .ThenBy(p => p.PolicyNumber)
+            .Select(p => new
+            {
+                p.Id,
+                p.PolicyNumber,
+                CustomerName = p.Customer.Type == CustomerType.Company
+                    ? p.Customer.CompanyName
+                    : (p.Customer.FirstName + " " + p.Customer.LastName).Trim(),
+                InsuranceCompanyName = p.InsuranceCompany.Name,
+                p.PolicyType,
+                p.Status,
+                p.StartDate,
+                p.EndDate,
+                p.Premium
+            })
+            .ToListAsync(ct);
+
+        var policyIds = policies.Select(p => p.Id).ToArray();
+        var estimates = policyIds.Length == 0
+            ? new Dictionary<Guid, ProducerCommissionEstimate>()
+            : await _db.PolicyCommissionSplits
+                .AsNoTracking()
+                .Where(s => s.ProducerId == producerId && policyIds.Contains(s.PolicyId))
+                .GroupBy(s => s.PolicyId)
+                .Select(g => new ProducerCommissionEstimate(
+                    g.Key,
+                    g.Sum(x => x.Percent),
+                    g.Sum(x => x.GrossAmount),
+                    g.Sum(x => x.TaxWithholdingAmount),
+                    g.Sum(x => x.NetAmount)))
+                .ToDictionaryAsync(x => x.PolicyId, ct);
+
+        var rows = policies.Select(policy =>
+        {
+            var hasEstimate = estimates.TryGetValue(policy.Id, out var estimate);
+            estimate ??= ProducerCommissionEstimate.Empty;
+            return new ProducerSelfProductionRowDto(
+                policy.Id,
+                policy.PolicyNumber,
+                policy.CustomerName ?? string.Empty,
+                policy.InsuranceCompanyName,
+                policy.PolicyType,
+                policy.Status,
+                policy.StartDate,
+                policy.EndDate,
+                policy.Premium,
+                hasEstimate,
+                estimate.RatePercent,
+                estimate.GrossAmount,
+                estimate.TaxWithholding,
+                estimate.NetAmount);
+        }).ToList();
+
+        return new ProducerSelfProductionDto(
+            year,
+            month,
+            rows.Count,
+            rows.Sum(x => x.Premium),
+            rows.Sum(x => x.ExpectedGrossCommission),
+            rows.Sum(x => x.TaxWithholding),
+            rows.Sum(x => x.ExpectedNetCommission),
+            rows);
+    }
+
+    private sealed record ProducerCommissionEstimate(
+        Guid PolicyId,
+        decimal RatePercent,
+        decimal GrossAmount,
+        decimal TaxWithholding,
+        decimal NetAmount)
+    {
+        public static readonly ProducerCommissionEstimate Empty = new(Guid.Empty, 0m, 0m, 0m, 0m);
+    }
+}
