@@ -90,7 +90,8 @@ public class GenerateCommissionRunCommandHandler : IRequestHandler<GenerateCommi
             .Include(p => p.Producer)
             .Where(p => p.StartDate >= firstDay && p.StartDate <= lastDay
                         && p.Status != PolicyStatus.Cancelled
-                        && p.Status != PolicyStatus.Draft);
+                        && p.Status != PolicyStatus.Draft
+                        && p.Status != PolicyStatus.Prospect);
 
         if (b.InsuranceCompanyId.HasValue) policiesQ = policiesQ.Where(p => p.InsuranceCompanyId == b.InsuranceCompanyId);
         if (b.ProducerId.HasValue) policiesQ = policiesQ.Where(p => p.ProducerId == b.ProducerId);

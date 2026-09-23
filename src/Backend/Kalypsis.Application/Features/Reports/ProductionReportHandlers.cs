@@ -69,6 +69,7 @@ public class GetProductionReportQueryHandler
         var policies = _db.Policies.IgnoreQueryFilters()
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null
                 && p.Status != PolicyStatus.Draft
+                && p.Status != PolicyStatus.Prospect
                 && p.StartDate >= from && p.StartDate <= to);
 
         if (!request.IncludeCancelled)

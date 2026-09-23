@@ -291,7 +291,7 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
             PaymentFrequency.Monthly    => 12,
             _ => 0
         };
-        if (installmentCount > 0 && p.Premium > 0)
+        if (p.Status != PolicyStatus.Prospect && installmentCount > 0 && p.Premium > 0)
         {
             var perInstallment = Math.Round(p.Premium / installmentCount, 2);
             var distributed = perInstallment * installmentCount;
@@ -325,12 +325,15 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
         // Materialise commission splits so the ALIS-style matrix has data
         // to show. Best-effort: any exception here is swallowed so a partial
         // deploy without the paired migration doesn't fail policy creation.
-        try
+        if (p.Status != PolicyStatus.Prospect)
         {
-            await _commissionCalc.RecomputeAsync(p, ct);
-            await _db.SaveChangesAsync(ct);
+            try
+            {
+                await _commissionCalc.RecomputeAsync(p, ct);
+                await _db.SaveChangesAsync(ct);
+            }
+            catch { /* splits are a read-side convenience — never block the write */ }
         }
-        catch { /* splits are a read-side convenience — never block the write */ }
 
         // Re-fetch with includes for display fields. Keep the global tenant
         // filter active — IgnoreQueryFilters() cascades to every Include(),
@@ -427,12 +430,15 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
 
         // Rebuild the commission matrix — premium, producer, or scope may
         // have shifted enough to change which rule matches and by how much.
-        try
+        if (p.Status != PolicyStatus.Prospect)
         {
-            await _commissionCalc.RecomputeAsync(p, ct);
-            await _db.SaveChangesAsync(ct);
+            try
+            {
+                await _commissionCalc.RecomputeAsync(p, ct);
+                await _db.SaveChangesAsync(ct);
+            }
+            catch { /* splits are a read-side convenience — never block the write */ }
         }
-        catch { /* splits are a read-side convenience — never block the write */ }
 
         // Global tenant filter active on the reload — cascades to every Include().
         var saved = await _db.Policies

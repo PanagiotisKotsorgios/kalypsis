@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 
 interface ProducerDetail {
-  id: string; code: string; name: string; email: string | null; phone: string | null; status: string;
+  id: string; code: string; name: string; email: string | null; phone: string | null; notes: string | null; status: string;
   totalPolicies: number; activePolicies: number; renewedPolicies: number; cancelledPolicies: number;
   newPoliciesThisYear: number; renewalsDueNext60Days: number;
   totalPremiumYtd: number; totalPremiumLastYear: number; premiumGrowthPercent: number;
@@ -69,12 +69,18 @@ export function ProducerDetailDrawer({ producerId, open, onClose }: {
                     {t("producerDetail.gradeLabel")}: <strong>{GRADE_LABEL[p.performanceGrade] ?? p.performanceGrade}</strong>
                   </Typography>
                 </Box>
-                <Chip size="small" color={p.status === "Active" ? "success" : "default"} label={p.status} />
+                <Chip size="small" color={p.status === "Active" ? "success" : p.status === "Prospect" ? "warning" : "default"} label={p.status === "Prospect" ? "Πιθανός συνεργάτης" : p.status} />
               </Stack>
               <Stack direction="row" spacing={2} mt={2} flexWrap="wrap">
                 {p.email && <Chip size="small" icon={<EmailIcon fontSize="small" />} component="a" href={`mailto:${p.email}`} clickable label={p.email} />}
                 {p.phone && <Chip size="small" icon={<PhoneIcon fontSize="small" />} component="a" href={`tel:${p.phone}`} clickable label={p.phone} />}
               </Stack>
+              {p.notes && (
+                <Box sx={{ mt: 2, p: 1.25, borderRadius: 1.5, bgcolor: "rgba(245, 158, 11, 0.10)" }}>
+                  <Typography variant="caption" color="text.secondary">Σημειώσεις</Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>{p.notes}</Typography>
+                </Box>
+              )}
             </>
           ) : null}
         </Box>

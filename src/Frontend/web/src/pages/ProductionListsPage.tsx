@@ -49,7 +49,7 @@ interface Result {
   grand: GroupTotal;
 }
 
-const STATUSES = ["Draft", "Active", "Expired", "Cancelled", "Renewed", "PendingRenewal"];
+const STATUSES = ["Prospect", "Draft", "Active", "Expired", "Cancelled", "Renewed", "PendingRenewal"];
 
 interface ParamItem {
   id: string;

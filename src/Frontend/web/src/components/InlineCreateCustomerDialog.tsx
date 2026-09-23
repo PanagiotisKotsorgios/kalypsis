@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  MenuItem, Stack, TextField, Typography
+  FormControlLabel, MenuItem, Stack, Switch, TextField, Typography
 } from "@mui/material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -26,13 +26,17 @@ interface Props {
   onClose: () => void;
   /** What the user was typing in the parent dropdown — split into name fields. */
   prefillText?: string;
+  /** Lets the enclosing flow create a lead instead of a live customer. */
+  defaultStatus?: CustomerStatus;
   onCreated: (customer: InlineCustomerCreateResult) => void;
 }
 
 type CustomerType = "Individual" | "Company";
+type CustomerStatus = "Prospect" | "Active";
 
 interface CreateBody {
   type: CustomerType;
+  status: CustomerStatus;
   firstName?: string;
   lastName?: string;
   companyName?: string;
@@ -58,31 +62,31 @@ const digitOnly = (s: string) => /^\d+$/.test(s.trim());
 /** Heuristic — pick a sensible initial customer type + name split from the
  *  user's search text. Numeric-looking string → Company + VAT prefill;
  *  otherwise Individual, one word → lastName, two+ words → first + last. */
-function seedFromPrefill(prefill: string): CreateBody {
+function seedFromPrefill(prefill: string, status: CustomerStatus): CreateBody {
   const trimmed = prefill.trim();
-  if (!trimmed) return { type: "Individual", createPortalAccount: false };
+  if (!trimmed) return { type: "Individual", status, createPortalAccount: false };
   if (digitOnly(trimmed) && trimmed.length >= 8)
-    return { type: "Company", vatNumber: trimmed, createPortalAccount: false };
+    return { type: "Company", status, vatNumber: trimmed, createPortalAccount: false };
   const parts = trimmed.split(/\s+/);
   if (parts.length === 1)
-    return { type: "Individual", lastName: parts[0], createPortalAccount: false };
+    return { type: "Individual", status, lastName: parts[0], createPortalAccount: false };
   return {
-    type: "Individual",
+    type: "Individual", status,
     firstName: parts.slice(0, -1).join(" "),
     lastName: parts[parts.length - 1],
     createPortalAccount: false,
   };
 }
 
-export function InlineCreateCustomerDialog({ open, onClose, prefillText = "", onCreated }: Props) {
+export function InlineCreateCustomerDialog({ open, onClose, prefillText = "", defaultStatus = "Active", onCreated }: Props) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);
-  const [form, setForm] = useState<CreateBody>(() => seedFromPrefill(prefillText));
+  const [form, setForm] = useState<CreateBody>(() => seedFromPrefill(prefillText, defaultStatus));
 
   useEffect(() => {
-    if (open) { setForm(seedFromPrefill(prefillText)); setErr(null); }
-  }, [open, prefillText]);
+    if (open) { setForm(seedFromPrefill(prefillText, defaultStatus)); setErr(null); }
+  }, [open, prefillText, defaultStatus]);
 
   const create = useMutation({
     mutationFn: async () => {
@@ -136,6 +140,11 @@ export function InlineCreateCustomerDialog({ open, onClose, prefillText = "", on
             <MenuItem value="Individual">{t("customers.individual", "Ιδιώτης")}</MenuItem>
             <MenuItem value="Company">{t("customers.company", "Εταιρεία")}</MenuItem>
           </SearchableTextField>
+          <FormControlLabel
+            control={<Switch checked={form.status === "Prospect"}
+              onChange={e => setForm({ ...form, status: e.target.checked ? "Prospect" : "Active" })} />}
+            label="Πιθανός πελάτης"
+          />
           {form.type === "Individual" ? (
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField

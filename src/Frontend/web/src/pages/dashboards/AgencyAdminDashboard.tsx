@@ -48,6 +48,8 @@ const STATUS_LABELS: Record<string, string> = {
   Draft: "Πρόχειρο", Active: "Ενεργό", Expired: "Έληξε", Cancelled: "Ακυρωμένο",
   Renewed: "Ανανεώθηκε", PendingRenewal: "Προς ανανέωση"
 };
+STATUS_LABELS.Prospect = "Πιθανό συμβόλαιο";
+
 // The reports backend returns Status.ToString() for claim/request breakdowns.
 // Map to Greek here so tooltips + axis labels read natively.
 const BREAKDOWN_LABELS: Record<string, string> = {

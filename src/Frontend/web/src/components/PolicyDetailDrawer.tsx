@@ -82,7 +82,7 @@ interface Props {
 
 const STATUS_COLOR: Record<string, "default" | "success" | "warning" | "info" | "error"> = {
   Active: "success", Draft: "default", Expired: "warning", Cancelled: "error",
-  Renewed: "info", PendingRenewal: "warning"
+  Renewed: "info", PendingRenewal: "warning", Prospect: "warning"
 };
 
 const FREQUENCIES = ["Annual", "Semiannual", "Quarterly", "Monthly", "Single"];
@@ -378,7 +378,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
             <>
               <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap">
                 <Typography variant="h5" fontWeight={800} sx={{ fontFamily: "monospace" }}>{p.policyNumber}</Typography>
-                <Chip size="small" color={STATUS_COLOR[p.status] ?? "default"} label={p.status} />
+                <Chip size="small" color={STATUS_COLOR[p.status] ?? "default"} label={p.status === "Prospect" ? "Πιθανό συμβόλαιο" : p.status} />
                 <Chip size="small" variant="outlined" label={p.policyType} />
               </Stack>
               <Typography color="text.secondary" sx={{ mt: 0.5 }}>
@@ -449,7 +449,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose }: Props) {
                 <Stack spacing={2}>
                   <KV label={t("policyDetail.policyNumber")} value={p.policyNumber} mono />
                   <KV label={t("policyDetail.policyType")} value={p.policyType} />
-                  <KV label={t("policyDetail.status")} value={<Chip size="small" color={STATUS_COLOR[p.status]} label={p.status} />} />
+                  <KV label={t("policyDetail.status")} value={<Chip size="small" color={STATUS_COLOR[p.status]} label={p.status === "Prospect" ? "Πιθανό συμβόλαιο" : p.status} />} />
                   <KV label={t("policyDetail.startDate")} value={p.startDate} />
                   <KV label={t("policyDetail.endDate")} value={p.endDate} />
                   <Divider />

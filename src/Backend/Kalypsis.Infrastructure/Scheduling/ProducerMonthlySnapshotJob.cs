@@ -83,6 +83,7 @@ public class ProducerMonthlySnapshotJob : BackgroundService
                             && p.ProducerId == producer.Id
                             && p.Status != PolicyStatus.Cancelled
                             && p.Status != PolicyStatus.Draft
+                            && p.Status != PolicyStatus.Prospect
                             && p.StartDate >= firstDay && p.StartDate <= lastDay)
                 .Select(p => new { p.Premium })
                 .ToListAsync(ct);

@@ -49,6 +49,7 @@ public class PreviewCommissionRuleQueryHandler
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null
                         && p.Status != PolicyStatus.Cancelled
                         && p.Status != PolicyStatus.Draft
+                        && p.Status != PolicyStatus.Prospect
                         && p.StartDate >= oneYearAgo);
 
         if (b.ProducerId.HasValue)          q = q.Where(p => p.ProducerId == b.ProducerId);

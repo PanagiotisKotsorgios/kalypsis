@@ -14,16 +14,19 @@ public record ProducerDto(
     // ALIS-parity hierarchy fields
     HierarchyLevel HierarchyLevel = HierarchyLevel.Producer,
     Guid? ParentProducerId = null,
-    string? ParentProducerName = null);
+    string? ParentProducerName = null,
+    string? Notes = null);
 
 public record CreateProducerBody(string Code, string Name, string? Email, string? Phone, ProducerStatus Status,
     ProducerTier Tier = ProducerTier.None,
     HierarchyLevel HierarchyLevel = HierarchyLevel.Producer,
-    Guid? ParentProducerId = null);
+    Guid? ParentProducerId = null,
+    string? Notes = null);
 public record UpdateProducerBody(string Code, string Name, string? Email, string? Phone, ProducerStatus Status,
     ProducerTier Tier = ProducerTier.None,
     HierarchyLevel HierarchyLevel = HierarchyLevel.Producer,
-    Guid? ParentProducerId = null);
+    Guid? ParentProducerId = null,
+    string? Notes = null);
 
 /* ========= List ========= */
 
@@ -48,7 +51,8 @@ public class ListProducersQueryHandler : IRequestHandler<ListProducersQuery, IRe
                 p.CreatedAt,
                 p.HierarchyLevel,
                 p.ParentProducerId,
-                p.ParentProducer != null ? p.ParentProducer.Name : null))
+                p.ParentProducer != null ? p.ParentProducer.Name : null,
+                p.Notes))
             .ToListAsync(ct);
         return rows;
     }
@@ -91,6 +95,7 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
             Id = Guid.NewGuid(), TenantId = tenantId,
             Code = code, Name = b.Name.Trim(),
             Email = b.Email?.Trim().ToLowerInvariant(), Phone = b.Phone?.Trim(),
+            Notes = string.IsNullOrWhiteSpace(b.Notes) ? null : b.Notes.Trim(),
             Status = b.Status, Tier = b.Tier,
             HierarchyLevel = b.HierarchyLevel,
             ParentProducerId = b.ParentProducerId
@@ -104,7 +109,7 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
         // Cross-tenant producers (same person working in multiple offices)
         // end up with separate User rows per tenant that share the same
         // email — the (TenantId, Email) unique constraint holds.
-        if (!string.IsNullOrEmpty(p.Email))
+        if (p.Status != ProducerStatus.Prospect && !string.IsNullOrEmpty(p.Email))
         {
             var existingUser = await _db.Users.IgnoreQueryFilters()
                 .Where(u => u.TenantId == tenantId && u.Email == p.Email && u.DeletedAt == null)
@@ -144,7 +149,7 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
                 .Select(x => x.Name).FirstOrDefaultAsync(ct);
         }
         return new ProducerDto(p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, p.Tier, 0, p.CreatedAt,
-            p.HierarchyLevel, p.ParentProducerId, parentName);
+            p.HierarchyLevel, p.ParentProducerId, parentName, p.Notes);
     }
 }
 
@@ -172,7 +177,9 @@ public class UpdateProducerCommandHandler : IRequestHandler<UpdateProducerComman
         var emailChanged = !string.Equals(p.Email, newEmail, StringComparison.OrdinalIgnoreCase);
         p.Email = newEmail;
         p.Phone = b.Phone?.Trim();
+        var wasProspect = p.Status == ProducerStatus.Prospect;
         p.Status = b.Status;
+        p.Notes = string.IsNullOrWhiteSpace(b.Notes) ? null : b.Notes.Trim();
         p.Tier   = b.Tier;
         // Guard against self-parenting and trivial 2-node cycles. Deeper
         // cycles are caught by the calculator's depth-8 loop breaker; here
@@ -186,7 +193,8 @@ public class UpdateProducerCommandHandler : IRequestHandler<UpdateProducerComman
         // Re-run the email-based user linking every time the email changes.
         // Existing User with that email → set User.ProducerId = p.Id. No
         // matching user → create one so the producer can be onboarded.
-        if (emailChanged && !string.IsNullOrEmpty(newEmail))
+        if ((emailChanged || wasProspect && p.Status == ProducerStatus.Active)
+            && p.Status != ProducerStatus.Prospect && !string.IsNullOrEmpty(newEmail))
         {
             // Unlink any users previously pointing at this producer that
             // no longer share the email (avoids double-linking scenarios).
@@ -233,7 +241,7 @@ public class UpdateProducerCommandHandler : IRequestHandler<UpdateProducerComman
                 .Select(x => x.Name).FirstOrDefaultAsync(ct);
         }
         return new ProducerDto(p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, p.Tier, count, p.CreatedAt,
-            p.HierarchyLevel, p.ParentProducerId, parentName);
+            p.HierarchyLevel, p.ParentProducerId, parentName, p.Notes);
     }
 }
 

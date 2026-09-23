@@ -30,7 +30,7 @@ import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { SearchableSelect } from "../components/SearchableSelect";
 
-type ProducerStatus = "Active" | "Suspended" | "Terminated";
+type ProducerStatus = "Active" | "Suspended" | "Terminated" | "Prospect";
 type ProducerTier = "None" | "A" | "B" | "C" | "D" | "E";
 
 type HierarchyLevel = "Producer" | "Manager" | "Unit" | "Assistant" | "Agency";
@@ -57,6 +57,7 @@ const HIERARCHY_DESC: Record<HierarchyLevel, string> = {
 interface ProducerDto {
   id: string; code: string; name: string;
   email: string | null; phone: string | null;
+  notes?: string | null;
   status: ProducerStatus; tier: ProducerTier;
   policyCount: number; createdAt: string;
   // ALIS-parity hierarchy
@@ -66,7 +67,7 @@ interface ProducerDto {
 }
 
 const STATUS_COLOR: Record<ProducerStatus, "success" | "warning" | "default"> = {
-  Active: "success", Suspended: "warning", Terminated: "default"
+  Active: "success", Suspended: "warning", Terminated: "default", Prospect: "warning"
 };
 const TIER_COLOR: Record<ProducerTier, "default" | "warning" | "primary" | "info" | "success"> = {
   A: "warning", B: "primary", C: "info", D: "success", E: "default", None: "default"
@@ -78,7 +79,7 @@ const TIER_LABEL: Record<ProducerTier, string> = {
 export function ProducersPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const [createOpen, setCreateOpen] = useState(false);
+  const [createStatus, setCreateStatus] = useState<ProducerStatus | null>(null);
   const [editing, setEditing] = useState<ProducerDto | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [customersFor, setCustomersFor] = useState<ProducerDto | null>(null);
@@ -151,9 +152,14 @@ export function ProducersPage() {
           </Stack>
           <Typography color="text.secondary">{t("producers.subtitle")}</Typography>
         </Box>
-        <Button data-tour="producers-new" variant="contained" size="large" startIcon={<AddIcon />} onClick={() => { setError(null); setCreateOpen(true); }}>
-          {t("producers.create")}
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" size="large" onClick={() => { setError(null); setCreateStatus("Prospect"); }}>
+            Πιθανός συνεργάτης
+          </Button>
+          <Button data-tour="producers-new" variant="contained" size="large" startIcon={<AddIcon />} onClick={() => { setError(null); setCreateStatus("Active"); }}>
+            {t("producers.create")}
+          </Button>
+        </Stack>
       </Stack>
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
@@ -165,8 +171,8 @@ export function ProducersPage() {
               value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ProducerStatus | "")}
               sx={{ minWidth: 170, width: "100%" }}>
               <MenuItem value="">Όλες</MenuItem>
-              {(["Active","Suspended","Terminated"] as const).map(s =>
-                <MenuItem key={s} value={s}>{t(`producers.statuses.${s}`)}</MenuItem>)}
+              {(["Prospect","Active","Suspended","Terminated"] as const).map(s =>
+                <MenuItem key={s} value={s}>{s === "Prospect" ? "Πιθανός συνεργάτης" : t(`producers.statuses.${s}`)}</MenuItem>)}
             </SearchableTextField>
           </FilterFieldWrap>
           <FilterFieldWrap tip="Φιλτράρετε ανά κατηγορία προμηθειών Α/Β/Γ/Δ/Ε ή «Χωρίς κατηγορία».">
@@ -242,7 +248,11 @@ export function ProducersPage() {
               </TableHead>
               <TableBody>
                 {rows.map((p, idx) => (
-                  <TableRow key={p.id} hover sx={{ cursor: "pointer" }}
+                  <TableRow key={p.id} hover sx={p.status === "Prospect" ? {
+                    cursor: "pointer",
+                    bgcolor: "rgba(245, 158, 11, 0.12)",
+                    "&:hover": { bgcolor: "rgba(245, 158, 11, 0.20)" }
+                  } : { cursor: "pointer" }}
                     data-tour={idx === 0 ? "producers-row" : undefined}
                     onClick={(e) => {
                       if ((e.target as HTMLElement).closest("button, a, .MuiIconButton-root")) return;
@@ -250,7 +260,12 @@ export function ProducersPage() {
                     }}
                     onContextMenu={(e) => rowMenu.open(e, p)}>
                     <TableCell><Chip label={p.code} size="small" variant="outlined" /></TableCell>
-                    <TableCell><Typography fontWeight={600}>{p.name}</Typography></TableCell>
+                    <TableCell>
+                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                        <Typography fontWeight={600}>{p.name}</Typography>
+                        {p.status === "Prospect" && <Chip size="small" color="warning" label="Πιθανός συνεργάτης" />}
+                      </Stack>
+                    </TableCell>
                     <TableCell>
                       {p.tier && p.tier !== "None"
                         ? <Chip size="small" color={TIER_COLOR[p.tier]} label={TIER_LABEL[p.tier]} sx={{ fontWeight: 800 }} />
@@ -259,7 +274,7 @@ export function ProducersPage() {
                     <TableCell>{p.email ?? "—"}</TableCell>
                     <TableCell>{p.phone ?? "—"}</TableCell>
                     <TableCell align="right">{p.policyCount}</TableCell>
-                    <TableCell><Chip size="small" color={STATUS_COLOR[p.status]} label={t(`producers.statuses.${p.status}`)} /></TableCell>
+                    <TableCell><Chip size="small" color={STATUS_COLOR[p.status]} label={p.status === "Prospect" ? "Πιθανός συνεργάτης" : t(`producers.statuses.${p.status}`)} /></TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                         <IconButton size="small" title="Πελάτες συνεργάτη"
@@ -300,8 +315,8 @@ export function ProducersPage() {
       {rowMenu.menu}
 
       <ProducerDialog
-        open={createOpen} onClose={() => setCreateOpen(false)} producer={null}
-        onSaved={() => { void qc.invalidateQueries({ queryKey: ["producers"] }); setCreateOpen(false); }}
+        open={createStatus !== null} initialStatus={createStatus ?? "Active"} onClose={() => setCreateStatus(null)} producer={null}
+        onSaved={() => { void qc.invalidateQueries({ queryKey: ["producers"] }); setCreateStatus(null); }}
       />
       <ProducerDialog
         open={!!editing} onClose={() => setEditing(null)} producer={editing}
@@ -351,13 +366,13 @@ interface UserLookupDto {
   linkedProducerName: string | null;
 }
 
-function ProducerDialog({ open, onClose, producer, onSaved }: {
-  open: boolean; onClose: () => void; producer: ProducerDto | null; onSaved: () => void;
+function ProducerDialog({ open, initialStatus = "Active", onClose, producer, onSaved }: {
+  open: boolean; initialStatus?: ProducerStatus; onClose: () => void; producer: ProducerDto | null; onSaved: () => void;
 }) {
   const { t } = useTranslation();
   const editing = !!producer;
   const [form, setForm] = useState({
-    code: "", name: "", email: "", phone: "",
+    code: "", name: "", email: "", phone: "", notes: "",
     status: "Active" as ProducerStatus,
     tier: "None" as ProducerTier,
     hierarchyLevel: "Producer" as HierarchyLevel,
@@ -384,15 +399,16 @@ function ProducerDialog({ open, onClose, producer, onSaved }: {
       setForm({
         code: producer.code, name: producer.name,
         email: producer.email ?? "", phone: producer.phone ?? "",
+        notes: producer.notes ?? "",
         status: producer.status, tier: producer.tier ?? "None",
         hierarchyLevel: producer.hierarchyLevel ?? "Producer",
         parentProducerId: producer.parentProducerId ?? ""
       });
     } else if (open) {
-      setForm({ code: "", name: "", email: "", phone: "", status: "Active", tier: "None",
+      setForm({ code: "", name: "", email: "", phone: "", notes: "", status: initialStatus, tier: "None",
         hierarchyLevel: "Producer", parentProducerId: "" });
     }
-  }, [producer, open]);
+  }, [producer, open, initialStatus]);
 
   // Debounce the email as the operator types → live lookup against Kalypsis
   // users. Only enable when the string looks like a plausible email and the
@@ -448,7 +464,7 @@ function ProducerDialog({ open, onClose, producer, onSaved }: {
             <FilterFieldWrap tip="Ενεργός: εμφανίζεται και δουλεύει κανονικά. Ανενεργός/Τερματισμένος: κρύβεται από τις νέες αναθέσεις." sx={{ flex: 2 }}>
               <SearchableTextField label={t("producers.col.status")} value={form.status}
                 onChange={(e) => setForm({ ...form, status: e.target.value as ProducerStatus })} fullWidth>
-                {(["Active","Suspended","Terminated"] as const).map(s => <MenuItem key={s} value={s}>{t(`producers.statuses.${s}`)}</MenuItem>)}
+                {(["Prospect","Active","Suspended","Terminated"] as const).map(s => <MenuItem key={s} value={s}>{s === "Prospect" ? "Πιθανός συνεργάτης" : t(`producers.statuses.${s}`)}</MenuItem>)}
               </SearchableTextField>
             </FilterFieldWrap>
           </Stack>
@@ -536,13 +552,20 @@ function ProducerDialog({ open, onClose, producer, onSaved }: {
                 Βρέθηκε χρήστης στο Kalypsis — <b>{foundUser?.fullName || foundUser?.email}</b>. Επαληθεύστε τα στοιχεία πριν από τη σύνδεση.
               </Alert>
             </Slide>
-            <Slide direction="down" in={notFound} mountOnEnter unmountOnExit>
+            <Slide direction="down" in={notFound && form.status !== "Prospect"} mountOnEnter unmountOnExit>
               <Alert severity="info" sx={{ mt: 1 }} icon={<HelpOutlineIcon fontSize="inherit" />}>
                 Ο χρήστης δεν είναι εγγεγραμμένος στο Kalypsis. Θα δημιουργηθεί λογαριασμός portal για αυτόν κατά την αποθήκευση.
                 Όταν κάνει εγγραφή, μπορείτε να τον συνδέσετε ξανά μέσω «Επεξεργασία» βάζοντας το email του εδώ.
               </Alert>
             </Slide>
           </Box>
+          <TextField
+            label="Σημειώσεις"
+            value={form.notes}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            fullWidth multiline minRows={3}
+            inputProps={{ maxLength: 2000 }}
+          />
           <TextField label={t("producers.col.phone")} value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })} fullWidth
             InputProps={{ endAdornment: <FilterHelp title="Τηλέφωνο επικοινωνίας. Χρησιμοποιείται για CRM δραστηριότητες όπως τηλεφωνήματα και SMS." /> }} />

@@ -14,6 +14,7 @@ public class ProducerConfiguration : IEntityTypeConfiguration<Producer>
         b.Property(x => x.Name).HasMaxLength(200).IsRequired();
         b.Property(x => x.Email).HasMaxLength(256);
         b.Property(x => x.Phone).HasMaxLength(40);
+        b.Property(x => x.Notes).HasMaxLength(2000);
         b.Property(x => x.Status).HasConversion<int>();
         // Producer entity's C# initializer already sets HierarchyLevel = Producer,
         // so no DB-generated default is needed. Removing HasDefaultValue also

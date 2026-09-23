@@ -64,7 +64,7 @@ import { useColumnPreferences } from "../hooks/useColumnPreferences";
 import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
-type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal" | "Undelivered" | "AwaitingIssue";
+type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal" | "Undelivered" | "AwaitingIssue" | "Prospect";
 
 interface PolicyDto {
   id: string;
@@ -114,7 +114,8 @@ const STATUS_COLOR: Record<PolicyStatus, "default" | "success" | "warning" | "in
   // ALIS-parity — awaiting-issue reads as "in progress", undelivered as
   // "waiting on us" so the color scheme still gives operators a signal.
   AwaitingIssue: "info",
-  Undelivered: "warning"
+  Undelivered: "warning",
+  Prospect: "warning"
 };
 
 export function PoliciesPage() {
@@ -161,7 +162,7 @@ export function PoliciesPage() {
     queryFn: async () => (await api.get<{ id: string; name: string; code: string }[]>("/producers")).data
   });
 
-  const [createOpen, setCreateOpen] = useState(false);
+  const [createStatus, setCreateStatus] = useState<PolicyStatus | null>(null);
   const [editingPolicy, setEditingPolicy] = useState<PolicyDto | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [renewing, setRenewing] = useState<PolicyDto | null>(null);
@@ -337,9 +338,14 @@ export function PoliciesPage() {
               moved down next to the «Ομαδικά συμβόλαια» view-switcher
               button so all lifecycle actions live in the same row. */}
           {canEdit && activeView === "policies" && (
-            <Button data-tour="policies-new" startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateOpen(true); }}>
-              {t("policies.create")}
-            </Button>
+            <>
+              <Button variant="outlined" size="large" onClick={() => { setError(null); setCreateStatus("Prospect"); }}>
+                Πιθανό συμβόλαιο
+              </Button>
+              <Button data-tour="policies-new" startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateStatus("Active"); }}>
+                {t("policies.create")}
+              </Button>
+            </>
           )}
         </Stack>
       </Stack>
@@ -420,8 +426,8 @@ export function PoliciesPage() {
             <SearchableTextField size="small" label={t("policies.col.status")} fullWidth
               value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as PolicyStatus | "")}>
               <MenuItem value="">{t("audit.filters.allActions")}</MenuItem>
-              {(["Draft","Active","Expired","Cancelled","Renewed","PendingRenewal","Undelivered","AwaitingIssue"] as const).map(s =>
-                <MenuItem key={s} value={s}>{t(`policies.statuses.${s}`)}</MenuItem>)}
+              {(["Prospect","Draft","Active","Expired","Cancelled","Renewed","PendingRenewal","Undelivered","AwaitingIssue"] as const).map(s =>
+                <MenuItem key={s} value={s}>{s === "Prospect" ? "Πιθανό συμβόλαιο" : t(`policies.statuses.${s}`)}</MenuItem>)}
             </SearchableTextField>
             <SearchableTextField size="small" label={t("policies.col.type")} fullWidth
               value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as PolicyType | "")}
@@ -592,7 +598,11 @@ export function PoliciesPage() {
                   const daysToEnd = Math.ceil((new Date(p.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
                   const expiringSoon = daysToEnd > 0 && daysToEnd <= 30 && p.status === "Active";
                   return (
-                    <TableRow key={p.id} hover sx={{ cursor: "pointer" }}
+                    <TableRow key={p.id} hover sx={p.status === "Prospect" ? {
+                      cursor: "pointer",
+                      bgcolor: "rgba(245, 158, 11, 0.12)",
+                      "&:hover": { bgcolor: "rgba(245, 158, 11, 0.20)" }
+                    } : { cursor: "pointer" }}
                       data-tour="policies-row"
                       selected={selectedIds.has(p.id)}
                       onClick={(e) => {
@@ -645,7 +655,7 @@ export function PoliciesPage() {
                               </TableCell>
                             );
                           case "status":
-                            return <TableCell key={c.key}><Chip data-tour="policies-status" label={t(`policies.statuses.${p.status}`)} color={STATUS_COLOR[p.status]} size="small" /></TableCell>;
+                            return <TableCell key={c.key}><Chip data-tour="policies-status" label={p.status === "Prospect" ? "Πιθανό συμβόλαιο" : t(`policies.statuses.${p.status}`)} color={STATUS_COLOR[p.status]} size="small" /></TableCell>;
                           default:
                             return <TableCell key={c.key}>—</TableCell>;
                         }
@@ -660,7 +670,7 @@ export function PoliciesPage() {
                               size="small"
                               onClick={() => setRenewing(p)}
                               title={t("policies.actions.renew")}
-                              disabled={p.status === "Cancelled" || p.status === "Renewed"}
+                              disabled={p.status === "Cancelled" || p.status === "Renewed" || p.status === "Prospect"}
                             >
                               <AutorenewIcon fontSize="small" />
                             </IconButton>
@@ -668,7 +678,7 @@ export function PoliciesPage() {
                               size="small"
                               onClick={() => { if (confirm(t("policies.confirmCancel"))) cancelMutation.mutate(p.id); }}
                               title={t("policies.actions.cancel")}
-                              disabled={p.status === "Cancelled"}
+                              disabled={p.status === "Cancelled" || p.status === "Prospect"}
                               color="error"
                             >
                               <CancelIcon fontSize="small" />
@@ -717,10 +727,11 @@ export function PoliciesPage() {
       {canEdit && (
         <>
           <PolicyFormDialog
-            open={createOpen}
-            onClose={() => setCreateOpen(false)}
+            open={createStatus !== null}
+            initialStatus={createStatus ?? "Active"}
+            onClose={() => setCreateStatus(null)}
             policy={null}
-            onSaved={() => { void qc.invalidateQueries({ queryKey: ["policies"] }); setCreateOpen(false); }}
+            onSaved={() => { void qc.invalidateQueries({ queryKey: ["policies"] }); setCreateStatus(null); }}
           />
           <PolicyFormDialog
             open={!!editingPolicy}
@@ -791,11 +802,13 @@ interface FormBody {
 
 function PolicyFormDialog({
   open,
+  initialStatus = "Active",
   onClose,
   policy,
   onSaved
 }: {
   open: boolean;
+  initialStatus?: PolicyStatus;
   onClose: () => void;
   policy: PolicyDto | null;
   onSaved: () => void;
@@ -879,10 +892,10 @@ function PolicyFormDialog({
         endDate: new Date(Date.now() + 365 * 86_400_000).toISOString().slice(0, 10),
         premium: 0,
         currency: "EUR",
-        status: "Active"
+        status: initialStatus
       });
     }
-  }, [policy, open]);
+  }, [policy, open, initialStatus]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -938,6 +951,7 @@ function PolicyFormDialog({
           <InlineCreateCustomerDialog
             open={inlineCustomerCreate !== null}
             prefillText={inlineCustomerCreate ?? ""}
+            defaultStatus={form.status === "Prospect" ? "Prospect" : "Active"}
             onClose={() => setInlineCustomerCreate(null)}
             onCreated={(c) => {
               // Feed the new id into the parent form so it's already selected
@@ -1092,8 +1106,8 @@ function PolicyFormDialog({
               onChange={(e) => setForm({ ...form, status: e.target.value as PolicyStatus })}
               fullWidth
             >
-              {(["Draft","AwaitingIssue","Active","Undelivered","PendingRenewal","Expired","Cancelled","Renewed"] as const).map(s =>
-                <MenuItem key={s} value={s}>{t(`policies.statuses.${s}`)}</MenuItem>
+              {(["Prospect","Draft","AwaitingIssue","Active","Undelivered","PendingRenewal","Expired","Cancelled","Renewed"] as const).map(s =>
+                <MenuItem key={s} value={s}>{s === "Prospect" ? "Πιθανό συμβόλαιο" : t(`policies.statuses.${s}`)}</MenuItem>
               )}
             </SearchableTextField>
           </Stack>
@@ -1353,8 +1367,8 @@ function BulkEditDialog({
             options={(carriersQ.data ?? []).filter(c => !c.parentCompanyId).map(c => ({ value: c.id, label: c.name }))} />
           <SearchableSelect label="Κατάσταση" value={status} onChange={setStatus}
             emptyLabel="— δεν αλλάζει —"
-            options={["Active", "Draft", "Expired", "Cancelled", "Renewed", "PendingRenewal"]
-              .map(s => ({ value: s, label: s }))} />
+            options={["Prospect", "Active", "Draft", "Expired", "Cancelled", "Renewed", "PendingRenewal"]
+              .map(s => ({ value: s, label: s === "Prospect" ? "Πιθανό συμβόλαιο" : s }))} />
         </Stack>
       </DialogContent>
       <DialogActions>

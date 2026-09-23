@@ -16,6 +16,9 @@ public class CreateCustomerCommandValidator : AbstractValidator<CreateCustomerCo
     public CreateCustomerCommandValidator()
     {
         When(x => x.Request.CreatePortalAccount, () => RuleFor(x => x.Request.Email).NotEmpty().EmailAddress());
+        When(x => x.Request.Status == CustomerStatus.Prospect, () =>
+            RuleFor(x => x.Request.CreatePortalAccount).Equal(false)
+                .WithMessage("A prospect cannot have a portal account."));
         When(x => !string.IsNullOrWhiteSpace(x.Request.Email), () => RuleFor(x => x.Request.Email).EmailAddress());
         When(x => x.Request.Type == CustomerType.Individual, () =>
         {
@@ -25,7 +28,8 @@ public class CreateCustomerCommandValidator : AbstractValidator<CreateCustomerCo
         When(x => x.Request.Type == CustomerType.Company, () =>
         {
             RuleFor(x => x.Request.CompanyName).NotEmpty().MaximumLength(200);
-            RuleFor(x => x.Request.VatNumber).NotEmpty().MaximumLength(40);
+            When(x => x.Request.Status != CustomerStatus.Prospect, () =>
+                RuleFor(x => x.Request.VatNumber).NotEmpty().MaximumLength(40));
         });
     }
 }
@@ -75,6 +79,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             TenantId = tenantId,
             CustomerNumber = customerNumber,
             Type = r.Type,
+            Status = r.Status,
             FirstName = r.FirstName?.Trim(),
             LastName = r.LastName?.Trim(),
             CompanyName = r.CompanyName?.Trim(),
@@ -120,7 +125,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
         await _db.SaveChangesAsync(cancellationToken);
 
         var dto = new CustomerDto(
-            customer.Id, customer.CustomerNumber, customer.Type,
+            customer.Id, customer.CustomerNumber, customer.Type, customer.Status,
             customer.FirstName, customer.LastName, customer.CompanyName,
             customer.VatNumber, customer.Email, customer.Phone, customer.City,
             customer.CreatedAt, r.CreatePortalAccount);

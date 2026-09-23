@@ -9,6 +9,7 @@ public class Producer : TenantEntity
     public string Name { get; set; } = string.Empty;
     public string? Email { get; set; }
     public string? Phone { get; set; }
+    public string? Notes { get; set; }
     public ProducerStatus Status { get; set; } = ProducerStatus.Active;
     /// <summary>
     /// Commission tier (Α/Β/Γ/Δ/Ε). Used by the parametrizer so the agency can

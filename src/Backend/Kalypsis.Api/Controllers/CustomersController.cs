@@ -2,6 +2,7 @@ using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Features.ClaimInvolvedParties;
 using Kalypsis.Application.Features.Customers;
 using Kalypsis.Application.Features.Producers;
+using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,8 +27,9 @@ public class CustomersController : ControllerBase
         [FromQuery] string? occupation,
         [FromQuery] string? needKind,
         [FromQuery] bool? onlyUninsuredNeeds,
+        [FromQuery] CustomerStatus? status,
         CancellationToken cancellationToken)
-        => Ok(await _mediator.Send(new ListCustomersQuery(search, occupation, needKind, onlyUninsuredNeeds), cancellationToken));
+        => Ok(await _mediator.Send(new ListCustomersQuery(search, occupation, needKind, onlyUninsuredNeeds, status), cancellationToken));
 
     [HttpGet("{id:guid}")]
     [RequirePermission("customers.read")]
@@ -64,6 +66,15 @@ public class CustomersController : ControllerBase
     {
         var result = await _mediator.Send(new CreateCustomerCommand(request), cancellationToken);
         return CreatedAtAction(nameof(List), null, result);
+    }
+
+    [HttpPatch("{id:guid}/status")]
+    [Authorize(Policy = "AgencyStaff")]
+    [RequirePermission("customers.write")]
+    public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateCustomerStatusBody body, CancellationToken ct)
+    {
+        await _mediator.Send(new UpdateCustomerStatusCommand(id, body.Status), ct);
+        return NoContent();
     }
 
     /// <summary>

@@ -1154,7 +1154,8 @@ public class Report507Handler : IRequestHandler<Report507Query, IReadOnlyList<Un
     {
         var policies = await _db.Policies.Include(p => p.Customer)
             .Where(p => p.Status != Domain.Enums.PolicyStatus.Cancelled
-                     && p.Status != Domain.Enums.PolicyStatus.Draft).ToListAsync(ct);
+                     && p.Status != Domain.Enums.PolicyStatus.Draft
+                     && p.Status != Domain.Enums.PolicyStatus.Prospect).ToListAsync(ct);
         var policyIds = policies.Select(x => x.Id).ToList();
         var receiptsByPolicy = await _db.Receipts
             .Where(rc => rc.PolicyId.HasValue && policyIds.Contains(rc.PolicyId!.Value))
@@ -1215,7 +1216,8 @@ public class Report610Handler : IRequestHandler<Report610Query, IReadOnlyList<Ca
     public async Task<IReadOnlyList<CarrierAgingRow>> Handle(Report610Query _, CancellationToken ct)
     {
         var data = await _db.Policies.Include(p => p.InsuranceCompany)
-            .Where(p => p.Status != Domain.Enums.PolicyStatus.Cancelled)
+            .Where(p => p.Status != Domain.Enums.PolicyStatus.Cancelled
+                     && p.Status != Domain.Enums.PolicyStatus.Prospect)
             .GroupBy(p => new { p.InsuranceCompanyId, p.InsuranceCompany.Name })
             .Select(g => new CarrierAgingRow(g.Key.InsuranceCompanyId, g.Key.Name,
                 g.Count(), g.Sum(x => x.Premium), g.Sum(x => x.Premium) * 0.15m))

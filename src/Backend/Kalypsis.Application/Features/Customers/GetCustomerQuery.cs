@@ -41,7 +41,7 @@ public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, Custome
         }
 
         return new CustomerDto(
-            c.Id, c.CustomerNumber, c.Type, c.FirstName, c.LastName,
+            c.Id, c.CustomerNumber, c.Type, c.Status, c.FirstName, c.LastName,
             c.CompanyName, c.VatNumber, c.Email, c.Phone, c.City, c.CreatedAt,
             await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.CustomerId == c.Id && u.DeletedAt == null, ct));
     }

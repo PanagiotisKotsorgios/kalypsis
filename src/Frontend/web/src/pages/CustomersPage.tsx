@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
@@ -45,6 +45,7 @@ import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../com
 import { SearchableTextField } from "../components/SearchableTextField";
 
 type CustomerType = "Individual" | "Company";
+type CustomerStatus = "Prospect" | "Active" | "Inactive" | "Churned" | "Blocked";
 const NEED_KINDS = ["Home", "Vehicle", "Health", "Life", "Business", "Travel", "Pet", "Liability", "Cyber", "Other"] as const;
 // Localise the Ανάγκη / περιουσία dropdown values into Greek — the enum
 // names ship straight to the API but the operator sees the label.
@@ -53,11 +54,19 @@ const NEED_KIND_LABEL: Record<string, string> = {
   Business: "Επιχείρηση", Travel: "Ταξίδι", Pet: "Κατοικίδιο",
   Liability: "Ευθύνη", Cyber: "Cyber", Other: "Άλλο",
 };
+const CUSTOMER_STATUS_LABEL: Record<CustomerStatus, string> = {
+  Prospect: "Πιθανός πελάτης",
+  Active: "Ενεργός",
+  Inactive: "Ανενεργός",
+  Churned: "Απώλεια",
+  Blocked: "Αποκλεισμένος",
+};
 
 interface CustomerDto {
   id: string;
   customerNumber: string;
   type: CustomerType;
+  status: CustomerStatus;
   firstName?: string;
   lastName?: string;
   companyName?: string;
@@ -71,6 +80,7 @@ interface CustomerDto {
 
 interface CreateBody {
   type: CustomerType;
+  status: CustomerStatus;
   firstName?: string;
   lastName?: string;
   companyName?: string;
@@ -83,6 +93,16 @@ interface CreateBody {
   occupation?: string;
   notes?: string;
   createPortalAccount: boolean;
+}
+
+function newCustomerForm(status: CustomerStatus): CreateBody {
+  return {
+    type: "Individual", status,
+    firstName: "", lastName: "", companyName: "", vatNumber: "",
+    email: "", phone: "", address: "", city: "", postalCode: "",
+    occupation: "", notes: "",
+    createPortalAccount: status !== "Prospect"
+  };
 }
 
 interface CreateResponse {
@@ -98,18 +118,20 @@ export function CustomersPage() {
   const [occupationFilter, setOccupationFilter] = useState("");
   const [needKind, setNeedKind] = useState("");
   const [onlyUninsuredNeeds, setOnlyUninsuredNeeds] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<CustomerStatus | "">("");
+  const [createStatus, setCreateStatus] = useState<CustomerStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [createdCreds, setCreatedCreds] = useState<{ email: string; password: string } | null>(null);
 
   const customersQuery = useQuery({
-    queryKey: ["customers", search, occupationFilter, needKind, onlyUninsuredNeeds],
+    queryKey: ["customers", search, occupationFilter, needKind, onlyUninsuredNeeds, statusFilter],
     queryFn: async () =>
       (await api.get<CustomerDto[]>("/customers", { params: {
         search: search || undefined,
         occupation: occupationFilter || undefined,
         needKind: needKind || undefined,
-        onlyUninsuredNeeds: needKind && onlyUninsuredNeeds ? true : undefined
+        onlyUninsuredNeeds: needKind && onlyUninsuredNeeds ? true : undefined,
+        status: statusFilter || undefined
       } })).data
   });
 
@@ -133,7 +155,7 @@ export function CustomersPage() {
     onSuccess: (data) => {
       void qc.invalidateQueries({ queryKey: ["customers"] });
       void qc.invalidateQueries({ queryKey: ["customer-consents"] });
-      setOpen(false);
+      setCreateStatus(null);
       if (data.portalEmail && data.portalTemporaryPassword) {
         setCreatedCreds({ email: data.portalEmail, password: data.portalTemporaryPassword });
       }
@@ -213,7 +235,10 @@ export function CustomersPage() {
         <Stack direction="row" spacing={1}>
           {/* Export handled by the TableToolbar dropdown below — the old
               header ExportButton was a duplicate CSV-only shortcut. */}
-          <Button data-tour="customers-new" startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setOpen(true); }}>
+          <Button variant="outlined" size="large" onClick={() => { setError(null); setCreateStatus("Prospect"); }}>
+            Πιθανός πελάτης
+          </Button>
+          <Button data-tour="customers-new" startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateStatus("Active"); }}>
             {t("customers.create")}
           </Button>
         </Stack>
@@ -246,6 +271,11 @@ export function CustomersPage() {
           </FilterFieldWrap>
           <FormControlLabel control={<Switch checked={onlyUninsuredNeeds} disabled={!needKind}
             onChange={(e) => setOnlyUninsuredNeeds(e.target.checked)} />} label="Μόνο χωρίς κάλυψη" />
+          <SearchableTextField select size="small" label="Κατάσταση" value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as CustomerStatus | "")} sx={{ minWidth: 160, width: "100%" }}>
+            <MenuItem value="">Όλες</MenuItem>
+            {Object.entries(CUSTOMER_STATUS_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
+          </SearchableTextField>
         </Stack>
       </Card>
 
@@ -314,7 +344,11 @@ export function CustomersPage() {
                   <TableRow
                     key={c.id}
                     hover
-                    sx={{ cursor: "pointer" }}
+                    sx={c.status === "Prospect" ? {
+                      cursor: "pointer",
+                      bgcolor: "rgba(245, 158, 11, 0.12)",
+                      "&:hover": { bgcolor: "rgba(245, 158, 11, 0.20)" }
+                    } : { cursor: "pointer" }}
                     onClick={() => { window.location.href = `/app/customers/${c.id}`; }}
                     onContextMenu={(e) => rowMenu.open(e, c)}
                   >
@@ -327,11 +361,14 @@ export function CustomersPage() {
                         case "name":
                           return (
                             <TableCell key={col.key}>
-                              <Typography fontWeight={600}>
-                                {c.type === "Individual"
-                                  ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim()
-                                  : c.companyName}
-                              </Typography>
+                              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                                <Typography fontWeight={600}>
+                                  {c.type === "Individual"
+                                    ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim()
+                                    : c.companyName}
+                                </Typography>
+                                {c.status === "Prospect" && <Chip label="Πιθανός πελάτης" size="small" color="warning" />}
+                              </Stack>
                               {c.vatNumber && (
                                 <Typography variant="caption" color="text.secondary">
                                   ΑΦΜ: {c.vatNumber}
@@ -401,8 +438,9 @@ export function CustomersPage() {
       {rowMenu.menu}
 
       <CreateCustomerDialog
-        open={open}
-        onClose={() => setOpen(false)}
+        open={createStatus !== null}
+        initialStatus={createStatus ?? "Active"}
+        onClose={() => setCreateStatus(null)}
         onSubmit={(b) => createMutation.mutate(b)}
         submitting={createMutation.isPending}
       />
@@ -421,35 +459,30 @@ export function CustomersPage() {
 
 function CreateCustomerDialog({
   open,
+  initialStatus,
   onClose,
   onSubmit,
   submitting
 }: {
   open: boolean;
+  initialStatus: CustomerStatus;
   onClose: () => void;
   onSubmit: (b: CreateBody) => void;
   submitting: boolean;
 }) {
   const { t } = useTranslation();
-  const [form, setForm] = useState<CreateBody>({
-    type: "Individual",
-    firstName: "",
-    lastName: "",
-    companyName: "",
-    vatNumber: "",
-    email: "",
-    phone: "",
-    address: "",
-    city: "",
-    postalCode: "",
-    occupation: "",
-    notes: "",
-    createPortalAccount: true
-  });
+  const [form, setForm] = useState<CreateBody>(() => newCustomerForm(initialStatus));
   // GDPR Άρθρο 13 — client-side gate: χωρίς την επιβεβαίωση παραλαβής της
   // Ενημέρωσης Υποκειμένου η δημιουργία δεν προχωρά. Client-only state, δεν
   // στέλνεται στο /customers — μετά τη δημιουργία γίνεται POST στο consents.
   const [privacyAck, setPrivacyAck] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setForm(newCustomerForm(initialStatus));
+      setPrivacyAck(false);
+    }
+  }, [open, initialStatus]);
 
   const handleSubmit = () => {
     const payload: CreateBody = {
@@ -480,6 +513,18 @@ function CreateCustomerDialog({
             <MenuItem value="Individual">{t("customers.individual")}</MenuItem>
             <MenuItem value="Company">{t("customers.company")}</MenuItem>
           </SearchableTextField>
+
+          <FormControlLabel
+            control={<Switch checked={form.status === "Prospect"} onChange={(e) => setForm({
+              ...form,
+              status: e.target.checked ? "Prospect" : "Active",
+              createPortalAccount: e.target.checked ? false : form.createPortalAccount
+            })} />}
+            label="Πιθανός πελάτης"
+          />
+          {form.status === "Prospect" && (
+            <Alert severity="info">Θα εμφανίζεται με ειδική επισήμανση και δεν θα δημιουργηθεί λογαριασμός portal.</Alert>
+          )}
 
           {form.type === "Individual" ? (
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -515,7 +560,7 @@ function CreateCustomerDialog({
                 value={form.vatNumber}
                 onChange={(e) => setForm({ ...form, vatNumber: e.target.value })}
                 fullWidth
-                required
+                required={form.status !== "Prospect"}
                 InputProps={{ endAdornment: <FilterHelp title="ΑΦΜ επιχείρησης (9 ψηφία). Χρησιμοποιείται σε τιμολόγηση και έλεγχο διπλοεγγραφών." /> }}
               />
             </Stack>
@@ -585,6 +630,7 @@ function CreateCustomerDialog({
             control={
               <Switch
                 checked={form.createPortalAccount}
+                disabled={form.status === "Prospect"}
                 onChange={(e) => setForm({ ...form, createPortalAccount: e.target.checked })}
               />
             }

@@ -1,5 +1,5 @@
 import {
-  Box, Card, CardContent, Chip, CircularProgress, Stack, Table, TableBody,
+  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Stack, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, Typography
 } from "@mui/material";
 import {
@@ -42,9 +42,10 @@ interface SelfSummaryDto {
   producerId: string;
   name: string;
   status: string;
-  activePolicies: number;
+  activePolicies: number; prospectPolicies: number; prospectCustomers: number;
   policiesMtd: number; policiesYtd: number;
   premiumMtd: number; premiumYtd: number;
+  expectedCommissionThisMonth: number; expectedNetCommissionThisMonth: number;
   commissionMtd: number; commissionYtd: number;
   overCommissionYtd: number;
   customersServed: number;
@@ -76,10 +77,25 @@ export function ProducerDashboardPage() {
     queryFn: async () => (await api.get<MyRunLineDto[]>("/producer/me/commissions")).data
   });
 
-  if (q.isLoading || !q.data) {
+  if (q.isLoading && self.isLoading) {
     return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
   }
-  const r = q.data;
+  // The detailed report is useful for charts, but it must never leave a
+  // producer on an endless spinner when one request fails. The smaller
+  // self-summary remains available as a safe dashboard fallback.
+  const r: ProducerReportDto = q.data ?? {
+    producerName: self.data?.name ?? user?.firstName ?? "",
+    producerCode: "",
+    kpis: {
+      customers: self.data?.customersServed ?? 0,
+      activePolicies: self.data?.activePolicies ?? 0,
+      expiringSoon: 0,
+      monthlyPremium: self.data?.premiumMtd ?? 0,
+      renewalsThisYear: 0,
+    },
+    policiesByType: [], policiesByStatus: [], monthlyPremium: [],
+    carrierBreakdown: [], expiringSoon: [],
+  };
 
   return (
     <Box>
@@ -89,10 +105,18 @@ export function ProducerDashboardPage() {
             {t("producerDashboard.welcome", { name: user?.firstName })}
           </Typography>
           <Typography color="text.secondary">
-            {r.producerName} · {r.producerCode}
+            {r.producerName}{r.producerCode ? ` · ${r.producerCode}` : ""}
           </Typography>
         </Box>
       </Stack>
+
+      {q.isError && (
+        <Alert severity="warning" sx={{ mb: 3 }} action={
+          <Button color="inherit" size="small" onClick={() => void q.refetch()}>Επανάληψη</Button>
+        }>
+          Φορτώθηκαν τα βασικά στοιχεία σας. Τα αναλυτικά γραφήματα θα εμφανιστούν μόλις ολοκληρωθεί η σύνδεση με την αναφορά.
+        </Alert>
+      )}
 
       {/* KPI tiles */}
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(5, 1fr)" }, mb: 3 }}>
@@ -110,12 +134,23 @@ export function ProducerDashboardPage() {
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Typography variant="h6" fontWeight={700} mb={2}>{t("producerDashboard.myCommissions")}</Typography>
-            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, mb: 2 }}>
+            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3, 1fr)" }, mb: 2 }}>
+              <Kpi label="Εκτίμηση επόμενης προμήθειας" value={money(self.data.expectedCommissionThisMonth)} />
+              <Kpi label="Καθαρή εκτίμηση" value={money(self.data.expectedNetCommissionThisMonth)} />
               <Kpi label={t("producerDashboard.kpi.commissionMtd")} value={money(self.data.commissionMtd)} />
               <Kpi label={t("producerDashboard.kpi.commissionYtd")} value={money(self.data.commissionYtd)} />
               <Kpi label={t("producerDashboard.kpi.overCommissionYtd")} value={money(self.data.overCommissionYtd)} />
               <Kpi label={t("producerDashboard.kpi.premiumYtd")} value={money(self.data.premiumYtd)} />
             </Box>
+
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+              <Chip color="warning" variant="outlined" label={`Πιθανά συμβόλαια: ${self.data.prospectPolicies}`} />
+              <Chip color="warning" variant="outlined" label={`Πιθανοί πελάτες: ${self.data.prospectCustomers}`} />
+              <Chip variant="outlined" label={`Ενεργά συμβόλαια: ${self.data.activePolicies}`} />
+            </Stack>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+              Η εκτίμηση βασίζεται στους ενεργούς φακέλους και στην τρέχουσα παραμετροποίηση προμηθειών του γραφείου. Δεν περιλαμβάνει πιθανά συμβόλαια.
+            </Typography>
 
             {(myLines.data ?? []).length === 0 ? (
               <Typography color="text.secondary" textAlign="center" py={3}>{t("producerDashboard.noCommissionLines")}</Typography>

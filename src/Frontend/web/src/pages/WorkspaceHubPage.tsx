@@ -71,7 +71,7 @@ interface AgencyReport {
 const CHART_PALETTE = ["#1f7bb3", "#0b2545", "#6fd2ff", "#3d4f6b", "#a7c1d9", "#6b8aa9"];
 const STATUS_PALETTE: Record<string, string> = {
   Active: "#16a34a", PendingRenewal: "#d97706", Expired: "#a3a3a3",
-  Cancelled: "#dc2626", Renewed: "#1f7bb3", Draft: "#94a3b8"
+  Cancelled: "#dc2626", Renewed: "#1f7bb3", Draft: "#94a3b8", Prospect: "#d97706"
 };
 
 // Backend returns PolicyStatus / PolicyType / ClaimStatus / ServiceRequestStatus
@@ -82,7 +82,7 @@ const STATUS_PALETTE: Record<string, string> = {
 const STATUS_LABELS: Record<string, string> = {
   Draft: "Πρόχειρο", Active: "Ενεργό", Expired: "Έληξε", Cancelled: "Ακυρωμένο",
   Renewed: "Ανανεώθηκε", PendingRenewal: "Προς ανανέωση",
-  Undelivered: "Απαράδοτο", AwaitingIssue: "Προς έκδοση",
+  Undelivered: "Απαράδοτο", AwaitingIssue: "Προς έκδοση", Prospect: "Πιθανό συμβόλαιο",
   // Claim / request breakdowns share this map — enum names are unique.
   Open: "Ανοιχτή", Reported: "Αναφέρθηκε", UnderReview: "Υπό εξέταση", InReview: "Υπό εξέταση",
   Approved: "Εγκεκριμένη", Rejected: "Απορρίφθηκε", Closed: "Κλειστή",

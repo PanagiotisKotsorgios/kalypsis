@@ -6,6 +6,7 @@ export interface CustomerLite {
   id: string;
   customerNumber: string;
   type: "Individual" | "Company";
+  status?: "Prospect" | "Active" | "Inactive" | "Churned" | "Blocked";
   firstName?: string | null;
   lastName?: string | null;
   companyName?: string | null;

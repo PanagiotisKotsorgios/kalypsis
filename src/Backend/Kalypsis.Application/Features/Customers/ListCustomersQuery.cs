@@ -10,7 +10,8 @@ public record ListCustomersQuery(
     string? Search,
     string? Occupation = null,
     string? NeedKind = null,
-    bool? OnlyUninsuredNeeds = null) : IRequest<IReadOnlyList<CustomerDto>>;
+    bool? OnlyUninsuredNeeds = null,
+    CustomerStatus? Status = null) : IRequest<IReadOnlyList<CustomerDto>>;
 
 public class ListCustomersQueryHandler : IRequestHandler<ListCustomersQuery, IReadOnlyList<CustomerDto>>
 {
@@ -75,11 +76,14 @@ public class ListCustomersQueryHandler : IRequestHandler<ListCustomersQuery, IRe
             q = q.Where(c => matchingNeedCustomers.Select(n => n.CustomerId).Contains(c.Id));
         }
 
+        if (request.Status.HasValue)
+            q = q.Where(c => c.Status == request.Status.Value);
+
         return await q
             .OrderByDescending(c => c.CreatedAt)
             .Take(200)
             .Select(c => new CustomerDto(
-                c.Id, c.CustomerNumber, c.Type, c.FirstName, c.LastName,
+                c.Id, c.CustomerNumber, c.Type, c.Status, c.FirstName, c.LastName,
                 c.CompanyName, c.VatNumber, c.Email, c.Phone, c.City, c.CreatedAt,
                 _db.Users.IgnoreQueryFilters().Any(u => u.CustomerId == c.Id && u.DeletedAt == null)))
             .ToListAsync(cancellationToken);

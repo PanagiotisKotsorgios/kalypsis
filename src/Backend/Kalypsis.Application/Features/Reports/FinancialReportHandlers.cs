@@ -89,7 +89,7 @@ public class GetCommissionDistributionQueryHandler
             // matches the production report's totals for the same window.
             var policies = _db.Policies.IgnoreQueryFilters()
                 .Where(p => p.TenantId == tenantId && p.DeletedAt == null
-                    && p.Status != PolicyStatus.Draft && p.Status != PolicyStatus.Cancelled
+                    && p.Status != PolicyStatus.Draft && p.Status != PolicyStatus.Cancelled && p.Status != PolicyStatus.Prospect
                     && p.StartDate >= from && p.StartDate <= to);
             if (request.CarrierId is Guid cid)
                 policies = policies.Where(p => p.InsuranceCompanyId == cid);
@@ -422,7 +422,7 @@ public class GetProducerStatementQueryHandler
         var lines = await _db.PolicyCommissionSplits.IgnoreQueryFilters()
             .Where(s => s.TenantId == tenantId && s.DeletedAt == null && s.ProducerId == request.ProducerId)
             .Join(_db.Policies.IgnoreQueryFilters(), s => s.PolicyId, p => p.Id, (s, p) => new { s, p })
-            .Where(x => x.p.DeletedAt == null && x.p.Status != PolicyStatus.Draft && x.p.Status != PolicyStatus.Cancelled
+            .Where(x => x.p.DeletedAt == null && x.p.Status != PolicyStatus.Draft && x.p.Status != PolicyStatus.Cancelled && x.p.Status != PolicyStatus.Prospect
                 && x.p.StartDate >= from && x.p.StartDate <= to)
             .Join(_db.Customers.IgnoreQueryFilters(), sp => sp.p.CustomerId, c => c.Id, (sp, c) => new { sp.s, sp.p, c })
             .Join(_db.InsuranceCompanies.IgnoreQueryFilters(), spc => spc.p.InsuranceCompanyId, carrier => carrier.Id,

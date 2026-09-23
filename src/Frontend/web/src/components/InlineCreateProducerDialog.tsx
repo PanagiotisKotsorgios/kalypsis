@@ -24,13 +24,14 @@ interface Props {
   onCreated: (producer: InlineProducerCreateResult) => void;
 }
 
-type ProducerStatus = "Active" | "Inactive" | "Suspended";
+type ProducerStatus = "Active" | "Suspended" | "Terminated" | "Prospect";
 
 interface CreateBody {
   code: string;
   name: string;
   email?: string;
   phone?: string;
+  notes?: string;
   status: ProducerStatus;
 }
 
@@ -47,6 +48,7 @@ function seedFromPrefill(prefill: string): CreateBody {
     code: trimmed.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 20) || `P-${Date.now().toString().slice(-6)}`,
     email: "",
     phone: "",
+    notes: "",
     status: "Active",
   };
 }
@@ -67,6 +69,7 @@ export function InlineCreateProducerDialog({ open, onClose, prefillText = "", on
         name: form.name.trim(),
         email: form.email?.trim() || null,
         phone: form.phone?.trim() || null,
+        notes: form.notes?.trim() || null,
         status: form.status,
       };
       return (await api.post<CreateResponse>("/producers", body)).data;
@@ -129,9 +132,16 @@ export function InlineCreateProducerDialog({ open, onClose, prefillText = "", on
             fullWidth
           >
             <MenuItem value="Active">Ενεργός</MenuItem>
-            <MenuItem value="Inactive">Ανενεργός</MenuItem>
             <MenuItem value="Suspended">Σε αναστολή</MenuItem>
+            <MenuItem value="Prospect">Πιθανός συνεργάτης</MenuItem>
+            <MenuItem value="Terminated">Τερματισμένος</MenuItem>
           </TextField>
+          <TextField
+            label="Σημειώσεις"
+            value={form.notes ?? ""}
+            onChange={e => setForm({ ...form, notes: e.target.value })}
+            fullWidth multiline minRows={2} inputProps={{ maxLength: 2000 }}
+          />
         </Stack>
       </DialogContent>
       <DialogActions>

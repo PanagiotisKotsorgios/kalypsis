@@ -13,5 +13,9 @@ public enum PolicyStatus
     Undelivered = 7,
     /// <summary>The application has been sent to the insurer but no policy
     /// number has been assigned yet — common during motor issue.</summary>
-    AwaitingIssue = 8
+    AwaitingIssue = 8,
+    /// <summary>A quoted or planned policy that has not been issued yet.
+    /// Prospect policies are intentionally excluded from production,
+    /// financial and commission calculations.</summary>
+    Prospect = 9
 }

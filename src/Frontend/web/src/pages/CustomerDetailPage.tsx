@@ -44,6 +44,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useParams, Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
 
 interface CustomerDto {
   id: string;
@@ -141,6 +142,8 @@ const COMMUNICATION_KINDS = ["Note", "Phone", "Email", "Meeting", "Sms", "WalkIn
 
 export function CustomerDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const qc = useQueryClient();
   const [tab, setTab] = useState(0);
   const [showProducers, setShowProducers] = useState(false);
 
@@ -148,6 +151,13 @@ export function CustomerDetailPage() {
     queryKey: ["customer", id],
     queryFn: async () => (await api.get<CustomerDto>(`/customers/${id}`)).data,
     enabled: !!id
+  });
+  const statusMutation = useMutation({
+    mutationFn: async (status: "Prospect" | "Active") => api.patch(`/customers/${id}/status`, { status }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["customer", id] });
+      void qc.invalidateQueries({ queryKey: ["customers"] });
+    }
   });
 
   if (customerQ.isLoading) {
@@ -162,6 +172,7 @@ export function CustomerDetailPage() {
     );
   }
   const customer = customerQ.data!;
+  const canManageCustomer = user?.role === "AgencyAdmin" || user?.role === "AgencyUser";
 
   const displayName = customer.type === "Company"
     ? customer.companyName ?? "—"
@@ -174,12 +185,22 @@ export function CustomerDetailPage() {
           <Typography variant="overline" color="text.secondary">{customer.customerNumber}</Typography>
           <Typography variant="h4" sx={{ fontWeight: 800 }}>{displayName}</Typography>
           <Stack direction="row" spacing={1} mt={1}>
-            <Chip label={customer.status} size="small" color={statusColor(customer.status)} />
+            <Chip label={customer.status === "Prospect" ? "Πιθανός πελάτης" : customer.status} size="small" color={statusColor(customer.status)} />
             <Chip label={customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο"} size="small" />
             {customer.email && <Chip label={customer.email} size="small" variant="outlined" />}
             {customer.phone && <Chip label={customer.phone} size="small" variant="outlined" />}
           </Stack>
         </Box>
+        {canManageCustomer && (
+          <Button
+            variant={customer.status === "Prospect" ? "contained" : "outlined"}
+            color={customer.status === "Prospect" ? "success" : "warning"}
+            disabled={statusMutation.isPending}
+            onClick={() => statusMutation.mutate(customer.status === "Prospect" ? "Active" : "Prospect")}
+          >
+            {customer.status === "Prospect" ? "Μετατροπή σε πελάτη" : "Ορισμός ως πιθανός"}
+          </Button>
+        )}
         <Button
           startIcon={<GroupsIcon />}
           variant="outlined"
@@ -230,7 +251,7 @@ export function CustomerDetailPage() {
 function statusColor(s: string): "default" | "primary" | "warning" | "error" | "success" {
   switch (s) {
     case "Active": return "success";
-    case "Prospect": return "primary";
+    case "Prospect": return "warning";
     case "Inactive": return "default";
     case "Churned": return "warning";
     case "Blocked": return "error";

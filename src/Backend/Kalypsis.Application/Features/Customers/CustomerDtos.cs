@@ -6,6 +6,7 @@ public record CustomerDto(
     Guid Id,
     string CustomerNumber,
     CustomerType Type,
+    CustomerStatus Status,
     string? FirstName,
     string? LastName,
     string? CompanyName,
@@ -37,7 +38,8 @@ public record CreateCustomerRequest(
     string? SpouseName = null,
     string? Nationality = null,
     string? Zone = null,
-    string? ActivityCode = null);
+    string? ActivityCode = null,
+    CustomerStatus Status = CustomerStatus.Active);
 
 public record CreateCustomerResponse(
     CustomerDto Customer,

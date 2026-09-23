@@ -74,7 +74,7 @@ public class GetProducerReportQueryHandler : IRequestHandler<GetProducerReportQu
             var monthStart = new DateOnly(now.Year, now.Month, 1).AddMonths(-i);
             var nextMonth = monthStart.AddMonths(1);
             var monthTotal = await policies
-                .Where(p => p.StartDate >= monthStart && p.StartDate < nextMonth && p.Status != PolicyStatus.Cancelled)
+                .Where(p => p.StartDate >= monthStart && p.StartDate < nextMonth && p.Status != PolicyStatus.Cancelled && p.Status != PolicyStatus.Prospect)
                 .SumAsync(p => (decimal?)p.Premium, ct) ?? 0m;
             monthBuckets.Add(new SeriesPoint(monthStart.ToString("yyyy-MM"), monthTotal));
         }

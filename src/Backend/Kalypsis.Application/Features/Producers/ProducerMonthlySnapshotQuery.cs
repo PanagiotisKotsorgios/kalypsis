@@ -52,6 +52,7 @@ public class GetProducerMonthlySnapshotQueryHandler
                         && p.ProducerId == r.ProducerId
                         && p.Status != PolicyStatus.Cancelled
                         && p.Status != PolicyStatus.Draft
+                        && p.Status != PolicyStatus.Prospect
                         && p.StartDate >= firstDay && p.StartDate <= lastDay)
             .Select(p => new { p.Premium })
             .ToListAsync(ct);
@@ -60,6 +61,7 @@ public class GetProducerMonthlySnapshotQueryHandler
                         && p.ProducerId == r.ProducerId
                         && p.Status != PolicyStatus.Cancelled
                         && p.Status != PolicyStatus.Draft
+                        && p.Status != PolicyStatus.Prospect
                         && p.StartDate >= priorFirst && p.StartDate <= priorLast)
             .Select(p => new { p.Premium })
             .ToListAsync(ct);

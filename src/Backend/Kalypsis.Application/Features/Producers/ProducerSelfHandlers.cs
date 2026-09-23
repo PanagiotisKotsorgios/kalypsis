@@ -9,8 +9,10 @@ namespace Kalypsis.Application.Features.Producers;
 
 public record ProducerSelfSummaryDto(
     Guid ProducerId, string Name, ProducerStatus Status,
-    int ActivePolicies, int PoliciesMtd, int PoliciesYtd,
+    int ActivePolicies, int ProspectPolicies, int ProspectCustomers,
+    int PoliciesMtd, int PoliciesYtd,
     decimal PremiumMtd, decimal PremiumYtd,
+    decimal ExpectedCommissionThisMonth, decimal ExpectedNetCommissionThisMonth,
     decimal CommissionMtd, decimal CommissionYtd,
     decimal OverCommissionYtd,
     int CustomersServed);
@@ -38,15 +40,38 @@ public class GetProducerSelfSummaryQueryHandler : IRequestHandler<GetProducerSel
         var today = DateOnly.FromDateTime(now);
 
         var myPolicies = _db.Policies.Where(p => p.ProducerId == producerId);
-        var activePolicies = await myPolicies.CountAsync(p => p.Status == PolicyStatus.Active, ct);
+        var activeBook = myPolicies.Where(p => p.Status == PolicyStatus.Active);
+        var activePolicies = await activeBook.CountAsync(ct);
+        var prospectPolicies = await myPolicies.CountAsync(p => p.Status == PolicyStatus.Prospect, ct);
+        var prospectCustomers = await myPolicies
+            .Where(p => p.Status == PolicyStatus.Prospect)
+            .Select(p => p.CustomerId)
+            .Distinct()
+            .CountAsync(ct);
 
-        var mtdPolicies = await myPolicies.Where(p => p.StartDate >= monthStart && p.StartDate <= today).CountAsync(ct);
-        var ytdPolicies = await myPolicies.Where(p => p.StartDate >= yearStart && p.StartDate <= today).CountAsync(ct);
+        var mtdPolicies = await activeBook.Where(p => p.StartDate >= monthStart && p.StartDate <= today).CountAsync(ct);
+        var ytdPolicies = await activeBook.Where(p => p.StartDate >= yearStart && p.StartDate <= today).CountAsync(ct);
 
-        var premiumMtd = await myPolicies.Where(p => p.StartDate >= monthStart && p.StartDate <= today)
+        var premiumMtd = await activeBook.Where(p => p.StartDate >= monthStart && p.StartDate <= today)
             .SumAsync(p => (decimal?)p.Premium, ct) ?? 0;
-        var premiumYtd = await myPolicies.Where(p => p.StartDate >= yearStart && p.StartDate <= today)
+        var premiumYtd = await activeBook.Where(p => p.StartDate >= yearStart && p.StartDate <= today)
             .SumAsync(p => (decimal?)p.Premium, ct) ?? 0;
+
+        // This is the forward-looking amount for the next commission run,
+        // calculated from the current commission matrices of active policies.
+        // It is deliberately separate from CommissionMtd, which is the amount
+        // already generated in an actual commission run.
+        var expectedCommission = await _db.PolicyCommissionSplits
+            .Where(s => s.ProducerId == producerId && s.Policy.Status == PolicyStatus.Active)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Gross = g.Sum(x => x.GrossAmount),
+                Net = g.Sum(x => x.NetAmount)
+            })
+            .FirstOrDefaultAsync(ct);
+        var expectedCommissionThisMonth = expectedCommission?.Gross ?? 0m;
+        var expectedNetCommissionThisMonth = expectedCommission?.Net ?? 0m;
 
         var commissionLines = _db.CommissionRunLines.Where(l => l.ProducerId == producerId);
         var commissionMtd = await commissionLines
@@ -63,8 +88,9 @@ public class GetProducerSelfSummaryQueryHandler : IRequestHandler<GetProducerSel
 
         return new ProducerSelfSummaryDto(
             producer.Id, producer.Name, producer.Status,
-            activePolicies, mtdPolicies, ytdPolicies,
-            premiumMtd, premiumYtd, commissionMtd, commissionYtd, overCommissionYtd,
+            activePolicies, prospectPolicies, prospectCustomers, mtdPolicies, ytdPolicies,
+            premiumMtd, premiumYtd, expectedCommissionThisMonth, expectedNetCommissionThisMonth,
+            commissionMtd, commissionYtd, overCommissionYtd,
             customersServed);
     }
 }

@@ -21,7 +21,8 @@ public record ProducerDetailDto(
     IReadOnlyList<ProducerCarrierStat> ByCarrier,
     IReadOnlyList<ProducerTypeStat> ByPolicyType,
     // Overall performance grade
-    string PerformanceGrade);
+    string PerformanceGrade,
+    string? Notes = null);
 
 public record ProducerCarrierStat(string CarrierName, int PolicyCount, decimal TotalPremium);
 public record ProducerTypeStat(string PolicyType, int PolicyCount, decimal TotalPremium);
@@ -43,7 +44,7 @@ public class GetProducerDetailQueryHandler : IRequestHandler<GetProducerDetailQu
 
         var policies = await _db.Policies
             .Include(x => x.InsuranceCompany)
-            .Where(x => x.ProducerId == r.Id && x.DeletedAt == null)
+            .Where(x => x.ProducerId == r.Id && x.DeletedAt == null && x.Status != PolicyStatus.Prospect)
             .ToListAsync(ct);
 
         var policyIds = policies.Select(x => x.Id).ToList();
@@ -108,6 +109,6 @@ public class GetProducerDetailQueryHandler : IRequestHandler<GetProducerDetailQu
             commissionsAll, commissionsThisYear,
             claimCount, claimRatio,
             renewalRate, customerCount,
-            byCarrier, byType, grade);
+            byCarrier, byType, grade, p.Notes);
     }
 }
