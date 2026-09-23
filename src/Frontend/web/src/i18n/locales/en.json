@@ -2716,7 +2716,6 @@
     "postalCode": "Postcode",
     "birthDate": "Date of birth",
     "notes": "Notes",
-    "createPortalAccount": "Auto-create customer portal account",
     "customerNumber": "Customer #",
     "portalAccount": "Portal",
     "yes": "Yes",

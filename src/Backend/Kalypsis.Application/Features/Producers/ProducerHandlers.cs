@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using FluentValidation;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
@@ -21,12 +22,18 @@ public record CreateProducerBody(string Code, string Name, string? Email, string
     ProducerTier Tier = ProducerTier.None,
     HierarchyLevel HierarchyLevel = HierarchyLevel.Producer,
     Guid? ParentProducerId = null,
-    string? Notes = null);
+    string? Notes = null,
+    string? InitialPassword = null);
 public record UpdateProducerBody(string Code, string Name, string? Email, string? Phone, ProducerStatus Status,
     ProducerTier Tier = ProducerTier.None,
     HierarchyLevel HierarchyLevel = HierarchyLevel.Producer,
     Guid? ParentProducerId = null,
     string? Notes = null);
+
+public record CreateProducerResponse(
+    ProducerDto Producer,
+    string? PortalEmail,
+    string? TemporaryPassword);
 
 /* ========= List ========= */
 
@@ -60,7 +67,7 @@ public class ListProducersQueryHandler : IRequestHandler<ListProducersQuery, IRe
 
 /* ========= Create ========= */
 
-public record CreateProducerCommand(CreateProducerBody Body) : IRequest<ProducerDto>;
+public record CreateProducerCommand(CreateProducerBody Body) : IRequest<CreateProducerResponse>;
 
 public class CreateProducerCommandValidator : AbstractValidator<CreateProducerCommand>
 {
@@ -68,16 +75,24 @@ public class CreateProducerCommandValidator : AbstractValidator<CreateProducerCo
     {
         RuleFor(x => x.Body.Code).NotEmpty().MaximumLength(64);
         RuleFor(x => x.Body.Name).NotEmpty().MaximumLength(200);
+        When(x => !string.IsNullOrWhiteSpace(x.Body.InitialPassword), () =>
+            RuleFor(x => x.Body.InitialPassword).MinimumLength(8).MaximumLength(128));
     }
 }
 
-public class CreateProducerCommandHandler : IRequestHandler<CreateProducerCommand, ProducerDto>
+public class CreateProducerCommandHandler : IRequestHandler<CreateProducerCommand, CreateProducerResponse>
 {
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _current;
-    public CreateProducerCommandHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
+    private readonly IPasswordHasher _hasher;
+    public CreateProducerCommandHandler(IAppDbContext db, ICurrentUser current, IPasswordHasher hasher)
+    {
+        _db = db;
+        _current = current;
+        _hasher = hasher;
+    }
 
-    public async Task<ProducerDto> Handle(CreateProducerCommand request, CancellationToken ct)
+    public async Task<CreateProducerResponse> Handle(CreateProducerCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var b = request.Body;
@@ -101,6 +116,8 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
             ParentProducerId = b.ParentProducerId
         };
         _db.Producers.Add(p);
+        string? portalEmail = null;
+        string? temporaryPassword = null;
 
         // Email-based User linking. If a Producer-role user already exists
         // with this email in this tenant, link them by pointing
@@ -122,21 +139,22 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
             else
             {
                 var nameParts = p.Name.Split(' ', 2);
+                temporaryPassword = string.IsNullOrWhiteSpace(b.InitialPassword)
+                    ? GenerateTemporaryPassword()
+                    : b.InitialPassword;
                 _db.Users.Add(new User
                 {
                     Id = Guid.NewGuid(),
                     TenantId = tenantId,
                     Email = p.Email,
-                    // BCrypt hash of a placeholder that MUST be reset via forgot-password
-                    // flow before first login. Bare "!" is invalid on purpose so the
-                    // producer can't log in until they set their own.
-                    PasswordHash = "!",
+                    PasswordHash = _hasher.Hash(temporaryPassword),
                     FirstName = nameParts[0],
                     LastName = nameParts.Length > 1 ? nameParts[1] : "",
                     Role = Role.Producer,
                     ProducerId = p.Id,
                     IsActive = true,
                 });
+                portalEmail = p.Email;
             }
         }
 
@@ -148,8 +166,23 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
                 .Where(x => x.Id == p.ParentProducerId.Value)
                 .Select(x => x.Name).FirstOrDefaultAsync(ct);
         }
-        return new ProducerDto(p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, p.Tier, 0, p.CreatedAt,
-            p.HierarchyLevel, p.ParentProducerId, parentName, p.Notes);
+        return new CreateProducerResponse(
+            new ProducerDto(p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, p.Tier, 0, p.CreatedAt,
+                p.HierarchyLevel, p.ParentProducerId, parentName, p.Notes),
+            portalEmail,
+            temporaryPassword);
+    }
+
+    private static string GenerateTemporaryPassword()
+    {
+        const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+        const string symbols = "!@#$%&*";
+        Span<char> buf = stackalloc char[12];
+        for (var i = 0; i < 10; i++)
+            buf[i] = alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
+        buf[10] = symbols[RandomNumberGenerator.GetInt32(symbols.Length)];
+        buf[11] = (char)('0' + RandomNumberGenerator.GetInt32(10));
+        return new string(buf);
     }
 }
 

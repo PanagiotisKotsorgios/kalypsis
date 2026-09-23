@@ -3,6 +3,7 @@ using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.Users;
 using Kalypsis.Application.Features.Tenants;
 using Kalypsis.Domain.Entities;
+using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -54,6 +55,9 @@ public class CompleteTwoFactorLoginHandler : IRequestHandler<CompleteTwoFactorLo
 
         if (!user.IsActive)
             throw AppException.Unauthorized("Ο λογαριασμός δεν είναι ενεργός.");
+
+        if (user.Role == Role.Customer)
+            throw new AppException("client_portal_disabled", "Το portal πελατών είναι προσωρινά μη διαθέσιμο.", 503);
 
         if (user.LockedUntil is not null && user.LockedUntil > _clock.UtcNow)
             throw AppException.Unauthorized("Ο λογαριασμός είναι κλειδωμένος.");

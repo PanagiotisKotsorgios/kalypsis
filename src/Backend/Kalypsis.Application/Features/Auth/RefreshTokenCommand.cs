@@ -4,6 +4,7 @@ using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.Users;
 using Kalypsis.Application.Features.Tenants;
 using Kalypsis.Domain.Entities;
+using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -81,6 +82,9 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, L
 
         if (user.LockedUntil is not null && user.LockedUntil > now)
             throw AppException.Unauthorized("Ο λογαριασμός είναι κλειδωμένος.");
+
+        if (user.Role == Role.Customer)
+            throw new AppException("client_portal_disabled", "Το portal πελατών είναι προσωρινά μη διαθέσιμο.", 503);
 
         // Issue the rotated pair.
         var tokens = _jwt.IssueTokens(user);

@@ -90,6 +90,14 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
         user.FailedLoginAttempts = 0;
         user.LockedUntil = null;
 
+        if (user.Role == Role.Customer)
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+            throw new AppException("client_portal_disabled",
+                "Το portal πελατών είναι προσωρινά μη διαθέσιμο.", 503,
+                title: "Το portal πελατών είναι απενεργοποιημένο");
+        }
+
         // 2FA gate. If the user has TOTP enrolled, the password alone isn't enough:
         // we issue a short-lived (5 min) "challenge token" instead of real session
         // tokens. The client must POST /api/auth/2fa/login with the challenge +

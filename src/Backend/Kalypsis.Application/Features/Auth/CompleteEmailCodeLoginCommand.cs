@@ -3,6 +3,7 @@ using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.Users;
 using Kalypsis.Application.Features.Tenants;
 using Kalypsis.Domain.Entities;
+using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -45,6 +46,9 @@ public class CompleteEmailCodeLoginHandler : IRequestHandler<CompleteEmailCodeLo
         var user = await _db.Users.IgnoreQueryFilters()
             .FirstOrDefaultAsync(u => u.Id == userId && u.DeletedAt == null, ct)
             ?? throw AppException.Unauthorized("Ο χρήστης δεν βρέθηκε.");
+
+        if (user.Role == Role.Customer)
+            throw new AppException("client_portal_disabled", "Το portal πελατών είναι προσωρινά μη διαθέσιμο.", 503);
 
         if (string.IsNullOrEmpty(user.PendingLoginCodeHash)
             || user.PendingLoginCodeExpiresAt is null

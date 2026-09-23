@@ -39,7 +39,7 @@ public class ProducersController : ControllerBase
         => Ok(await _mediator.Send(new ListProducerCustomersQuery(id), ct));
 
     [HttpPost]
-    public async Task<ActionResult<ProducerDto>> Create([FromBody] CreateProducerBody body, CancellationToken cancellationToken)
+    public async Task<ActionResult<CreateProducerResponse>> Create([FromBody] CreateProducerBody body, CancellationToken cancellationToken)
     {
         var r = await _mediator.Send(new CreateProducerCommand(body), cancellationToken);
         return CreatedAtAction(nameof(List), null, r);
@@ -67,8 +67,10 @@ public class ProducersController : ControllerBase
 
     [HttpPost("{id:guid}/portal-account")]
     public async Task<ActionResult<CreateProducerPortalAccountResponse>> CreatePortalAccount(
-        Guid id, CancellationToken cancellationToken)
-        => Ok(await _mediator.Send(new CreateProducerPortalAccountCommand(id), cancellationToken));
+        Guid id, [FromBody] SetProducerPortalPasswordBody? body, CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(new CreateProducerPortalAccountCommand(id, body?.Password), cancellationToken));
+
+    public record SetProducerPortalPasswordBody(string? Password);
 
     // === Reassignment === Preview shows the totals about to move.
     [HttpGet("{id:guid}/reassign-preview")]

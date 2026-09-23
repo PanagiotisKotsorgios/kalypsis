@@ -74,6 +74,14 @@ public class MobileLoginCommandHandler : IRequestHandler<MobileLoginCommand, Log
         user.FailedLoginAttempts = 0;
         user.LockedUntil = null;
 
+        if (user.Role == Role.Customer)
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+            throw new AppException("client_portal_disabled",
+                "Η εφαρμογή πελατών είναι προσωρινά μη διαθέσιμη.", 503,
+                title: "Το portal πελατών είναι απενεργοποιημένο");
+        }
+
         // Mobile app is client-portal only. Reject any non-Customer login here
         // so internal staff cannot accidentally authenticate against the public mobile API.
         if (user.Role != Role.Customer)

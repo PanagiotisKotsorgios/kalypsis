@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using FluentValidation;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
@@ -15,10 +14,8 @@ public class CreateCustomerCommandValidator : AbstractValidator<CreateCustomerCo
 {
     public CreateCustomerCommandValidator()
     {
-        When(x => x.Request.CreatePortalAccount, () => RuleFor(x => x.Request.Email).NotEmpty().EmailAddress());
-        When(x => x.Request.Status == CustomerStatus.Prospect, () =>
-            RuleFor(x => x.Request.CreatePortalAccount).Equal(false)
-                .WithMessage("A prospect cannot have a portal account."));
+        RuleFor(x => x.Request.CreatePortalAccount).Equal(false)
+            .WithMessage("Η δημιουργία λογαριασμού πελάτη στο portal είναι προσωρινά απενεργοποιημένη.");
         When(x => !string.IsNullOrWhiteSpace(x.Request.Email), () => RuleFor(x => x.Request.Email).EmailAddress());
         When(x => x.Request.Type == CustomerType.Individual, () =>
         {
@@ -38,13 +35,10 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
 {
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _currentUser;
-    private readonly IPasswordHasher _hasher;
-
-    public CreateCustomerCommandHandler(IAppDbContext db, ICurrentUser currentUser, IPasswordHasher hasher)
+    public CreateCustomerCommandHandler(IAppDbContext db, ICurrentUser currentUser)
     {
         _db = db;
         _currentUser = currentUser;
-        _hasher = hasher;
     }
 
     public async Task<CreateCustomerResponse> Handle(CreateCustomerCommand request, CancellationToken cancellationToken)
@@ -54,17 +48,6 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
 
         var r = request.Request;
         var email = string.IsNullOrWhiteSpace(r.Email) ? null : r.Email.Trim().ToLowerInvariant();
-
-        if (r.CreatePortalAccount)
-        {
-            var emailExists = await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Email == email!, cancellationToken);
-            if (emailExists) throw new AppException("email_taken",
-                $"Υπάρχει ήδη λογαριασμός με email '{email}'.", 409,
-                title: "Email σε χρήση",
-                why: $"Το email {email} χρησιμοποιείται από άλλον λογαριασμό — πιθανώς ο πελάτης υπάρχει ήδη, ή χρησιμοποιείται ως email υπαλλήλου/παραγωγού.",
-                fix: "Αναζητήστε τον πελάτη πρώτα — μπορεί να υπάρχει ήδη. Αν είναι νέος, χρησιμοποιήστε διαφορετική διεύθυνση email ή απενεργοποιήστε το «Δημιουργία portal account».",
-                fixLink: "/app/customers");
-        }
 
         var lastNumber = await _db.Customers
             .IgnoreQueryFilters()
@@ -101,50 +84,14 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
         };
         _db.Customers.Add(customer);
 
-        string? tempPassword = null;
-        if (r.CreatePortalAccount)
-        {
-            tempPassword = GenerateTemporaryPassword();
-            var portalUser = new User
-            {
-                Id = Guid.NewGuid(),
-                TenantId = tenantId,
-                Email = email!,
-                PasswordHash = _hasher.Hash(tempPassword),
-                FirstName = r.Type == CustomerType.Individual ? (r.FirstName ?? "Πελάτης") : "Επικοινωνία",
-                LastName = r.Type == CustomerType.Individual ? (r.LastName ?? "") : (r.CompanyName ?? ""),
-                Phone = r.Phone?.Trim(),
-                Role = Role.Customer,
-                IsActive = true,
-                PreferredLanguage = "el",
-                CustomerId = customer.Id
-            };
-            _db.Users.Add(portalUser);
-        }
-
         await _db.SaveChangesAsync(cancellationToken);
 
         var dto = new CustomerDto(
             customer.Id, customer.CustomerNumber, customer.Type, customer.Status,
             customer.FirstName, customer.LastName, customer.CompanyName,
             customer.VatNumber, customer.Email, customer.Phone, customer.City,
-            customer.CreatedAt, r.CreatePortalAccount);
+            customer.CreatedAt, false);
 
-        return new CreateCustomerResponse(
-            dto,
-            r.CreatePortalAccount ? email : null,
-            tempPassword);
-    }
-
-    private static string GenerateTemporaryPassword()
-    {
-        const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-        const string symbols = "!@#$%&*";
-        Span<char> buf = stackalloc char[12];
-        for (int i = 0; i < 10; i++)
-            buf[i] = alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
-        buf[10] = symbols[RandomNumberGenerator.GetInt32(symbols.Length)];
-        buf[11] = (char)('0' + RandomNumberGenerator.GetInt32(10));
-        return new string(buf);
+        return new CreateCustomerResponse(dto, null, null);
     }
 }

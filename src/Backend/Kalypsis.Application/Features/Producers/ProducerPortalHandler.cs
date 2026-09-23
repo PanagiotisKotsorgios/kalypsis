@@ -10,7 +10,7 @@ namespace Kalypsis.Application.Features.Producers;
 
 public record CreateProducerPortalAccountResponse(Guid ProducerId, Guid UserId, string Email, string TemporaryPassword);
 
-public record CreateProducerPortalAccountCommand(Guid ProducerId) : IRequest<CreateProducerPortalAccountResponse>;
+public record CreateProducerPortalAccountCommand(Guid ProducerId, string? Password = null) : IRequest<CreateProducerPortalAccountResponse>;
 
 public class CreateProducerPortalAccountCommandHandler
     : IRequestHandler<CreateProducerPortalAccountCommand, CreateProducerPortalAccountResponse>
@@ -44,12 +44,19 @@ public class CreateProducerPortalAccountCommandHandler
         var existing = await _db.Users.IgnoreQueryFilters()
             .FirstOrDefaultAsync(u => u.ProducerId == producer.Id && u.DeletedAt == null, ct);
         if (existing is not null)
-            throw new AppException("producer_account_exists",
-                "Ο παραγωγός έχει ήδη λογαριασμό portal.", 409,
-                title: "Υπάρχει ήδη λογαριασμός",
-                why: $"Ο παραγωγός «{producer.Name}» έχει ήδη πρόσβαση μέσω email {existing.Email}.",
-                fix: "Αν χάθηκαν τα διαπιστευτήρια, χρησιμοποιήστε «Ξέχασα τον κωδικό» στη σελίδα εισόδου.",
-                fixLink: "/login");
+        {
+            var resetPassword = string.IsNullOrWhiteSpace(request.Password)
+                ? GenerateTemporaryPassword()
+                : request.Password;
+            if (resetPassword.Length < 8)
+                throw new AppException("password_too_short", "Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες.", 400);
+
+            existing.PasswordHash = _hasher.Hash(resetPassword);
+            existing.Role = Role.Producer;
+            existing.IsActive = true;
+            await _db.SaveChangesAsync(ct);
+            return new CreateProducerPortalAccountResponse(producer.Id, existing.Id, existing.Email, resetPassword);
+        }
 
         var emailTaken = await _db.Users.IgnoreQueryFilters()
             .AnyAsync(u => u.Email == producer.Email && u.DeletedAt == null, ct);
@@ -60,7 +67,11 @@ public class CreateProducerPortalAccountCommandHandler
                 why: $"Το email {producer.Email} χρησιμοποιείται από άλλον χρήστη — πιθανώς από πελάτη, υπάλληλο ή άλλον παραγωγό.",
                 fix: "Αλλάξτε το email του παραγωγού σε διαφορετική διεύθυνση.");
 
-        var tempPassword = GenerateTemporaryPassword();
+        var tempPassword = string.IsNullOrWhiteSpace(request.Password)
+            ? GenerateTemporaryPassword()
+            : request.Password;
+        if (tempPassword.Length < 8)
+            throw new AppException("password_too_short", "Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες.", 400);
         var firstName = producer.Name.Split(' ').FirstOrDefault() ?? producer.Name;
         var lastName = producer.Name.Length > firstName.Length ? producer.Name[(firstName.Length + 1)..] : "";
 

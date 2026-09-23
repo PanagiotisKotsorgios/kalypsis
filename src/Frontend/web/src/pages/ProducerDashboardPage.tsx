@@ -1,5 +1,5 @@
 import {
-  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Stack, Table, TableBody,
+  Box, Card, CardContent, Chip, CircularProgress, Stack, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, Typography
 } from "@mui/material";
 import {
@@ -127,14 +127,6 @@ export function ProducerDashboardPage() {
           label="Εξαγωγή προμηθειών"
         />
       </Stack>
-
-      {q.isError && (
-        <Alert severity="warning" sx={{ mb: 3 }} action={
-          <Button color="inherit" size="small" onClick={() => void q.refetch()}>Επανάληψη</Button>
-        }>
-          Φορτώθηκαν τα βασικά στοιχεία σας. Τα αναλυτικά γραφήματα θα εμφανιστούν μόλις ολοκληρωθεί η σύνδεση με την αναφορά.
-        </Alert>
-      )}
 
       {/* KPI tiles */}
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(5, 1fr)" }, mb: 3 }}>

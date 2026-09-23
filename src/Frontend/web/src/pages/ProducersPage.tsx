@@ -66,6 +66,12 @@ interface ProducerDto {
   parentProducerName: string | null;
 }
 
+interface CreateProducerResponse {
+  producer: ProducerDto;
+  portalEmail: string | null;
+  temporaryPassword: string | null;
+}
+
 const STATUS_COLOR: Record<ProducerStatus, "success" | "warning" | "default"> = {
   Active: "success", Suspended: "warning", Terminated: "default", Prospect: "warning"
 };
@@ -84,6 +90,7 @@ export function ProducersPage() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [customersFor, setCustomersFor] = useState<ProducerDto | null>(null);
   const [reassignFor, setReassignFor] = useState<ProducerDto | null>(null);
+  const [credentialFor, setCredentialFor] = useState<ProducerDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [issuedCreds, setIssuedCreds] = useState<{ email: string; password: string } | null>(null);
 
@@ -93,9 +100,12 @@ export function ProducersPage() {
   });
 
   const issuePortal = useMutation({
-    mutationFn: async (id: string) =>
-      (await api.post<{ email: string; temporaryPassword: string }>(`/producers/${id}/portal-account`, {})).data,
-    onSuccess: (data) => setIssuedCreds({ email: data.email, password: data.temporaryPassword }),
+    mutationFn: async ({ id, password }: { id: string; password?: string }) =>
+      (await api.post<{ email: string; temporaryPassword: string }>(`/producers/${id}/portal-account`, { password: password || null })).data,
+    onSuccess: (data) => {
+      setIssuedCreds({ email: data.email, password: data.temporaryPassword });
+      setCredentialFor(null);
+    },
     onError: (err) => setError(extractErrorMessage(err))
   });
 
@@ -285,9 +295,9 @@ export function ProducersPage() {
                           onClick={(e) => { e.stopPropagation(); setReassignFor(p); }}>
                           <SwapHorizIcon fontSize="small" />
                         </IconButton>
-                        <IconButton size="small" title={t("producers.issuePortal")}
+                        <IconButton size="small" title="Ορισμός / επαναφορά κωδικού πρόσβασης"
                           disabled={!p.email || p.status !== "Active" || issuePortal.isPending}
-                          onClick={() => issuePortal.mutate(p.id)}>
+                          onClick={() => setCredentialFor(p)}>
                           <VpnKeyIcon fontSize="small" />
                         </IconButton>
                         <IconButton size="small" onClick={() => setEditing(p)}><EditIcon fontSize="small" /></IconButton>
@@ -316,11 +326,22 @@ export function ProducersPage() {
 
       <ProducerDialog
         open={createStatus !== null} initialStatus={createStatus ?? "Active"} onClose={() => setCreateStatus(null)} producer={null}
-        onSaved={() => { void qc.invalidateQueries({ queryKey: ["producers"] }); setCreateStatus(null); }}
+        onSaved={(credentials) => {
+          void qc.invalidateQueries({ queryKey: ["producers"] });
+          setCreateStatus(null);
+          if (credentials) setIssuedCreds(credentials);
+        }}
       />
       <ProducerDialog
         open={!!editing} onClose={() => setEditing(null)} producer={editing}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["producers"] }); setEditing(null); }}
+      />
+
+      <ProducerPasswordDialog
+        producer={credentialFor}
+        saving={issuePortal.isPending}
+        onClose={() => setCredentialFor(null)}
+        onSubmit={(password) => credentialFor && issuePortal.mutate({ id: credentialFor.id, password })}
       />
 
       <CredentialsDialog
@@ -328,7 +349,7 @@ export function ProducersPage() {
         email={issuedCreds?.email ?? ""}
         password={issuedCreds?.password ?? ""}
         onClose={() => setIssuedCreds(null)}
-        title={t("producers.portalCreated")}
+        title="Στοιχεία πρόσβασης συνεργάτη"
         introKey="producers.portalCreatedBody"
       />
 
@@ -367,7 +388,11 @@ interface UserLookupDto {
 }
 
 function ProducerDialog({ open, initialStatus = "Active", onClose, producer, onSaved }: {
-  open: boolean; initialStatus?: ProducerStatus; onClose: () => void; producer: ProducerDto | null; onSaved: () => void;
+  open: boolean;
+  initialStatus?: ProducerStatus;
+  onClose: () => void;
+  producer: ProducerDto | null;
+  onSaved: (credentials?: { email: string; password: string }) => void;
 }) {
   const { t } = useTranslation();
   const editing = !!producer;
@@ -376,7 +401,8 @@ function ProducerDialog({ open, initialStatus = "Active", onClose, producer, onS
     status: "Active" as ProducerStatus,
     tier: "None" as ProducerTier,
     hierarchyLevel: "Producer" as HierarchyLevel,
-    parentProducerId: "" as string
+    parentProducerId: "" as string,
+    initialPassword: ""
   });
   const [error, setError] = useState<string | null>(null);
   const [verifyOpen, setVerifyOpen] = useState(false);
@@ -402,11 +428,12 @@ function ProducerDialog({ open, initialStatus = "Active", onClose, producer, onS
         notes: producer.notes ?? "",
         status: producer.status, tier: producer.tier ?? "None",
         hierarchyLevel: producer.hierarchyLevel ?? "Producer",
-        parentProducerId: producer.parentProducerId ?? ""
+        parentProducerId: producer.parentProducerId ?? "",
+        initialPassword: ""
       });
     } else if (open) {
       setForm({ code: "", name: "", email: "", phone: "", notes: "", status: initialStatus, tier: "None",
-        hierarchyLevel: "Producer", parentProducerId: "" });
+        hierarchyLevel: "Producer", parentProducerId: "", initialPassword: "" });
     }
   }, [producer, open, initialStatus]);
 
@@ -438,11 +465,21 @@ function ProducerDialog({ open, initialStatus = "Active", onClose, producer, onS
 
   const save = useMutation({
     mutationFn: async () => {
-      const body = { ...form, parentProducerId: form.parentProducerId || null };
-      if (editing) return (await api.put(`/producers/${producer!.id}`, body)).data;
-      return (await api.post("/producers", body)).data;
+      const { initialPassword, ...body } = form;
+      const payload = { ...body, parentProducerId: form.parentProducerId || null };
+      if (editing) {
+        await api.put(`/producers/${producer!.id}`, payload);
+        return null;
+      }
+      const { data } = await api.post<CreateProducerResponse>("/producers", {
+        ...payload,
+        initialPassword: initialPassword || null
+      });
+      return data.portalEmail && data.temporaryPassword
+        ? { email: data.portalEmail, password: data.temporaryPassword }
+        : null;
     },
-    onSuccess: onSaved,
+    onSuccess: (credentials) => onSaved(credentials ?? undefined),
     onError: (err) => setError(extractErrorMessage(err))
   });
 
@@ -554,11 +591,24 @@ function ProducerDialog({ open, initialStatus = "Active", onClose, producer, onS
             </Slide>
             <Slide direction="down" in={notFound && form.status !== "Prospect"} mountOnEnter unmountOnExit>
               <Alert severity="info" sx={{ mt: 1 }} icon={<HelpOutlineIcon fontSize="inherit" />}>
-                Ο χρήστης δεν είναι εγγεγραμμένος στο Kalypsis. Θα δημιουργηθεί λογαριασμός portal για αυτόν κατά την αποθήκευση.
-                Όταν κάνει εγγραφή, μπορείτε να τον συνδέσετε ξανά μέσω «Επεξεργασία» βάζοντας το email του εδώ.
+                Δεν υπάρχει ακόμη λογαριασμός για αυτό το email. Με την αποθήκευση θα δημιουργηθεί πρόσβαση συνεργάτη και θα εμφανιστεί ο αρχικός κωδικός μία φορά για αντιγραφή.
               </Alert>
             </Slide>
           </Box>
+          {!editing && form.status !== "Prospect" && (
+            <TextField
+              label="Αρχικός κωδικός πρόσβασης"
+              type="password"
+              value={form.initialPassword}
+              onChange={(e) => setForm({ ...form, initialPassword: e.target.value })}
+              fullWidth
+              disabled={!form.email.trim()}
+              helperText={form.email.trim()
+                ? "Προαιρετικό — αφήστε το κενό για ασφαλή αυτόματο κωδικό. Θα εμφανιστεί μία φορά μετά την αποθήκευση."
+                : "Προσθέστε email για να δημιουργηθεί πρόσβαση συνεργάτη."}
+              inputProps={{ minLength: 8, maxLength: 128 }}
+            />
+          )}
           <TextField
             label="Σημειώσεις"
             value={form.notes}
@@ -573,13 +623,62 @@ function ProducerDialog({ open, initialStatus = "Active", onClose, producer, onS
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.code.trim() || !form.name.trim()}>
+        <Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.code.trim() || !form.name.trim() || (form.initialPassword.length > 0 && form.initialPassword.length < 8)}>
           {save.isPending ? <CircularProgress size={18} /> : t("common.save")}
         </Button>
       </DialogActions>
     </Dialog>
     <VerifyUserDialog open={verifyOpen} user={foundUser} onClose={() => setVerifyOpen(false)} />
     </>
+  );
+}
+
+function ProducerPasswordDialog({
+  producer,
+  saving,
+  onClose,
+  onSubmit
+}: {
+  producer: ProducerDto | null;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: (password?: string) => void;
+}) {
+  const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    if (producer) setPassword("");
+  }, [producer]);
+
+  return (
+    <Dialog open={!!producer} onClose={saving ? undefined : onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Ορισμός κωδικού συνεργάτη</DialogTitle>
+      <DialogContent>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>
+          {producer?.name} · {producer?.email}
+        </Typography>
+        <TextField
+          autoFocus
+          label="Νέος κωδικός"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          fullWidth
+          helperText="Αφήστε το κενό για ασφαλή αυτόματο κωδικό. Ο κωδικός εμφανίζεται μία φορά, για να τον αντιγράψετε και να τον στείλετε εσείς."
+          inputProps={{ minLength: 8, maxLength: 128 }}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={saving}>Ακύρωση</Button>
+        <Button
+          variant="contained"
+          onClick={() => onSubmit(password.trim() || undefined)}
+          disabled={saving || (password.length > 0 && password.length < 8)}
+        >
+          {saving ? <CircularProgress size={18} /> : "Αποθήκευση κωδικού"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 

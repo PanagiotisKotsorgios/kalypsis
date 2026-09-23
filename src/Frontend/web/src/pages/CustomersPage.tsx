@@ -6,7 +6,6 @@ import {
   Box,
   Button,
   Card,
-  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
@@ -15,7 +14,6 @@ import {
   DialogTitle,
   FormControlLabel,
   InputAdornment,
-  Link,
   MenuItem,
   Stack,
   Switch,
@@ -36,7 +34,6 @@ import SearchIcon from "@mui/icons-material/Search";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
-import { CredentialsDialog } from "./TenantsPage";
 import { useTableState } from "../components/useTableState";
 import { useColumnPreferences } from "../hooks/useColumnPreferences";
 import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
@@ -75,7 +72,6 @@ interface CustomerDto {
   phone?: string;
   city?: string;
   createdAt: string;
-  hasPortalAccount: boolean;
 }
 
 interface CreateBody {
@@ -92,7 +88,6 @@ interface CreateBody {
   postalCode?: string;
   occupation?: string;
   notes?: string;
-  createPortalAccount: boolean;
 }
 
 function newCustomerForm(status: CustomerStatus): CreateBody {
@@ -100,15 +95,8 @@ function newCustomerForm(status: CustomerStatus): CreateBody {
     type: "Individual", status,
     firstName: "", lastName: "", companyName: "", vatNumber: "",
     email: "", phone: "", address: "", city: "", postalCode: "",
-    occupation: "", notes: "",
-    createPortalAccount: status !== "Prospect"
+    occupation: "", notes: ""
   };
-}
-
-interface CreateResponse {
-  customer: CustomerDto;
-  portalEmail: string | null;
-  portalTemporaryPassword: string | null;
 }
 
 export function CustomersPage() {
@@ -121,7 +109,6 @@ export function CustomersPage() {
   const [statusFilter, setStatusFilter] = useState<CustomerStatus | "">("");
   const [createStatus, setCreateStatus] = useState<CustomerStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [createdCreds, setCreatedCreds] = useState<{ email: string; password: string } | null>(null);
 
   const customersQuery = useQuery({
     queryKey: ["customers", search, occupationFilter, needKind, onlyUninsuredNeeds, statusFilter],
@@ -136,29 +123,10 @@ export function CustomersPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (body: CreateBody) => {
-      // GDPR Άρθρο 13 — μετά τη δημιουργία του πελάτη καταγράφουμε consent
-      // record ότι του δόθηκε η Ενημέρωση Υποκειμένου. Χωρίς αυτό ο πελάτης
-      // δεν μπορεί να προχωρήσει (η φόρμα έχει mandatory checkbox).
-      // Το «acknowledged» flag δεν στέλνεται στον /customers endpoint —
-      // είναι client-side gate. Μετά τη δημιουργία, POST στο consents endpoint.
-      const { data } = await api.post<CreateResponse>("/customers", body);
-      try {
-        await api.post(`/customers/${data.customer.id}/consents`, {
-          type: "PrivacyNotice",
-          method: "PaperForm",  // ο agent δίνει το τυπωμένο έντυπο
-          version: "v1.0"
-        });
-      } catch { /* consent record failure δεν block-άρει τη δημιουργία */ }
-      return data;
-    },
-    onSuccess: (data) => {
+    mutationFn: async (body: CreateBody) => api.post("/customers", body),
+    onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["customers"] });
-      void qc.invalidateQueries({ queryKey: ["customer-consents"] });
       setCreateStatus(null);
-      if (data.portalEmail && data.portalTemporaryPassword) {
-        setCreatedCreds({ email: data.portalEmail, password: data.portalTemporaryPassword });
-      }
     },
     onError: (err) => setError(extractErrorMessage(err))
   });
@@ -177,7 +145,6 @@ export function CustomersPage() {
     { key: "email",  label: "Email" },
     { key: "phone",  label: "Τηλέφωνο" },
     { key: "city",   label: "Πόλη", defaultVisible: false },
-    { key: "portal", label: "Πρόσβαση Portal" },
   ]);
 
   // Right-click on a header → sort (Α→Ω / Ω→Α) + «Απόκρυψη στήλης» (via
@@ -382,16 +349,6 @@ export function CustomersPage() {
                           return <TableCell key={col.key}>{c.phone ?? "-"}</TableCell>;
                         case "city":
                           return <TableCell key={col.key}>{c.city ?? "-"}</TableCell>;
-                        case "portal":
-                          return (
-                            <TableCell key={col.key}>
-                              {c.hasPortalAccount ? (
-                                <Chip label={t("customers.yes")} size="small" color="success" />
-                              ) : (
-                                <Chip label={t("customers.no")} size="small" />
-                              )}
-                            </TableCell>
-                          );
                         default: return <TableCell key={col.key}>—</TableCell>;
                       }
                     })}
@@ -445,14 +402,6 @@ export function CustomersPage() {
         submitting={createMutation.isPending}
       />
 
-      <CredentialsDialog
-        open={!!createdCreds}
-        email={createdCreds?.email ?? ""}
-        password={createdCreds?.password ?? ""}
-        onClose={() => setCreatedCreds(null)}
-        title={t("customers.createdTitle")}
-        introKey="customers.createdWithPortal"
-      />
     </Box>
   );
 }
@@ -472,15 +421,9 @@ function CreateCustomerDialog({
 }) {
   const { t } = useTranslation();
   const [form, setForm] = useState<CreateBody>(() => newCustomerForm(initialStatus));
-  // GDPR Άρθρο 13 — client-side gate: χωρίς την επιβεβαίωση παραλαβής της
-  // Ενημέρωσης Υποκειμένου η δημιουργία δεν προχωρά. Client-only state, δεν
-  // στέλνεται στο /customers — μετά τη δημιουργία γίνεται POST στο consents.
-  const [privacyAck, setPrivacyAck] = useState(false);
-
   useEffect(() => {
     if (open) {
       setForm(newCustomerForm(initialStatus));
-      setPrivacyAck(false);
     }
   }, [open, initialStatus]);
 
@@ -517,13 +460,12 @@ function CreateCustomerDialog({
           <FormControlLabel
             control={<Switch checked={form.status === "Prospect"} onChange={(e) => setForm({
               ...form,
-              status: e.target.checked ? "Prospect" : "Active",
-              createPortalAccount: e.target.checked ? false : form.createPortalAccount
+              status: e.target.checked ? "Prospect" : "Active"
             })} />}
             label="Πιθανός πελάτης"
           />
           {form.status === "Prospect" && (
-            <Alert severity="info">Θα εμφανίζεται με ειδική επισήμανση και δεν θα δημιουργηθεί λογαριασμός portal.</Alert>
+            <Alert severity="info">Θα εμφανίζεται με ειδική επισήμανση στις λίστες.</Alert>
           )}
 
           {form.type === "Individual" ? (
@@ -581,7 +523,6 @@ function CreateCustomerDialog({
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             fullWidth
-            required={form.createPortalAccount}
             InputProps={{ endAdornment: <FilterHelp title="Email πελάτη. Χρησιμοποιείται για αποστολή συμβολαίων, ανανεώσεων και άλλων ειδοποιήσεων." /> }}
           />
           <TextField
@@ -626,47 +567,12 @@ function CreateCustomerDialog({
             InputProps={{ endAdornment: <FilterHelp title="Προαιρετικά εσωτερικά σχόλια για τον πελάτη — προτιμήσεις, ιστορικό, ειδικές συμφωνίες." /> }}
           />
 
-          <FormControlLabel
-            control={
-              <Switch
-                checked={form.createPortalAccount}
-                disabled={form.status === "Prospect"}
-                onChange={(e) => setForm({ ...form, createPortalAccount: e.target.checked })}
-              />
-            }
-            label={t("customers.createPortalAccount")}
-          />
-
-          {/* GDPR Άρθρο 13 — παραλαβή Ενημέρωσης Υποκειμένου. Το γραφείο
-              οφείλει να δώσει στον πελάτη το τυπωμένο έντυπο πριν συνεχίσει.
-              Το κείμενο βρίσκεται στα Νομικά Έντυπα Πελατών. */}
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={privacyAck}
-                onChange={(e) => setPrivacyAck(e.target.checked)}
-                required
-                sx={{ alignSelf: "flex-start", mt: -0.5 }}
-              />
-            }
-            label={
-              <Typography variant="body2" color="text.secondary">
-                {t("customers.privacyNoticeAck",
-                  "Επιβεβαιώνω ότι έδωσα στον πελάτη την Ενημέρωση Υποκειμένου (Άρθρο 13 GDPR). Το τυπωμένο έντυπο βρίσκεται στη σελίδα ")}
-                <Link href="/app/legal-templates" target="_blank"
-                  rel="noopener" sx={{ fontWeight: 600 }}>
-                  {t("customers.legalTemplatesLink", "Νομικά Έντυπα Πελατών")}
-                </Link>.
-              </Typography>
-            }
-            sx={{ alignItems: "flex-start", ml: -0.5, mt: 1 }}
-          />
         </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>{t("common.cancel")}</Button>
         <Button onClick={handleSubmit} variant="contained"
-          disabled={submitting || !privacyAck}>
+          disabled={submitting}>
           {submitting ? <CircularProgress size={18} /> : t("common.create")}
         </Button>
       </DialogActions>

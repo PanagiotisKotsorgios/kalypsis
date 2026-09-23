@@ -200,6 +200,9 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
   // the mobile entry to App Store / Play Store links once the RN app ships.
   const [desktopOpen, setDesktopOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Producers use the office-managed portal only; downloads for the desktop
+  // and mobile applications are intentionally not part of that experience.
+  const showInstallTeasers = user?.role !== "Producer";
   // Whether this user gets the workspace-switcher UI at all. Only agency-side roles see it;
   // platform staff (not impersonating) and customers/producers use the linear sidebar.
   const useWorkspaceUi = user?.role === "AgencyAdmin" || user?.role === "AgencyUser" || !!impersonatedTenantId;
@@ -442,7 +445,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
                   down to reach them (they're not pinned to the drawer
                   chrome). Dark-green filled buttons make them clearly a
                   different kind of action from the rest of the nav. */}
-              {(() => {
+              {showInstallTeasers && (() => {
                 const green = "#1b5e20";      // material «green 900»
                 const greenHover = "#256b2a"; // slightly brighter for hover
                 const greenGlow = "#4caf50";  // «green 500» for glow ring
@@ -536,7 +539,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
         })()}
       </List>
       <Divider />
-      <Dialog open={desktopOpen} onClose={() => setDesktopOpen(false)} maxWidth="sm" fullWidth>
+      {showInstallTeasers && <Dialog open={desktopOpen} onClose={() => setDesktopOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Stack direction="row" alignItems="center" spacing={1.2}>
             <WindowsLogo />
@@ -583,8 +586,8 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
         <DialogActions>
           <Button onClick={() => setDesktopOpen(false)}>Κλείσιμο</Button>
         </DialogActions>
-      </Dialog>
-      <Dialog open={mobileOpen} onClose={() => setMobileOpen(false)} maxWidth="xs" fullWidth>
+      </Dialog>}
+      {showInstallTeasers && <Dialog open={mobileOpen} onClose={() => setMobileOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>
           <Stack direction="row" alignItems="center" spacing={1.2}>
             <PhoneIphoneIcon color="secondary" />
@@ -604,7 +607,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
         <DialogActions>
           <Button variant="contained" onClick={() => setMobileOpen(false)}>Κατάλαβα</Button>
         </DialogActions>
-      </Dialog>
+      </Dialog>}
       <Box sx={{ p: !isMobile && !open ? 1 : 2, pb: isMobile ? "max(16px, env(safe-area-inset-bottom))" : undefined }}>
         {!isMobile && !open ? (
           <Tooltip title={`${user?.firstName ?? ""} ${user?.lastName ?? ""}`} placement="right" arrow>

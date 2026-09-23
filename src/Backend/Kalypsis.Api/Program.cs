@@ -318,6 +318,24 @@ app.UseStaticFiles();
 app.UseCors("frontend");
 app.UseRateLimiter();
 app.UseAuthentication();
+// The client-facing portal is temporarily switched off. This also blocks
+// previously issued customer tokens, while keeping all back-office records
+// and office/producer functionality intact.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api") && context.User.IsInRole("Customer"))
+    {
+        context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+        await context.Response.WriteAsJsonAsync(new
+        {
+            code = "client_portal_disabled",
+            message = "Το portal πελατών είναι προσωρινά μη διαθέσιμο."
+        });
+        return;
+    }
+
+    await next();
+});
 app.UseAuthorization();
 
 app.MapGet("/api/health", () => Results.Ok(new
