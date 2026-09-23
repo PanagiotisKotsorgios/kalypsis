@@ -44,6 +44,8 @@ interface ProducerGoals {
   currentPolicies: number;
   currentCommissionRatePercent: number;
   currentExpectedNetCommission: number;
+  goalPlanEnabled: boolean;
+  maximumCommissionPercent: number;
   officeGoals: OfficeGoal[];
   growthTargets: GrowthTarget[];
 }
