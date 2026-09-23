@@ -71,6 +71,7 @@ interface CustomerDto {
   email?: string;
   phone?: string;
   city?: string;
+  notes?: string | null;
   createdAt: string;
 }
 
