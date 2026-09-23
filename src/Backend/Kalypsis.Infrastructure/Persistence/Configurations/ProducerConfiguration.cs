@@ -15,6 +15,11 @@ public class ProducerConfiguration : IEntityTypeConfiguration<Producer>
         b.Property(x => x.Email).HasMaxLength(256);
         b.Property(x => x.Phone).HasMaxLength(40);
         b.Property(x => x.Notes).HasMaxLength(2000);
+        b.Property(x => x.GoalBaseCommissionPercent).HasPrecision(7, 2);
+        b.Property(x => x.GoalFirstTargetPremium).HasPrecision(14, 2);
+        b.Property(x => x.GoalPremiumStep).HasPrecision(14, 2);
+        b.Property(x => x.GoalCommissionIncreasePercent).HasPrecision(7, 2);
+        b.Property(x => x.GoalMaximumCommissionPercent).HasPrecision(7, 2);
         b.Property(x => x.Status).HasConversion<int>();
         // Producer entity's C# initializer already sets HierarchyLevel = Producer,
         // so no DB-generated default is needed. Removing HasDefaultValue also

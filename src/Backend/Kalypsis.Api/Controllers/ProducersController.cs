@@ -32,6 +32,18 @@ public class ProducersController : ControllerBase
             new GetProducerMonthlySnapshotQuery(id, year ?? now.Year, month ?? now.Month), ct));
     }
 
+    /// <summary>Office-only setup for the producer's personal goal curve.</summary>
+    [HttpGet("{id:guid}/goal-plan")]
+    public async Task<ActionResult<ProducerGoalPlanDto>> GoalPlan(Guid id, CancellationToken ct)
+        => Ok(await _mediator.Send(new GetProducerGoalPlanQuery(id), ct));
+
+    [HttpPut("{id:guid}/goal-plan")]
+    public async Task<ActionResult<ProducerGoalPlanDto>> SaveGoalPlan(
+        Guid id,
+        [FromBody] SaveProducerGoalPlanBody body,
+        CancellationToken ct)
+        => Ok(await _mediator.Send(new SaveProducerGoalPlanCommand(id, body), ct));
+
     // Customers reachable through this producer (via Policy.ProducerId). Aggregated
     // one row per customer with policy count + total premium for quick triage.
     [HttpGet("{id:guid}/customers")]

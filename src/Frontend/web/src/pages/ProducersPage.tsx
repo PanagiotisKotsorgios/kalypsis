@@ -4,13 +4,15 @@ import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, MenuItem, Stack, Table, TableBody,
-  TableCell, TableContainer, TableHead, TableRow, TextField, Typography
+  TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
+  FormControlLabel, Switch
 } from "@mui/material";
 import { InputAdornment, Fade, Slide, Divider, alpha } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VpnKeyIcon from "@mui/icons-material/VpnKey";
+import SettingsSuggestIcon from "@mui/icons-material/SettingsSuggest";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import PersonSearchIcon from "@mui/icons-material/PersonSearch";
 import LinkIcon from "@mui/icons-material/Link";
@@ -91,6 +93,7 @@ export function ProducersPage() {
   const [customersFor, setCustomersFor] = useState<ProducerDto | null>(null);
   const [reassignFor, setReassignFor] = useState<ProducerDto | null>(null);
   const [credentialFor, setCredentialFor] = useState<ProducerDto | null>(null);
+  const [goalPlanFor, setGoalPlanFor] = useState<ProducerDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [issuedCreds, setIssuedCreds] = useState<{ email: string; password: string } | null>(null);
 
@@ -300,6 +303,10 @@ export function ProducersPage() {
                           onClick={() => setCredentialFor(p)}>
                           <VpnKeyIcon fontSize="small" />
                         </IconButton>
+                        <IconButton size="small" color="primary" title="Στόχοι και κλιμάκωση προμήθειας"
+                          onClick={(e) => { e.stopPropagation(); setGoalPlanFor(p); }}>
+                          <SettingsSuggestIcon fontSize="small" />
+                        </IconButton>
                         <IconButton size="small" onClick={() => setEditing(p)}><EditIcon fontSize="small" /></IconButton>
                         <IconButton size="small" color="error" onClick={() => { if (confirm(t("producers.confirmDelete", { name: p.name }))) del.mutate(p.id); }}>
                           <DeleteIcon fontSize="small" />
@@ -342,6 +349,11 @@ export function ProducersPage() {
         saving={issuePortal.isPending}
         onClose={() => setCredentialFor(null)}
         onSubmit={(password) => credentialFor && issuePortal.mutate({ id: credentialFor.id, password })}
+      />
+
+      <ProducerGoalPlanDialog
+        producer={goalPlanFor}
+        onClose={() => setGoalPlanFor(null)}
       />
 
       <CredentialsDialog
@@ -676,6 +688,157 @@ function ProducerPasswordDialog({
           disabled={saving || (password.length > 0 && password.length < 8)}
         >
           {saving ? <CircularProgress size={18} /> : "Αποθήκευση κωδικού"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+interface ProducerGoalPlanDto {
+  enabled: boolean;
+  baseCommissionPercent: number | null;
+  firstTargetPremium: number | null;
+  premiumStep: number | null;
+  commissionIncreasePercent: number;
+  maximumCommissionPercent: number;
+  levelCount: number;
+}
+
+/**
+ * Per-producer office setup. This lives next to the collaborator's profile
+ * actions so the office never has to impersonate the producer to alter a
+ * target curve. Empty premium/base values intentionally mean "automatic".
+ */
+function ProducerGoalPlanDialog({ producer, onClose }: {
+  producer: ProducerDto | null;
+  onClose: () => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    enabled: true,
+    baseCommissionPercent: "",
+    firstTargetPremium: "",
+    premiumStep: "",
+    commissionIncreasePercent: "1",
+    maximumCommissionPercent: "14",
+    levelCount: "4",
+  });
+  const plan = useQuery({
+    queryKey: ["producer-goal-plan", producer?.id],
+    enabled: !!producer,
+    queryFn: async () => (await api.get<ProducerGoalPlanDto>(`/producers/${producer!.id}/goal-plan`)).data,
+  });
+
+  useEffect(() => {
+    if (!producer) return;
+    const current = plan.data;
+    if (!current) return;
+    setForm({
+      enabled: current.enabled,
+      baseCommissionPercent: current.baseCommissionPercent?.toString() ?? "",
+      firstTargetPremium: current.firstTargetPremium?.toString() ?? "",
+      premiumStep: current.premiumStep?.toString() ?? "",
+      commissionIncreasePercent: current.commissionIncreasePercent.toString(),
+      maximumCommissionPercent: current.maximumCommissionPercent.toString(),
+      levelCount: current.levelCount.toString(),
+    });
+    setError(null);
+  }, [producer, plan.data]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const optionalNumber = (value: string) => value.trim() === "" ? null : Number(value);
+      return api.put<ProducerGoalPlanDto>(`/producers/${producer!.id}/goal-plan`, {
+        enabled: form.enabled,
+        baseCommissionPercent: optionalNumber(form.baseCommissionPercent),
+        firstTargetPremium: optionalNumber(form.firstTargetPremium),
+        premiumStep: optionalNumber(form.premiumStep),
+        commissionIncreasePercent: Number(form.commissionIncreasePercent),
+        maximumCommissionPercent: Number(form.maximumCommissionPercent),
+        levelCount: Number(form.levelCount),
+      });
+    },
+    onSuccess: onClose,
+    onError: err => setError(extractErrorMessage(err, "Δεν ήταν δυνατή η αποθήκευση του πλάνου στόχων.")),
+  });
+
+  const isValid =
+    Number(form.commissionIncreasePercent) >= 0 &&
+    Number(form.maximumCommissionPercent) >= 0 && Number(form.maximumCommissionPercent) <= 100 &&
+    Number(form.levelCount) >= 1 && Number(form.levelCount) <= 12;
+
+  return (
+    <Dialog open={!!producer} onClose={save.isPending ? undefined : onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Στόχοι & κλιμάκωση προμήθειας</DialogTitle>
+      <DialogContent>
+        {plan.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}><CircularProgress /></Box> : (
+          <Stack spacing={2.25} mt={1}>
+            {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
+            <Typography color="text.secondary">
+              {producer?.name}. Οι ρυθμίσεις είναι προσωπικές για αυτόν τον συνεργάτη και εμφανίζονται μόνο στο δικό του portal.
+            </Typography>
+            <Alert severity="info">
+              Το πλάνο παρουσιάζει στόχους και εκτίμηση προμήθειας. Δεν αλλάζει αυτόματα κανόνες προμηθειών ή ήδη εκκαθαρισμένα ποσά.
+            </Alert>
+            <FormControlLabel
+              control={<Switch checked={form.enabled} onChange={event => setForm({ ...form, enabled: event.target.checked })} />}
+              label="Ενεργό πλάνο στόχων για τον συνεργάτη"
+            />
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+              <TextField
+                type="number" fullWidth label="Βασικό ποσοστό στόχων (%)"
+                value={form.baseCommissionPercent}
+                onChange={event => setForm({ ...form, baseCommissionPercent: event.target.value })}
+                inputProps={{ min: 0, max: 100, step: 0.01 }}
+                helperText="Κενό: χρησιμοποιεί το μέσο πραγματικό ποσοστό του συνεργάτη."
+              />
+              <TextField
+                type="number" fullWidth required label="Αύξηση ανά βαθμίδα (%)"
+                value={form.commissionIncreasePercent}
+                onChange={event => setForm({ ...form, commissionIncreasePercent: event.target.value })}
+                inputProps={{ min: 0, max: 100, step: 0.01 }}
+                helperText="Π.χ. 1 για +1% ανά επίπεδο."
+              />
+            </Stack>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+              <TextField
+                type="number" fullWidth label="1ος στόχος παραγωγής (€)"
+                value={form.firstTargetPremium}
+                onChange={event => setForm({ ...form, firstTargetPremium: event.target.value })}
+                inputProps={{ min: 0, step: 100 }}
+                helperText="Κενό: υπολογίζεται από την τωρινή παραγωγή."
+              />
+              <TextField
+                type="number" fullWidth label="Βήμα παραγωγής ανά βαθμίδα (€)"
+                value={form.premiumStep}
+                onChange={event => setForm({ ...form, premiumStep: event.target.value })}
+                inputProps={{ min: 0, step: 100 }}
+                helperText="Κενό: προτείνεται αυτόματα από την παραγωγή."
+              />
+            </Stack>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+              <TextField
+                type="number" fullWidth required label="Μέγιστο ποσοστό (%)"
+                value={form.maximumCommissionPercent}
+                onChange={event => setForm({ ...form, maximumCommissionPercent: event.target.value })}
+                inputProps={{ min: 0, max: 100, step: 0.01 }}
+                helperText="Μπορεί να είναι πάνω από 14%, π.χ. 18 ή 20."
+              />
+              <TextField
+                type="number" fullWidth required label="Πλήθος βαθμίδων"
+                value={form.levelCount}
+                onChange={event => setForm({ ...form, levelCount: event.target.value })}
+                inputProps={{ min: 1, max: 12, step: 1 }}
+                helperText="Από 1 έως 12 επόμενους στόχους."
+              />
+            </Stack>
+          </Stack>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={save.isPending}>Ακύρωση</Button>
+        <Button variant="contained" onClick={() => save.mutate()} disabled={plan.isLoading || save.isPending || !isValid}>
+          {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση πλάνου"}
         </Button>
       </DialogActions>
     </Dialog>

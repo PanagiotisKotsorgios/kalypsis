@@ -237,6 +237,8 @@ import { OverCommissionBridgesPage } from "./pages/OverCommissionBridgesPage";
 import { BridgeCodeMappingsPage } from "./pages/BridgeCodeMappingsPage";
 import { ProductionListsPage } from "./pages/ProductionListsPage";
 import { ProducerProductionPage } from "./pages/ProducerProductionPage";
+import { ProducerProductionAnalyticsPage } from "./pages/ProducerProductionAnalyticsPage";
+import { ProducerGoalsPage } from "./pages/ProducerGoalsPage";
 import { RenewalsPage } from "./pages/RenewalsPage";
 import { FinancialsPage } from "./pages/FinancialsPage";
 import {
@@ -454,6 +456,8 @@ export const navByRole: Record<Role, NavItem[]> = {
   Producer: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
     { to: "/producer-production", labelKey: "nav.productionLists", icon: <LeaderboardIcon /> },
+    { to: "/producer-statistics", labelKey: "nav.productionStats", icon: <AnalyticsIcon /> },
+    { to: "/producer-goals", labelKey: "nav.goals", icon: <EmojiEventsIcon /> },
     { to: "/policies", labelKey: "nav.policies", icon: <DescriptionIcon /> },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon /> },
     { to: "/notifications", labelKey: "nav.notifications", icon: <NotificationsIcon /> },
@@ -1014,6 +1018,8 @@ export default function App() {
                   <Route path="bridge-code-mappings" element={<BridgeCodeMappingsPage />} />
                   <Route path="production-lists" element={<ProductionListsPage />} />
                   <Route path="producer-production" element={<ProducerProductionPage />} />
+                  <Route path="producer-statistics" element={<ProducerProductionAnalyticsPage />} />
+                  <Route path="producer-goals" element={<ProducerGoalsPage />} />
                   <Route path="renewals" element={<RenewalsPage />} />
                   <Route path="financials" element={<FinancialsPage />} />
                   <Route path="receipts" element={<Navigate to="/app/financials?tab=receipts" replace />} />

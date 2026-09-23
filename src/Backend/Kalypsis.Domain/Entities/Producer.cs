@@ -34,6 +34,19 @@ public class Producer : TenantEntity
     public Guid? ParentProducerId { get; set; }
     public Producer? ParentProducer { get; set; }
 
+    // Per-producer incentive-plan settings. They are intentionally separate
+    // from CommissionRule: the office controls the targets shown in the
+    // producer portal without silently changing a settled commission rule.
+    // A null base/threshold/step means "derive a sensible default from this
+    // producer's current production".
+    public bool GoalPlanEnabled { get; set; } = true;
+    public decimal? GoalBaseCommissionPercent { get; set; }
+    public decimal? GoalFirstTargetPremium { get; set; }
+    public decimal? GoalPremiumStep { get; set; }
+    public decimal GoalCommissionIncreasePercent { get; set; } = 1m;
+    public decimal GoalMaximumCommissionPercent { get; set; } = 14m;
+    public int GoalLevelCount { get; set; } = 4;
+
     public ICollection<Policy> Policies { get; set; } = new List<Policy>();
     public ICollection<CommissionRule> CommissionRules { get; set; } = new List<CommissionRule>();
 }

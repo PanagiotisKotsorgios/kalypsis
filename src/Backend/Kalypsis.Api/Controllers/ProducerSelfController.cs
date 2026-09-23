@@ -39,6 +39,27 @@ public class ProducerSelfController : ControllerBase
         => Ok(await _m.Send(new GetProducerSelfProductionQuery(year, month, policyType, status), ct));
 
     /// <summary>
+    /// Aggregated personal production figures for the charts in the producer
+    /// portal. There is intentionally no ProducerId input: the API always
+    /// derives it from the authenticated account.
+    /// </summary>
+    [HttpGet("production/analytics")]
+    public async Task<ActionResult<ProducerSelfAnalyticsDto>> ProductionAnalytics(
+        [FromQuery] int? year,
+        [FromQuery] PolicyType? policyType,
+        [FromQuery] PolicyStatus? status,
+        CancellationToken ct)
+        => Ok(await _m.Send(new GetProducerSelfAnalyticsQuery(year, policyType, status), ct));
+
+    /// <summary>
+    /// Read-only office goals and personal commission-growth scenarios. The
+    /// scenarios do not mutate commission rules or settled commission runs.
+    /// </summary>
+    [HttpGet("production/goals")]
+    public async Task<ActionResult<ProducerSelfGoalsDto>> ProductionGoals(CancellationToken ct)
+        => Ok(await _m.Send(new GetProducerSelfGoalsQuery(), ct));
+
+    /// <summary>
     /// Download only the signed-in producer's operational data. The office
     /// controls policy assignment and commission rules; the producer may
     /// export their own portfolio and calculated commissions only.
