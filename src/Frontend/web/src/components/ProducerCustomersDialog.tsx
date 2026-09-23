@@ -33,6 +33,7 @@ interface ProducerCustomerLine {
   email: string | null;
   phone: string | null;
   city: string | null;
+  notes: string | null;
   policyCount: number;
   totalPremium: number;
   currency: string;
@@ -141,6 +142,7 @@ export function ProducerCustomersDialog({
                 <TableCell>Email</TableCell>
                 <TableCell>Τηλέφωνο</TableCell>
                 <TableCell>Πόλη</TableCell>
+                <TableCell>Σημειώσεις</TableCell>
                 <TableCell align="right">Συμβ.</TableCell>
                 <TableCell align="right">Ασφάλιστρο</TableCell>
                 <TableCell>Τελευταίο</TableCell>
@@ -154,6 +156,7 @@ export function ProducerCustomersDialog({
                   <TableCell sx={{ color: "text.secondary" }}>{r.email ?? "—"}</TableCell>
                   <TableCell sx={{ color: "text.secondary" }}>{r.phone ?? "—"}</TableCell>
                   <TableCell sx={{ color: "text.secondary" }}>{r.city ?? "—"}</TableCell>
+                  <TableCell sx={{ maxWidth: 260 }}><Typography variant="body2" noWrap title={r.notes ?? undefined}>{r.notes ?? "—"}</Typography></TableCell>
                   <TableCell align="right"><Chip size="small" label={r.policyCount} color="primary" variant="outlined" /></TableCell>
                   <TableCell align="right"><Typography fontWeight={700}>{r.totalPremium.toFixed(2)} {r.currency}</Typography></TableCell>
                   <TableCell sx={{ color: "text.secondary" }}>{r.latestPolicyStart ?? "—"}</TableCell>
