@@ -83,9 +83,6 @@ interface PolicyDto {
   premium: number;
   netPremium: string;
   specialCommissionPercent: string;
-  insuranceTaxAmount: string;
-  insuranceTaxAmount: string;
-  insuranceTaxAmount: string;
   currency: string;
   createdAt: string;
 }
@@ -819,6 +816,7 @@ interface FormBody {
   premium: number;
   netPremium: string;
   specialCommissionPercent: string;
+  insuranceTaxAmount: string;
   currency: string;
   status: PolicyStatus;
 }
@@ -943,7 +941,10 @@ function PolicyFormDialog({
         premium: form.premium,
         netPremium: form.netPremium === "" ? null : Number(form.netPremium),
         specialCommissionPercent: form.specialCommissionPercent === "" ? null : Number(form.specialCommissionPercent),
-        vatAmount: form.insuranceTaxAmount === "" ? null : Number(form.insuranceTaxAmount),
+        vatAmount: form.insuranceTaxAmount !== ""
+          ? Number(form.insuranceTaxAmount)
+          : (form.netPremium !== "" && form.premium > 0
+            ? Math.max(0, form.premium - Number(form.netPremium)) : null),
         currency: form.currency,
         status: form.status,
       };
@@ -1116,6 +1117,22 @@ function PolicyFormDialog({
               onChange={e => setForm({ ...form, insuranceTaxAmount: e.target.value })}
               helperText="Όχι ΦΠΑ — ειδικός φόρος ασφαλίστρων" fullWidth />
           </Stack>
+          {(() => {
+            const gross = Number(form.premium) || 0;
+            const net = Number(form.netPremium) || 0;
+            const tax = gross > 0 && net > 0 ? Math.max(0, gross - net) : null;
+            const producerPct = Number(form.specialCommissionPercent);
+            const producerAmount = tax !== null && producerPct > 0 ? net * producerPct / 100 : null;
+            return (tax !== null || producerAmount !== null) ? (
+              <Alert severity="info">
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={3}>
+                  {tax !== null && <span><strong>Φόρος ασφαλίστρων:</strong> {tax.toFixed(2)} €</span>}
+                  {producerAmount !== null && <span><strong>Προμήθεια συνεργάτη:</strong> {producerAmount.toFixed(2)} € ({producerPct.toFixed(2)}% επί καθαρών)</span>}
+                  {producerAmount !== null && <span><strong>Υπόλοιπο γραφείου:</strong> {(net - producerAmount).toFixed(2)} €</span>}
+                </Stack>
+              </Alert>
+            ) : null;
+          })()}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField
               type="date" label={t("policies.form.startDate")} InputLabelProps={{ shrink: true }}
