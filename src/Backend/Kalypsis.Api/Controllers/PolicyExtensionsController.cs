@@ -1,6 +1,7 @@
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Domain.Entities;
+using Kalypsis.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -455,7 +456,7 @@ public class PolicyExtensionsController : ControllerBase
 
 [ApiController]
 [Route("api/renewals")]
-[Authorize(Policy = "AgencyStaff")]
+[Authorize]
 public class RenewalsController : ControllerBase
 {
     private readonly IAppDbContext _db;
@@ -473,14 +474,19 @@ public class RenewalsController : ControllerBase
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var cutoff = today.AddDays(Math.Clamp(days, 1, 365));
-        var rows = await _db.Policies
+        IQueryable<Policy> q = _db.Policies
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null
                 && p.EndDate >= today && p.EndDate <= cutoff)
             .Include(p => p.Customer)
-            .Include(p => p.InsuranceCompany)
-            .OrderBy(p => p.EndDate)
-            .Take(500)
-            .ToListAsync(ct);
+            .Include(p => p.InsuranceCompany);
+        if (_current.Role == Role.Producer)
+        {
+            var producerId = await _db.Users.IgnoreQueryFilters()
+                .Where(u => u.Id == _current.UserId).Select(u => u.ProducerId).FirstOrDefaultAsync(ct);
+            if (producerId is null) return Ok(Array.Empty<UpcomingDto>());
+            q = q.Where(p => p.ProducerId == producerId);
+        }
+        var rows = await q.OrderBy(p => p.EndDate).Take(500).ToListAsync(ct);
         return Ok(rows.Select(p =>
         {
             var name = p.Customer is null
@@ -497,6 +503,7 @@ public class RenewalsController : ControllerBase
     [HttpPost("bulk")]
     public async Task<ActionResult<int>> BulkRenew([FromBody] BulkRenewBody body, CancellationToken ct)
     {
+        if (_current.Role == Role.Producer) throw AppException.Forbidden();
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var sourcePolicies = await _db.Policies.IgnoreQueryFilters()
             .Where(p => body.PolicyIds.Contains(p.Id) && p.TenantId == tenantId && p.DeletedAt == null)
