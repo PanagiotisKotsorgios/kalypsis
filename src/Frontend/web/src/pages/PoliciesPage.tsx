@@ -81,6 +81,8 @@ interface PolicyDto {
   startDate: string;
   endDate: string;
   premium: number;
+  netPremium: string;
+  specialCommissionPercent: string;
   currency: string;
   createdAt: string;
 }
@@ -812,6 +814,8 @@ interface FormBody {
   startDate: string;
   endDate: string;
   premium: number;
+  netPremium: string;
+  specialCommissionPercent: string;
   currency: string;
   status: PolicyStatus;
 }
@@ -867,6 +871,8 @@ function PolicyFormDialog({
     startDate: new Date().toISOString().slice(0, 10),
     endDate: new Date(Date.now() + 365 * 86_400_000).toISOString().slice(0, 10),
     premium: 0,
+    netPremium: "",
+    specialCommissionPercent: "",
     currency: "EUR",
     status: "Active"
   });
@@ -892,6 +898,8 @@ function PolicyFormDialog({
         startDate: policy.startDate,
         endDate: policy.endDate,
         premium: policy.premium,
+        netPremium: "",
+        specialCommissionPercent: "",
         currency: policy.currency,
         status: policy.status
       });
@@ -907,6 +915,8 @@ function PolicyFormDialog({
         startDate: new Date().toISOString().slice(0, 10),
         endDate: new Date(Date.now() + 365 * 86_400_000).toISOString().slice(0, 10),
         premium: 0,
+        netPremium: "",
+        specialCommissionPercent: "",
         currency: "EUR",
         status: initialStatus
       });
@@ -925,6 +935,8 @@ function PolicyFormDialog({
         startDate: form.startDate,
         endDate: form.endDate,
         premium: form.premium,
+        netPremium: form.netPremium === "" ? null : Number(form.netPremium),
+        specialCommissionPercent: form.specialCommissionPercent === "" ? null : Number(form.specialCommissionPercent),
         currency: form.currency,
         status: form.status,
       };
@@ -1086,6 +1098,14 @@ function PolicyFormDialog({
             />
           </Stack>
 
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <TextField type="number" label="Καθαρά ασφάλιστρα" value={form.netPremium}
+              onChange={e => setForm({ ...form, netPremium: e.target.value })}
+              helperText="Κενό = υπολογισμός από μικτά / κανόνες" fullWidth />
+            <TextField type="number" label="Προμήθεια συνεργάτη %" value={form.specialCommissionPercent}
+              onChange={e => setForm({ ...form, specialCommissionPercent: e.target.value })}
+              helperText="Κενό = χρήση κανόνα προμηθειών" fullWidth />
+          </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField
               type="date" label={t("policies.form.startDate")} InputLabelProps={{ shrink: true }}

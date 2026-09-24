@@ -39,6 +39,8 @@ public record CreatePolicyBody(
     DateOnly StartDate,
     DateOnly EndDate,
     decimal Premium,
+    decimal? NetPremium = null,
+    decimal? SpecialCommissionPercent = null,
     string Currency = "EUR",
     PolicyStatus Status = PolicyStatus.Active,
     // Same split contract for VehicleUseCategory (enum vs Παραμετρικά code).
@@ -61,6 +63,8 @@ public record UpdatePolicyBody(
     decimal Premium,
     string Currency,
     PolicyStatus Status,
+    decimal? NetPremium = null,
+    decimal? SpecialCommissionPercent = null,
     string? VehicleUseCategory = null,
     string? CoverCode = null,
     string? PackageCode = null,

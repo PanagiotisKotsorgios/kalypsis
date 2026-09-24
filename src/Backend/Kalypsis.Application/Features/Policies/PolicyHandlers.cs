@@ -274,6 +274,8 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
             StartDate = r.StartDate,
             EndDate = r.EndDate,
             Premium = r.Premium,
+            NetPremium = r.NetPremium,
+            SpecialCommissionPercent = r.SpecialCommissionPercent,
             Currency = string.IsNullOrWhiteSpace(r.Currency) ? "EUR" : r.Currency.Trim().ToUpperInvariant(),
             SpecsJson = PolicySpecsJsonHelper.MergeCodes(null, r.CoverCode, r.PackageCode),
             CreatedByUserId = _current.UserId,
@@ -415,6 +417,8 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
         p.StartDate = b.StartDate;
         p.EndDate = b.EndDate;
         p.Premium = b.Premium;
+        p.NetPremium = b.NetPremium;
+        p.SpecialCommissionPercent = b.SpecialCommissionPercent;
         p.Currency = string.IsNullOrWhiteSpace(b.Currency) ? "EUR" : b.Currency.Trim().ToUpperInvariant();
         p.Status = b.Status;
         p.SpecsJson = PolicySpecsJsonHelper.MergeCodes(p.SpecsJson, b.CoverCode, b.PackageCode);
