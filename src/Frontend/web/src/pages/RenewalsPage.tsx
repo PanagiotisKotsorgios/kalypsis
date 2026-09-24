@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FilterFieldWrap } from "../components/FilterHelp";
 import {
   Alert, Badge, Box, Button, Card, Checkbox, Chip, CircularProgress, IconButton,
-  MenuItem, Popover, Stack, Table, TableBody, TableCell, TableHead, TablePagination,
+  MenuItem, Popover, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TextField,
   TableRow, ToggleButton, ToggleButtonGroup, Typography
 } from "@mui/material";
 import EventRepeatIcon from "@mui/icons-material/EventRepeat";
@@ -29,6 +29,9 @@ interface UpcomingRow {
 }
 
 const WINDOWS = [
+  { value: 5, label: "5 ημέρες" },
+  { value: 10, label: "10 ημέρες" },
+  { value: 20, label: "20 ημέρες" },
   { value: 30, label: "30 ημέρες" },
   { value: 60, label: "60 ημέρες" },
   { value: 90, label: "90 ημέρες" },
@@ -41,6 +44,7 @@ const WEEKDAYS = ["Δε", "Τρ", "Τε", "Πε", "Πα", "Σα", "Κυ"];
 export function RenewalsPage() {
   const qc = useQueryClient();
   const [windowDays, setWindowDays] = useState(90);
+  const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "calendar">("list");
   const [cursor, setCursor] = useState(() => {
     const d = new Date();
@@ -75,7 +79,13 @@ export function RenewalsPage() {
     onError: (e) => setErr(extractErrorMessage(e))
   });
 
-  const rows = q.data ?? [];
+  const allRows = q.data ?? [];
+  const rows = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase("el-GR");
+    if (!term) return allRows;
+    return allRows.filter(r => [r.policyNumber, r.customerDisplay, r.insuranceCompanyName, r.policyType]
+      .some(value => value.toLocaleLowerCase("el-GR").includes(term)));
+  }, [allRows, search]);
 
   // Sort by end date so pagination cuts cleanly along the timeline instead
   // of shuffling months around.
@@ -89,7 +99,7 @@ export function RenewalsPage() {
   );
   // Reset to the first page whenever the underlying result set changes
   // (window switched, bulk renew completed).
-  useEffect(() => { setPage(0); }, [rows.length, windowDays]);
+  useEffect(() => { setPage(0); }, [rows.length, windowDays, search]);
 
   const grouped = useMemo(() => {
     const out = new Map<string, UpcomingRow[]>();
@@ -173,6 +183,8 @@ export function RenewalsPage() {
               {WINDOWS.map(w => <MenuItem key={w.value} value={w.value}>{w.label}</MenuItem>)}
             </SearchableTextField>
           </FilterFieldWrap>
+          <TextField size="small" label="Αναζήτηση" placeholder="Συμβόλαιο, πελάτης, ασφαλιστική..."
+            value={search} onChange={e => setSearch(e.target.value)} sx={{ minWidth: 260 }} />
           <Button
             variant="contained" startIcon={<AutorenewIcon />}
             disabled={selected.size === 0 || bulk.isPending}
