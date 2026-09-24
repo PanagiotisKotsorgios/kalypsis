@@ -276,6 +276,7 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
             Premium = r.Premium,
             NetPremium = r.NetPremium,
             SpecialCommissionPercent = r.SpecialCommissionPercent,
+            VatAmount = r.VatAmount,
             Currency = string.IsNullOrWhiteSpace(r.Currency) ? "EUR" : r.Currency.Trim().ToUpperInvariant(),
             SpecsJson = PolicySpecsJsonHelper.MergeCodes(null, r.CoverCode, r.PackageCode),
             CreatedByUserId = _current.UserId,

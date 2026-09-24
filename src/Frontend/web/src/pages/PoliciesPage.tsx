@@ -83,6 +83,9 @@ interface PolicyDto {
   premium: number;
   netPremium: string;
   specialCommissionPercent: string;
+  insuranceTaxAmount: string;
+  insuranceTaxAmount: string;
+  insuranceTaxAmount: string;
   currency: string;
   createdAt: string;
 }
@@ -873,6 +876,7 @@ function PolicyFormDialog({
     premium: 0,
     netPremium: "",
     specialCommissionPercent: "",
+    insuranceTaxAmount: "",
     currency: "EUR",
     status: "Active"
   });
@@ -900,6 +904,7 @@ function PolicyFormDialog({
         premium: policy.premium,
         netPremium: "",
         specialCommissionPercent: "",
+        insuranceTaxAmount: "",
         currency: policy.currency,
         status: policy.status
       });
@@ -917,6 +922,7 @@ function PolicyFormDialog({
         premium: 0,
         netPremium: "",
         specialCommissionPercent: "",
+        insuranceTaxAmount: "",
         currency: "EUR",
         status: initialStatus
       });
@@ -937,6 +943,7 @@ function PolicyFormDialog({
         premium: form.premium,
         netPremium: form.netPremium === "" ? null : Number(form.netPremium),
         specialCommissionPercent: form.specialCommissionPercent === "" ? null : Number(form.specialCommissionPercent),
+        vatAmount: form.insuranceTaxAmount === "" ? null : Number(form.insuranceTaxAmount),
         currency: form.currency,
         status: form.status,
       };
@@ -1105,6 +1112,9 @@ function PolicyFormDialog({
             <TextField type="number" label="Προμήθεια συνεργάτη %" value={form.specialCommissionPercent}
               onChange={e => setForm({ ...form, specialCommissionPercent: e.target.value })}
               helperText="Κενό = χρήση κανόνα προμηθειών" fullWidth />
+            <TextField type="number" label="Φόρος ασφαλίστρων €" value={form.insuranceTaxAmount}
+              onChange={e => setForm({ ...form, insuranceTaxAmount: e.target.value })}
+              helperText="Όχι ΦΠΑ — ειδικός φόρος ασφαλίστρων" fullWidth />
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField
@@ -1130,7 +1140,7 @@ function PolicyFormDialog({
                 endAdornment: (
                   <InputAdornment position="end">
                     {form.currency}
-                    <FilterHelp title="Μικτό ασφάλιστρο συμβολαίου. Το ποσό πάνω στο οποίο υπολογίζονται προμήθειες και ΦΠΑ." />
+                    <FilterHelp title="Μικτό ασφάλιστρο συμβολαίου. Τα ασφαλιστήρια δεν έχουν ΦΠΑ· τυχόν επιβάρυνση καταχωρείται ως φόρος ασφαλίστρων." />
                   </InputAdornment>
                 )
               }}

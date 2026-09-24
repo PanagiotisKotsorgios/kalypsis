@@ -568,7 +568,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
                   </TextField>
                   <Stack direction="row" alignItems="center" spacing={1}>
                     <Switch checked={form.premiumIncludesVat} onChange={e => setForm({ ...form, premiumIncludesVat: e.target.checked })} />
-                    <Typography>{t("policyDetail.premiumIncludesVat")}</Typography>
+                    <Typography>Το ασφάλιστρο περιλαμβάνει φόρο ασφαλίστρων</Typography>
                   </Stack>
                   <TextField type="number" fullWidth label={t("policyDetail.specialCommission")}
                     value={form.specialCommissionPercent}
@@ -906,7 +906,7 @@ function ChangeProducerDialog({ open, onClose, policyId, policyNumber, currentPr
 function TaxBreakdown({ p }: { p: PolicyDetail }) {
   const rows: { label: string; value: number | null }[] = [
     { label: "Καθαρό ασφάλιστρο", value: p.netPremium },
-    { label: "ΦΠΑ",                value: p.vatAmount },
+    { label: "Φόρος ασφαλίστρων", value: p.vatAmount },
     { label: "Χαρτόσημο",          value: p.stampDutyAmount },
     { label: "Ασφαλιστική εισφορά", value: p.insuranceContributionAmount },
     { label: "Λοιπές επιβαρύνσεις", value: p.otherChargesAmount },
