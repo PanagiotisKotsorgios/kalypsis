@@ -143,14 +143,17 @@ export interface ApiError {
 export function extractErrorMessage(err: unknown, fallback = "Something went wrong"): string {
   if (axios.isAxiosError(err)) {
     const ax = err as AxiosError<ApiError>;
-    if (ax.response?.data?.message) return ax.response.data.message;
     const data = ax.response?.data as (ApiError & { title?: string; detail?: string; errors?: Record<string, string[] | string> }) | undefined;
+    if (data?.message && data.message !== "One or more validation errors occurred") return data.message;
     if (data?.detail) return data.detail;
     if (data?.title && data.title !== "One or more validation errors occurred") return data.title;
     if (data?.errors) {
       const messages = Object.values(data.errors).flatMap(v => Array.isArray(v) ? v : [v]).filter(Boolean);
       if (messages.length) return messages.join(" · ");
     }
+    if (data?.message) return data.message;
+    const rawData = (ax.response as unknown as { data?: unknown } | undefined)?.data;
+    if (typeof rawData === "string" && rawData.trim()) return rawData;
     if (ax.response?.status === 401) return "Invalid credentials";
     if (!ax.response) return "Network error";
   }
