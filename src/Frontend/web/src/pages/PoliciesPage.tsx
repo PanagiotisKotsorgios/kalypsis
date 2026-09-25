@@ -200,12 +200,7 @@ export function PoliciesPage() {
     mutationFn: async (id: string) =>
       (await api.post<PolicyDto>(`/policies/${id}/cancel`, { reason: null })).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["policies"] }),
-    onError: (err) => {
-      // Never keep a failed/stale draft that can silently replay invalid IDs
-      // or an old manual policy number on the next attempt.
-      clearDraft();
-      setError(extractErrorMessage(err));
-    }
+    onError: (err) => setError(extractErrorMessage(err))
   });
 
   const [blockers, setBlockers] = useState<{ kind: string; count: number; message: string }[] | null>(null);
@@ -964,7 +959,7 @@ function PolicyFormDialog({
       }
     },
     onSuccess: () => { clearDraft(); onSaved(); },
-    onError: (err) => setError(extractErrorMessage(err))
+    onError: (err) => { clearDraft(); setError(extractErrorMessage(err)); }
   });
 
   // customer options come from useCustomerSearch (server-side filtered).
