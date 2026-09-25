@@ -103,7 +103,11 @@ public class PolicyCommissionCalculator
         // office).  A policy without ProducerId is office production, so it
         // receives the full configured carrier percentage and never creates a
         // producer row.
-        var configuredTotalPercent = ConfiguredTotalPercent(totalRule);
+        // A producer-specific rule may itself carry both the carrier total and
+        // producer share. Use it as a fallback when no separate total rule was
+        // selected, so the Agency row is never lost for legacy/manual policies.
+        var configuredTotalPercent = ConfiguredTotalPercent(totalRule)
+            ?? ConfiguredTotalPercent(rule);
         if (configuredTotalPercent.HasValue && !policy.ProducerId.HasValue)
         {
             // Office-owned production receives the full carrier total.

@@ -582,7 +582,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
                   {/* ---------- Πίνακας προμηθειών (πρώην tab «Προμήθειες») ---------- */}
                   {/* Full ALIS-style matrix — one row per hierarchy level
                       (Producer / Manager / Unit / Assistant / Agency) with
-                      %, €, tax-withholding and net columns plus a totals
+                      %, €, and payable net columns plus a totals
                       footer. Was on its own tab; folded into Οικονομικά so
                       the operator has one place for every money-related
                       field. Overrides are edited via specialLevelPercentsJson
@@ -1936,7 +1936,7 @@ function PolicyCommunicationsTab({ policyId, loading, rows, onSaved }: {
    ALIS-parity commissions matrix — the F9 «Προμήθειες» view. Backend
    materialises one PolicyCommissionSplit row per hierarchy level for which
    the matched CommissionRule defines a percent; this tab renders them as
-   a table with %, €, tax withholding, and net columns plus a totals row.
+   a table with %, €, and payable net columns plus a totals row.
    Read-only in v1 — per-level overrides ship in a follow-up.
    ============================================================================ */
 
@@ -2041,8 +2041,8 @@ function PolicyCommissionMatrixTab({ loading, matrix, currency, overrideJson, on
     <Stack spacing={2}>
       <Typography variant="body2" color="text.secondary">
         Ιεραρχική κατανομή προμηθειών όπως προκύπτει από την παραμετροποίηση του γραφείου
-        και το ασφάλιστρο του συμβολαίου. Η παρακράτηση φόρου εφαρμόζεται σε όλα τα επίπεδα
-        εκτός του Γραφείου.
+        και το ασφάλιστρο του συμβολαίου. Ο συνεργάτης λαμβάνει ολόκληρο το ποσοστό του,
+        χωρίς παρακράτηση.
       </Typography>
       <Table size="small">
         <TableHead>
@@ -2051,7 +2051,6 @@ function PolicyCommissionMatrixTab({ loading, matrix, currency, overrideJson, on
             <TableCell>Συνεργάτης</TableCell>
             <TableCell align="right">%</TableCell>
             <TableCell align="right">Μεικτό</TableCell>
-            <TableCell align="right">Παρακρ. φόρου</TableCell>
             <TableCell align="right">Καθαρή προμήθεια</TableCell>
           </TableRow>
         </TableHead>
@@ -2066,9 +2065,6 @@ function PolicyCommissionMatrixTab({ loading, matrix, currency, overrideJson, on
               <TableCell>{r.producerName ?? <Typography color="text.secondary" component="span" fontStyle="italic">—</Typography>}</TableCell>
               <TableCell align="right"><Typography fontWeight={700}>{r.percent.toFixed(2)}%</Typography></TableCell>
               <TableCell align="right">{r.grossAmount.toFixed(2)} {r.currency}</TableCell>
-              <TableCell align="right" sx={{ color: r.taxWithholdingAmount > 0 ? "warning.main" : "text.secondary" }}>
-                {r.taxWithholdingAmount > 0 ? `−${r.taxWithholdingAmount.toFixed(2)}` : "—"}
-              </TableCell>
               <TableCell align="right">
                 <Typography fontWeight={800} color="success.main">
                   {r.netAmount.toFixed(2)} {r.currency}
@@ -2079,7 +2075,6 @@ function PolicyCommissionMatrixTab({ loading, matrix, currency, overrideJson, on
           <TableRow sx={{ bgcolor: "action.hover" }}>
             <TableCell colSpan={3}><Typography fontWeight={800}>Σύνολο</Typography></TableCell>
             <TableCell align="right"><Typography fontWeight={800}>{matrix.totalGross.toFixed(2)} {matrix.currency || currency}</Typography></TableCell>
-            <TableCell align="right"><Typography fontWeight={800} color="warning.main">−{matrix.totalTaxWithholding.toFixed(2)}</Typography></TableCell>
             <TableCell align="right"><Typography fontWeight={800} color="success.main">{matrix.totalNet.toFixed(2)} {matrix.currency || currency}</Typography></TableCell>
           </TableRow>
         </TableBody>

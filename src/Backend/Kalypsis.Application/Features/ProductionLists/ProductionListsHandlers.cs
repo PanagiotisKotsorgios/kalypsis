@@ -397,7 +397,13 @@ public static class ProductionListBuilder
             // 0,00 €.  Prefer the configured carrier total whenever one is
             // available and only fall back to the persisted matrix for
             // legacy policies that have no matching total rule.
-            var configuredTotalPct = ConfiguredTotalPercent(totalRule);
+            // Prefer the dedicated total rule, but fall back to the matched
+            // producer rule as well. A producer-specific rule can legitimately
+            // contain both values (e.g. 16% carrier total / 10% producer),
+            // and older records may not have a separately discoverable total
+            // rule. In that case the office remainder must still be 6%.
+            var configuredTotalPct = ConfiguredTotalPercent(totalRule)
+                ?? ConfiguredTotalPercent(match);
             var incomingPct = hasBridgeAgencyCommission
                 ? net > 0 ? Math.Round(bridgeAgencyCommission / net * 100m, 2) : 0m
                 : configuredTotalPct
