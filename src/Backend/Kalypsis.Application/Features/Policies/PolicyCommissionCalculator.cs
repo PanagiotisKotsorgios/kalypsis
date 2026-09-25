@@ -248,7 +248,8 @@ public class PolicyCommissionCalculator
         var rules = await _db.CommissionRules
             .Where(r => r.TenantId == tenantId
                      && r.DeletedAt == null
-                     && r.AgencyPercent.HasValue)
+                     && r.AgencyPercent.HasValue
+                     && r.AgencyPercent.Value > 0m)
             .ToListAsync(ct);
         if (rules.Count == 0) return null;
 

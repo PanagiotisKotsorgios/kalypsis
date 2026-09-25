@@ -316,7 +316,7 @@ public static class ProductionListBuilder
                 ? t : ProducerTier.None;
 
             return rules
-                .Where(r => r.AgencyPercent.HasValue
+                .Where(r => r.AgencyPercent.HasValue && r.AgencyPercent.Value > 0m
                          && (!r.ProducerId.HasValue           || r.ProducerId == p.ProducerId)
                          && (!r.ProducerTier.HasValue         || r.ProducerTier == tier)
                          && (!r.InsuranceCompanyId.HasValue   || r.InsuranceCompanyId == p.InsuranceCompanyId)
