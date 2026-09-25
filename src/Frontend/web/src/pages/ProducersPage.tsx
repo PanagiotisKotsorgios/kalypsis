@@ -697,9 +697,12 @@ function ProducerPasswordDialog({
 
 interface ProducerGoalPlanDto {
   enabled: boolean;
+  targetMode: "Premium" | "Policies" | "Vehicles";
   baseCommissionPercent: number | null;
   firstTargetPremium: number | null;
   premiumStep: number | null;
+  firstTargetCount: number | null;
+  countStep: number | null;
   commissionIncreasePercent: number;
   maximumCommissionPercent: number;
   levelCount: number;
@@ -707,6 +710,7 @@ interface ProducerGoalPlanDto {
   currentCommissionAmount: number;
   currentPremium: number;
   currentPolicyCount: number;
+  currentVehicleCount: number;
 }
 
 /**
@@ -721,9 +725,12 @@ function ProducerGoalPlanDialog({ producer, onClose }: {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
     enabled: true,
+    targetMode: "Premium" as "Premium" | "Policies" | "Vehicles",
     baseCommissionPercent: "",
     firstTargetPremium: "",
     premiumStep: "",
+    firstTargetCount: "",
+    countStep: "",
     commissionIncreasePercent: "1",
     maximumCommissionPercent: "14",
     levelCount: "4",
@@ -740,9 +747,12 @@ function ProducerGoalPlanDialog({ producer, onClose }: {
     if (!current) return;
     setForm({
       enabled: current.enabled,
+      targetMode: current.targetMode,
       baseCommissionPercent: current.baseCommissionPercent?.toString() ?? "",
       firstTargetPremium: current.firstTargetPremium?.toString() ?? "",
       premiumStep: current.premiumStep?.toString() ?? "",
+      firstTargetCount: current.firstTargetCount?.toString() ?? "",
+      countStep: current.countStep?.toString() ?? "",
       commissionIncreasePercent: current.commissionIncreasePercent.toString(),
       maximumCommissionPercent: current.maximumCommissionPercent.toString(),
       levelCount: current.levelCount.toString(),
@@ -755,9 +765,12 @@ function ProducerGoalPlanDialog({ producer, onClose }: {
       const optionalNumber = (value: string) => value.trim() === "" ? null : Number(value);
       return api.put<ProducerGoalPlanDto>(`/producers/${producer!.id}/goal-plan`, {
         enabled: form.enabled,
+        targetMode: form.targetMode,
         baseCommissionPercent: optionalNumber(form.baseCommissionPercent),
         firstTargetPremium: optionalNumber(form.firstTargetPremium),
         premiumStep: optionalNumber(form.premiumStep),
+        firstTargetCount: form.targetMode === "Premium" ? null : (form.firstTargetCount.trim() === "" ? null : Number(form.firstTargetCount)),
+        countStep: form.targetMode === "Premium" ? null : (form.countStep.trim() === "" ? null : Number(form.countStep)),
         commissionIncreasePercent: Number(form.commissionIncreasePercent),
         maximumCommissionPercent: Number(form.maximumCommissionPercent),
         levelCount: Number(form.levelCount),
@@ -770,7 +783,10 @@ function ProducerGoalPlanDialog({ producer, onClose }: {
   const isValid =
     Number(form.commissionIncreasePercent) >= 0 &&
     Number(form.maximumCommissionPercent) >= 0 && Number(form.maximumCommissionPercent) <= 100 &&
-    Number(form.levelCount) >= 1 && Number(form.levelCount) <= 12;
+    Number(form.levelCount) >= 1 && Number(form.levelCount) <= 12 &&
+    (form.targetMode === "Premium" ||
+      ((form.firstTargetCount.trim() === "" || Number(form.firstTargetCount) >= 0) &&
+       (form.countStep.trim() === "" || Number(form.countStep) >= 1)));
 
   return (
     <Dialog open={!!producer} onClose={save.isPending ? undefined : onClose} fullWidth maxWidth="sm">
@@ -794,6 +810,38 @@ function ProducerGoalPlanDialog({ producer, onClose }: {
               control={<Switch checked={form.enabled} onChange={event => setForm({ ...form, enabled: event.target.checked })} />}
               label="Ενεργό πλάνο στόχων για τον συνεργάτη"
             />
+            <TextField
+              select fullWidth label="Μονάδα στόχου"
+              value={form.targetMode}
+              onChange={event => setForm({ ...form, targetMode: event.target.value as "Premium" | "Policies" | "Vehicles" })}
+              helperText={form.targetMode === "Premium"
+                ? "Οι βαθμίδες βασίζονται σε συνολικά ασφάλιστρα (€)."
+                : form.targetMode === "Vehicles"
+                  ? "Μετράει διαφορετικές πινακίδες οχημάτων στα ενεργά συμβόλαια."
+                  : "Μετράει συμβόλαια που ξεκινούν μέσα στον μήνα."}
+            >
+              <MenuItem value="Premium">Ασφάλιστρα (€)</MenuItem>
+              <MenuItem value="Policies">Πλήθος συμβολαίων</MenuItem>
+              <MenuItem value="Vehicles">Πλήθος οχημάτων</MenuItem>
+            </TextField>
+            {form.targetMode !== "Premium" && (
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField
+                  type="number" fullWidth label="Πρώτος στόχος πλήθους"
+                  value={form.firstTargetCount}
+                  onChange={event => setForm({ ...form, firstTargetCount: event.target.value })}
+                  inputProps={{ min: 0, step: 1 }}
+                  helperText={form.targetMode === "Vehicles" ? "Πλήθος διαφορετικών οχημάτων." : "Πλήθος συμβολαίων."}
+                />
+                <TextField
+                  type="number" fullWidth label="Βήμα πλήθους ανά βαθμίδα"
+                  value={form.countStep}
+                  onChange={event => setForm({ ...form, countStep: event.target.value })}
+                  inputProps={{ min: 1, step: 1 }}
+                  helperText="Πόσα επιπλέον συμβόλαια ή οχήματα χρειάζονται σε κάθε checkpoint."
+                />
+              </Stack>
+            )}
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField
                 type="number" fullWidth label="Βασικό ποσοστό στόχων (%)"

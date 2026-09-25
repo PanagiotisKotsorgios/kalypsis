@@ -43,6 +43,12 @@ public class Producer : TenantEntity
     public decimal? GoalBaseCommissionPercent { get; set; }
     public decimal? GoalFirstTargetPremium { get; set; }
     public decimal? GoalPremiumStep { get; set; }
+    /// <summary>Goal metric shown in the producer portal: Premium, Policies, or Vehicles.</summary>
+    public string GoalTargetMode { get; set; } = "Premium";
+    /// <summary>First checkpoint when the goal metric is a count.</summary>
+    public int? GoalFirstTargetCount { get; set; }
+    /// <summary>Count increment between checkpoints when the goal metric is a count.</summary>
+    public int? GoalCountStep { get; set; }
     public decimal GoalCommissionIncreasePercent { get; set; } = 1m;
     public decimal GoalMaximumCommissionPercent { get; set; } = 14m;
     public int GoalLevelCount { get; set; } = 4;

@@ -258,6 +258,32 @@ public static class ProductionListBuilder
                 .GroupBy(m => m.PolicyId!.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Sum(x => x.Amount), ct);
 
+        // The materialised commission matrix is the source of truth for a
+        // policy-level override. In particular, a manual producer percentage
+        // may intentionally have no Agency row; deriving the office amount
+        // from a default rule in that case would show money the office does
+        // not actually retain.
+        var splitRows = new List<(Guid PolicyId, HierarchyLevel Level, Guid? ProducerId, decimal Percent, decimal Gross)>();
+        if (policyIds.Count > 0)
+        {
+            var persistedSplits = await _db.PolicyCommissionSplits.IgnoreQueryFilters()
+                .Where(s => s.TenantId == tenantId && s.DeletedAt == null && policyIds.Contains(s.PolicyId))
+                .Select(s => new { s.PolicyId, s.HierarchyLevel, s.ProducerId, s.Percent, s.GrossAmount })
+                .ToListAsync(ct);
+            splitRows.AddRange(persistedSplits.Select(s =>
+                (s.PolicyId, s.HierarchyLevel, s.ProducerId, s.Percent, s.GrossAmount)));
+        }
+        var splitsByPolicy = splitRows
+            .GroupBy(s => s.PolicyId)
+            .ToDictionary(
+                g => g.Key,
+                g => new
+                {
+                    ProducerPercent = g.Where(s => s.Level != HierarchyLevel.Agency && s.ProducerId.HasValue)
+                        .Sum(s => s.Percent),
+                    AgencyPercent = g.Where(s => s.Level == HierarchyLevel.Agency).Sum(s => s.Percent)
+                });
+
         CommissionRule? LookupRule(Policy p, string? coverCode)
         {
             var tier = p.ProducerId.HasValue && tierByProducer.TryGetValue(p.ProducerId.Value, out var t)
@@ -295,17 +321,48 @@ public static class ProductionListBuilder
             var coverCode = ExtractCoverCode(p.SpecsJson);
             var match = LookupRule(p, coverCode);
             var partnerPct = LookupPartnerPct(p, match);
-            var net = p.PremiumIncludesVat ? Math.Round(p.Premium / 1.24m, 2) : p.Premium;
-            var vat = p.Premium - net;
-            var partnerComm = Math.Round(p.Premium * partnerPct / 100m, 2);
+            // Use the amounts recorded on the policy first. Insurance
+            // contracts use the insurance-tax breakdown entered by the
+            // office/carrier; the old 24% fallback was ordinary VAT and made
+            // the production list disagree with the policy card (for example
+            // 51.61/12.39 instead of the stored 45.08/18.92).
+            var net = p.NetPremium
+                ?? (p.VatAmount.HasValue
+                    ? p.Premium - p.VatAmount.Value
+                    : p.PremiumIncludesVat ? Math.Round(p.Premium / 1.24m, 2) : p.Premium);
+            var vat = p.VatAmount
+                ?? (p.NetPremium.HasValue
+                    ? p.Premium - p.NetPremium.Value
+                    : p.PremiumIncludesVat ? p.Premium - net : 0m);
+            splitsByPolicy.TryGetValue(p.Id, out var materialized);
+            var hasManualPartnerOverride = p.SpecialCommissionPercent.HasValue;
+            if (hasManualPartnerOverride)
+            {
+                partnerPct = Math.Max(0m, p.SpecialCommissionPercent!.Value);
+            }
+            else if (materialized is not null)
+            {
+                partnerPct = materialized.ProducerPercent;
+            }
+            var partnerComm = hasManualPartnerOverride
+                ? Math.Round(net * partnerPct / 100m, 2)
+                : materialized is not null
+                ? Math.Round(net * materialized.ProducerPercent / 100m, 2)
+                : Math.Round(net * partnerPct / 100m, 2);
             var hasBridgeAgencyCommission = bridgeAgencyCommissionByPolicy.TryGetValue(p.Id, out var bridgeAgencyCommission);
             var incomingPct = hasBridgeAgencyCommission
                 ? p.Premium > 0 ? Math.Round(bridgeAgencyCommission / p.Premium * 100m, 2) : 0m
-                : match?.AgencyPercent ?? 20m;
+                : match?.AgencyPercent ?? 0m;
             var incomingComm = hasBridgeAgencyCommission
                 ? bridgeAgencyCommission
                 : Math.Round(p.Premium * incomingPct / 100m, 2);
-            var agencyComm = incomingComm - partnerComm;
+            var agencyComm = hasBridgeAgencyCommission
+                ? Math.Max(incomingComm - partnerComm, 0m)
+                : materialized is not null
+                    ? Math.Round(net * materialized.AgencyPercent / 100m, 2)
+                    : p.SpecialCommissionPercent.HasValue
+                        ? 0m
+                        : Math.Round(net * incomingPct / 100m, 2);
             var agencyPct = p.Premium > 0 ? Math.Round(agencyComm / p.Premium * 100m, 2) : 0m;
             string? warning = null;
             if (hasBridgeAgencyCommission && match?.AgencyPercent.HasValue == true

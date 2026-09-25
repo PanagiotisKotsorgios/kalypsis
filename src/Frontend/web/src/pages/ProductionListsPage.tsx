@@ -228,7 +228,7 @@ export function ProductionListsPage() {
     { key: "status",         label: t("productionList.status"),        render: r => r.status, text: r => r.status, defaultOff: true },
     { key: "gross",          label: t("productionList.col.gross"),    align: "right", render: r => <Box component="span" sx={{ fontWeight: 700 }}>{money(r.gross)}</Box>, text: r => money(r.gross) },
     { key: "net",            label: t("productionList.col.net"),      align: "right", render: r => money(r.net),  text: r => money(r.net) },
-    { key: "vat",            label: t("productionList.kpi.vat"),      align: "right", render: r => money(r.vat), text: r => money(r.vat), defaultOff: true },
+    { key: "vat",            label: "Φόρος ασφαλίστρων",      align: "right", render: r => money(r.vat), text: r => money(r.vat), defaultOff: true },
     { key: "bridgeComm",     label: "Προμ. γέφυρας/έδρας",             align: "right", render: r => <Box component="span" sx={{ color: "info.main" }}>{money(r.incomingAgencyCommission)} ({r.incomingAgencyCommissionPercent.toFixed(1)}%)</Box>, text: r => `${money(r.incomingAgencyCommission)} (${r.incomingAgencyCommissionPercent.toFixed(1)}%)` },
     { key: "partnerPct",     label: t("productionList.col.partnerPct"), align: "right", render: r => <Box component="span" sx={{ color: "text.secondary" }}>{r.partnerCommissionPercent.toFixed(1)}%</Box>, text: r => `${r.partnerCommissionPercent.toFixed(1)}%` },
     { key: "partner",        label: t("productionList.col.partner"),  align: "right", render: r => <Box component="span" sx={{ color: "warning.main" }}>{money(r.partnerCommission)}</Box>, text: r => money(r.partnerCommission) },
@@ -643,7 +643,7 @@ export function ProductionListsPage() {
               <Kpi label={t("productionList.kpi.policies")} value={q.data.grand.count} />
               <Kpi label={t("productionList.kpi.gross")} value={money(q.data.grand.gross)} />
               <Kpi label={t("productionList.kpi.net")} value={money(q.data.grand.net)} />
-              <Kpi label={t("productionList.kpi.vat")} value={money(q.data.grand.vat)} />
+              <Kpi label="Φόρος ασφαλίστρων" value={money(q.data.grand.vat)} />
               <Kpi label={t("productionList.kpi.partnerComm")} value={money(q.data.grand.partnerCommission)} color="warning.main" />
               <Kpi label={t("productionList.kpi.agencyComm")} value={money(q.data.grand.agencyCommission)} color="success.main" />
             </Stack>

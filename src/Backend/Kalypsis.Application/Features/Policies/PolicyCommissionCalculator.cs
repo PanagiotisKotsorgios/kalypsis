@@ -49,7 +49,11 @@ public class PolicyCommissionCalculator
             .ToListAsync(ct);
         _db.PolicyCommissionSplits.RemoveRange(existing);
 
-        if (policy.Premium <= 0m) return;
+        // Insurance commissions are calculated on the net premium (the
+        // amount after insurance tax). Legacy policies without a net value
+        // retain the old premium fallback until they are edited once.
+        var commissionBase = policy.NetPremium ?? policy.Premium;
+        if (commissionBase <= 0m) return;
 
         // Resolve the producer chain (leaf → parent → ... → root). Missing
         // parent stops the walk.
@@ -110,7 +114,7 @@ public class PolicyCommissionCalculator
             // so the matrix explains the miss.
             var levelProducer = chain.FirstOrDefault(p => p.HierarchyLevel == level);
 
-            var gross = Math.Round(policy.Premium * percent / 100m, 2);
+            var gross = Math.Round(commissionBase * percent / 100m, 2);
             // Agency doesn't withhold from itself. Every other level does.
             var withheld = level == HierarchyLevel.Agency
                 ? 0m

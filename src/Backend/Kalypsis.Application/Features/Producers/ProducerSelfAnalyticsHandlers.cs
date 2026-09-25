@@ -174,7 +174,9 @@ public record ProducerCommissionGrowthTargetDto(
     decimal RemainingPremium,
     decimal CommissionRatePercent,
     decimal EstimatedGrossCommission,
-    decimal EstimatedNetCommission);
+    decimal EstimatedNetCommission,
+    int? TargetCount = null,
+    int? RemainingCount = null);
 
 public record ProducerSelfGoalsDto(
     int Year,
@@ -184,7 +186,9 @@ public record ProducerSelfGoalsDto(
     decimal CurrentCommissionRatePercent,
     decimal CurrentExpectedNetCommission,
     bool GoalPlanEnabled,
+    string TargetMode,
     decimal MaximumCommissionPercent,
+    int CurrentVehicleCount,
     IReadOnlyList<ProducerOfficeGoalProgressDto> OfficeGoals,
     IReadOnlyList<ProducerCommissionGrowthTargetDto> GrowthTargets);
 
@@ -230,7 +234,7 @@ public class GetProducerSelfGoalsQueryHandler
                 && p.StartDate < periodEnd
                 && p.Status != PolicyStatus.Prospect
                 && p.Status != PolicyStatus.Cancelled)
-            .Select(p => new ProducerGoalPolicy(p.Id, p.PolicyType, p.Premium))
+            .Select(p => new ProducerGoalPolicy(p.Id, p.PolicyType, p.Premium, p.NetPremium, p.VehicleRegistrationPlate))
             .ToListAsync(ct);
 
         var estimates = await ProducerSelfData.GetCommissionEstimatesAsync(
@@ -239,9 +243,16 @@ public class GetProducerSelfGoalsQueryHandler
         var currentGross = estimates.Values.Sum(x => x.GrossAmount);
         var currentTax = estimates.Values.Sum(x => x.TaxWithholdingAmount);
         var currentNet = estimates.Values.Sum(x => x.NetAmount);
-        var currentRate = currentPremium > 0m
-            ? Math.Round(currentGross / currentPremium * 100m, 2)
+        var currentCommissionBase = currentPolicies.Sum(x => x.NetPremium ?? x.Premium);
+        var currentRate = currentCommissionBase > 0m
+            ? Math.Round(currentGross / currentCommissionBase * 100m, 2)
             : 0m;
+        var currentVehicleCount = currentPolicies
+            .Select(x => x.VehicleRegistrationPlate)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim().ToUpperInvariant())
+            .Distinct()
+            .Count();
         var taxRate = currentGross > 0m
             ? Math.Clamp(currentTax / currentGross, 0m, 1m)
             : 0m;
@@ -277,6 +288,10 @@ public class GetProducerSelfGoalsQueryHandler
                 goal.Notes);
         }).ToList();
 
+        var targetMode = plan.GoalTargetMode is "Policies" or "Vehicles"
+            ? plan.GoalTargetMode
+            : "Premium";
+        var currentTargetCount = targetMode == "Vehicles" ? currentVehicleCount : currentPolicies.Count;
         var highestOfficeTarget = officeGoals.Select(x => x.TargetPremium).DefaultIfEmpty(0m).Max();
         var growthBase = Math.Max(Math.Max(currentPremium, highestOfficeTarget), 1_000m);
         var baseRate = plan.GoalBaseCommissionPercent ?? currentRate;
@@ -289,15 +304,28 @@ public class GetProducerSelfGoalsQueryHandler
             ? plan.GoalPremiumStep.Value
             : defaultPremiumStep;
         var growthTargets = plan.GoalPlanEnabled && baseRate > 0m
-            ? BuildGrowthTargets(
-                firstTarget,
-                premiumStep,
-                currentPremium,
-                baseRate,
-                plan.GoalCommissionIncreasePercent,
-                maximumRate,
-                plan.GoalLevelCount,
-                taxRate)
+            ? targetMode == "Premium"
+                ? BuildGrowthTargets(
+                    firstTarget,
+                    premiumStep,
+                    currentPremium,
+                    baseRate,
+                    plan.GoalCommissionIncreasePercent,
+                    maximumRate,
+                    plan.GoalLevelCount,
+                    taxRate)
+                : BuildCountGrowthTargets(
+                    plan.GoalFirstTargetCount is > 0
+                        ? plan.GoalFirstTargetCount.Value
+                        : Math.Max(currentTargetCount + 1, 1),
+                    plan.GoalCountStep is > 0 ? plan.GoalCountStep.Value : 1,
+                    currentTargetCount,
+                    currentCommissionBase,
+                    baseRate,
+                    plan.GoalCommissionIncreasePercent,
+                    maximumRate,
+                    plan.GoalLevelCount,
+                    taxRate)
             : Array.Empty<ProducerCommissionGrowthTargetDto>();
 
         return new ProducerSelfGoalsDto(
@@ -308,7 +336,9 @@ public class GetProducerSelfGoalsQueryHandler
             currentRate,
             currentNet,
             plan.GoalPlanEnabled,
+            targetMode,
             maximumRate,
+            currentVehicleCount,
             goalProgress,
             growthTargets);
     }
@@ -347,13 +377,64 @@ public class GetProducerSelfGoalsQueryHandler
                 Math.Max(targetPremium - currentPremium, 0m),
                 targetRate,
                 gross,
-                net));
+                net,
+                null,
+                null));
             targetPremium += safeStep;
         }
         return targets;
     }
 
-    private sealed record ProducerGoalPolicy(Guid PolicyId, PolicyType PolicyType, decimal Premium);
+    private static IReadOnlyList<ProducerCommissionGrowthTargetDto> BuildCountGrowthTargets(
+        int firstTargetCount,
+        int countStep,
+        int currentCount,
+        decimal currentPremium,
+        decimal baseRate,
+        decimal rateIncrease,
+        decimal maximumRate,
+        int levelCount,
+        decimal taxRate)
+    {
+        var targets = new List<ProducerCommissionGrowthTargetDto>();
+        var safeStep = Math.Max(countStep, 1);
+        var targetCount = Math.Max(firstTargetCount, 1);
+        while (targetCount <= currentCount)
+            targetCount += safeStep;
+
+        var averagePremium = currentCount > 0
+            ? currentPremium / currentCount
+            : 0m;
+        if (averagePremium <= 0m)
+            averagePremium = 1_000m;
+
+        var rate = Math.Min(Math.Max(baseRate, 0m), maximumRate);
+        for (var level = 1; level <= Math.Clamp(levelCount, 1, 12) && rate < maximumRate; level++)
+        {
+            var targetRate = Math.Min(rate + Math.Max(rateIncrease, 0m) * level, maximumRate);
+            var targetPremium = Math.Round(targetCount * averagePremium, 2);
+            var gross = Math.Round(targetPremium * targetRate / 100m, 2);
+            var net = Math.Round(gross * (1m - taxRate), 2);
+            targets.Add(new ProducerCommissionGrowthTargetDto(
+                level,
+                targetPremium,
+                Math.Max(targetPremium - currentPremium, 0m),
+                targetRate,
+                gross,
+                net,
+                targetCount,
+                Math.Max(targetCount - currentCount, 0)));
+            targetCount += safeStep;
+        }
+        return targets;
+    }
+
+    private sealed record ProducerGoalPolicy(
+        Guid PolicyId,
+        PolicyType PolicyType,
+        decimal Premium,
+        decimal? NetPremium,
+        string? VehicleRegistrationPlate);
 }
 
 internal static class ProducerSelfData
@@ -377,7 +458,7 @@ internal static class ProducerSelfData
         if (policyIds.Length == 0)
             return new Dictionary<Guid, ProducerSelfCommissionEstimate>();
 
-        return await db.PolicyCommissionSplits
+        var estimates = await db.PolicyCommissionSplits
             .AsNoTracking()
             .Where(split => split.ProducerId == producerId && policyIds.Contains(split.PolicyId))
             .GroupBy(split => split.PolicyId)
@@ -388,6 +469,76 @@ internal static class ProducerSelfData
                 group.Sum(split => split.TaxWithholdingAmount),
                 group.Sum(split => split.NetAmount)))
             .ToDictionaryAsync(estimate => estimate.PolicyId, ct);
+
+        if (estimates.Count > 0)
+        {
+            var persistedPolicies = await db.Policies
+                .AsNoTracking()
+                .Where(policy => policyIds.Contains(policy.Id))
+                .Select(policy => new { policy.Id, policy.Premium, policy.NetPremium })
+                .ToDictionaryAsync(policy => policy.Id, ct);
+            foreach (var estimate in estimates.Values.ToList())
+            {
+                if (!persistedPolicies.TryGetValue(estimate.PolicyId, out var policy))
+                    continue;
+                var baseAmount = policy.NetPremium ?? policy.Premium;
+                var gross = Math.Round(baseAmount * estimate.RatePercent / 100m, 2);
+                var taxRate = estimate.GrossAmount > 0m
+                    ? Math.Clamp(estimate.TaxWithholdingAmount / estimate.GrossAmount, 0m, 1m)
+                    : 0m;
+                var tax = Math.Round(gross * taxRate, 2);
+                estimates[estimate.PolicyId] = new ProducerSelfCommissionEstimate(
+                    estimate.PolicyId,
+                    estimate.RatePercent,
+                    gross,
+                    tax,
+                    gross - tax);
+            }
+        }
+
+        // A manual percentage entered on the policy is authoritative. It can
+        // exist before the materialised split is rebuilt (or on a legacy row
+        // that never had a matching rule), so apply it immediately to every
+        // producer-facing read model as well.
+        var manualPolicies = await db.Policies
+            .AsNoTracking()
+            .Where(policy => policy.ProducerId == producerId
+                && policyIds.Contains(policy.Id)
+                && policy.SpecialCommissionPercent.HasValue)
+            .Select(policy => new
+            {
+                policy.Id,
+                policy.TenantId,
+                CommissionBase = policy.NetPremium ?? policy.Premium,
+                Percent = policy.SpecialCommissionPercent!.Value
+            })
+            .ToListAsync(ct);
+        if (manualPolicies.Count == 0)
+            return estimates;
+
+        var tenantIds = manualPolicies.Select(policy => policy.TenantId).Distinct().ToArray();
+        var withholdingByTenant = await db.Tenants
+            .AsNoTracking()
+            .Where(tenant => tenantIds.Contains(tenant.Id))
+            .ToDictionaryAsync(tenant => tenant.Id, tenant => tenant.DefaultTaxWithholdingPercent, ct);
+
+        foreach (var policy in manualPolicies)
+        {
+            var percent = Math.Max(0m, policy.Percent);
+            var gross = Math.Round(policy.CommissionBase * percent / 100m, 2);
+            var withholding = withholdingByTenant.TryGetValue(policy.TenantId, out var configuredWithholding)
+                ? configuredWithholding
+                : 20m;
+            var tax = Math.Round(gross * withholding / 100m, 2);
+            estimates[policy.Id] = new ProducerSelfCommissionEstimate(
+                policy.Id,
+                percent,
+                gross,
+                tax,
+                gross - tax);
+        }
+
+        return estimates;
     }
 }
 

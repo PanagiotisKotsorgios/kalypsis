@@ -35,6 +35,8 @@ interface GrowthTarget {
   commissionRatePercent: number;
   estimatedGrossCommission: number;
   estimatedNetCommission: number;
+  targetCount?: number | null;
+  remainingCount?: number | null;
 }
 
 interface ProducerGoals {
@@ -45,7 +47,9 @@ interface ProducerGoals {
   currentCommissionRatePercent: number;
   currentExpectedNetCommission: number;
   goalPlanEnabled: boolean;
+  targetMode: "Premium" | "Policies" | "Vehicles";
   maximumCommissionPercent: number;
+  currentVehicleCount: number;
   officeGoals: OfficeGoal[];
   growthTargets: GrowthTarget[];
 }
@@ -118,7 +122,7 @@ export function ProducerGoalsPage() {
                   </Alert>
                 ) : (
                   <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" } }}>
-                    {data.growthTargets.map(target => <GrowthTargetCard key={target.level} target={target} />)}
+                    {data.growthTargets.map(target => <GrowthTargetCard key={target.level} target={target} mode={data.targetMode} />)}
                   </Box>
                 )}
               </CardContent>
@@ -155,7 +159,9 @@ function OfficeGoalCard({ goal }: { goal: OfficeGoal }) {
   );
 }
 
-function GrowthTargetCard({ target }: { target: GrowthTarget }) {
+function GrowthTargetCard({ target, mode }: { target: GrowthTarget; mode: ProducerGoals["targetMode"] }) {
+  const countMode = mode !== "Premium" && target.targetCount != null;
+  const unitLabel = mode === "Vehicles" ? "οχήματα" : "συμβόλαια";
   return (
     <Card variant="outlined" sx={{ borderColor: target.commissionRatePercent >= 14 ? "success.main" : "primary.light" }}>
       <CardContent>
@@ -164,8 +170,11 @@ function GrowthTargetCard({ target }: { target: GrowthTarget }) {
           <Chip label={`${num(target.commissionRatePercent)}%`} color={target.commissionRatePercent >= 14 ? "success" : "primary"} size="small" />
         </Stack>
         <Typography variant="overline" color="text.secondary">Στόχος παραγωγής</Typography>
-        <Typography variant="h6" fontWeight={800}>{money(target.targetPremium)}</Typography>
-        <Typography variant="body2" color="text.secondary" mb={1.5}>Απομένουν {money(target.remainingPremium)}</Typography>
+        <Typography variant="h6" fontWeight={800}>{countMode ? `${num(target.targetCount!)} ${unitLabel}` : money(target.targetPremium)}</Typography>
+        {countMode && <Typography variant="body2" color="text.secondary">Απομένουν {num(target.remainingCount ?? 0)} {unitLabel}</Typography>}
+        <Typography variant="body2" color="text.secondary" mb={1.5}>
+          {countMode ? `Εκτίμηση παραγωγής ${money(target.targetPremium)}` : `Απομένουν ${money(target.remainingPremium)}`}
+        </Typography>
         <Typography variant="overline" color="text.secondary">Εκτίμηση καθαρής προμήθειας</Typography>
         <Typography variant="h6" color="success.dark" fontWeight={800}>{money(target.estimatedNetCommission)}</Typography>
       </CardContent>

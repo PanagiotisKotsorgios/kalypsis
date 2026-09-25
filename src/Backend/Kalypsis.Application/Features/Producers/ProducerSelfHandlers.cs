@@ -61,17 +61,11 @@ public class GetProducerSelfSummaryQueryHandler : IRequestHandler<GetProducerSel
         // calculated from the current commission matrices of active policies.
         // It is deliberately separate from CommissionMtd, which is the amount
         // already generated in an actual commission run.
-        var expectedCommission = await _db.PolicyCommissionSplits
-            .Where(s => s.ProducerId == producerId && s.Policy.Status == PolicyStatus.Active)
-            .GroupBy(_ => 1)
-            .Select(g => new
-            {
-                Gross = g.Sum(x => x.GrossAmount),
-                Net = g.Sum(x => x.NetAmount)
-            })
-            .FirstOrDefaultAsync(ct);
-        var expectedCommissionThisMonth = expectedCommission?.Gross ?? 0m;
-        var expectedNetCommissionThisMonth = expectedCommission?.Net ?? 0m;
+        var activePolicyIds = await activeBook.Select(policy => policy.Id).ToArrayAsync(ct);
+        var expectedEstimates = await ProducerSelfData.GetCommissionEstimatesAsync(
+            _db, producerId.Value, activePolicyIds, ct);
+        var expectedCommissionThisMonth = expectedEstimates.Values.Sum(x => x.GrossAmount);
+        var expectedNetCommissionThisMonth = expectedEstimates.Values.Sum(x => x.NetAmount);
 
         var commissionLines = _db.CommissionRunLines.Where(l => l.ProducerId == producerId);
         var commissionMtd = await commissionLines
@@ -235,6 +229,7 @@ public class GetProducerSelfProductionQueryHandler
                 p.StartDate,
                 p.EndDate,
                 p.Premium,
+                p.NetPremium,
                 p.SpecialCommissionPercent
             })
             .ToListAsync(ct);
@@ -272,7 +267,8 @@ public class GetProducerSelfProductionQueryHandler
             if (policy.SpecialCommissionPercent.HasValue)
             {
                 var manualPercent = Math.Max(0m, policy.SpecialCommissionPercent.Value);
-                var gross = Math.Round(policy.Premium * manualPercent / 100m, 2);
+                var commissionBase = policy.NetPremium ?? policy.Premium;
+                var gross = Math.Round(commissionBase * manualPercent / 100m, 2);
                 var withheld = Math.Round(gross * defaultWithholdingPercent / 100m, 2);
                 estimate = new ProducerCommissionEstimate(
                     policy.Id, manualPercent, gross, withheld, gross - withheld);

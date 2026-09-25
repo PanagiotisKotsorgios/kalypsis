@@ -18,6 +18,7 @@ public class ProducerConfiguration : IEntityTypeConfiguration<Producer>
         b.Property(x => x.GoalBaseCommissionPercent).HasPrecision(7, 2);
         b.Property(x => x.GoalFirstTargetPremium).HasPrecision(14, 2);
         b.Property(x => x.GoalPremiumStep).HasPrecision(14, 2);
+        b.Property(x => x.GoalTargetMode).HasMaxLength(16).IsRequired();
         b.Property(x => x.GoalCommissionIncreasePercent).HasPrecision(7, 2);
         b.Property(x => x.GoalMaximumCommissionPercent).HasPrecision(7, 2);
         b.Property(x => x.Status).HasConversion<int>();
