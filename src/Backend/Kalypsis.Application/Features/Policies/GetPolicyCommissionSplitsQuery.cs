@@ -89,17 +89,26 @@ public class GetPolicyCommissionSplitsHandler
             }
         }
 
-        var rows = splits.Select(s => new PolicyCommissionSplitDto(
-            s.Id,
-            s.HierarchyLevel,
-            LevelLabel(s.HierarchyLevel),
-            s.ProducerId,
-            s.Producer?.Name,
-            s.Percent,
-            s.GrossAmount,
-            s.TaxWithholdingAmount,
-            s.NetAmount,
-            s.Currency)).ToList();
+        var rows = splits.Select(s =>
+        {
+            // Producer commission is paid in full. Normalize legacy rows on
+            // read too, so a failed best-effort rebuild cannot expose an old
+            // withholding amount in the contract drawer.
+            var isAgency = s.HierarchyLevel == HierarchyLevel.Agency;
+            var tax = isAgency ? s.TaxWithholdingAmount : 0m;
+            var net = isAgency ? s.NetAmount : s.GrossAmount;
+            return new PolicyCommissionSplitDto(
+                s.Id,
+                s.HierarchyLevel,
+                LevelLabel(s.HierarchyLevel),
+                s.ProducerId,
+                s.Producer?.Name,
+                s.Percent,
+                s.GrossAmount,
+                tax,
+                net,
+                s.Currency);
+        }).ToList();
 
         var currency = rows.FirstOrDefault()?.Currency ?? "EUR";
         return new PolicyCommissionMatrixDto(
