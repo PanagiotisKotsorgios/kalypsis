@@ -39,8 +39,10 @@ public class CommissionRule : TenantEntity
     /// <see cref="ProducerPercent"/> instead.</summary>
     public decimal Value { get; set; }
 
-    /// <summary>Percentage retained by the agency. When set, takes precedence
-    /// over <see cref="Value"/> during commission calculation.</summary>
+    /// <summary>Total commission percentage paid by the insurance company on
+    /// the net premium. When a producer is assigned, the producer percentage
+    /// is paid out of this total and the remainder is retained by the agency.
+    /// When no producer is assigned, the agency receives the full total.</summary>
     public decimal? AgencyPercent { get; set; }
     /// <summary>Percentage paid through to the producer.</summary>
     public decimal? ProducerPercent { get; set; }

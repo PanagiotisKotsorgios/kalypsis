@@ -229,7 +229,7 @@ public static class ProductionListBuilder
         // Pull active commission rules so partner commission % can be read from
         // parameterization (NOT the bridge). Most-specific rule wins.
         var rules = await _db.CommissionRules
-            .Where(r => r.DeletedAt == null
+            .Where(r => r.TenantId == tenantId && r.DeletedAt == null
                 && (r.EffectiveFrom <= DateOnly.FromDateTime(DateTime.UtcNow))
                 && (r.EffectiveTo == null || r.EffectiveTo >= DateOnly.FromDateTime(DateTime.UtcNow)))
             .ToListAsync(ct);
@@ -306,8 +306,39 @@ public static class ProductionListBuilder
                 .FirstOrDefault();
         }
 
+        // The producer rate and the carrier's total rate may intentionally be
+        // stored at different scopes (for example: 10% on a producer-specific
+        // rule, 16% on the carrier rule). Do not let the more-specific
+        // producer rule hide the carrier total when its AgencyPercent is blank.
+        CommissionRule? LookupTotalRule(Policy p, string? coverCode)
+        {
+            var tier = p.ProducerId.HasValue && tierByProducer.TryGetValue(p.ProducerId.Value, out var t)
+                ? t : ProducerTier.None;
+
+            return rules
+                .Where(r => r.AgencyPercent.HasValue
+                         && (!r.ProducerId.HasValue           || r.ProducerId == p.ProducerId)
+                         && (!r.ProducerTier.HasValue         || r.ProducerTier == tier)
+                         && (!r.InsuranceCompanyId.HasValue   || r.InsuranceCompanyId == p.InsuranceCompanyId)
+                         && (!r.PolicyType.HasValue           || r.PolicyType == p.PolicyType)
+                         && (r.CoverCode == null              || string.Equals(r.CoverCode, coverCode, StringComparison.OrdinalIgnoreCase))
+                         && (!r.VehicleUseCategory.HasValue   || r.VehicleUseCategory == p.VehicleUseCategory))
+                .OrderByDescending(r =>
+                    (r.ProducerId.HasValue ? 32 : 0) +
+                    (r.ProducerTier.HasValue ? 16 : 0) +
+                    (r.CoverCode != null ? 8 : 0) +
+                    (r.VehicleUseCategory.HasValue ? 4 : 0) +
+                    (r.InsuranceCompanyId.HasValue ? 2 : 0) +
+                    (r.PolicyType.HasValue ? 1 : 0))
+                .FirstOrDefault();
+        }
+
         decimal LookupPartnerPct(Policy p, CommissionRule? match)
         {
+            // A policy without a producer belongs to the office.  Never show
+            // a producer percentage (or pay a producer) on office production,
+            // even if a broad rule contains a producer default.
+            if (!p.ProducerId.HasValue) return 0m;
             if (p.SpecialCommissionPercent.HasValue) return p.SpecialCommissionPercent.Value;
             if (match is null) return 0m;
             // Prefer the new ProducerPercent column when populated; fall back to the
@@ -320,6 +351,8 @@ public static class ProductionListBuilder
         {
             var coverCode = ExtractCoverCode(p.SpecsJson);
             var match = LookupRule(p, coverCode);
+            var totalRule = LookupTotalRule(p, coverCode);
+            var hasProducer = p.ProducerId.HasValue;
             var partnerPct = LookupPartnerPct(p, match);
             // Use the amounts recorded on the policy first. Insurance
             // contracts use the insurance-tax breakdown entered by the
@@ -335,7 +368,7 @@ public static class ProductionListBuilder
                     ? p.Premium - p.NetPremium.Value
                     : p.PremiumIncludesVat ? p.Premium - net : 0m);
             splitsByPolicy.TryGetValue(p.Id, out var materialized);
-            var hasManualPartnerOverride = p.SpecialCommissionPercent.HasValue;
+            var hasManualPartnerOverride = hasProducer && p.SpecialCommissionPercent.HasValue;
             if (hasManualPartnerOverride)
             {
                 partnerPct = Math.Max(0m, p.SpecialCommissionPercent!.Value);
@@ -344,30 +377,35 @@ public static class ProductionListBuilder
             {
                 partnerPct = materialized.ProducerPercent;
             }
-            var partnerComm = hasManualPartnerOverride
+            var partnerComm = !hasProducer
+                ? 0m
+                : hasManualPartnerOverride
                 ? Math.Round(net * partnerPct / 100m, 2)
                 : materialized is not null
                 ? Math.Round(net * materialized.ProducerPercent / 100m, 2)
                 : Math.Round(net * partnerPct / 100m, 2);
             var hasBridgeAgencyCommission = bridgeAgencyCommissionByPolicy.TryGetValue(p.Id, out var bridgeAgencyCommission);
+            // AgencyPercent is the total commission rate paid by the carrier
+            // on the net premium.  It is not an additional amount on top of
+            // the producer's share.  The office keeps the remainder after
+            // the producer percentage is paid.
             var incomingPct = hasBridgeAgencyCommission
-                ? p.Premium > 0 ? Math.Round(bridgeAgencyCommission / p.Premium * 100m, 2) : 0m
-                : match?.AgencyPercent ?? 0m;
+                ? net > 0 ? Math.Round(bridgeAgencyCommission / net * 100m, 2) : 0m
+                : totalRule?.AgencyPercent
+                    ?? (materialized is not null
+                        ? materialized.AgencyPercent + materialized.ProducerPercent
+                        : 0m);
             var incomingComm = hasBridgeAgencyCommission
                 ? bridgeAgencyCommission
-                : Math.Round(p.Premium * incomingPct / 100m, 2);
-            var agencyComm = hasBridgeAgencyCommission
+                : Math.Round(net * incomingPct / 100m, 2);
+            var agencyComm = hasProducer
                 ? Math.Max(incomingComm - partnerComm, 0m)
-                : materialized is not null
-                    ? Math.Round(net * materialized.AgencyPercent / 100m, 2)
-                    : p.SpecialCommissionPercent.HasValue
-                        ? 0m
-                        : Math.Round(net * incomingPct / 100m, 2);
-            var agencyPct = p.Premium > 0 ? Math.Round(agencyComm / p.Premium * 100m, 2) : 0m;
+                : incomingComm;
+            var agencyPct = net > 0 ? Math.Round(agencyComm / net * 100m, 2) : 0m;
             string? warning = null;
-            if (hasBridgeAgencyCommission && match?.AgencyPercent.HasValue == true
-                && Math.Abs(incomingPct - match.AgencyPercent.Value) > 0.5m)
-                warning = $"Η γέφυρα δίνει προμήθεια γραφείου {incomingPct:0.##}% ενώ η παραμετροποίηση έχει {match.AgencyPercent.Value:0.##}%. Ισχύει η γέφυρα.";
+            if (hasBridgeAgencyCommission && totalRule?.AgencyPercent.HasValue == true
+                && Math.Abs(incomingPct - totalRule.AgencyPercent.Value) > 0.5m)
+                warning = $"Η γέφυρα δίνει συνολική προμήθεια {incomingPct:0.##}% ενώ η παραμετροποίηση έχει {totalRule.AgencyPercent.Value:0.##}%. Ισχύει η γέφυρα.";
             if (agencyComm < 0)
                 warning = "Η προμήθεια συνεργάτη είναι μεγαλύτερη από την προμήθεια γραφείου. Ελέγξτε τη σύμβαση ή επικοινωνήστε για να επιλυθεί η διαφορά.";
 

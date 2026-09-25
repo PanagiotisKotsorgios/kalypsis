@@ -81,6 +81,7 @@ public class GenerateCommissionRunCommandHandler : IRequestHandler<GenerateCommi
 
     public async Task<CommissionRunDto> Handle(GenerateCommissionRunCommand request, CancellationToken ct)
     {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var b = request.Body;
         var firstDay = new DateOnly(b.Year, b.Month, 1);
         var lastDay = firstDay.AddMonths(1).AddDays(-1);
@@ -88,7 +89,8 @@ public class GenerateCommissionRunCommandHandler : IRequestHandler<GenerateCommi
         var policiesQ = _db.Policies
             .Include(p => p.InsuranceCompany)
             .Include(p => p.Producer)
-            .Where(p => p.StartDate >= firstDay && p.StartDate <= lastDay
+            .Where(p => p.TenantId == tenantId
+                        && p.StartDate >= firstDay && p.StartDate <= lastDay
                         && p.Status != PolicyStatus.Cancelled
                         && p.Status != PolicyStatus.Draft
                         && p.Status != PolicyStatus.Prospect);
@@ -124,7 +126,9 @@ public class GenerateCommissionRunCommandHandler : IRequestHandler<GenerateCommi
         // declare one rule per (Α/Β/Γ/Δ/Ε) bucket and have every producer in that
         // bucket inherit it automatically.
         var rules = await _db.CommissionRules
-            .Where(r => (r.EffectiveTo == null || r.EffectiveTo >= firstDay) && r.EffectiveFrom <= lastDay)
+            .Where(r => r.TenantId == tenantId
+                        && (r.EffectiveTo == null || r.EffectiveTo >= firstDay)
+                        && r.EffectiveFrom <= lastDay)
             .ToListAsync(ct);
 
         // Snapshot every producer's tier once so we don't hit the DB per-policy.
@@ -193,13 +197,16 @@ public class GenerateCommissionRunCommandHandler : IRequestHandler<GenerateCommi
                 .OrderByDescending(r => MatchScore(r, p, policyTier))
                 .FirstOrDefault();
 
-            // Prefer the new ProducerPercent column. Fall back to the legacy single-
-            // value column for backwards compatibility, then 10% as a starting point.
-            var ratePercent =
+            // Prefer the new ProducerPercent column. Fall back to the legacy
+            // single-value column for backwards compatibility. Never invent a
+            // commission rate when the office has not configured one.
+            var ratePercent = !p.ProducerId.HasValue
+                ? 0m
+                :
                   match?.ProducerPercent.HasValue == true                 ? match.ProducerPercent!.Value
                 : match?.CommissionType == CommissionType.Percentage      ? match.Value
                 : match?.CommissionType == CommissionType.FixedAmount     ? 0m
-                : 10m;
+                : 0m;
             var fixedAmount = match?.CommissionType == CommissionType.FixedAmount ? match.Value : 0m;
             var agencyRatePercent = match?.AgencyPercent ?? 0m;
 
@@ -223,7 +230,7 @@ public class GenerateCommissionRunCommandHandler : IRequestHandler<GenerateCommi
             }
             else
             {
-                commission = Math.Round(p.Premium * (ratePercent / 100m), 2);
+                commission = Math.Round((p.NetPremium ?? p.Premium) * (ratePercent / 100m), 2);
             }
 
             _db.CommissionRunLines.Add(new CommissionRunLine

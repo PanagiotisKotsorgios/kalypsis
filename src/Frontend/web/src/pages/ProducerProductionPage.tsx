@@ -196,6 +196,7 @@ export function ProducerProductionPage() {
                 <Box>
                   <Typography variant="h6" fontWeight={700}>Συμβόλαια {MONTHS[(data.month || month) - 1]} {data.year || year}</Typography>
                   <Typography variant="body2" color="text.secondary">Η περίοδος φιλτράρει με βάση την ημερομηνία έναρξης του συμβολαίου.</Typography>
+                  <Typography variant="caption" color="text.secondary">Μικτά = το ποσοστό σας επί των καθαρών ασφαλίστρων. Η παρακράτηση είναι ο φόρος επί της προμήθειας και τα καθαρά είναι το ποσό που αναμένεται να λάβετε.</Typography>
                 </Box>
                 <Typography variant="body2" color="text.secondary">Ποσοστά και ποσά είναι μόνο δικά σας.</Typography>
               </Stack>

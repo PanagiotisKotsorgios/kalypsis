@@ -66,14 +66,17 @@ public class PreviewCommissionRuleQueryHandler
             q = q.Where(p => p.SpecsJson != null && EF.Functions.Like(p.SpecsJson, $"%{needle}%"));
         }
 
-        var rows = await q.Select(p => new { p.Premium }).ToListAsync(ct);
+        var rows = await q.Select(p => new { p.Premium, Net = p.NetPremium ?? p.Premium }).ToListAsync(ct);
         var count = rows.Count;
         var totalPremium = rows.Sum(x => x.Premium);
+        var totalNet = rows.Sum(x => x.Net);
 
         var agencyPct = b.AgencyPercent ?? 0m;
         var producerPct = b.ProducerPercent ?? 0m;
-        var estAgency = decimal.Round(totalPremium * agencyPct / 100m, 2);
-        var estProducer = decimal.Round(totalPremium * producerPct / 100m, 2);
+        // AgencyPercent is the carrier's total rate.  The office receives the
+        // remainder after the producer share, not an additional percentage.
+        var estAgency = decimal.Round(totalNet * Math.Max(agencyPct - producerPct, 0m) / 100m, 2);
+        var estProducer = decimal.Round(totalNet * producerPct / 100m, 2);
 
         string? warning = null;
         if (count == 0)

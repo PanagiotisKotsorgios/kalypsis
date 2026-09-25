@@ -243,10 +243,10 @@ export function CommissionRulesPage() {
             <Stack direction="row" alignItems="center" spacing={0.5}>
               <Typography variant="h4" sx={{ fontWeight: 800 }}>Παραμετροποίηση προμηθειών</Typography>
               <HelpHint title="Πώς λειτουργούν οι κανόνες"
-                body="Ορίστε μία προμήθεια ανά συνδυασμό (εταιρία × κλάδος × κατηγορία συνεργάτη). Αν αφήσετε κάποιο πεδίο κενό, ο κανόνας ισχύει για όλες τις τιμές αυτής της διάστασης. Όταν δύο κανόνες ταιριάζουν, υπερισχύει ο πιο συγκεκριμένος. Η προμήθεια έδρας που έρχεται από γέφυρα δεν αλλάζει — μόνο η προμήθεια συνεργάτη προ-υπολογίζεται από εδώ." />
+                body="Ορίστε τη συνολική προμήθεια της ασφαλιστικής και το ποσοστό συνεργάτη ανά εταιρία, κλάδο, κάλυψη ή χρήση. Οι υπολογισμοί γίνονται στα καθαρά: συνολικό ποσοστό μείον συνεργάτης = έδρα. Σε εισαγωγή γέφυρας, το πραγματικό ποσό της γέφυρας εμφανίζεται για έλεγχο." />
             </Stack>
             <Typography color="text.secondary">
-              Ορίστε ποιό ποσοστό κρατά το γραφείο και ποιό πάει στον συνεργάτη ανά κλάδο / κάλυψη / πακέτο / χρήση.
+              Ορίστε τη συνολική προμήθεια που δίνει η ασφαλιστική επί των καθαρών. Αν υπάρχει συνεργάτης, το ποσοστό του αφαιρείται από αυτό το σύνολο και το υπόλοιπο μένει στην έδρα. Χωρίς συνεργάτη, όλο το σύνολο ανήκει στην έδρα.
             </Typography>
           </Box>
         </Stack>
@@ -274,7 +274,7 @@ export function CommissionRulesPage() {
               { key: "vehicleUseCategory", label: "Χρήση", map: (r) => r.vehicleUseCategory ?? "—" },
               { key: "coverCode", label: "Κάλυψη", map: (r) => r.coverCode ?? "—" },
               { key: "producerName", label: "Συνεργάτης", map: (r) => r.producerName ?? (r.producerTier && r.producerTier !== "None" ? `Κατ. ${r.producerTier}` : "—") },
-              { key: "agencyPercent", label: "Έδρας %", map: (r) => r.agencyPercent !== null ? `${r.agencyPercent.toFixed(2)}%` : "—" },
+              { key: "agencyPercent", label: "Συνολική ασφαλιστικής %", map: (r) => r.agencyPercent !== null ? `${r.agencyPercent.toFixed(2)}%` : "—" },
               { key: "producerPercent", label: "Συνεργάτη %", map: (r) => r.producerPercent !== null ? `${r.producerPercent.toFixed(2)}%` : "—" },
             ]}
           />
@@ -973,10 +973,10 @@ function RuleDialog({ open, rule, companies, producers, onClose, onSaved }: {
           )}
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField type="number" label="Προμήθεια έδρας %" value={form.agencyPercent}
+            <TextField type="number" label="Συνολική προμήθεια ασφαλιστικής %" value={form.agencyPercent}
               onChange={e => setForm({ ...form, agencyPercent: Number(e.target.value) })}
               inputProps={{ step: 0.1, min: 0, max: 100 }} fullWidth
-              helperText="Σύγκριση/έλεγχος με γέφυρες. Η γέφυρα παραμένει source of truth." />
+              helperText="Παράδειγμα: 16% συνολικά. Με συνεργάτη 10%, η έδρα κρατά 6% επί των καθαρών. Χωρίς συνεργάτη, η έδρα κρατά όλο το 16%." />
             <TextField type="number" label="Προμήθεια συνεργάτη %" value={form.producerPercent}
               onChange={e => setForm({ ...form, producerPercent: Number(e.target.value) })}
               inputProps={{ step: 0.1, min: 0, max: 100 }} fullWidth required

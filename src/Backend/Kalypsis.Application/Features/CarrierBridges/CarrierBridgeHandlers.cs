@@ -2468,9 +2468,11 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                         {
                             // We don't have currency on the row; ERGO files are EUR by default. Skip.
                         }
-                        else if (prop.Name.Equals("SpecialCommissionPercent", StringComparison.OrdinalIgnoreCase) && r.GrossPremium.HasValue && r.AgencyCommission.HasValue)
+                        else if (prop.Name.Equals("SpecialCommissionPercent", StringComparison.OrdinalIgnoreCase)
+                            && (r.NetPremium ?? r.GrossPremium).HasValue
+                            && r.AgencyCommission.HasValue)
                         {
-                            var actual = Math.Round(r.AgencyCommission.Value / r.GrossPremium.Value * 100m, 1);
+                            var actual = Math.Round(r.AgencyCommission.Value / (r.NetPremium ?? r.GrossPremium)!.Value * 100m, 1);
                             var expected = prop.Value.GetDecimal();
                             if (Math.Abs(actual - expected) > 0.5m)
                             {
@@ -2505,11 +2507,11 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                     (rule.PolicyType.HasValue ? 1 : 0))
                 .FirstOrDefault();
 
-            if (commissionRule is not null && r.GrossPremium.HasValue && r.GrossPremium.Value != 0m)
+            if (commissionRule is not null && (r.NetPremium ?? r.GrossPremium).HasValue && (r.NetPremium ?? r.GrossPremium)!.Value != 0m)
             {
                 if (commissionRule.AgencyPercent.HasValue && r.AgencyCommission.HasValue)
                 {
-                    var bridgeAgencyPct = Math.Round(r.AgencyCommission.Value / r.GrossPremium.Value * 100m, 2);
+                    var bridgeAgencyPct = Math.Round(r.AgencyCommission.Value / (r.NetPremium ?? r.GrossPremium)!.Value * 100m, 2);
                     if (Math.Abs(bridgeAgencyPct - commissionRule.AgencyPercent.Value) > 0.5m)
                     {
                         r.Notes.Add(new BridgeImportNote("Προμήθεια γραφείου", "warn",
@@ -2520,7 +2522,7 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
 
                 if (commissionRule.ProducerPercent.HasValue && r.PartnerCommission.HasValue)
                 {
-                    var expectedProducerAmount = Math.Round(Math.Abs(r.GrossPremium.Value) * commissionRule.ProducerPercent.Value / 100m, 2);
+                        var expectedProducerAmount = Math.Round(Math.Abs((r.NetPremium ?? r.GrossPremium)!.Value) * commissionRule.ProducerPercent.Value / 100m, 2);
                     if (Math.Abs(Math.Abs(r.PartnerCommission.Value) - expectedProducerAmount) > 0.50m)
                     {
                         r.Notes.Add(new BridgeImportNote("Προμήθεια συνεργάτη", "warn",

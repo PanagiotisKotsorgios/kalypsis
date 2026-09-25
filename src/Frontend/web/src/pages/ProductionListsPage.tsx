@@ -229,10 +229,10 @@ export function ProductionListsPage() {
     { key: "gross",          label: t("productionList.col.gross"),    align: "right", render: r => <Box component="span" sx={{ fontWeight: 700 }}>{money(r.gross)}</Box>, text: r => money(r.gross) },
     { key: "net",            label: t("productionList.col.net"),      align: "right", render: r => money(r.net),  text: r => money(r.net) },
     { key: "vat",            label: "Φόρος ασφαλίστρων",      align: "right", render: r => money(r.vat), text: r => money(r.vat), defaultOff: true },
-    { key: "bridgeComm",     label: "Προμ. γέφυρας/έδρας",             align: "right", render: r => <Box component="span" sx={{ color: "info.main" }}>{money(r.incomingAgencyCommission)} ({r.incomingAgencyCommissionPercent.toFixed(1)}%)</Box>, text: r => `${money(r.incomingAgencyCommission)} (${r.incomingAgencyCommissionPercent.toFixed(1)}%)` },
+    { key: "bridgeComm",     label: "Συνολική προμ. ασφαλιστικής",       align: "right", render: r => <Box component="span" sx={{ color: "info.main" }}>{money(r.incomingAgencyCommission)} ({r.incomingAgencyCommissionPercent.toFixed(1)}%)</Box>, text: r => `${money(r.incomingAgencyCommission)} (${r.incomingAgencyCommissionPercent.toFixed(1)}%)` },
     { key: "partnerPct",     label: t("productionList.col.partnerPct"), align: "right", render: r => <Box component="span" sx={{ color: "text.secondary" }}>{r.partnerCommissionPercent.toFixed(1)}%</Box>, text: r => `${r.partnerCommissionPercent.toFixed(1)}%` },
     { key: "partner",        label: t("productionList.col.partner"),  align: "right", render: r => <Box component="span" sx={{ color: "warning.main" }}>{money(r.partnerCommission)}</Box>, text: r => money(r.partnerCommission) },
-    { key: "agency",         label: t("productionList.col.agency"),   align: "right", render: r => <Box component="span" sx={{ color: "success.main", fontWeight: 700 }}>{money(r.agencyCommission)}</Box>, text: r => money(r.agencyCommission) },
+    { key: "agency",         label: "Προμ. έδρας (υπόλοιπο)",          align: "right", render: r => <Box component="span" sx={{ color: "success.main", fontWeight: 700 }}>{money(r.agencyCommission)}</Box>, text: r => money(r.agencyCommission) },
     { key: "check",          label: "Έλεγχος",                         render: r => r.commissionWarning ? <Chip size="small" color="warning" label="Έλεγχος σύμβασης" title={r.commissionWarning} /> : <Chip size="small" color="success" variant="outlined" label="OK" />, text: r => r.commissionWarning ?? "OK" },
   ];
 

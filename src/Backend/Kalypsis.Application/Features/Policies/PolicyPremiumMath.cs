@@ -97,10 +97,11 @@ public static class PolicyPremiumMath
         cover.AgencyCommissionPercent = newAgencyPercent;
         cover.CommissionPercent = newProducer;
 
-        var agencyAmountBefore = decimal.Round(cover.GrossPremium * (oldAgency ?? 0m) / 100m, 2);
-        var agencyAmountAfter  = decimal.Round(cover.GrossPremium * newAgencyPercent / 100m, 2);
-        var producerAmountBefore = decimal.Round(cover.GrossPremium * (oldProducer ?? 0m) / 100m, 2);
-        var producerAmountAfter  = decimal.Round(cover.GrossPremium * (newProducer ?? 0m) / 100m, 2);
+        var commissionBase = cover.NetPremium > 0m ? cover.NetPremium : cover.GrossPremium;
+        var agencyAmountBefore = decimal.Round(commissionBase * (oldAgency ?? 0m) / 100m, 2);
+        var agencyAmountAfter  = decimal.Round(commissionBase * newAgencyPercent / 100m, 2);
+        var producerAmountBefore = decimal.Round(commissionBase * (oldProducer ?? 0m) / 100m, 2);
+        var producerAmountAfter  = decimal.Round(commissionBase * (newProducer ?? 0m) / 100m, 2);
 
         var diffAgency   = agencyAmountBefore - agencyAmountAfter;
         var diffProducer = producerAmountBefore - producerAmountAfter;
@@ -137,8 +138,9 @@ public static class PolicyPremiumMath
         {
             var agencyPct = c.AgencyCommissionPercent ?? fallbackAgencyPercent;
             var producerPct = c.CommissionPercent ?? fallbackProducerPercent;
-            var agencyAmount = decimal.Round(c.GrossPremium * agencyPct / 100m, 2);
-            var producerAmount = decimal.Round(c.GrossPremium * producerPct / 100m, 2);
+            var commissionBase = c.NetPremium > 0m ? c.NetPremium : c.GrossPremium;
+            var agencyAmount = decimal.Round(commissionBase * agencyPct / 100m, 2);
+            var producerAmount = decimal.Round(commissionBase * producerPct / 100m, 2);
             lines.Add(new CoverCommissionLine(
                 c.Id, c.CoverCode, c.CoverName,
                 c.GrossPremium, agencyPct, producerPct,

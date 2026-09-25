@@ -1066,12 +1066,12 @@ function PolicyFormDialog({
             label="Συνεργάτης"
             value={form.producerId}
             onChange={(v) => setForm({ ...form, producerId: v })}
-            emptyLabel="— χωρίς σύνδεση —"
+            emptyLabel="— Παραγωγή γραφείου · χωρίς συνεργάτη —"
             options={(producersQuery.data ?? []).map(p => ({
               value: p.id,
               label: p.code ? `${p.code} — ${p.name}` : p.name,
             }))}
-            helperText="Ο συνεργάτης θα κληρονομείται αυτόματα στις επόμενες ανανεώσεις του ίδιου αριθμού συμβολαίου."
+            helperText="Αφήστε το κενό για παραγωγή γραφείου: η έδρα λαμβάνει όλη την προμήθεια της ασφαλιστικής. Με συνεργάτη, η προμήθειά του αφαιρείται από το συνολικό ποσοστό."
           />
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -1140,13 +1140,13 @@ function PolicyFormDialog({
             const net = Number(form.netPremium) || 0;
             const tax = gross > 0 && net > 0 ? Math.max(0, gross - net) : null;
             const producerPct = Number(form.specialCommissionPercent);
-            const producerAmount = tax !== null && producerPct > 0 ? net * producerPct / 100 : null;
+            const producerAmount = form.producerId && tax !== null && producerPct > 0 ? net * producerPct / 100 : null;
             return (tax !== null || producerAmount !== null) ? (
               <Alert severity="info">
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={3}>
                   {tax !== null && <span><strong>Φόρος ασφαλίστρων:</strong> {tax.toFixed(2)} €</span>}
                   {producerAmount !== null && <span><strong>Προμήθεια συνεργάτη:</strong> {producerAmount.toFixed(2)} € ({producerPct.toFixed(2)}% επί καθαρών)</span>}
-                  {producerAmount !== null && <span><strong>Υπόλοιπο γραφείου:</strong> {(net - producerAmount).toFixed(2)} €</span>}
+                  {producerAmount !== null && <span><strong>Έδρα:</strong> υπολογίζεται από το συνολικό ποσοστό ασφαλιστικής μείον την προμήθεια συνεργάτη.</span>}
                 </Stack>
               </Alert>
             ) : null;
