@@ -316,7 +316,7 @@ public static class ProductionListBuilder
                 ? t : ProducerTier.None;
 
             return rules
-                .Where(r => r.AgencyPercent.HasValue && r.AgencyPercent.Value > 0m
+                .Where(r => ConfiguredTotalPercent(r).HasValue
                          && (!r.ProducerId.HasValue           || r.ProducerId == p.ProducerId)
                          && (!r.ProducerTier.HasValue         || r.ProducerTier == tier)
                          && (!r.InsuranceCompanyId.HasValue   || r.InsuranceCompanyId == p.InsuranceCompanyId)
@@ -397,9 +397,10 @@ public static class ProductionListBuilder
             // 0,00 €.  Prefer the configured carrier total whenever one is
             // available and only fall back to the persisted matrix for
             // legacy policies that have no matching total rule.
+            var configuredTotalPct = ConfiguredTotalPercent(totalRule);
             var incomingPct = hasBridgeAgencyCommission
                 ? net > 0 ? Math.Round(bridgeAgencyCommission / net * 100m, 2) : 0m
-                : totalRule?.AgencyPercent
+                : configuredTotalPct
                     ?? (materialized is not null
                         ? materialized.AgencyPercent + materialized.ProducerPercent
                         : 0m);
@@ -442,6 +443,18 @@ public static class ProductionListBuilder
     {
         var cleaned = value?.Trim().ToUpperInvariant();
         return string.IsNullOrWhiteSpace(cleaned) ? null : cleaned;
+    }
+
+    private static decimal? ConfiguredTotalPercent(CommissionRule? rule)
+    {
+        if (rule is null) return null;
+        if (rule.AgencyPercent.HasValue)
+            return rule.AgencyPercent.Value > 0m ? rule.AgencyPercent.Value : null;
+        return !rule.ProducerPercent.HasValue
+            && rule.CommissionType == CommissionType.Percentage
+            && rule.Value > 0m
+            ? rule.Value
+            : null;
     }
 
     private static string? ExtractCoverCode(string? specsJson)

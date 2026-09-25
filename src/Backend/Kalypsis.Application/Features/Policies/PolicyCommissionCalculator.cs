@@ -103,17 +103,18 @@ public class PolicyCommissionCalculator
         // office).  A policy without ProducerId is office production, so it
         // receives the full configured carrier percentage and never creates a
         // producer row.
-        if (totalRule?.AgencyPercent.HasValue == true && !policy.ProducerId.HasValue)
+        var configuredTotalPercent = ConfiguredTotalPercent(totalRule);
+        if (configuredTotalPercent.HasValue && !policy.ProducerId.HasValue)
         {
             // Office-owned production receives the full carrier total.
             percents = new List<(HierarchyLevel Level, decimal Percent)>
             {
-                (HierarchyLevel.Agency, Math.Max(0m, totalRule.AgencyPercent.Value))
+                (HierarchyLevel.Agency, configuredTotalPercent.Value)
             };
         }
-        else if (totalRule?.AgencyPercent.HasValue == true)
+        else if (configuredTotalPercent.HasValue)
         {
-            var carrierTotal = Math.Max(0m, totalRule.AgencyPercent.Value);
+            var carrierTotal = configuredTotalPercent.Value;
             var nonAgency = percents
                 .Where(x => x.Level != HierarchyLevel.Agency)
                 .Sum(x => Math.Max(0m, x.Percent));
@@ -248,8 +249,7 @@ public class PolicyCommissionCalculator
         var rules = await _db.CommissionRules
             .Where(r => r.TenantId == tenantId
                      && r.DeletedAt == null
-                     && r.AgencyPercent.HasValue
-                     && r.AgencyPercent.Value > 0m)
+                     && ConfiguredTotalPercent(r).HasValue)
             .ToListAsync(ct);
         if (rules.Count == 0) return null;
 
@@ -330,5 +330,17 @@ public class PolicyCommissionCalculator
         if (producerPct > 0m) result.Add((HierarchyLevel.Producer, producerPct));
         if (agencyPct > 0m)   result.Add((HierarchyLevel.Agency,   agencyPct));
         return result;
+    }
+
+    private static decimal? ConfiguredTotalPercent(CommissionRule? rule)
+    {
+        if (rule is null) return null;
+        if (rule.AgencyPercent.HasValue)
+            return rule.AgencyPercent.Value > 0m ? rule.AgencyPercent.Value : null;
+        return !rule.ProducerPercent.HasValue
+            && rule.CommissionType == CommissionType.Percentage
+            && rule.Value > 0m
+            ? rule.Value
+            : null;
     }
 }
