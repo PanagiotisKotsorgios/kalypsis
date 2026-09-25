@@ -466,8 +466,8 @@ internal static class ProducerSelfData
                 group.Key,
                 group.Sum(split => split.Percent),
                 group.Sum(split => split.GrossAmount),
-                group.Sum(split => split.TaxWithholdingAmount),
-                group.Sum(split => split.NetAmount)))
+                group.Sum(split => split.GrossAmount),
+                group.Sum(split => split.GrossAmount)))
             .ToDictionaryAsync(estimate => estimate.PolicyId, ct);
 
         if (estimates.Count > 0)
@@ -483,10 +483,9 @@ internal static class ProducerSelfData
                     continue;
                 var baseAmount = policy.NetPremium ?? policy.Premium;
                 var gross = Math.Round(baseAmount * estimate.RatePercent / 100m, 2);
-                var taxRate = estimate.GrossAmount > 0m
-                    ? Math.Clamp(estimate.TaxWithholdingAmount / estimate.GrossAmount, 0m, 1m)
-                    : 0m;
-                var tax = Math.Round(gross * taxRate, 2);
+                // Collaborator commissions are paid in full. Ignore legacy
+                // persisted withholding values in read-side analytics.
+                var tax = 0m;
                 estimates[estimate.PolicyId] = new ProducerSelfCommissionEstimate(
                     estimate.PolicyId,
                     estimate.RatePercent,
@@ -508,7 +507,6 @@ internal static class ProducerSelfData
             .Select(policy => new
             {
                 policy.Id,
-                policy.TenantId,
                 CommissionBase = policy.NetPremium ?? policy.Premium,
                 Percent = policy.SpecialCommissionPercent!.Value
             })
@@ -516,20 +514,11 @@ internal static class ProducerSelfData
         if (manualPolicies.Count == 0)
             return estimates;
 
-        var tenantIds = manualPolicies.Select(policy => policy.TenantId).Distinct().ToArray();
-        var withholdingByTenant = await db.Tenants
-            .AsNoTracking()
-            .Where(tenant => tenantIds.Contains(tenant.Id))
-            .ToDictionaryAsync(tenant => tenant.Id, tenant => tenant.DefaultTaxWithholdingPercent, ct);
-
         foreach (var policy in manualPolicies)
         {
             var percent = Math.Max(0m, policy.Percent);
             var gross = Math.Round(policy.CommissionBase * percent / 100m, 2);
-            var withholding = withholdingByTenant.TryGetValue(policy.TenantId, out var configuredWithholding)
-                ? configuredWithholding
-                : 20m;
-            var tax = Math.Round(gross * withholding / 100m, 2);
+            var tax = 0m;
             estimates[policy.Id] = new ProducerSelfCommissionEstimate(
                 policy.Id,
                 percent,

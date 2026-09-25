@@ -182,11 +182,10 @@ export function ProducerProductionPage() {
         <Alert severity="error">{extractErrorMessage(production.error, "Δεν ήταν δυνατή η φόρτωση της παραγωγής σας.")}</Alert>
       ) : data && (
         <>
-          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(5, 1fr)" }, mb: 3 }}>
+          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, mb: 3 }}>
             <Kpi label="Συμβόλαια" value={num(data.policyCount)} />
             <Kpi label="Ασφάλιστρα" value={money(data.totalPremium)} />
             <Kpi label="Μικτή προμήθεια" value={money(data.expectedGrossCommission)} />
-            <Kpi label="Παρακράτηση" value={money(data.totalTaxWithholding)} />
             <Kpi label="Καθαρά αναμενόμενα" value={money(data.expectedNetCommission)} emphasis />
           </Box>
 
@@ -196,7 +195,6 @@ export function ProducerProductionPage() {
                 <Box>
                   <Typography variant="h6" fontWeight={700}>Συμβόλαια {MONTHS[(data.month || month) - 1]} {data.year || year}</Typography>
                   <Typography variant="body2" color="text.secondary">Η περίοδος φιλτράρει με βάση την ημερομηνία έναρξης του συμβολαίου.</Typography>
-                  <Typography variant="caption" color="text.secondary">Μικτά = το ποσοστό σας επί των καθαρών ασφαλίστρων. Η παρακράτηση είναι ο φόρος επί της προμήθειας και τα καθαρά είναι το ποσό που αναμένεται να λάβετε.</Typography>
                 </Box>
                 <Typography variant="body2" color="text.secondary">Ποσοστά και ποσά είναι μόνο δικά σας.</Typography>
               </Stack>
@@ -217,7 +215,6 @@ export function ProducerProductionPage() {
                         <TableCell align="right">Ασφάλιστρο</TableCell>
                         <TableCell align="right">Ποσοστό</TableCell>
                         <TableCell align="right">Μικτά</TableCell>
-                        <TableCell align="right">Παρακράτηση</TableCell>
                         <TableCell align="right">Καθαρά</TableCell>
                       </TableRow>
                     </TableHead>
@@ -235,11 +232,10 @@ export function ProducerProductionPage() {
                             <>
                               <TableCell align="right">{num(row.commissionRatePercent)}%</TableCell>
                               <TableCell align="right">{money(row.expectedGrossCommission)}</TableCell>
-                              <TableCell align="right">{money(row.taxWithholding)}</TableCell>
                               <TableCell align="right" sx={{ fontWeight: 800, color: "primary.main" }}>{money(row.expectedNetCommission)}</TableCell>
                             </>
                           ) : (
-                            <TableCell colSpan={4} align="center">
+                            <TableCell colSpan={3} align="center">
                               <Chip size="small" label="Δεν έχει οριστεί προμήθεια από το γραφείο" variant="outlined" color="warning" />
                             </TableCell>
                           )}

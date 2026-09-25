@@ -115,8 +115,9 @@ public class GetCommissionDistributionQueryHandler
                 {
                     var policyCount = g.Select(x => x.PolicyId).Distinct().Count();
                     var gross = g.Sum(x => x.GrossAmount);
-                    var tax = g.Sum(x => x.TaxWithholdingAmount);
-                    var net = g.Sum(x => x.NetAmount);
+                    var isAgency = g.Key.HierarchyLevel == HierarchyLevel.Agency;
+                    var tax = isAgency ? g.Sum(x => x.TaxWithholdingAmount) : 0m;
+                    var net = isAgency ? g.Sum(x => x.NetAmount) : gross;
                     var key = (g.Key.ProducerId, g.Key.HierarchyLevel);
                     if (acc.TryGetValue(key, out var cur))
                         acc[key] = (cur.Policies + policyCount, cur.Gross + gross, cur.Tax + tax, cur.Net + net);
@@ -443,7 +444,9 @@ public class GetProducerStatementQueryHandler
             .Select(l => new ProducerStatementLine(
                 l.Id, l.PolicyNumber, l.CustomerName, l.CarrierName, l.StartDate,
                 l.Premium, LabelFor(l.HierarchyLevel), l.Percent,
-                l.GrossAmount, l.TaxWithholdingAmount, l.NetAmount))
+                l.GrossAmount,
+                l.HierarchyLevel == HierarchyLevel.Agency ? l.TaxWithholdingAmount : 0m,
+                l.HierarchyLevel == HierarchyLevel.Agency ? l.NetAmount : l.GrossAmount))
             .ToList();
 
         var gross = mapped.Sum(l => l.Gross);

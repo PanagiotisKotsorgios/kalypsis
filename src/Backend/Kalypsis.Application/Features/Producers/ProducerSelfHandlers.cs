@@ -236,14 +236,8 @@ public class GetProducerSelfProductionQueryHandler
 
         // A policy-level producer percentage is authoritative even when its
         // materialised split was created before the override was entered (or
-        // before commission rules existed). Use the tenant withholding rate
-        // for this read-side fallback so the producer portal is immediately
-        // correct without requiring the office to open every policy drawer.
-        var defaultWithholdingPercent = await _db.Tenants
-            .Where(t => t.Id == tenantId)
-            .Select(t => (decimal?)t.DefaultTaxWithholdingPercent)
-            .FirstOrDefaultAsync(ct) ?? 20m;
-
+        // before commission rules existed). Apply it immediately so the
+        // producer portal is correct without opening every policy drawer.
         var policyIds = policies.Select(p => p.Id).ToArray();
         var estimates = policyIds.Length == 0
             ? new Dictionary<Guid, ProducerCommissionEstimate>()
@@ -255,8 +249,8 @@ public class GetProducerSelfProductionQueryHandler
                     g.Key,
                     g.Sum(x => x.Percent),
                     g.Sum(x => x.GrossAmount),
-                    g.Sum(x => x.TaxWithholdingAmount),
-                    g.Sum(x => x.NetAmount)))
+                    g.Sum(x => x.GrossAmount),
+                    g.Sum(x => x.GrossAmount)))
                 .ToDictionaryAsync(x => x.PolicyId, ct);
 
         var rows = policies.Select(policy =>
@@ -269,9 +263,9 @@ public class GetProducerSelfProductionQueryHandler
                 var manualPercent = Math.Max(0m, policy.SpecialCommissionPercent.Value);
                 var commissionBase = policy.NetPremium ?? policy.Premium;
                 var gross = Math.Round(commissionBase * manualPercent / 100m, 2);
-                var withheld = Math.Round(gross * defaultWithholdingPercent / 100m, 2);
+                var withheld = 0m;
                 estimate = new ProducerCommissionEstimate(
-                    policy.Id, manualPercent, gross, withheld, gross - withheld);
+                    policy.Id, manualPercent, gross, withheld, gross);
                 hasEstimate = true;
             }
 

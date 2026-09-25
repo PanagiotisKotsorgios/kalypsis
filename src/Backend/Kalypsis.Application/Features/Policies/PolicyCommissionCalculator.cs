@@ -9,9 +9,9 @@ namespace Kalypsis.Application.Features.Policies;
 /// <summary>
 /// Materialises <see cref="PolicyCommissionSplit"/> rows for a policy — one
 /// per hierarchy level in the leaf producer's chain that the matched rule
-/// defines a percent for. Tax withholding is deducted at the tenant-level
-/// default rate for every level except <see cref="HierarchyLevel.Agency"/>
-/// (a broker doesn't withhold from itself).
+/// defines a percent for. Collaborator commission is paid in full; no tax
+/// withholding is deducted from producer-level shares. The Agency row is the
+/// office remainder, not a withholding row.
 ///
 /// Fallback path: if the matched rule has no <c>LevelPercentsJson</c> we
 /// materialise the legacy two-level split (Producer, Agency) from
@@ -135,20 +135,6 @@ public class PolicyCommissionCalculator
         }
         if (percents.Count == 0) return;
 
-        // Withholding rate: per-rule override → tenant default → 20% floor.
-        // If Tenants table is missing the column on a partial deploy we fall
-        // back to 20% — matches the seeded default and avoids a 500 during boot.
-        var tenantWithholdPct = await _db.Tenants
-            .Where(t => t.Id == tenantId)
-            .Select(t => (decimal?)t.DefaultTaxWithholdingPercent)
-            .FirstOrDefaultAsync(ct) ?? 20m;
-        // Withholding rate: per-rule override → tenant default. A pure
-        // per-policy override with no matched rule falls back to the tenant
-        // default (rule is null in that case).
-        var withholdPct = rule?.TaxWithholdingPercent
-            ?? totalRule?.TaxWithholdingPercent
-            ?? tenantWithholdPct;
-
         foreach (var (level, percent) in percents)
         {
             if (percent <= 0m) continue;
@@ -166,10 +152,10 @@ public class PolicyCommissionCalculator
 
             var gross = Math.Round(commissionBase * percent / 100m, 2);
             // Agency doesn't withhold from itself. Every other level does.
-            var withheld = level == HierarchyLevel.Agency
-                ? 0m
-                : Math.Round(gross * withholdPct / 100m, 2);
-            var net = gross - withheld;
+            // Collaborator commissions are paid in full; no withholding is
+            // deducted from the configured producer percentage.
+            const decimal withheld = 0m;
+            var net = gross;
 
             _db.PolicyCommissionSplits.Add(new PolicyCommissionSplit
             {
