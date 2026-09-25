@@ -384,7 +384,11 @@ public static class ProductionListBuilder
                 : materialized is not null
                 ? Math.Round(net * materialized.ProducerPercent / 100m, 2)
                 : Math.Round(net * partnerPct / 100m, 2);
-            var hasBridgeAgencyCommission = bridgeAgencyCommissionByPolicy.TryGetValue(p.Id, out var bridgeAgencyCommission);
+            // A zero-valued legacy bridge movement is not a usable carrier
+            // total. Ignore it so an active 16% parameterization can produce
+            // the correct 6% office remainder instead of preserving 0,00 €.
+            var hasBridgeAgencyCommission = bridgeAgencyCommissionByPolicy.TryGetValue(p.Id, out var bridgeAgencyCommission)
+                && bridgeAgencyCommission > 0m;
             // AgencyPercent is the total commission rate paid by the carrier
             // on the net premium.  It is not an additional amount on top of
             // the producer's share.  The office keeps the remainder after
