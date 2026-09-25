@@ -247,10 +247,9 @@ public class PolicyCommissionCalculator
         Guid tenantId, Policy policy, IReadOnlyList<Producer> chain, CancellationToken ct)
     {
         var rules = await _db.CommissionRules
-            .Where(r => r.TenantId == tenantId
-                     && r.DeletedAt == null
-                     && ConfiguredTotalPercent(r).HasValue)
+            .Where(r => r.TenantId == tenantId && r.DeletedAt == null)
             .ToListAsync(ct);
+        rules = rules.Where(r => ConfiguredTotalPercent(r).HasValue).ToList();
         if (rules.Count == 0) return null;
 
         var producerIds = chain.Select(p => (Guid?)p.Id).ToHashSet();
