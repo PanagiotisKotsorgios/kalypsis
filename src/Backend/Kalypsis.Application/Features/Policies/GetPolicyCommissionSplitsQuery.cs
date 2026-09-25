@@ -54,14 +54,17 @@ public class GetPolicyCommissionSplitsHandler
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
 
         // Auto-heal: a legacy policy has never been saved since the migration
-        // ran, so it has zero splits on file. Recompute lazily on first read
-        // so the operator sees a matrix instead of an empty tab.
+        // ran, or it has only a producer row from the old split semantics.
+        // Recompute lazily on first read so the contract card shows the same
+        // carrier-total → producer → office-remainder flow as production lists.
         var splits = await _db.PolicyCommissionSplits
             .Include(s => s.Producer)
             .Where(s => s.TenantId == tenantId && s.PolicyId == request.PolicyId && s.DeletedAt == null)
             .OrderBy(s => s.HierarchyLevel)
             .ToListAsync(ct);
-        if (splits.Count == 0)
+        var needsRecompute = splits.Count == 0
+            || splits.All(s => s.HierarchyLevel != HierarchyLevel.Agency);
+        if (needsRecompute)
         {
             var policy = await _db.Policies
                 .FirstOrDefaultAsync(p => p.Id == request.PolicyId && p.TenantId == tenantId && p.DeletedAt == null, ct);
