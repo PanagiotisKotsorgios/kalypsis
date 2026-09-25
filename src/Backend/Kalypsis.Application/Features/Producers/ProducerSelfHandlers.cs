@@ -194,6 +194,7 @@ public class GetProducerSelfProductionQueryHandler
             throw new AppException("producer_production_invalid_period", "Επιλέξτε έγκυρο μήνα και έτος.", 400);
 
         var userId = _current.UserId ?? throw AppException.Unauthorized();
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var producerId = await _db.Users
             .Where(u => u.Id == userId)
             .Select(u => u.ProducerId)
@@ -233,9 +234,20 @@ public class GetProducerSelfProductionQueryHandler
                 p.Status,
                 p.StartDate,
                 p.EndDate,
-                p.Premium
+                p.Premium,
+                p.SpecialCommissionPercent
             })
             .ToListAsync(ct);
+
+        // A policy-level producer percentage is authoritative even when its
+        // materialised split was created before the override was entered (or
+        // before commission rules existed). Use the tenant withholding rate
+        // for this read-side fallback so the producer portal is immediately
+        // correct without requiring the office to open every policy drawer.
+        var defaultWithholdingPercent = await _db.Tenants
+            .Where(t => t.Id == tenantId)
+            .Select(t => (decimal?)t.DefaultTaxWithholdingPercent)
+            .FirstOrDefaultAsync(ct) ?? 20m;
 
         var policyIds = policies.Select(p => p.Id).ToArray();
         var estimates = policyIds.Length == 0
@@ -256,6 +268,17 @@ public class GetProducerSelfProductionQueryHandler
         {
             var hasEstimate = estimates.TryGetValue(policy.Id, out var estimate);
             estimate ??= ProducerCommissionEstimate.Empty;
+
+            if (policy.SpecialCommissionPercent.HasValue)
+            {
+                var manualPercent = Math.Max(0m, policy.SpecialCommissionPercent.Value);
+                var gross = Math.Round(policy.Premium * manualPercent / 100m, 2);
+                var withheld = Math.Round(gross * defaultWithholdingPercent / 100m, 2);
+                estimate = new ProducerCommissionEstimate(
+                    policy.Id, manualPercent, gross, withheld, gross - withheld);
+                hasEstimate = true;
+            }
+
             return new ProducerSelfProductionRowDto(
                 policy.Id,
                 policy.PolicyNumber,

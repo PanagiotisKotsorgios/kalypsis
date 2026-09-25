@@ -64,6 +64,27 @@ public class PolicyCommissionCalculator
         // A per-policy override wins over every rule. Applied identically to
         // the rule-level JSON — same shape, same level keys.
         var percents = ResolveOverrideLevels(policy.SpecialLevelPercentsJson);
+        if (percents.Count == 0 && policy.SpecialCommissionPercent.HasValue)
+        {
+            // A manually entered producer percentage on the contract wins over
+            // the producer percentage from every office rule. Keep any other
+            // hierarchy levels from the matched rule; if no rule exists, the
+            // manual value still creates a producer split for the portal.
+            var manualProducerPercent = Math.Max(0m, policy.SpecialCommissionPercent.Value);
+            var rulePercents = ResolvePercents(rule);
+            var replacedProducer = false;
+            percents = rulePercents
+                .Select(item =>
+                {
+                    if (item.Level != HierarchyLevel.Producer) return item;
+                    replacedProducer = true;
+                    return (item.Level, manualProducerPercent);
+                })
+                .ToList();
+
+            if (!replacedProducer && manualProducerPercent > 0m)
+                percents.Insert(0, (HierarchyLevel.Producer, manualProducerPercent));
+        }
         if (percents.Count == 0) percents = ResolvePercents(rule);
         if (percents.Count == 0) return;
 
