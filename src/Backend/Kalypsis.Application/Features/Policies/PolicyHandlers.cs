@@ -255,6 +255,13 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
         var number = string.IsNullOrWhiteSpace(r.PolicyNumber)
             ? $"P-{(count + 1):D6}"
             : r.PolicyNumber.Trim();
+        var duplicateNumber = await _db.Policies.IgnoreQueryFilters()
+            .AnyAsync(p => p.TenantId == tenantId && p.DeletedAt == null && p.PolicyNumber == number, ct);
+        if (duplicateNumber)
+            throw new AppException("duplicate_policy_number",
+                $"Υπάρχει ήδη συμβόλαιο με αριθμό {number}.", 400,
+                title: "Ο αριθμός συμβολαίου χρησιμοποιείται",
+                fix: "Χρησιμοποίησε διαφορετικό αριθμό ή άφησε το πεδίο κενό για αυτόματη αρίθμηση.");
 
         var (useEnum, useRaw) = VehicleUseCategorySplit.Parse(r.VehicleUseCategory);
         var (branchEnum, branchRaw) = PolicyTypeSplit.Parse(r.PolicyType);
