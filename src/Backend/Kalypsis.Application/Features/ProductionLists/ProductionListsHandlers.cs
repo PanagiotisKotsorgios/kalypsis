@@ -389,6 +389,14 @@ public static class ProductionListBuilder
             // on the net premium.  It is not an additional amount on top of
             // the producer's share.  The office keeps the remainder after
             // the producer percentage is paid.
+            // The carrier/agency rule is the authoritative *total* commission
+            // percentage for manually entered policies.  Older policies may
+            // still have a materialised matrix containing only the producer
+            // row (or an outdated agency remainder of 0); using that matrix
+            // as the incoming total makes the office remainder appear as
+            // 0,00 €.  Prefer the configured carrier total whenever one is
+            // available and only fall back to the persisted matrix for
+            // legacy policies that have no matching total rule.
             var incomingPct = hasBridgeAgencyCommission
                 ? net > 0 ? Math.Round(bridgeAgencyCommission / net * 100m, 2) : 0m
                 : totalRule?.AgencyPercent

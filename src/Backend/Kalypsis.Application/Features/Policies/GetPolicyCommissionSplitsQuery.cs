@@ -63,7 +63,11 @@ public class GetPolicyCommissionSplitsHandler
             .OrderBy(s => s.HierarchyLevel)
             .ToListAsync(ct);
         var needsRecompute = splits.Count == 0
-            || splits.All(s => s.HierarchyLevel != HierarchyLevel.Agency);
+            || splits.All(s => s.HierarchyLevel != HierarchyLevel.Agency)
+            // A previous calculation could have persisted only the producer
+            // share and an agency row with 0%. Rebuild it so the configured
+            // carrier total is applied and the office remainder is visible.
+            || splits.Any(s => s.HierarchyLevel == HierarchyLevel.Agency && s.Percent <= 0m);
         if (needsRecompute)
         {
             var policy = await _db.Policies
