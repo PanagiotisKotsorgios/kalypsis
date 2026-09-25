@@ -805,6 +805,7 @@ export function PoliciesPage() {
 
 interface FormBody {
   customerId: string;
+  policyNumber: string;
   insuranceCompanyId: string;
   producerId: string;
   policyType: PolicyType;
@@ -863,6 +864,7 @@ function PolicyFormDialog({
 
   const [form, setForm] = useState<FormBody>({
     customerId: "",
+    policyNumber: "",
     insuranceCompanyId: "",
     producerId: "",
     policyType: "Auto",
@@ -891,6 +893,7 @@ function PolicyFormDialog({
     if (policy) {
       setForm({
         customerId: policy.customerId,
+        policyNumber: policy.policyNumber,
         insuranceCompanyId: policy.insuranceCompanyId,
         producerId: policy.producerId ?? "",
         policyType: policy.policyType,
@@ -909,6 +912,7 @@ function PolicyFormDialog({
     } else if (open) {
       setForm({
         customerId: "",
+        policyNumber: "",
         insuranceCompanyId: "",
         producerId: "",
         policyType: "Auto",
@@ -973,6 +977,10 @@ function PolicyFormDialog({
           </Alert>
         )}
         <Stack spacing={2.5} mt={1}>
+          <TextField label="Αριθμός συμβολαίου" value={form.policyNumber}
+            onChange={e => setForm({ ...form, policyNumber: e.target.value })}
+            placeholder="Κενό = αυτόματη αρίθμηση (P-000001)"
+            helperText="Για χειροκίνητη καταχώρηση" fullWidth />
           <SearchableSelect
             label={t("policies.form.customer")}
             value={form.customerId}

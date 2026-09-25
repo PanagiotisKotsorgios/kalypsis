@@ -252,7 +252,9 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
         var prevCarrier = await TenantFkGuard.RequireCarrierAsync(_db.InsuranceCompanies, r.PreviousInsuranceCompanyId, tenantId, ct);
 
         var count = await _db.Policies.IgnoreQueryFilters().CountAsync(p => p.TenantId == tenantId, ct);
-        var number = $"P-{(count + 1):D6}";
+        var number = string.IsNullOrWhiteSpace(r.PolicyNumber)
+            ? $"P-{(count + 1):D6}"
+            : r.PolicyNumber.Trim();
 
         var (useEnum, useRaw) = VehicleUseCategorySplit.Parse(r.VehicleUseCategory);
         var (branchEnum, branchRaw) = PolicyTypeSplit.Parse(r.PolicyType);

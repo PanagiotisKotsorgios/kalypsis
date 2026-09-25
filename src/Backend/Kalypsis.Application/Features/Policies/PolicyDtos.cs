@@ -29,6 +29,7 @@ public record PolicyDto(
 
 public record CreatePolicyBody(
     Guid CustomerId,
+    string? PolicyNumber,
     Guid InsuranceCompanyId,
     Guid? ProducerId,
     // Accepts the strict PolicyType enum name ("Auto", "Home", …) OR a
