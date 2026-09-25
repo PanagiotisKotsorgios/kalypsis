@@ -199,6 +199,32 @@ builder.Services.AddControllers(mvc =>
     // attacker tacks on fields like {"role":"PlatformAdmin","isActive":true,...}
     // hoping the model binder will quietly set them. Now they 400 instead.
     opt.JsonSerializerOptions.UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow;
+}).ConfigureApiBehaviorOptions(options =>
+{
+    // [ApiController] normally short-circuits invalid request models with the
+    // framework's English ProblemDetails payload before ExceptionMiddleware
+    // can format it.  The SPA can then only show "One or more validation
+    // errors occurred". Return the same small, localised error contract used
+    // by the rest of the API and include the offending field/message.
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(entry => entry.Value?.Errors.Count > 0)
+            .ToDictionary(
+                entry => entry.Key,
+                entry => entry.Value!.Errors
+                    .Select(error => string.IsNullOrWhiteSpace(error.ErrorMessage)
+                        ? "Μη έγκυρη τιμή."
+                        : error.ErrorMessage)
+                    .ToArray());
+
+        return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(new
+        {
+            code = "validation",
+            message = "Σφάλμα επικύρωσης δεδομένων.",
+            errors
+        });
+    };
 });
 
 // Hard cap on request body size — 8 MB. Uploads that exceed this get a 413 at

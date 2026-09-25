@@ -429,6 +429,7 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
         p.Premium = b.Premium;
         p.NetPremium = b.NetPremium;
         p.SpecialCommissionPercent = b.SpecialCommissionPercent;
+        p.VatAmount = b.VatAmount;
         p.Currency = string.IsNullOrWhiteSpace(b.Currency) ? "EUR" : b.Currency.Trim().ToUpperInvariant();
         p.Status = b.Status;
         p.SpecsJson = PolicySpecsJsonHelper.MergeCodes(p.SpecsJson, b.CoverCode, b.PackageCode);

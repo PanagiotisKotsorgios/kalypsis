@@ -67,6 +67,7 @@ public record UpdatePolicyBody(
     PolicyStatus Status,
     decimal? NetPremium = null,
     decimal? SpecialCommissionPercent = null,
+    decimal? VatAmount = null,
     string? VehicleUseCategory = null,
     string? CoverCode = null,
     string? PackageCode = null,

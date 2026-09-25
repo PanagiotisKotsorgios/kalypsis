@@ -933,6 +933,15 @@ function PolicyFormDialog({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // Build the API payload explicitly.  Do not spread `form` here: the form
+      // contains UI-only fields (notably `insuranceTaxAmount`) whose names do
+      // not exist on CreatePolicyBody/UpdatePolicyBody.  The API deliberately
+      // rejects unmapped JSON properties, so spreading the form made every
+      // manual policy create fail with a generic 400 validation response.
+      const taxAmount = form.insuranceTaxAmount !== ""
+        ? Number(form.insuranceTaxAmount)
+        : (form.netPremium !== "" && form.premium > 0
+          ? Math.max(0, form.premium - Number(form.netPremium)) : null);
       const body = {
         insuranceCompanyId: form.insuranceCompanyId,
         producerId: form.producerId || null,
@@ -945,17 +954,18 @@ function PolicyFormDialog({
         premium: form.premium,
         netPremium: form.netPremium === "" ? null : Number(form.netPremium),
         specialCommissionPercent: form.specialCommissionPercent === "" ? null : Number(form.specialCommissionPercent),
-        vatAmount: form.insuranceTaxAmount !== ""
-          ? Number(form.insuranceTaxAmount)
-          : (form.netPremium !== "" && form.premium > 0
-            ? Math.max(0, form.premium - Number(form.netPremium)) : null),
+        vatAmount: taxAmount,
         currency: form.currency,
         status: form.status,
       };
       if (editing && policy) {
         return (await api.put<PolicyDto>(`/policies/${policy.id}`, body)).data;
       } else {
-        return (await api.post<PolicyDto>("/policies", { ...form, ...body, customerId: form.customerId })).data;
+        return (await api.post<PolicyDto>("/policies", {
+          customerId: form.customerId,
+          policyNumber: form.policyNumber.trim() || null,
+          ...body,
+        })).data;
       }
     },
     onSuccess: () => { clearDraft(); onSaved(); },
