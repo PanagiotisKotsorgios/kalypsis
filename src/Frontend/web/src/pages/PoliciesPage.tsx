@@ -200,7 +200,12 @@ export function PoliciesPage() {
     mutationFn: async (id: string) =>
       (await api.post<PolicyDto>(`/policies/${id}/cancel`, { reason: null })).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["policies"] }),
-    onError: (err) => setError(extractErrorMessage(err))
+    onError: (err) => {
+      // Never keep a failed/stale draft that can silently replay invalid IDs
+      // or an old manual policy number on the next attempt.
+      clearDraft();
+      setError(extractErrorMessage(err));
+    }
   });
 
   const [blockers, setBlockers] = useState<{ kind: string; count: number; message: string }[] | null>(null);
