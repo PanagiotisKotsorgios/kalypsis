@@ -259,8 +259,10 @@ export function PaymentsPage() {
                 <TableRow><TableCell colSpan={paymentCols.visibleColumns.length + 1} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("payments.empty")}</TableCell></TableRow>
               )}
               {sortedRows.map(p => {
-                const cashOut = p.amount - p.commissionsNetted;
-                const fullyNetted = p.amount > 0 && p.commissionsNetted >= p.amount;
+                // A payment row is created only after the payment has been
+                // recorded with its execution date. Netting is accounting
+                // information, not an unpaid status.
+                const hasNetting = p.commissionsNetted > 0;
                 return (
                 <TableRow key={p.id} hover onContextMenu={(e) => rowMenu.open(e, p)}>
                   {paymentCols.visibleColumns.map(c => {
@@ -280,8 +282,8 @@ export function PaymentsPage() {
                         return (
                           <TableCell key={c.key}>
                             <Chip size="small"
-                              color={fullyNetted ? "success" : cashOut === 0 ? "info" : "warning"}
-                              label={fullyNetted ? "Πλήρης συμψηφισμός" : cashOut === 0 ? "Συμψηφισμένο" : "Εκκρεμεί καταβολή"}
+                              color={hasNetting ? "info" : "success"}
+                              label={hasNetting ? "Καταβλήθηκε · με συμψηφισμό" : "Καταβλήθηκε"}
                               sx={{ fontWeight: 700 }} />
                           </TableCell>
                         );

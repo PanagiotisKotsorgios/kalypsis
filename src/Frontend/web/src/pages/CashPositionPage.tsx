@@ -5,6 +5,7 @@ import {
   MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
 import LocalAtmIcon from "@mui/icons-material/LocalAtm";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -54,6 +55,14 @@ export function CashPositionPage() {
   const movements = useQuery({
     queryKey: ["cash-movements", filter],
     queryFn: async () => (await api.get<MovementDto[]>("/cash/movements", { params: filter ? { cashAccountId: filter } : {} })).data
+  });
+  const deleteMovement = useMutation({
+    mutationFn: async (id: string) => api.delete(`/cash/movements/${id}`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["cash-accounts"] });
+      void qc.invalidateQueries({ queryKey: ["cash-movements"] });
+    },
+    onError: e => setErr(extractErrorMessage(e)),
   });
 
   const totalCash = (accounts.data ?? []).reduce((s, a) => s + a.currentBalance, 0);
@@ -261,11 +270,12 @@ export function CashPositionPage() {
             <TableCell align="right" sx={{ userSelect: "none" }}
               onContextMenu={(e) => headerMenu.open(e, { key: "amount", label: t("cash.amount"), type: inferType("amount"), canHide: false })}
             >{t("cash.amount")}</TableCell>
+            <TableCell align="right">{t("common.actions")}</TableCell>
           </TableRow></TableHead>
           <TableBody>
-            {movements.isLoading && <TableRow><TableCell colSpan={6} align="center"><CircularProgress size={20} /></TableCell></TableRow>}
+            {movements.isLoading && <TableRow><TableCell colSpan={7} align="center"><CircularProgress size={20} /></TableCell></TableRow>}
             {!movements.isLoading && filteredMovements.length === 0 && (
-              <TableRow><TableCell colSpan={6} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("cash.noMovements")}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} align="center" sx={{ color: "text.secondary", py: 4 }}>{t("cash.noMovements")}</TableCell></TableRow>
             )}
             {pagedMovements.map(m => (
               <TableRow key={m.id} hover>
@@ -277,6 +287,20 @@ export function CashPositionPage() {
                 <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{m.reference ?? "—"}</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 700, color: m.direction === "In" ? "success.main" : "error.main" }}>
                   {(m.direction === "In" ? "+" : "−")}{money(m.amount, m.currency)}
+                </TableCell>
+                <TableCell align="right" padding="checkbox">
+                  <Button
+                    size="small"
+                    color="error"
+                    aria-label="Διαγραφή κίνησης"
+                    onClick={() => {
+                      if (confirm("Να διαγραφεί αυτή η κίνηση ταμείου; Το υπόλοιπο θα επανέλθει αυτόματα."))
+                        deleteMovement.mutate(m.id);
+                    }}
+                    disabled={deleteMovement.isPending}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}

@@ -773,6 +773,30 @@ public class CreateCashMovementHandler : IRequestHandler<CreateCashMovementComma
    NAME DAYS (Εορτολόγιο)
    ========================================================================= */
 
+public record DeleteCashMovementCommand(Guid Id) : IRequest<Unit>;
+public class DeleteCashMovementHandler : IRequestHandler<DeleteCashMovementCommand, Unit>
+{
+    private readonly IAppDbContext _db;
+    public DeleteCashMovementHandler(IAppDbContext db) => _db = db;
+
+    public async Task<Unit> Handle(DeleteCashMovementCommand r, CancellationToken ct)
+    {
+        var movement = await _db.CashMovements
+            .Include(x => x.CashAccount)
+            .FirstOrDefaultAsync(x => x.Id == r.Id, ct)
+            ?? throw AppException.NotFound("CashMovement");
+
+        var sign = string.Equals(movement.Direction, "In", StringComparison.OrdinalIgnoreCase)
+            ? 1m : -1m;
+        if (movement.CashAccount is not null)
+            movement.CashAccount.CurrentBalance -= sign * movement.Amount;
+
+        movement.DeletedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Unit.Value;
+    }
+}
+
 public record NameDayDto(Guid Id, string Name, int Month, int Day, string? Notes, bool IsActive);
 public record NameDayBody(string Name, int Month, int Day, string? Notes, bool IsActive);
 

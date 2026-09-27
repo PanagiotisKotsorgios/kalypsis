@@ -231,6 +231,13 @@ public class CashMovementsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<CashMovementDto>> Create([FromBody] CashMovementBody body, CancellationToken ct)
         => Ok(await _mediator.Send(new CreateCashMovementCommand(body), ct));
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        await _mediator.Send(new DeleteCashMovementCommand(id), ct);
+        return NoContent();
+    }
 }
 
 [ApiController]
