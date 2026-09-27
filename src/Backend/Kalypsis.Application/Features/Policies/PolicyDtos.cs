@@ -25,7 +25,8 @@ public record PolicyDto(
     Guid? PreviousInsuranceCompanyId = null,
     string? PreviousInsuranceCompanyName = null,
     DateOnly? IssuedAt = null,
-    string? VehicleRegistrationPlate = null);
+    string? VehicleRegistrationPlate = null,
+    bool PaidDirectlyToCarrier = false);
 
 public record CreatePolicyBody(
     Guid CustomerId,
@@ -54,7 +55,8 @@ public record CreatePolicyBody(
     Guid? ContractPartyCustomerId = null,
     Guid? PreviousInsuranceCompanyId = null,
     DateOnly? IssuedAt = null,
-    string? VehicleRegistrationPlate = null);
+    string? VehicleRegistrationPlate = null,
+    bool PaidDirectlyToCarrier = false);
 
 public record UpdatePolicyBody(
     Guid InsuranceCompanyId,
@@ -76,7 +78,8 @@ public record UpdatePolicyBody(
     Guid? ContractPartyCustomerId = null,
     Guid? PreviousInsuranceCompanyId = null,
     DateOnly? IssuedAt = null,
-    string? VehicleRegistrationPlate = null);
+    string? VehicleRegistrationPlate = null,
+    bool PaidDirectlyToCarrier = false);
 
 public record RenewPolicyBody(
     DateOnly StartDate,

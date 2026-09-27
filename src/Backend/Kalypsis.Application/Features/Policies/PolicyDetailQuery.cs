@@ -56,7 +56,7 @@ public record PolicyDetailDto(
 
     // Delivery + collection method
     DateOnly? DeliveredAt, string? DeliveredTo, string? DeliveryMethod,
-    string? PaymentCollectionMethod,
+    string? PaymentCollectionMethod, bool PaidDirectlyToCarrier,
 
     // History
     Guid? RenewedFromPolicyId, string? RenewedFromPolicyNumber,
@@ -250,7 +250,7 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             p.RetainCommissionsOnRenewal, p.RetainDocumentNumberOnRenewal, p.RetainSpecialCommissionsOnRenewal,
             p.RenewalInstructions,
             p.DeliveredAt, p.DeliveredTo, p.DeliveryMethod,
-            p.PaymentCollectionMethod,
+            p.PaymentCollectionMethod, p.PaidDirectlyToCarrier,
             p.RenewedFromPolicyId, renewedFromNumber,
             endorsementCount, cancellationCount, claimCount, commissionTxnCount,
             documentCount, receiptCount,
@@ -299,7 +299,8 @@ public record UpdatePolicyExtendedBody(
     string? DriverVatNumber = null,
     string? ReasonForCirculation = null,
     // Per-policy commission override
-    string? SpecialLevelPercentsJson = null);
+    string? SpecialLevelPercentsJson = null,
+    bool PaidDirectlyToCarrier = false);
 
 public record UpdatePolicyExtendedCommand(Guid Id, UpdatePolicyExtendedBody Body) : IRequest<PolicyDetailDto>;
 
@@ -350,6 +351,7 @@ public class UpdatePolicyExtendedHandler : IRequestHandler<UpdatePolicyExtendedC
         p.DeliveredTo = b.DeliveredTo;
         p.DeliveryMethod = b.DeliveryMethod;
         p.PaymentCollectionMethod = b.PaymentCollectionMethod;
+        p.PaidDirectlyToCarrier = b.PaidDirectlyToCarrier;
         p.NetPremium = b.NetPremium;
         p.VatAmount = b.VatAmount;
         p.StampDutyAmount = b.StampDutyAmount;

@@ -140,7 +140,8 @@ public class ListPoliciesQueryHandler : IRequestHandler<ListPoliciesQuery, IRead
             p.PreviousInsuranceCompanyId,
             p.PreviousInsuranceCompany?.Name,
             p.IssuedAt,
-            p.VehicleRegistrationPlate);
+            p.VehicleRegistrationPlate,
+            p.PaidDirectlyToCarrier);
     }
 }
 
@@ -294,7 +295,8 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
             PreviousInsuranceCompanyId = prevCarrier,
             IssuedAt = r.IssuedAt,
             VehicleRegistrationPlate = string.IsNullOrWhiteSpace(r.VehicleRegistrationPlate)
-                ? null : r.VehicleRegistrationPlate.Trim().ToUpperInvariant()
+                ? null : r.VehicleRegistrationPlate.Trim().ToUpperInvariant(),
+            PaidDirectlyToCarrier = r.PaidDirectlyToCarrier
         };
         _db.Policies.Add(p);
 
@@ -439,6 +441,7 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
         p.IssuedAt = b.IssuedAt;
         p.VehicleRegistrationPlate = string.IsNullOrWhiteSpace(b.VehicleRegistrationPlate)
             ? null : b.VehicleRegistrationPlate.Trim().ToUpperInvariant();
+        p.PaidDirectlyToCarrier = b.PaidDirectlyToCarrier;
 
         // Cover-driven premium sync — if the policy has PolicyCover rows on
         // file, its Premium column becomes read-only and always equals the

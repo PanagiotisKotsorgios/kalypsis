@@ -87,6 +87,11 @@ export function ProducerGoalsPage() {
           <Alert severity="info" sx={{ mb: 3 }}>
             Η κλιμάκωση είναι προσομοίωση στόχων: η πρώτη βαθμίδα δείχνει την αύξηση που έχει ορίσει το γραφείο, η δεύτερη την επόμενη βαθμίδα κ.ο.κ., με ανώτατο όριο {num(data.maximumCommissionPercent)}%. Δεν αλλάζει από μόνη της τους κανόνες ή την εκκαθάριση του γραφείου.
           </Alert>
+          {data.targetMode === "Vehicles" && (
+            <Alert severity="info" sx={{ mb: 3 }}>
+              Οι εκτιμήσεις παραγωγής για στόχους ανά όχημα χρησιμοποιούν ενδεικτικά 275€ ανά ετήσιο συμβόλαιο αυτοκινήτου (μέσος όρος 250–300€). Αν ο πραγματικός μέσος όρος σας είναι υψηλότερος, χρησιμοποιείται το πραγματικό ιστορικό. Τα ποσά είναι ενδεικτικά και δεν αλλάζουν την εκκαθάριση.
+            </Alert>
+          )}
 
           <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, mb: 3 }}>
             <Kpi label={`Παραγωγή ${MONTHS[data.month - 1]}`} value={money(data.currentPremium)} />

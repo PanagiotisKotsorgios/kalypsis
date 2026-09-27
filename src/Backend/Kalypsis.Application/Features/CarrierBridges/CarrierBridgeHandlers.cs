@@ -149,7 +149,10 @@ public class ListAvailableCarrierBridgesHandler : IRequestHandler<ListAvailableC
         // both into the same BridgeImportRow shape.
         "INTERLIFE",
         "ΙΝΤΕΡΛΑΪΦ",
-        "ΙΝΤΕΡΛΑΙΦ"
+        "ΙΝΤΕΡΛΑΙΦ",
+        // Μινέττα producer export: CP1253 semicolon-delimited ZIP bundle.
+        "MINETTA",
+        "ΜΙΝΕΤΤΑ"
     };
 
     public async Task<IReadOnlyList<AvailableCarrierDto>> Handle(ListAvailableCarrierBridgesQuery _, CancellationToken ct)
@@ -224,7 +227,8 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             || carrierKey.Contains("ΑΤΛΑΝΤΙΚΗ");
         var isInterlife = carrierKey.Contains("INTERLIFE")
             || carrierKey.Contains("ΙΝΤΕΡΛΑΪΦ") || carrierKey.Contains("ΙΝΤΕΡΛΑΙΦ");
-        if (!isErgo && !isGrandCover && !isAtlantic && !isInterlife)
+        var isMinetta = carrierKey.Contains("MINETTA") || carrierKey.Contains("ΜΙΝΕΤΤΑ");
+        if (!isErgo && !isGrandCover && !isAtlantic && !isInterlife && !isMinetta)
             throw new AppException("bridge_format_not_supported",
                 "Δεν υπάρχει διαθέσιμος αναλυτής για αυτή την εταιρία ακόμη.", 400,
                 title: "Μη υποστηριζόμενος αναλυτής",
@@ -255,10 +259,11 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         // parser — the parser used to silently return garbage rows.
         var suspectedFormat = SniffFormat(r.FileContent, r.FileName, isZip);
         var expectedFormat = isErgo ? "ERGO"
-                           : isGrandCover ? "GRAND_COVER"
-                           : isAtlantic ? "ATLANTIC"
-                           : isInterlife ? "INTERLIFE"
-                           : "?";
+                       : isGrandCover ? "GRAND_COVER"
+                       : isAtlantic ? "ATLANTIC"
+                       : isInterlife ? "INTERLIFE"
+                       : isMinetta ? "MINETTA"
+                       : "?";
         // ERGO carrier accepts both ERGO_XLSX and ERGO_TXT — treat both as
         // matching. Anything else is a hard mismatch.
         bool CarrierMatchesFile()
@@ -268,6 +273,7 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             if (isGrandCover && suspectedFormat == "GRAND_COVER") return true;
             if (isAtlantic && suspectedFormat == "ATLANTIC") return true;
             if (isInterlife && suspectedFormat == "INTERLIFE") return true;
+            if (isMinetta && suspectedFormat == "MINETTA") return true;
             return false;
         }
         if (!CarrierMatchesFile())
@@ -279,12 +285,14 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 "INTERLIFE"   => "αρχείο Interlife (.xlsx)",
                 "GRAND_COVER" => "αρχείο Grand Cover (.zip)",
                 "ATLANTIC"    => "αρχείο Ατλαντικής Ένωσης (Producer_ .zip)",
+                "MINETTA"     => "αρχείο Μινέττα (.zip)",
                 _ => "άγνωστου τύπου αρχείο"
             };
             var expectedFriendly = isErgo ? "ERGO Ασφαλιστική"
                                  : isGrandCover ? "Grand Cover"
                                  : isAtlantic ? "Ατλαντική Ένωση"
                                  : isInterlife ? "Interlife"
+                                 : isMinetta ? "Μινέττα"
                                  : carrier.Name;
             throw new AppException("bridge_wrong_carrier",
                 $"Το αρχείο μοιάζει με {friendly}, αλλά το εισάγετε στη γέφυρα «{expectedFriendly}».", 400,
@@ -370,6 +378,18 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             rows = ParseInterlife(wb, r.FileName);
             format = "INTERLIFE";
         }
+        else if (isMinetta)
+        {
+            if (!isZip)
+                throw new AppException("minetta_zip_required",
+                    "Η Μινέττα εξάγει τα δεδομένα σε πλήρες αρχείο .zip με τα min_x_hd/min_x_dt αρχεία.",
+                    400,
+                    title: "Λάθος μορφή αρχείου",
+                    why: "Δεν εντοπίστηκε αρχείο zip.",
+                    fix: "Ανεβάστε το ZIP όπως το εξάγει το σύστημα της Μινέττας, χωρίς αποσυμπίεση.");
+            rows = ParseMinettaZip(r.FileContent);
+            format = "MINETTA";
+        }
         else
         {
             // ERGO ships two shapes in the wild:
@@ -428,7 +448,11 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                     fix: "Ανεβάστε το αρχείο στο πεδίο «Αυτοκίνητο».");
         }
 
-        await ApplyDiffsAsync(rows, carrier.Id, ct);
+        // Keep the existing renewal inference for the established bridge
+        // formats. Minetta's export is a new-production feed, so its unlinked
+        // rows must remain New rows instead of being relabelled as renewals.
+        await ApplyDiffsAsync(rows, carrier.Id, ct,
+            treatUnlinkedRowsAsRenewals: format != "MINETTA");
 
         // Bridge code mapping pass — surface every raw code (branch, coverage,
         // use, package, sub-carrier) that the parsed rows carry but the tenant
@@ -706,6 +730,9 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 if (entryNames.Any(n => n.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)
                     && (n.Contains("(HEADER)", StringComparison.OrdinalIgnoreCase)
                      || n.Contains("(DETAIL)", StringComparison.OrdinalIgnoreCase)))) return "ERGO_TXT";
+                if (entryNames.Any(n => n.StartsWith("min_x_hd", StringComparison.OrdinalIgnoreCase))
+                    && entryNames.Any(n => n.StartsWith("min_x_dt", StringComparison.OrdinalIgnoreCase)))
+                    return "MINETTA";
                 // xlsx also has a zip signature; the archive contains
                 // [Content_Types].xml + xl/ folder. If we're here, the
                 // caller already treated it as xlsx via isZip=true (which
@@ -1739,6 +1766,162 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
     }
 
     // ========================================================================
+    // MINETTA format: a CP1253 semicolon-delimited ZIP bundle. The export
+    // contains one header file for motor policies (min_x_hd), one for other
+    // lines (min_x_hd2), and matching cover-detail files (min_x_dt/min_x_dt2).
+    // The header rows already carry the policy-level totals and customer data;
+    // detail files are intentionally accepted as part of the bundle but are
+    // not imported as separate policies (otherwise every cover would become
+    // a duplicate contract).
+    // ========================================================================
+    private static List<BridgeImportRow> ParseMinettaZip(byte[] zipBytes)
+    {
+        _ = _cp1253Registered;
+        var enc = System.Text.Encoding.GetEncoding(1253);
+        using var ms = new MemoryStream(zipBytes);
+        using var archive = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Read);
+
+        var headerEntries = archive.Entries
+            .Where(e => e.Name.StartsWith("min_x_hd", StringComparison.OrdinalIgnoreCase)
+                     && e.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var detailEntries = archive.Entries
+            .Where(e => e.Name.StartsWith("min_x_dt", StringComparison.OrdinalIgnoreCase)
+                     && e.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (headerEntries.Count == 0 || detailEntries.Count == 0)
+            throw new AppException("minetta_bundle_incomplete",
+                "Το ZIP της Μινέττας δεν περιέχει τα αναμενόμενα min_x_hd/min_x_dt αρχεία.",
+                400,
+                title: "Ελλιπές αρχείο Μινέττας",
+                why: "Χρειάζονται τουλάχιστον ένα αρχείο συμβολαίων (hd) και ένα αρχείο καλύψεων (dt).",
+                fix: "Εξάγετε ξανά το πλήρες πακέτο παραγωγής από τη Μινέττα και ανεβάστε το ZIP αυτούσιο.");
+
+        static string[] ReadLines(System.IO.Compression.ZipArchiveEntry entry, System.Text.Encoding encoding)
+        {
+            using var input = entry.Open();
+            using var copy = new MemoryStream();
+            input.CopyTo(copy);
+            return encoding.GetString(copy.ToArray())
+                .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        }
+
+        var rows = new List<BridgeImportRow>();
+        var index = 0;
+        foreach (var entry in headerEntries.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            foreach (var line in ReadLines(entry, enc))
+            {
+                var cells = SplitCsvLine(line.TrimEnd('\r').Trim());
+                string Get(int column) => column >= 0 && column < cells.Count ? cells[column].Trim() : "";
+
+                // The Minetta files have no header. Ignore accidental metadata
+                // lines and blank records, while retaining valid zero-premium
+                // endorsements for the operator to review.
+                var transaction = Get(0);
+                if (string.IsNullOrWhiteSpace(transaction) || !transaction.All(char.IsDigit)) continue;
+
+                index++;
+                var notes = new List<BridgeImportNote>();
+                var branchCode = Get(2);
+                var branchLabel = Get(3);
+                var isMotor = branchCode == "19"
+                    || branchLabel.Contains("ΑΥΤΟ", StringComparison.OrdinalIgnoreCase);
+
+                var contractNumber = Get(5);
+                if (string.IsNullOrWhiteSpace(contractNumber) || contractNumber == "0")
+                    contractNumber = Get(4);
+                var proposalNumber = Get(4);
+                if (string.IsNullOrWhiteSpace(proposalNumber) || proposalNumber == contractNumber)
+                    proposalNumber = null;
+
+                var issue = ParseMinettaDate(Get(11));
+                var start = ParseMinettaDate(Get(9));
+                var end = ParseMinettaDate(Get(10));
+                var gross = ParseGcAmount(Get(17));
+                var net = ParseGcAmount(Get(13));
+
+                // Customer blocks differ between hd and hd2. Both exports carry
+                // surname, first name, father name and AFM in fixed columns.
+                var nameColumn = isMotor ? 63 : 65;
+                var surname = Get(nameColumn);
+                var firstName = Get(nameColumn + 1);
+                var fatherName = Get(nameColumn + 2);
+                var customerName = string.Join(" ", new[] { firstName, surname, fatherName }
+                    .Where(x => !string.IsNullOrWhiteSpace(x))).Trim();
+                var customerVat = Get(isMotor ? 68 : 70);
+                if (customerVat.Length == 0) customerVat = null;
+
+                var plate = isMotor ? Get(30) : "";
+                if (string.IsNullOrWhiteSpace(plate)) plate = null;
+
+                var raw = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["MINETTA.File"] = entry.Name,
+                    ["MINETTA.Transaction"] = transaction,
+                    ["POLNUM"] = contractNumber,
+                    ["KLDCOD"] = branchCode,
+                    ["Κλάδος.Code"] = branchCode,
+                    ["MINETTA.Branch"] = branchLabel
+                };
+                if (!string.IsNullOrWhiteSpace(proposalNumber)) raw["POLANA"] = proposalNumber;
+                var useCode = Get(isMotor ? 28 : 30);
+                if (!string.IsNullOrWhiteSpace(useCode)) raw["Χρήση.Code"] = useCode;
+                var packageCode = Get(isMotor ? 61 : 62);
+                if (!string.IsNullOrWhiteSpace(packageCode)) raw["Πακέτο.Code"] = packageCode;
+                var statusText = Get(isMotor ? 46 : 85);
+                if (!string.IsNullOrWhiteSpace(statusText)) raw["MINETTA.Status"] = statusText;
+                var coverText = Get(isMotor ? 61 : 63);
+                if (!string.IsNullOrWhiteSpace(coverText)) raw["Καλύψεις"] = coverText;
+
+                var rowType = gross is < 0m ? "Cancellation" : "New";
+                if (rowType == "Cancellation")
+                    notes.Add(new BridgeImportNote("Τύπος", "info", "Αρνητικό ασφάλιστρο → ακύρωση"));
+                if (string.IsNullOrWhiteSpace(contractNumber))
+                {
+                    notes.Add(new BridgeImportNote("Συμβόλαιο", "error", "Λείπει ο αριθμός συμβολαίου"));
+                }
+                if (string.IsNullOrWhiteSpace(customerName))
+                    notes.Add(new BridgeImportNote("Πελάτης", "warn", "Δεν βρέθηκαν στοιχεία πελάτη στο αρχείο hd"));
+                if (!gross.HasValue)
+                    notes.Add(new BridgeImportNote("Ασφάλιστρο", "warn", "Δεν βρέθηκε μικτό ασφάλιστρο"));
+
+                rows.Add(new BridgeImportRow(
+                    index,
+                    contractNumber,
+                    proposalNumber,
+                    string.IsNullOrWhiteSpace(customerName) ? null : customerName,
+                    customerVat,
+                    issue,
+                    start,
+                    end,
+                    gross,
+                    net,
+                    null,
+                    null,
+                    "Μινέττα",
+                    null,
+                    raw,
+                    notes,
+                    string.IsNullOrWhiteSpace(contractNumber) ? "Error" : "Ready",
+                    rowType,
+                    null,
+                    null,
+                    plate));
+            }
+        }
+
+        return rows;
+    }
+
+    private static DateOnly? ParseMinettaDate(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return DateOnly.TryParseExact(value.Trim(), "ddMMyyyy", CultureInfo.InvariantCulture,
+            DateTimeStyles.None, out var date) ? date : null;
+    }
+
+    // ========================================================================
     // ATLANTIC UNION (Ατλαντική Ένωση) format: fixed-width text files inside a
     // Producer_YYYYMMDDhhmmss.zip. Files are CP1253-encoded, CRLF line endings.
     //
@@ -2152,7 +2335,11 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
     /// <summary>Pass over the parsed rows and attach parameterization-diff notes
     /// without mutating the data. Also detect duplicates against existing policies,
     /// link renewals/endorsements to prior policies, and flag missing parameterization.</summary>
-    private async Task ApplyDiffsAsync(List<BridgeImportRow> rows, Guid carrierId, CancellationToken ct)
+    private async Task ApplyDiffsAsync(
+        List<BridgeImportRow> rows,
+        Guid carrierId,
+        CancellationToken ct,
+        bool treatUnlinkedRowsAsRenewals = true)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         static bool IsLifecycle(string rowType) => rowType is "Cancellation" or "Endorsement" or "GreenCard";
@@ -2363,7 +2550,9 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             // Duplicates are NOT relabelled — the policy already exists, so calling
             // it "ανανέωση χωρίς σύνδεση" would contradict the "έχει ήδη εισαχθεί"
             // note we just wrote above.
-            if (rowType == "New" && r.GrossPremium.HasValue && r.GrossPremium.Value > 0 && status != "Duplicate")
+            if (treatUnlinkedRowsAsRenewals
+                && rowType == "New" && r.GrossPremium.HasValue && r.GrossPremium.Value > 0
+                && status != "Duplicate")
             {
                 rowType = "Renewal";
                 r.Notes.Add(new BridgeImportNote("Τύπος", "warn",
@@ -2955,6 +3144,7 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                             Id = Guid.NewGuid(),
                             TenantId = tenantId,
                             PolicyNumber = row.PolicyNumber!,
+                            ApplicationNumber = row.ProposalNumber,
                             CustomerId = synthCustomer.Id,
                             InsuranceCompanyId = carrier.Id,
                             ProducerId = synthProducerId,
@@ -2962,7 +3152,10 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                             Status = PolicyStatus.Cancelled,
                             StartDate = row.StartDate ?? DateOnly.FromDateTime(DateTime.Today),
                             EndDate = row.EndDate ?? (row.StartDate ?? DateOnly.FromDateTime(DateTime.Today)).AddYears(1),
+                            IssuedAt = row.IssueDate,
                             Premium = Math.Abs(row.GrossPremium ?? 0m),
+                            NetPremium = row.NetPremium.HasValue ? Math.Abs(row.NetPremium.Value) : null,
+                            VehicleRegistrationPlate = row.PlateNumber,
                             Currency = "EUR",
                             CarrierUseCode      = row.Raw.TryGetValue("Χρήση.Code",   out var uC) && !string.IsNullOrWhiteSpace(uC) ? uC.Trim() : null,
                             CarrierBranchCode   = row.Raw.TryGetValue("Κλάδος.Code",  out var bC) && !string.IsNullOrWhiteSpace(bC) ? bC.Trim() : null,
@@ -3231,6 +3424,7 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                 {
                     Id = Guid.NewGuid(),
                     PolicyNumber = row.PolicyNumber!,
+                    ApplicationNumber = row.ProposalNumber,
                     CustomerId = customerEntity.Id,
                     InsuranceCompanyId = carrier.Id,
                     ProducerId = producerId,
@@ -3238,7 +3432,10 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                     Status = policyStatus,
                     StartDate = row.StartDate ?? DateOnly.FromDateTime(DateTime.Today),
                     EndDate = row.EndDate ?? (row.StartDate ?? DateOnly.FromDateTime(DateTime.Today)).AddYears(1),
+                    IssuedAt = row.IssueDate,
+                    VehicleRegistrationPlate = row.PlateNumber,
                     Premium = Math.Abs(row.GrossPremium ?? 0m),
+                    NetPremium = row.NetPremium.HasValue ? Math.Abs(row.NetPremium.Value) : null,
                     Currency = "EUR",
                     CarrierUseCode      = carrierUseCode,
                     CarrierBranchCode   = carrierBranchCode,

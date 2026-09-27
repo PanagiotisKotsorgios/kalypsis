@@ -325,7 +325,8 @@ public class GetProducerSelfGoalsQueryHandler
                     plan.GoalCommissionIncreasePercent,
                     maximumRate,
                     plan.GoalLevelCount,
-                    taxRate)
+                    taxRate,
+                    targetMode == "Vehicles" ? 275m : 1_000m)
             : Array.Empty<ProducerCommissionGrowthTargetDto>();
 
         return new ProducerSelfGoalsDto(
@@ -394,7 +395,8 @@ public class GetProducerSelfGoalsQueryHandler
         decimal rateIncrease,
         decimal maximumRate,
         int levelCount,
-        decimal taxRate)
+        decimal taxRate,
+        decimal unitPremiumFloor)
     {
         var targets = new List<ProducerCommissionGrowthTargetDto>();
         var safeStep = Math.Max(countStep, 1);
@@ -405,8 +407,12 @@ public class GetProducerSelfGoalsQueryHandler
         var averagePremium = currentCount > 0
             ? currentPremium / currentCount
             : 0m;
-        if (averagePremium <= 0m)
-            averagePremium = 1_000m;
+        // Vehicle-count plans are commonly used for annual motor policies.
+        // When there is no production history yet, a generic €1,000 fallback
+        // made 100 vehicles look like €100,000 production. Use a realistic
+        // midpoint (€275) for motor vehicles, while still respecting a real
+        // average above that floor when history exists.
+        averagePremium = Math.Max(averagePremium, Math.Max(unitPremiumFloor, 1m));
 
         var rate = Math.Min(Math.Max(baseRate, 0m), maximumRate);
         for (var level = 1; level <= Math.Clamp(levelCount, 1, 12) && rate < maximumRate; level++)

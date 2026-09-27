@@ -155,6 +155,10 @@ export function CashPositionPage() {
 
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
 
+      <Alert severity="info" sx={{ mb: 2 }}>
+        Για ασφάλιστρα που ο πελάτης πλήρωσε απευθείας στην ασφαλιστική, ενεργοποιήστε την αντίστοιχη επιλογή από την καταχώρηση ή την καρτέλα του συμβολαίου. Δεν καταχωρείται κίνηση στο ταμείο και η οφειλή προς την ασφαλιστική δεν εμφανίζεται ως εκκρεμής.
+      </Alert>
+
       <Stack direction={{ xs: "column", md: "row" }} spacing={2} mb={3}>
         {(accounts.data ?? []).map(a => (
           <Card key={a.id} variant="outlined" sx={{ p: 2, flex: 1, cursor: "pointer", borderColor: filter === a.id ? "primary.main" : undefined, borderWidth: filter === a.id ? 2 : 1 }} onClick={() => setFilter(filter === a.id ? "" : a.id)}>

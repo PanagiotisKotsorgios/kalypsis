@@ -15,6 +15,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  FormControlLabel,
   IconButton,
   InputAdornment,
   MenuItem,
@@ -78,6 +79,7 @@ interface PolicyDto {
   producerName: string | null;
   policyType: PolicyType;
   status: PolicyStatus;
+  paidDirectlyToCarrier: boolean;
   startDate: string;
   endDate: string;
   premium: number;
@@ -820,6 +822,7 @@ interface FormBody {
   insuranceTaxAmount: string;
   currency: string;
   status: PolicyStatus;
+  paidDirectlyToCarrier: boolean;
 }
 
 function PolicyFormDialog({
@@ -878,7 +881,8 @@ function PolicyFormDialog({
     specialCommissionPercent: "",
     insuranceTaxAmount: "",
     currency: "EUR",
-    status: "Active"
+    status: "Active",
+    paidDirectlyToCarrier: false
   });
   const [error, setError] = useState<string | null>(null);
   const dialogCatalogue = useCarrierCatalogue(form.insuranceCompanyId);
@@ -907,7 +911,8 @@ function PolicyFormDialog({
         specialCommissionPercent: "",
         insuranceTaxAmount: "",
         currency: policy.currency,
-        status: policy.status
+        status: policy.status,
+        paidDirectlyToCarrier: policy.paidDirectlyToCarrier ?? false
       });
     } else if (open) {
       setForm({
@@ -926,7 +931,8 @@ function PolicyFormDialog({
         specialCommissionPercent: "",
         insuranceTaxAmount: "",
         currency: "EUR",
-        status: initialStatus
+        status: initialStatus,
+        paidDirectlyToCarrier: false
       });
     }
   }, [policy, open, initialStatus]);
@@ -957,6 +963,7 @@ function PolicyFormDialog({
         vatAmount: taxAmount,
         currency: form.currency,
         status: form.status,
+        paidDirectlyToCarrier: form.paidDirectlyToCarrier,
       };
       if (editing && policy) {
         return (await api.put<PolicyDto>(`/policies/${policy.id}`, body)).data;
@@ -1192,6 +1199,14 @@ function PolicyFormDialog({
               )}
             </SearchableTextField>
           </Stack>
+          <FormControlLabel
+            control={<Checkbox checked={form.paidDirectlyToCarrier}
+              onChange={e => setForm({ ...form, paidDirectlyToCarrier: e.target.checked })} />}
+            label="Ο πελάτης πλήρωσε απευθείας στην ασφαλιστική"
+          />
+          <Typography variant="caption" color="text.secondary" sx={{ mt: -1.5 }}>
+            Δεν δημιουργείται είσπραξη στο ταμείο του γραφείου και η οφειλή προς την ασφαλιστική εξαιρείται από τις εκκρεμείς πληρωμές.
+          </Typography>
         </Stack>
       </DialogContent>
       <DialogActions>

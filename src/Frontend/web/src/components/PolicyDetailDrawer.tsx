@@ -34,6 +34,7 @@ export interface PolicyDetail {
   renewalInstructions: string | null;
   deliveredAt: string | null; deliveredTo: string | null; deliveryMethod: string | null;
   paymentCollectionMethod: string | null;
+  paidDirectlyToCarrier: boolean;
   renewedFromPolicyId: string | null; renewedFromPolicyNumber: string | null;
   endorsementCount: number; cancellationCount: number; claimCount: number; commissionTxnCount: number;
   documentCount: number; receiptCount: number;
@@ -130,6 +131,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
     deliveredTo: "",
     deliveryMethod: "",
     paymentCollectionMethod: "",
+    paidDirectlyToCarrier: false,
     // ALIS-parity fields
     applicationNumber: "",
     contractPartyCustomerId: "",
@@ -158,6 +160,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
         deliveredTo: q.data.deliveredTo ?? "",
         deliveryMethod: q.data.deliveryMethod ?? "",
         paymentCollectionMethod: q.data.paymentCollectionMethod ?? "",
+        paidDirectlyToCarrier: q.data.paidDirectlyToCarrier,
         applicationNumber: q.data.applicationNumber ?? "",
         contractPartyCustomerId: q.data.contractPartyCustomerId ?? "",
         previousInsuranceCompanyId: q.data.previousInsuranceCompanyId ?? "",
@@ -243,6 +246,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
         deliveredTo: form.deliveredTo || null,
         deliveryMethod: form.deliveryMethod || null,
         paymentCollectionMethod: form.paymentCollectionMethod || null,
+        paidDirectlyToCarrier: form.paidDirectlyToCarrier,
         applicationNumber: form.applicationNumber.trim() || null,
         contractPartyCustomerId: form.contractPartyCustomerId || null,
         previousInsuranceCompanyId: form.previousInsuranceCompanyId || null,
@@ -566,6 +570,14 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
                     <MenuItem value="">—</MenuItem>
                     {COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}
                   </TextField>
+                  <FormControlLabel
+                    control={<Switch checked={form.paidDirectlyToCarrier}
+                      onChange={e => setForm({ ...form, paidDirectlyToCarrier: e.target.checked })} />}
+                    label="Ο πελάτης πλήρωσε απευθείας στην ασφαλιστική"
+                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: -1.5 }}>
+                    Η πληρωμή δεν περνά από το ταμείο του γραφείου και δεν εμφανίζεται ως εκκρεμής οφειλή προς την ασφαλιστική.
+                  </Typography>
                   <Stack direction="row" alignItems="center" spacing={1}>
                     <Switch checked={form.premiumIncludesVat} onChange={e => setForm({ ...form, premiumIncludesVat: e.target.checked })} />
                     <Typography>Το ασφάλιστρο περιλαμβάνει φόρο ασφαλίστρων</Typography>

@@ -79,13 +79,25 @@ public class GetPaymentObligationsSummaryHandler
             && !string.Equals(row.Status, nameof(PolicyStatus.Prospect), StringComparison.OrdinalIgnoreCase))
             .ToList();
 
+        // A direct-to-carrier policy is paid by the customer to the insurer,
+        // so the office has no carrier cash obligation for that policy. The
+        // producer commission remains payable from the commission returned by
+        // the carrier and is therefore intentionally kept below.
+        var directToCarrierIds = await _db.Policies
+            .Where(policy => policy.PaidDirectlyToCarrier && policy.DeletedAt == null)
+            .Select(policy => policy.Id)
+            .ToListAsync(ct);
+        var directToCarrierSet = directToCarrierIds.ToHashSet();
+
         // The office pays the carrier the full gross premium first. The
         // carrier's total commission is returned/credited separately, so it
         // must not reduce the carrier payable shown here. The producer
         // obligation remains only the producer's calculated share.
-        var companiesDue = eligible.Sum(row => row.Gross);
+        var companiesDue = eligible
+            .Where(row => !directToCarrierSet.Contains(row.PolicyId))
+            .Sum(row => row.Gross);
         var producersDue = eligible.Sum(row => row.PartnerCommission);
-        var companyPolicyCount = eligible.Count(row => row.Gross > 0m);
+        var companyPolicyCount = eligible.Count(row => row.Gross > 0m && !directToCarrierSet.Contains(row.PolicyId));
         var producerPolicyCount = eligible.Count(row => row.PartnerCommission > 0m);
 
         var paidByType = await _db.Payments

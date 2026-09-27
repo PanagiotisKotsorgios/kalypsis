@@ -811,7 +811,8 @@ public class InsuranceCompaniesController : ControllerBase
         var supportedTokens = new[] {
             "ERGO", "GRAND COVER", "GRANDCOVER",
             "ATLANTIC", "ATLANTIKI", "ΑΤΛΑΝΤΙΚΗ",
-            "INTERLIFE", "ΙΝΤΕΡΛΑΪΦ", "ΙΝΤΕΡΛΑΙΦ"
+            "INTERLIFE", "ΙΝΤΕΡΛΑΪΦ", "ΙΝΤΕΡΛΑΙΦ",
+            "MINETTA", "ΜΙΝΕΤΤΑ"
         };
         string BridgeStatus(string code, string name)
         {
@@ -955,7 +956,13 @@ public class InsuranceCompaniesController : ControllerBase
         parameterCounts.TryGetValue(c.Id, out var parameterCount);
         // Universal rows opt-in through TenantCarrierOptIn; tenant-scoped rows
         // are implicitly used (the tenant created them).
-        var isUsedByTenant = c.TenantId != null || optInSet.Contains(c.Id);
+        // Minetta is a platform-wide production bridge. It is deliberately
+        // available in every office's operational pickers without requiring
+        // a separate opt-in; other universal carriers keep the existing opt-in
+        // behaviour.
+        var isUsedByTenant = c.TenantId != null
+            || optInSet.Contains(c.Id)
+            || string.Equals(c.Code, "MINETTA", StringComparison.OrdinalIgnoreCase);
         return new InsuranceCompanyExtendedDto(
             c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
             c.TenantId, c.TenantId == null,
