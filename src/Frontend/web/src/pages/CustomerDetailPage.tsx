@@ -1028,7 +1028,6 @@ function FamilyNeedsTab({ customerId }: { customerId: string }) {
       <DriverLicenseCard customerId={customerId} />
       <CustomerNeedsCard customerId={customerId} needs={q.data.needs} />
       <FamilyMembersCard customerId={customerId} members={q.data.family} />
-      <ConsentsCard customerId={customerId} />
       <CommunicationsCard customerId={customerId} />
       <OpportunitiesCard opportunities={q.data.opportunities} />
     </Stack>
@@ -1099,6 +1098,10 @@ function ConsentsCard({ customerId }: { customerId: string }) {
     </Card>
   );
 }
+
+// Kept for older bundles and API compatibility; the customer card no longer
+// renders the confusing legal-consents block. Forms are handled in GDPR actions.
+void ConsentsCard;
 
 function CommunicationsCard({ customerId }: { customerId: string }) {
   const { t } = useTranslation();
@@ -1462,15 +1465,18 @@ function CustomerGdprFormSigningPanel({ customerId }: { customerId: string }) {
   const policiesQ = useQuery({ queryKey: ["customer-form-signing-policies", customerId], queryFn: async () => (await api.get<CustomerFormPolicyOption[]>("/policies", { params: { customerId } })).data });
   const [policyId, setPolicyId] = useState("");
   const [needsOpen, setNeedsOpen] = useState(false);
+  const [intermediaryOpen, setIntermediaryOpen] = useState(false);
+  const [receiptOpen, setReceiptOpen] = useState(false);
   const [previewing, setPreviewing] = useState("");
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [exportStatus, setExportStatus] = useState("");
   const [exportFrom, setExportFrom] = useState("");
   const [exportTo, setExportTo] = useState("");
   const create = useMutation({ mutationFn: async () => (await api.post<CustomerFormSigningRow>(`/customers/${customerId}/form-signings`, { formCode: "gdpr-consent", policyId: policyId || null })).data, onSuccess: () => void qc.invalidateQueries({ queryKey: ["customer-form-signings", customerId] }) });
+  const sendAdditional = useMutation({ mutationFn: async (input: { formCode: string; fields: Record<string, string> }) => (await api.post<CustomerFormSigningRow>(`/customers/${customerId}/form-signings`, { formCode: input.formCode, policyId: policyId || null, fields: input.fields })).data, onSuccess: () => void qc.invalidateQueries({ queryKey: ["customer-form-signings", customerId] }) });
   const resend = useMutation({ mutationFn: async (id: string) => api.post(`/customer-form-signings/${id}/resend`), onSuccess: () => void qc.invalidateQueries({ queryKey: ["customer-form-signings", customerId] }) });
-  const download = async (id: string) => { const res = await api.get(`/customer-form-signings/${id}/document`, { responseType: "blob" }); const url = URL.createObjectURL(res.data); const a = document.createElement("a"); a.href = url; a.download = "gdpr-consent-signed.pdf"; a.click(); URL.revokeObjectURL(url); };
-  const preview = async (formCode: "gdpr-consent" | "customer-needs", fields?: Record<string, string>, policyOverride?: string) => {
+  const download = async (id: string) => { const res = await api.get(`/customer-form-signings/${id}/document`, { responseType: "blob" }); const url = URL.createObjectURL(res.data); const a = document.createElement("a"); a.href = url; a.download = "signed-customer-form.pdf"; a.click(); URL.revokeObjectURL(url); };
+  const preview = async (formCode: "gdpr-consent" | "customer-needs" | "intermediary-information" | "document-receipt", fields?: Record<string, string>, policyOverride?: string) => {
     setPreviewError(null); setPreviewing(formCode);
     try {
       const res = await api.post(`/customers/${customerId}/form-preview`, { formCode, policyId: (policyOverride ?? policyId) || null, fields: fields ?? {} }, { responseType: "blob" });
@@ -1487,12 +1493,17 @@ function CustomerGdprFormSigningPanel({ customerId }: { customerId: string }) {
        <Button size="small" variant="contained" onClick={() => create.mutate()} disabled={create.isPending}>{create.isPending ? <CircularProgress size={16} color="inherit" /> : "Αποστολή GDPR για υπογραφή"}</Button>
        <Button size="small" variant="outlined" onClick={() => setNeedsOpen(true)}>Έντυπο Αναγκών Πελάτη</Button>
      </Stack>
+     <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 1.5 }}>
+       <Button size="small" variant="outlined" onClick={() => setIntermediaryOpen(true)}>Πληροφορίες διαμεσολαβητή</Button>
+       <Button size="small" variant="outlined" onClick={() => setReceiptOpen(true)}>Απόδειξη παραλαβής εντύπων</Button>
+     </Stack>
      {previewError && <Alert severity="error" sx={{ mb: 1 }} onClose={() => setPreviewError(null)}>{previewError}</Alert>}
-     {create.isError && <Alert severity="error" sx={{ mb: 1 }}>{extractErrorMessage(create.error)}</Alert>}
+    {create.isError && <Alert severity="error" sx={{ mb: 1 }}>{extractErrorMessage(create.error)}</Alert>}
+    {sendAdditional.isError && <Alert severity="error" sx={{ mb: 1 }}>{extractErrorMessage(sendAdditional.error)}</Alert>}
     {resend.isError && <Alert severity="error" sx={{ mb: 1 }}>{extractErrorMessage(resend.error)}</Alert>}
     <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}><TextField select size="small" label="Συμβόλαιο (προαιρετικό, για ασφαλιστική)" value={policyId} onChange={e => setPolicyId(e.target.value)} sx={{ minWidth: { sm: 340 } }}><MenuItem value="">Χωρίς συγκεκριμένο συμβόλαιο</MenuItem>{(policiesQ.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.policyNumber || "—"} · {p.insuranceCompanyName}</MenuItem>)}</TextField></Stack>
     {q.isLoading ? <CircularProgress size={20} /> : q.isError ? <Alert severity="error">{extractErrorMessage(q.error)}</Alert> : q.data?.length === 0 ? <Typography variant="body2" color="text.secondary">Δεν έχει δημιουργηθεί έντυπο για αυτόν τον πελάτη.</Typography> : <Stack spacing={1}>{q.data?.map(row => <Box key={row.id} sx={{ p: 1.5, border: "1px solid", borderColor: "divider", borderRadius: 1 }}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}><Box><Typography fontWeight={700}>{row.status === "Completed" ? "Ολοκληρωμένο" : row.status === "Declined" ? "Δεν συναινεί" : row.status === "PendingCustomer" ? "Αναμονή πελάτη" : row.status === "PendingOffice" ? "Αναμονή γραφείου" : row.status === "PendingInsurer" ? "Αναμονή ασφαλιστικής" : row.status}</Typography><Typography variant="caption" color="text.secondary">Δημιουργήθηκε {formatDate(row.createdAt)} · Λήξη {formatDate(row.expiresAt)}</Typography></Box><Stack direction="row" spacing={1}>{row.status === "PendingCustomer" && <Button size="small" onClick={() => resend.mutate(row.id)}>Επανάληψη email</Button>}{row.hasFinalDocument && <Button size="small" startIcon={<DownloadIcon />} onClick={() => void download(row.id)}>PDF</Button>}</Stack></Stack></Box>)}</Stack>}
-   </Card><CustomerNeedsFormDialog open={needsOpen} customerId={customerId} policies={policiesQ.data ?? []} onClose={() => setNeedsOpen(false)} onPreview={(fields, selectedPolicyId) => preview("customer-needs", fields, selectedPolicyId)} onSaved={() => { setNeedsOpen(false); void qc.invalidateQueries({ queryKey: ["customer-form-signings", customerId] }); }} /></>;
+    </Card><CustomerNeedsFormDialog open={needsOpen} customerId={customerId} policies={policiesQ.data ?? []} onClose={() => setNeedsOpen(false)} onPreview={(fields, selectedPolicyId) => preview("customer-needs", fields, selectedPolicyId)} onSaved={() => { setNeedsOpen(false); void qc.invalidateQueries({ queryKey: ["customer-form-signings", customerId] }); }} /><IntermediaryInformationDialog open={intermediaryOpen} onClose={() => setIntermediaryOpen(false)} onPreview={fields => preview("intermediary-information", fields)} onSend={fields => sendAdditional.mutate({ formCode: "intermediary-information", fields }, { onSuccess: () => setIntermediaryOpen(false) })} sending={sendAdditional.isPending} /><DocumentReceiptDialog open={receiptOpen} onClose={() => setReceiptOpen(false)} onPreview={fields => preview("document-receipt", fields, policyId)} onSend={fields => sendAdditional.mutate({ formCode: "document-receipt", fields }, { onSuccess: () => setReceiptOpen(false) })} sending={sendAdditional.isPending} /></>;
 }
 
 const CUSTOMER_NEEDS_FIELDS: Array<{ key: string; label: string; multiline?: boolean }> = [
@@ -1576,6 +1587,73 @@ function CustomerNeedsFormDialog({ open, customerId, policies, onClose, onPrevie
     </DialogContent>
     <DialogActions><Button onClick={onClose}>Άκυρο</Button><Button variant="contained" onClick={() => create.mutate()} disabled={create.isPending}>{create.isPending ? <CircularProgress size={18} color="inherit" /> : "Δημιουργία και αποστολή για υπογραφή"}</Button></DialogActions>
   </Dialog>;
+}
+
+interface MailMergedFormField {
+  key: string;
+  label: string;
+  value?: string;
+  multiline?: boolean;
+  type?: "text" | "date";
+}
+
+function MailMergedFormDialog({ open, title, description, fields: fieldDefinitions, onClose, onPreview, onSend, sending }: {
+  open: boolean;
+  title: string;
+  description: string;
+  fields: MailMergedFormField[];
+  onClose: () => void;
+  onPreview: (fields: Record<string, string>) => void;
+  onSend: (fields: Record<string, string>) => void;
+  sending: boolean;
+}) {
+  const [fields, setFields] = useState<Record<string, string>>(() => Object.fromEntries(fieldDefinitions.map(field => [field.key, field.value ?? ""])));
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+    <DialogTitle>{title}</DialogTitle>
+    <DialogContent dividers>
+      <Alert severity="info" sx={{ mb: 2 }}>{description} Τα στοιχεία πελάτη, γραφείου, λογότυπου και συμβολαίου συμπληρώνονται αυτόματα από την καρτέλα.</Alert>
+      <Stack spacing={1.25}>
+        {fieldDefinitions.map(field => <TextField key={field.key} type={field.type ?? "text"} label={field.label} value={fields[field.key] ?? ""} onChange={e => setFields(previous => ({ ...previous, [field.key]: e.target.value }))} multiline={field.multiline} minRows={field.multiline ? 2 : undefined} fullWidth InputLabelProps={field.type === "date" ? { shrink: true } : undefined} />)}
+      </Stack>
+      <Button sx={{ mt: 2 }} variant="outlined" onClick={() => onPreview(fields)}>Προεπισκόπηση PDF</Button>
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={onClose}>Άκυρο</Button>
+      <Button variant="contained" onClick={() => onSend(fields)} disabled={sending}>{sending ? <CircularProgress size={18} color="inherit" /> : "Δημιουργία και αποστολή για υπογραφή"}</Button>
+    </DialogActions>
+  </Dialog>;
+}
+
+const INTERMEDIARY_INFORMATION_FIELDS: MailMergedFormField[] = [
+  { key: "intermediaryCategory", label: "Επαγγελματική ιδιότητα / κατηγορία", value: "Ασφαλιστικός πράκτορας" },
+  { key: "legalActivity", label: "Νομικός τρόπος δραστηριότητας", value: "Συμπληρώνεται από το γραφείο" },
+  { key: "represents", label: "Ενεργεί για λογαριασμό", value: "Για λογαριασμό των ασφαλιστικών επιχειρήσεων με τις οποίες συνεργάζεται" },
+  { key: "providesAdvice", label: "Παρέχει συμβουλή", value: "Ναι — σύμφωνα με τις απαιτήσεις και τις ανάγκες του πελάτη" },
+  { key: "singleInformationPointUrl", label: "Σύνδεσμος Ενιαίου Σημείου Πληροφόρησης", value: "https://insuranceregistry.uhc.gr/" },
+  { key: "collaboratingInsurers", label: "Ασφαλιστικές εταιρείες που συνεργάζεται", value: "", multiline: true },
+  { key: "remunerationNature", label: "Φύση αμοιβής", value: "Προμήθεια ή άλλη αμοιβή που περιλαμβάνεται στο ασφάλιστρο, όπου εφαρμόζεται" },
+  { key: "remunerationMethod", label: "Τρόπος αμοιβής", value: "Συμπληρώνεται από το γραφείο" },
+  { key: "ownershipDisclosure", label: "Συμμετοχές άνω του 10%", value: "Δεν υπάρχει συμμετοχή άνω του 10%, εκτός αν αναφέρεται διαφορετικά" },
+  { key: "investmentBasedInsurance", label: "Επενδυτικά προϊόντα βασιζόμενα σε ασφάλιση", value: "Δεν προωθούνται, εκτός αν αναφέρεται διαφορετικά" },
+  { key: "premiumCollectionMandate", label: "Εντολή είσπραξης ασφαλίστρων", value: "Συμπληρώνεται από το γραφείο" },
+  { key: "complaintsProcedure", label: "Διαδικασία αιτιάσεων / καταγγελιών", value: "Έγγραφη υποβολή στο γραφείο και στις αρμόδιες αρχές" },
+  { key: "outOfCourtDisputes", label: "Εξωδικαστική επίλυση διαφορών", value: "Συμπληρώνεται από το γραφείο", multiline: true }
+];
+
+function IntermediaryInformationDialog({ open, onClose, onPreview, onSend, sending }: { open: boolean; onClose: () => void; onPreview: (fields: Record<string, string>) => void; onSend: (fields: Record<string, string>) => void; sending: boolean }) {
+  return <MailMergedFormDialog open={open} title="Πληροφορίες ασφαλιστικού διαμεσολαβητή" description="Το πρότυπο περιλαμβάνει τα στοιχεία ενημέρωσης των άρθρων 28, 29 και 33 του ν. 4583/2018." fields={INTERMEDIARY_INFORMATION_FIELDS} onClose={onClose} onPreview={onPreview} onSend={onSend} sending={sending} />;
+}
+
+const DOCUMENT_RECEIPT_FIELDS: MailMergedFormField[] = [
+  { key: "contactDate", label: "Ημερομηνία επικοινωνίας", type: "date", value: new Date().toISOString().slice(0, 10) },
+  { key: "deliveryDate", label: "Ημερομηνία παράδοσης / παραλαβής", type: "date", value: new Date().toISOString().slice(0, 10) },
+  { key: "deliveryMethod", label: "Τρόπος παράδοσης", value: "Ηλεκτρονικά μέσω ασφαλούς συνδέσμου" },
+  { key: "documentsReceived", label: "Έγγραφα που παρέλαβε ο πελάτης", value: "Έντυπο GDPR; Έντυπο Αναγκών Πελάτη; Πληροφορίες Ασφαλιστικού Διαμεσολαβητή", multiline: true },
+  { key: "receiptNotes", label: "Παρατηρήσεις", multiline: true }
+];
+
+function DocumentReceiptDialog({ open, onClose, onPreview, onSend, sending }: { open: boolean; onClose: () => void; onPreview: (fields: Record<string, string>) => void; onSend: (fields: Record<string, string>) => void; sending: boolean }) {
+  return <MailMergedFormDialog open={open} title="Απόδειξη παραλαβής εντύπων από τον πελάτη" description="Καταγράψτε τις ημερομηνίες, τον τρόπο παράδοσης και ακριβώς ποια έγγραφα παρέλαβε ο πελάτης." fields={DOCUMENT_RECEIPT_FIELDS} onClose={onClose} onPreview={onPreview} onSend={onSend} sending={sending} />;
 }
 
 function GdprActionsTab({ customerId }: { customerId: string }) {

@@ -104,7 +104,13 @@ public sealed class CustomerFormSigningController : ControllerBase
 
         var office = await _db.Tenants.IgnoreQueryFilters().AsNoTracking()
             .FirstAsync(x => x.Id == tenantId, ct);
-        var data = BuildFormData(customer, office, policy, body.Fields);
+        var collaboratingInsurers = string.Join(", ", await _db.Policies.AsNoTracking()
+            .Where(x => x.TenantId == tenantId)
+            .Select(x => x.InsuranceCompany.Name)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToListAsync(ct));
+        var data = BuildFormData(customer, office, policy, body.Fields, collaboratingInsurers);
         var draft = new CustomerFormSigning
         {
             Id = Guid.NewGuid(),
@@ -112,13 +118,13 @@ public sealed class CustomerFormSigningController : ControllerBase
             CustomerId = customerId,
             PolicyId = policy?.Id,
             FormCode = formCode,
-            FormVersion = formCode == "customer-needs" ? "nivis-v1" : "gdpr-consent-cover-v1",
+            FormVersion = FormVersionFor(formCode, "gdpr-consent-cover-v1"),
             Status = CustomerFormSigningStatus.Draft,
             CustomerFullNameSnapshot = DisplayName(customer),
             CustomerEmailSnapshot = customer.Email,
             InsurerEmailSnapshot = policy?.InsuranceCompany?.ContactEmail,
             FormDataJson = data.Count == 0 ? null : JsonSerializer.Serialize(data),
-            FileName = formCode == "customer-needs" ? "customer-needs-preview.pdf" : "gdpr-consent-preview.pdf",
+            FileName = FileNameFor(formCode, preview: true),
             CreatedAt = DateTime.UtcNow,
             ExpiresAt = DateTime.UtcNow
         };
@@ -160,20 +166,21 @@ public sealed class CustomerFormSigningController : ControllerBase
         // Install the reusable template the first time the office uses the
         // workflow. It is visible in the existing Document Templates module
         // and gives future versions a stable code/version to migrate from.
-        var templateCode = formCode == "customer-needs" ? "CUSTOMER_NEEDS" : "GDPR_CONSENT";
+        var template = TemplateFor(formCode);
+        var templateCode = template.Code;
         if (!await _db.DocumentTemplates.AnyAsync(x => x.TenantId == tenantId && x.Code == templateCode, ct))
         {
             _db.DocumentTemplates.Add(new DocumentTemplate
             {
                 TenantId = tenantId,
                 Code = templateCode,
-                Name = formCode == "customer-needs" ? "Έντυπο Αναγκών Πελάτη" : "Έντυπο ενημέρωσης και δήλωσης GDPR",
-                Kind = formCode == "customer-needs" ? "CustomerNeeds" : "GDPR",
+                Name = template.Name,
+                Kind = template.Kind,
                 PageSize = "A4",
                 Orientation = "Portrait",
                 IsDefault = true,
                 IsActive = true,
-                BodyHtml = "<h1>{{agency.name}}</h1><h2>ΕΝΗΜΕΡΩΣΗ ΥΠΟΚΕΙΜΕΝΟΥ ΔΕΔΟΜΕΝΩΝ & ΔΗΛΩΣΗ GDPR</h2><p>Πελάτης: {{customer.name}}</p><p>Email: {{customer.email}}</p><p>Η δήλωση και οι υπογραφές συμπληρώνονται ηλεκτρονικά από τον ασφαλή σύνδεσμο.</p>"
+                BodyHtml = template.BodyHtml
             });
         }
 
@@ -184,11 +191,17 @@ public sealed class CustomerFormSigningController : ControllerBase
             needsTemplate.BodyHtml = "<h1>{{agency.name}}</h1><h2>ΕΝΤΥΠΟ ΑΝΑΓΚΩΝ ΠΕΛΑΤΗ</h2><p>{{customer.name}}</p><p>{{customer.email}}</p><p>{{form.vesselName}}</p><p>{{form.totalInsuredValue}}</p><p>Δήλωση και υπογραφή πελάτη, γραφείου και ασφαλιστικής όπου απαιτείται.</p>";
 
         var now = DateTime.UtcNow;
-        var formData = BuildFormData(customer, office, policy, body.Fields);
+        var collaboratingInsurersForSigning = string.Join(", ", await _db.Policies.AsNoTracking()
+            .Where(x => x.TenantId == tenantId)
+            .Select(x => x.InsuranceCompany.Name)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToListAsync(ct));
+        var formData = BuildFormData(customer, office, policy, body.Fields, collaboratingInsurersForSigning);
         var signing = new CustomerFormSigning
         {
             TenantId = tenantId, CustomerId = customerId, PolicyId = policy?.Id,
-            FormCode = formCode, FormVersion = formCode == "customer-needs" ? "nivis-v1" : settings.TemplateCode,
+            FormCode = formCode, FormVersion = FormVersionFor(formCode, settings.TemplateCode),
             Status = CustomerFormSigningStatus.PendingCustomer,
             RequireOfficeSignature = requireOffice,
             RequireInsurerSignature = requireInsurer,
@@ -199,7 +212,7 @@ public sealed class CustomerFormSigningController : ControllerBase
             ExpiresAt = now.AddDays(settings.LinkExpirationDays), CreatedByUserId = _current.UserId,
             Notes = body.Notes,
             FormDataJson = formData.Count == 0 ? null : JsonSerializer.Serialize(formData),
-            FileName = formCode == "customer-needs" ? "customer-needs-form.pdf" : "gdpr-consent.pdf"
+            FileName = FileNameFor(formCode, preview: false)
         };
         _db.CustomerFormSignings.Add(signing);
         await _db.SaveChangesAsync(ct);
@@ -275,9 +288,7 @@ public sealed class CustomerFormSigningController : ControllerBase
         if (s.ExpiresAt < DateTime.UtcNow || link.ExpiresAt < DateTime.UtcNow) return BadRequest("Ο σύνδεσμος έχει λήξει.");
         var tenant = await _db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == s.TenantId, ct);
         var policy = s.PolicyId.HasValue ? await _db.Policies.IgnoreQueryFilters().Include(x => x.InsuranceCompany).FirstOrDefaultAsync(x => x.Id == s.PolicyId.Value, ct) : null;
-        if (s.FormCode == "customer-needs")
-            return Ok(new PublicFormDto(tenant?.Name ?? "Kalypsis", tenant?.LogoUrl, s.CustomerFullNameSnapshot, s.CustomerEmailSnapshot, link.RecipientRole.ToString(), "Έντυπο Αναγκών Πελάτη", s.ExpiresAt.ToString("O"), !link.UsedAt.HasValue && s.Status is not (CustomerFormSigningStatus.Completed or CustomerFormSigningStatus.Declined), policy?.PolicyNumber, "customer-needs"));
-        return Ok(new PublicFormDto(tenant?.Name ?? "Kalypsis", tenant?.LogoUrl, s.CustomerFullNameSnapshot, s.CustomerEmailSnapshot, link.RecipientRole.ToString(), "Έντυπο ενημέρωσης και δήλωσης GDPR", s.ExpiresAt.ToString("O"), !link.UsedAt.HasValue && s.Status is not (CustomerFormSigningStatus.Completed or CustomerFormSigningStatus.Declined), policy?.PolicyNumber));
+        return Ok(new PublicFormDto(tenant?.Name ?? "Kalypsis", tenant?.LogoUrl, s.CustomerFullNameSnapshot, s.CustomerEmailSnapshot, link.RecipientRole.ToString(), FormTitle(s.FormCode), s.ExpiresAt.ToString("O"), !link.UsedAt.HasValue && s.Status is not (CustomerFormSigningStatus.Completed or CustomerFormSigningStatus.Declined), policy?.PolicyNumber, s.FormCode));
     }
 
     /// <summary>
@@ -334,7 +345,7 @@ public sealed class CustomerFormSigningController : ControllerBase
         link.UsedAt = now; link.IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(); link.UserAgent = Request.Headers.UserAgent.ToString();
         if (link.RecipientRole == CustomerFormSigningRecipientRole.Customer)
         {
-            var accepted = signing.FormCode == "customer-needs" || body.Consented;
+            var accepted = signing.FormCode != "gdpr-consent" || body.Consented;
             signing.CustomerConsented = accepted; signing.CustomerSignaturePath = path; signing.CustomerSignedAt = now;
             signing.Status = accepted ? CustomerFormSigningStatus.PendingCustomer : CustomerFormSigningStatus.Declined;
             if (signing.FormCode == "gdpr-consent")
@@ -344,7 +355,7 @@ public sealed class CustomerFormSigningController : ControllerBase
         else if (link.RecipientRole == CustomerFormSigningRecipientRole.Office) { signing.OfficeSignaturePath = path; signing.OfficeSignedAt = now; }
         else { signing.InsurerSignaturePath = path; signing.InsurerSignedAt = now; }
         await _db.SaveChangesAsync(ct);
-        if (link.RecipientRole == CustomerFormSigningRecipientRole.Customer && (signing.FormCode == "customer-needs" || body.Consented))
+        if (link.RecipientRole == CustomerFormSigningRecipientRole.Customer && (signing.FormCode != "gdpr-consent" || body.Consented))
             await IssueAdditionalLinksAsync(signing, tenant, ct);
         await CompleteIfReadyAsync(signing, tenant, ct);
         await _db.SaveChangesAsync(ct);
@@ -404,9 +415,13 @@ public sealed class CustomerFormSigningController : ControllerBase
         var customerSignature = await ReadBytesAsync(signing.CustomerSignaturePath, ct);
         var officeSignature = await ReadBytesAsync(signing.OfficeSignaturePath, ct);
         var insurerSignature = await ReadBytesAsync(signing.InsurerSignaturePath, ct);
-        return signing.FormCode == "customer-needs"
-            ? CustomerNeedsPdfRenderer.Render(tenant, signing, logo, customerSignature, officeSignature, insurerSignature)
-            : GdprConsentPdfRenderer.Render(tenant, signing, logo, customerSignature, officeSignature, insurerSignature);
+        return signing.FormCode switch
+        {
+            "customer-needs" => CustomerNeedsPdfRenderer.Render(tenant, signing, logo, customerSignature, officeSignature, insurerSignature),
+            "intermediary-information" => IntermediaryInformationPdfRenderer.Render(tenant, signing, logo, customerSignature, officeSignature, insurerSignature),
+            "document-receipt" => DocumentReceiptPdfRenderer.Render(tenant, signing, logo, customerSignature, officeSignature, insurerSignature),
+            _ => GdprConsentPdfRenderer.Render(tenant, signing, logo, customerSignature, officeSignature, insurerSignature)
+        };
     }
 
     private async Task<EmailResult> SendLinkAsync(CustomerFormSigning signing, CustomerFormSigningLink link, string token, string recipient, CancellationToken ct)
@@ -416,7 +431,7 @@ public sealed class CustomerFormSigningController : ControllerBase
     {
         var origin = (_configuration["PUBLIC_ORIGIN"] ?? _configuration["PublicOrigin"] ?? $"{Request.Scheme}://{Request.Host}").TrimEnd('/');
         var url = $"{origin}/sign/gdpr/{token}";
-        var formTitle = signing.FormCode == "customer-needs" ? "Έντυπο Αναγκών Πελάτη" : "Έντυπο GDPR";
+        var formTitle = FormTitle(signing.FormCode);
         var subject = $"{formTitle} για ηλεκτρονική υπογραφή";
         var body = $"<p>Καλησπέρα,</p><p>Παρακαλούμε ανοίξτε τον ασφαλή σύνδεσμο για να ελέγξετε και να υπογράψετε το <strong>{formTitle}</strong> του πελάτη <strong>{System.Net.WebUtility.HtmlEncode(signing.CustomerFullNameSnapshot)}</strong>.</p><p><a href=\"{url}\">Άνοιγμα εντύπου και υπογραφή</a></p><p>Ο σύνδεσμος λήγει στις {signing.ExpiresAt.ToLocalTime():dd/MM/yyyy HH:mm}.</p>";
         return await _email.SendAsync(new EmailMessage(email, displayName, subject, body, $"Άνοιγμα {formTitle}: {url}", AllowCustomerRecipient: true), ct);
@@ -426,9 +441,10 @@ public sealed class CustomerFormSigningController : ControllerBase
     {
         var origin = (_configuration["PUBLIC_ORIGIN"] ?? _configuration["PublicOrigin"] ?? $"{Request.Scheme}://{Request.Host}").TrimEnd('/');
         var url = $"{origin}/sign/gdpr/{token}";
-        var subject = "Έντυπο GDPR για ηλεκτρονική υπογραφή";
-        var body = $"<p>Καλησπέρα,</p><p>Παρακαλούμε ανοίξτε τον ασφαλή σύνδεσμο για να υπογράψετε το έντυπο GDPR του πελάτη <strong>{System.Net.WebUtility.HtmlEncode(signing.CustomerFullNameSnapshot)}</strong>.</p><p><a href=\"{url}\">Άνοιγμα εντύπου και υπογραφή</a></p><p>Ο σύνδεσμος λήγει στις {signing.ExpiresAt.ToLocalTime():dd/MM/yyyy HH:mm}.</p>";
-        return await _email.SendAsync(new EmailMessage(email, displayName, subject, body, $"Άνοιγμα εντύπου: {url}", AllowCustomerRecipient: true), ct);
+        var formTitle = FormTitle(signing.FormCode);
+        var subject = $"{formTitle} για ηλεκτρονική υπογραφή";
+        var body = $"<p>Καλησπέρα,</p><p>Παρακαλούμε ανοίξτε τον ασφαλή σύνδεσμο για να διαβάσετε και να υπογράψετε το <strong>{formTitle}</strong> του πελάτη <strong>{System.Net.WebUtility.HtmlEncode(signing.CustomerFullNameSnapshot)}</strong>.</p><p><a href=\"{url}\">Άνοιγμα εντύπου και υπογραφή</a></p><p>Ο σύνδεσμος λήγει στις {signing.ExpiresAt.ToLocalTime():dd/MM/yyyy HH:mm}.</p>";
+        return await _email.SendAsync(new EmailMessage(email, displayName, subject, body, $"Άνοιγμα {formTitle}: {url}", AllowCustomerRecipient: true), ct);
     }
 
     private async Task<CustomerFormSigningLink?> FindLinkAsync(string token, CancellationToken ct)
@@ -451,9 +467,44 @@ public sealed class CustomerFormSigningController : ControllerBase
     private static string? NormalizeFormCode(string? value)
         => string.IsNullOrWhiteSpace(value) || value.Equals("gdpr-consent", StringComparison.OrdinalIgnoreCase)
             ? "gdpr-consent"
-            : value.Equals("customer-needs", StringComparison.OrdinalIgnoreCase) ? "customer-needs" : null;
+            : value.Equals("customer-needs", StringComparison.OrdinalIgnoreCase) ? "customer-needs"
+            : value.Equals("intermediary-information", StringComparison.OrdinalIgnoreCase) ? "intermediary-information"
+            : value.Equals("document-receipt", StringComparison.OrdinalIgnoreCase) ? "document-receipt"
+            : null;
 
-    private static Dictionary<string, string?> BuildFormData(Customer customer, Tenant office, Policy? policy, Dictionary<string, string?>? submitted)
+    private static string FormTitle(string formCode) => formCode switch
+    {
+        "customer-needs" => "Έντυπο Αναγκών Πελάτη",
+        "intermediary-information" => "Πληροφορίες Ασφαλιστικού Διαμεσολαβητή",
+        "document-receipt" => "Απόδειξη Παραλαβής Εντύπων",
+        _ => "Έντυπο ενημέρωσης και δήλωσης GDPR"
+    };
+
+    private static string FormVersionFor(string formCode, string defaultVersion) => formCode switch
+    {
+        "customer-needs" => "nivis-v1",
+        "intermediary-information" => "intermediary-information-v1",
+        "document-receipt" => "document-receipt-v1",
+        _ => defaultVersion
+    };
+
+    private static string FileNameFor(string formCode, bool preview) => formCode switch
+    {
+        "customer-needs" => preview ? "customer-needs-preview.pdf" : "customer-needs-form.pdf",
+        "intermediary-information" => preview ? "intermediary-information-preview.pdf" : "intermediary-information.pdf",
+        "document-receipt" => preview ? "document-receipt-preview.pdf" : "document-receipt.pdf",
+        _ => preview ? "gdpr-consent-preview.pdf" : "gdpr-consent.pdf"
+    };
+
+    private static (string Code, string Name, string Kind, string BodyHtml) TemplateFor(string formCode) => formCode switch
+    {
+        "customer-needs" => ("CUSTOMER_NEEDS", "Έντυπο Αναγκών Πελάτη", "CustomerNeeds", "<h1>{{agency.name}}</h1><h2>ΕΝΤΥΠΟ ΑΝΑΓΚΩΝ ΠΕΛΑΤΗ</h2><p>{{customer.name}}</p>"),
+        "intermediary-information" => ("INTERMEDIARY_INFORMATION", "Πληροφορίες Ασφαλιστικού Διαμεσολαβητή", "IntermediaryInformation", "<h1>{{agency.name}}</h1><h2>ΠΛΗΡΟΦΟΡΙΕΣ ΑΣΦΑΛΙΣΤΙΚΟΥ ΔΙΑΜΕΣΟΛΑΒΗΤΗ</h2><p>Άρθρα 28 και 29 ν. 4583/2018</p><p>{{customer.name}}</p>"),
+        "document-receipt" => ("DOCUMENT_RECEIPT", "Απόδειξη Παραλαβής Εντύπων", "DocumentReceipt", "<h1>{{agency.name}}</h1><h2>ΑΠΟΔΕΙΞΗ ΠΑΡΑΛΑΒΗΣ ΕΝΤΥΠΩΝ</h2><p>{{customer.name}}</p><p>{{form.documentsReceived}}</p>"),
+        _ => ("GDPR_CONSENT", "Έντυπο ενημέρωσης και δήλωσης GDPR", "GDPR", "<h1>{{agency.name}}</h1><h2>ΕΝΗΜΕΡΩΣΗ ΥΠΟΚΕΙΜΕΝΟΥ ΔΕΔΟΜΕΝΩΝ & ΔΗΛΩΣΗ GDPR</h2><p>Πελάτης: {{customer.name}}</p><p>Email: {{customer.email}}</p>")
+    };
+
+    private static Dictionary<string, string?> BuildFormData(Customer customer, Tenant office, Policy? policy, Dictionary<string, string?>? submitted, string? collaboratingInsurers = null)
     {
         var data = submitted is null
             ? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
@@ -477,6 +528,14 @@ public sealed class CustomerFormSigningController : ControllerBase
         data["officeVatNumber"] = office.VatNumber;
         data["policyNumber"] = policy?.PolicyNumber;
         data["insuranceCompany"] = policy?.InsuranceCompany?.Name;
+        data["registryNumber"] ??= office.TteRegistrationNumber;
+        data["registryYear"] ??= office.TteRegistrationYear?.ToString();
+        data["singleInformationPointUrl"] ??= "https://insuranceregistry.uhc.gr/";
+        if (string.IsNullOrWhiteSpace(data["collaboratingInsurers"]))
+            data["collaboratingInsurers"] = string.IsNullOrWhiteSpace(collaboratingInsurers) ? null : collaboratingInsurers;
+        data["contactDate"] ??= DateTime.UtcNow.ToLocalTime().ToString("dd/MM/yyyy");
+        data["deliveryDate"] ??= DateTime.UtcNow.ToLocalTime().ToString("dd/MM/yyyy");
+        data["documentsReceived"] ??= "Έντυπο GDPR; Έντυπο Αναγκών Πελάτη; Πληροφορίες Ασφαλιστικού Διαμεσολαβητή";
         return data;
     }
 
