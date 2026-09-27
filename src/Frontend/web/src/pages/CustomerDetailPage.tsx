@@ -1663,9 +1663,10 @@ async function extractFormPreviewError(error: unknown): Promise<string> {
     if (raw.trim()) {
       try {
         const parsed = JSON.parse(raw) as { message?: unknown; detail?: unknown; title?: unknown; errors?: Record<string, unknown> };
-        if (typeof parsed.message === "string" && parsed.message !== "One or more validation errors occurred") return parsed.message;
-        if (typeof parsed.detail === "string" && parsed.detail.trim()) return parsed.detail;
-        if (typeof parsed.title === "string" && parsed.title !== "One or more validation errors occurred") return parsed.title;
+        const trace = typeof (parsed as { traceId?: unknown }).traceId === "string" ? ` (κωδικός: ${(parsed as { traceId: string }).traceId})` : "";
+        if (typeof parsed.message === "string" && parsed.message !== "One or more validation errors occurred") return parsed.message + trace;
+        if (typeof parsed.detail === "string" && parsed.detail.trim()) return parsed.detail + trace;
+        if (typeof parsed.title === "string" && parsed.title !== "One or more validation errors occurred") return parsed.title + trace;
         if (parsed.errors && typeof parsed.errors === "object") {
           const messages = Object.values(parsed.errors).flatMap(value => Array.isArray(value) ? value : [value]).filter((value): value is string => typeof value === "string" && value.trim().length > 0);
           if (messages.length) return messages.join(" · ");

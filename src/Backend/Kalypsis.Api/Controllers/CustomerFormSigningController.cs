@@ -105,7 +105,7 @@ public sealed class CustomerFormSigningController : ControllerBase
         var office = await _db.Tenants.IgnoreQueryFilters().AsNoTracking()
             .FirstAsync(x => x.Id == tenantId, ct);
         var collaboratingInsurers = string.Join(", ", await _db.Policies.AsNoTracking()
-            .Where(x => x.TenantId == tenantId)
+            .Where(x => x.TenantId == tenantId && x.InsuranceCompany != null)
             .Select(x => x.InsuranceCompany.Name)
             .Distinct()
             .OrderBy(x => x)
@@ -192,7 +192,7 @@ public sealed class CustomerFormSigningController : ControllerBase
 
         var now = DateTime.UtcNow;
         var collaboratingInsurersForSigning = string.Join(", ", await _db.Policies.AsNoTracking()
-            .Where(x => x.TenantId == tenantId)
+            .Where(x => x.TenantId == tenantId && x.InsuranceCompany != null)
             .Select(x => x.InsuranceCompany.Name)
             .Distinct()
             .OrderBy(x => x)
