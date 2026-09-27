@@ -126,6 +126,12 @@ public sealed class CustomerFormSigningController : ControllerBase
             });
         }
 
+        // Keep the reusable template catalogue in sync with the renderer. The
+        // PDF renderer is authoritative for layout, while BodyHtml gives the
+        // office a readable prompt in the existing template-management page.
+        if (formCode == "customer-needs" && _db.DocumentTemplates.Local.LastOrDefault() is { } needsTemplate && needsTemplate.Code == "CUSTOMER_NEEDS")
+            needsTemplate.BodyHtml = "<h1>{{agency.name}}</h1><h2>ΕΝΤΥΠΟ ΑΝΑΓΚΩΝ ΠΕΛΑΤΗ</h2><p>{{customer.name}}</p><p>{{customer.email}}</p><p>{{form.vesselName}}</p><p>{{form.totalInsuredValue}}</p><p>Δήλωση και υπογραφή πελάτη, γραφείου και ασφαλιστικής όπου απαιτείται.</p>";
+
         var now = DateTime.UtcNow;
         var formData = BuildFormData(customer, office, policy, body.Fields);
         var signing = new CustomerFormSigning
