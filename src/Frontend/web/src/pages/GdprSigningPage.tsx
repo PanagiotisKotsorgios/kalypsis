@@ -15,6 +15,18 @@ export function GdprSigningPage() {
   const [signed, setSigned] = useState(false);
   const [signerName, setSignerName] = useState("");
   const q = useQuery({ queryKey: ["public-gdpr-signing", token], queryFn: async () => (await api.get<PublicForm>(`/public/gdpr-signing/${token}`)).data, enabled: !!token, retry: false });
+  const [documentUrl, setDocumentUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!token || !q.data) return;
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    void api.get(`/public/gdpr-signing/${token}/document`, { responseType: "blob" }).then(response => {
+      if (cancelled) return;
+      objectUrl = URL.createObjectURL(response.data);
+      setDocumentUrl(objectUrl);
+    }).catch(() => { if (!cancelled) setDocumentUrl(null); });
+    return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); setDocumentUrl(null); };
+  }, [token, q.data]);
   const sign = useMutation({
     mutationFn: async () => {
       const canvas = canvasRef.current;
@@ -47,6 +59,7 @@ export function GdprSigningPage() {
   if (signed || !form.canSign) return <Box sx={{ maxWidth: 680, mx: "auto", p: { xs: 2, sm: 4 } }}><Card sx={{ p: { xs: 3, sm: 5 }, textAlign: "center" }}><Typography variant="h5" fontWeight={800} gutterBottom>{signed ? "Η υπογραφή καταχωρήθηκε" : "Το έντυπο έχει ήδη ολοκληρωθεί"}</Typography><Typography color="text.secondary">Το έγγραφο ενημερώθηκε αυτόματα στην καρτέλα του πελάτη. Μπορείτε να κλείσετε αυτό το παράθυρο.</Typography></Card></Box>;
   return <Box sx={{ maxWidth: 760, mx: "auto", p: { xs: 2, sm: 4 } }}>
     <Stack spacing={2.5}>
+      {documentUrl && <Card variant="outlined" sx={{ p: { xs: 1, sm: 2 } }}><Typography variant="h6" fontWeight={800} sx={{ px: 1, pb: 1 }}>Πλήρες έντυπο για ανάγνωση</Typography><Box component="iframe" title={form.formTitle} src={documentUrl} sx={{ display: "block", width: "100%", height: { xs: 520, sm: 720 }, border: 0, borderRadius: 1, backgroundColor: "#fff" }} /><Button component="a" href={documentUrl} target="_blank" rel="noopener" size="small" sx={{ mt: 1 }}>Άνοιγμα PDF σε νέο παράθυρο</Button></Card>}
       {form.formCode === "customer-needs" && <Alert severity="info">Το έντυπο αναγκών έχει συμπληρωθεί από το γραφείο με τα στοιχεία της καρτέλας σας. Ελέγξτε τις απαντήσεις και υπογράψτε ηλεκτρονικά από κινητό ή υπολογιστή.</Alert>}
       <Box><Typography variant="overline" color="primary">{form.agencyName}</Typography><Typography variant="h4" fontWeight={800}>{form.formTitle}</Typography><Typography color="text.secondary">Πελάτης: {form.customerName}{form.policyNumber ? ` · Συμβόλαιο: ${form.policyNumber}` : ""}</Typography><Typography variant="caption" color="text.secondary">Ο σύνδεσμος ισχύει έως {new Date(form.expiresAt).toLocaleString("el-GR")}</Typography></Box>
       <Card variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}><Typography fontWeight={700} gutterBottom>Ενημέρωση και δήλωση</Typography><Typography variant="body2" color="text.secondary">Διαβάστε την ενημέρωση του γραφείου για την επεξεργασία των προσωπικών δεδομένων σας. Η επιλογή σας και η χειρόγραφη υπογραφή σας θα ενσωματωθούν στο επίσημο PDF.</Typography></Card>

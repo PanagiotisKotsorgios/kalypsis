@@ -280,6 +280,41 @@ public sealed class CustomerFormSigningController : ControllerBase
         return Ok(new PublicFormDto(tenant?.Name ?? "Kalypsis", tenant?.LogoUrl, s.CustomerFullNameSnapshot, s.CustomerEmailSnapshot, link.RecipientRole.ToString(), "Έντυπο ενημέρωσης και δήλωσης GDPR", s.ExpiresAt.ToString("O"), !link.UsedAt.HasValue && s.Status is not (CustomerFormSigningStatus.Completed or CustomerFormSigningStatus.Declined), policy?.PolicyNumber));
     }
 
+    /// <summary>
+    /// Returns the immutable mail-merged draft PDF behind the one-time link.
+    /// The token is the authorization; no customer data is accepted from the
+    /// browser and the draft is generated from the stored signing snapshot.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("api/public/gdpr-signing/{token}/document")]
+    public async Task<IActionResult> PublicDocument(string token, CancellationToken ct)
+    {
+        var link = await FindLinkAsync(token, ct);
+        if (link is null) return NotFound("Ο σύνδεσμος δεν είναι έγκυρος.");
+        var signing = link.Signing;
+        if (signing.ExpiresAt < DateTime.UtcNow || link.ExpiresAt < DateTime.UtcNow)
+            return BadRequest("Ο σύνδεσμος έχει λήξει.");
+
+        var tenant = await _db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == signing.TenantId, ct);
+        if (tenant is null) return NotFound("Το γραφείο δεν βρέθηκε.");
+
+        if (!string.IsNullOrWhiteSpace(signing.DraftDocumentPath))
+        {
+            try
+            {
+                var stream = await _storage.DownloadAsync(signing.DraftDocumentPath, ct);
+                return File(stream, "application/pdf", signing.FileName);
+            }
+            catch
+            {
+                // Older records may not have a persisted draft; render it on demand.
+            }
+        }
+
+        var pdf = await RenderDocumentAsync(signing, tenant, ct);
+        return File(pdf, "application/pdf", signing.FileName);
+    }
+
     [AllowAnonymous]
     [HttpPost("api/public/gdpr-signing/{token}/sign")]
     public async Task<ActionResult<PublicFormDto>> Sign(string token, [FromBody] SignBody body, CancellationToken ct)
@@ -456,7 +491,9 @@ public sealed class CustomerFormSigningController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(value) || value.Length > 4_000_000) return null;
         var comma = value.IndexOf(','); if (comma < 0) return null;
-        var header = value[..comma]; if (!header.StartsWith("data:image/png;base64,", StringComparison.OrdinalIgnoreCase)) return null;
-        try { var bytes = Convert.FromBase64String(value[(comma + 1)..]); return bytes.Length is > 50 and < 2_000_000 ? bytes : null; } catch { return null; }
+        var header = value[..comma].Trim();
+        if (!header.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase) || !header.Contains(";base64", StringComparison.OrdinalIgnoreCase)) return null;
+        var payload = value[(comma + 1)..].Trim().Replace("\r", string.Empty).Replace("\n", string.Empty).Replace(" ", string.Empty);
+        try { var bytes = Convert.FromBase64String(payload); return bytes.Length is > 50 and < 2_000_000 ? bytes : null; } catch { return null; }
     }
 }
