@@ -518,15 +518,20 @@ public sealed class CustomerFormSigningController : ControllerBase
         data["officeVatNumber"] = office.VatNumber;
         data["policyNumber"] = policy?.PolicyNumber;
         data["insuranceCompany"] = policy?.InsuranceCompany?.Name;
-        data["registryNumber"] ??= office.TteRegistrationNumber;
-        data["registryYear"] ??= office.TteRegistrationYear?.ToString();
-        data["singleInformationPointUrl"] ??= "https://insuranceregistry.uhc.gr/";
-        if (string.IsNullOrWhiteSpace(data["collaboratingInsurers"]))
-            data["collaboratingInsurers"] = string.IsNullOrWhiteSpace(collaboratingInsurers) ? null : collaboratingInsurers;
-        data["contactDate"] ??= DateTime.UtcNow.ToLocalTime().ToString("dd/MM/yyyy");
-        data["deliveryDate"] ??= DateTime.UtcNow.ToLocalTime().ToString("dd/MM/yyyy");
-        data["documentsReceived"] ??= "Έντυπο GDPR; Έντυπο Αναγκών Πελάτη; Πληροφορίες Ασφαλιστικού Διαμεσολαβητή";
+        SetIfBlank(data, "registryNumber", office.TteRegistrationNumber);
+        SetIfBlank(data, "registryYear", office.TteRegistrationYear?.ToString());
+        SetIfBlank(data, "singleInformationPointUrl", "https://insuranceregistry.uhc.gr/");
+        SetIfBlank(data, "collaboratingInsurers", string.IsNullOrWhiteSpace(collaboratingInsurers) ? null : collaboratingInsurers);
+        SetIfBlank(data, "contactDate", DateTime.UtcNow.ToLocalTime().ToString("dd/MM/yyyy"));
+        SetIfBlank(data, "deliveryDate", DateTime.UtcNow.ToLocalTime().ToString("dd/MM/yyyy"));
+        SetIfBlank(data, "documentsReceived", "Έντυπο GDPR; Έντυπο Αναγκών Πελάτη; Πληροφορίες Ασφαλιστικού Διαμεσολαβητή");
         return data;
+    }
+
+    private static void SetIfBlank(Dictionary<string, string?> data, string key, string? value)
+    {
+        if (!data.TryGetValue(key, out var current) || string.IsNullOrWhiteSpace(current))
+            data[key] = value;
     }
 
     private async Task<string> GetCollaboratingInsurersAsync(Guid tenantId, CancellationToken ct)
