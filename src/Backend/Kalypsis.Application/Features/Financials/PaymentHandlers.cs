@@ -1,6 +1,7 @@
 using FluentValidation;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
+using Kalypsis.Application.Features.ProductionLists;
 using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
 using MediatR;
@@ -23,6 +24,108 @@ public record PaymentBody(
     string? TransactionReference, Guid? PolicyId);
 
 public record ListPaymentsQuery(DateOnly? From, DateOnly? To, BeneficiaryType? Type) : IRequest<IReadOnlyList<PaymentDto>>;
+
+/// <summary>
+/// Expected obligations derived from the office's policies, less payments
+/// already recorded. This intentionally does not depend on the Payments table
+/// being populated, so an office can see what is still owed from day one.
+/// </summary>
+public record PaymentObligationsSummaryDto(
+    decimal CompaniesDue,
+    decimal CompaniesPaid,
+    decimal CompaniesPending,
+    decimal ProducersDue,
+    decimal ProducersPaid,
+    decimal ProducersPending,
+    int CompanyPolicyCount,
+    int ProducerPolicyCount,
+    string Currency);
+
+public record GetPaymentObligationsSummaryQuery() : IRequest<PaymentObligationsSummaryDto>;
+
+public class GetPaymentObligationsSummaryHandler
+    : IRequestHandler<GetPaymentObligationsSummaryQuery, PaymentObligationsSummaryDto>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+
+    public GetPaymentObligationsSummaryHandler(IAppDbContext db, ICurrentUser current)
+    {
+        _db = db;
+        _current = current;
+    }
+
+    public async Task<PaymentObligationsSummaryDto> Handle(
+        GetPaymentObligationsSummaryQuery _, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+
+        // Reuse the production-list calculator so the same commission rules,
+        // manual overrides and office/producer split are used everywhere.
+        var rows = await ProductionListBuilder.BuildRowsAsync(
+            _db,
+            tenantId,
+            new ProductionFilters(
+                From: null, To: null,
+                InsuranceCompanyId: null, ProducerId: null,
+                PolicyType: null, Status: null,
+                VehicleUseCategory: null, CoverCode: null,
+                GroupBy: null),
+            ct);
+
+        var eligible = rows.Where(row =>
+            !string.Equals(row.Status, nameof(PolicyStatus.Draft), StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(row.Status, nameof(PolicyStatus.Cancelled), StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(row.Status, nameof(PolicyStatus.Prospect), StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // The carrier is paid the premium after the total commission supplied
+        // by the carrier is netted. IncomingAgencyCommission is that total
+        // commission (producer share + office remainder), while the producer
+        // obligation is only the producer's calculated share.
+        var companiesDue = eligible.Sum(row =>
+            Math.Max(0m, row.Gross - row.IncomingAgencyCommission));
+        var producersDue = eligible.Sum(row => row.PartnerCommission);
+        var companyPolicyCount = eligible.Count(row =>
+            row.Gross - row.IncomingAgencyCommission > 0m);
+        var producerPolicyCount = eligible.Count(row => row.PartnerCommission > 0m);
+
+        var paidByType = await _db.Payments
+            .Where(payment => payment.DeletedAt == null
+                && (payment.BeneficiaryType == BeneficiaryType.InsuranceCompany
+                    || payment.BeneficiaryType == BeneficiaryType.Producer))
+            .GroupBy(payment => payment.BeneficiaryType)
+            .Select(group => new
+            {
+                Type = group.Key,
+                // Payment.Amount is the gross instruction amount. The amount
+                // actually leaving the office is after any commission netting.
+                Amount = group.Sum(payment =>
+                    Math.Max(0m, payment.Amount - payment.CommissionsNetted))
+            })
+            .ToListAsync(ct);
+
+        var companiesPaid = paidByType
+            .Where(x => x.Type == BeneficiaryType.InsuranceCompany)
+            .Select(x => x.Amount)
+            .FirstOrDefault();
+        var producersPaid = paidByType
+            .Where(x => x.Type == BeneficiaryType.Producer)
+            .Select(x => x.Amount)
+            .FirstOrDefault();
+
+        return new PaymentObligationsSummaryDto(
+            companiesDue,
+            companiesPaid,
+            Math.Max(0m, companiesDue - companiesPaid),
+            producersDue,
+            producersPaid,
+            Math.Max(0m, producersDue - producersPaid),
+            companyPolicyCount,
+            producerPolicyCount,
+            "EUR");
+    }
+}
 
 public class ListPaymentsQueryHandler : IRequestHandler<ListPaymentsQuery, IReadOnlyList<PaymentDto>>
 {

@@ -34,6 +34,18 @@ interface PaymentDto {
   policyId: string | null; policyNumber: string | null;
 }
 
+interface PaymentObligationsSummary {
+  companiesDue: number;
+  companiesPaid: number;
+  companiesPending: number;
+  producersDue: number;
+  producersPaid: number;
+  producersPending: number;
+  companyPolicyCount: number;
+  producerPolicyCount: number;
+  currency: string;
+}
+
 // Same shape as receipts — swap the label for the external reference input
 // based on the payment method so a bank transfer records a wire ref, a cheque
 // records a cheque number, etc.
@@ -61,9 +73,16 @@ export function PaymentsPage() {
   const [toDate,   setToDate]   = useState("");
 
   const q = useQuery({ queryKey: ["payments"], queryFn: async () => (await api.get<PaymentDto[]>("/payments")).data });
+  const obligations = useQuery({
+    queryKey: ["payment-obligations"],
+    queryFn: async () => (await api.get<PaymentObligationsSummary>("/payments/summary")).data,
+  });
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/payments/${id}`),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["payments"] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["payments"] });
+      void qc.invalidateQueries({ queryKey: ["payment-obligations"] });
+    },
     onError: e => setErr(extractErrorMessage(e))
   });
 
@@ -149,6 +168,29 @@ export function PaymentsPage() {
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setCreateOpen(true)}>{t("payments.create")}</Button>
         </Stack>
       </Stack>
+
+      {obligations.data && (
+        <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, mb: 2 }}>
+          <ObligationCard
+            title="Εκκρεμείς πληρωμές προς συνεργάτες"
+            pending={obligations.data.producersPending}
+            due={obligations.data.producersDue}
+            paid={obligations.data.producersPaid}
+            count={obligations.data.producerPolicyCount}
+            currency={obligations.data.currency}
+            accent="warning.main"
+          />
+          <ObligationCard
+            title="Εκκρεμείς πληρωμές προς ασφαλιστικές"
+            pending={obligations.data.companiesPending}
+            due={obligations.data.companiesDue}
+            paid={obligations.data.companiesPaid}
+            count={obligations.data.companyPolicyCount}
+            currency={obligations.data.currency}
+            accent="info.main"
+          />
+        </Box>
+      )}
 
       <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={1} flexWrap="wrap" alignItems={{ md: "center" }} useFlexGap>
@@ -271,8 +313,39 @@ export function PaymentsPage() {
       {headerMenu.menu}
       {rowMenu.menu}
       <FormDialog open={createOpen} onClose={() => setCreateOpen(false)}
-        onSaved={() => { void qc.invalidateQueries({ queryKey: ["payments"] }); setCreateOpen(false); }} />
+        onSaved={() => {
+          void qc.invalidateQueries({ queryKey: ["payments"] });
+          void qc.invalidateQueries({ queryKey: ["payment-obligations"] });
+          setCreateOpen(false);
+        }} />
     </Box>
+  );
+}
+
+function ObligationCard({ title, pending, due, paid, count, currency, accent }: {
+  title: string;
+  pending: number;
+  due: number;
+  paid: number;
+  count: number;
+  currency: string;
+  accent: string;
+}) {
+  return (
+    <Card variant="outlined" sx={{ borderLeft: 4, borderLeftColor: accent }}>
+      <Box sx={{ p: 2 }}>
+        <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.5 }}>{title}</Typography>
+        <Typography variant="h5" fontWeight={800} sx={{ color: accent, my: 0.5 }}>
+          {money(pending, currency)}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Σύνολο υποχρέωσης {money(due, currency)} · Καταχωρημένες πληρωμές {money(paid, currency)}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {count} συμβόλαια με υπολογισμένη οφειλή · αν δεν έχει καταχωρηθεί πληρωμή, το εκκρεμές παραμένει στο σύνολο.
+        </Typography>
+      </Box>
+    </Card>
   );
 }
 

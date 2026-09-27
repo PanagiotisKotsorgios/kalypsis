@@ -114,6 +114,9 @@ public class PaymentsController : ControllerBase
     private readonly IMediator _m; public PaymentsController(IMediator m) => _m = m;
     [HttpGet] public async Task<ActionResult<IReadOnlyList<PaymentDto>>> List([FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] BeneficiaryType? type, CancellationToken ct)
         => Ok(await _m.Send(new ListPaymentsQuery(from, to, type), ct));
+    [HttpGet("summary")]
+    public async Task<ActionResult<PaymentObligationsSummaryDto>> Summary(CancellationToken ct)
+        => Ok(await _m.Send(new GetPaymentObligationsSummaryQuery(), ct));
     [HttpPost] [RequirePermission("payments.write")] public async Task<ActionResult<PaymentDto>> Create([FromBody] PaymentBody body, CancellationToken ct) => Ok(await _m.Send(new CreatePaymentCommand(body), ct));
     [HttpDelete("{id:guid}")] [RequirePermission("payments.write")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeletePaymentCommand(id), ct); return NoContent(); }
 }
