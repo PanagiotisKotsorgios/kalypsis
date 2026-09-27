@@ -18,7 +18,7 @@ public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, Custome
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
 
-        var c = await _db.Customers.IgnoreQueryFilters()
+        var c = await _db.Customers
             .FirstOrDefaultAsync(x => x.Id == q.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Πελάτης");
 
@@ -26,16 +26,16 @@ public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, Custome
         if (_current.Role == Role.Producer)
         {
             var userId = _current.UserId ?? throw AppException.Unauthorized();
-            var producerId = await _db.Users.IgnoreQueryFilters()
+            var producerId = await _db.Users
                 .Where(u => u.Id == userId).Select(u => u.ProducerId).FirstOrDefaultAsync(ct);
             if (producerId is null) throw AppException.Forbidden();
-            var owns = await _db.Policies.IgnoreQueryFilters()
+            var owns = await _db.Policies
                 .AnyAsync(p => p.CustomerId == c.Id && p.ProducerId == producerId && p.DeletedAt == null, ct);
             if (!owns) throw AppException.Forbidden();
         }
         if (_current.Role == Role.Customer && _current.UserId is Guid uid)
         {
-            var ownsAsCustomer = await _db.Users.IgnoreQueryFilters()
+            var ownsAsCustomer = await _db.Users
                 .AnyAsync(u => u.Id == uid && u.CustomerId == c.Id, ct);
             if (!ownsAsCustomer) throw AppException.Forbidden();
         }
@@ -43,6 +43,6 @@ public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, Custome
         return new CustomerDto(
             c.Id, c.CustomerNumber, c.Type, c.Status, c.FirstName, c.LastName,
             c.CompanyName, c.VatNumber, c.Email, c.Phone, c.City, c.Notes, c.CreatedAt,
-            await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.CustomerId == c.Id && u.DeletedAt == null, ct));
+            await _db.Users.AnyAsync(u => u.CustomerId == c.Id && u.DeletedAt == null, ct));
     }
 }

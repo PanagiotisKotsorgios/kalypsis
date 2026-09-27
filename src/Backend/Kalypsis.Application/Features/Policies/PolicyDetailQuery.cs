@@ -133,36 +133,36 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
         if (_current.Role == Role.Customer)
         {
             var userId = _current.UserId ?? throw AppException.Unauthorized();
-            var customerId = await _db.Users.IgnoreQueryFilters()
+            var customerId = await _db.Users
                 .Where(u => u.Id == userId).Select(u => u.CustomerId).FirstOrDefaultAsync(ct);
             if (customerId != p.CustomerId) throw AppException.Forbidden();
         }
         else if (_current.Role == Role.Producer)
         {
             var userId = _current.UserId ?? throw AppException.Unauthorized();
-            var producerId = await _db.Users.IgnoreQueryFilters()
+            var producerId = await _db.Users
                 .Where(u => u.Id == userId).Select(u => u.ProducerId).FirstOrDefaultAsync(ct);
             if (producerId is null || producerId != p.ProducerId) throw AppException.Forbidden();
         }
 
         // Pull related counts + totals in parallel-safe single-context order.
-        var endorsementCount = await _db.PolicyEndorsements.IgnoreQueryFilters()
+        var endorsementCount = await _db.PolicyEndorsements
             .CountAsync(x => x.PolicyId == p.Id && x.DeletedAt == null, ct);
-        var cancellationCount = await _db.PolicyCancellations.IgnoreQueryFilters()
+        var cancellationCount = await _db.PolicyCancellations
             .CountAsync(x => x.PolicyId == p.Id && x.DeletedAt == null, ct);
-        var claimCount = await _db.Claims.IgnoreQueryFilters()
+        var claimCount = await _db.Claims
             .CountAsync(x => x.PolicyId == p.Id && x.DeletedAt == null, ct);
-        var commissionTxnCount = await _db.CommissionTransactions.IgnoreQueryFilters()
+        var commissionTxnCount = await _db.CommissionTransactions
             .CountAsync(x => x.PolicyId == p.Id && x.DeletedAt == null, ct);
-        var documentCount = await _db.PolicyDocuments.IgnoreQueryFilters()
+        var documentCount = await _db.PolicyDocuments
             .CountAsync(x => x.PolicyId == p.Id && x.DeletedAt == null, ct);
-        var receiptCount = await _db.Receipts.IgnoreQueryFilters()
+        var receiptCount = await _db.Receipts
             .CountAsync(x => x.PolicyId == p.Id && x.DeletedAt == null, ct);
 
-        var totalReceived = await _db.Receipts.IgnoreQueryFilters()
+        var totalReceived = await _db.Receipts
             .Where(x => x.PolicyId == p.Id && x.DeletedAt == null)
             .SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
-        var totalCommissions = await _db.CommissionTransactions.IgnoreQueryFilters()
+        var totalCommissions = await _db.CommissionTransactions
             .Where(x => x.PolicyId == p.Id && x.DeletedAt == null)
             .SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
 
@@ -174,7 +174,7 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
         decimal? bridgeAgencyCommission = null;
         try
         {
-            var raw = await _db.FinancialMovements.IgnoreQueryFilters()
+            var raw = await _db.FinancialMovements
                 .Where(fm => fm.PolicyId == p.Id
                     && fm.DeletedAt == null
                     && fm.Kind == FinancialMovementKind.CommissionEarned)
@@ -189,7 +189,7 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
         List<PolicyCoverDto> covers = new();
         try
         {
-            covers = await _db.PolicyCovers.IgnoreQueryFilters()
+            covers = await _db.PolicyCovers
                 .Where(c => c.PolicyId == p.Id && c.DeletedAt == null)
                 .OrderBy(c => c.CoverCode)
                 .Select(c => new PolicyCoverDto(

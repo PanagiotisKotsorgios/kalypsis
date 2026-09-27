@@ -74,7 +74,7 @@ public class GetCommissionDistributionQueryHandler
         var includePolicies = scope != "overcommissions";
         var includeOverCommissions = scope == "overcommissions" || scope == "all";
 
-        var producerNames = await _db.Producers.IgnoreQueryFilters()
+        var producerNames = await _db.Producers
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null)
             .ToDictionaryAsync(p => p.Id, p => p.Name, ct);
 
@@ -88,7 +88,7 @@ public class GetCommissionDistributionQueryHandler
         {
             // Anchor on the policy's StartDate so «what was earned in 2026»
             // matches the production report's totals for the same window.
-            var policies = _db.Policies.IgnoreQueryFilters()
+            var policies = _db.Policies
                 .Where(p => p.TenantId == tenantId && p.DeletedAt == null
                     && p.Status != PolicyStatus.Draft && p.Status != PolicyStatus.Cancelled && p.Status != PolicyStatus.Prospect
                     && p.StartDate >= from && p.StartDate <= to);
@@ -98,7 +98,7 @@ public class GetCommissionDistributionQueryHandler
 
             if (policyIds.Count > 0)
             {
-                var splitsQ = _db.PolicyCommissionSplits.IgnoreQueryFilters()
+                var splitsQ = _db.PolicyCommissionSplits
                     .Where(s => s.TenantId == tenantId && s.DeletedAt == null && policyIds.Contains(s.PolicyId));
                 if (request.ProducerId is Guid pid)
                     splitsQ = splitsQ.Where(s => s.ProducerId == pid);
@@ -135,7 +135,7 @@ public class GetCommissionDistributionQueryHandler
             // Over-commission statements anchor on PeriodFrom when available,
             // otherwise the natural key (Year, Month). Both paths get mapped
             // to a DateOnly so the same [from, to] window works uniformly.
-            var overQ = _db.OverCommissionStatements.IgnoreQueryFilters()
+            var overQ = _db.OverCommissionStatements
                 .Where(s => s.TenantId == tenantId && s.DeletedAt == null);
             if (request.CarrierId is Guid cid2) overQ = overQ.Where(s => s.InsuranceCompanyId == cid2);
             if (request.ProducerId is Guid pid2) overQ = overQ.Where(s => s.ProducerId == pid2);
@@ -265,13 +265,13 @@ public class GetFinancialReportQueryHandler
         var from = request.From ?? new DateOnly(today.Year, 1, 1);
         var to = request.To ?? new DateOnly(today.Year, 12, 31);
 
-        var receipts = await _db.Receipts.IgnoreQueryFilters()
+        var receipts = await _db.Receipts
             .Where(r => r.TenantId == tenantId && r.DeletedAt == null
                 && r.ReceivedOn >= from && r.ReceivedOn <= to)
             .Select(r => new { r.ReceivedOn, r.Amount })
             .ToListAsync(ct);
 
-        var payments = await _db.Payments.IgnoreQueryFilters()
+        var payments = await _db.Payments
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null
                 && p.PaidOn >= from && p.PaidOn <= to)
             .Select(p => new { p.PaidOn, p.Amount, p.BeneficiaryType })
@@ -301,7 +301,7 @@ public class GetFinancialReportQueryHandler
         // Keep standalone/legacy ledger movements, but do not add a
         // policy-linked movement for a policy already represented by the
         // production rows or the same commission would be counted twice.
-        var earned = await _db.FinancialMovements.IgnoreQueryFilters()
+        var earned = await _db.FinancialMovements
             .Where(m => m.TenantId == tenantId && m.DeletedAt == null
                 && m.Kind == FinancialMovementKind.CommissionEarned
                 && m.MovementDate >= from && m.MovementDate <= to)
@@ -361,22 +361,22 @@ public class GetFinancialReportQueryHandler
         // open receivable, CompanyCharge minus CompanyCredit the open payable.
         // Movements outside the period are excluded so the number matches
         // "how much do our customers owe us that fell inside 2026".
-        var custCharges = await _db.FinancialMovements.IgnoreQueryFilters()
+        var custCharges = await _db.FinancialMovements
             .Where(m => m.TenantId == tenantId && m.DeletedAt == null
                 && m.MovementDate >= from && m.MovementDate <= to
                 && m.Kind == FinancialMovementKind.CustomerCharge)
             .SumAsync(m => (decimal?)m.Amount, ct) ?? 0m;
-        var custCredits = await _db.FinancialMovements.IgnoreQueryFilters()
+        var custCredits = await _db.FinancialMovements
             .Where(m => m.TenantId == tenantId && m.DeletedAt == null
                 && m.MovementDate >= from && m.MovementDate <= to
                 && m.Kind == FinancialMovementKind.CustomerCredit)
             .SumAsync(m => (decimal?)m.Amount, ct) ?? 0m;
-        var compCharges = await _db.FinancialMovements.IgnoreQueryFilters()
+        var compCharges = await _db.FinancialMovements
             .Where(m => m.TenantId == tenantId && m.DeletedAt == null
                 && m.MovementDate >= from && m.MovementDate <= to
                 && m.Kind == FinancialMovementKind.CompanyCharge)
             .SumAsync(m => (decimal?)m.Amount, ct) ?? 0m;
-        var compCredits = await _db.FinancialMovements.IgnoreQueryFilters()
+        var compCredits = await _db.FinancialMovements
             .Where(m => m.TenantId == tenantId && m.DeletedAt == null
                 && m.MovementDate >= from && m.MovementDate <= to
                 && m.Kind == FinancialMovementKind.CompanyCredit)
@@ -449,7 +449,7 @@ public class GetProducerStatementQueryHandler
         var from = request.From ?? new DateOnly(today.Year, 1, 1);
         var to = request.To ?? new DateOnly(today.Year, 12, 31);
 
-        var producer = await _db.Producers.IgnoreQueryFilters()
+        var producer = await _db.Producers
             .FirstOrDefaultAsync(p => p.Id == request.ProducerId && p.TenantId == tenantId && p.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Συνεργάτης");
 
@@ -461,13 +461,13 @@ public class GetProducerStatementQueryHandler
         // Written as a method-chain rather than query syntax because `from`
         // is both my local variable and a LINQ query keyword — the parser
         // reads "p.StartDate >= from" ambiguously in the query form.
-        var lines = await _db.PolicyCommissionSplits.IgnoreQueryFilters()
+        var lines = await _db.PolicyCommissionSplits
             .Where(s => s.TenantId == tenantId && s.DeletedAt == null && s.ProducerId == request.ProducerId)
-            .Join(_db.Policies.IgnoreQueryFilters(), s => s.PolicyId, p => p.Id, (s, p) => new { s, p })
+            .Join(_db.Policies, s => s.PolicyId, p => p.Id, (s, p) => new { s, p })
             .Where(x => x.p.DeletedAt == null && x.p.Status != PolicyStatus.Draft && x.p.Status != PolicyStatus.Cancelled && x.p.Status != PolicyStatus.Prospect
                 && x.p.StartDate >= from && x.p.StartDate <= to)
-            .Join(_db.Customers.IgnoreQueryFilters(), sp => sp.p.CustomerId, c => c.Id, (sp, c) => new { sp.s, sp.p, c })
-            .Join(_db.InsuranceCompanies.IgnoreQueryFilters(), spc => spc.p.InsuranceCompanyId, carrier => carrier.Id,
+            .Join(_db.Customers, sp => sp.p.CustomerId, c => c.Id, (sp, c) => new { sp.s, sp.p, c })
+            .Join(_db.InsuranceCompanies, spc => spc.p.InsuranceCompanyId, carrier => carrier.Id,
                 (spc, carrier) => new {
                     spc.p.Id, spc.p.PolicyNumber,
                     // Customer can be physical (FirstName + LastName) or
@@ -496,7 +496,7 @@ public class GetProducerStatementQueryHandler
 
         // What we've actually paid the producer inside the window — used to
         // present the balance as «Οφείλονται € X».
-        var paid = await _db.Payments.IgnoreQueryFilters()
+        var paid = await _db.Payments
             .Where(pmt => pmt.TenantId == tenantId && pmt.DeletedAt == null
                 && pmt.BeneficiaryType == BeneficiaryType.Producer
                 && pmt.BeneficiaryProducerId == request.ProducerId

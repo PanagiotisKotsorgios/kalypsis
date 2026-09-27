@@ -27,7 +27,7 @@ public class DeletePolicyHandler : IRequestHandler<DeletePolicyCommand, DeletePo
     public async Task<DeletePolicyResultDto> Handle(DeletePolicyCommand c, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var policy = await _db.Policies.IgnoreQueryFilters()
+        var policy = await _db.Policies
             .FirstOrDefaultAsync(p => p.Id == c.Id && p.TenantId == tenantId && p.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Συμβόλαιο");
 

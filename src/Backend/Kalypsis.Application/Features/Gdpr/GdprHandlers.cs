@@ -36,7 +36,7 @@ public class ExportCustomerDataHandler : IRequestHandler<ExportCustomerDataQuery
         if (_current.Role == Role.Customer)
         {
             var userId = _current.UserId ?? throw AppException.Unauthorized();
-            var theirCustomer = await _db.Users.IgnoreQueryFilters()
+            var theirCustomer = await _db.Users
                 .Where(u => u.Id == userId).Select(u => u.CustomerId).FirstOrDefaultAsync(ct);
             if (theirCustomer is null || theirCustomer.Value != request.CustomerId)
                 throw AppException.Forbidden();

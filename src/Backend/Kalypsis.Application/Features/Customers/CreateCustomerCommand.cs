@@ -50,7 +50,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
         var email = string.IsNullOrWhiteSpace(r.Email) ? null : r.Email.Trim().ToLowerInvariant();
 
         var lastNumber = await _db.Customers
-            .IgnoreQueryFilters()
+
             .Where(c => c.TenantId == tenantId)
             .CountAsync(cancellationToken);
 

@@ -48,13 +48,13 @@ public class ListProducersQueryHandler : IRequestHandler<ListProducersQuery, IRe
     public async Task<IReadOnlyList<ProducerDto>> Handle(ListProducersQuery request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var rows = await _db.Producers.IgnoreQueryFilters()
+        var rows = await _db.Producers
             .Include(p => p.ParentProducer)
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null)
             .OrderBy(p => p.Name)
             .Select(p => new ProducerDto(
                 p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, p.Tier,
-                _db.Policies.IgnoreQueryFilters().Count(x => x.ProducerId == p.Id && x.DeletedAt == null),
+                _db.Policies.Count(x => x.ProducerId == p.Id && x.DeletedAt == null),
                 p.CreatedAt,
                 p.HierarchyLevel,
                 p.ParentProducerId,
@@ -97,7 +97,7 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var b = request.Body;
         var code = b.Code.Trim().ToUpperInvariant();
-        if (await _db.Producers.IgnoreQueryFilters().AnyAsync(p => p.TenantId == tenantId && p.Code == code && p.DeletedAt == null, ct))
+        if (await _db.Producers.AnyAsync(p => p.TenantId == tenantId && p.Code == code && p.DeletedAt == null, ct))
             throw new AppException("producer_code_taken",
                 $"Παραγωγός με κωδικό {code} υπάρχει ήδη.", 409,
                 title: "Κωδικός σε χρήση",
@@ -128,7 +128,7 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
         // email — the (TenantId, Email) unique constraint holds.
         if (p.Status != ProducerStatus.Prospect && !string.IsNullOrEmpty(p.Email))
         {
-            var existingUser = await _db.Users.IgnoreQueryFilters()
+            var existingUser = await _db.Users
                 .Where(u => u.TenantId == tenantId && u.Email == p.Email && u.DeletedAt == null)
                 .FirstOrDefaultAsync(ct);
             if (existingUser is not null)
@@ -162,7 +162,7 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
         string? parentName = null;
         if (p.ParentProducerId.HasValue)
         {
-            parentName = await _db.Producers.IgnoreQueryFilters()
+            parentName = await _db.Producers
                 .Where(x => x.Id == p.ParentProducerId.Value)
                 .Select(x => x.Name).FirstOrDefaultAsync(ct);
         }
@@ -199,7 +199,7 @@ public class UpdateProducerCommandHandler : IRequestHandler<UpdateProducerComman
     public async Task<ProducerDto> Handle(UpdateProducerCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var p = await _db.Producers.IgnoreQueryFilters()
+        var p = await _db.Producers
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Παραγωγός");
 
@@ -231,12 +231,12 @@ public class UpdateProducerCommandHandler : IRequestHandler<UpdateProducerComman
         {
             // Unlink any users previously pointing at this producer that
             // no longer share the email (avoids double-linking scenarios).
-            var stale = await _db.Users.IgnoreQueryFilters()
+            var stale = await _db.Users
                 .Where(u => u.TenantId == tenantId && u.ProducerId == p.Id && u.Email != newEmail)
                 .ToListAsync(ct);
             foreach (var u in stale) u.ProducerId = null;
 
-            var target = await _db.Users.IgnoreQueryFilters()
+            var target = await _db.Users
                 .Where(u => u.TenantId == tenantId && u.Email == newEmail && u.DeletedAt == null)
                 .FirstOrDefaultAsync(ct);
             if (target is not null)
@@ -264,12 +264,12 @@ public class UpdateProducerCommandHandler : IRequestHandler<UpdateProducerComman
 
         await _db.SaveChangesAsync(ct);
 
-        var count = await _db.Policies.IgnoreQueryFilters()
+        var count = await _db.Policies
             .CountAsync(x => x.ProducerId == p.Id && x.DeletedAt == null, ct);
         string? parentName = null;
         if (p.ParentProducerId.HasValue)
         {
-            parentName = await _db.Producers.IgnoreQueryFilters()
+            parentName = await _db.Producers
                 .Where(x => x.Id == p.ParentProducerId.Value)
                 .Select(x => x.Name).FirstOrDefaultAsync(ct);
         }
@@ -291,7 +291,7 @@ public class DeleteProducerCommandHandler : IRequestHandler<DeleteProducerComman
     public async Task<Unit> Handle(DeleteProducerCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var p = await _db.Producers.IgnoreQueryFilters()
+        var p = await _db.Producers
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Παραγωγός");
         p.DeletedAt = DateTime.UtcNow;
@@ -340,7 +340,7 @@ public class LookupProducerUserByEmailHandler
         var email = r.Email?.Trim().ToLowerInvariant();
         if (string.IsNullOrEmpty(email) || !email.Contains('@')) return null;
 
-        var user = await _db.Users.IgnoreQueryFilters()
+        var user = await _db.Users
             .Where(u => u.TenantId == tenantId && u.Email == email && u.DeletedAt == null)
             .FirstOrDefaultAsync(ct);
         if (user is null) return null;
@@ -348,7 +348,7 @@ public class LookupProducerUserByEmailHandler
         Producer? linked = null;
         if (user.ProducerId.HasValue)
         {
-            linked = await _db.Producers.IgnoreQueryFilters()
+            linked = await _db.Producers
                 .Where(p => p.Id == user.ProducerId.Value && p.DeletedAt == null)
                 .FirstOrDefaultAsync(ct);
         }

@@ -35,11 +35,11 @@ public class GetCustomerSummaryHandler : IRequestHandler<GetCustomerSummaryQuery
     public async Task<CustomerSummaryDto> Handle(GetCustomerSummaryQuery q, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        _ = await _db.Customers.IgnoreQueryFilters()
+        _ = await _db.Customers
             .FirstOrDefaultAsync(c => c.Id == q.Id && c.TenantId == tenantId && c.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Πελάτης");
 
-        var policies = await _db.Policies.IgnoreQueryFilters()
+        var policies = await _db.Policies
             .Where(p => p.CustomerId == q.Id && p.DeletedAt == null)
             .Select(p => new { p.Status, p.Premium, p.StartDate, p.SpecialCommissionPercent })
             .ToListAsync(ct);
@@ -58,27 +58,27 @@ public class GetCustomerSummaryHandler : IRequestHandler<GetCustomerSummaryQuery
         });
 
         // Claims hang off the policy — join via PolicyId → CustomerId.
-        var customerPolicyIds = await _db.Policies.IgnoreQueryFilters()
+        var customerPolicyIds = await _db.Policies
             .Where(p => p.CustomerId == q.Id && p.DeletedAt == null)
             .Select(p => p.Id).ToListAsync(ct);
         var openClaims  = customerPolicyIds.Count == 0 ? 0
-            : await _db.Claims.IgnoreQueryFilters()
+            : await _db.Claims
                 .CountAsync(x => customerPolicyIds.Contains(x.PolicyId) && x.DeletedAt == null
                               && (x.Status == ClaimStatus.Reported || x.Status == ClaimStatus.UnderReview
                                || x.Status == ClaimStatus.Approved), ct);
         var totalClaims = customerPolicyIds.Count == 0 ? 0
-            : await _db.Claims.IgnoreQueryFilters()
+            : await _db.Claims
                 .CountAsync(x => customerPolicyIds.Contains(x.PolicyId) && x.DeletedAt == null, ct);
 
         // Notifications target the user that owns the customer portal account.
-        var customerUserIds = await _db.Users.IgnoreQueryFilters()
+        var customerUserIds = await _db.Users
             .Where(u => u.CustomerId == q.Id && u.DeletedAt == null)
             .Select(u => u.Id).ToListAsync(ct);
         var notifications = customerUserIds.Count == 0 ? 0
-            : await _db.Notifications.IgnoreQueryFilters()
+            : await _db.Notifications
                 .CountAsync(n => customerUserIds.Contains(n.UserId) && n.DeletedAt == null, ct);
 
-        var comms = await _db.CommunicationLogs.IgnoreQueryFilters()
+        var comms = await _db.CommunicationLogs
             .CountAsync(x => x.CustomerId == q.Id && x.DeletedAt == null, ct);
 
         // Tiering — purely cumulative-premium based; tune from Παραμετροποίηση later.

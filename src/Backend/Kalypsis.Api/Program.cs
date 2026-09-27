@@ -344,6 +344,10 @@ app.UseStaticFiles();
 app.UseCors("frontend");
 app.UseRateLimiter();
 app.UseAuthentication();
+// Resolve and validate the selected agency office before authorization and
+// controller queries.  This keeps office isolation server-side; the header is
+// never trusted without checking the user's assignment in the database.
+app.UseMiddleware<Kalypsis.Infrastructure.Auth.AgencyOfficeScopeMiddleware>();
 // The client-facing portal is temporarily switched off. This also blocks
 // previously issued customer tokens, while keeping all back-office records
 // and office/producer functionality intact.

@@ -38,7 +38,7 @@ public class GetProducerDetailQueryHandler : IRequestHandler<GetProducerDetailQu
     public async Task<ProducerDetailDto> Handle(GetProducerDetailQuery r, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var p = await _db.Producers.IgnoreQueryFilters()
+        var p = await _db.Producers
             .FirstOrDefaultAsync(x => x.Id == r.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Producer");
 
@@ -70,7 +70,7 @@ public class GetProducerDetailQueryHandler : IRequestHandler<GetProducerDetailQu
             .Where(x => x.ProducerId == r.Id && x.DeletedAt == null && x.CreatedAt.Year == thisYear)
             .SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
 
-        var claimCount = await _db.Claims.IgnoreQueryFilters()
+        var claimCount = await _db.Claims
             .CountAsync(x => policyIds.Contains(x.PolicyId) && x.DeletedAt == null, ct);
         decimal claimRatio = total == 0 ? 0 : Math.Round((decimal)claimCount / total * 100m, 1);
 

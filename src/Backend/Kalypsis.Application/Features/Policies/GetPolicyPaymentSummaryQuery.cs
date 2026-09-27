@@ -29,11 +29,11 @@ public class GetPolicyPaymentSummaryHandler : IRequestHandler<GetPolicyPaymentSu
     public async Task<PolicyPaymentSummaryDto> Handle(GetPolicyPaymentSummaryQuery q, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var p = await _db.Policies.IgnoreQueryFilters()
+        var p = await _db.Policies
             .FirstOrDefaultAsync(x => x.Id == q.PolicyId && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Συμβόλαιο");
 
-        var receipts = await _db.Receipts.IgnoreQueryFilters()
+        var receipts = await _db.Receipts
             .Where(r => r.PolicyId == p.Id && r.DeletedAt == null)
             .Select(r => new { r.Amount, r.ReceivedOn }).ToListAsync(ct);
 

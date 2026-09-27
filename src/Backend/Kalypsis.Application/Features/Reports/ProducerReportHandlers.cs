@@ -33,11 +33,11 @@ public class GetProducerReportQueryHandler : IRequestHandler<GetProducerReportQu
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var userId = _current.UserId ?? throw AppException.Unauthorized();
-        var producerId = await _db.Users.IgnoreQueryFilters()
+        var producerId = await _db.Users
             .Where(u => u.Id == userId).Select(u => u.ProducerId).FirstOrDefaultAsync(ct)
             ?? throw AppException.Forbidden("Ο λογαριασμός δεν είναι συνδεδεμένος με παραγωγό.");
 
-        var producer = await _db.Producers.IgnoreQueryFilters()
+        var producer = await _db.Producers
             .FirstOrDefaultAsync(p => p.Id == producerId, ct)
             ?? throw AppException.NotFound("Παραγωγός");
 
@@ -45,7 +45,7 @@ public class GetProducerReportQueryHandler : IRequestHandler<GetProducerReportQu
         var in30 = today.AddDays(30);
         var yearStart = new DateOnly(today.Year, 1, 1);
 
-        var policies = _db.Policies.IgnoreQueryFilters()
+        var policies = _db.Policies
             .Include(p => p.Customer)
             .Include(p => p.InsuranceCompany)
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null && p.ProducerId == producerId);

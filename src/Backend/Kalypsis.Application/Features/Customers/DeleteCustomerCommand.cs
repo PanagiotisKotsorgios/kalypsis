@@ -24,7 +24,7 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
 
-        var customer = await _db.Customers.IgnoreQueryFilters()
+        var customer = await _db.Customers
             .FirstOrDefaultAsync(c => c.Id == request.Id
                 && c.TenantId == tenantId
                 && c.DeletedAt == null, ct)
@@ -35,7 +35,7 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
         // of live history breaks the "recent policies" queries + audit
         // trails downstream. The operator can either anonymize (GDPR
         // endpoint) or wait until the dependents are resolved.
-        var policyCount = await _db.Policies.IgnoreQueryFilters()
+        var policyCount = await _db.Policies
             .CountAsync(p => p.CustomerId == request.Id && p.DeletedAt == null, ct);
         if (policyCount > 0)
             throw new AppException("customer_has_policies",
@@ -44,7 +44,7 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
                 why: "Η διαγραφή θα άφηνε τα συμβόλαια χωρίς κάτοχο. Θα κρύβονταν από κάθε λίστα και ο ιστορικός κύκλος ζωής θα διακοπτόταν.",
                 fix: "Διαγράψτε ή μεταφέρετε πρώτα τα συμβόλαια, ή χρησιμοποιήστε την ανωνυμοποίηση (GDPR) αντί για διαγραφή.");
 
-        var receiptCount = await _db.Receipts.IgnoreQueryFilters()
+        var receiptCount = await _db.Receipts
             .CountAsync(r => r.CustomerId == request.Id && r.DeletedAt == null, ct);
         if (receiptCount > 0)
             throw new AppException("customer_has_receipts",

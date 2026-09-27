@@ -185,7 +185,7 @@ public static class ProductionListBuilder
             // Cascade: when a broker is selected, also include all of its subs
             // so the production list reflects the whole hierarchy. When a sub
             // (or a standalone carrier) is selected, only its own policies.
-            var carrierIds = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            var carrierIds = await _db.InsuranceCompanies
                 .Where(c => c.DeletedAt == null
                     && (c.Id == f.InsuranceCompanyId.Value
                         || c.ParentCompanyId == f.InsuranceCompanyId.Value))
@@ -240,14 +240,14 @@ public static class ProductionListBuilder
             .Select(x => x.ProducerId!.Value).Distinct().ToList();
         var tierByProducer = producerTiers.Count == 0
             ? new Dictionary<Guid, ProducerTier>()
-            : await _db.Producers.IgnoreQueryFilters()
+            : await _db.Producers
                 .Where(x => producerTiers.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, x => x.Tier, ct);
 
         var policyIds = policies.Select(p => p.Id).ToList();
         var bridgeAgencyCommissionByPolicy = policyIds.Count == 0
             ? new Dictionary<Guid, decimal>()
-            : await _db.FinancialMovements.IgnoreQueryFilters()
+            : await _db.FinancialMovements
                 .Where(m => m.TenantId == tenantId
                     && m.DeletedAt == null
                     && m.PolicyId.HasValue
@@ -266,7 +266,7 @@ public static class ProductionListBuilder
         var splitRows = new List<(Guid PolicyId, HierarchyLevel Level, Guid? ProducerId, decimal Percent, decimal Gross)>();
         if (policyIds.Count > 0)
         {
-            var persistedSplits = await _db.PolicyCommissionSplits.IgnoreQueryFilters()
+            var persistedSplits = await _db.PolicyCommissionSplits
                 .Where(s => s.TenantId == tenantId && s.DeletedAt == null && policyIds.Contains(s.PolicyId))
                 .Select(s => new { s.PolicyId, s.HierarchyLevel, s.ProducerId, s.Percent, s.GrossAmount })
                 .ToListAsync(ct);

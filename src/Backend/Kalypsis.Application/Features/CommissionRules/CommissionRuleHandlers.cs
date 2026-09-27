@@ -157,7 +157,7 @@ public class ListCommissionRulesHandler : IRequestHandler<ListCommissionRulesQue
     public async Task<IReadOnlyList<CommissionRuleDto>> Handle(ListCommissionRulesQuery _, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var rules = await _db.CommissionRules.IgnoreQueryFilters()
+        var rules = await _db.CommissionRules
             .Include(r => r.Producer)
             .Include(r => r.InsuranceCompany)
             .Where(r => r.TenantId == tenantId && r.DeletedAt == null)
@@ -232,7 +232,7 @@ public class CreateCommissionRuleHandler : IRequestHandler<CreateCommissionRuleC
 
     private async Task<CommissionRuleDto> ReloadAsync(Guid id, CancellationToken ct)
     {
-        var r = await _db.CommissionRules.IgnoreQueryFilters()
+        var r = await _db.CommissionRules
             .Include(x => x.Producer).Include(x => x.InsuranceCompany)
             .FirstAsync(x => x.Id == id, ct);
         return CommissionRuleMultiLevel.ToDto(r);
@@ -277,7 +277,7 @@ public class UpsertCommissionRuleBatchHandler : IRequestHandler<UpsertCommission
             .DefaultIfEmpty(null)
             .ToList();
 
-        var existing = await _db.CommissionRules.IgnoreQueryFilters()
+        var existing = await _db.CommissionRules
             .Include(x => x.Producer)
             .Include(x => x.InsuranceCompany)
             .Where(x => x.TenantId == tenantId && x.DeletedAt == null)
@@ -348,7 +348,7 @@ public class UpsertCommissionRuleBatchHandler : IRequestHandler<UpsertCommission
 
         await _db.SaveChangesAsync(ct);
 
-        var saved = await _db.CommissionRules.IgnoreQueryFilters()
+        var saved = await _db.CommissionRules
             .Include(x => x.Producer)
             .Include(x => x.InsuranceCompany)
             .Where(x => changedIds.Contains(x.Id))
@@ -369,7 +369,7 @@ public class UpdateCommissionRuleHandler : IRequestHandler<UpdateCommissionRuleC
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         new CommissionRuleBodyValidator().ValidateAndThrow(c.Body);
 
-        var r = await _db.CommissionRules.IgnoreQueryFilters()
+        var r = await _db.CommissionRules
             .FirstOrDefaultAsync(x => x.Id == c.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Κανόνας προμήθειας");
 
@@ -388,7 +388,7 @@ public class UpdateCommissionRuleHandler : IRequestHandler<UpdateCommissionRuleC
         CommissionRuleMultiLevel.ApplyLevels(r, c.Body);
         await _db.SaveChangesAsync(ct);
 
-        var reloaded = await _db.CommissionRules.IgnoreQueryFilters()
+        var reloaded = await _db.CommissionRules
             .Include(x => x.Producer).Include(x => x.InsuranceCompany)
             .FirstAsync(x => x.Id == r.Id, ct);
         return CommissionRuleMultiLevel.ToDto(reloaded);
@@ -416,7 +416,7 @@ public class DeleteCommissionRuleHandler : IRequestHandler<DeleteCommissionRuleC
     public async Task<Unit> Handle(DeleteCommissionRuleCommand c, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var r = await _db.CommissionRules.IgnoreQueryFilters()
+        var r = await _db.CommissionRules
             .FirstOrDefaultAsync(x => x.Id == c.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Κανόνας προμήθειας");
         r.DeletedAt = DateTime.UtcNow;
@@ -439,7 +439,7 @@ public class SeedZeroCommissionRulesHandler : IRequestHandler<SeedZeroCommission
     public async Task<SeedZeroCommissionRulesResult> Handle(SeedZeroCommissionRulesCommand r, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var companiesQuery = _db.InsuranceCompanies.IgnoreQueryFilters()
+        var companiesQuery = _db.InsuranceCompanies
             .Where(c => c.TenantId == tenantId && c.DeletedAt == null && c.IsActive);
         if (r.InsuranceCompanyId.HasValue) companiesQuery = companiesQuery.Where(c => c.Id == r.InsuranceCompanyId.Value);
         var companyIds = await companiesQuery.Select(c => c.Id).ToListAsync(ct);
@@ -456,17 +456,17 @@ public class SeedZeroCommissionRulesHandler : IRequestHandler<SeedZeroCommission
     private static async Task<int> SeedCompanyAsync(IAppDbContext db, Guid tenantId, Guid companyId, CancellationToken ct)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var companyCode = await db.InsuranceCompanies.IgnoreQueryFilters()
+        var companyCode = await db.InsuranceCompanies
             .Where(c => c.Id == companyId && c.DeletedAt == null)
             .Select(c => c.Code)
             .FirstOrDefaultAsync(ct);
         var companyParams = string.IsNullOrWhiteSpace(companyCode)
             ? new List<CompanyParameterItem>()
-            : await db.CompanyParameterItems.IgnoreQueryFilters()
+            : await db.CompanyParameterItems
                 .Include(p => p.InsuranceCompany)
                 .Where(p => p.DeletedAt == null && p.IsActive && p.InsuranceCompany.Code == companyCode)
                 .ToListAsync(ct);
-        var existing = await db.CommissionRules.IgnoreQueryFilters()
+        var existing = await db.CommissionRules
             .Where(rule => rule.TenantId == tenantId && rule.DeletedAt == null && rule.InsuranceCompanyId == companyId)
             .Select(rule => new { rule.PolicyType, rule.VehicleUseCategory, rule.ProducerTier, rule.ProducerId, rule.CoverCode })
             .ToListAsync(ct);

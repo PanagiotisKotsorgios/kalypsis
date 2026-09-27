@@ -45,12 +45,12 @@ public class GetAgencyUserReportQueryHandler : IRequestHandler<GetAgencyUserRepo
         var soon = today.AddDays(30);
 
         // "My" customers = those assigned to me.
-        var myCustomerIds = await _db.Customers.IgnoreQueryFilters()
+        var myCustomerIds = await _db.Customers
             .Where(c => c.TenantId == tenantId && c.DeletedAt == null && c.AssignedAdvisorId == userId)
             .Select(c => c.Id).ToListAsync(ct);
 
         // "My" policies = policies for those customers OR explicitly created by me.
-        var policies = _db.Policies.IgnoreQueryFilters()
+        var policies = _db.Policies
             .Include(p => p.InsuranceCompany)
             .Include(p => p.Customer)
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null
@@ -59,10 +59,10 @@ public class GetAgencyUserReportQueryHandler : IRequestHandler<GetAgencyUserRepo
         var active = policies.Where(p => p.Status == PolicyStatus.Active);
         var expiring = active.Where(p => p.EndDate <= soon && p.EndDate >= today);
 
-        var requests = _db.ServiceRequests.IgnoreQueryFilters()
+        var requests = _db.ServiceRequests
             .Where(r => r.TenantId == tenantId && r.DeletedAt == null
                         && myCustomerIds.Contains(r.CustomerId));
-        var claims = _db.Claims.IgnoreQueryFilters()
+        var claims = _db.Claims
             .Where(c => c.TenantId == tenantId && c.DeletedAt == null
                         && (myCustomerIds.Contains(c.Policy.CustomerId)));
 

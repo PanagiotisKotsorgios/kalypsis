@@ -1,6 +1,7 @@
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Domain.Entities;
+using Kalypsis.Domain.Enums;
 using Kalypsis.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -66,7 +67,7 @@ public class BridgeCodeMappingsController : ControllerBase
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
 
-        var q = _db.BridgeCodeMappings.IgnoreQueryFilters()
+        var q = _db.BridgeCodeMappings
             .Include(x => x.TargetInsuranceCompany)
             .Include(x => x.TargetParameterItem)
             .Include(x => x.TargetProducer)
@@ -113,7 +114,7 @@ public class BridgeCodeMappingsController : ControllerBase
         // respect DeletedAt so a plain INSERT with a soft-deleted twin would
         // throw a raw duplicate-key exception and the operator would just see
         // "Παρουσιάστηκε εσωτερικό σφάλμα".
-        var existing = await _db.BridgeCodeMappings.IgnoreQueryFilters()
+        var existing = await ScopeOffice(_db.BridgeCodeMappings.IgnoreQueryFilters())
             .FirstOrDefaultAsync(x => x.TenantId == tenantId
                 && x.Kind == body.Kind
                 && x.SourceCarrier == carrier
@@ -161,7 +162,7 @@ public class BridgeCodeMappingsController : ControllerBase
         }
         await _db.SaveChangesAsync(ct);
 
-        var saved = await _db.BridgeCodeMappings.IgnoreQueryFilters()
+        var saved = await _db.BridgeCodeMappings
             .Include(x => x.TargetInsuranceCompany)
             .Include(x => x.TargetParameterItem)
             .Include(x => x.TargetProducer)
@@ -178,7 +179,7 @@ public class BridgeCodeMappingsController : ControllerBase
         await EnsureTargetsAsync(tenantId, body, ct);
         await EnsureSingleCompanyTargetAsync(tenantId, body, editingId: id, ct);
 
-        var item = await _db.BridgeCodeMappings.IgnoreQueryFilters()
+        var item = await _db.BridgeCodeMappings
             .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Αντιστοίχιση γέφυρας");
 
@@ -195,7 +196,7 @@ public class BridgeCodeMappingsController : ControllerBase
         item.UpdatedAt = _clock.UtcNow;
         await _db.SaveChangesAsync(ct);
 
-        var saved = await _db.BridgeCodeMappings.IgnoreQueryFilters()
+        var saved = await _db.BridgeCodeMappings
             .Include(x => x.TargetInsuranceCompany)
             .Include(x => x.TargetParameterItem)
             .Include(x => x.TargetProducer)
@@ -208,7 +209,7 @@ public class BridgeCodeMappingsController : ControllerBase
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var item = await _db.BridgeCodeMappings.IgnoreQueryFilters()
+        var item = await _db.BridgeCodeMappings
             .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Αντιστοίχιση γέφυρας");
         item.DeletedAt = _clock.UtcNow;
@@ -261,7 +262,7 @@ public class BridgeCodeMappingsController : ControllerBase
         }
         if (body.TargetProducerId.HasValue)
         {
-            var exists = await _db.Producers.IgnoreQueryFilters()
+            var exists = await _db.Producers
                 .AnyAsync(x => x.Id == body.TargetProducerId.Value
                     && x.DeletedAt == null
                     && x.TenantId == tenantId, ct);
@@ -283,7 +284,7 @@ public class BridgeCodeMappingsController : ControllerBase
         if (!body.TargetInsuranceCompanyId.HasValue) return;
 
         var targetId = body.TargetInsuranceCompanyId.Value;
-        var conflict = await _db.BridgeCodeMappings.IgnoreQueryFilters()
+        var conflict = await ScopeOffice(_db.BridgeCodeMappings.IgnoreQueryFilters())
             .Include(x => x.TargetInsuranceCompany)
             .Where(x => x.TenantId == tenantId
                 && x.DeletedAt == null
@@ -316,6 +317,16 @@ public class BridgeCodeMappingsController : ControllerBase
         x.TargetProducer?.Code,
         x.TargetProducer?.Name,
         x.Notes, x.ConfirmedByUserId, x.ConfirmedAt, x.CreatedAt);
+
+    private IQueryable<BridgeCodeMapping> ScopeOffice(IQueryable<BridgeCodeMapping> query)
+    {
+        if (_current.IsPlatformLevel || _current.Role == Role.AgencyAdmin || !_current.AgencyOfficeId.HasValue)
+            return query;
+        var officeId = _current.AgencyOfficeId.Value;
+        var includeLegacy = _current.AgencyOfficeIsHeadquarters;
+        return query.Where(x => x.AgencyOfficeScopeId == officeId
+            || (includeLegacy && x.AgencyOfficeScopeId == null));
+    }
 
     private static string? Clean(string? value)
     {

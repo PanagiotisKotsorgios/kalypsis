@@ -16,7 +16,7 @@ internal static class ProducerPortalScope
         IAppDbContext db, ICurrentUser current, CancellationToken ct)
     {
         var userId = current.UserId ?? throw AppException.Forbidden();
-        var producerId = await db.Users.IgnoreQueryFilters()
+        var producerId = await db.Users
             .Where(u => u.Id == userId && u.DeletedAt == null)
             .Select(u => u.ProducerId)
             .FirstOrDefaultAsync(ct);

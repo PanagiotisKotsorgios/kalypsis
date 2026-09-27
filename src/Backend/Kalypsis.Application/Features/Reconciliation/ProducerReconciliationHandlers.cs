@@ -382,7 +382,7 @@ public class ListAgencyReconciliationByRuleHandler
                 .ToListAsync(ct);
             var declPolicyIds = declarations.Select(d => d.PolicyId).Distinct().ToList();
             var declPolicies = await _db.Policies
-                .IgnoreQueryFilters()
+
                 .Where(p => declPolicyIds.Contains(p.Id))
                 .ToDictionaryAsync(p => p.Id, p => p, ct);
 

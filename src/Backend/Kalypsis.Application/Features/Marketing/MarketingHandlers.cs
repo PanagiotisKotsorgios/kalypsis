@@ -129,13 +129,13 @@ public class SendMarketingCampaignCommandHandler : IRequestHandler<SendMarketing
 
     public async Task<MarketingCampaignDto> Handle(SendMarketingCampaignCommand r, CancellationToken ct)
     {
-        var campaign = await _db.MarketingCampaigns.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == r.Id && x.DeletedAt == null, ct)
+        var campaign = await _db.MarketingCampaigns.FirstOrDefaultAsync(x => x.Id == r.Id && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Campaign");
         if (campaign.Status == CampaignStatus.Sent) return ListMarketingCampaignsQueryHandler.Map(campaign);
 
         var audience = await ResolveAudience(campaign, ct);
         var audienceIds = audience.Select(customer => customer.Id).ToList();
-        var consents = await _db.ConsentRecords.IgnoreQueryFilters()
+        var consents = await _db.ConsentRecords
             .Where(consent => consent.TenantId == campaign.TenantId && audienceIds.Contains(consent.CustomerId)
                 && consent.DeletedAt == null && consent.Granted && consent.RevokedAt == null)
             .GroupBy(consent => consent.CustomerId)
@@ -215,12 +215,12 @@ public class SendMarketingCampaignCommandHandler : IRequestHandler<SendMarketing
 
     private async Task<List<Customer>> ResolveAudience(MarketingCampaign campaign, CancellationToken ct)
     {
-        var query = _db.Customers.IgnoreQueryFilters()
+        var query = _db.Customers
             .Where(customer => customer.TenantId == campaign.TenantId && customer.DeletedAt == null && customer.Status == CustomerStatus.Active);
         if (campaign.SegmentKey == "expiring")
         {
             var soon = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30));
-            var expiringCustomerIds = _db.Policies.IgnoreQueryFilters()
+            var expiringCustomerIds = _db.Policies
                 .Where(policy => policy.TenantId == campaign.TenantId && policy.DeletedAt == null
                     && policy.Status == PolicyStatus.Active && policy.EndDate <= soon)
                 .Select(policy => policy.CustomerId);
@@ -235,7 +235,7 @@ public class SendMarketingCampaignCommandHandler : IRequestHandler<SendMarketing
         }
         if (!string.IsNullOrWhiteSpace(campaign.NeedKindFilter))
         {
-            var needCustomers = _db.CustomerInsuranceNeeds.IgnoreQueryFilters()
+            var needCustomers = _db.CustomerInsuranceNeeds
                 .Where(need => need.TenantId == campaign.TenantId && need.DeletedAt == null
                     && need.Kind == campaign.NeedKindFilter && need.HasAsset);
             if (campaign.OnlyUninsuredNeeds) needCustomers = needCustomers.Where(need => !need.IsInsured);

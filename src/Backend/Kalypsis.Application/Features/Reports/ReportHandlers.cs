@@ -35,10 +35,10 @@ public class GetAgencyReportQueryHandler : IRequestHandler<GetAgencyReportQuery,
         var today = DateOnly.FromDateTime(_clock.UtcNow.Date);
         var in30 = today.AddDays(30);
 
-        var policies = _db.Policies.IgnoreQueryFilters().Where(p => p.TenantId == tenantId && p.DeletedAt == null);
-        var claims = _db.Claims.IgnoreQueryFilters().Where(c => c.TenantId == tenantId && c.DeletedAt == null);
-        var requests = _db.ServiceRequests.IgnoreQueryFilters().Where(r => r.TenantId == tenantId && r.DeletedAt == null);
-        var customers = _db.Customers.IgnoreQueryFilters().Where(c => c.TenantId == tenantId && c.DeletedAt == null);
+        var policies = _db.Policies.Where(p => p.TenantId == tenantId && p.DeletedAt == null);
+        var claims = _db.Claims.Where(c => c.TenantId == tenantId && c.DeletedAt == null);
+        var requests = _db.ServiceRequests.Where(r => r.TenantId == tenantId && r.DeletedAt == null);
+        var customers = _db.Customers.Where(c => c.TenantId == tenantId && c.DeletedAt == null);
 
         var customerCount = await customers.CountAsync(ct);
         var activePolicies = await policies.CountAsync(p => p.Status == PolicyStatus.Active, ct);

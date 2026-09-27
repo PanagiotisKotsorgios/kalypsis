@@ -29,7 +29,7 @@ public class CreateProducerPortalAccountCommandHandler
     public async Task<CreateProducerPortalAccountResponse> Handle(CreateProducerPortalAccountCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var producer = await _db.Producers.IgnoreQueryFilters()
+        var producer = await _db.Producers
             .FirstOrDefaultAsync(p => p.Id == request.ProducerId && p.TenantId == tenantId && p.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Παραγωγός");
 
@@ -41,7 +41,7 @@ public class CreateProducerPortalAccountCommandHandler
                 fix: $"Ανοίξτε το προφίλ του παραγωγού «{producer.Name}» και συμπληρώστε email.",
                 fixLink: $"/app/producers");
 
-        var existing = await _db.Users.IgnoreQueryFilters()
+        var existing = await _db.Users
             .FirstOrDefaultAsync(u => u.ProducerId == producer.Id && u.DeletedAt == null, ct);
         if (existing is not null)
         {
@@ -58,7 +58,7 @@ public class CreateProducerPortalAccountCommandHandler
             return new CreateProducerPortalAccountResponse(producer.Id, existing.Id, existing.Email, resetPassword);
         }
 
-        var emailTaken = await _db.Users.IgnoreQueryFilters()
+        var emailTaken = await _db.Users
             .AnyAsync(u => u.Email == producer.Email && u.DeletedAt == null, ct);
         if (emailTaken)
             throw new AppException("email_taken",

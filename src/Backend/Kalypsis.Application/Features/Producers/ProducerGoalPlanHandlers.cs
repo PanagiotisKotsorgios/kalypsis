@@ -123,7 +123,7 @@ internal static class ProducerGoalPlanAccess
         CancellationToken ct)
     {
         var tenantId = current.TenantId ?? throw AppException.Forbidden();
-        return await db.Producers.IgnoreQueryFilters()
+        return await db.Producers
             .FirstOrDefaultAsync(x => x.Id == producerId && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Συνεργάτης");
     }

@@ -136,7 +136,7 @@ public class GenerateCommissionRunCommandHandler : IRequestHandler<GenerateCommi
             .Select(p => p.ProducerId!.Value).Distinct().ToList();
         var tierByProducer = producerIds.Count == 0
             ? new Dictionary<Guid, ProducerTier>()
-            : await _db.Producers.IgnoreQueryFilters()
+            : await _db.Producers
                 .Where(x => producerIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, x => x.Tier, ct);
 

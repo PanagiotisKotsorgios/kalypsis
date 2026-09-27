@@ -21,7 +21,7 @@ public class ListMyNotificationsQueryHandler : IRequestHandler<ListMyNotificatio
     public async Task<IReadOnlyList<NotificationDto>> Handle(ListMyNotificationsQuery request, CancellationToken ct)
     {
         var userId = _current.UserId ?? throw AppException.Unauthorized();
-        var q = _db.Notifications.IgnoreQueryFilters()
+        var q = _db.Notifications
             .Where(n => n.UserId == userId && n.DeletedAt == null);
         if (request.Unread == true) q = q.Where(n => !n.IsRead);
 
@@ -49,7 +49,7 @@ public class UnreadCountQueryHandler : IRequestHandler<UnreadCountQuery, UnreadC
     public async Task<UnreadCountDto> Handle(UnreadCountQuery request, CancellationToken ct)
     {
         var userId = _current.UserId ?? throw AppException.Unauthorized();
-        var count = await _db.Notifications.IgnoreQueryFilters()
+        var count = await _db.Notifications
             .CountAsync(n => n.UserId == userId && n.DeletedAt == null && !n.IsRead, ct);
         return new UnreadCountDto(count);
     }
@@ -73,7 +73,7 @@ public class MarkReadCommandHandler : IRequestHandler<MarkReadCommand, Unit>
     public async Task<Unit> Handle(MarkReadCommand request, CancellationToken ct)
     {
         var userId = _current.UserId ?? throw AppException.Unauthorized();
-        var n = await _db.Notifications.IgnoreQueryFilters()
+        var n = await _db.Notifications
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.UserId == userId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Notification");
 
@@ -105,7 +105,7 @@ public class DeleteNotificationCommandHandler : IRequestHandler<DeleteNotificati
     public async Task<Unit> Handle(DeleteNotificationCommand request, CancellationToken ct)
     {
         var userId = _current.UserId ?? throw AppException.Unauthorized();
-        var n = await _db.Notifications.IgnoreQueryFilters()
+        var n = await _db.Notifications
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.UserId == userId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Notification");
 
@@ -134,7 +134,7 @@ public class DeleteReadNotificationsCommandHandler : IRequestHandler<DeleteReadN
     {
         var userId = _current.UserId ?? throw AppException.Unauthorized();
         var now = _clock.UtcNow;
-        var count = await _db.Notifications.IgnoreQueryFilters()
+        var count = await _db.Notifications
             .Where(n => n.UserId == userId && n.IsRead && n.DeletedAt == null)
             .ExecuteUpdateAsync(s => s.SetProperty(n => n.DeletedAt, now), ct);
         return new DeletedNotificationsDto(count);
@@ -160,7 +160,7 @@ public class MarkAllReadCommandHandler : IRequestHandler<MarkAllReadCommand, Uni
     {
         var userId = _current.UserId ?? throw AppException.Unauthorized();
         var now = _clock.UtcNow;
-        await _db.Notifications.IgnoreQueryFilters()
+        await _db.Notifications
             .Where(n => n.UserId == userId && !n.IsRead && n.DeletedAt == null)
             .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true).SetProperty(n => n.ReadAt, now), ct);
         return Unit.Value;

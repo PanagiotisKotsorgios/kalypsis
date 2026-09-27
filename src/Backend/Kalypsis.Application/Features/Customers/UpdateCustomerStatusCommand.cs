@@ -24,7 +24,7 @@ public class UpdateCustomerStatusCommandHandler : IRequestHandler<UpdateCustomer
     public async Task Handle(UpdateCustomerStatusCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var customer = await _db.Customers.IgnoreQueryFilters()
+        var customer = await _db.Customers
             .FirstOrDefaultAsync(c => c.Id == request.CustomerId
                 && c.TenantId == tenantId && c.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Customer");

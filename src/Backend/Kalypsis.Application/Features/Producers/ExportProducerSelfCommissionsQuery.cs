@@ -33,7 +33,7 @@ public class ExportProducerSelfCommissionsQueryHandler
     public async Task<ExportResult> Handle(ExportProducerSelfCommissionsQuery request, CancellationToken ct)
     {
         var userId = _current.UserId ?? throw AppException.Unauthorized();
-        var producerId = await _db.Users.IgnoreQueryFilters()
+        var producerId = await _db.Users
             .Where(u => u.Id == userId)
             .Select(u => u.ProducerId)
             .FirstOrDefaultAsync(ct)

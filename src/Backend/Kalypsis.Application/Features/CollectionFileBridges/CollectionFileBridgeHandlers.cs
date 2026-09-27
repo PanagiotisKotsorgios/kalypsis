@@ -101,12 +101,12 @@ public class PreviewCollectionFileHandler : IRequestHandler<PreviewCollectionFil
         // an Atlantic receipt onto a same-numbered policy from another carrier).
         var policyNumbers = rows.Where(x => !string.IsNullOrEmpty(x.PolicyNumber))
             .Select(x => x.PolicyNumber!).Distinct().ToList();
-        var matches = await _db.Policies.IgnoreQueryFilters()
+        var matches = await _db.Policies
             .Where(p => p.TenantId == tenantId
                      && p.InsuranceCompanyId == carrier.Id
                      && p.DeletedAt == null
                      && policyNumbers.Contains(p.PolicyNumber))
-            .Join(_db.Customers.IgnoreQueryFilters(), p => p.CustomerId, c => c.Id,
+            .Join(_db.Customers, p => p.CustomerId, c => c.Id,
                 (p, c) => new {
                     p.Id, p.PolicyNumber,
                     Name = c.CompanyName ?? ((c.FirstName ?? "") + " " + (c.LastName ?? "")).Trim()
@@ -118,7 +118,7 @@ public class PreviewCollectionFileHandler : IRequestHandler<PreviewCollectionFil
 
         // Existing receipts with matching (Amount, ReceivedOn, TransactionReference) so
         // re-uploading the same monthly file doesn't create duplicate credits.
-        var existingRefs = (await _db.Receipts.IgnoreQueryFilters()
+        var existingRefs = (await _db.Receipts
             .Where(rc => rc.TenantId == tenantId && rc.DeletedAt == null
                 && rc.TransactionReference != null
                 && rc.TransactionReference.StartsWith("ATLANT-"))
@@ -291,7 +291,7 @@ public class CommitCollectionFileHandler : IRequestHandler<CommitCollectionFileC
             ?? throw AppException.NotFound("Ασφαλιστική εταιρία");
 
         // Dedup guard: skip anything already imported (rowset re-committed).
-        var existingRefs = (await _db.Receipts.IgnoreQueryFilters()
+        var existingRefs = (await _db.Receipts
             .Where(rc => rc.TenantId == tenantId && rc.DeletedAt == null
                 && rc.TransactionReference != null
                 && rc.TransactionReference.StartsWith("ATLANT-"))
@@ -303,7 +303,7 @@ public class CommitCollectionFileHandler : IRequestHandler<CommitCollectionFileC
         // receipt without extra round-trips.
         var policyIds = r.Rows.Where(x => x.MatchedPolicyId.HasValue)
             .Select(x => x.MatchedPolicyId!.Value).Distinct().ToList();
-        var policyMap = await _db.Policies.IgnoreQueryFilters()
+        var policyMap = await _db.Policies
             .Where(p => p.TenantId == tenantId && policyIds.Contains(p.Id))
             .Select(p => new { p.Id, p.CustomerId, p.Currency })
             .ToDictionaryAsync(x => x.Id, ct);

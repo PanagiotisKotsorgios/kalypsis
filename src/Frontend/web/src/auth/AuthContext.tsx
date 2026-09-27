@@ -147,6 +147,7 @@ function clearStored() {
 // intentionally NOT included — those belong to the device, not the user.
 const PER_USER_LOCALSTORAGE_KEYS = [
   "kalypsis.workspace",                     // active workspace pill
+  "kalypsis.activeOfficeId",                // selected agency office scope
   "kalypsis.ermes.customTemplates.v1",      // saved ΕΡΜΗΣ chat templates
   "kalypsis.productionList.hideAgency",     // «Απόκρυψη προμ. έδρας» toggle
   "kalypsis.policyDetailDrawer.width",      // drawer layout preference

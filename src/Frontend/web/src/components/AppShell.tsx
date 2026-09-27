@@ -5,6 +5,7 @@ import { AppLayout, type NavItem } from "./AppLayout";
 import { BackOfficeActionHelp } from "./BackOfficeActionHelp";
 import { EmployeeActivityTracker } from "./EmployeeActivityTracker";
 import { AnnouncementsBanner } from "./AnnouncementsBanner";
+import { AgencyOfficeSwitcher } from "./AgencyOfficeSwitcher";
 import type { Role } from "../auth/AuthContext";
 
 /**
@@ -34,6 +35,7 @@ export function AppShell({
   return (
     <AppLayout navItems={navItems}>
       {shouldTrackEmployeeActivity && <EmployeeActivityTracker />}
+      <AgencyOfficeSwitcher role={role} />
       {/* Global banner rendered once per authenticated shell — every
           logged-in role sees the platform admin's active announcements
           until they dismiss each one individually. Mounted here rather

@@ -36,7 +36,7 @@ public class GetProducerMonthlySnapshotQueryHandler
     public async Task<ProducerMonthlySnapshotDto> Handle(GetProducerMonthlySnapshotQuery r, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var producer = await _db.Producers.IgnoreQueryFilters()
+        var producer = await _db.Producers
             .FirstOrDefaultAsync(p => p.Id == r.ProducerId && p.TenantId == tenantId && p.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Συνεργάτης");
 

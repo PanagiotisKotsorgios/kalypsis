@@ -118,7 +118,7 @@ public class CreateInvolvedPartyHandler
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         new ClaimInvolvedPartyBodyValidator().ValidateAndThrow(r.Body);
 
-        var claim = await _db.Claims.IgnoreQueryFilters()
+        var claim = await _db.Claims
             .Include(c => c.Policy)
             .FirstOrDefaultAsync(c => c.Id == r.ClaimId && c.TenantId == tenantId && c.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Ζημιά");

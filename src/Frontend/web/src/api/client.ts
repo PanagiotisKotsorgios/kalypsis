@@ -33,6 +33,13 @@ api.interceptors.request.use((config) => {
   if (impersonatedTenantId) {
     config.headers["X-Impersonate-Tenant"] = impersonatedTenantId;
   }
+  // Office context is an access scope, not just a UI preference.  The API
+  // validates this value against the signed-in user's assignments on every
+  // request before applying its tenant/office query filters.
+  const officeId = localStorage.getItem("kalypsis.activeOfficeId");
+  if (officeId) {
+    config.headers["X-Agency-Office"] = officeId;
+  }
   return config;
 });
 

@@ -35,7 +35,7 @@ public class PolicyExtensionsController : ControllerBase
     /// </summary>
     private async Task EnsureOwnPolicyAsync(Guid tenantId, Guid policyId, CancellationToken ct)
     {
-        var owns = await _db.Policies.IgnoreQueryFilters()
+        var owns = await _db.Policies
             .AnyAsync(p => p.Id == policyId && p.TenantId == tenantId && p.DeletedAt == null, ct);
         if (!owns) throw AppException.NotFound("Συμβόλαιο");
     }
@@ -481,7 +481,7 @@ public class RenewalsController : ControllerBase
             .Include(p => p.InsuranceCompany);
         if (_current.Role == Role.Producer)
         {
-            var producerId = await _db.Users.IgnoreQueryFilters()
+            var producerId = await _db.Users
                 .Where(u => u.Id == _current.UserId).Select(u => u.ProducerId).FirstOrDefaultAsync(ct);
             if (producerId is null) return Ok(Array.Empty<UpcomingDto>());
             q = q.Where(p => p.ProducerId == producerId);
@@ -505,7 +505,7 @@ public class RenewalsController : ControllerBase
     {
         if (_current.Role == Role.Producer) throw AppException.Forbidden();
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var sourcePolicies = await _db.Policies.IgnoreQueryFilters()
+        var sourcePolicies = await _db.Policies
             .Where(p => body.PolicyIds.Contains(p.Id) && p.TenantId == tenantId && p.DeletedAt == null)
             .ToListAsync(ct);
         var nowUtc = DateTime.UtcNow;

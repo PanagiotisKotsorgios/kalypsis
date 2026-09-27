@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Domain.Common;
 using Kalypsis.Domain.Entities;
+using Kalypsis.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kalypsis.Infrastructure.Persistence;
@@ -283,6 +284,12 @@ public class AppDbContext : DbContext, IAppDbContext
 
     public Guid CurrentTenantId => _currentUser.TenantId ?? Guid.Empty;
 
+    public Guid? CurrentAgencyOfficeId => _currentUser.AgencyOfficeId;
+    public bool CurrentAgencyOfficeIsHeadquarters => _currentUser.AgencyOfficeIsHeadquarters;
+    public bool BypassAgencyOfficeFilter => _currentUser.IsPlatformLevel
+        || _currentUser.Role == Role.AgencyAdmin
+        || _currentUser.AgencyOfficeId is null;
+
     // PlatformAdmin / PlatformEmployee normally bypass the tenant filter, but
     // when they're impersonating a tenant (via X-Impersonate-Tenant) we scope
     // them to that tenant so every page behaves as if they were inside it.
@@ -298,6 +305,9 @@ public class AppDbContext : DbContext, IAppDbContext
 
             if (typeof(TenantEntity).IsAssignableFrom(clrType))
             {
+                modelBuilder.Entity(clrType)
+                    .Property<Guid?>(nameof(TenantEntity.AgencyOfficeScopeId))
+                    .IsRequired(false);
                 modelBuilder.Entity(clrType).HasQueryFilter(BuildTenantAndSoftDeleteFilter(clrType));
             }
             else if (typeof(BaseEntity).IsAssignableFrom(clrType))
@@ -695,6 +705,16 @@ public class AppDbContext : DbContext, IAppDbContext
                             throw new InvalidOperationException(
                                 $"Cross-tenant write blocked: tried to insert {entry.Entity.GetType().Name} into tenant {addedTenantEntity.TenantId} from session of tenant {tenantId.Value}.");
                         }
+
+                        if (!IsOfficeMetadata(entry.Entity) && _currentUser.AgencyOfficeId is Guid addedOfficeId)
+                        {
+                            if (addedTenantEntity.AgencyOfficeScopeId is null)
+                                addedTenantEntity.AgencyOfficeScopeId = addedOfficeId;
+                            else if (addedTenantEntity.AgencyOfficeScopeId != addedOfficeId && !isPrivileged
+                                     && _currentUser.Role != Role.AgencyAdmin)
+                                throw new InvalidOperationException(
+                                    $"Cross-office write blocked: tried to insert {entry.Entity.GetType().Name} into office {addedTenantEntity.AgencyOfficeScopeId} from office {addedOfficeId}.");
+                        }
                     }
                     break;
 
@@ -713,15 +733,38 @@ public class AppDbContext : DbContext, IAppDbContext
                                 $"Cross-tenant write blocked: tried to update {entry.Entity.GetType().Name} from tenant {originalTid} → {modTenantEntity.TenantId} (session tenant {tenantId.Value}).");
                         }
                     }
+
+                    if (entry.Entity is TenantEntity modOfficeEntity
+                        && !IsOfficeMetadata(modOfficeEntity)
+                        && _currentUser.Role == Role.AgencyUser
+                        && _currentUser.AgencyOfficeId is Guid modifiedOfficeId)
+                    {
+                        var originalOffice = entry.OriginalValues[nameof(TenantEntity.AgencyOfficeScopeId)];
+                        var originalOfficeId = originalOffice is Guid originalGuid ? originalGuid : (Guid?)null;
+                        if (originalOfficeId.HasValue && originalOfficeId.Value != modifiedOfficeId)
+                            throw new InvalidOperationException(
+                                $"Cross-office write blocked: tried to update {entry.Entity.GetType().Name} from office {originalOfficeId} in office {modifiedOfficeId}.");
+                        if (modOfficeEntity.AgencyOfficeScopeId.HasValue
+                            && modOfficeEntity.AgencyOfficeScopeId.Value != modifiedOfficeId)
+                            throw new InvalidOperationException(
+                                $"Cross-office write blocked: tried to move {entry.Entity.GetType().Name} to office {modOfficeEntity.AgencyOfficeScopeId} from office {modifiedOfficeId}.");
+                    }
                     break;
 
                 case EntityState.Deleted:
                     // Same guard on DELETE.
-                    if (entry.Entity is TenantEntity delTenantEntity && !isPrivileged && tenantId.HasValue
-                        && delTenantEntity.TenantId != tenantId.Value)
+                    if (entry.Entity is TenantEntity delTenantEntity)
                     {
-                        throw new InvalidOperationException(
-                            $"Cross-tenant delete blocked: tried to delete {entry.Entity.GetType().Name} from tenant {delTenantEntity.TenantId} (session tenant {tenantId.Value}).");
+                        if (!isPrivileged && tenantId.HasValue && delTenantEntity.TenantId != tenantId.Value)
+                            throw new InvalidOperationException(
+                                $"Cross-tenant delete blocked: tried to delete {entry.Entity.GetType().Name} from tenant {delTenantEntity.TenantId} (session tenant {tenantId.Value}).");
+                        if (!IsOfficeMetadata(delTenantEntity)
+                            && _currentUser.Role == Role.AgencyUser
+                            && _currentUser.AgencyOfficeId is Guid deletedOfficeId
+                            && delTenantEntity.AgencyOfficeScopeId is Guid rowOffice
+                            && rowOffice != deletedOfficeId)
+                            throw new InvalidOperationException(
+                                $"Cross-office delete blocked: tried to delete {entry.Entity.GetType().Name} from office {rowOffice} in office {deletedOfficeId}.");
                     }
                     entry.State = EntityState.Modified;
                     entry.Entity.DeletedAt = now;
@@ -753,8 +796,32 @@ public class AppDbContext : DbContext, IAppDbContext
         var tenantMatch = Expression.Equal(entityTenant, tenantProp);
 
         var tenantCheck = Expression.OrElse(bypassProp, tenantMatch);
-        var body = Expression.AndAlso(notDeleted, tenantCheck);
+
+        var isOfficeMetadata = clrType == typeof(AgencyOffice) || clrType == typeof(UserAgencyOffice);
+        Expression officeCheck;
+        if (isOfficeMetadata)
+        {
+            officeCheck = Expression.Constant(true);
+        }
+        else
+        {
+            var officeBypassProp = Expression.Property(thisExpr, nameof(BypassAgencyOfficeFilter));
+            var currentOfficeProp = Expression.Property(thisExpr, nameof(CurrentAgencyOfficeId));
+            var currentOfficeHasValue = Expression.Property(currentOfficeProp, nameof(Nullable<Guid>.HasValue));
+            var entityOffice = Expression.Property(parameter, nameof(TenantEntity.AgencyOfficeScopeId));
+            var officeMatch = Expression.Equal(entityOffice, currentOfficeProp);
+            var legacyHeadquarters = Expression.AndAlso(
+                Expression.Property(thisExpr, nameof(CurrentAgencyOfficeIsHeadquarters)),
+                Expression.Equal(entityOffice, Expression.Constant(null, typeof(Guid?))));
+            officeCheck = Expression.OrElse(officeBypassProp,
+                Expression.AndAlso(currentOfficeHasValue, Expression.OrElse(officeMatch, legacyHeadquarters)));
+        }
+
+        var body = Expression.AndAlso(notDeleted, Expression.AndAlso(tenantCheck, officeCheck));
 
         return Expression.Lambda(body, parameter);
     }
+
+    private static bool IsOfficeMetadata(BaseEntity entity)
+        => entity is AgencyOffice or UserAgencyOffice;
 }

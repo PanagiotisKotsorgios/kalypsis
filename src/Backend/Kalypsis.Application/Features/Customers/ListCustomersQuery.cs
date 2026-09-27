@@ -30,16 +30,15 @@ public class ListCustomersQueryHandler : IRequestHandler<ListCustomersQuery, IRe
             ?? throw AppException.Forbidden();
 
         var q = _db.Customers
-            .IgnoreQueryFilters()
             .Where(c => c.TenantId == tenantId && c.DeletedAt == null);
 
         if (_currentUser.Role == Role.Producer)
         {
             var userId = _currentUser.UserId ?? throw AppException.Unauthorized();
-            var producerId = await _db.Users.IgnoreQueryFilters()
+            var producerId = await _db.Users
                 .Where(u => u.Id == userId).Select(u => u.ProducerId).FirstOrDefaultAsync(cancellationToken);
             if (producerId is null) return Array.Empty<CustomerDto>();
-            var customerIds = _db.Policies.IgnoreQueryFilters()
+            var customerIds = _db.Policies
                 .Where(p => p.ProducerId == producerId && p.DeletedAt == null)
                 .Select(p => p.CustomerId).Distinct();
             q = q.Where(c => customerIds.Contains(c.Id));
@@ -69,7 +68,7 @@ public class ListCustomersQueryHandler : IRequestHandler<ListCustomersQuery, IRe
 
         if (!string.IsNullOrWhiteSpace(request.NeedKind))
         {
-            var matchingNeedCustomers = _db.CustomerInsuranceNeeds.IgnoreQueryFilters()
+            var matchingNeedCustomers = _db.CustomerInsuranceNeeds
                 .Where(n => n.TenantId == tenantId && n.DeletedAt == null && n.Kind == request.NeedKind && n.HasAsset);
             if (request.OnlyUninsuredNeeds == true)
                 matchingNeedCustomers = matchingNeedCustomers.Where(n => !n.IsInsured);
@@ -85,7 +84,7 @@ public class ListCustomersQueryHandler : IRequestHandler<ListCustomersQuery, IRe
             .Select(c => new CustomerDto(
                 c.Id, c.CustomerNumber, c.Type, c.Status, c.FirstName, c.LastName,
                 c.CompanyName, c.VatNumber, c.Email, c.Phone, c.City, c.Notes, c.CreatedAt,
-                _db.Users.IgnoreQueryFilters().Any(u => u.CustomerId == c.Id && u.DeletedAt == null)))
+                _db.Users.Any(u => u.CustomerId == c.Id && u.DeletedAt == null)))
             .ToListAsync(cancellationToken);
     }
 }

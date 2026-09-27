@@ -46,7 +46,7 @@ public class CreateServiceRequestCommandHandler : IRequestHandler<CreateServiceR
         {
             // Customer: lookup the linked Customer record via user.CustomerId
             var userId = _current.UserId ?? throw AppException.Unauthorized();
-            var user = await _db.Users.IgnoreQueryFilters()
+            var user = await _db.Users
                 .FirstOrDefaultAsync(u => u.Id == userId, ct)
                 ?? throw AppException.NotFound("Χρήστης");
             customerId = user.CustomerId
@@ -63,7 +63,7 @@ public class CreateServiceRequestCommandHandler : IRequestHandler<CreateServiceR
                     fixLink: "/app/customers");
         }
 
-        var count = await _db.ServiceRequests.IgnoreQueryFilters()
+        var count = await _db.ServiceRequests
             .CountAsync(s => s.TenantId == tenantId, ct);
         var number = $"SR-{(count + 1):D6}";
 
@@ -90,7 +90,7 @@ public class CreateServiceRequestCommandHandler : IRequestHandler<CreateServiceR
 
     internal static async Task<ServiceRequestDto> Project(IAppDbContext db, Guid id, CancellationToken ct)
     {
-        var sr = await db.ServiceRequests.IgnoreQueryFilters()
+        var sr = await db.ServiceRequests
             .Include(s => s.Customer)
             .Include(s => s.Attachments)
             .FirstOrDefaultAsync(s => s.Id == id, ct)
@@ -150,7 +150,6 @@ public class ListServiceRequestsQueryHandler : IRequestHandler<ListServiceReques
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var q = _db.ServiceRequests
-            .IgnoreQueryFilters()
             .Include(s => s.Customer)
             .Include(s => s.Attachments)
             .Where(s => s.TenantId == tenantId && s.DeletedAt == null);
@@ -158,7 +157,7 @@ public class ListServiceRequestsQueryHandler : IRequestHandler<ListServiceReques
         if (_current.Role == Role.Customer)
         {
             var userId = _current.UserId ?? throw AppException.Unauthorized();
-            var customerId = await _db.Users.IgnoreQueryFilters()
+            var customerId = await _db.Users
                 .Where(u => u.Id == userId)
                 .Select(u => u.CustomerId)
                 .FirstOrDefaultAsync(ct);
@@ -194,7 +193,7 @@ public class UpdateServiceRequestStatusCommandHandler : IRequestHandler<UpdateSe
     public async Task<ServiceRequestDto> Handle(UpdateServiceRequestStatusCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var sr = await _db.ServiceRequests.IgnoreQueryFilters()
+        var sr = await _db.ServiceRequests
             .FirstOrDefaultAsync(s => s.Id == request.Id && s.TenantId == tenantId, ct)
             ?? throw AppException.NotFound("Service request");
 

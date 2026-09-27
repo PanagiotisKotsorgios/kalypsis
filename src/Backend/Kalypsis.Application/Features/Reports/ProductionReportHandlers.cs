@@ -66,7 +66,7 @@ public class GetProductionReportQueryHandler
         // Greek brokerages default to for annual production reports. We
         // exclude Draft rows (they are not yet issued) and, unless asked,
         // Cancelled rows too — those distort the totals.
-        var policies = _db.Policies.IgnoreQueryFilters()
+        var policies = _db.Policies
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null
                 && p.Status != PolicyStatus.Draft
                 && p.Status != PolicyStatus.Prospect
@@ -86,10 +86,10 @@ public class GetProductionReportQueryHandler
         // of DateOnly formatting is fragile across providers — safer to do
         // it here where the tenant's row count is bounded (typical office:
         // low thousands per year).
-        var carrierNames = await _db.InsuranceCompanies.IgnoreQueryFilters()
+        var carrierNames = await _db.InsuranceCompanies
             .Where(c => c.DeletedAt == null && (c.TenantId == null || c.TenantId == tenantId))
             .ToDictionaryAsync(c => c.Id, c => c.Name, ct);
-        var producerNames = await _db.Producers.IgnoreQueryFilters()
+        var producerNames = await _db.Producers
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null)
             .ToDictionaryAsync(p => p.Id, p => p.Name, ct);
 
@@ -113,7 +113,7 @@ public class GetProductionReportQueryHandler
         var policyIds = flat.Select(f => f.Id).ToList();
         var splits = policyIds.Count == 0
             ? new Dictionary<Guid, (decimal agency, decimal producer)>()
-            : (await _db.PolicyCommissionSplits.IgnoreQueryFilters()
+            : (await _db.PolicyCommissionSplits
                 .Where(s => s.TenantId == tenantId && s.DeletedAt == null && policyIds.Contains(s.PolicyId))
                 .Select(s => new { s.PolicyId, s.HierarchyLevel, s.GrossAmount })
                 .ToListAsync(ct))

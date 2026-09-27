@@ -25,7 +25,6 @@ public class ListUsersQueryHandler : IRequestHandler<ListUsersQuery, IReadOnlyLi
             ?? throw AppException.Forbidden();
 
         return await _db.Users
-            .IgnoreQueryFilters()
             .Where(u => u.TenantId == tenantId && u.DeletedAt == null
                 && (u.Role == Role.AgencyAdmin || u.Role == Role.AgencyUser))
             .OrderBy(u => u.LastName)

@@ -458,7 +458,7 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         // use, package, sub-carrier) that the parsed rows carry but the tenant
         // has never linked to one of its own parametrics. The frontend renders
         // the resulting list as a "link before commit" checklist.
-        var mappings = await _db.BridgeCodeMappings.IgnoreQueryFilters()
+        var mappings = await _db.BridgeCodeMappings
             .Where(x => x.TenantId == tenantId && x.DeletedAt == null)
             .ToListAsync(ct);
         var todayForParams = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -475,7 +475,7 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 && (!p.EffectiveFrom.HasValue || p.EffectiveFrom <= todayForParams)
                 && (!p.EffectiveTo.HasValue || p.EffectiveTo >= todayForParams))
             .ToListAsync(ct);
-        var agencyProducers = await _db.Producers.IgnoreQueryFilters()
+        var agencyProducers = await _db.Producers
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null)
             .ToListAsync(ct);
         var unmapped = BridgeMappingResolver.Resolve(rows, carrier.Name, mappings, agencyParams, agencyProducers);
@@ -2348,7 +2348,7 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             .Select(r => r.PolicyNumber!).Distinct().ToList();
         var existingByNumber = policyNumbers.Count == 0
             ? new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase)
-            : (await _db.Policies.IgnoreQueryFilters()
+            : (await _db.Policies
                 .Where(p => p.TenantId == tenantId && p.InsuranceCompanyId == carrierId && policyNumbers.Contains(p.PolicyNumber) && p.DeletedAt == null)
                 .Select(p => new { p.Id, p.PolicyNumber }).ToListAsync(ct))
                 .ToDictionary(p => p.PolicyNumber, p => p.Id, StringComparer.OrdinalIgnoreCase);
@@ -2369,7 +2369,7 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             .Where(x => x.IsActive && (x.InsuranceCompanyId == null || x.InsuranceCompanyId == carrierId))
             .ToListAsync(ct);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var commissionRules = await _db.CommissionRules.IgnoreQueryFilters()
+        var commissionRules = await _db.CommissionRules
             .Where(x => x.TenantId == tenantId && x.DeletedAt == null
                 && x.EffectiveFrom <= today
                 && (x.EffectiveTo == null || x.EffectiveTo >= today)
@@ -2393,7 +2393,7 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             .Where(p => p.Kind == CompanyParameterItemKind.BridgeCode
                 && string.Equals(p.BridgeSystem, "ERGO", StringComparison.OrdinalIgnoreCase))
             .ToList();
-        var producerRows = await _db.Producers.IgnoreQueryFilters()
+        var producerRows = await _db.Producers
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null)
             .ToListAsync(ct);
         var producerByCode = producerRows.ToDictionary(p => p.Code, StringComparer.OrdinalIgnoreCase);
@@ -2407,8 +2407,8 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         var nameSet = rows.Where(r => !string.IsNullOrEmpty(r.CustomerName))
             .Select(r => NormName(r.CustomerName!)).Distinct().ToHashSet();
 
-        var rawExisting = await (from p in _db.Policies.IgnoreQueryFilters()
-                                 join c in _db.Customers.IgnoreQueryFilters() on p.CustomerId equals c.Id
+        var rawExisting = await (from p in _db.Policies
+                                 join c in _db.Customers on p.CustomerId equals c.Id
                                  where p.TenantId == tenantId && p.InsuranceCompanyId == carrierId && p.DeletedAt == null
                                  select new {
                                      p.Id, p.PolicyNumber, p.StartDate, p.EndDate,
@@ -2867,7 +2867,7 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
 
         // Pull once: every existing producer + customer for this tenant, so per-row
         // lookups are local.
-        var allProducers = await _db.Producers.IgnoreQueryFilters()
+        var allProducers = await _db.Producers
             .Where(p => p.DeletedAt == null).ToListAsync(ct);
         foreach (var p in allProducers) producerCache[p.Code] = p;
 
@@ -2880,7 +2880,7 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
         if (!string.IsNullOrWhiteSpace(carrier.Code)) carrierSourceKeys.Add(carrier.Code);
         if (!string.IsNullOrWhiteSpace(carrier.Name)) carrierSourceKeys.Add(carrier.Name);
         var bridgeProducerMap = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
-        var rawProducerMappings = await _db.BridgeCodeMappings.IgnoreQueryFilters()
+        var rawProducerMappings = await _db.BridgeCodeMappings
             .Where(m => m.TenantId == tenantId
                 && m.DeletedAt == null
                 && m.Kind == BridgeMappingKind.Producer
@@ -2896,7 +2896,7 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
         }
         var producersById = allProducers.ToDictionary(p => p.Id);
 
-        var allCustomers = await _db.Customers.IgnoreQueryFilters()
+        var allCustomers = await _db.Customers
             .Where(c => c.TenantId == tenantId && c.DeletedAt == null).ToListAsync(ct);
         foreach (var c in allCustomers)
         {
@@ -2905,7 +2905,7 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
             if (!string.IsNullOrEmpty(k)) customerCache[k] = c;
         }
 
-        var policiesByNumber = (await _db.Policies.IgnoreQueryFilters()
+        var policiesByNumber = (await _db.Policies
                 .Where(p => p.TenantId == tenantId && p.InsuranceCompanyId == carrier.Id && p.DeletedAt == null)
                 .ToListAsync(ct))
             .GroupBy(p => p.PolicyNumber, StringComparer.OrdinalIgnoreCase)
@@ -2915,12 +2915,12 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
         var lifecycleRowsApplied = 0;
         var financialMovementsCreated = 0;
 
-        var knownEndorsementReferences = (await _db.PolicyEndorsements.IgnoreQueryFilters()
+        var knownEndorsementReferences = (await _db.PolicyEndorsements
                 .Where(e => e.TenantId == tenantId && e.DeletedAt == null && e.CarrierReference != null)
                 .Select(e => e.CarrierReference!)
                 .ToListAsync(ct))
             .ToHashSet(StringComparer.Ordinal);
-        var knownCancellationReferences = (await _db.PolicyCancellations.IgnoreQueryFilters()
+        var knownCancellationReferences = (await _db.PolicyCancellations
                 .Where(c => c.TenantId == tenantId && c.DeletedAt == null && c.CarrierReference != null)
                 .Select(c => c.CarrierReference!)
                 .ToListAsync(ct))
@@ -2932,14 +2932,14 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
         static string Marker(string bridgeReference, FinancialMovementKind kind) =>
             $"[bridge:{bridgeReference}:{kind}]";
 
-        var knownFinancialMarkers = (await _db.FinancialMovements.IgnoreQueryFilters()
+        var knownFinancialMarkers = (await _db.FinancialMovements
                 .Where(m => m.TenantId == tenantId && m.DeletedAt == null
                     && m.Description != null && m.Description.StartsWith("[bridge:"))
                 .Select(m => m.Description!)
                 .ToListAsync(ct))
             .Select(description => description[..(description.IndexOf(']') + 1)])
             .ToHashSet(StringComparer.Ordinal);
-        var knownReceiptMarkers = (await _db.Receipts.IgnoreQueryFilters()
+        var knownReceiptMarkers = (await _db.Receipts
                 .Where(receipt => receipt.TenantId == tenantId && receipt.DeletedAt == null
                     && receipt.Notes != null && receipt.Notes.StartsWith("[bridge:"))
                 .Select(receipt => receipt.Notes!)
@@ -3471,7 +3471,7 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
         var affectedPolicyIds = affectedPolicies.Keys.ToList();
         var policiesWithDocuments = affectedPolicyIds.Count == 0
             ? new HashSet<Guid>()
-            : (await _db.PolicyDocuments.IgnoreQueryFilters()
+            : (await _db.PolicyDocuments
                 .Where(d => d.TenantId == tenantId && d.DeletedAt == null && affectedPolicyIds.Contains(d.PolicyId))
                 .Select(d => d.PolicyId)
                 .Distinct()
@@ -3479,7 +3479,7 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
         var policiesNeedingDocuments = affectedPolicies.Values
             .Where(policy => !policiesWithDocuments.Contains(policy.Id))
             .ToList();
-        var notificationRecipients = await _db.Users.IgnoreQueryFilters()
+        var notificationRecipients = await _db.Users
             .Where(user => user.TenantId == tenantId && user.DeletedAt == null && user.IsActive
                 && (user.Role == Role.AgencyAdmin || user.Role == Role.AgencyUser))
             .Select(user => user.Id)
@@ -3489,7 +3489,7 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
             .ToList();
         var existingWarnings = warningLinks.Count == 0
             ? new HashSet<string>()
-            : (await _db.Notifications.IgnoreQueryFilters()
+            : (await _db.Notifications
                 .Where(notification => notification.TenantId == tenantId
                     && notification.Category == "document-required"
                     && notification.Link != null
@@ -3595,6 +3595,9 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
         IReadOnlyList<PendingBridgeMapping> pending, CancellationToken ct)
     {
         var now = DateTime.UtcNow;
+        var officeId = _current.AgencyOfficeId;
+        var allOffices = _current.IsPlatformLevel || _current.Role == Role.AgencyAdmin || !officeId.HasValue;
+        var includeLegacyHeadquarters = _current.AgencyOfficeIsHeadquarters;
         // Per-commit caches for codes we've already resolved this call. Two
         // pending items may reference the SAME CreateProducerCode (operator
         // ticked "create" on many rows that all point at the same new
@@ -3711,7 +3714,9 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                     // catch below. Resurrect any soft-deleted twin instead.
                     var existingP = await _db.Producers.IgnoreQueryFilters()
                         .FirstOrDefaultAsync(x => x.TenantId == tenantId
-                            && x.Code == code, ct);
+                            && x.Code == code
+                            && (allOffices || x.AgencyOfficeScopeId == officeId
+                                || (includeLegacyHeadquarters && x.AgencyOfficeScopeId == null)), ct);
                     if (existingP is not null)
                     {
                         if (existingP.DeletedAt is not null)
@@ -3749,7 +3754,9 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                             ((DbContext)_db).Entry(pr).State = EntityState.Detached;
                             var winner = await _db.Producers.IgnoreQueryFilters()
                                 .FirstOrDefaultAsync(x => x.TenantId == tenantId
-                                    && x.Code == code, ct);
+                                    && x.Code == code
+                                    && (allOffices || x.AgencyOfficeScopeId == officeId
+                                        || (includeLegacyHeadquarters && x.AgencyOfficeScopeId == null)), ct);
                             if (winner is null) throw;
                             if (winner.DeletedAt is not null)
                             {
@@ -3850,7 +3857,7 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
 
             var carrierName = string.IsNullOrWhiteSpace(p.SourceCarrier) ? null : p.SourceCarrier.Trim();
             var raw = p.RawCode.Trim();
-            var mapping = await _db.BridgeCodeMappings.IgnoreQueryFilters()
+            var mapping = await _db.BridgeCodeMappings
                 .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.DeletedAt == null
                     && x.Kind == p.Kind
                     && x.SourceCarrier == carrierName

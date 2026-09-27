@@ -11,4 +11,8 @@ public interface ICurrentUser
     bool IsAuthenticated { get; }
     bool IsPlatformLevel { get; }
     bool IsImpersonating { get; }
+    /// <summary>Office selected for this request, when the tenant is office-scoped.</summary>
+    Guid? AgencyOfficeId { get; }
+    /// <summary>Whether the selected office is the tenant headquarters.</summary>
+    bool AgencyOfficeIsHeadquarters { get; }
 }

@@ -135,19 +135,19 @@ public class GetCustomerFamilyProfileHandler : IRequestHandler<GetCustomerFamily
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var customer = await CustomerFamilyQueries.RequireCustomer(_db, tenantId, request.CustomerId, ct);
-        var relationships = await _db.CustomerRelationships.IgnoreQueryFilters()
+        var relationships = await _db.CustomerRelationships
             .Where(r => r.TenantId == tenantId && r.CustomerId == customer.Id && r.DeletedAt == null)
             .OrderBy(r => r.RelationshipType)
             .ToListAsync(ct);
         var memberIds = relationships.Select(r => r.RelatedCustomerId).Distinct().ToList();
         var allCustomerIds = memberIds.Append(customer.Id).ToList();
-        var people = await _db.Customers.IgnoreQueryFilters()
+        var people = await _db.Customers
             .Where(c => c.TenantId == tenantId && allCustomerIds.Contains(c.Id) && c.DeletedAt == null)
             .ToDictionaryAsync(c => c.Id, ct);
-        var needs = await _db.CustomerInsuranceNeeds.IgnoreQueryFilters()
+        var needs = await _db.CustomerInsuranceNeeds
             .Where(n => n.TenantId == tenantId && allCustomerIds.Contains(n.CustomerId) && n.DeletedAt == null)
             .OrderByDescending(n => n.Priority).ThenBy(n => n.Kind).ToListAsync(ct);
-        var policies = await _db.Policies.IgnoreQueryFilters()
+        var policies = await _db.Policies
             .Where(p => p.TenantId == tenantId && allCustomerIds.Contains(p.CustomerId) && p.DeletedAt == null)
             .OrderByDescending(p => p.StartDate).ToListAsync(ct);
 
@@ -217,7 +217,7 @@ public class CreateCustomerRelationshipHandler : IRequestHandler<CreateCustomerR
 
         var customer = await CustomerFamilyQueries.RequireCustomer(_db, tenantId, request.CustomerId, ct);
         var related = await CustomerFamilyQueries.RequireCustomer(_db, tenantId, request.Body.RelatedCustomerId, ct);
-        var exists = await _db.CustomerRelationships.IgnoreQueryFilters().AnyAsync(r =>
+        var exists = await _db.CustomerRelationships.AnyAsync(r =>
             r.TenantId == tenantId && r.CustomerId == customer.Id && r.RelatedCustomerId == related.Id && r.DeletedAt == null, ct);
         if (exists) throw new AppException("family_relation_exists", "The family relationship already exists.", 409);
 
@@ -248,14 +248,14 @@ public class UpdateCustomerRelationshipHandler : IRequestHandler<UpdateCustomerR
     public async Task<CustomerFamilyMemberDto> Handle(UpdateCustomerRelationshipCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var direct = await _db.CustomerRelationships.IgnoreQueryFilters().FirstOrDefaultAsync(r =>
+        var direct = await _db.CustomerRelationships.FirstOrDefaultAsync(r =>
             r.TenantId == tenantId && r.CustomerId == request.CustomerId && r.Id == request.RelationshipId && r.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Family relationship");
         var related = await CustomerFamilyQueries.RequireCustomer(_db, tenantId, direct.RelatedCustomerId, ct);
         var notes = CustomerFamilyQueries.TrimOrNull(request.Body.Notes);
         direct.RelationshipType = request.Body.RelationshipType;
         direct.Notes = notes;
-        var reverse = await _db.CustomerRelationships.IgnoreQueryFilters().FirstOrDefaultAsync(r =>
+        var reverse = await _db.CustomerRelationships.FirstOrDefaultAsync(r =>
             r.TenantId == tenantId && r.CustomerId == direct.RelatedCustomerId && r.RelatedCustomerId == direct.CustomerId && r.DeletedAt == null, ct);
         if (reverse is not null)
         {
@@ -279,10 +279,10 @@ public class DeleteCustomerRelationshipHandler : IRequestHandler<DeleteCustomerR
     public async Task<Unit> Handle(DeleteCustomerRelationshipCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var direct = await _db.CustomerRelationships.IgnoreQueryFilters().FirstOrDefaultAsync(r =>
+        var direct = await _db.CustomerRelationships.FirstOrDefaultAsync(r =>
             r.TenantId == tenantId && r.CustomerId == request.CustomerId && r.Id == request.RelationshipId && r.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Family relationship");
-        var pair = await _db.CustomerRelationships.IgnoreQueryFilters().Where(r => r.TenantId == tenantId && r.DeletedAt == null
+        var pair = await _db.CustomerRelationships.Where(r => r.TenantId == tenantId && r.DeletedAt == null
             && ((r.CustomerId == direct.CustomerId && r.RelatedCustomerId == direct.RelatedCustomerId)
                 || (r.CustomerId == direct.RelatedCustomerId && r.RelatedCustomerId == direct.CustomerId)))
             .ToListAsync(ct);
@@ -318,7 +318,7 @@ public class UpdateCustomerNeedHandler : IRequestHandler<UpdateCustomerNeedComma
     public async Task<CustomerNeedDto> Handle(UpdateCustomerNeedCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var need = await _db.CustomerInsuranceNeeds.IgnoreQueryFilters().FirstOrDefaultAsync(n =>
+        var need = await _db.CustomerInsuranceNeeds.FirstOrDefaultAsync(n =>
             n.TenantId == tenantId && n.CustomerId == request.CustomerId && n.Id == request.NeedId && n.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Insurance need");
         CustomerFamilyQueries.ApplyNeed(need, request.Body);
@@ -338,7 +338,7 @@ public class DeleteCustomerNeedHandler : IRequestHandler<DeleteCustomerNeedComma
     public async Task<Unit> Handle(DeleteCustomerNeedCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var need = await _db.CustomerInsuranceNeeds.IgnoreQueryFilters().FirstOrDefaultAsync(n =>
+        var need = await _db.CustomerInsuranceNeeds.FirstOrDefaultAsync(n =>
             n.TenantId == tenantId && n.CustomerId == request.CustomerId && n.Id == request.NeedId && n.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Insurance need");
         need.DeletedAt = _clock.UtcNow;
@@ -350,7 +350,7 @@ public class DeleteCustomerNeedHandler : IRequestHandler<DeleteCustomerNeedComma
 internal static class CustomerFamilyQueries
 {
     public static async Task<Customer> RequireCustomer(IAppDbContext db, Guid tenantId, Guid customerId, CancellationToken ct) =>
-        await db.Customers.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == customerId && c.DeletedAt == null, ct)
+        await db.Customers.FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == customerId && c.DeletedAt == null, ct)
         ?? throw AppException.NotFound("Customer");
 
     public static string DisplayName(Customer customer) => customer.Type == CustomerType.Company

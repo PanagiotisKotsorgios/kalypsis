@@ -28,7 +28,6 @@ public class ListClaimsQueryHandler : IRequestHandler<ListClaimsQuery, IReadOnly
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
 
         var q = _db.Claims
-            .IgnoreQueryFilters()
             .Include(c => c.Policy).ThenInclude(p => p.Customer)
             .Include(c => c.Policy).ThenInclude(p => p.InsuranceCompany)
             .Where(c => c.TenantId == tenantId && c.DeletedAt == null);
@@ -36,7 +35,7 @@ public class ListClaimsQueryHandler : IRequestHandler<ListClaimsQuery, IReadOnly
         if (_current.Role == Role.Customer)
         {
             var userId = _current.UserId ?? throw AppException.Unauthorized();
-            var customerId = await _db.Users.IgnoreQueryFilters()
+            var customerId = await _db.Users
                 .Where(u => u.Id == userId).Select(u => u.CustomerId).FirstOrDefaultAsync(ct);
             if (customerId is null) return Array.Empty<ClaimDto>();
             q = q.Where(c => c.Policy.CustomerId == customerId);
@@ -128,7 +127,7 @@ public class CreateClaimCommandHandler : IRequestHandler<CreateClaimCommand, Cla
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var r = request.Body;
 
-        var policy = await _db.Policies.IgnoreQueryFilters()
+        var policy = await _db.Policies
             .FirstOrDefaultAsync(p => p.Id == r.PolicyId && p.TenantId == tenantId && p.DeletedAt == null, ct)
             ?? throw new AppException("policy_not_found",
                 "Το συμβόλαιο δεν βρέθηκε.", 400,
@@ -137,7 +136,7 @@ public class CreateClaimCommandHandler : IRequestHandler<CreateClaimCommand, Cla
                 fix: "Επιλέξτε άλλο συμβόλαιο από τη λίστα ή δημιουργήστε νέο συμβόλαιο για τον πελάτη.",
                 fixLink: "/app/policies");
 
-        var count = await _db.Claims.IgnoreQueryFilters().CountAsync(c => c.TenantId == tenantId, ct);
+        var count = await _db.Claims.CountAsync(c => c.TenantId == tenantId, ct);
         var number = $"CL-{(count + 1):D6}";
 
         var c = new Claim
@@ -155,7 +154,7 @@ public class CreateClaimCommandHandler : IRequestHandler<CreateClaimCommand, Cla
         _db.Claims.Add(c);
         await _db.SaveChangesAsync(ct);
 
-        var saved = await _db.Claims.IgnoreQueryFilters()
+        var saved = await _db.Claims
             .Include(x => x.Policy).ThenInclude(p => p.Customer)
             .Include(x => x.Policy).ThenInclude(p => p.InsuranceCompany)
             .FirstAsync(x => x.Id == c.Id, ct);
@@ -181,7 +180,7 @@ public class UpdateClaimCommandHandler : IRequestHandler<UpdateClaimCommand, Cla
     public async Task<ClaimDto> Handle(UpdateClaimCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var c = await _db.Claims.IgnoreQueryFilters()
+        var c = await _db.Claims
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Ζημιά");
 
@@ -193,7 +192,7 @@ public class UpdateClaimCommandHandler : IRequestHandler<UpdateClaimCommand, Cla
 
         await _db.SaveChangesAsync(ct);
 
-        var saved = await _db.Claims.IgnoreQueryFilters()
+        var saved = await _db.Claims
             .Include(x => x.Policy).ThenInclude(p => p.Customer)
             .Include(x => x.Policy).ThenInclude(p => p.InsuranceCompany)
             .FirstAsync(x => x.Id == c.Id, ct);
@@ -219,7 +218,7 @@ public class UpdateClaimStatusCommandHandler : IRequestHandler<UpdateClaimStatus
     public async Task<ClaimDto> Handle(UpdateClaimStatusCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var c = await _db.Claims.IgnoreQueryFilters()
+        var c = await _db.Claims
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Ζημιά");
 
@@ -228,7 +227,7 @@ public class UpdateClaimStatusCommandHandler : IRequestHandler<UpdateClaimStatus
 
         await _db.SaveChangesAsync(ct);
 
-        var saved = await _db.Claims.IgnoreQueryFilters()
+        var saved = await _db.Claims
             .Include(x => x.Policy).ThenInclude(p => p.Customer)
             .Include(x => x.Policy).ThenInclude(p => p.InsuranceCompany)
             .FirstAsync(x => x.Id == c.Id, ct);

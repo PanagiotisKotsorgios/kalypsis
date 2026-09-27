@@ -74,7 +74,7 @@ public class CustomerDriverLicenseController : ControllerBase
     public async Task<ActionResult<DriverLicenseDto>> Get(Guid customerId, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var c = await _db.Customers.IgnoreQueryFilters()
+        var c = await _db.Customers
             .FirstOrDefaultAsync(x => x.Id == customerId && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Πελάτης");
         return Ok(new DriverLicenseDto(c.DriverLicenseNumber, c.DriverLicenseClass,
@@ -85,7 +85,7 @@ public class CustomerDriverLicenseController : ControllerBase
     public async Task<ActionResult<DriverLicenseDto>> Update(Guid customerId, [FromBody] DriverLicenseDto body, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var c = await _db.Customers.IgnoreQueryFilters()
+        var c = await _db.Customers
             .FirstOrDefaultAsync(x => x.Id == customerId && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Πελάτης");
         c.DriverLicenseNumber = body.Number?.Trim();

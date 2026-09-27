@@ -69,4 +69,20 @@ public sealed class HttpContextCurrentUser : ICurrentUser
     public bool IsAuthenticated => Principal?.Identity?.IsAuthenticated ?? false;
 
     public bool IsPlatformLevel => Role is Domain.Enums.Role.PlatformAdmin or Domain.Enums.Role.PlatformEmployee;
+
+    public Guid? AgencyOfficeId
+    {
+        get
+        {
+            var http = _accessor.HttpContext;
+            if (http?.Items[AgencyOfficeScopeMiddleware.OfficeIdItem] is Guid itemId)
+                return itemId;
+
+            var raw = http?.Request.Headers[AgencyOfficeScopeMiddleware.OfficeHeader].ToString();
+            return Guid.TryParse(raw, out var id) ? id : null;
+        }
+    }
+
+    public bool AgencyOfficeIsHeadquarters
+        => _accessor.HttpContext?.Items[AgencyOfficeScopeMiddleware.IsHeadquartersItem] as bool? ?? false;
 }

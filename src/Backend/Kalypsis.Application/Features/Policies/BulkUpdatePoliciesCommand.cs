@@ -56,7 +56,7 @@ public class BulkUpdatePoliciesCommandHandler
             return new BulkUpdatePoliciesResult(0, 0);
 
         var ids = b.PolicyIds.ToList();
-        var policies = await _db.Policies.IgnoreQueryFilters()
+        var policies = await _db.Policies
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null && ids.Contains(p.Id))
             .ToListAsync(ct);
 

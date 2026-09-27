@@ -50,7 +50,7 @@ public class PropagatePolicyChangesCommandHandler
             return new PropagatePolicyChangesResult(0, 0);
 
         var ids = b.TargetPolicyIds.ToList();
-        var policies = await _db.Policies.IgnoreQueryFilters()
+        var policies = await _db.Policies
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null && ids.Contains(p.Id))
             .ToListAsync(ct);
 
@@ -113,11 +113,11 @@ public class ListRelatedPoliciesQueryHandler
     public async Task<IReadOnlyList<RelatedPolicySummary>> Handle(ListRelatedPoliciesQuery r, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var current = await _db.Policies.IgnoreQueryFilters()
+        var current = await _db.Policies
             .FirstOrDefaultAsync(p => p.Id == r.PolicyId && p.TenantId == tenantId && p.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Συμβόλαιο");
 
-        var siblings = await _db.Policies.IgnoreQueryFilters()
+        var siblings = await _db.Policies
             .Include(p => p.InsuranceCompany)
             .Where(p => p.TenantId == tenantId && p.DeletedAt == null
                         && p.CustomerId == current.CustomerId

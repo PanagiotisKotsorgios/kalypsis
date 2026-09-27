@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
-  FormControlLabel, IconButton, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow,
-  TextField, Typography
+  Checkbox, FormControlLabel, IconButton, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow,
+  TextField, Typography, List, ListItem, ListItemText
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -11,6 +11,7 @@ import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import StarIcon from "@mui/icons-material/Star";
 import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
+import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 
@@ -37,11 +38,17 @@ interface UpsertBody {
   notes: string | null;
 }
 
+interface OfficeUserDto {
+  userId: string; email: string; firstName: string; lastName: string;
+  role: "AgencyAdmin" | "AgencyUser"; isAssigned: boolean; isPrimary: boolean;
+}
+
 export function AgencyOfficesPage() {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<OfficeDto | null>(null);
+  const [assigning, setAssigning] = useState<OfficeDto | null>(null);
 
   const q = useQuery({
     queryKey: ["agency-offices"],
@@ -135,6 +142,10 @@ export function AgencyOfficesPage() {
                     <IconButton size="small" onClick={() => setEditing(o)}>
                       <EditIcon fontSize="small" />
                     </IconButton>
+                    <IconButton size="small" color="primary" title="Ανάθεση χρηστών"
+                      onClick={() => setAssigning(o)}>
+                      <ManageAccountsIcon fontSize="small" />
+                    </IconButton>
                     {!o.isHeadquarters && (
                       <IconButton size="small" color="error" onClick={() => {
                         if (confirm(`Διαγραφή υποκαταστήματος "${o.name}";`)) del.mutate(o.id);
@@ -154,7 +165,58 @@ export function AgencyOfficesPage() {
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["agency-offices"] }); setCreateOpen(false); }} />
       <OfficeDialog open={!!editing} onClose={() => setEditing(null)} item={editing}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["agency-offices"] }); setEditing(null); }} />
+      <OfficeUsersDialog open={!!assigning} office={assigning}
+        onClose={() => setAssigning(null)}
+        onSaved={() => { void qc.invalidateQueries({ queryKey: ["agency-offices"] }); setAssigning(null); }} />
     </Box>
+  );
+}
+
+function OfficeUsersDialog({ open, office, onClose, onSaved }: {
+  open: boolean; office: OfficeDto | null; onClose: () => void; onSaved: () => void;
+}) {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [err, setErr] = useState<string | null>(null);
+  const users = useQuery({
+    queryKey: ["agency-office-users", office?.id],
+    enabled: open && !!office,
+    queryFn: async () => (await api.get<OfficeUserDto[]>(`/agency-offices/${office!.id}/users`)).data
+  });
+  useEffect(() => {
+    if (users.data) setSelected(users.data.filter(u => u.isAssigned).map(u => u.userId));
+  }, [users.data]);
+  const save = useMutation({
+    mutationFn: async () => api.put(`/agency-offices/${office!.id}/users`, { userIds: selected }),
+    onSuccess: onSaved,
+    onError: e => setErr(extractErrorMessage(e))
+  });
+  const toggle = (id: string) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle sx={{ fontWeight: 800 }}>Χρήστες · {office?.name ?? ""}</DialogTitle>
+      <DialogContent>
+        {err && <Alert severity="error" sx={{ mb: 1 }} onClose={() => setErr(null)}>{err}</Alert>}
+        {users.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}><CircularProgress /></Box> : (
+          <List dense>
+            {(users.data ?? []).map(u => (
+              <ListItem key={u.userId} disablePadding>
+                <Checkbox checked={selected.includes(u.userId)} onChange={() => toggle(u.userId)} />
+                <ListItemText primary={`${u.firstName} ${u.lastName}`.trim() || u.email}
+                  secondary={`${u.email} · ${u.role}${u.isPrimary ? " · Κύριο" : ""}`} />
+              </ListItem>
+            ))}
+            {!users.isLoading && (users.data ?? []).length === 0 &&
+              <Typography color="text.secondary">Δεν υπάρχουν χρήστες γραφείου.</Typography>}
+          </List>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
+        <Button variant="contained" disabled={save.isPending || users.isLoading} onClick={() => save.mutate()}>
+          {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 

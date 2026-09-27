@@ -77,10 +77,10 @@ public class ListOverCommissionStatementsHandler
         var carrierIds = rows.Select(x => x.InsuranceCompanyId).Distinct().ToList();
         var producerIds = rows.Select(x => x.ProducerId).Distinct().ToList();
 
-        var carriers = await _db.InsuranceCompanies.IgnoreQueryFilters()
+        var carriers = await _db.InsuranceCompanies
             .Where(x => carrierIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => x.Name, ct);
-        var producers = await _db.Producers.IgnoreQueryFilters()
+        var producers = await _db.Producers
             .Where(x => producerIds.Contains(x.Id))
             .Select(x => new { x.Id, x.Name, x.Code })
             .ToListAsync(ct);
@@ -234,9 +234,9 @@ public class UpsertOverCommissionStatementHandler
 
         await _db.SaveChangesAsync(ct);
 
-        var carrier = await _db.InsuranceCompanies.IgnoreQueryFilters()
+        var carrier = await _db.InsuranceCompanies
             .Where(x => x.Id == row.InsuranceCompanyId).Select(x => x.Name).FirstOrDefaultAsync(ct);
-        var producer = await _db.Producers.IgnoreQueryFilters()
+        var producer = await _db.Producers
             .Where(x => x.Id == row.ProducerId).Select(x => new { x.Name, x.Code }).FirstOrDefaultAsync(ct);
 
         var (producerAmt, officeAmt) = SplitCalculator.Split(row.GrossAmount, row.ProducerSharePercent);

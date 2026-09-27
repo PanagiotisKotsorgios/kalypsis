@@ -265,7 +265,7 @@ public class RunBridgeImportHandler : IRequestHandler<RunBridgeImportCommand, Co
                 }
 
                 // Find or auto-create customer by VAT.
-                var customer = await _db.Customers.IgnoreQueryFilters()
+                var customer = await _db.Customers
                     .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.VatNumber == vat && c.DeletedAt == null, ct);
                 if (customer is null)
                 {

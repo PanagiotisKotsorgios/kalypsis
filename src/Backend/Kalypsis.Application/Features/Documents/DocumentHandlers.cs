@@ -26,14 +26,13 @@ public class ListDocumentsQueryHandler : IRequestHandler<ListDocumentsQuery, IRe
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var q = _db.PolicyDocuments
-            .IgnoreQueryFilters()
             .Include(d => d.Policy).ThenInclude(p => p.Customer)
             .Where(d => d.TenantId == tenantId && d.DeletedAt == null);
 
         if (_current.Role == Role.Customer)
         {
             var userId = _current.UserId ?? throw AppException.Unauthorized();
-            var customerId = await _db.Users.IgnoreQueryFilters()
+            var customerId = await _db.Users
                 .Where(u => u.Id == userId).Select(u => u.CustomerId).FirstOrDefaultAsync(ct);
             if (customerId is null) return Array.Empty<PolicyDocumentDto>();
             q = q.Where(d => d.Policy.CustomerId == customerId);
@@ -97,7 +96,7 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
     public async Task<PolicyDocumentDto> Handle(UploadDocumentCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var policy = await _db.Policies.IgnoreQueryFilters()
+        var policy = await _db.Policies
             .Include(p => p.Customer)
             .FirstOrDefaultAsync(p => p.Id == request.PolicyId && p.TenantId == tenantId && p.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Policy");
@@ -153,7 +152,7 @@ public class DownloadDocumentQueryHandler : IRequestHandler<DownloadDocumentQuer
     public async Task<(Stream Stream, string FileName, string MimeType)> Handle(DownloadDocumentQuery request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var doc = await _db.PolicyDocuments.IgnoreQueryFilters()
+        var doc = await _db.PolicyDocuments
             .Include(d => d.Policy)
             .FirstOrDefaultAsync(d => d.Id == request.Id && d.TenantId == tenantId && d.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Document");
@@ -161,7 +160,7 @@ public class DownloadDocumentQueryHandler : IRequestHandler<DownloadDocumentQuer
         if (_current.Role == Role.Customer)
         {
             var userId = _current.UserId ?? throw AppException.Unauthorized();
-            var customerId = await _db.Users.IgnoreQueryFilters()
+            var customerId = await _db.Users
                 .Where(u => u.Id == userId).Select(u => u.CustomerId).FirstOrDefaultAsync(ct);
             if (customerId != doc.Policy.CustomerId) throw AppException.Forbidden();
         }
@@ -221,7 +220,7 @@ public class ReplaceDocumentCommandHandler : IRequestHandler<ReplaceDocumentComm
     public async Task<PolicyDocumentDto> Handle(ReplaceDocumentCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var doc = await _db.PolicyDocuments.IgnoreQueryFilters()
+        var doc = await _db.PolicyDocuments
             .Include(d => d.Policy).ThenInclude(p => p.Customer)
             .FirstOrDefaultAsync(d => d.Id == request.Id && d.TenantId == tenantId && d.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Document");
@@ -265,7 +264,7 @@ public class PatchDocumentCommandHandler : IRequestHandler<PatchDocumentCommand,
     public async Task<PolicyDocumentDto> Handle(PatchDocumentCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var doc = await _db.PolicyDocuments.IgnoreQueryFilters()
+        var doc = await _db.PolicyDocuments
             .Include(d => d.Policy).ThenInclude(p => p.Customer)
             .FirstOrDefaultAsync(d => d.Id == request.Id && d.TenantId == tenantId && d.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Document");
@@ -304,7 +303,7 @@ public class DeleteDocumentCommandHandler : IRequestHandler<DeleteDocumentComman
     public async Task<Unit> Handle(DeleteDocumentCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var doc = await _db.PolicyDocuments.IgnoreQueryFilters()
+        var doc = await _db.PolicyDocuments
             .FirstOrDefaultAsync(d => d.Id == request.Id && d.TenantId == tenantId && d.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Document");
 

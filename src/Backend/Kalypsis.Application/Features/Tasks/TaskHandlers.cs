@@ -63,7 +63,7 @@ public class ListTasksQueryHandler : IRequestHandler<ListTasksQuery, IReadOnlyLi
     public async Task<IReadOnlyList<AgencyTaskDto>> Handle(ListTasksQuery request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var q = _db.AgencyTasks.IgnoreQueryFilters()
+        var q = _db.AgencyTasks
             .Include(t => t.AssignedToUser)
             .Include(t => t.Customer)
             .Include(t => t.Policy)
@@ -128,7 +128,7 @@ public class CreateAgencyTaskCommandHandler : IRequestHandler<CreateAgencyTaskCo
 
     internal static async Task<AgencyTaskDto> Reload(IAppDbContext db, Guid id, CancellationToken ct)
     {
-        var t = await db.AgencyTasks.IgnoreQueryFilters()
+        var t = await db.AgencyTasks
             .Include(x => x.AssignedToUser).Include(x => x.Customer).Include(x => x.Policy)
             .FirstAsync(x => x.Id == id, ct);
         var assigned = t.AssignedToUser is null ? null : $"{t.AssignedToUser.FirstName} {t.AssignedToUser.LastName}".Trim();
@@ -154,7 +154,7 @@ public class UpdateAgencyTaskCommandHandler : IRequestHandler<UpdateAgencyTaskCo
     public async Task<AgencyTaskDto> Handle(UpdateAgencyTaskCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var t = await _db.AgencyTasks.IgnoreQueryFilters()
+        var t = await _db.AgencyTasks
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Εργασία");
 
@@ -185,7 +185,7 @@ public class DeleteAgencyTaskCommandHandler : IRequestHandler<DeleteAgencyTaskCo
     public async Task<Unit> Handle(DeleteAgencyTaskCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var t = await _db.AgencyTasks.IgnoreQueryFilters()
+        var t = await _db.AgencyTasks
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Εργασία");
         t.DeletedAt = DateTime.UtcNow;

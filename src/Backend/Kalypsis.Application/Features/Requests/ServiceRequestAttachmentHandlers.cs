@@ -33,7 +33,7 @@ public class UploadAttachmentCommandHandler : IRequestHandler<UploadAttachmentCo
     public async Task<ServiceRequestAttachmentDto> Handle(UploadAttachmentCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var sr = await _db.ServiceRequests.IgnoreQueryFilters()
+        var sr = await _db.ServiceRequests
             .FirstOrDefaultAsync(s => s.Id == request.ServiceRequestId && s.TenantId == tenantId, ct)
             ?? throw AppException.NotFound("Service request");
 
@@ -41,7 +41,7 @@ public class UploadAttachmentCommandHandler : IRequestHandler<UploadAttachmentCo
         if (_current.Role == Role.Customer)
         {
             var userId = _current.UserId ?? throw AppException.Unauthorized();
-            var customerId = await _db.Users.IgnoreQueryFilters()
+            var customerId = await _db.Users
                 .Where(u => u.Id == userId).Select(u => u.CustomerId).FirstOrDefaultAsync(ct);
             if (customerId != sr.CustomerId) throw AppException.Forbidden();
         }
@@ -89,7 +89,7 @@ public class DownloadAttachmentQueryHandler : IRequestHandler<DownloadAttachment
     public async Task<(Stream Content, string FileName, string MimeType)> Handle(DownloadAttachmentQuery request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var att = await _db.ServiceRequestAttachments.IgnoreQueryFilters()
+        var att = await _db.ServiceRequestAttachments
             .Include(a => a.ServiceRequest)
             .FirstOrDefaultAsync(a => a.Id == request.AttachmentId && a.TenantId == tenantId, ct)
             ?? throw AppException.NotFound("Attachment");
@@ -97,7 +97,7 @@ public class DownloadAttachmentQueryHandler : IRequestHandler<DownloadAttachment
         if (_current.Role == Role.Customer)
         {
             var userId = _current.UserId ?? throw AppException.Unauthorized();
-            var customerId = await _db.Users.IgnoreQueryFilters()
+            var customerId = await _db.Users
                 .Where(u => u.Id == userId).Select(u => u.CustomerId).FirstOrDefaultAsync(ct);
             if (customerId != att.ServiceRequest.CustomerId) throw AppException.Forbidden();
         }

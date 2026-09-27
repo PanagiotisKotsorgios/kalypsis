@@ -243,7 +243,7 @@ public class InsuranceCompaniesController : ControllerBase
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         var tenantCompanyIds = tenantRows.Select(c => c.Id).ToList();
         var bridges = tenantId.HasValue && tenantCompanyIds.Count > 0
-            ? await _db.CompanyBridges.IgnoreQueryFilters()
+            ? await _db.CompanyBridges
                 .Where(b => b.TenantId == tenantId.Value && b.DeletedAt == null && tenantCompanyIds.Contains(b.InsuranceCompanyId))
                 .GroupBy(b => b.InsuranceCompanyId)
                 .ToDictionaryAsync(g => g.Key, g => g.First(), ct)
@@ -256,7 +256,7 @@ public class InsuranceCompaniesController : ControllerBase
         // "2170 κανόνες" on a carrier the operator never parametrised was
         // outright confusing.
         var ruleCounts = tenantId.HasValue && tenantCompanyIds.Count > 0
-            ? await _db.CommissionRules.IgnoreQueryFilters()
+            ? await _db.CommissionRules
                 .Where(r => r.TenantId == tenantId.Value && r.DeletedAt == null
                     && r.InsuranceCompanyId.HasValue
                     && tenantCompanyIds.Contains(r.InsuranceCompanyId.Value)
@@ -289,7 +289,7 @@ public class InsuranceCompaniesController : ControllerBase
         {
             try
             {
-                var optIns = await _db.TenantCarrierOptIns.IgnoreQueryFilters()
+                var optIns = await _db.TenantCarrierOptIns
                     .Where(o => o.TenantId == tenantId.Value && o.DeletedAt == null)
                     .Select(o => o.InsuranceCompanyId)
                     .ToListAsync(ct);
@@ -397,9 +397,9 @@ public class InsuranceCompaniesController : ControllerBase
             try { await SeedZeroCommissionDefaultsAsync(tenantId, c.Id, ct); await _db.SaveChangesAsync(ct); }
             catch { /* commission rules can be filled in later from the ProductionLists page */ }
         }
-        var bridge = await _db.CompanyBridges.IgnoreQueryFilters()
+        var bridge = await _db.CompanyBridges
             .FirstOrDefaultAsync(b => b.TenantId == tenantId && b.DeletedAt == null && b.InsuranceCompanyId == c.Id, ct);
-        var ruleCount = await _db.CommissionRules.IgnoreQueryFilters()
+        var ruleCount = await _db.CommissionRules
             .CountAsync(r => r.TenantId == tenantId && r.DeletedAt == null && r.InsuranceCompanyId == c.Id, ct);
         return Ok(new InsuranceCompanyExtendedDto(c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
             c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(c.Id, ct),
@@ -442,9 +442,9 @@ public class InsuranceCompaniesController : ControllerBase
             try { await SeedZeroCommissionDefaultsAsync(c.TenantId.Value, c.Id, ct); await _db.SaveChangesAsync(ct); }
             catch { }
         }
-        var bridge = await _db.CompanyBridges.IgnoreQueryFilters()
+        var bridge = await _db.CompanyBridges
             .FirstOrDefaultAsync(b => b.TenantId == c.TenantId && b.DeletedAt == null && b.InsuranceCompanyId == c.Id, ct);
-        var ruleCount = await _db.CommissionRules.IgnoreQueryFilters()
+        var ruleCount = await _db.CommissionRules
             .CountAsync(r => r.TenantId == c.TenantId && r.DeletedAt == null && r.InsuranceCompanyId == c.Id, ct);
         return Ok(new InsuranceCompanyExtendedDto(c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
             c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(c.Id, ct),
@@ -559,7 +559,7 @@ public class InsuranceCompaniesController : ControllerBase
         var carrier = await _db.InsuranceCompanies.IgnoreQueryFilters()
             .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw Kalypsis.Application.Common.AppException.NotFound("Ασφαλιστική");
-        var rules = await _db.CommissionRules.IgnoreQueryFilters()
+        var rules = await _db.CommissionRules
             .Where(r => r.TenantId == tenantId && r.InsuranceCompanyId == carrier.Id)
             .ToListAsync(ct);
         _db.CommissionRules.RemoveRange(rules);
@@ -606,7 +606,7 @@ public class InsuranceCompaniesController : ControllerBase
 
         var today = DateOnly.FromDateTime(_clock.UtcNow);
 
-        var policyStats = await _db.Policies.IgnoreQueryFilters()
+        var policyStats = await _db.Policies
             .Where(p => p.TenantId == tenantId && p.InsuranceCompanyId == id && p.DeletedAt == null)
             .GroupBy(p => 1)
             .Select(g => new
@@ -618,21 +618,21 @@ public class InsuranceCompaniesController : ControllerBase
             })
             .FirstOrDefaultAsync(ct);
 
-        var policyIds = await _db.Policies.IgnoreQueryFilters()
+        var policyIds = await _db.Policies
             .Where(p => p.TenantId == tenantId && p.InsuranceCompanyId == id && p.DeletedAt == null)
             .Select(p => p.Id)
             .ToListAsync(ct);
         int claimsTotal = 0, claimsOpen = 0;
         if (policyIds.Count > 0)
         {
-            claimsTotal = await _db.Claims.IgnoreQueryFilters()
+            claimsTotal = await _db.Claims
                 .CountAsync(cl => cl.TenantId == tenantId && cl.DeletedAt == null && policyIds.Contains(cl.PolicyId), ct);
-            claimsOpen = await _db.Claims.IgnoreQueryFilters()
+            claimsOpen = await _db.Claims
                 .CountAsync(cl => cl.TenantId == tenantId && cl.DeletedAt == null && policyIds.Contains(cl.PolicyId)
                     && cl.Status != ClaimStatus.Closed && cl.Status != ClaimStatus.Rejected, ct);
         }
 
-        var ruleCount = await _db.CommissionRules.IgnoreQueryFilters()
+        var ruleCount = await _db.CommissionRules
             .CountAsync(r => r.TenantId == tenantId && r.DeletedAt == null && r.InsuranceCompanyId == id, ct);
 
         var paramCounts = await _db.CompanyParameterItems.IgnoreQueryFilters()
@@ -642,12 +642,12 @@ public class InsuranceCompaniesController : ControllerBase
             .ToListAsync(ct);
         int PC(CompanyParameterItemKind k) => paramCounts.FirstOrDefault(x => x.Kind == k)?.Count ?? 0;
 
-        var linkedMapping = await _db.BridgeCodeMappings.IgnoreQueryFilters()
+        var linkedMapping = await _db.BridgeCodeMappings
             .FirstOrDefaultAsync(m => m.TenantId == tenantId && m.DeletedAt == null
                 && m.Kind == Kalypsis.Domain.Entities.BridgeMappingKind.Company
                 && m.TargetInsuranceCompanyId == id, ct);
 
-        var recent = await _db.Policies.IgnoreQueryFilters()
+        var recent = await _db.Policies
             .Where(p => p.TenantId == tenantId && p.InsuranceCompanyId == id && p.DeletedAt == null)
             .OrderByDescending(p => p.CreatedAt)
             .Take(10)
@@ -742,7 +742,7 @@ public class InsuranceCompaniesController : ControllerBase
             // Tenant-owned rows are implicitly used — no opt-in row needed.
             return Ok(new OptInToggleResult(id, true));
 
-        var existing = await _db.TenantCarrierOptIns.IgnoreQueryFilters()
+        var existing = await _db.TenantCarrierOptIns
             .FirstOrDefaultAsync(o => o.TenantId == tenantId && o.InsuranceCompanyId == id, ct);
         if (existing is null)
         {
@@ -955,14 +955,11 @@ public class InsuranceCompaniesController : ControllerBase
         ruleCounts.TryGetValue(bridgeCompanyId, out var ruleCount);
         parameterCounts.TryGetValue(c.Id, out var parameterCount);
         // Universal rows opt-in through TenantCarrierOptIn; tenant-scoped rows
-        // are implicitly used (the tenant created them).
-        // Minetta is a platform-wide production bridge. It is deliberately
-        // available in every office's operational pickers without requiring
-        // a separate opt-in; other universal carriers keep the existing opt-in
-        // behaviour.
+        // are implicitly used (the tenant created them).  Platform bridge
+        // sources (including MINETTA) stay on the Bridges screen and are not
+        // silently copied into an office's insurance-company list.
         var isUsedByTenant = c.TenantId != null
-            || optInSet.Contains(c.Id)
-            || string.Equals(c.Code, "MINETTA", StringComparison.OrdinalIgnoreCase);
+            || optInSet.Contains(c.Id);
         return new InsuranceCompanyExtendedDto(
             c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
             c.TenantId, c.TenantId == null,

@@ -107,7 +107,7 @@ public class QuotesController : ControllerBase
         if (body.CustomerId is Guid cid)
         {
             var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-            var owns = await _db.Customers.IgnoreQueryFilters()
+            var owns = await _db.Customers
                 .AnyAsync(c => c.Id == cid && c.TenantId == tenantId && c.DeletedAt == null, ct);
             if (!owns) throw AppException.NotFound("Πελάτης");
         }

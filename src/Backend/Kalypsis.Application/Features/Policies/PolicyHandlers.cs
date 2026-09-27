@@ -39,7 +39,6 @@ public class ListPoliciesQueryHandler : IRequestHandler<ListPoliciesQuery, IRead
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
 
         var q = _db.Policies
-            .IgnoreQueryFilters()
             .Include(p => p.Customer)
             .Include(p => p.InsuranceCompany)
             .Include(p => p.Producer)
@@ -48,7 +47,7 @@ public class ListPoliciesQueryHandler : IRequestHandler<ListPoliciesQuery, IRead
         if (_current.Role == Role.Customer)
         {
             var userId = _current.UserId ?? throw AppException.Unauthorized();
-            var customerId = await _db.Users.IgnoreQueryFilters()
+            var customerId = await _db.Users
                 .Where(u => u.Id == userId).Select(u => u.CustomerId).FirstOrDefaultAsync(ct);
             if (customerId is null) return Array.Empty<PolicyDto>();
             q = q.Where(p => p.CustomerId == customerId);
@@ -56,7 +55,7 @@ public class ListPoliciesQueryHandler : IRequestHandler<ListPoliciesQuery, IRead
         else if (_current.Role == Role.Producer)
         {
             var userId = _current.UserId ?? throw AppException.Unauthorized();
-            var producerId = await _db.Users.IgnoreQueryFilters()
+            var producerId = await _db.Users
                 .Where(u => u.Id == userId).Select(u => u.ProducerId).FirstOrDefaultAsync(ct);
             if (producerId is null) return Array.Empty<PolicyDto>();
             q = q.Where(p => p.ProducerId == producerId);
@@ -163,7 +162,7 @@ public class GetPolicyQueryHandler : IRequestHandler<GetPolicyQuery, PolicyDto>
     public async Task<PolicyDto> Handle(GetPolicyQuery request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var p = await _db.Policies.IgnoreQueryFilters()
+        var p = await _db.Policies
             .Include(x => x.Customer).Include(x => x.InsuranceCompany).Include(x => x.Producer)
             .Include(x => x.ContractPartyCustomer).Include(x => x.PreviousInsuranceCompany)
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
@@ -172,14 +171,14 @@ public class GetPolicyQueryHandler : IRequestHandler<GetPolicyQuery, PolicyDto>
         if (_current.Role == Role.Customer)
         {
             var userId = _current.UserId ?? throw AppException.Unauthorized();
-            var customerId = await _db.Users.IgnoreQueryFilters()
+            var customerId = await _db.Users
                 .Where(u => u.Id == userId).Select(u => u.CustomerId).FirstOrDefaultAsync(ct);
             if (customerId != p.CustomerId) throw AppException.Forbidden();
         }
         else if (_current.Role == Role.Producer)
         {
             var userId = _current.UserId ?? throw AppException.Unauthorized();
-            var producerId = await _db.Users.IgnoreQueryFilters()
+            var producerId = await _db.Users
                 .Where(u => u.Id == userId).Select(u => u.ProducerId).FirstOrDefaultAsync(ct);
             if (producerId is null || producerId != p.ProducerId) throw AppException.Forbidden();
         }
@@ -224,7 +223,7 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
         var r = request.Body;
 
         // Validate customer + carrier belong to scope.
-        var customer = await _db.Customers.IgnoreQueryFilters()
+        var customer = await _db.Customers
             .FirstOrDefaultAsync(c => c.Id == r.CustomerId && c.TenantId == tenantId && c.DeletedAt == null, ct)
             ?? throw new AppException("customer_not_found",
                 "Ο πελάτης δεν βρέθηκε.", 400,
@@ -401,7 +400,7 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
     public async Task<PolicyDto> Handle(UpdatePolicyCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var p = await _db.Policies.IgnoreQueryFilters()
+        var p = await _db.Policies
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Συμβόλαιο");
 
@@ -492,7 +491,7 @@ public class CancelPolicyCommandHandler : IRequestHandler<CancelPolicyCommand, P
     public async Task<PolicyDto> Handle(CancelPolicyCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var p = await _db.Policies.IgnoreQueryFilters()
+        var p = await _db.Policies
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Συμβόλαιο");
 
@@ -538,7 +537,7 @@ public class CancelPolicyCommandHandler : IRequestHandler<CancelPolicyCommand, P
 
         await _db.SaveChangesAsync(ct);
 
-        var saved = await _db.Policies.IgnoreQueryFilters()
+        var saved = await _db.Policies
             .Include(x => x.Customer).Include(x => x.InsuranceCompany).Include(x => x.Producer)
             .Include(x => x.ContractPartyCustomer).Include(x => x.PreviousInsuranceCompany)
             .FirstAsync(x => x.Id == p.Id, ct);
@@ -573,7 +572,7 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
     public async Task<PolicyDto> Handle(RenewPolicyCommand request, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
-        var src = await _db.Policies.IgnoreQueryFilters()
+        var src = await _db.Policies
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Συμβόλαιο");
 
@@ -617,7 +616,7 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
         src.Status = PolicyStatus.Renewed;
         await _db.SaveChangesAsync(ct);
 
-        var saved = await _db.Policies.IgnoreQueryFilters()
+        var saved = await _db.Policies
             .Include(x => x.Customer).Include(x => x.InsuranceCompany).Include(x => x.Producer)
             .FirstAsync(x => x.Id == newPolicy.Id, ct);
         return ListPoliciesQueryHandler.ToDto(saved);
@@ -677,7 +676,7 @@ internal static class TenantFkGuard
         where T : TenantEntity
     {
         if (id is null) return null;
-        var ok = await set.IgnoreQueryFilters()
+        var ok = await set
             .AnyAsync(x => x.Id == id.Value && x.TenantId == tenantId && x.DeletedAt == null, ct);
         if (!ok) throw AppException.NotFound(entityName);
         return id;
