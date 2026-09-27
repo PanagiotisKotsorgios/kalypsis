@@ -32,6 +32,7 @@ public sealed class CustomerFormSigningController : ControllerBase
     public sealed record SettingsDto(bool Enabled, bool RequireOfficeSignature, bool RequireInsurerSignature, bool SendInsurerEmail, int LinkExpirationDays, string TemplateCode);
     public sealed record UpdateSettingsBody(bool Enabled, bool RequireOfficeSignature, bool RequireInsurerSignature, bool SendInsurerEmail, int LinkExpirationDays, string? TemplateCode);
     public sealed record CreateFormBody(Guid? PolicyId, bool? RequireOfficeSignature, bool? RequireInsurerSignature, bool? SendInsurerEmail, string? Notes, string? FormCode = null, Dictionary<string, string?>? Fields = null);
+    public sealed record PreviewFormBody(Guid? PolicyId, string? FormCode = null, Dictionary<string, string?>? Fields = null);
     public sealed record SigningDto(Guid Id, Guid CustomerId, Guid? PolicyId, string FormCode, string Status, bool? CustomerConsented, string CustomerName, string? CustomerEmail, string? OfficeEmail, string? InsurerEmail, DateTime CreatedAt, DateTime ExpiresAt, DateTime? CustomerSignedAt, DateTime? OfficeSignedAt, DateTime? InsurerSignedAt, DateTime? CompletedAt, string? FinalDocumentPath, bool HasFinalDocument);
     public sealed record PublicFormDto(string AgencyName, string? AgencyLogoUrl, string CustomerName, string? CustomerEmail, string Role, string FormTitle, string ExpiresAt, bool CanSign, string? PolicyNumber, string FormCode = "gdpr-consent");
     public sealed record SignBody(bool Consented, string SignerName, string SignatureDataUrl);
@@ -74,6 +75,56 @@ public sealed class CustomerFormSigningController : ControllerBase
             .Select(x => new SigningDto(x.Id, x.CustomerId, x.PolicyId, x.FormCode, x.Status.ToString(), x.CustomerConsented, x.CustomerFullNameSnapshot, x.CustomerEmailSnapshot, x.OfficeEmailSnapshot, x.InsurerEmailSnapshot, x.CreatedAt, x.ExpiresAt, x.CustomerSignedAt, x.OfficeSignedAt, x.InsurerSignedAt, x.CompletedAt, x.FinalDocumentPath, x.FinalDocumentPath != null))
             .ToListAsync(ct);
         return Ok(rows);
+    }
+
+    /// <summary>
+    /// Render either supported form without creating a signing record or
+    /// sending email.  Preview remains available even when the optional
+    /// electronic-signature workflow is disabled in office settings.
+    /// </summary>
+    [Authorize(Policy = "AgencyStaff")]
+    [HttpPost("api/customers/{customerId:guid}/form-preview")]
+    public async Task<IActionResult> Preview(Guid customerId, [FromBody] PreviewFormBody body, CancellationToken ct)
+    {
+        var tenantId = TenantId();
+        var formCode = NormalizeFormCode(body.FormCode);
+        if (formCode is null) return BadRequest("Μη υποστηριζόμενο έντυπο.");
+
+        var customer = await _db.Customers.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Id == customerId, ct);
+        if (customer is null) return NotFound("Ο πελάτης δεν βρέθηκε.");
+
+        Policy? policy = null;
+        if (body.PolicyId.HasValue)
+        {
+            policy = await _db.Policies.AsNoTracking().Include(x => x.InsuranceCompany)
+                .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Id == body.PolicyId.Value && x.CustomerId == customerId, ct);
+            if (policy is null) return BadRequest("Το συμβόλαιο δεν ανήκει στον συγκεκριμένο πελάτη.");
+        }
+
+        var office = await _db.Tenants.IgnoreQueryFilters().AsNoTracking()
+            .FirstAsync(x => x.Id == tenantId, ct);
+        var data = BuildFormData(customer, office, policy, body.Fields);
+        var draft = new CustomerFormSigning
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            CustomerId = customerId,
+            PolicyId = policy?.Id,
+            FormCode = formCode,
+            FormVersion = formCode == "customer-needs" ? "nivis-v1" : "gdpr-consent-cover-v1",
+            Status = CustomerFormSigningStatus.Draft,
+            CustomerFullNameSnapshot = DisplayName(customer),
+            CustomerEmailSnapshot = customer.Email,
+            InsurerEmailSnapshot = policy?.InsuranceCompany?.ContactEmail,
+            FormDataJson = data.Count == 0 ? null : JsonSerializer.Serialize(data),
+            FileName = formCode == "customer-needs" ? "customer-needs-preview.pdf" : "gdpr-consent-preview.pdf",
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow
+        };
+
+        var pdf = await RenderDocumentAsync(draft, office, ct);
+        return File(pdf, "application/pdf", draft.FileName);
     }
 
     [Authorize(Policy = "AgencyStaff")]
@@ -166,7 +217,7 @@ public sealed class CustomerFormSigningController : ControllerBase
         // customer can sign from the insurer's phone/tablet. It is not an
         // insurer signature request unless RequireInsurerSignature is on.
         if (sendInsurer && !requireInsurer && !string.IsNullOrWhiteSpace(insurerEmail))
-            _ = await SendLinkToAddressAsync(signing, insurerEmail!, policy?.InsuranceCompany?.Name ?? "Ασφαλιστική εταιρεία", token, ct);
+            _ = await SendFormLinkToAddressAsync(signing, insurerEmail!, policy?.InsuranceCompany?.Name ?? "Ασφαλιστική εταιρεία", token, ct);
         return Ok(ToDto(signing));
     }
 
@@ -179,8 +230,11 @@ public sealed class CustomerFormSigningController : ControllerBase
         if (signing is null) return NotFound();
         var link = signing.Links.Where(x => x.RecipientRole == CustomerFormSigningRecipientRole.Customer).OrderByDescending(x => x.CreatedAt).FirstOrDefault();
         if (link is null || link.UsedAt.HasValue) return BadRequest("Δεν υπάρχει ενεργός σύνδεσμος πελάτη.");
+        var settings = await _db.TenantGdprSigningSettings.FirstOrDefaultAsync(x => x.TenantId == tenantId, ct);
         var token = NewToken();
-        link.TokenHash = HashToken(token); link.ExpiresAt = DateTime.UtcNow.AddDays(30); link.SentAt = DateTime.UtcNow;
+        link.TokenHash = HashToken(token);
+        link.ExpiresAt = DateTime.UtcNow.AddDays(settings?.LinkExpirationDays is > 0 ? settings.LinkExpirationDays : 30);
+        link.SentAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
         var result = await SendLinkAsync(signing, link, token, "customer", ct);
         return result.Success ? Ok(new { sent = true }) : StatusCode(502, result.ErrorMessage);
@@ -321,7 +375,17 @@ public sealed class CustomerFormSigningController : ControllerBase
     }
 
     private async Task<EmailResult> SendLinkAsync(CustomerFormSigning signing, CustomerFormSigningLink link, string token, string recipient, CancellationToken ct)
-        => await SendLinkToAddressAsync(signing, link.Email, link.DisplayName, token, ct);
+        => await SendFormLinkToAddressAsync(signing, link.Email, link.DisplayName, token, ct);
+
+    private async Task<EmailResult> SendFormLinkToAddressAsync(CustomerFormSigning signing, string email, string displayName, string token, CancellationToken ct)
+    {
+        var origin = (_configuration["PUBLIC_ORIGIN"] ?? _configuration["PublicOrigin"] ?? $"{Request.Scheme}://{Request.Host}").TrimEnd('/');
+        var url = $"{origin}/sign/gdpr/{token}";
+        var formTitle = signing.FormCode == "customer-needs" ? "Έντυπο Αναγκών Πελάτη" : "Έντυπο GDPR";
+        var subject = $"{formTitle} για ηλεκτρονική υπογραφή";
+        var body = $"<p>Καλησπέρα,</p><p>Παρακαλούμε ανοίξτε τον ασφαλή σύνδεσμο για να ελέγξετε και να υπογράψετε το <strong>{formTitle}</strong> του πελάτη <strong>{System.Net.WebUtility.HtmlEncode(signing.CustomerFullNameSnapshot)}</strong>.</p><p><a href=\"{url}\">Άνοιγμα εντύπου και υπογραφή</a></p><p>Ο σύνδεσμος λήγει στις {signing.ExpiresAt.ToLocalTime():dd/MM/yyyy HH:mm}.</p>";
+        return await _email.SendAsync(new EmailMessage(email, displayName, subject, body, $"Άνοιγμα {formTitle}: {url}", AllowCustomerRecipient: true), ct);
+    }
 
     private async Task<EmailResult> SendLinkToAddressAsync(CustomerFormSigning signing, string email, string displayName, string token, CancellationToken ct)
     {

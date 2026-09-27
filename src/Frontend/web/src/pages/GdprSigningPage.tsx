@@ -5,7 +5,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 
-interface PublicForm { agencyName: string; customerName: string; customerEmail?: string | null; role: string; formCode?: string; formTitle: string; expiresAt: string; canSign: boolean; policyNumber?: string | null; }
+interface PublicForm { agencyName: string; agencyLogoUrl?: string | null; customerName: string; customerEmail?: string | null; role: string; formCode?: string; formTitle: string; expiresAt: string; canSign: boolean; policyNumber?: string | null; }
 
 export function GdprSigningPage() {
   const { token = "" } = useParams<{ token: string }>();
