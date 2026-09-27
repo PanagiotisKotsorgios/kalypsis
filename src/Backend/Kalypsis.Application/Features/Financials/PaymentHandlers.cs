@@ -79,15 +79,13 @@ public class GetPaymentObligationsSummaryHandler
             && !string.Equals(row.Status, nameof(PolicyStatus.Prospect), StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        // The carrier is paid the premium after the total commission supplied
-        // by the carrier is netted. IncomingAgencyCommission is that total
-        // commission (producer share + office remainder), while the producer
-        // obligation is only the producer's calculated share.
-        var companiesDue = eligible.Sum(row =>
-            Math.Max(0m, row.Gross - row.IncomingAgencyCommission));
+        // The office pays the carrier the full gross premium first. The
+        // carrier's total commission is returned/credited separately, so it
+        // must not reduce the carrier payable shown here. The producer
+        // obligation remains only the producer's calculated share.
+        var companiesDue = eligible.Sum(row => row.Gross);
         var producersDue = eligible.Sum(row => row.PartnerCommission);
-        var companyPolicyCount = eligible.Count(row =>
-            row.Gross - row.IncomingAgencyCommission > 0m);
+        var companyPolicyCount = eligible.Count(row => row.Gross > 0m);
         var producerPolicyCount = eligible.Count(row => row.PartnerCommission > 0m);
 
         var paidByType = await _db.Payments
@@ -98,10 +96,11 @@ public class GetPaymentObligationsSummaryHandler
             .Select(group => new
             {
                 Type = group.Key,
-                // Payment.Amount is the gross instruction amount. The amount
-                // actually leaving the office is after any commission netting.
-                Amount = group.Sum(payment =>
-                    Math.Max(0m, payment.Amount - payment.CommissionsNetted))
+                // Both carrier and producer obligations are settled by the
+                // gross payment instruction. CommissionsNetted is retained as
+                // a separate informational/accounting field and does not
+                // reduce the obligation in this gross-pay-first workflow.
+                Amount = group.Sum(payment => payment.Amount)
             })
             .ToListAsync(ct);
 
