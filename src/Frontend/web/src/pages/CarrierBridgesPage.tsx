@@ -564,13 +564,15 @@ export function CarrierBridgesPage() {
           </Stack>
           <Alert severity="info" sx={{ mb: 2 }}>
             {(() => {
-              const fmt = (selected.bridgeFormat ?? "ERGO").toUpperCase();
+              const fmt = (selected.bridgeFormat ?? "UNKNOWN").toUpperCase();
               // Real accepted formats per carrier. Keep in sync with the
               // backend sniffer (SniffFormat) and the parser dispatch.
               const accepted = fmt.includes("GRAND")
                 ? ".zip (Policies + Customers + Objects + Covers + FBC*.csv)"
                 : fmt.includes("ATLANTIC")
                   ? ".zip (Producer_ .zip με Filpolhd.txt / Filpoldt.txt / …)"
+                  : fmt.includes("MINETTA")
+                    ? ".zip (min_x_hd*.csv + min_x_dt*.csv)"
                   : fmt.includes("INTERLIFE")
                     ? ".xlsx (MOTOR_… ή LOIPOI_…)"
                     : ".txt HEADER + DETAIL ή .zip που τα περιέχει";
@@ -583,6 +585,8 @@ export function CarrierBridgesPage() {
                 return "Το Grand Cover εξάγει ένα ενιαίο .zip με όλα τα συμβόλαια. Ανεβάστε το αυτούσιο.";
               if (fmt.includes("ATLANTIC"))
                 return "Η Ατλαντική Ένωση εξάγει τον φάκελο Producer_ .zip. Ανεβάστε τον αυτούσιο.";
+              if (fmt.includes("MINETTA"))
+                return "Η Μινέττα εξάγει ένα ενιαίο ZIP με τα min_x_hd*.csv (συμβόλαια) και min_x_dt*.csv (καλύψεις). Ανεβάστε το ZIP αυτούσιο· μην ανεβάζετε τα CSV ένα-ένα και μην αναμειγνύετε αρχεία άλλης εταιρείας.";
               if (fmt.includes("INTERLIFE"))
                 return "Η Interlife εξάγει δύο ξεχωριστά αρχεία .xlsx: MOTOR_ και LOIPOI_. Ανεβάστε ένα κάθε φορά.";
               // Default = ERGO: HEADER + DETAIL .txt (ή zip που τα περιέχει)
@@ -643,6 +647,29 @@ export function CarrierBridgesPage() {
                         <Typography variant="caption" color="text.secondary">
                           Φάκελος Producer_YYYYMMDDhhmmss.zip με Filpolhd, Filpoldt,
                           Filcusdt, Filvhinf, Filvehcl, Filrechd/dt, Filcomis.
+                        </Typography>
+                      </Box>
+                      <CloudUploadIcon color="action" />
+                    </Stack>
+                  </Card>
+                </Stack>
+              );
+            }
+            if (fmt.includes("MINETTA")) {
+              return (
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                  <Card variant="outlined" sx={{
+                    p: 2.5, flex: 1, cursor: "pointer",
+                    borderStyle: "dashed",
+                    "&:hover": { borderColor: "primary.main", bgcolor: "action.hover" }
+                  }}
+                    onClick={() => { setPendingLob("auto"); fileRef.current?.click(); }}>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <FolderZipIcon color="primary" sx={{ fontSize: 44 }} />
+                      <Box sx={{ flex: 1 }}>
+                        <Typography fontWeight={800}>Πακέτο παραγωγής Μινέττας (.zip)</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Ένα ZIP με min_x_hd*.csv και min_x_dt*.csv. Κρατήστε όλα τα αρχεία μαζί και ανεβάστε το ZIP χωρίς αποσυμπίεση.
                         </Typography>
                       </Box>
                       <CloudUploadIcon color="action" />
