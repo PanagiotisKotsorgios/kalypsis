@@ -228,7 +228,6 @@ export function CustomerDetailPage() {
         <Tab label="Επικοινωνία" />
         <Tab label="Ειδοποιήσεις" />
         <Tab label="Οικονομικά / καρτέλα" />
-        <Tab label="Συγκαταθέσεις (GDPR)" />
         <Tab label="Επαφές" />
         <Tab label="GDPR ενέργειες" />
         <Tab icon={<FamilyRestroomIcon fontSize="small" />} iconPosition="start" label="Οικογένεια & ανάγκες" />
@@ -242,11 +241,10 @@ export function CustomerDetailPage() {
       {tab === 4 && <CommunicationsTab customerId={id} />}
       {tab === 5 && <CustomerNotificationsTab customerId={id} />}
       {tab === 6 && <CustomerAccountTab customerId={id} />}
-      {tab === 7 && <ConsentsTab customerId={id} />}
-      {tab === 8 && <ContactsTab customerId={id} customerType={customer.type} />}
-      {tab === 9 && <GdprActionsTab customerId={id} />}
-      {tab === 10 && <FamilyNeedsTab customerId={id} />}
-      {tab === 11 && <InsuranceOpportunitiesTab customerId={id} />}
+      {tab === 7 && <ContactsTab customerId={id} customerType={customer.type} />}
+      {tab === 8 && <GdprActionsTab customerId={id} />}
+      {tab === 9 && <FamilyNeedsTab customerId={id} />}
+      {tab === 10 && <InsuranceOpportunitiesTab customerId={id} />}
     </Box>
   );
 }
@@ -853,6 +851,10 @@ function consentLabel(type: string): string {
     default: return type;
   }
 }
+
+// Kept as an internal legacy implementation for backwards-compatible bundles;
+// the old consent page is no longer exposed from the customer-card navigation.
+void ConsentsTab;
 
 /* ---------- Contacts (for company customers) ---------- */
 
