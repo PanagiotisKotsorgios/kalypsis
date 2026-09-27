@@ -77,6 +77,9 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<BridgeCodeMapping> BridgeCodeMappings => Set<BridgeCodeMapping>();
     public DbSet<PlatformPartner> PlatformPartners => Set<PlatformPartner>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
+    public DbSet<TenantGdprSigningSettings> TenantGdprSigningSettings => Set<TenantGdprSigningSettings>();
+    public DbSet<CustomerFormSigning> CustomerFormSignings => Set<CustomerFormSigning>();
+    public DbSet<CustomerFormSigningLink> CustomerFormSigningLinks => Set<CustomerFormSigningLink>();
     public DbSet<CommunicationLog> CommunicationLogs => Set<CommunicationLog>();
     public DbSet<CustomerContact> CustomerContacts => Set<CustomerContact>();
     public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();

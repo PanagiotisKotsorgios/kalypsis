@@ -1445,6 +1445,36 @@ function InsuranceOpportunitiesTab({ customerId }: { customerId: string }) {
 
 /* ---------- GDPR actions (export + anonymize) ---------- */
 
+interface CustomerFormSigningRow {
+  id: string; customerId: string; policyId?: string | null; formCode: string; status: string;
+  customerConsented?: boolean | null; customerName: string; customerEmail?: string | null;
+  officeEmail?: string | null; insurerEmail?: string | null; createdAt: string; expiresAt: string;
+  customerSignedAt?: string | null; officeSignedAt?: string | null; insurerSignedAt?: string | null;
+  completedAt?: string | null; hasFinalDocument: boolean;
+}
+interface CustomerFormPolicyOption { id: string; policyNumber: string; insuranceCompanyName: string; status: string; }
+
+function CustomerGdprFormSigningPanel({ customerId }: { customerId: string }) {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["customer-form-signings", customerId], queryFn: async () => (await api.get<CustomerFormSigningRow[]>(`/customers/${customerId}/form-signings`)).data });
+  const policiesQ = useQuery({ queryKey: ["customer-form-signing-policies", customerId], queryFn: async () => (await api.get<CustomerFormPolicyOption[]>("/policies", { params: { customerId } })).data });
+  const [policyId, setPolicyId] = useState("");
+  const [exportStatus, setExportStatus] = useState("");
+  const [exportFrom, setExportFrom] = useState("");
+  const [exportTo, setExportTo] = useState("");
+  const create = useMutation({ mutationFn: async () => (await api.post<CustomerFormSigningRow>(`/customers/${customerId}/form-signings`, { policyId: policyId || null })).data, onSuccess: () => void qc.invalidateQueries({ queryKey: ["customer-form-signings", customerId] }) });
+  const resend = useMutation({ mutationFn: async (id: string) => api.post(`/customer-form-signings/${id}/resend`), onSuccess: () => void qc.invalidateQueries({ queryKey: ["customer-form-signings", customerId] }) });
+  const download = async (id: string) => { const res = await api.get(`/customer-form-signings/${id}/document`, { responseType: "blob" }); const url = URL.createObjectURL(res.data); const a = document.createElement("a"); a.href = url; a.download = "gdpr-consent-signed.pdf"; a.click(); URL.revokeObjectURL(url); };
+  const exportData = async (format: "xlsx" | "csv") => { const res = await api.get(`/customer-form-signings/export`, { params: { format, status: exportStatus || undefined, from: exportFrom || undefined, to: exportTo || undefined }, responseType: "blob" }); const url = URL.createObjectURL(res.data); const a = document.createElement("a"); a.href = url; a.download = `gdpr-forms.${format}`; a.click(); URL.revokeObjectURL(url); };
+  return <Card variant="outlined" sx={{ p: 3, mb: 2, borderColor: "primary.light" }}>
+    <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={2} mb={1}><Box><Typography variant="h6" fontWeight={800}>Έντυπο GDPR και ηλεκτρονικές υπογραφές</Typography><Typography variant="body2" color="text.secondary">Τα πεδία συμπληρώνονται από την καρτέλα. Η λειτουργία ενεργοποιείται από τις ρυθμίσεις γραφείου.</Typography></Box><Stack direction={{ xs: "column", sm: "row" }} spacing={1}><TextField select size="small" label="Κατάσταση εξαγωγής" value={exportStatus} onChange={e => setExportStatus(e.target.value)} sx={{ minWidth: 170 }}><MenuItem value="">Όλες</MenuItem><MenuItem value="PendingCustomer">Αναμονή πελάτη</MenuItem><MenuItem value="PendingOffice">Αναμονή γραφείου</MenuItem><MenuItem value="PendingInsurer">Αναμονή ασφαλιστικής</MenuItem><MenuItem value="Completed">Ολοκληρωμένα</MenuItem><MenuItem value="Declined">Δεν συναινούν</MenuItem></TextField><TextField size="small" type="date" label="Από" value={exportFrom} onChange={e => setExportFrom(e.target.value)} InputLabelProps={{ shrink: true }} /><TextField size="small" type="date" label="Έως" value={exportTo} onChange={e => setExportTo(e.target.value)} InputLabelProps={{ shrink: true }} /><Button size="small" variant="outlined" onClick={() => exportData("xlsx")}>XLSX</Button><Button size="small" variant="outlined" onClick={() => exportData("csv")}>CSV</Button></Stack></Stack>
+    {create.isError && <Alert severity="error" sx={{ mb: 1 }}>{extractErrorMessage(create.error)}</Alert>}
+    {resend.isError && <Alert severity="error" sx={{ mb: 1 }}>{extractErrorMessage(resend.error)}</Alert>}
+    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}><TextField select size="small" label="Συμβόλαιο (προαιρετικό, για ασφαλιστική)" value={policyId} onChange={e => setPolicyId(e.target.value)} sx={{ minWidth: { sm: 340 } }}><MenuItem value="">Χωρίς συγκεκριμένο συμβόλαιο</MenuItem>{(policiesQ.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.policyNumber || "—"} · {p.insuranceCompanyName}</MenuItem>)}</TextField><Button variant="contained" onClick={() => create.mutate()} disabled={create.isPending} sx={{ alignSelf: { xs: "stretch", sm: "center" } }}>{create.isPending ? <CircularProgress size={18} color="inherit" /> : "Δημιουργία και αποστολή στον πελάτη"}</Button></Stack>
+    {q.isLoading ? <CircularProgress size={20} /> : q.isError ? <Alert severity="error">{extractErrorMessage(q.error)}</Alert> : q.data?.length === 0 ? <Typography variant="body2" color="text.secondary">Δεν έχει δημιουργηθεί έντυπο για αυτόν τον πελάτη.</Typography> : <Stack spacing={1}>{q.data?.map(row => <Box key={row.id} sx={{ p: 1.5, border: "1px solid", borderColor: "divider", borderRadius: 1 }}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}><Box><Typography fontWeight={700}>{row.status === "Completed" ? "Ολοκληρωμένο" : row.status === "Declined" ? "Δεν συναινεί" : row.status === "PendingCustomer" ? "Αναμονή πελάτη" : row.status === "PendingOffice" ? "Αναμονή γραφείου" : row.status === "PendingInsurer" ? "Αναμονή ασφαλιστικής" : row.status}</Typography><Typography variant="caption" color="text.secondary">Δημιουργήθηκε {formatDate(row.createdAt)} · Λήξη {formatDate(row.expiresAt)}</Typography></Box><Stack direction="row" spacing={1}>{row.status === "PendingCustomer" && <Button size="small" onClick={() => resend.mutate(row.id)}>Επανάληψη email</Button>}{row.hasFinalDocument && <Button size="small" startIcon={<DownloadIcon />} onClick={() => void download(row.id)}>PDF</Button>}</Stack></Stack></Box>)}</Stack>}
+  </Card>;
+}
+
 function GdprActionsTab({ customerId }: { customerId: string }) {
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -1475,6 +1505,8 @@ function GdprActionsTab({ customerId }: { customerId: string }) {
       <Typography variant="h6" sx={{ mb: 2 }}>GDPR ενέργειες</Typography>
       {err && <Alert severity="error" onClose={() => setErr(null)} sx={{ mb: 2 }}>{err}</Alert>}
       {ok && <Alert severity="success" onClose={() => setOk(null)} sx={{ mb: 2 }}>{ok}</Alert>}
+
+      <CustomerGdprFormSigningPanel customerId={customerId} />
 
       <Card variant="outlined" sx={{ p: 3, mb: 2 }}>
         <Typography fontWeight={700}>Δικαίωμα πρόσβασης / φορητότητας</Typography>

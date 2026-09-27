@@ -1,0 +1,16 @@
+import { useEffect, useState } from "react";
+import { Alert, Button, Card, CardContent, CircularProgress, FormControlLabel, Stack, Switch, TextField, Typography } from "@mui/material";
+import SaveIcon from "@mui/icons-material/Save";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api, extractErrorMessage } from "../api/client";
+
+interface Settings { enabled: boolean; requireOfficeSignature: boolean; requireInsurerSignature: boolean; sendInsurerEmail: boolean; linkExpirationDays: number; templateCode: string; }
+export function GdprSigningSettingsCard() {
+  const qc = useQueryClient(); const q = useQuery({ queryKey: ["customer-form-settings"], queryFn: async () => (await api.get<Settings>("/customer-form-settings")).data });
+  const [form, setForm] = useState<Settings>({ enabled: false, requireOfficeSignature: false, requireInsurerSignature: false, sendInsurerEmail: false, linkExpirationDays: 30, templateCode: "gdpr-consent-cover-v1" });
+  const [ok, setOk] = useState(false);
+  useEffect(() => { if (q.data) setForm(q.data); }, [q.data]);
+  const save = useMutation({ mutationFn: async () => (await api.put<Settings>("/customer-form-settings", form)).data, onSuccess: d => { setForm(d); setOk(true); void qc.invalidateQueries({ queryKey: ["customer-form-settings"] }); setTimeout(() => setOk(false), 2500); } });
+  if (q.isLoading) return <Card><CardContent><CircularProgress size={20} /></CardContent></Card>;
+  return <Card><CardContent sx={{ p: 4 }}><Typography variant="h6" fontWeight={800}>Ηλεκτρονικό έντυπο GDPR & υπογραφές</Typography><Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Προαιρετική λειτουργία. Όταν είναι ανενεργή, καμία πρόσκληση δεν αποστέλλεται και δεν αλλάζει η υπάρχουσα ροή του γραφείου.</Typography><Stack spacing={1}><FormControlLabel control={<Switch checked={form.enabled} onChange={e => setForm({ ...form, enabled: e.target.checked })} />} label="Ενεργοποίηση ηλεκτρονικής υπογραφής" /><FormControlLabel control={<Switch checked={form.requireOfficeSignature} onChange={e => setForm({ ...form, requireOfficeSignature: e.target.checked })} />} label="Να απαιτείται και υπογραφή γραφείου" /><FormControlLabel control={<Switch checked={form.requireInsurerSignature} onChange={e => setForm({ ...form, requireInsurerSignature: e.target.checked })} />} label="Να απαιτείται υπογραφή ασφαλιστικής" /><FormControlLabel control={<Switch checked={form.sendInsurerEmail} onChange={e => setForm({ ...form, sendInsurerEmail: e.target.checked })} />} label="Να αποστέλλεται ενημερωτικό email στην ασφαλιστική (χωρίς υπογραφή αν δεν απαιτείται)" /><TextField type="number" label="Ισχύς συνδέσμου (ημέρες)" value={form.linkExpirationDays} onChange={e => setForm({ ...form, linkExpirationDays: Math.max(1, Math.min(90, Number(e.target.value) || 30)) })} inputProps={{ min: 1, max: 90 }} sx={{ maxWidth: 260, mt: 1 }} /></Stack>{save.isError && <Alert severity="error" sx={{ mt: 2 }}>{extractErrorMessage(save.error)}</Alert>}{ok && <Alert severity="success" sx={{ mt: 2 }}>Οι ρυθμίσεις αποθηκεύτηκαν.</Alert>}<Button sx={{ mt: 2 }} variant="contained" startIcon={save.isPending ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />} onClick={() => save.mutate()} disabled={save.isPending}>Αποθήκευση ρυθμίσεων</Button></CardContent></Card>;
+}

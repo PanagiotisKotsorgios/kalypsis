@@ -63,6 +63,9 @@ public interface IAppDbContext
     DbSet<BridgeCodeMapping> BridgeCodeMappings { get; }
     DbSet<PlatformPartner> PlatformPartners { get; }
     DbSet<ConsentRecord> ConsentRecords { get; }
+    DbSet<TenantGdprSigningSettings> TenantGdprSigningSettings { get; }
+    DbSet<CustomerFormSigning> CustomerFormSignings { get; }
+    DbSet<CustomerFormSigningLink> CustomerFormSigningLinks { get; }
     DbSet<CommunicationLog> CommunicationLogs { get; }
     DbSet<CustomerContact> CustomerContacts { get; }
     DbSet<EmailTemplate> EmailTemplates { get; }

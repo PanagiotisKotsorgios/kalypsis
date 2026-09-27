@@ -11,6 +11,7 @@ import BusinessIcon from "@mui/icons-material/Business";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { GdprSigningSettingsCard } from "../components/GdprSigningSettingsCard";
 
 interface AgencyProfile {
   tenantId: string;
@@ -287,6 +288,8 @@ export function AgencySettingsPage() {
             </Stack>
           </CardContent>
         </Card>
+
+        <GdprSigningSettingsCard />
 
         <Button variant="contained" size="large" startIcon={<SaveIcon />}
           onClick={() => save.mutate()} disabled={save.isPending}

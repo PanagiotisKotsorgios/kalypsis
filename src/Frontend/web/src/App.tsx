@@ -106,6 +106,7 @@ import { TenantsPage } from "./pages/TenantsPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
 import { CustomersPage } from "./pages/CustomersPage";
 import { CustomerDetailPage } from "./pages/CustomerDetailPage";
+import { GdprSigningPage } from "./pages/GdprSigningPage";
 import { AdminSettingsPage } from "./pages/AdminSettingsPage";
 import { RequestsPage } from "./pages/RequestsPage";
 import { AuditLogsPage } from "./pages/AuditLogsPage";
@@ -707,6 +708,7 @@ export default function App() {
         <Route path="/accessibility" element={<AccessibilityPage />} />
         <Route path="/refund-policy" element={<RefundPolicyPage />} />
         <Route path="/code-of-conduct" element={<CodeOfConductPage />} />
+        <Route path="/sign/gdpr/:token" element={<GdprSigningPage />} />
         <Route path="/oss-licenses" element={<OssAttributionsPage />} />
         <Route path="/ropa" element={<RopaPage />} />
         {/* Full-screen ΕΡΜΗΣ shell — the sidebar nav item opens this in a

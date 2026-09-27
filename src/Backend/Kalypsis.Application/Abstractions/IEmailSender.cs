@@ -5,7 +5,12 @@ public record EmailMessage(
     string ToName,
     string Subject,
     string HtmlBody,
-    string? TextBody = null);
+    string? TextBody = null,
+    IReadOnlyList<EmailAttachment>? Attachments = null,
+    bool AllowCustomerRecipient = false);
+
+/// <summary>Optional attachment sent with an email. Bytes are encoded by the provider adapter.</summary>
+public record EmailAttachment(string FileName, string ContentType, byte[] Content);
 
 public record EmailResult(bool Success, string? ErrorMessage = null);
 

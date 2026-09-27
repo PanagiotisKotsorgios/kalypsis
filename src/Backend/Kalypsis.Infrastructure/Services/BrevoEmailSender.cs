@@ -41,7 +41,7 @@ public sealed class BrevoEmailSender : IEmailSender
         // switch also silenced admin flows the operator actually needed,
         // so the block is scoped to the recipient category instead.
         var to = (message.ToEmail ?? "").Trim().ToLowerInvariant();
-        if (!string.IsNullOrEmpty(to))
+        if (!string.IsNullOrEmpty(to) && !message.AllowCustomerRecipient)
         {
             var isCustomer = await _db.Customers.IgnoreQueryFilters()
                 .AnyAsync(c => c.Email != null && c.Email.ToLower() == to, cancellationToken);
@@ -91,7 +91,14 @@ public sealed class BrevoEmailSender : IEmailSender
             to = new[] { new { email = message.ToEmail, name = message.ToName } },
             subject = message.Subject,
             htmlContent = message.HtmlBody,
-            textContent = message.TextBody ?? StripHtml(message.HtmlBody)
+            textContent = message.TextBody ?? StripHtml(message.HtmlBody),
+            attachment = message.Attachments is { Count: > 0 }
+                ? message.Attachments.Select(a => new
+                {
+                    name = a.FileName,
+                    content = Convert.ToBase64String(a.Content)
+                }).ToArray()
+                : null
         };
 
         try
