@@ -13,6 +13,7 @@ import { GeneralLedgerPage } from "./GeneralLedgerPage";
 import { GeneralFinancialEntriesPage } from "./GeneralFinancialEntriesPage";
 import { SecuritiesPage } from "./SecuritiesPage";
 import { CreditNotesPage } from "./CreditNotesPage";
+import { CustomerAccountsPage } from "./CustomerAccountsPage";
 
 /**
  * Wrapper that folds the previously separate «Ταμείο», «Εισπράξεις»,
@@ -65,6 +66,7 @@ const TABS = [
   { key: "general", label: "Έσοδα / Έξοδα γραφείου", Component: GeneralFinancialEntriesPage },
   { key: "securities", label: "Αξιόγραφα", Component: SecuritiesPage },
   { key: "creditNotes", label: "Πιστωτικά", Component: CreditNotesPage },
+  { key: "customerAccounts", label: "Υπόλοιπα πελατών", Component: CustomerAccountsPage },
   { key: "gl", label: "Λογιστική", Component: GeneralLedgerPage },
 ] as const;
 

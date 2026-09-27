@@ -1,6 +1,7 @@
 using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Features.ClaimInvolvedParties;
 using Kalypsis.Application.Features.Customers;
+using Kalypsis.Application.Features.Financials;
 using Kalypsis.Application.Features.Producers;
 using Kalypsis.Domain.Enums;
 using MediatR;
@@ -40,6 +41,26 @@ public class CustomersController : ControllerBase
     [RequirePermission("customers.read")]
     public async Task<ActionResult<CustomerSummaryDto>> Summary(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetCustomerSummaryQuery(id), ct));
+
+    /// <summary>
+    /// Customer account card: charges, receipts, open/overdue instalments and
+    /// payment-behaviour statistics. It is derived from the journal and can
+    /// therefore be safely filtered by date without changing the ledger.
+    /// </summary>
+    [HttpGet("{id:guid}/account")]
+    [RequirePermission("financials.read")]
+    public async Task<ActionResult<CustomerAccountDto>> Account(
+        Guid id, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken ct)
+        => Ok(await _mediator.Send(new GetCustomerAccountQuery(id, from, to), ct));
+
+    /// <summary>Office-wide debtor/creditor list for monthly follow-up.</summary>
+    [HttpGet("accounts")]
+    [RequirePermission("financials.read")]
+    public async Task<ActionResult<IReadOnlyList<CustomerAccountListRowDto>>> Accounts(
+        [FromQuery] DateOnly? from, [FromQuery] DateOnly? to,
+        [FromQuery] bool onlyDebtors = false, [FromQuery] bool onlyCreditors = false,
+        [FromQuery] bool onlyOverdue = false, CancellationToken ct = default)
+        => Ok(await _mediator.Send(new ListCustomerAccountsQuery(from, to, onlyDebtors, onlyCreditors, onlyOverdue), ct));
 
     // Producers that have written policies for this customer. Reverse view of
     // /producers/{id}/customers — useful when investigating commission disputes.

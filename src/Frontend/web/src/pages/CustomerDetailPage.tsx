@@ -227,6 +227,7 @@ export function CustomerDetailPage() {
         <Tab label="Εμπλεκόμενοι" />
         <Tab label="Επικοινωνία" />
         <Tab label="Ειδοποιήσεις" />
+        <Tab label="Οικονομικά / καρτέλα" />
         <Tab label="Συγκαταθέσεις (GDPR)" />
         <Tab label="Επαφές" />
         <Tab label="GDPR ενέργειες" />
@@ -240,12 +241,78 @@ export function CustomerDetailPage() {
       {tab === 3 && <ClaimInvolvedPartiesTab customerId={id} />}
       {tab === 4 && <CommunicationsTab customerId={id} />}
       {tab === 5 && <CustomerNotificationsTab customerId={id} />}
-      {tab === 6 && <ConsentsTab customerId={id} />}
-      {tab === 7 && <ContactsTab customerId={id} customerType={customer.type} />}
-      {tab === 8 && <GdprActionsTab customerId={id} />}
-      {tab === 9 && <FamilyNeedsTab customerId={id} />}
-      {tab === 10 && <InsuranceOpportunitiesTab customerId={id} />}
+      {tab === 6 && <CustomerAccountTab customerId={id} />}
+      {tab === 7 && <ConsentsTab customerId={id} />}
+      {tab === 8 && <ContactsTab customerId={id} customerType={customer.type} />}
+      {tab === 9 && <GdprActionsTab customerId={id} />}
+      {tab === 10 && <FamilyNeedsTab customerId={id} />}
+      {tab === 11 && <InsuranceOpportunitiesTab customerId={id} />}
     </Box>
+  );
+}
+
+/* ---------- Customer account / payment behaviour ---------- */
+
+interface CustomerAccount {
+  customerId: string; customerName: string;
+  totalCharges: number; totalCredits: number; balance: number;
+  overdueAmount: number; overdueCount: number;
+  installmentCount: number; paidInstallmentCount: number;
+  onTimePaymentCount: number; latePaymentCount: number; onTimeRatePercent: number;
+  entries: { id: string; date: string; kind: string; amount: number; currency: string; description?: string | null; policyNumber?: string | null }[];
+  installments: { id: string; policyNumber: string; dueDate: string; amount: number; paidAt?: string | null; isOverdue: boolean; daysLate: number }[];
+  monthly: { year: number; month: number; charges: number; credits: number; balance: number }[];
+}
+
+function CustomerAccountTab({ customerId }: { customerId: string }) {
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const q = useQuery({
+    queryKey: ["customer-account", customerId, from, to],
+    queryFn: async () => (await api.get<CustomerAccount>(`/customers/${customerId}/account`, {
+      params: { from: from || undefined, to: to || undefined }
+    })).data
+  });
+  const fmt = (n: number) => n.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (q.isLoading) return <CircularProgress />;
+  if (q.isError) return <Alert severity="error">{extractErrorMessage(q.error)}</Alert>;
+  const a = q.data!;
+  const balanceColor = a.balance > 0 ? "error.main" : a.balance < 0 ? "success.main" : "text.primary";
+  return (
+    <Stack spacing={2}>
+      <Card variant="outlined" sx={{ p: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
+          <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} value={from} onChange={e => setFrom(e.target.value)} />
+          <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} value={to} onChange={e => setTo(e.target.value)} />
+          <Typography variant="caption" color="text.secondary">Το φίλτρο επηρεάζει τις κινήσεις και τους μηνιαίους υπολογισμούς.</Typography>
+        </Stack>
+      </Card>
+      <Card variant="outlined" sx={{ p: 2.5 }}>
+        <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
+          <Box><Typography variant="caption" color="text.secondary">Χρεώσεις</Typography><Typography fontWeight={800}>{fmt(a.totalCharges)} €</Typography></Box>
+          <Box><Typography variant="caption" color="text.secondary">Εισπράξεις</Typography><Typography fontWeight={800} color="success.main">{fmt(a.totalCredits)} €</Typography></Box>
+          <Box><Typography variant="caption" color="text.secondary">Υπόλοιπο πελάτη</Typography><Typography fontWeight={900} color={balanceColor}>{fmt(a.balance)} €</Typography></Box>
+          <Box><Typography variant="caption" color="text.secondary">Ληξιπρόθεσμα</Typography><Typography fontWeight={800} color={a.overdueAmount > 0 ? "error.main" : "text.primary"}>{fmt(a.overdueAmount)} € ({a.overdueCount})</Typography></Box>
+          <Box><Typography variant="caption" color="text.secondary">Συνέπεια πληρωμών</Typography><Typography fontWeight={800}>{a.paidInstallmentCount ? `${fmt(a.onTimeRatePercent)}% εμπρόθεσμα` : "Δεν υπάρχουν δόσεις"}</Typography></Box>
+          <Box><Typography variant="caption" color="text.secondary">Καθυστερήσεις</Typography><Typography fontWeight={800}>{a.latePaymentCount}</Typography></Box>
+        </Stack>
+      </Card>
+      {a.overdueCount > 0 && <Alert severity="warning">Ο πελάτης έχει ληξιπρόθεσμες οφειλές. Δημιουργείται ειδοποίηση στον διαχειριστή από το ωριαίο σύστημα υπενθυμίσεων.</Alert>}
+      {a.installments.length > 0 && (
+        <Card variant="outlined">
+          <Typography sx={{ p: 2, pb: 0 }} fontWeight={800}>Δόσεις και ημερομηνίες εξόφλησης</Typography>
+          <Table size="small"><TableHead><TableRow><TableCell>Συμβόλαιο</TableCell><TableCell>Λήξη πληρωμής</TableCell><TableCell align="right">Ποσό</TableCell><TableCell>Κατάσταση</TableCell></TableRow></TableHead>
+            <TableBody>{a.installments.map(i => <TableRow key={i.id}><TableCell sx={{ fontFamily: "monospace" }}>{i.policyNumber}</TableCell><TableCell>{i.dueDate}</TableCell><TableCell align="right">{fmt(i.amount)} €</TableCell><TableCell>{i.paidAt ? <Chip size="small" color="success" label={`Εξοφλήθηκε ${i.paidAt}`} /> : <Chip size="small" color={i.isOverdue ? "error" : "warning"} label={i.isOverdue ? `Καθυστέρηση ${i.daysLate} ημέρες` : "Εκκρεμεί"} />}</TableCell></TableRow>)}</TableBody>
+          </Table>
+        </Card>
+      )}
+      <Card variant="outlined">
+        <Typography sx={{ p: 2, pb: 0 }} fontWeight={800}>Κινήσεις καρτέλας</Typography>
+        {a.entries.length === 0 ? <Typography sx={{ p: 2 }} color="text.secondary">Δεν υπάρχουν οικονομικές κινήσεις.</Typography> :
+          <Table size="small"><TableHead><TableRow><TableCell>Ημερομηνία</TableCell><TableCell>Αιτιολογία</TableCell><TableCell>Συμβόλαιο</TableCell><TableCell align="right">Ποσό</TableCell></TableRow></TableHead><TableBody>{a.entries.map(e => <TableRow key={e.id}><TableCell>{e.date}</TableCell><TableCell>{e.kind === "CustomerCharge" ? "Χρέωση" : e.kind === "CustomerCredit" ? "Είσπραξη" : e.kind}{e.description ? ` · ${e.description}` : ""}</TableCell><TableCell sx={{ fontFamily: "monospace" }}>{e.policyNumber ?? "—"}</TableCell><TableCell align="right" sx={{ color: e.kind === "CustomerCharge" ? "error.main" : "success.main", fontWeight: 700 }}>{e.kind === "CustomerCharge" ? "+" : "−"}{fmt(e.amount)} {e.currency}</TableCell></TableRow>)}</TableBody></Table>}
+      </Card>
+      {a.monthly.length > 0 && <Card variant="outlined"><Typography sx={{ p: 2, pb: 0 }} fontWeight={800}>Υπόλοιπο ανά μήνα</Typography><Table size="small"><TableHead><TableRow><TableCell>Μήνας</TableCell><TableCell align="right">Χρεώσεις</TableCell><TableCell align="right">Εισπράξεις</TableCell><TableCell align="right">Υπόλοιπο</TableCell></TableRow></TableHead><TableBody>{a.monthly.map(m => <TableRow key={`${m.year}-${m.month}`}><TableCell>{String(m.month).padStart(2, "0")}/{m.year}</TableCell><TableCell align="right">{fmt(m.charges)} €</TableCell><TableCell align="right">{fmt(m.credits)} €</TableCell><TableCell align="right" sx={{ fontWeight: 800 }}>{fmt(m.balance)} €</TableCell></TableRow>)}</TableBody></Table></Card>}
+    </Stack>
   );
 }
 
