@@ -1482,7 +1482,7 @@ function CustomerGdprFormSigningPanel({ customerId }: { customerId: string }) {
       const res = await api.post(`/customers/${customerId}/form-preview`, { formCode, policyId: (policyOverride ?? policyId) || null, fields: fields ?? {} }, { responseType: "blob" });
       const url = URL.createObjectURL(res.data); const a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener"; a.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch (e) { setPreviewError(extractErrorMessage(e)); }
+    } catch (e) { setPreviewError(await extractFormPreviewError(e)); }
     finally { setPreviewing(""); }
   };
   const exportData = async (format: "xlsx" | "csv") => { const res = await api.get(`/customer-form-signings/export`, { params: { format, status: exportStatus || undefined, from: exportFrom || undefined, to: exportTo || undefined }, responseType: "blob" }); const url = URL.createObjectURL(res.data); const a = document.createElement("a"); a.href = url; a.download = `gdpr-forms.${format}`; a.click(); URL.revokeObjectURL(url); };
@@ -1494,8 +1494,8 @@ function CustomerGdprFormSigningPanel({ customerId }: { customerId: string }) {
        <Button size="small" variant="outlined" onClick={() => setNeedsOpen(true)}>Έντυπο Αναγκών Πελάτη</Button>
      </Stack>
      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 1.5 }}>
-       <Button size="small" variant="outlined" onClick={() => setIntermediaryOpen(true)}>Πληροφορίες διαμεσολαβητή</Button>
-       <Button size="small" variant="outlined" onClick={() => setReceiptOpen(true)}>Απόδειξη παραλαβής εντύπων</Button>
+       <Button size="small" variant="outlined" onClick={() => { create.reset(); sendAdditional.reset(); setPreviewError(null); setIntermediaryOpen(true); }}>Πληροφορίες διαμεσολαβητή</Button>
+       <Button size="small" variant="outlined" onClick={() => { create.reset(); sendAdditional.reset(); setPreviewError(null); setReceiptOpen(true); }}>Απόδειξη παραλαβής εντύπων</Button>
      </Stack>
      {previewError && <Alert severity="error" sx={{ mb: 1 }} onClose={() => setPreviewError(null)}>{previewError}</Alert>}
     {create.isError && <Alert severity="error" sx={{ mb: 1 }}>{extractErrorMessage(create.error)}</Alert>}
@@ -1654,6 +1654,27 @@ const DOCUMENT_RECEIPT_FIELDS: MailMergedFormField[] = [
 
 function DocumentReceiptDialog({ open, onClose, onPreview, onSend, sending }: { open: boolean; onClose: () => void; onPreview: (fields: Record<string, string>) => void; onSend: (fields: Record<string, string>) => void; sending: boolean }) {
   return <MailMergedFormDialog open={open} title="Απόδειξη παραλαβής εντύπων από τον πελάτη" description="Καταγράψτε τις ημερομηνίες, τον τρόπο παράδοσης και ακριβώς ποια έγγραφα παρέλαβε ο πελάτης." fields={DOCUMENT_RECEIPT_FIELDS} onClose={onClose} onPreview={onPreview} onSend={onSend} sending={sending} />;
+}
+
+async function extractFormPreviewError(error: unknown): Promise<string> {
+  const data = (error as { response?: { data?: unknown } })?.response?.data;
+  if (typeof Blob !== "undefined" && data instanceof Blob) {
+    const raw = await data.text();
+    if (raw.trim()) {
+      try {
+        const parsed = JSON.parse(raw) as { message?: unknown; detail?: unknown; title?: unknown; errors?: Record<string, unknown> };
+        if (typeof parsed.message === "string" && parsed.message !== "One or more validation errors occurred") return parsed.message;
+        if (typeof parsed.detail === "string" && parsed.detail.trim()) return parsed.detail;
+        if (typeof parsed.title === "string" && parsed.title !== "One or more validation errors occurred") return parsed.title;
+        if (parsed.errors && typeof parsed.errors === "object") {
+          const messages = Object.values(parsed.errors).flatMap(value => Array.isArray(value) ? value : [value]).filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+          if (messages.length) return messages.join(" · ");
+        }
+      } catch { /* fall through to the raw server message */ }
+      return raw.trim();
+    }
+  }
+  return extractErrorMessage(error);
 }
 
 function GdprActionsTab({ customerId }: { customerId: string }) {
