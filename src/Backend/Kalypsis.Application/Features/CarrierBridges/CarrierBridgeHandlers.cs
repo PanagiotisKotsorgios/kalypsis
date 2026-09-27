@@ -1814,6 +1814,31 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
         }
 
+        // The hd files contain the policy/package header only. Coverage names
+        // and codes live in the matching dt/dt2 rows, keyed by transaction id.
+        // Keep them grouped so a policy remains one import row while its full
+        // cover set is still available to the mapping resolver.
+        var detailCoversByTransaction = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in detailEntries.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            foreach (var line in ReadLines(entry, enc))
+            {
+                var cells = SplitCsvLine(line.TrimEnd('\r').Trim());
+                var transaction = cells.Count > 0 ? cells[0].Trim() : "";
+                if (string.IsNullOrWhiteSpace(transaction) || !transaction.All(char.IsDigit)) continue;
+
+                var coverCode = cells.Count > 3 ? cells[3].Trim() : "";
+                var coverLabel = cells.Count > 4 ? cells[4].Trim() : "";
+                var cover = !string.IsNullOrWhiteSpace(coverCode) ? coverCode : coverLabel;
+                if (string.IsNullOrWhiteSpace(cover)) continue;
+
+                if (!detailCoversByTransaction.TryGetValue(transaction, out var covers))
+                    detailCoversByTransaction[transaction] = covers = new List<string>();
+                if (!covers.Contains(cover, StringComparer.OrdinalIgnoreCase))
+                    covers.Add(cover);
+            }
+        }
+
         var rows = new List<BridgeImportRow>();
         var index = 0;
         foreach (var entry in headerEntries.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
@@ -1879,8 +1904,23 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 if (!string.IsNullOrWhiteSpace(packageCode)) raw["Πακέτο.Code"] = packageCode;
                 var statusText = Get(isMotor ? 46 : 85);
                 if (!string.IsNullOrWhiteSpace(statusText)) raw["MINETTA.Status"] = statusText;
-                var coverText = Get(isMotor ? 61 : 63);
-                if (!string.IsNullOrWhiteSpace(coverText)) raw["Καλύψεις"] = coverText;
+                if (detailCoversByTransaction.TryGetValue(transaction, out var detailCovers)
+                    && detailCovers.Count > 0)
+                {
+                    raw["Καλύψεις"] = string.Join(", ", detailCovers);
+                }
+                else if (!isMotor)
+                {
+                    // Non-motor headers carry a useful product/coverage label in
+                    // column 63 when a detail row is absent.
+                    var coverText = Get(isMotor ? 61 : 63);
+                    if (!string.IsNullOrWhiteSpace(coverText)) raw["Καλύψεις"] = coverText;
+                }
+                else
+                {
+                    notes.Add(new BridgeImportNote("Καλύψεις", "warn",
+                        "Δεν βρέθηκαν γραμμές καλύψεων στο αντίστοιχο αρχείο min_x_dt."));
+                }
 
                 var rowType = gross is < 0m ? "Cancellation" : "New";
                 if (rowType == "Cancellation")
