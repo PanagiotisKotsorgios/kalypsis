@@ -31,7 +31,8 @@ public class ExceptionMiddleware
             {
                 code = "validation",
                 message = "Σφάλμα επικύρωσης δεδομένων.",
-                errors
+                errors,
+                traceId = ctx.TraceIdentifier
             }));
         }
         catch (AppException ex)
@@ -46,7 +47,8 @@ public class ExceptionMiddleware
                 why = ex.WhyText,
                 fix = ex.FixText,
                 fixLink = ex.FixLink,
-                severity = ex.Severity
+                severity = ex.Severity,
+                traceId = ctx.TraceIdentifier
             }, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }));
         }
         // Tenant-boundary violation from the SaveChanges guard in AppDbContext.
@@ -62,7 +64,8 @@ public class ExceptionMiddleware
             {
                 code = "forbidden",
                 message = "Δεν επιτρέπεται η ενέργεια.",
-                severity = "error"
+                severity = "error",
+                traceId = ctx.TraceIdentifier
             }));
         }
         // Missing files on disk (deleted/never-uploaded/legacy paths) shouldn't 500.
@@ -78,7 +81,8 @@ public class ExceptionMiddleware
                 title = "Αρχείο μη διαθέσιμο",
                 why = "Το αρχείο που ζητήσατε δεν βρέθηκε στον αποθηκευτικό χώρο. Πιθανώς έχει διαγραφεί ή δεν ανέβηκε ποτέ.",
                 fix = "Αν χρειάζεστε αυτό το αρχείο, επικοινωνήστε με την υποστήριξη.",
-                severity = "warning"
+                severity = "warning",
+                traceId = ctx.TraceIdentifier
             }));
         }
         catch (BadHttpRequestException ex) when (ex.StatusCode == StatusCodes.Status400BadRequest)
@@ -92,7 +96,8 @@ public class ExceptionMiddleware
                 message = "Λανθασμένο αίτημα.",
                 title = "Λάθος αίτημα",
                 why = ex.Message,
-                severity = "warning"
+                severity = "warning",
+                traceId = ctx.TraceIdentifier
             }));
         }
         catch (OperationCanceledException) when (ctx.RequestAborted.IsCancellationRequested)
@@ -111,7 +116,8 @@ public class ExceptionMiddleware
                 title = "Απρόσμενο σφάλμα",
                 why = "Κάτι πήγε στραβά στον διακομιστή. Δεν φταίτε εσείς.",
                 fix = "Δοκιμάστε ξανά σε λίγο. Αν το πρόβλημα επιμένει, επικοινωνήστε με την υποστήριξη με το ακριβές μήνυμα που βλέπετε.",
-                severity = "error"
+                severity = "error",
+                traceId = ctx.TraceIdentifier
             }));
         }
     }

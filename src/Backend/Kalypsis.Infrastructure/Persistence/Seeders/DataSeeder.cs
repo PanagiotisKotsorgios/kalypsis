@@ -10,6 +10,56 @@ namespace Kalypsis.Infrastructure.Persistence.Seeders;
 
 public static class DataSeeder
 {
+    // The first office-scope migration missed these TenantEntity tables.
+    // Keep the list here as a boot-time safety net so it also heals databases
+    // where migrations were marked applied before the missing columns were
+    // noticed.
+    private static readonly string[] MissingOfficeScopeTables =
+    [
+        "agency_instructions",
+        "Athletes",
+        "bookkeeping_activities",
+        "bookkeeping_files",
+        "bookkeeping_folders",
+        "bookkeeping_notes",
+        "bookkeeping_portal_credentials",
+        "bookkeeping_programs",
+        "bridge_code_mappings",
+        "Championships",
+        "ChampionshipCategories",
+        "ChampionshipRegistrations",
+        "ChampionshipResults",
+        "claim_involved_parties",
+        "Clubs",
+        "customer_form_signings",
+        "customer_form_signing_links",
+        "dpa_acceptances",
+        "ermes_attachments",
+        "ermes_blocks",
+        "ermes_messages",
+        "ermes_recipients",
+        "ermes_teams",
+        "ermes_team_members",
+        "gdpr_erasure_requests",
+        "general_financial_entries",
+        "over_commission_statements",
+        "policy_commission_splits",
+        "policy_covers",
+        "policy_cover_adjustments",
+        "policy_installments",
+        "policy_objects",
+        "producer_expected_rates",
+        "RegistrationAthletes",
+        "saved_reports",
+        "tenant_backups",
+        "tenant_backup_policies",
+        "tenant_gdpr_signing_settings",
+        "tenant_over_commission_bridge_enables",
+        "tenant_over_commission_bridge_mappings",
+        "user_key_backups",
+        "user_public_keys",
+    ];
+
     public static async Task SeedAsync(IServiceProvider services, CancellationToken cancellationToken = default)
     {
         using var scope = services.CreateScope();
@@ -28,6 +78,12 @@ public static class DataSeeder
         // EF migration; if EF already added everything, these are no-ops.
         try { await EnsureSchemaSafetyAsync(db, logger, cancellationToken); }
         catch (Exception ex) { logger.LogError(ex, "EnsureSchemaSafetyAsync failed — continuing boot."); }
+
+        // The original office-scope migration missed several TenantEntity
+        // tables. Repair those columns after the safety-net table creation so
+        // existing and fresh databases get the query-filter column.
+        try { await EnsureMissingOfficeScopeColumnsAsync(db, logger, cancellationToken); }
+        catch (Exception ex) { logger.LogError(ex, "Office-scope column repair failed; continuing boot."); }
 
         // NOTE on insurance-company seeding: we deliberately do NOT seed the
         // old list of demo carriers (Allianz/ERGO/NN/Generali/...) anymore.
@@ -2505,6 +2561,21 @@ public static class DataSeeder
         // OAuth access/refresh tokens can be 1-2 KB before encryption balloons them.
         await EnsureColumnAtLeastAsync(db, logger, dbName, "mailbox_connections", "AccessTokenEncrypted", minLength: 3000, ct);
         await EnsureColumnAtLeastAsync(db, logger, dbName, "mailbox_connections", "RefreshTokenEncrypted", minLength: 3000, ct);
+    }
+
+    private static async Task EnsureMissingOfficeScopeColumnsAsync(
+        AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open)
+            await conn.OpenAsync(ct);
+        var dbName = conn.Database;
+
+        foreach (var table in MissingOfficeScopeTables)
+        {
+            await EnsureColumnAsync(db, logger, dbName, table, "AgencyOfficeScopeId",
+                $"ALTER TABLE `{table}` ADD COLUMN `AgencyOfficeScopeId` char(36) NULL", ct);
+        }
     }
 
     private static async Task<bool> ColumnExistsAsync(AppDbContext db, string dbName, string table, string column, CancellationToken ct)

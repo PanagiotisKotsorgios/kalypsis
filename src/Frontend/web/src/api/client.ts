@@ -145,13 +145,20 @@ export interface ApiError {
   code?: string;
   message?: string;
   errors?: Record<string, string[]>;
+  traceId?: string;
 }
 
 export function extractErrorMessage(err: unknown, fallback = "Something went wrong"): string {
   if (axios.isAxiosError(err)) {
     const ax = err as AxiosError<ApiError>;
     const data = ax.response?.data as (ApiError & { title?: string; detail?: string; errors?: Record<string, string[] | string> }) | undefined;
-    if (data?.message && data.message !== "One or more validation errors occurred") return data.message;
+    if (data?.message && data.message !== "One or more validation errors occurred") {
+      // Keep the user-facing text safe while exposing the server correlation
+      // id so support can find the exact exception in Coolify logs.
+      if (data.code === "internal_error" && data.traceId)
+        return `${data.message} (κωδικός: ${data.traceId})`;
+      return data.message;
+    }
     if (data?.detail) return data.detail;
     if (data?.title && data.title !== "One or more validation errors occurred") return data.title;
     if (data?.errors) {
