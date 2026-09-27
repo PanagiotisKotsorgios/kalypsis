@@ -104,12 +104,7 @@ public sealed class CustomerFormSigningController : ControllerBase
 
         var office = await _db.Tenants.IgnoreQueryFilters().AsNoTracking()
             .FirstAsync(x => x.Id == tenantId, ct);
-        var collaboratingInsurers = string.Join(", ", await _db.Policies.AsNoTracking()
-            .Where(x => x.TenantId == tenantId && x.InsuranceCompany != null)
-            .Select(x => x.InsuranceCompany.Name)
-            .Distinct()
-            .OrderBy(x => x)
-            .ToListAsync(ct));
+        var collaboratingInsurers = await GetCollaboratingInsurersAsync(tenantId, ct);
         var data = BuildFormData(customer, office, policy, body.Fields, collaboratingInsurers);
         var draft = new CustomerFormSigning
         {
@@ -191,12 +186,7 @@ public sealed class CustomerFormSigningController : ControllerBase
             needsTemplate.BodyHtml = "<h1>{{agency.name}}</h1><h2>ΕΝΤΥΠΟ ΑΝΑΓΚΩΝ ΠΕΛΑΤΗ</h2><p>{{customer.name}}</p><p>{{customer.email}}</p><p>{{form.vesselName}}</p><p>{{form.totalInsuredValue}}</p><p>Δήλωση και υπογραφή πελάτη, γραφείου και ασφαλιστικής όπου απαιτείται.</p>";
 
         var now = DateTime.UtcNow;
-        var collaboratingInsurersForSigning = string.Join(", ", await _db.Policies.AsNoTracking()
-            .Where(x => x.TenantId == tenantId && x.InsuranceCompany != null)
-            .Select(x => x.InsuranceCompany.Name)
-            .Distinct()
-            .OrderBy(x => x)
-            .ToListAsync(ct));
+        var collaboratingInsurersForSigning = await GetCollaboratingInsurersAsync(tenantId, ct);
         var formData = BuildFormData(customer, office, policy, body.Fields, collaboratingInsurersForSigning);
         var signing = new CustomerFormSigning
         {
@@ -537,6 +527,29 @@ public sealed class CustomerFormSigningController : ControllerBase
         data["deliveryDate"] ??= DateTime.UtcNow.ToLocalTime().ToString("dd/MM/yyyy");
         data["documentsReceived"] ??= "Έντυπο GDPR; Έντυπο Αναγκών Πελάτη; Πληροφορίες Ασφαλιστικού Διαμεσολαβητή";
         return data;
+    }
+
+    private async Task<string> GetCollaboratingInsurersAsync(Guid tenantId, CancellationToken ct)
+    {
+        // Resolve IDs first, then load carrier names separately. This avoids
+        // provider-specific navigation/distinct/order translation failures in
+        // the preview endpoint while still deriving the list from the office's
+        // actual policies.
+        var companyIds = await _db.Policies.AsNoTracking()
+            .Where(x => x.TenantId == tenantId)
+            .Select(x => x.InsuranceCompanyId)
+            .Distinct()
+            .ToListAsync(ct);
+        if (companyIds.Count == 0) return string.Empty;
+
+        var names = await _db.InsuranceCompanies.AsNoTracking()
+            .Where(x => companyIds.Contains(x.Id))
+            .Select(x => x.Name)
+            .ToListAsync(ct);
+        return string.Join(", ", names
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
     }
 
     private Guid TenantId() => _current.TenantId ?? throw new UnauthorizedAccessException();
