@@ -149,6 +149,11 @@ public sealed class CustomerFormSigningController : ControllerBase
         await _db.SaveChangesAsync(ct);
         var sent = await SendLinkAsync(signing, link, token, "customer", ct);
         if (!sent.Success) return StatusCode(502, sent.ErrorMessage ?? "Δεν ήταν δυνατή η αποστολή email.");
+        // Optional insurer notification: send the same customer link so the
+        // customer can sign from the insurer's phone/tablet. It is not an
+        // insurer signature request unless RequireInsurerSignature is on.
+        if (sendInsurer && !requireInsurer && !string.IsNullOrWhiteSpace(insurerEmail))
+            _ = await SendLinkToAddressAsync(signing, insurerEmail!, policy?.InsuranceCompany?.Name ?? "Ασφαλιστική εταιρεία", token, ct);
         return Ok(ToDto(signing));
     }
 
@@ -250,7 +255,7 @@ public sealed class CustomerFormSigningController : ControllerBase
             (CustomerFormSigningRecipientRole.Office, signing.RequireOfficeSignature ? tenant.ContactEmail : null, tenant.Name)
         };
         var policy = signing.PolicyId.HasValue ? await _db.Policies.IgnoreQueryFilters().Include(x => x.InsuranceCompany).FirstOrDefaultAsync(x => x.Id == signing.PolicyId.Value, ct) : null;
-        recipients.Add((CustomerFormSigningRecipientRole.Insurer, (signing.RequireInsurerSignature || signing.SendInsurerEmail) ? policy?.InsuranceCompany?.ContactEmail : null, policy?.InsuranceCompany?.Name ?? "Ασφαλιστική εταιρεία"));
+        recipients.Add((CustomerFormSigningRecipientRole.Insurer, signing.RequireInsurerSignature ? policy?.InsuranceCompany?.ContactEmail : null, policy?.InsuranceCompany?.Name ?? "Ασφαλιστική εταιρεία"));
         foreach (var recipient in recipients)
         {
             if (string.IsNullOrWhiteSpace(recipient.Email) || existing.Any(x => x.RecipientRole == recipient.Role)) continue;
@@ -291,12 +296,15 @@ public sealed class CustomerFormSigningController : ControllerBase
         => GdprConsentPdfRenderer.Render(tenant, signing, await ReadBytesAsync(tenant.LogoUrl, ct), await ReadBytesAsync(signing.CustomerSignaturePath, ct), await ReadBytesAsync(signing.OfficeSignaturePath, ct), await ReadBytesAsync(signing.InsurerSignaturePath, ct));
 
     private async Task<EmailResult> SendLinkAsync(CustomerFormSigning signing, CustomerFormSigningLink link, string token, string recipient, CancellationToken ct)
+        => await SendLinkToAddressAsync(signing, link.Email, link.DisplayName, token, ct);
+
+    private async Task<EmailResult> SendLinkToAddressAsync(CustomerFormSigning signing, string email, string displayName, string token, CancellationToken ct)
     {
         var origin = (_configuration["PUBLIC_ORIGIN"] ?? _configuration["PublicOrigin"] ?? $"{Request.Scheme}://{Request.Host}").TrimEnd('/');
         var url = $"{origin}/sign/gdpr/{token}";
         var subject = "Έντυπο GDPR για ηλεκτρονική υπογραφή";
         var body = $"<p>Καλησπέρα,</p><p>Παρακαλούμε ανοίξτε τον ασφαλή σύνδεσμο για να υπογράψετε το έντυπο GDPR του πελάτη <strong>{System.Net.WebUtility.HtmlEncode(signing.CustomerFullNameSnapshot)}</strong>.</p><p><a href=\"{url}\">Άνοιγμα εντύπου και υπογραφή</a></p><p>Ο σύνδεσμος λήγει στις {signing.ExpiresAt.ToLocalTime():dd/MM/yyyy HH:mm}.</p>";
-        return await _email.SendAsync(new EmailMessage(link.Email, link.DisplayName, subject, body, $"Άνοιγμα εντύπου: {url}", AllowCustomerRecipient: true), ct);
+        return await _email.SendAsync(new EmailMessage(email, displayName, subject, body, $"Άνοιγμα εντύπου: {url}", AllowCustomerRecipient: true), ct);
     }
 
     private async Task<CustomerFormSigningLink?> FindLinkAsync(string token, CancellationToken ct)
