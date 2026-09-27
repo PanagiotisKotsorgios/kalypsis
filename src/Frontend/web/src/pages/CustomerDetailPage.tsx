@@ -1459,6 +1459,7 @@ function CustomerGdprFormSigningPanel({ customerId }: { customerId: string }) {
   const q = useQuery({ queryKey: ["customer-form-signings", customerId], queryFn: async () => (await api.get<CustomerFormSigningRow[]>(`/customers/${customerId}/form-signings`)).data });
   const policiesQ = useQuery({ queryKey: ["customer-form-signing-policies", customerId], queryFn: async () => (await api.get<CustomerFormPolicyOption[]>("/policies", { params: { customerId } })).data });
   const [policyId, setPolicyId] = useState("");
+  const [needsOpen, setNeedsOpen] = useState(false);
   const [exportStatus, setExportStatus] = useState("");
   const [exportFrom, setExportFrom] = useState("");
   const [exportTo, setExportTo] = useState("");
@@ -1466,13 +1467,96 @@ function CustomerGdprFormSigningPanel({ customerId }: { customerId: string }) {
   const resend = useMutation({ mutationFn: async (id: string) => api.post(`/customer-form-signings/${id}/resend`), onSuccess: () => void qc.invalidateQueries({ queryKey: ["customer-form-signings", customerId] }) });
   const download = async (id: string) => { const res = await api.get(`/customer-form-signings/${id}/document`, { responseType: "blob" }); const url = URL.createObjectURL(res.data); const a = document.createElement("a"); a.href = url; a.download = "gdpr-consent-signed.pdf"; a.click(); URL.revokeObjectURL(url); };
   const exportData = async (format: "xlsx" | "csv") => { const res = await api.get(`/customer-form-signings/export`, { params: { format, status: exportStatus || undefined, from: exportFrom || undefined, to: exportTo || undefined }, responseType: "blob" }); const url = URL.createObjectURL(res.data); const a = document.createElement("a"); a.href = url; a.download = `gdpr-forms.${format}`; a.click(); URL.revokeObjectURL(url); };
-  return <Card variant="outlined" sx={{ p: 3, mb: 2, borderColor: "primary.light" }}>
+  return <><Card variant="outlined" sx={{ p: 3, mb: 2, borderColor: "primary.light" }}>
     <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={2} mb={1}><Box><Typography variant="h6" fontWeight={800}>Έντυπο GDPR και ηλεκτρονικές υπογραφές</Typography><Typography variant="body2" color="text.secondary">Τα πεδία συμπληρώνονται από την καρτέλα. Η λειτουργία ενεργοποιείται από τις ρυθμίσεις γραφείου.</Typography></Box><Stack direction={{ xs: "column", sm: "row" }} spacing={1}><TextField select size="small" label="Κατάσταση εξαγωγής" value={exportStatus} onChange={e => setExportStatus(e.target.value)} sx={{ minWidth: 170 }}><MenuItem value="">Όλες</MenuItem><MenuItem value="PendingCustomer">Αναμονή πελάτη</MenuItem><MenuItem value="PendingOffice">Αναμονή γραφείου</MenuItem><MenuItem value="PendingInsurer">Αναμονή ασφαλιστικής</MenuItem><MenuItem value="Completed">Ολοκληρωμένα</MenuItem><MenuItem value="Declined">Δεν συναινούν</MenuItem></TextField><TextField size="small" type="date" label="Από" value={exportFrom} onChange={e => setExportFrom(e.target.value)} InputLabelProps={{ shrink: true }} /><TextField size="small" type="date" label="Έως" value={exportTo} onChange={e => setExportTo(e.target.value)} InputLabelProps={{ shrink: true }} /><Button size="small" variant="outlined" onClick={() => exportData("xlsx")}>XLSX</Button><Button size="small" variant="outlined" onClick={() => exportData("csv")}>CSV</Button></Stack></Stack>
+    <Box sx={{ mb: 1 }}><Button size="small" variant="outlined" onClick={() => setNeedsOpen(true)}>Έντυπο Αναγκών Πελάτη</Button></Box>
     {create.isError && <Alert severity="error" sx={{ mb: 1 }}>{extractErrorMessage(create.error)}</Alert>}
     {resend.isError && <Alert severity="error" sx={{ mb: 1 }}>{extractErrorMessage(resend.error)}</Alert>}
     <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}><TextField select size="small" label="Συμβόλαιο (προαιρετικό, για ασφαλιστική)" value={policyId} onChange={e => setPolicyId(e.target.value)} sx={{ minWidth: { sm: 340 } }}><MenuItem value="">Χωρίς συγκεκριμένο συμβόλαιο</MenuItem>{(policiesQ.data ?? []).map(p => <MenuItem key={p.id} value={p.id}>{p.policyNumber || "—"} · {p.insuranceCompanyName}</MenuItem>)}</TextField><Button variant="contained" onClick={() => create.mutate()} disabled={create.isPending} sx={{ alignSelf: { xs: "stretch", sm: "center" } }}>{create.isPending ? <CircularProgress size={18} color="inherit" /> : "Δημιουργία και αποστολή στον πελάτη"}</Button></Stack>
     {q.isLoading ? <CircularProgress size={20} /> : q.isError ? <Alert severity="error">{extractErrorMessage(q.error)}</Alert> : q.data?.length === 0 ? <Typography variant="body2" color="text.secondary">Δεν έχει δημιουργηθεί έντυπο για αυτόν τον πελάτη.</Typography> : <Stack spacing={1}>{q.data?.map(row => <Box key={row.id} sx={{ p: 1.5, border: "1px solid", borderColor: "divider", borderRadius: 1 }}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}><Box><Typography fontWeight={700}>{row.status === "Completed" ? "Ολοκληρωμένο" : row.status === "Declined" ? "Δεν συναινεί" : row.status === "PendingCustomer" ? "Αναμονή πελάτη" : row.status === "PendingOffice" ? "Αναμονή γραφείου" : row.status === "PendingInsurer" ? "Αναμονή ασφαλιστικής" : row.status}</Typography><Typography variant="caption" color="text.secondary">Δημιουργήθηκε {formatDate(row.createdAt)} · Λήξη {formatDate(row.expiresAt)}</Typography></Box><Stack direction="row" spacing={1}>{row.status === "PendingCustomer" && <Button size="small" onClick={() => resend.mutate(row.id)}>Επανάληψη email</Button>}{row.hasFinalDocument && <Button size="small" startIcon={<DownloadIcon />} onClick={() => void download(row.id)}>PDF</Button>}</Stack></Stack></Box>)}</Stack>}
-  </Card>;
+  </Card><CustomerNeedsFormDialog open={needsOpen} customerId={customerId} policies={policiesQ.data ?? []} onClose={() => setNeedsOpen(false)} onSaved={() => { setNeedsOpen(false); void qc.invalidateQueries({ queryKey: ["customer-form-signings", customerId] }); }} /></>;
+}
+
+const CUSTOMER_NEEDS_FIELDS: Array<{ key: string; label: string; multiline?: boolean }> = [
+  { key: "coverageVehicle", label: "Ασφάλιση οχήματος (Ναι/Όχι)" },
+  { key: "coverageVessel", label: "Ασφάλιση σκάφους (Ναι/Όχι)" },
+  { key: "coverageHome", label: "Ασφάλιση κατοικίας / εξοχικού (Ναι/Όχι)" },
+  { key: "coverageBusiness", label: "Ασφάλιση επιχείρησης (Ναι/Όχι)" },
+  { key: "coverageProfessional", label: "Επαγγελματική αστική ευθύνη (Ναι/Όχι)" },
+  { key: "coverageOtherText", label: "Άλλο ενδιαφέρον" },
+  { key: "vesselName", label: "Όνομα σκάφους / Name" },
+  { key: "registrationNumber", label: "Νηολόγιο / Reg. No" },
+  { key: "flag", label: "Σημαία / Flag" },
+  { key: "hullNumber", label: "Hull No" },
+  { key: "vesselType", label: "Τύπος / Type" },
+  { key: "maker", label: "Κατασκευαστής / Maker" },
+  { key: "hullMaterial", label: "Υλικό κατασκευής / Hull material" },
+  { key: "yearBuilt", label: "Έτος κατασκευής" },
+  { key: "maxSpeed", label: "Μέγιστη ταχύτητα" },
+  { key: "purchaseDate", label: "Ημερομηνία αγοράς" },
+  { key: "purchasePrice", label: "Τιμή αγοράς" },
+  { key: "length", label: "Μήκος" },
+  { key: "beam", label: "Πλάτος / Beam" },
+  { key: "draft", label: "Βύθισμα / Draft" },
+  { key: "use", label: "Χρήση / Use" },
+  { key: "crewDetails", label: "Πλήρωμα / Crew details", multiline: true },
+  { key: "engine_inboard_maker", label: "Εσωλέμβια: κατασκευαστής" },
+  { key: "engine_inboard_serial", label: "Εσωλέμβια: serial no" },
+  { key: "engine_inboard_hp", label: "Εσωλέμβια: ίπποι / HP" },
+  { key: "engine_inboard_year", label: "Εσωλέμβια: έτος" },
+  { key: "engine_inboard_fuel", label: "Εσωλέμβια: καύσιμα" },
+  { key: "engine_outboard_maker", label: "Εξωλέμβια: κατασκευαστής" },
+  { key: "engine_outboard_serial", label: "Εξωλέμβια: serial no" },
+  { key: "engine_outboard_hp", label: "Εξωλέμβια: ίπποι / HP" },
+  { key: "engine_outboard_year", label: "Εξωλέμβια: έτος" },
+  { key: "engine_outboard_fuel", label: "Εξωλέμβια: καύσιμα" },
+  { key: "engine_inoutboard_maker", label: "Εσω-εξωλέμβια: κατασκευαστής" },
+  { key: "engine_inoutboard_serial", label: "Εσω-εξωλέμβια: serial no" },
+  { key: "engine_inoutboard_hp", label: "Εσω-εξωλέμβια: ίπποι / HP" },
+  { key: "engine_inoutboard_year", label: "Εσω-εξωλέμβια: έτος" },
+  { key: "engine_inoutboard_fuel", label: "Εσω-εξωλέμβια: καύσιμα" },
+  { key: "largerLiabilityLimit", label: "Μεγαλύτερο όριο αστικής ευθύνης" },
+  { key: "laidUpPeriod", label: "Περίοδος εκτός νερού" },
+  { key: "laidUpLocation", label: "Πού θα είναι το σκάφος" },
+  { key: "marina", label: "Σε μαρίνα (Ναι/Όχι)" },
+  { key: "moorings", label: "Προσδέσεις" },
+  { key: "cruisingLimits", label: "Περιορισμοί πλεύσης", multiline: true },
+  { key: "automaticFireExtinguishing", label: "Αυτόματο σύστημα πυρόσβεσης (Ναι/Όχι)" },
+  { key: "waterSkiers", label: "Water skiers / liability (Ναι/Όχι)" },
+  { key: "racingRisks", label: "Racing risks (Ναι/Όχι)" },
+  { key: "replacementValues", label: "Αξίες αντικατάστασης" },
+  { key: "roadTransit", label: "Οδική μεταφορά (Ναι/Όχι)" },
+  { key: "claimsLastFiveYears", label: "Ζημιές τελευταίας 5ετίας", multiline: true },
+  { key: "loan", label: "Υπάρχει δάνειο (Ναι/Όχι)" },
+  { key: "loanAmount", label: "Ποσό δανείου" },
+  { key: "insuredFrom", label: "Ασφαλιστική περίοδος από" },
+  { key: "insuredTo", label: "Ασφαλιστική περίοδος έως" },
+  { key: "premiumPayment", label: "Πληρωμή ασφαλίστρων (Ετήσια / Εξαμηνιαία)" },
+  { key: "additionalInformation", label: "Παρατηρήσεις / πρόσθετες πληροφορίες", multiline: true }
+];
+
+function CustomerNeedsFormDialog({ open, customerId, policies, onClose, onSaved }: { open: boolean; customerId: string; policies: CustomerFormPolicyOption[]; onClose: () => void; onSaved: () => void }) {
+  const [policyId, setPolicyId] = useState("");
+  const [fields, setFields] = useState<Record<string, string>>({});
+  const create = useMutation({
+    mutationFn: async () => (await api.post<CustomerFormSigningRow>(`/customers/${customerId}/form-signings`, { formCode: "customer-needs", policyId: policyId || null, fields })).data,
+    onSuccess: onSaved
+  });
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+    <DialogTitle>Έντυπο Αναγκών Πελάτη</DialogTitle>
+    <DialogContent dividers>
+      <Alert severity="info" sx={{ mb: 2 }}>Τα στοιχεία πελάτη, επικοινωνίας, γραφείου, λογοτύπου και τυχόν συμβολαίου συμπληρώνονται αυτόματα από την καρτέλα. Συμπληρώστε μόνο τα πρόσθετα στοιχεία του ερωτηματολογίου.</Alert>
+      <TextField select fullWidth label="Σύνδεση με συμβόλαιο (προαιρετικό)" value={policyId} onChange={e => setPolicyId(e.target.value)} sx={{ mb: 2 }}>
+        <MenuItem value="">Χωρίς συγκεκριμένο συμβόλαιο</MenuItem>
+        {policies.map(p => <MenuItem key={p.id} value={p.id}>{p.policyNumber || "Χωρίς αριθμό"} · {p.insuranceCompanyName}</MenuItem>)}
+      </TextField>
+      <Stack spacing={1.25}>
+        {CUSTOMER_NEEDS_FIELDS.map(field => <TextField key={field.key} label={field.label} value={fields[field.key] ?? ""} onChange={e => setFields(prev => ({ ...prev, [field.key]: e.target.value }))} multiline={field.multiline} minRows={field.multiline ? 2 : undefined} fullWidth />)}
+      </Stack>
+      {create.isError && <Alert severity="error" sx={{ mt: 2 }}>{extractErrorMessage(create.error)}</Alert>}
+    </DialogContent>
+    <DialogActions><Button onClick={onClose}>Άκυρο</Button><Button variant="contained" onClick={() => create.mutate()} disabled={create.isPending}>{create.isPending ? <CircularProgress size={18} color="inherit" /> : "Δημιουργία και αποστολή για υπογραφή"}</Button></DialogActions>
+  </Dialog>;
 }
 
 function GdprActionsTab({ customerId }: { customerId: string }) {

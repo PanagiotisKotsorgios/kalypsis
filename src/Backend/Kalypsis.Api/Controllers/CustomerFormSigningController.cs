@@ -31,9 +31,9 @@ public sealed class CustomerFormSigningController : ControllerBase
 
     public sealed record SettingsDto(bool Enabled, bool RequireOfficeSignature, bool RequireInsurerSignature, bool SendInsurerEmail, int LinkExpirationDays, string TemplateCode);
     public sealed record UpdateSettingsBody(bool Enabled, bool RequireOfficeSignature, bool RequireInsurerSignature, bool SendInsurerEmail, int LinkExpirationDays, string? TemplateCode);
-    public sealed record CreateFormBody(Guid? PolicyId, bool? RequireOfficeSignature, bool? RequireInsurerSignature, bool? SendInsurerEmail, string? Notes);
+    public sealed record CreateFormBody(Guid? PolicyId, bool? RequireOfficeSignature, bool? RequireInsurerSignature, bool? SendInsurerEmail, string? Notes, string? FormCode = null, Dictionary<string, string?>? Fields = null);
     public sealed record SigningDto(Guid Id, Guid CustomerId, Guid? PolicyId, string FormCode, string Status, bool? CustomerConsented, string CustomerName, string? CustomerEmail, string? OfficeEmail, string? InsurerEmail, DateTime CreatedAt, DateTime ExpiresAt, DateTime? CustomerSignedAt, DateTime? OfficeSignedAt, DateTime? InsurerSignedAt, DateTime? CompletedAt, string? FinalDocumentPath, bool HasFinalDocument);
-    public sealed record PublicFormDto(string AgencyName, string? AgencyLogoUrl, string CustomerName, string? CustomerEmail, string Role, string FormTitle, string ExpiresAt, bool CanSign, string? PolicyNumber);
+    public sealed record PublicFormDto(string AgencyName, string? AgencyLogoUrl, string CustomerName, string? CustomerEmail, string Role, string FormTitle, string ExpiresAt, bool CanSign, string? PolicyNumber, string FormCode = "gdpr-consent");
     public sealed record SignBody(bool Consented, string SignerName, string SignatureDataUrl);
 
     [Authorize(Policy = "AgencyStaff")]
@@ -89,6 +89,9 @@ public sealed class CustomerFormSigningController : ControllerBase
         if (customer is null) return NotFound("Ο πελάτης δεν βρέθηκε.");
         if (string.IsNullOrWhiteSpace(customer.Email)) return BadRequest("Ο πελάτης δεν έχει email στην καρτέλα του.");
 
+        var formCode = NormalizeFormCode(body.FormCode);
+        if (formCode is null) return BadRequest("Μη υποστηριζόμενο έντυπο.");
+
         Policy? policy = null;
         if (body.PolicyId.HasValue)
         {
@@ -106,14 +109,15 @@ public sealed class CustomerFormSigningController : ControllerBase
         // Install the reusable template the first time the office uses the
         // workflow. It is visible in the existing Document Templates module
         // and gives future versions a stable code/version to migrate from.
-        if (!await _db.DocumentTemplates.AnyAsync(x => x.TenantId == tenantId && x.Code == "GDPR_CONSENT", ct))
+        var templateCode = formCode == "customer-needs" ? "CUSTOMER_NEEDS" : "GDPR_CONSENT";
+        if (!await _db.DocumentTemplates.AnyAsync(x => x.TenantId == tenantId && x.Code == templateCode, ct))
         {
             _db.DocumentTemplates.Add(new DocumentTemplate
             {
                 TenantId = tenantId,
-                Code = "GDPR_CONSENT",
-                Name = "Έντυπο ενημέρωσης και δήλωσης GDPR",
-                Kind = "GDPR",
+                Code = templateCode,
+                Name = formCode == "customer-needs" ? "Έντυπο Αναγκών Πελάτη" : "Έντυπο ενημέρωσης και δήλωσης GDPR",
+                Kind = formCode == "customer-needs" ? "CustomerNeeds" : "GDPR",
                 PageSize = "A4",
                 Orientation = "Portrait",
                 IsDefault = true,
@@ -123,10 +127,11 @@ public sealed class CustomerFormSigningController : ControllerBase
         }
 
         var now = DateTime.UtcNow;
+        var formData = BuildFormData(customer, office, policy, body.Fields);
         var signing = new CustomerFormSigning
         {
             TenantId = tenantId, CustomerId = customerId, PolicyId = policy?.Id,
-            FormCode = "gdpr-consent", FormVersion = settings.TemplateCode,
+            FormCode = formCode, FormVersion = formCode == "customer-needs" ? "nivis-v1" : settings.TemplateCode,
             Status = CustomerFormSigningStatus.PendingCustomer,
             RequireOfficeSignature = requireOffice,
             RequireInsurerSignature = requireInsurer,
@@ -135,7 +140,9 @@ public sealed class CustomerFormSigningController : ControllerBase
             OfficeEmailSnapshot = requireOffice ? office.ContactEmail : null,
             InsurerEmailSnapshot = (requireInsurer || sendInsurer) ? insurerEmail : null,
             ExpiresAt = now.AddDays(settings.LinkExpirationDays), CreatedByUserId = _current.UserId,
-            Notes = body.Notes
+            Notes = body.Notes,
+            FormDataJson = formData.Count == 0 ? null : JsonSerializer.Serialize(formData),
+            FileName = formCode == "customer-needs" ? "customer-needs-form.pdf" : "gdpr-consent.pdf"
         };
         _db.CustomerFormSignings.Add(signing);
         await _db.SaveChangesAsync(ct);
@@ -144,7 +151,7 @@ public sealed class CustomerFormSigningController : ControllerBase
         _db.CustomerFormSigningLinks.Add(link);
         await _db.SaveChangesAsync(ct);
         var draft = await RenderDocumentAsync(signing, office, ct);
-        signing.DraftDocumentPath = await SaveBytesAsync($"form-signing/{tenantId}/{signing.Id:N}", "gdpr-consent-draft.pdf", "application/pdf", draft, ct);
+        signing.DraftDocumentPath = await SaveBytesAsync($"form-signing/{tenantId}/{signing.Id:N}", $"{formCode}-draft.pdf", "application/pdf", draft, ct);
         link.SentAt = now;
         await _db.SaveChangesAsync(ct);
         var sent = await SendLinkAsync(signing, link, token, "customer", ct);
@@ -208,6 +215,8 @@ public sealed class CustomerFormSigningController : ControllerBase
         if (s.ExpiresAt < DateTime.UtcNow || link.ExpiresAt < DateTime.UtcNow) return BadRequest("Ο σύνδεσμος έχει λήξει.");
         var tenant = await _db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == s.TenantId, ct);
         var policy = s.PolicyId.HasValue ? await _db.Policies.IgnoreQueryFilters().Include(x => x.InsuranceCompany).FirstOrDefaultAsync(x => x.Id == s.PolicyId.Value, ct) : null;
+        if (s.FormCode == "customer-needs")
+            return Ok(new PublicFormDto(tenant?.Name ?? "Kalypsis", tenant?.LogoUrl, s.CustomerFullNameSnapshot, s.CustomerEmailSnapshot, link.RecipientRole.ToString(), "Έντυπο Αναγκών Πελάτη", s.ExpiresAt.ToString("O"), !link.UsedAt.HasValue && s.Status is not (CustomerFormSigningStatus.Completed or CustomerFormSigningStatus.Declined), policy?.PolicyNumber, "customer-needs"));
         return Ok(new PublicFormDto(tenant?.Name ?? "Kalypsis", tenant?.LogoUrl, s.CustomerFullNameSnapshot, s.CustomerEmailSnapshot, link.RecipientRole.ToString(), "Έντυπο ενημέρωσης και δήλωσης GDPR", s.ExpiresAt.ToString("O"), !link.UsedAt.HasValue && s.Status is not (CustomerFormSigningStatus.Completed or CustomerFormSigningStatus.Declined), policy?.PolicyNumber));
     }
 
@@ -230,15 +239,17 @@ public sealed class CustomerFormSigningController : ControllerBase
         link.UsedAt = now; link.IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(); link.UserAgent = Request.Headers.UserAgent.ToString();
         if (link.RecipientRole == CustomerFormSigningRecipientRole.Customer)
         {
-            signing.CustomerConsented = body.Consented; signing.CustomerSignaturePath = path; signing.CustomerSignedAt = now;
-            signing.Status = body.Consented ? CustomerFormSigningStatus.PendingCustomer : CustomerFormSigningStatus.Declined;
-            _db.ConsentRecords.Add(new ConsentRecord { TenantId = signing.TenantId, CustomerId = signing.CustomerId, Type = ConsentType.PrivacyNotice, Granted = body.Consented, GrantedAt = now, Method = ConsentMethod.OnlineForm, IpAddress = link.IpAddress, Version = signing.FormVersion, Notes = body.Consented ? "Ηλεκτρονική υπογραφή εντύπου GDPR" : "Ο πελάτης δεν συναινεί" });
-            if (!body.Consented) signing.CompletedAt = now;
+            var accepted = signing.FormCode == "customer-needs" || body.Consented;
+            signing.CustomerConsented = accepted; signing.CustomerSignaturePath = path; signing.CustomerSignedAt = now;
+            signing.Status = accepted ? CustomerFormSigningStatus.PendingCustomer : CustomerFormSigningStatus.Declined;
+            if (signing.FormCode == "gdpr-consent")
+                _db.ConsentRecords.Add(new ConsentRecord { TenantId = signing.TenantId, CustomerId = signing.CustomerId, Type = ConsentType.PrivacyNotice, Granted = accepted, GrantedAt = now, Method = ConsentMethod.OnlineForm, IpAddress = link.IpAddress, Version = signing.FormVersion, Notes = accepted ? "Ηλεκτρονική υπογραφή εντύπου GDPR" : "Ο πελάτης δεν συναινεί" });
+            if (!accepted) signing.CompletedAt = now;
         }
         else if (link.RecipientRole == CustomerFormSigningRecipientRole.Office) { signing.OfficeSignaturePath = path; signing.OfficeSignedAt = now; }
         else { signing.InsurerSignaturePath = path; signing.InsurerSignedAt = now; }
         await _db.SaveChangesAsync(ct);
-        if (link.RecipientRole == CustomerFormSigningRecipientRole.Customer && body.Consented)
+        if (link.RecipientRole == CustomerFormSigningRecipientRole.Customer && (signing.FormCode == "customer-needs" || body.Consented))
             await IssueAdditionalLinksAsync(signing, tenant, ct);
         await CompleteIfReadyAsync(signing, tenant, ct);
         await _db.SaveChangesAsync(ct);
@@ -279,7 +290,7 @@ public sealed class CustomerFormSigningController : ControllerBase
             if (signing.FinalDocumentPath is null)
             {
                 var declinedPdf = await RenderDocumentAsync(signing, tenant, ct);
-                signing.FinalDocumentPath = await SaveBytesAsync($"form-signing/{signing.TenantId}/{signing.Id:N}", "gdpr-consent-declined.pdf", "application/pdf", declinedPdf, ct);
+                signing.FinalDocumentPath = await SaveBytesAsync($"form-signing/{signing.TenantId}/{signing.Id:N}", $"{signing.FormCode}-declined.pdf", "application/pdf", declinedPdf, ct);
             }
             return;
         }
@@ -288,12 +299,20 @@ public sealed class CustomerFormSigningController : ControllerBase
         if (signing.RequireInsurerSignature && signing.InsurerSignedAt is null) { signing.Status = CustomerFormSigningStatus.PendingInsurer; return; }
         if (signing.FinalDocumentPath is not null) return;
         var pdf = await RenderDocumentAsync(signing, tenant, ct);
-        signing.FinalDocumentPath = await SaveBytesAsync($"form-signing/{signing.TenantId}/{signing.Id:N}", "gdpr-consent-signed.pdf", "application/pdf", pdf, ct);
+        signing.FinalDocumentPath = await SaveBytesAsync($"form-signing/{signing.TenantId}/{signing.Id:N}", $"{signing.FormCode}-signed.pdf", "application/pdf", pdf, ct);
         signing.Status = CustomerFormSigningStatus.Completed; signing.CompletedAt = DateTime.UtcNow;
     }
 
     private async Task<byte[]> RenderDocumentAsync(CustomerFormSigning signing, Tenant tenant, CancellationToken ct)
-        => GdprConsentPdfRenderer.Render(tenant, signing, await ReadBytesAsync(tenant.LogoUrl, ct), await ReadBytesAsync(signing.CustomerSignaturePath, ct), await ReadBytesAsync(signing.OfficeSignaturePath, ct), await ReadBytesAsync(signing.InsurerSignaturePath, ct));
+    {
+        var logo = await ReadBytesAsync(tenant.LogoUrl, ct);
+        var customerSignature = await ReadBytesAsync(signing.CustomerSignaturePath, ct);
+        var officeSignature = await ReadBytesAsync(signing.OfficeSignaturePath, ct);
+        var insurerSignature = await ReadBytesAsync(signing.InsurerSignaturePath, ct);
+        return signing.FormCode == "customer-needs"
+            ? CustomerNeedsPdfRenderer.Render(tenant, signing, logo, customerSignature, officeSignature, insurerSignature)
+            : GdprConsentPdfRenderer.Render(tenant, signing, logo, customerSignature, officeSignature, insurerSignature);
+    }
 
     private async Task<EmailResult> SendLinkAsync(CustomerFormSigning signing, CustomerFormSigningLink link, string token, string recipient, CancellationToken ct)
         => await SendLinkToAddressAsync(signing, link.Email, link.DisplayName, token, ct);
@@ -322,6 +341,38 @@ public sealed class CustomerFormSigningController : ControllerBase
         if (string.IsNullOrWhiteSpace(path)) return null;
         try { await using var stream = await _storage.DownloadAsync(path, ct); using var ms = new MemoryStream(); await stream.CopyToAsync(ms, ct); return ms.ToArray(); }
         catch { return null; }
+    }
+
+    private static string? NormalizeFormCode(string? value)
+        => string.IsNullOrWhiteSpace(value) || value.Equals("gdpr-consent", StringComparison.OrdinalIgnoreCase)
+            ? "gdpr-consent"
+            : value.Equals("customer-needs", StringComparison.OrdinalIgnoreCase) ? "customer-needs" : null;
+
+    private static Dictionary<string, string?> BuildFormData(Customer customer, Tenant office, Policy? policy, Dictionary<string, string?>? submitted)
+    {
+        var data = submitted is null
+            ? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, string?>(submitted, StringComparer.OrdinalIgnoreCase);
+        // CRM values always win over editable questionnaire answers. This is
+        // what makes the customer-card fields genuinely auto-completed and
+        // keeps a sent form immutable when the card is edited later.
+        data["customerName"] = DisplayName(customer);
+        data["birthDate"] = customer.BirthDate?.ToString("dd/MM/yyyy");
+        data["vatNumber"] = customer.VatNumber;
+        data["taxOffice"] = customer.TaxOffice;
+        data["occupation"] = customer.Occupation;
+        data["email"] = customer.Email;
+        data["phone"] = string.Join(" / ", new[] { customer.MobilePhone, customer.Phone, customer.AltPhone }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        data["address"] = string.Join(", ", new[] { customer.Address, customer.City, customer.PostalCode, customer.Region }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        data["customerNotes"] = customer.Notes;
+        data["officeName"] = office.Name;
+        data["officeAddress"] = office.AddressLine;
+        data["officeEmail"] = office.ContactEmail;
+        data["officePhone"] = office.ContactPhone;
+        data["officeVatNumber"] = office.VatNumber;
+        data["policyNumber"] = policy?.PolicyNumber;
+        data["insuranceCompany"] = policy?.InsuranceCompany?.Name;
+        return data;
     }
 
     private Guid TenantId() => _current.TenantId ?? throw new UnauthorizedAccessException();

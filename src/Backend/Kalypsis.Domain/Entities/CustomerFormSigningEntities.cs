@@ -54,6 +54,13 @@ public class CustomerFormSigning : TenantEntity
     public string? CustomerEmailSnapshot { get; set; }
     public string? OfficeEmailSnapshot { get; set; }
     public string? InsurerEmailSnapshot { get; set; }
+    /// <summary>
+    /// Immutable mail-merged answers for forms that have fields in addition to
+    /// the customer/policy snapshot (for example the client-needs questionnaire).
+    /// It is intentionally kept on the signing instance so later CRM edits do
+    /// not change a document that has already been sent for signature.
+    /// </summary>
+    public string? FormDataJson { get; set; }
     public string? CustomerSignaturePath { get; set; }
     public string? OfficeSignaturePath { get; set; }
     public string? InsurerSignaturePath { get; set; }

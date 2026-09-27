@@ -5,7 +5,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 
-interface PublicForm { agencyName: string; customerName: string; customerEmail?: string | null; role: string; formTitle: string; expiresAt: string; canSign: boolean; policyNumber?: string | null; }
+interface PublicForm { agencyName: string; customerName: string; customerEmail?: string | null; role: string; formCode?: string; formTitle: string; expiresAt: string; canSign: boolean; policyNumber?: string | null; }
 
 export function GdprSigningPage() {
   const { token = "" } = useParams<{ token: string }>();
@@ -19,7 +19,7 @@ export function GdprSigningPage() {
     mutationFn: async () => {
       const canvas = canvasRef.current;
       if (!canvas) throw new Error("Δεν βρέθηκε πεδίο υπογραφής.");
-      return (await api.post<PublicForm>(`/public/gdpr-signing/${token}/sign`, { consented: q.data?.role === "Customer" ? consented === "yes" : true, signerName: signerName.trim() || q.data?.customerName || "", signatureDataUrl: canvas.toDataURL("image/png") })).data;
+      return (await api.post<PublicForm>(`/public/gdpr-signing/${token}/sign`, { consented: q.data?.formCode === "customer-needs" ? true : q.data?.role === "Customer" ? consented === "yes" : true, signerName: signerName.trim() || q.data?.customerName || "", signatureDataUrl: canvas.toDataURL("image/png") })).data;
     },
     onSuccess: () => setSigned(true)
   });
@@ -43,10 +43,11 @@ export function GdprSigningPage() {
 
   if (q.isLoading) return <Box sx={{ minHeight: "100vh", display: "grid", placeItems: "center" }}><CircularProgress /></Box>;
   if (q.isError || !q.data) return <Box sx={{ maxWidth: 640, mx: "auto", p: 3 }}><Alert severity="error">{q.isError ? extractErrorMessage(q.error) : "Ο σύνδεσμος δεν είναι έγκυρος ή έχει λήξει."}</Alert></Box>;
-  const form = q.data;
+  const form = q.data.formCode === "customer-needs" ? { ...q.data, role: "CustomerNeeds" } : q.data;
   if (signed || !form.canSign) return <Box sx={{ maxWidth: 680, mx: "auto", p: { xs: 2, sm: 4 } }}><Card sx={{ p: { xs: 3, sm: 5 }, textAlign: "center" }}><Typography variant="h5" fontWeight={800} gutterBottom>{signed ? "Η υπογραφή καταχωρήθηκε" : "Το έντυπο έχει ήδη ολοκληρωθεί"}</Typography><Typography color="text.secondary">Το έγγραφο ενημερώθηκε αυτόματα στην καρτέλα του πελάτη. Μπορείτε να κλείσετε αυτό το παράθυρο.</Typography></Card></Box>;
   return <Box sx={{ maxWidth: 760, mx: "auto", p: { xs: 2, sm: 4 } }}>
     <Stack spacing={2.5}>
+      {form.formCode === "customer-needs" && <Alert severity="info">Το έντυπο αναγκών έχει συμπληρωθεί από το γραφείο με τα στοιχεία της καρτέλας σας. Ελέγξτε τις απαντήσεις και υπογράψτε ηλεκτρονικά από κινητό ή υπολογιστή.</Alert>}
       <Box><Typography variant="overline" color="primary">{form.agencyName}</Typography><Typography variant="h4" fontWeight={800}>{form.formTitle}</Typography><Typography color="text.secondary">Πελάτης: {form.customerName}{form.policyNumber ? ` · Συμβόλαιο: ${form.policyNumber}` : ""}</Typography><Typography variant="caption" color="text.secondary">Ο σύνδεσμος ισχύει έως {new Date(form.expiresAt).toLocaleString("el-GR")}</Typography></Box>
       <Card variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}><Typography fontWeight={700} gutterBottom>Ενημέρωση και δήλωση</Typography><Typography variant="body2" color="text.secondary">Διαβάστε την ενημέρωση του γραφείου για την επεξεργασία των προσωπικών δεδομένων σας. Η επιλογή σας και η χειρόγραφη υπογραφή σας θα ενσωματωθούν στο επίσημο PDF.</Typography></Card>
       {form.role === "Customer" && <FormControl><Typography fontWeight={700}>Επιλογή</Typography><RadioGroup value={consented} onChange={e => setConsented(e.target.value)}><FormControlLabel value="yes" control={<Radio />} label="Συναινώ στην επεξεργασία όπως περιγράφεται στο έντυπο" /><FormControlLabel value="no" control={<Radio />} label="Δεν συναινώ στην επεξεργασία" /></RadioGroup></FormControl>}

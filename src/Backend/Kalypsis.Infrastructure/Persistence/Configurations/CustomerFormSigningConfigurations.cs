@@ -31,6 +31,7 @@ public sealed class CustomerFormSigningConfiguration : IEntityTypeConfiguration<
         b.Property(x => x.CustomerEmailSnapshot).HasMaxLength(254);
         b.Property(x => x.OfficeEmailSnapshot).HasMaxLength(254);
         b.Property(x => x.InsurerEmailSnapshot).HasMaxLength(254);
+        b.Property(x => x.FormDataJson).HasColumnType("longtext");
         b.Property(x => x.CustomerSignaturePath).HasMaxLength(500);
         b.Property(x => x.OfficeSignaturePath).HasMaxLength(500);
         b.Property(x => x.InsurerSignaturePath).HasMaxLength(500);
