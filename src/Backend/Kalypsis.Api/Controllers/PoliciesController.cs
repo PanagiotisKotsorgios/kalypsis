@@ -738,6 +738,11 @@ public class InsuranceCompaniesController : ControllerBase
         var c = await _db.InsuranceCompanies.IgnoreQueryFilters()
             .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct)
             ?? throw Kalypsis.Application.Common.AppException.NotFound("Ασφαλιστική");
+        // MINETTA is a bridge source, not an office carrier. Keep legacy
+        // opt-in rows harmless and prevent new opt-ins from putting it back
+        // into the operational carrier pickers.
+        if (IsBridgeOnlyCarrier(c))
+            return Ok(new OptInToggleResult(id, false));
         if (c.TenantId != null)
             // Tenant-owned rows are implicitly used — no opt-in row needed.
             return Ok(new OptInToggleResult(id, true));
@@ -954,12 +959,13 @@ public class InsuranceCompaniesController : ControllerBase
         bridges.TryGetValue(bridgeCompanyId, out var bridge);
         ruleCounts.TryGetValue(bridgeCompanyId, out var ruleCount);
         parameterCounts.TryGetValue(c.Id, out var parameterCount);
+        var bridgeOnly = IsBridgeOnlyCarrier(c);
         // Universal rows opt-in through TenantCarrierOptIn; tenant-scoped rows
         // are implicitly used (the tenant created them).  Platform bridge
         // sources (including MINETTA) stay on the Bridges screen and are not
         // silently copied into an office's insurance-company list.
-        var isUsedByTenant = c.TenantId != null
-            || optInSet.Contains(c.Id);
+        var isUsedByTenant = !bridgeOnly && (c.TenantId != null
+            || optInSet.Contains(c.Id));
         return new InsuranceCompanyExtendedDto(
             c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
             c.TenantId, c.TenantId == null,
@@ -968,6 +974,13 @@ public class InsuranceCompaniesController : ControllerBase
             c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes,
             c.IsBroker, c.ParentCompanyId,
             isUsedByTenant);
+    }
+
+    private static bool IsBridgeOnlyCarrier(Kalypsis.Domain.Entities.InsuranceCompany company)
+    {
+        var key = $"{company.Code} {company.Name}";
+        return key.Contains("MINETTA", StringComparison.OrdinalIgnoreCase)
+            || key.Contains("ΜΙΝΕΤΤΑ", StringComparison.OrdinalIgnoreCase);
     }
 
     // Count parametrics attached to this specific carrier row (not to every

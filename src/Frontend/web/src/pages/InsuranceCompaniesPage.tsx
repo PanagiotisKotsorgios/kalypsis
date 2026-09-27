@@ -49,6 +49,14 @@ interface UpsertBody {
   installZeroCommissionDefaults: boolean;
 }
 
+// MINETTA is a platform bridge source. It must not be presented as an
+// office-owned/active insurance company, even while older opt-in or copied
+// rows are still present in the database.
+const isBridgeOnlyCarrier = (company: Pick<CompanyDto, "code" | "name">) => {
+  const key = `${company.code} ${company.name}`.toUpperCase();
+  return key.includes("MINETTA") || key.includes("ΜΙΝΕΤΤΑ");
+};
+
 export function InsuranceCompaniesPage() {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
@@ -99,8 +107,8 @@ export function InsuranceCompaniesPage() {
   // Flat list — the broker/sub-broker hierarchy has been dropped from this
   // screen. Each office manages its own carriers and wires up bridges per
   // carrier; the multi-level tree caused more confusion than it solved.
-  const ownTenantRows = allData.filter(c => !c.isGlobal);
-  const usedGlobalRows = allData.filter(c => c.isGlobal && c.isUsedByTenant);
+  const ownTenantRows = allData.filter(c => !c.isGlobal && !isBridgeOnlyCarrier(c));
+  const usedGlobalRows = allData.filter(c => c.isGlobal && c.isUsedByTenant && !isBridgeOnlyCarrier(c));
   const allOwnRows = [...ownTenantRows, ...usedGlobalRows];
 
   const [search, setSearch] = useState("");
