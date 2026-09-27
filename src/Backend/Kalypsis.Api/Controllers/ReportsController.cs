@@ -186,7 +186,7 @@ public class ReportsController : ControllerBase
         var el = CultureInfo.GetCultureInfo("el-GR");
         var sb = new StringBuilder();
         sb.AppendLine($"Οικονομικά;{report.From:yyyy-MM-dd};έως;{report.To:yyyy-MM-dd}");
-        sb.AppendLine("Μήνας;Εισπράξεις;Πληρωμές εταιρειών;Πληρωμές συνεργατών;Προμήθειες γραφείου;Καθαρό ταμείο");
+        sb.AppendLine("Μήνας;Εισπράξεις;Πληρωμές εταιρειών;Πληρωμές συνεργατών;Προμήθειες γραφείου;Εκκρεμείς προμήθειες συνεργατών;Καθαρό αποτέλεσμα έδρας;Καθαρό ταμείο");
         foreach (var m in report.Months)
             sb.AppendLine(string.Join(';',
                 m.Month,
@@ -194,6 +194,8 @@ public class ReportsController : ControllerBase
                 m.PaymentsToCarriers.ToString("F2", el),
                 m.PaymentsToProducers.ToString("F2", el),
                 m.CommissionsEarned.ToString("F2", el),
+                m.ProducerCommissionsDue.ToString("F2", el),
+                m.AgencyResult.ToString("F2", el),
                 m.NetCash.ToString("F2", el)));
         var t = report.Totals;
         sb.AppendLine(string.Join(';',
@@ -202,6 +204,8 @@ public class ReportsController : ControllerBase
             t.PaymentsToCarriers.ToString("F2", el),
             t.PaymentsToProducers.ToString("F2", el),
             t.CommissionsEarned.ToString("F2", el),
+            t.ProducerCommissionsDue.ToString("F2", el),
+            t.AgencyResult.ToString("F2", el),
             t.NetCash.ToString("F2", el)));
         sb.AppendLine();
         sb.AppendLine($"Ανοικτές απαιτήσεις πελατών;{report.OpenCustomerReceivables.ToString("F2", el)}");

@@ -18,6 +18,8 @@ interface FinancialMonthRow {
   paymentsToProducers: number;
   commissionsEarned: number;
   netCash: number;
+  producerCommissionsDue: number;
+  agencyResult: number;
 }
 interface FinancialReportDto {
   months: FinancialMonthRow[];
@@ -95,14 +97,20 @@ export function FinancialReportPage() {
         <Alert severity="error">Δεν φορτώθηκε το report — δοκιμάστε ξανά.</Alert>
       ) : (
         <>
-          {/* KPI strip — the four numbers a broker actually cares about. */}
-          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, mb: 2 }}>
+          {/* KPI strip — actual cash, commission obligations and agency result. */}
+          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3, 1fr)" }, mb: 2 }}>
             <Kpi label="Εισπράξεις (πελάτες)" value={eur(totals?.receiptsIn ?? 0)} accent="success" />
             <Kpi label="Πληρωμές σε εταιρείες" value={eur(totals?.paymentsToCarriers ?? 0)} accent="danger" />
             <Kpi label="Πληρωμές σε συνεργάτες" value={eur(totals?.paymentsToProducers ?? 0)} accent="danger" />
+            <Kpi label="Εκκρεμείς προμήθειες συνεργατών" value={eur(totals?.producerCommissionsDue ?? 0)} accent="warning" />
+            <Kpi label="Καθαρό αποτέλεσμα έδρας" value={eur(totals?.agencyResult ?? 0)}
+              accent={(totals?.agencyResult ?? 0) >= 0 ? "success" : "danger"} />
             <Kpi label="Καθαρή ταμειακή ροή" value={eur(totals?.netCash ?? 0)}
               accent={(totals?.netCash ?? 0) >= 0 ? "success" : "danger"} />
           </Box>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Το «Καθαρό αποτέλεσμα έδρας» περιλαμβάνει την αναγνωρισμένη προμήθεια γραφείου και δείχνει τι απομένει στην έδρα μετά την πληρωμή της ασφαλιστικής. Το «Καθαρό ταμείο» παραμένει η πραγματική κίνηση μετρητών από καταχωρημένες εισπράξεις και πληρωμές.
+          </Alert>
 
           {/* Bar chart: three stacked series per month lets the operator eye
               cash-in vs cash-out on a single canvas without a spreadsheet. */}
@@ -121,6 +129,7 @@ export function FinancialReportPage() {
                     <Bar dataKey="paymentsToCarriers" name="Πληρωμές εταιρειών" fill="#c62828" />
                     <Bar dataKey="paymentsToProducers" name="Πληρωμές συνεργατών" fill="#ef6c00" />
                     <Bar dataKey="commissionsEarned" name="Προμήθειες γραφείου" fill="#1565c0" />
+                    <Bar dataKey="producerCommissionsDue" name="Εκκρεμείς προμήθειες συνεργατών" fill="#8e24aa" />
                   </BarChart>
                 </ResponsiveContainer>
               </Box>
@@ -149,6 +158,8 @@ export function FinancialReportPage() {
                   <TableCell align="right">Πληρωμές εταιρειών</TableCell>
                   <TableCell align="right">Πληρωμές συνεργατών</TableCell>
                   <TableCell align="right">Προμήθειες γραφείου</TableCell>
+                  <TableCell align="right">Εκκρεμείς προμήθειες συνεργατών</TableCell>
+                  <TableCell align="right">Καθαρό αποτέλεσμα έδρας</TableCell>
                   <TableCell align="right">Καθαρό ταμείο</TableCell>
                 </TableRow>
               </TableHead>
@@ -160,6 +171,8 @@ export function FinancialReportPage() {
                     <TableCell align="right" sx={{ fontFamily: "monospace", color: "error.main" }}>{eur(m.paymentsToCarriers)}</TableCell>
                     <TableCell align="right" sx={{ fontFamily: "monospace", color: "error.main" }}>{eur(m.paymentsToProducers)}</TableCell>
                     <TableCell align="right" sx={{ fontFamily: "monospace" }}>{eur(m.commissionsEarned)}</TableCell>
+                    <TableCell align="right" sx={{ fontFamily: "monospace", color: "warning.main" }}>{eur(m.producerCommissionsDue)}</TableCell>
+                    <TableCell align="right" sx={{ fontFamily: "monospace", color: m.agencyResult >= 0 ? "success.main" : "error.main" }}>{eur(m.agencyResult)}</TableCell>
                     <TableCell align="right" sx={{
                       fontFamily: "monospace", fontWeight: 700,
                       color: m.netCash >= 0 ? "success.main" : "error.main"
@@ -175,6 +188,8 @@ export function FinancialReportPage() {
                     <TableCell align="right" sx={{ fontFamily: "monospace" }}>{eur(totals.paymentsToCarriers)}</TableCell>
                     <TableCell align="right" sx={{ fontFamily: "monospace" }}>{eur(totals.paymentsToProducers)}</TableCell>
                     <TableCell align="right" sx={{ fontFamily: "monospace" }}>{eur(totals.commissionsEarned)}</TableCell>
+                    <TableCell align="right" sx={{ fontFamily: "monospace" }}>{eur(totals.producerCommissionsDue)}</TableCell>
+                    <TableCell align="right" sx={{ fontFamily: "monospace" }}>{eur(totals.agencyResult)}</TableCell>
                     <TableCell align="right" sx={{ fontFamily: "monospace" }}>{eur(totals.netCash)}</TableCell>
                   </TableRow>
                 </TableFooter>

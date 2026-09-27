@@ -1,5 +1,6 @@
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
+using Kalypsis.Application.Features.ProductionLists;
 using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -234,7 +235,9 @@ public record FinancialMonthRow(
     decimal PaymentsToCarriers,   // πληρωμές σε ασφαλιστικές
     decimal PaymentsToProducers,  // πληρωμές σε συνεργάτες
     decimal CommissionsEarned,    // αναγνωρισμένη προμήθεια γραφείου
-    decimal NetCash);             // εισπράξεις - πληρωμές
+    decimal NetCash,              // εισπράξεις - πληρωμές
+    decimal ProducerCommissionsDue,
+    decimal AgencyResult);
 
 public record FinancialReportDto(
     IReadOnlyList<FinancialMonthRow> Months,
@@ -274,14 +277,39 @@ public class GetFinancialReportQueryHandler
             .Select(p => new { p.PaidOn, p.Amount, p.BeneficiaryType })
             .ToListAsync(ct);
 
-        // CommissionEarned movements — the recognised revenue for the office,
-        // as opposed to what has actually been paid by the carrier yet.
+        // Use the production-list calculator as the source of truth for
+        // commission splits. Manual policies do not necessarily have a
+        // FinancialMovement row, so reading only the ledger made valid
+        // commissions appear as zero in this report.
+        var productionRows = await ProductionListBuilder.BuildRowsAsync(
+            _db,
+            tenantId,
+            new ProductionFilters(
+                From: from, To: to,
+                InsuranceCompanyId: null, ProducerId: null,
+                PolicyType: null, Status: null,
+                VehicleUseCategory: null, CoverCode: null,
+                GroupBy: null),
+            ct);
+        var eligibleProduction = productionRows
+            .Where(row => !string.Equals(row.Status, nameof(PolicyStatus.Draft), StringComparison.OrdinalIgnoreCase)
+                       && !string.Equals(row.Status, nameof(PolicyStatus.Cancelled), StringComparison.OrdinalIgnoreCase)
+                       && !string.Equals(row.Status, nameof(PolicyStatus.Prospect), StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var productionPolicyIds = eligibleProduction.Select(row => row.PolicyId).ToHashSet();
+
+        // Keep standalone/legacy ledger movements, but do not add a
+        // policy-linked movement for a policy already represented by the
+        // production rows or the same commission would be counted twice.
         var earned = await _db.FinancialMovements.IgnoreQueryFilters()
             .Where(m => m.TenantId == tenantId && m.DeletedAt == null
                 && m.Kind == FinancialMovementKind.CommissionEarned
                 && m.MovementDate >= from && m.MovementDate <= to)
-            .Select(m => new { m.MovementDate, m.Amount })
+            .Select(m => new { m.MovementDate, m.Amount, m.PolicyId })
             .ToListAsync(ct);
+        var standaloneEarned = earned
+            .Where(m => !m.PolicyId.HasValue || !productionPolicyIds.Contains(m.PolicyId.Value))
+            .ToList();
 
         // Materialise the month buckets so months with zero activity still
         // show up in the chart — otherwise February gaps make YoY analysis
@@ -297,14 +325,25 @@ public class GetFinancialReportQueryHandler
                                                 && p.BeneficiaryType == BeneficiaryType.InsuranceCompany).Sum(x => x.Amount);
             var mToProducers= payments.Where(p => p.PaidOn >= cursor && p.PaidOn < next
                                                 && p.BeneficiaryType == BeneficiaryType.Producer).Sum(x => x.Amount);
-            var mEarned     = earned.Where(e => e.MovementDate >= cursor && e.MovementDate < next).Sum(x => x.Amount);
+            var monthProduction = eligibleProduction
+                .Where(row => row.StartDate >= cursor && row.StartDate < next)
+                .ToList();
+            var mEarned = monthProduction.Sum(row => row.AgencyCommission)
+                + standaloneEarned.Where(e => e.MovementDate >= cursor && e.MovementDate < next).Sum(x => x.Amount);
+            var mProducerDue = monthProduction.Sum(row => row.PartnerCommission);
+            // This is the agency result after the carrier payment. Producer
+            // commission is already excluded from AgencyCommission, so it is
+            // not subtracted a second time here.
+            var mAgencyResult = mReceipts + mEarned - mToCarriers;
             months.Add(new FinancialMonthRow(
                 Month: cursor.ToString("yyyy-MM"),
                 ReceiptsIn: mReceipts,
                 PaymentsToCarriers: mToCarriers,
                 PaymentsToProducers: mToProducers,
                 CommissionsEarned: mEarned,
-                NetCash: mReceipts - mToCarriers - mToProducers));
+                NetCash: mReceipts - mToCarriers - mToProducers,
+                ProducerCommissionsDue: mProducerDue,
+                AgencyResult: mAgencyResult));
             cursor = next;
         }
 
@@ -314,7 +353,9 @@ public class GetFinancialReportQueryHandler
             PaymentsToCarriers: months.Sum(m => m.PaymentsToCarriers),
             PaymentsToProducers: months.Sum(m => m.PaymentsToProducers),
             CommissionsEarned: months.Sum(m => m.CommissionsEarned),
-            NetCash: months.Sum(m => m.NetCash));
+            NetCash: months.Sum(m => m.NetCash),
+            ProducerCommissionsDue: months.Sum(m => m.ProducerCommissionsDue),
+            AgencyResult: months.Sum(m => m.AgencyResult));
 
         // Snapshot balances — CustomerCharge minus CustomerCredit gives the
         // open receivable, CompanyCharge minus CompanyCredit the open payable.
