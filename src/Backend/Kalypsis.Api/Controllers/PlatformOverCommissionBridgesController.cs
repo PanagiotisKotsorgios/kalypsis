@@ -35,6 +35,7 @@ public class PlatformOverCommissionBridgesController : ControllerBase
         new(StringComparer.OrdinalIgnoreCase)
         {
             "ERGO", "GRAND COVER", "GRANDCOVER",
+            "MINETTA", "ΜΙΝΕΤΤΑ", "ΜΙΝΈΤΤΑ", "ΜΙΝΕΤΑ", "ΜΙΝΈΤΑ",
             "ATLANTIC", "ATLANTIKI", "ΑΤΛΑΝΤΙΚΗ",
             "INTERLIFE", "ΙΝΤΕΡΛΑΪΦ", "ΙΝΤΕΡΛΑΙΦ",
         };

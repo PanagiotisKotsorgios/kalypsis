@@ -96,6 +96,7 @@ public class ListAvailableOverCommissionBridgesHandler
         var supported = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "ERGO", "GRAND COVER", "GRANDCOVER",
+            "MINETTA", "ΜΙΝΕΤΤΑ", "ΜΙΝΈΤΤΑ", "ΜΙΝΕΤΑ", "ΜΙΝΈΤΑ",
             "ATLANTIC", "ATLANTIKI", "ΑΤΛΑΝΤΙΚΗ",
             "INTERLIFE", "ΙΝΤΕΡΛΑΪΦ", "ΙΝΤΕΡΛΑΙΦ",
         };
@@ -152,7 +153,10 @@ public class ListAvailableCarrierBridgesHandler : IRequestHandler<ListAvailableC
         "ΙΝΤΕΡΛΑΙΦ",
         // Μινέττα producer export: CP1253 semicolon-delimited ZIP bundle.
         "MINETTA",
-        "ΜΙΝΕΤΤΑ"
+        "ΜΙΝΕΤΤΑ",
+        "ΜΙΝΈΤΤΑ",
+        "ΜΙΝΕΤΑ",
+        "ΜΙΝΈΤΑ"
     };
 
     public async Task<IReadOnlyList<AvailableCarrierDto>> Handle(ListAvailableCarrierBridgesQuery _, CancellationToken ct)
@@ -227,12 +231,16 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             || carrierKey.Contains("ΑΤΛΑΝΤΙΚΗ");
         var isInterlife = carrierKey.Contains("INTERLIFE")
             || carrierKey.Contains("ΙΝΤΕΡΛΑΪΦ") || carrierKey.Contains("ΙΝΤΕΡΛΑΙΦ");
-        var isMinetta = carrierKey.Contains("MINETTA") || carrierKey.Contains("ΜΙΝΕΤΤΑ");
+        var isMinetta = carrierKey.Contains("MINETTA")
+            || carrierKey.Contains("ΜΙΝΕΤΤΑ")
+            || carrierKey.Contains("ΜΙΝΈΤΤΑ")
+            || carrierKey.Contains("ΜΙΝΕΤΑ")
+            || carrierKey.Contains("ΜΙΝΈΤΑ");
         if (!isErgo && !isGrandCover && !isAtlantic && !isInterlife && !isMinetta)
             throw new AppException("bridge_format_not_supported",
                 "Δεν υπάρχει διαθέσιμος αναλυτής για αυτή την εταιρία ακόμη.", 400,
                 title: "Μη υποστηριζόμενος αναλυτής",
-                why: "Κάθε εταιρία στέλνει το αρχείο της σε διαφορετική μορφή. Έχουμε υλοποιήσει μέχρι στιγμής ERGO, Grand Cover, Ατλαντική Ένωση και Interlife.",
+                why: "Κάθε εταιρία στέλνει το αρχείο της σε διαφορετική μορφή. Έχουμε υλοποιήσει μέχρι στιγμής ERGO, Grand Cover, Ατλαντική Ένωση, Interlife και Μινέττα.",
                 fix: "Επιλέξτε μία από τις υποστηριζόμενες εταιρίες ή ζητήστε υποστήριξη για τη συγκεκριμένη εταιρία.");
 
         // File-shape detection. ERGO ships one .xlsx; Grand Cover ships a
