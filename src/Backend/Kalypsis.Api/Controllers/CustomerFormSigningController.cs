@@ -202,7 +202,7 @@ public sealed class CustomerFormSigningController : ControllerBase
             };
         }
         var data = BuildFormData(customer, office, policy, body.Fields, collaboratingInsurers);
-        AddTemplateSnapshot(data, formCode, template, forceCustom: body.HeaderHtml is not null || body.BodyHtml is not null || body.FooterHtml is not null);
+        AddTemplateSnapshot(data, formCode, template);
         var draft = new CustomerFormSigning
         {
             Id = Guid.NewGuid(),
@@ -267,7 +267,7 @@ public sealed class CustomerFormSigningController : ControllerBase
             };
         }
         var data = BuildFormData(customer, office, null, body.Fields, collaboratingInsurers);
-        AddTemplateSnapshot(data, normalized, template, forceCustom: body.HeaderHtml is not null || body.BodyHtml is not null || body.FooterHtml is not null);
+        AddTemplateSnapshot(data, normalized, template);
         var draft = new CustomerFormSigning
         {
             Id = Guid.NewGuid(),
@@ -342,9 +342,6 @@ public sealed class CustomerFormSigningController : ControllerBase
         // Keep the reusable template catalogue in sync with the renderer. The
         // PDF renderer is authoritative for layout, while BodyHtml gives the
         // office a readable prompt in the existing template-management page.
-        if (formCode == "customer-needs" && _db.DocumentTemplates.Local.LastOrDefault() is { } needsTemplate && needsTemplate.Code == "CUSTOMER_NEEDS")
-            needsTemplate.BodyHtml = "<h1>{{agency.name}}</h1><h2>ΕΝΤΥΠΟ ΑΝΑΓΚΩΝ ΠΕΛΑΤΗ</h2><p>{{customer.name}}</p><p>{{customer.email}}</p><p>{{form.vesselName}}</p><p>{{form.totalInsuredValue}}</p><p>Δήλωση και υπογραφή πελάτη, γραφείου και ασφαλιστικής όπου απαιτείται.</p>";
-
         var now = DateTime.UtcNow;
         var collaboratingInsurersForSigning = await GetCollaboratingInsurersAsync(tenantId, ct);
         var storedTemplate = await EnsureFormTemplateAsync(tenantId, formCode, ct);
@@ -713,15 +710,16 @@ public sealed class CustomerFormSigningController : ControllerBase
     private static FormTemplateDto ToFormTemplateDto(string formCode, DocumentTemplate template)
     {
         var definition = TemplateFor(formCode);
+        var customized = IsTemplateCustomized(template, definition);
         return new FormTemplateDto(
             formCode,
             template.Code,
             template.Name,
             template.Kind,
             template.HeaderHtml,
-            template.BodyHtml,
+            customized ? template.BodyHtml : definition.BodyHtml,
             template.FooterHtml,
-            IsTemplateCustomized(template, definition),
+            customized,
             FormTemplateFields(formCode));
     }
 
@@ -834,14 +832,19 @@ public sealed class CustomerFormSigningController : ControllerBase
     }
 
     private static bool IsTemplateCustomized(DocumentTemplate template, (string Code, string Name, string Kind, string BodyHtml) definition)
-        => !string.Equals(template.HeaderHtml ?? "", "", StringComparison.Ordinal)
-           || !string.Equals(template.FooterHtml ?? "", "", StringComparison.Ordinal)
-           || !string.Equals(template.BodyHtml ?? "", definition.BodyHtml, StringComparison.Ordinal);
+    {
+        var body = template.BodyHtml ?? "";
+        var isDefaultBody = string.Equals(body, definition.BodyHtml, StringComparison.Ordinal)
+            || string.Equals(body, LegacyTemplateBody(definition.Code), StringComparison.Ordinal);
+        return !string.IsNullOrWhiteSpace(template.HeaderHtml)
+            || !string.IsNullOrWhiteSpace(template.FooterHtml)
+            || !isDefaultBody;
+    }
 
-    private static void AddTemplateSnapshot(Dictionary<string, string?> data, string formCode, DocumentTemplate template, bool forceCustom = false)
+    private static void AddTemplateSnapshot(Dictionary<string, string?> data, string formCode, DocumentTemplate template)
     {
         var definition = TemplateFor(formCode);
-        if (!forceCustom && !IsTemplateCustomized(template, definition)) return;
+        if (!IsTemplateCustomized(template, definition)) return;
         data["__templateCustom"] = "true";
         data["__templateHeaderHtml"] = MergeTemplate(template.HeaderHtml, data);
         data["__templateBodyHtml"] = MergeTemplate(template.BodyHtml, data);
@@ -942,10 +945,116 @@ public sealed class CustomerFormSigningController : ControllerBase
 
     private static (string Code, string Name, string Kind, string BodyHtml) TemplateFor(string formCode) => formCode switch
     {
-        "customer-needs" => ("CUSTOMER_NEEDS", "Έντυπο Αναγκών Πελάτη", "CustomerNeeds", "<h1>{{agency.name}}</h1><h2>ΕΝΤΥΠΟ ΑΝΑΓΚΩΝ ΠΕΛΑΤΗ</h2><p>{{customer.name}}</p>"),
-        "intermediary-information" => ("INTERMEDIARY_INFORMATION", "Πληροφορίες Ασφαλιστικού Διαμεσολαβητή", "IntermediaryInformation", "<h1>{{agency.name}}</h1><h2>ΠΛΗΡΟΦΟΡΙΕΣ ΑΣΦΑΛΙΣΤΙΚΟΥ ΔΙΑΜΕΣΟΛΑΒΗΤΗ</h2><p>Άρθρα 28 και 29 ν. 4583/2018</p><p>{{customer.name}}</p>"),
-        "document-receipt" => ("DOCUMENT_RECEIPT", "Απόδειξη Παραλαβής Εντύπων", "DocumentReceipt", "<h1>{{agency.name}}</h1><h2>ΑΠΟΔΕΙΞΗ ΠΑΡΑΛΑΒΗΣ ΕΝΤΥΠΩΝ</h2><p>{{customer.name}}</p><p>{{form.documentsReceived}}</p>"),
-        _ => ("GDPR_CONSENT", "Έντυπο ενημέρωσης και δήλωσης GDPR", "GDPR", "<h1>{{agency.name}}</h1><h2>ΕΝΗΜΕΡΩΣΗ ΥΠΟΚΕΙΜΕΝΟΥ ΔΕΔΟΜΕΝΩΝ & ΔΗΛΩΣΗ GDPR</h2><p>Πελάτης: {{customer.name}}</p><p>Email: {{customer.email}}</p>")
+        "customer-needs" => ("CUSTOMER_NEEDS", "Έντυπο Αναγκών Πελάτη", "CustomerNeeds", DefaultEditorHtml("customer-needs")),
+        "intermediary-information" => ("INTERMEDIARY_INFORMATION", "Πληροφορίες Ασφαλιστικού Διαμεσολαβητή", "IntermediaryInformation", DefaultEditorHtml("intermediary-information")),
+        "document-receipt" => ("DOCUMENT_RECEIPT", "Απόδειξη Παραλαβής Εντύπων", "DocumentReceipt", DefaultEditorHtml("document-receipt")),
+        _ => ("GDPR_CONSENT", "Έντυπο ενημέρωσης και δήλωσης GDPR", "GDPR", DefaultEditorHtml("gdpr-consent"))
+    };
+
+    private static string LegacyTemplateBody(string code) => code switch
+    {
+        "CUSTOMER_NEEDS" => "<h1>{{agency.name}}</h1><h2>ΕΝΤΥΠΟ ΑΝΑΓΚΩΝ ΠΕΛΑΤΗ</h2><p>{{customer.name}}</p>",
+        "INTERMEDIARY_INFORMATION" => "<h1>{{agency.name}}</h1><h2>ΠΛΗΡΟΦΟΡΙΕΣ ΑΣΦΑΛΙΣΤΙΚΟΥ ΔΙΑΜΕΣΟΛΑΒΗΤΗ</h2><p>Άρθρα 28 και 29 ν. 4583/2018</p><p>{{customer.name}}</p>",
+        "DOCUMENT_RECEIPT" => "<h1>{{agency.name}}</h1><h2>ΑΠΟΔΕΙΞΗ ΠΑΡΑΛΑΒΗΣ ΕΝΤΥΠΩΝ</h2><p>{{customer.name}}</p><p>{{form.documentsReceived}}</p>",
+        _ => "<h1>{{agency.name}}</h1><h2>ΕΝΗΜΕΡΩΣΗ ΥΠΟΚΕΙΜΕΝΟΥ ΔΕΔΟΜΕΝΩΝ & ΔΗΛΩΣΗ GDPR</h2><p>Πελάτης: {{customer.name}}</p><p>Email: {{customer.email}}</p>"
+    };
+
+    /// <summary>
+    /// The editor starts with the same complete text as the established PDF
+    /// renderer. Legacy offices may still have the short pre-editor body in
+    /// the database; that body is upgraded in the DTO without overwriting it.
+    /// </summary>
+    private static string DefaultEditorHtml(string formCode) => formCode switch
+    {
+        "customer-needs" => """
+            <h1>ΕΝΤΥΠΟ ΑΝΑΓΚΩΝ ΠΕΛΑΤΗ</h1>
+            <p>(Σύμφωνα με το άρθρο 11 ΠΔ 190/2006 και το άρθρο 5 παρ. 4 της Πράξης 31/2013 της ΤτΕ)</p>
+            <h2>Κώδικας Δεοντολογίας</h2>
+            <p>Βάσει των πράξεων της Τράπεζας της Ελλάδος, οφείλουμε να σας προτείνουμε ρεαλιστικές και σύγχρονες ασφαλιστικές λύσεις που ανταποκρίνονται στις πραγματικές σας ανάγκες. Το ερωτηματολόγιο συγκεντρώνει τα στοιχεία που είναι απαραίτητα για την εξατομικευμένη πρόταση.</p>
+            <h2>Προσωπικά στοιχεία πελάτη — στοιχεία επικοινωνίας</h2>
+            <p><strong>Ονοματεπώνυμο:</strong> {{customer.name}} · <strong>Ημερομηνία γέννησης:</strong> {{birthDate}}</p>
+            <p><strong>ΑΦΜ:</strong> {{vatNumber}} · <strong>ΔΟΥ:</strong> {{taxOffice}}</p>
+            <p><strong>Επάγγελμα:</strong> {{occupation}} · <strong>Email:</strong> {{customer.email}}</p>
+            <p><strong>Τηλέφωνα:</strong> {{customer.phone}} · <strong>Διεύθυνση:</strong> {{customer.address}}</p>
+            <h2>Επιθυμητές ασφαλιστικές καλύψεις</h2>
+            <ul><li>Ασφάλιση οχήματος: {{coverageVehicle}}</li><li>Ασφάλιση σκάφους: {{coverageVessel}}</li><li>Ασφάλιση κατοικίας / εξοχικού: {{coverageHome}}</li><li>Ασφάλιση επιχείρησης: {{coverageBusiness}}</li><li>Επαγγελματική αστική ευθύνη: {{coverageProfessional}}</li><li>Άλλο ενδιαφέρον: {{coverageOtherText}}</li></ul>
+            <h2>Στοιχεία περιουσίας — σκάφος / vessel</h2>
+            <p><strong>Όνομα:</strong> {{vesselName}} · <strong>Νηολόγιο:</strong> {{registrationNumber}} · <strong>Σημαία:</strong> {{flag}}</p>
+            <p><strong>Hull No:</strong> {{hullNumber}} · <strong>Τύπος:</strong> {{vesselType}} · <strong>Κατασκευαστής:</strong> {{maker}}</p>
+            <p><strong>Υλικό:</strong> {{hullMaterial}} · <strong>Έτος:</strong> {{yearBuilt}} · <strong>Μέγιστη ταχύτητα:</strong> {{maxSpeed}}</p>
+            <p><strong>Ημερομηνία αγοράς:</strong> {{purchaseDate}} · <strong>Τιμή αγοράς:</strong> {{purchasePrice}} · <strong>Μήκος:</strong> {{length}} · <strong>Πλάτος:</strong> {{beam}} · <strong>Βύθισμα:</strong> {{draft}}</p>
+            <p><strong>Χρήση:</strong> {{use}} · <strong>Πλήρωμα:</strong> {{crewDetails}}</p>
+            <h2>Κύριες μηχανές</h2>
+            <p><strong>Εσωλέμβια:</strong> {{engine_inboard_maker}} · {{engine_inboard_serial}} · {{engine_inboard_hp}} HP · {{engine_inboard_year}} · {{engine_inboard_fuel}}</p>
+            <p><strong>Εξωλέμβια:</strong> {{engine_outboard_maker}} · {{engine_outboard_serial}} · {{engine_outboard_hp}} HP · {{engine_outboard_year}} · {{engine_outboard_fuel}}</p>
+            <p><strong>Εσω-εξωλέμβια:</strong> {{engine_inoutboard_maker}} · {{engine_inoutboard_serial}} · {{engine_inoutboard_hp}} HP · {{engine_inoutboard_year}} · {{engine_inoutboard_fuel}}</p>
+            <h2>Κίνδυνοι, αξίες και περίοδος ασφάλισης</h2>
+            <p><strong>Μεγαλύτερο όριο αστικής ευθύνης:</strong> {{largerLiabilityLimit}} · <strong>Εκτός νερού:</strong> {{laidUpPeriod}} · <strong>Τοποθεσία:</strong> {{laidUpLocation}}</p>
+            <p><strong>Μαρίνα:</strong> {{marina}} · <strong>Προσδέσεις:</strong> {{moorings}} · <strong>Περιορισμοί πλεύσης:</strong> {{cruisingLimits}}</p>
+            <p><strong>Αυτόματη πυρόσβεση:</strong> {{automaticFireExtinguishing}} · <strong>Water skiers:</strong> {{waterSkiers}} · <strong>Racing risks:</strong> {{racingRisks}}</p>
+            <p><strong>Αξίες αντικατάστασης:</strong> {{replacementValues}} · <strong>Οδική μεταφορά:</strong> {{roadTransit}}</p>
+            <p><strong>Ζημιές τελευταίας 5ετίας:</strong> {{claimsLastFiveYears}} · <strong>Δάνειο:</strong> {{loan}} · <strong>Ποσό:</strong> {{loanAmount}}</p>
+            <p><strong>Ασφαλιστική περίοδος:</strong> {{insuredFrom}} έως {{insuredTo}} · <strong>Πληρωμή ασφαλίστρων:</strong> {{premiumPayment}}</p>
+            <h2>Παρατηρήσεις / πρόσθετες πληροφορίες</h2><p>{{additionalInformation}}</p>
+            <h2>Δήλωση</h2>
+            <p>Δηλώνω ότι οι παραπάνω απαντήσεις είναι αληθείς, ακριβείς και πλήρεις και ότι δεν έχω αποκρύψει πληροφορία που θα μπορούσε να επηρεάσει την απόφαση των ασφαλιστών σχετικά με την πρόταση ασφάλισης.</p>
+            <p>Η παρούσα πρόταση αποτελεί τη βάση και αναπόσπαστο τμήμα του ασφαλιστηρίου συμβολαίου, σε περίπτωση έκδοσης. Οποιαδήποτε μεταβολή στα στοιχεία πρέπει να γνωστοποιείται άμεσα στο γραφείο.</p>
+            """,
+        "intermediary-information" => """
+            <h1>ΕΝΤΥΠΟ ΠΑΡΟΧΗΣ ΠΛΗΡΟΦΟΡΙΩΝ ΑΣΦΑΛΙΣΤΙΚΟΥ ΔΙΑΜΕΣΟΛΑΒΗΤΗ</h1>
+            <p>Άρθρα 28, 29 και 33 του ν. 4583/2018</p>
+            <h2>1. Ταυτότητα και επαγγελματική ιδιότητα</h2>
+            <p><strong>Επωνυμία / διακριτικός τίτλος:</strong> {{office.name}} · <strong>Διεύθυνση:</strong> {{office.address}}</p>
+            <p><strong>Email / τηλέφωνο:</strong> {{office.email}} / {{office.phone}} · <strong>ΑΦΜ:</strong> {{office.vatNumber}}</p>
+            <p><strong>Επαγγελματική ιδιότητα:</strong> {{intermediaryCategory}} · <strong>Αριθμός ειδικού μητρώου:</strong> {{registryNumber}} · <strong>Έτος:</strong> {{registryYear}}</p>
+            <p><strong>Ενιαίο σημείο πληροφόρησης:</strong> {{singleInformationPointUrl}} · <strong>Νομικός τρόπος δραστηριότητας:</strong> {{legalActivity}}</p>
+            <h2>2. Ρόλος, συμβουλή και ασφαλιστικές επιχειρήσεις</h2>
+            <p><strong>Ενεργεί για λογαριασμό:</strong> {{represents}} · <strong>Παρέχει συμβουλή:</strong> {{providesAdvice}}</p>
+            <p><strong>Συνεργαζόμενες ασφαλιστικές:</strong> {{collaboratingInsurers}}</p>
+            <p><strong>Επενδυτικά προϊόντα βασιζόμενα σε ασφάλιση:</strong> {{investmentBasedInsurance}} · <strong>Εντολή είσπραξης ασφαλίστρων:</strong> {{premiumCollectionMandate}}</p>
+            <h2>3. Αμοιβή, καταγγελίες και εξωδικαστική επίλυση</h2>
+            <p><strong>Φύση αμοιβής:</strong> {{remunerationNature}} · <strong>Τρόπος αμοιβής:</strong> {{remunerationMethod}}</p>
+            <p><strong>Συμμετοχές / δεσμοί ιδιοκτησίας:</strong> {{ownershipDisclosure}}</p>
+            <p><strong>Διαδικασία αιτιάσεων / καταγγελιών:</strong> {{complaintsProcedure}} · <strong>Εξωδικαστική επίλυση:</strong> {{outOfCourtDisputes}}</p>
+            <h2>4. Στοιχεία πελάτη και προτεινόμενη σύμβαση</h2>
+            <p><strong>Πελάτης:</strong> {{customer.name}} · <strong>Email:</strong> {{customer.email}}</p>
+            <p><strong>Αριθμός συμβολαίου:</strong> {{policy.number}} · <strong>Ασφαλιστική:</strong> {{policy.insuranceCompany}}</p>
+            <p>Ο πελάτης δηλώνει ότι έλαβε τις παραπάνω πληροφορίες εγκαίρως, σε σαφή και κατανοητή μορφή, πριν από τη σύναψη της ασφαλιστικής σύμβασης.</p>
+            """,
+        "document-receipt" => """
+            <h1>ΑΠΟΔΕΙΞΗ ΠΑΡΑΛΑΒΗΣ ΕΝΤΥΠΩΝ ΑΠΟ ΤΟΝ ΠΕΛΑΤΗ</h1>
+            <p>Ημερομηνίες επικοινωνίας, παράδοσης και παραλαβής εγγράφων</p>
+            <h2>Στοιχεία πελάτη και γραφείου</h2>
+            <p><strong>Πελάτης:</strong> {{customer.name}} · <strong>Email:</strong> {{customer.email}}</p>
+            <p><strong>Αριθμός συμβολαίου:</strong> {{policy.number}} · <strong>Ασφαλιστική:</strong> {{policy.insuranceCompany}}</p>
+            <p><strong>Γραφείο / διαμεσολαβητής:</strong> {{office.name}} · <strong>Email γραφείου:</strong> {{office.email}}</p>
+            <h2>Στοιχεία παράδοσης</h2>
+            <p><strong>Ημερομηνία επικοινωνίας:</strong> {{contactDate}} · <strong>Ημερομηνία παράδοσης / παραλαβής:</strong> {{deliveryDate}}</p>
+            <p><strong>Τρόπος παράδοσης:</strong> {{deliveryMethod}} · <strong>Παρατηρήσεις:</strong> {{receiptNotes}}</p>
+            <h2>Έγγραφα που παραδόθηκαν και παραλήφθηκαν</h2>
+            <p>{{documentsReceived}}</p>
+            <p>Ο πελάτης βεβαιώνει ότι παρέλαβε τα παραπάνω έγγραφα και είχε τη δυνατότητα να τα διαβάσει, να ζητήσει διευκρινίσεις και να κρατήσει αντίγραφό τους. Η παρούσα απόδειξη δεν τροποποιεί τους όρους του ασφαλιστηρίου ή τις νόμιμες υποχρεώσεις ενημέρωσης.</p>
+            """,
+        _ => """
+            <h1>ΕΝΗΜΕΡΩΣΗ ΥΠΟΚΕΙΜΕΝΟΥ ΔΕΔΟΜΕΝΩΝ & ΔΗΛΩΣΗ GDPR</h1>
+            <p>Άρθρα 13 και 14 Γενικού Κανονισμού Προστασίας Δεδομένων (ΕΕ) 2016/679</p>
+            <h2>Υπεύθυνος επεξεργασίας</h2>
+            <p><strong>Γραφείο:</strong> {{office.name}} · <strong>Διεύθυνση:</strong> {{office.address}}</p>
+            <p><strong>Email:</strong> {{office.email}} · <strong>Τηλέφωνο:</strong> {{office.phone}} · <strong>ΑΦΜ:</strong> {{office.vatNumber}}</p>
+            <h2>Στοιχεία που συλλέγουμε και σκοποί επεξεργασίας</h2>
+            <p>Συλλέγονται στοιχεία ταυτοποίησης, επικοινωνίας, οικονομικά και ασφαλιστικά στοιχεία για την αξιολόγηση, έκδοση, διαχείριση και εξυπηρέτηση ασφαλιστικών συμβάσεων, την επικοινωνία με τις ασφαλιστικές εταιρείες και την τήρηση των νόμιμων υποχρεώσεων.</p>
+            <p>Για συμβόλαια ζωής ή υγείας ενδέχεται να ζητηθούν δεδομένα υγείας, ειδική κατηγορία δεδομένων κατά το άρθρο 9 GDPR, μόνο με ξεχωριστή ρητή συγκατάθεση.</p>
+            <h2>Αποδέκτες και διαβιβάσεις</h2>
+            <p>Τα δεδομένα κοινοποιούνται στις ασφαλιστικές εταιρείες που σχετίζονται με τα συμβόλαια του πελάτη, σε παρόχους τεχνολογίας και αποστολής email ως εκτελούντες την επεξεργασία και στις αρμόδιες αρχές όπου απαιτείται από τον νόμο. Δεν πραγματοποιούνται τακτικές διαβιβάσεις εκτός ΕΟΧ.</p>
+            <h2>Διάρκεια διατήρησης και δικαιώματα</h2>
+            <p>Τα δεδομένα διατηρούνται όσο ισχύει η ασφαλιστική σχέση και για όσο απαιτείται από τις φορολογικές και λοιπές νόμιμες υποχρεώσεις.</p>
+            <p>Έχετε δικαίωμα πρόσβασης, διόρθωσης, διαγραφής όπου επιτρέπεται, περιορισμού, φορητότητας, εναντίωσης και ανάκλησης συγκατάθεσης χωρίς αναδρομική επίπτωση.</p>
+            <h2>Στοιχεία πελάτη</h2>
+            <p><strong>Ονοματεπώνυμο / Επωνυμία:</strong> {{customer.name}} · <strong>Email:</strong> {{customer.email}}</p>
+            <p><strong>Τηλέφωνο:</strong> {{customer.phone}} · <strong>Διεύθυνση:</strong> {{customer.address}} · <strong>ΑΦΜ:</strong> {{customer.vatNumber}}</p>
+            <h2>Δήλωση επιλογής</h2>
+            <p>Έχω ενημερωθεί για την επεξεργασία των προσωπικών μου δεδομένων όπως ορίζεται στο παρόν έγγραφο. Ημερομηνία: {{contactDate}}</p>
+            """
     };
 
     private static Dictionary<string, string?> BuildFormData(Customer customer, Tenant office, Policy? policy, Dictionary<string, string?>? submitted, string? collaboratingInsurers = null)
