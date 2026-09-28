@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -46,6 +47,7 @@ public sealed class CustomerFormSigningController : ControllerBase
         string? BodyHtml = null,
         string? FooterHtml = null);
     public sealed record SigningDto(Guid Id, Guid CustomerId, Guid? PolicyId, string FormCode, string Status, bool? CustomerConsented, string CustomerName, string? CustomerEmail, string? OfficeEmail, string? InsurerEmail, DateTime CreatedAt, DateTime ExpiresAt, DateTime? CustomerSignedAt, DateTime? OfficeSignedAt, DateTime? InsurerSignedAt, DateTime? CompletedAt, string? FinalDocumentPath, bool HasFinalDocument);
+    public sealed record FormHistoryDto(Guid Id, Guid CustomerId, Guid? PolicyId, string FormCode, string Status, bool? CustomerConsented, string CustomerName, string? CustomerEmail, DateTime CreatedAt, DateTime ExpiresAt, DateTime? CustomerSignedAt, DateTime? OfficeSignedAt, DateTime? InsurerSignedAt, DateTime? CompletedAt, bool HasDraftDocument, bool HasFinalDocument, string FileName);
     public sealed record PublicFormDto(string AgencyName, string? AgencyLogoUrl, string CustomerName, string? CustomerEmail, string Role, string FormTitle, string ExpiresAt, bool CanSign, string? PolicyNumber, string FormCode = "gdpr-consent");
     public sealed record SignBody(bool Consented, string SignerName, string SignatureDataUrl);
 
@@ -132,6 +134,22 @@ public sealed class CustomerFormSigningController : ControllerBase
             .Select(x => new SigningDto(x.Id, x.CustomerId, x.PolicyId, x.FormCode, x.Status.ToString(), x.CustomerConsented, x.CustomerFullNameSnapshot, x.CustomerEmailSnapshot, x.OfficeEmailSnapshot, x.InsurerEmailSnapshot, x.CreatedAt, x.ExpiresAt, x.CustomerSignedAt, x.OfficeSignedAt, x.InsurerSignedAt, x.CompletedAt, x.FinalDocumentPath, x.FinalDocumentPath != null))
             .ToListAsync(ct);
         return Ok(rows);
+    }
+
+    /// <summary>Office-wide history of every legal form and signing attempt.</summary>
+    [Authorize(Policy = "AgencyStaff")]
+    [HttpGet("api/customer-form-signings")]
+    public async Task<ActionResult<IReadOnlyList<FormHistoryDto>>> History(
+        [FromQuery] string? search,
+        [FromQuery] string? formCode,
+        [FromQuery] string? status,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        CancellationToken ct)
+    {
+        var query = ApplyHistoryFilters(_db.CustomerFormSignings.AsNoTracking().Where(x => x.TenantId == TenantId()), search, formCode, status, from, to);
+        var rows = await query.OrderByDescending(x => x.CreatedAt).Take(5000).ToListAsync(ct);
+        return Ok(rows.Select(ToHistoryDto).ToList());
     }
 
     /// <summary>
@@ -389,26 +407,79 @@ public sealed class CustomerFormSigningController : ControllerBase
 
     [Authorize(Policy = "AgencyStaff")]
     [HttpGet("api/customer-form-signings/export")]
-    public async Task<IActionResult> Export([FromQuery] string? status, [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string format = "xlsx", CancellationToken ct = default)
+    public async Task<IActionResult> Export([FromQuery] string? search, [FromQuery] string? formCode, [FromQuery] string? status, [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string format = "xlsx", CancellationToken ct = default)
     {
         var tenantId = TenantId();
-        var query = _db.CustomerFormSignings.AsNoTracking().Where(x => x.TenantId == tenantId);
-        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<CustomerFormSigningStatus>(status, true, out var parsed)) query = query.Where(x => x.Status == parsed);
-        if (from.HasValue) query = query.Where(x => x.CreatedAt >= from.Value);
-        if (to.HasValue) query = query.Where(x => x.CreatedAt <= to.Value);
+        var query = ApplyHistoryFilters(_db.CustomerFormSignings.AsNoTracking().Where(x => x.TenantId == tenantId), search, formCode, status, from, to);
         var rows = await query.OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
-        var sheet = new Sheet("Έντυπα GDPR", new[] { "Id", "Πελάτης", "Email", "Κατάσταση", "Συναίνεση", "Δημιουργήθηκε", "Έληξε", "Υπογραφή πελάτη", "Υπογραφή γραφείου", "Υπογραφή ασφαλιστικής", "Ολοκληρώθηκε" }, rows.Select(x => (IReadOnlyList<string>)new[] { x.Id.ToString(), x.CustomerFullNameSnapshot, x.CustomerEmailSnapshot ?? "", x.Status.ToString(), x.CustomerConsented?.ToString() ?? "", x.CreatedAt.ToString("yyyy-MM-dd HH:mm"), x.ExpiresAt.ToString("yyyy-MM-dd HH:mm"), x.CustomerSignedAt?.ToString("yyyy-MM-dd HH:mm") ?? "", x.OfficeSignedAt?.ToString("yyyy-MM-dd HH:mm") ?? "", x.InsurerSignedAt?.ToString("yyyy-MM-dd HH:mm") ?? "", x.CompletedAt?.ToString("yyyy-MM-dd HH:mm") ?? "" }).ToList(), TenantLabel: tenantId.ToString());
+        var sheet = new Sheet("Νομικά έντυπα πελατών", new[] { "Id", "Έντυπο", "Πελάτης", "Email", "Κατάσταση", "Συναίνεση", "Δημιουργήθηκε", "Έληξε", "Υπογραφή πελάτη", "Υπογραφή γραφείου", "Υπογραφή ασφαλιστικής", "Ολοκληρώθηκε" }, rows.Select(x => (IReadOnlyList<string>)new[] { x.Id.ToString(), x.FormCode, x.CustomerFullNameSnapshot, x.CustomerEmailSnapshot ?? "", x.Status.ToString(), x.CustomerConsented?.ToString() ?? "", x.CreatedAt.ToString("yyyy-MM-dd HH:mm"), x.ExpiresAt.ToString("yyyy-MM-dd HH:mm"), x.CustomerSignedAt?.ToString("yyyy-MM-dd HH:mm") ?? "", x.OfficeSignedAt?.ToString("yyyy-MM-dd HH:mm") ?? "", x.InsurerSignedAt?.ToString("yyyy-MM-dd HH:mm") ?? "", x.CompletedAt?.ToString("yyyy-MM-dd HH:mm") ?? "" }).ToList(), TenantLabel: tenantId.ToString());
         if (format.Equals("csv", StringComparison.OrdinalIgnoreCase)) return File(ExportFormatter.BuildCsv(sheet), "text/csv", "gdpr-forms.csv");
         return File(ExportFormatter.BuildXlsx(sheet), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "gdpr-forms.xlsx");
     }
 
+    /// <summary>
+    /// Download all filtered legal-form PDFs as one office folder archive.
+    /// Final documents are preferred; pending forms use their immutable draft.
+    /// </summary>
+    [Authorize(Policy = "AgencyStaff")]
+    [HttpGet("api/customer-form-signings/export-zip")]
+    public async Task<IActionResult> ExportZip(
+        [FromQuery] string? search,
+        [FromQuery] string? formCode,
+        [FromQuery] string? status,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] string? ids,
+        CancellationToken ct)
+    {
+        var tenantId = TenantId();
+        var query = ApplyHistoryFilters(_db.CustomerFormSignings.AsNoTracking().Where(x => x.TenantId == tenantId), search, formCode, status, from, to);
+        var requestedIds = ParseIds(ids);
+        if (requestedIds.Count > 0) query = query.Where(x => requestedIds.Contains(x.Id));
+        var rows = await query.OrderByDescending(x => x.CreatedAt).Take(5000).ToListAsync(ct);
+
+        await using var output = new MemoryStream();
+        using (var archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            var index = new StringBuilder("Έντυπο,Πελάτης,Κατάσταση,Ημερομηνία,Αρχείο\r\n");
+            foreach (var row in rows)
+            {
+                var path = row.FinalDocumentPath ?? row.DraftDocumentPath;
+                var bytes = await ReadBytesAsync(path, ct);
+                if (bytes is null) continue;
+
+                var fileName = $"{SafeArchivePart(row.CustomerFullNameSnapshot)}-{row.FormCode}-{row.CreatedAt:yyyyMMdd}-{row.Id:N}.pdf";
+                var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
+                await using (var entryStream = entry.Open())
+                    await entryStream.WriteAsync(bytes, ct);
+                index.Append(CsvPart(row.FormCode)).Append(',')
+                    .Append(CsvPart(row.CustomerFullNameSnapshot)).Append(',')
+                    .Append(CsvPart(row.Status.ToString())).Append(',')
+                    .Append(CsvPart(row.CreatedAt.ToString("yyyy-MM-dd HH:mm"))).Append(',')
+                    .Append(CsvPart(fileName)).Append("\r\n");
+            }
+
+            var indexEntry = archive.CreateEntry("index.csv", CompressionLevel.Fastest);
+            await using var indexStream = new StreamWriter(indexEntry.Open(), new UTF8Encoding(true));
+            await indexStream.WriteAsync(index.ToString());
+        }
+
+        return File(output.ToArray(), "application/zip", $"νομικά-έντυπα-{DateTime.UtcNow:yyyyMMdd-HHmm}.zip");
+    }
+
     [Authorize(Policy = "AgencyStaff")]
     [HttpGet("api/customer-form-signings/{id:guid}/document")]
-    public async Task<IActionResult> Document(Guid id, CancellationToken ct)
+    public async Task<IActionResult> Document(Guid id, [FromQuery] string variant = "auto", CancellationToken ct = default)
     {
         var row = await _db.CustomerFormSignings.FirstOrDefaultAsync(x => x.TenantId == TenantId() && x.Id == id, ct);
-        if (row?.FinalDocumentPath is null) return NotFound("Το έντυπο δεν έχει ολοκληρωθεί.");
-        var stream = await _storage.DownloadAsync(row.FinalDocumentPath, ct);
+        if (row is null) return NotFound("Το έντυπο δεν βρέθηκε.");
+        var path = variant.Equals("draft", StringComparison.OrdinalIgnoreCase)
+            ? row.DraftDocumentPath
+            : variant.Equals("final", StringComparison.OrdinalIgnoreCase)
+                ? row.FinalDocumentPath
+                : row.FinalDocumentPath ?? row.DraftDocumentPath;
+        if (path is null) return NotFound("Δεν υπάρχει αποθηκευμένο PDF για αυτό το έντυπο.");
+        var stream = await _storage.DownloadAsync(path, ct);
         return File(stream, "application/pdf", row.FileName);
     }
 
@@ -852,6 +923,51 @@ public sealed class CustomerFormSigningController : ControllerBase
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
     }
+
+    private static IQueryable<CustomerFormSigning> ApplyHistoryFilters(
+        IQueryable<CustomerFormSigning> query,
+        string? search,
+        string? formCode,
+        string? status,
+        DateTime? from,
+        DateTime? to)
+    {
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(x => EF.Functions.Like(x.CustomerFullNameSnapshot, $"%{term}%")
+                || (x.CustomerEmailSnapshot != null && EF.Functions.Like(x.CustomerEmailSnapshot, $"%{term}%")));
+        }
+        if (!string.IsNullOrWhiteSpace(formCode))
+            query = query.Where(x => x.FormCode == formCode.Trim());
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<CustomerFormSigningStatus>(status, true, out var parsed))
+            query = query.Where(x => x.Status == parsed);
+        if (from.HasValue) query = query.Where(x => x.CreatedAt >= from.Value.Date);
+        if (to.HasValue) query = query.Where(x => x.CreatedAt < to.Value.Date.AddDays(1));
+        return query;
+    }
+
+    private static IReadOnlySet<Guid> ParseIds(string? value)
+        => (value ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(x => Guid.TryParse(x, out var id) ? id : Guid.Empty)
+            .Where(x => x != Guid.Empty)
+            .ToHashSet();
+
+    private static FormHistoryDto ToHistoryDto(CustomerFormSigning x) => new(
+        x.Id, x.CustomerId, x.PolicyId, x.FormCode, x.Status.ToString(), x.CustomerConsented,
+        x.CustomerFullNameSnapshot, x.CustomerEmailSnapshot, x.CreatedAt, x.ExpiresAt,
+        x.CustomerSignedAt, x.OfficeSignedAt, x.InsurerSignedAt, x.CompletedAt,
+        !string.IsNullOrWhiteSpace(x.DraftDocumentPath), !string.IsNullOrWhiteSpace(x.FinalDocumentPath), x.FileName);
+
+    private static string SafeArchivePart(string value)
+    {
+        var name = string.IsNullOrWhiteSpace(value) ? "χωρίς-πελάτη" : value.Trim();
+        foreach (var invalid in Path.GetInvalidFileNameChars()) name = name.Replace(invalid, '-');
+        return name.Length > 80 ? name[..80].Trim() : name;
+    }
+
+    private static string CsvPart(string? value)
+        => "\"" + (value ?? string.Empty).Replace("\"", "\"\"") + "\"";
 
     private Guid TenantId() => _current.TenantId ?? throw new UnauthorizedAccessException();
     private static string DisplayName(Customer c) => c.Type == CustomerType.Company ? c.CompanyName ?? c.CustomerNumber : string.Join(" ", new[] { c.FirstName, c.LastName }.Where(x => !string.IsNullOrWhiteSpace(x))).Trim() is { Length: > 0 } n ? n : c.CustomerNumber;

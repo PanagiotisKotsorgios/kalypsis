@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Card, Chip,
-  CircularProgress, Divider, Stack, TextField, Tooltip, Typography
+  Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Card, Checkbox, Chip,
+  CircularProgress, Divider, MenuItem, Stack, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow, TextField, Tooltip, Typography
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PrintIcon from "@mui/icons-material/Print";
@@ -12,6 +13,8 @@ import SaveIcon from "@mui/icons-material/Save";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import FolderZipIcon from "@mui/icons-material/FolderZip";
+import SearchIcon from "@mui/icons-material/Search";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -148,6 +151,7 @@ export function LegalTemplatesPage() {
           </Card>
 
           <OfficeFormTemplatesPanel agency={p} />
+          <CustomerFormHistoryPanel />
         </>
       )}
     </Box>
@@ -428,6 +432,149 @@ function OfficeFormTemplatePreview({
           {!sampleCustomer && !pdfLoading && <Alert severity="info" sx={{ mb: 1 }}>Δεν υπάρχει πελάτης ακόμη· το PDF θα εμφανίσει κενά placeholders.</Alert>}
           <iframe title={`Προεπισκόπηση ${formName}`} srcDoc={srcDoc} sandbox="" style={{ width: "100%", height: 760, border: 0, display: "block", borderRadius: 6 }} />
         </>
+      )}
+    </Card>
+  );
+}
+
+interface CustomerFormHistoryRow {
+  id: string;
+  customerId: string;
+  policyId?: string | null;
+  formCode: string;
+  status: string;
+  customerConsented?: boolean | null;
+  customerName: string;
+  customerEmail?: string | null;
+  createdAt: string;
+  expiresAt: string;
+  customerSignedAt?: string | null;
+  officeSignedAt?: string | null;
+  insurerSignedAt?: string | null;
+  completedAt?: string | null;
+  hasDraftDocument: boolean;
+  hasFinalDocument: boolean;
+  fileName: string;
+}
+
+const legalFormLabels: Record<string, string> = {
+  "gdpr-consent": "Ενημέρωση GDPR (Άρθρο 13)",
+  "customer-needs": "Έντυπο Αναγκών Πελάτη (IDD)",
+  "intermediary-information": "Πληροφορίες διαμεσολαβητή",
+  "document-receipt": "Απόδειξη παραλαβής εντύπων",
+};
+
+const legalStatusLabels: Record<string, string> = {
+  Draft: "Πρόχειρο",
+  PendingCustomer: "Αναμονή πελάτη",
+  PendingOffice: "Αναμονή γραφείου",
+  PendingInsurer: "Αναμονή ασφαλιστικής",
+  Completed: "Ολοκληρωμένο",
+  Declined: "Δεν συναινεί",
+  Expired: "Έληξε",
+  Cancelled: "Ακυρώθηκε",
+};
+
+function legalDate(value?: string | null): string {
+  return value ? new Date(value).toLocaleString("el-GR", { dateStyle: "short", timeStyle: "short" }) : "—";
+}
+
+function CustomerFormHistoryPanel() {
+  const [searchDraft, setSearchDraft] = useState("");
+  const [search, setSearch] = useState("");
+  const [formCode, setFormCode] = useState("");
+  const [status, setStatus] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [selected, setSelected] = useState<string[]>([]);
+  const historyQ = useQuery({
+    queryKey: ["customer-form-history", search, formCode, status, from, to],
+    queryFn: async () => (await api.get<CustomerFormHistoryRow[]>("/customer-form-signings", {
+      params: { search: search || undefined, formCode: formCode || undefined, status: status || undefined, from: from || undefined, to: to || undefined }
+    })).data,
+  });
+  const rows = historyQ.data ?? [];
+  const visibleIds = rows.map(row => row.id);
+  const allSelected = visibleIds.length > 0 && visibleIds.every(id => selected.includes(id));
+
+  useEffect(() => {
+    setSelected(current => current.filter(id => visibleIds.includes(id)));
+  }, [historyQ.data]);
+
+  const downloadBlob = async (url: string, params: Record<string, string | undefined>, fileName: string) => {
+    const response = await api.get<Blob>(url, { params, responseType: "blob" });
+    const objectUrl = URL.createObjectURL(response.data);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = fileName;
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+  };
+  const filterParams = { search: search || undefined, formCode: formCode || undefined, status: status || undefined, from: from || undefined, to: to || undefined };
+  const exportSheet = (format: "xlsx" | "csv") => void downloadBlob("/customer-form-signings/export", { ...filterParams, format }, `νομικά-έντυπα.${format}`);
+  const exportZip = () => void downloadBlob("/customer-form-signings/export-zip", {
+    ...filterParams,
+    ids: selected.length ? selected.join(",") : undefined,
+  }, "νομικά-έντυπα.zip");
+  const downloadRow = (id: string) => void downloadBlob(`/customer-form-signings/${id}/document`, {}, "νομικό-έντυπο.pdf");
+
+  const applyFilters = () => { setSearch(searchDraft.trim()); setSelected([]); };
+  const clearFilters = () => {
+    setSearchDraft(""); setSearch(""); setFormCode(""); setStatus(""); setFrom(""); setTo(""); setSelected([]);
+  };
+  const toggleAll = () => setSelected(allSelected ? [] : visibleIds);
+  const toggleRow = (id: string) => setSelected(current => current.includes(id) ? current.filter(x => x !== id) : [...current, id]);
+
+  return (
+    <Card variant="outlined" sx={{ p: 2, mb: 2 }}>
+      <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1} mb={1}>
+        <Box>
+          <Typography variant="h6" fontWeight={800}>Ιστορικό νομικών εντύπων πελατών</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Όλα τα έντυπα που στάλθηκαν ή υπογράφηκαν, με αναζήτηση και ασφαλή μαζική λήψη PDF.
+          </Typography>
+        </Box>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "stretch", sm: "center" }}>
+          <Button size="small" variant="outlined" onClick={() => exportSheet("xlsx")} disabled={!rows.length}>XLSX</Button>
+          <Button size="small" variant="outlined" onClick={() => exportSheet("csv")} disabled={!rows.length}>CSV</Button>
+          <Button size="small" variant="contained" startIcon={<FolderZipIcon />} onClick={exportZip} disabled={!rows.length}>
+            {selected.length ? `ZIP (${selected.length})` : "ZIP όλων"}
+          </Button>
+        </Stack>
+      </Stack>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }} sx={{ mb: 1.5 }}>
+        <TextField size="small" label="Αναζήτηση πελάτη / email" value={searchDraft} onChange={e => setSearchDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") applyFilters(); }} sx={{ minWidth: { md: 240 } }} />
+        <TextField select size="small" label="Έντυπο" value={formCode} onChange={e => setFormCode(e.target.value)} sx={{ minWidth: { md: 220 } }}>
+          <MenuItem value="">Όλα τα έντυπα</MenuItem>
+          {Object.entries(legalFormLabels).map(([code, label]) => <MenuItem key={code} value={code}>{label}</MenuItem>)}
+        </TextField>
+        <TextField select size="small" label="Κατάσταση" value={status} onChange={e => setStatus(e.target.value)} sx={{ minWidth: { md: 180 } }}>
+          <MenuItem value="">Όλες</MenuItem>
+          {Object.entries(legalStatusLabels).map(([code, label]) => <MenuItem key={code} value={code}>{label}</MenuItem>)}
+        </TextField>
+        <TextField size="small" type="date" label="Από" value={from} onChange={e => setFrom(e.target.value)} InputLabelProps={{ shrink: true }} />
+        <TextField size="small" type="date" label="Έως" value={to} onChange={e => setTo(e.target.value)} InputLabelProps={{ shrink: true }} />
+        <Button size="small" variant="contained" startIcon={<SearchIcon />} onClick={applyFilters}>Αναζήτηση</Button>
+        <Button size="small" variant="contained" color="error" onClick={clearFilters}>Καθαρισμός φίλτρων</Button>
+      </Stack>
+      {selected.length > 0 && <Typography variant="caption" color="primary" sx={{ display: "block", mb: 1 }}>{selected.length} επιλεγμένα — το ZIP θα περιέχει μόνο αυτά.</Typography>}
+      {historyQ.isLoading ? <CircularProgress size={22} /> : historyQ.isError ? <Alert severity="error">Δεν φορτώθηκε το ιστορικό νομικών εντύπων.</Alert> : rows.length === 0 ? <Typography variant="body2" color="text.secondary">Δεν βρέθηκαν έντυπα με τα συγκεκριμένα φίλτρα.</Typography> : (
+        <TableContainer sx={{ maxHeight: 560 }}>
+          <Table size="small" stickyHeader>
+            <TableHead><TableRow>
+              <TableCell padding="checkbox"><Checkbox checked={allSelected} indeterminate={selected.length > 0 && !allSelected} onChange={toggleAll} /></TableCell>
+              <TableCell>Έντυπο</TableCell><TableCell>Πελάτης</TableCell><TableCell>Κατάσταση</TableCell><TableCell>Δημιουργήθηκε</TableCell><TableCell align="right">Αρχείο</TableCell>
+            </TableRow></TableHead>
+            <TableBody>{rows.map(row => <TableRow key={row.id} hover>
+              <TableCell padding="checkbox"><Checkbox checked={selected.includes(row.id)} onChange={() => toggleRow(row.id)} /></TableCell>
+              <TableCell>{legalFormLabels[row.formCode] ?? row.formCode}</TableCell>
+              <TableCell><Typography variant="body2" fontWeight={600}>{row.customerName || "—"}</Typography>{row.customerEmail && <Typography variant="caption" color="text.secondary" display="block">{row.customerEmail}</Typography>}</TableCell>
+              <TableCell><Chip size="small" label={legalStatusLabels[row.status] ?? row.status} color={row.status === "Completed" ? "success" : row.status === "Declined" ? "error" : "default"} /></TableCell>
+              <TableCell>{legalDate(row.createdAt)}</TableCell>
+              <TableCell align="right">{(row.hasFinalDocument || row.hasDraftDocument) && <Button size="small" startIcon={<PictureAsPdfIcon />} onClick={() => downloadRow(row.id)}>PDF</Button>}</TableCell>
+            </TableRow>)}</TableBody>
+          </Table>
+        </TableContainer>
       )}
     </Card>
   );
