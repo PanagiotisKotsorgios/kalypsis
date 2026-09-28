@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { MenuItem } from "@mui/material";
 import { SearchableSelect } from "./SearchableSelect";
 import type { SearchOption } from "./SearchableSelect";
+import type { TextFieldProps } from "@mui/material";
 
 /**
  * Drop-in replacement for `<TextField select ...>` that surfaces the
@@ -31,6 +32,7 @@ export interface SearchableTextFieldProps {
   disabled?: boolean;
   helperText?: ReactNode;
   placeholder?: string;
+  textFieldProps?: Partial<TextFieldProps>;
   sx?: unknown;
   // TextField props we accept-and-ignore so mechanical swaps don't
   // regress: `select`, `SelectProps`, `InputLabelProps`, `variant`, etc.
@@ -51,6 +53,7 @@ export function SearchableTextField({
   disabled,
   helperText,
   placeholder,
+  textFieldProps,
   sx,
 }: SearchableTextFieldProps) {
   const options = useMemo<SearchOption<string>[]>(() => {
@@ -91,6 +94,7 @@ export function SearchableTextField({
       disabled={disabled}
       helperText={helperText}
       placeholder={placeholder}
+      textFieldProps={textFieldProps}
       sx={sx as never}
     />
   );

@@ -32,6 +32,17 @@ import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import { IconButton, Tooltip } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import FilterAltOffIcon from "@mui/icons-material/FilterAltOff";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
+import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
+import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
+import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
+import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
+import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
+import LocationCityIcon from "@mui/icons-material/LocationCity";
+import MarkunreadMailboxOutlinedIcon from "@mui/icons-material/MarkunreadMailboxOutlined";
+import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
+import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -669,6 +680,11 @@ function CreateCustomerDialog({
             value={form.type}
             onChange={(e) => setForm({ ...form, type: e.target.value as CustomerType })}
             fullWidth
+            textFieldProps={{
+              InputProps: {
+                startAdornment: <InputAdornment position="start"><CategoryOutlinedIcon fontSize="small" /></InputAdornment>,
+              },
+            }}
           >
             <MenuItem value="Individual">{t("customers.individual")}</MenuItem>
             <MenuItem value="Company">{t("customers.company")}</MenuItem>
@@ -693,7 +709,10 @@ function CreateCustomerDialog({
                 onChange={(e) => setForm({ ...form, firstName: e.target.value })}
                 fullWidth
                 required
-                InputProps={{ endAdornment: <FilterHelp title="Όνομα πελάτη — όπως αναγράφεται στην αστυνομική ταυτότητα." /> }}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start"><PersonOutlineIcon fontSize="small" /></InputAdornment>,
+                  endAdornment: <FilterHelp title="Όνομα πελάτη — όπως αναγράφεται στην αστυνομική ταυτότητα." />,
+                }}
               />
               <TextField
                 label={t("customers.lastName")}
@@ -701,7 +720,10 @@ function CreateCustomerDialog({
                 onChange={(e) => setForm({ ...form, lastName: e.target.value })}
                 fullWidth
                 required
-                InputProps={{ endAdornment: <FilterHelp title="Επώνυμο πελάτη — όπως αναγράφεται στην αστυνομική ταυτότητα." /> }}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start"><BadgeOutlinedIcon fontSize="small" /></InputAdornment>,
+                  endAdornment: <FilterHelp title="Επώνυμο πελάτη — όπως αναγράφεται στην αστυνομική ταυτότητα." />,
+                }}
               />
             </Stack>
           ) : (
@@ -712,7 +734,10 @@ function CreateCustomerDialog({
                 onChange={(e) => setForm({ ...form, companyName: e.target.value })}
                 fullWidth
                 required
-                InputProps={{ endAdornment: <FilterHelp title="Επίσημη επωνυμία επιχείρησης όπως εμφανίζεται στα ΓΕΜΗ / τιμολόγια." /> }}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start"><BusinessOutlinedIcon fontSize="small" /></InputAdornment>,
+                  endAdornment: <FilterHelp title="Επίσημη επωνυμία επιχείρησης όπως εμφανίζεται στα ΓΕΜΗ / τιμολόγια." />,
+                }}
               />
               <TextField
                 label={t("customers.vatNumber")}
@@ -720,7 +745,10 @@ function CreateCustomerDialog({
                 onChange={(e) => setForm({ ...form, vatNumber: e.target.value })}
                 fullWidth
                 required={form.status !== "Prospect"}
-                InputProps={{ endAdornment: <FilterHelp title="ΑΦΜ επιχείρησης (9 ψηφία). Χρησιμοποιείται σε τιμολόγηση και έλεγχο διπλοεγγραφών." /> }}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start"><BadgeOutlinedIcon fontSize="small" /></InputAdornment>,
+                  endAdornment: <FilterHelp title="ΑΦΜ επιχείρησης (9 ψηφία). Χρησιμοποιείται σε τιμολόγηση και έλεγχο διπλοεγγραφών." />,
+                }}
               />
             </Stack>
           )}
@@ -731,7 +759,10 @@ function CreateCustomerDialog({
             onChange={(e) => setForm({ ...form, occupation: e.target.value })}
             fullWidth
             placeholder={form.type === "Company" ? "π.χ. Εστίαση, ξενοδοχείο, εμπόριο" : "π.χ. Ελεύθερος επαγγελματίας"}
-            InputProps={{ endAdornment: <FilterHelp title={form.type === "Company" ? "Κλάδος δραστηριότητας — βοηθά σε ανάλυση χαρτοφυλακίου ανά τομέα." : "Επάγγελμα πελάτη — αξιοποιείται σε cross-sell προτάσεις."} /> }}
+            InputProps={{
+              startAdornment: <InputAdornment position="start"><WorkOutlineIcon fontSize="small" /></InputAdornment>,
+              endAdornment: <FilterHelp title={form.type === "Company" ? "Κλάδος δραστηριότητας — βοηθά σε ανάλυση χαρτοφυλακίου ανά τομέα." : "Επάγγελμα πελάτη — αξιοποιείται σε cross-sell προτάσεις."} />,
+            }}
           />
 
           <TextField
@@ -740,14 +771,20 @@ function CreateCustomerDialog({
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             fullWidth
-            InputProps={{ endAdornment: <FilterHelp title="Email πελάτη. Χρησιμοποιείται για αποστολή συμβολαίων, ανανεώσεων και άλλων ειδοποιήσεων." /> }}
+            InputProps={{
+              startAdornment: <InputAdornment position="start"><EmailOutlinedIcon fontSize="small" /></InputAdornment>,
+              endAdornment: <FilterHelp title="Email πελάτη. Χρησιμοποιείται για αποστολή συμβολαίων, ανανεώσεων και άλλων ειδοποιήσεων." />,
+            }}
           />
           <TextField
             label={t("customers.phone")}
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
             fullWidth
-            InputProps={{ endAdornment: <FilterHelp title="Τηλέφωνο επικοινωνίας. Χρησιμοποιείται σε SMS ειδοποιήσεις και CRM δραστηριότητες." /> }}
+            InputProps={{
+              startAdornment: <InputAdornment position="start"><PhoneOutlinedIcon fontSize="small" /></InputAdornment>,
+              endAdornment: <FilterHelp title="Τηλέφωνο επικοινωνίας. Χρησιμοποιείται σε SMS ειδοποιήσεις και CRM δραστηριότητες." />,
+            }}
           />
 
           <TextField
@@ -755,7 +792,10 @@ function CreateCustomerDialog({
             value={form.address}
             onChange={(e) => setForm({ ...form, address: e.target.value })}
             fullWidth
-            InputProps={{ endAdornment: <FilterHelp title="Διεύθυνση αλληλογραφίας — οδός και αριθμός." /> }}
+            InputProps={{
+              startAdornment: <InputAdornment position="start"><HomeOutlinedIcon fontSize="small" /></InputAdornment>,
+              endAdornment: <FilterHelp title="Διεύθυνση αλληλογραφίας — οδός και αριθμός." />,
+            }}
           />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField
@@ -763,14 +803,20 @@ function CreateCustomerDialog({
               value={form.city}
               onChange={(e) => setForm({ ...form, city: e.target.value })}
               fullWidth
-              InputProps={{ endAdornment: <FilterHelp title="Πόλη κατοικίας/έδρας. Χρησιμοποιείται σε φίλτρα και reports ανά περιοχή." /> }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start"><LocationCityIcon fontSize="small" /></InputAdornment>,
+                endAdornment: <FilterHelp title="Πόλη κατοικίας/έδρας. Χρησιμοποιείται σε φίλτρα και reports ανά περιοχή." />,
+              }}
             />
             <TextField
               label={t("customers.postalCode")}
               value={form.postalCode}
               onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
               fullWidth
-              InputProps={{ endAdornment: <FilterHelp title="Ταχυδρομικός Κώδικας (5 ψηφία)." /> }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start"><MarkunreadMailboxOutlinedIcon fontSize="small" /></InputAdornment>,
+                endAdornment: <FilterHelp title="Ταχυδρομικός Κώδικας (5 ψηφία)." />,
+              }}
             />
           </Stack>
 
@@ -781,7 +827,10 @@ function CreateCustomerDialog({
             fullWidth
             multiline
             rows={2}
-            InputProps={{ endAdornment: <FilterHelp title="Προαιρετικά εσωτερικά σχόλια για τον πελάτη — προτιμήσεις, ιστορικό, ειδικές συμφωνίες." /> }}
+            InputProps={{
+              startAdornment: <InputAdornment position="start"><NotesOutlinedIcon fontSize="small" /></InputAdornment>,
+              endAdornment: <FilterHelp title="Προαιρετικά εσωτερικά σχόλια για τον πελάτη — προτιμήσεις, ιστορικό, ειδικές συμφωνίες." />,
+            }}
           />
 
         </Stack>

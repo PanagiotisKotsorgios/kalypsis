@@ -250,9 +250,11 @@ export function SearchableSelect<V = string>({
           sx={sx}
           {...textFieldProps}
           InputProps={{
+            ...textFieldProps?.InputProps,
             ...params.InputProps,
             startAdornment: (
               <>
+                {textFieldProps?.InputProps?.startAdornment}
                 {showSearchIcon && (
                   <InputAdornment position="start">
                     <SearchIcon fontSize="small" sx={{ color: "text.disabled" }} />
