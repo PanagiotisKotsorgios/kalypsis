@@ -20,6 +20,7 @@ import { useColumnPreferences } from "../hooks/useColumnPreferences";
 import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { QuickFilterBar } from "../components/QuickFilterBar";
+import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 
 const METHODS = ["Cash","Card","BankTransfer","Cheque","PromissoryNote","Other"] as const;
 type Method = typeof METHODS[number];
@@ -202,8 +203,10 @@ export function PaymentsPage() {
         </Box>
       )}
 
-      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
-        <QuickFilterBar
+      <ResponsiveFilterPanel
+        activeCount={paymentFilterCount}
+        title="Φίλτρα πληρωμών"
+        quickFilters={<QuickFilterBar
           activeCount={paymentFilterCount}
           onClear={clearPaymentFilters}
           options={[
@@ -213,7 +216,8 @@ export function PaymentsPage() {
             { key: "bank", label: "Τραπεζικές", active: methodFilter === "BankTransfer", onClick: () => setMethodFilter("BankTransfer") },
             { key: "thisMonth", label: "Τρέχων μήνας", active: fromDate === new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10) && !toDate, onClick: () => { const d = new Date(); setFromDate(new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)); setToDate(""); } },
           ]}
-        />
+        />}
+      >
         <Stack direction={{ xs: "column", md: "row" }} spacing={1} flexWrap="wrap" alignItems={{ md: "center" }} useFlexGap>
           <TextField size="small" placeholder="Αναζήτηση…"
             value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 200 }}
@@ -252,7 +256,7 @@ export function PaymentsPage() {
             clearPaymentFilters();
           }} color="error" variant="contained">Καθαρισμός</Button>
         </Stack>
-      </Card>
+      </ResponsiveFilterPanel>
 
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       {q.isLoading ? <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box> : (

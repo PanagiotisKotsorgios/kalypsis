@@ -3,6 +3,7 @@ import { Alert, Box, Card, Chip, CircularProgress, FormControlLabel, Stack, Swit
 import { useQuery } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { QuickFilterBar } from "../components/QuickFilterBar";
+import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 
 interface AccountRow {
   customerId: string; customerName: string; charges: number; credits: number;
@@ -27,8 +28,10 @@ export function CustomerAccountsPage() {
   const fmt = (n: number) => n.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return (
     <Stack spacing={2}>
-      <Card variant="outlined" sx={{ p: 2 }}>
-        <QuickFilterBar
+      <ResponsiveFilterPanel
+        activeCount={[from, to, onlyDebtors ? "debtors" : "", onlyOverdue ? "overdue" : "", onlyCreditors ? "creditors" : ""].filter(Boolean).length}
+        title="Φίλτρα υπολοίπων"
+        quickFilters={<QuickFilterBar
           activeCount={[from, to, onlyDebtors ? "debtors" : "", onlyOverdue ? "overdue" : "", onlyCreditors ? "creditors" : ""].filter(Boolean).length}
           onClear={() => { setFrom(""); setTo(""); setOnlyDebtors(false); setOnlyOverdue(false); setOnlyCreditors(false); }}
           options={[
@@ -37,14 +40,15 @@ export function CustomerAccountsPage() {
             { key: "creditors", label: "Πιστωτικοί", active: onlyCreditors, color: "info", onClick: () => { setOnlyDebtors(false); setOnlyOverdue(false); setOnlyCreditors(true); } },
             { key: "all", label: "Όλοι", active: !onlyDebtors && !onlyOverdue && !onlyCreditors, onClick: () => { setOnlyDebtors(false); setOnlyOverdue(false); setOnlyCreditors(false); } },
           ]}
-        />
+        />}
+      >
         <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
           <TextField size="small" type="date" label="Από μήνα/ημερομηνία" InputLabelProps={{ shrink: true }} value={from} onChange={e => setFrom(e.target.value)} />
           <TextField size="small" type="date" label="Έως μήνα/ημερομηνία" InputLabelProps={{ shrink: true }} value={to} onChange={e => setTo(e.target.value)} />
           <FormControlLabel control={<Switch checked={onlyDebtors} onChange={e => setOnlyDebtors(e.target.checked)} />} label="Μόνο χρεωστικά υπόλοιπα" />
           <FormControlLabel control={<Switch checked={onlyOverdue} onChange={e => setOnlyOverdue(e.target.checked)} />} label="Μόνο ληξιπρόθεσμα" />
         </Stack>
-      </Card>
+      </ResponsiveFilterPanel>
       {q.isLoading && <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}><CircularProgress /></Box>}
       {q.isError && <Alert severity="error">{extractErrorMessage(q.error)}</Alert>}
       {!q.isLoading && !q.isError && (q.data ?? []).length === 0 && <Alert severity="info">Δεν υπάρχουν οφειλές με τα επιλεγμένα φίλτρα.</Alert>}

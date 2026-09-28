@@ -40,6 +40,7 @@ import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 import { QuickFilterBar } from "../components/QuickFilterBar";
+import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type ClaimStatus = "Reported" | "UnderReview" | "Approved" | "Rejected" | "Paid" | "Closed";
@@ -251,8 +252,10 @@ export function ClaimsPage() {
       </Stack>
 
       {!isCustomer && (
-        <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
-          <QuickFilterBar
+        <ResponsiveFilterPanel
+          activeCount={claimFilterCount}
+          title="Φίλτρα ζημιών"
+          quickFilters={<QuickFilterBar
             activeCount={claimFilterCount}
             onClear={clearClaimFilters}
             options={[
@@ -263,7 +266,8 @@ export function ClaimsPage() {
               { key: "90", label: "Τελευταίες 90 ημέρες", active: dateWindow === "90", onClick: () => setDateWindow("90") },
               { key: "paid", label: "Πληρωμένες", active: statusFilter === "Paid", color: "success", onClick: () => { setDateWindow(""); setStatusFilter("Paid"); } },
             ]}
-          />
+          />}
+        >
           {/* Dense grid — search+status on line 1, carrier/branch/use/cover
               on line 2, package/dates/clear on line 3 — 3 rows on desktop
               instead of the ~6-row wrap the flex layout produced. */}
@@ -345,7 +349,7 @@ export function ClaimsPage() {
               value={toDate} onChange={(e) => setToDate(e.target.value)} />
             <Button size="small" fullWidth onClick={clearClaimFilters} color="error" variant="contained">Καθαρισμός</Button>
           </Box>
-        </Card>
+        </ResponsiveFilterPanel>
       )}
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}

@@ -57,6 +57,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { date } from "../utils/format";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { QuickFilterBar } from "../components/QuickFilterBar";
+import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 
 type DocumentType = "Policy" | "GreenCard" | "Roadside" | "Invoice" | "Other";
 
@@ -203,8 +204,10 @@ export function DocumentsPage() {
 
       {/* Filters — compact single-row on desktop, wraps to 2 lines at most.
           Each filter gets a right-side ⓘ tooltip with a Greek explanation. */}
-      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
-        <QuickFilterBar
+      <ResponsiveFilterPanel
+        activeCount={anyFilterActive ? 1 : 0}
+        title="Φίλτρα εγγράφων"
+        quickFilters={<QuickFilterBar
           activeCount={anyFilterActive ? 1 : 0}
           onClear={clearDocumentFilters}
           options={[
@@ -214,7 +217,8 @@ export function DocumentsPage() {
             { key: "recent30", label: "Τελευταίες 30 ημέρες", active: Boolean(from && from === new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10)), onClick: () => { setFrom(new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10)); setTo(""); } },
             { key: "recent90", label: "Τελευταίες 90 ημέρες", active: Boolean(from && from === new Date(Date.now() - 89 * 86400000).toISOString().slice(0, 10)), onClick: () => { setFrom(new Date(Date.now() - 89 * 86400000).toISOString().slice(0, 10)); setTo(""); } },
           ]}
-        />
+        />}
+      >
         <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
           <FilterListIcon color="action" fontSize="small" sx={{ display: { xs: "none", md: "inline-flex" } }} />
           <TextField
@@ -269,7 +273,7 @@ export function DocumentsPage() {
             sx={{ ml: "auto" }}
           />
         </Stack>
-      </Card>
+      </ResponsiveFilterPanel>
 
       {docsQuery.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>

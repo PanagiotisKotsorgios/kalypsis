@@ -65,6 +65,7 @@ import { useUndoable } from "../components/UndoToast";
 import { useColumnPreferences } from "../hooks/useColumnPreferences";
 import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 import { QuickFilterBar } from "../components/QuickFilterBar";
+import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal" | "Undelivered" | "AwaitingIssue" | "Prospect";
@@ -446,8 +447,10 @@ export function PoliciesPage() {
         </Alert>
       )}
       {!isCustomer && (
-        <Card sx={{ px: 1.5, py: 1.25, mb: 2 }} data-tour="policies-search">
-          <QuickFilterBar
+        <ResponsiveFilterPanel
+          activeCount={policyFilterCount}
+          title="Φίλτρα συμβολαίων"
+          quickFilters={<QuickFilterBar
             activeCount={policyFilterCount}
             onClear={clearPolicyFilters}
             options={[
@@ -463,7 +466,8 @@ export function PoliciesPage() {
               { key: "direct", label: "Πληρώθηκαν απευθείας", active: paymentRouteFilter === "direct", color: "info", onClick: () => setPaymentRouteFilter("direct") },
               { key: "office", label: "Πληρωμή στο γραφείο", active: paymentRouteFilter === "office", onClick: () => setPaymentRouteFilter("office") },
             ]}
-          />
+          />}
+        >
           {/* Dense 4-col grid — search spans the full first row so it stays
               scannable, all other filters (~11) share the grid below so the
               whole block fits in 3–4 lines on desktop instead of six. */}
@@ -565,7 +569,7 @@ export function PoliciesPage() {
             </SearchableTextField>
             <Button size="small" fullWidth onClick={clearPolicyFilters} color="error" variant="contained">Καθαρισμός</Button>
           </Box>
-        </Card>
+        </ResponsiveFilterPanel>
       )}
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}

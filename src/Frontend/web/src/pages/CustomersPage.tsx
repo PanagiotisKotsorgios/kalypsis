@@ -42,6 +42,7 @@ import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { QuickFilterBar } from "../components/QuickFilterBar";
+import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 
 type CustomerType = "Individual" | "Company";
 type CustomerStatus = "Prospect" | "Active" | "Inactive" | "Churned" | "Blocked";
@@ -338,8 +339,10 @@ export function CustomersPage() {
         </Stack>
       </Stack>
 
-      <Card sx={{ mb: 2, px: 1.5, py: 1.25 }} data-tour="customers-search">
-        <QuickFilterBar
+      <ResponsiveFilterPanel
+        activeCount={customerFilterCount}
+        title="Φίλτρα πελατών"
+        quickFilters={<QuickFilterBar
           activeCount={customerFilterCount}
           onClear={clearFilters}
           options={[
@@ -351,7 +354,8 @@ export function CustomersPage() {
             { key: "last7", label: "Οφειλές 7 ημερών", active: paymentWindow === "last7", onClick: () => setPaymentWindow("last7") },
             { key: "last30", label: "Οφειλές 30 ημερών", active: paymentWindow === "last30", onClick: () => setPaymentWindow("last30") },
           ]}
-        />
+        />}
+      >
         <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
           <TextField
             size="small"
@@ -415,7 +419,7 @@ export function CustomersPage() {
             Καθαρισμός φίλτρων
           </Button>
         </Stack>
-      </Card>
+      </ResponsiveFilterPanel>
 
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} mb={2} flexWrap="wrap" useFlexGap>
         <Chip color={paymentFilter === "debtors" ? "error" : "default"} variant={paymentFilter === "debtors" ? "filled" : "outlined"}

@@ -28,6 +28,7 @@ import { printTable } from "../utils/printableTable";
 import { useHeaderContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
 import { QuickFilterBar } from "../components/QuickFilterBar";
+import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 
 interface Carrier { id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null; }
 interface Producer { id: string; name: string; }
@@ -505,7 +506,13 @@ export function ProductionListsPage() {
       </Alert>
 
 
-      <Card sx={{ px: 1.75, py: 1.25, mb: 3 }}>
+      <ResponsiveFilterPanel
+        activeCount={[
+          f.insuranceCompanyId, f.producerId, f.policyType, f.vehicleUseCategory,
+          f.coverCode, f.packageCode, f.status,
+        ].filter(Boolean).length}
+        title="Φίλτρα λίστας παραγωγής"
+      >
         <Stack direction="row" alignItems="center" spacing={1} mb={1}>
           <FilterAltIcon color="primary" fontSize="small" />
           <Typography fontWeight={700} variant="body2">{t("productionList.filters")}</Typography>
@@ -652,7 +659,7 @@ export function ProductionListsPage() {
               status: "", groupBy: "carrier"
             })} color="error" variant="contained">Καθαρισμός φίλτρων</Button>
         </Stack>
-      </Card>
+      </ResponsiveFilterPanel>
 
       {q.isLoading ? <CircularProgress /> : !q.data ? null : (
         <>

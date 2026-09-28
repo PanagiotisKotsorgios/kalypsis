@@ -33,6 +33,7 @@ import { SearchableTextField } from "../components/SearchableTextField";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { money } from "../utils/format";
 import { QuickFilterBar } from "../components/QuickFilterBar";
+import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
 
 type ProducerStatus = "Active" | "Suspended" | "Terminated" | "Prospect";
 type ProducerTier = "None" | "A" | "B" | "C" | "D" | "E";
@@ -181,8 +182,10 @@ export function ProducersPage() {
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
 
-      <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
-        <QuickFilterBar
+      <ResponsiveFilterPanel
+        activeCount={[statusFilter, tierFilter, hasPoliciesOnly ? "policies" : "", hierarchyFilter, table.query].filter(Boolean).length}
+        title="Φίλτρα συνεργατών"
+        quickFilters={<QuickFilterBar
           activeCount={[statusFilter, tierFilter, hasPoliciesOnly ? "policies" : "", hierarchyFilter, table.query].filter(Boolean).length}
           onClear={() => { setStatusFilter(""); setTierFilter(""); setHasPoliciesOnly(false); setHierarchyFilter(""); table.setQuery(""); table.setPage(1); }}
           options={[
@@ -192,7 +195,8 @@ export function ProducersPage() {
             { key: "withPolicies", label: "Με συμβόλαια", active: hasPoliciesOnly, onClick: () => setHasPoliciesOnly(true) },
             { key: "managers", label: "Υπεύθυνοι ομάδας", active: hierarchyFilter === "Manager", onClick: () => setHierarchyFilter("Manager") },
           ]}
-        />
+        />}
+      >
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }} flexWrap="wrap" useFlexGap>
           <FilterFieldWrap tip="Φιλτράρετε τους συνεργάτες ανά κατάσταση (Ενεργός, Ανενεργός, Τερματισμένος).">
             <SearchableTextField size="small" label={t("producers.col.status")}
@@ -231,7 +235,7 @@ export function ProducersPage() {
           <Box sx={{ flex: 1 }} />
           <Button size="small" onClick={() => { setStatusFilter(""); setTierFilter(""); setHasPoliciesOnly(false); setHierarchyFilter(""); table.setQuery(""); table.setPage(1); }} color="error" variant="contained">Καθαρισμός</Button>
         </Stack>
-      </Card>
+      </ResponsiveFilterPanel>
 
       <Box sx={{ mb: 2 }}>
         <TableToolbar<ProducerDto>
