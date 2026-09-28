@@ -21,6 +21,7 @@ import {
   AnimatedKpiCard, ChartCard, ModernAreaChart, ModernBarChart, ModernDonutChart,
 } from "../../components/ModernDashboard";
 import { QuickFilterBar } from "../../components/QuickFilterBar";
+import { QuickFilterPopup } from "../../components/QuickFilterPopup";
 
 interface KpiDto {
   customers: number;
@@ -100,7 +101,7 @@ export function AgencyAdminDashboard() {
         </Box>
         <Chip label="Όλο το γραφείο" color="primary" />
       </Stack>
-      <Card variant="outlined" sx={{ mb: 2, px: 1.5, py: 1 }}>
+      <QuickFilterPopup>
         <QuickFilterBar
           label="Περίοδος dashboard"
           options={[
@@ -108,7 +109,7 @@ export function AgencyAdminDashboard() {
             { key: "6", label: "Τελευταίοι 6 μήνες", active: chartMonths === 6, onClick: () => setChartMonths(6) },
           ]}
         />
-      </Card>
+      </QuickFilterPopup>
 
       {/* KPI strip — 6 animated cards, one per key metric. */}
       <Box sx={{

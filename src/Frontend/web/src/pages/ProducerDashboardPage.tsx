@@ -14,6 +14,7 @@ import { api } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
 import { money, num } from "../utils/format";
 import { QuickFilterBar } from "../components/QuickFilterBar";
+import { QuickFilterPopup } from "../components/QuickFilterPopup";
 
 interface SeriesPoint { label: string; value: number }
 interface CarrierShare { carrier: string; policies: number; premium: number }
@@ -130,7 +131,7 @@ export function ProducerDashboardPage() {
           label="Εξαγωγή προμηθειών"
         />
       </Stack>
-      <Card variant="outlined" sx={{ mb: 2, px: 1.5, py: 1 }}>
+      <QuickFilterPopup>
         <QuickFilterBar
           label="Περίοδος dashboard"
           options={[
@@ -138,7 +139,7 @@ export function ProducerDashboardPage() {
             { key: "6", label: "Τελευταίοι 6 μήνες", active: chartMonths === 6, onClick: () => setChartMonths(6) },
           ]}
         />
-      </Card>
+      </QuickFilterPopup>
 
       {/* KPI tiles */}
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(5, 1fr)" }, mb: 3 }}>

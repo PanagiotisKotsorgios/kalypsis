@@ -512,12 +512,7 @@ export function ProductionListsPage() {
           f.coverCode, f.packageCode, f.status,
         ].filter(Boolean).length}
         title="Φίλτρα λίστας παραγωγής"
-      >
-        <Stack direction="row" alignItems="center" spacing={1} mb={1}>
-          <FilterAltIcon color="primary" fontSize="small" />
-          <Typography fontWeight={700} variant="body2">{t("productionList.filters")}</Typography>
-        </Stack>
-        <QuickFilterBar
+        quickFilters={<QuickFilterBar
           activeCount={[
             f.insuranceCompanyId, f.producerId, f.policyType, f.vehicleUseCategory,
             f.coverCode, f.packageCode, f.status,
@@ -534,7 +529,12 @@ export function ProductionListsPage() {
             { key: "producer", label: "Ανά συνεργάτη", active: f.groupBy === "producer", onClick: () => setF({ ...f, groupBy: "producer" }) },
             { key: "type", label: "Ανά κλάδο", active: f.groupBy === "type", onClick: () => setF({ ...f, groupBy: "type" }) },
           ]}
-        />
+        />}
+      >
+        <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+          <FilterAltIcon color="primary" fontSize="small" />
+          <Typography fontWeight={700} variant="body2">{t("productionList.filters")}</Typography>
+        </Stack>
         {/* Compact grid — 6 columns on lg, 3 on md. Same ? position unchanged
             (next to the page title above). */}
         <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)", lg: "repeat(6, 1fr)" } }}>

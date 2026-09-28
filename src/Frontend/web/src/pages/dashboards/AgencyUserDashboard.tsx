@@ -19,6 +19,7 @@ import {
   AnimatedKpiCard, ChartCard, ModernAreaChart, ModernDonutChart,
 } from "../../components/ModernDashboard";
 import { QuickFilterBar } from "../../components/QuickFilterBar";
+import { QuickFilterPopup } from "../../components/QuickFilterPopup";
 import { useState } from "react";
 
 interface AgencyUserKpi {
@@ -91,7 +92,7 @@ export function AgencyUserDashboard() {
         <Chip label="Δικά μου δεδομένα" color="secondary" />
       </Stack>
 
-      <Card variant="outlined" sx={{ mb: 2, px: 1.5, py: 1 }}>
+      <QuickFilterPopup>
         <QuickFilterBar
           label="Περίοδος dashboard"
           options={[
@@ -99,7 +100,7 @@ export function AgencyUserDashboard() {
             { key: "6", label: "Τελευταίοι 6 μήνες", active: chartMonths === 6, onClick: () => setChartMonths(6) },
           ]}
         />
-      </Card>
+      </QuickFilterPopup>
 
       <Box sx={{
         display: "grid", gap: 2, mb: 3,
