@@ -38,7 +38,13 @@ public sealed class CustomerFormSigningController : ControllerBase
         IReadOnlyList<FormTemplateFieldDto> Fields);
     public sealed record UpdateFormTemplateBody(string? Name, string? HeaderHtml, string? BodyHtml, string? FooterHtml, bool ResetToDefault = false);
     public sealed record CreateFormBody(Guid? PolicyId, bool? RequireOfficeSignature, bool? RequireInsurerSignature, bool? SendInsurerEmail, string? Notes, string? FormCode = null, Dictionary<string, string?>? Fields = null);
-    public sealed record PreviewFormBody(Guid? PolicyId, string? FormCode = null, Dictionary<string, string?>? Fields = null);
+    public sealed record PreviewFormBody(
+        Guid? PolicyId,
+        string? FormCode = null,
+        Dictionary<string, string?>? Fields = null,
+        string? HeaderHtml = null,
+        string? BodyHtml = null,
+        string? FooterHtml = null);
     public sealed record SigningDto(Guid Id, Guid CustomerId, Guid? PolicyId, string FormCode, string Status, bool? CustomerConsented, string CustomerName, string? CustomerEmail, string? OfficeEmail, string? InsurerEmail, DateTime CreatedAt, DateTime ExpiresAt, DateTime? CustomerSignedAt, DateTime? OfficeSignedAt, DateTime? InsurerSignedAt, DateTime? CompletedAt, string? FinalDocumentPath, bool HasFinalDocument);
     public sealed record PublicFormDto(string AgencyName, string? AgencyLogoUrl, string CustomerName, string? CustomerEmail, string Role, string FormTitle, string ExpiresAt, bool CanSign, string? PolicyNumber, string FormCode = "gdpr-consent");
     public sealed record SignBody(bool Consented, string SignerName, string SignatureDataUrl);
@@ -157,6 +163,26 @@ public sealed class CustomerFormSigningController : ControllerBase
             .FirstAsync(x => x.Id == tenantId, ct);
         var collaboratingInsurers = await GetCollaboratingInsurersAsync(tenantId, ct);
         var template = await EnsureFormTemplateAsync(tenantId, formCode, ct);
+        // The template editor needs a true PDF preview before the draft is
+        // saved. Use an in-memory copy for the posted draft so previewing
+        // never changes the office template in the database.
+        if (body.HeaderHtml is not null || body.BodyHtml is not null || body.FooterHtml is not null)
+        {
+            template = new DocumentTemplate
+            {
+                TenantId = tenantId,
+                Code = template.Code,
+                Name = template.Name,
+                Kind = template.Kind,
+                PageSize = template.PageSize,
+                Orientation = template.Orientation,
+                HeaderHtml = SanitizeTemplateHtml(body.HeaderHtml),
+                BodyHtml = SanitizeTemplateHtml(body.BodyHtml),
+                FooterHtml = SanitizeTemplateHtml(body.FooterHtml),
+                IsDefault = template.IsDefault,
+                IsActive = template.IsActive
+            };
+        }
         var data = BuildFormData(customer, office, policy, body.Fields, collaboratingInsurers);
         AddTemplateSnapshot(data, formCode, template);
         var draft = new CustomerFormSigning

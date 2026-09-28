@@ -11,6 +11,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -140,11 +141,9 @@ export function LegalTemplatesPage() {
 
           <Card variant="outlined" sx={{ p: 2, mb: 2 }}>
             <Typography variant="body2" color="text.secondary">
-              <strong>Οδηγία χρήσης:</strong> Ανοίξτε το έντυπο, επεξεργαστείτε αν
-              χρειάζεται με «Επεξεργασία» και αποθηκεύστε τις αλλαγές με «Αποθήκευση».
-              Οι αλλαγές παραμένουν στο γραφείο σας. Πατήστε «Εκτύπωση» ή
-              «Αποθήκευση PDF» και επιλέξτε <em>«Αποθήκευση ως PDF»</em> στον διάλογο
-              εκτύπωσης του browser. Με «Επαναφορά» επιστρέφετε στο πρότυπο κείμενο.
+              <strong>Γρήγορη επεξεργασία:</strong> Επιλέξτε έντυπο, αλλάξτε το κύριο κείμενο
+              και χρησιμοποιήστε τα πεδία ως chips για αυτόματη συμπλήρωση. Η δεξιά προεπισκόπηση
+              είναι το τελικό εκτυπώσιμο A4 PDF και ενημερώνεται αυτόματα. Αποθηκεύστε όταν είστε έτοιμοι.
             </Typography>
           </Card>
 
@@ -159,12 +158,24 @@ function OfficeFormTemplatesPanel({ agency }: { agency: AgencyProfile }) {
   const qc = useQueryClient();
   const [selectedCode, setSelectedCode] = useState<string>("");
   const [draft, setDraft] = useState({ headerHtml: "", bodyHtml: "", footerHtml: "" });
+  const [showLayoutParts, setShowLayoutParts] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const templates = useQuery({
     queryKey: ["customer-form-templates"],
     queryFn: async () => (await api.get<CustomerFormTemplate[]>("/customer-form-templates")).data
   });
   const current = (templates.data ?? []).find(x => x.formCode === selectedCode) ?? templates.data?.[0];
+  const sampleCustomer = useQuery({
+    queryKey: ["legal-template-preview-customer"],
+    queryFn: async () => {
+      const response = await api.get<Array<{ id: string; firstName?: string; lastName?: string; companyName?: string }>>("/customers", { params: { limit: 1 } });
+      return response.data[0] ?? null;
+    },
+    staleTime: 5 * 60_000,
+  });
 
   useEffect(() => {
     if (current && current.formCode !== selectedCode) setSelectedCode(current.formCode);
@@ -174,6 +185,43 @@ function OfficeFormTemplatesPanel({ agency }: { agency: AgencyProfile }) {
       footerHtml: current.footerHtml ?? ""
     });
   }, [current?.formCode, current?.headerHtml, current?.bodyHtml, current?.footerHtml]);
+
+  // Render the exact server-side A4 PDF with the current unsaved draft. A
+  // short debounce keeps typing smooth while the preview stays printable.
+  useEffect(() => {
+    const customerId = sampleCustomer.data?.id;
+    if (!current || !customerId) {
+      setPdfUrl(null);
+      setPdfError(null);
+      return;
+    }
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setPdfLoading(true);
+      setPdfError(null);
+      try {
+        const response = await api.post<Blob>(`/customers/${customerId}/form-preview`, {
+          formCode: current.formCode,
+          headerHtml: draft.headerHtml,
+          bodyHtml: draft.bodyHtml,
+          footerHtml: draft.footerHtml,
+        }, { responseType: "blob" });
+        const nextUrl = URL.createObjectURL(response.data);
+        if (!active) { URL.revokeObjectURL(nextUrl); return; }
+        setPdfUrl(previous => {
+          if (previous) URL.revokeObjectURL(previous);
+          return nextUrl;
+        });
+      } catch {
+        if (active) setPdfError("Δεν ήταν δυνατή η δημιουργία του PDF. Ελέγξτε ότι υπάρχει τουλάχιστον ένας πελάτης.");
+      } finally {
+        if (active) setPdfLoading(false);
+      }
+    }, 650);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [current?.formCode, draft.headerHtml, draft.bodyHtml, draft.footerHtml, sampleCustomer.data?.id]);
+
+  useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
 
   const save = useMutation({
     mutationFn: async (resetToDefault: boolean) => (await api.put(`/customer-form-templates/${current!.formCode}`, {
@@ -236,30 +284,37 @@ function OfficeFormTemplatesPanel({ agency }: { agency: AgencyProfile }) {
               <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.12fr) minmax(360px, .88fr)" }, gap: 2, alignItems: "start" }}>
                 <Box>
                   <WysiwygEditor
-                    label="Περιεχόμενο εντύπου"
+                    label="Κύριο κείμενο"
                     minRows={14}
                     value={draft.bodyHtml}
                     onChange={bodyHtml => setDraft(prev => ({ ...prev, bodyHtml }))}
                     fieldOptions={current.fields}
-                    placeholder="Γράψτε το κείμενο του εντύπου…"
+                    placeholder="Γράψτε εδώ το κείμενο του εντύπου…"
                   />
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 1.5 }}>
+                  <Button size="small" sx={{ mt: 1.25 }} onClick={() => setShowLayoutParts(v => !v)}>
+                    {showLayoutParts ? "Απόκρυψη κεφαλίδας / υποσέλιδου" : "Ρυθμίσεις κεφαλίδας / υποσέλιδου"}
+                  </Button>
+                  {showLayoutParts && <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 1 }}>
                     <Box sx={{ flex: 1 }}>
-                      <WysiwygEditor label="Κεφαλίδα" minRows={3} value={draft.headerHtml}
+                      <WysiwygEditor label="Κεφαλίδα" minRows={4} value={draft.headerHtml}
                         onChange={headerHtml => setDraft(prev => ({ ...prev, headerHtml }))}
                         fieldOptions={current.fields} />
                     </Box>
                     <Box sx={{ flex: 1 }}>
-                      <WysiwygEditor label="Υποσέλιδο" minRows={3} value={draft.footerHtml}
+                      <WysiwygEditor label="Υποσέλιδο" minRows={4} value={draft.footerHtml}
                         onChange={footerHtml => setDraft(prev => ({ ...prev, footerHtml }))}
                         fieldOptions={current.fields} />
                     </Box>
-                  </Stack>
+                  </Stack>}
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                    Οι υπογραφές πελάτη, γραφείου και ασφαλιστικής προστίθενται αυτόματα στο τελικό υπογεγραμμένο PDF.
+                    Το PDF χρησιμοποιεί αυτόματα το λογότυπο του γραφείου και τα πεδία υπογραφής.
                   </Typography>
                 </Box>
-                <OfficeFormTemplatePreview formName={labelFor(current.formCode)} draft={draft} agency={agency} />
+                <OfficeFormTemplatePreview
+                  formName={labelFor(current.formCode)} draft={draft} agency={agency}
+                  pdfUrl={pdfUrl} pdfLoading={pdfLoading} pdfError={pdfError}
+                  sampleCustomer={sampleCustomer.data}
+                />
               </Box>
             </>
           )}
@@ -308,7 +363,17 @@ function previewHtml(html: string): string {
   });
 }
 
-function OfficeFormTemplatePreview({ formName, draft, agency }: { formName: string; draft: { headerHtml: string; bodyHtml: string; footerHtml: string }; agency: AgencyProfile }) {
+function OfficeFormTemplatePreview({
+  formName, draft, agency, pdfUrl, pdfLoading, pdfError, sampleCustomer
+}: {
+  formName: string;
+  draft: { headerHtml: string; bodyHtml: string; footerHtml: string };
+  agency: AgencyProfile;
+  pdfUrl: string | null;
+  pdfLoading: boolean;
+  pdfError: string | null;
+  sampleCustomer?: { id: string; firstName?: string; lastName?: string; companyName?: string } | null;
+}) {
   const srcDoc = useMemo(() => {
     const header = previewHtml(draft.headerHtml);
     const body = previewHtml(draft.bodyHtml);
@@ -335,9 +400,30 @@ function OfficeFormTemplatePreview({ formName, draft, agency }: { formName: stri
         <Typography fontWeight={800}>Προεπισκόπηση εγγράφου</Typography>
       </Stack>
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", px: 0.5, pb: 1 }}>
-        Ενημερώνεται αμέσως όσο επεξεργάζεστε το πλήρες έντυπο. Τα κίτρινα πεδία είναι μεταβλητές που συμπληρώνονται αυτόματα.
+        Τελικό A4 PDF με στοιχεία δείγματος από την καρτέλα πελάτη. Ενημερώνεται αυτόματα μετά από κάθε αλλαγή.
       </Typography>
-      <iframe title={`Προεπισκόπηση ${formName}`} srcDoc={srcDoc} sandbox="" style={{ width: "100%", height: 760, border: 0, display: "block", borderRadius: 6 }} />
+      {pdfUrl ? (
+        <>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 0.5, pb: 1 }}>
+            <Chip size="small" color="success" icon={<PictureAsPdfIcon />} label="Έτοιμο PDF" />
+            {sampleCustomer && <Typography variant="caption" color="text.secondary" noWrap>
+              Δείγμα: {sampleCustomer.companyName || `${sampleCustomer.firstName ?? ""} ${sampleCustomer.lastName ?? ""}`.trim() || "πελάτης"}
+            </Typography>}
+            <Box sx={{ flex: 1 }} />
+            <Button component="a" href={pdfUrl} target="_blank" rel="noopener" size="small" startIcon={<OpenInNewIcon />}>
+              Άνοιγμα PDF
+            </Button>
+          </Stack>
+          <iframe title={`Τελικό PDF ${formName}`} src={pdfUrl} style={{ width: "100%", height: 760, border: 0, display: "block", borderRadius: 6, background: "#eef2f7" }} />
+        </>
+      ) : (
+        <>
+          {pdfLoading && <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 0.5, pb: 1 }}><CircularProgress size={16} /><Typography variant="caption">Δημιουργία PDF…</Typography></Stack>}
+          {pdfError && <Alert severity="warning" sx={{ mb: 1 }}>{pdfError}</Alert>}
+          {!sampleCustomer && !pdfLoading && <Alert severity="info" sx={{ mb: 1 }}>Προσθέστε έναν πελάτη για να ενεργοποιηθεί η πραγματική προεπισκόπηση PDF.</Alert>}
+          <iframe title={`Προεπισκόπηση ${formName}`} srcDoc={srcDoc} sandbox="" style={{ width: "100%", height: 760, border: 0, display: "block", borderRadius: 6 }} />
+        </>
+      )}
     </Card>
   );
 }
