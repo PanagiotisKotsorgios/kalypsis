@@ -818,12 +818,24 @@ public sealed class CustomerFormSigningController : ControllerBase
             Add("waterSkiers", "Water skiers / liability");
             Add("racingRisks", "Racing risks");
             Add("replacementValues", "Αξίες αντικατάστασης");
+            Add("insuredHull", "Ασφαλιζόμενη αξία: κύτος / hull");
+            Add("insuredMachinery", "Ασφαλιζόμενη αξία: μηχανές");
+            Add("insuredRigging", "Ασφαλιζόμενη αξία: ιστία / ιστός");
+            Add("insuredOutboard", "Ασφαλιζόμενη αξία: εξωλέμβια");
+            Add("insuredDinghy", "Ασφαλιζόμενη αξία: βοηθητικό σκάφος");
+            Add("insuredNavigation", "Ασφαλιζόμενη αξία: εξοπλισμός ναυσιπλοΐας");
+            Add("insuredLifeRaft", "Ασφαλιζόμενη αξία: σωστική λέμβος");
+            Add("insuredAutopilot", "Ασφαλιζόμενη αξία: αυτόματος πιλότος");
+            Add("insuredOther", "Ασφαλιζόμενη αξία: άλλος εξοπλισμός");
+            Add("insuredPersonalItems", "Ασφαλιζόμενη αξία: προσωπικά αντικείμενα");
+            Add("totalInsuredValue", "Σύνολο ασφαλιζόμενης αξίας");
             Add("roadTransit", "Οδική μεταφορά");
             Add("claimsLastFiveYears", "Ζημιές τελευταίας 5ετίας");
             Add("loan", "Υπάρχει δάνειο");
             Add("loanAmount", "Ποσό δανείου");
             Add("insuredFrom", "Ασφαλιστική περίοδος από");
             Add("insuredTo", "Ασφαλιστική περίοδος έως");
+            Add("city", "Πόλη υπογραφής");
             Add("premiumPayment", "Πληρωμή ασφαλίστρων");
             Add("additionalInformation", "Παρατηρήσεις / πρόσθετες πληροφορίες");
         }
