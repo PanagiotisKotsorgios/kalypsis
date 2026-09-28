@@ -39,6 +39,7 @@ import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
+import { QuickFilterBar } from "../components/QuickFilterBar";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type ClaimStatus = "Reported" | "UnderReview" | "Approved" | "Rejected" | "Paid" | "Closed";
@@ -127,6 +128,7 @@ export function ClaimsPage() {
   const [packageFilter,  setPackageFilter]  = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate,   setToDate]   = useState("");
+  const [dateWindow, setDateWindow] = useState<"" | "7" | "30" | "90">("");
 
   const carriersQ = useQuery({
     queryKey: ["carriers-claims-filter"],
@@ -178,6 +180,13 @@ export function ClaimsPage() {
     }
     if (fromDate && c.incidentDate < fromDate) return false;
     if (toDate   && c.incidentDate > toDate)   return false;
+    if (dateWindow) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const start = new Date(today);
+      start.setDate(start.getDate() - Number(dateWindow) + 1);
+      if (c.incidentDate < start.toISOString().slice(0, 10) || c.incidentDate > today.toISOString().slice(0, 10)) return false;
+    }
     return true;
   });
   const table = useTableState<ClaimDto>({
@@ -188,6 +197,16 @@ export function ClaimsPage() {
     initialSortDir: "desc"
   });
   const rows = table.paged;
+  const clearClaimFilters = () => {
+    setStatusFilter(""); setCustomerFilter(""); setCarrierFilter(""); setSubCarrierFilter([]);
+    setTypeFilter(""); setUseFilter(""); setCoverFilter(""); setPackageFilter("");
+    setFromDate(""); setToDate(""); setDateWindow("");
+    table.setQuery(""); table.setPage(1);
+  };
+  const claimFilterCount = [
+    statusFilter, customerFilter, carrierFilter, typeFilter, useFilter, coverFilter,
+    packageFilter, fromDate, toDate, dateWindow, table.query,
+  ].filter(Boolean).length;
 
   // Right-click on a header → sort by that column. On a row → open edit.
   const headerMenu = useHeaderContextMenu({
@@ -233,6 +252,18 @@ export function ClaimsPage() {
 
       {!isCustomer && (
         <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+          <QuickFilterBar
+            activeCount={claimFilterCount}
+            onClear={clearClaimFilters}
+            options={[
+              { key: "all", label: "Όλες", active: claimFilterCount === 0, onClick: clearClaimFilters },
+              { key: "open", label: "Ανοιχτές", active: statusFilter === "Reported" || statusFilter === "UnderReview", color: "warning", onClick: () => { setDateWindow(""); setStatusFilter("UnderReview"); } },
+              { key: "7", label: "Τελευταίες 7 ημέρες", active: dateWindow === "7", onClick: () => setDateWindow("7") },
+              { key: "30", label: "Τελευταίες 30 ημέρες", active: dateWindow === "30", onClick: () => setDateWindow("30") },
+              { key: "90", label: "Τελευταίες 90 ημέρες", active: dateWindow === "90", onClick: () => setDateWindow("90") },
+              { key: "paid", label: "Πληρωμένες", active: statusFilter === "Paid", color: "success", onClick: () => { setDateWindow(""); setStatusFilter("Paid"); } },
+            ]}
+          />
           {/* Dense grid — search+status on line 1, carrier/branch/use/cover
               on line 2, package/dates/clear on line 3 — 3 rows on desktop
               instead of the ~6-row wrap the flex layout produced. */}
@@ -312,11 +343,7 @@ export function ClaimsPage() {
               value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
             <TextField size="small" type="date" label="Συμβάν έως" InputLabelProps={{ shrink: true }} fullWidth
               value={toDate} onChange={(e) => setToDate(e.target.value)} />
-            <Button size="small" fullWidth onClick={() => {
-              setStatusFilter(""); setCustomerFilter(""); setCarrierFilter(""); setSubCarrierFilter([]);
-              setTypeFilter(""); setUseFilter(""); setCoverFilter(""); setPackageFilter("");
-              setFromDate(""); setToDate("");
-            }} color="error" variant="contained">Καθαρισμός</Button>
+            <Button size="small" fullWidth onClick={clearClaimFilters} color="error" variant="contained">Καθαρισμός</Button>
           </Box>
         </Card>
       )}

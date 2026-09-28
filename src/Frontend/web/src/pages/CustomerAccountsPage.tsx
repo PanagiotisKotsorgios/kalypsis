@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Alert, Box, Card, Chip, CircularProgress, FormControlLabel, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { QuickFilterBar } from "../components/QuickFilterBar";
 
 interface AccountRow {
   customerId: string; customerName: string; charges: number; credits: number;
@@ -15,17 +16,28 @@ export function CustomerAccountsPage() {
   const [to, setTo] = useState("");
   const [onlyDebtors, setOnlyDebtors] = useState(true);
   const [onlyOverdue, setOnlyOverdue] = useState(false);
+  const [onlyCreditors, setOnlyCreditors] = useState(false);
   const q = useQuery({
-    queryKey: ["customer-accounts", from, to, onlyDebtors, onlyOverdue],
+    queryKey: ["customer-accounts", from, to, onlyDebtors, onlyOverdue, onlyCreditors],
     queryFn: async () => (await api.get<AccountRow[]>("/customers/accounts", { params: {
       from: from || undefined, to: to || undefined,
-      onlyDebtors, onlyOverdue, onlyCreditors: false
+      onlyDebtors, onlyOverdue, onlyCreditors
     } })).data
   });
   const fmt = (n: number) => n.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return (
     <Stack spacing={2}>
       <Card variant="outlined" sx={{ p: 2 }}>
+        <QuickFilterBar
+          activeCount={[from, to, onlyDebtors ? "debtors" : "", onlyOverdue ? "overdue" : "", onlyCreditors ? "creditors" : ""].filter(Boolean).length}
+          onClear={() => { setFrom(""); setTo(""); setOnlyDebtors(false); setOnlyOverdue(false); setOnlyCreditors(false); }}
+          options={[
+            { key: "debtors", label: "Οφειλέτες", active: onlyDebtors && !onlyOverdue && !onlyCreditors, color: "error", onClick: () => { setOnlyDebtors(true); setOnlyOverdue(false); setOnlyCreditors(false); } },
+            { key: "overdue", label: "Ληξιπρόθεσμοι", active: onlyOverdue, color: "warning", onClick: () => { setOnlyDebtors(true); setOnlyOverdue(true); setOnlyCreditors(false); } },
+            { key: "creditors", label: "Πιστωτικοί", active: onlyCreditors, color: "info", onClick: () => { setOnlyDebtors(false); setOnlyOverdue(false); setOnlyCreditors(true); } },
+            { key: "all", label: "Όλοι", active: !onlyDebtors && !onlyOverdue && !onlyCreditors, onClick: () => { setOnlyDebtors(false); setOnlyOverdue(false); setOnlyCreditors(false); } },
+          ]}
+        />
         <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
           <TextField size="small" type="date" label="Από μήνα/ημερομηνία" InputLabelProps={{ shrink: true }} value={from} onChange={e => setFrom(e.target.value)} />
           <TextField size="small" type="date" label="Έως μήνα/ημερομηνία" InputLabelProps={{ shrink: true }} value={to} onChange={e => setTo(e.target.value)} />

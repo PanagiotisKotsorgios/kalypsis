@@ -18,6 +18,8 @@ import { date } from "../../utils/format";
 import {
   AnimatedKpiCard, ChartCard, ModernAreaChart, ModernDonutChart,
 } from "../../components/ModernDashboard";
+import { QuickFilterBar } from "../../components/QuickFilterBar";
+import { useState } from "react";
 
 interface AgencyUserKpi {
   myCustomers: number;
@@ -47,6 +49,7 @@ const moneyFmt = new Intl.NumberFormat("el-GR", { style: "currency", currency: "
 
 export function AgencyUserDashboard() {
   const theme = useTheme();
+  const [chartMonths, setChartMonths] = useState<3 | 6>(6);
   const { user } = useAuth();
   const navigate = useNavigate();
   const { exitToHub } = useWorkspace();
@@ -66,6 +69,7 @@ export function AgencyUserDashboard() {
 
   // Sparkline data for the "Παραγωγή μήνα" KPI — last N monthly premiums.
   const premiumSpark = r.myMonthlyPremium.slice(-8).map(p => Number(p.value));
+  const monthlySeries = r.myMonthlyPremium.slice(-chartMonths);
 
   return (
     <Box>
@@ -86,6 +90,16 @@ export function AgencyUserDashboard() {
         </Box>
         <Chip label="Δικά μου δεδομένα" color="secondary" />
       </Stack>
+
+      <Card variant="outlined" sx={{ mb: 2, px: 1.5, py: 1 }}>
+        <QuickFilterBar
+          label="Περίοδος dashboard"
+          options={[
+            { key: "3", label: "Τελευταίοι 3 μήνες", active: chartMonths === 3, onClick: () => setChartMonths(3) },
+            { key: "6", label: "Τελευταίοι 6 μήνες", active: chartMonths === 6, onClick: () => setChartMonths(6) },
+          ]}
+        />
+      </Card>
 
       <Box sx={{
         display: "grid", gap: 2, mb: 3,
@@ -108,7 +122,7 @@ export function AgencyUserDashboard() {
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", lg: "2fr 1fr" } }}>
         <ChartCard title="Η παραγωγή μου τους τελευταίους μήνες" subtitle="Μηνιαία ασφάλιστρα (€)">
           <ModernAreaChart
-            data={r.myMonthlyPremium}
+            data={monthlySeries}
             color={theme.palette.secondary.main}
             format={(v) => moneyFmt.format(v)}
           />

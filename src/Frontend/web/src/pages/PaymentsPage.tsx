@@ -19,6 +19,7 @@ import { money, date } from "../utils/format";
 import { useColumnPreferences } from "../hooks/useColumnPreferences";
 import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
+import { QuickFilterBar } from "../components/QuickFilterBar";
 
 const METHODS = ["Cash","Card","BankTransfer","Cheque","PromissoryNote","Other"] as const;
 type Method = typeof METHODS[number];
@@ -71,6 +72,8 @@ export function PaymentsPage() {
   const [benFilter, setBenFilter] = useState<BType | "">("");
   const [fromDate, setFromDate] = useState("");
   const [toDate,   setToDate]   = useState("");
+  const [amountMin, setAmountMin] = useState("");
+  const [amountMax, setAmountMax] = useState("");
 
   const q = useQuery({ queryKey: ["payments"], queryFn: async () => (await api.get<PaymentDto[]>("/payments")).data });
   const obligations = useQuery({
@@ -92,6 +95,8 @@ export function PaymentsPage() {
     if (benFilter && p.beneficiaryType !== benFilter) return false;
     if (fromDate && p.paidOn < fromDate) return false;
     if (toDate   && p.paidOn > toDate)   return false;
+    if (amountMin && p.amount < Number(amountMin)) return false;
+    if (amountMax && p.amount > Number(amountMax)) return false;
     if (search) {
       const s = search.toLowerCase();
       const hay = `${p.number} ${p.beneficiaryInsuranceCompanyName ?? ""} ${p.beneficiaryProducerName ?? ""} ${p.beneficiaryName ?? ""} ${p.notes ?? ""}`.toLowerCase();
@@ -114,6 +119,11 @@ export function PaymentsPage() {
     { key: "netted",      label: "Συμψηφισμός" },
   ]);
   const cashOutTotal = filteredRows.reduce((s, p) => s + (p.amount - p.commissionsNetted), 0);
+  const clearPaymentFilters = () => {
+    setSearch(""); setMethodFilter(""); setBenFilter(""); setFromDate(""); setToDate("");
+    setAmountMin(""); setAmountMax("");
+  };
+  const paymentFilterCount = [search, methodFilter, benFilter, fromDate, toDate, amountMin, amountMax].filter(Boolean).length;
 
   // Right-click sort + hide. Client-side against the already-filtered rows.
   const [sortKey, setSortKey] = useState<keyof PaymentDto | null>(null);
@@ -193,6 +203,17 @@ export function PaymentsPage() {
       )}
 
       <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <QuickFilterBar
+          activeCount={paymentFilterCount}
+          onClear={clearPaymentFilters}
+          options={[
+            { key: "all", label: "Όλες", active: paymentFilterCount === 0, onClick: clearPaymentFilters },
+            { key: "companies", label: "Ασφαλιστικές", active: benFilter === "InsuranceCompany", color: "info", onClick: () => setBenFilter("InsuranceCompany") },
+            { key: "producers", label: "Συνεργάτες", active: benFilter === "Producer", color: "warning", onClick: () => setBenFilter("Producer") },
+            { key: "bank", label: "Τραπεζικές", active: methodFilter === "BankTransfer", onClick: () => setMethodFilter("BankTransfer") },
+            { key: "thisMonth", label: "Τρέχων μήνας", active: fromDate === new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10) && !toDate, onClick: () => { const d = new Date(); setFromDate(new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)); setToDate(""); } },
+          ]}
+        />
         <Stack direction={{ xs: "column", md: "row" }} spacing={1} flexWrap="wrap" alignItems={{ md: "center" }} useFlexGap>
           <TextField size="small" placeholder="Αναζήτηση…"
             value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 200 }}
@@ -223,8 +244,12 @@ export function PaymentsPage() {
             <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
               value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 140, width: "100%" }} />
           </FilterFieldWrap>
+          <TextField size="small" type="number" label="Ποσό από" value={amountMin}
+            onChange={(e) => setAmountMin(e.target.value)} sx={{ minWidth: 120 }} />
+          <TextField size="small" type="number" label="Ποσό έως" value={amountMax}
+            onChange={(e) => setAmountMax(e.target.value)} sx={{ minWidth: 120 }} />
           <Button size="small" onClick={() => {
-            setSearch(""); setMethodFilter(""); setBenFilter(""); setFromDate(""); setToDate("");
+            clearPaymentFilters();
           }} color="error" variant="contained">Καθαρισμός</Button>
         </Stack>
       </Card>

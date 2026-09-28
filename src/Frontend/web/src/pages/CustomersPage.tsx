@@ -41,6 +41,7 @@ import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { QuickFilterBar } from "../components/QuickFilterBar";
 
 type CustomerType = "Individual" | "Company";
 type CustomerStatus = "Prospect" | "Active" | "Inactive" | "Churned" | "Blocked";
@@ -243,6 +244,11 @@ export function CustomersPage() {
     pageSize: 25
   });
   const customers = table.paged;
+  const customerFilterCount = [
+    search, occupationFilter, needKind, onlyUninsuredNeeds ? "needs" : "", statusFilter,
+    paymentFilter !== "all" ? paymentFilter : "", paymentWindow !== "all" ? paymentWindow : "",
+    paymentFrom, paymentTo, table.query,
+  ].filter(Boolean).length;
   const clearFilters = () => {
     setSearch("");
     setOccupationFilter("");
@@ -333,6 +339,19 @@ export function CustomersPage() {
       </Stack>
 
       <Card sx={{ mb: 2, px: 1.5, py: 1.25 }} data-tour="customers-search">
+        <QuickFilterBar
+          activeCount={customerFilterCount}
+          onClear={clearFilters}
+          options={[
+            { key: "all", label: "Όλοι", active: customerFilterCount === 0, onClick: clearFilters },
+            { key: "debtors", label: "Οφειλέτες", active: paymentFilter === "debtors", color: "error", onClick: () => setPaymentFilter("debtors") },
+            { key: "overdue", label: "Ληξιπρόθεσμοι", active: paymentFilter === "overdue", color: "warning", onClick: () => setPaymentFilter("overdue") },
+            { key: "good", label: "Καλοπληρωτές", active: paymentFilter === "good", color: "success", onClick: () => setPaymentFilter("good") },
+            { key: "bad", label: "Κακοπληρωτές", active: paymentFilter === "bad", color: "error", onClick: () => setPaymentFilter("bad") },
+            { key: "last7", label: "Οφειλές 7 ημερών", active: paymentWindow === "last7", onClick: () => setPaymentWindow("last7") },
+            { key: "last30", label: "Οφειλές 30 ημερών", active: paymentWindow === "last30", onClick: () => setPaymentWindow("last30") },
+          ]}
+        />
         <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
           <TextField
             size="small"

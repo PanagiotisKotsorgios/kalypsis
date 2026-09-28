@@ -64,9 +64,11 @@ import { SearchableTextField } from "../components/SearchableTextField";
 import { useUndoable } from "../components/UndoToast";
 import { useColumnPreferences } from "../hooks/useColumnPreferences";
 import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
+import { QuickFilterBar } from "../components/QuickFilterBar";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal" | "Undelivered" | "AwaitingIssue" | "Prospect";
+type PaymentRoute = "" | "direct" | "office";
 
 interface PolicyDto {
   id: string;
@@ -155,6 +157,8 @@ export function PoliciesPage() {
   const [appNumberFilter, setAppNumberFilter] = useState<string>("");
   const [premiumMin, setPremiumMin] = useState<string>("");
   const [premiumMax, setPremiumMax] = useState<string>("");
+  const [expiryWindow, setExpiryWindow] = useState<"" | "5" | "10" | "20" | "30" | "60" | "90">("");
+  const [paymentRouteFilter, setPaymentRouteFilter] = useState<PaymentRoute>("");
 
   // Carrier-driven Κλάδος options — empty when no carrier is selected.
   const filterCatalogue = useCarrierCatalogue(carrierFilter, subCarrierFilter);
@@ -285,9 +289,18 @@ export function PoliciesPage() {
       if (producerFilter && p.producerId !== producerFilter) return false;
       if (fromDate && p.startDate < fromDate) return false;
       if (toDate   && p.startDate > toDate)   return false;
+      if (paymentRouteFilter === "direct" && !p.paidDirectlyToCarrier) return false;
+      if (paymentRouteFilter === "office" && p.paidDirectlyToCarrier) return false;
+      if (expiryWindow) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const end = new Date(p.endDate);
+        const days = Math.ceil((end.getTime() - today.getTime()) / 86400000);
+        if (p.status !== "Active" || days < 0 || days > Number(expiryWindow)) return false;
+      }
       return true;
     });
-  }, [rawRows, carriersQuery.data, carrierFilter, subCarrierFilter, producerFilter, fromDate, toDate]);
+  }, [rawRows, carriersQuery.data, carrierFilter, subCarrierFilter, producerFilter, fromDate, toDate, expiryWindow, paymentRouteFilter]);
 
   // Phase 15.2 — client-side search + sort + pagination.
   const table = useTableState<PolicyDto>({
@@ -298,6 +311,18 @@ export function PoliciesPage() {
     initialSortDir: "desc"
   });
   const rows = table.paged;
+  const clearPolicyFilters = () => {
+    setCarrierFilter(""); setSubCarrierFilter([]); setProducerFilter("");
+    setFromDate(""); setToDate(""); setStatusFilter(""); setTypeFilter(""); setSearch("");
+    setPlateFilter(""); setAppNumberFilter(""); setPremiumMin(""); setPremiumMax("");
+    setExpiryWindow("");
+    setPaymentRouteFilter("");
+    table.setQuery(""); table.setPage(1);
+  };
+  const policyFilterCount = [
+    search, statusFilter, typeFilter, carrierFilter, producerFilter, fromDate, toDate,
+    plateFilter, appNumberFilter, premiumMin, premiumMax, expiryWindow, paymentRouteFilter, table.query,
+  ].filter(Boolean).length;
 
   // Right-click on a header → sort + hide column; right-click on a row →
   // open detail + delete. Placed here so `table` (defined just above) is
@@ -422,6 +447,23 @@ export function PoliciesPage() {
       )}
       {!isCustomer && (
         <Card sx={{ px: 1.5, py: 1.25, mb: 2 }} data-tour="policies-search">
+          <QuickFilterBar
+            activeCount={policyFilterCount}
+            onClear={clearPolicyFilters}
+            options={[
+              { key: "all", label: "Όλα", active: policyFilterCount === 0, onClick: clearPolicyFilters },
+              ...([5, 10, 20, 30, 60, 90] as const).map(days => ({
+                key: `expiry-${days}`,
+                label: `Λήγουν ≤${days} ημέρες`,
+                active: expiryWindow === String(days),
+                color: days <= 20 ? "error" as const : days <= 30 ? "warning" as const : "info" as const,
+                onClick: () => { setExpiryWindow(String(days) as typeof expiryWindow); setStatusFilter("Active"); },
+              })),
+              { key: "prospects", label: "Πιθανά", active: statusFilter === "Prospect", color: "warning", onClick: () => { setExpiryWindow(""); setStatusFilter("Prospect"); } },
+              { key: "direct", label: "Πληρώθηκαν απευθείας", active: paymentRouteFilter === "direct", color: "info", onClick: () => setPaymentRouteFilter("direct") },
+              { key: "office", label: "Πληρωμή στο γραφείο", active: paymentRouteFilter === "office", onClick: () => setPaymentRouteFilter("office") },
+            ]}
+          />
           {/* Dense 4-col grid — search spans the full first row so it stays
               scannable, all other filters (~11) share the grid below so the
               whole block fits in 3–4 lines on desktop instead of six. */}
@@ -515,11 +557,13 @@ export function PoliciesPage() {
             <TextField size="small" type="number" label="Μικτά έως" fullWidth
               value={premiumMax}
               onChange={(e) => setPremiumMax(e.target.value)} />
-            <Button size="small" fullWidth onClick={() => {
-              setCarrierFilter(""); setSubCarrierFilter([]); setProducerFilter("");
-              setFromDate(""); setToDate(""); setStatusFilter(""); setTypeFilter(""); setSearch("");
-              setPlateFilter(""); setAppNumberFilter(""); setPremiumMin(""); setPremiumMax("");
-            }} color="error" variant="contained">Καθαρισμός</Button>
+            <SearchableTextField size="small" label="Πληρωμή" value={paymentRouteFilter}
+              onChange={(e) => setPaymentRouteFilter(e.target.value as PaymentRoute)}>
+              <MenuItem value="">Όλες</MenuItem>
+              <MenuItem value="office">Πληρωμή στο γραφείο</MenuItem>
+              <MenuItem value="direct">Απευθείας στην ασφαλιστική</MenuItem>
+            </SearchableTextField>
+            <Button size="small" fullWidth onClick={clearPolicyFilters} color="error" variant="contained">Καθαρισμός</Button>
           </Box>
         </Card>
       )}

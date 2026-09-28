@@ -27,6 +27,7 @@ import {
 import { printTable } from "../utils/printableTable";
 import { useHeaderContextMenu, type ColumnType } from "../components/TableContextMenu";
 import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
+import { QuickFilterBar } from "../components/QuickFilterBar";
 
 interface Carrier { id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null; }
 interface Producer { id: string; name: string; }
@@ -509,6 +510,24 @@ export function ProductionListsPage() {
           <FilterAltIcon color="primary" fontSize="small" />
           <Typography fontWeight={700} variant="body2">{t("productionList.filters")}</Typography>
         </Stack>
+        <QuickFilterBar
+          activeCount={[
+            f.insuranceCompanyId, f.producerId, f.policyType, f.vehicleUseCategory,
+            f.coverCode, f.packageCode, f.status,
+          ].filter(Boolean).length}
+          onClear={() => setF({
+            from: monthStart, to: todayStr, dateField: "start", insuranceCompanyId: "", producerId: "",
+            policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "", status: "", groupBy: "carrier"
+          })}
+          options={[
+            { key: "month", label: "Τρέχων μήνας", active: f.from === monthStart && f.to === todayStr, onClick: () => setF({ ...f, from: monthStart, to: todayStr }) },
+            { key: "active", label: "Ενεργά", active: f.status === "Active", color: "success", onClick: () => setF({ ...f, status: "Active" }) },
+            { key: "renewals", label: "Προς ανανέωση", active: f.status === "PendingRenewal", color: "warning", onClick: () => setF({ ...f, status: "PendingRenewal" }) },
+            { key: "carrier", label: "Ανά ασφαλιστική", active: f.groupBy === "carrier", onClick: () => setF({ ...f, groupBy: "carrier" }) },
+            { key: "producer", label: "Ανά συνεργάτη", active: f.groupBy === "producer", onClick: () => setF({ ...f, groupBy: "producer" }) },
+            { key: "type", label: "Ανά κλάδο", active: f.groupBy === "type", onClick: () => setF({ ...f, groupBy: "type" }) },
+          ]}
+        />
         {/* Compact grid — 6 columns on lg, 3 on md. Same ? position unchanged
             (next to the page title above). */}
         <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)", lg: "repeat(6, 1fr)" } }}>

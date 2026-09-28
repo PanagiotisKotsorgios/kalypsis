@@ -7,12 +7,13 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis
 } from "recharts";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
 import { money, num } from "../utils/format";
+import { QuickFilterBar } from "../components/QuickFilterBar";
 
 interface SeriesPoint { label: string; value: number }
 interface CarrierShare { carrier: string; policies: number; premium: number }
@@ -64,6 +65,7 @@ const COLORS = ["#0b2545", "#1d4e89", "#1ea7e1", "#f6a623", "#7be295", "#c0392b"
 export function ProducerDashboardPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const [chartMonths, setChartMonths] = useState<3 | 6>(6);
 
   const q = useQuery({
     queryKey: ["producer-report"],
@@ -108,6 +110,7 @@ export function ProducerDashboardPage() {
     policiesByType: [], policiesByStatus: [], monthlyPremium: [],
     carrierBreakdown: [], expiringSoon: [],
   };
+  const monthlySeries = r.monthlyPremium.slice(-chartMonths);
 
   return (
     <Box>
@@ -127,6 +130,15 @@ export function ProducerDashboardPage() {
           label="Εξαγωγή προμηθειών"
         />
       </Stack>
+      <Card variant="outlined" sx={{ mb: 2, px: 1.5, py: 1 }}>
+        <QuickFilterBar
+          label="Περίοδος dashboard"
+          options={[
+            { key: "3", label: "Τελευταίοι 3 μήνες", active: chartMonths === 3, onClick: () => setChartMonths(3) },
+            { key: "6", label: "Τελευταίοι 6 μήνες", active: chartMonths === 6, onClick: () => setChartMonths(6) },
+          ]}
+        />
+      </Card>
 
       {/* KPI tiles */}
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(5, 1fr)" }, mb: 3 }}>
@@ -225,7 +237,7 @@ export function ProducerDashboardPage() {
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>{t("producerDashboard.chart.production")}</Typography>
           <Box sx={{ height: 280 }}>
             <ResponsiveContainer>
-              <LineChart data={r.monthlyPremium}>
+              <LineChart data={monthlySeries}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e9f0" />
                 <XAxis dataKey="label" stroke="#456079" fontSize={12} />
                 <YAxis stroke="#456079" fontSize={12} tickFormatter={(v) => `€${v}`} />

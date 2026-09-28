@@ -1,6 +1,7 @@
 import {
   Box, Button, Card, CardContent, Chip, CircularProgress, Stack, Typography, alpha, useTheme
 } from "@mui/material";
+import { useState } from "react";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PeopleIcon from "@mui/icons-material/People";
 import PolicyIcon from "@mui/icons-material/Policy";
@@ -19,6 +20,7 @@ import { useWorkspace } from "../../auth/WorkspaceContext";
 import {
   AnimatedKpiCard, ChartCard, ModernAreaChart, ModernBarChart, ModernDonutChart,
 } from "../../components/ModernDashboard";
+import { QuickFilterBar } from "../../components/QuickFilterBar";
 
 interface KpiDto {
   customers: number;
@@ -63,6 +65,7 @@ const moneyFmt = new Intl.NumberFormat("el-GR", { style: "currency", currency: "
 
 export function AgencyAdminDashboard() {
   const theme = useTheme();
+  const [chartMonths, setChartMonths] = useState<3 | 6>(6);
   const { user } = useAuth();
   const navigate = useNavigate();
   const { exitToHub } = useWorkspace();
@@ -81,6 +84,7 @@ export function AgencyAdminDashboard() {
   const r = q.data;
 
   const monthlySpark = r.monthlyPremium.slice(-8).map(p => Number(p.value));
+  const monthlySeries = r.monthlyPremium.slice(-chartMonths);
 
   return (
     <Box>
@@ -96,6 +100,15 @@ export function AgencyAdminDashboard() {
         </Box>
         <Chip label="Όλο το γραφείο" color="primary" />
       </Stack>
+      <Card variant="outlined" sx={{ mb: 2, px: 1.5, py: 1 }}>
+        <QuickFilterBar
+          label="Περίοδος dashboard"
+          options={[
+            { key: "3", label: "Τελευταίοι 3 μήνες", active: chartMonths === 3, onClick: () => setChartMonths(3) },
+            { key: "6", label: "Τελευταίοι 6 μήνες", active: chartMonths === 6, onClick: () => setChartMonths(6) },
+          ]}
+        />
+      </Card>
 
       {/* KPI strip — 6 animated cards, one per key metric. */}
       <Box sx={{
@@ -119,7 +132,7 @@ export function AgencyAdminDashboard() {
       {/* Main chart row — trend area + donut. */}
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", lg: "2fr 1fr" } }}>
         <ChartCard title="Παραγωγή ανά μήνα" subtitle="Ασφάλιστρα σε € — 12 μήνες">
-          <ModernAreaChart data={r.monthlyPremium} color={theme.palette.primary.main}
+          <ModernAreaChart data={monthlySeries} color={theme.palette.primary.main}
                            format={(v) => moneyFmt.format(v)} />
         </ChartCard>
         <ChartCard title="Κατανομή τύπων" subtitle="Ενεργά συμβόλαια ανά κλάδο">

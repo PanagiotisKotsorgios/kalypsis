@@ -32,6 +32,7 @@ import { TableToolbar, NumberedPager } from "../components/TableToolbar";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { money } from "../utils/format";
+import { QuickFilterBar } from "../components/QuickFilterBar";
 
 type ProducerStatus = "Active" | "Suspended" | "Terminated" | "Prospect";
 type ProducerTier = "None" | "A" | "B" | "C" | "D" | "E";
@@ -122,11 +123,13 @@ export function ProducersPage() {
   const [statusFilter, setStatusFilter] = useState<ProducerStatus | "">("");
   const [tierFilter, setTierFilter] = useState<ProducerTier | "">("");
   const [hasPoliciesOnly, setHasPoliciesOnly] = useState(false);
+  const [hierarchyFilter, setHierarchyFilter] = useState<HierarchyLevel | "">("");
   const rawProducers = q.data ?? [];
   const allRows = rawProducers.filter(p => {
     if (statusFilter && p.status !== statusFilter) return false;
     if (tierFilter && p.tier !== tierFilter) return false;
     if (hasPoliciesOnly && p.policyCount === 0) return false;
+    if (hierarchyFilter && p.hierarchyLevel !== hierarchyFilter) return false;
     return true;
   });
   const table = useTableState<ProducerDto>({
@@ -179,6 +182,17 @@ export function ProducersPage() {
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
 
       <Card sx={{ px: 1.5, py: 1.25, mb: 2 }}>
+        <QuickFilterBar
+          activeCount={[statusFilter, tierFilter, hasPoliciesOnly ? "policies" : "", hierarchyFilter, table.query].filter(Boolean).length}
+          onClear={() => { setStatusFilter(""); setTierFilter(""); setHasPoliciesOnly(false); setHierarchyFilter(""); table.setQuery(""); table.setPage(1); }}
+          options={[
+            { key: "all", label: "Όλοι", active: !statusFilter && !tierFilter && !hasPoliciesOnly && !hierarchyFilter, onClick: () => { setStatusFilter(""); setTierFilter(""); setHasPoliciesOnly(false); setHierarchyFilter(""); } },
+            { key: "active", label: "Ενεργοί", active: statusFilter === "Active", color: "success", onClick: () => setStatusFilter("Active") },
+            { key: "prospects", label: "Πιθανοί", active: statusFilter === "Prospect", color: "warning", onClick: () => setStatusFilter("Prospect") },
+            { key: "withPolicies", label: "Με συμβόλαια", active: hasPoliciesOnly, onClick: () => setHasPoliciesOnly(true) },
+            { key: "managers", label: "Υπεύθυνοι ομάδας", active: hierarchyFilter === "Manager", onClick: () => setHierarchyFilter("Manager") },
+          ]}
+        />
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }} flexWrap="wrap" useFlexGap>
           <FilterFieldWrap tip="Φιλτράρετε τους συνεργάτες ανά κατάσταση (Ενεργός, Ανενεργός, Τερματισμένος).">
             <SearchableTextField size="small" label={t("producers.col.status")}
@@ -206,8 +220,16 @@ export function ProducersPage() {
               Μόνο με συμβόλαια
             </Box>
           </Stack>
+          <SearchableTextField size="small" label="Επίπεδο ιεραρχίας"
+            value={hierarchyFilter} onChange={(e) => setHierarchyFilter(e.target.value as HierarchyLevel | "")}
+            sx={{ minWidth: 180, width: "100%" }}>
+            <MenuItem value="">Όλα</MenuItem>
+            {(Object.keys(HIERARCHY_LABEL) as HierarchyLevel[]).map(level => (
+              <MenuItem key={level} value={level}>{HIERARCHY_LABEL[level]}</MenuItem>
+            ))}
+          </SearchableTextField>
           <Box sx={{ flex: 1 }} />
-          <Button size="small" onClick={() => { setStatusFilter(""); setTierFilter(""); setHasPoliciesOnly(false); }} color="error" variant="contained">Καθαρισμός</Button>
+          <Button size="small" onClick={() => { setStatusFilter(""); setTierFilter(""); setHasPoliciesOnly(false); setHierarchyFilter(""); table.setQuery(""); table.setPage(1); }} color="error" variant="contained">Καθαρισμός</Button>
         </Stack>
       </Card>
 
