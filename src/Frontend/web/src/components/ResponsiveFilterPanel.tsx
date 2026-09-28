@@ -24,7 +24,9 @@ export function ResponsiveFilterPanel({
   cardSx?: object;
 }) {
   const theme = useTheme();
-  const isCompact = useMediaQuery(theme.breakpoints.down("sm"));
+  // Treat phones and narrow tablets as compact so dense filter forms never
+  // push the actual table far below the fold.
+  const isCompact = useMediaQuery(theme.breakpoints.down("md"));
   const [open, setOpen] = useState(false);
 
   if (isCompact) {

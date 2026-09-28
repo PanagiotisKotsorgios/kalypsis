@@ -30,8 +30,8 @@ export function QuickFilterBar({
   if (options.length === 0 && !onClear) return null;
   return (
     <Stack direction="row" alignItems="center" spacing={0.75} useFlexGap
-      flexWrap={{ xs: "nowrap", sm: "wrap" }}
-      sx={{ mb: 1, minWidth: 0, overflowX: { xs: "auto", sm: "visible" }, pb: { xs: 0.25, sm: 0 } }}>
+      flexWrap={{ xs: "nowrap", md: "wrap" }}
+      sx={{ mb: 1, minWidth: 0, overflowX: { xs: "auto", md: "visible" }, pb: { xs: 0.25, md: 0 } }}>
       <FilterAltIcon fontSize="small" color="action" />
       <Typography variant="caption" color="text.secondary" sx={{ mr: 0.25 }}>
         {label}
