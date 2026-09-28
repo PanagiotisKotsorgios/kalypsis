@@ -190,7 +190,7 @@ function OfficeFormTemplatesPanel({ agency }: { agency: AgencyProfile }) {
   // short debounce keeps typing smooth while the preview stays printable.
   useEffect(() => {
     const customerId = sampleCustomer.data?.id;
-    if (!current || !customerId) {
+    if (!current) {
       setPdfUrl(null);
       setPdfError(null);
       return;
@@ -200,7 +200,10 @@ function OfficeFormTemplatesPanel({ agency }: { agency: AgencyProfile }) {
       setPdfLoading(true);
       setPdfError(null);
       try {
-        const response = await api.post<Blob>(`/customers/${customerId}/form-preview`, {
+        const previewEndpoint = customerId
+          ? `/customers/${customerId}/form-preview`
+          : `/customer-form-templates/${current.formCode}/preview`;
+        const response = await api.post<Blob>(previewEndpoint, {
           formCode: current.formCode,
           headerHtml: draft.headerHtml,
           bodyHtml: draft.bodyHtml,
@@ -400,15 +403,17 @@ function OfficeFormTemplatePreview({
         <Typography fontWeight={800}>Προεπισκόπηση εγγράφου</Typography>
       </Stack>
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", px: 0.5, pb: 1 }}>
-        Τελικό A4 PDF με στοιχεία δείγματος από την καρτέλα πελάτη. Ενημερώνεται αυτόματα μετά από κάθε αλλαγή.
+        Τελικό A4 PDF με στοιχεία δείγματος ή κενά placeholders όταν δεν υπάρχουν πελάτες. Ενημερώνεται αυτόματα μετά από κάθε αλλαγή.
       </Typography>
       {pdfUrl ? (
         <>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 0.5, pb: 1 }}>
             <Chip size="small" color="success" icon={<PictureAsPdfIcon />} label="Έτοιμο PDF" />
-            {sampleCustomer && <Typography variant="caption" color="text.secondary" noWrap>
-              Δείγμα: {sampleCustomer.companyName || `${sampleCustomer.firstName ?? ""} ${sampleCustomer.lastName ?? ""}`.trim() || "πελάτης"}
-            </Typography>}
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {sampleCustomer
+                ? `Δείγμα: ${sampleCustomer.companyName || `${sampleCustomer.firstName ?? ""} ${sampleCustomer.lastName ?? ""}`.trim() || "πελάτης"}`
+                : "Κενά placeholders πελάτη"}
+            </Typography>
             <Box sx={{ flex: 1 }} />
             <Button component="a" href={pdfUrl} target="_blank" rel="noopener" size="small" startIcon={<OpenInNewIcon />}>
               Άνοιγμα PDF
@@ -420,7 +425,7 @@ function OfficeFormTemplatePreview({
         <>
           {pdfLoading && <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 0.5, pb: 1 }}><CircularProgress size={16} /><Typography variant="caption">Δημιουργία PDF…</Typography></Stack>}
           {pdfError && <Alert severity="warning" sx={{ mb: 1 }}>{pdfError}</Alert>}
-          {!sampleCustomer && !pdfLoading && <Alert severity="info" sx={{ mb: 1 }}>Προσθέστε έναν πελάτη για να ενεργοποιηθεί η πραγματική προεπισκόπηση PDF.</Alert>}
+          {!sampleCustomer && !pdfLoading && <Alert severity="info" sx={{ mb: 1 }}>Δεν υπάρχει πελάτης ακόμη· το PDF θα εμφανίσει κενά placeholders.</Alert>}
           <iframe title={`Προεπισκόπηση ${formName}`} srcDoc={srcDoc} sandbox="" style={{ width: "100%", height: 760, border: 0, display: "block", borderRadius: 6 }} />
         </>
       )}

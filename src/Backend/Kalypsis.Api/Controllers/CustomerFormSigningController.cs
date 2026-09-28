@@ -207,6 +207,69 @@ public sealed class CustomerFormSigningController : ControllerBase
         return File(pdf, "application/pdf", draft.FileName);
     }
 
+    /// <summary>
+    /// Render a template without requiring a customer record. This keeps the
+    /// office editor usable even before the first customer is created; merge
+    /// fields are intentionally empty in the printable PDF.
+    /// </summary>
+    [Authorize(Policy = "AgencyStaff")]
+    [HttpPost("api/customer-form-templates/{formCode}/preview")]
+    public async Task<IActionResult> PreviewTemplate(string formCode, [FromBody] PreviewFormBody body, CancellationToken ct)
+    {
+        var normalized = NormalizeFormCode(formCode);
+        if (normalized is null) return BadRequest("Μη υποστηριζόμενο έντυπο.");
+
+        var tenantId = TenantId();
+        var customer = new Customer
+        {
+            TenantId = tenantId,
+            CustomerNumber = string.Empty,
+            Type = CustomerType.Individual,
+            Status = CustomerStatus.Active
+        };
+        var office = await _db.Tenants.IgnoreQueryFilters().AsNoTracking()
+            .FirstAsync(x => x.Id == tenantId, ct);
+        var collaboratingInsurers = await GetCollaboratingInsurersAsync(tenantId, ct);
+        var template = await EnsureFormTemplateAsync(tenantId, normalized, ct);
+        if (body.HeaderHtml is not null || body.BodyHtml is not null || body.FooterHtml is not null)
+        {
+            template = new DocumentTemplate
+            {
+                TenantId = tenantId,
+                Code = template.Code,
+                Name = template.Name,
+                Kind = template.Kind,
+                PageSize = template.PageSize,
+                Orientation = template.Orientation,
+                HeaderHtml = SanitizeTemplateHtml(body.HeaderHtml),
+                BodyHtml = SanitizeTemplateHtml(body.BodyHtml),
+                FooterHtml = SanitizeTemplateHtml(body.FooterHtml),
+                IsDefault = template.IsDefault,
+                IsActive = template.IsActive
+            };
+        }
+        var data = BuildFormData(customer, office, null, body.Fields, collaboratingInsurers);
+        AddTemplateSnapshot(data, normalized, template);
+        var draft = new CustomerFormSigning
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            CustomerId = Guid.Empty,
+            FormCode = normalized,
+            FormVersion = FormVersionFor(normalized, "gdpr-consent-cover-v1"),
+            Status = CustomerFormSigningStatus.Draft,
+            CustomerFullNameSnapshot = string.Empty,
+            CustomerEmailSnapshot = null,
+            FormDataJson = data.Count == 0 ? null : JsonSerializer.Serialize(data),
+            FileName = FileNameFor(normalized, preview: true),
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow
+        };
+
+        var pdf = await RenderDocumentAsync(draft, office, ct);
+        return File(pdf, "application/pdf", draft.FileName);
+    }
+
     [Authorize(Policy = "AgencyStaff")]
     [HttpPost("api/customers/{customerId:guid}/form-signings")]
     public async Task<ActionResult<SigningDto>> Create(Guid customerId, [FromBody] CreateFormBody body, CancellationToken ct)
