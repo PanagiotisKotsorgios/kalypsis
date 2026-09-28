@@ -30,9 +30,9 @@ public static class EditableFormPdfRenderer
     {
         QuestPDF.Settings.License = LicenseType.Community;
         var data = Parse(signing.FormDataJson);
-        var header = HtmlToText(data.GetValueOrDefault("__templateHeaderHtml"));
-        var body = HtmlToText(data.GetValueOrDefault("__templateBodyHtml"));
-        var footer = HtmlToText(data.GetValueOrDefault("__templateFooterHtml"));
+        var header = data.GetValueOrDefault("__templateHeaderHtml");
+        var body = data.GetValueOrDefault("__templateBodyHtml");
+        var footer = data.GetValueOrDefault("__templateFooterHtml");
 
         return Document.Create(document => document.Page(page =>
         {
@@ -57,9 +57,9 @@ public static class EditableFormPdfRenderer
             page.Content().PaddingVertical(12).Column(column =>
             {
                 if (!string.IsNullOrWhiteSpace(header))
-                    column.Item().Text(header).FontSize(9).LineHeight(1.35f);
+                    RenderHtml(column, header, 9, Muted);
                 if (!string.IsNullOrWhiteSpace(body))
-                    column.Item().PaddingTop(10).Text(body).LineHeight(1.45f);
+                    RenderHtml(column, body, 9, Navy, 10);
 
                 column.Item().PaddingTop(18).Text("Υπογραφές").FontSize(10).Bold().FontColor(Navy);
                 column.Item().PaddingTop(5).Table(table =>
@@ -76,7 +76,7 @@ public static class EditableFormPdfRenderer
                 });
 
                 if (!string.IsNullOrWhiteSpace(footer))
-                    column.Item().PaddingTop(14).Text(footer).FontSize(8).FontColor(Muted).LineHeight(1.3f);
+                    RenderHtml(column, footer, 8, Muted, 14);
             });
             page.Footer().BorderTop(1).BorderColor(Rule).PaddingTop(6).Row(row =>
             {
@@ -116,13 +116,114 @@ public static class EditableFormPdfRenderer
         catch { return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase); }
     }
 
-    private static string HtmlToText(string? html)
+    private sealed record RichRun(string Text, bool Bold, bool Italic, bool Underline, float FontSize, string Color);
+
+    /// <summary>
+    /// Converts the small, safe HTML subset produced by the office WYSIWYG
+    /// editor into QuestPDF text spans. It deliberately keeps paragraphs,
+    /// headings, lists, links, bold/italic/underline and every text node so
+    /// the PDF matches what the office edited instead of flattening it to one
+    /// plain-text paragraph.
+    /// </summary>
+    private static void RenderHtml(ColumnDescriptor column, string html, float baseFontSize, string color, float paddingTop = 0)
     {
-        if (string.IsNullOrWhiteSpace(html)) return string.Empty;
-        var value = Regex.Replace(html, @"<\s*(br|/p|/div|/h[1-6]|/li)\s*/?>", "\n", RegexOptions.IgnoreCase);
-        value = Regex.Replace(value, @"<\s*li\b[^>]*>", "• ", RegexOptions.IgnoreCase);
-        value = Regex.Replace(value, "<[^>]+>", string.Empty);
-        value = WebUtility.HtmlDecode(value).Replace("\r\n", "\n");
-        return Regex.Replace(value, @"\n{3,}", "\n\n").Trim();
+        var runs = new List<RichRun>();
+        var inlineTags = new Stack<string>();
+        var lists = new Stack<(bool Ordered, int Index)>();
+        var blockFontSize = baseFontSize;
+        var blockBold = false;
+        var firstBlock = true;
+
+        void FlushBlock()
+        {
+            while (runs.Count > 0 && string.IsNullOrWhiteSpace(runs[0].Text)) runs.RemoveAt(0);
+            while (runs.Count > 0 && string.IsNullOrWhiteSpace(runs[^1].Text)) runs.RemoveAt(runs.Count - 1);
+            if (runs.Count == 0) return;
+            var blockRuns = runs.ToArray();
+            var top = firstBlock ? paddingTop : 4;
+            column.Item().PaddingTop(top).Text(text =>
+            {
+                text.DefaultTextStyle(style => style.LineHeight(1.35f));
+                foreach (var run in blockRuns)
+                {
+                    var span = text.Span(run.Text).FontSize(run.FontSize).FontColor(run.Color);
+                    if (run.Bold) span.Bold();
+                    if (run.Italic) span.Italic();
+                    if (run.Underline) span.Underline();
+                }
+            });
+            firstBlock = false;
+            runs.Clear();
+            blockFontSize = baseFontSize;
+            blockBold = false;
+        }
+
+        bool Has(string tag) => tag switch
+        {
+            "bold" => inlineTags.Any(x => x == "bold"),
+            "italic" => inlineTags.Any(x => x == "italic"),
+            "underline" => inlineTags.Any(x => x == "underline"),
+            _ => false
+        };
+
+        void AddText(string text)
+        {
+            var decoded = WebUtility.HtmlDecode(text).Replace('\u00A0', ' ');
+            decoded = Regex.Replace(decoded, @"\s+", " ");
+            if (string.IsNullOrWhiteSpace(decoded)) return;
+            var bullet = lists.Count > 0 && runs.Count == 0;
+            if (bullet)
+            {
+                var list = lists.Pop();
+                var marker = list.Ordered ? $"{list.Index}. " : "• ";
+                lists.Push((list.Ordered, list.Index + 1));
+                runs.Add(new RichRun(marker, true, false, false, blockFontSize, color));
+            }
+            runs.Add(new RichRun(decoded, blockBold || Has("bold"), Has("italic"), Has("underline"), blockFontSize, color));
+        }
+
+        var tokens = Regex.Split(Regex.Replace(html, @"<!--[\s\S]*?-->", string.Empty), @"(<[^>]+>)", RegexOptions.IgnoreCase);
+        foreach (var token in tokens)
+        {
+            if (string.IsNullOrEmpty(token)) continue;
+            if (!token.StartsWith('<')) { AddText(token); continue; }
+            var tagMatch = Regex.Match(token, @"^<\s*(/?)\s*([a-z0-9]+)([^>]*)>", RegexOptions.IgnoreCase);
+            if (!tagMatch.Success) continue;
+            var closing = tagMatch.Groups[1].Value.Length > 0;
+            var tag = tagMatch.Groups[2].Value.ToLowerInvariant();
+            var attrs = tagMatch.Groups[3].Value;
+
+            if (closing)
+            {
+                if (tag is "p" or "div" or "section" or "article" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6" or "li" or "blockquote" or "br") FlushBlock();
+                if (tag is "ul" or "ol") { if (lists.Count > 0) lists.Pop(); FlushBlock(); }
+                if (tag is "b" or "strong" or "i" or "em" or "u" or "a" or "span" or "bold" or "italic" or "underline")
+                {
+                    if (inlineTags.Count > 0) inlineTags.Pop();
+                }
+                continue;
+            }
+
+            if (tag is "p" or "div" or "section" or "article" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6" or "li" or "blockquote")
+            {
+                if (runs.Count > 0) FlushBlock();
+                blockFontSize = tag switch { "h1" => baseFontSize + 7, "h2" => baseFontSize + 4, "h3" => baseFontSize + 2, "h4" or "h5" or "h6" => baseFontSize + 1, _ => baseFontSize };
+                blockBold = tag is "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
+                if (tag == "li" && lists.Count > 0) { /* marker is added with the first text node */ }
+                continue;
+            }
+            if (tag == "br") { FlushBlock(); continue; }
+            if (tag is "ul" or "ol") { if (runs.Count > 0) FlushBlock(); lists.Push((tag == "ol", 1)); continue; }
+            if (tag is "b" or "strong" or "bold") { inlineTags.Push("bold"); continue; }
+            if (tag is "i" or "em" or "italic") { inlineTags.Push("italic"); continue; }
+            if (tag is "u" or "underline") { inlineTags.Push("underline"); continue; }
+            if (tag is "a") { inlineTags.Push("underline"); continue; }
+            if (tag == "span")
+            {
+                var style = Regex.Match(attrs, @"style\s*=\s*[""']([^""']*)[""']", RegexOptions.IgnoreCase).Groups[1].Value.ToLowerInvariant();
+                inlineTags.Push(style.Contains("font-weight") && style.Contains("bold") ? "bold" : style.Contains("font-style") && style.Contains("italic") ? "italic" : style.Contains("text-decoration") && style.Contains("underline") ? "underline" : "span");
+            }
+        }
+        FlushBlock();
     }
 }

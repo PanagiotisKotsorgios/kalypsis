@@ -123,8 +123,8 @@ export function WysiwygEditor({
         </Stack>
         {fieldOptions && fieldOptions.length > 0 && (
           <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap
-            sx={{ px: 1, py: 0.75, bgcolor: "action.hover", borderBottom: "1px solid", borderColor: "divider" }}>
-            <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>Πεδία:</Typography>
+            sx={{ px: 1, py: 0.75, bgcolor: "action.hover", borderBottom: "1px solid", borderColor: "divider", maxHeight: 116, overflowY: "auto" }}>
+            <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5, fontWeight: 700 }}>Πεδία (κλικ ή σύρσιμο):</Typography>
             {fieldOptions.map(field => (
               <Chip
                 key={field.key}

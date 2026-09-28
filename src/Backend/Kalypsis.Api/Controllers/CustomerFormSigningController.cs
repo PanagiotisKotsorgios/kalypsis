@@ -202,7 +202,7 @@ public sealed class CustomerFormSigningController : ControllerBase
             };
         }
         var data = BuildFormData(customer, office, policy, body.Fields, collaboratingInsurers);
-        AddTemplateSnapshot(data, formCode, template);
+        AddTemplateSnapshot(data, formCode, template, forceCustom: body.HeaderHtml is not null || body.BodyHtml is not null || body.FooterHtml is not null);
         var draft = new CustomerFormSigning
         {
             Id = Guid.NewGuid(),
@@ -267,7 +267,7 @@ public sealed class CustomerFormSigningController : ControllerBase
             };
         }
         var data = BuildFormData(customer, office, null, body.Fields, collaboratingInsurers);
-        AddTemplateSnapshot(data, normalized, template);
+        AddTemplateSnapshot(data, normalized, template, forceCustom: body.HeaderHtml is not null || body.BodyHtml is not null || body.FooterHtml is not null);
         var draft = new CustomerFormSigning
         {
             Id = Guid.NewGuid(),
@@ -722,11 +722,13 @@ public sealed class CustomerFormSigningController : ControllerBase
             template.BodyHtml,
             template.FooterHtml,
             IsTemplateCustomized(template, definition),
-            FormTemplateFields());
+            FormTemplateFields(formCode));
     }
 
-    private static IReadOnlyList<FormTemplateFieldDto> FormTemplateFields() => new[]
+    private static IReadOnlyList<FormTemplateFieldDto> FormTemplateFields(string formCode)
     {
+        var fields = new List<FormTemplateFieldDto>
+        {
         new FormTemplateFieldDto("customer.name", "Ονοματεπώνυμο πελάτη", "Συμπληρώνεται από την καρτέλα πελάτη."),
         new FormTemplateFieldDto("customer.email", "Email πελάτη", "Συμπληρώνεται από την καρτέλα πελάτη."),
         new FormTemplateFieldDto("customer.phone", "Τηλέφωνο πελάτη", "Κινητό/σταθερό από την καρτέλα πελάτη."),
@@ -744,17 +746,102 @@ public sealed class CustomerFormSigningController : ControllerBase
         new FormTemplateFieldDto("deliveryDate", "Ημερομηνία παράδοσης", "Προεπιλεγμένη ημερομηνία παράδοσης."),
         new FormTemplateFieldDto("documentsReceived", "Έγγραφα που παραλήφθηκαν", "Επεξεργάσιμο πεδίο παραλαβής εγγράφων."),
         new FormTemplateFieldDto("today", "Σήμερα", "Η σημερινή ημερομηνία.")
-    };
+        };
+
+        void Add(string key, string label, string description = "Πρόσθετο δυναμικό πεδίο του εντύπου.")
+            => fields.Add(new FormTemplateFieldDto(key, label, description));
+
+        if (formCode.Equals("intermediary-information", StringComparison.OrdinalIgnoreCase))
+        {
+            Add("intermediaryCategory", "Επαγγελματική ιδιότητα");
+            Add("legalActivity", "Νομικός τρόπος δραστηριότητας");
+            Add("represents", "Ασφαλιστικές που εκπροσωπεί");
+            Add("providesAdvice", "Παρέχει συμβουλή");
+            Add("singleInformationPointUrl", "Ενιαίο σημείο πληροφόρησης");
+            Add("collaboratingInsurers", "Συνεργαζόμενες ασφαλιστικές");
+            Add("remunerationNature", "Τρόπος αμοιβής");
+            Add("remunerationMethod", "Μέθοδος αμοιβής");
+            Add("ownershipDisclosure", "Συμμετοχές / δεσμοί ιδιοκτησίας");
+            Add("investmentBasedInsurance", "Ασφάλιση βασιζόμενη σε επενδύσεις");
+            Add("premiumCollectionMandate", "Εντολή είσπραξης ασφαλίστρων");
+            Add("complaintsProcedure", "Διαδικασία παραπόνων");
+            Add("outOfCourtDisputes", "Εξωδικαστική επίλυση διαφορών");
+        }
+        else if (formCode.Equals("document-receipt", StringComparison.OrdinalIgnoreCase))
+        {
+            Add("deliveryMethod", "Τρόπος παράδοσης");
+            Add("receiptNotes", "Παρατηρήσεις παραλαβής");
+        }
+        else if (formCode.Equals("customer-needs", StringComparison.OrdinalIgnoreCase))
+        {
+            Add("coverageVehicle", "Ασφάλιση οχήματος");
+            Add("coverageVessel", "Ασφάλιση σκάφους");
+            Add("coverageHome", "Ασφάλιση κατοικίας / εξοχικού");
+            Add("coverageBusiness", "Ασφάλιση επιχείρησης");
+            Add("coverageProfessional", "Επαγγελματική αστική ευθύνη");
+            Add("coverageOtherText", "Άλλο ενδιαφέρον");
+            Add("vesselName", "Όνομα σκάφους");
+            Add("registrationNumber", "Νηολόγιο / αριθμός");
+            Add("flag", "Σημαία");
+            Add("hullNumber", "Hull No");
+            Add("vesselType", "Τύπος σκάφους");
+            Add("maker", "Κατασκευαστής");
+            Add("hullMaterial", "Υλικό κατασκευής");
+            Add("yearBuilt", "Έτος κατασκευής");
+            Add("maxSpeed", "Μέγιστη ταχύτητα");
+            Add("purchaseDate", "Ημερομηνία αγοράς");
+            Add("purchasePrice", "Τιμή αγοράς");
+            Add("length", "Μήκος");
+            Add("beam", "Πλάτος");
+            Add("draft", "Βύθισμα");
+            Add("use", "Χρήση");
+            Add("crewDetails", "Πλήρωμα");
+            foreach (var engine in new[] { "inboard", "outboard", "inoutboard" })
+            {
+                var engineLabel = engine switch
+                {
+                    "inboard" => "Εσωλέμβια",
+                    "outboard" => "Εξωλέμβια",
+                    _ => "Εσω-εξωλέμβια"
+                };
+                Add($"engine_{engine}_maker", $"{engineLabel}: κατασκευαστής");
+                Add($"engine_{engine}_serial", $"{engineLabel}: serial no");
+                Add($"engine_{engine}_hp", $"{engineLabel}: ίπποι / HP");
+                Add($"engine_{engine}_year", $"{engineLabel}: έτος");
+                Add($"engine_{engine}_fuel", $"{engineLabel}: καύσιμα");
+            }
+            Add("largerLiabilityLimit", "Μεγαλύτερο όριο αστικής ευθύνης");
+            Add("laidUpPeriod", "Περίοδος εκτός νερού");
+            Add("laidUpLocation", "Πού θα είναι το σκάφος");
+            Add("marina", "Σε μαρίνα");
+            Add("moorings", "Προσδέσεις");
+            Add("cruisingLimits", "Περιορισμοί πλεύσης");
+            Add("automaticFireExtinguishing", "Αυτόματο σύστημα πυρόσβεσης");
+            Add("waterSkiers", "Water skiers / liability");
+            Add("racingRisks", "Racing risks");
+            Add("replacementValues", "Αξίες αντικατάστασης");
+            Add("roadTransit", "Οδική μεταφορά");
+            Add("claimsLastFiveYears", "Ζημιές τελευταίας 5ετίας");
+            Add("loan", "Υπάρχει δάνειο");
+            Add("loanAmount", "Ποσό δανείου");
+            Add("insuredFrom", "Ασφαλιστική περίοδος από");
+            Add("insuredTo", "Ασφαλιστική περίοδος έως");
+            Add("premiumPayment", "Πληρωμή ασφαλίστρων");
+            Add("additionalInformation", "Παρατηρήσεις / πρόσθετες πληροφορίες");
+        }
+
+        return fields;
+    }
 
     private static bool IsTemplateCustomized(DocumentTemplate template, (string Code, string Name, string Kind, string BodyHtml) definition)
         => !string.Equals(template.HeaderHtml ?? "", "", StringComparison.Ordinal)
            || !string.Equals(template.FooterHtml ?? "", "", StringComparison.Ordinal)
            || !string.Equals(template.BodyHtml ?? "", definition.BodyHtml, StringComparison.Ordinal);
 
-    private static void AddTemplateSnapshot(Dictionary<string, string?> data, string formCode, DocumentTemplate template)
+    private static void AddTemplateSnapshot(Dictionary<string, string?> data, string formCode, DocumentTemplate template, bool forceCustom = false)
     {
         var definition = TemplateFor(formCode);
-        if (!IsTemplateCustomized(template, definition)) return;
+        if (!forceCustom && !IsTemplateCustomized(template, definition)) return;
         data["__templateCustom"] = "true";
         data["__templateHeaderHtml"] = MergeTemplate(template.HeaderHtml, data);
         data["__templateBodyHtml"] = MergeTemplate(template.BodyHtml, data);
