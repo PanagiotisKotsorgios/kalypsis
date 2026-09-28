@@ -5,6 +5,7 @@ import BackupIcon from "@mui/icons-material/Backup";
 import BugReportIcon from "@mui/icons-material/BugReport";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import { Link as RouterLink } from "react-router-dom";
+import { usePageContainerVisibility } from "../hooks/usePageContainerVisibility";
 
 /**
  * Consolidated «Ρυθμίσεις γραφείου» hub — one sidebar entry now covers
@@ -12,32 +13,38 @@ import { Link as RouterLink } from "react-router-dom";
  * for bookmarks.
  */
 export function AgencySettingsHubPage() {
+  const isContainerVisible = usePageContainerVisibility("agency-and-profile");
   const tiles = [
     {
+      containerId: "agency-settings",
       to: "/app/agency-settings",
       title: "Ρυθμίσεις γραφείου",
       body: "Στοιχεία γραφείου, χρήστες, ρόλοι, e-mail branding, προεπιλογές συμβολαίων, feature flags.",
       icon: <SettingsIcon />, color: "#0b2545",
     },
     {
+      containerId: "legal-documents",
       to: "/app/legal",
       title: "Νομικά έγγραφα",
       body: "Πρότυπα συμβάσεων, GDPR, έντυπα διαμεσολάβησης — προσαρμοσμένα στο γραφείο σας.",
       icon: <GavelIcon />, color: "#1f7bb3",
     },
     {
+      containerId: "backups",
       to: "/app/backups",
       title: "Αντίγραφα ασφαλείας",
       body: "Χειροκίνητα και προγραμματισμένα backups + λήψη πλήρους αντιγράφου της βάσης.",
       icon: <BackupIcon />, color: "#16a34a",
     },
     {
+      containerId: "office-instructions",
       to: "/app/instructions",
       title: "Οδηγίες γραφείου",
       body: "Εσωτερικός οδηγός για το προσωπικό του γραφείου — διαδικασίες, standards, quick-reference.",
       icon: <MenuBookIcon />, color: "#7c3aed",
     },
     {
+      containerId: "support-requests",
       to: "/app/support-request",
       title: "Αιτήματα υποστήριξης",
       body: "Στείλτε αίτημα προς την ομάδα Kalypsis με αυτόματα προσαρτημένα diagnostics από τον browser.",
@@ -54,7 +61,7 @@ export function AgencySettingsHubPage() {
         Όλες οι ρυθμίσεις γραφείου, τα νομικά έγγραφα και τα αντίγραφα ασφαλείας σε μία σελίδα.
       </Typography>
       <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", md: "repeat(3,1fr)" } }}>
-        {tiles.map((t) => (
+        {tiles.filter((t) => isContainerVisible(t.containerId)).map((t) => (
           <Card key={t.to} variant="outlined" sx={{
             borderRadius: 2.5,
             // Permanent navy-tinted frame — matches CarrierBridgesHub +

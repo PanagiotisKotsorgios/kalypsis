@@ -210,6 +210,18 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
  */
 export const BACKOFFICE_PAGE_CONTAINER_SECTIONS: PageContainerVisibilitySection[] = [
   {
+    title: "Γραφείο & Προφίλ",
+    description: "Cards της σελίδας ρυθμίσεων γραφείου και προσωπικού προφίλ.",
+    packages: ["BackOffice"],
+    items: [
+      { pageId: "agency-and-profile", containerId: "agency-settings", label: "Ρυθμίσεις γραφείου", packages: ["BackOffice"] },
+      { pageId: "agency-and-profile", containerId: "legal-documents", label: "Νομικά έγγραφα", packages: ["BackOffice"] },
+      { pageId: "agency-and-profile", containerId: "backups", label: "Αντίγραφα ασφαλείας", packages: ["BackOffice"] },
+      { pageId: "agency-and-profile", containerId: "office-instructions", label: "Οδηγίες γραφείου", packages: ["BackOffice"] },
+      { pageId: "agency-and-profile", containerId: "support-requests", label: "Αιτήματα υποστήριξης", packages: ["BackOffice"] },
+    ],
+  },
+  {
     title: "Γέφυρες Εταιρειών",
     description: "Tiles της σελίδας Γέφυρες Εταιρειών.",
     packages: ["BackOffice"],
