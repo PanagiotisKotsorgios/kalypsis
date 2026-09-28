@@ -42,7 +42,8 @@ public record GetCustomerAccountQuery(Guid CustomerId, DateOnly? From = null, Da
 public record CustomerAccountListRowDto(
     Guid CustomerId, string CustomerName, decimal Charges, decimal Credits,
     decimal Balance, decimal OverdueAmount, int OverdueCount,
-    int PaidInstallments, int LatePayments, decimal OnTimeRatePercent);
+    int PaidInstallments, int LatePayments, decimal OnTimeRatePercent,
+    DateOnly? LastPaymentDate, DateOnly? LastChargeDate);
 
 public record ListCustomerAccountsQuery(
     DateOnly? From, DateOnly? To, bool OnlyDebtors, bool OnlyCreditors, bool OnlyOverdue)
@@ -197,8 +198,8 @@ public sealed class ListCustomerAccountsQueryHandler
                 && (!q.From.HasValue || x.StartDate >= q.From.Value)
                 && (!q.To.HasValue || x.StartDate <= q.To.Value)).ToList();
         var installments = await _db.PolicyInstallments
-            .Where(x => x.DeletedAt == null && !x.PaidAt.HasValue && x.DueDate < today)
-            .Select(x => new { x.PolicyId, x.Amount, x.Policy!.CustomerId, x.Policy.PaidDirectlyToCarrier })
+            .Where(x => x.DeletedAt == null)
+            .Select(x => new { x.PolicyId, x.Amount, x.DueDate, x.PaidAt, x.Policy!.CustomerId, x.Policy.PaidDirectlyToCarrier })
             .Where(x => !x.PaidDirectlyToCarrier).AsNoTracking().ToListAsync(ct);
 
         var movementGroups = movements.Where(x => x.CustomerId.HasValue)
@@ -210,14 +211,35 @@ public sealed class ListCustomerAccountsQueryHandler
             var charges = rows.Where(x => CustomerAccountMath.IsCharge(x.Kind)).Sum(x => x.Amount)
                 + synthetic.Where(x => x.CustomerId == customerId).Sum(x => x.Premium);
             var credits = rows.Where(x => CustomerAccountMath.IsCredit(x.Kind)).Sum(x => x.Amount);
-            var overdue = installments.Where(x => x.CustomerId == customerId).Sum(x => x.Amount);
-            var paidInstallments = 0; // detailed punctuality is available on the account card
+            var customerInstallments = installments.Where(x => x.CustomerId == customerId).ToList();
+            var openOverdue = customerInstallments
+                .Where(x => !x.PaidAt.HasValue && x.DueDate < today)
+                .ToList();
+            var overdue = openOverdue.Sum(x => x.Amount);
+            var paidInstallments = customerInstallments.Count(x => x.PaidAt.HasValue);
+            var latePayments = customerInstallments.Count(x => x.PaidAt.HasValue && x.PaidAt!.Value > x.DueDate);
+            var onTimePayments = customerInstallments.Count(x => x.PaidAt.HasValue && x.PaidAt!.Value <= x.DueDate);
+            var onTimeRate = paidInstallments == 0
+                ? 0m
+                : Math.Round(onTimePayments * 100m / paidInstallments, 2);
+            var lastPaymentDate = rows
+                .Where(x => CustomerAccountMath.IsCredit(x.Kind))
+                .Select(x => (DateOnly?)x.MovementDate)
+                .OrderByDescending(x => x)
+                .FirstOrDefault();
+            var lastChargeDate = rows
+                .Where(x => CustomerAccountMath.IsCharge(x.Kind))
+                .Select(x => (DateOnly?)x.MovementDate)
+                .Concat(synthetic.Where(x => x.CustomerId == customerId).Select(x => (DateOnly?)x.StartDate))
+                .OrderByDescending(x => x)
+                .FirstOrDefault();
             var balance = charges - credits;
             var customer = customers.GetValueOrDefault(customerId);
             return new CustomerAccountListRowDto(customerId,
                 customer is null ? "—" : CustomerAccountMath.Name(customer),
                 charges, credits, balance, overdue,
-                installments.Count(x => x.CustomerId == customerId), paidInstallments, 0, 0m);
+                openOverdue.Count, paidInstallments, latePayments, onTimeRate,
+                lastPaymentDate, lastChargeDate);
         }).ToList();
 
         return result.Where(x => (!q.OnlyDebtors || x.Balance > 0m)

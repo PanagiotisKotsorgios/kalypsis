@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HelpHint } from "../components/HelpHint";
 import { FilterHelp, FilterFieldWrap } from "../components/FilterHelp";
 import {
@@ -75,6 +75,25 @@ interface CustomerDto {
   createdAt: string;
 }
 
+interface CustomerAccountSummary {
+  customerId: string;
+  customerName: string;
+  charges: number;
+  credits: number;
+  balance: number;
+  overdueAmount: number;
+  overdueCount: number;
+  paidInstallments: number;
+  latePayments: number;
+  onTimeRatePercent: number;
+  lastPaymentDate?: string | null;
+  lastChargeDate?: string | null;
+}
+
+type CustomerListRow = CustomerDto & { account?: CustomerAccountSummary };
+type PaymentFilter = "all" | "debtors" | "creditors" | "settled" | "overdue" | "good" | "bad" | "unpaid";
+type PaymentWindow = "all" | "last7" | "last30" | "previousWeek" | "previousMonth" | "thisMonth" | "custom";
+
 interface CreateBody {
   type: CustomerType;
   status: CustomerStatus;
@@ -100,6 +119,21 @@ function newCustomerForm(status: CustomerStatus): CreateBody {
   };
 }
 
+function isoDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function paymentStatus(account?: CustomerAccountSummary): string {
+  if (!account) return "—";
+  if (account.balance > 0.005) return account.overdueAmount > 0.005 ? "Κακοπληρωτής" : "Οφειλέτης";
+  if (account.balance < -0.005) return "Πιστωτικός";
+  if ((account.credits > 0.005 || account.paidInstallments > 0) && account.latePayments === 0) return "Καλοπληρωτής";
+  return "Εξοφλημένος";
+}
+
 export function CustomersPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -108,6 +142,10 @@ export function CustomersPage() {
   const [needKind, setNeedKind] = useState("");
   const [onlyUninsuredNeeds, setOnlyUninsuredNeeds] = useState(false);
   const [statusFilter, setStatusFilter] = useState<CustomerStatus | "">("");
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("all");
+  const [paymentWindow, setPaymentWindow] = useState<PaymentWindow>("all");
+  const [paymentFrom, setPaymentFrom] = useState("");
+  const [paymentTo, setPaymentTo] = useState("");
   const [createStatus, setCreateStatus] = useState<CustomerStatus | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<CustomerDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -120,7 +158,8 @@ export function CustomersPage() {
         occupation: occupationFilter || undefined,
         needKind: needKind || undefined,
         onlyUninsuredNeeds: needKind && onlyUninsuredNeeds ? true : undefined,
-        status: statusFilter || undefined
+        status: statusFilter || undefined,
+        limit: 5000
       } })).data
   });
 
@@ -132,15 +171,73 @@ export function CustomersPage() {
     },
     onError: (err) => setError(extractErrorMessage(err))
   });
+
+  const paymentRange = useMemo(() => {
+    if (paymentWindow === "custom") return { from: paymentFrom || undefined, to: paymentTo || undefined };
+    if (paymentWindow === "all") return { from: undefined, to: undefined };
+    const today = new Date();
+    const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const start = new Date(end);
+    if (paymentWindow === "last7") start.setDate(start.getDate() - 6);
+    if (paymentWindow === "last30") start.setDate(start.getDate() - 29);
+    if (paymentWindow === "thisMonth") start.setDate(1);
+    if (paymentWindow === "previousWeek") {
+      const day = end.getDay() || 7;
+      end.setDate(end.getDate() - day);
+      start.setDate(end.getDate() - 6);
+    }
+    if (paymentWindow === "previousMonth") {
+      start.setMonth(start.getMonth() - 1, 1);
+      end.setDate(0);
+    }
+    return { from: isoDate(start), to: isoDate(end) };
+  }, [paymentWindow, paymentFrom, paymentTo]);
+
+  const accountsQuery = useQuery({
+    queryKey: ["customer-accounts", paymentRange.from, paymentRange.to],
+    retry: false,
+    queryFn: async () => (await api.get<CustomerAccountSummary[]>("/customers/accounts", { params: {
+      from: paymentRange.from,
+      to: paymentRange.to,
+      onlyDebtors: false,
+      onlyCreditors: false,
+      onlyOverdue: false
+    } })).data
+  });
   const updateMutation = useMutation({
     mutationFn: async ({ id, body }: { id: string; body: CreateBody }) => api.put(`/customers/${id}`, body),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ["customers"] }); setEditingCustomer(null); },
     onError: (err) => setError(extractErrorMessage(err))
   });
 
-  const allCustomers = customersQuery.data ?? [];
-  const table = useTableState<CustomerDto>({
-    rows: allCustomers,
+  const accountByCustomer = useMemo(() => new Map(
+    (accountsQuery.data ?? []).map(account => [account.customerId, account])
+  ), [accountsQuery.data]);
+  const allCustomers = useMemo<CustomerListRow[]>(() => (customersQuery.data ?? []).map(customer => ({
+    ...customer,
+    account: accountByCustomer.get(customer.id)
+  })), [customersQuery.data, accountByCustomer]);
+  const financeFilteredCustomers = useMemo(() => allCustomers.filter(customer => {
+    if (paymentFilter === "all") return true;
+    const account = customer.account;
+    if (!account) return false;
+    switch (paymentFilter) {
+      case "debtors": return account.balance > 0.005;
+      case "creditors": return account.balance < -0.005;
+      case "settled": return Math.abs(account.balance) <= 0.005;
+      case "overdue": return account.overdueAmount > 0.005;
+      case "good": return (account.credits > 0.005 || account.paidInstallments > 0) && account.overdueAmount <= 0.005 && account.latePayments === 0 && account.balance <= 0.005;
+      case "bad": return account.overdueAmount > 0.005 || account.latePayments > 0;
+      case "unpaid": return account.balance > 0.005 && account.credits <= 0.005;
+      default: return true;
+    }
+  }), [allCustomers, paymentFilter]);
+  const debtorCount = allCustomers.filter(c => (c.account?.balance ?? 0) > 0.005).length;
+  const creditorCount = allCustomers.filter(c => (c.account?.balance ?? 0) < -0.005).length;
+  const overdueCount = allCustomers.filter(c => (c.account?.overdueAmount ?? 0) > 0.005).length;
+  const goodPayerCount = allCustomers.filter(c => c.account && (c.account.credits > 0.005 || c.account.paidInstallments > 0) && c.account.overdueAmount <= 0.005 && c.account.latePayments === 0 && c.account.balance <= 0.005).length;
+  const table = useTableState<CustomerListRow>({
+    rows: financeFilteredCustomers,
     searchableText: (c) => `${c.customerNumber} ${c.firstName ?? ""} ${c.lastName ?? ""} ${c.companyName ?? ""} ${c.vatNumber ?? ""} ${c.email ?? ""} ${c.phone ?? ""} ${c.city ?? ""}`,
     pageSize: 25
   });
@@ -152,6 +249,8 @@ export function CustomersPage() {
     { key: "email",  label: "Email" },
     { key: "phone",  label: "Τηλέφωνο" },
     { key: "notes",  label: "Σημειώσεις" },
+    { key: "balance", label: "Υπόλοιπο / πληρωμές" },
+    { key: "paymentStatus", label: "Συμπεριφορά πληρωμών" },
     { key: "city",   label: "Πόλη", defaultVisible: false },
   ]);
 
@@ -166,7 +265,7 @@ export function CustomersPage() {
     onSort: (key, dir) => {
       // useTableState only supports keys that exist on the DTO; map friendly
       // column keys back to the underlying field so sorting works everywhere.
-      const map: Record<string, keyof CustomerDto> = {
+      const map: Record<string, keyof CustomerListRow> = {
         number: "customerNumber", type: "type", name: "lastName",
         email: "email", phone: "phone", city: "city", notes: "notes",
       };
@@ -251,8 +350,48 @@ export function CustomersPage() {
             <MenuItem value="">Όλες</MenuItem>
             {Object.entries(CUSTOMER_STATUS_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
           </SearchableTextField>
+          <SearchableTextField select size="small" label="Οικονομική εικόνα" value={paymentFilter}
+            onChange={(e) => setPaymentFilter(e.target.value as PaymentFilter)} sx={{ minWidth: 190, width: "100%" }}>
+            <MenuItem value="all">Όλοι οι πελάτες</MenuItem>
+            <MenuItem value="debtors">Χρωστάνε στο γραφείο</MenuItem>
+            <MenuItem value="unpaid">Χρέος χωρίς καταβολή</MenuItem>
+            <MenuItem value="overdue">Ληξιπρόθεσμοι</MenuItem>
+            <MenuItem value="creditors">Πιστωτικοί</MenuItem>
+            <MenuItem value="good">Καλοπληρωτές</MenuItem>
+            <MenuItem value="bad">Κακοπληρωτές</MenuItem>
+            <MenuItem value="settled">Εξοφλημένοι</MenuItem>
+          </SearchableTextField>
+          <SearchableTextField select size="small" label="Περίοδος οφειλής" value={paymentWindow}
+            onChange={(e) => setPaymentWindow(e.target.value as PaymentWindow)} sx={{ minWidth: 175, width: "100%" }}>
+            <MenuItem value="all">Όλο το ιστορικό</MenuItem>
+            <MenuItem value="last7">Τελευταίες 7 ημέρες</MenuItem>
+            <MenuItem value="last30">Τελευταίες 30 ημέρες</MenuItem>
+            <MenuItem value="previousWeek">Προηγούμενη εβδομάδα</MenuItem>
+            <MenuItem value="previousMonth">Προηγούμενος μήνας</MenuItem>
+            <MenuItem value="thisMonth">Τρέχων μήνας</MenuItem>
+            <MenuItem value="custom">Δική μου περίοδος</MenuItem>
+          </SearchableTextField>
+          {paymentWindow === "custom" && <>
+            <TextField size="small" type="date" label="Από" value={paymentFrom}
+              onChange={(e) => setPaymentFrom(e.target.value)} InputLabelProps={{ shrink: true }} />
+            <TextField size="small" type="date" label="Έως" value={paymentTo}
+              onChange={(e) => setPaymentTo(e.target.value)} InputLabelProps={{ shrink: true }} />
+          </>}
         </Stack>
       </Card>
+
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} mb={2} flexWrap="wrap" useFlexGap>
+        <Chip color={paymentFilter === "debtors" ? "error" : "default"} variant={paymentFilter === "debtors" ? "filled" : "outlined"}
+          label={`Οφειλέτες: ${debtorCount}`} onClick={() => setPaymentFilter("debtors")} />
+        <Chip color={paymentFilter === "creditors" ? "info" : "default"} variant={paymentFilter === "creditors" ? "filled" : "outlined"}
+          label={`Πιστωτικοί: ${creditorCount}`} onClick={() => setPaymentFilter("creditors")} />
+        <Chip color={paymentFilter === "overdue" ? "warning" : "default"} variant={paymentFilter === "overdue" ? "filled" : "outlined"}
+          label={`Ληξιπρόθεσμοι: ${overdueCount}`} onClick={() => setPaymentFilter("overdue")} />
+        <Chip color={paymentFilter === "good" ? "success" : "default"} variant={paymentFilter === "good" ? "filled" : "outlined"}
+          label={`Καλοπληρωτές: ${goodPayerCount}`} onClick={() => setPaymentFilter("good")} />
+        <Chip variant="outlined" label={paymentRange.from || paymentRange.to ? `Περίοδος: ${paymentRange.from ?? "…"} – ${paymentRange.to ?? "…"}` : "Περίοδος: όλο το ιστορικό"} />
+        {accountsQuery.isLoading && <Chip icon={<CircularProgress size={14} />} label="Φόρτωση οικονομικών…" />}
+      </Stack>
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
@@ -261,14 +400,12 @@ export function CustomersPage() {
       )}
 
       <Box sx={{ mb: 2 }}>
-        <TableToolbar<CustomerDto>
+        <TableToolbar<CustomerListRow>
           query={table.query} onQuery={table.setQuery}
-          count={allCustomers.length} filteredCount={table.filtered.length}
+          count={financeFilteredCustomers.length} filteredCount={table.filtered.length}
           pageSize={table.pageSize} onPageSize={table.setPageSize}
           exportRows={table.filtered}
           exportFileName={`customers-${new Date().toISOString().slice(0, 10)}`}
-          serverEntity="customers"
-          serverParams={{ search: table.query }}
           exportColumns={[
             { key: "customerNumber", label: "Αρ. Πελάτη" },
             { key: "type", label: "Τύπος" },
@@ -278,7 +415,12 @@ export function CustomersPage() {
             { key: "vatNumber", label: "ΑΦΜ" },
             { key: "email", label: "Email" },
             { key: "phone", label: "Τηλέφωνο" },
-            { key: "city", label: "Πόλη" }
+            { key: "city", label: "Πόλη" },
+            { key: "balance", label: "Υπόλοιπο", map: (r) => r.account?.balance ?? null },
+            { key: "paymentStatus", label: "Συμπεριφορά πληρωμών", map: (r) => paymentStatus(r.account) },
+            { key: "overdueAmount", label: "Ληξιπρόθεσμα", map: (r) => r.account?.overdueAmount ?? null },
+            { key: "onTimeRatePercent", label: "Έγκαιρες πληρωμές %", map: (r) => r.account?.onTimeRatePercent ?? null },
+            { key: "lastPaymentDate", label: "Τελευταία πληρωμή", map: (r) => r.account?.lastPaymentDate ?? null }
           ]}
         />
       </Box>
@@ -359,6 +501,14 @@ export function CustomersPage() {
                           return <TableCell key={col.key}>{c.city ?? "-"}</TableCell>;
                         case "notes":
                           return <TableCell key={col.key} sx={{ maxWidth: 260 }}>{c.notes ? <Typography variant="body2" noWrap title={c.notes}>{c.notes}</Typography> : "-"}</TableCell>;
+                        case "balance": {
+                          const balance = c.account?.balance;
+                          return <TableCell key={col.key} align="right" sx={{ color: balance === undefined ? "text.disabled" : balance > 0.005 ? "error.main" : balance < -0.005 ? "info.main" : "success.main", fontWeight: 700 }}>
+                            {balance === undefined ? "—" : `${balance.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}
+                          </TableCell>;
+                        }
+                        case "paymentStatus":
+                          return <TableCell key={col.key}><Chip size="small" variant="outlined" color={c.account ? (c.account.balance > 0.005 ? "error" : c.account.balance < -0.005 ? "info" : "success") : "default"} label={paymentStatus(c.account)} /></TableCell>;
                         default: return <TableCell key={col.key}>—</TableCell>;
                       }
                     })}

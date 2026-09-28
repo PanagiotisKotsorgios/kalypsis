@@ -29,8 +29,9 @@ public class CustomersController : ControllerBase
         [FromQuery] string? needKind,
         [FromQuery] bool? onlyUninsuredNeeds,
         [FromQuery] CustomerStatus? status,
+        [FromQuery] int? limit,
         CancellationToken cancellationToken)
-        => Ok(await _mediator.Send(new ListCustomersQuery(search, occupation, needKind, onlyUninsuredNeeds, status), cancellationToken));
+        => Ok(await _mediator.Send(new ListCustomersQuery(search, occupation, needKind, onlyUninsuredNeeds, status, limit), cancellationToken));
 
     [HttpGet("{id:guid}")]
     [RequirePermission("customers.read")]
