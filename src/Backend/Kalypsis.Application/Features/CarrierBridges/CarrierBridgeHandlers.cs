@@ -99,6 +99,8 @@ public class ListAvailableOverCommissionBridgesHandler
             "MINETTA", "ΜΙΝΕΤΤΑ", "ΜΙΝΈΤΤΑ", "ΜΙΝΕΤΑ", "ΜΙΝΈΤΑ",
             "ATLANTIC", "ATLANTIKI", "ΑΤΛΑΝΤΙΚΗ",
             "INTERLIFE", "ΙΝΤΕΡΛΑΪΦ", "ΙΝΤΕΡΛΑΙΦ",
+            "YDROGEIOS", "HYDROGEIOS", "ΥΔΡΟΓΕΙΟΣ",
+            "ORIZON", "ΟΡΙΖΩΝ", "ΟΡΙΖΟΝ",
         };
 
         return carriers.Select(c =>
@@ -156,7 +158,9 @@ public class ListAvailableCarrierBridgesHandler : IRequestHandler<ListAvailableC
         "ΜΙΝΕΤΤΑ",
         "ΜΙΝΈΤΤΑ",
         "ΜΙΝΕΤΑ",
-        "ΜΙΝΈΤΑ"
+        "ΜΙΝΈΤΑ",
+        "YDROGEIOS", "HYDROGEIOS", "ΥΔΡΟΓΕΙΟΣ",
+        "ORIZON", "ΟΡΙΖΩΝ", "ΟΡΙΖΟΝ"
     };
 
     public async Task<IReadOnlyList<AvailableCarrierDto>> Handle(ListAvailableCarrierBridgesQuery _, CancellationToken ct)
@@ -236,11 +240,17 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             || carrierKey.Contains("ΜΙΝΈΤΤΑ")
             || carrierKey.Contains("ΜΙΝΕΤΑ")
             || carrierKey.Contains("ΜΙΝΈΤΑ");
-        if (!isErgo && !isGrandCover && !isAtlantic && !isInterlife && !isMinetta)
+        var isYdrogeios = carrierKey.Contains("YDROGEIOS")
+            || carrierKey.Contains("HYDROGEIOS")
+            || carrierKey.Contains("ΥΔΡΟΓΕΙΟΣ");
+        var isOrizon = carrierKey.Contains("ORIZON")
+            || carrierKey.Contains("ΟΡΙΖΩΝ")
+            || carrierKey.Contains("ΟΡΙΖΟΝ");
+        if (!isErgo && !isGrandCover && !isAtlantic && !isInterlife && !isMinetta && !isYdrogeios && !isOrizon)
             throw new AppException("bridge_format_not_supported",
                 "Δεν υπάρχει διαθέσιμος αναλυτής για αυτή την εταιρία ακόμη.", 400,
                 title: "Μη υποστηριζόμενος αναλυτής",
-                why: "Κάθε εταιρία στέλνει το αρχείο της σε διαφορετική μορφή. Έχουμε υλοποιήσει μέχρι στιγμής ERGO, Grand Cover, Ατλαντική Ένωση, Interlife και Μινέττα.",
+                why: "Κάθε εταιρία στέλνει το αρχείο της σε διαφορετική μορφή. Έχουμε υλοποιήσει μέχρι στιγμής ERGO, Grand Cover, Ατλαντική Ένωση, Interlife, Μινέττα, Υδρόγειο και Ορίζων.",
                 fix: "Επιλέξτε μία από τις υποστηριζόμενες εταιρίες ή ζητήστε υποστήριξη για τη συγκεκριμένη εταιρία.");
 
         // File-shape detection. ERGO ships one .xlsx; Grand Cover ships a
@@ -271,6 +281,8 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                        : isAtlantic ? "ATLANTIC"
                        : isInterlife ? "INTERLIFE"
                        : isMinetta ? "MINETTA"
+                       : isYdrogeios ? "YDROGEIOS_CSV"
+                       : isOrizon ? "ORIZON_CARHIST"
                        : "?";
         // ERGO carrier accepts both ERGO_XLSX and ERGO_TXT — treat both as
         // matching. Anything else is a hard mismatch.
@@ -282,6 +294,8 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             if (isAtlantic && suspectedFormat == "ATLANTIC") return true;
             if (isInterlife && suspectedFormat == "INTERLIFE") return true;
             if (isMinetta && suspectedFormat == "MINETTA") return true;
+            if (isYdrogeios && suspectedFormat == "YDROGEIOS_CSV") return true;
+            if (isOrizon && suspectedFormat == "ORIZON_CARHIST") return true;
             return false;
         }
         if (!CarrierMatchesFile())
@@ -294,6 +308,8 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                 "GRAND_COVER" => "αρχείο Grand Cover (.zip)",
                 "ATLANTIC"    => "αρχείο Ατλαντικής Ένωσης (Producer_ .zip)",
                 "MINETTA"     => "αρχείο Μινέττα (.zip)",
+                "YDROGEIOS_CSV" => "αρχείο Υδρογείου (PARG .csv)",
+                "ORIZON_CARHIST" => "αρχείο Ορίζων (carhist .txt)",
                 _ => "άγνωστου τύπου αρχείο"
             };
             var expectedFriendly = isErgo ? "ERGO Ασφαλιστική"
@@ -301,6 +317,8 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                                  : isAtlantic ? "Ατλαντική Ένωση"
                                  : isInterlife ? "Interlife"
                                  : isMinetta ? "Μινέττα"
+                                 : isYdrogeios ? "Υδρόγειος"
+                                 : isOrizon ? "Ορίζων"
                                  : carrier.Name;
             throw new AppException("bridge_wrong_carrier",
                 $"Το αρχείο μοιάζει με {friendly}, αλλά το εισάγετε στη γέφυρα «{expectedFriendly}».", 400,
@@ -397,6 +415,22 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
                     fix: "Ανεβάστε το ZIP όπως το εξάγει το σύστημα της Μινέττας, χωρίς αποσυμπίεση.");
             rows = ParseMinettaZip(r.FileContent);
             format = "MINETTA";
+        }
+        else if (isYdrogeios || isOrizon)
+        {
+            if (isZip)
+                throw new AppException("flat_carrier_plain_file_required",
+                    "Η γέφυρα απαιτεί το απλό αρχείο εξαγωγής και όχι συμπιεσμένο ZIP.",
+                    400,
+                    title: "Λάθος μορφή αρχείου",
+                    why: isYdrogeios
+                        ? "Η Υδρόγειος αποστέλλει το PARG ως απλό CSV."
+                        : "Ο Ορίζων αποστέλλει το carhist ως απλό TXT.",
+                    fix: isYdrogeios
+                        ? "Ανεβάστε το αρχείο PARG*.csv χωρίς να το αποσυμπιέσετε ή να το μετατρέψετε."
+                        : "Ανεβάστε το αρχείο carhist*.txt χωρίς να το αποσυμπιέσετε ή να το μετατρέψετε.");
+            rows = ParseFlatCarrierFile(r.FileContent, r.FileName, isYdrogeios);
+            format = isYdrogeios ? "YDROGEIOS_CSV" : "ORIZON_CARHIST";
         }
         else
         {
@@ -759,6 +793,8 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         // Filename shortcuts (before touching xlsx parsing which is heavy).
         if (name.StartsWith("MOTOR_") || name.StartsWith("LOIPOI_")) return "INTERLIFE";
         if (name.EndsWith(".TXT") && (name.Contains("(HEADER)") || name.Contains("(DETAIL)"))) return "ERGO_TXT";
+        if (name.StartsWith("PARG") && name.EndsWith(".CSV")) return "YDROGEIOS_CSV";
+        if (name.Contains("CARHIST") && name.EndsWith(".TXT")) return "ORIZON_CARHIST";
 
         // XLSX peek — top-left cell + row 1 header.
         try
@@ -1734,7 +1770,7 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
     /// <summary>Semicolon-separated CSV splitter that respects the quote
     /// convention Grand Cover uses (fields may be quoted when they contain a
     /// literal semicolon).</summary>
-    private static List<string> SplitCsvLine(string line)
+    private static List<string> SplitCsvLine(string line, char delimiter = ';')
     {
         var cols = new List<string>();
         var buf = new System.Text.StringBuilder();
@@ -1743,7 +1779,7 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         {
             var ch = line[i];
             if (ch == '"') { inQuote = !inQuote; continue; }
-            if (ch == ';' && !inQuote) { cols.Add(buf.ToString()); buf.Clear(); continue; }
+            if (ch == delimiter && !inQuote) { cols.Add(buf.ToString()); buf.Clear(); continue; }
             buf.Append(ch);
         }
         cols.Add(buf.ToString());
@@ -1771,6 +1807,157 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
         if (decimal.TryParse(cleaned, NumberStyles.Any, CultureInfo.InvariantCulture, out var v))
             return v;
         return null;
+    }
+
+    // ========================================================================
+    // ΥΔΡΟΓΕΙΟΣ / ΟΡΙΖΩΝ flat motor exports. These two carriers use the same
+    // positional portfolio layout but different transport encodings:
+    //   • Υδρόγειος: PARG*.csv, CP1253, comma-delimited.
+    //   • Ορίζων: carhist*.txt, UTF-8, semicolon-delimited.
+    // The first 60 columns contain the policy/customer/vehicle block and the
+    // amount block is fixed at columns 52..59 (cents, signed). Ορίζων adds
+    // the agency commission in column 60; Υδρόγειος does not.
+    // ========================================================================
+    private static List<BridgeImportRow> ParseFlatCarrierFile(byte[] bytes, string fileName, bool isYdrogeios)
+    {
+        _ = _cp1253Registered;
+        var encoding = isYdrogeios
+            ? System.Text.Encoding.GetEncoding(1253)
+            : new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: false);
+        var text = encoding.GetString(bytes).TrimStart('\uFEFF');
+        var delimiter = isYdrogeios ? ',' : ';';
+        var carrierName = isYdrogeios ? "Υδρόγειος" : "Ορίζων";
+        var rows = new List<BridgeImportRow>();
+        var index = 0;
+
+        static string? NullIfZero(string? value)
+        {
+            var trimmed = value?.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed) || trimmed.All(c => c == '0')) return null;
+            return trimmed;
+        }
+
+        static string? CleanPartnerCode(string? value)
+        {
+            var trimmed = NullIfZero(value);
+            return trimmed is null || trimmed.Contains('*') ? null : trimmed;
+        }
+
+        static string? CleanVat(string? value)
+        {
+            var trimmed = value?.Trim();
+            return trimmed is { Length: 9 } && trimmed.All(char.IsDigit) ? trimmed : null;
+        }
+
+        static string? Get(IReadOnlyList<string> cells, int column) =>
+            column >= 0 && column < cells.Count ? cells[column].Trim() : null;
+
+        foreach (var line in text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var cells = SplitCsvLine(line.TrimEnd('\r'), delimiter);
+            // Both exports are headerless. A valid record starts with the
+            // numeric carrier transaction id and has the fixed customer block.
+            var transaction = Get(cells, 0);
+            if (string.IsNullOrWhiteSpace(transaction) || !transaction.All(char.IsDigit)) continue;
+
+            index++;
+            var notes = new List<BridgeImportNote>();
+            var movement = Get(cells, 3);
+            var section = Get(cells, 8);
+
+            // Υδρόγειος places the policy number at column 2; records where
+            // that field is zero use the transaction id at column 0. Ορίζων
+            // places it at column 11 (the carhist policy number).
+            var policyNumber = NullIfZero(isYdrogeios ? Get(cells, 2) : Get(cells, 11));
+            if (policyNumber is null) policyNumber = NullIfZero(transaction);
+            var proposalNumber = NullIfZero(isYdrogeios ? transaction : Get(cells, 2));
+            if (string.Equals(policyNumber, proposalNumber, StringComparison.OrdinalIgnoreCase)) proposalNumber = null;
+
+            var issue = ParseMinettaDate(Get(cells, 5));
+            var start = ParseMinettaDate(Get(cells, 6));
+            var end = ParseMinettaDate(Get(cells, 7));
+            var gross = ParseFlatAmount(Get(cells, 59));
+            var net = ParseFlatAmount(Get(cells, 52));
+            var agencyCommission = isYdrogeios ? null : ParseFlatAmount(Get(cells, 60));
+
+            var customerName = Get(cells, 12);
+            if (string.IsNullOrWhiteSpace(customerName)) customerName = null;
+            var customerVat = CleanVat(Get(cells, 19));
+            var partnerCode = CleanPartnerCode(Get(cells, 9));
+            var plate = Get(cells, 27);
+            if (string.IsNullOrWhiteSpace(plate)) plate = null;
+
+            var raw = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Flat.File"] = fileName,
+                ["Flat.Transaction"] = transaction,
+                ["Flat.RecordType"] = movement ?? "",
+                ["Flat.Section"] = section ?? "",
+                ["POLNUM"] = policyNumber ?? "",
+                ["Κλάδος.Code"] = Get(cells, 10) ?? "",
+                ["Χρήση.Code"] = Get(cells, 31) ?? "",
+                ["Πακέτο.Code"] = Get(cells, 32) ?? "",
+                ["Καλύψεις"] = Get(cells, 33) ?? "",
+                ["Flat.Status"] = Get(cells, 28) ?? ""
+            };
+            var make = Get(cells, 34);
+            var model = Get(cells, 36);
+            var vehicle = string.Join(" ", new[] { make, model }.Where(x => !string.IsNullOrWhiteSpace(x)));
+            if (!string.IsNullOrWhiteSpace(vehicle)) raw["Vehicle"] = vehicle;
+            if (!string.IsNullOrWhiteSpace(Get(cells, 18))) raw["Phone"] = Get(cells, 18)!;
+            if (!string.IsNullOrWhiteSpace(Get(cells, 15))) raw["City"] = Get(cells, 15)!;
+            if (!string.IsNullOrWhiteSpace(Get(cells, 16))) raw["PostalCode"] = Get(cells, 16)!;
+            if (agencyCommission.HasValue) raw["AgencyCommission"] = agencyCommission.Value.ToString("0.00", CultureInfo.InvariantCulture);
+
+            var isCancellation = string.Equals(section, "99", StringComparison.OrdinalIgnoreCase)
+                || movement == "2"
+                || gross is < 0m;
+            var rowType = isCancellation ? "Cancellation" : "New";
+            if (isCancellation)
+                notes.Add(new BridgeImportNote("Τύπος", "info", "Η εγγραφή προέρχεται από κίνηση ακύρωσης/ανάκλησης."));
+            if (string.IsNullOrWhiteSpace(customerName))
+                notes.Add(new BridgeImportNote("Πελάτης", "warn", "Δεν βρέθηκε ονοματεπώνυμο πελάτη στο αρχείο."));
+            if (!gross.HasValue)
+                notes.Add(new BridgeImportNote("Ασφάλιστρο", "warn", "Δεν βρέθηκε συνολικό μικτό ασφάλιστρο στη γραμμή."));
+
+            rows.Add(new BridgeImportRow(
+                index,
+                policyNumber,
+                proposalNumber,
+                customerName,
+                customerVat,
+                issue,
+                start,
+                end,
+                gross,
+                net,
+                null,
+                agencyCommission,
+                carrierName,
+                partnerCode,
+                raw,
+                notes,
+                string.IsNullOrWhiteSpace(policyNumber) || string.IsNullOrWhiteSpace(customerName) ? "Error" : "Ready",
+                rowType,
+                null,
+                null,
+                plate));
+        }
+
+        return rows;
+    }
+
+    private static decimal? ParseFlatAmount(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var cleaned = value.Trim().Replace(" ", "");
+        var sign = cleaned.StartsWith('-') ? -1m : 1m;
+        cleaned = cleaned.TrimStart('+', '-');
+        if (cleaned.Length == 0) return null;
+        if (cleaned.All(char.IsDigit)
+            && decimal.TryParse(cleaned, NumberStyles.None, CultureInfo.InvariantCulture, out var cents))
+            return sign * cents / 100m;
+        return ParseGcAmount(value);
     }
 
     // ========================================================================
