@@ -11,6 +11,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
@@ -37,6 +38,7 @@ interface CustomerFormTemplate {
 
 interface AgencyProfile {
   name: string;
+  logoUrl: string | null;
   vatNumber: string | null;
   addressLine: string | null;
   contactEmail: string | null;
@@ -47,6 +49,7 @@ interface AgencyProfile {
 
 const AGENCY_PLACEHOLDER: AgencyProfile = {
   name: "[Επωνυμία Γραφείου]",
+  logoUrl: null,
   vatNumber: null,
   addressLine: null,
   contactEmail: null,
@@ -85,9 +88,12 @@ const TEMPLATES: TemplateMeta[] = [
     build: buildAmlText },
 ];
 
+// The legacy local preview builders remain available for backwards-compatible
+// imports, but the page now renders only the server-saved office templates.
+void TEMPLATES;
+
 export function LegalTemplatesPage() {
   const { t } = useTranslation();
-  const [opened, setOpened] = useState<TemplateKey | false>("gdpr13");
 
   const q = useQuery({
     queryKey: ["agency-profile"],
@@ -142,24 +148,14 @@ export function LegalTemplatesPage() {
             </Typography>
           </Card>
 
-          <OfficeFormTemplatesPanel />
-
-          {TEMPLATES.map(meta => (
-            <TemplateAccordion
-              key={meta.key}
-              meta={meta}
-              agency={p}
-              opened={opened}
-              onToggle={setOpened}
-            />
-          ))}
+          <OfficeFormTemplatesPanel agency={p} />
         </>
       )}
     </Box>
   );
 }
 
-function OfficeFormTemplatesPanel() {
+function OfficeFormTemplatesPanel({ agency }: { agency: AgencyProfile }) {
   const qc = useQueryClient();
   const [selectedCode, setSelectedCode] = useState<string>("");
   const [draft, setDraft] = useState({ headerHtml: "", bodyHtml: "", footerHtml: "" });
@@ -237,29 +233,34 @@ function OfficeFormTemplatesPanel() {
                 </Stack>
               </Stack>
               {notice && <Alert severity="info" sx={{ mb: 1 }}>{notice}</Alert>}
-              <WysiwygEditor
-                label="Περιεχόμενο εντύπου"
-                minRows={14}
-                value={draft.bodyHtml}
-                onChange={bodyHtml => setDraft(prev => ({ ...prev, bodyHtml }))}
-                fieldOptions={current.fields}
-                placeholder="Γράψτε το κείμενο του εντύπου…"
-              />
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 1.5 }}>
-                <Box sx={{ flex: 1 }}>
-                  <WysiwygEditor label="Κεφαλίδα" minRows={3} value={draft.headerHtml}
-                    onChange={headerHtml => setDraft(prev => ({ ...prev, headerHtml }))}
-                    fieldOptions={current.fields} />
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.12fr) minmax(360px, .88fr)" }, gap: 2, alignItems: "start" }}>
+                <Box>
+                  <WysiwygEditor
+                    label="Περιεχόμενο εντύπου"
+                    minRows={14}
+                    value={draft.bodyHtml}
+                    onChange={bodyHtml => setDraft(prev => ({ ...prev, bodyHtml }))}
+                    fieldOptions={current.fields}
+                    placeholder="Γράψτε το κείμενο του εντύπου…"
+                  />
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 1.5 }}>
+                    <Box sx={{ flex: 1 }}>
+                      <WysiwygEditor label="Κεφαλίδα" minRows={3} value={draft.headerHtml}
+                        onChange={headerHtml => setDraft(prev => ({ ...prev, headerHtml }))}
+                        fieldOptions={current.fields} />
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <WysiwygEditor label="Υποσέλιδο" minRows={3} value={draft.footerHtml}
+                        onChange={footerHtml => setDraft(prev => ({ ...prev, footerHtml }))}
+                        fieldOptions={current.fields} />
+                    </Box>
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                    Οι υπογραφές πελάτη, γραφείου και ασφαλιστικής προστίθενται αυτόματα στο τελικό υπογεγραμμένο PDF.
+                  </Typography>
                 </Box>
-                <Box sx={{ flex: 1 }}>
-                  <WysiwygEditor label="Υποσέλιδο" minRows={3} value={draft.footerHtml}
-                    onChange={footerHtml => setDraft(prev => ({ ...prev, footerHtml }))}
-                    fieldOptions={current.fields} />
-                </Box>
-              </Stack>
-              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                Οι υπογραφές πελάτη, γραφείου και ασφαλιστικής προστίθενται αυτόματα στο τελικό υπογεγραμμένο PDF.
-              </Typography>
+                <OfficeFormTemplatePreview formName={labelFor(current.formCode)} draft={draft} agency={agency} />
+              </Box>
             </>
           )}
         </Box>
@@ -268,7 +269,80 @@ function OfficeFormTemplatesPanel() {
   );
 }
 
-/* ---------------------- Reusable accordion + preview ---------------------- */
+const PREVIEW_VALUES: Record<string, string> = {
+  "customer.name": "Πελάτης δείγμα",
+  "customer.fullName": "Πελάτης δείγμα",
+  "customer.email": "customer@example.gr",
+  "customer.phone": "210 0000000",
+  "customer.address": "Οδός Δείγματος 1, Αθήνα",
+  "customer.vatNumber": "099999999",
+  "customer.notes": "Σημειώσεις πελάτη",
+  "office.name": "Το γραφείο σας",
+  "office.address": "Διεύθυνση γραφείου",
+  "office.email": "office@example.gr",
+  "office.phone": "210 1111111",
+  "office.vatNumber": "088888888",
+  "agency.name": "Το γραφείο σας",
+  "policy.number": "POL-000001",
+  "policy.insuranceCompany": "Ασφαλιστική εταιρεία",
+  contactDate: "28/09/2026",
+  deliveryDate: "28/09/2026",
+  documentsReceived: "GDPR · Έντυπο Αναγκών · Πληροφορίες Διαμεσολαβητή",
+  today: "28/09/2026"
+};
+
+function escapePreviewHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+function previewHtml(html: string): string {
+  const stripped = (html || "")
+    .replace(/<\s*(script|style|iframe|object|embed)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "")
+    .replace(/\s+on[a-z]+\s*=\s*(\"[^\"]*\"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/(href|src)\s*=\s*(\"\s*javascript:[^\"]*\"|'\s*javascript:[^']*')/gi, "");
+  return stripped.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (_match, key: string) => {
+    const cleanKey = key.trim();
+    const value = PREVIEW_VALUES[cleanKey] ?? `{{${cleanKey}}}`;
+    return `<mark class="merge-field">${escapePreviewHtml(value)}</mark>`;
+  });
+}
+
+function OfficeFormTemplatePreview({ formName, draft, agency }: { formName: string; draft: { headerHtml: string; bodyHtml: string; footerHtml: string }; agency: AgencyProfile }) {
+  const srcDoc = useMemo(() => {
+    const header = previewHtml(draft.headerHtml);
+    const body = previewHtml(draft.bodyHtml);
+    const footer = previewHtml(draft.footerHtml);
+    return `<!doctype html><html lang="el"><head><meta charset="utf-8"><style>
+      *{box-sizing:border-box}html,body{margin:0;background:#e9eef4;color:#0b2545;font-family:Arial,"Segoe UI",sans-serif}
+      .page{min-height:720px;margin:12px auto;padding:34px 38px;background:#fff;box-shadow:0 2px 12px rgba(11,37,69,.15);font-size:13px;line-height:1.55}
+      .office{border-bottom:2px solid #0b2545;padding-bottom:12px;margin-bottom:20px}.office h1{font-size:18px;margin:0 0 4px}.office p{margin:0;color:#52657a;font-size:11px}
+      .custom-header{margin-bottom:12px}.content h1{font-size:20px}.content h2{font-size:16px}.content p{margin:5px 0}.content ul,.content ol{padding-left:24px}
+      .custom-footer{margin-top:20px;padding-top:8px;border-top:1px solid #d9e0e8;color:#52657a;font-size:11px}
+      .merge-field{background:#fff3cd;color:#7a5400;border-radius:3px;padding:0 3px}.signatures{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:28px}.signature{border:1px solid #d9e0e8;min-height:72px;padding:8px;font-size:11px}.signature b{display:block;margin-bottom:24px}
+      @media(max-width:700px){.page{margin:0;padding:22px;box-shadow:none}.signatures{grid-template-columns:1fr}}
+    </style></head><body><main class="page">
+      <section class="office">${agency.logoUrl ? `<img src="/api/agency-profile/logo" alt="" style="max-height:42px;max-width:150px;display:block;margin-bottom:8px">` : ""}<h1>${escapePreviewHtml(agency.name || "Το γραφείο σας")}</h1><p>Το λογότυπο και τα στοιχεία του γραφείου εμφανίζονται αυτόματα στο τελικό PDF.</p></section>
+      <div class="custom-header">${header}</div><article class="content"><h2>${escapePreviewHtml(formName)}</h2>${body}</article><div class="custom-footer">${footer}</div>
+      <section class="signatures"><div class="signature"><b>Πελάτης</b>Υπογραφή</div><div class="signature"><b>Γραφείο</b>Υπογραφή</div><div class="signature"><b>Ασφαλιστική</b>Υπογραφή</div></section>
+    </main></body></html>`;
+  }, [agency.logoUrl, agency.name, draft, formName]);
+
+  return (
+    <Card variant="outlined" sx={{ p: 1.25, position: { xl: "sticky" }, top: { xl: 12 } }}>
+      <Stack direction="row" alignItems="center" spacing={0.75} sx={{ px: 0.5, pb: 1 }}>
+        <VisibilityIcon color="primary" fontSize="small" />
+        <Typography fontWeight={800}>Προεπισκόπηση εγγράφου</Typography>
+      </Stack>
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", px: 0.5, pb: 1 }}>
+        Ενημερώνεται αμέσως όσο επεξεργάζεστε το πλήρες έντυπο. Τα κίτρινα πεδία είναι μεταβλητές που συμπληρώνονται αυτόματα.
+      </Typography>
+      <iframe title={`Προεπισκόπηση ${formName}`} srcDoc={srcDoc} sandbox="" style={{ width: "100%", height: 760, border: 0, display: "block", borderRadius: 6 }} />
+    </Card>
+  );
+}
+
+/* ---------------------- Legacy local preview helpers ---------------------- */
 
 function TemplateAccordion({
   meta, agency, opened, onToggle
@@ -456,6 +530,8 @@ function TemplateAccordion({
     </Accordion>
   );
 }
+
+void TemplateAccordion;
 
 /* ---------------------- Template content builders ---------------------- */
 
