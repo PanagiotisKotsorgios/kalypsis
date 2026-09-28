@@ -295,7 +295,7 @@ export function TenantsPage() {
             <Chip label={`${filteredTenants.length} / ${tenantsQuery.data?.length ?? 0}`}
               variant="outlined" size="small" />
             {(search || planFilter !== "all" || statusFilter !== "all") && (
-              <Button size="small" onClick={() => { setSearch(""); setPlanFilter("all"); setStatusFilter("all"); }}>
+              <Button size="small" color="error" variant="contained" onClick={() => { setSearch(""); setPlanFilter("all"); setStatusFilter("all"); }}>
                 Καθαρισμός φίλτρων
               </Button>
             )}

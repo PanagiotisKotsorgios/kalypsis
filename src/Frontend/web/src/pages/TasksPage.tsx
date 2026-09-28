@@ -461,7 +461,7 @@ function FiltersBar({
           <MenuItem value="none">Χωρίς προθεσμία</MenuItem>
         </SearchableTextField>
         {activeCount > 0 && (
-          <Button size="small" onClick={() => setFilters(EMPTY_FILTERS)} startIcon={<ClearIcon fontSize="small" />}>
+          <Button size="small" color="error" variant="contained" onClick={() => setFilters(EMPTY_FILTERS)} startIcon={<ClearIcon fontSize="small" />}>
             Καθαρισμός ({activeCount})
           </Button>
         )}

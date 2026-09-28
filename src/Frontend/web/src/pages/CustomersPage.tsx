@@ -414,7 +414,7 @@ export function CustomersPage() {
             <TextField size="small" type="date" label="Έως" value={paymentTo}
               onChange={(e) => setPaymentTo(e.target.value)} InputLabelProps={{ shrink: true }} />
           </>}
-          <Button size="small" variant="outlined" color="inherit" startIcon={<FilterAltOffIcon />}
+          <Button size="small" variant="contained" color="error" startIcon={<FilterAltOffIcon />}
             onClick={clearFilters} sx={{ whiteSpace: "nowrap" }}>
             Καθαρισμός φίλτρων
           </Button>

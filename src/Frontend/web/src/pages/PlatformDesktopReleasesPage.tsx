@@ -167,7 +167,7 @@ export function PlatformDesktopReleasesPage() {
             </Select>
           </FormControl>
           {(search || kindFilter !== "all") && (
-            <Button size="small" onClick={() => { setSearch(""); setKindFilter("all"); }}>
+            <Button size="small" color="error" variant="contained" onClick={() => { setSearch(""); setKindFilter("all"); }}>
               Καθαρισμός
             </Button>
           )}

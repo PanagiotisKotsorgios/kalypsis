@@ -298,12 +298,12 @@ export function AuditLogsPage() {
             fullWidth
             size="small"
           />
-          <Button size="small" fullWidth color="error" variant="contained"
+          <Button size="small" fullWidth
             onClick={() => {
               setSearch(""); setUserId(""); setCategory(""); setAction("");
               setEntityName(""); setFrom(""); setTo(""); resetPage();
             }}
-            sx={{ gridColumn: { md: "span 2" } }}>
+            color="error" variant="contained" sx={{ gridColumn: { md: "span 2" } }}>
             Καθαρισμός φίλτρων
           </Button>
         </Box>

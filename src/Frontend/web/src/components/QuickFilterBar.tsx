@@ -51,11 +51,12 @@ export function QuickFilterBar({
         <Tooltip title="Καθαρισμός όλων των φίλτρων">
           <Button
             size="small"
-            color={activeCount > 0 ? "error" : "inherit"}
-            variant={activeCount > 0 ? "outlined" : "text"}
+            color="error"
+            variant="contained"
             startIcon={<FilterAltOffIcon fontSize="small" />}
             onClick={onClear}
-            sx={{ minWidth: 0, whiteSpace: "nowrap" }}
+            aria-label={`Καθαρισμός όλων των φίλτρων${activeCount > 0 ? ` (${activeCount} ενεργά)` : ""}`}
+            sx={{ minWidth: 0, whiteSpace: "nowrap", color: "common.white" }}
           >
             Καθαρισμός
           </Button>
