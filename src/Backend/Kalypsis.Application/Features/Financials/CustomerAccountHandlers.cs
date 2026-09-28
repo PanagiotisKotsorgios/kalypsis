@@ -190,7 +190,7 @@ public sealed class ListCustomerAccountsQueryHandler
         var policies = await _db.Policies
             .Where(x => x.DeletedAt == null && x.Status != PolicyStatus.Draft
                 && x.Status != PolicyStatus.Cancelled && x.Status != PolicyStatus.Prospect)
-            .Select(x => new { x.Id, x.CustomerId, x.Premium, x.StartDate, x.PaidDirectlyToCarrier })
+            .Select(x => new { x.Id, x.CustomerId, x.Premium, x.StartDate, x.PaidDirectlyToCarrier, x.PaidOnCredit, x.PaymentPromisedOn })
             .AsNoTracking().ToListAsync(ct);
         var chargedPolicyIds = movements.Where(x => x.PolicyId.HasValue && CustomerAccountMath.IsCharge(x.Kind))
             .Select(x => x.PolicyId!.Value).ToHashSet();
@@ -215,7 +215,18 @@ public sealed class ListCustomerAccountsQueryHandler
             var openOverdue = customerInstallments
                 .Where(x => !x.PaidAt.HasValue && x.DueDate < today)
                 .ToList();
-            var overdue = openOverdue.Sum(x => x.Amount);
+            var installmentPolicyIds = customerInstallments.Select(x => x.PolicyId).ToHashSet();
+            var fallbackOverdue = policies
+                .Where(x => x.CustomerId == customerId
+                    && !x.PaidDirectlyToCarrier
+                    && x.PaidOnCredit
+                    && x.PaymentPromisedOn.HasValue
+                    && x.PaymentPromisedOn.Value < today
+                    && !installmentPolicyIds.Contains(x.Id)
+                    && (!q.From.HasValue || x.PaymentPromisedOn.Value >= q.From.Value)
+                    && (!q.To.HasValue || x.PaymentPromisedOn.Value <= q.To.Value))
+                .ToList();
+            var overdue = openOverdue.Sum(x => x.Amount) + fallbackOverdue.Sum(x => x.Premium);
             var paidInstallments = customerInstallments.Count(x => x.PaidAt.HasValue);
             var latePayments = customerInstallments.Count(x => x.PaidAt.HasValue && x.PaidAt!.Value > x.DueDate);
             var onTimePayments = customerInstallments.Count(x => x.PaidAt.HasValue && x.PaidAt!.Value <= x.DueDate);
@@ -238,7 +249,7 @@ public sealed class ListCustomerAccountsQueryHandler
             return new CustomerAccountListRowDto(customerId,
                 customer is null ? "—" : CustomerAccountMath.Name(customer),
                 charges, credits, balance, overdue,
-                openOverdue.Count, paidInstallments, latePayments, onTimeRate,
+                openOverdue.Count + fallbackOverdue.Count, paidInstallments, latePayments, onTimeRate,
                 lastPaymentDate, lastChargeDate);
         }).ToList();
 
