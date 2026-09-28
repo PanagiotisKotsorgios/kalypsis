@@ -17,6 +17,7 @@ import HubIcon from "@mui/icons-material/Hub";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import FolderZipIcon from "@mui/icons-material/FolderZip";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import AddIcon from "@mui/icons-material/Add";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
@@ -575,6 +576,10 @@ export function CarrierBridgesPage() {
                     ? ".zip (min_x_hd*.csv + min_x_dt*.csv)"
                   : fmt.includes("INTERLIFE")
                     ? ".xlsx (MOTOR_… ή LOIPOI_…)"
+                  : fmt.includes("YDROGEIOS")
+                    ? ".csv (PARG*.csv — αρχείο Υδρογείου)"
+                  : fmt.includes("ORIZON")
+                    ? ".txt (carhist*.txt — αρχείο Ορίζων)"
                     : ".txt HEADER + DETAIL ή .zip που τα περιέχει";
               return `Αναλυτής για format: ${fmt}. Δεκτό αρχείο: ${accepted}`;
             })()}
@@ -589,6 +594,10 @@ export function CarrierBridgesPage() {
                 return "Η Μινέττα εξάγει ένα ενιαίο ZIP με τα min_x_hd*.csv (συμβόλαια) και min_x_dt*.csv (καλύψεις). Ανεβάστε το ZIP αυτούσιο· μην ανεβάζετε τα CSV ένα-ένα και μην αναμειγνύετε αρχεία άλλης εταιρείας.";
               if (fmt.includes("INTERLIFE"))
                 return "Η Interlife εξάγει δύο ξεχωριστά αρχεία .xlsx: MOTOR_ και LOIPOI_. Ανεβάστε ένα κάθε φορά.";
+              if (fmt.includes("YDROGEIOS"))
+                return "Η Υδρόγειος εξάγει απλό αρχείο PARG*.csv. Ανεβάστε το CSV όπως το λάβατε, χωρίς ZIP ή μετατροπή.";
+              if (fmt.includes("ORIZON"))
+                return "Ο Ορίζων εξάγει απλό αρχείο carhist*.txt. Ανεβάστε το TXT όπως το λάβατε, χωρίς HEADER/DETAIL ZIP.";
               // Default = ERGO: HEADER + DETAIL .txt (ή zip που τα περιέχει)
               return "Το ERGO εξάγει δύο αρχεία .txt ανά κλάδο ( (HEADER) και (DETAIL) ). Ανεβάστε το .zip που τα περιέχει, ή τα δύο .txt μαζί ως .zip.";
             })()}
@@ -670,6 +679,34 @@ export function CarrierBridgesPage() {
                         <Typography fontWeight={800}>Πακέτο παραγωγής Μινέττας (.zip)</Typography>
                         <Typography variant="caption" color="text.secondary">
                           Ένα ZIP με min_x_hd*.csv και min_x_dt*.csv. Κρατήστε όλα τα αρχεία μαζί και ανεβάστε το ZIP χωρίς αποσυμπίεση.
+                        </Typography>
+                      </Box>
+                      <CloudUploadIcon color="action" />
+                    </Stack>
+                  </Card>
+                </Stack>
+              );
+            }
+            if (fmt.includes("YDROGEIOS") || fmt.includes("ORIZON")) {
+              const isYdrogeios = fmt.includes("YDROGEIOS");
+              return (
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                  <Card variant="outlined" sx={{
+                    p: 2.5, flex: 1, cursor: "pointer",
+                    borderStyle: "dashed",
+                    "&:hover": { borderColor: "primary.main", bgcolor: "action.hover" }
+                  }}
+                    onClick={() => { setPendingLob("auto"); fileRef.current?.click(); }}>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <DescriptionOutlinedIcon color="primary" sx={{ fontSize: 44 }} />
+                      <Box sx={{ flex: 1 }}>
+                        <Typography fontWeight={800}>
+                          {isYdrogeios ? "Αρχείο PARG Υδρογείου (.csv)" : "Αρχείο carhist Ορίζων (.txt)"}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {isYdrogeios
+                            ? "Ανεβάστε το PARG*.csv όπως το στέλνει η Υδρόγειος, χωρίς ZIP."
+                            : "Ανεβάστε το carhist*.txt όπως το στέλνει ο Ορίζων, χωρίς ZIP."}
                         </Typography>
                       </Box>
                       <CloudUploadIcon color="action" />

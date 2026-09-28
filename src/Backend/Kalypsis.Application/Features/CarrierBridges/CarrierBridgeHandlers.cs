@@ -109,6 +109,7 @@ public class ListAvailableOverCommissionBridgesHandler
                 (c.Code ?? "").ToUpperInvariant().Contains(s) ||
                 (c.Name ?? "").ToUpperInvariant().Contains(s));
             var parserWired = token is not null;
+            var bridgeFormat = CanonicalBridgeFormat(token, c.Code, c.Name);
             var tenantEnabled = enabledSet.Contains(c.Id);
             var mappingReady = readySet.Contains(c.Id);
             var isAvailable = parserWired && tenantEnabled && mappingReady;
@@ -116,8 +117,17 @@ public class ListAvailableOverCommissionBridgesHandler
             if (!parserWired) reason = "format_not_supported_yet";
             else if (!tenantEnabled) reason = "requires_tenant_setup";
             else if (!mappingReady) reason = "mapping_not_ready";
-            return new AvailableCarrierDto(c.Id, c.Name, c.Code, isAvailable, token, reason);
+            return new AvailableCarrierDto(c.Id, c.Name, c.Code, isAvailable, bridgeFormat, reason);
         }).ToList();
+    }
+
+    private static string? CanonicalBridgeFormat(string? token, string? code, string? name)
+    {
+        var identity = $"{code} {name}".ToUpperInvariant();
+        if (identity.Contains("ORIZON", StringComparison.Ordinal)) return "ORIZON_CARHIST";
+        if (identity.Contains("YDROGEIOS", StringComparison.Ordinal)
+            || identity.Contains("HYDROGEIOS", StringComparison.Ordinal)) return "YDROGEIOS_CSV";
+        return token;
     }
 }
 public class ListAvailableCarrierBridgesHandler : IRequestHandler<ListAvailableCarrierBridgesQuery, IReadOnlyList<AvailableCarrierDto>>
@@ -188,12 +198,22 @@ public class ListAvailableCarrierBridgesHandler : IRequestHandler<ListAvailableC
             var token = SupportedTokens.FirstOrDefault(s =>
                 (c.Code ?? "").ToUpperInvariant().Contains(s) ||
                 (c.Name ?? "").ToUpperInvariant().Contains(s));
+            var bridgeFormat = CanonicalBridgeFormat(token, c.Code, c.Name);
             return new AvailableCarrierDto(
                 c.Id, c.Name, c.Code,
                 token != null,
-                token,
+                bridgeFormat,
                 token == null ? "format_not_supported_yet" : null);
         }).ToList();
+    }
+
+    private static string? CanonicalBridgeFormat(string? token, string? code, string? name)
+    {
+        var identity = $"{code} {name}".ToUpperInvariant();
+        if (identity.Contains("ORIZON", StringComparison.Ordinal)) return "ORIZON_CARHIST";
+        if (identity.Contains("YDROGEIOS", StringComparison.Ordinal)
+            || identity.Contains("HYDROGEIOS", StringComparison.Ordinal)) return "YDROGEIOS_CSV";
+        return token;
     }
 }
 
