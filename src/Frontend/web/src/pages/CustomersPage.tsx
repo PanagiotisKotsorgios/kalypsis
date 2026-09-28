@@ -31,6 +31,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import { IconButton, Tooltip } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import FilterAltOffIcon from "@mui/icons-material/FilterAltOff";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -242,6 +243,19 @@ export function CustomersPage() {
     pageSize: 25
   });
   const customers = table.paged;
+  const clearFilters = () => {
+    setSearch("");
+    setOccupationFilter("");
+    setNeedKind("");
+    setOnlyUninsuredNeeds(false);
+    setStatusFilter("");
+    setPaymentFilter("all");
+    setPaymentWindow("all");
+    setPaymentFrom("");
+    setPaymentTo("");
+    table.setQuery("");
+    table.setPage(1);
+  };
   const customerCols = useColumnPreferences("customers", [
     { key: "number", label: "Αρ. Πελάτη", alwaysVisible: true },
     { key: "type",   label: "Τύπος" },
@@ -377,6 +391,10 @@ export function CustomersPage() {
             <TextField size="small" type="date" label="Έως" value={paymentTo}
               onChange={(e) => setPaymentTo(e.target.value)} InputLabelProps={{ shrink: true }} />
           </>}
+          <Button size="small" variant="outlined" color="inherit" startIcon={<FilterAltOffIcon />}
+            onClick={clearFilters} sx={{ whiteSpace: "nowrap" }}>
+            Καθαρισμός φίλτρων
+          </Button>
         </Stack>
       </Card>
 
