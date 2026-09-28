@@ -1862,7 +1862,9 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
     // ========================================================================
     // ΥΔΡΟΓΕΙΟΣ / ΟΡΙΖΩΝ flat motor exports. These two carriers use the same
     // positional portfolio layout but different transport encodings:
-    //   • Υδρόγειος: PARG*.csv, CP1253, comma-delimited.
+    //   • Υδρόγειος: PARG*.csv, DOS Greek (CP737), comma-delimited. The
+    //     legacy export is not Windows-1253; decoding it as CP1253 produces
+    //     replacement characters / mojibake in customer names and cities.
     //   • Ορίζων: carhist*.txt, UTF-8, semicolon-delimited.
     // The first 60 columns contain the policy/customer/vehicle block and the
     // amount block is fixed at columns 52..59 (cents, signed). Ορίζων adds
@@ -1872,7 +1874,10 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
     {
         _ = _cp1253Registered;
         var encoding = isYdrogeios
-            ? System.Text.Encoding.GetEncoding(1253)
+            // PARG exports are written by the carrier's legacy DOS system in
+            // code page 737 (Greek). Keep the exact byte-to-text mapping so
+            // Greek customer names remain readable after import.
+            ? System.Text.Encoding.GetEncoding(737)
             : new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: false);
         var text = encoding.GetString(bytes).TrimStart('\uFEFF');
         var delimiter = isYdrogeios ? ',' : ';';

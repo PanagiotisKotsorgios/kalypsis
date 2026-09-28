@@ -605,7 +605,11 @@ export function CarrierBridgesPage() {
             })()}
           </Alert>
           <input ref={fileRef} type="file"
-            accept=".xlsx,.zip,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,application/x-zip-compressed,text/plain" hidden
+            // Keep CSV visible in the native picker (PARG exports often have
+            // spaces/parentheses in their filename). The previous filter did
+            // not include .csv, so Hydrogeios files looked as if they did not
+            // exist even though they were present in Downloads.
+            accept=".csv,text/csv,.xlsx,.zip,.txt,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,application/x-zip-compressed,text/plain" hidden
             onChange={e => { const f = e.target.files?.[0]; if (f) uploadAndPreview.mutate({ file: f, lob: pendingLob }); }} />
           {(() => {
             // Each carrier's export shape drives which tiles we show.
