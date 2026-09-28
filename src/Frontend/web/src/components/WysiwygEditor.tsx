@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Box, IconButton, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import { Box, Chip, IconButton, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import FormatBoldIcon from "@mui/icons-material/FormatBold";
 import FormatItalicIcon from "@mui/icons-material/FormatItalic";
 import FormatUnderlinedIcon from "@mui/icons-material/FormatUnderlined";
@@ -26,13 +26,14 @@ import RedoIcon from "@mui/icons-material/Redo";
  * previously edited templates by hand.
  */
 export function WysiwygEditor({
-  value, onChange, label, minRows = 6, placeholder
+  value, onChange, label, minRows = 6, placeholder, fieldOptions
 }: {
   value: string;
   onChange: (html: string) => void;
   label?: string;
   minRows?: number;
   placeholder?: string;
+  fieldOptions?: Array<{ key: string; label: string; description?: string }>;
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [rawMode, setRawMode] = useState(false);
@@ -66,6 +67,22 @@ export function WysiwygEditor({
     const key = window.prompt("Placeholder (π.χ. customerName, policyNumber):");
     if (!key) return;
     exec("insertHTML", `{{${key.trim()}}}`);
+  };
+
+  const insertField = (key: string) => exec("insertText", `{{${key}}}`);
+
+  const dragField = (event: React.DragEvent, key: string) => {
+    event.dataTransfer.setData("text/plain", `{{${key}}}`);
+    event.dataTransfer.effectAllowed = "copy";
+  };
+
+  const dropField = (event: React.DragEvent) => {
+    const valueFromDrop = event.dataTransfer.getData("text/plain");
+    if (!valueFromDrop.startsWith("{{") || !valueFromDrop.endsWith("}}")) return;
+    event.preventDefault();
+    editorRef.current?.focus();
+    document.execCommand("insertText", false, valueFromDrop);
+    if (editorRef.current) onChange(editorRef.current.innerHTML);
   };
 
   const minHeight = 24 * minRows + 16;
@@ -104,6 +121,25 @@ export function WysiwygEditor({
             </IconButton>
           </Tooltip>
         </Stack>
+        {fieldOptions && fieldOptions.length > 0 && (
+          <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap
+            sx={{ px: 1, py: 0.75, bgcolor: "action.hover", borderBottom: "1px solid", borderColor: "divider" }}>
+            <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>Πεδία:</Typography>
+            {fieldOptions.map(field => (
+              <Chip
+                key={field.key}
+                size="small"
+                label={field.label}
+                title={field.description ? `${field.description} · {{${field.key}}}` : `{{${field.key}}}`}
+                draggable
+                onDragStart={event => dragField(event, field.key)}
+                onClick={() => insertField(field.key)}
+                onMouseDown={event => event.preventDefault()}
+                sx={{ cursor: "grab" }}
+              />
+            ))}
+          </Stack>
+        )}
         {rawMode ? (
           <TextField
             fullWidth multiline minRows={minRows} value={value}
@@ -121,6 +157,8 @@ export function WysiwygEditor({
             suppressContentEditableWarning
             data-placeholder={placeholder ?? ""}
             onInput={(e) => onChange((e.target as HTMLDivElement).innerHTML)}
+            onDragOver={e => e.preventDefault()}
+            onDrop={dropField}
             sx={{
               minHeight,
               p: 1.5,

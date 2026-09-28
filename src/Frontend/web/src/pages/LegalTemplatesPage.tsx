@@ -11,9 +11,22 @@ import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
+import { WysiwygEditor } from "../components/WysiwygEditor";
+
+interface CustomerFormTemplate {
+  formCode: string;
+  code: string;
+  name: string;
+  kind: string;
+  headerHtml: string | null;
+  bodyHtml: string | null;
+  footerHtml: string | null;
+  isCustomized: boolean;
+  fields: Array<{ key: string; label: string; description: string }>;
+}
 
 // Νομικά templates ανά γραφείο. Κάθε γραφείο-controller έχει την υποχρέωση
 // να δώσει στους πελάτες του συγκεκριμένα έντυπα ενημέρωσης + να συλλέξει
@@ -129,6 +142,8 @@ export function LegalTemplatesPage() {
             </Typography>
           </Card>
 
+          <OfficeFormTemplatesPanel />
+
           {TEMPLATES.map(meta => (
             <TemplateAccordion
               key={meta.key}
@@ -141,6 +156,115 @@ export function LegalTemplatesPage() {
         </>
       )}
     </Box>
+  );
+}
+
+function OfficeFormTemplatesPanel() {
+  const qc = useQueryClient();
+  const [selectedCode, setSelectedCode] = useState<string>("");
+  const [draft, setDraft] = useState({ headerHtml: "", bodyHtml: "", footerHtml: "" });
+  const [notice, setNotice] = useState<string | null>(null);
+  const templates = useQuery({
+    queryKey: ["customer-form-templates"],
+    queryFn: async () => (await api.get<CustomerFormTemplate[]>("/customer-form-templates")).data
+  });
+  const current = (templates.data ?? []).find(x => x.formCode === selectedCode) ?? templates.data?.[0];
+
+  useEffect(() => {
+    if (current && current.formCode !== selectedCode) setSelectedCode(current.formCode);
+    if (current) setDraft({
+      headerHtml: current.headerHtml ?? "",
+      bodyHtml: current.bodyHtml ?? "",
+      footerHtml: current.footerHtml ?? ""
+    });
+  }, [current?.formCode, current?.headerHtml, current?.bodyHtml, current?.footerHtml]);
+
+  const save = useMutation({
+    mutationFn: async (resetToDefault: boolean) => (await api.put(`/customer-form-templates/${current!.formCode}`, {
+      name: current!.name,
+      headerHtml: draft.headerHtml,
+      bodyHtml: draft.bodyHtml,
+      footerHtml: draft.footerHtml,
+      resetToDefault
+    })).data as CustomerFormTemplate,
+    onSuccess: (_, resetToDefault) => {
+      setNotice(resetToDefault ? "Το πρότυπο επανήλθε στο αρχικό έντυπο." : "Το πρότυπο αποθηκεύτηκε για το γραφείο.");
+      void qc.invalidateQueries({ queryKey: ["customer-form-templates"] });
+      setTimeout(() => setNotice(null), 3500);
+    },
+    onError: () => setNotice("Δεν ήταν δυνατή η αποθήκευση του προτύπου.")
+  });
+
+  const labelFor = (code: string) => ({
+    "gdpr-consent": "GDPR — Ενημέρωση Υποκειμένου",
+    "customer-needs": "Έντυπο Αναγκών Πελάτη (IDD)",
+    "intermediary-information": "Πληροφορίες Ασφαλιστικού Διαμεσολαβητή",
+    "document-receipt": "Απόδειξη Παραλαβής Εντύπων"
+  } as Record<string, string>)[code] ?? code;
+
+  return (
+    <Card variant="outlined" sx={{ p: 2, mb: 2 }}>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="flex-start">
+        <Box sx={{ width: { xs: "100%", md: 280 }, flexShrink: 0 }}>
+          <Typography variant="h6" fontWeight={800}>Πρότυπα εντύπων γραφείου</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Αποθηκεύονται στο γραφείο και χρησιμοποιούνται σε νέες προεπισκοπήσεις και αποστολές υπογραφής.
+          </Typography>
+          <Stack spacing={0.75}>
+            {(templates.data ?? []).map(item => (
+              <Button key={item.formCode} variant={current?.formCode === item.formCode ? "contained" : "outlined"}
+                onClick={() => setSelectedCode(item.formCode)} sx={{ justifyContent: "flex-start", textAlign: "left" }}>
+                {labelFor(item.formCode)}
+              </Button>
+            ))}
+          </Stack>
+        </Box>
+        <Box sx={{ flex: 1, width: "100%" }}>
+          {templates.isLoading || !current ? <CircularProgress size={24} /> : (
+            <>
+              <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }} spacing={1} mb={1}>
+                <Box>
+                  <Typography fontWeight={800}>{labelFor(current.formCode)}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Κάντε κλικ σε πεδίο ή σύρετέ το μέσα στο κείμενο. Τα στοιχεία συμπληρώνονται από την καρτέλα πελάτη/συμβολαίου.
+                  </Typography>
+                </Box>
+                <Stack direction="row" spacing={1}>
+                  <Button size="small" variant="outlined" color="warning" disabled={save.isPending}
+                    onClick={() => save.mutate(true)}>Επαναφορά</Button>
+                  <Button size="small" variant="contained" color="success" disabled={save.isPending}
+                    onClick={() => save.mutate(false)} startIcon={<SaveIcon />}>Αποθήκευση</Button>
+                </Stack>
+              </Stack>
+              {notice && <Alert severity="info" sx={{ mb: 1 }}>{notice}</Alert>}
+              <WysiwygEditor
+                label="Περιεχόμενο εντύπου"
+                minRows={14}
+                value={draft.bodyHtml}
+                onChange={bodyHtml => setDraft(prev => ({ ...prev, bodyHtml }))}
+                fieldOptions={current.fields}
+                placeholder="Γράψτε το κείμενο του εντύπου…"
+              />
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 1.5 }}>
+                <Box sx={{ flex: 1 }}>
+                  <WysiwygEditor label="Κεφαλίδα" minRows={3} value={draft.headerHtml}
+                    onChange={headerHtml => setDraft(prev => ({ ...prev, headerHtml }))}
+                    fieldOptions={current.fields} />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <WysiwygEditor label="Υποσέλιδο" minRows={3} value={draft.footerHtml}
+                    onChange={footerHtml => setDraft(prev => ({ ...prev, footerHtml }))}
+                    fieldOptions={current.fields} />
+                </Box>
+              </Stack>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                Οι υπογραφές πελάτη, γραφείου και ασφαλιστικής προστίθενται αυτόματα στο τελικό υπογεγραμμένο PDF.
+              </Typography>
+            </>
+          )}
+        </Box>
+      </Stack>
+    </Card>
   );
 }
 

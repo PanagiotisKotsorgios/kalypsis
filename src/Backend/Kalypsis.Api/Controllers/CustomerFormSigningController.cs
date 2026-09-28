@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common.Exports;
 using Kalypsis.Application.Common.Forms;
@@ -31,6 +32,11 @@ public sealed class CustomerFormSigningController : ControllerBase
 
     public sealed record SettingsDto(bool Enabled, bool RequireOfficeSignature, bool RequireInsurerSignature, bool SendInsurerEmail, int LinkExpirationDays, string TemplateCode);
     public sealed record UpdateSettingsBody(bool Enabled, bool RequireOfficeSignature, bool RequireInsurerSignature, bool SendInsurerEmail, int LinkExpirationDays, string? TemplateCode);
+    public sealed record FormTemplateFieldDto(string Key, string Label, string Description);
+    public sealed record FormTemplateDto(string FormCode, string Code, string Name, string Kind,
+        string? HeaderHtml, string? BodyHtml, string? FooterHtml, bool IsCustomized,
+        IReadOnlyList<FormTemplateFieldDto> Fields);
+    public sealed record UpdateFormTemplateBody(string? Name, string? HeaderHtml, string? BodyHtml, string? FooterHtml, bool ResetToDefault = false);
     public sealed record CreateFormBody(Guid? PolicyId, bool? RequireOfficeSignature, bool? RequireInsurerSignature, bool? SendInsurerEmail, string? Notes, string? FormCode = null, Dictionary<string, string?>? Fields = null);
     public sealed record PreviewFormBody(Guid? PolicyId, string? FormCode = null, Dictionary<string, string?>? Fields = null);
     public sealed record SigningDto(Guid Id, Guid CustomerId, Guid? PolicyId, string FormCode, string Status, bool? CustomerConsented, string CustomerName, string? CustomerEmail, string? OfficeEmail, string? InsurerEmail, DateTime CreatedAt, DateTime ExpiresAt, DateTime? CustomerSignedAt, DateTime? OfficeSignedAt, DateTime? InsurerSignedAt, DateTime? CompletedAt, string? FinalDocumentPath, bool HasFinalDocument);
@@ -44,6 +50,51 @@ public sealed class CustomerFormSigningController : ControllerBase
         var tenantId = TenantId();
         var row = await _db.TenantGdprSigningSettings.FirstOrDefaultAsync(x => x.TenantId == tenantId, ct);
         return Ok(ToSettings(row ?? new TenantGdprSigningSettings { TenantId = tenantId }));
+    }
+
+    /// <summary>Office-scoped legal form templates and their mail-merge fields.</summary>
+    [Authorize(Policy = "AgencyStaff")]
+    [HttpGet("api/customer-form-templates")]
+    public async Task<ActionResult<IReadOnlyList<FormTemplateDto>>> GetFormTemplates(CancellationToken ct)
+    {
+        var tenantId = TenantId();
+        var result = new List<FormTemplateDto>();
+        foreach (var formCode in SupportedFormCodes())
+        {
+            var template = await EnsureFormTemplateAsync(tenantId, formCode, ct);
+            result.Add(ToFormTemplateDto(formCode, template));
+        }
+        await _db.SaveChangesAsync(ct);
+        return Ok(result);
+    }
+
+    /// <summary>Save the template used by future previews and signature requests.</summary>
+    [Authorize(Policy = "AgencyAdmin")]
+    [HttpPut("api/customer-form-templates/{formCode}")]
+    public async Task<ActionResult<FormTemplateDto>> UpdateFormTemplate(string formCode, [FromBody] UpdateFormTemplateBody body, CancellationToken ct)
+    {
+        var normalized = NormalizeFormCode(formCode);
+        if (normalized is null) return BadRequest("Μη υποστηριζόμενο έντυπο.");
+        var tenantId = TenantId();
+        var template = await EnsureFormTemplateAsync(tenantId, normalized, ct);
+        template.Name = string.IsNullOrWhiteSpace(body.Name) ? template.Name : body.Name.Trim()[..Math.Min(200, body.Name.Trim().Length)];
+        if (body.ResetToDefault)
+        {
+            var definition = TemplateFor(normalized);
+            template.HeaderHtml = null;
+            template.BodyHtml = definition.BodyHtml;
+            template.FooterHtml = null;
+        }
+        else
+        {
+            template.HeaderHtml = SanitizeTemplateHtml(body.HeaderHtml);
+            template.BodyHtml = SanitizeTemplateHtml(body.BodyHtml);
+            template.FooterHtml = SanitizeTemplateHtml(body.FooterHtml);
+        }
+        template.IsActive = true;
+        template.IsDefault = true;
+        await _db.SaveChangesAsync(ct);
+        return Ok(ToFormTemplateDto(normalized, template));
     }
 
     [Authorize(Policy = "AgencyAdmin")]
@@ -105,7 +156,9 @@ public sealed class CustomerFormSigningController : ControllerBase
         var office = await _db.Tenants.IgnoreQueryFilters().AsNoTracking()
             .FirstAsync(x => x.Id == tenantId, ct);
         var collaboratingInsurers = await GetCollaboratingInsurersAsync(tenantId, ct);
+        var template = await EnsureFormTemplateAsync(tenantId, formCode, ct);
         var data = BuildFormData(customer, office, policy, body.Fields, collaboratingInsurers);
+        AddTemplateSnapshot(data, formCode, template);
         var draft = new CustomerFormSigning
         {
             Id = Guid.NewGuid(),
@@ -187,7 +240,9 @@ public sealed class CustomerFormSigningController : ControllerBase
 
         var now = DateTime.UtcNow;
         var collaboratingInsurersForSigning = await GetCollaboratingInsurersAsync(tenantId, ct);
+        var storedTemplate = await EnsureFormTemplateAsync(tenantId, formCode, ct);
         var formData = BuildFormData(customer, office, policy, body.Fields, collaboratingInsurersForSigning);
+        AddTemplateSnapshot(formData, formCode, storedTemplate);
         var signing = new CustomerFormSigning
         {
             TenantId = tenantId, CustomerId = customerId, PolicyId = policy?.Id,
@@ -405,6 +460,8 @@ public sealed class CustomerFormSigningController : ControllerBase
         var customerSignature = await ReadBytesAsync(signing.CustomerSignaturePath, ct);
         var officeSignature = await ReadBytesAsync(signing.OfficeSignaturePath, ct);
         var insurerSignature = await ReadBytesAsync(signing.InsurerSignaturePath, ct);
+        if (HasCustomTemplate(signing.FormDataJson))
+            return EditableFormPdfRenderer.Render(tenant, signing, logo, customerSignature, officeSignature, insurerSignature);
         return signing.FormCode switch
         {
             "customer-needs" => CustomerNeedsPdfRenderer.Render(tenant, signing, logo, customerSignature, officeSignature, insurerSignature),
@@ -461,6 +518,156 @@ public sealed class CustomerFormSigningController : ControllerBase
             : value.Equals("intermediary-information", StringComparison.OrdinalIgnoreCase) ? "intermediary-information"
             : value.Equals("document-receipt", StringComparison.OrdinalIgnoreCase) ? "document-receipt"
             : null;
+
+    private static IReadOnlyList<string> SupportedFormCodes() => new[]
+    {
+        "gdpr-consent", "customer-needs", "intermediary-information", "document-receipt"
+    };
+
+    private async Task<DocumentTemplate> EnsureFormTemplateAsync(Guid tenantId, string formCode, CancellationToken ct)
+    {
+        var definition = TemplateFor(formCode);
+        var tracked = _db.DocumentTemplates.Local.FirstOrDefault(
+            x => x.TenantId == tenantId && x.Code == definition.Code && x.DeletedAt == null);
+        if (tracked is not null) return tracked;
+        var template = await _db.DocumentTemplates.FirstOrDefaultAsync(
+            x => x.TenantId == tenantId && x.Code == definition.Code, ct);
+        if (template is not null) return template;
+
+        template = new DocumentTemplate
+        {
+            TenantId = tenantId,
+            Code = definition.Code,
+            Name = definition.Name,
+            Kind = definition.Kind,
+            PageSize = "A4",
+            Orientation = "Portrait",
+            IsDefault = true,
+            IsActive = true,
+            BodyHtml = definition.BodyHtml
+        };
+        _db.DocumentTemplates.Add(template);
+        return template;
+    }
+
+    private static FormTemplateDto ToFormTemplateDto(string formCode, DocumentTemplate template)
+    {
+        var definition = TemplateFor(formCode);
+        return new FormTemplateDto(
+            formCode,
+            template.Code,
+            template.Name,
+            template.Kind,
+            template.HeaderHtml,
+            template.BodyHtml,
+            template.FooterHtml,
+            IsTemplateCustomized(template, definition),
+            FormTemplateFields());
+    }
+
+    private static IReadOnlyList<FormTemplateFieldDto> FormTemplateFields() => new[]
+    {
+        new FormTemplateFieldDto("customer.name", "Ονοματεπώνυμο πελάτη", "Συμπληρώνεται από την καρτέλα πελάτη."),
+        new FormTemplateFieldDto("customer.email", "Email πελάτη", "Συμπληρώνεται από την καρτέλα πελάτη."),
+        new FormTemplateFieldDto("customer.phone", "Τηλέφωνο πελάτη", "Κινητό/σταθερό από την καρτέλα πελάτη."),
+        new FormTemplateFieldDto("customer.address", "Διεύθυνση πελάτη", "Διεύθυνση, πόλη και ΤΚ."),
+        new FormTemplateFieldDto("customer.vatNumber", "ΑΦΜ πελάτη", "ΑΦΜ από την καρτέλα πελάτη."),
+        new FormTemplateFieldDto("customer.notes", "Σημειώσεις πελάτη", "Οι σημειώσεις της καρτέλας πελάτη."),
+        new FormTemplateFieldDto("office.name", "Επωνυμία γραφείου", "Στοιχεία του ενεργού γραφείου."),
+        new FormTemplateFieldDto("office.address", "Διεύθυνση γραφείου", "Διεύθυνση γραφείου."),
+        new FormTemplateFieldDto("office.email", "Email γραφείου", "Email γραφείου."),
+        new FormTemplateFieldDto("office.phone", "Τηλέφωνο γραφείου", "Τηλέφωνο γραφείου."),
+        new FormTemplateFieldDto("office.vatNumber", "ΑΦΜ γραφείου", "ΑΦΜ γραφείου."),
+        new FormTemplateFieldDto("policy.number", "Αριθμός συμβολαίου", "Από το επιλεγμένο συμβόλαιο."),
+        new FormTemplateFieldDto("policy.insuranceCompany", "Ασφαλιστική εταιρεία", "Από το επιλεγμένο συμβόλαιο."),
+        new FormTemplateFieldDto("contactDate", "Ημερομηνία επικοινωνίας", "Ημερομηνία δημιουργίας του εντύπου."),
+        new FormTemplateFieldDto("deliveryDate", "Ημερομηνία παράδοσης", "Προεπιλεγμένη ημερομηνία παράδοσης."),
+        new FormTemplateFieldDto("documentsReceived", "Έγγραφα που παραλήφθηκαν", "Επεξεργάσιμο πεδίο παραλαβής εγγράφων."),
+        new FormTemplateFieldDto("today", "Σήμερα", "Η σημερινή ημερομηνία.")
+    };
+
+    private static bool IsTemplateCustomized(DocumentTemplate template, (string Code, string Name, string Kind, string BodyHtml) definition)
+        => !string.Equals(template.HeaderHtml ?? "", "", StringComparison.Ordinal)
+           || !string.Equals(template.FooterHtml ?? "", "", StringComparison.Ordinal)
+           || !string.Equals(template.BodyHtml ?? "", definition.BodyHtml, StringComparison.Ordinal);
+
+    private static void AddTemplateSnapshot(Dictionary<string, string?> data, string formCode, DocumentTemplate template)
+    {
+        var definition = TemplateFor(formCode);
+        if (!IsTemplateCustomized(template, definition)) return;
+        data["__templateCustom"] = "true";
+        data["__templateHeaderHtml"] = MergeTemplate(template.HeaderHtml, data);
+        data["__templateBodyHtml"] = MergeTemplate(template.BodyHtml, data);
+        data["__templateFooterHtml"] = MergeTemplate(template.FooterHtml, data);
+    }
+
+    private static bool HasCustomTemplate(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return false;
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            return document.RootElement.TryGetProperty("__templateCustom", out var marker)
+                && marker.ValueKind == JsonValueKind.String
+                && string.Equals(marker.GetString(), "true", StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; }
+    }
+
+    private static string? MergeTemplate(string? html, IReadOnlyDictionary<string, string?> data)
+    {
+        if (string.IsNullOrWhiteSpace(html)) return html;
+        var values = new Dictionary<string, string?>(data, StringComparer.OrdinalIgnoreCase)
+        {
+            // Keep the aliases used by the older Document Templates designer
+            // working alongside the new office-scoped field palette.
+            ["agency.name"] = Get(data, "officeName"),
+            ["agency.address"] = Get(data, "officeAddress"),
+            ["agency.email"] = Get(data, "officeEmail"),
+            ["agency.phone"] = Get(data, "officePhone"),
+            ["agency.vatNumber"] = Get(data, "officeVatNumber"),
+            ["customer.name"] = Get(data, "customerName"),
+            ["customer.fullName"] = Get(data, "customerName"),
+            ["customer.email"] = Get(data, "email"),
+            ["customer.phone"] = Get(data, "phone"),
+            ["customer.address"] = Get(data, "address"),
+            ["customer.vatNumber"] = Get(data, "vatNumber"),
+            ["customer.notes"] = Get(data, "customerNotes"),
+            ["office.name"] = Get(data, "officeName"),
+            ["office.address"] = Get(data, "officeAddress"),
+            ["office.email"] = Get(data, "officeEmail"),
+            ["office.phone"] = Get(data, "officePhone"),
+            ["office.vatNumber"] = Get(data, "officeVatNumber"),
+            ["policy.number"] = Get(data, "policyNumber"),
+            ["policy.insuranceCompany"] = Get(data, "insuranceCompany"),
+            ["form.customerName"] = Get(data, "customerName"),
+            ["form.policyNumber"] = Get(data, "policyNumber"),
+            ["form.insuranceCompany"] = Get(data, "insuranceCompany"),
+            ["form.contactDate"] = Get(data, "contactDate"),
+            ["form.deliveryDate"] = Get(data, "deliveryDate"),
+            ["form.documentsReceived"] = Get(data, "documentsReceived"),
+            ["today"] = DateTime.Today.ToString("dd/MM/yyyy")
+        };
+        return Regex.Replace(html, @"\{\{\s*([^{}]+?)\s*\}\}", match =>
+        {
+            var key = match.Groups[1].Value.Trim();
+            return values.TryGetValue(key, out var value)
+                ? System.Net.WebUtility.HtmlEncode(value ?? "")
+                : match.Value;
+        });
+    }
+
+    private static string? Get(IReadOnlyDictionary<string, string?> data, string key)
+        => data.TryGetValue(key, out var value) ? value : null;
+
+    private static string? SanitizeTemplateHtml(string? html)
+    {
+        if (string.IsNullOrWhiteSpace(html)) return null;
+        var value = Regex.Replace(html, @"<\s*(script|style|iframe|object|embed)[^>]*>.*?<\s*/\s*\1\s*>", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        value = Regex.Replace(value, @"\s+on[a-z]+\s*=\s*(""[^""]*""|'[^']*'|[^\s>]+)", "", RegexOptions.IgnoreCase);
+        value = Regex.Replace(value, @"(href|src)\s*=\s*(""\s*javascript:[^""]*""|'\s*javascript:[^']*')", "", RegexOptions.IgnoreCase);
+        return value.Trim();
+    }
 
     private static string FormTitle(string formCode) => formCode switch
     {
