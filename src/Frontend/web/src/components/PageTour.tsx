@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
-import { OnboardingTour, resetTour, type TourStep } from "./OnboardingTour";
+import { resetTour } from "./OnboardingTour";
+import type { TourStep } from "./OnboardingTour";
 
 /**
  * Per-page tour catalog. Each entry runs the first time the user lands on
@@ -43,24 +42,12 @@ const PAGE_TOURS: Record<string, TourStep[]> = {
   ],
 };
 
-/** Mounted in AppLayout. Watches the route and fires the page tour once per user/page. */
+/**
+ * Contextual navigation tours have been retired and are never mounted.
+ * The component remains as a compatibility shim for the existing layout.
+ */
 export function PageTourMount() {
-  const location = useLocation();
-  const [delayed, setDelayed] = useState(false);
-
-  // Give the page a moment to mount before searching for selectors.
-  useEffect(() => {
-    setDelayed(false);
-    const t = setTimeout(() => setDelayed(true), 400);
-    return () => clearTimeout(t);
-  }, [location.pathname]);
-
-  const steps = PAGE_TOURS[location.pathname];
-  if (!steps || steps.length === 0) return null;
-  if (!delayed) return null;
-
-  const tourId = `page-${location.pathname.replace(/\//g, "_")}-v1`;
-  return <OnboardingTour tourId={tourId} steps={steps} />;
+  return null;
 }
 
 /** Restart all page tours from Profile (clears the per-page seen flags). */

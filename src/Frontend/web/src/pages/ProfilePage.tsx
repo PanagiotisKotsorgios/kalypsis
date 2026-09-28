@@ -5,7 +5,6 @@ import {
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import LockResetIcon from "@mui/icons-material/LockReset";
-import SchoolIcon from "@mui/icons-material/School";
 import TuneIcon from "@mui/icons-material/Tune";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
@@ -16,7 +15,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { PasswordField } from "../components/PasswordField";
-import { resetTourForRole } from "../components/KalypsisOnboarding";
 // TwoFactorSection intentionally not rendered — TOTP hidden per product
 // decision; only email-based 2FA is offered to the user for now.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -150,29 +148,6 @@ export function ProfilePage() {
                 {changePw.isPending ? <CircularProgress size={18} /> : t("profile.changePassword")}
               </Button>
             </Stack>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <Stack direction="row" alignItems="center" spacing={1} mb={1}>
-              <SchoolIcon color="primary" />
-              <Typography variant="h6" fontWeight={700}>{t("profile.tutorial.title")}</Typography>
-            </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              {t("profile.tutorial.body")}
-            </Typography>
-            <Button variant="outlined" startIcon={<SchoolIcon />}
-              onClick={() => {
-                if (profileQuery.data?.role) {
-                  resetTourForRole(profileQuery.data.role);
-                  window.location.reload();
-                }
-              }}
-              disabled={!profileQuery.data?.role}
-            >
-              {t("profile.tutorial.restart")}
-            </Button>
           </CardContent>
         </Card>
 
