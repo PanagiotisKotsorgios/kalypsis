@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using ClosedXML.Excel;
 using Kalypsis.Application.Abstractions;
@@ -42,6 +43,30 @@ public record BridgeImportNote(string Field, string Severity, string Message);
 public record AvailableCarrierDto(
     Guid InsuranceCompanyId, string Name, string Code,
     bool BridgeAvailable, string? BridgeFormat, string? UnavailableReason);
+
+/// <summary>
+/// Carrier names can arrive from the catalogue either in Latin characters or
+/// in Greek with/without tonos (for example «Ορίζων»/«ΟΡΙΖΩΝ»).  Bridge
+/// routing must not depend on the exact casing or accent representation.
+/// </summary>
+internal static class CarrierBridgeIdentity
+{
+    public static string Normalize(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        var decomposed = value.Trim().Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(decomposed.Length);
+        foreach (var ch in decomposed)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(ch) == UnicodeCategory.NonSpacingMark) continue;
+            builder.Append(char.ToUpperInvariant(ch));
+        }
+        return builder.ToString();
+    }
+
+    public static bool Contains(string? value, string token)
+        => Normalize(value).Contains(Normalize(token), StringComparison.Ordinal);
+}
 
 public record ListAvailableCarrierBridgesQuery() : IRequest<IReadOnlyList<AvailableCarrierDto>>;
 
@@ -105,9 +130,8 @@ public class ListAvailableOverCommissionBridgesHandler
 
         return carriers.Select(c =>
         {
-            var token = supported.FirstOrDefault(s =>
-                (c.Code ?? "").ToUpperInvariant().Contains(s) ||
-                (c.Name ?? "").ToUpperInvariant().Contains(s));
+            var identity = CarrierBridgeIdentity.Normalize($"{c.Code} {c.Name}");
+            var token = supported.FirstOrDefault(s => identity.Contains(CarrierBridgeIdentity.Normalize(s), StringComparison.Ordinal));
             var parserWired = token is not null;
             var bridgeFormat = CanonicalBridgeFormat(token, c.Code, c.Name);
             var tenantEnabled = enabledSet.Contains(c.Id);
@@ -123,10 +147,13 @@ public class ListAvailableOverCommissionBridgesHandler
 
     private static string? CanonicalBridgeFormat(string? token, string? code, string? name)
     {
-        var identity = $"{code} {name}".ToUpperInvariant();
-        if (identity.Contains("ORIZON", StringComparison.Ordinal)) return "ORIZON_CARHIST";
+        var identity = CarrierBridgeIdentity.Normalize($"{code} {name}");
+        if (identity.Contains("ORIZON", StringComparison.Ordinal)
+            || identity.Contains("ΟΡΙΖΩΝ", StringComparison.Ordinal)
+            || identity.Contains("ΟΡΙΖΟΝ", StringComparison.Ordinal)) return "ORIZON_CARHIST";
         if (identity.Contains("YDROGEIOS", StringComparison.Ordinal)
-            || identity.Contains("HYDROGEIOS", StringComparison.Ordinal)) return "YDROGEIOS_CSV";
+            || identity.Contains("HYDROGEIOS", StringComparison.Ordinal)
+            || identity.Contains("ΥΔΡΟΓΕΙΟΣ", StringComparison.Ordinal)) return "YDROGEIOS_CSV";
         return token;
     }
 }
@@ -195,9 +222,8 @@ public class ListAvailableCarrierBridgesHandler : IRequestHandler<ListAvailableC
 
         return carriers.Select(c =>
         {
-            var token = SupportedTokens.FirstOrDefault(s =>
-                (c.Code ?? "").ToUpperInvariant().Contains(s) ||
-                (c.Name ?? "").ToUpperInvariant().Contains(s));
+            var identity = CarrierBridgeIdentity.Normalize($"{c.Code} {c.Name}");
+            var token = SupportedTokens.FirstOrDefault(s => identity.Contains(CarrierBridgeIdentity.Normalize(s), StringComparison.Ordinal));
             var bridgeFormat = CanonicalBridgeFormat(token, c.Code, c.Name);
             return new AvailableCarrierDto(
                 c.Id, c.Name, c.Code,
@@ -209,10 +235,13 @@ public class ListAvailableCarrierBridgesHandler : IRequestHandler<ListAvailableC
 
     private static string? CanonicalBridgeFormat(string? token, string? code, string? name)
     {
-        var identity = $"{code} {name}".ToUpperInvariant();
-        if (identity.Contains("ORIZON", StringComparison.Ordinal)) return "ORIZON_CARHIST";
+        var identity = CarrierBridgeIdentity.Normalize($"{code} {name}");
+        if (identity.Contains("ORIZON", StringComparison.Ordinal)
+            || identity.Contains("ΟΡΙΖΩΝ", StringComparison.Ordinal)
+            || identity.Contains("ΟΡΙΖΟΝ", StringComparison.Ordinal)) return "ORIZON_CARHIST";
         if (identity.Contains("YDROGEIOS", StringComparison.Ordinal)
-            || identity.Contains("HYDROGEIOS", StringComparison.Ordinal)) return "YDROGEIOS_CSV";
+            || identity.Contains("HYDROGEIOS", StringComparison.Ordinal)
+            || identity.Contains("ΥΔΡΟΓΕΙΟΣ", StringComparison.Ordinal)) return "YDROGEIOS_CSV";
         return token;
     }
 }
@@ -248,24 +277,25 @@ public class PreviewBridgeImportHandler : IRequestHandler<PreviewBridgeImportCom
             .FirstOrDefaultAsync(c => c.Id == r.InsuranceCompanyId && c.DeletedAt == null && (c.TenantId == null || c.TenantId == tenantId), ct)
             ?? throw AppException.NotFound("Ασφαλιστική εταιρία");
 
-        var carrierKey = (carrier.Code + " " + carrier.Name).ToUpperInvariant();
-        var isErgo = carrierKey.Contains("ERGO");
-        var isGrandCover = carrierKey.Contains("GRAND COVER") || carrierKey.Contains("GRANDCOVER");
-        var isAtlantic = carrierKey.Contains("ATLANTIC") || carrierKey.Contains("ATLANTIKI")
-            || carrierKey.Contains("ΑΤΛΑΝΤΙΚΗ");
-        var isInterlife = carrierKey.Contains("INTERLIFE")
-            || carrierKey.Contains("ΙΝΤΕΡΛΑΪΦ") || carrierKey.Contains("ΙΝΤΕΡΛΑΙΦ");
-        var isMinetta = carrierKey.Contains("MINETTA")
-            || carrierKey.Contains("ΜΙΝΕΤΤΑ")
-            || carrierKey.Contains("ΜΙΝΈΤΤΑ")
-            || carrierKey.Contains("ΜΙΝΕΤΑ")
-            || carrierKey.Contains("ΜΙΝΈΤΑ");
-        var isYdrogeios = carrierKey.Contains("YDROGEIOS")
-            || carrierKey.Contains("HYDROGEIOS")
-            || carrierKey.Contains("ΥΔΡΟΓΕΙΟΣ");
-        var isOrizon = carrierKey.Contains("ORIZON")
-            || carrierKey.Contains("ΟΡΙΖΩΝ")
-            || carrierKey.Contains("ΟΡΙΖΟΝ");
+        var carrierKey = CarrierBridgeIdentity.Normalize($"{carrier.Code} {carrier.Name}");
+        var isErgo = CarrierBridgeIdentity.Contains(carrierKey, "ERGO");
+        var isGrandCover = CarrierBridgeIdentity.Contains(carrierKey, "GRAND COVER")
+            || CarrierBridgeIdentity.Contains(carrierKey, "GRANDCOVER");
+        var isAtlantic = CarrierBridgeIdentity.Contains(carrierKey, "ATLANTIC")
+            || CarrierBridgeIdentity.Contains(carrierKey, "ATLANTIKI")
+            || CarrierBridgeIdentity.Contains(carrierKey, "ΑΤΛΑΝΤΙΚΗ");
+        var isInterlife = CarrierBridgeIdentity.Contains(carrierKey, "INTERLIFE")
+            || CarrierBridgeIdentity.Contains(carrierKey, "ΙΝΤΕΡΛΑΪΦ")
+            || CarrierBridgeIdentity.Contains(carrierKey, "ΙΝΤΕΡΛΑΙΦ");
+        var isMinetta = CarrierBridgeIdentity.Contains(carrierKey, "MINETTA")
+            || CarrierBridgeIdentity.Contains(carrierKey, "ΜΙΝΕΤΤΑ")
+            || CarrierBridgeIdentity.Contains(carrierKey, "ΜΙΝΕΤΑ");
+        var isYdrogeios = CarrierBridgeIdentity.Contains(carrierKey, "YDROGEIOS")
+            || CarrierBridgeIdentity.Contains(carrierKey, "HYDROGEIOS")
+            || CarrierBridgeIdentity.Contains(carrierKey, "ΥΔΡΟΓΕΙΟΣ");
+        var isOrizon = CarrierBridgeIdentity.Contains(carrierKey, "ORIZON")
+            || CarrierBridgeIdentity.Contains(carrierKey, "ΟΡΙΖΩΝ")
+            || CarrierBridgeIdentity.Contains(carrierKey, "ΟΡΙΖΟΝ");
         if (!isErgo && !isGrandCover && !isAtlantic && !isInterlife && !isMinetta && !isYdrogeios && !isOrizon)
             throw new AppException("bridge_format_not_supported",
                 "Δεν υπάρχει διαθέσιμος αναλυτής για αυτή την εταιρία ακόμη.", 400,

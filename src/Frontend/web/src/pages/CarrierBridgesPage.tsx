@@ -466,6 +466,7 @@ export function CarrierBridgesPage() {
                     transform: "translateY(-1px)"
                   }
                 }} onClick={() => {
+                  setErr(null);
                   if (c.bridgeAvailable) setSelected(c);
                   else setUnderDevCarrier(c.name);
                 }}>
@@ -528,8 +529,9 @@ export function CarrierBridgesPage() {
           open={linkCarrierOpen}
           sourceCarrierName={selected.name}
           sourceCarrierCode={selected.code}
-          onClose={() => { setLinkCarrierOpen(false); setSelected(null); }}
+          onClose={() => { setLinkCarrierOpen(false); setSelected(null); setErr(null); }}
           onLinked={() => {
+            setErr(null);
             setLinkCarrierOpen(false);
             void qc.invalidateQueries({ queryKey: ["bridge-code-mappings"] });
           }}
@@ -560,7 +562,7 @@ export function CarrierBridgesPage() {
                 }}>
                 Αλλαγή γραφείου-στόχου
               </Button>
-              <Button onClick={() => setSelected(null)}>{t("carrierBridges.changeCarrier")}</Button>
+              <Button onClick={() => { setSelected(null); setErr(null); }}>{t("carrierBridges.changeCarrier")}</Button>
             </Stack>
           </Stack>
           <Alert severity="info" sx={{ mb: 2 }}>
