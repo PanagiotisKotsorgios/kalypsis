@@ -15,7 +15,7 @@ export function DashboardPage() {
   if (user?.role === "Producer") return <ProducerDashboardPage />;
   if (user?.role === "Customer") return <CustomerDashboardPage />;
   if (user?.role === "AgencyAdmin") return <AgencyAdminDashboard />;
-  if (user?.role === "AgencyUser") return <AgencyUserDashboard />;
+  if (user?.role === "AgencyUser" || user?.role === "AgencyOfficeAdmin") return <AgencyUserDashboard />;
   if (user?.role === "PlatformAdmin" || user?.role === "PlatformEmployee") {
     return <PlatformDashboard />;
   }

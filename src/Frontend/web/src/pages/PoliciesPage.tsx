@@ -132,7 +132,7 @@ export function PoliciesPage() {
   const { user } = useAuth();
   const isCustomer = user?.role === "Customer";
   const isProducer = user?.role === "Producer";
-  const canEdit = user?.role === "AgencyAdmin" || user?.role === "AgencyUser";
+  const canEdit = user?.role === "AgencyAdmin" || user?.role === "AgencyOfficeAdmin" || user?.role === "AgencyUser";
   const requestedView = searchParams.get("view");
   const activeView: "policies" | "delivery" | "group" = canEdit && (requestedView === "delivery" || requestedView === "group") ? requestedView : "policies";
 

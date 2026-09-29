@@ -454,6 +454,21 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
+  AgencyOfficeAdmin: [
+    { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+    { to: "/ermes-app", labelKey: "nav.ermes", icon: <MailOutlineIcon />, openInNewTab: true, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+    { to: "/documentation", labelKey: "nav.documentation", icon: <MenuBookIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+    { to: "/bookkeeping", labelKey: "nav.bookkeeping", icon: <FolderIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+    { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
+    { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice" },
+    { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
+    { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
+    { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
+    { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
+    { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
+    { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
+    { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
+  ],
   Producer: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
     { to: "/producer-production", labelKey: "nav.productionLists", icon: <LeaderboardIcon /> },
@@ -655,7 +670,7 @@ export default function App() {
     );
   }
 
-  const gatedRoles: Role[] = ["AgencyAdmin", "AgencyUser", "Producer"];
+  const gatedRoles: Role[] = ["AgencyAdmin", "AgencyOfficeAdmin", "AgencyUser", "Producer"];
   const isGated =
     maintenance.launchGateEnabled &&
     !!user &&
@@ -740,7 +755,7 @@ export default function App() {
                 <Routes>
                   {/* Agency users land on the Workspace Hub; other roles keep their dashboard. */}
                   <Route index element={
-                    (effectiveRole === "AgencyAdmin" || effectiveRole === "AgencyUser")
+                    (effectiveRole === "AgencyAdmin" || effectiveRole === "AgencyOfficeAdmin" || effectiveRole === "AgencyUser")
                       ? <WorkspaceHubPage />
                       : <DashboardPage />
                   } />

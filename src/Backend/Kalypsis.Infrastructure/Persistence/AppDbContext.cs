@@ -743,7 +743,7 @@ public class AppDbContext : DbContext, IAppDbContext
 
                     if (entry.Entity is TenantEntity modOfficeEntity
                         && !IsOfficeMetadata(modOfficeEntity)
-                        && _currentUser.Role == Role.AgencyUser
+                        && _currentUser.Role is (Role.AgencyUser or Role.AgencyOfficeAdmin)
                         && _currentUser.AgencyOfficeId is Guid modifiedOfficeId)
                     {
                         var originalOffice = entry.OriginalValues[nameof(TenantEntity.AgencyOfficeScopeId)];
@@ -766,7 +766,7 @@ public class AppDbContext : DbContext, IAppDbContext
                             throw new InvalidOperationException(
                                 $"Cross-tenant delete blocked: tried to delete {entry.Entity.GetType().Name} from tenant {delTenantEntity.TenantId} (session tenant {tenantId.Value}).");
                         if (!IsOfficeMetadata(delTenantEntity)
-                            && _currentUser.Role == Role.AgencyUser
+                            && _currentUser.Role is (Role.AgencyUser or Role.AgencyOfficeAdmin)
                             && _currentUser.AgencyOfficeId is Guid deletedOfficeId
                             && delTenantEntity.AgencyOfficeScopeId is Guid rowOffice
                             && rowOffice != deletedOfficeId)

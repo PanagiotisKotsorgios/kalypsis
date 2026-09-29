@@ -8,6 +8,9 @@ public enum Role
     AgencyUser = 4,
     Producer = 5,
     Customer = 6,
+    // Office-level administrator.  This role manages only employees in its
+    // assigned office and can never administer the tenant or another office.
+    AgencyOfficeAdmin = 13,
     // Federation module — a sports federation running on the same platform.
     // FederationAdmin manages championships / clubs / athletes / results;
     // FederationEmployee is the day-to-day operator (results entry, payment

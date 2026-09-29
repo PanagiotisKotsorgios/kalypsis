@@ -141,7 +141,7 @@ public class PolicyRenewalReminderJob : BackgroundService
                 // Notify agency staff (every AgencyAdmin/AgencyUser in the tenant).
                 var staff = await db.Users.IgnoreQueryFilters()
                     .Where(u => u.TenantId == p.TenantId && u.DeletedAt == null
-                                && (u.Role == Role.AgencyAdmin || u.Role == Role.AgencyUser))
+                                && (u.Role == Role.AgencyAdmin || u.Role == Role.AgencyOfficeAdmin || u.Role == Role.AgencyUser))
                     .Select(u => u.Id)
                     .ToListAsync(ct);
                 foreach (var sid in staff)

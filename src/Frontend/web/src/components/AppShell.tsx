@@ -27,7 +27,7 @@ export function AppShell({
   role: Role | undefined;
   children: ReactNode;
 }) {
-  const isAgencyRole = role === "AgencyAdmin" || role === "AgencyUser";
+  const isAgencyRole = role === "AgencyAdmin" || role === "AgencyOfficeAdmin" || role === "AgencyUser";
   const shouldTrackEmployeeActivity = isAgencyRole
     || role === "PlatformAdmin"
     || role === "PlatformEmployee";

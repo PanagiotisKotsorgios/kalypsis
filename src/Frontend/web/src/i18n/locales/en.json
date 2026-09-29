@@ -2592,6 +2592,7 @@
     "PlatformAdmin": "Platform Administrator",
     "PlatformEmployee": "Platform Employee",
     "AgencyAdmin": "Agency Administrator",
+    "AgencyOfficeAdmin": "Office Sub-administrator",
     "AgencyUser": "Agency Employee",
     "Producer": "Producer",
     "Customer": "Customer"

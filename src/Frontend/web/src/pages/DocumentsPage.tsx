@@ -107,7 +107,7 @@ export function DocumentsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const qc = useQueryClient();
-  const canEdit = user?.role === "AgencyAdmin" || user?.role === "AgencyUser";
+  const canEdit = user?.role === "AgencyAdmin" || user?.role === "AgencyOfficeAdmin" || user?.role === "AgencyUser";
   const [uploadOpen, setUploadOpen] = useState(false);
   const [previewOf, setPreviewOf] = useState<DocumentDto | null>(null);
   const [error, setError] = useState<string | null>(null);

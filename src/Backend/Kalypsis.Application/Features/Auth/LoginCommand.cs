@@ -212,7 +212,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
 
     private void AddAuthenticationAudit(User user, string action, LoginCommand request)
     {
-        if (user.Role is not (Role.AgencyAdmin or Role.AgencyUser or Role.PlatformAdmin or Role.PlatformEmployee))
+        if (user.Role is not (Role.AgencyAdmin or Role.AgencyUser or Role.AgencyOfficeAdmin or Role.PlatformAdmin or Role.PlatformEmployee))
             return;
 
         _db.AuditLogs.Add(new AuditLog

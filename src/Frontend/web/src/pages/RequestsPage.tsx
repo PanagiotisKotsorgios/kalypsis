@@ -103,7 +103,7 @@ export function RequestsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const isCustomer = user?.role === "Customer";
-  const isAgency = user?.role === "AgencyAdmin" || user?.role === "AgencyUser";
+  const isAgency = user?.role === "AgencyAdmin" || user?.role === "AgencyOfficeAdmin" || user?.role === "AgencyUser";
 
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<RequestDto | null>(null);

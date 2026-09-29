@@ -7,10 +7,11 @@ namespace Kalypsis.Infrastructure.Auth;
 
 /// <summary>
 /// Resolves and validates the office context before controllers execute.
-/// Agency users may only select an office assigned to them. Agency admins may
-/// select any active office in their own tenant; without a selection they keep
-/// their all-office view. A missing user assignment is kept backwards
-/// compatible by falling back to the tenant headquarters.
+/// Agency users and office sub-administrators may only use their assigned
+/// office. Agency admins may select any active office in their own tenant;
+/// without a selection they keep their all-office view. A missing user
+/// assignment is kept backwards compatible for legacy AgencyUser accounts by
+/// falling back to the tenant headquarters.
 /// </summary>
 public sealed class AgencyOfficeScopeMiddleware
 {
@@ -41,6 +42,7 @@ public sealed class AgencyOfficeScopeMiddleware
             (role == Role.PlatformAdmin || role == Role.PlatformEmployee)
             && Guid.TryParse(impersonatedTenantRaw, out _);
         var officeAwareRole = role == Role.AgencyUser
+            || role == Role.AgencyOfficeAdmin
             || role == Role.AgencyAdmin
             || platformImpersonating;
         if (!officeAwareRole)
@@ -107,8 +109,11 @@ public sealed class AgencyOfficeScopeMiddleware
             .Select(x => new { x.assignment.AgencyOfficeId, x.assignment.IsPrimary, x.office.IsHeadquarters })
             .ToListAsync(context.RequestAborted);
 
+        var requiresExplicitOffice = role == Role.AgencyOfficeAdmin;
+
         // No offices configured yet: preserve the old single-office tenant
-        // behaviour.  Once an office exists, every AgencyUser is scoped.
+        // behaviour for legacy AgencyUser accounts. An office administrator
+        // must always be assigned to one concrete office.
         if (offices.Count == 0)
         {
             var hasAssignment = await db.UserAgencyOffices.IgnoreQueryFilters()
@@ -121,6 +126,17 @@ public sealed class AgencyOfficeScopeMiddleware
                 {
                     code = "office_assignment_required",
                     message = "Ο χρήστης δεν έχει ανάθεση σε ενεργό υποκατάστημα."
+                }, context.RequestAborted);
+                return;
+            }
+
+            if (requiresExplicitOffice)
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    code = "office_assignment_required",
+                    message = "Ο υποδιαχειριστής πρέπει να έχει ανάθεση σε ένα ενεργό γραφείο."
                 }, context.RequestAborted);
                 return;
             }
@@ -147,10 +163,15 @@ public sealed class AgencyOfficeScopeMiddleware
             return;
         }
 
+        // AgencyUser and AgencyOfficeAdmin are single-office roles. If old
+        // data contains more than one assignment, use the primary (or first)
+        // assignment and ignore a forged/ambiguous office switch header.
         var requestedRaw = context.Request.Headers[OfficeHeader].ToString();
-        var selected = Guid.TryParse(requestedRaw, out var requestedId)
-            ? offices.FirstOrDefault(x => x.AgencyOfficeId == requestedId)
-            : offices.FirstOrDefault(x => x.IsPrimary) ?? offices[0];
+        var selected = role is Role.AgencyUser or Role.AgencyOfficeAdmin
+            ? offices.FirstOrDefault(x => x.IsPrimary) ?? offices[0]
+            : (Guid.TryParse(requestedRaw, out var requestedId)
+                ? offices.FirstOrDefault(x => x.AgencyOfficeId == requestedId)
+                : offices.FirstOrDefault(x => x.IsPrimary) ?? offices[0]);
 
         if (selected is null)
         {

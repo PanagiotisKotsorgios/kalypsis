@@ -37,6 +37,7 @@ import { SearchableTextField } from "../components/SearchableTextField";
 import { printTable } from "../utils/printableTable";
 import { exportRowsCsv } from "../utils/exportCsv";
 import { date } from "../utils/format";
+import { useAuth } from "../auth/AuthContext";
 
 interface UserDto {
   id: string;
@@ -44,7 +45,7 @@ interface UserDto {
   firstName: string;
   lastName: string;
   phone?: string;
-  role: "AgencyAdmin" | "AgencyUser";
+  role: "AgencyAdmin" | "AgencyOfficeAdmin" | "AgencyUser";
   isActive: boolean;
   createdAt: string;
   lastLoginAt?: string;
@@ -56,17 +57,18 @@ interface CreateBody {
   lastName: string;
   phone?: string;
   password: string;
-  role: "AgencyAdmin" | "AgencyUser";
+  role: "AgencyAdmin" | "AgencyOfficeAdmin" | "AgencyUser";
 }
 
 export function EmployeesPage() {
   const { t } = useTranslation();
+  const { user: currentUser } = useAuth();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [permsUserId, setPermsUserId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"" | "AgencyAdmin" | "AgencyUser">("");
+  const [roleFilter, setRoleFilter] = useState<"" | "AgencyAdmin" | "AgencyOfficeAdmin" | "AgencyUser">("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
@@ -164,9 +166,10 @@ export function EmployeesPage() {
             value={search} onChange={(e) => setSearch(e.target.value)}
             sx={{ gridColumn: { md: "span 2" } }} />
           <SearchableTextField size="small" label={t("users.role")} fullWidth
-            value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as "" | "AgencyAdmin" | "AgencyUser")}>
+            value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as "" | "AgencyAdmin" | "AgencyOfficeAdmin" | "AgencyUser")}>
             <MenuItem value="">Όλοι</MenuItem>
             <MenuItem value="AgencyAdmin">{t("roles.AgencyAdmin")}</MenuItem>
+            <MenuItem value="AgencyOfficeAdmin">{t("roles.AgencyOfficeAdmin")}</MenuItem>
             <MenuItem value="AgencyUser">{t("roles.AgencyUser")}</MenuItem>
           </SearchableTextField>
           <Button size="small" fullWidth color="error" variant="contained"
@@ -200,7 +203,7 @@ export function EmployeesPage() {
                     <TableCell>{u.email}</TableCell>
                     <TableCell>{u.phone ?? "-"}</TableCell>
                     <TableCell>
-                      <Chip label={t(`roles.${u.role}`)} size="small" color={u.role === "AgencyAdmin" ? "primary" : "default"} />
+                      <Chip label={t(`roles.${u.role}`)} size="small" color={u.role === "AgencyAdmin" ? "primary" : u.role === "AgencyOfficeAdmin" ? "warning" : "default"} />
                     </TableCell>
                     <TableCell align="right">
                       <IconButton size="small" onClick={() => setPermsUserId(u.id)} title={t("permissions.title")}>
@@ -240,6 +243,7 @@ export function EmployeesPage() {
         onClose={() => setOpen(false)}
         onSubmit={(b) => createMutation.mutate(b)}
         submitting={createMutation.isPending}
+        canCreateAdmin={currentUser?.role === "AgencyAdmin" || currentUser?.role === "PlatformAdmin" || currentUser?.role === "PlatformEmployee"}
       />
 
       <UserPermissionsDialog userId={permsUserId} onClose={() => setPermsUserId(null)} />
@@ -251,12 +255,14 @@ function CreateDialog({
   open,
   onClose,
   onSubmit,
-  submitting
+  submitting,
+  canCreateAdmin
 }: {
   open: boolean;
   onClose: () => void;
   onSubmit: (b: CreateBody) => void;
   submitting: boolean;
+  canCreateAdmin: boolean;
 }) {
   const { t } = useTranslation();
   const [form, setForm] = useState<CreateBody>({
@@ -311,7 +317,8 @@ function CreateDialog({
             fullWidth
           >
             <MenuItem value="AgencyUser">{t("roles.AgencyUser")}</MenuItem>
-            <MenuItem value="AgencyAdmin">{t("roles.AgencyAdmin")}</MenuItem>
+            <MenuItem value="AgencyOfficeAdmin">{t("roles.AgencyOfficeAdmin")}</MenuItem>
+            {canCreateAdmin && <MenuItem value="AgencyAdmin">{t("roles.AgencyAdmin")}</MenuItem>}
           </SearchableTextField>
           <PasswordField
             label={t("users.password")}

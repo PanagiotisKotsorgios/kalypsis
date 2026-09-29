@@ -13,6 +13,7 @@ export type Role =
   | "PlatformAdmin"
   | "PlatformEmployee"
   | "AgencyAdmin"
+  | "AgencyOfficeAdmin"
   | "AgencyUser"
   | "Producer"
   | "Customer"

@@ -71,6 +71,21 @@ public static class PermissionCatalog
             // anything until the admin explicitly grants a *.write flag.
             "params.read"
         },
+        [Role.AgencyOfficeAdmin] = new[]
+        {
+            "customers.read","customers.write",
+            "policies.read","policies.write",
+            "documents.read","documents.write",
+            "tasks.read","tasks.write",
+            "appointments.read","appointments.write",
+            "covernotes.read","covernotes.write",
+            "receipts.read","receipts.write",
+            "tariffs.read",
+            "delivery.read","delivery.write",
+            "marketing.read",
+            "exports.run",
+            "params.read"
+        },
         [Role.Producer] = new[] { "customers.read","policies.read","commissions.read","production.read" },
         [Role.Customer] = new[] { "documents.read" }
     };
@@ -96,10 +111,12 @@ public record GetUserPermissionsQuery(Guid UserId) : IRequest<UserPermissionsDto
 public class GetUserPermissionsQueryHandler : IRequestHandler<GetUserPermissionsQuery, UserPermissionsDto>
 {
     private readonly IAppDbContext _db;
-    public GetUserPermissionsQueryHandler(IAppDbContext db) => _db = db;
+    private readonly ICurrentUser _current;
+    public GetUserPermissionsQueryHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
     public async Task<UserPermissionsDto> Handle(GetUserPermissionsQuery r, CancellationToken ct)
     {
         var u = await _db.Users.FirstOrDefaultAsync(x => x.Id == r.UserId, ct) ?? throw AppException.NotFound("User");
+        await EnsureCanManage(u, ct);
         string[]? custom = null;
         if (!string.IsNullOrWhiteSpace(u.PermissionsJson))
         {
@@ -107,6 +124,17 @@ public class GetUserPermissionsQueryHandler : IRequestHandler<GetUserPermissions
         }
         var effective = PermissionCatalog.ResolveEffective(u.Role, u.PermissionsJson);
         return new UserPermissionsDto(u.Id, u.Email, $"{u.FirstName} {u.LastName}".Trim(), u.Role, effective, custom);
+    }
+
+    private async Task EnsureCanManage(Kalypsis.Domain.Entities.User target, CancellationToken ct)
+    {
+        if (_current.Role != Role.AgencyOfficeAdmin) return;
+        if (target.Role != Role.AgencyUser || _current.AgencyOfficeId is not Guid officeId)
+            throw AppException.Forbidden("Ο Υποδιαχειριστής μπορεί να διαχειρίζεται δικαιώματα μόνο υπαλλήλων του γραφείου του.");
+        var sameOffice = target.AgencyOfficeScopeId == officeId
+            || await _db.UserAgencyOffices.AnyAsync(a => a.UserId == target.Id
+                && a.AgencyOfficeId == officeId && a.DeletedAt == null, ct);
+        if (!sameOffice) throw AppException.Forbidden("Ο χρήστης ανήκει σε άλλο γραφείο.");
     }
 }
 
@@ -123,10 +151,12 @@ public class SetUserPermissionsCommandValidator : AbstractValidator<SetUserPermi
 public class SetUserPermissionsCommandHandler : IRequestHandler<SetUserPermissionsCommand, UserPermissionsDto>
 {
     private readonly IAppDbContext _db;
-    public SetUserPermissionsCommandHandler(IAppDbContext db) => _db = db;
+    private readonly ICurrentUser _current;
+    public SetUserPermissionsCommandHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
     public async Task<UserPermissionsDto> Handle(SetUserPermissionsCommand r, CancellationToken ct)
     {
         var u = await _db.Users.FirstOrDefaultAsync(x => x.Id == r.UserId, ct) ?? throw AppException.NotFound("User");
+        await EnsureCanManage(u, ct);
         if (r.Permissions == null || r.Permissions.Length == 0)
             u.PermissionsJson = null; // null = role defaults
         else
@@ -140,6 +170,17 @@ public class SetUserPermissionsCommandHandler : IRequestHandler<SetUserPermissio
         }
         var effective = PermissionCatalog.ResolveEffective(u.Role, u.PermissionsJson);
         return new UserPermissionsDto(u.Id, u.Email, $"{u.FirstName} {u.LastName}".Trim(), u.Role, effective, custom);
+    }
+
+    private async Task EnsureCanManage(Kalypsis.Domain.Entities.User target, CancellationToken ct)
+    {
+        if (_current.Role != Role.AgencyOfficeAdmin) return;
+        if (target.Role != Role.AgencyUser || _current.AgencyOfficeId is not Guid officeId)
+            throw AppException.Forbidden("Ο Υποδιαχειριστής μπορεί να διαχειρίζεται δικαιώματα μόνο υπαλλήλων του γραφείου του.");
+        var sameOffice = target.AgencyOfficeScopeId == officeId
+            || await _db.UserAgencyOffices.AnyAsync(a => a.UserId == target.Id
+                && a.AgencyOfficeId == officeId && a.DeletedAt == null, ct);
+        if (!sameOffice) throw AppException.Forbidden("Ο χρήστης ανήκει σε άλλο γραφείο.");
     }
 }
 

@@ -26,8 +26,14 @@ public class UpdateEmployeeHandler : IRequestHandler<UpdateEmployeeCommand, User
             .FirstOrDefaultAsync(x => x.Id == c.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Χρήστης");
 
-        if (u.Role != Role.AgencyAdmin && u.Role != Role.AgencyUser)
+        if (u.Role != Role.AgencyAdmin && u.Role != Role.AgencyUser && u.Role != Role.AgencyOfficeAdmin)
             throw AppException.Forbidden();
+
+        if (_current.Role == Role.AgencyOfficeAdmin)
+        {
+            if (u.Role != Role.AgencyUser || c.Body.Role != Role.AgencyUser || !await IsInCurrentOffice(u, ct))
+                throw AppException.Forbidden("Ο Υποδιαχειριστής μπορεί να διαχειρίζεται μόνο υπαλλήλους του γραφείου του.");
+        }
 
         var isSelf = u.Id == _current.UserId;
         // Privilege-escalation / self-lockout guards: don't let an admin
@@ -62,9 +68,52 @@ public class UpdateEmployeeHandler : IRequestHandler<UpdateEmployeeCommand, User
         u.FirstName = c.Body.FirstName.Trim();
         u.LastName  = c.Body.LastName.Trim();
         u.Phone     = string.IsNullOrWhiteSpace(c.Body.Phone) ? null : c.Body.Phone.Trim();
-        // Only allow promoting/demoting between the two agency roles.
-        if (c.Body.Role == Role.AgencyAdmin || c.Body.Role == Role.AgencyUser)
+        // Only agency roles are accepted. Office sub-administrators can only
+        // be assigned to one office and may never be created by a sub-admin.
+        if (c.Body.Role == Role.AgencyAdmin || c.Body.Role == Role.AgencyUser || c.Body.Role == Role.AgencyOfficeAdmin)
             u.Role = c.Body.Role;
+        else
+            throw AppException.Validation("Μη έγκυρος ρόλος χρήστη.");
+
+        if (u.Role == Role.AgencyAdmin)
+        {
+            u.AgencyOfficeScopeId = null;
+            var existingAssignments = await _db.UserAgencyOffices
+                .Where(a => a.UserId == u.Id && a.DeletedAt == null)
+                .ToListAsync(ct);
+            foreach (var assignment in existingAssignments) assignment.DeletedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            var officeId = _current.Role == Role.AgencyOfficeAdmin
+                ? _current.AgencyOfficeId
+                : u.AgencyOfficeScopeId ?? _current.AgencyOfficeId;
+            if (officeId is null)
+            {
+                officeId = await _db.UserAgencyOffices
+                    .Where(a => a.UserId == u.Id && a.DeletedAt == null && a.IsPrimary)
+                    .Select(a => (Guid?)a.AgencyOfficeId)
+                    .FirstOrDefaultAsync(ct);
+            }
+            if (officeId is null)
+                throw new AppException("office_required", "Ο χρήστης πρέπει να ανήκει σε ενεργό γραφείο.", 400);
+            u.AgencyOfficeScopeId = officeId;
+            var assignments = await _db.UserAgencyOffices
+                .Where(a => a.UserId == u.Id && a.DeletedAt == null)
+                .ToListAsync(ct);
+            foreach (var assignment in assignments)
+            {
+                assignment.IsPrimary = assignment.AgencyOfficeId == officeId;
+            }
+            if (!assignments.Any(a => a.AgencyOfficeId == officeId))
+            {
+                _db.UserAgencyOffices.Add(new Kalypsis.Domain.Entities.UserAgencyOffice
+                {
+                    Id = Guid.NewGuid(), TenantId = tenantId, UserId = u.Id,
+                    AgencyOfficeId = officeId.Value, IsPrimary = true
+                });
+            }
+        }
         u.IsActive  = c.Body.IsActive;
         u.UpdatedAt = DateTime.UtcNow;
 
@@ -80,6 +129,15 @@ public class UpdateEmployeeHandler : IRequestHandler<UpdateEmployeeCommand, User
         await _db.SaveChangesAsync(ct);
         return new UserDto(u.Id, u.Email, u.FirstName, u.LastName, u.Phone,
             u.Role, u.IsActive, u.CreatedAt, u.LastLoginAt);
+    }
+
+    private async Task<bool> IsInCurrentOffice(Kalypsis.Domain.Entities.User user, CancellationToken ct)
+    {
+        if (_current.AgencyOfficeId is not Guid officeId) return false;
+        if (user.AgencyOfficeScopeId is Guid scopedOffice && scopedOffice != officeId) return false;
+        if (user.AgencyOfficeScopeId == officeId) return true;
+        return await _db.UserAgencyOffices.AnyAsync(a => a.UserId == user.Id
+            && a.AgencyOfficeId == officeId && a.DeletedAt == null, ct);
     }
 }
 
@@ -98,8 +156,12 @@ public class DeleteEmployeeHandler : IRequestHandler<DeleteEmployeeCommand, Unit
             .FirstOrDefaultAsync(x => x.Id == c.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Χρήστης");
 
-        if (u.Role != Role.AgencyAdmin && u.Role != Role.AgencyUser)
+        if (u.Role != Role.AgencyAdmin && u.Role != Role.AgencyUser && u.Role != Role.AgencyOfficeAdmin)
             throw AppException.Forbidden();
+
+        if (_current.Role == Role.AgencyOfficeAdmin
+            && (u.Role != Role.AgencyUser || !await IsInCurrentOffice(u, ct)))
+            throw AppException.Forbidden("Ο Υποδιαχειριστής μπορεί να διαγράφει μόνο υπαλλήλους του γραφείου του.");
 
         // Don't let an admin delete themselves — there must always be at least
         // one active admin in the tenant.
@@ -131,5 +193,14 @@ public class DeleteEmployeeHandler : IRequestHandler<DeleteEmployeeCommand, Unit
         await RefreshTokenRevoker.RevokeAllForUserAsync(_db, u.Id, now, "employee_deleted", ct);
         await _db.SaveChangesAsync(ct);
         return Unit.Value;
+    }
+
+    private async Task<bool> IsInCurrentOffice(Kalypsis.Domain.Entities.User user, CancellationToken ct)
+    {
+        if (_current.AgencyOfficeId is not Guid officeId) return false;
+        if (user.AgencyOfficeScopeId is Guid scopedOffice && scopedOffice != officeId) return false;
+        if (user.AgencyOfficeScopeId == officeId) return true;
+        return await _db.UserAgencyOffices.AnyAsync(a => a.UserId == user.Id
+            && a.AgencyOfficeId == officeId && a.DeletedAt == null, ct);
     }
 }

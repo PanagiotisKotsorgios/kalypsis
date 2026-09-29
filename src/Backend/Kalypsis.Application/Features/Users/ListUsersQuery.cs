@@ -26,7 +26,7 @@ public class ListUsersQueryHandler : IRequestHandler<ListUsersQuery, IReadOnlyLi
 
         return await _db.Users
             .Where(u => u.TenantId == tenantId && u.DeletedAt == null
-                && (u.Role == Role.AgencyAdmin || u.Role == Role.AgencyUser))
+                && (u.Role == Role.AgencyAdmin || u.Role == Role.AgencyUser || u.Role == Role.AgencyOfficeAdmin))
             .OrderBy(u => u.LastName)
             .Select(u => new UserDto(
                 u.Id, u.Email, u.FirstName, u.LastName, u.Phone,

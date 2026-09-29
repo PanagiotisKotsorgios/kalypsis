@@ -103,17 +103,17 @@ public class PermissionsController : ControllerBase
     public PermissionsController(IMediator m) => _m = m;
 
     [HttpGet("catalog")]
-    [Authorize(Policy = "AgencyAdmin")]
+    [Authorize(Policy = "AgencyManager")]
     public async Task<ActionResult<string[]>> Catalog(CancellationToken ct)
         => Ok(await _m.Send(new GetPermissionCatalogQuery(), ct));
 
     [HttpGet("user/{userId:guid}")]
-    [Authorize(Policy = "AgencyAdmin")]
+    [Authorize(Policy = "AgencyManager")]
     public async Task<ActionResult<UserPermissionsDto>> Get(Guid userId, CancellationToken ct)
         => Ok(await _m.Send(new GetUserPermissionsQuery(userId), ct));
 
     [HttpPut("user/{userId:guid}")]
-    [Authorize(Policy = "AgencyAdmin")]
+    [Authorize(Policy = "AgencyManager")]
     public async Task<ActionResult<UserPermissionsDto>> Set(Guid userId, [FromBody] SetBody body, CancellationToken ct)
         => Ok(await _m.Send(new SetUserPermissionsCommand(userId, body.Permissions), ct));
     public record SetBody(string[]? Permissions);

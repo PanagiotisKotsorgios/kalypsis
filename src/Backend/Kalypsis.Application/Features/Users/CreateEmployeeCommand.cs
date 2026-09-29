@@ -18,8 +18,8 @@ public class CreateEmployeeCommandValidator : AbstractValidator<CreateEmployeeCo
         RuleFor(x => x.Request.FirstName).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Request.LastName).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Request.Password).NotEmpty().MinimumLength(8);
-        RuleFor(x => x.Request.Role).Must(r => r == Role.AgencyAdmin || r == Role.AgencyUser)
-            .WithMessage("Ο ρόλος πρέπει να είναι AgencyAdmin ή AgencyUser.");
+        RuleFor(x => x.Request.Role).Must(r => r == Role.AgencyAdmin || r == Role.AgencyUser || r == Role.AgencyOfficeAdmin)
+            .WithMessage("Ο ρόλος πρέπει να είναι AgencyAdmin, AgencyOfficeAdmin ή AgencyUser.");
     }
 }
 
@@ -41,6 +41,26 @@ public class CreateEmployeeCommandHandler : IRequestHandler<CreateEmployeeComman
         var tenantId = _currentUser.TenantId
             ?? throw AppException.Forbidden("Δεν έχει οριστεί γραφείο.");
 
+        // A sub-administrator can create employees only. Administrator and
+        // sub-administrator accounts remain controlled by the tenant admin.
+        if (_currentUser.Role == Role.AgencyOfficeAdmin
+            && request.Request.Role != Role.AgencyUser)
+            throw AppException.Forbidden("Ο Υποδιαχειριστής μπορεί να δημιουργεί μόνο υπαλλήλους του γραφείου του.");
+
+        var requestedRole = request.Request.Role;
+        Guid? officeId = _currentUser.AgencyOfficeId;
+        if (requestedRole != Role.AgencyAdmin && officeId is null)
+        {
+            officeId = await _db.AgencyOffices
+                .Where(o => o.TenantId == tenantId && o.DeletedAt == null && o.IsActive)
+                .OrderByDescending(o => o.IsHeadquarters)
+                .ThenBy(o => o.Name)
+                .Select(o => (Guid?)o.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (officeId is null)
+                throw new AppException("office_required", "Δεν υπάρχει ενεργό γραφείο για την ανάθεση του χρήστη.", 400);
+        }
+
         var email = request.Request.Email.Trim().ToLowerInvariant();
 
         var emailExists = await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Email == email, cancellationToken);
@@ -60,11 +80,23 @@ public class CreateEmployeeCommandHandler : IRequestHandler<CreateEmployeeComman
             FirstName = request.Request.FirstName.Trim(),
             LastName = request.Request.LastName.Trim(),
             Phone = request.Request.Phone?.Trim(),
-            Role = request.Request.Role,
+            Role = requestedRole,
+            AgencyOfficeScopeId = requestedRole == Role.AgencyAdmin ? null : officeId,
             IsActive = true,
             PreferredLanguage = "el"
         };
         _db.Users.Add(user);
+        if (requestedRole != Role.AgencyAdmin && officeId is Guid assignedOfficeId)
+        {
+            _db.UserAgencyOffices.Add(new UserAgencyOffice
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                UserId = user.Id,
+                AgencyOfficeId = assignedOfficeId,
+                IsPrimary = true
+            });
+        }
         await _db.SaveChangesAsync(cancellationToken);
 
         return new CreateEmployeeResponse(new UserDto(

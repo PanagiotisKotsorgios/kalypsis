@@ -8,7 +8,7 @@ namespace Kalypsis.Api.Controllers;
 
 [ApiController]
 [Route("api/users")]
-[Authorize(Policy = "AgencyAdmin")]
+[Authorize(Policy = "AgencyManager")]
 public class UsersController : ControllerBase
 {
     private readonly IMediator _mediator;

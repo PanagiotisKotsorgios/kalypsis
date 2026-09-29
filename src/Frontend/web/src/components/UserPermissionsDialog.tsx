@@ -8,6 +8,7 @@ import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
 
 interface UserPermissionsDto {
   userId: string; email: string; name: string; role: string;
@@ -15,7 +16,7 @@ interface UserPermissionsDto {
 }
 interface UserDto {
   id: string; email: string; firstName: string; lastName: string; phone: string | null;
-  role: "AgencyAdmin" | "AgencyUser" | "Producer" | "Customer" | "PlatformAdmin";
+  role: "AgencyAdmin" | "AgencyOfficeAdmin" | "AgencyUser" | "Producer" | "Customer" | "PlatformAdmin";
   isActive: boolean; createdAt: string; lastLoginAt: string | null;
 }
 
@@ -61,6 +62,7 @@ function labelForCode(code: string, t: (k: string, fallback?: string) => string)
 
 export function UserPermissionsDialog({ userId, onClose }: { userId: string | null; onClose: () => void }) {
   const { t } = useTranslation();
+  const { user: currentUser } = useAuth();
   const qc = useQueryClient();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [err, setErr] = useState<string | null>(null);
@@ -81,13 +83,13 @@ export function UserPermissionsDialog({ userId, onClose }: { userId: string | nu
   // Local edit-form state for the details tab.
   const [details, setDetails] = useState({
     firstName: "", lastName: "", phone: "",
-    role: "AgencyUser" as "AgencyAdmin" | "AgencyUser",
+    role: "AgencyUser" as "AgencyAdmin" | "AgencyOfficeAdmin" | "AgencyUser",
     isActive: true
   });
   useEffect(() => {
     if (user) setDetails({
       firstName: user.firstName, lastName: user.lastName, phone: user.phone ?? "",
-      role: (user.role === "AgencyAdmin" ? "AgencyAdmin" : "AgencyUser") as "AgencyAdmin" | "AgencyUser",
+      role: (user.role === "AgencyAdmin" ? "AgencyAdmin" : user.role === "AgencyOfficeAdmin" ? "AgencyOfficeAdmin" : "AgencyUser") as "AgencyAdmin" | "AgencyOfficeAdmin" | "AgencyUser",
       isActive: user.isActive
     });
   }, [user]);
@@ -240,9 +242,10 @@ export function UserPermissionsDialog({ userId, onClose }: { userId: string | nu
               </Stack>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
                 <TextField select label="Ρόλος" value={details.role} sx={{ minWidth: 220 }}
-                  onChange={e => setDetails({ ...details, role: e.target.value as "AgencyAdmin" | "AgencyUser" })}>
+                  onChange={e => setDetails({ ...details, role: e.target.value as "AgencyAdmin" | "AgencyOfficeAdmin" | "AgencyUser" })}>
                   <MenuItem value="AgencyUser">Υπάλληλος Γραφείου</MenuItem>
-                  <MenuItem value="AgencyAdmin">Διαχειριστής Γραφείου</MenuItem>
+                  {(currentUser?.role === "AgencyAdmin" || currentUser?.role === "PlatformAdmin" || currentUser?.role === "PlatformEmployee") && <MenuItem value="AgencyOfficeAdmin">Υποδιαχειριστής Γραφείου</MenuItem>}
+                  {(currentUser?.role === "AgencyAdmin" || currentUser?.role === "PlatformAdmin" || currentUser?.role === "PlatformEmployee") && <MenuItem value="AgencyAdmin">Διαχειριστής Γραφείου</MenuItem>}
                 </TextField>
                 <FormControlLabel control={
                   <Switch checked={details.isActive}

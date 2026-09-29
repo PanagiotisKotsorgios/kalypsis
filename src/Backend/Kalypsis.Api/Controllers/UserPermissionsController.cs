@@ -19,7 +19,7 @@ namespace Kalypsis.Api.Controllers;
 /// intentionally exposes only the REST-conventional alternatives.
 /// </summary>
 [ApiController]
-[Authorize(Policy = "AgencyAdmin")]
+[Authorize(Policy = "AgencyManager")]
 public class UserPermissionsController : ControllerBase
 {
     private readonly IMediator _mediator;

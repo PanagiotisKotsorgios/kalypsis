@@ -45,7 +45,7 @@ interface UserPermissionsResponse {
   effective: string[];
 }
 
-const OFFICE_SIDEBAR_ROLES: Role[] = ["AgencyAdmin", "AgencyUser", "Producer", "Customer"];
+const OFFICE_SIDEBAR_ROLES: Role[] = ["AgencyAdmin", "AgencyOfficeAdmin", "AgencyUser", "Producer", "Customer"];
 
 function SidebarPreview({
   user, activePackages, hiddenItems, permissions

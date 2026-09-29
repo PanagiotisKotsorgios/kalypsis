@@ -11,7 +11,7 @@ interface OfficeOption { officeId: string; officeName: string; isPrimary: boolea
  * so every query starts with the new server-validated office scope.
  */
 export function AgencyOfficeSwitcher({ role }: { role: Role | undefined }) {
-  const isAgency = role === "AgencyAdmin" || role === "AgencyUser";
+  const isAgency = role === "AgencyAdmin" || role === "AgencyOfficeAdmin" || role === "AgencyUser";
   const isAdmin = role === "AgencyAdmin";
   const [offices, setOffices] = useState<OfficeOption[]>([]);
   const [selected, setSelected] = useState(() => localStorage.getItem("kalypsis.activeOfficeId") ?? "");

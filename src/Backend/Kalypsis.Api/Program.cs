@@ -151,9 +151,15 @@ builder.Services.AddAuthorization(opt =>
         nameof(Kalypsis.Domain.Enums.Role.AgencyAdmin),
         nameof(Kalypsis.Domain.Enums.Role.PlatformAdmin),
         nameof(Kalypsis.Domain.Enums.Role.PlatformEmployee)));
+    opt.AddPolicy("AgencyManager", p => p.RequireClaim("role",
+        nameof(Kalypsis.Domain.Enums.Role.AgencyAdmin),
+        nameof(Kalypsis.Domain.Enums.Role.AgencyOfficeAdmin),
+        nameof(Kalypsis.Domain.Enums.Role.PlatformAdmin),
+        nameof(Kalypsis.Domain.Enums.Role.PlatformEmployee)));
     opt.AddPolicy("AgencyStaff", p => p.RequireClaim("role",
         nameof(Kalypsis.Domain.Enums.Role.AgencyAdmin),
         nameof(Kalypsis.Domain.Enums.Role.AgencyUser),
+        nameof(Kalypsis.Domain.Enums.Role.AgencyOfficeAdmin),
         nameof(Kalypsis.Domain.Enums.Role.PlatformAdmin),
         nameof(Kalypsis.Domain.Enums.Role.PlatformEmployee)));
     opt.AddPolicy("Producer", p => p.RequireClaim("role", nameof(Kalypsis.Domain.Enums.Role.Producer)));

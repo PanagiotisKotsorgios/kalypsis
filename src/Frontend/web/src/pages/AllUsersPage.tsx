@@ -43,7 +43,7 @@ import PersonOffIcon from "@mui/icons-material/PersonOff";
 import { api, extractErrorMessage } from "../api/client";
 import { SearchableTextField } from "../components/SearchableTextField";
 
-type Role = "PlatformAdmin" | "PlatformEmployee" | "AgencyAdmin" | "AgencyUser" | "Producer" | "Customer";
+type Role = "PlatformAdmin" | "PlatformEmployee" | "AgencyAdmin" | "AgencyOfficeAdmin" | "AgencyUser" | "Producer" | "Customer";
 
 interface PlatformUserDto {
   id: string;
@@ -69,6 +69,7 @@ const ROLE_COLOR: Record<Role, "primary" | "secondary" | "default" | "info" | "w
   PlatformAdmin: "primary",
   PlatformEmployee: "primary",
   AgencyAdmin: "secondary",
+  AgencyOfficeAdmin: "warning",
   AgencyUser: "info",
   Producer: "warning",
   Customer: "default"
@@ -162,7 +163,7 @@ export function AllUsersPage() {
               sx={{ minWidth: 170, width: "100%" }}
             >
               <MenuItem value="">{t("allUsers.allRoles")}</MenuItem>
-              {(["PlatformAdmin","PlatformEmployee","AgencyAdmin","AgencyUser","Producer","Customer"] as const).map(r =>
+              {(["PlatformAdmin","PlatformEmployee","AgencyAdmin","AgencyOfficeAdmin","AgencyUser","Producer","Customer"] as const).map(r =>
                 <MenuItem key={r} value={r}>{t(`roles.${r}`)}</MenuItem>
               )}
             </SearchableTextField>
@@ -335,7 +336,7 @@ function EditUserDialog({ user, onClose, onSaved }: {
             onChange={(e) => setForm({ ...form, phone: e.target.value })} fullWidth />
           <SearchableTextField label={t("users.role")} value={form.role}
             onChange={(e) => setForm({ ...form, role: e.target.value as Role })} fullWidth>
-            {(["PlatformAdmin","PlatformEmployee","AgencyAdmin","AgencyUser","Producer","Customer"] as const).map(r =>
+            {(["PlatformAdmin","PlatformEmployee","AgencyAdmin","AgencyOfficeAdmin","AgencyUser","Producer","Customer"] as const).map(r =>
               <MenuItem key={r} value={r}>{t(`roles.${r}`)}</MenuItem>
             )}
           </SearchableTextField>

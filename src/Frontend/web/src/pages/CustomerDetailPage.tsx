@@ -173,7 +173,7 @@ export function CustomerDetailPage() {
     );
   }
   const customer = customerQ.data!;
-  const canManageCustomer = user?.role === "AgencyAdmin" || user?.role === "AgencyUser";
+  const canManageCustomer = user?.role === "AgencyAdmin" || user?.role === "AgencyOfficeAdmin" || user?.role === "AgencyUser";
 
   const displayName = customer.type === "Company"
     ? customer.companyName ?? "—"

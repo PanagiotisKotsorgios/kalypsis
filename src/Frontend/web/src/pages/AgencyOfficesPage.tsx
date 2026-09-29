@@ -40,7 +40,7 @@ interface UpsertBody {
 
 interface OfficeUserDto {
   userId: string; email: string; firstName: string; lastName: string;
-  role: "AgencyAdmin" | "AgencyUser"; isAssigned: boolean; isPrimary: boolean;
+  role: "AgencyAdmin" | "AgencyOfficeAdmin" | "AgencyUser"; isAssigned: boolean; isPrimary: boolean;
 }
 
 export function AgencyOfficesPage() {

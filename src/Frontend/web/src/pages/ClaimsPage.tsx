@@ -112,7 +112,7 @@ export function ClaimsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const isCustomer = user?.role === "Customer";
-  const canEdit = user?.role === "AgencyAdmin" || user?.role === "AgencyUser";
+  const canEdit = user?.role === "AgencyAdmin" || user?.role === "AgencyOfficeAdmin" || user?.role === "AgencyUser";
 
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<ClaimStatus | "">("");

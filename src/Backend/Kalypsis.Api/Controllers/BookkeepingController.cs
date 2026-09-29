@@ -825,6 +825,7 @@ public class BookkeepingController : ControllerBase
                 var admins = await _db.Users.IgnoreQueryFilters()
                     .Where(u => u.TenantId == tenantId && u.DeletedAt == null
                         && (u.Role == Kalypsis.Domain.Enums.Role.AgencyAdmin
+                            || u.Role == Kalypsis.Domain.Enums.Role.AgencyOfficeAdmin
                             || u.Role == Kalypsis.Domain.Enums.Role.AgencyUser))
                     .Select(u => u.Id).ToListAsync(ct);
                 if (admins.Count > 0)

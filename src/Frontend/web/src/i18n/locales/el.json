@@ -2906,6 +2906,7 @@
     "PlatformAdmin": "Διαχειριστής Πλατφόρμας",
     "PlatformEmployee": "Υπάλληλος Πλατφόρμας",
     "AgencyAdmin": "Διαχειριστής Γραφείου",
+    "AgencyOfficeAdmin": "Υποδιαχειριστής Γραφείου",
     "AgencyUser": "Υπάλληλος Γραφείου",
     "Producer": "Παραγωγός",
     "Customer": "Πελάτης"

@@ -3771,7 +3771,7 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
             .ToList();
         var notificationRecipients = await _db.Users
             .Where(user => user.TenantId == tenantId && user.DeletedAt == null && user.IsActive
-                && (user.Role == Role.AgencyAdmin || user.Role == Role.AgencyUser))
+                && (user.Role == Role.AgencyAdmin || user.Role == Role.AgencyOfficeAdmin || user.Role == Role.AgencyUser))
             .Select(user => user.Id)
             .ToListAsync(ct);
         var warningLinks = policiesNeedingDocuments

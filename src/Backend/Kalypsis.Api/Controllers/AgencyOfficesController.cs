@@ -143,9 +143,9 @@ public class AgencyOfficesController : ControllerBase
         var officeExists = await _db.AgencyOffices.AnyAsync(o => o.Id == id && o.TenantId == tenantId, ct);
         if (!officeExists) throw AppException.NotFound("Office");
 
-        return Ok(await _db.Users
+        return Ok(await _db.Users.IgnoreQueryFilters()
             .Where(u => u.TenantId == tenantId && u.DeletedAt == null
-                && (u.Role == Role.AgencyAdmin || u.Role == Role.AgencyUser))
+                && (u.Role == Role.AgencyAdmin || u.Role == Role.AgencyUser || u.Role == Role.AgencyOfficeAdmin))
             .OrderBy(u => u.LastName).ThenBy(u => u.FirstName)
             .Select(u => new OfficeUserDto(
                 u.Id, u.Email, u.FirstName, u.LastName, u.Role,
@@ -163,12 +163,22 @@ public class AgencyOfficesController : ControllerBase
         var office = await _db.AgencyOffices.FirstOrDefaultAsync(o => o.Id == id && o.TenantId == tenantId, ct)
             ?? throw AppException.NotFound("Office");
         var desired = body.UserIds.Distinct().ToHashSet();
-        var validUsers = await _db.Users
+        var validUserEntities = await _db.Users.IgnoreQueryFilters()
             .Where(u => u.TenantId == tenantId && u.DeletedAt == null
-                && (u.Role == Role.AgencyAdmin || u.Role == Role.AgencyUser))
-            .Select(u => u.Id).ToHashSetAsync(ct);
+                && (u.Role == Role.AgencyAdmin || u.Role == Role.AgencyUser || u.Role == Role.AgencyOfficeAdmin))
+            .ToListAsync(ct);
+        var validUsers = validUserEntities.Select(u => u.Id).ToHashSet();
         if (desired.Any(userId => !validUsers.Contains(userId)))
             return BadRequest(new { code = "invalid_office_user", message = "Η ανάθεση περιέχει μη έγκυρο χρήστη." });
+
+        var singleOfficeUsers = validUserEntities.Where(u => desired.Contains(u.Id)
+            && u.Role != Role.AgencyAdmin).Select(u => u.Id).ToHashSet();
+        var otherOfficeAssignments = await _db.UserAgencyOffices
+            .Where(a => a.TenantId == tenantId && a.DeletedAt == null
+                && singleOfficeUsers.Contains(a.UserId) && a.AgencyOfficeId != id)
+            .Select(a => a.UserId).Distinct().ToListAsync(ct);
+        if (otherOfficeAssignments.Count > 0)
+            return BadRequest(new { code = "single_office_user", message = "Οι υπάλληλοι και οι υποδιαχειριστές μπορούν να ανήκουν μόνο σε ένα γραφείο." });
 
         var rows = await _db.UserAgencyOffices
             .Where(a => a.TenantId == tenantId && a.AgencyOfficeId == id)
@@ -194,6 +204,9 @@ public class AgencyOfficesController : ControllerBase
         }
         foreach (var row in rows.Where(x => !desired.Contains(x.UserId) && x.DeletedAt == null))
             row.DeletedAt = _clock.UtcNow;
+
+        foreach (var user in validUserEntities.Where(u => desired.Contains(u.Id)))
+            user.AgencyOfficeScopeId = user.Role == Role.AgencyAdmin ? null : id;
 
         // Ensure each assigned user has one primary office.  Existing primary
         // choices are preserved; newly assigned users default to this office.
@@ -234,13 +247,19 @@ public class AgencyOfficesController : ControllerBase
             q = q.Where(o => assigned.Contains(o.Id));
         }
 
-        return Ok(await q
+        var offices = await q
             .OrderByDescending(o => o.IsHeadquarters)
             .ThenBy(o => o.Name)
             .Select(o => new UserOfficeDto(o.Id, o.Name,
                 _db.UserAgencyOffices.Any(a => a.UserId == userId && a.AgencyOfficeId == o.Id
                     && a.IsPrimary && a.DeletedAt == null)))
-            .ToListAsync(ct));
+            .ToListAsync(ct);
+        if ((_current.Role is Role.AgencyUser or Role.AgencyOfficeAdmin) && offices.Count > 1)
+        {
+            var primary = offices.FirstOrDefault(x => x.IsPrimary) ?? offices[0];
+            offices = new List<UserOfficeDto> { primary with { IsPrimary = true } };
+        }
+        return Ok(offices);
     }
 
     [HttpGet("/api/users/{userId:guid}/offices")]
@@ -258,17 +277,23 @@ public class AgencyOfficesController : ControllerBase
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
 
-        var existing = await _db.UserAgencyOffices.Where(a => a.UserId == userId).ToListAsync(ct);
+        var targetUser = await _db.Users.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == userId && u.TenantId == tenantId && u.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("User");
+        var existing = await _db.UserAgencyOffices.IgnoreQueryFilters().Where(a => a.UserId == userId).ToListAsync(ct);
         var existingByOffice = existing.ToDictionary(e => e.AgencyOfficeId);
         var desired = body.OfficeIds.Distinct().ToHashSet();
 
-        var allowedOfficeIds = await _db.AgencyOffices
+        var allowedOfficeIds = await _db.AgencyOffices.IgnoreQueryFilters()
             .Where(o => o.TenantId == tenantId && o.DeletedAt == null)
             .Select(o => o.Id)
             .ToHashSetAsync(ct);
         if (desired.Any(id => !allowedOfficeIds.Contains(id))
             || (body.PrimaryOfficeId.HasValue && !desired.Contains(body.PrimaryOfficeId.Value)))
             return BadRequest(new { code = "invalid_office_assignment", message = "Η ανάθεση περιέχει μη έγκυρο υποκατάστημα." });
+
+        if (targetUser.Role != Role.AgencyAdmin && desired.Count != 1)
+            return BadRequest(new { code = "office_required", message = "Ο χρήστης πρέπει να έχει ακριβώς ένα ενεργό γραφείο." });
 
         // Revive or insert
         foreach (var officeId in desired)
@@ -294,6 +319,10 @@ public class AgencyOfficesController : ControllerBase
         // Soft-delete what was removed
         foreach (var row in existing.Where(r => !desired.Contains(r.AgencyOfficeId) && r.DeletedAt == null))
             row.DeletedAt = _clock.UtcNow;
+
+        targetUser.AgencyOfficeScopeId = targetUser.Role == Role.AgencyAdmin
+            ? null
+            : desired.FirstOrDefault();
 
         await _db.SaveChangesAsync(ct);
         return NoContent();
