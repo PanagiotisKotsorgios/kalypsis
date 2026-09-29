@@ -26,14 +26,32 @@ public sealed class AgencyOfficeScopeMiddleware
     {
         if (!context.Request.Path.StartsWithSegments("/api")
             || context.User?.Identity?.IsAuthenticated != true
-            || !Enum.TryParse<Role>(context.User.FindFirst("role")?.Value, true, out var role)
-            || (role != Role.AgencyUser && role != Role.AgencyAdmin))
+            || !Enum.TryParse<Role>(context.User.FindFirst("role")?.Value, true, out var role))
         {
             await _next(context);
             return;
         }
 
-        var tenantRaw = context.User.FindFirst("tenantId")?.Value;
+        // Platform staff normally bypass office scoping. While viewing a
+        // tenant through X-Impersonate-Tenant, however, the same office
+        // selector used by an AgencyAdmin must work so support can inspect a
+        // single office without accidentally showing the whole tenant.
+        var impersonatedTenantRaw = context.Request.Headers["X-Impersonate-Tenant"].ToString();
+        var platformImpersonating =
+            (role == Role.PlatformAdmin || role == Role.PlatformEmployee)
+            && Guid.TryParse(impersonatedTenantRaw, out _);
+        var officeAwareRole = role == Role.AgencyUser
+            || role == Role.AgencyAdmin
+            || platformImpersonating;
+        if (!officeAwareRole)
+        {
+            await _next(context);
+            return;
+        }
+
+        var tenantRaw = platformImpersonating
+            ? impersonatedTenantRaw
+            : context.User.FindFirst("tenantId")?.Value;
         var userRaw = context.User.FindFirst("sub")?.Value;
         if (!Guid.TryParse(tenantRaw, out var tenantId) || !Guid.TryParse(userRaw, out var userId))
         {
@@ -44,7 +62,7 @@ public sealed class AgencyOfficeScopeMiddleware
         // Admins can see every office, but an explicitly selected office still
         // has to belong to their tenant. This prevents a forged header from
         // stamping new rows with another tenant's office id.
-        if (role == Role.AgencyAdmin)
+        if (role == Role.AgencyAdmin || platformImpersonating)
         {
             var adminRequestedRaw = context.Request.Headers[OfficeHeader].ToString();
             if (Guid.TryParse(adminRequestedRaw, out var adminRequestedId))

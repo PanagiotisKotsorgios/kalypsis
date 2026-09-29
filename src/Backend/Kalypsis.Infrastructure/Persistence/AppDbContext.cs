@@ -289,8 +289,12 @@ public class AppDbContext : DbContext, IAppDbContext
 
     public Guid? CurrentAgencyOfficeId => _currentUser.AgencyOfficeId;
     public bool CurrentAgencyOfficeIsHeadquarters => _currentUser.AgencyOfficeIsHeadquarters;
-    public bool BypassAgencyOfficeFilter => _currentUser.IsPlatformLevel
-        || _currentUser.Role == Role.AgencyAdmin
+    // A tenant administrator may either leave the office selector empty to
+    // view the whole tenant, or select one office to get a strict office
+    // scope.  Do not bypass the filter merely because the role is
+    // AgencyAdmin: doing so made the UI selector look active while every
+    // dashboard/list still returned data from all offices.
+    public bool BypassAgencyOfficeFilter => (_currentUser.IsPlatformLevel && !_currentUser.IsImpersonating)
         || _currentUser.AgencyOfficeId is null;
 
     // PlatformAdmin / PlatformEmployee normally bypass the tenant filter, but
