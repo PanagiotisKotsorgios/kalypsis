@@ -24,8 +24,9 @@ public sealed class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustome
         c.VatNumber = r.VatNumber?.Trim(); c.Email = string.IsNullOrWhiteSpace(r.Email) ? null : r.Email.Trim().ToLowerInvariant();
         c.Phone = r.Phone?.Trim(); c.Address = r.Address?.Trim(); c.City = r.City?.Trim(); c.PostalCode = r.PostalCode?.Trim();
         c.Occupation = r.Occupation?.Trim(); c.Notes = r.Notes?.Trim(); c.BirthDate = r.BirthDate;
+        c.PaymentDueDate = r.PaymentDueDate;
         await _db.SaveChangesAsync(ct);
         return new CustomerDto(c.Id, c.CustomerNumber, c.Type, c.Status, c.FirstName, c.LastName, c.CompanyName,
-            c.VatNumber, c.Email, c.Phone, c.City, c.Notes, c.CreatedAt, false);
+            c.VatNumber, c.Email, c.Phone, c.City, c.Notes, c.CreatedAt, false, c.PaymentDueDate);
     }
 }

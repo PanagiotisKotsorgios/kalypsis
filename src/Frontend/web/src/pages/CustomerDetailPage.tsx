@@ -57,6 +57,7 @@ interface CustomerDto {
   email?: string;
   phone?: string;
   notes?: string;
+  paymentDueDate?: string | null;
 }
 
 interface ConsentRow {
@@ -190,6 +191,7 @@ export function CustomerDetailPage() {
             <Chip label={customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο"} size="small" />
             {customer.email && <Chip label={customer.email} size="small" variant="outlined" />}
             {customer.phone && <Chip label={customer.phone} size="small" variant="outlined" />}
+            {customer.paymentDueDate && <Chip label={`Ημ. εξόφλησης: ${customer.paymentDueDate}`} size="small" variant="outlined" color="warning" />}
           </Stack>
         </Box>
         {canManageCustomer && (
@@ -255,6 +257,7 @@ interface CustomerAccount {
   customerId: string; customerName: string;
   totalCharges: number; totalCredits: number; balance: number;
   overdueAmount: number; overdueCount: number;
+  paymentDueDate?: string | null; isPaymentOverdue?: boolean;
   installmentCount: number; paidInstallmentCount: number;
   onTimePaymentCount: number; latePaymentCount: number; onTimeRatePercent: number;
   entries: { id: string; date: string; kind: string; amount: number; currency: string; description?: string | null; policyNumber?: string | null }[];
@@ -295,7 +298,10 @@ function CustomerAccountTab({ customerId }: { customerId: string }) {
           <Box><Typography variant="caption" color="text.secondary">Καθυστερήσεις</Typography><Typography fontWeight={800}>{a.latePaymentCount}</Typography></Box>
         </Stack>
       </Card>
-      {a.overdueCount > 0 && <Alert severity="warning">Ο πελάτης έχει ληξιπρόθεσμες οφειλές. Δημιουργείται ειδοποίηση στον διαχειριστή από το ωριαίο σύστημα υπενθυμίσεων.</Alert>}
+      {a.isPaymentOverdue && <Alert severity="error" sx={{ bgcolor: "#fff0f0", border: "1px solid #ef9a9a" }}>
+        Ληξιπρόθεσμη εξόφληση: ο πελάτης έχει ανεξόφλητο υπόλοιπο {fmt(a.balance)} € μετά την ημερομηνία {a.paymentDueDate ?? "—"}. Η κόκκινη ειδοποίηση εμφανίζεται και στο dashboard.
+      </Alert>}
+      {!a.isPaymentOverdue && a.overdueCount > 0 && <Alert severity="warning">Ο πελάτης έχει ληξιπρόθεσμες δόσεις συμβολαίων. Δημιουργείται ειδοποίηση στον διαχειριστή από το ωριαίο σύστημα υπενθυμίσεων.</Alert>}
       {a.installments.length > 0 && (
         <Card variant="outlined">
           <Typography sx={{ p: 2, pb: 0 }} fontWeight={800}>Δόσεις και ημερομηνίες εξόφλησης</Typography>

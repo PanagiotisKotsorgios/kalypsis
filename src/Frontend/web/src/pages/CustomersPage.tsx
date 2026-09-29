@@ -86,6 +86,7 @@ interface CustomerDto {
   phone?: string;
   city?: string;
   notes?: string | null;
+  paymentDueDate?: string | null;
   createdAt: string;
 }
 
@@ -102,6 +103,8 @@ interface CustomerAccountSummary {
   onTimeRatePercent: number;
   lastPaymentDate?: string | null;
   lastChargeDate?: string | null;
+  paymentDueDate?: string | null;
+  isPaymentOverdue?: boolean;
 }
 
 type CustomerListRow = CustomerDto & { account?: CustomerAccountSummary };
@@ -122,6 +125,7 @@ interface CreateBody {
   postalCode?: string;
   occupation?: string;
   notes?: string;
+  paymentDueDate?: string;
 }
 
 function newCustomerForm(status: CustomerStatus): CreateBody {
@@ -129,7 +133,7 @@ function newCustomerForm(status: CustomerStatus): CreateBody {
     type: "Individual", status,
     firstName: "", lastName: "", companyName: "", vatNumber: "",
     email: "", phone: "", address: "", city: "", postalCode: "",
-    occupation: "", notes: ""
+    occupation: "", notes: "", paymentDueDate: ""
   };
 }
 
@@ -282,6 +286,7 @@ export function CustomersPage() {
     { key: "phone",  label: "Τηλέφωνο" },
     { key: "notes",  label: "Σημειώσεις" },
     { key: "balance", label: "Υπόλοιπο / πληρωμές" },
+    { key: "paymentDueDate", label: "Ημ. εξόφλησης" },
     { key: "paymentStatus", label: "Συμπεριφορά πληρωμών" },
     { key: "city",   label: "Πόλη", defaultVisible: false },
   ]);
@@ -537,6 +542,7 @@ export function CustomersPage() {
                                     : c.companyName}
                                 </Typography>
                                 {c.status === "Prospect" && <Chip label="Πιθανός πελάτης" size="small" color="warning" />}
+                                {c.account?.isPaymentOverdue && <Chip label="Ληξιπρόθεσμη εξόφληση" size="small" color="error" />}
                               </Stack>
                               {c.vatNumber && (
                                 <Typography variant="caption" color="text.secondary">
@@ -559,6 +565,10 @@ export function CustomersPage() {
                             {balance === undefined ? "—" : `${balance.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}
                           </TableCell>;
                         }
+                        case "paymentDueDate":
+                          return <TableCell key={col.key} sx={{ color: c.account?.isPaymentOverdue ? "error.main" : "text.secondary", fontWeight: c.account?.isPaymentOverdue ? 700 : 400 }}>
+                            {c.account?.paymentDueDate ?? c.paymentDueDate ?? "—"}
+                          </TableCell>;
                         case "paymentStatus":
                           return <TableCell key={col.key}><Chip size="small" variant="outlined" color={c.account ? (c.account.balance > 0.005 ? "error" : c.account.balance < -0.005 ? "info" : "success") : "default"} label={paymentStatus(c.account)} /></TableCell>;
                         default: return <TableCell key={col.key}>—</TableCell>;
@@ -650,7 +660,8 @@ function CreateCustomerDialog({
         firstName: initialCustomer.firstName ?? "", lastName: initialCustomer.lastName ?? "",
         companyName: initialCustomer.companyName ?? "", vatNumber: initialCustomer.vatNumber ?? "",
         email: initialCustomer.email ?? "", phone: initialCustomer.phone ?? "", city: initialCustomer.city ?? "",
-        notes: initialCustomer.notes ?? ""
+        notes: initialCustomer.notes ?? "",
+        paymentDueDate: initialCustomer.paymentDueDate ?? ""
       } : newCustomerForm(initialStatus));
     }
   }, [open, initialStatus, initialCustomer]);
@@ -661,7 +672,8 @@ function CreateCustomerDialog({
       firstName: form.type === "Individual" ? form.firstName : undefined,
       lastName: form.type === "Individual" ? form.lastName : undefined,
       companyName: form.type === "Company" ? form.companyName : undefined,
-      vatNumber: form.type === "Company" ? form.vatNumber : undefined
+      vatNumber: form.type === "Company" ? form.vatNumber : undefined,
+      paymentDueDate: form.paymentDueDate || undefined
     };
     onSubmit(payload);
   };
@@ -831,6 +843,16 @@ function CreateCustomerDialog({
               startAdornment: <InputAdornment position="start"><NotesOutlinedIcon fontSize="small" /></InputAdornment>,
               endAdornment: <FilterHelp title="Προαιρετικά εσωτερικά σχόλια για τον πελάτη — προτιμήσεις, ιστορικό, ειδικές συμφωνίες." />,
             }}
+          />
+
+          <TextField
+            label="Ημερομηνία εξόφλησης"
+            type="date"
+            value={form.paymentDueDate ?? ""}
+            onChange={(e) => setForm({ ...form, paymentDueDate: e.target.value })}
+            fullWidth
+            InputLabelProps={{ shrink: true }}
+            helperText="Αν υπάρχει υπόλοιπο μετά την ημερομηνία, εμφανίζεται κόκκινη ειδοποίηση στο dashboard. Αφήστε κενό για απενεργοποίηση."
           />
 
         </Stack>

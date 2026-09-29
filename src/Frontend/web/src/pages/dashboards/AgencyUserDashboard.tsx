@@ -20,6 +20,7 @@ import {
 } from "../../components/ModernDashboard";
 import { QuickFilterBar } from "../../components/QuickFilterBar";
 import { QuickFilterPopup } from "../../components/QuickFilterPopup";
+import { CustomerPaymentAlerts } from "../../components/CustomerPaymentAlerts";
 import { useState } from "react";
 
 interface AgencyUserKpi {
@@ -101,6 +102,8 @@ export function AgencyUserDashboard() {
           ]}
         />
       </QuickFilterPopup>
+
+      <CustomerPaymentAlerts />
 
       <Box sx={{
         display: "grid", gap: 2, mb: 3,

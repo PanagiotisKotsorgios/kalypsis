@@ -209,7 +209,8 @@ public class PolicyRenewalReminderJob : BackgroundService
             .ToListAsync(ct);
 
         var staffByTenant = await db.Users.IgnoreQueryFilters()
-            .Where(u => u.DeletedAt == null && u.IsActive && u.Role == Role.AgencyAdmin)
+            .Where(u => u.DeletedAt == null && u.IsActive
+                && (u.Role == Role.AgencyAdmin || u.Role == Role.AgencyOfficeAdmin || u.Role == Role.AgencyUser))
             .GroupBy(u => u.TenantId)
             .ToDictionaryAsync(g => g.Key, g => g.Select(u => u.Id).ToList(), ct);
 
@@ -236,6 +237,78 @@ public class PolicyRenewalReminderJob : BackgroundService
 
         if (overdue.Count > 0 || fallback.Count > 0)
             await db.SaveChangesAsync(ct);
+
+        // Customer-level settlement deadlines are a convenient office-wide
+        // reminder for accounts that do not have a generated installment (or
+        // where one date covers several contracts). The amount is still
+        // derived from the existing journal and manual-policy fallback, so a
+        // recorded receipt automatically removes the alert on the next run.
+        var dueCustomers = await db.Customers.IgnoreQueryFilters()
+            .Where(c => c.DeletedAt == null && c.PaymentDueDate.HasValue
+                && c.PaymentDueDate.Value < today)
+            .Select(c => new
+            {
+                c.Id, c.TenantId, c.PaymentDueDate,
+                CustomerName = c.Type == CustomerType.Company
+                    ? c.CompanyName
+                    : (c.FirstName + " " + c.LastName)
+            })
+            .ToListAsync(ct);
+
+        if (dueCustomers.Count > 0)
+        {
+            var dueCustomerIds = dueCustomers.Select(c => c.Id).ToList();
+            var accountMovements = await db.FinancialMovements.IgnoreQueryFilters()
+                .Where(m => m.DeletedAt == null && m.CustomerId.HasValue
+                    && dueCustomerIds.Contains(m.CustomerId.Value))
+                .Select(m => new { m.CustomerId, m.PolicyId, m.Kind, m.Amount })
+                .ToListAsync(ct);
+            var accountPolicies = await db.Policies.IgnoreQueryFilters()
+                .Where(p => p.DeletedAt == null && dueCustomerIds.Contains(p.CustomerId)
+                    && !p.PaidDirectlyToCarrier
+                    && p.Status != PolicyStatus.Draft
+                    && p.Status != PolicyStatus.Cancelled
+                    && p.Status != PolicyStatus.Prospect)
+                .Select(p => new { p.Id, p.CustomerId, p.Premium })
+                .ToListAsync(ct);
+            var chargedPolicyIds = accountMovements
+                .Where(m => m.PolicyId.HasValue && m.Kind == FinancialMovementKind.CustomerCharge)
+                .Select(m => m.PolicyId!.Value)
+                .ToHashSet();
+
+            foreach (var customer in dueCustomers)
+            {
+                var movements = accountMovements.Where(m => m.CustomerId == customer.Id).ToList();
+                var charges = movements.Where(m => m.Kind == FinancialMovementKind.CustomerCharge).Sum(m => m.Amount)
+                    + accountPolicies.Where(p => p.CustomerId == customer.Id && !chargedPolicyIds.Contains(p.Id)).Sum(p => p.Premium);
+                var credits = movements.Where(m => m.Kind == FinancialMovementKind.CustomerCredit).Sum(m => m.Amount);
+                var balance = charges - credits;
+                if (balance <= 0.005m || !staffByTenant.TryGetValue(customer.TenantId, out var staff))
+                    continue;
+
+                var link = $"/app/customers/{customer.Id}#customer-payment-overdue";
+                if (await db.Notifications.IgnoreQueryFilters()
+                    .AnyAsync(n => n.TenantId == customer.TenantId && n.Link == link, ct))
+                    continue;
+
+                var name = string.IsNullOrWhiteSpace(customer.CustomerName)
+                    ? "Πελάτης"
+                    : customer.CustomerName.Trim();
+                foreach (var userId in staff)
+                {
+                    db.Notifications.Add(new Notification
+                    {
+                        Id = Guid.NewGuid(), TenantId = customer.TenantId, UserId = userId,
+                        Title = "Ληξιπρόθεσμη εξόφληση πελάτη",
+                        Body = $"Ο/Η {name} έχει ανεξόφλητο υπόλοιπο {balance:N2} € με ημερομηνία εξόφλησης {customer.PaymentDueDate!.Value:dd/MM/yyyy}.",
+                        Category = "customer-payment-overdue",
+                        Link = link
+                    });
+                }
+            }
+            await db.SaveChangesAsync(ct);
+        }
+
         _log.LogInformation("Customer payment reminders checked: {Installments} instalments, {Annual} annual credit policies.", overdue.Count, fallback.Count);
     }
 

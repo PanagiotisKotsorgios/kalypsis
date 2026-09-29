@@ -16,7 +16,8 @@ public record CustomerDto(
     string? City,
     string? Notes,
     DateTime CreatedAt,
-    bool HasPortalAccount);
+    bool HasPortalAccount,
+    DateOnly? PaymentDueDate = null);
 
 public record CreateCustomerRequest(
     CustomerType Type,
@@ -40,7 +41,8 @@ public record CreateCustomerRequest(
     string? Nationality = null,
     string? Zone = null,
     string? ActivityCode = null,
-    CustomerStatus Status = CustomerStatus.Active);
+    CustomerStatus Status = CustomerStatus.Active,
+    DateOnly? PaymentDueDate = null);
 
 public record CreateCustomerResponse(
     CustomerDto Customer,

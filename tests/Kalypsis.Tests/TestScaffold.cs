@@ -65,6 +65,8 @@ public sealed record FakeUser(
     public bool IsAuthenticated => UserId is not null;
     public bool IsPlatformLevel => isPlatform;
     public bool IsImpersonating => isImpersonating;
+    public Guid? AgencyOfficeId => null;
+    public bool AgencyOfficeIsHeadquarters => false;
 }
 
 public sealed class FixedClock : IDateTimeProvider

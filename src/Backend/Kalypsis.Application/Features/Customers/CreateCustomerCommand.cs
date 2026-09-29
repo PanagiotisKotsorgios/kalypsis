@@ -80,7 +80,8 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             SpouseName = r.SpouseName?.Trim(),
             Nationality = r.Nationality?.Trim(),
             Zone = r.Zone?.Trim(),
-            ActivityCode = r.ActivityCode?.Trim()
+            ActivityCode = r.ActivityCode?.Trim(),
+            PaymentDueDate = r.PaymentDueDate
         };
         _db.Customers.Add(customer);
 
@@ -90,7 +91,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             customer.Id, customer.CustomerNumber, customer.Type, customer.Status,
             customer.FirstName, customer.LastName, customer.CompanyName,
             customer.VatNumber, customer.Email, customer.Phone, customer.City, customer.Notes,
-            customer.CreatedAt, false);
+            customer.CreatedAt, false, customer.PaymentDueDate);
 
         return new CreateCustomerResponse(dto, null, null);
     }

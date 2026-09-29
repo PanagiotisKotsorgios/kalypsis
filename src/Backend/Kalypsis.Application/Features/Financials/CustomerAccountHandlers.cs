@@ -34,7 +34,9 @@ public record CustomerAccountDto(
     int LatePaymentCount, decimal OnTimeRatePercent,
     IReadOnlyList<CustomerAccountEntryDto> Entries,
     IReadOnlyList<CustomerAccountInstallmentDto> Installments,
-    IReadOnlyList<CustomerAccountMonthDto> Monthly);
+    IReadOnlyList<CustomerAccountMonthDto> Monthly,
+    DateOnly? PaymentDueDate = null,
+    bool IsPaymentOverdue = false);
 
 public record GetCustomerAccountQuery(Guid CustomerId, DateOnly? From = null, DateOnly? To = null)
     : IRequest<CustomerAccountDto>;
@@ -43,7 +45,8 @@ public record CustomerAccountListRowDto(
     Guid CustomerId, string CustomerName, decimal Charges, decimal Credits,
     decimal Balance, decimal OverdueAmount, int OverdueCount,
     int PaidInstallments, int LatePayments, decimal OnTimeRatePercent,
-    DateOnly? LastPaymentDate, DateOnly? LastChargeDate);
+    DateOnly? LastPaymentDate, DateOnly? LastChargeDate,
+    DateOnly? PaymentDueDate = null, bool IsPaymentOverdue = false);
 
 public record ListCustomerAccountsQuery(
     DateOnly? From, DateOnly? To, bool OnlyDebtors, bool OnlyCreditors, bool OnlyOverdue)
@@ -136,6 +139,14 @@ public sealed class GetCustomerAccountQueryHandler
         var onTimeRate = paidCount == 0 ? 0m : Math.Round(onTime * 100m / paidCount, 2);
         var overdueAmount = overdueInstallments.Sum(x => x.Amount) + fallbackOverdue.Sum(x => x.Premium);
         var overdueCount = overdueInstallments.Count + fallbackOverdue.Count;
+        var customerPaymentOverdue = customer.PaymentDueDate.HasValue
+            && customer.PaymentDueDate.Value < today
+            && balance > 0.005m;
+        if (customerPaymentOverdue)
+        {
+            overdueAmount = Math.Max(overdueAmount, balance);
+            overdueCount = Math.Max(overdueCount, 1);
+        }
 
         var monthlyRows = movements.Select(x => new
         {
@@ -168,7 +179,7 @@ public sealed class GetCustomerAccountQueryHandler
                 !x.PaidAt.HasValue && x.DueDate < today,
                 x.PaidAt.HasValue ? Math.Max(0, x.PaidAt.Value.DayNumber - x.DueDate.DayNumber)
                                   : Math.Max(0, today.DayNumber - x.DueDate.DayNumber))).ToList(),
-            monthly);
+            monthly, customer.PaymentDueDate, customerPaymentOverdue);
     }
 }
 
@@ -246,11 +257,16 @@ public sealed class ListCustomerAccountsQueryHandler
                 .FirstOrDefault();
             var balance = charges - credits;
             var customer = customers.GetValueOrDefault(customerId);
+            var customerPaymentOverdue = customer?.PaymentDueDate.HasValue == true
+                && customer.PaymentDueDate!.Value < today
+                && balance > 0.005m;
+            if (customerPaymentOverdue)
+                overdue = Math.Max(overdue, balance);
             return new CustomerAccountListRowDto(customerId,
                 customer is null ? "—" : CustomerAccountMath.Name(customer),
                 charges, credits, balance, overdue,
                 openOverdue.Count + fallbackOverdue.Count, paidInstallments, latePayments, onTimeRate,
-                lastPaymentDate, lastChargeDate);
+                lastPaymentDate, lastChargeDate, customer?.PaymentDueDate, customerPaymentOverdue);
         }).ToList();
 
         return result.Where(x => (!q.OnlyDebtors || x.Balance > 0m)

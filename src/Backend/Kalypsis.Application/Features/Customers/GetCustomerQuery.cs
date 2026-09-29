@@ -43,6 +43,7 @@ public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, Custome
         return new CustomerDto(
             c.Id, c.CustomerNumber, c.Type, c.Status, c.FirstName, c.LastName,
             c.CompanyName, c.VatNumber, c.Email, c.Phone, c.City, c.Notes, c.CreatedAt,
-            await _db.Users.AnyAsync(u => u.CustomerId == c.Id && u.DeletedAt == null, ct));
+            await _db.Users.AnyAsync(u => u.CustomerId == c.Id && u.DeletedAt == null, ct),
+            c.PaymentDueDate);
     }
 }

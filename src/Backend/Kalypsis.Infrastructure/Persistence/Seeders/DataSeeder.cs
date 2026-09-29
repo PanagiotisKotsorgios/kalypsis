@@ -1330,6 +1330,9 @@ public static class DataSeeder
         await EnsureColumnAsync(db, logger, dbName,
             table: "customers", column: "ActivityCode",
             addSql: "ALTER TABLE `customers` ADD COLUMN `ActivityCode` varchar(20) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "customers", column: "PaymentDueDate",
+            addSql: "ALTER TABLE `customers` ADD COLUMN `PaymentDueDate` date NULL", ct);
 
         // --- ALIS-parity batch D: broker hierarchy + commission matrix ---
         // Ship 2026-07-07. Adds the columns / table needed for ALIS's F9

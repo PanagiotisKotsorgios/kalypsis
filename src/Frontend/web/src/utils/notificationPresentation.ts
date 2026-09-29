@@ -24,6 +24,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   "expiring-policy": "Λήξη συμβολαίου",
   "overdue": "Εκπρόθεσμο",
   "payment-due": "Πληρωμή",
+  "customer-payment-overdue": "Ληξιπρόθεσμη εξόφληση",
   "paid": "Πληρωμή",
   "claim": "Ζημιά",
   "claims": "Ζημιές",

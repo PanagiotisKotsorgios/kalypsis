@@ -72,6 +72,13 @@ public class Customer : TenantEntity
     public string? PhotoUrl { get; set; }
     public string? Notes { get; set; }
 
+    /// <summary>
+    /// Optional office-level settlement deadline for the customer's current
+    /// outstanding account balance. This is a reminder date, not a permission
+    /// or a second ledger; the balance remains derived from financial entries.
+    /// </summary>
+    public DateOnly? PaymentDueDate { get; set; }
+
     public Guid? AssignedAdvisorId { get; set; }
     public User? AssignedAdvisor { get; set; }
 

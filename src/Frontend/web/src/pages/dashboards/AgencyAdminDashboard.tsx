@@ -22,6 +22,7 @@ import {
 } from "../../components/ModernDashboard";
 import { QuickFilterBar } from "../../components/QuickFilterBar";
 import { QuickFilterPopup } from "../../components/QuickFilterPopup";
+import { CustomerPaymentAlerts } from "../../components/CustomerPaymentAlerts";
 
 interface KpiDto {
   customers: number;
@@ -110,6 +111,8 @@ export function AgencyAdminDashboard() {
           ]}
         />
       </QuickFilterPopup>
+
+      <CustomerPaymentAlerts />
 
       {/* KPI strip — 6 animated cards, one per key metric. */}
       <Box sx={{

@@ -86,7 +86,7 @@ public class ListCustomersQueryHandler : IRequestHandler<ListCustomersQuery, IRe
             .Select(c => new CustomerDto(
                 c.Id, c.CustomerNumber, c.Type, c.Status, c.FirstName, c.LastName,
                 c.CompanyName, c.VatNumber, c.Email, c.Phone, c.City, c.Notes, c.CreatedAt,
-                _db.Users.Any(u => u.CustomerId == c.Id && u.DeletedAt == null)))
+                _db.Users.Any(u => u.CustomerId == c.Id && u.DeletedAt == null), c.PaymentDueDate))
             .ToListAsync(cancellationToken);
     }
 }
