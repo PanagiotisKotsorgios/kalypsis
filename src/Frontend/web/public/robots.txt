@@ -1,0 +1,15 @@
+# Public Kalypsis pages are crawlable. Private application and API routes are
+# excluded from discovery; authentication and authorization remain enforced by
+# the application itself.
+User-agent: *
+Allow: /
+Disallow: /app
+Disallow: /api/
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /register
+Disallow: /sign/
+Disallow: /ermes-app
+
+Sitemap: https://mykalypsis.gr/sitemap.xml

@@ -51,6 +51,7 @@ import { UserImpersonationBanner } from "./components/UserImpersonationBanner";
 import { OnboardingWizard } from "./components/OnboardingWizard";
 import { PageLoader } from "./components/PageLoader";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { SeoController } from "./components/SeoController";
 import { PreloginResponsiveStyles } from "./components/PreloginResponsiveStyles";
 import { PreloginDesktopDownload } from "./components/PreloginDesktopDownload";
 import { LandingPage } from "./pages/LandingPage";
@@ -681,6 +682,7 @@ export default function App() {
   return (
     <>
       <ScrollToTop />
+      <SeoController />
       <PreloginResponsiveStyles />
       <UserImpersonationBanner />
       <UpgradePlanDialogHost />

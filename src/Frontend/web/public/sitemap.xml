@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://mykalypsis.gr/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://mykalypsis.gr/pricing</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://mykalypsis.gr/faq</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://mykalypsis.gr/documentation</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://mykalypsis.gr/download</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://mykalypsis.gr/download/releases</loc><changefreq>weekly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://mykalypsis.gr/contact</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://mykalypsis.gr/legal</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://mykalypsis.gr/terms</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+  <url><loc>https://mykalypsis.gr/privacy</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+  <url><loc>https://mykalypsis.gr/cookies</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+  <url><loc>https://mykalypsis.gr/dpa</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+  <url><loc>https://mykalypsis.gr/subscription-agreement</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+  <url><loc>https://mykalypsis.gr/sla</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+  <url><loc>https://mykalypsis.gr/acceptable-use</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+  <url><loc>https://mykalypsis.gr/sub-processors</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+  <url><loc>https://mykalypsis.gr/complaints-policy</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+  <url><loc>https://mykalypsis.gr/security-disclosure</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+  <url><loc>https://mykalypsis.gr/client-portal-terms</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+  <url><loc>https://mykalypsis.gr/accessibility</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+  <url><loc>https://mykalypsis.gr/refund-policy</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+  <url><loc>https://mykalypsis.gr/code-of-conduct</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+  <url><loc>https://mykalypsis.gr/oss-licenses</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+  <url><loc>https://mykalypsis.gr/ropa</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+</urlset>
