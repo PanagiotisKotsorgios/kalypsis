@@ -1577,6 +1577,7 @@
     "subtitle": "Every submission from the public /register form, with full contact details and review status.",
     "searchPlaceholder": "Search name, email, VAT, agency or reference…",
     "empty": "No requests match the current filters.",
+    "export": "Export",
     "filter": {
       "all": "All"
     },

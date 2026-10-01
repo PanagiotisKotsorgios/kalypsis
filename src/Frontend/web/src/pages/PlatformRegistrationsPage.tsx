@@ -24,6 +24,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { ExportFormatMenu, ExportFormat } from "../components/ExportFormatMenu";
+import { exportRowsCsv } from "../utils/exportCsv";
 
 type RegistrationStatus = "New" | "Reviewing" | "Approved" | "Rejected";
 type TriageStatus = "New" | "Pending" | "Completed";
@@ -177,6 +179,37 @@ export function PlatformRegistrationsPage() {
     [i18n.language]
   );
 
+  const exportRows = async (format: ExportFormat) => {
+    const rows = list.data ?? [];
+    if (!rows.length) return;
+    const columns = [
+      { key: "referenceCode", label: t("registrations.col.ref") },
+      { key: "name", label: t("registrations.col.name"), map: (r: RegistrationSummary) => `${r.firstName} ${r.lastName}` },
+      { key: "email", label: t("register.email") },
+      { key: "phone", label: t("register.phone") },
+      { key: "organization", label: t("registrations.col.organization"), map: (r: RegistrationSummary) => r.organizationName ?? "" },
+      { key: "city", label: t("register.city"), map: (r: RegistrationSummary) => r.city ?? "" },
+      { key: "status", label: t("common.status"), map: (r: RegistrationSummary) => t(`registrations.status.${r.status}`) },
+      { key: "triage", label: t("registrations.workflow.status"), map: (r: RegistrationSummary) => t(`registrations.workflow.${r.triageStatus}`) },
+      { key: "read", label: t("registrations.workflow.readFilter"), map: (r: RegistrationSummary) => r.isRead ? t("registrations.workflow.read") : t("registrations.workflow.unread") },
+      { key: "category", label: t("registrations.workflow.category"), map: (r: RegistrationSummary) => r.category ?? "" },
+      { key: "followUp", label: t("registrations.workflow.followUp"), map: (r: RegistrationSummary) => r.followUpAt ? fmt.format(new Date(r.followUpAt)) : "" },
+      { key: "submittedAt", label: t("registrations.col.submitted"), map: (r: RegistrationSummary) => fmt.format(new Date(r.submittedAt)) }
+    ];
+    if (format === "csv") {
+      exportRowsCsv({ fileName: "registration-requests", columns, rows });
+      return;
+    }
+    if (format === "xlsx") {
+      const XLSX = await import("xlsx");
+      const values = rows.map(row => columns.map(column => column.map ? column.map(row) : (row as unknown as Record<string, unknown>)[column.key]));
+      const sheet = XLSX.utils.aoa_to_sheet([columns.map(c => c.label), ...values]);
+      const book = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(book, sheet, "Αιτήσεις εγγραφής");
+      XLSX.writeFile(book, "registration-requests.xlsx");
+    }
+  };
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
@@ -184,13 +217,21 @@ export function PlatformRegistrationsPage() {
           <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("registrations.title")}</Typography>
           <Typography color="text.secondary">{t("registrations.subtitle")}</Typography>
         </Box>
-        <Tooltip title={t("common.refresh")}>
-          <IconButton onClick={() => {
-            void qc.invalidateQueries({ queryKey: ["registration-requests"] });
-          }}>
-            <RefreshIcon />
-          </IconButton>
-        </Tooltip>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <ExportFormatMenu
+            formats={["csv", "xlsx"]}
+            disabled={!list.data?.length}
+            onExport={exportRows}
+            label={t("registrations.export")}
+          />
+          <Tooltip title={t("common.refresh")}>
+            <IconButton onClick={() => {
+              void qc.invalidateQueries({ queryKey: ["registration-requests"] });
+            }}>
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+        </Stack>
       </Stack>
 
       {/* Stats strip — totals + per-status counts. */}
