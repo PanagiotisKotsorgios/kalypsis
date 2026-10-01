@@ -2392,6 +2392,24 @@ public static class DataSeeder
         await EnsureColumnAsync(db, logger, dbName,
             table: "registration_requests", column: "MatchedProducerTenantName",
             addSql: "ALTER TABLE `registration_requests` ADD COLUMN `MatchedProducerTenantName` varchar(200) NULL", ct);
+        // Platform-admin registration triage workflow. These are additive and
+        // deliberately separate from Status because Approved provisions an
+        // account, while triage labels are safe operational actions.
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "registration_requests", column: "TriageStatus",
+            addSql: "ALTER TABLE `registration_requests` ADD COLUMN `TriageStatus` int NOT NULL DEFAULT 0", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "registration_requests", column: "IsRead",
+            addSql: "ALTER TABLE `registration_requests` ADD COLUMN `IsRead` tinyint(1) NOT NULL DEFAULT 0", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "registration_requests", column: "ReadAt",
+            addSql: "ALTER TABLE `registration_requests` ADD COLUMN `ReadAt` datetime(6) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "registration_requests", column: "Category",
+            addSql: "ALTER TABLE `registration_requests` ADD COLUMN `Category` varchar(80) NULL", ct);
+        await EnsureColumnAsync(db, logger, dbName,
+            table: "registration_requests", column: "FollowUpAt",
+            addSql: "ALTER TABLE `registration_requests` ADD COLUMN `FollowUpAt` datetime(6) NULL", ct);
 
         // ==== Ermes messaging tables ==========================================
         // Full inbox model — messages plus per-recipient fanout, teams and

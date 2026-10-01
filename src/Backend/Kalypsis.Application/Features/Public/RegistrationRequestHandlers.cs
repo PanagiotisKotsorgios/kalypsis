@@ -23,6 +23,11 @@ public record RegistrationRequestDto(
     string? Message,
     string ReferenceCode,
     string Status,
+    string TriageStatus,
+    bool IsRead,
+    DateTime? ReadAt,
+    string? Category,
+    DateTime? FollowUpAt,
     string? ReviewNotes,
     DateTime? ReviewedAt,
     string? IpAddress,
@@ -47,6 +52,10 @@ public record RegistrationRequestSummaryDto(
     string? City,
     string ReferenceCode,
     string Status,
+    string TriageStatus,
+    bool IsRead,
+    string? Category,
+    DateTime? FollowUpAt,
     DateTime SubmittedAt
 );
 
@@ -173,7 +182,13 @@ public class SubmitRegistrationRequestCommandHandler
  * Superadmin — list, get, update status.
  * ====================================================================== */
 
-public record ListRegistrationRequestsQuery(string? Status, string? Search)
+public record ListRegistrationRequestsQuery(
+    string? Status,
+    string? Search,
+    string? TriageStatus = null,
+    string? Read = null,
+    string? Due = null,
+    string? Category = null)
     : IRequest<IReadOnlyList<RegistrationRequestSummaryDto>>;
 
 public class ListRegistrationRequestsQueryHandler
@@ -201,10 +216,36 @@ public class ListRegistrationRequestsQueryHandler
                 EF.Functions.Like(x.ReferenceCode.ToLower(), $"%{s}%") ||
                 (x.OrganizationName != null && EF.Functions.Like(x.OrganizationName.ToLower(), $"%{s}%")));
         }
+        if (!string.IsNullOrWhiteSpace(r.TriageStatus)
+            && Enum.TryParse<RegistrationRequestTriageStatus>(r.TriageStatus, true, out var triage))
+        {
+            q = q.Where(x => x.TriageStatus == triage);
+        }
+        if (string.Equals(r.Read, "read", StringComparison.OrdinalIgnoreCase))
+            q = q.Where(x => x.IsRead);
+        else if (string.Equals(r.Read, "unread", StringComparison.OrdinalIgnoreCase))
+            q = q.Where(x => !x.IsRead);
+
+        var today = DateTime.UtcNow.Date;
+        if (string.Equals(r.Due, "overdue", StringComparison.OrdinalIgnoreCase))
+            q = q.Where(x => x.FollowUpAt.HasValue && x.FollowUpAt.Value < today);
+        else if (string.Equals(r.Due, "today", StringComparison.OrdinalIgnoreCase))
+            q = q.Where(x => x.FollowUpAt.HasValue && x.FollowUpAt.Value >= today && x.FollowUpAt.Value < today.AddDays(1));
+        else if (string.Equals(r.Due, "tomorrow", StringComparison.OrdinalIgnoreCase))
+        {
+            var tomorrow = today.AddDays(1);
+            q = q.Where(x => x.FollowUpAt.HasValue && x.FollowUpAt.Value >= tomorrow && x.FollowUpAt.Value < tomorrow.AddDays(1));
+        }
+        if (!string.IsNullOrWhiteSpace(r.Category))
+        {
+            var category = r.Category.Trim().ToLower();
+            q = q.Where(x => x.Category != null && EF.Functions.Like(x.Category.ToLower(), $"%{category}%"));
+        }
         var rows = await q.OrderByDescending(x => x.CreatedAt).Take(500).ToListAsync(ct);
         return rows.Select(x => new RegistrationRequestSummaryDto(
             x.Id, x.FirstName, x.LastName, x.Email, x.Phone,
-            x.OrganizationName, x.City, x.ReferenceCode, x.Status.ToString(), x.CreatedAt
+            x.OrganizationName, x.City, x.ReferenceCode, x.Status.ToString(),
+            x.TriageStatus.ToString(), x.IsRead, x.Category, x.FollowUpAt, x.CreatedAt
         )).ToList();
     }
 }
@@ -269,6 +310,72 @@ public class UpdateRegistrationRequestStatusCommandValidator
     }
 }
 
+public record UpdateRegistrationRequestWorkflowCommand(
+    Guid Id,
+    string? TriageStatus,
+    bool? IsRead,
+    string? Category,
+    DateTime? FollowUpAt)
+    : IRequest<RegistrationRequestDto>;
+
+public class UpdateRegistrationRequestWorkflowCommandValidator
+    : AbstractValidator<UpdateRegistrationRequestWorkflowCommand>
+{
+    public UpdateRegistrationRequestWorkflowCommandValidator()
+    {
+        When(x => !string.IsNullOrWhiteSpace(x.TriageStatus), () =>
+            RuleFor(x => x.TriageStatus!).Must(s => Enum.TryParse<RegistrationRequestTriageStatus>(s, true, out _))
+                .WithMessage("Invalid triage status. Use New / Pending / Completed."));
+        When(x => !string.IsNullOrWhiteSpace(x.Category), () =>
+            RuleFor(x => x.Category!).MaximumLength(80));
+    }
+}
+
+public class UpdateRegistrationRequestWorkflowCommandHandler
+    : IRequestHandler<UpdateRegistrationRequestWorkflowCommand, RegistrationRequestDto>
+{
+    private readonly IAppDbContext _db;
+    public UpdateRegistrationRequestWorkflowCommandHandler(IAppDbContext db) => _db = db;
+
+    public async Task<RegistrationRequestDto> Handle(UpdateRegistrationRequestWorkflowCommand r, CancellationToken ct)
+    {
+        var rec = await _db.RegistrationRequests
+            .FirstOrDefaultAsync(x => x.Id == r.Id && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("RegistrationRequest");
+
+        if (!string.IsNullOrWhiteSpace(r.TriageStatus))
+            rec.TriageStatus = Enum.Parse<RegistrationRequestTriageStatus>(r.TriageStatus, true);
+        if (r.IsRead.HasValue)
+        {
+            rec.IsRead = r.IsRead.Value;
+            rec.ReadAt = r.IsRead.Value ? DateTime.UtcNow : null;
+        }
+        // An explicit null clears the category/follow-up when the caller is
+        // editing the workflow panel; empty categories are never persisted.
+        rec.Category = string.IsNullOrWhiteSpace(r.Category) ? null : r.Category.Trim();
+        rec.FollowUpAt = r.FollowUpAt;
+        await _db.SaveChangesAsync(ct);
+        return RegistrationRequestMapper.Map(rec);
+    }
+}
+
+public record DeleteRegistrationRequestCommand(Guid Id) : IRequest;
+
+public class DeleteRegistrationRequestCommandHandler : IRequestHandler<DeleteRegistrationRequestCommand>
+{
+    private readonly IAppDbContext _db;
+    public DeleteRegistrationRequestCommandHandler(IAppDbContext db) => _db = db;
+
+    public async Task Handle(DeleteRegistrationRequestCommand r, CancellationToken ct)
+    {
+        var rec = await _db.RegistrationRequests
+            .FirstOrDefaultAsync(x => x.Id == r.Id && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("RegistrationRequest");
+        rec.DeletedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+    }
+}
+
 public class UpdateRegistrationRequestStatusCommandHandler
     : IRequestHandler<UpdateRegistrationRequestStatusCommand, RegistrationRequestDto>
 {
@@ -307,7 +414,8 @@ internal static class RegistrationRequestMapper
     public static RegistrationRequestDto Map(RegistrationRequest r) => new(
         r.Id, r.FirstName, r.LastName, r.Email, r.Phone,
         r.OrganizationName, r.VatNumber, r.LicenseNumber, r.City, r.Message,
-        r.ReferenceCode, r.Status.ToString(), r.ReviewNotes, r.ReviewedAt,
+        r.ReferenceCode, r.Status.ToString(), r.TriageStatus.ToString(), r.IsRead,
+        r.ReadAt, r.Category, r.FollowUpAt, r.ReviewNotes, r.ReviewedAt,
         r.IpAddress, r.CreatedAt,
         r.MatchedProducerId, r.MatchedProducerTenantId, r.MatchedProducerTenantName
     );

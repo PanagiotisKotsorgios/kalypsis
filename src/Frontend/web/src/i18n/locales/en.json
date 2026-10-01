@@ -1580,6 +1580,31 @@
     "filter": {
       "all": "All"
     },
+    "workflow": {
+      "title": "Work queue",
+      "column": "Work queue",
+      "status": "Work status",
+      "New": "New",
+      "Pending": "Pending",
+      "Completed": "OK / completed",
+      "readFilter": "Read state",
+      "unread": "Unread",
+      "read": "Read",
+      "dueFilter": "Follow-up",
+      "overdue": "Overdue",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "category": "Category",
+      "followUp": "Follow up at",
+      "markRead": "Mark as read",
+      "markOk": "Mark OK / completed",
+      "markPending": "Mark pending",
+      "tomorrowAction": "Do tomorrow",
+      "delete": "Delete",
+      "open": "Open details",
+      "confirmDelete": "Delete this registration request?",
+      "clearFilters": "Clear filters"
+    },
     "stats": {
       "total": "Total"
     },

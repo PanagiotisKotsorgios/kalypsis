@@ -80,8 +80,10 @@ public class PlatformRegistrationRequestsController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<RegistrationRequestSummaryDto>>> List(
-        [FromQuery] string? status, [FromQuery] string? search, CancellationToken ct)
-        => Ok(await _m.Send(new ListRegistrationRequestsQuery(status, search), ct));
+        [FromQuery] string? status, [FromQuery] string? search,
+        [FromQuery] string? triageStatus, [FromQuery] string? read,
+        [FromQuery] string? due, [FromQuery] string? category, CancellationToken ct)
+        => Ok(await _m.Send(new ListRegistrationRequestsQuery(status, search, triageStatus, read, due, category), ct));
 
     [HttpGet("stats")]
     public async Task<ActionResult<RegistrationRequestStatsDto>> Stats(CancellationToken ct)
@@ -97,6 +99,21 @@ public class PlatformRegistrationRequestsController : ControllerBase
     public async Task<ActionResult<RegistrationRequestDto>> UpdateStatus(
         Guid id, [FromBody] StatusUpdateBody body, CancellationToken ct)
         => Ok(await _m.Send(new UpdateRegistrationRequestStatusCommand(id, body.Status, body.ReviewNotes), ct));
+
+    public record WorkflowUpdateBody(string? TriageStatus, bool? IsRead, string? Category, DateTime? FollowUpAt);
+
+    [HttpPatch("{id:guid}/workflow")]
+    public async Task<ActionResult<RegistrationRequestDto>> UpdateWorkflow(
+        Guid id, [FromBody] WorkflowUpdateBody body, CancellationToken ct)
+        => Ok(await _m.Send(new UpdateRegistrationRequestWorkflowCommand(
+            id, body.TriageStatus, body.IsRead, body.Category, body.FollowUpAt), ct));
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        await _m.Send(new DeleteRegistrationRequestCommand(id), ct);
+        return NoContent();
+    }
 
     public record ApproveBody(string Password, bool SendWelcomeEmail, string? Mode = null);
 

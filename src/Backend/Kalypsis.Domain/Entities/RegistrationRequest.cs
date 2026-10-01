@@ -11,6 +11,19 @@ public enum RegistrationRequestStatus
 }
 
 /// <summary>
+/// Internal triage state for a registration request. This is intentionally
+/// separate from <see cref="RegistrationRequestStatus"/>: approving a
+/// request provisions an account, while triage actions (pending, done,
+/// follow-up) are safe workflow labels for the platform team.
+/// </summary>
+public enum RegistrationRequestTriageStatus
+{
+    New = 0,
+    Pending = 1,
+    Completed = 2
+}
+
+/// <summary>
 /// A self-service signup submitted from the public /register page. The
 /// platform superadmin reviews these from /app/platform/registrations and
 /// either provisions a tenant for the applicant or rejects with notes.
@@ -29,6 +42,11 @@ public class RegistrationRequest : BaseEntity
     public string ReferenceCode { get; set; } = string.Empty;
 
     public RegistrationRequestStatus Status { get; set; } = RegistrationRequestStatus.New;
+    public RegistrationRequestTriageStatus TriageStatus { get; set; } = RegistrationRequestTriageStatus.New;
+    public bool IsRead { get; set; }
+    public DateTime? ReadAt { get; set; }
+    public string? Category { get; set; }
+    public DateTime? FollowUpAt { get; set; }
     public string? ReviewNotes { get; set; }
     public DateTime? ReviewedAt { get; set; }
     public Guid? ReviewedByUserId { get; set; }

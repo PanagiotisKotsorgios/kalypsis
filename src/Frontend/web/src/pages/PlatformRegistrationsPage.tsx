@@ -16,12 +16,17 @@ import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import ReceiptOutlinedIcon from "@mui/icons-material/ReceiptOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import MarkEmailReadOutlinedIcon from "@mui/icons-material/MarkEmailReadOutlined";
+import PendingActionsIcon from "@mui/icons-material/PendingActions";
+import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { SearchableTextField } from "../components/SearchableTextField";
 
 type RegistrationStatus = "New" | "Reviewing" | "Approved" | "Rejected";
+type TriageStatus = "New" | "Pending" | "Completed";
 
 interface RegistrationSummary {
   id: string;
@@ -33,6 +38,10 @@ interface RegistrationSummary {
   city: string | null;
   referenceCode: string;
   status: RegistrationStatus;
+  triageStatus: TriageStatus;
+  isRead: boolean;
+  category: string | null;
+  followUpAt: string | null;
   submittedAt: string;
 }
 
@@ -42,6 +51,7 @@ interface RegistrationDetail extends RegistrationSummary {
   message: string | null;
   reviewNotes: string | null;
   reviewedAt: string | null;
+  readAt: string | null;
   ipAddress: string | null;
   // Backend flags when the applicant's email matches an existing
   // Producer row inside a tenant. When non-null the approve dialog
@@ -67,6 +77,13 @@ const STATUS_FILTERS: { value: "" | RegistrationStatus; key: string }[] = [
   { value: "Rejected",  key: "registrations.status.Rejected" }
 ];
 
+const TRIAGE_FILTERS: { value: "" | TriageStatus; key: string }[] = [
+  { value: "", key: "registrations.filter.all" },
+  { value: "New", key: "registrations.workflow.New" },
+  { value: "Pending", key: "registrations.workflow.Pending" },
+  { value: "Completed", key: "registrations.workflow.Completed" }
+];
+
 function statusColor(s: RegistrationStatus): "default" | "info" | "warning" | "success" | "error" {
   switch (s) {
     case "New":       return "info";
@@ -81,6 +98,10 @@ export function PlatformRegistrationsPage() {
   const { t, i18n } = useTranslation();
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<"" | RegistrationStatus>("");
+  const [triageFilter, setTriageFilter] = useState<"" | TriageStatus>("");
+  const [readFilter, setReadFilter] = useState<"" | "read" | "unread">("");
+  const [dueFilter, setDueFilter] = useState<"" | "overdue" | "today" | "tomorrow">("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -93,17 +114,56 @@ export function PlatformRegistrationsPage() {
   }, [search]);
 
   const list = useQuery({
-    queryKey: ["registration-requests", statusFilter, debounced],
+    queryKey: ["registration-requests", statusFilter, triageFilter, readFilter, dueFilter, categoryFilter, debounced],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (statusFilter) params.set("status", statusFilter);
       if (debounced)    params.set("search", debounced);
+      if (triageFilter) params.set("triageStatus", triageFilter);
+      if (readFilter) params.set("read", readFilter);
+      if (dueFilter) params.set("due", dueFilter);
+      if (categoryFilter.trim()) params.set("category", categoryFilter.trim());
       const url = params.toString()
         ? `/platform/registration-requests?${params.toString()}`
         : "/platform/registration-requests";
       return (await api.get<RegistrationSummary[]>(url)).data;
     }
   });
+
+  const workflow = useMutation({
+    mutationFn: async ({ id, triageStatus, isRead, followUpAt, category }: {
+      id: string;
+      triageStatus?: TriageStatus;
+      isRead?: boolean;
+      followUpAt?: string | null;
+      category?: string | null;
+    }) => (await api.patch(`/platform/registration-requests/${id}/workflow`, {
+      triageStatus: triageStatus ?? null,
+      isRead: isRead ?? null,
+      followUpAt: followUpAt === undefined ? null : followUpAt,
+      category: category === undefined ? null : category
+    })).data,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["registration-requests"] }); },
+    onError: (e) => setErr(extractErrorMessage(e))
+  });
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => { await api.delete(`/platform/registration-requests/${id}`); },
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["registration-requests"] }); },
+    onError: (e) => setErr(extractErrorMessage(e))
+  });
+
+  const clearFilters = () => {
+    setStatusFilter(""); setTriageFilter(""); setReadFilter(""); setDueFilter("");
+    setCategoryFilter(""); setSearch("");
+  };
+
+  const tomorrowIso = () => {
+    const d = new Date();
+    d.setHours(9, 0, 0, 0);
+    d.setDate(d.getDate() + 1);
+    return d.toISOString();
+  };
 
   const stats = useQuery({
     queryKey: ["registration-requests", "stats"],
@@ -148,16 +208,47 @@ export function PlatformRegistrationsPage() {
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
 
       <Card variant="outlined" sx={{ p: 2, mb: 2 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }}>
-          <ToggleButtonGroup
-            exclusive size="small" color="primary" value={statusFilter}
-            onChange={(_, v) => v !== null && setStatusFilter(v)}
-            sx={{ flexWrap: "wrap" }}
-          >
-            {STATUS_FILTERS.map(s => (
-              <ToggleButton key={s.value || "all"} value={s.value}>{t(s.key)}</ToggleButton>
-            ))}
-          </ToggleButtonGroup>
+        <Stack spacing={1.5}>
+          <Stack direction={{ xs: "column", lg: "row" }} spacing={1.5} alignItems={{ lg: "center" }}>
+            <ToggleButtonGroup
+              exclusive size="small" color="primary" value={statusFilter}
+              onChange={(_, v) => v !== null && setStatusFilter(v)}
+              sx={{ flexWrap: "wrap" }}
+            >
+              {STATUS_FILTERS.map(s => (
+                <ToggleButton key={s.value || "all"} value={s.value}>{t(s.key)}</ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+            <ToggleButtonGroup
+              exclusive size="small" color="secondary" value={triageFilter}
+              onChange={(_, v) => v !== null && setTriageFilter(v)}
+              sx={{ flexWrap: "wrap" }}
+            >
+              {TRIAGE_FILTERS.map(s => (
+                <ToggleButton key={`triage-${s.value || "all"}`} value={s.value}>{t(s.key)}</ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ sm: "center" }}>
+            <TextField select size="small" label={t("registrations.workflow.readFilter")} value={readFilter}
+              onChange={e => setReadFilter(e.target.value as typeof readFilter)} sx={{ minWidth: 150 }}>
+              <MenuItem value="">{t("registrations.filter.all")}</MenuItem>
+              <MenuItem value="unread">{t("registrations.workflow.unread")}</MenuItem>
+              <MenuItem value="read">{t("registrations.workflow.read")}</MenuItem>
+            </TextField>
+            <TextField select size="small" label={t("registrations.workflow.dueFilter")} value={dueFilter}
+              onChange={e => setDueFilter(e.target.value as typeof dueFilter)} sx={{ minWidth: 170 }}>
+              <MenuItem value="">{t("registrations.filter.all")}</MenuItem>
+              <MenuItem value="overdue">{t("registrations.workflow.overdue")}</MenuItem>
+              <MenuItem value="today">{t("registrations.workflow.today")}</MenuItem>
+              <MenuItem value="tomorrow">{t("registrations.workflow.tomorrow")}</MenuItem>
+            </TextField>
+            <TextField size="small" label={t("registrations.workflow.category")} value={categoryFilter}
+              onChange={e => setCategoryFilter(e.target.value)} sx={{ minWidth: 180 }} />
+            <Button size="small" color="error" variant="outlined" onClick={clearFilters}>
+              {t("registrations.workflow.clearFilters")}
+            </Button>
+          </Stack>
           <Box sx={{ flex: 1 }} />
           <TextField
             size="small"
@@ -182,22 +273,23 @@ export function PlatformRegistrationsPage() {
                 <TableCell>{t("registrations.col.organization")}</TableCell>
                 <TableCell>{t("registrations.col.submitted")}</TableCell>
                 <TableCell>{t("common.status")}</TableCell>
+                <TableCell>{t("registrations.workflow.column")}</TableCell>
                 <TableCell align="right" />
               </TableRow>
             </TableHead>
             <TableBody>
               {(list.data ?? []).length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ color: "text.secondary", py: 6 }}>
+                  <TableCell colSpan={8} align="center" sx={{ color: "text.secondary", py: 6 }}>
                     {t("registrations.empty")}
                   </TableCell>
                 </TableRow>
               )}
               {(list.data ?? []).map(r => (
-                <TableRow key={r.id} hover sx={{ cursor: "pointer" }} onClick={() => setOpenId(r.id)}>
-                  <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{r.referenceCode}</TableCell>
+                <TableRow key={r.id} hover sx={{ cursor: "pointer", bgcolor: r.isRead ? undefined : "rgba(31,123,179,0.045)" }} onClick={() => setOpenId(r.id)}>
+                  <TableCell sx={{ fontFamily: "monospace", fontWeight: r.isRead ? 700 : 900 }}>{r.referenceCode}</TableCell>
                   <TableCell>
-                    <Typography fontWeight={600}>{r.firstName} {r.lastName}</Typography>
+                    <Typography fontWeight={r.isRead ? 600 : 800}>{r.firstName} {r.lastName}</Typography>
                   </TableCell>
                   <TableCell>
                     <Stack spacing={0.25}>
@@ -217,10 +309,50 @@ export function PlatformRegistrationsPage() {
                   <TableCell>
                     <Chip size="small" color={statusColor(r.status)} label={t(`registrations.status.${r.status}`)} />
                   </TableCell>
+                  <TableCell>
+                    <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                      <Chip size="small" variant="outlined"
+                        color={r.triageStatus === "Completed" ? "success" : r.triageStatus === "Pending" ? "warning" : "default"}
+                        label={t(`registrations.workflow.${r.triageStatus}`)} />
+                      {r.category && <Chip size="small" variant="outlined" label={r.category} />}
+                      {r.followUpAt && <Typography fontSize={11.5} color="text.secondary" sx={{ alignSelf: "center" }}>
+                        {fmt.format(new Date(r.followUpAt))}
+                      </Typography>}
+                    </Stack>
+                  </TableCell>
                   <TableCell align="right">
-                    <IconButton size="small" onClick={(e) => { e.stopPropagation(); setOpenId(r.id); }}>
-                      <VisibilityOutlinedIcon fontSize="small" />
-                    </IconButton>
+                    <Stack direction="row" justifyContent="flex-end">
+                      {!r.isRead && <Tooltip title={t("registrations.workflow.markRead")}>
+                        <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); workflow.mutate({ id: r.id, isRead: true, category: r.category, followUpAt: r.followUpAt }); }}>
+                          <MarkEmailReadOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>}
+                      <Tooltip title={t("registrations.workflow.markOk")}>
+                        <IconButton size="small" color="success" onClick={(e) => { e.stopPropagation(); workflow.mutate({ id: r.id, triageStatus: "Completed", isRead: true, category: r.category, followUpAt: r.followUpAt }); }}>
+                          <CheckCircleOutlineIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={t("registrations.workflow.markPending")}>
+                        <IconButton size="small" color="warning" onClick={(e) => { e.stopPropagation(); workflow.mutate({ id: r.id, triageStatus: "Pending", category: r.category, followUpAt: r.followUpAt }); }}>
+                          <PendingActionsIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={t("registrations.workflow.tomorrowAction")}>
+                        <IconButton size="small" color="secondary" onClick={(e) => { e.stopPropagation(); workflow.mutate({ id: r.id, triageStatus: "Pending", followUpAt: tomorrowIso(), category: r.category }); }}>
+                          <ScheduleOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={t("registrations.workflow.delete")}>
+                        <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); if (window.confirm(t("registrations.workflow.confirmDelete"))) remove.mutate(r.id); }}>
+                          <DeleteOutlineIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={t("registrations.workflow.open")}>
+                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); setOpenId(r.id); }}>
+                          <VisibilityOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
                   </TableCell>
                 </TableRow>
               ))}
@@ -297,6 +429,10 @@ function DetailDialog({ id, onClose, onAfterSave }: {
   const open = !!id;
   const [status, setStatus] = useState<RegistrationStatus>("New");
   const [notes, setNotes] = useState("");
+  const [triageStatus, setTriageStatus] = useState<TriageStatus>("New");
+  const [isRead, setIsRead] = useState(false);
+  const [category, setCategory] = useState("");
+  const [followUpAt, setFollowUpAt] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
   // Approval-only state — kept in this dialog so it resets when the
@@ -323,9 +459,17 @@ function DetailDialog({ id, onClose, onAfterSave }: {
     if (detail.data) {
       setStatus(detail.data.status);
       setNotes(detail.data.reviewNotes ?? "");
+      setTriageStatus(detail.data.triageStatus ?? "New");
+      setIsRead(detail.data.isRead);
+      setCategory(detail.data.category ?? "");
+      setFollowUpAt(detail.data.followUpAt ? detail.data.followUpAt.slice(0, 16) : "");
     } else {
       setStatus("New");
       setNotes("");
+      setTriageStatus("New");
+      setIsRead(false);
+      setCategory("");
+      setFollowUpAt("");
     }
     setPassword("");
     setConfirmPassword("");
@@ -353,10 +497,19 @@ function DetailDialog({ id, onClose, onAfterSave }: {
   const passwordValid = password.length >= 8 && password === confirmPassword;
 
   const approve = useMutation({
-    mutationFn: async () => (await api.post<ApproveResult>(
-      `/platform/registration-requests/${id}/approve`,
-      { password, sendWelcomeEmail, mode: approveMode }
-    )).data,
+    mutationFn: async () => {
+      const result = (await api.post<ApproveResult>(
+        `/platform/registration-requests/${id}/approve`,
+        { password, sendWelcomeEmail, mode: approveMode }
+      )).data;
+      await api.patch(`/platform/registration-requests/${id}/workflow`, {
+        triageStatus,
+        isRead,
+        category: category.trim() || null,
+        followUpAt: followUpAt ? new Date(followUpAt).toISOString() : null
+      });
+      return result;
+    },
     onSuccess: (data) => {
       setApproveResult(data);
       onAfterSave();
@@ -365,9 +518,32 @@ function DetailDialog({ id, onClose, onAfterSave }: {
   });
 
   const save = useMutation({
+    mutationFn: async () => {
+      const result = await api.patch(
+        `/platform/registration-requests/${id}/status`,
+        { status, reviewNotes: notes.trim() || null }
+      );
+      await api.patch(`/platform/registration-requests/${id}/workflow`, {
+        triageStatus,
+        isRead,
+        category: category.trim() || null,
+        followUpAt: followUpAt ? new Date(followUpAt).toISOString() : null
+      });
+      return result.data;
+    },
+    onSuccess: () => { onAfterSave(); onClose(); },
+    onError: (e) => setErr(extractErrorMessage(e))
+  });
+
+  const saveWorkflow = useMutation({
     mutationFn: async () => (await api.patch(
-      `/platform/registration-requests/${id}/status`,
-      { status, reviewNotes: notes.trim() || null }
+      `/platform/registration-requests/${id}/workflow`,
+      {
+        triageStatus,
+        isRead,
+        category: category.trim() || null,
+        followUpAt: followUpAt ? new Date(followUpAt).toISOString() : null
+      }
     )).data,
     onSuccess: () => { onAfterSave(); onClose(); },
     onError: (e) => setErr(extractErrorMessage(e))
@@ -382,7 +558,13 @@ function DetailDialog({ id, onClose, onAfterSave }: {
       }
       approve.mutate();
     } else {
-      save.mutate();
+      const statusChanged = status !== detail.data?.status
+        || notes.trim() !== (detail.data?.reviewNotes ?? "").trim();
+      if (statusChanged) {
+        save.mutate();
+      } else {
+        saveWorkflow.mutate();
+      }
     }
   };
 
@@ -454,6 +636,43 @@ function DetailDialog({ id, onClose, onAfterSave }: {
             <Box>
               <Typography fontSize={14} fontWeight={700} mb={1.5}>{t("registrations.detail.reviewSection")}</Typography>
               <Stack spacing={2}>
+                <Box sx={{
+                  border: "1px solid", borderColor: "divider", borderRadius: 2, p: 2,
+                  bgcolor: "action.hover"
+                }}>
+                  <Typography fontSize={13} fontWeight={700} mb={1.5}>
+                    {t("registrations.workflow.title")}
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                      <SearchableTextField select size="small" label={t("registrations.workflow.status")}
+                        value={triageStatus} onChange={e => setTriageStatus(e.target.value as TriageStatus)} sx={{ minWidth: 190 }}>
+                        {(["New", "Pending", "Completed"] as TriageStatus[]).map(s => (
+                          <MenuItem key={s} value={s}>{t(`registrations.workflow.${s}`)}</MenuItem>
+                        ))}
+                      </SearchableTextField>
+                      <TextField size="small" label={t("registrations.workflow.category")} value={category}
+                        onChange={e => setCategory(e.target.value)} sx={{ flex: 1 }} />
+                    </Stack>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ sm: "center" }}>
+                      <TextField size="small" type="datetime-local" label={t("registrations.workflow.followUp")}
+                        value={followUpAt} onChange={e => setFollowUpAt(e.target.value)}
+                        InputLabelProps={{ shrink: true }} sx={{ minWidth: 230 }} />
+                      <Button size="small" variant="outlined" startIcon={<ScheduleOutlinedIcon />}
+                        onClick={() => {
+                          const d = new Date(); d.setHours(9, 0, 0, 0); d.setDate(d.getDate() + 1);
+                          setFollowUpAt(d.toISOString().slice(0, 16));
+                          setTriageStatus("Pending");
+                        }}>
+                        {t("registrations.workflow.tomorrowAction")}
+                      </Button>
+                      <FormControlLabel
+                        control={<Checkbox checked={isRead} onChange={e => setIsRead(e.target.checked)} />}
+                        label={t("registrations.workflow.markRead")}
+                      />
+                    </Stack>
+                  </Stack>
+                </Box>
                 <SearchableTextField
                   select size="small" label={t("common.status")}
                   value={status} onChange={(e) => setStatus(e.target.value as RegistrationStatus)}
@@ -624,7 +843,7 @@ function DetailDialog({ id, onClose, onAfterSave }: {
           <Button
             variant="contained"
             color={isApproving ? "success" : "primary"}
-            disabled={!detail.data || save.isPending || approve.isPending ||
+            disabled={!detail.data || save.isPending || saveWorkflow.isPending || approve.isPending ||
               (isApproving && !passwordValid)}
             onClick={handleSave}
           >
