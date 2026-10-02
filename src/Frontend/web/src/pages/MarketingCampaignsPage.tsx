@@ -1518,6 +1518,10 @@ interface OpportunityDto {
   createdAt: string; updatedAt: string | null;
 }
 
+// Kept only as a compatibility fallback for old localStorage entries. The
+// visible history tab uses the backend-backed HistoryTabBackend below.
+void HistoryTab;
+
 interface DeliveryLogDto {
   id: string; campaignId: string; campaignName: string; customerId: string | null; customerName: string | null;
   channel: string; provider: string; status: string; recipientName: string | null; recipient: string;
