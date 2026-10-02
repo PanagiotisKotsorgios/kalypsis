@@ -81,6 +81,12 @@ public sealed class OfficeAiService : IAiService
         if (string.IsNullOrWhiteSpace(key)) return new(false, null, null, null, null, null, null, null, "Ρυθμίστε πρώτα το office OpenAI key από τις Ρυθμίσεις AI.");
         using var buffer = new MemoryStream(); await pdf.CopyToAsync(buffer, ct);
         var model = await GetSettingAsync("OpenAiModel", ct) ?? "gpt-4o-mini";
+        var gate = await CheckBudgetAsync(model, ct);
+        if (!gate.Allowed)
+        {
+            await RecordAsync(AiTaskType.ExtractPolicyPdf, model, null, null, 0, 0, false, gate.Reason, ct);
+            return new(false, null, null, null, null, null, null, null, gate.Reason);
+        }
         var prompt = "Διάβασε το ασφαλιστήριο PDF και επέστρεψε μόνο JSON με πεδία policyNumber, carrier, productType, startDate (yyyy-MM-dd), endDate (yyyy-MM-dd), premium (δεκαδικός), fullJson. Αν λείπει πεδίο, βάλε null. Μην επινοήσεις στοιχεία.";
         try
         {
@@ -129,6 +135,12 @@ public sealed class OfficeAiService : IAiService
         var key = await GetSettingAsync("OpenAiApiKey", ct);
         if (string.IsNullOrWhiteSpace(key)) { await RecordAsync(task, "not-configured", "", null, 0, 0, false, "Δεν έχει ρυθμιστεί office OpenAI key.", ct); return (false, null, "Δεν έχει ρυθμιστεί το OpenAI API key του γραφείου."); }
         var model = await GetSettingAsync("OpenAiModel", ct) ?? "gpt-4o-mini";
+        var gate = await CheckBudgetAsync(model, ct);
+        if (!gate.Allowed)
+        {
+            await RecordAsync(task, model, null, null, 0, 0, false, gate.Reason, ct);
+            return (false, null, gate.Reason);
+        }
         try
         {
             using var client = _http.CreateClient("openai"); client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", key);
@@ -144,7 +156,38 @@ public sealed class OfficeAiService : IAiService
     }
 
     private async Task<string?> GetSettingAsync(string keyName, CancellationToken ct) { var tenant = _current.TenantId; if (!tenant.HasValue) return null; return await _db.IntegrationSettings.AsNoTracking().Where(x => x.TenantId == tenant.Value && (x.Service == "Ai" || x.Service == "OpenAI") && x.KeyName == keyName).Select(x => x.Value).FirstOrDefaultAsync(ct); }
-    private async Task RecordAsync(AiTaskType task, string model, string? prompt, string? response, int input, int output, bool success, string? error, CancellationToken ct) { var tenant = _current.TenantId; if (!tenant.HasValue) return; _db.AiInvocations.Add(new AiInvocation { Id = Guid.NewGuid(), TenantId = tenant.Value, UserId = _current.UserId, TaskType = task, Model = model, PromptRedacted = prompt, ResponseRedacted = response, PromptTokens = input, CompletionTokens = output, Success = success, ErrorMessage = error }); await _db.SaveChangesAsync(ct); }
+    private async Task<(bool Allowed, string? Reason)> CheckBudgetAsync(string model, CancellationToken ct)
+    {
+        var tenant = _current.TenantId;
+        if (!tenant.HasValue) return (false, "Δεν βρέθηκε γραφείο για την κλήση AI.");
+        var hardStopRaw = await GetSettingAsync("OpenAiHardStop", ct);
+        if (string.Equals(hardStopRaw, "false", StringComparison.OrdinalIgnoreCase) || hardStopRaw == "0") return (true, null);
+        var start = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+        var rows = await _db.AiInvocations.AsNoTracking().Where(x => x.TenantId == tenant.Value && x.CreatedAt >= start).ToListAsync(ct);
+        var tokens = rows.Sum(x => (x.PromptTokens ?? 0) + (x.CompletionTokens ?? 0));
+        var tokenRaw = await GetSettingAsync("OpenAiMonthlyTokenBudget", ct);
+        if (int.TryParse(tokenRaw, out var tokenLimit) && tokenLimit > 0 && tokens >= tokenLimit)
+            return (false, "Το μηνιαίο όριο tokens του γραφείου έχει εξαντληθεί.");
+        var costRaw = await GetSettingAsync("OpenAiMonthlyCostLimitEur", ct);
+        if (decimal.TryParse(costRaw, NumberStyles.Any, CultureInfo.InvariantCulture, out var costLimit) && costLimit > 0m)
+        {
+            var cost = rows.Sum(x => EstimateCostEur(x.Model, x.PromptTokens ?? 0, x.CompletionTokens ?? 0));
+            if (cost >= costLimit) return (false, "Το μηνιαίο όριο κόστους AI του γραφείου έχει εξαντληθεί.");
+        }
+        return (true, null);
+    }
+    private static decimal EstimateCostEur(string? model, int inputTokens, int outputTokens)
+    {
+        var (input, output) = (model ?? "").ToLowerInvariant() switch
+        {
+            var m when m.Contains("gpt-4o-mini") => (0.14m, 0.56m),
+            var m when m.Contains("gpt-4o") => (2.30m, 9.20m),
+            var m when m.Contains("gpt-4.1-mini") => (0.35m, 1.40m),
+            _ => (0m, 0m)
+        };
+        return inputTokens / 1_000_000m * input + outputTokens / 1_000_000m * output;
+    }
+    private async Task RecordAsync(AiTaskType task, string model, string? prompt, string? response, int input, int output, bool success, string? error, CancellationToken ct) { var tenant = _current.TenantId; if (!tenant.HasValue) return; var retentionRaw = await GetSettingAsync("OpenAiDataRetentionDays", ct); if (int.TryParse(retentionRaw, out var days) && days > 0) await _db.AiInvocations.Where(x => x.TenantId == tenant.Value && x.CreatedAt < DateTime.UtcNow.AddDays(-days)).ExecuteDeleteAsync(ct); _db.AiInvocations.Add(new AiInvocation { Id = Guid.NewGuid(), TenantId = tenant.Value, UserId = _current.UserId, TaskType = task, Model = model, PromptRedacted = $"task:{task};promptChars:{prompt?.Length ?? 0}", ResponseRedacted = success ? "stored:false" : null, PromptTokens = input, CompletionTokens = output, Success = success, ErrorMessage = error }); await _db.SaveChangesAsync(ct); }
     private static string ReadResponseText(JsonElement root) { if (root.TryGetProperty("output_text", out var direct)) return direct.GetString() ?? ""; if (root.TryGetProperty("output", out var output)) foreach (var item in output.EnumerateArray()) if (item.TryGetProperty("content", out var content)) foreach (var part in content.EnumerateArray()) if (part.TryGetProperty("text", out var text)) return text.GetString() ?? ""; return ""; }
     private static string? ReadString(JsonElement root, string name) => root.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null ? value.GetString() : null;
     private static DateOnly? ReadDate(JsonElement root, string name) => DateOnly.TryParse(ReadString(root, name), CultureInfo.InvariantCulture, DateTimeStyles.None, out var value) ? value : null;

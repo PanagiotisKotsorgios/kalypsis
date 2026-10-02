@@ -387,7 +387,7 @@
         ]
       },
       "accounting": {
-        "intro": "Direct integration with accounting systems (BlueByte or third-party). Generate accounting entries from every financial movement.",
+        "intro": "Direct integration with accounting systems and third-party tools. Generate accounting entries from every financial movement.",
         "bullets": [
           "Chart-of-accounts mapping",
           "Auto-create entry from every record",
@@ -1159,8 +1159,8 @@
         "backoffice": {
           "name": "BackOffice — Your back-office ledger",
           "tagline": "Customers, policies, cashier, commissions.",
-          "body": "The core of your agency: digital customer file, carrier catalog, network producers, manual or automated policy registration. Cashier, payments, commission management with over-commissions, bank-statement reconciliation, accounting exports for your bookkeeper. Bridges to legacy back-office systems (BlueByte, ALIS, OneSoft) for smooth migration.",
-          "example": "An agency currently using ALIS Insurance as its accounting base can replace just that, while keeping their existing carrier-portal policy issuance flow untouched."
+          "body": "The core of your agency: digital customer file, carrier catalog, network producers, manual or automated policy registration. Cashier, payments, commission management with over-commissions, bank-statement reconciliation, accounting exports for your bookkeeper. Bridges to legacy back-office systems for smooth migration.",
+          "example": "An agency currently using a legacy accounting system can replace just that, while keeping their existing carrier-portal policy issuance flow untouched."
         },
         "frontoffice": {
           "name": "FrontOffice — Your online carrier interface",
@@ -1196,12 +1196,12 @@
         "onlyBackoffice": {
           "packages": "PACKAGE I",
           "title": "BackOffice only",
-          "body": "For agencies currently using a local back-office program (ALIS, BlueByte, OneSoft) that want to replace it, while keeping their existing carrier-portal issuance flow as-is. Complete customer, policy, cashier and commission management."
+          "body": "For agencies currently using a local back-office program that want to replace it, while keeping their existing carrier-portal issuance flow as-is. Complete customer, policy, cashier and commission management."
         },
         "backFront": {
           "packages": "PACKAGES I + II",
           "title": "BackOffice + FrontOffice",
-          "body": "The classic «full» install: simultaneously replaces a back-office (ALIS-style) and a front-office (WebInsurer-style). Quoting + issuance + accounting, all in one app."
+          "body": "The classic «full» install: simultaneously replaces a back-office and a front-office. Quoting + issuance + accounting, all in one app."
         },
         "backFrontCrm": {
           "packages": "PACKAGES I + II + III",
@@ -1962,7 +1962,7 @@
       "i1": { "q": "Do you integrate with insurance carriers?", "a": "Yes. Per-agency, per-carrier Bridges over REST API, FTP, email parsing or webhook. Automatic policy and update exchange." },
       "i2": { "q": "Do you support DIAS?", "a": "Yes. RF code per contract, payment tracking and auto contract delivery the moment your office receives confirmation." },
       "i3": { "q": "Do you have a public API?", "a": "Yes. Full REST API with tokens and scopes. Connect accounting suites, mobile apps or third-party tools." },
-      "i4": { "q": "Do you integrate with accounting systems?", "a": "Direct connectors for the most common Greek accounting systems (BlueByte and others), XML/CSV export for the rest. Auto journal entries from every financial movement." },
+      "i4": { "q": "Do you integrate with accounting systems?", "a": "Direct connectors for common Greek accounting systems, XML/CSV export for the rest. Auto journal entries from every financial movement." },
       "u1": { "q": "How do I get support?", "a": "In-app chat, email at support@kalypsis.gr and phone for Enterprise. Average response under 2 hours on business days." },
       "u2": { "q": "Do you provide training?", "a": "Yes. Free 2-hour online training for your agency, detailed Greek manuals, video tutorials and a monthly webinar." },
       "u3": { "q": "What are your hours?", "a": "Monday through Friday, 10:00–16:00 EET. Enterprise plans include 24/7 support for critical issues." },
@@ -3142,7 +3142,7 @@
   },
   "namedReports": {
     "title": "Named Reports",
-    "subtitle": "Classic ALIS/BluByte reports — 4500 Customer Directory, 506 Aging, 507 Unpaid, 610 Carrier Ledger.",
+    "subtitle": "Classic office reports — 4500 Customer Directory, 506 Aging, 507 Unpaid, 610 Carrier Ledger.",
     "customers": "Customer Directory",
     "unpaid": "Unpaid",
     "aging": "Customer Aging",

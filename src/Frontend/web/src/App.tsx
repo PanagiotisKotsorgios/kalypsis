@@ -403,14 +403,14 @@ export const navByRole: Record<Role, NavItem[]> = {
 
     // ===== Intelligence =====
     // persistency hidden — analytics shell exists but not wired to data yet.
-    { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, package: "Intelligence" },
-    { to: "/intelligence-settings", labelKey: "nav.aiSettings", icon: <VpnKeyIcon />, package: "Intelligence" },
+    { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/intelligence-settings", labelKey: "nav.aiSettings", icon: <VpnKeyIcon />, package: "Intelligence", group: "intelligence" },
     // NOTE: the four reports below intentionally live under BackOffice
     // (Παραγωγή group for the production listing, Οικονομικά group for the
     // money reports) so operators find them next to the workflows that
     // feed them, without having to jump into the Intelligence workspace.
-    { to: "/named-reports", labelKey: "nav.namedReports", icon: <AssessmentOutlinedIcon />, package: "Intelligence" },
-    { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, package: "Intelligence" },
+    { to: "/named-reports", labelKey: "nav.namedReports", icon: <AssessmentOutlinedIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Intelligence" },
 
     // ===== Integrations =====
@@ -473,7 +473,10 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/crm-groups", labelKey: "nav.crmGroups", icon: <GroupWorkIconRC />, package: "Crm", permission: "marketing.read" },
     { to: "/crm-settings", labelKey: "nav.crmSettings", icon: <VpnKeyIcon />, package: "Crm", permission: "marketing.read" },
-    { to: "/intelligence-settings", labelKey: "nav.aiSettings", icon: <VpnKeyIcon />, package: "Intelligence" },
+    { to: "/intelligence-settings", labelKey: "nav.aiSettings", icon: <VpnKeyIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/named-reports", labelKey: "nav.namedReports", icon: <AssessmentOutlinedIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
@@ -986,7 +989,7 @@ export default function App() {
                   <Route path="dias" element={<PackageGate package="Integrations"><DiasCodesPage /></PackageGate>} />
                   {/* /app/accounting removed per user request — the page had
                       no consumer. Backend /api/accounting-exports left in
-                      place (still used by the BlueByte integration path). */}
+                       place (still used by existing accounting import paths). */}
                   <Route path="kepyo" element={<KepyoReportsPage />} />
                   <Route path="magnetic-import" element={<MagneticImportsPage />} />
                   <Route path="over-commissions" element={<OverCommissionsPage />} />

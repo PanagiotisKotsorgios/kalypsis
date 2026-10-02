@@ -93,7 +93,7 @@ export const WORKSPACE_DEFAULT_ROUTE: Record<PackageCode, string> = {
   // CRM card changes the active sidebar package without sending the user to a
   // separate customer page/URL.
   Crm:          "/app",
-  Intelligence: "/app/report-builder",
+  Intelligence: "/app/reports",
   Integrations: "/app/dias",
   Ermes:        "/app/ermes"
 };

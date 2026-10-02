@@ -157,7 +157,9 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     title: "Intelligence",
     description: "Εμφανίζονται μόνο όταν το πακέτο Intelligence είναι ενεργό.",
     packages: ["Intelligence"],
+    groupKey: "intelligence",
     items: [
+      { path: "/intelligence-settings", label: "Ρυθμίσεις AI γραφείου" },
       { path: "/reports", label: "Αναφορές" },
       { path: "/named-reports", label: "Ονομαστικές αναφορές" },
       { path: "/production-stats", label: "Στατιστικά παραγωγής" }

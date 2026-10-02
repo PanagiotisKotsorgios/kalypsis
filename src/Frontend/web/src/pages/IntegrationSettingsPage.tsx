@@ -43,7 +43,7 @@ const SERVICES: { code: string; label: string; keys: string[]; hint: string; key
       BulkerFrom: "Ο εγκεκριμένος αποστολέας SMS του Bulker.",
       BulkerEndpoint: "Αφήστε κενό για το επίσημο endpoint https://api.bulker.gr/http/sms.php."
     } },
-  { code: "Ai",         label: "Office AI (OpenAI)",          keys: ["OpenAiApiKey", "OpenAiModel", "OpenAiMonthlyTokenBudget"],
+  { code: "Ai",         label: "Office AI (OpenAI)",          keys: ["OpenAiApiKey", "OpenAiModel", "OpenAiMonthlyTokenBudget", "OpenAiMonthlyCostLimitEur", "OpenAiHardStop", "OpenAiDataRetentionDays"],
     hint: "Το γραφείο χρησιμοποιεί το δικό του OpenAI API key για αναλύσεις, προβλέψεις και σύνταξη κειμένων. Το κλειδί αποθηκεύεται κρυπτογραφημένο.",
     keyHints: {
       OpenAiApiKey: "Το προσωπικό API key του γραφείου από το OpenAI Platform. Δεν χρησιμοποιείται κοινό κλειδί της Kalypsis.",

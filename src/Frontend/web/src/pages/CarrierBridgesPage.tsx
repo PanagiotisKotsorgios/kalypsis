@@ -497,7 +497,7 @@ export function CarrierBridgesPage() {
       })()}
 
       {/* «Χρειάζεται παραμετροποίηση» modal για κάθε unavailable carrier —
-          όλες οι εταιρείες του ALIS καταλόγου είναι ορατές αλλά μόνο οι
+          όλες οι εταιρείες του καταλόγου είναι ορατές αλλά μόνο οι
           4 πρώτες (ERGO/ATLANTIC/INTERLIFE/GRAND_COVER) έχουν έτοιμο parser. */}
       <Dialog open={!!underDevCarrier} onClose={() => setUnderDevCarrier(null)}
         maxWidth="xs" fullWidth>

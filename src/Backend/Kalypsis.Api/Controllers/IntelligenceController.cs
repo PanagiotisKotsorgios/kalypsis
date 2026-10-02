@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Abstractions;
+using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
 using Kalypsis.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -43,7 +44,8 @@ public sealed class IntelligenceController : ControllerBase
         int OpenClaims, decimal ClaimExposure, int UnpaidPolicies);
     public sealed record AiUsageDto(int Invocations, int Successful, int Failed, int PromptTokens,
         int CompletionTokens, int TotalTokens, DateTime? LastUsedAt, int? MonthlyBudget,
-        int BudgetPercent, string Suggestion);
+        int BudgetPercent, string Suggestion, decimal EstimatedCostEur, decimal? CostLimitEur,
+        int CostPercent, bool Blocked, string Health, DateTime? LastCalculatedAt);
     public sealed record PortfolioIntelligenceDto(
         DateOnly From, DateOnly To, DateTime GeneratedAt, bool AiConfigured,
         IntelligenceKpis Kpis, IReadOnlyList<PolicyRiskDto> Policies,
@@ -147,6 +149,22 @@ public sealed class IntelligenceController : ControllerBase
             .Select(x => x.Value).FirstOrDefaultAsync(ct);
         var budget = int.TryParse(budgetRaw, out var parsedBudget) && parsedBudget > 0 ? parsedBudget : (int?)null;
         var budgetPercent = budget.HasValue ? Math.Min(100, (int)Math.Round(totalTokens * 100d / budget.Value)) : 0;
+        var costLimitRaw = await _db.IntegrationSettings.AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (x.Service == "Ai" || x.Service == "OpenAI")
+                && x.KeyName == "OpenAiMonthlyCostLimitEur")
+            .Select(x => x.Value).FirstOrDefaultAsync(ct);
+        var costLimit = decimal.TryParse(costLimitRaw, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedCostLimit) && parsedCostLimit > 0m ? parsedCostLimit : (decimal?)null;
+        var estimatedCost = usageRows.Sum(x => EstimateCostEur(x.Model, x.PromptTokens ?? 0, x.CompletionTokens ?? 0));
+        var costPercent = costLimit.HasValue ? Math.Min(100, (int)Math.Round(estimatedCost * 100m / costLimit.Value)) : 0;
+        var hardStopRaw = await _db.IntegrationSettings.AsNoTracking()
+            .Where(x => x.TenantId == tenantId && (x.Service == "Ai" || x.Service == "OpenAI")
+                && x.KeyName == "OpenAiHardStop")
+            .Select(x => x.Value).FirstOrDefaultAsync(ct);
+        var hardStop = !string.Equals(hardStopRaw, "false", StringComparison.OrdinalIgnoreCase) && hardStopRaw != "0";
+        var blocked = hardStop && ((budget.HasValue && totalTokens >= budget.Value) || (costLimit.HasValue && estimatedCost >= costLimit.Value));
+        var health = !aiConfigured ? "not-configured" : usageRows.Any(x => !x.Success && x.CreatedAt >= DateTime.UtcNow.AddDays(-30)) ? "degraded" : "healthy";
+        var lastCalculatedAt = await _db.ChurnScores.AsNoTracking().Where(x => x.TenantId == tenantId && x.DeletedAt == null)
+            .OrderByDescending(x => x.ComputedAt).Select(x => (DateTime?)x.ComputedAt).FirstOrDefaultAsync(ct);
         var suggestion = budgetPercent >= 90
             ? "Η χρήση AI πλησιάζει το μηνιαίο όριο. Μειώστε μεγάλα prompts ή αυξήστε το όριο."
             : budgetPercent >= 70
@@ -154,14 +172,74 @@ public sealed class IntelligenceController : ControllerBase
                 : totalTokens > 0
                     ? "Η χρήση AI είναι εντός ορίου. Ελέγχετε την καρτέλα κάθε μήνα για κόστος και όρια."
                     : "Δεν έχει καταγραφεί χρήση AI αυτόν τον μήνα. Ρυθμίστε office OpenAI key για GPT αναλύσεις.";
+        if (blocked) suggestion = "Το μηνιαίο όριο AI έχει φτάσει. Οι νέες κλήσεις μπλοκάρονται μέχρι τον επόμενο μήνα ή μέχρι να αυξήσει το γραφείο το όριο.";
         var aiUsage = new AiUsageDto(usageRows.Count, usageRows.Count(x => x.Success), usageRows.Count(x => !x.Success),
             promptTokens, completionTokens, totalTokens, usageRows.OrderByDescending(x => x.CreatedAt).Select(x => (DateTime?)x.CreatedAt).FirstOrDefault(),
-            budget, budgetPercent, suggestion);
+            budget, budgetPercent, suggestion, Math.Round(estimatedCost, 4), costLimit, costPercent, blocked, health, lastCalculatedAt);
 
         return Ok(new PortfolioIntelligenceDto(rangeFrom, rangeTo, DateTime.UtcNow, aiConfigured,
             kpis, policyRisks.OrderByDescending(p => p.Score).ThenBy(p => p.EndDate).ToList(),
             customerRisks, trend, bands, claimStatuses, aiUsage));
     }
+
+    /// <summary>Persists the current transparent risk snapshot for audit and reporting.</summary>
+    [HttpPost("recalculate")]
+    [RequirePermission("tasks.write")]
+    public async Task<IActionResult> Recalculate(CancellationToken ct = default)
+    {
+        var result = await Portfolio(null, null, null, null, null, null, null, true, ct);
+        if (result.Result is not OkObjectResult ok || ok.Value is not PortfolioIntelligenceDto dto) return BadRequest();
+        var tenantId = _current.TenantId ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        var now = DateTime.UtcNow;
+        var existing = await _db.ChurnScores.Where(x => x.TenantId == tenantId && x.DeletedAt == null).ToDictionaryAsync(x => x.CustomerId, ct);
+        foreach (var customer in dto.Customers)
+        {
+            if (!existing.TryGetValue(customer.Id, out var row))
+            {
+                row = new ChurnScore { Id = Guid.NewGuid(), TenantId = tenantId, CustomerId = customer.Id };
+                _db.ChurnScores.Add(row);
+            }
+            row.Score = customer.Score / 100d;
+            row.Band = customer.Band;
+            row.TopFactorsJson = System.Text.Json.JsonSerializer.Serialize(customer.Factors);
+            row.ComputedAt = now;
+        }
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { calculatedAt = now, customers = dto.Customers.Count });
+    }
+
+    [HttpPost("policies/{policyId:guid}/task")]
+    [RequirePermission("tasks.write")]
+    public async Task<IActionResult> CreatePolicyTask(Guid policyId, CancellationToken ct = default)
+    {
+        var tenantId = _current.TenantId ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        var policy = await _db.Policies.AsNoTracking().Where(p => p.TenantId == tenantId && p.Id == policyId && p.DeletedAt == null)
+            .Select(p => new { p.Id, p.PolicyNumber, p.CustomerId, Customer = p.Customer.CompanyName ?? ((p.Customer.FirstName ?? "") + " " + (p.Customer.LastName ?? "")).Trim() }).FirstOrDefaultAsync(ct);
+        if (policy is null) return NotFound();
+        var task = new AgencyTask { Id = Guid.NewGuid(), TenantId = tenantId, PolicyId = policy.Id, CustomerId = policy.CustomerId,
+            Title = $"Follow-up ασφαλιστηρίου {policy.PolicyNumber}", Description = $"Επικοινωνία με {policy.Customer} μετά την ανάλυση κινδύνου Intelligence.",
+            Priority = AgencyTaskPriority.High, Status = AgencyTaskStatus.Open, DueAt = DateTime.UtcNow.AddDays(3) };
+        _db.AgencyTasks.Add(task);
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { taskId = task.Id });
+    }
+
+    [HttpPost("customers/{customerId:guid}/outcome")]
+    [RequirePermission("tasks.write")]
+    public async Task<IActionResult> RecordOutcome(Guid customerId, [FromBody] OutcomeBody body, CancellationToken ct = default)
+    {
+        var tenantId = _current.TenantId ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        if (!await _db.Customers.AnyAsync(c => c.TenantId == tenantId && c.Id == customerId && c.DeletedAt == null, ct)) return NotFound();
+        var allowed = new[] { "renewed", "lost", "claim-resolved", "payment-received", "contacted" };
+        if (!allowed.Contains(body.Outcome, StringComparer.OrdinalIgnoreCase)) return BadRequest(new { error = "Unsupported outcome" });
+        _db.AuditLogs.Add(new AuditLog { Id = Guid.NewGuid(), TenantId = tenantId, UserId = _current.UserId,
+            EntityName = "IntelligenceOutcome", EntityId = customerId.ToString(), Action = body.Outcome,
+            Category = "Intelligence", Metadata = "source=portfolio-risk" });
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { recorded = true });
+    }
+
+    public sealed record OutcomeBody(string Outcome);
 
     [HttpGet("portfolio/export.csv")]
     public async Task<IActionResult> Export([FromQuery] DateOnly? from, [FromQuery] DateOnly? to,
@@ -244,5 +322,17 @@ public sealed class IntelligenceController : ControllerBase
         string Carrier, PolicyType PolicyType, PolicyStatus Status, DateOnly StartDate, DateOnly EndDate,
         decimal Premium, decimal? NetPremium, bool PaidOnCredit, DateOnly? PaymentPromisedOn);
     private sealed record ClaimSnapshot(Guid PolicyId, ClaimStatus Status, decimal? ClaimedAmount, decimal? ApprovedAmount, DateOnly ReportedDate);
+    private static decimal EstimateCostEur(string? model, int inputTokens, int outputTokens)
+    {
+        // Approximate list pricing, converted to EUR for an office-facing guardrail.
+        var (inputPerMillion, outputPerMillion) = (model ?? "").ToLowerInvariant() switch
+        {
+            var m when m.Contains("gpt-4o-mini") => (0.14m, 0.56m),
+            var m when m.Contains("gpt-4o") => (2.30m, 9.20m),
+            var m when m.Contains("gpt-4.1-mini") => (0.35m, 1.40m),
+            _ => (0m, 0m)
+        };
+        return inputTokens / 1_000_000m * inputPerMillion + outputTokens / 1_000_000m * outputPerMillion;
+    }
     private static string Csv(string? value) => string.IsNullOrEmpty(value) ? "" : (value.Contains(';') || value.Contains('"') || value.Contains('\n') ? $"\"{value.Replace("\"", "\"\"")}\"" : value);
 }
