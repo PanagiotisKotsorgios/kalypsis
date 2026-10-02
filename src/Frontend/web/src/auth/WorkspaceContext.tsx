@@ -89,7 +89,10 @@ export const WORKSPACE_DEFAULT_ROUTE: Record<PackageCode, string> = {
   // BackOffice lands on the agency dashboard (charts + KPIs), not a leaf page.
   BackOffice:   "/app",
   FrontOffice:  "/app/quote-builder",
-  Crm:          "/app/customers",
+  // CRM uses the same workspace hub entry point as BackOffice.  Entering the
+  // CRM card changes the active sidebar package without sending the user to a
+  // separate customer page/URL.
+  Crm:          "/app",
   Intelligence: "/app/report-builder",
   Integrations: "/app/dias",
   Ermes:        "/app/ermes"
