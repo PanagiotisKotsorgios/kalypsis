@@ -233,6 +233,8 @@ public interface IAppDbContext
     // Per-tenant handbook / instructions edited by the AgencyAdmin, visible
     // to every staff member of the same γραφείο.
     DbSet<AgencyInstruction> AgencyInstructions { get; }
+    DbSet<OfficeWebsite> OfficeWebsites { get; }
+    DbSet<OfficeWebsiteRequest> OfficeWebsiteRequests { get; }
 
     // Per-tenant backup archives + policy for scheduled backups + GDPR
     // right-to-erasure request log.

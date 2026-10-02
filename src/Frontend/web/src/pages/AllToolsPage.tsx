@@ -37,9 +37,6 @@ const TOOLS: Tool[] = [
   { to: "/friendly-settlements", labelKey: "nav.friendly",     descKey: "tools.friendly",     category: "claimsOps",   pkg: "BackOffice" },
 
   // Quoting / front-office sub-tools.
-  { to: "/risk-profiles", labelKey: "nav.riskProfiles", descKey: "tools.riskProfiles", category: "quotes", pkg: "FrontOffice" },
-  { to: "/print-pay",     labelKey: "nav.printPay",     descKey: "tools.printPay",     category: "quotes", pkg: "FrontOffice" },
-  { to: "/plafond",       labelKey: "nav.plafond",      descKey: "tools.plafond",      category: "quotes", pkg: "FrontOffice" },
 
   // Intelligence power-user tools (sidebar shows the main Reports page only).
   { to: "/workflows",      labelKey: "nav.workflows",      descKey: "tools.workflows",      category: "intelligence", pkg: "Intelligence" },

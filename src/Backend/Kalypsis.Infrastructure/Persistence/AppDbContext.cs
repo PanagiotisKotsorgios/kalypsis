@@ -239,6 +239,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<PolicyCoverAdjustment> PolicyCoverAdjustments => Set<PolicyCoverAdjustment>();
 
     public DbSet<AgencyInstruction> AgencyInstructions => Set<AgencyInstruction>();
+    public DbSet<OfficeWebsite> OfficeWebsites => Set<OfficeWebsite>();
+    public DbSet<OfficeWebsiteRequest> OfficeWebsiteRequests => Set<OfficeWebsiteRequest>();
 
     public DbSet<TenantBackup> TenantBackups => Set<TenantBackup>();
     public DbSet<TenantBackupPolicy> TenantBackupPolicies => Set<TenantBackupPolicy>();

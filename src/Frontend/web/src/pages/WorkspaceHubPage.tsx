@@ -6,6 +6,7 @@ import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
 import PeopleIcon from "@mui/icons-material/People";
 import InsightsIcon from "@mui/icons-material/Insights";
 import HubIcon from "@mui/icons-material/Hub";
+import LanguageIcon from "@mui/icons-material/Language";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { useNavigate } from "react-router-dom";
@@ -34,12 +35,13 @@ interface PackageMeta {
   bodyKey: string;
 }
 
-// Phase 15.1 — for now only BackOffice + Crm (client portal) are operational.
-// Other workspaces are intentionally hidden until they're production-ready.
+// Workspace cards are available for every operational package and are filtered
+// by the tenant's active packages and the current user's permissions.
 const PACKAGES: PackageMeta[] = [
   { code: "BackOffice",   icon: <AccountBalanceIcon />, image: "/images/workspace-backoffice.svg", nameKey: "ws.BackOffice.name",   bodyKey: "ws.BackOffice.body" },
   { code: "Crm",          icon: <PeopleIcon />,         image: "/images/workspace-crm.svg",       nameKey: "ws.Crm.name",          bodyKey: "ws.Crm.body" },
-  { code: "Intelligence", icon: <InsightsIcon />,      image: "/images/workspace-intelligence.svg?v=20261002", nameKey: "ws.Intelligence.name", bodyKey: "ws.Intelligence.body" }
+  { code: "Intelligence", icon: <InsightsIcon />,      image: "/images/workspace-intelligence.svg?v=20261002", nameKey: "ws.Intelligence.name", bodyKey: "ws.Intelligence.body" },
+  { code: "FrontOffice", icon: <LanguageIcon />, image: "/images/workspace-crm.svg", nameKey: "ws.FrontOffice.name", bodyKey: "ws.FrontOffice.body" }
 ];
 // Kept for type safety — re-enable these by moving them into PACKAGES above.
 void RequestQuoteIcon; void HubIcon;

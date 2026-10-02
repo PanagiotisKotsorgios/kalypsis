@@ -166,6 +166,7 @@
     "platformOcBridges": "OC Bridges (per-tenant)",
     "renewals": "Renewals",
     "coverNotes": "Cover Notes",
+    "officeWebsite": "Office website",
     "branchDesigner": "Branch Designer",
     "deliveryTracking": "Contract Delivery",
     "appointments": "Appointments & Calendar",
@@ -1169,10 +1170,10 @@
           "example": "An agency currently using a legacy accounting system can replace just that, while keeping their existing carrier-portal policy issuance flow untouched."
         },
         "frontoffice": {
-          "name": "FrontOffice — Your online carrier interface",
-          "tagline": "Quoting, issuance, renewals.",
-          "body": "Your window to every carrier. Quote every insurer in parallel, save risk profiles by plate or tax-ID, file applications and issue policies on the spot, manage plafond regimes (Print-Pay, Pay-Print, Piggy Bank). Send orders to the manager for carriers that don't yet support direct issuance.",
-          "example": "An agency currently using WebInsurer for quoting can switch to FrontOffice and keep their existing back-office program running in parallel."
+          "name": "FrontOffice — Your office website",
+          "tagline": "Domain, posts, offers, enquiries.",
+          "body": "Create a public office website on your own domain with posts, offers, popup banners and enquiry forms. Requests arrive at the office by email and notification for fast follow-up. It does not include multi-carrier quoting or policy issuance.",
+          "example": "An agency can build a professional public presence and collect new enquiries without changing the carrier-portal issuance process it already uses."
         },
         "crm": {
           "name": "CRM & Customer Portal — The customer experience",
@@ -1739,8 +1740,8 @@
       "body": "Cashier, payments, commissions, over-commissions, accounting exports. Manual or bridged data entry."
     },
     "FrontOffice": {
-      "name": "FrontOffice — Production",
-      "body": "Quote every carrier in parallel, saved risk profiles, Print-Pay, Pay-Print, Piggy Bank."
+      "name": "FrontOffice — Office website",
+      "body": "A public office website on your own domain with posts, offers, popup banners and enquiry forms."
     },
     "Crm": {
       "name": "CRM & Customer Portal",
@@ -2707,7 +2708,7 @@
       "subtitle": "Enable or disable packages at any time. Changes take effect within seconds — no user logout required.",
       "items": {
         "BackOffice":   { "name": "BackOffice",   "tag": "Package I",   "body": "Agency ledger: cashier, payments, commissions, over-commissions, accounting exports, KEPYO, magnetic imports, legacy back-office bridges." },
-        "FrontOffice":  { "name": "FrontOffice",  "tag": "Package II",  "body": "Multi-carrier quoting, saved risk profiles, applications & issuance, Print-Pay, Pay-Print, Piggy Bank, Carrier Orders." },
+        "FrontOffice":  { "name": "FrontOffice",  "tag": "Package II",  "body": "An office website on your own domain with posts, offers, popup banners and insurance request forms delivered to your office by email and notification. No multi-quote or policy issuance." },
         "Crm":          { "name": "CRM & Customer Portal", "tag": "Package III", "body": "Customer portal, mobile app, requests, appointments, marketing campaigns, bulk Email/SMS/Viber." },
         "Intelligence": { "name": "Reports & Intelligence", "tag": "Package IV", "body": "Production goals, report builder, audit logs, AI churn prediction, AI PDF extraction, communication drafting, workflows." },
         "Integrations": { "name": "Integrations & Compliance", "tag": "Package V", "body": "myDATA, online payments (e-pos, ePay, DIAS, Viva), telephony with recording, mailbox sync, branches, B2B portal." },

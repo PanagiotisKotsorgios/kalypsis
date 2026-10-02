@@ -1758,6 +1758,61 @@ public static class DataSeeder
                 UNIQUE KEY `UX_agency_instructions_TenantId` (`TenantId`)
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
 
+        // --- FrontOffice office website + public lead inbox --------------
+        await EnsureTableAsync(db, logger, dbName,
+            table: "office_websites",
+            createSql: @"CREATE TABLE IF NOT EXISTS `office_websites` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `AgencyOfficeScopeId` char(36) NULL,
+                `Slug` varchar(120) NOT NULL,
+                `CustomDomain` varchar(255) NULL,
+                `SiteName` varchar(200) NOT NULL,
+                `Tagline` varchar(500) NOT NULL,
+                `HeroTitle` varchar(300) NOT NULL,
+                `HeroBody` varchar(4000) NOT NULL,
+                `LogoUrl` varchar(500) NULL,
+                `BrandColorHex` varchar(16) NOT NULL DEFAULT '#1f7bb3',
+                `PostsJson` longtext NOT NULL,
+                `OffersJson` longtext NOT NULL,
+                `BannersJson` longtext NOT NULL,
+                `FormConfigJson` longtext NOT NULL,
+                `IsPublished` tinyint(1) NOT NULL DEFAULT 0,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_office_websites_tenant_slug` (`TenantId`, `Slug`),
+                UNIQUE KEY `UX_office_websites_domain` (`CustomDomain`),
+                KEY `IX_office_websites_tenant` (`TenantId`)
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
+        await EnsureTableAsync(db, logger, dbName,
+            table: "office_website_requests",
+            createSql: @"CREATE TABLE IF NOT EXISTS `office_website_requests` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `AgencyOfficeScopeId` char(36) NULL,
+                `OfficeWebsiteId` char(36) NOT NULL,
+                `FullName` varchar(200) NOT NULL,
+                `Email` varchar(254) NOT NULL,
+                `Phone` varchar(50) NULL,
+                `Product` varchar(120) NULL,
+                `Message` varchar(5000) NOT NULL,
+                `PreferredContact` varchar(30) NULL,
+                `ConsentGiven` tinyint(1) NOT NULL DEFAULT 0,
+                `Status` varchar(30) NOT NULL DEFAULT 'New',
+                `Source` varchar(100) NULL,
+                `ContactedAt` datetime(6) NULL,
+                `InternalNotes` varchar(4000) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_office_website_requests_tenant_status_created` (`TenantId`, `Status`, `CreatedAt`),
+                CONSTRAINT `FK_office_website_requests_websites` FOREIGN KEY (`OfficeWebsiteId`) REFERENCES `office_websites` (`Id`) ON DELETE CASCADE
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         // --- tenant_backups table -----------------------------------------
         // Manifest of every full JSON backup we've written for a tenant.
         // The compressed archive itself lives on disk (Storage__LocalRoot/backups/…).

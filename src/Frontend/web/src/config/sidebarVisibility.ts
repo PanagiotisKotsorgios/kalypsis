@@ -63,6 +63,7 @@ export const SIDEBAR_GROUP_CONTAINERS: SidebarVisibilityItem[] = [
   { path: "reports", label: "Αναφορές", detail: "Περιλαμβάνει αναφορές, ονομαστικές αναφορές και στατιστικά παραγωγής.", packages: ["Intelligence"] },
   { path: "intelligence", label: "Νοημοσύνη", detail: "Περιλαμβάνει AI Workbench, prompts, συνομιλίες, ιστορικό, αυτοματισμούς και ρυθμίσεις AI.", packages: ["Intelligence"] },
   { path: "crm", label: "CRM", detail: "Περιλαμβάνει τις ομαδοποιημένες λειτουργίες CRM.", packages: ["Crm"] },
+  { path: "website", label: "Ιστοσελίδα γραφείου", detail: "Δημόσια σελίδα, άρθρα, προσφορές, banners και αιτήσεις ενδιαφέροντος.", packages: ["FrontOffice"] },
   { path: "integrationsGrp", label: "Υπηρεσίες διασύνδεσης", detail: "Περιλαμβάνει τις ομαδοποιημένες διασυνδέσεις.", packages: ["Integrations"] },
   { path: "setup", label: "Ρυθμίσεις διασυνδέσεων", detail: "Περιλαμβάνει υποκαταστήματα και σχεδιασμό κλάδων.", packages: ["Integrations"] }
 ];
@@ -161,8 +162,9 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     title: "FrontOffice",
     description: "Εμφανίζονται μόνο όταν το πακέτο FrontOffice είναι ενεργό.",
     packages: ["FrontOffice"],
+    groupKey: "website",
     items: [
-      { path: "/cover-notes", label: "Σημειώματα κάλυψης" }
+      { path: "/office-website", label: "Ιστοσελίδα γραφείου" }
     ]
   },
   {

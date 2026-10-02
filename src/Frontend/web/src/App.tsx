@@ -236,6 +236,7 @@ import FolderSpecialIcon from "@mui/icons-material/FolderSpecial";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
+import LanguageIcon from "@mui/icons-material/Language";
 import { AllToolsPage } from "./pages/AllToolsPage";
 import { ErmesPage } from "./pages/ErmesPage";
 import { ErmesStandalonePage } from "./pages/ErmesStandalonePage";
@@ -267,6 +268,8 @@ import { PlatformBookkeepingPage } from "./pages/PlatformBookkeepingPage";
 import { BookkeepingPage } from "./pages/BookkeepingPage";
 import { PlatformDesktopReleasesPage } from "./pages/PlatformDesktopReleasesPage";
 import { PlatformDesktopLicensesPage } from "./pages/PlatformDesktopLicensesPage";
+import { OfficeWebsitePage } from "./pages/OfficeWebsitePage";
+import { OfficePublicSitePage } from "./pages/OfficePublicSitePage";
 
 // Exported so Platform Admin can render a read-only, faithful sidebar preview
 // for an office user without starting an impersonation session.
@@ -402,10 +405,9 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Crm" },
 
     // ===== FrontOffice =====
-    // quote-builder is still routable but hidden from the sidebar until the
-    // carrier-aware quote engine ships. cover-notes stays — it's wired.
-    { to: "/cover-notes", labelKey: "nav.coverNotes", icon: <DescriptionOutlinedIcon />, package: "FrontOffice" },
-    { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "FrontOffice" },
+    // FrontOffice is the office-owned public website and lead inbox. It does
+    // not promise quoting or policy issuance.
+    { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
 
     // ===== Intelligence =====
     // persistency hidden — analytics shell exists but not wired to data yet.
@@ -463,6 +465,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
     { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
+    { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
     // CRM
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
@@ -478,6 +481,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
     { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
+    { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/crm-groups", labelKey: "nav.crmGroups", icon: <GroupWorkIconRC />, package: "Crm", permission: "marketing.read" },
@@ -711,7 +715,7 @@ export default function App() {
       <UserImpersonationBanner />
       <UpgradePlanDialogHost />
       <Routes>
-        <Route path="/" element={user ? <Navigate to="/app" replace /> : <LandingPage />} />
+        <Route path="/" element={user ? <Navigate to="/app" replace /> : (typeof window !== "undefined" && !["mykalypsis.gr", "www.mykalypsis.gr", "app.kalypsis.gr", "localhost", "127.0.0.1"].includes(window.location.hostname) ? <OfficePublicSitePage /> : <LandingPage />)} />
         <Route path="/login" element={user ? <Navigate to="/app" replace /> : <LoginPage />} />
         <Route
           path="/forgot-password"
@@ -724,6 +728,7 @@ export default function App() {
         <Route path="/register" element={user ? <Navigate to="/app" replace /> : <RegisterPage />} />
         <Route path="/register/agency" element={<Navigate to="/register" replace />} />
         <Route path="/register/agent" element={<Navigate to="/register" replace />} />
+        <Route path="/site/:slug" element={<OfficePublicSitePage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/download" element={<DownloadPage />} />
         <Route path="/download/releases" element={<DesktopReleasesPage />} />
@@ -994,6 +999,7 @@ export default function App() {
                   <Route path="appointments" element={<PackageGate package="Crm"><AppointmentsPage /></PackageGate>} />
                   <Route path="tariffs" element={<TariffsPage />} />
                   <Route path="cover-notes" element={<CoverNotesPage />} />
+                  <Route path="office-website" element={<PackageGate package="FrontOffice"><OfficeWebsitePage /></PackageGate>} />
                   <Route path="branches" element={<BranchesPage />} />
                   <Route path="securities" element={<Navigate to="/app/financials?tab=securities" replace />} />
                   <Route path="bank-connections" element={<PackageGate package="Integrations"><BankConnectionsPage /></PackageGate>} />
