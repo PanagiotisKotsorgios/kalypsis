@@ -172,11 +172,16 @@ public class BankConnectionsController : ControllerBase
 [Route("api/marketing-campaigns")]
 [Authorize(Policy = "AgencyStaff")]
 [RequiresPackage(PackageCode.Crm)]
-public class MarketingCampaignsController : ControllerBase
-{
-    private readonly IMediator _m; public MarketingCampaignsController(IMediator m) => _m = m;
-    [HttpGet] [RequirePermission("marketing.read")] public async Task<ActionResult<IReadOnlyList<MarketingCampaignDto>>> List(CancellationToken ct) => Ok(await _m.Send(new ListMarketingCampaignsQuery(), ct));
-    [HttpPost] [RequirePermission("marketing.write")] public async Task<ActionResult<MarketingCampaignDto>> Create([FromBody] MarketingCampaignBody body, CancellationToken ct) => Ok(await _m.Send(new CreateMarketingCampaignCommand(body), ct));
+  public class MarketingCampaignsController : ControllerBase
+  {
+      private readonly IMediator _m; public MarketingCampaignsController(IMediator m) => _m = m;
+      [HttpGet] [RequirePermission("marketing.read")] public async Task<ActionResult<IReadOnlyList<MarketingCampaignDto>>> List(CancellationToken ct) => Ok(await _m.Send(new ListMarketingCampaignsQuery(), ct));
+      [HttpGet("deliveries")] [RequirePermission("marketing.read")] public async Task<ActionResult<IReadOnlyList<MarketingDeliveryLogDto>>> Deliveries(
+          [FromQuery] Guid? campaignId, [FromQuery] Guid? customerId, [FromQuery] string? channel,
+          [FromQuery] string? provider, [FromQuery] string? status, [FromQuery] DateTime? from,
+          [FromQuery] DateTime? to, [FromQuery] string? search, CancellationToken ct)
+          => Ok(await _m.Send(new ListMarketingDeliveryLogsQuery(campaignId, customerId, channel, provider, status, from, to, search), ct));
+      [HttpPost] [RequirePermission("marketing.write")] public async Task<ActionResult<MarketingCampaignDto>> Create([FromBody] MarketingCampaignBody body, CancellationToken ct) => Ok(await _m.Send(new CreateMarketingCampaignCommand(body), ct));
     [HttpPut("{id:guid}")] [RequirePermission("marketing.write")] public async Task<ActionResult<MarketingCampaignDto>> Update(Guid id, [FromBody] MarketingCampaignBody body, CancellationToken ct) => Ok(await _m.Send(new UpdateMarketingCampaignCommand(id, body), ct));
     [HttpPost("{id:guid}/send")] [RequirePermission("marketing.send")] public async Task<ActionResult<MarketingCampaignDto>> Send(Guid id, CancellationToken ct) => Ok(await _m.Send(new SendMarketingCampaignCommand(id), ct));
     [HttpDelete("{id:guid}")] [RequirePermission("marketing.write")] public async Task<IActionResult> Delete(Guid id, CancellationToken ct) { await _m.Send(new DeleteMarketingCampaignCommand(id), ct); return NoContent(); }

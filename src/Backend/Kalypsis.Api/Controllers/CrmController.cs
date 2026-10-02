@@ -1,4 +1,5 @@
 using Kalypsis.Application.Features.Crm;
+using Kalypsis.Api.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -39,12 +40,42 @@ public sealed class CrmController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<CrmGroupMemberDto>>> Members(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetCrmGroupMembersQuery(id), ct));
 
+    [HttpPost("groups/{id:guid}/refresh")]
+    [Authorize(Policy = "AgencyManager")]
+    public async Task<ActionResult<CrmGroupDto>> RefreshGroup(Guid id, CancellationToken ct)
+        => Ok(await _mediator.Send(new RefreshCrmGroupCommand(id), ct));
+
     [HttpPut("groups/{id:guid}/members")]
     [Authorize(Policy = "AgencyManager")]
     public async Task<ActionResult<CrmGroupDto>> SetMembers(Guid id, [FromBody] SetMembersBody body, CancellationToken ct)
         => Ok(await _mediator.Send(new SetCrmGroupMembersCommand(id, body.MemberIds ?? Array.Empty<Guid>()), ct));
 
     public sealed record SetMembersBody(IReadOnlyList<Guid>? MemberIds);
+
+    [HttpGet("opportunities")]
+    [RequirePermission("marketing.read")]
+    public async Task<ActionResult<IReadOnlyList<CrmOpportunityDto>>> Opportunities(
+        [FromQuery] string? search, [FromQuery] string? stage,
+        [FromQuery] DateTime? from, [FromQuery] DateTime? to, CancellationToken ct)
+        => Ok(await _mediator.Send(new ListCrmOpportunitiesQuery(search, stage, from, to), ct));
+
+    [HttpPost("opportunities")]
+    [RequirePermission("marketing.write")]
+    public async Task<ActionResult<CrmOpportunityDto>> CreateOpportunity([FromBody] CrmOpportunityBody body, CancellationToken ct)
+        => Ok(await _mediator.Send(new CreateCrmOpportunityCommand(body), ct));
+
+    [HttpPut("opportunities/{id:guid}")]
+    [RequirePermission("marketing.write")]
+    public async Task<ActionResult<CrmOpportunityDto>> UpdateOpportunity(Guid id, [FromBody] CrmOpportunityBody body, CancellationToken ct)
+        => Ok(await _mediator.Send(new UpdateCrmOpportunityCommand(id, body), ct));
+
+    [HttpDelete("opportunities/{id:guid}")]
+    [RequirePermission("marketing.write")]
+    public async Task<IActionResult> DeleteOpportunity(Guid id, CancellationToken ct)
+    {
+        await _mediator.Send(new DeleteCrmOpportunityCommand(id), ct);
+        return NoContent();
+    }
 
     [HttpGet("producers/{producerId:guid}/communications")]
     public async Task<ActionResult<IReadOnlyList<ProducerCommunicationDto>>> ProducerCommunications(Guid producerId, CancellationToken ct)

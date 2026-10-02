@@ -11,6 +11,7 @@ using Kalypsis.Application.Features.Customers;
 using Kalypsis.Application.Features.EmailTemplates;
 using Kalypsis.Application.Features.Financials;
 using Kalypsis.Application.Features.Notifications;
+using Kalypsis.Application.Features.Marketing;
 using Kalypsis.Application.Features.Policies;
 using Kalypsis.Application.Features.Producers;
 using Kalypsis.Application.Features.ProductionLists;
@@ -29,7 +30,12 @@ namespace Kalypsis.Application.Features.Exports;
 public record UniversalExportQuery(
     string Entity,
     string Format,
-    string? Search) : IRequest<ExportResult>;
+    string? Search,
+    string? Channel = null,
+    string? Provider = null,
+    string? Status = null,
+    DateTime? From = null,
+    DateTime? To = null) : IRequest<ExportResult>;
 
 public class UniversalExportHandler : IRequestHandler<UniversalExportQuery, ExportResult>
 {
@@ -47,7 +53,7 @@ public class UniversalExportHandler : IRequestHandler<UniversalExportQuery, Expo
     public async Task<ExportResult> Handle(UniversalExportQuery q, CancellationToken ct)
     {
         var entityKey = (q.Entity ?? "").Trim().ToLowerInvariant();
-        var sheet = await Dispatch(entityKey, q.Search, ct);
+        var sheet = await Dispatch(entityKey, q.Search, q.Channel, q.Provider, q.Status, q.From, q.To, ct);
         var ts = DateTime.UtcNow.ToString("yyyyMMdd-HHmm");
         var name = $"{entityKey}-{ts}";
         var fmt = (q.Format ?? "xlsx").Trim().ToLowerInvariant();
@@ -61,7 +67,7 @@ public class UniversalExportHandler : IRequestHandler<UniversalExportQuery, Expo
         };
     }
 
-    private async Task<Sheet> Dispatch(string entity, string? search, CancellationToken ct) => entity switch
+    private async Task<Sheet> Dispatch(string entity, string? search, string? channel, string? provider, string? status, DateTime? from, DateTime? to, CancellationToken ct) => entity switch
     {
         "customers"            => await BuildCustomersAsync(search, ct),
         "policies"             => await BuildPoliciesAsync(search, ct),
@@ -78,8 +84,21 @@ public class UniversalExportHandler : IRequestHandler<UniversalExportQuery, Expo
         "cover-notes"          => await BuildCoverNotesAsync(search, ct),
         "email-templates"      => await BuildEmailTemplatesAsync(search, ct),
         "notifications"        => await BuildNotificationsAsync(search, ct),
+        "crm-delivery-history" => await BuildCrmDeliveryHistoryAsync(search, channel, provider, status, from, to, ct),
         _ => throw new AppException("export_unknown_entity", $"Δεν υπάρχει εξαγωγή για: {entity}", 400)
     };
+
+    private async Task<Sheet> BuildCrmDeliveryHistoryAsync(string? search, string? channel, string? provider, string? status, DateTime? from, DateTime? to, CancellationToken ct)
+    {
+        var rows = await _mediator.Send(new ListMarketingDeliveryLogsQuery(null, null, channel, provider, status, from, to, search), ct);
+        return new Sheet("Ιστορικό αποστολών CRM",
+            new[] { "Ημερομηνία", "Καμπάνια", "Πελάτης", "Παραλήπτης", "Κανάλι", "Πάροχος", "Κατάσταση", "Θέμα", "Κείμενο", "Σφάλμα" },
+            rows.Select(x => (IReadOnlyList<string>)new[]
+            {
+                ExportFormatter.FormatDateTime(x.SentAt), x.CampaignName, x.CustomerName ?? "",
+                x.Recipient, x.Channel, x.Provider, x.Status, x.Subject ?? "", x.BodyText ?? "", x.ErrorMessage ?? ""
+            }).ToList());
+    }
 
     private static bool Match(string? haystack, string needle) =>
         !string.IsNullOrEmpty(haystack) && haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);

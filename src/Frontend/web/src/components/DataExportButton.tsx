@@ -28,6 +28,8 @@ interface DataExportButtonProps<T = unknown> {
   /** Optional authenticated endpoint. Defaults to the universal office export route. */
   endpoint?: string;
   search?: string;
+  /** Additional filter query parameters forwarded to the export endpoint. */
+  additionalParams?: Record<string, string | undefined>;
   size?: "small" | "medium" | "large";
   label?: string;
   defaultFormat?: ExportFormat;
@@ -70,6 +72,7 @@ export function DataExportButton<T = unknown>({
   entity,
   endpoint,
   search,
+  additionalParams,
   size = "small",
   label = "Εξαγωγή",
   defaultFormat = "xlsx",
@@ -90,6 +93,11 @@ export function DataExportButton<T = unknown>({
     try {
       const params: Record<string, string> = { format };
       if (search && search.trim()) params.search = search.trim();
+      if (additionalParams) {
+        for (const [key, value] of Object.entries(additionalParams)) {
+          if (value && value.trim()) params[key] = value.trim();
+        }
+      }
       if (visibleColumnKeys && visibleColumnKeys.length > 0) {
         params.columns = visibleColumnKeys.join(",");
       }

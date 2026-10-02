@@ -63,6 +63,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<FinancialMovement> FinancialMovements => Set<FinancialMovement>();
     public DbSet<BankConnection> BankConnections => Set<BankConnection>();
     public DbSet<MarketingCampaign> MarketingCampaigns => Set<MarketingCampaign>();
+    public DbSet<MarketingDeliveryLog> MarketingDeliveryLogs => Set<MarketingDeliveryLog>();
+    public DbSet<CrmOpportunity> CrmOpportunities => Set<CrmOpportunity>();
     public DbSet<DeliveryRecord> DeliveryRecords => Set<DeliveryRecord>();
     public DbSet<DocumentFolder> DocumentFolders => Set<DocumentFolder>();
     public DbSet<PartnerPortalAccess> PartnerPortalAccesses => Set<PartnerPortalAccess>();

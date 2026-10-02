@@ -27,9 +27,14 @@ public class DataExportsController : ControllerBase
         string entity,
         [FromQuery] string format = "xlsx",
         [FromQuery] string? search = null,
+        [FromQuery] string? channel = null,
+        [FromQuery] string? provider = null,
+        [FromQuery] string? status = null,
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null,
         CancellationToken ct = default)
     {
-        var result = await _mediator.Send(new UniversalExportQuery(entity, format, search), ct);
+        var result = await _mediator.Send(new UniversalExportQuery(entity, format, search, channel, provider, status, from, to), ct);
         return File(result.Content, result.MimeType, result.FileName);
     }
 }

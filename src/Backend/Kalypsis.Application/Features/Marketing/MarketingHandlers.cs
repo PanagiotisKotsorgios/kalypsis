@@ -4,6 +4,7 @@ using FluentValidation;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
 using Kalypsis.Application.Features.Customers;
+using Kalypsis.Application.Features.Crm;
 using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
 using MediatR;
@@ -42,6 +43,57 @@ public record MarketingCampaignBody(
     string Name, string Subject, string BodyHtml, string? SmsBody, string? ViberBody,
     IReadOnlyList<string>? Channels, string? SegmentKey, string? OccupationFilter, string? NeedKindFilter,
     bool OnlyUninsuredNeeds, CampaignStatus Status, DateTime? ScheduledFor);
+
+public record MarketingDeliveryLogDto(
+    Guid Id, Guid CampaignId, string CampaignName, Guid? CustomerId, string? CustomerName,
+    string Channel, string Provider, string Status, string? RecipientName, string Recipient,
+    string? Subject, string? BodyHtml, string? BodyText, string? ProviderMessageId,
+    string? ErrorMessage, DateTime SentAt, DateTime? DeliveredAt, DateTime? OpenedAt,
+    DateTime? ClickedAt, DateTime? UnsubscribedAt);
+
+public record ListMarketingDeliveryLogsQuery(
+    Guid? CampaignId, Guid? CustomerId, string? Channel, string? Provider, string? Status,
+    DateTime? From, DateTime? To, string? Search) : IRequest<IReadOnlyList<MarketingDeliveryLogDto>>;
+
+public sealed class ListMarketingDeliveryLogsHandler : IRequestHandler<ListMarketingDeliveryLogsQuery, IReadOnlyList<MarketingDeliveryLogDto>>
+{
+    private readonly IAppDbContext _db;
+    public ListMarketingDeliveryLogsHandler(IAppDbContext db) => _db = db;
+
+    public async Task<IReadOnlyList<MarketingDeliveryLogDto>> Handle(ListMarketingDeliveryLogsQuery r, CancellationToken ct)
+    {
+        var q = _db.MarketingDeliveryLogs
+            .Include(x => x.Customer)
+            .Where(x => x.DeletedAt == null);
+        if (r.CampaignId.HasValue) q = q.Where(x => x.CampaignId == r.CampaignId.Value);
+        if (r.CustomerId.HasValue) q = q.Where(x => x.CustomerId == r.CustomerId.Value);
+        if (!string.IsNullOrWhiteSpace(r.Channel)) q = q.Where(x => x.Channel == r.Channel);
+        if (!string.IsNullOrWhiteSpace(r.Provider)) q = q.Where(x => x.Provider == r.Provider);
+        if (!string.IsNullOrWhiteSpace(r.Status)) q = q.Where(x => x.Status == r.Status);
+        if (r.From.HasValue) q = q.Where(x => x.SentAt >= r.From.Value);
+        if (r.To.HasValue) q = q.Where(x => x.SentAt < r.To.Value.AddDays(1));
+        if (!string.IsNullOrWhiteSpace(r.Search))
+        {
+            var s = $"%{r.Search.Trim()}%";
+            q = q.Where(x => EF.Functions.Like(x.CampaignName, s)
+                || EF.Functions.Like(x.Recipient, s)
+                || EF.Functions.Like(x.RecipientName ?? "", s)
+                || EF.Functions.Like(x.Subject ?? "", s));
+        }
+
+        var rows = await q.OrderByDescending(x => x.SentAt).Take(5000).ToListAsync(ct);
+        return rows.Select(Map).ToList();
+    }
+
+    private static MarketingDeliveryLogDto Map(MarketingDeliveryLog x) => new(
+        x.Id, x.CampaignId, x.CampaignName, x.CustomerId,
+        x.Customer == null ? null : x.Customer.Type == CustomerType.Company
+            ? x.Customer.CompanyName ?? x.Customer.CustomerNumber
+            : $"{x.Customer.FirstName} {x.Customer.LastName}".Trim(),
+        x.Channel, x.Provider, x.Status, x.RecipientName, x.Recipient, x.Subject,
+        x.BodyHtml, x.BodyText, x.ProviderMessageId, x.ErrorMessage, x.SentAt,
+        x.DeliveredAt, x.OpenedAt, x.ClickedAt, x.UnsubscribedAt);
+}
 
 public record ListMarketingCampaignsQuery() : IRequest<IReadOnlyList<MarketingCampaignDto>>;
 public class ListMarketingCampaignsQueryHandler : IRequestHandler<ListMarketingCampaignsQuery, IReadOnlyList<MarketingCampaignDto>>
@@ -152,19 +204,26 @@ public class SendMarketingCampaignCommandHandler : IRequestHandler<SendMarketing
             var smsBody = Render(string.IsNullOrWhiteSpace(campaign.SmsBody) ? StripHtml(campaign.BodyHtml) : campaign.SmsBody, customer);
             var viberBody = Render(string.IsNullOrWhiteSpace(campaign.ViberBody) ? smsBody : campaign.ViberBody, customer);
 
+            var renderedSubject = Render(campaign.Subject, customer);
             if (channels.Contains(MarketingChannels.Email) && !string.IsNullOrWhiteSpace(customer.Email))
             {
                 if (granted.Contains(ConsentType.EmailMarketing))
                 {
                     var result = await _email.SendAsync(new EmailMessage(
-                        customer.Email!, name, Render(campaign.Subject, customer), htmlBody,
+                        customer.Email!, name, renderedSubject, htmlBody,
                         AllowCustomerRecipient: true, TenantId: campaign.TenantId), ct);
-                    if (result.Success) { sent++; AddCommunication(campaign, customer, CommunicationKind.Email, campaign.Subject, "Email campaign sent."); }
+                    AddDeliveryLog(campaign, customer, name, MarketingChannels.Email, "Brevo", result.Success ? "Sent" : "Failed",
+                        customer.Email!, renderedSubject, htmlBody, StripHtml(htmlBody), result.ErrorMessage);
+                    if (result.Success) { sent++; AddCommunication(campaign, customer, CommunicationKind.Email, renderedSubject, "Email campaign sent."); }
                     else failed++;
                 }
-                else failed++;
+                else { failed++; AddDeliveryLog(campaign, customer, name, MarketingChannels.Email, "Brevo", "SkippedConsent", customer.Email!, renderedSubject, htmlBody, StripHtml(htmlBody), "Marketing email consent was not granted."); }
             }
-            else if (channels.Contains(MarketingChannels.Email)) failed++;
+            else if (channels.Contains(MarketingChannels.Email))
+            {
+                failed++;
+                AddDeliveryLog(campaign, customer, name, MarketingChannels.Email, "Brevo", "SkippedNoRecipient", customer.Email ?? "", renderedSubject, htmlBody, StripHtml(htmlBody), "Customer has no email address.");
+            }
 
             var phone = customer.MobilePhone ?? customer.Phone;
             if (channels.Contains(MarketingChannels.Sms) && !string.IsNullOrWhiteSpace(phone))
@@ -179,12 +238,18 @@ public class SendMarketingCampaignCommandHandler : IRequestHandler<SendMarketing
                         ProviderMessageId = null, Status = result.Success ? "Sent" : "Failed",
                         FailureReason = result.ErrorMessage, QueuedAt = DateTime.UtcNow
                     });
+                    AddDeliveryLog(campaign, customer, name, MarketingChannels.Sms, "Bulker", result.Success ? "Sent" : "Failed",
+                        phone!, campaign.Name, null, smsBody, result.ErrorMessage);
                     if (result.Success) { sent++; AddCommunication(campaign, customer, CommunicationKind.Sms, campaign.Name, "SMS campaign sent."); }
                     else failed++;
                 }
-                else failed++;
+                else { failed++; AddDeliveryLog(campaign, customer, name, MarketingChannels.Sms, "Bulker", "SkippedConsent", phone!, campaign.Name, null, smsBody, "Marketing SMS consent was not granted."); }
             }
-            else if (channels.Contains(MarketingChannels.Sms)) failed++;
+            else if (channels.Contains(MarketingChannels.Sms))
+            {
+                failed++;
+                AddDeliveryLog(campaign, customer, name, MarketingChannels.Sms, "Bulker", "SkippedNoRecipient", phone ?? "", campaign.Name, null, smsBody, "Customer has no phone number.");
+            }
 
             if (channels.Contains(MarketingChannels.Viber) && !string.IsNullOrWhiteSpace(phone))
             {
@@ -198,12 +263,18 @@ public class SendMarketingCampaignCommandHandler : IRequestHandler<SendMarketing
                         ProviderMessageId = result.ProviderMessageId, Status = result.Success ? "Sent" : "Failed",
                         FailureReason = result.ErrorMessage, QueuedAt = DateTime.UtcNow
                     });
+                    AddDeliveryLog(campaign, customer, name, MarketingChannels.Viber, "Viber", result.Success ? "Sent" : "Failed",
+                        phone!, campaign.Name, null, viberBody, result.ErrorMessage, result.ProviderMessageId);
                     if (result.Success) { sent++; AddCommunication(campaign, customer, CommunicationKind.Sms, campaign.Name, "Viber campaign sent."); }
                     else failed++;
                 }
-                else failed++;
+                else { failed++; AddDeliveryLog(campaign, customer, name, MarketingChannels.Viber, "Viber", "SkippedConsent", phone!, campaign.Name, null, viberBody, "Viber marketing consent was not granted."); }
             }
-            else if (channels.Contains(MarketingChannels.Viber)) failed++;
+            else if (channels.Contains(MarketingChannels.Viber))
+            {
+                failed++;
+                AddDeliveryLog(campaign, customer, name, MarketingChannels.Viber, "Viber", "SkippedNoRecipient", phone ?? "", campaign.Name, null, viberBody, "Customer has no phone number.");
+            }
         }
 
         campaign.Recipients = audience.Count;
@@ -234,6 +305,10 @@ public class SendMarketingCampaignCommandHandler : IRequestHandler<SendMarketing
             var rawGroupId = campaign.SegmentKey[6..];
             if (Guid.TryParse(rawGroupId, out var groupId))
             {
+                var group = await _db.CrmGroups.Include(x => x.Members)
+                    .FirstOrDefaultAsync(x => x.Id == groupId && x.DeletedAt == null, ct);
+                if (group?.IsDynamic == true)
+                    await CrmGroupDynamicMaterializer.RefreshAsync(group, _db, ct);
                 var groupMemberIds = _db.CrmGroupMembers
                     .Where(member => member.GroupId == groupId && member.EntityType == "Customer" && member.DeletedAt == null)
                     .Select(member => member.EntityId);
@@ -264,6 +339,20 @@ public class SendMarketingCampaignCommandHandler : IRequestHandler<SendMarketing
             Kind = kind, Direction = CommunicationDirection.Outbound, Outcome = CommunicationOutcome.Resolved,
             OccurredAt = DateTime.UtcNow, Subject = subject, Body = body
         });
+
+    private void AddDeliveryLog(MarketingCampaign campaign, Customer customer, string name, string channel,
+        string provider, string status, string recipient, string? subject, string? bodyHtml, string? bodyText,
+        string? errorMessage, string? providerMessageId = null)
+    {
+        _db.MarketingDeliveryLogs.Add(new MarketingDeliveryLog
+        {
+            Id = Guid.NewGuid(), TenantId = campaign.TenantId, CampaignId = campaign.Id,
+            CustomerId = customer.Id, CampaignName = campaign.Name, Channel = channel,
+            Provider = provider, Status = status, RecipientName = name, Recipient = recipient,
+            Subject = subject, BodyHtml = bodyHtml, BodyText = bodyText,
+            ProviderMessageId = providerMessageId, ErrorMessage = errorMessage, SentAt = DateTime.UtcNow
+        });
+    }
 
     private static string CustomerName(Customer customer) => customer.Type == CustomerType.Company
         ? customer.CompanyName ?? customer.CustomerNumber

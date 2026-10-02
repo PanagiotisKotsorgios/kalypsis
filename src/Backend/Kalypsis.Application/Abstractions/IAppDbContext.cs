@@ -49,6 +49,8 @@ public interface IAppDbContext
     DbSet<FinancialMovement> FinancialMovements { get; }
     DbSet<BankConnection> BankConnections { get; }
     DbSet<MarketingCampaign> MarketingCampaigns { get; }
+    DbSet<MarketingDeliveryLog> MarketingDeliveryLogs { get; }
+    DbSet<CrmOpportunity> CrmOpportunities { get; }
     DbSet<DeliveryRecord> DeliveryRecords { get; }
     DbSet<DocumentFolder> DocumentFolders { get; }
     DbSet<PartnerPortalAccess> PartnerPortalAccesses { get; }

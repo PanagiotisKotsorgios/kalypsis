@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Kalypsis.Application.Features.Crm;
 
-public record CrmGroupDto(Guid Id, string Name, string EntityType, string? Description, bool IsDynamic, bool IsActive, int MemberCount, DateTime CreatedAt);
+public record CrmGroupDto(Guid Id, string Name, string EntityType, string? Description, bool IsDynamic, bool IsActive, int MemberCount, DateTime CreatedAt, string? FilterJson = null);
 public record CrmGroupBody(string Name, string EntityType, string? Description, bool IsDynamic, string? FilterJson, IReadOnlyList<Guid>? MemberIds);
 public record CrmGroupMemberDto(Guid Id, Guid EntityId, string EntityType, string DisplayName, string? Email, string? Phone);
 
@@ -18,6 +18,69 @@ public record CreateCrmGroupCommand(CrmGroupBody Body) : IRequest<CrmGroupDto>;
 public record UpdateCrmGroupCommand(Guid Id, CrmGroupBody Body) : IRequest<CrmGroupDto>;
 public record DeleteCrmGroupCommand(Guid Id) : IRequest<Unit>;
 public record SetCrmGroupMembersCommand(Guid GroupId, IReadOnlyList<Guid> MemberIds) : IRequest<CrmGroupDto>;
+public record RefreshCrmGroupCommand(Guid GroupId) : IRequest<CrmGroupDto>;
+
+internal sealed record CrmGroupFilter(string? Search, bool HasEmail, bool HasPhone, string? Status);
+
+internal static class CrmGroupDynamicMaterializer
+{
+    public static async Task RefreshAsync(CrmGroup group, IAppDbContext db, CancellationToken ct)
+    {
+        if (!group.IsDynamic) return;
+        var filter = Parse(group.FilterJson);
+        var ids = group.EntityType == "Producer"
+            ? await ProducerIds(filter, db, ct)
+            : await CustomerIds(filter, db, ct);
+
+        var old = await db.CrmGroupMembers.Where(x => x.GroupId == group.Id && x.DeletedAt == null).ToListAsync(ct);
+        db.CrmGroupMembers.RemoveRange(old);
+        group.Members.Clear();
+        foreach (var id in ids.Distinct())
+        {
+            var member = new CrmGroupMember { Id = Guid.NewGuid(), GroupId = group.Id, EntityId = id, EntityType = group.EntityType };
+            group.Members.Add(member);
+            db.CrmGroupMembers.Add(member);
+        }
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static CrmGroupFilter Parse(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return new CrmGroupFilter(null, false, false, null);
+        try { return System.Text.Json.JsonSerializer.Deserialize<CrmGroupFilter>(json) ?? new CrmGroupFilter(null, false, false, null); }
+        catch { return new CrmGroupFilter(null, false, false, null); }
+    }
+
+    private static async Task<List<Guid>> CustomerIds(CrmGroupFilter f, IAppDbContext db, CancellationToken ct)
+    {
+        var q = db.Customers.Where(x => x.DeletedAt == null);
+        if (f.HasEmail) q = q.Where(x => x.Email != null && x.Email != "");
+        if (f.HasPhone) q = q.Where(x => (x.MobilePhone ?? x.Phone) != null && (x.MobilePhone ?? x.Phone) != "");
+        if (Enum.TryParse<CustomerStatus>(f.Status, true, out var status)) q = q.Where(x => x.Status == status);
+        if (!string.IsNullOrWhiteSpace(f.Search))
+        {
+            var s = $"%{f.Search.Trim()}%";
+            q = q.Where(x => EF.Functions.Like(x.FirstName ?? "", s) || EF.Functions.Like(x.LastName ?? "", s)
+                || EF.Functions.Like(x.CompanyName ?? "", s) || EF.Functions.Like(x.Email ?? "", s)
+                || EF.Functions.Like(x.Phone ?? "", s) || EF.Functions.Like(x.MobilePhone ?? "", s));
+        }
+        return await q.Select(x => x.Id).Take(10000).ToListAsync(ct);
+    }
+
+    private static async Task<List<Guid>> ProducerIds(CrmGroupFilter f, IAppDbContext db, CancellationToken ct)
+    {
+        var q = db.Producers.Where(x => x.DeletedAt == null);
+        if (f.HasEmail) q = q.Where(x => x.Email != null && x.Email != "");
+        if (f.HasPhone) q = q.Where(x => x.Phone != null && x.Phone != "");
+        if (Enum.TryParse<ProducerStatus>(f.Status, true, out var status)) q = q.Where(x => x.Status == status);
+        if (!string.IsNullOrWhiteSpace(f.Search))
+        {
+            var s = $"%{f.Search.Trim()}%";
+            q = q.Where(x => EF.Functions.Like(x.Name, s) || EF.Functions.Like(x.Email ?? "", s) || EF.Functions.Like(x.Phone ?? "", s));
+        }
+        return await q.Select(x => x.Id).Take(10000).ToListAsync(ct);
+    }
+}
 
 public sealed class CrmGroupBodyValidator : AbstractValidator<CrmGroupBody>
 {
@@ -33,7 +96,7 @@ public sealed class CrmGroupBodyValidator : AbstractValidator<CrmGroupBody>
 
 internal static class CrmGroupMapper
 {
-    public static CrmGroupDto Map(CrmGroup g) => new(g.Id, g.Name, g.EntityType, g.Description, g.IsDynamic, g.IsActive, g.Members.Count, g.CreatedAt);
+    public static CrmGroupDto Map(CrmGroup g) => new(g.Id, g.Name, g.EntityType, g.Description, g.IsDynamic, g.IsActive, g.Members.Count, g.CreatedAt, g.FilterJson);
 }
 
 public sealed class ListCrmGroupsHandler : IRequestHandler<ListCrmGroupsQuery, IReadOnlyList<CrmGroupDto>>
@@ -45,7 +108,7 @@ public sealed class ListCrmGroupsHandler : IRequestHandler<ListCrmGroupsQuery, I
         var q = _db.CrmGroups.Include(x => x.Members).AsQueryable();
         if (!string.IsNullOrWhiteSpace(r.EntityType)) q = q.Where(x => x.EntityType == r.EntityType);
         return await q.Where(x => x.DeletedAt == null).OrderBy(x => x.EntityType).ThenBy(x => x.Name)
-            .Select(x => new CrmGroupDto(x.Id, x.Name, x.EntityType, x.Description, x.IsDynamic, x.IsActive, x.Members.Count, x.CreatedAt))
+            .Select(x => new CrmGroupDto(x.Id, x.Name, x.EntityType, x.Description, x.IsDynamic, x.IsActive, x.Members.Count, x.CreatedAt, x.FilterJson))
             .ToListAsync(ct);
     }
 }
@@ -56,8 +119,9 @@ public sealed class GetCrmGroupMembersHandler : IRequestHandler<GetCrmGroupMembe
     public GetCrmGroupMembersHandler(IAppDbContext db) => _db = db;
     public async Task<IReadOnlyList<CrmGroupMemberDto>> Handle(GetCrmGroupMembersQuery r, CancellationToken ct)
     {
-        var group = await _db.CrmGroups.FirstOrDefaultAsync(x => x.Id == r.GroupId && x.DeletedAt == null, ct)
+        var group = await _db.CrmGroups.Include(x => x.Members).FirstOrDefaultAsync(x => x.Id == r.GroupId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("CRM group");
+        await CrmGroupDynamicMaterializer.RefreshAsync(group, _db, ct);
         var members = await _db.CrmGroupMembers.Where(x => x.GroupId == group.Id && x.DeletedAt == null).ToListAsync(ct);
         if (group.EntityType == "Producer")
         {
@@ -95,6 +159,7 @@ public sealed class CreateCrmGroupHandler : IRequestHandler<CreateCrmGroupComman
         _db.CrmGroups.Add(group);
         AddMembers(group, b.MemberIds);
         await _db.SaveChangesAsync(ct);
+        await CrmGroupDynamicMaterializer.RefreshAsync(group, _db, ct);
         return CrmGroupMapper.Map(group);
     }
 
@@ -133,6 +198,7 @@ public sealed class UpdateCrmGroupHandler : IRequestHandler<UpdateCrmGroupComman
         foreach (var id in (b.MemberIds ?? Array.Empty<Guid>()).Distinct())
             group.Members.Add(new CrmGroupMember { Id = Guid.NewGuid(), GroupId = group.Id, EntityId = id, EntityType = group.EntityType });
         await _db.SaveChangesAsync(ct);
+        await CrmGroupDynamicMaterializer.RefreshAsync(group, _db, ct);
         return CrmGroupMapper.Map(group);
     }
 
@@ -145,6 +211,20 @@ public sealed class UpdateCrmGroupHandler : IRequestHandler<UpdateCrmGroupComman
             : await _db.Producers.CountAsync(x => distinct.Contains(x.Id) && x.DeletedAt == null, ct);
         if (count != distinct.Count)
             throw new AppException("crm_group_member_invalid", "Ένα ή περισσότερα μέλη δεν ανήκουν στο συγκεκριμένο γραφείο ή δεν είναι πλέον ενεργά.", 400);
+    }
+}
+
+public sealed class RefreshCrmGroupHandler : IRequestHandler<RefreshCrmGroupCommand, CrmGroupDto>
+{
+    private readonly IAppDbContext _db;
+    public RefreshCrmGroupHandler(IAppDbContext db) => _db = db;
+    public async Task<CrmGroupDto> Handle(RefreshCrmGroupCommand r, CancellationToken ct)
+    {
+        var group = await _db.CrmGroups.Include(x => x.Members).FirstOrDefaultAsync(x => x.Id == r.GroupId && x.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("CRM group");
+        if (!group.IsDynamic) return CrmGroupMapper.Map(group);
+        await CrmGroupDynamicMaterializer.RefreshAsync(group, _db, ct);
+        return CrmGroupMapper.Map(group);
     }
 }
 

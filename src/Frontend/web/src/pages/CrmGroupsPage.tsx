@@ -10,12 +10,13 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import SettingsIcon from "@mui/icons-material/Settings";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { Link as RouterLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 
 type EntityType = "Customer" | "Producer";
-interface GroupDto { id: string; name: string; entityType: EntityType; description: string | null; isDynamic: boolean; isActive: boolean; memberCount: number; createdAt: string; }
+interface GroupDto { id: string; name: string; entityType: EntityType; description: string | null; isDynamic: boolean; isActive: boolean; memberCount: number; createdAt: string; filterJson?: string | null; }
 
 export function CrmGroupsPage() {
   const qc = useQueryClient();
@@ -62,6 +63,7 @@ export function CrmGroupsPage() {
             {(groups.data ?? []).map(group => (
               <ListItem key={group.id} divider secondaryAction={
                 <Stack direction="row" spacing={0.5}>
+                  {group.isDynamic && <Tooltip title="Ανανέωση δυναμικής ομάδας"><IconButton onClick={() => void api.post(`/crm/groups/${group.id}/refresh`).then(() => qc.invalidateQueries({ queryKey: ["crm-groups"] })).catch(e => setError(extractErrorMessage(e)))}><RefreshIcon /></IconButton></Tooltip>}
                   <Tooltip title="Επεξεργασία"><IconButton onClick={() => setEditing(group)}><EditIcon /></IconButton></Tooltip>
                   <Tooltip title="Διαγραφή"><IconButton color="error" onClick={() => { if (confirm(`Διαγραφή της ομάδας «${group.name}»;`)) remove.mutate(group.id); }}><DeleteIcon /></IconButton></Tooltip>
                 </Stack>
@@ -91,6 +93,7 @@ function GroupDialog({ open, entityType, group, onClose, onSaved, onError }: {
   const [hasEmail, setHasEmail] = useState(false);
   const [hasPhone, setHasPhone] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [isDynamic, setIsDynamic] = useState(false);
 
   const options = useQuery({
     queryKey: ["crm-group-options", entityType],
@@ -113,7 +116,9 @@ function GroupDialog({ open, entityType, group, onClose, onSaved, onError }: {
 
   useEffect(() => {
     if (!open) return;
-    setName(group?.name ?? ""); setDescription(group?.description ?? ""); setSearch(""); setHasEmail(false); setHasPhone(false); setStatusFilter("all");
+    let saved: { search?: string | null; hasEmail?: boolean; hasPhone?: boolean; status?: string | null } = {};
+    try { saved = group?.filterJson ? JSON.parse(group.filterJson) : {}; } catch { saved = {}; }
+    setName(group?.name ?? ""); setDescription(group?.description ?? ""); setSearch(saved.search ?? ""); setHasEmail(Boolean(saved.hasEmail)); setHasPhone(Boolean(saved.hasPhone)); setStatusFilter(saved.status ?? "all"); setIsDynamic(Boolean(group?.isDynamic));
     setMemberIds(existingMembers.data?.map(x => x.entityId) ?? []);
   }, [open, group?.id, group?.name, group?.description, existingMembers.data]);
 
@@ -133,7 +138,7 @@ function GroupDialog({ open, entityType, group, onClose, onSaved, onError }: {
     : Array.from(new Set([...prev, ...filtered.map(x => x.id)])));
   const save = useMutation({
     mutationFn: async () => {
-      const body = { name: name.trim(), entityType: group?.entityType ?? entityType, description: description.trim() || null, isDynamic: false, filterJson: null, memberIds };
+      const body = { name: name.trim(), entityType: group?.entityType ?? entityType, description: description.trim() || null, isDynamic, filterJson: isDynamic ? JSON.stringify({ search: search.trim() || null, hasEmail, hasPhone, status: statusFilter === "all" ? null : statusFilter }) : null, memberIds };
       return editing ? api.put(`/crm/groups/${group!.id}`, body) : api.post("/crm/groups", body);
     },
     onSuccess: onSaved, onError: e => onError(extractErrorMessage(e)),
@@ -143,6 +148,7 @@ function GroupDialog({ open, entityType, group, onClose, onSaved, onError }: {
     <DialogTitle>{editing ? "Επεξεργασία ομάδας" : "Νέα ομάδα CRM"}</DialogTitle>
     <DialogContent>
       <Stack spacing={2} mt={1}>
+        <FormControlLabel label="Δυναμική ομάδα (ανανεώνεται από τα φίλτρα)" control={<Checkbox checked={isDynamic} onChange={e => setIsDynamic(e.target.checked)} />} />
         <TextField label="Όνομα ομάδας" value={name} onChange={e => setName(e.target.value)} required fullWidth />
         <TextField label="Περιγραφή" value={description} onChange={e => setDescription(e.target.value)} multiline minRows={2} fullWidth />
         <TextField label="Αναζήτηση μελών" value={search} onChange={e => setSearch(e.target.value)} fullWidth />

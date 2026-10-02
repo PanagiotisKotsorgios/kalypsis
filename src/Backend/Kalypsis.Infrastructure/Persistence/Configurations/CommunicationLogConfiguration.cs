@@ -68,3 +68,47 @@ public sealed class ProducerCommunicationLogConfiguration : IEntityTypeConfigura
         b.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.SetNull);
     }
 }
+
+public sealed class CrmOpportunityConfiguration : IEntityTypeConfiguration<CrmOpportunity>
+{
+    public void Configure(EntityTypeBuilder<CrmOpportunity> b)
+    {
+        b.ToTable("crm_opportunities");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Title).HasMaxLength(240).IsRequired();
+        b.Property(x => x.Stage).HasMaxLength(32).IsRequired();
+        b.Property(x => x.Product).HasMaxLength(160);
+        b.Property(x => x.Carrier).HasMaxLength(160);
+        b.Property(x => x.EstimatedValue).HasPrecision(18, 2);
+        b.Property(x => x.LostReason).HasMaxLength(500);
+        b.Property(x => x.Notes).HasMaxLength(4000);
+        b.HasIndex(x => new { x.TenantId, x.Stage, x.NextActionAt });
+        b.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.SetNull);
+        b.HasOne(x => x.Producer).WithMany().HasForeignKey(x => x.ProducerId).OnDelete(DeleteBehavior.SetNull);
+        b.HasOne(x => x.AssignedToUser).WithMany().HasForeignKey(x => x.AssignedToUserId).OnDelete(DeleteBehavior.SetNull);
+    }
+}
+
+public sealed class MarketingDeliveryLogConfiguration : IEntityTypeConfiguration<MarketingDeliveryLog>
+{
+    public void Configure(EntityTypeBuilder<MarketingDeliveryLog> b)
+    {
+        b.ToTable("marketing_delivery_logs");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.CampaignName).HasMaxLength(200).IsRequired();
+        b.Property(x => x.Channel).HasMaxLength(20).IsRequired();
+        b.Property(x => x.Provider).HasMaxLength(80).IsRequired();
+        b.Property(x => x.Status).HasMaxLength(40).IsRequired();
+        b.Property(x => x.RecipientName).HasMaxLength(240);
+        b.Property(x => x.Recipient).HasMaxLength(320).IsRequired();
+        b.Property(x => x.Subject).HasMaxLength(300);
+        b.Property(x => x.BodyHtml).HasColumnType("longtext");
+        b.Property(x => x.BodyText).HasColumnType("longtext");
+        b.Property(x => x.ProviderMessageId).HasMaxLength(200);
+        b.Property(x => x.ErrorMessage).HasMaxLength(2000);
+        b.HasIndex(x => new { x.TenantId, x.SentAt });
+        b.HasIndex(x => new { x.TenantId, x.CampaignId, x.Status });
+        b.HasOne(x => x.Campaign).WithMany().HasForeignKey(x => x.CampaignId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.SetNull);
+    }
+}

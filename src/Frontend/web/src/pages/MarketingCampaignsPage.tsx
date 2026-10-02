@@ -30,6 +30,7 @@ import CelebrationIcon from "@mui/icons-material/Celebration";
 import HourglassBottomIcon from "@mui/icons-material/HourglassBottom";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import WavingHandIcon from "@mui/icons-material/WavingHand";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import StarIcon from "@mui/icons-material/Star";
 import BedtimeIcon from "@mui/icons-material/Bedtime";
 import DescriptionIcon from "@mui/icons-material/Description";
@@ -38,6 +39,7 @@ import FormatItalicIcon from "@mui/icons-material/FormatItalic";
 import FormatUnderlinedIcon from "@mui/icons-material/FormatUnderlined";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import LinkIcon from "@mui/icons-material/Link";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -45,6 +47,7 @@ import { useAuth } from "../auth/AuthContext";
 import { dateTime } from "../utils/format";
 import { HelpHint } from "../components/HelpHint";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { DataExportButton } from "../components/DataExportButton";
 
 /* =============================================================================
    Marketing & Καμπάνιες — full-scale engine.
@@ -175,7 +178,7 @@ export function MarketingCampaignsPage() {
   const [tab, setTab] = useState<number>(() => {
     try {
       const v = Number(localStorage.getItem("kalypsis:marketing:tab") ?? "0");
-      return Number.isFinite(v) && v >= 0 && v <= 6 ? v : 0;
+      return Number.isFinite(v) && v >= 0 && v <= 7 ? v : 0;
     } catch { return 0; }
   });
   const changeTab = (v: number) => {
@@ -213,6 +216,7 @@ export function MarketingCampaignsPage() {
         <Tab icon={<GroupsIcon fontSize="small" />}             iconPosition="start" label={t("marketing.tabs.segments", "Ακροατήρια")} />
         <Tab icon={<HistoryIcon fontSize="small" />}            iconPosition="start" label={t("marketing.tabs.history", "Ιστορικό")} />
         <Tab icon={<CloudSyncIcon fontSize="small" />}          iconPosition="start" label={t("marketing.tabs.providers", "Πάροχοι")} />
+        <Tab icon={<TrendingUpIcon fontSize="small" />} iconPosition="start" label="Ευκαιρίες / Pipeline" />
       </Tabs>
 
       {tab === 0 && <DashboardTab />}
@@ -220,8 +224,9 @@ export function MarketingCampaignsPage() {
       {tab === 2 && <TemplatesTab />}
       {tab === 3 && <RulesTab />}
       {tab === 4 && <SegmentsTab />}
-      {tab === 5 && <HistoryTab />}
+      {tab === 5 && <HistoryTabBackend />}
       {tab === 6 && <ProvidersTab />}
+      {tab === 7 && <OpportunitiesTab />}
     </Box>
   );
 }
@@ -1506,6 +1511,93 @@ function HistoryTab() {
 // -----------------------------------------------------------------------------
 // Tab 6 — Providers with quota + overage calculator.
 // -----------------------------------------------------------------------------
+interface OpportunityDto {
+  id: string; title: string; stage: string; product: string | null; carrier: string | null; estimatedValue: number | null;
+  nextActionAt: string | null; lostReason: string | null; notes: string | null; customerId: string | null; customerName: string | null;
+  producerId: string | null; producerName: string | null; assignedToUserId: string | null; assignedToUserName: string | null;
+  createdAt: string; updatedAt: string | null;
+}
+
+interface DeliveryLogDto {
+  id: string; campaignId: string; campaignName: string; customerId: string | null; customerName: string | null;
+  channel: string; provider: string; status: string; recipientName: string | null; recipient: string;
+  subject: string | null; bodyHtml: string | null; bodyText: string | null; providerMessageId: string | null;
+  errorMessage: string | null; sentAt: string; deliveredAt: string | null; openedAt: string | null;
+  clickedAt: string | null; unsubscribedAt: string | null;
+}
+
+function HistoryTabBackend() {
+  const [search, setSearch] = useState("");
+  const [filterChannel, setFilterChannel] = useState("");
+  const [filterProvider, setFilterProvider] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [preview, setPreview] = useState<DeliveryLogDto | null>(null);
+  const query = useQuery({
+    queryKey: ["marketing-deliveries", search, filterChannel, filterProvider, filterStatus, from, to],
+    queryFn: async () => (await api.get<DeliveryLogDto[]>("/marketing-campaigns/deliveries", { params: {
+      search: search || undefined, channel: filterChannel || undefined, provider: filterProvider || undefined,
+      status: filterStatus || undefined, from: from || undefined, to: to || undefined
+    } })).data,
+  });
+  const rows = query.data ?? [];
+  const delivered = rows.filter(x => ["Sent", "Delivered", "Opened", "Clicked"].includes(x.status)).length;
+  const failed = rows.filter(x => ["Failed", "SkippedConsent", "SkippedNoRecipient"].includes(x.status)).length;
+  const clear = () => { setSearch(""); setFilterChannel(""); setFilterProvider(""); setFilterStatus(""); setFrom(""); setTo(""); };
+  return <Box>
+    <Stack direction="row" spacing={2} mb={2} flexWrap="wrap" useFlexGap>
+      <Kpi label="Απόπειρες αποστολής" value={rows.length} icon={<SendIcon />} />
+      <Kpi label="Εστάλησαν" value={delivered} color="#2e7d32" icon={<CheckCircleIcon />} />
+      <Kpi label="Αποτυχίες / παραλείψεις" value={failed} color="#d32f2f" icon={<ErrorIcon />} />
+      <Box sx={{ ml: "auto" }}><DataExportButton entity="crm-delivery-history" endpoint="/data-exports/crm-delivery-history" search={search} additionalParams={{ channel: filterChannel, provider: filterProvider, status: filterStatus, from, to }} label="Εξαγωγή ιστορικού" /></Box>
+    </Stack>
+    <Stack direction={{ xs: "column", md: "row" }} spacing={1} mb={2} flexWrap="wrap" useFlexGap>
+      <TextField size="small" label="Αναζήτηση καμπάνιας / παραλήπτη" value={search} onChange={e => setSearch(e.target.value)} sx={{ minWidth: 260 }} />
+      <TextField select size="small" label="Κανάλι" value={filterChannel} onChange={e => setFilterChannel(e.target.value)} sx={{ minWidth: 140 }}><MenuItem value="">Όλα</MenuItem><MenuItem value="Email">Email</MenuItem><MenuItem value="Sms">SMS</MenuItem><MenuItem value="Viber">Viber</MenuItem></TextField>
+      <TextField select size="small" label="Πάροχος" value={filterProvider} onChange={e => setFilterProvider(e.target.value)} sx={{ minWidth: 140 }}><MenuItem value="">Όλοι</MenuItem><MenuItem value="Brevo">Brevo</MenuItem><MenuItem value="Bulker">Bulker</MenuItem><MenuItem value="Viber">Viber</MenuItem></TextField>
+      <TextField select size="small" label="Κατάσταση" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} sx={{ minWidth: 180 }}><MenuItem value="">Όλες</MenuItem>{["Sent", "Failed", "SkippedConsent", "SkippedNoRecipient"].map(x => <MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField>
+      <TextField type="date" size="small" label="Από" value={from} onChange={e => setFrom(e.target.value)} InputLabelProps={{ shrink: true }} />
+      <TextField type="date" size="small" label="Έως" value={to} onChange={e => setTo(e.target.value)} InputLabelProps={{ shrink: true }} />
+      <Button color="error" variant="contained" onClick={clear}>Καθαρισμός φίλτρων</Button>
+    </Stack>
+    {query.isLoading ? <CircularProgress /> : <Card variant="outlined" sx={{ overflowX: "auto" }}>
+      <Table size="small"><TableHead><TableRow><TableCell>Ημερομηνία</TableCell><TableCell>Καμπάνια</TableCell><TableCell>Παραλήπτης</TableCell><TableCell>Κανάλι</TableCell><TableCell>Πάροχος</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Προεπισκόπηση</TableCell></TableRow></TableHead><TableBody>
+        {rows.length === 0 && <TableRow><TableCell colSpan={7} align="center" sx={{ py: 4, color: "text.secondary" }}>Δεν υπάρχουν καταγεγραμμένες αποστολές.</TableCell></TableRow>}
+        {rows.map(row => <TableRow key={row.id} hover><TableCell>{dateTime(row.sentAt)}</TableCell><TableCell>{row.campaignName}</TableCell><TableCell><Typography variant="body2" fontWeight={700}>{row.recipientName || row.customerName || "—"}</Typography><Typography variant="caption" color="text.secondary">{row.recipient || "—"}</Typography></TableCell><TableCell><ChannelIcon channel={row.channel as Channel} /></TableCell><TableCell>{row.provider}</TableCell><TableCell><Chip size="small" color={row.status === "Sent" ? "success" : row.status === "Failed" ? "error" : "warning"} label={row.status} /></TableCell><TableCell align="right"><IconButton size="small" onClick={() => setPreview(row)}><VisibilityIcon fontSize="small" /></IconButton></TableCell></TableRow>)}
+      </TableBody></Table>
+    </Card>}
+    <Dialog open={!!preview} onClose={() => setPreview(null)} fullWidth maxWidth="md"><DialogTitle>Ακριβές περιεχόμενο αποστολής</DialogTitle><DialogContent dividers>{preview && <Stack spacing={1.5}><Typography><b>Καμπάνια:</b> {preview.campaignName}</Typography><Typography><b>Παραλήπτης:</b> {preview.recipientName || preview.customerName || "—"} · {preview.recipient || "—"}</Typography><Typography><b>Κανάλι / πάροχος:</b> {preview.channel} · {preview.provider} · {preview.status}</Typography>{preview.subject && <Typography><b>Θέμα:</b> {preview.subject}</Typography>}{preview.bodyHtml ? <Box component="iframe" title="Προεπισκόπηση email" srcDoc={preview.bodyHtml} sandbox="" sx={{ width: "100%", minHeight: 300, border: 1, borderColor: "divider", borderRadius: 1 }} /> : <Paper variant="outlined" sx={{ p: 2, whiteSpace: "pre-wrap" }}>{preview.bodyText || "—"}</Paper>}{preview.errorMessage && <Alert severity="error">{preview.errorMessage}</Alert>}</Stack>}</DialogContent><DialogActions><Button onClick={() => setPreview(null)}>Κλείσιμο</Button></DialogActions></Dialog>
+  </Box>;
+}
+
+const OPPORTUNITY_STAGES = ["New", "Contacted", "Quoted", "FollowUp", "Won", "Lost"] as const;
+type OpportunityForm = { title: string; stage: string; product: string; carrier: string; estimatedValue: string; nextActionAt: string; lostReason: string; notes: string; customerId: string; producerId: string };
+const EMPTY_OPPORTUNITY: OpportunityForm = { title: "", stage: "New", product: "", carrier: "", estimatedValue: "", nextActionAt: "", lostReason: "", notes: "", customerId: "", producerId: "" };
+
+function OpportunitiesTab() {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [stage, setStage] = useState("");
+  const [editing, setEditing] = useState<OpportunityDto | null>(null);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<OpportunityForm>(EMPTY_OPPORTUNITY);
+  const opportunities = useQuery({ queryKey: ["crm-opportunities", search, stage], queryFn: async () => (await api.get<OpportunityDto[]>("/crm/opportunities", { params: { search: search || undefined, stage: stage || undefined } })).data });
+  const customers = useQuery({ queryKey: ["crm-opportunity-customers"], queryFn: async () => (await api.get<Array<{ id: string; firstName?: string; lastName?: string; companyName?: string }>>("/customers", { params: { limit: 5000 } })).data });
+  const producers = useQuery({ queryKey: ["crm-opportunity-producers"], queryFn: async () => (await api.get<Array<{ id: string; name: string }>>("/producers", { params: { pageSize: 1000 } })).data });
+  const save = useMutation({ mutationFn: async () => { const body = { ...form, estimatedValue: form.estimatedValue ? Number(form.estimatedValue) : null, nextActionAt: form.nextActionAt || null, customerId: form.customerId || null, producerId: form.producerId || null, assignedToUserId: null }; return editing ? api.put(`/crm/opportunities/${editing.id}`, body) : api.post("/crm/opportunities", body); }, onSuccess: () => { setOpen(false); setEditing(null); setForm(EMPTY_OPPORTUNITY); void qc.invalidateQueries({ queryKey: ["crm-opportunities"] }); } });
+  const remove = useMutation({ mutationFn: async (id: string) => api.delete(`/crm/opportunities/${id}`), onSuccess: () => void qc.invalidateQueries({ queryKey: ["crm-opportunities"] }) });
+  const startNew = () => { setEditing(null); setForm(EMPTY_OPPORTUNITY); setOpen(true); };
+  const startEdit = (row: OpportunityDto) => { setEditing(row); setForm({ title: row.title, stage: row.stage, product: row.product ?? "", carrier: row.carrier ?? "", estimatedValue: row.estimatedValue?.toString() ?? "", nextActionAt: row.nextActionAt?.slice(0, 16) ?? "", lostReason: row.lostReason ?? "", notes: row.notes ?? "", customerId: row.customerId ?? "", producerId: row.producerId ?? "" }); setOpen(true); };
+  const customerLabel = (x: { firstName?: string; lastName?: string; companyName?: string; id: string }) => x.companyName || `${x.firstName ?? ""} ${x.lastName ?? ""}`.trim() || x.id;
+  return <Box>
+    <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} spacing={2} mb={2}><Box sx={{ flex: 1 }}><Typography variant="h6" fontWeight={800}>Ευκαιρίες πώλησης / Pipeline</Typography><Typography color="text.secondary">Παρακολουθήστε leads, προσφορές, follow-ups και κερδισμένες εργασίες χωρίς να αλλάζετε τα συμβόλαια.</Typography></Box><Button variant="contained" startIcon={<AddIcon />} onClick={startNew}>Νέα ευκαιρία</Button></Stack>
+    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} mb={2}><TextField size="small" label="Αναζήτηση" value={search} onChange={e => setSearch(e.target.value)} sx={{ minWidth: 240 }} /><TextField select size="small" label="Στάδιο" value={stage} onChange={e => setStage(e.target.value)} sx={{ minWidth: 170 }}><MenuItem value="">Όλα</MenuItem>{OPPORTUNITY_STAGES.map(x => <MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField><Button color="error" variant="contained" onClick={() => { setSearch(""); setStage(""); }}>Καθαρισμός φίλτρων</Button></Stack>
+    <Card variant="outlined" sx={{ overflowX: "auto" }}><Table size="small"><TableHead><TableRow><TableCell>Τίτλος</TableCell><TableCell>Στάδιο</TableCell><TableCell>Προϊόν</TableCell><TableCell>Πελάτης</TableCell><TableCell>Επόμενη ενέργεια</TableCell><TableCell align="right">Εκτίμηση</TableCell><TableCell align="right" /></TableRow></TableHead><TableBody>{opportunities.isLoading && <TableRow><TableCell colSpan={7}><CircularProgress size={20} /></TableCell></TableRow>}{(opportunities.data ?? []).map(row => <TableRow key={row.id} hover><TableCell><Typography fontWeight={700}>{row.title}</Typography><Typography variant="caption" color="text.secondary">{row.producerName || ""}</Typography></TableCell><TableCell><Chip size="small" color={row.stage === "Won" ? "success" : row.stage === "Lost" ? "error" : "default"} label={row.stage} /></TableCell><TableCell>{row.product || "—"}</TableCell><TableCell>{row.customerName || "—"}</TableCell><TableCell>{row.nextActionAt ? dateTime(row.nextActionAt) : "—"}</TableCell><TableCell align="right">{row.estimatedValue == null ? "—" : row.estimatedValue.toLocaleString("el-GR", { style: "currency", currency: "EUR" })}</TableCell><TableCell align="right"><IconButton size="small" onClick={() => startEdit(row)}><EditIcon fontSize="small" /></IconButton><IconButton size="small" color="error" onClick={() => { if (confirm("Διαγραφή ευκαιρίας;")) remove.mutate(row.id); }}><DeleteIcon fontSize="small" /></IconButton></TableCell></TableRow>)}{!opportunities.isLoading && (opportunities.data ?? []).length === 0 && <TableRow><TableCell colSpan={7} align="center" sx={{ py: 4, color: "text.secondary" }}>Δεν υπάρχουν ευκαιρίες.</TableCell></TableRow>}</TableBody></Table></Card>
+    <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm"><DialogTitle>{editing ? "Επεξεργασία ευκαιρίας" : "Νέα ευκαιρία"}</DialogTitle><DialogContent><Stack spacing={2} mt={1}><TextField required label="Τίτλος" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /><TextField select label="Στάδιο" value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value })}>{OPPORTUNITY_STAGES.map(x => <MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField><TextField label="Προϊόν / ανάγκη" value={form.product} onChange={e => setForm({ ...form, product: e.target.value })} /><TextField label="Ασφαλιστική" value={form.carrier} onChange={e => setForm({ ...form, carrier: e.target.value })} /><TextField select label="Πελάτης" value={form.customerId} onChange={e => setForm({ ...form, customerId: e.target.value })}><MenuItem value="">Χωρίς σύνδεση</MenuItem>{(customers.data ?? []).map(x => <MenuItem key={x.id} value={x.id}>{customerLabel(x)}</MenuItem>)}</TextField><TextField select label="Συνεργάτης" value={form.producerId} onChange={e => setForm({ ...form, producerId: e.target.value })}><MenuItem value="">Χωρίς σύνδεση</MenuItem>{(producers.data ?? []).map(x => <MenuItem key={x.id} value={x.id}>{x.name}</MenuItem>)}</TextField><TextField type="number" label="Εκτιμώμενη αξία (€)" value={form.estimatedValue} onChange={e => setForm({ ...form, estimatedValue: e.target.value })} /><TextField type="datetime-local" label="Επόμενη ενέργεια" value={form.nextActionAt} onChange={e => setForm({ ...form, nextActionAt: e.target.value })} InputLabelProps={{ shrink: true }} /><TextField label="Σημειώσεις" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} multiline minRows={3} /></Stack></DialogContent><DialogActions><Button onClick={() => setOpen(false)}>Ακύρωση</Button><Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending || !form.title.trim()}>Αποθήκευση</Button></DialogActions></Dialog>
+  </Box>;
+}
+
 const DEFAULT_MARKETING_PROVIDERS: MarketingProvider[] = [
   { id: "mprov-brevo",  name: "Brevo (Email)",   kind: "Email", monthlyQuota: 3000, usedThisMonth: 1240, unitCostExtra: 0.001, senderId: "no-reply@kalypsis.gr", apiKey: "", active: true },
   { id: "mprov-bulker", name: "Bulker (SMS)",    kind: "SMS",   monthlyQuota: 2000, usedThisMonth: 1750, unitCostExtra: 0.045, senderId: "KALYPSIS",             apiKey: "", active: true },
