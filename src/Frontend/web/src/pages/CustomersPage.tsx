@@ -27,6 +27,7 @@ import {
   Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import { IconButton, Tooltip } from "@mui/material";
@@ -54,6 +55,7 @@ import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../com
 import { SearchableTextField } from "../components/SearchableTextField";
 import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
+import { BulkImportDialog, type BulkImportResult } from "../components/BulkImportDialog";
 
 type CustomerType = "Individual" | "Company";
 type CustomerStatus = "Prospect" | "Active" | "Inactive" | "Churned" | "Blocked";
@@ -137,6 +139,23 @@ function newCustomerForm(status: CustomerStatus): CreateBody {
   };
 }
 
+const CUSTOMER_IMPORT_COLUMNS = [
+  { key: "type", label: "type (Individual/Company)", required: true, example: "Individual" },
+  { key: "status", label: "status (Prospect/Active)", required: true, example: "Active" },
+  { key: "firstName", label: "firstName", example: "Maria" },
+  { key: "lastName", label: "lastName", example: "Papadopoulou" },
+  { key: "companyName", label: "companyName", example: "" },
+  { key: "vatNumber", label: "vatNumber", example: "123456789" },
+  { key: "email", label: "email", example: "maria@example.gr" },
+  { key: "phone", label: "phone", example: "2100000000" },
+  { key: "address", label: "address", example: "Street 1" },
+  { key: "city", label: "city", example: "Athens" },
+  { key: "postalCode", label: "postalCode", example: "11111" },
+  { key: "occupation", label: "occupation", example: "" },
+  { key: "notes", label: "notes", example: "" },
+  { key: "paymentDueDate", label: "paymentDueDate (YYYY-MM-DD)", example: "2026-12-31" }
+] as const;
+
 function isoDate(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -166,6 +185,7 @@ export function CustomersPage() {
   const [paymentTo, setPaymentTo] = useState("");
   const [createStatus, setCreateStatus] = useState<CustomerStatus | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<CustomerDto | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const customersQuery = useQuery({
@@ -227,6 +247,30 @@ export function CustomersPage() {
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ["customers"] }); setEditingCustomer(null); },
     onError: (err) => setError(extractErrorMessage(err))
   });
+
+  const importCustomers = async (rows: Record<string, string>[]): Promise<BulkImportResult> => {
+    let imported = 0; const errors: string[] = []; const failedRows: Record<string, string>[] = [];
+    for (let index = 0; index < rows.length; index++) {
+      const row = rows[index];
+      try {
+        const type = row.type === "Company" ? "Company" : "Individual";
+        const status: CustomerStatus = row.status === "Prospect" ? "Prospect" : "Active";
+        await api.post("/customers", {
+          type, status,
+          firstName: row.firstName || undefined, lastName: row.lastName || undefined,
+          companyName: row.companyName || undefined, vatNumber: row.vatNumber || undefined,
+          email: row.email || undefined, phone: row.phone || undefined,
+          address: row.address || undefined, city: row.city || undefined,
+           postalCode: row.postalCode || undefined, occupation: row.occupation || undefined,
+           notes: row.notes || undefined, paymentDueDate: row.paymentDueDate || undefined,
+           createPortalAccount: false
+        });
+        imported++;
+      } catch (e) { failedRows.push(row); errors.push(`Row ${index + 2}: ${extractErrorMessage(e)}`); }
+    }
+    void qc.invalidateQueries({ queryKey: ["customers"] });
+    return { imported, failed: rows.length - imported, errors, failedRows };
+  };
 
   const accountByCustomer = useMemo(() => new Map(
     (accountsQuery.data ?? []).map(account => [account.customerId, account])
@@ -344,6 +388,9 @@ export function CustomersPage() {
           <HelpHint id="page.customers" />
         </Stack>
         <Stack direction="row" spacing={1}>
+          <Button variant="outlined" size="large" startIcon={<UploadFileOutlinedIcon />} onClick={() => setImportOpen(true)}>
+            Εισαγωγή
+          </Button>
           {/* Export handled by the TableToolbar dropdown below — the old
               header ExportButton was a duplicate CSV-only shortcut. */}
           <Button variant="outlined" size="large" onClick={() => { setError(null); setCreateStatus("Prospect"); }}>
@@ -630,6 +677,14 @@ export function CustomersPage() {
         onClose={() => setEditingCustomer(null)}
         onSubmit={(b) => editingCustomer && updateMutation.mutate({ id: editingCustomer.id, body: b })}
         submitting={updateMutation.isPending}
+      />
+      <BulkImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Μαζική εισαγωγή πελατών"
+        description="Κατεβάστε το πρότυπο, συμπληρώστε πελάτες ή πιθανούς πελάτες και ανεβάστε το αρχείο. Η στήλη status ορίζει Prospect ή Active."
+        columns={[...CUSTOMER_IMPORT_COLUMNS]}
+        onImport={importCustomers}
       />
 
     </Box>

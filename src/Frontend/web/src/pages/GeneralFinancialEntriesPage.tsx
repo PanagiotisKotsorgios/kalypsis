@@ -9,8 +9,10 @@ import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import EditIcon from "@mui/icons-material/Edit";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { BulkImportDialog, type BulkImportResult } from "../components/BulkImportDialog";
 
 /**
  * Έσοδα / Έξοδα γραφείου — free-form categorised P&L rows that don't
@@ -55,6 +57,21 @@ const MONTHS = [
 ];
 const moneyFmt = new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR" });
 
+const FINANCIAL_IMPORT_COLUMNS = [
+  { key: "kind", label: "kind (Income/Expense)", required: true, example: "Expense" },
+  { key: "category", label: "category", required: true, example: "Ενοίκιο" },
+  { key: "subcategory", label: "subcategory", example: "Κεντρικό γραφείο" },
+  { key: "entryDate", label: "entryDate (YYYY-MM-DD)", required: true, example: "2026-10-01" },
+  { key: "amount", label: "amount", required: true, example: "250.00" },
+  { key: "currency", label: "currency", example: "EUR" },
+  { key: "description", label: "description", example: "Μηνιαίο έξοδο" },
+  { key: "counterparty", label: "counterparty", example: "Προμηθευτής" },
+  { key: "reference", label: "reference", example: "INV-1001" },
+  { key: "policyId", label: "policyId", example: "" },
+  { key: "customerId", label: "customerId", example: "" },
+  { key: "producerId", label: "producerId", example: "" },
+] as const;
+
 export function GeneralFinancialEntriesPage() {
   const qc = useQueryClient();
   const now = new Date();
@@ -63,6 +80,7 @@ export function GeneralFinancialEntriesPage() {
   const [kindFilter, setKindFilter] = useState<"Income" | "Expense" | "">("");
   const [search, setSearch] = useState("");
   const [dialog, setDialog] = useState<EntryDto | "new" | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
@@ -97,6 +115,41 @@ export function GeneralFinancialEntriesPage() {
     return { income, expense, net: income - expense };
   }, [rollup]);
 
+  const importFinancialEntries = async (importRows: Record<string, string>[]): Promise<BulkImportResult> => {
+    let imported = 0;
+    const errors: string[] = [];
+    const failedRows: Record<string, string>[] = [];
+    for (let index = 0; index < importRows.length; index++) {
+      const row = importRows[index];
+      try {
+        const amount = Number(row.amount);
+        if (!Number.isFinite(amount) || amount <= 0) throw new Error("Το amount πρέπει να είναι θετικός αριθμός.");
+        const entryDate = new Date(row.entryDate);
+        if (Number.isNaN(entryDate.getTime())) throw new Error("Το entryDate δεν είναι έγκυρη ημερομηνία.");
+        await api.post("/general-financial-entries", {
+          kind: row.kind === "Income" ? "Income" : "Expense",
+          category: row.category.trim(),
+          subcategory: row.subcategory?.trim() || null,
+          entryDate: row.entryDate,
+          amount,
+          currency: (row.currency?.trim() || "EUR").toUpperCase(),
+          description: row.description?.trim() || null,
+          counterparty: row.counterparty?.trim() || null,
+          reference: row.reference?.trim() || null,
+          policyId: row.policyId?.trim() || null,
+          customerId: row.customerId?.trim() || null,
+          producerId: row.producerId?.trim() || null,
+        });
+        imported++;
+      } catch (e) {
+        failedRows.push(row);
+        errors.push(`Row ${index + 2}: ${extractErrorMessage(e)}`);
+      }
+    }
+    void qc.invalidateQueries({ queryKey: ["general-financial-entries"] });
+    return { imported, failed: importRows.length - imported, errors, failedRows };
+  };
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
@@ -107,9 +160,14 @@ export function GeneralFinancialEntriesPage() {
             με κατηγορίες για μηνιαία P&amp;L του γραφείου.
           </Typography>
         </Box>
-        <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setDialog("new")}>
-          Νέα εγγραφή
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button startIcon={<UploadFileOutlinedIcon />} variant="outlined" size="large" onClick={() => setImportOpen(true)}>
+            Εισαγωγή
+          </Button>
+          <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setDialog("new")}>
+            Νέα εγγραφή
+          </Button>
+        </Stack>
       </Stack>
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
@@ -248,6 +306,14 @@ export function GeneralFinancialEntriesPage() {
           setDialog(null);
           void qc.invalidateQueries({ queryKey: ["general-financial-entries"] });
         }}
+      />
+      <BulkImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Μαζική εισαγωγή οικονομικών κινήσεων"
+        description="Κατεβάστε το πρότυπο XLSX, συμπληρώστε έσοδα ή έξοδα και ανεβάστε το αρχείο. Κάθε γραμμή υποβάλλεται ξεχωριστά ώστε να βλέπετε ακριβώς ποιες χρειάζονται διόρθωση."
+        columns={[...FINANCIAL_IMPORT_COLUMNS]}
+        onImport={importFinancialEntries}
       />
     </Box>
   );

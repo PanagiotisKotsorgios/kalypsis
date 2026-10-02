@@ -66,6 +66,8 @@ import { useColumnPreferences } from "../hooks/useColumnPreferences";
 import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import { BulkImportDialog, type BulkImportResult } from "../components/BulkImportDialog";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal" | "Undelivered" | "AwaitingIssue" | "Prospect";
@@ -126,6 +128,26 @@ const STATUS_COLOR: Record<PolicyStatus, "default" | "success" | "warning" | "in
   Prospect: "warning"
 };
 
+const POLICY_IMPORT_COLUMNS = [
+  { key: "customerId", label: "customerId", required: true, example: "00000000-0000-0000-0000-000000000000" },
+  { key: "policyNumber", label: "policyNumber", example: "POL-1001" },
+  { key: "insuranceCompanyId", label: "insuranceCompanyId", required: true, example: "00000000-0000-0000-0000-000000000000" },
+  { key: "producerId", label: "producerId", example: "" },
+  { key: "policyType", label: "policyType (Auto/Home/Health/Life/Business/Travel/Other ή κωδικός γραφείου)", required: true, example: "Auto" },
+  { key: "vehicleUseCategory", label: "vehicleUseCategory", example: "Ιδιωτική χρήση" },
+  { key: "coverCode", label: "coverCode", example: "" },
+  { key: "packageCode", label: "packageCode", example: "" },
+  { key: "startDate", label: "startDate (YYYY-MM-DD)", required: true, example: "2026-10-01" },
+  { key: "endDate", label: "endDate (YYYY-MM-DD)", required: true, example: "2027-10-01" },
+  { key: "premium", label: "premium", required: true, example: "250.00" },
+  { key: "netPremium", label: "netPremium", example: "" },
+  { key: "specialCommissionPercent", label: "specialCommissionPercent", example: "10" },
+  { key: "vatAmount", label: "vatAmount (φόρος ασφαλίστρων)", example: "" },
+  { key: "currency", label: "currency", example: "EUR" },
+  { key: "status", label: "status", example: "Active" },
+  { key: "paidDirectlyToCarrier", label: "paidDirectlyToCarrier (true/false)", example: "false" },
+] as const;
+
 export function PoliciesPage() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -178,6 +200,7 @@ export function PoliciesPage() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [renewing, setRenewing] = useState<PolicyDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   // Deep-link support — the customer card sends operators here as
   // /app/policies?focus=<policyId>. Read the id once on mount and open
@@ -325,6 +348,57 @@ export function PoliciesPage() {
     plateFilter, appNumberFilter, premiumMin, premiumMax, expiryWindow, paymentRouteFilter, table.query,
   ].filter(Boolean).length;
 
+  const importPolicies = async (importRows: Record<string, string>[]): Promise<BulkImportResult> => {
+    let imported = 0;
+    const errors: string[] = [];
+    const failedRows: Record<string, string>[] = [];
+    const statuses = new Set<PolicyStatus>(["Draft", "Active", "Expired", "Cancelled", "Renewed", "PendingRenewal", "Undelivered", "AwaitingIssue", "Prospect"]);
+    const optionalNumber = (value: string | undefined) => {
+      if (!value?.trim()) return null;
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) throw new Error(`Μη έγκυρος αριθμός: ${value}`);
+      return parsed;
+    };
+    const booleanValue = (value: string | undefined) => ["true", "1", "yes", "ναι"].includes((value ?? "").trim().toLowerCase());
+    for (let index = 0; index < importRows.length; index++) {
+      const row = importRows[index];
+      try {
+        const premium = Number(row.premium);
+        if (!Number.isFinite(premium) || premium < 0) throw new Error("Το premium πρέπει να είναι έγκυρος αριθμός.");
+        if (!row.policyType?.trim()) throw new Error("Το policyType είναι υποχρεωτικό.");
+        if (row.status && !statuses.has(row.status as PolicyStatus)) throw new Error("Μη έγκυρο status.");
+        if (Number.isNaN(new Date(row.startDate).getTime()) || Number.isNaN(new Date(row.endDate).getTime())) {
+          throw new Error("Οι ημερομηνίες startDate/endDate δεν είναι έγκυρες.");
+        }
+        await api.post("/policies", {
+          customerId: row.customerId.trim(),
+          policyNumber: row.policyNumber?.trim() || null,
+          insuranceCompanyId: row.insuranceCompanyId.trim(),
+          producerId: row.producerId?.trim() || null,
+          policyType: row.policyType.trim(),
+          vehicleUseCategory: row.vehicleUseCategory?.trim() || null,
+          coverCode: row.coverCode?.trim() || null,
+          packageCode: row.packageCode?.trim() || null,
+          startDate: row.startDate,
+          endDate: row.endDate,
+          premium,
+          netPremium: optionalNumber(row.netPremium),
+          specialCommissionPercent: optionalNumber(row.specialCommissionPercent),
+          vatAmount: optionalNumber(row.vatAmount),
+          currency: (row.currency?.trim() || "EUR").toUpperCase(),
+          status: row.status?.trim() || "Active",
+          paidDirectlyToCarrier: booleanValue(row.paidDirectlyToCarrier),
+        });
+        imported++;
+      } catch (e) {
+        failedRows.push(row);
+        errors.push(`Row ${index + 2}: ${extractErrorMessage(e)}`);
+      }
+    }
+    void qc.invalidateQueries({ queryKey: ["policies"] });
+    return { imported, failed: importRows.length - imported, errors, failedRows };
+  };
+
   // Right-click on a header → sort + hide column; right-click on a row →
   // open detail + delete. Placed here so `table` (defined just above) is
   // in scope for the callbacks.
@@ -366,6 +440,11 @@ export function PoliciesPage() {
         </Box>
         <Stack direction="row" spacing={1}>
           {canEdit && activeView === "policies" && <ExportButton href="/api/exports/policies.csv" />}
+          {canEdit && activeView === "policies" && (
+            <Button variant="outlined" size="large" startIcon={<UploadFileOutlinedIcon />} onClick={() => setImportOpen(true)}>
+              Εισαγωγή
+            </Button>
+          )}
           {isProducer && activeView === "policies" && (
             <DataExportButton
               entity="policies"
@@ -794,6 +873,14 @@ export function PoliciesPage() {
 
       {canEdit && (
         <>
+          <BulkImportDialog
+            open={importOpen}
+            onClose={() => setImportOpen(false)}
+            title="Μαζική εισαγωγή συμβολαίων"
+            description="Κατεβάστε το πρότυπο XLSX και συμπληρώστε τα IDs πελάτη, ασφαλιστικής και προαιρετικά συνεργάτη. Κάθε γραμμή ελέγχεται ξεχωριστά πριν δημιουργηθεί το συμβόλαιο."
+            columns={[...POLICY_IMPORT_COLUMNS]}
+            onImport={importPolicies}
+          />
           <PolicyFormDialog
             open={createStatus !== null}
             initialStatus={createStatus ?? "Active"}

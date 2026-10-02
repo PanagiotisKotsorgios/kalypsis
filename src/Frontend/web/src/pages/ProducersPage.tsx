@@ -34,6 +34,8 @@ import { SearchableSelect } from "../components/SearchableSelect";
 import { money } from "../utils/format";
 import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import { BulkImportDialog, type BulkImportResult } from "../components/BulkImportDialog";
 
 type ProducerStatus = "Active" | "Suspended" | "Terminated" | "Prospect";
 type ProducerTier = "None" | "A" | "B" | "C" | "D" | "E";
@@ -87,6 +89,19 @@ const TIER_LABEL: Record<ProducerTier, string> = {
   A: "Κατ. Α", B: "Κατ. Β", C: "Κατ. Γ", D: "Κατ. Δ", E: "Κατ. Ε", None: "—"
 };
 
+const PRODUCER_IMPORT_COLUMNS = [
+  { key: "code", label: "code", required: true, example: "P-0001" },
+  { key: "name", label: "name", required: true, example: "Maria Papadopoulou" },
+  { key: "email", label: "email", example: "maria@example.gr" },
+  { key: "phone", label: "phone", example: "+30 210 0000000" },
+  { key: "notes", label: "notes", example: "Σημείωση συνεργάτη" },
+  { key: "status", label: "status (Prospect/Active/Suspended/Terminated)", required: true, example: "Active" },
+  { key: "tier", label: "tier (None/A/B/C/D/E)", example: "None" },
+  { key: "hierarchyLevel", label: "hierarchyLevel (Producer/Manager/Unit/Assistant/Agency)", example: "Producer" },
+  { key: "parentProducerCode", label: "parentProducerCode", example: "P-0000" },
+  { key: "initialPassword", label: "initialPassword", example: "" },
+] as const;
+
 export function ProducersPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -97,6 +112,7 @@ export function ProducersPage() {
   const [reassignFor, setReassignFor] = useState<ProducerDto | null>(null);
   const [credentialFor, setCredentialFor] = useState<ProducerDto | null>(null);
   const [goalPlanFor, setGoalPlanFor] = useState<ProducerDto | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [issuedCreds, setIssuedCreds] = useState<{ email: string; password: string } | null>(null);
 
@@ -140,6 +156,47 @@ export function ProducersPage() {
   });
   const rows = table.paged;
 
+  const importProducers = async (importRows: Record<string, string>[]): Promise<BulkImportResult> => {
+    let imported = 0;
+    const errors: string[] = [];
+    const failedRows: Record<string, string>[] = [];
+    const statuses = new Set<ProducerStatus>(["Prospect", "Active", "Suspended", "Terminated"]);
+    const tiers = new Set<ProducerTier>(["None", "A", "B", "C", "D", "E"]);
+    const hierarchyLevels = new Set<HierarchyLevel>(["Producer", "Manager", "Unit", "Assistant", "Agency"]);
+    for (let index = 0; index < importRows.length; index++) {
+      const row = importRows[index];
+      try {
+        const status = statuses.has(row.status as ProducerStatus) ? row.status as ProducerStatus : "Active";
+        const tier = tiers.has(row.tier as ProducerTier) ? row.tier as ProducerTier : "None";
+        const hierarchyLevel = hierarchyLevels.has(row.hierarchyLevel as HierarchyLevel)
+          ? row.hierarchyLevel as HierarchyLevel
+          : "Producer";
+        const parentCode = row.parentProducerCode?.trim().toLowerCase();
+        const parentProducerId = parentCode
+          ? rawProducers.find(p => p.code.trim().toLowerCase() === parentCode)?.id ?? null
+          : null;
+        await api.post("/producers", {
+          code: row.code.trim(),
+          name: row.name.trim(),
+          email: row.email?.trim() || null,
+          phone: row.phone?.trim() || null,
+          notes: row.notes?.trim() || null,
+          status,
+          tier,
+          hierarchyLevel,
+          parentProducerId,
+          initialPassword: row.initialPassword?.trim() || null,
+        });
+        imported++;
+      } catch (e) {
+        failedRows.push(row);
+        errors.push(`Row ${index + 2}: ${extractErrorMessage(e)}`);
+      }
+    }
+    void qc.invalidateQueries({ queryKey: ["producers"] });
+    return { imported, failed: importRows.length - imported, errors, failedRows };
+  };
+
   // Right-click on a header → sort by that column. Row menu → edit / delete.
   const inferType = (key: string): ColumnType => key === "policies" ? "number" : "string";
   const headerMenu = useHeaderContextMenu({
@@ -171,6 +228,9 @@ export function ProducersPage() {
           <Typography color="text.secondary">{t("producers.subtitle")}</Typography>
         </Box>
         <Stack direction="row" spacing={1}>
+          <Button variant="outlined" size="large" startIcon={<UploadFileOutlinedIcon />} onClick={() => setImportOpen(true)}>
+            Εισαγωγή
+          </Button>
           <Button variant="outlined" size="large" onClick={() => { setError(null); setCreateStatus("Prospect"); }}>
             Πιθανός συνεργάτης
           </Button>
@@ -409,6 +469,15 @@ export function ProducersPage() {
         open={!!reassignFor}
         onClose={() => setReassignFor(null)}
         fromProducer={reassignFor}
+      />
+
+      <BulkImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Μαζική εισαγωγή συνεργατών"
+        description="Κατεβάστε το πρότυπο XLSX, συμπληρώστε συνεργάτες ή πιθανούς συνεργάτες και ανεβάστε το αρχείο. Οι γραμμές ελέγχονται ξεχωριστά και οι αποτυχίες εμφανίζονται χωρίς να ακυρώνουν τις επιτυχημένες εισαγωγές."
+        columns={[...PRODUCER_IMPORT_COLUMNS]}
+        onImport={importProducers}
       />
     </Box>
   );
