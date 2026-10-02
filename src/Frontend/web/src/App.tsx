@@ -407,6 +407,10 @@ export const navByRole: Record<Role, NavItem[]> = {
     // persistency hidden — analytics shell exists but not wired to data yet.
     { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-workbench", labelKey: "nav.intelligenceWorkbench", icon: <SmartToyIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/intelligence-workbench/prompts", labelKey: "nav.intelligencePrompts", icon: <DescriptionOutlinedIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/intelligence-workbench/chat", labelKey: "nav.intelligenceChat", icon: <MailOutlineIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/intelligence-workbench/history", labelKey: "nav.intelligenceHistory", icon: <ScheduleIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/intelligence-workbench/automations", labelKey: "nav.intelligenceAutomations", icon: <RuleIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-settings", labelKey: "nav.aiSettings", icon: <VpnKeyIcon />, package: "Intelligence", group: "intelligence" },
     // NOTE: the four reports below intentionally live under BackOffice
     // (Παραγωγή group for the production listing, Οικονομικά group for the
@@ -479,6 +483,10 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/intelligence-settings", labelKey: "nav.aiSettings", icon: <VpnKeyIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-workbench", labelKey: "nav.intelligenceWorkbench", icon: <SmartToyIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/intelligence-workbench/prompts", labelKey: "nav.intelligencePrompts", icon: <DescriptionOutlinedIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/intelligence-workbench/chat", labelKey: "nav.intelligenceChat", icon: <MailOutlineIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/intelligence-workbench/history", labelKey: "nav.intelligenceHistory", icon: <ScheduleIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/intelligence-workbench/automations", labelKey: "nav.intelligenceAutomations", icon: <RuleIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/named-reports", labelKey: "nav.namedReports", icon: <AssessmentOutlinedIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
@@ -804,6 +812,10 @@ export default function App() {
                   <Route path="claims" element={<ClaimsPage />} />
                   <Route path="reports" element={<ReportsPage />} />
                   <Route path="intelligence-workbench" element={<PackageGate package="Intelligence"><IntelligenceWorkbenchPage /></PackageGate>} />
+                  <Route path="intelligence-workbench/prompts" element={<PackageGate package="Intelligence"><IntelligenceWorkbenchPage initialTab={0} /></PackageGate>} />
+                  <Route path="intelligence-workbench/chat" element={<PackageGate package="Intelligence"><IntelligenceWorkbenchPage initialTab={2} /></PackageGate>} />
+                  <Route path="intelligence-workbench/history" element={<PackageGate package="Intelligence"><IntelligenceWorkbenchPage initialTab={1} /></PackageGate>} />
+                  <Route path="intelligence-workbench/automations" element={<PackageGate package="Intelligence"><IntelligenceWorkbenchPage initialTab={3} /></PackageGate>} />
                   <Route path="production-report" element={<ProductionReportPage />} />
                   <Route path="commission-distribution" element={<CommissionDistributionPage />} />
                   <Route path="financial-report" element={<FinancialReportPage />} />

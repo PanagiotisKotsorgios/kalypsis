@@ -3,12 +3,12 @@
   <desc id="desc">A professional illustration of analytics, trends and actionable insights.</desc>
   <defs>
     <linearGradient id="bg" x1="30" y1="20" x2="390" y2="230" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#EAF4FB"/>
-      <stop offset="1" stop-color="#F6FAFD"/>
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F7FBFE"/>
     </linearGradient>
     <linearGradient id="panel" x1="70" y1="48" x2="340" y2="205" gradientUnits="userSpaceOnUse">
       <stop stop-color="#FFFFFF"/>
-      <stop offset="1" stop-color="#E8F1F7"/>
+      <stop offset="1" stop-color="#F1F7FA"/>
     </linearGradient>
   </defs>
   <rect x="8" y="8" width="404" height="234" rx="28" fill="url(#bg)"/>

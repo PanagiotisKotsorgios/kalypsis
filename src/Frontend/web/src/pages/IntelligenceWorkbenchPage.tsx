@@ -13,9 +13,9 @@ type Run = { id: string; task: string; model: string; success: boolean; promptTo
 type Conversation = { id: string; title: string; kind: string; promptTemplateId?: string; customerId?: string; policyId?: string; lastMessageAt?: string; status: string; messageCount: number; resultPreview?: string };
 type Workbench = { prompts: Prompt[]; conversations: Conversation[]; runs: Run[]; automations: { id: string; name: string; trigger: string; isActive: boolean; actions: number }[]; storeResults: boolean };
 
-export function IntelligenceWorkbenchPage() {
+export function IntelligenceWorkbenchPage({ initialTab = 0 }: { initialTab?: number }) {
   const qc = useQueryClient();
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState(initialTab);
   const [selected, setSelected] = useState<Prompt | null>(null);
   const [name, setName] = useState(""); const [purpose, setPurpose] = useState(""); const [template, setTemplate] = useState("Ανάλυσε το {{context}} και δώσε πρακτικές επόμενες ενέργειες, χωρίς δεσμευτική ασφαλιστική ή νομική συμβουλή."); const [scope, setScope] = useState("Customer");
   const [customerId, setCustomerId] = useState(""); const [policyId, setPolicyId] = useState(""); const [override, setOverride] = useState(""); const [result, setResult] = useState("");

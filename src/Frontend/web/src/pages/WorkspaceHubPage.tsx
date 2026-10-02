@@ -39,7 +39,7 @@ interface PackageMeta {
 const PACKAGES: PackageMeta[] = [
   { code: "BackOffice",   icon: <AccountBalanceIcon />, image: "/images/workspace-backoffice.svg", nameKey: "ws.BackOffice.name",   bodyKey: "ws.BackOffice.body" },
   { code: "Crm",          icon: <PeopleIcon />,         image: "/images/workspace-crm.svg",       nameKey: "ws.Crm.name",          bodyKey: "ws.Crm.body" },
-  { code: "Intelligence", icon: <InsightsIcon />,      image: "/images/workspace-intelligence.svg", nameKey: "ws.Intelligence.name", bodyKey: "ws.Intelligence.body" }
+  { code: "Intelligence", icon: <InsightsIcon />,      image: "/images/workspace-intelligence.svg?v=20261002", nameKey: "ws.Intelligence.name", bodyKey: "ws.Intelligence.body" }
 ];
 // Kept for type safety — re-enable these by moving them into PACKAGES above.
 void RequestQuoteIcon; void HubIcon;
