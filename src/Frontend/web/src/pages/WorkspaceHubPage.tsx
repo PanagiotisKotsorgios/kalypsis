@@ -266,10 +266,15 @@ export function WorkspaceHubPage() {
                       position: "absolute",
                       top: { xs: 14, md: 18 },
                       right: { xs: 10, md: 18 },
-                      width: { xs: 132, sm: 156, md: 184 },
-                      height: { xs: 96, sm: 112, md: 132 },
+                      // Keep the illustration clear of the heading.  The
+                      // artwork has an opaque background, so an oversized
+                      // image can otherwise cover the end of
+                      // “BackOffice — Λογιστήριο” on compact cards.
+                      width: { xs: 118, sm: 142, md: 158 },
+                      height: { xs: 86, sm: 102, md: 114 },
                       objectFit: "contain",
                       opacity: enabled ? 0.92 : 0.22,
+                      zIndex: 0,
                       pointerEvents: "none",
                       userSelect: "none",
                       transition: "transform 260ms ease, opacity 220ms ease"
@@ -284,6 +289,8 @@ export function WorkspaceHubPage() {
                     bgcolor: enabled ? `${INK}12` : "action.disabledBackground",
                     color: enabled ? INK : "text.disabled",
                     mb: 2,
+                    position: "relative",
+                    zIndex: 1,
                     "& svg": { fontSize: 26 }
                   }}>
                     {enabled ? pkg.icon : <LockOutlinedIcon />}
@@ -294,6 +301,8 @@ export function WorkspaceHubPage() {
                     color: enabled ? "text.primary" : "text.disabled",
                     lineHeight: 1.25,
                     mb: 1,
+                    position: "relative",
+                    zIndex: 1,
                     letterSpacing: "-0.005em"
                   }}>
                     {t(pkg.nameKey)}
@@ -303,6 +312,8 @@ export function WorkspaceHubPage() {
                     color: "text.secondary",
                     fontSize: 14,
                     lineHeight: 1.55,
+                    position: "relative",
+                    zIndex: 1,
                     flex: 1
                   }}>
                     {t(pkg.bodyKey)}
@@ -313,6 +324,8 @@ export function WorkspaceHubPage() {
                     mt: 2.5, pt: 2,
                     borderTop: "1px solid",
                     borderColor: "divider",
+                    position: "relative",
+                    zIndex: 1,
                     color: enabled ? "primary.main" : "text.disabled",
                     fontWeight: 700,
                     fontSize: 13,
