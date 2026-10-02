@@ -1,0 +1,29 @@
+<svg width="420" height="250" viewBox="0 0 420 250" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">CRM and customer portal illustration</title>
+  <desc id="desc">A professional illustration of connected customers, conversations and a portal.</desc>
+  <defs>
+    <linearGradient id="bg" x1="30" y1="20" x2="390" y2="230" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EEF8F4"/>
+      <stop offset="1" stop-color="#F7FBFA"/>
+    </linearGradient>
+    <linearGradient id="bubble" x1="91" y1="53" x2="287" y2="180" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E5F5F0"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="404" height="234" rx="28" fill="url(#bg)"/>
+  <path d="M107 180C151 151 185 128 224 104C257 84 290 71 337 56" stroke="#8ED8C0" stroke-width="5" stroke-linecap="round" stroke-dasharray="9 12"/>
+  <rect x="57" y="42" width="193" height="125" rx="22" fill="url(#bubble)" stroke="#9DDAC8" stroke-width="3"/>
+  <path d="M93 167L87 201L125 172" fill="#E5F5F0" stroke="#9DDAC8" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="109" cy="99" r="24" fill="#0B2545"/>
+  <path d="M74 143C76 121 91 113 109 113C127 113 142 121 144 143" fill="#1F7BB3"/>
+  <circle cx="171" cy="99" r="24" fill="#1F7BB3"/>
+  <path d="M136 143C138 121 153 113 171 113C189 113 204 121 206 143" fill="#16A34A"/>
+  <path d="M92 70H197" stroke="#6B8AA9" stroke-width="6" stroke-linecap="round" opacity=".7"/>
+  <rect x="275" y="82" width="90" height="112" rx="18" fill="#0B2545"/>
+  <rect x="288" y="98" width="64" height="56" rx="10" fill="#EAF4FB"/>
+  <path d="M302 113H337M302 127H329M302 141H339" stroke="#1F7BB3" stroke-width="7" stroke-linecap="round"/>
+  <path d="M300 194H340" stroke="#8ED8C0" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="337" cy="55" r="18" fill="#16A34A"/>
+  <path d="M327 55L334 62L347 48" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

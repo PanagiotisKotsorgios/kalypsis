@@ -29,6 +29,7 @@ import {
 interface PackageMeta {
   code: PackageCode;
   icon: React.ReactNode;
+  image: string;
   nameKey: string;
   bodyKey: string;
 }
@@ -36,8 +37,8 @@ interface PackageMeta {
 // Phase 15.1 — for now only BackOffice + Crm (client portal) are operational.
 // Other workspaces are intentionally hidden until they're production-ready.
 const PACKAGES: PackageMeta[] = [
-  { code: "BackOffice",   icon: <AccountBalanceIcon />, nameKey: "ws.BackOffice.name",   bodyKey: "ws.BackOffice.body" },
-  { code: "Crm",          icon: <PeopleIcon />,         nameKey: "ws.Crm.name",          bodyKey: "ws.Crm.body" }
+  { code: "BackOffice",   icon: <AccountBalanceIcon />, image: "/images/workspace-backoffice.svg", nameKey: "ws.BackOffice.name",   bodyKey: "ws.BackOffice.body" },
+  { code: "Crm",          icon: <PeopleIcon />,         image: "/images/workspace-crm.svg",       nameKey: "ws.Crm.name",          bodyKey: "ws.Crm.body" }
 ];
 // Kept for type safety — re-enable these by moving them into PACKAGES above.
 void RequestQuoteIcon; void InsightsIcon; void HubIcon;
@@ -255,7 +256,25 @@ export function WorkspaceHubPage() {
                 }}
                 sx={{ height: "100%", alignItems: "stretch" }}
               >
-                <CardContent sx={{ p: { xs: 2.5, md: 3.5 }, height: "100%", display: "flex", flexDirection: "column" }}>
+                <CardContent sx={{ p: { xs: 2.5, md: 3.5 }, height: "100%", display: "flex", flexDirection: "column", position: "relative" }}>
+                  <Box
+                    component="img"
+                    src={pkg.image}
+                    alt=""
+                    aria-hidden="true"
+                    sx={{
+                      position: "absolute",
+                      top: { xs: 14, md: 18 },
+                      right: { xs: 10, md: 18 },
+                      width: { xs: 132, sm: 156, md: 184 },
+                      height: { xs: 96, sm: 112, md: 132 },
+                      objectFit: "contain",
+                      opacity: enabled ? 0.92 : 0.22,
+                      pointerEvents: "none",
+                      userSelect: "none",
+                      transition: "transform 260ms ease, opacity 220ms ease"
+                    }}
+                  />
                   {/* Header — themed icon badge, matching the AnimatedKpiCard style
                       used on the dashboards. No monospace I/II tag anymore. */}
                   <Box sx={{
