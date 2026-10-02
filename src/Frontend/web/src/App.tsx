@@ -269,6 +269,8 @@ import { BookkeepingPage } from "./pages/BookkeepingPage";
 import { PlatformDesktopReleasesPage } from "./pages/PlatformDesktopReleasesPage";
 import { PlatformDesktopLicensesPage } from "./pages/PlatformDesktopLicensesPage";
 import { OfficeWebsitePage } from "./pages/OfficeWebsitePage";
+import { OfficeWebsiteOverviewPage } from "./pages/OfficeWebsiteOverviewPage";
+import { OfficeWebsiteAnalyticsPage } from "./pages/OfficeWebsiteAnalyticsPage";
 import { OfficePublicSitePage } from "./pages/OfficePublicSitePage";
 
 // Exported so Platform Admin can render a read-only, faithful sidebar preview
@@ -407,7 +409,10 @@ export const navByRole: Record<Role, NavItem[]> = {
     // ===== FrontOffice =====
     // FrontOffice is the office-owned public website and lead inbox. It does
     // not promise quoting or policy issuance.
+    { to: "/office-website/overview", labelKey: "nav.officeWebsiteOverview", icon: <DashboardIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
+    { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
+    { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
 
     // ===== Intelligence =====
     // persistency hidden — analytics shell exists but not wired to data yet.
@@ -465,7 +470,10 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
     { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
+    { to: "/office-website/overview", labelKey: "nav.officeWebsiteOverview", icon: <DashboardIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
+    { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
+    { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
     // CRM
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
@@ -481,7 +489,10 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
     { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
+    { to: "/office-website/overview", labelKey: "nav.officeWebsiteOverview", icon: <DashboardIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
+    { to: "/office-website/requests", labelKey: "nav.officeWebsiteRequests", icon: <AssignmentIcon />, package: "FrontOffice", group: "website" },
+    { to: "/office-website/analytics", labelKey: "nav.officeWebsiteAnalytics", icon: <AnalyticsIcon />, package: "FrontOffice", group: "website" },
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/crm-groups", labelKey: "nav.crmGroups", icon: <GroupWorkIconRC />, package: "Crm", permission: "marketing.read" },
@@ -999,6 +1010,9 @@ export default function App() {
                   <Route path="appointments" element={<PackageGate package="Crm"><AppointmentsPage /></PackageGate>} />
                   <Route path="tariffs" element={<TariffsPage />} />
                   <Route path="cover-notes" element={<CoverNotesPage />} />
+                  <Route path="office-website/overview" element={<PackageGate package="FrontOffice"><OfficeWebsiteOverviewPage /></PackageGate>} />
+                  <Route path="office-website/requests" element={<PackageGate package="FrontOffice"><OfficeWebsitePage initialTab={4} /></PackageGate>} />
+                  <Route path="office-website/analytics" element={<PackageGate package="FrontOffice"><OfficeWebsiteAnalyticsPage /></PackageGate>} />
                   <Route path="office-website" element={<PackageGate package="FrontOffice"><OfficeWebsitePage /></PackageGate>} />
                   <Route path="branches" element={<BranchesPage />} />
                   <Route path="securities" element={<Navigate to="/app/financials?tab=securities" replace />} />

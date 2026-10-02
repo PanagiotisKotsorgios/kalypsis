@@ -164,7 +164,10 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     packages: ["FrontOffice"],
     groupKey: "website",
     items: [
-      { path: "/office-website", label: "Ιστοσελίδα γραφείου" }
+      { path: "/office-website/overview", label: "Επισκόπηση ιστοσελίδας" },
+      { path: "/office-website", label: "Επεξεργασία ιστοσελίδας" },
+      { path: "/office-website/requests", label: "Αιτήματα ενδιαφέροντος" },
+      { path: "/office-website/analytics", label: "Επισκεψιμότητα & αναφορές" }
     ]
   },
   {

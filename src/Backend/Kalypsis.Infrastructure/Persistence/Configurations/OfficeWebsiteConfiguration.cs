@@ -47,3 +47,23 @@ public sealed class OfficeWebsiteRequestConfiguration : IEntityTypeConfiguration
             .HasForeignKey(x => x.OfficeWebsiteId).OnDelete(DeleteBehavior.Cascade);
     }
 }
+
+public sealed class OfficeWebsiteEventConfiguration : IEntityTypeConfiguration<OfficeWebsiteEvent>
+{
+    public void Configure(EntityTypeBuilder<OfficeWebsiteEvent> b)
+    {
+        b.ToTable("office_website_events");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.EventType).HasMaxLength(30).IsRequired();
+        b.Property(x => x.Path).HasMaxLength(500);
+        b.Property(x => x.Referrer).HasMaxLength(500);
+        b.Property(x => x.Source).HasMaxLength(120);
+        b.Property(x => x.Campaign).HasMaxLength(160);
+        b.Property(x => x.Device).HasMaxLength(30);
+        b.Property(x => x.SessionKeyHash).HasMaxLength(64);
+        b.HasIndex(x => new { x.TenantId, x.OfficeWebsiteId, x.CreatedAt });
+        b.HasIndex(x => new { x.TenantId, x.EventType, x.CreatedAt });
+        b.HasOne(x => x.OfficeWebsite).WithMany().HasForeignKey(x => x.OfficeWebsiteId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}

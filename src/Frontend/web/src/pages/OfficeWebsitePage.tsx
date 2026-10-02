@@ -9,6 +9,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import LanguageIcon from "@mui/icons-material/Language";
 import InboxIcon from "@mui/icons-material/Inbox";
+import DownloadIcon from "@mui/icons-material/Download";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 
@@ -25,9 +26,9 @@ type RequestRow = { id: string; fullName: string; email: string; phone: string |
 const newId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const parseList = <T,>(value: string, fallback: T[]): T[] => { try { const x = JSON.parse(value); return Array.isArray(x) ? x : fallback; } catch { return fallback; } };
 
-export function OfficeWebsitePage() {
+export function OfficeWebsitePage({ initialTab = 0 }: { initialTab?: number } = {}) {
   const qc = useQueryClient();
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState(initialTab);
   const [draft, setDraft] = useState<Website | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const website = useQuery({ queryKey: ["office-website"], queryFn: async () => (await api.get<Website>("/office-website")).data });
@@ -41,6 +42,15 @@ export function OfficeWebsitePage() {
     mutationFn: async ({ id, status, internalNotes }: { id: string; status: string; internalNotes: string }) => api.patch(`/office-website/requests/${id}`, { status, internalNotes }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["office-website-requests"] })
   });
+  const exportRequests = async (status: string) => {
+    const response = await api.get<Blob>("/office-website/requests/export.csv", {
+      params: { status }, responseType: "blob"
+    });
+    const url = URL.createObjectURL(response.data);
+    const anchor = document.createElement("a");
+    anchor.href = url; anchor.download = "office-website-requests.csv"; anchor.click();
+    URL.revokeObjectURL(url);
+  };
   const posts = useMemo(() => parseList<Post>(draft?.postsJson ?? "[]", []), [draft?.postsJson]);
   const offers = useMemo(() => parseList<Offer>(draft?.offersJson ?? "[]", []), [draft?.offersJson]);
   const banners = useMemo(() => parseList<Banner>(draft?.bannersJson ?? "[]", []), [draft?.bannersJson]);
@@ -63,7 +73,7 @@ export function OfficeWebsitePage() {
           {tab === 1 && <PostsTab rows={posts} setRows={x => setList("postsJson", x)} />}
           {tab === 2 && <OffersTab rows={offers} setRows={x => setList("offersJson", x)} />}
           {tab === 3 && <BannersTab rows={banners} setRows={x => setList("bannersJson", x)} />}
-          {tab === 4 && <RequestsTab rows={requests.data ?? []} onUpdate={(id, status, notes) => updateRequest.mutate({ id, status, internalNotes: notes })} />}
+          {tab === 4 && <RequestsTab rows={requests.data ?? []} onUpdate={(id, status, notes) => updateRequest.mutate({ id, status, internalNotes: notes })} onExport={status => void exportRequests(status)} />}
         </Box>
       </Paper>
     </Box>
@@ -93,10 +103,10 @@ function BannersTab({ rows, setRows }: { rows: Banner[]; setRows: (x: Banner[]) 
   return <Stack spacing={2}><Stack direction="row" justifyContent="space-between" alignItems="center"><Typography variant="h6">Popup banners</Typography><Button startIcon={<AddIcon />} onClick={() => setRows([...rows, { id: newId(), text: "Νέα ανακοίνωση", kind: "info", isActive: false }])}>Νέο banner</Button></Stack>{rows.map((r, i) => <Card variant="outlined" key={r.id}><CardContent><Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems="center"><TextField fullWidth label="Κείμενο popup" value={r.text} onChange={e => { const x = [...rows]; x[i] = { ...r, text: e.target.value }; setRows(x); }} /><TextField label="Τύπος" value={r.kind ?? "info"} onChange={e => { const x = [...rows]; x[i] = { ...r, kind: e.target.value }; setRows(x); }} sx={{ minWidth: 130 }} /><TextField label="Σύνδεσμος" value={r.linkUrl ?? ""} onChange={e => { const x = [...rows]; x[i] = { ...r, linkUrl: e.target.value }; setRows(x); }} /><FormControlLabel control={<Switch checked={r.isActive} onChange={e => { const x = [...rows]; x[i] = { ...r, isActive: e.target.checked }; setRows(x); }} />} label="Ενεργό" /><IconButton color="error" onClick={() => setRows(rows.filter(x => x.id !== r.id))}><DeleteOutlineIcon /></IconButton></Stack></CardContent></Card>)}</Stack>;
 }
 
-function RequestsTab({ rows, onUpdate }: { rows: RequestRow[]; onUpdate: (id: string, status: string, notes: string) => void }) {
+function RequestsTab({ rows, onUpdate, onExport }: { rows: RequestRow[]; onUpdate: (id: string, status: string, notes: string) => void; onExport: (status: string) => void }) {
   const [filter, setFilter] = useState("all");
   const visible = filter === "all" ? rows : rows.filter(x => x.status === filter);
-  return <Stack spacing={2}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }}><Box><Typography variant="h6">Αιτήσεις ενδιαφέροντος</Typography><Typography color="text.secondary">Οι αιτήσεις της δημόσιας σελίδας. Απαντήστε από το email του γραφείου και παρακολουθήστε την κατάσταση εδώ.</Typography></Box><TextField select SelectProps={{ native: true }} label="Κατάσταση" value={filter} onChange={e => setFilter(e.target.value)} sx={{ minWidth: 170 }}><option value="all">Όλες</option><option value="New">Νέα</option><option value="InProgress">Σε εξέλιξη</option><option value="Contacted">Επικοινωνήθηκε</option><option value="Converted">Μετατράπηκε</option><option value="Closed">Κλειστή</option></TextField></Stack>{visible.length === 0 && <Alert severity="info">Δεν υπάρχουν αιτήσεις.</Alert>}{visible.map(r => <RequestCard key={r.id} row={r} onUpdate={onUpdate} />)}</Stack>;
+  return <Stack spacing={2}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }} gap={1.5}><Box><Typography variant="h6">Αιτήσεις ενδιαφέροντος</Typography><Typography color="text.secondary">Οι αιτήσεις της δημόσιας σελίδας. Απαντήστε από το email του γραφείου και παρακολουθήστε την κατάσταση εδώ.</Typography></Box><Stack direction="row" spacing={1} alignItems="center"><TextField select SelectProps={{ native: true }} label="Κατάσταση" value={filter} onChange={e => setFilter(e.target.value)} sx={{ minWidth: 170 }}><option value="all">Όλες</option><option value="New">Νέα</option><option value="InProgress">Σε εξέλιξη</option><option value="Contacted">Επικοινωνήθηκε</option><option value="Converted">Μετατράπηκε</option><option value="Closed">Κλειστή</option></TextField><Button variant="outlined" startIcon={<DownloadIcon />} onClick={() => onExport(filter)}>CSV</Button></Stack></Stack>{visible.length === 0 && <Alert severity="info">Δεν υπάρχουν αιτήσεις.</Alert>}{visible.map(r => <RequestCard key={r.id} row={r} onUpdate={onUpdate} />)}</Stack>;
 }
 
 function RequestCard({ row, onUpdate }: { row: RequestRow; onUpdate: (id: string, status: string, notes: string) => void }) {

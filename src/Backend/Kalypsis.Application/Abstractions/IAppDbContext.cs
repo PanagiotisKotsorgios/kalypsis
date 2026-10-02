@@ -235,6 +235,7 @@ public interface IAppDbContext
     DbSet<AgencyInstruction> AgencyInstructions { get; }
     DbSet<OfficeWebsite> OfficeWebsites { get; }
     DbSet<OfficeWebsiteRequest> OfficeWebsiteRequests { get; }
+    DbSet<OfficeWebsiteEvent> OfficeWebsiteEvents { get; }
 
     // Per-tenant backup archives + policy for scheduled backups + GDPR
     // right-to-erasure request log.

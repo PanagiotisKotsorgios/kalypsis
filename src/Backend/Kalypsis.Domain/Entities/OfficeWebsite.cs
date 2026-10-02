@@ -37,3 +37,20 @@ public sealed class OfficeWebsiteRequest : TenantEntity
     public DateTime? ContactedAt { get; set; }
     public string? InternalNotes { get; set; }
 }
+
+/// <summary>
+/// Anonymous, first-party website measurement. No IP address or personal
+/// identity is stored; the session key is hashed before persistence.
+/// </summary>
+public sealed class OfficeWebsiteEvent : TenantEntity
+{
+    public Guid OfficeWebsiteId { get; set; }
+    public OfficeWebsite OfficeWebsite { get; set; } = null!;
+    public string EventType { get; set; } = "page_view";
+    public string? Path { get; set; }
+    public string? Referrer { get; set; }
+    public string? Source { get; set; }
+    public string? Campaign { get; set; }
+    public string? Device { get; set; }
+    public string? SessionKeyHash { get; set; }
+}

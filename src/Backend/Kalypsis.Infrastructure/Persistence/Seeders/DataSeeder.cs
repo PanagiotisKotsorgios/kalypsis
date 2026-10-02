@@ -1813,6 +1813,29 @@ public static class DataSeeder
                 CONSTRAINT `FK_office_website_requests_websites` FOREIGN KEY (`OfficeWebsiteId`) REFERENCES `office_websites` (`Id`) ON DELETE CASCADE
             ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
 
+        await EnsureTableAsync(db, logger, dbName,
+            table: "office_website_events",
+            createSql: @"CREATE TABLE IF NOT EXISTS `office_website_events` (
+                `Id` char(36) NOT NULL,
+                `TenantId` char(36) NOT NULL,
+                `AgencyOfficeScopeId` char(36) NULL,
+                `OfficeWebsiteId` char(36) NOT NULL,
+                `EventType` varchar(30) NOT NULL,
+                `Path` varchar(500) NULL,
+                `Referrer` varchar(500) NULL,
+                `Source` varchar(120) NULL,
+                `Campaign` varchar(160) NULL,
+                `Device` varchar(30) NULL,
+                `SessionKeyHash` varchar(64) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                `DeletedAt` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_office_website_events_tenant_website_created` (`TenantId`, `OfficeWebsiteId`, `CreatedAt`),
+                KEY `IX_office_website_events_tenant_type_created` (`TenantId`, `EventType`, `CreatedAt`),
+                CONSTRAINT `FK_office_website_events_websites` FOREIGN KEY (`OfficeWebsiteId`) REFERENCES `office_websites` (`Id`) ON DELETE CASCADE
+            ) CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", ct);
+
         // --- tenant_backups table -----------------------------------------
         // Manifest of every full JSON backup we've written for a tenant.
         // The compressed archive itself lives on disk (Storage__LocalRoot/backups/…).
