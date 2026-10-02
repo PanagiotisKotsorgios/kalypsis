@@ -349,6 +349,45 @@ public class AiInvocationConfiguration : IEntityTypeConfiguration<AiInvocation>
         b.HasIndex(x => new { x.TenantId, x.CreatedAt });
     }
 }
+
+public class AiPromptTemplateConfiguration : IEntityTypeConfiguration<AiPromptTemplate>
+{
+    public void Configure(EntityTypeBuilder<AiPromptTemplate> b)
+    {
+        b.ToTable("ai_prompt_templates"); b.HasKey(x => x.Id);
+        b.Property(x => x.Name).HasMaxLength(160).IsRequired();
+        b.Property(x => x.Purpose).HasMaxLength(500).IsRequired();
+        b.Property(x => x.Template).HasMaxLength(12000).IsRequired();
+        b.Property(x => x.ContextScope).HasMaxLength(30).IsRequired();
+        b.HasIndex(x => new { x.TenantId, x.IsActive });
+    }
+}
+public class AiConversationConfiguration : IEntityTypeConfiguration<AiConversation>
+{
+    public void Configure(EntityTypeBuilder<AiConversation> b)
+    {
+        b.ToTable("ai_conversations"); b.HasKey(x => x.Id);
+        b.Property(x => x.Title).HasMaxLength(200).IsRequired();
+        b.Property(x => x.Kind).HasMaxLength(30).IsRequired();
+        b.Property(x => x.Status).HasMaxLength(30).IsRequired();
+        b.Property(x => x.ResultPreview).HasMaxLength(2000);
+        b.HasOne(x => x.PromptTemplate).WithMany().HasForeignKey(x => x.PromptTemplateId).OnDelete(DeleteBehavior.SetNull);
+        b.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.SetNull);
+        b.HasOne(x => x.Policy).WithMany().HasForeignKey(x => x.PolicyId).OnDelete(DeleteBehavior.SetNull);
+        b.HasIndex(x => new { x.TenantId, x.LastMessageAt });
+    }
+}
+public class AiConversationMessageConfiguration : IEntityTypeConfiguration<AiConversationMessage>
+{
+    public void Configure(EntityTypeBuilder<AiConversationMessage> b)
+    {
+        b.ToTable("ai_conversation_messages"); b.HasKey(x => x.Id);
+        b.Property(x => x.Role).HasMaxLength(20).IsRequired();
+        b.Property(x => x.Content).HasMaxLength(20000);
+        b.HasOne(x => x.Conversation).WithMany().HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.TenantId, x.ConversationId, x.CreatedAt });
+    }
+}
 public class ChurnScoreConfiguration : IEntityTypeConfiguration<ChurnScore>
 {
     public void Configure(EntityTypeBuilder<ChurnScore> b)

@@ -205,7 +205,14 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
   const showInstallTeasers = user?.role !== "Producer";
   // Whether this user gets the workspace-switcher UI at all. Only agency-side roles see it;
   // platform staff (not impersonating) and customers/producers use the linear sidebar.
-  const useWorkspaceUi = user?.role === "AgencyAdmin" || user?.role === "AgencyUser" || !!impersonatedTenantId;
+  const useWorkspaceUi = user?.role === "AgencyAdmin"
+    || user?.role === "AgencyOfficeAdmin"
+    || user?.role === "AgencyUser"
+    || !!impersonatedTenantId;
+  // Never render the unfiltered multi-workspace sidebar for an office while
+  // auth/session state is settling. The explicit hub cards can still switch
+  // to CRM or Intelligence after the user chooses them.
+  const effectiveWorkspace = workspace ?? (useWorkspaceUi ? "BackOffice" : null);
   const logoQuery = useQuery({
     queryKey: ["tenant-logo", impersonatedTenantId ?? user?.tenantId ?? "none"],
     enabled: !!user?.tenantId,
@@ -268,6 +275,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           // platform navigation must remain intact. Hiding navigation is a
           // presentation preference only, never an authorisation change.
           const appliesTenantSidebarVisibility = user?.role === "AgencyAdmin"
+            || user?.role === "AgencyOfficeAdmin"
             || user?.role === "AgencyUser"
             || user?.role === "Producer"
             || user?.role === "Customer";
@@ -289,10 +297,10 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
             // workspace ("FrontOffice"). Treating stale workspace state as
             // «no workspace selected» is safe — the workspace pill UI is
             // hidden anyway (see WorkspacePill row wrapped in `false && …`).
-            if (useWorkspaceUi && workspace && hasPackage(workspace)) {
+            if (useWorkspaceUi && effectiveWorkspace && hasPackage(effectiveWorkspace)) {
               if (item.workspaces && item.workspaces.length > 0)
-                return item.workspaces.includes(workspace);
-              if (item.package) return item.package === workspace;
+                return item.workspaces.includes(effectiveWorkspace);
+              if (item.package) return item.package === effectiveWorkspace;
               return true;
             }
             return true;

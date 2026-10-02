@@ -75,6 +75,14 @@ public sealed class OfficeAiService : IAiService
         return new AiDraftResult(true, subject, body, null);
     }
 
+    public async Task<AiCompletionResult> CompleteTextAsync(string prompt, AiTaskType task = AiTaskType.CustomPrompt, CancellationToken ct = default)
+    {
+        var result = await CompleteAsync(task, prompt, ct);
+        var model = await GetSettingAsync("OpenAiModel", ct) ?? "gpt-4o-mini";
+        // CompleteAsync already records the invocation and enforces the office budget.
+        return new AiCompletionResult(result.Success, result.Text, model, result.PromptTokens, result.CompletionTokens, result.Error);
+    }
+
     public async Task<AiExtractPolicyResult> ExtractPolicyFromPdfAsync(Stream pdf, CancellationToken ct = default)
     {
         var key = await GetSettingAsync("OpenAiApiKey", ct);
@@ -130,16 +138,16 @@ public sealed class OfficeAiService : IAiService
 
     public async Task<bool> IsConfiguredAsync(CancellationToken ct = default) => !string.IsNullOrWhiteSpace(await GetSettingAsync("OpenAiApiKey", ct));
 
-    private async Task<(bool Success, string? Text, string? Error)> CompleteAsync(AiTaskType task, string prompt, CancellationToken ct)
+    private async Task<(bool Success, string? Text, string? Error, int PromptTokens, int CompletionTokens)> CompleteAsync(AiTaskType task, string prompt, CancellationToken ct)
     {
         var key = await GetSettingAsync("OpenAiApiKey", ct);
-        if (string.IsNullOrWhiteSpace(key)) { await RecordAsync(task, "not-configured", "", null, 0, 0, false, "Δεν έχει ρυθμιστεί office OpenAI key.", ct); return (false, null, "Δεν έχει ρυθμιστεί το OpenAI API key του γραφείου."); }
+        if (string.IsNullOrWhiteSpace(key)) { await RecordAsync(task, "not-configured", "", null, 0, 0, false, "Δεν έχει ρυθμιστεί office OpenAI key.", ct); return (false, null, "Δεν έχει ρυθμιστεί το OpenAI API key του γραφείου.", 0, 0); }
         var model = await GetSettingAsync("OpenAiModel", ct) ?? "gpt-4o-mini";
         var gate = await CheckBudgetAsync(model, ct);
         if (!gate.Allowed)
         {
             await RecordAsync(task, model, null, null, 0, 0, false, gate.Reason, ct);
-            return (false, null, gate.Reason);
+            return (false, null, gate.Reason, 0, 0);
         }
         try
         {
@@ -150,9 +158,9 @@ public sealed class OfficeAiService : IAiService
             var usage = json.RootElement.TryGetProperty("usage", out var u) ? u : default;
             var input = usage.ValueKind != JsonValueKind.Undefined && usage.TryGetProperty("prompt_tokens", out var i) ? i.GetInt32() : 0;
             var output = usage.ValueKind != JsonValueKind.Undefined && usage.TryGetProperty("completion_tokens", out var o) ? o.GetInt32() : 0;
-            await RecordAsync(task, model, prompt[..Math.Min(prompt.Length, 500)], text, input, output, true, null, ct); return (true, text, null);
+            await RecordAsync(task, model, prompt[..Math.Min(prompt.Length, 500)], text, input, output, true, null, ct); return (true, text, null, input, output);
         }
-        catch (Exception ex) { _log.LogWarning(ex, "Office OpenAI request failed"); await RecordAsync(task, model, prompt[..Math.Min(prompt.Length, 500)], null, 0, 0, false, ex.Message[..Math.Min(ex.Message.Length, 500)], ct); return (false, null, "Η κλήση στο OpenAI απέτυχε. Ελέγξτε το office key και το μοντέλο."); }
+        catch (Exception ex) { _log.LogWarning(ex, "Office OpenAI request failed"); await RecordAsync(task, model, prompt[..Math.Min(prompt.Length, 500)], null, 0, 0, false, ex.Message[..Math.Min(ex.Message.Length, 500)], ct); return (false, null, "Η κλήση στο OpenAI απέτυχε. Ελέγξτε το office key και το μοντέλο.", 0, 0); }
     }
 
     private async Task<string?> GetSettingAsync(string keyName, CancellationToken ct) { var tenant = _current.TenantId; if (!tenant.HasValue) return null; return await _db.IntegrationSettings.AsNoTracking().Where(x => x.TenantId == tenant.Value && (x.Service == "Ai" || x.Service == "OpenAI") && x.KeyName == keyName).Select(x => x.Value).FirstOrDefaultAsync(ct); }

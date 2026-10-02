@@ -1,10 +1,31 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 240" role="img" aria-labelledby="title desc">
-  <title id="title">Reports and Intelligence</title>
-  <desc id="desc">Abstract analytics chart illustration</desc>
-  <defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#17365d"/><stop offset="1" stop-color="#4c2b68"/></linearGradient></defs>
-  <rect width="640" height="240" rx="24" fill="url(#g)"/>
-  <path d="M80 176V82M80 176h480" stroke="#b8e5ff" stroke-width="4" opacity=".55"/>
-  <path d="M108 155l70-44 65 24 86-72 65 34 84-51" fill="none" stroke="#78d6ff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
-  <g fill="#fff"><circle cx="108" cy="155" r="8"/><circle cx="178" cy="111" r="8"/><circle cx="243" cy="135" r="8"/><circle cx="329" cy="63" r="8"/><circle cx="394" cy="97" r="8"/><circle cx="478" cy="46" r="8"/></g>
-  <path d="M490 150h74v26h-74zM490 115h50v26h-50z" fill="#fff" opacity=".8"/>
+<svg width="420" height="250" viewBox="0 0 420 250" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Reports and Intelligence illustration</title>
+  <desc id="desc">A professional illustration of analytics, trends and actionable insights.</desc>
+  <defs>
+    <linearGradient id="bg" x1="30" y1="20" x2="390" y2="230" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EAF4FB"/>
+      <stop offset="1" stop-color="#F6FAFD"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="70" y1="48" x2="340" y2="205" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E8F1F7"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="404" height="234" rx="28" fill="url(#bg)"/>
+  <circle cx="350" cy="52" r="31" fill="#CFE8F8"/>
+  <rect x="52" y="42" width="250" height="159" rx="16" fill="#0B2545" opacity=".12"/>
+  <rect x="62" y="32" width="250" height="159" rx="16" fill="url(#panel)" stroke="#A7C1D9" stroke-width="3"/>
+  <path d="M91 154H283M91 123H283M91 92H283" stroke="#C7D8E6" stroke-width="3" stroke-linecap="round"/>
+  <path d="M91 170V72" stroke="#6B8AA9" stroke-width="4" stroke-linecap="round"/>
+  <path d="M92 145L130 129L163 139L199 96L231 111L282 69" fill="none" stroke="#1F7BB3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 145L130 129L163 139L199 96L231 111L282 69V170H92Z" fill="#1F7BB3" opacity=".1"/>
+  <g fill="#16A34A" stroke="white" stroke-width="4">
+    <circle cx="92" cy="145" r="7"/><circle cx="130" cy="129" r="7"/><circle cx="163" cy="139" r="7"/>
+    <circle cx="199" cy="96" r="7"/><circle cx="231" cy="111" r="7"/><circle cx="282" cy="69" r="7"/>
+  </g>
+  <rect x="320" y="103" width="62" height="88" rx="15" fill="#0B2545"/>
+  <path d="M335 165V140M351 165V124M367 165V113" stroke="#8ED8C0" stroke-width="10" stroke-linecap="round"/>
+  <path d="M330 178H372" stroke="#EAF4FB" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="348" cy="52" r="12" fill="#16A34A"/>
+  <path d="M342 52L347 57L356 46" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

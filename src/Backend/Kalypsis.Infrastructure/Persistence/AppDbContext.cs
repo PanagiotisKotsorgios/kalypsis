@@ -114,6 +114,9 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<CallRecord> CallRecords => Set<CallRecord>();
     public DbSet<Transcript> Transcripts => Set<Transcript>();
     public DbSet<AiInvocation> AiInvocations => Set<AiInvocation>();
+    public DbSet<AiPromptTemplate> AiPromptTemplates => Set<AiPromptTemplate>();
+    public DbSet<AiConversation> AiConversations => Set<AiConversation>();
+    public DbSet<AiConversationMessage> AiConversationMessages => Set<AiConversationMessage>();
     public DbSet<ChurnScore> ChurnScores => Set<ChurnScore>();
     public DbSet<ProducerHierarchyLink> ProducerHierarchyLinks => Set<ProducerHierarchyLink>();
     public DbSet<TenantSubscription> TenantSubscriptions => Set<TenantSubscription>();

@@ -173,6 +173,9 @@ public sealed class StubAiService : IAiService
     public Task<string> SummarisePortfolioAsync(Guid tenantId, CancellationToken ct = default)
         => Task.FromResult("[STUB] Το γραφείο σας διαχειρίζεται σταθερό χαρτοφυλάκιο με υγιείς ανανεώσεις. Εστιάστε στους πελάτες με score > 0.75.");
 
+    public Task<AiCompletionResult> CompleteTextAsync(string prompt, AiTaskType task = AiTaskType.CustomPrompt, CancellationToken ct = default)
+        => Task.FromResult(new AiCompletionResult(true, "[STUB] Δεν έχει συνδεθεί office OpenAI key. Ρυθμίστε το από τις Ρυθμίσεις AI για πραγματική απάντηση.", "stub", 0, 0, null));
+
     public Task<IReadOnlyList<(Guid CustomerId, string Display, double Match)>> SemanticSearchAsync(string query, int take = 10, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<(Guid, string, double)>>(Array.Empty<(Guid, string, double)>());
 

@@ -35,6 +35,7 @@ import LinkIcon from "@mui/icons-material/Link";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import LeaderboardIcon from "@mui/icons-material/Leaderboard";
 import EngineeringIcon from "@mui/icons-material/Engineering";
+import SmartToyIcon from "@mui/icons-material/SmartToy";
 
 import { useAuth, type Role } from "./auth/AuthContext";
 import { useImpersonation } from "./impersonation/ImpersonationContext";
@@ -120,6 +121,7 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { TasksPage } from "./pages/TasksPage";
 import { ProducersPage } from "./pages/ProducersPage";
 import { ReportsPage } from "./pages/ReportsPage";
+import { IntelligenceWorkbenchPage } from "./pages/IntelligenceWorkbenchPage";
 import { ProductionReportPage } from "./pages/ProductionReportPage";
 import { CommissionDistributionPage } from "./pages/CommissionDistributionPage";
 import { FinancialReportPage } from "./pages/FinancialReportPage";
@@ -404,6 +406,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     // ===== Intelligence =====
     // persistency hidden — analytics shell exists but not wired to data yet.
     { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/intelligence-workbench", labelKey: "nav.intelligenceWorkbench", icon: <SmartToyIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-settings", labelKey: "nav.aiSettings", icon: <VpnKeyIcon />, package: "Intelligence", group: "intelligence" },
     // NOTE: the four reports below intentionally live under BackOffice
     // (Παραγωγή group for the production listing, Οικονομικά group for the
@@ -475,6 +478,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/crm-settings", labelKey: "nav.crmSettings", icon: <VpnKeyIcon />, package: "Crm", permission: "marketing.read" },
     { to: "/intelligence-settings", labelKey: "nav.aiSettings", icon: <VpnKeyIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/intelligence-workbench", labelKey: "nav.intelligenceWorkbench", icon: <SmartToyIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/named-reports", labelKey: "nav.namedReports", icon: <AssessmentOutlinedIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
@@ -799,6 +803,7 @@ export default function App() {
                   <Route path="producers" element={<ProducersPage />} />
                   <Route path="claims" element={<ClaimsPage />} />
                   <Route path="reports" element={<ReportsPage />} />
+                  <Route path="intelligence-workbench" element={<PackageGate package="Intelligence"><IntelligenceWorkbenchPage /></PackageGate>} />
                   <Route path="production-report" element={<ProductionReportPage />} />
                   <Route path="commission-distribution" element={<CommissionDistributionPage />} />
                   <Route path="financial-report" element={<FinancialReportPage />} />

@@ -20,7 +20,7 @@ public enum CallDirection { Inbound = 1, Outbound = 2 }
 public enum CallStatus { Ringing = 1, Answered = 2, Missed = 3, Voicemail = 4, Ended = 5 }
 public enum SubscriptionState { Trial = 1, Active = 2, PastDue = 3, Cancelled = 4, Expired = 5 }
 public enum ReportEntity { Customers = 1, Policies = 2, Claims = 3, Commissions = 4, Requests = 5, Documents = 6, Communications = 7 }
-public enum AiTaskType { ExtractPolicyPdf = 1, DraftEmail = 2, DraftSms = 3, ChurnScore = 4, PortfolioSummary = 5, SemanticSearch = 6, NextBestAction = 7 }
+public enum AiTaskType { ExtractPolicyPdf = 1, DraftEmail = 2, DraftSms = 3, ChurnScore = 4, PortfolioSummary = 5, SemanticSearch = 6, NextBestAction = 7, CustomPrompt = 8, Chat = 9 }
 
 // Phase 4 — Datawise parity
 public enum CoverageTier { Basic = 1, FireTheft = 2, Mixed = 3, Comprehensive = 4 }

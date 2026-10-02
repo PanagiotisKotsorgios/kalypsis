@@ -196,6 +196,47 @@ public class AiInvocation : TenantEntity
     public string? ErrorMessage { get; set; }
 }
 
+/// <summary>Office-owned prompt that can be run against explicitly selected context.</summary>
+public class AiPromptTemplate : TenantEntity
+{
+    public string Name { get; set; } = string.Empty;
+    public string Purpose { get; set; } = string.Empty;
+    public string Template { get; set; } = string.Empty;
+    public string ContextScope { get; set; } = "General"; // General / Customer / Policy / Portfolio
+    public bool IsActive { get; set; } = true;
+    public Guid? CreatedByUserId { get; set; }
+    public User? CreatedByUser { get; set; }
+}
+
+/// <summary>One office-scoped AI workbench conversation/run.</summary>
+public class AiConversation : TenantEntity
+{
+    public string Title { get; set; } = string.Empty;
+    public string Kind { get; set; } = "Chat"; // Chat / PromptRun
+    public Guid? PromptTemplateId { get; set; }
+    public AiPromptTemplate? PromptTemplate { get; set; }
+    public Guid? CustomerId { get; set; }
+    public Customer? Customer { get; set; }
+    public Guid? PolicyId { get; set; }
+    public Policy? Policy { get; set; }
+    public Guid? UserId { get; set; }
+    public User? User { get; set; }
+    public DateTime? LastMessageAt { get; set; }
+    public string Status { get; set; } = "Completed";
+    public string? ResultPreview { get; set; }
+}
+
+public class AiConversationMessage : TenantEntity
+{
+    public Guid ConversationId { get; set; }
+    public AiConversation Conversation { get; set; } = null!;
+    public string Role { get; set; } = "user"; // user / assistant / system
+    public string? Content { get; set; } // stored only when office enables OpenAiStoreResults
+    public int? PromptTokens { get; set; }
+    public int? CompletionTokens { get; set; }
+    public bool ContentStored { get; set; }
+}
+
 public class ChurnScore : TenantEntity
 {
     public Guid CustomerId { get; set; }

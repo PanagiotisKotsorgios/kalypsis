@@ -114,6 +114,7 @@ public record AiExtractPolicyResult(bool Success, string? PolicyNumber, string? 
 
 public record AiDraftRequest(AiTaskType Task, string? Locale, IReadOnlyDictionary<string, string>? Variables);
 public record AiDraftResult(bool Success, string? Subject, string? Body, string? ErrorMessage);
+public record AiCompletionResult(bool Success, string? Text, string? Model, int PromptTokens, int CompletionTokens, string? ErrorMessage);
 
 public record AiChurnFactor(string Factor, double Weight, string Description);
 public record AiChurnResult(double Score, string Band, IReadOnlyList<AiChurnFactor> TopFactors);
@@ -125,6 +126,7 @@ public interface IAiService
     Task<AiDraftResult> DraftCommunicationAsync(AiDraftRequest req, CancellationToken ct = default);
     Task<AiChurnResult> ScoreChurnAsync(Guid customerId, CancellationToken ct = default);
     Task<string> SummarisePortfolioAsync(Guid tenantId, CancellationToken ct = default);
+    Task<AiCompletionResult> CompleteTextAsync(string prompt, AiTaskType task = AiTaskType.CustomPrompt, CancellationToken ct = default);
     Task<IReadOnlyList<(Guid CustomerId, string Display, double Match)>> SemanticSearchAsync(string query, int take = 10, CancellationToken ct = default);
     Task<bool> IsConfiguredAsync(CancellationToken ct = default);
 }

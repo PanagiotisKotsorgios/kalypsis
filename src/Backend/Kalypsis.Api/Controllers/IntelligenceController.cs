@@ -24,8 +24,9 @@ public sealed class IntelligenceController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ICurrentUser _current;
-    public IntelligenceController(AppDbContext db, ICurrentUser current)
-    { _db = db; _current = current; }
+    private readonly IAiService _ai;
+    public IntelligenceController(AppDbContext db, ICurrentUser current, IAiService ai)
+    { _db = db; _current = current; _ai = ai; }
 
     public sealed record RiskFactor(string Code, string Label, int Weight, string Detail);
     public sealed record PolicyRiskDto(
@@ -52,6 +53,18 @@ public sealed class IntelligenceController : ControllerBase
         IReadOnlyList<CustomerRiskDto> Customers, IReadOnlyList<MonthlyInsightDto> Trend,
         IReadOnlyList<KeyValuePair<string, int>> RiskBands,
         IReadOnlyList<KeyValuePair<string, int>> ClaimStatuses, AiUsageDto AiUsage);
+
+    public sealed record PromptTemplateDto(Guid Id, string Name, string Purpose, string Template, string ContextScope, bool IsActive);
+    public sealed record ConversationDto(Guid Id, string Title, string Kind, Guid? PromptTemplateId, Guid? CustomerId,
+        Guid? PolicyId, DateTime? LastMessageAt, string Status, int MessageCount, string? ResultPreview);
+    public sealed record AiRunDto(Guid Id, string Task, string Model, bool Success, int PromptTokens, int CompletionTokens,
+        DateTime CreatedAt, string? Error, string? PromptSummary, string? Result);
+    public sealed record AutomationDto(Guid Id, string Name, string Trigger, bool IsActive, int Actions);
+    public sealed record WorkbenchDto(IReadOnlyList<PromptTemplateDto> Prompts, IReadOnlyList<ConversationDto> Conversations,
+        IReadOnlyList<AiRunDto> Runs, IReadOnlyList<AutomationDto> Automations, bool StoreResults);
+    public sealed record PromptBody(string Name, string Purpose, string Template, string ContextScope, bool IsActive = true);
+    public sealed record RunBody(Guid? CustomerId, Guid? PolicyId, string? PromptOverride);
+    public sealed record ChatBody(Guid? ConversationId, string Message, Guid? CustomerId, Guid? PolicyId);
 
     [HttpGet("portfolio")]
     public async Task<ActionResult<PortfolioIntelligenceDto>> Portfolio(
@@ -240,6 +253,158 @@ public sealed class IntelligenceController : ControllerBase
     }
 
     public sealed record OutcomeBody(string Outcome);
+
+    [HttpGet("workbench")]
+    public async Task<ActionResult<WorkbenchDto>> Workbench(CancellationToken ct = default)
+    {
+        var tenantId = _current.TenantId ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        var prompts = await _db.AiPromptTemplates.AsNoTracking().Where(x => x.TenantId == tenantId && x.DeletedAt == null)
+            .OrderBy(x => x.Name).Select(x => new PromptTemplateDto(x.Id, x.Name, x.Purpose, x.Template, x.ContextScope, x.IsActive)).ToListAsync(ct);
+        var conversations = await _db.AiConversations.AsNoTracking().Where(x => x.TenantId == tenantId && x.DeletedAt == null)
+            .OrderByDescending(x => x.LastMessageAt ?? x.CreatedAt).Take(40)
+            .Select(x => new ConversationDto(x.Id, x.Title, x.Kind, x.PromptTemplateId, x.CustomerId, x.PolicyId,
+                x.LastMessageAt, x.Status, _db.AiConversationMessages.Count(m => m.ConversationId == x.Id && m.DeletedAt == null), x.ResultPreview)).ToListAsync(ct);
+        var runConversations = await _db.AiConversations.AsNoTracking().Where(x => x.TenantId == tenantId && x.DeletedAt == null && x.Kind == "PromptRun")
+            .OrderByDescending(x => x.LastMessageAt ?? x.CreatedAt).Take(50).ToListAsync(ct);
+        var runIds = runConversations.Select(x => x.Id).ToList();
+        var runMessages = await _db.AiConversationMessages.AsNoTracking().Where(x => x.TenantId == tenantId && runIds.Contains(x.ConversationId)).ToListAsync(ct);
+        var runs = runConversations.Select(x => {
+            var messages = runMessages.Where(m => m.ConversationId == x.Id).ToList();
+            var failed = x.Status.Equals("Failed", StringComparison.OrdinalIgnoreCase);
+            return new AiRunDto(x.Id, "PromptRun", "office-model", !failed,
+                messages.Sum(m => m.PromptTokens ?? 0), messages.Sum(m => m.CompletionTokens ?? 0), x.LastMessageAt ?? x.CreatedAt,
+                failed ? "Η εκτέλεση απέτυχε." : null, x.Title, x.ResultPreview);
+        }).ToList();
+        var automations = await _db.WorkflowRules.AsNoTracking().Where(x => x.TenantId == tenantId && x.DeletedAt == null)
+            .OrderBy(x => x.Priority).ThenBy(x => x.Name).Take(50)
+            .Select(x => new AutomationDto(x.Id, x.Name, x.TriggerEvent.ToString(), x.IsActive, x.Actions.Count)).ToListAsync(ct);
+        var storeRaw = await _db.IntegrationSettings.AsNoTracking().Where(x => x.TenantId == tenantId
+            && (x.Service == "Ai" || x.Service == "OpenAI") && x.KeyName == "OpenAiStoreResults").Select(x => x.Value).FirstOrDefaultAsync(ct);
+        var store = string.Equals(storeRaw, "true", StringComparison.OrdinalIgnoreCase) || storeRaw == "1";
+        return Ok(new WorkbenchDto(prompts, conversations, runs, automations, store));
+    }
+
+    [HttpPost("prompts")]
+    [RequirePermission("tasks.write")]
+    public async Task<ActionResult<PromptTemplateDto>> CreatePrompt([FromBody] PromptBody body, CancellationToken ct = default)
+    {
+        var tenantId = _current.TenantId ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        if (string.IsNullOrWhiteSpace(body.Name) || string.IsNullOrWhiteSpace(body.Template)) return BadRequest(new { error = "Name και prompt είναι υποχρεωτικά." });
+        var allowed = new[] { "General", "Customer", "Policy", "Portfolio" };
+        if (!allowed.Contains(body.ContextScope, StringComparer.OrdinalIgnoreCase)) return BadRequest(new { error = "Μη έγκυρο context scope." });
+        var row = new AiPromptTemplate { Id = Guid.NewGuid(), TenantId = tenantId, CreatedAt = DateTime.UtcNow, CreatedByUserId = _current.UserId,
+            Name = body.Name.Trim(), Purpose = body.Purpose?.Trim() ?? "", Template = body.Template.Trim()[..Math.Min(body.Template.Trim().Length, 12000)],
+            ContextScope = allowed.First(x => string.Equals(x, body.ContextScope, StringComparison.OrdinalIgnoreCase)), IsActive = body.IsActive };
+        _db.AiPromptTemplates.Add(row); await _db.SaveChangesAsync(ct);
+        return Ok(new PromptTemplateDto(row.Id, row.Name, row.Purpose, row.Template, row.ContextScope, row.IsActive));
+    }
+
+    [HttpPut("prompts/{id:guid}")]
+    [RequirePermission("tasks.write")]
+    public async Task<IActionResult> UpdatePrompt(Guid id, [FromBody] PromptBody body, CancellationToken ct = default)
+    {
+        var tenantId = _current.TenantId ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        var row = await _db.AiPromptTemplates.FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Id == id && x.DeletedAt == null, ct);
+        if (row is null) return NotFound();
+        if (string.IsNullOrWhiteSpace(body.Name) || string.IsNullOrWhiteSpace(body.Template)) return BadRequest(new { error = "Name και prompt είναι υποχρεωτικά." });
+        row.Name = body.Name.Trim(); row.Purpose = body.Purpose?.Trim() ?? ""; row.Template = body.Template.Trim()[..Math.Min(body.Template.Trim().Length, 12000)]; row.IsActive = body.IsActive; row.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct); return NoContent();
+    }
+
+    [HttpDelete("prompts/{id:guid}")]
+    [RequirePermission("tasks.write")]
+    public async Task<IActionResult> DeletePrompt(Guid id, CancellationToken ct = default)
+    {
+        var tenantId = _current.TenantId ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        var row = await _db.AiPromptTemplates.FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Id == id && x.DeletedAt == null, ct);
+        if (row is null) return NotFound(); row.DeletedAt = DateTime.UtcNow; await _db.SaveChangesAsync(ct); return NoContent();
+    }
+
+    [HttpPost("prompts/{id:guid}/run")]
+    [RequirePermission("tasks.write")]
+    public async Task<IActionResult> RunPrompt(Guid id, [FromBody] RunBody body, CancellationToken ct = default)
+    {
+        var tenantId = _current.TenantId ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        var template = await _db.AiPromptTemplates.AsNoTracking().FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Id == id && x.DeletedAt == null && x.IsActive, ct);
+        if (template is null) return NotFound();
+        var context = await BuildContextAsync(tenantId, body.CustomerId, body.PolicyId, ct);
+        if (template.ContextScope.Equals("Customer", StringComparison.OrdinalIgnoreCase) && body.CustomerId is null) return BadRequest(new { error = "Επίλεξε πελάτη για αυτό το prompt." });
+        if (template.ContextScope.Equals("Policy", StringComparison.OrdinalIgnoreCase) && body.PolicyId is null) return BadRequest(new { error = "Επίλεξε συμβόλαιο για αυτό το prompt." });
+        var basePrompt = string.IsNullOrWhiteSpace(body.PromptOverride) ? template.Template : body.PromptOverride!;
+        var prompt = ApplyVariables(basePrompt, context) + "\n\nContext που επέλεξε ο χρήστης:\n" + context;
+        var conversation = new AiConversation { Id = Guid.NewGuid(), TenantId = tenantId, CreatedAt = DateTime.UtcNow, Title = template.Name,
+            Kind = "PromptRun", PromptTemplateId = template.Id, CustomerId = body.CustomerId, PolicyId = body.PolicyId, UserId = _current.UserId, LastMessageAt = DateTime.UtcNow };
+        _db.AiConversations.Add(conversation);
+        var result = await _ai.CompleteTextAsync(prompt[..Math.Min(prompt.Length, 18000)], AiTaskType.CustomPrompt, ct);
+        var store = await ShouldStoreResultsAsync(tenantId, ct);
+        _db.AiConversationMessages.Add(new AiConversationMessage { Id = Guid.NewGuid(), TenantId = tenantId, ConversationId = conversation.Id, CreatedAt = DateTime.UtcNow, Role = "user", Content = store ? prompt[..Math.Min(prompt.Length, 20000)] : null, ContentStored = store });
+        _db.AiConversationMessages.Add(new AiConversationMessage { Id = Guid.NewGuid(), TenantId = tenantId, ConversationId = conversation.Id, CreatedAt = DateTime.UtcNow, Role = "assistant", Content = store && result.Success ? result.Text : null, ContentStored = store && result.Success, PromptTokens = result.PromptTokens, CompletionTokens = result.CompletionTokens });
+        conversation.ResultPreview = store && result.Success && !string.IsNullOrWhiteSpace(result.Text) ? result.Text[..Math.Min(result.Text.Length, 2000)] : null;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { conversationId = conversation.Id, success = result.Success, text = result.Text, error = result.ErrorMessage, model = result.Model, promptTokens = result.PromptTokens, completionTokens = result.CompletionTokens, resultStored = store });
+    }
+
+    [HttpPost("chat")]
+    [RequirePermission("tasks.write")]
+    public async Task<IActionResult> Chat([FromBody] ChatBody body, CancellationToken ct = default)
+    {
+        var tenantId = _current.TenantId ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        if (string.IsNullOrWhiteSpace(body.Message)) return BadRequest(new { error = "Γράψε πρώτα ένα μήνυμα." });
+        AiConversation? conversation = null;
+        if (body.ConversationId.HasValue) conversation = await _db.AiConversations.FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Id == body.ConversationId && x.DeletedAt == null, ct);
+        conversation ??= new AiConversation { Id = Guid.NewGuid(), TenantId = tenantId, CreatedAt = DateTime.UtcNow, Title = "Νέα συνομιλία AI", Kind = "Chat", CustomerId = body.CustomerId, PolicyId = body.PolicyId, UserId = _current.UserId };
+        var prior = await _db.AiConversationMessages.AsNoTracking().Where(x => x.TenantId == tenantId && x.ConversationId == conversation.Id && x.ContentStored && x.Content != null).OrderByDescending(x => x.CreatedAt).Take(12).OrderBy(x => x.CreatedAt).Select(x => $"{x.Role}: {x.Content}").ToListAsync(ct);
+        var context = await BuildContextAsync(tenantId, body.CustomerId ?? conversation.CustomerId, body.PolicyId ?? conversation.PolicyId, ct);
+        var prompt = "Απάντησε στα ελληνικά ως βοηθός ασφαλιστικού γραφείου. Μην παρέχεις δεσμευτική νομική ή ασφαλιστική συμβουλή.\n" + string.Join("\n", prior) + $"\nContext: {context}\nuser: {body.Message.Trim()}";
+        var result = await _ai.CompleteTextAsync(prompt[..Math.Min(prompt.Length, 18000)], AiTaskType.Chat, ct);
+        var store = await ShouldStoreResultsAsync(tenantId, ct); var now = DateTime.UtcNow;
+        if (_db.Entry(conversation).State == EntityState.Detached) _db.AiConversations.Add(conversation);
+        conversation.LastMessageAt = now; conversation.UpdatedAt = now;
+        conversation.ResultPreview = store && result.Success && !string.IsNullOrWhiteSpace(result.Text) ? result.Text[..Math.Min(result.Text.Length, 2000)] : conversation.ResultPreview;
+        _db.AiConversationMessages.Add(new AiConversationMessage { Id = Guid.NewGuid(), TenantId = tenantId, ConversationId = conversation.Id, CreatedAt = now, Role = "user", Content = store ? body.Message.Trim() : null, ContentStored = store });
+        _db.AiConversationMessages.Add(new AiConversationMessage { Id = Guid.NewGuid(), TenantId = tenantId, ConversationId = conversation.Id, CreatedAt = now.AddMilliseconds(1), Role = "assistant", Content = store && result.Success ? result.Text : null, ContentStored = store && result.Success, PromptTokens = result.PromptTokens, CompletionTokens = result.CompletionTokens });
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { conversationId = conversation.Id, success = result.Success, text = result.Text, error = result.ErrorMessage, resultStored = store });
+    }
+
+    [HttpGet("chats/{id:guid}")]
+    public async Task<IActionResult> ChatHistory(Guid id, CancellationToken ct = default)
+    {
+        var tenantId = _current.TenantId ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        var conversation = await _db.AiConversations.AsNoTracking().Where(x => x.TenantId == tenantId && x.Id == id && x.DeletedAt == null)
+            .Select(x => new { x.Id, x.Title, x.Kind, x.CustomerId, x.PolicyId, x.LastMessageAt }).FirstOrDefaultAsync(ct);
+        if (conversation is null) return NotFound();
+        var messages = await _db.AiConversationMessages.AsNoTracking().Where(x => x.TenantId == tenantId && x.ConversationId == id && x.ContentStored)
+            .OrderBy(x => x.CreatedAt).Select(x => new { x.Role, x.Content, x.CreatedAt, x.PromptTokens, x.CompletionTokens }).ToListAsync(ct);
+        return Ok(new { conversation, messages });
+    }
+
+    private async Task<string> BuildContextAsync(Guid tenantId, Guid? customerId, Guid? policyId, CancellationToken ct)
+    {
+        var parts = new List<string>();
+        if (customerId is Guid cid)
+        {
+            var c = await _db.Customers.AsNoTracking().Where(x => x.TenantId == tenantId && x.Id == cid && x.DeletedAt == null)
+                .Select(x => new { x.FirstName, x.LastName, x.CompanyName, x.Occupation, x.City, x.Status, x.Notes }).FirstOrDefaultAsync(ct);
+            if (c is null) throw Kalypsis.Application.Common.AppException.NotFound("Customer");
+            var policyCount = await _db.Policies.AsNoTracking().CountAsync(x => x.TenantId == tenantId && x.CustomerId == cid && x.DeletedAt == null, ct);
+            parts.Add($"Πελάτης: {c.CompanyName ?? ($"{c.FirstName} {c.LastName}").Trim()}; κατάσταση: {c.Status}; επάγγελμα: {c.Occupation}; πόλη: {c.City}; συμβόλαια: {policyCount}; σημειώσεις: {c.Notes}");
+        }
+        if (policyId is Guid pid)
+        {
+            var p = await _db.Policies.AsNoTracking().Where(x => x.TenantId == tenantId && x.Id == pid && x.DeletedAt == null)
+                .Select(x => new { x.PolicyNumber, x.StartDate, x.EndDate, x.Premium, x.NetPremium, x.PolicyType, x.Status, x.Characteristic, x.Notes, Carrier = x.InsuranceCompany.Name }).FirstOrDefaultAsync(ct);
+            if (p is null) throw Kalypsis.Application.Common.AppException.NotFound("Policy");
+            parts.Add($"Συμβόλαιο: {p.PolicyNumber}; εταιρεία: {p.Carrier}; κλάδος: {p.PolicyType}; κατάσταση: {p.Status}; έναρξη: {p.StartDate}; λήξη: {p.EndDate}; μικτό: {p.Premium:0.00}; καθαρό: {p.NetPremium:0.00}; χαρακτηριστικό: {p.Characteristic}; σημειώσεις: {p.Notes}");
+        }
+        return parts.Count == 0 ? "Δεν επιλέχθηκε συγκεκριμένος πελάτης ή συμβόλαιο." : string.Join("\n", parts);
+    }
+    private static string ApplyVariables(string template, string context) => template.Replace("{{context}}", context, StringComparison.OrdinalIgnoreCase);
+    private async Task<bool> ShouldStoreResultsAsync(Guid tenantId, CancellationToken ct)
+    {
+        var raw = await _db.IntegrationSettings.AsNoTracking().Where(x => x.TenantId == tenantId && (x.Service == "Ai" || x.Service == "OpenAI") && x.KeyName == "OpenAiStoreResults").Select(x => x.Value).FirstOrDefaultAsync(ct);
+        return string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase) || raw == "1";
+    }
 
     [HttpGet("portfolio/export.csv")]
     public async Task<IActionResult> Export([FromQuery] DateOnly? from, [FromQuery] DateOnly? to,

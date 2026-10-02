@@ -43,12 +43,13 @@ const SERVICES: { code: string; label: string; keys: string[]; hint: string; key
       BulkerFrom: "Ο εγκεκριμένος αποστολέας SMS του Bulker.",
       BulkerEndpoint: "Αφήστε κενό για το επίσημο endpoint https://api.bulker.gr/http/sms.php."
     } },
-  { code: "Ai",         label: "Office AI (OpenAI)",          keys: ["OpenAiApiKey", "OpenAiModel", "OpenAiMonthlyTokenBudget", "OpenAiMonthlyCostLimitEur", "OpenAiHardStop", "OpenAiDataRetentionDays"],
+  { code: "Ai",         label: "Office AI (OpenAI)",          keys: ["OpenAiApiKey", "OpenAiModel", "OpenAiMonthlyTokenBudget", "OpenAiMonthlyCostLimitEur", "OpenAiHardStop", "OpenAiDataRetentionDays", "OpenAiStoreResults"],
     hint: "Το γραφείο χρησιμοποιεί το δικό του OpenAI API key για αναλύσεις, προβλέψεις και σύνταξη κειμένων. Το κλειδί αποθηκεύεται κρυπτογραφημένο.",
     keyHints: {
       OpenAiApiKey: "Το προσωπικό API key του γραφείου από το OpenAI Platform. Δεν χρησιμοποιείται κοινό κλειδί της Kalypsis.",
       OpenAiModel: "Το μοντέλο που θα χρησιμοποιείται, π.χ. gpt-4o-mini. Αφήστε το προεπιλεγμένο αν δεν είστε βέβαιοι.",
-      OpenAiMonthlyTokenBudget: "Προαιρετικό μηνιαίο όριο tokens για ειδοποίηση χρήσης και έλεγχο κόστους."
+      OpenAiMonthlyTokenBudget: "Προαιρετικό μηνιαίο όριο tokens για ειδοποίηση χρήσης και έλεγχο κόστους.",
+      OpenAiStoreResults: "Αν ενεργό, αποθηκεύονται τα πλήρη prompts και αποτελέσματα στο ιστορικό του γραφείου. Ενεργοποιήστε το μόνο αν το επιτρέπει η πολιτική απορρήτου σας."
     } },
   { code: "Brevo",      label: "Brevo (legacy email)",       keys: ["ApiKey", "FromAddress", "FromName"],
     hint: "Αποστολή email (ενημερώσεις, ανανεώσεις, campaigns) μέσω Brevo (πρώην Sendinblue).",

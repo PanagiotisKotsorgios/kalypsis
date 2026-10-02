@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { PackageCode } from "./PackagesContext";
 import { useAuth } from "./AuthContext";
+import { useImpersonation } from "../impersonation/ImpersonationContext";
 
 const STORAGE_KEY = "kalypsis.workspace";
 
@@ -28,8 +29,16 @@ const Ctx = createContext<WorkspaceCtx | null>(null);
  */
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const { tenantId: impersonatedTenantId } = useImpersonation();
+  const officeSession = !!impersonatedTenantId
+    || user?.role === "AgencyAdmin"
+    || user?.role === "AgencyOfficeAdmin"
+    || user?.role === "AgencyUser";
   const [workspace, setW] = useState<PackageCode | null>(() => {
     if (typeof window === "undefined") return null;
+    // Offices always open on the operational BackOffice navigation. Other
+    // workspaces remain available from the hub and can be selected explicitly.
+    if (officeSession) return "BackOffice";
     const sess = sessionStorage.getItem(STORAGE_KEY);
     if (sess) return sess as PackageCode;
     const local = localStorage.getItem(STORAGE_KEY);
@@ -48,25 +57,21 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }, [workspace]);
 
-  // Reset workspace when the SIGNED-IN USER changes (login switch on the
-  // same browser). Persistence across page reloads for the SAME user is
-  // preserved — we compare against the last-seen userId in a ref instead
-  // of firing on first mount. Without this, a previous user's persisted
-  // workspace (say «FrontOffice») would leak into a fresh login and the
-  // sidebar filter downstream would hide every package-gated item because
-  // item.package !== stale workspace.
-  const lastUserRef = useRef<string | null | undefined>(user?.userId);
+  // Reset workspace when the signed-in user or impersonated tenant changes.
+  // A fresh office session always starts in BackOffice so /app never leaks a
+  // previous tab's CRM/Intelligence selection into the office sidebar.
+  const sessionKey = `${user?.userId ?? "anonymous"}:${impersonatedTenantId ?? ""}`;
+  const lastSessionRef = useRef<string | undefined>(sessionKey);
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const prev = lastUserRef.current;
-    const now = user?.userId;
-    if (prev !== undefined && prev !== now) {
+    const prev = lastSessionRef.current;
+    if (prev !== undefined && prev !== sessionKey) {
       localStorage.removeItem(STORAGE_KEY);
       sessionStorage.removeItem(STORAGE_KEY);
-      setW(null);
+      setW(officeSession ? "BackOffice" : null);
     }
-    lastUserRef.current = now;
-  }, [user?.userId]);
+    lastSessionRef.current = sessionKey;
+  }, [sessionKey, officeSession]);
 
   const enter = useCallback((w: PackageCode) => setW(w), []);
   const exitToHub = useCallback(() => setW(null), []);
