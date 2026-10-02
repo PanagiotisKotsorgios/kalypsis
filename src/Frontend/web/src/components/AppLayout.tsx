@@ -52,7 +52,7 @@ import { SessionCountdown } from "./SessionCountdown";
 import { KalypsisLogo } from "./KalypsisLogo";
 import { KalypsisOnboarding } from "./KalypsisOnboarding";
 import { PageTourMount } from "./PageTour";
-import { sidebarGroupKey, sidebarItemKey } from "../config/sidebarVisibility";
+import { sidebarGroupVisibilityKeys, sidebarItemKey } from "../config/sidebarVisibility";
 
 export interface NavItem {
   to: string;
@@ -284,7 +284,7 @@ export function AppLayout({ navItems, children }: AppLayoutProps) {
           );
           const visible = navItems.filter(item => {
             if (hiddenSidebarItems.has(sidebarItemKey(item.to))) return false;
-            if (item.group && hiddenSidebarItems.has(sidebarGroupKey(item.group))) return false;
+            if (item.group && sidebarGroupVisibilityKeys(item.group).some(key => hiddenSidebarItems.has(key))) return false;
             if (item.package && !hasPackage(item.package)) return false;
             if (item.permission && !bypassPermissions && !heldPermissions.has(item.permission))
               return false;

@@ -7,6 +7,16 @@ import type { PackageCode } from "../auth/PackagesContext";
 
 export const sidebarItemKey = (path: string) => `item:${path}`;
 export const sidebarGroupKey = (group: string) => `group:${group}`;
+/**
+ * The Intelligence workspace used to store both dropdowns under the single
+ * `group:intelligence` key. Keep that key as a legacy alias so an office that
+ * previously hid the combined dropdown does not unexpectedly see either of
+ * the new split groups after an upgrade.
+ */
+export const sidebarGroupVisibilityKeys = (group: string) =>
+  group === "reports" || group === "intelligence"
+    ? [sidebarGroupKey(group), sidebarGroupKey("intelligence")]
+    : [sidebarGroupKey(group)];
 /** Stable key for a card/tile rendered inside an office-facing page. */
 export const pageContainerKey = (pageId: string, containerId: string) =>
   `container:/${pageId}/${containerId}`;
@@ -50,6 +60,8 @@ export const SIDEBAR_GROUP_CONTAINERS: SidebarVisibilityItem[] = [
   { path: "financials", label: "Οικονομικά", detail: "Περιλαμβάνει τα οικονομικά και τις σχετικές αναφορές.", packages: ["BackOffice"] },
   { path: "params", label: "Παραμετροποίηση", detail: "Περιλαμβάνει εταιρείες, παραμετρικά και κανόνες.", packages: ["BackOffice"] },
   { path: "admin", label: "Διοίκηση", detail: "Περιλαμβάνει χρήστες, audit και εργαλεία διαχείρισης.", packages: ["BackOffice"] },
+  { path: "reports", label: "Αναφορές", detail: "Περιλαμβάνει αναφορές, ονομαστικές αναφορές και στατιστικά παραγωγής.", packages: ["Intelligence"] },
+  { path: "intelligence", label: "Νοημοσύνη", detail: "Περιλαμβάνει AI Workbench, prompts, συνομιλίες, ιστορικό, αυτοματισμούς και ρυθμίσεις AI.", packages: ["Intelligence"] },
   { path: "crm", label: "CRM", detail: "Περιλαμβάνει τις ομαδοποιημένες λειτουργίες CRM.", packages: ["Crm"] },
   { path: "integrationsGrp", label: "Υπηρεσίες διασύνδεσης", detail: "Περιλαμβάνει τις ομαδοποιημένες διασυνδέσεις.", packages: ["Integrations"] },
   { path: "setup", label: "Ρυθμίσεις διασυνδέσεων", detail: "Περιλαμβάνει υποκαταστήματα και σχεδιασμό κλάδων.", packages: ["Integrations"] }
@@ -154,15 +166,28 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     ]
   },
   {
-    title: "Intelligence",
-    description: "Εμφανίζονται μόνο όταν το πακέτο Intelligence είναι ενεργό.",
+    title: "Αναφορές",
+    description: "Οι αναφορές εμφανίζονται στο δικό τους dropdown του Intelligence workspace.",
     packages: ["Intelligence"],
-    groupKey: "intelligence",
+    groupKey: "reports",
     items: [
-      { path: "/intelligence-settings", label: "Ρυθμίσεις AI γραφείου" },
       { path: "/reports", label: "Αναφορές" },
       { path: "/named-reports", label: "Ονομαστικές αναφορές" },
       { path: "/production-stats", label: "Στατιστικά παραγωγής" }
+    ]
+  },
+  {
+    title: "Νοημοσύνη",
+    description: "Το AI Workbench και οι ρυθμίσεις του εμφανίζονται στο δικό τους dropdown.",
+    packages: ["Intelligence"],
+    groupKey: "intelligence",
+    items: [
+      { path: "/intelligence-workbench", label: "AI Workbench" },
+      { path: "/intelligence-workbench/prompts", label: "Prompts AI" },
+      { path: "/intelligence-workbench/chat", label: "AI συνομιλία" },
+      { path: "/intelligence-workbench/history", label: "Ιστορικό AI" },
+      { path: "/intelligence-workbench/automations", label: "Αυτοματισμοί AI" },
+      { path: "/intelligence-settings", label: "Ρυθμίσεις AI γραφείου" }
     ]
   },
   {

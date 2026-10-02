@@ -405,19 +405,17 @@ export const navByRole: Record<Role, NavItem[]> = {
 
     // ===== Intelligence =====
     // persistency hidden — analytics shell exists but not wired to data yet.
-    { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, package: "Intelligence", group: "reports" },
     { to: "/intelligence-workbench", labelKey: "nav.intelligenceWorkbench", icon: <SmartToyIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-workbench/prompts", labelKey: "nav.intelligencePrompts", icon: <DescriptionOutlinedIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-workbench/chat", labelKey: "nav.intelligenceChat", icon: <MailOutlineIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-workbench/history", labelKey: "nav.intelligenceHistory", icon: <ScheduleIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-workbench/automations", labelKey: "nav.intelligenceAutomations", icon: <RuleIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-settings", labelKey: "nav.aiSettings", icon: <VpnKeyIcon />, package: "Intelligence", group: "intelligence" },
-    // NOTE: the four reports below intentionally live under BackOffice
-    // (Παραγωγή group for the production listing, Οικονομικά group for the
-    // money reports) so operators find them next to the workflows that
-    // feed them, without having to jump into the Intelligence workspace.
-    { to: "/named-reports", labelKey: "nav.namedReports", icon: <AssessmentOutlinedIcon />, package: "Intelligence", group: "intelligence" },
-    { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, package: "Intelligence", group: "intelligence" },
+    // Reports stay in their own dropdown so the Intelligence workspace has a
+    // clear separation between reporting and AI tools.
+    { to: "/named-reports", labelKey: "nav.namedReports", icon: <AssessmentOutlinedIcon />, package: "Intelligence", group: "reports" },
+    { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, package: "Intelligence", group: "reports" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Intelligence" },
 
     // ===== Integrations =====
@@ -480,15 +478,15 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/crm-groups", labelKey: "nav.crmGroups", icon: <GroupWorkIconRC />, package: "Crm", permission: "marketing.read" },
     { to: "/crm-settings", labelKey: "nav.crmSettings", icon: <VpnKeyIcon />, package: "Crm", permission: "marketing.read" },
+    { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, package: "Intelligence", group: "reports" },
     { to: "/intelligence-settings", labelKey: "nav.aiSettings", icon: <VpnKeyIcon />, package: "Intelligence", group: "intelligence" },
-    { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-workbench", labelKey: "nav.intelligenceWorkbench", icon: <SmartToyIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-workbench/prompts", labelKey: "nav.intelligencePrompts", icon: <DescriptionOutlinedIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-workbench/chat", labelKey: "nav.intelligenceChat", icon: <MailOutlineIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-workbench/history", labelKey: "nav.intelligenceHistory", icon: <ScheduleIcon />, package: "Intelligence", group: "intelligence" },
     { to: "/intelligence-workbench/automations", labelKey: "nav.intelligenceAutomations", icon: <RuleIcon />, package: "Intelligence", group: "intelligence" },
-    { to: "/named-reports", labelKey: "nav.namedReports", icon: <AssessmentOutlinedIcon />, package: "Intelligence", group: "intelligence" },
-    { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, package: "Intelligence", group: "intelligence" },
+    { to: "/named-reports", labelKey: "nav.namedReports", icon: <AssessmentOutlinedIcon />, package: "Intelligence", group: "reports" },
+    { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, package: "Intelligence", group: "reports" },
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],

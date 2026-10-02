@@ -18,6 +18,7 @@ import {
   SIDEBAR_VISIBILITY_SECTIONS,
   pageContainerKey,
   sidebarGroupKey,
+  sidebarGroupVisibilityKeys,
   sidebarItemKey,
   type SidebarVisibilityItem,
   type SidebarVisibilitySection
@@ -61,7 +62,7 @@ function SidebarPreview({
     const source = navByRole[user.role] ?? [];
     return source.filter((item) => {
       if (hiddenItems.has(sidebarItemKey(item.to))) return false;
-      if (item.group && hiddenItems.has(sidebarGroupKey(item.group))) return false;
+      if (item.group && sidebarGroupVisibilityKeys(item.group).some(key => hiddenItems.has(key))) return false;
       if (item.package && !activePackages.has(item.package)) return false;
       if (item.permission && !bypassPermissions && !permissions.has(item.permission)) return false;
       return true;
