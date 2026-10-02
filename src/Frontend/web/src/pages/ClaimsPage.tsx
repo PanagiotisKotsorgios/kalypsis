@@ -27,6 +27,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { money, date } from "../utils/format";
@@ -41,6 +42,7 @@ import { SearchableTextField } from "../components/SearchableTextField";
 import { useCarrierCatalogue } from "../hooks/useCarrierCatalogue";
 import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
+import { BulkImportDialog, type BulkImportColumn, type BulkImportResult } from "../components/BulkImportDialog";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type ClaimStatus = "Reported" | "UnderReview" | "Approved" | "Rejected" | "Paid" | "Closed";
@@ -74,6 +76,14 @@ interface PolicyLite {
   policyType: PolicyType;
   insuranceCompanyName: string;
 }
+
+const CLAIM_IMPORT_COLUMNS: BulkImportColumn[] = [
+  { key: "policyId", label: "ID συμβολαίου", required: true, example: "00000000-0000-0000-0000-000000000000" },
+  { key: "incidentDate", label: "Ημερομηνία ζημιάς (YYYY-MM-DD)", required: true, example: "2026-10-01" },
+  { key: "reportedDate", label: "Ημερομηνία δήλωσης (YYYY-MM-DD)", example: "2026-10-02" },
+  { key: "claimedAmount", label: "Αιτούμενο ποσό", example: "1500.00" },
+  { key: "description", label: "Περιγραφή", example: "Περιγραφή ζημιάς" },
+];
 
 function useMemoAllowed(
   allCarriers: { id: string; name: string; parentCompanyId?: string | null }[],
@@ -117,6 +127,7 @@ export function ClaimsPage() {
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<ClaimStatus | "">("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<ClaimDto | null>(null);
   const [detail, setDetail] = useState<ClaimDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -130,6 +141,34 @@ export function ClaimsPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate,   setToDate]   = useState("");
   const [dateWindow, setDateWindow] = useState<"" | "7" | "30" | "90">("");
+
+  const importClaims = async (rows: Record<string, string>[]): Promise<BulkImportResult> => {
+    let imported = 0;
+    const errors: string[] = [];
+    const failedRows: Record<string, string>[] = [];
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index];
+      try {
+        const incidentDate = row.incidentDate?.trim();
+        if (!row.policyId?.trim() || !incidentDate) throw new Error("Λείπει ID συμβολαίου ή ημερομηνία ζημιάς.");
+        const amount = row.claimedAmount?.trim();
+        const claimedAmount = amount ? Number(amount.replace(",", ".")) : null;
+        if (claimedAmount !== null && !Number.isFinite(claimedAmount)) throw new Error("Το αιτούμενο ποσό δεν είναι αριθμός.");
+        await api.post("/claims", {
+          policyId: row.policyId.trim(),
+          incidentDate,
+          reportedDate: row.reportedDate?.trim() || new Date().toISOString().slice(0, 10),
+          claimedAmount,
+          description: row.description?.trim() || null,
+        });
+        imported += 1;
+      } catch (error) {
+        failedRows.push(row);
+        errors.push(`Γραμμή ${index + 2}: ${extractErrorMessage(error, "Αποτυχία εισαγωγής ζημιάς")}`);
+      }
+    }
+    return { imported, failed: failedRows.length, errors, failedRows };
+  };
 
   const carriersQ = useQuery({
     queryKey: ["carriers-claims-filter"],
@@ -245,9 +284,14 @@ export function ClaimsPage() {
           </Typography>
         </Box>
         {canEdit && (
-          <Button data-tour="claims-new" startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateOpen(true); }}>
-            {t("claims.create")}
-          </Button>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <Button startIcon={<UploadFileOutlinedIcon />} variant="outlined" size="large" onClick={() => setImportOpen(true)}>
+              Μαζική εισαγωγή
+            </Button>
+            <Button data-tour="claims-new" startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateOpen(true); }}>
+              {t("claims.create")}
+            </Button>
+          </Stack>
         )}
       </Stack>
 
@@ -474,6 +518,14 @@ export function ClaimsPage() {
 
       {canEdit && (
         <>
+          <BulkImportDialog
+            open={importOpen}
+            title="Μαζική εισαγωγή ζημιών"
+            description="Κατεβάστε το ελληνικό πρότυπο XLSX και συμπληρώστε μία ζημιά ανά γραμμή. Χρησιμοποιήστε το ID του υπάρχοντος συμβολαίου. Οι επιτυχίες αποθηκεύονται και οι αποτυχίες επιστρέφουν για διόρθωση."
+            columns={CLAIM_IMPORT_COLUMNS}
+            onClose={() => setImportOpen(false)}
+            onImport={async (rows) => { const result = await importClaims(rows); void qc.invalidateQueries({ queryKey: ["claims"] }); return result; }}
+          />
           <CreateClaimDialog
             open={createOpen}
             onClose={() => setCreateOpen(false)}

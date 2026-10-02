@@ -90,16 +90,16 @@ const TIER_LABEL: Record<ProducerTier, string> = {
 };
 
 const PRODUCER_IMPORT_COLUMNS = [
-  { key: "code", label: "code", required: true, example: "P-0001" },
-  { key: "name", label: "name", required: true, example: "Maria Papadopoulou" },
-  { key: "email", label: "email", example: "maria@example.gr" },
-  { key: "phone", label: "phone", example: "+30 210 0000000" },
-  { key: "notes", label: "notes", example: "Σημείωση συνεργάτη" },
-  { key: "status", label: "status (Prospect/Active/Suspended/Terminated)", required: true, example: "Active" },
-  { key: "tier", label: "tier (None/A/B/C/D/E)", example: "None" },
-  { key: "hierarchyLevel", label: "hierarchyLevel (Producer/Manager/Unit/Assistant/Agency)", example: "Producer" },
-  { key: "parentProducerCode", label: "parentProducerCode", example: "P-0000" },
-  { key: "initialPassword", label: "initialPassword", example: "" },
+  { key: "code", label: "Κωδικός συνεργάτη", required: true, example: "P-0001" },
+  { key: "name", label: "Ονοματεπώνυμο / Επωνυμία", required: true, example: "Μαρία Παπαδοπούλου" },
+  { key: "email", label: "Email", example: "maria@example.gr" },
+  { key: "phone", label: "Τηλέφωνο", example: "+30 210 0000000" },
+  { key: "notes", label: "Σημειώσεις", example: "Σημείωση συνεργάτη" },
+  { key: "status", label: "Κατάσταση (Prospect/Active/Suspended/Terminated)", required: true, example: "Active" },
+  { key: "tier", label: "Βαθμίδα (None/A/B/C/D/E)", example: "None" },
+  { key: "hierarchyLevel", label: "Επίπεδο ιεραρχίας (Producer/Manager/Unit/Assistant/Agency)", example: "Producer" },
+  { key: "parentProducerCode", label: "Κωδικός γονέα", example: "P-0000" },
+  { key: "initialPassword", label: "Αρχικός κωδικός πρόσβασης", example: "" },
 ] as const;
 
 export function ProducersPage() {

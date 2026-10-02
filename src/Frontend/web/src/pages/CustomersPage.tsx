@@ -140,20 +140,20 @@ function newCustomerForm(status: CustomerStatus): CreateBody {
 }
 
 const CUSTOMER_IMPORT_COLUMNS = [
-  { key: "type", label: "type (Individual/Company)", required: true, example: "Individual" },
-  { key: "status", label: "status (Prospect/Active)", required: true, example: "Active" },
-  { key: "firstName", label: "firstName", example: "Maria" },
-  { key: "lastName", label: "lastName", example: "Papadopoulou" },
-  { key: "companyName", label: "companyName", example: "" },
-  { key: "vatNumber", label: "vatNumber", example: "123456789" },
-  { key: "email", label: "email", example: "maria@example.gr" },
-  { key: "phone", label: "phone", example: "2100000000" },
-  { key: "address", label: "address", example: "Street 1" },
-  { key: "city", label: "city", example: "Athens" },
-  { key: "postalCode", label: "postalCode", example: "11111" },
-  { key: "occupation", label: "occupation", example: "" },
-  { key: "notes", label: "notes", example: "" },
-  { key: "paymentDueDate", label: "paymentDueDate (YYYY-MM-DD)", example: "2026-12-31" }
+  { key: "type", label: "Τύπος πελάτη (Individual/Company)", required: true, example: "Individual" },
+  { key: "status", label: "Κατάσταση (Prospect/Active)", required: true, example: "Active" },
+  { key: "firstName", label: "Όνομα", example: "Μαρία" },
+  { key: "lastName", label: "Επώνυμο", example: "Παπαδοπούλου" },
+  { key: "companyName", label: "Επωνυμία εταιρείας", example: "Παράδειγμα ΑΕ" },
+  { key: "vatNumber", label: "ΑΦΜ", example: "123456789" },
+  { key: "email", label: "Email", example: "maria@example.gr" },
+  { key: "phone", label: "Τηλέφωνο", example: "2100000000" },
+  { key: "address", label: "Διεύθυνση", example: "Οδός 1" },
+  { key: "city", label: "Πόλη", example: "Αθήνα" },
+  { key: "postalCode", label: "Τ.Κ.", example: "11111" },
+  { key: "occupation", label: "Επάγγελμα", example: "" },
+  { key: "notes", label: "Σημειώσεις", example: "" },
+  { key: "paymentDueDate", label: "Ημερομηνία εξόφλησης (YYYY-MM-DD)", example: "2026-12-31" }
 ] as const;
 
 function isoDate(date: Date): string {

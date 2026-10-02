@@ -14,6 +14,7 @@ import LayersClearIcon from "@mui/icons-material/LayersClear";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
+import { BulkImportDialog, type BulkImportColumn, type BulkImportResult } from "../components/BulkImportDialog";
 
 interface CompanyDto {
   id: string;
@@ -49,6 +50,20 @@ interface UpsertBody {
   installZeroCommissionDefaults: boolean;
 }
 
+const INSURANCE_COMPANY_IMPORT_COLUMNS: BulkImportColumn[] = [
+  { key: "code", label: "Κωδικός ασφαλιστικής", required: true, example: "MINETTA" },
+  { key: "name", label: "Επωνυμία ασφαλιστικής", required: true, example: "Μινέττα Ασφαλιστική" },
+  { key: "country", label: "Χώρα", example: "GR" },
+  { key: "website", label: "Ιστότοπος", example: "https://example.gr" },
+  { key: "isActive", label: "Ενεργή (true/false)", example: "true" },
+  { key: "agentCode", label: "Κωδικός γραφείου / πράκτορα", example: "" },
+  { key: "contactName", label: "Όνομα επικοινωνίας", example: "" },
+  { key: "contactEmail", label: "Email επικοινωνίας", example: "" },
+  { key: "contactPhone", label: "Τηλέφωνο επικοινωνίας", example: "" },
+  { key: "afmVat", label: "ΑΦΜ / VAT", example: "" },
+  { key: "notes", label: "Σημειώσεις", example: "" },
+];
+
 // MINETTA is a platform bridge source. It must not be presented as an
 // office-owned/active insurance company, even while older opt-in or copied
 // rows are still present in the database.
@@ -63,6 +78,7 @@ export function InsuranceCompaniesPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<CompanyDto | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const q = useQuery({
     queryKey: ["insurance-companies"],
@@ -91,6 +107,43 @@ export function InsuranceCompaniesPage() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["insurance-companies"] }),
     onError: (e) => setError(extractErrorMessage(e))
   });
+
+  const importInsuranceCompanies = async (rows: Record<string, string>[]): Promise<BulkImportResult> => {
+    let imported = 0;
+    const errors: string[] = [];
+    const failedRows: Record<string, string>[] = [];
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index];
+      try {
+        if (!row.code?.trim() || !row.name?.trim()) throw new Error("Ο κωδικός και η επωνυμία είναι υποχρεωτικά.");
+        const active = row.isActive?.trim().toLowerCase();
+        const isActive = active ? !["false", "no", "όχι", "οχι", "0"].includes(active) : true;
+        await api.post("/insurance-companies", {
+          name: row.name.trim(),
+          code: row.code.trim(),
+          country: row.country?.trim() || null,
+          website: row.website?.trim() || null,
+          isActive,
+          agentCode: row.agentCode?.trim() || null,
+          contactName: row.contactName?.trim() || null,
+          contactEmail: row.contactEmail?.trim() || null,
+          contactPhone: row.contactPhone?.trim() || null,
+          afmVat: row.afmVat?.trim() || null,
+          notes: row.notes?.trim() || null,
+          createBridge: true,
+          bridgeName: row.name.trim(),
+          bridgeAutoSync: false,
+          bridgeConfigJson: null,
+          installZeroCommissionDefaults: true,
+        });
+        imported += 1;
+      } catch (error) {
+        failedRows.push(row);
+        errors.push(`Γραμμή ${index + 2}: ${extractErrorMessage(error, "Αποτυχία εισαγωγής ασφαλιστικής")}`);
+      }
+    }
+    return { imported, failed: failedRows.length, errors, failedRows };
+  };
 
   // Opt-in toggle removed with the "Καθολικός κατάλογος" section — tenant-
   // owned carriers are implicitly used, so there's nothing for the operator
@@ -167,6 +220,9 @@ export function InsuranceCompaniesPage() {
               { key: "bridgeLinked", label: "Γέφυρα", map: (c) => (c.bridgeLinked || linkedCarrierIds.has(c.id) ? "Συνδεδεμένη" : "—") },
             ]}
           />
+          <Button variant="outlined" startIcon={<CloudUploadIcon />} onClick={() => setImportOpen(true)}>
+            Εισαγωγή XLSX
+          </Button>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
             Νέα ασφαλιστική
           </Button>
@@ -227,6 +283,14 @@ export function InsuranceCompaniesPage() {
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); setCreateOpen(false); }} />
       <CompanyDialog open={!!editing} onClose={() => setEditing(null)} item={editing}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); setEditing(null); }} />
+      <BulkImportDialog
+        open={importOpen}
+        title="Μαζική εισαγωγή ασφαλιστικών εταιρειών"
+        description="Κατεβάστε το ελληνικό πρότυπο XLSX και συμπληρώστε μία ασφαλιστική ανά γραμμή. Για κάθε επιτυχή γραμμή δημιουργείται και η βασική γέφυρα της εταιρείας. Οι αποτυχίες επιστρέφουν για διόρθωση χωρίς να ακυρώνονται οι επιτυχίες."
+        columns={INSURANCE_COMPANY_IMPORT_COLUMNS}
+        onClose={() => setImportOpen(false)}
+        onImport={async (rows) => { const result = await importInsuranceCompanies(rows); void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); return result; }}
+      />
       <CarrierProfileDialog
         open={!!profileFor}
         carrier={profileFor}

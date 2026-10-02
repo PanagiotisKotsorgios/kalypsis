@@ -31,9 +31,11 @@ import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import GridOnIcon from "@mui/icons-material/GridOn";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import { Tooltip } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { BulkImportDialog, type BulkImportColumn, type BulkImportResult } from "./BulkImportDialog";
 
 type Kind = "Branch" | "Use" | "Coverage" | "Package";
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
@@ -66,6 +68,24 @@ const KIND_LABEL: Record<Kind, string> = {
 
 const POLICY_TYPES: PolicyType[] = ["Auto", "Home", "Health", "Life", "Business", "Travel", "Other"];
 
+const PARAMETRIC_IMPORT_COLUMNS: BulkImportColumn[] = [
+  { key: "kind", label: "Είδος (Branch/Use/Coverage/Package)", required: true, example: "Coverage" },
+  { key: "code", label: "Κωδικός", required: true, example: "AUTO_BASIC" },
+  { key: "name", label: "Ονομασία", required: true, example: "Βασική κάλυψη" },
+  { key: "policyType", label: "Κλάδος (Auto/Home/Health/Life/Business/Travel/Other)", example: "Auto" },
+  { key: "vehicleUseCategory", label: "Κατηγορία χρήσης οχήματος", example: "Private" },
+  { key: "parentCode", label: "Κωδικός γονέα", example: "AUTO" },
+  { key: "bridgeSystem", label: "Σύστημα γέφυρας", example: "" },
+  { key: "bridgeCode", label: "Κωδικός γέφυρας", example: "" },
+  { key: "bridgeField", label: "Πεδίο γέφυρας", example: "" },
+  { key: "defaultValuesJson", label: "Προεπιλεγμένες τιμές (JSON)", example: "{}" },
+  { key: "effectiveFrom", label: "Ισχύς από (YYYY-MM-DD)", example: "2026-10-01" },
+  { key: "effectiveTo", label: "Ισχύς έως (YYYY-MM-DD)", example: "" },
+  { key: "isActive", label: "Ενεργό (true/false)", example: "true" },
+  { key: "displayOrder", label: "Σειρά εμφάνισης", example: "1" },
+  { key: "notes", label: "Σημειώσεις", example: "" },
+];
+
 /**
  * Per-carrier catalogue manager. Lists every CompanyParameterItem for a given
  * insurance company, grouped by kind, with add / edit / delete. AgencyAdmin
@@ -88,6 +108,7 @@ export function CompanyCatalogueDialog({
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Item | null>(null);
   const [creating, setCreating] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const q = useQuery({
     enabled: open && !!insuranceCompanyId,
@@ -109,7 +130,49 @@ export function CompanyCatalogueDialog({
     setEditing(null);
     setCreating(false);
     setSearch("");
+    setImportOpen(false);
     onClose();
+  };
+
+  const importParametrics = async (rows: Record<string, string>[]): Promise<BulkImportResult> => {
+    let imported = 0;
+    const errors: string[] = [];
+    const failedRows: Record<string, string>[] = [];
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index];
+      try {
+        const kind = row.kind?.trim();
+        if (!["Branch", "Use", "Coverage", "Package"].includes(kind)) throw new Error("Το είδος πρέπει να είναι Branch, Use, Coverage ή Package.");
+        if (!row.code?.trim() || !row.name?.trim()) throw new Error("Ο κωδικός και η ονομασία είναι υποχρεωτικά.");
+        const active = row.isActive?.trim().toLowerCase();
+        const displayOrder = row.displayOrder?.trim() ? Number(row.displayOrder) : 0;
+        if (!Number.isFinite(displayOrder)) throw new Error("Η σειρά εμφάνισης πρέπει να είναι αριθμός.");
+        await api.post("/company-parameters", {
+          insuranceCompanyId,
+          kind,
+          code: row.code.trim(),
+          name: row.name.trim(),
+          policyType: row.policyType?.trim() || null,
+          vehicleUseCategory: row.vehicleUseCategory?.trim() || null,
+          parentCode: row.parentCode?.trim() || null,
+          bridgeSystem: row.bridgeSystem?.trim() || null,
+          bridgeCode: row.bridgeCode?.trim() || null,
+          bridgeField: row.bridgeField?.trim() || null,
+          defaultValuesJson: row.defaultValuesJson?.trim() || null,
+          effectiveFrom: row.effectiveFrom?.trim() || null,
+          effectiveTo: row.effectiveTo?.trim() || null,
+          isActive: active ? !["false", "no", "όχι", "οχι", "0"].includes(active) : true,
+          displayOrder,
+          source: "AgencyImport",
+          notes: row.notes?.trim() || null,
+        });
+        imported += 1;
+      } catch (error) {
+        failedRows.push(row);
+        errors.push(`Γραμμή ${index + 2}: ${extractErrorMessage(error, "Αποτυχία εισαγωγής παραμετρικού")}`);
+      }
+    }
+    return { imported, failed: failedRows.length, errors, failedRows };
   };
 
   return (
@@ -199,6 +262,10 @@ export function CompanyCatalogueDialog({
             }}>
             Για συνεργάτες
           </Button>
+          <Button startIcon={<UploadFileOutlinedIcon />} variant="outlined" size="small"
+            onClick={() => setImportOpen(true)} disabled={!insuranceCompanyId}>
+            Εισαγωγή XLSX
+          </Button>
           <Button startIcon={<AddIcon />} variant="contained" size="small"
             onClick={() => setCreating(true)} disabled={!insuranceCompanyId}>
             Νέα εγγραφή
@@ -271,6 +338,14 @@ export function CompanyCatalogueDialog({
         defaultKind={tab}
         editing={editing}
         onSaved={() => qc.invalidateQueries({ queryKey: ["company-parameters", insuranceCompanyId] })}
+      />
+      <BulkImportDialog
+        open={importOpen}
+        title={`Μαζική εισαγωγή παραμετρικών · ${insuranceCompanyName ?? "ασφαλιστική"}`}
+        description="Το πρότυπο περιέχει κλάδους, χρήσεις, καλύψεις και πακέτα. Για Coverage/Package συμπληρώστε κλάδο και κωδικό γονέα. Οι κλειδωμένες εγγραφές γέφυρας δεν τροποποιούνται από το γραφείο."
+        columns={PARAMETRIC_IMPORT_COLUMNS}
+        onClose={() => setImportOpen(false)}
+        onImport={async (rows) => { const result = await importParametrics(rows); void qc.invalidateQueries({ queryKey: ["company-parameters", insuranceCompanyId] }); return result; }}
       />
     </Dialog>
   );

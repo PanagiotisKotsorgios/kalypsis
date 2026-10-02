@@ -11,39 +11,16 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "Category",
-                table: "registration_requests",
-                type: "varchar(80)",
-                maxLength: 80,
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "FollowUpAt",
-                table: "registration_requests",
-                type: "datetime(6)",
-                nullable: true);
-
-            migrationBuilder.AddColumn<bool>(
-                name: "IsRead",
-                table: "registration_requests",
-                type: "tinyint(1)",
-                nullable: false,
-                defaultValue: false);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "ReadAt",
-                table: "registration_requests",
-                type: "datetime(6)",
-                nullable: true);
-
-            migrationBuilder.AddColumn<int>(
-                name: "TriageStatus",
-                table: "registration_requests",
-                type: "int",
-                nullable: false,
-                defaultValue: 0);
+            // These columns were also created by the historical boot-time
+            // schema safety net.  Existing production databases may therefore
+            // already contain them while the migration is still pending.  Use
+            // an idempotent INFORMATION_SCHEMA check so a redeploy never
+            // crashes the API with "duplicate column".
+            AddColumnIfMissing(migrationBuilder, "registration_requests", "Category", "varchar(80) NULL");
+            AddColumnIfMissing(migrationBuilder, "registration_requests", "FollowUpAt", "datetime(6) NULL");
+            AddColumnIfMissing(migrationBuilder, "registration_requests", "IsRead", "tinyint(1) NOT NULL DEFAULT 0");
+            AddColumnIfMissing(migrationBuilder, "registration_requests", "ReadAt", "datetime(6) NULL");
+            AddColumnIfMissing(migrationBuilder, "registration_requests", "TriageStatus", "int NOT NULL DEFAULT 0");
 
             migrationBuilder.AlterColumn<string>(
                 name: "Value",
@@ -58,11 +35,9 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4")
                 .OldAnnotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.AddColumn<DateOnly>(
-                name: "PaymentDueDate",
-                table: "customers",
-                type: "date",
-                nullable: true);
+            // PaymentDueDate is another column that older boots could have
+            // created through the additive schema repair.
+            AddColumnIfMissing(migrationBuilder, "customers", "PaymentDueDate", "date NULL");
 
             migrationBuilder.CreateTable(
                 name: "crm_groups",
@@ -204,6 +179,30 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                 name: "IX_producer_communication_logs_UserId",
                 table: "producer_communication_logs",
                 column: "UserId");
+        }
+
+        private static void AddColumnIfMissing(MigrationBuilder migrationBuilder, string table, string column, string definition)
+        {
+            // MySQL does not consistently support ADD COLUMN IF NOT EXISTS
+            // across the versions supported by Coolify.  The prepared
+            // statement keeps this compatible with MySQL 8.0 and is safe to
+            // run when a previous partial migration already added the field.
+            migrationBuilder.Sql($"""
+                SET @kalypsis_add_column_sql = IF(
+                    EXISTS (
+                        SELECT 1
+                        FROM INFORMATION_SCHEMA.COLUMNS
+                        WHERE TABLE_SCHEMA = DATABASE()
+                          AND TABLE_NAME = '{table}'
+                          AND COLUMN_NAME = '{column}'
+                    ),
+                    'SELECT 1',
+                    'ALTER TABLE `{table}` ADD COLUMN `{column}` {definition}'
+                );
+                PREPARE kalypsis_add_column_stmt FROM @kalypsis_add_column_sql;
+                EXECUTE kalypsis_add_column_stmt;
+                DEALLOCATE PREPARE kalypsis_add_column_stmt;
+                """);
         }
 
         /// <inheritdoc />

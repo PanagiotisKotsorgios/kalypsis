@@ -58,18 +58,18 @@ const MONTHS = [
 const moneyFmt = new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR" });
 
 const FINANCIAL_IMPORT_COLUMNS = [
-  { key: "kind", label: "kind (Income/Expense)", required: true, example: "Expense" },
-  { key: "category", label: "category", required: true, example: "Ενοίκιο" },
-  { key: "subcategory", label: "subcategory", example: "Κεντρικό γραφείο" },
-  { key: "entryDate", label: "entryDate (YYYY-MM-DD)", required: true, example: "2026-10-01" },
-  { key: "amount", label: "amount", required: true, example: "250.00" },
-  { key: "currency", label: "currency", example: "EUR" },
-  { key: "description", label: "description", example: "Μηνιαίο έξοδο" },
-  { key: "counterparty", label: "counterparty", example: "Προμηθευτής" },
-  { key: "reference", label: "reference", example: "INV-1001" },
-  { key: "policyId", label: "policyId", example: "" },
-  { key: "customerId", label: "customerId", example: "" },
-  { key: "producerId", label: "producerId", example: "" },
+  { key: "kind", label: "Είδος (Income/Expense)", required: true, example: "Expense" },
+  { key: "category", label: "Κατηγορία", required: true, example: "Ενοίκιο" },
+  { key: "subcategory", label: "Υποκατηγορία", example: "Κεντρικό γραφείο" },
+  { key: "entryDate", label: "Ημερομηνία (YYYY-MM-DD)", required: true, example: "2026-10-01" },
+  { key: "amount", label: "Ποσό", required: true, example: "250.00" },
+  { key: "currency", label: "Νόμισμα", example: "EUR" },
+  { key: "description", label: "Περιγραφή", example: "Μηνιαίο έξοδο" },
+  { key: "counterparty", label: "Αντισυμβαλλόμενος", example: "Προμηθευτής" },
+  { key: "reference", label: "Παραστατικό / Αναφορά", example: "INV-1001" },
+  { key: "policyId", label: "ID συμβολαίου", example: "" },
+  { key: "customerId", label: "ID πελάτη", example: "" },
+  { key: "producerId", label: "ID συνεργάτη", example: "" },
 ] as const;
 
 export function GeneralFinancialEntriesPage() {

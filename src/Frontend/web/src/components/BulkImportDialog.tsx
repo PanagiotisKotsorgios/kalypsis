@@ -7,7 +7,11 @@ import {
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import * as XLSX from "xlsx";
+// xlsx-js-style keeps the SheetJS parser/API but adds the small set of cell
+// styles we need for operator-friendly templates (dark header, white text).
+// The rest of the application can continue to use the regular xlsx package
+// for read-only previews.
+import * as XLSX from "xlsx-js-style";
 
 export interface BulkImportColumn {
   key: string;
@@ -52,12 +56,61 @@ export function BulkImportDialog({ open, title, description, columns, onClose, o
 
   const downloadTemplate = () => {
     const workbook = XLSX.utils.book_new();
+    const headerStyle = {
+      fill: { fgColor: { rgb: "17365D" } },
+      font: { bold: true, color: { rgb: "FFFFFF" } },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "17365D" } },
+        bottom: { style: "thin", color: { rgb: "17365D" } },
+        left: { style: "thin", color: { rgb: "17365D" } },
+        right: { style: "thin", color: { rgb: "17365D" } },
+      },
+    };
+    const requiredStyle = { font: { color: { rgb: "9C0006" } }, fill: { fgColor: { rgb: "FFC7CE" } } };
+    const applyHeader = (sheet: XLSX.WorkSheet, row: number, count: number) => {
+      for (let index = 0; index < count; index += 1) {
+        const cell = sheet[XLSX.utils.encode_cell({ r: row, c: index })];
+        if (cell) cell.s = headerStyle;
+      }
+      sheet["!rows"] = [{ hpt: row === 0 ? 30 : 24 }];
+    };
+
+    // The first two rows are intentionally human-readable: they remain in
+    // the downloaded workbook but are skipped by the importer because the
+    // table header is still the first row. Operators can fill row 2 onward.
     const header = columns.map(c => c.label);
     const sheet = XLSX.utils.aoa_to_sheet([header]);
-    XLSX.utils.book_append_sheet(workbook, sheet, "Template");
-    const instructions = columns.map(c => [c.label, c.key, c.required ? "Required" : "Optional", c.example ?? ""]);
-    const help = XLSX.utils.aoa_to_sheet([["Column", "Field key", "Rule", "Example"], ...instructions]);
-    XLSX.utils.book_append_sheet(workbook, help, "Instructions");
+    applyHeader(sheet, 0, columns.length);
+    sheet["!cols"] = columns.map(c => ({ wch: Math.max(16, Math.min(34, c.label.length + 5)) }));
+    sheet["!autofilter"] = { ref: `A1:${XLSX.utils.encode_col(Math.max(0, columns.length - 1))}1` };
+    sheet["!freeze"] = { xSplit: 0, ySplit: 1 } as unknown as XLSX.WSKeys;
+    columns.forEach((column, index) => {
+      const cell = sheet[XLSX.utils.encode_cell({ r: 0, c: index })];
+      if (cell && column.required) cell.s = { ...headerStyle, fill: { fgColor: { rgb: "7F1D1D" } } };
+    });
+    XLSX.utils.book_append_sheet(workbook, sheet, "Συμπλήρωση");
+
+    const instructions = columns.map(c => [c.label, c.key, c.required ? "Υποχρεωτικό" : "Προαιρετικό", c.example ?? ""]);
+    const help = XLSX.utils.aoa_to_sheet([
+      ["Οδηγίες συμπλήρωσης", "", "", ""],
+      ["Συμπληρώστε μία εγγραφή ανά γραμμή στο φύλλο «Συμπλήρωση». Μην αλλάξετε τις επικεφαλίδες.", "", "", ""],
+      ["Στήλη", "Τεχνικό πεδίο", "Κανόνας", "Παράδειγμα"],
+      ...instructions,
+    ]);
+    applyHeader(help, 2, 4);
+    help["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
+    ];
+    help["!cols"] = [{ wch: 36 }, { wch: 28 }, { wch: 18 }, { wch: 32 }];
+    help["A1"].s = { fill: { fgColor: { rgb: "17365D" } }, font: { bold: true, color: { rgb: "FFFFFF" }, sz: 14 } };
+    help["A2"].s = { font: { italic: true, color: { rgb: "404040" } }, alignment: { wrapText: true } };
+    for (let index = 0; index < columns.length; index += 1) {
+      const cell = help[XLSX.utils.encode_cell({ r: index + 3, c: 2 })];
+      if (cell && columns[index]?.required) cell.s = requiredStyle;
+    }
+    XLSX.utils.book_append_sheet(workbook, help, "Οδηγίες");
     XLSX.writeFile(workbook, `${title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-template.xlsx`);
   };
 
