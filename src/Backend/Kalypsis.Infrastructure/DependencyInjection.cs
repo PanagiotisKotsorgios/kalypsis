@@ -76,6 +76,11 @@ public static class DependencyInjection
 
         services.AddHttpClient("brevo");
         services.AddHttpClient("bulker");
+        services.AddHttpClient("openai", client =>
+        {
+            client.BaseAddress = new Uri("https://api.openai.com/v1/");
+            client.Timeout = TimeSpan.FromSeconds(90);
+        });
         services.AddScoped<IEmailSender, BrevoEmailSender>();
         // Out-of-band OTP verification for destructive PlatformAdmin
         // actions. See AdminActionChallenge entity + RequiresAdminOtp attribute.
@@ -132,7 +137,10 @@ public static class DependencyInjection
         services.AddScoped<IMailboxSyncer, StubMailboxSyncer>();
         services.AddScoped<ITelephonyAdapter, StubTelephonyAdapter>();
         services.AddScoped<IAudioTranscriber, StubAudioTranscriber>();
-        services.AddScoped<IAiService, StubAiService>();
+        // AI is deliberately office-scoped. OfficeAiService reads the encrypted
+        // OpenAI key from this tenant's IntegrationSettings and never falls back
+        // to a platform-wide key.
+        services.AddScoped<IAiService, OfficeAiService>();
         services.AddScoped<ISubscriptionBilling, StubSubscriptionBilling>();
         services.AddScoped<IWorkflowEngine, WorkflowEngine>();
         services.AddScoped<IReportRunner, ReportRunner>();

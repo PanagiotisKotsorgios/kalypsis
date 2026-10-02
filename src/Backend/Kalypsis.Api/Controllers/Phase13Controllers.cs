@@ -20,16 +20,21 @@ public class IntegrationSettingsController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<IntegrationSettingDto>>> List([FromQuery] string? service, CancellationToken ct)
     {
         if (_current.Role == Role.AgencyOfficeAdmin && string.IsNullOrWhiteSpace(service)) service = "Crm";
-        if (_current.Role == Role.AgencyOfficeAdmin && !string.Equals(service, "Crm", StringComparison.OrdinalIgnoreCase)) return Forbid();
+        if (_current.Role == Role.AgencyOfficeAdmin && !IsOfficeAdminService(service)) return Forbid();
         return Ok(await _mediator.Send(new ListIntegrationSettingsQuery(service), ct));
     }
 
     [HttpPost]
     public async Task<ActionResult<IntegrationSettingDto>> Save([FromBody] IntegrationSettingBody body, CancellationToken ct)
     {
-        if (_current.Role == Role.AgencyOfficeAdmin && !string.Equals(body.Service, "Crm", StringComparison.OrdinalIgnoreCase)) return Forbid();
+        if (_current.Role == Role.AgencyOfficeAdmin && !IsOfficeAdminService(body.Service)) return Forbid();
         return Ok(await _mediator.Send(new SaveIntegrationSettingCommand(body), ct));
     }
+
+    private static bool IsOfficeAdminService(string? service) =>
+        string.Equals(service, "Crm", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(service, "Ai", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(service, "OpenAI", StringComparison.OrdinalIgnoreCase);
 }
 
 [ApiController]

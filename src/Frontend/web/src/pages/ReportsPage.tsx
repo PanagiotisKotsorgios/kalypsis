@@ -1,165 +1,50 @@
-import { Box, Card, CardContent, CircularProgress, Typography } from "@mui/material";
+import { useMemo, useState } from "react";
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
-  ResponsiveContainer, Tooltip, XAxis, YAxis
-} from "recharts";
+  Alert, Box, Button, Card, CardContent, Checkbox, Chip, CircularProgress, FormControl,
+  InputLabel, LinearProgress, MenuItem, Select, Stack, Table, TableBody, TableCell,
+  TableHead, TableRow, TextField, Typography
+} from "@mui/material";
+import DownloadIcon from "@mui/icons-material/Download";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import SettingsSuggestIcon from "@mui/icons-material/SettingsSuggest";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useQuery } from "@tanstack/react-query";
-import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 
-interface SeriesPoint { label: string; value: number }
-interface CarrierShare { carrier: string; policies: number; premium: number }
+type RiskBand = "Safe" | "Watch" | "At-risk" | "Critical";
+interface Factor { code: string; label: string; weight: number; detail: string }
+interface PolicyRisk { id: string; policyNumber: string; customerId: string; customerName: string; email?: string; carrier: string; policyType: string; status: string; startDate: string; endDate: string; daysToExpiry?: number; premium: number; netPremium?: number; claimsCount: number; claimExposure: number; score: number; band: RiskBand; factors: Factor[]; nextAction: string }
+interface CustomerRisk { id: string; name: string; email?: string; policyCount: number; premium: number; score: number; band: RiskBand; lastContactAt?: string; openClaims: number; factors: Factor[]; nextAction: string }
+interface AiUsage { invocations: number; successful: number; failed: number; promptTokens: number; completionTokens: number; totalTokens: number; lastUsedAt?: string; monthlyBudget?: number; budgetPercent: number; suggestion: string }
+interface IntelligenceDto { from: string; to: string; generatedAt: string; aiConfigured: boolean; kpis: { customers: number; policies: number; activePolicies: number; premium: number; netPremium: number; atRiskPolicies: number; criticalPolicies: number; expiring30Days: number; openClaims: number; claimExposure: number; unpaidPolicies: number }; policies: PolicyRisk[]; customers: CustomerRisk[]; trend: { month: string; newPolicies: number; renewals: number; cancellations: number; expiring: number; premium: number; claims: number }[]; riskBands: { key: string; value: number }[]; claimStatuses: { key: string; value: number }[]; aiUsage: AiUsage }
 
-interface AgencyReportDto {
-  kpis: {
-    customers: number;
-    activePolicies: number;
-    expiringSoon: number;
-    monthlyPremium: number;
-    openClaims: number;
-    openRequests: number;
-  };
-  policiesByType: SeriesPoint[];
-  policiesByStatus: SeriesPoint[];
-  claimsByStatus: SeriesPoint[];
-  requestsByStatus: SeriesPoint[];
-  monthlyPremium: SeriesPoint[];
-  topCarriers: CarrierShare[];
-}
-
-const COLORS = ["#0b2545", "#1d4e89", "#1ea7e1", "#f6a623", "#7be295", "#c0392b", "#7f8c8d"];
+const COLORS = ["#1b5e20", "#f9a825", "#ef6c00", "#c62828", "#1565c0", "#6a1b9a"];
+const euro = (v: number) => new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR", maximumFractionDigits: 2 }).format(v || 0);
+const number = (v: number) => new Intl.NumberFormat("el-GR").format(v || 0);
+const dateLabel = (v?: string) => v ? new Date(v).toLocaleDateString("el-GR") : "—";
+const bandLabel: Record<string, string> = { Safe: "Ασφαλές", Watch: "Παρακολούθηση", "At-risk": "Σε κίνδυνο", Critical: "Κρίσιμο" };
+const bandColor: Record<string, "success" | "warning" | "error" | "info"> = { Safe: "success", Watch: "warning", "At-risk": "warning", Critical: "error" };
+function defaultDate(days: number) { const d = new Date(); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10); }
 
 export function ReportsPage() {
-  const { t } = useTranslation();
-  const q = useQuery({
-    queryKey: ["reports-agency"],
-    queryFn: async () => (await api.get<AgencyReportDto>("/reports/agency")).data
-  });
-
-  if (q.isLoading || !q.data) {
-    return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
-  }
-  const r = q.data;
-
-  return (
-    <Box>
-      <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("reports.title")}</Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>{t("reports.subtitle")}</Typography>
-
-      {/* KPI cards */}
-      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(6, 1fr)" }, mb: 3 }}>
-        <Kpi label={t("reports.kpi.customers")} value={r.kpis.customers.toLocaleString("el-GR")} />
-        <Kpi label={t("reports.kpi.activePolicies")} value={r.kpis.activePolicies.toLocaleString("el-GR")} />
-        <Kpi label={t("reports.kpi.expiringSoon")} value={r.kpis.expiringSoon.toLocaleString("el-GR")} accent={r.kpis.expiringSoon > 0 ? "warning" : undefined} />
-        <Kpi label={t("reports.kpi.monthlyPremium")} value={`€${r.kpis.monthlyPremium.toLocaleString("el-GR", { minimumFractionDigits: 0 })}`} />
-        <Kpi label={t("reports.kpi.openClaims")} value={r.kpis.openClaims.toLocaleString("el-GR")} />
-        <Kpi label={t("reports.kpi.openRequests")} value={r.kpis.openRequests.toLocaleString("el-GR")} />
-      </Box>
-
-      {/* Charts row 1 — Monthly premium */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>{t("reports.chart.monthlyPremium")}</Typography>
-          <Box sx={{ height: 280 }}>
-            <ResponsiveContainer>
-              <LineChart data={r.monthlyPremium}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e9f0" />
-                <XAxis dataKey="label" stroke="#456079" fontSize={12} />
-                <YAxis stroke="#456079" fontSize={12} tickFormatter={(v) => `€${v}`} />
-                <Tooltip formatter={(v) => `€${Number(v).toLocaleString("el-GR", { minimumFractionDigits: 0 })}`} />
-                <Line type="monotone" dataKey="value" stroke="#0b2545" strokeWidth={3} dot={{ r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </Box>
-        </CardContent>
-      </Card>
-
-      {/* Charts row 2 — pies */}
-      <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, mb: 3 }}>
-        <ChartCard title={t("reports.chart.policiesByType")} data={r.policiesByType} kind="pie" labelMap="policies.types" />
-        <ChartCard title={t("reports.chart.policiesByStatus")} data={r.policiesByStatus} kind="pie" labelMap="policies.statuses" />
-      </Box>
-
-      {/* Charts row 3 — bars */}
-      <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, mb: 3 }}>
-        <ChartCard title={t("reports.chart.claimsByStatus")} data={r.claimsByStatus} kind="bar" labelMap="claims.statuses" />
-        <ChartCard title={t("reports.chart.requestsByStatus")} data={r.requestsByStatus} kind="bar" labelMap="requests.statuses" />
-      </Box>
-
-      {/* Top carriers */}
-      <Card>
-        <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>{t("reports.chart.topCarriers")}</Typography>
-          <Box sx={{ height: 320 }}>
-            <ResponsiveContainer>
-              <BarChart data={r.topCarriers} layout="vertical" margin={{ left: 20, right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e9f0" />
-                <XAxis type="number" stroke="#456079" fontSize={12} />
-                <YAxis type="category" dataKey="carrier" stroke="#456079" fontSize={12} width={150} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="policies" name={t("reports.chart.policiesLabel")} fill="#1d4e89" />
-                <Bar dataKey="premium" name={t("reports.chart.premiumLabel")} fill="#1ea7e1" />
-              </BarChart>
-            </ResponsiveContainer>
-          </Box>
-        </CardContent>
-      </Card>
-    </Box>
-  );
+  const [filters, setFilters] = useState({ from: defaultDate(-365), to: defaultDate(365), policyType: "", search: "", riskBand: "", includeProspects: true });
+  const query = useQuery({ queryKey: ["intelligence-portfolio", filters], queryFn: async () => (await api.get<IntelligenceDto>("/intelligence/portfolio", { params: filters })).data, staleTime: 30_000 });
+  const update = (key: keyof typeof filters, value: string | boolean) => setFilters(f => ({ ...f, [key]: value }));
+  const exportUrl = useMemo(() => { const p = new URLSearchParams(); Object.entries(filters).forEach(([k, v]) => { if (v !== "") p.set(k, String(v)); }); return `/api/intelligence/portfolio/export.csv?${p.toString()}`; }, [filters]);
+  return <Box>
+    <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ md: "center" }} gap={1} mb={1}><Box><Typography variant="h4" sx={{ fontWeight: 800 }}>Αναλυτικά & Νοημοσύνη</Typography><Typography color="text.secondary">Προβλέψεις κινδύνου ανά συμβόλαιο και πελάτη, ζημιές, ανανεώσεις και παραγωγή.</Typography></Box><Stack direction="row" gap={1}><Button variant="outlined" startIcon={<RefreshIcon />} onClick={() => void query.refetch()}>Ανανέωση</Button><Button variant="contained" startIcon={<DownloadIcon />} onClick={() => window.location.assign(exportUrl)}>Εξαγωγή CSV</Button></Stack></Stack>
+    <Card sx={{ mb: 2 }}><CardContent><Stack direction={{ xs: "column", md: "row" }} gap={1.5} flexWrap="wrap" alignItems={{ md: "center" }}><TextField size="small" type="date" label="Από" value={filters.from} onChange={e => update("from", e.target.value)} InputLabelProps={{ shrink: true }} /><TextField size="small" type="date" label="Έως" value={filters.to} onChange={e => update("to", e.target.value)} InputLabelProps={{ shrink: true }} /><FormControl size="small" sx={{ minWidth: 155 }}><InputLabel>Κλάδος</InputLabel><Select label="Κλάδος" value={filters.policyType} onChange={e => update("policyType", e.target.value)}><MenuItem value="">Όλοι οι κλάδοι</MenuItem><MenuItem value="Auto">Αυτοκίνητο</MenuItem><MenuItem value="Home">Κατοικία</MenuItem><MenuItem value="Health">Υγεία</MenuItem><MenuItem value="Life">Ζωή</MenuItem><MenuItem value="Business">Επιχείρηση</MenuItem><MenuItem value="Travel">Ταξίδι</MenuItem><MenuItem value="Other">Λοιπά</MenuItem></Select></FormControl><FormControl size="small" sx={{ minWidth: 155 }}><InputLabel>Ζώνη κινδύνου</InputLabel><Select label="Ζώνη κινδύνου" value={filters.riskBand} onChange={e => update("riskBand", e.target.value)}><MenuItem value="">Όλες</MenuItem><MenuItem value="Critical">Κρίσιμα</MenuItem><MenuItem value="At-risk">Σε κίνδυνο</MenuItem><MenuItem value="Watch">Παρακολούθηση</MenuItem><MenuItem value="Safe">Ασφαλή</MenuItem></Select></FormControl><TextField size="small" label="Αναζήτηση πελάτη / συμβολαίου" value={filters.search} onChange={e => update("search", e.target.value)} sx={{ minWidth: 230, flex: 1 }} /><Stack direction="row" alignItems="center"><Checkbox checked={filters.includeProspects} onChange={e => update("includeProspects", e.target.checked)} /><Typography variant="body2">Συμπερίληψη πιθανών</Typography></Stack></Stack></CardContent></Card>
+    {query.isLoading && <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>}{query.isError && <Alert severity="error">Δεν ήταν δυνατή η φόρτωση των αναλυτικών. Ελέγξτε ότι το πακέτο Intelligence είναι ενεργό.</Alert>}{query.data && <IntelligenceContent data={query.data} />}
+  </Box>;
 }
 
-function Kpi({ label, value, accent }: { label: string; value: string; accent?: "warning" }) {
-  return (
-    <Card sx={{ borderLeft: accent === "warning" ? "4px solid" : undefined, borderLeftColor: "warning.main" }}>
-      <CardContent>
-        <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1 }}>{label}</Typography>
-        <Typography variant="h4" sx={{ fontWeight: 800 }}>{value}</Typography>
-      </CardContent>
-    </Card>
-  );
+function IntelligenceContent({ data }: { data: IntelligenceDto }) {
+  const k = data.kpis;
+  return <><Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(6, 1fr)" }, mb: 2 }}><Kpi label="Πελάτες" value={number(k.customers)} /><Kpi label="Συμβόλαια" value={number(k.policies)} /><Kpi label="Ενεργά" value={number(k.activePolicies)} /><Kpi label="Ασφάλιστρα" value={euro(k.premium)} /><Kpi label="Λήγουν ≤30 ημέρες" value={number(k.expiring30Days)} accent={k.expiring30Days > 0} /><Kpi label="Απλήρωτα" value={number(k.unpaidPolicies)} accent={k.unpaidPolicies > 0} /></Box><Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" }, mb: 2 }}><Kpi label="Σε κίνδυνο" value={number(k.atRiskPolicies)} accent={k.atRiskPolicies > 0} /><Kpi label="Κρίσιμα" value={number(k.criticalPolicies)} accent={k.criticalPolicies > 0} /><Kpi label="Ανοιχτές ζημιές" value={`${number(k.openClaims)} · ${euro(k.claimExposure)}`} /><AiUsageCard usage={data.aiUsage} configured={data.aiConfigured} /></Box><Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", lg: "2fr 1fr" }, mb: 2 }}><Card><CardContent><Typography variant="h6" fontWeight={700} mb={1}>Τάση παραγωγής και ζημιών</Typography><Box sx={{ height: 300 }}><ResponsiveContainer><LineChart data={data.trend}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="month" /><YAxis yAxisId="left" /><YAxis yAxisId="right" orientation="right" /><Tooltip /><Legend /><Line yAxisId="left" type="monotone" dataKey="premium" name="Ασφάλιστρα" stroke="#1565c0" strokeWidth={3} /><Line yAxisId="right" type="monotone" dataKey="claims" name="Ζημιές" stroke="#c62828" strokeWidth={2} /></LineChart></ResponsiveContainer></Box></CardContent></Card><Card><CardContent><Typography variant="h6" fontWeight={700} mb={1}>Κατανομή κινδύνου</Typography><Box sx={{ height: 300 }}><ResponsiveContainer><PieChart><Pie data={data.riskBands.map(x => ({ name: bandLabel[x.key] ?? x.key, value: x.value }))} dataKey="value" nameKey="name" outerRadius={95} label>{data.riskBands.map((x, i) => <Cell key={x.key} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer></Box></CardContent></Card></Box><Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, mb: 2 }}><RiskPolicies policies={data.policies.slice(0, 20)} /><CustomerRisks customers={data.customers.slice(0, 20)} /></Box><Card><CardContent><Typography variant="h6" fontWeight={700} mb={1}>Κατάσταση ζημιών</Typography><Box sx={{ height: 220 }}><ResponsiveContainer><BarChart data={data.claimStatuses.map(x => ({ name: x.key, value: x.value }))}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis allowDecimals={false} /><Tooltip /><Bar dataKey="value" name="Πλήθος" fill="#c62828">{data.claimStatuses.map((x, i) => <Cell key={x.key} fill={COLORS[i % COLORS.length]} />)}</Bar></BarChart></ResponsiveContainer></Box></CardContent></Card></>;
 }
 
-function ChartCard({ title, data, kind, labelMap }:
-  { title: string; data: SeriesPoint[]; kind: "pie" | "bar"; labelMap: string }) {
-  const { t } = useTranslation();
-  const labeled = data.map((p) => ({ ...p, label: t(`${labelMap}.${p.label}`, { defaultValue: p.label }) }));
-  return (
-    <Card>
-      <CardContent>
-        <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>{title}</Typography>
-        {labeled.length === 0 ? (
-          <Typography color="text.secondary" textAlign="center" py={4}>{t("reports.empty")}</Typography>
-        ) : (
-          <Box sx={{ height: 260 }}>
-            <ResponsiveContainer>
-              {kind === "pie" ? (
-                <PieChart>
-                  <Tooltip />
-                  <Legend />
-                  <Pie data={labeled} dataKey="value" nameKey="label" cx="50%" cy="50%" outerRadius={90}
-                    label={(p) => {
-                      const e = p as unknown as { label: string; value: number };
-                      return `${e.label}: ${e.value}`;
-                    }}>
-                    {labeled.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
-                </PieChart>
-              ) : (
-                <BarChart data={labeled}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e9f0" />
-                  <XAxis dataKey="label" stroke="#456079" fontSize={12} />
-                  <YAxis stroke="#456079" fontSize={12} allowDecimals={false} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#0b2545">
-                    {labeled.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Bar>
-                </BarChart>
-              )}
-            </ResponsiveContainer>
-          </Box>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+function Kpi({ label, value, accent }: { label: string; value: string; accent?: boolean }) { return <Card sx={{ borderTop: accent ? "3px solid" : undefined, borderColor: accent ? "error.main" : undefined }}><CardContent sx={{ p: 1.5 }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography variant="h6" fontWeight={800}>{value}</Typography></CardContent></Card>; }
+function AiUsageCard({ usage, configured }: { usage: AiUsage; configured: boolean }) { return <Card sx={{ borderTop: "3px solid", borderColor: configured ? "primary.main" : "warning.main" }}><CardContent sx={{ p: 1.5 }}><Stack direction="row" justifyContent="space-between" alignItems="center"><Box><Typography variant="caption" color="text.secondary">Χρήση AI / GPT</Typography><Chip size="small" sx={{ ml: 1 }} label={configured ? "Κλειδί ενεργό" : "Δεν έχει ρυθμιστεί"} color={configured ? "success" : "warning"} /></Box><SettingsSuggestIcon color={configured ? "primary" : "warning"} fontSize="small" /></Stack><Typography variant="h6" fontWeight={800}>{number(usage.totalTokens)} tokens</Typography><Typography variant="caption" color="text.secondary">{number(usage.invocations)} κλήσεις · είσοδος {number(usage.promptTokens)} · έξοδος {number(usage.completionTokens)}</Typography>{usage.monthlyBudget && <><LinearProgress variant="determinate" value={usage.budgetPercent} color={usage.budgetPercent >= 90 ? "error" : usage.budgetPercent >= 70 ? "warning" : "primary"} sx={{ mt: 1, mb: .5 }} /><Typography variant="caption">{usage.budgetPercent}% του ορίου {number(usage.monthlyBudget)}</Typography></>}<Typography variant="caption" display="block" mt={.5}>{usage.suggestion}</Typography><Button size="small" sx={{ mt: .5, p: 0, minWidth: 0 }} onClick={() => window.location.assign("/app/intelligence-settings")}>Ρυθμίσεις AI</Button></CardContent></Card>; }
+function RiskPolicies({ policies }: { policies: PolicyRisk[] }) { return <Card><CardContent><Stack direction="row" justifyContent="space-between" mb={1}><Typography variant="h6" fontWeight={700}>Υψηλότερος κίνδυνος συμβολαίων</Typography><WarningAmberIcon color="warning" /></Stack><Box sx={{ overflowX: "auto" }}><Table size="small"><TableHead><TableRow><TableCell>Συμβόλαιο</TableCell><TableCell>Πελάτης</TableCell><TableCell>Λήξη</TableCell><TableCell>Score</TableCell><TableCell>Ζώνη</TableCell><TableCell>Επόμενη ενέργεια</TableCell></TableRow></TableHead><TableBody>{policies.map(p => <TableRow key={p.id}><TableCell>{p.policyNumber}</TableCell><TableCell>{p.customerName}</TableCell><TableCell>{dateLabel(p.endDate)}{p.daysToExpiry !== undefined && <Typography variant="caption" display="block" color="text.secondary">{p.daysToExpiry < 0 ? "ληγμένο" : `${p.daysToExpiry} ημέρες`}</Typography>}</TableCell><TableCell sx={{ fontWeight: 700 }}>{p.score}</TableCell><TableCell><Chip size="small" label={bandLabel[p.band] ?? p.band} color={bandColor[p.band] ?? "info"} /></TableCell><TableCell sx={{ minWidth: 180 }}>{p.nextAction}</TableCell></TableRow>)}</TableBody></Table></Box></CardContent></Card>; }
+function CustomerRisks({ customers }: { customers: CustomerRisk[] }) { return <Card><CardContent><Typography variant="h6" fontWeight={700} mb={1}>Πελάτες για επανεπικοινωνία</Typography><Box sx={{ overflowX: "auto" }}><Table size="small"><TableHead><TableRow><TableCell>Πελάτης</TableCell><TableCell>Συμβόλαια</TableCell><TableCell>Score</TableCell><TableCell>Ζώνη</TableCell><TableCell>Τελευταία επαφή</TableCell></TableRow></TableHead><TableBody>{customers.map(c => <TableRow key={c.id}><TableCell>{c.name}</TableCell><TableCell>{c.policyCount}</TableCell><TableCell sx={{ fontWeight: 700 }}>{c.score}</TableCell><TableCell><Chip size="small" label={bandLabel[c.band] ?? c.band} color={bandColor[c.band] ?? "info"} /></TableCell><TableCell>{dateLabel(c.lastContactAt)}</TableCell></TableRow>)}</TableBody></Table></Box></CardContent></Card>; }

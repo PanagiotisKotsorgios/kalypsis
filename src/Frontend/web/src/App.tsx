@@ -404,6 +404,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     // ===== Intelligence =====
     // persistency hidden — analytics shell exists but not wired to data yet.
     { to: "/reports", labelKey: "nav.reports", icon: <AnalyticsIcon />, package: "Intelligence" },
+    { to: "/intelligence-settings", labelKey: "nav.aiSettings", icon: <VpnKeyIcon />, package: "Intelligence" },
     // NOTE: the four reports below intentionally live under BackOffice
     // (Παραγωγή group for the production listing, Οικονομικά group for the
     // money reports) so operators find them next to the workflows that
@@ -472,6 +473,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/crm-groups", labelKey: "nav.crmGroups", icon: <GroupWorkIconRC />, package: "Crm", permission: "marketing.read" },
     { to: "/crm-settings", labelKey: "nav.crmSettings", icon: <VpnKeyIcon />, package: "Crm", permission: "marketing.read" },
+    { to: "/intelligence-settings", labelKey: "nav.aiSettings", icon: <VpnKeyIcon />, package: "Intelligence" },
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
@@ -976,6 +978,7 @@ export default function App() {
                   <Route path="marketing" element={<PackageGate package="Crm"><MarketingCampaignsPage /></PackageGate>} />
                   <Route path="crm-groups" element={<PackageGate package="Crm"><CrmGroupsPage /></PackageGate>} />
                   <Route path="crm-settings" element={<PackageGate package="Crm"><IntegrationSettingsPage crmOnly /></PackageGate>} />
+                  <Route path="intelligence-settings" element={<PackageGate package="Intelligence"><IntegrationSettingsPage aiOnly /></PackageGate>} />
                   <Route path="delivery-tracking" element={<PackageGate package="Crm"><DeliveryTrackingPage /></PackageGate>} />
                   <Route path="document-manager" element={<PackageGate package="Crm"><DocumentManagerPage /></PackageGate>} />
                   <Route path="partner-portals" element={<PackageGate package="Integrations"><PartnerPortalsPage /></PackageGate>} />
