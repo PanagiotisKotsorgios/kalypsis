@@ -13,13 +13,14 @@ public record AppointmentDto(
     DateTime StartsAt, DateTime EndsAt, AppointmentStatus Status,
     Guid? AssignedToUserId, string? AssignedToUserName,
     Guid? CustomerId, string? CustomerName,
-    Guid? PolicyId, string? PolicyNumber);
+    Guid? PolicyId, string? PolicyNumber,
+    Guid? ProducerId, string? ProducerName);
 
 public record AppointmentBody(
     string Title, string? Description, string? Location,
     DateTime StartsAt, DateTime EndsAt,
     AppointmentStatus Status,
-    Guid? AssignedToUserId, Guid? CustomerId, Guid? PolicyId);
+    Guid? AssignedToUserId, Guid? CustomerId, Guid? PolicyId, Guid? ProducerId);
 
 public record ListAppointmentsQuery(DateTime? From, DateTime? To, Guid? UserId, Guid? CustomerId) : IRequest<IReadOnlyList<AppointmentDto>>;
 
@@ -34,6 +35,7 @@ public class ListAppointmentsQueryHandler : IRequestHandler<ListAppointmentsQuer
             .Include(a => a.AssignedToUser)
             .Include(a => a.Customer)
             .Include(a => a.Policy)
+            .Include(a => a.Producer)
             .AsQueryable();
 
         if (r.From.HasValue) q = q.Where(a => a.EndsAt >= r.From.Value);
@@ -53,13 +55,15 @@ public class ListAppointmentsQueryHandler : IRequestHandler<ListAppointmentsQuer
                 : a.Customer.CompanyName;
 
         var userName = a.AssignedToUser is null ? null : $"{a.AssignedToUser.FirstName} {a.AssignedToUser.LastName}".Trim();
+        var producerName = a.Producer?.Name;
 
         return new AppointmentDto(
             a.Id, a.Title, a.Description, a.Location,
             a.StartsAt, a.EndsAt, a.Status,
             a.AssignedToUserId, userName,
             a.CustomerId, customerName,
-            a.PolicyId, a.Policy?.PolicyNumber);
+            a.PolicyId, a.Policy?.PolicyNumber,
+            a.ProducerId, producerName);
     }
 }
 
@@ -98,13 +102,14 @@ public class CreateAppointmentCommandHandler : IRequestHandler<CreateAppointment
             Status = b.Status,
             AssignedToUserId = b.AssignedToUserId,
             CustomerId = b.CustomerId,
-            PolicyId = b.PolicyId
+            PolicyId = b.PolicyId,
+            ProducerId = b.ProducerId
         };
         _db.Appointments.Add(a);
         await _db.SaveChangesAsync(ct);
 
         a = await _db.Appointments
-            .Include(x => x.AssignedToUser).Include(x => x.Customer).Include(x => x.Policy)
+            .Include(x => x.AssignedToUser).Include(x => x.Customer).Include(x => x.Policy).Include(x => x.Producer)
             .FirstAsync(x => x.Id == a.Id, ct);
         return ListAppointmentsQueryHandler.Map(a);
     }
@@ -136,10 +141,11 @@ public class UpdateAppointmentCommandHandler : IRequestHandler<UpdateAppointment
         a.AssignedToUserId = b.AssignedToUserId;
         a.CustomerId = b.CustomerId;
         a.PolicyId = b.PolicyId;
+        a.ProducerId = b.ProducerId;
         await _db.SaveChangesAsync(ct);
 
         a = await _db.Appointments
-            .Include(x => x.AssignedToUser).Include(x => x.Customer).Include(x => x.Policy)
+            .Include(x => x.AssignedToUser).Include(x => x.Customer).Include(x => x.Policy).Include(x => x.Producer)
             .FirstAsync(x => x.Id == a.Id, ct);
         return ListAppointmentsQueryHandler.Map(a);
     }

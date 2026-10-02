@@ -31,7 +31,7 @@ import { useAuth } from "../auth/AuthContext";
    Four tabs:
      1) Παραδόσεις  — real backend records (/delivery-records)
      2) Πρότυπα     — SMS/Email templates with live preview + placeholders
-     3) Πάροχοι     — providers (Brevo, Twilio, ...) with quota bars + calculator
+     3) Πάροχοι     — providers (Brevo, Bulker, ...) with quota bars + calculator
      4) Ιστορικό    — send log (audit) with resend action
 
    Templates, providers and log entries are persisted in localStorage keyed
@@ -622,7 +622,7 @@ function TemplateEditor({
 // -----------------------------------------------------------------------------
 const DEFAULT_PROVIDERS: Provider[] = [
   { id: "prov-brevo", name: "Brevo (Email)",  kind: "Email", monthlyQuota: 300,  usedThisMonth: 128, unitCostExtra: 0.001, senderId: "no-reply@kalypsis.gr", apiKey: "", active: true },
-  { id: "prov-twilio", name: "Twilio (SMS)",  kind: "SMS",   monthlyQuota: 1000, usedThisMonth: 640, unitCostExtra: 0.045, senderId: "KALYPSIS",             apiKey: "", active: true },
+  { id: "prov-bulker", name: "Bulker (SMS)",  kind: "SMS",   monthlyQuota: 2000, usedThisMonth: 1750, unitCostExtra: 0.045, senderId: "KALYPSIS",             apiKey: "", active: true },
 ];
 
 function ProvidersTab() {
@@ -632,6 +632,9 @@ function ProvidersTab() {
     `kalypsis:delivery:providers:${user?.userId ?? "anon"}`,
     DEFAULT_PROVIDERS
   );
+  useEffect(() => {
+    setProviders(prev => prev.map(p => p.name.toLowerCase().includes("twilio") ? { ...p, id: "prov-bulker", name: "Bulker (SMS)" } : p));
+  }, []);
   const [editing, setEditing] = useState<Provider | null>(null);
   const [creating, setCreating] = useState(false);
 

@@ -8,7 +8,6 @@ import BarChartIcon from "@mui/icons-material/BarChart";
 import EmailIcon from "@mui/icons-material/Email";
 import SmsIcon from "@mui/icons-material/Sms";
 import PhoneIcon from "@mui/icons-material/Phone";
-import ChatBubbleIcon from "@mui/icons-material/ChatBubble";
 import UpgradeIcon from "@mui/icons-material/Upgrade";
 import AllInclusiveIcon from "@mui/icons-material/AllInclusive";
 import { useQuery } from "@tanstack/react-query";
@@ -31,7 +30,6 @@ interface EmailLogEntry {
 const CHANNEL_ICON: Record<string, JSX.Element> = {
   email: <EmailIcon />,
   sms:   <SmsIcon />,
-  viber: <ChatBubbleIcon />,
   phone: <PhoneIcon />,
 };
 
@@ -83,7 +81,7 @@ export function UsageMonitorSection() {
                 Χρήση επικοινωνιών αυτού του μήνα
               </Typography>
               <Typography color="text.secondary" sx={{ fontSize: 14 }}>
-                {q.data ? `${MONTH_NAMES[q.data.month]} ${q.data.year}` : "Φόρτωση…"} — email, SMS, Viber
+                {q.data ? `${MONTH_NAMES[q.data.month]} ${q.data.year}` : "Φόρτωση…"} — email, SMS
                 και τηλεφωνικές κλήσεις που έχετε καταγράψει.
               </Typography>
             </Box>

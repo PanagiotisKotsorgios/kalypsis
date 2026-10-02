@@ -4,6 +4,7 @@ import {
   DialogContent, DialogTitle, FormControlLabel, IconButton, List, ListItem, ListItemText,
   Stack, Tab, Tabs, TextField, Tooltip, Typography
 } from "@mui/material";
+import MenuItem from "@mui/material/MenuItem";
 import GroupsIcon from "@mui/icons-material/Groups";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -87,17 +88,22 @@ function GroupDialog({ open, entityType, group, onClose, onSaved, onError }: {
   const [description, setDescription] = useState("");
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const [hasEmail, setHasEmail] = useState(false);
+  const [hasPhone, setHasPhone] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const options = useQuery({
     queryKey: ["crm-group-options", entityType],
     enabled: open,
     queryFn: async () => {
       if (entityType === "Producer") {
-        const rows = (await api.get<Array<{ id: string; name: string; email?: string | null; phone?: string | null }>>("/producers", { params: { pageSize: 1000 } })).data;
-        return rows.map(x => ({ id: x.id, label: x.name, email: x.email, phone: x.phone }));
+        const rows = (await api.get<Array<{ id: string; name: string; email?: string | null; phone?: string | null; status?: string }>>("/producers", { params: { pageSize: 1000 } })).data;
+        return rows.map(x => ({ id: x.id, label: x.name, email: x.email, phone: x.phone, status: x.status }));
       }
-      const rows = (await api.get<Array<{ id: string; firstName?: string; lastName?: string; companyName?: string; email?: string; phone?: string }>>("/customers", { params: { pageSize: 1000 } })).data;
-      return rows.map(x => ({ id: x.id, label: x.companyName || `${x.firstName ?? ""} ${x.lastName ?? ""}`.trim() || x.id, email: x.email, phone: x.phone }));
+      // Groups need the complete tenant slice so “select all filtered” really
+      // means all matching records, not only the default first page.
+      const rows = (await api.get<Array<{ id: string; firstName?: string; lastName?: string; companyName?: string; email?: string; phone?: string; status?: string }>>("/customers", { params: { limit: 5000 } })).data;
+      return rows.map(x => ({ id: x.id, label: x.companyName || `${x.firstName ?? ""} ${x.lastName ?? ""}`.trim() || x.id, email: x.email, phone: x.phone, status: x.status }));
     },
   });
   const existingMembers = useQuery({
@@ -107,11 +113,24 @@ function GroupDialog({ open, entityType, group, onClose, onSaved, onError }: {
 
   useEffect(() => {
     if (!open) return;
-    setName(group?.name ?? ""); setDescription(group?.description ?? ""); setSearch("");
+    setName(group?.name ?? ""); setDescription(group?.description ?? ""); setSearch(""); setHasEmail(false); setHasPhone(false); setStatusFilter("all");
     setMemberIds(existingMembers.data?.map(x => x.entityId) ?? []);
   }, [open, group?.id, group?.name, group?.description, existingMembers.data]);
 
-  const filtered = (options.data ?? []).filter(x => `${x.label} ${x.email ?? ""} ${x.phone ?? ""}`.toLowerCase().includes(search.toLowerCase())).slice(0, 250);
+  const filtered = (options.data ?? []).filter(x => {
+    if (!`${x.label} ${x.email ?? ""} ${x.phone ?? ""}`.toLowerCase().includes(search.toLowerCase())) return false;
+    if (hasEmail && !x.email) return false;
+    if (hasPhone && !x.phone) return false;
+    if (statusFilter !== "all" && x.status !== statusFilter) return false;
+    return true;
+  });
+  const allFilteredSelected = filtered.length > 0 && filtered.every(x => memberIds.includes(x.id));
+  const statusOptions = entityType === "Producer"
+    ? ["Active", "Prospect", "Suspended", "Terminated"]
+    : ["Active", "Prospect", "Inactive", "Churned", "Blocked"];
+  const toggleAllFiltered = () => setMemberIds(prev => allFilteredSelected
+    ? prev.filter(id => !filtered.some(x => x.id === id))
+    : Array.from(new Set([...prev, ...filtered.map(x => x.id)])));
   const save = useMutation({
     mutationFn: async () => {
       const body = { name: name.trim(), entityType: group?.entityType ?? entityType, description: description.trim() || null, isDynamic: false, filterJson: null, memberIds };
@@ -127,6 +146,18 @@ function GroupDialog({ open, entityType, group, onClose, onSaved, onError }: {
         <TextField label="Όνομα ομάδας" value={name} onChange={e => setName(e.target.value)} required fullWidth />
         <TextField label="Περιγραφή" value={description} onChange={e => setDescription(e.target.value)} multiline minRows={2} fullWidth />
         <TextField label="Αναζήτηση μελών" value={search} onChange={e => setSearch(e.target.value)} fullWidth />
+        <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} spacing={1} flexWrap="wrap">
+          <FormControlLabel label="Μόνο με email" control={<Checkbox size="small" checked={hasEmail} onChange={e => setHasEmail(e.target.checked)} />} />
+          <FormControlLabel label="Μόνο με τηλέφωνο" control={<Checkbox size="small" checked={hasPhone} onChange={e => setHasPhone(e.target.checked)} />} />
+          <TextField select size="small" label="Κατάσταση" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} sx={{ minWidth: 150 }}>
+            <MenuItem value="all">Όλες</MenuItem>
+            {statusOptions.map(status => <MenuItem key={status} value={status}>{status}</MenuItem>)}
+          </TextField>
+          <Button size="small" variant={allFilteredSelected ? "outlined" : "contained"} onClick={toggleAllFiltered} disabled={!filtered.length}>
+            {allFilteredSelected ? "Αποεπιλογή φίλτρων" : `Επιλογή όλων (${filtered.length})`}
+          </Button>
+          <Button size="small" color="error" onClick={() => { setSearch(""); setHasEmail(false); setHasPhone(false); setStatusFilter("all"); }}>Καθαρισμός φίλτρων</Button>
+        </Stack>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="subtitle2">Επιλογή {entityType === "Customer" ? "πελατών" : "συνεργατών"}</Typography>
           <Chip size="small" color="primary" label={`${memberIds.length} επιλεγμένοι`} />

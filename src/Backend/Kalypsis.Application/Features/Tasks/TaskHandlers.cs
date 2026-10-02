@@ -20,6 +20,8 @@ public record AgencyTaskDto(
     string? CustomerDisplay,
     Guid? PolicyId,
     string? PolicyNumber,
+    Guid? ProducerId,
+    string? ProducerName,
     DateTime? DueAt,
     DateTime? CompletedAt,
     DateTime CreatedAt);
@@ -31,6 +33,7 @@ public record CreateAgencyTaskBody(
     Guid? AssignedToUserId,
     Guid? CustomerId,
     Guid? PolicyId,
+    Guid? ProducerId,
     DateTime? DueAt);
 
 public record UpdateAgencyTaskBody(
@@ -41,13 +44,14 @@ public record UpdateAgencyTaskBody(
     Guid? AssignedToUserId,
     Guid? CustomerId,
     Guid? PolicyId,
+    Guid? ProducerId,
     DateTime? DueAt);
 
 internal static class TaskProjection
 {
-    public static AgencyTaskDto ToDto(AgencyTask t, string? assignedName, string? customerDisplay, string? policyNumber) =>
+    public static AgencyTaskDto ToDto(AgencyTask t, string? assignedName, string? customerDisplay, string? policyNumber, string? producerName) =>
         new(t.Id, t.Title, t.Description, t.Status, t.Priority, t.AssignedToUserId, assignedName,
-            t.CustomerId, customerDisplay, t.PolicyId, policyNumber, t.DueAt, t.CompletedAt, t.CreatedAt);
+            t.CustomerId, customerDisplay, t.PolicyId, policyNumber, t.ProducerId, producerName, t.DueAt, t.CompletedAt, t.CreatedAt);
 }
 
 /* ========= List ========= */
@@ -67,6 +71,7 @@ public class ListTasksQueryHandler : IRequestHandler<ListTasksQuery, IReadOnlyLi
             .Include(t => t.AssignedToUser)
             .Include(t => t.Customer)
             .Include(t => t.Policy)
+            .Include(t => t.Producer)
             .Where(t => t.TenantId == tenantId && t.DeletedAt == null);
 
         if (request.Status.HasValue) q = q.Where(t => t.Status == request.Status.Value);
@@ -82,7 +87,8 @@ public class ListTasksQueryHandler : IRequestHandler<ListTasksQuery, IReadOnlyLi
                     ? $"{t.Customer.FirstName} {t.Customer.LastName}".Trim()
                     : t.Customer.CompanyName;
             var policyNumber = t.Policy?.PolicyNumber;
-            return TaskProjection.ToDto(t, assigned, customer, policyNumber);
+            var producer = t.Producer?.Name;
+            return TaskProjection.ToDto(t, assigned, customer, policyNumber, producer);
         }).ToList();
     }
 }
@@ -119,6 +125,7 @@ public class CreateAgencyTaskCommandHandler : IRequestHandler<CreateAgencyTaskCo
             AssignedToUserId = request.Body.AssignedToUserId,
             CustomerId = request.Body.CustomerId,
             PolicyId = request.Body.PolicyId,
+            ProducerId = request.Body.ProducerId,
             DueAt = request.Body.DueAt
         };
         _db.AgencyTasks.Add(t);
@@ -129,7 +136,7 @@ public class CreateAgencyTaskCommandHandler : IRequestHandler<CreateAgencyTaskCo
     internal static async Task<AgencyTaskDto> Reload(IAppDbContext db, Guid id, CancellationToken ct)
     {
         var t = await db.AgencyTasks
-            .Include(x => x.AssignedToUser).Include(x => x.Customer).Include(x => x.Policy)
+            .Include(x => x.AssignedToUser).Include(x => x.Customer).Include(x => x.Policy).Include(x => x.Producer)
             .FirstAsync(x => x.Id == id, ct);
         var assigned = t.AssignedToUser is null ? null : $"{t.AssignedToUser.FirstName} {t.AssignedToUser.LastName}".Trim();
         var customer = t.Customer is null
@@ -137,7 +144,8 @@ public class CreateAgencyTaskCommandHandler : IRequestHandler<CreateAgencyTaskCo
             : t.Customer.Type == CustomerType.Individual
                 ? $"{t.Customer.FirstName} {t.Customer.LastName}".Trim()
                 : t.Customer.CompanyName;
-        return TaskProjection.ToDto(t, assigned, customer, t.Policy?.PolicyNumber);
+        var producer = t.Producer?.Name;
+        return TaskProjection.ToDto(t, assigned, customer, t.Policy?.PolicyNumber, producer);
     }
 }
 
@@ -168,6 +176,7 @@ public class UpdateAgencyTaskCommandHandler : IRequestHandler<UpdateAgencyTaskCo
         t.AssignedToUserId = b.AssignedToUserId;
         t.CustomerId = b.CustomerId;
         t.PolicyId = b.PolicyId;
+        t.ProducerId = b.ProducerId;
         t.DueAt = b.DueAt;
         await _db.SaveChangesAsync(ct);
         return await CreateAgencyTaskCommandHandler.Reload(_db, t.Id, ct);

@@ -5,7 +5,7 @@ namespace Kalypsis.Infrastructure.Sms;
 
 /// <summary>
 /// Development SMS implementation — logs the message and returns success.
-/// Swap with TwilioSmsSender (or similar) in production via DI.
+/// Swap with the office's BulkerSmsSender (or another gateway) in production via DI.
 /// </summary>
 public class DevSmsSender : ISmsSender
 {

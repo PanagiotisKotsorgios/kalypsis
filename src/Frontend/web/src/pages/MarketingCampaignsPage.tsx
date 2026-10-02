@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useHeaderContextMenu, useRowContextMenu, type ColumnType } from "../components/TableContextMenu";
 import {
   Alert, Avatar, Box, Button, Card, CardContent, Checkbox, Chip, CircularProgress, Dialog, DialogActions,
@@ -33,6 +33,11 @@ import WavingHandIcon from "@mui/icons-material/WavingHand";
 import StarIcon from "@mui/icons-material/Star";
 import BedtimeIcon from "@mui/icons-material/Bedtime";
 import DescriptionIcon from "@mui/icons-material/Description";
+import FormatBoldIcon from "@mui/icons-material/FormatBold";
+import FormatItalicIcon from "@mui/icons-material/FormatItalic";
+import FormatUnderlinedIcon from "@mui/icons-material/FormatUnderlined";
+import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
+import LinkIcon from "@mui/icons-material/Link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -47,11 +52,11 @@ import { SearchableTextField } from "../components/SearchableTextField";
    Seven-tab shell:
      0) Πίνακας   — KPIs + upcoming schedule + quick actions
      1) Καμπάνιες — real backend campaigns (/marketing-campaigns)
-     2) Πρότυπα   — reusable Email/SMS/Viber templates with live preview
+     2) Πρότυπα   — reusable Email/SMS templates with live preview
      3) Κανόνες   — automation triggers (birthdays, expiring policies, welcome…)
      4) Ακροατήρια — reusable customer segments with saved filters
      5) Ιστορικό  — sent-log audit trail per recipient
-     6) Ρυθμίσεις — email/SMS/Viber providers with quota bars + calculator
+     6) Ρυθμίσεις — email/SMS providers with quota bars + calculator
 
    Templates, rules, segments, provider config and log entries are persisted
    in localStorage keyed by the current user until backend endpoints ship;
@@ -66,7 +71,7 @@ type Status = typeof STATUSES[number];
 const SEGMENTS = ["all", "expiring", "with_email"] as const;
 type Segment = string;
 const NEED_KINDS = ["Home", "Vehicle", "Health", "Life", "Business", "Travel", "Pet", "Liability", "Cyber", "Other"] as const;
-const CHANNELS = ["Email", "Sms", "Viber"] as const;
+const CHANNELS = ["Email", "Sms"] as const;
 type Channel = typeof CHANNELS[number];
 
 interface CampaignDto {
@@ -118,13 +123,14 @@ interface AutomationRule {
 interface AudienceSegment {
   id: string; name: string; description: string;
   criteria: {
-    hasEmail: boolean; hasPhone: boolean; hasViber: boolean;
+    hasEmail: boolean; hasPhone: boolean;
     occupation: string; needKind: string; onlyUninsuredNeeds: boolean;
     expiringWithinDays: number | null;
     unpaidBalance: boolean;
     consentRequired: boolean;
   };
   estimatedCount: number;
+  memberIds?: string[];
   createdAt: string;
 }
 
@@ -251,6 +257,47 @@ function ChannelIcon({ channel, size = "small" }: { channel: Channel | TemplateK
 
 function fillPlaceholders(text: string, sample: Record<string, string>): string {
   return text.replace(/\{\{?(\w+)\}?\}/g, (_, k) => sample[k] ?? `{{${k}}}`);
+}
+
+/** Small dependency-free rich editor used by campaigns and email templates.
+ * It stores the same HTML that is rendered in the preview, so operators never
+ * have to edit markup such as <p> or <strong> by hand. */
+function RichTextEditor({ label, value, onChange, helperText }: {
+  label: string; value: string; onChange: (value: string) => void; helperText?: string;
+}) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (editorRef.current && editorRef.current.innerHTML !== value) editorRef.current.innerHTML = value;
+  }, [value]);
+  const command = (name: string, argument?: string) => {
+    editorRef.current?.focus();
+    document.execCommand(name, false, argument);
+    onChange(editorRef.current?.innerHTML ?? "");
+  };
+  const keepFocus = (event: React.MouseEvent) => event.preventDefault();
+  return (
+    <Box>
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5, fontWeight: 700 }}>{label}</Typography>
+      <Stack direction="row" spacing={0.25} sx={{ p: 0.5, border: 1, borderColor: "divider", borderBottom: 0, borderRadius: "4px 4px 0 0", bgcolor: "action.hover" }}>
+        <IconButton size="small" title="Έντονα" onMouseDown={keepFocus} onClick={() => command("bold")}><FormatBoldIcon fontSize="small" /></IconButton>
+        <IconButton size="small" title="Πλάγια" onMouseDown={keepFocus} onClick={() => command("italic")}><FormatItalicIcon fontSize="small" /></IconButton>
+        <IconButton size="small" title="Υπογράμμιση" onMouseDown={keepFocus} onClick={() => command("underline")}><FormatUnderlinedIcon fontSize="small" /></IconButton>
+        <IconButton size="small" title="Λίστα" onMouseDown={keepFocus} onClick={() => command("insertUnorderedList")}><FormatListBulletedIcon fontSize="small" /></IconButton>
+        <IconButton size="small" title="Σύνδεσμος" onMouseDown={keepFocus} onClick={() => {
+          const url = window.prompt("URL συνδέσμου");
+          if (url) command("createLink", url);
+        }}><LinkIcon fontSize="small" /></IconButton>
+      </Stack>
+      <Box
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={e => onChange(e.currentTarget.innerHTML)}
+        sx={{ minHeight: 220, p: 1.5, border: 1, borderColor: "divider", borderRadius: "0 0 4px 4px", outline: "none", overflow: "auto", bgcolor: "background.paper", "&:focus": { borderColor: "primary.main" }, "& p": { my: 0.75 }, "& strong": { fontWeight: 800 } }}
+      />
+      {helperText && <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>{helperText}</Typography>}
+    </Box>
+  );
 }
 
 // -----------------------------------------------------------------------------
@@ -675,15 +722,15 @@ function CampaignFormDialog({ open, onClose, item, onSaved }: { open: boolean; o
           <Alert severity="info">
             {t("marketing.placeholderInfo", "Placeholders: {{firstName}}, {{companyName}}, {{customerName}}, {{policyNumber}}. Αποστολή μόνο σε πελάτες με ενεργή συγκατάθεση.")}
           </Alert>
-          <TextField label={t("marketing.bodyHtml", "Σώμα (HTML)")} multiline rows={10} value={form.bodyHtml}
-            onChange={e => setForm({ ...form, bodyHtml: e.target.value })} fullWidth
-            helperText={t("marketing.bodyHelp", "Υποστηρίζεται HTML.")} />
+          <RichTextEditor
+            label={t("marketing.bodyHtml", "Κείμενο email")}
+            value={form.bodyHtml}
+            onChange={bodyHtml => setForm({ ...form, bodyHtml })}
+            helperText="Μορφοποιήστε το κείμενο με τα κουμπιά. Η προεπισκόπηση εμφανίζει ακριβώς το τελικό email."
+          />
           <TextField label="Κείμενο SMS (προαιρετικό)" multiline rows={3} value={form.smsBody ?? ""}
             onChange={e => setForm({ ...form, smsBody: e.target.value })} fullWidth
             helperText={`${(form.smsBody ?? "").length} χαρακτήρες`} />
-          <TextField label="Κείμενο Viber (προαιρετικό)" multiline rows={3} value={form.viberBody ?? ""}
-            onChange={e => setForm({ ...form, viberBody: e.target.value })} fullWidth
-            helperText="Αν μείνει κενό, χρησιμοποιείται το SMS/email κείμενο." />
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -748,6 +795,7 @@ function TemplatesTab() {
     `kalypsis:marketing:templates:${user?.userId ?? "anon"}`,
     DEFAULT_TEMPLATES
   );
+  useEffect(() => { setTemplates(prev => prev.filter(tpl => tpl.kind !== "Viber")); }, []);
   const [editing, setEditing] = useState<MarketingTemplate | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -768,7 +816,7 @@ function TemplatesTab() {
         <Box>
           <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>{t("marketing.templates.title", "Πρότυπα μηνυμάτων")}</Typography>
           <Typography variant="body2" color="text.secondary">
-            {t("marketing.templates.subtitle", "Επαναχρησιμοποιήσιμα πρότυπα για email, SMS και Viber με placeholder tokens.")}
+            {t("marketing.templates.subtitle", "Επαναχρησιμοποιήσιμα πρότυπα για email και SMS με placeholder tokens.")}
           </Typography>
         </Box>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreating(true)}>
@@ -829,8 +877,8 @@ function TemplateCard({ tpl, onEdit, onDelete, onDuplicate }: { tpl: MarketingTe
             Subject: {tpl.subject}
           </Typography>
         )}
-        <Paper variant="outlined" sx={{ p: 1.5, bgcolor: "action.hover", whiteSpace: "pre-wrap", fontSize: 13, maxHeight: 160, overflow: "auto" }}>
-          {tpl.body}
+        <Paper variant="outlined" sx={{ p: 1.5, bgcolor: "action.hover", whiteSpace: tpl.kind === "Email" ? "normal" : "pre-wrap", fontSize: 13, maxHeight: 160, overflow: "auto" }}>
+          {tpl.kind === "Email" ? <Box dangerouslySetInnerHTML={{ __html: tpl.body }} /> : tpl.body}
         </Paper>
         {tpl.tags.length > 0 && (
           <Stack direction="row" spacing={0.5} mt={1} flexWrap="wrap" gap={0.5}>
@@ -875,15 +923,23 @@ function TemplateEditor({
                 onChange={e => setForm({ ...form, kind: e.target.value as TemplateKind })} sx={{ width: 160 }}>
                 <MenuItem value="Email">Email</MenuItem>
                 <MenuItem value="SMS">SMS</MenuItem>
-                <MenuItem value="Viber">Viber</MenuItem>
               </SearchableTextField>
             </Stack>
             {form.kind === "Email" && (
               <TextField label="Subject / Θέμα" value={form.subject}
                 onChange={e => setForm({ ...form, subject: e.target.value })} fullWidth />
             )}
-            <TextField label={t("marketing.templates.body", "Κείμενο")} value={form.body} multiline rows={12}
-              onChange={e => setForm({ ...form, body: e.target.value })} fullWidth />
+            {form.kind === "Email" ? (
+              <RichTextEditor
+                label={t("marketing.templates.body", "Κείμενο email")}
+                value={form.body}
+                onChange={body => setForm({ ...form, body })}
+                helperText="Η προεπισκόπηση δεξιά δείχνει το email όπως θα το δει ο παραλήπτης."
+              />
+            ) : (
+              <TextField label={t("marketing.templates.body", "Κείμενο")} value={form.body} multiline rows={12}
+                onChange={e => setForm({ ...form, body: e.target.value })} fullWidth />
+            )}
             <TextField label="Tags (comma-separated)" value={form.tags.join(", ")}
               onChange={e => setForm({ ...form, tags: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })} fullWidth />
             <Box>
@@ -1200,7 +1256,6 @@ function SegmentsTab() {
               <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5}>
                 {s.criteria.hasEmail  && <Chip size="small" variant="outlined" icon={<EmailIcon />} label="Με email" />}
                 {s.criteria.hasPhone  && <Chip size="small" variant="outlined" icon={<SmsIcon />} label="Με τηλέφωνο" />}
-                {s.criteria.hasViber  && <Chip size="small" variant="outlined" icon={<ChatIcon />} label="Στο Viber" />}
                 {s.criteria.occupation && <Chip size="small" variant="outlined" label={`Επάγγελμα: ${s.criteria.occupation}`} />}
                 {s.criteria.needKind   && <Chip size="small" variant="outlined" label={`Ανάγκη: ${s.criteria.needKind}`} />}
                 {s.criteria.onlyUninsuredNeeds && <Chip size="small" color="warning" variant="outlined" label="Χωρίς κάλυψη" />}
@@ -1236,12 +1291,12 @@ function SegmentsTab() {
 const DEFAULT_SEGMENTS: AudienceSegment[] = [
   {
     id: "seg-all-email", name: "Όλοι με email", description: "Πελάτες με ενεργή διεύθυνση email και συγκατάθεση.",
-    criteria: { hasEmail: true, hasPhone: false, hasViber: false, occupation: "", needKind: "", onlyUninsuredNeeds: false, expiringWithinDays: null, unpaidBalance: false, consentRequired: true },
+    criteria: { hasEmail: true, hasPhone: false, occupation: "", needKind: "", onlyUninsuredNeeds: false, expiringWithinDays: null, unpaidBalance: false, consentRequired: true },
     estimatedCount: 0, createdAt: new Date().toISOString()
   },
   {
     id: "seg-expiring-30", name: "Λήγουν σε 30 μέρες", description: "Πελάτες με συμβόλαιο που λήγει το επόμενο μήνα.",
-    criteria: { hasEmail: false, hasPhone: false, hasViber: false, occupation: "", needKind: "", onlyUninsuredNeeds: false, expiringWithinDays: 30, unpaidBalance: false, consentRequired: true },
+    criteria: { hasEmail: false, hasPhone: false, occupation: "", needKind: "", onlyUninsuredNeeds: false, expiringWithinDays: 30, unpaidBalance: false, consentRequired: true },
     estimatedCount: 0, createdAt: new Date().toISOString()
   },
 ];
@@ -1249,22 +1304,43 @@ const DEFAULT_SEGMENTS: AudienceSegment[] = [
 function SegmentEditor({
   open, segment, onClose, onSave
 }: { open: boolean; segment: AudienceSegment | null; onClose: () => void; onSave: (s: AudienceSegment) => void }) {
+  const customersQ = useQuery({
+    queryKey: ["marketing-segment-customers"],
+    enabled: open,
+    queryFn: async () => (await api.get<Array<{ id: string; customerNumber?: string; firstName?: string; lastName?: string; companyName?: string; email?: string; phone?: string; occupation?: string }>>("/customers")).data,
+  });
   const [form, setForm] = useState<AudienceSegment>(() => segment ?? {
     id: `seg-${Date.now()}`, name: "", description: "",
-    criteria: { hasEmail: false, hasPhone: false, hasViber: false, occupation: "", needKind: "", onlyUninsuredNeeds: false, expiringWithinDays: null, unpaidBalance: false, consentRequired: true },
+    criteria: { hasEmail: false, hasPhone: false, occupation: "", needKind: "", onlyUninsuredNeeds: false, expiringWithinDays: null, unpaidBalance: false, consentRequired: true },
     estimatedCount: 0, createdAt: new Date().toISOString(),
   });
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>(segment?.memberIds ?? []);
   useEffect(() => {
-    if (segment) setForm(segment);
+    if (segment) { setForm(segment); setSelectedMemberIds(segment.memberIds ?? []); }
     else if (open) setForm({
       id: `seg-${Date.now()}`, name: "", description: "",
-      criteria: { hasEmail: false, hasPhone: false, hasViber: false, occupation: "", needKind: "", onlyUninsuredNeeds: false, expiringWithinDays: null, unpaidBalance: false, consentRequired: true },
+      criteria: { hasEmail: false, hasPhone: false, occupation: "", needKind: "", onlyUninsuredNeeds: false, expiringWithinDays: null, unpaidBalance: false, consentRequired: true },
       estimatedCount: 0, createdAt: new Date().toISOString(),
     });
   }, [segment, open]);
 
   const setC = (patch: Partial<AudienceSegment["criteria"]>) =>
     setForm(f => ({ ...f, criteria: { ...f.criteria, ...patch } }));
+  const matchingCustomers = useMemo(() => {
+    const c = form.criteria;
+    return (customersQ.data ?? []).filter(customer => {
+      if (c.hasEmail && !customer.email) return false;
+      if (c.hasPhone && !customer.phone) return false;
+      if (c.occupation && !(customer.occupation ?? "").toLocaleLowerCase().includes(c.occupation.toLocaleLowerCase())) return false;
+      return true;
+    });
+  }, [customersQ.data, form.criteria]);
+  const matchingIds = matchingCustomers.map(c => c.id);
+  const allMatchingSelected = matchingIds.length > 0 && matchingIds.every(id => selectedMemberIds.includes(id));
+  const toggleAllMatching = () => setSelectedMemberIds(prev => allMatchingSelected
+    ? prev.filter(id => !matchingIds.includes(id))
+    : Array.from(new Set([...prev, ...matchingIds])));
+  const toggleMember = (id: string) => setSelectedMemberIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -1279,7 +1355,6 @@ function SegmentEditor({
           <Stack direction="row" spacing={2} flexWrap="wrap">
             <FormControlLabel label="Έχει email" control={<Checkbox checked={form.criteria.hasEmail} onChange={e => setC({ hasEmail: e.target.checked })} />} />
             <FormControlLabel label="Έχει τηλέφωνο" control={<Checkbox checked={form.criteria.hasPhone} onChange={e => setC({ hasPhone: e.target.checked })} />} />
-            <FormControlLabel label="Στο Viber" control={<Checkbox checked={form.criteria.hasViber} onChange={e => setC({ hasViber: e.target.checked })} />} />
             <FormControlLabel label="Με συγκατάθεση marketing" control={<Checkbox checked={form.criteria.consentRequired} onChange={e => setC({ consentRequired: e.target.checked })} />} />
           </Stack>
           <Divider>Χαρακτηριστικά</Divider>
@@ -1300,11 +1375,28 @@ function SegmentEditor({
           <TextField type="number" label="Εκτιμώμενοι παραλήπτες" value={form.estimatedCount}
             onChange={e => setForm({ ...form, estimatedCount: Math.max(0, Number(e.target.value)) })} fullWidth
             helperText="Θα ενημερώνεται αυτόματα όταν συνδεθεί με το backend." />
+          <Card variant="outlined" sx={{ p: 1.5, bgcolor: "action.hover" }}>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Checkbox size="small" checked={allMatchingSelected} indeterminate={!allMatchingSelected && matchingIds.some(id => selectedMemberIds.includes(id))} onChange={toggleAllMatching} />
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Επιλογή πελατών από τα φίλτρα</Typography>
+                <Typography variant="caption" color="text.secondary">{matchingCustomers.length} ταιριάζουν · {selectedMemberIds.length} επιλεγμένοι</Typography>
+              </Box>
+              <Button size="small" onClick={() => setSelectedMemberIds([])} color="error">Καθαρισμός</Button>
+            </Stack>
+            <Stack sx={{ maxHeight: 180, overflow: "auto", mt: 0.5 }}>
+              {matchingCustomers.slice(0, 100).map(customer => {
+                const name = `${customer.firstName ?? ""} ${customer.lastName ?? ""}`.trim() || customer.companyName || customer.customerNumber || customer.id;
+                return <FormControlLabel key={customer.id} sx={{ ml: 0 }} label={name} control={<Checkbox size="small" checked={selectedMemberIds.includes(customer.id)} onChange={() => toggleMember(customer.id)} />} />;
+              })}
+              {matchingCustomers.length > 100 && <Typography variant="caption" color="text.secondary">Εμφανίζονται οι πρώτοι 100· η μαζική επιλογή εφαρμόζει όλα τα αποτελέσματα.</Typography>}
+            </Stack>
+          </Card>
         </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
-        <Button variant="contained" onClick={() => onSave(form)} disabled={!form.name.trim()}>Αποθήκευση</Button>
+        <Button variant="contained" onClick={() => onSave({ ...form, memberIds: selectedMemberIds, estimatedCount: matchingCustomers.length || form.estimatedCount })} disabled={!form.name.trim()}>Αποθήκευση</Button>
       </DialogActions>
     </Dialog>
   );
@@ -1416,8 +1508,7 @@ function HistoryTab() {
 // -----------------------------------------------------------------------------
 const DEFAULT_MARKETING_PROVIDERS: MarketingProvider[] = [
   { id: "mprov-brevo",  name: "Brevo (Email)",   kind: "Email", monthlyQuota: 3000, usedThisMonth: 1240, unitCostExtra: 0.001, senderId: "no-reply@kalypsis.gr", apiKey: "", active: true },
-  { id: "mprov-twilio", name: "Twilio (SMS)",    kind: "SMS",   monthlyQuota: 2000, usedThisMonth: 1750, unitCostExtra: 0.045, senderId: "KALYPSIS",             apiKey: "", active: true },
-  { id: "mprov-viber",  name: "Viber Business",  kind: "Viber", monthlyQuota: 1000, usedThisMonth: 480,  unitCostExtra: 0.015, senderId: "Kalypsis",             apiKey: "", active: false },
+  { id: "mprov-bulker", name: "Bulker (SMS)",    kind: "SMS",   monthlyQuota: 2000, usedThisMonth: 1750, unitCostExtra: 0.045, senderId: "KALYPSIS",             apiKey: "", active: true },
 ];
 
 function ProvidersTab() {
@@ -1427,6 +1518,12 @@ function ProvidersTab() {
     `kalypsis:marketing:providers:${user?.userId ?? "anon"}`,
     DEFAULT_MARKETING_PROVIDERS
   );
+  // Migrate the old local provider label and hide the retired Viber option.
+  useEffect(() => {
+    setProviders(prev => prev
+      .filter(p => p.kind !== "Viber")
+      .map(p => p.name.toLowerCase().includes("twilio") ? { ...p, id: "mprov-bulker", name: "Bulker (SMS)" } : p));
+  }, []);
   const [editing, setEditing] = useState<MarketingProvider | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -1446,7 +1543,7 @@ function ProvidersTab() {
             <Chip size="small" color="info" variant="outlined" label="backoffice" title="Οι ρυθμίσεις παρόχων και τα όρια απαιτούν έγκριση από το backoffice της Kalypsis." />
           </Stack>
           <Typography variant="body2" color="text.secondary">
-            {t("marketing.providers.subtitle", "Ρύθμιση παρόχων email / SMS / Viber, όρια χρήσης και υπολογιστής επιπλέον χρέωσης.")}
+            {t("marketing.providers.subtitle", "Ρύθμιση παρόχων email / SMS, όρια χρήσης και υπολογιστής επιπλέον χρέωσης.")}
           </Typography>
         </Box>
         <Stack direction="row" spacing={1}>
@@ -1576,19 +1673,18 @@ function OverageCalculator({ providers }: { providers: MarketingProvider[] }) {
   );
 }
 
-// Buy-more UI — Brevo email packages + SMS/Viber top-up options operators
+// Buy-more UI — Brevo email packages + Bulker SMS top-up options operators
 // can request from the backoffice. The tenant can't self-provision more
-// capacity (Brevo API keys / Twilio credit belong to the platform), so
+// capacity (Brevo API keys / Bulker credit belong to the platform), so
 // the button opens a request dialog and generates a pre-filled mailto:
 // link to info@mykalypsis.gr. Backoffice replies with an activation
 // confirmation and updates the quota.
-const COMMS_PACKAGES: { code: string; title: string; qty: number; kind: "Email" | "SMS" | "Viber"; price: string; brevoTemplate?: string; note?: string }[] = [
+const COMMS_PACKAGES: { code: string; title: string; qty: number; kind: "Email" | "SMS"; price: string; brevoTemplate?: string; note?: string }[] = [
   { code: "EM-05K", title: "Brevo — 5.000 emails / μήνα",  qty: 5000,  kind: "Email", price: "€20 / μήνα",  brevoTemplate: "Kalypsis · Marketing · Ενημερώσεις", note: "Ιδανικό για μικρή/μεσαία επικοινωνία πελατολογίου." },
   { code: "EM-20K", title: "Brevo — 20.000 emails / μήνα", qty: 20000, kind: "Email", price: "€45 / μήνα",  brevoTemplate: "Kalypsis · Marketing · Ενημερώσεις", note: "Καλύπτει καμπάνιες σε όλη τη βάση + ανανεώσεις." },
   { code: "EM-60K", title: "Brevo — 60.000 emails / μήνα", qty: 60000, kind: "Email", price: "€99 / μήνα",  brevoTemplate: "Kalypsis · Marketing · Ενημερώσεις", note: "Για γραφεία με έντονη επικοινωνία & bulk νομικές ενημερώσεις." },
   { code: "SM-01K", title: "SMS — 1.000 μηνύματα",         qty: 1000,  kind: "SMS",   price: "€45 (μία χρέωση)", note: "Πληρωμή προ-αγοράς. Ισχύει 12 μήνες." },
   { code: "SM-05K", title: "SMS — 5.000 μηνύματα",         qty: 5000,  kind: "SMS",   price: "€199 (μία χρέωση)", note: "Πληρωμή προ-αγοράς. Ισχύει 12 μήνες." },
-  { code: "VB-01K", title: "Viber Business — 1.000 μηνύματα", qty: 1000, kind: "Viber", price: "€28 (μία χρέωση)", note: "Απαιτεί ταυτότητα αποστολέα (sender ID) εγκεκριμένη από Rakuten Viber." },
 ];
 
 function BuyMoreButton({ size = "medium", color = "primary" as "primary" | "warning" }: { size?: "small" | "medium"; color?: "primary" | "warning" }) {
@@ -1696,7 +1792,6 @@ function ProviderEditor({
               onChange={e => setForm({ ...form, kind: e.target.value as ProviderKind })} sx={{ width: 160 }}>
               <MenuItem value="Email">Email</MenuItem>
               <MenuItem value="SMS">SMS</MenuItem>
-              <MenuItem value="Viber">Viber</MenuItem>
             </SearchableTextField>
           </Stack>
           <TextField label="Sender ID / From address" value={form.senderId}

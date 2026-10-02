@@ -53,6 +53,8 @@ interface TaskDto {
   customerDisplay: string | null;
   policyId: string | null;
   policyNumber: string | null;
+  producerId: string | null;
+  producerName: string | null;
   dueAt: string | null;
   completedAt: string | null;
   createdAt: string;
@@ -60,6 +62,8 @@ interface TaskDto {
 
 interface UserLite { id: string; firstName: string; lastName: string }
 interface CustomerLite { id: string; customerNumber: string; type: "Individual" | "Company"; firstName?: string; lastName?: string; companyName?: string }
+interface ProducerLite { id: string; name: string }
+interface PolicyLite { id: string; policyNumber: string; customerId: string | null }
 
 const PRIORITY_COLOR: Record<TaskPriority, "default" | "info" | "warning" | "error"> = {
   Low: "default", Normal: "info", High: "warning", Urgent: "error"
@@ -85,13 +89,14 @@ interface Filters {
   priorities: TaskPriority[];
   assignedToUserId: string;
   customerId: string;
+  producerId: string;
   dueBucket: DueBucket;
   showCompleted: boolean;
 }
 
 const EMPTY_FILTERS: Filters = {
   search: "", statuses: [], priorities: [],
-  assignedToUserId: "", customerId: "", dueBucket: "all", showCompleted: true,
+  assignedToUserId: "", customerId: "", producerId: "", dueBucket: "all", showCompleted: true,
 };
 
 /** LocalStorage-backed state helper — persists across sessions. */
@@ -125,6 +130,10 @@ export function TasksPage() {
   const customersQuery = useQuery({
     queryKey: ["customers-lite"],
     queryFn: async () => (await api.get<CustomerLite[]>("/customers")).data
+  });
+  const producersQuery = useQuery({
+    queryKey: ["producers-lite"],
+    queryFn: async () => (await api.get<ProducerLite[]>("/producers")).data
   });
 
   const [view, setView] = useLocalState<ViewMode>(`${storagePrefix}:view`, "kanban");
@@ -161,6 +170,7 @@ export function TasksPage() {
           assignedToUserId: cur.assignedToUserId,
           customerId: cur.customerId,
           policyId: cur.policyId,
+          producerId: cur.producerId,
           dueAt: cur.dueAt,
         });
       }));
@@ -211,6 +221,7 @@ export function TasksPage() {
         activeCount={activeFilterCount}
         users={usersQuery.data ?? []}
         customers={customersQuery.data ?? []}
+        producers={producersQuery.data ?? []}
       />
 
       {/* VIEW TOGGLE + SELECTION BAR */}
@@ -354,6 +365,7 @@ function countActiveFilters(f: Filters): number {
   if (f.priorities.length) n++;
   if (f.assignedToUserId) n++;
   if (f.customerId) n++;
+  if (f.producerId) n++;
   if (f.dueBucket !== "all") n++;
   if (!f.showCompleted) n++;
   return n;
@@ -376,8 +388,9 @@ function filterTasks(tasks: TaskDto[], f: Filters): TaskDto[] {
     if (f.priorities.length > 0 && !f.priorities.includes(t.priority)) return false;
     if (f.assignedToUserId && t.assignedToUserId !== f.assignedToUserId) return false;
     if (f.customerId && t.customerId !== f.customerId) return false;
+    if (f.producerId && t.producerId !== f.producerId) return false;
     if (q) {
-      const hay = `${t.title} ${t.description ?? ""} ${t.customerDisplay ?? ""} ${t.policyNumber ?? ""} ${t.assignedToUserName ?? ""}`.toLowerCase();
+      const hay = `${t.title} ${t.description ?? ""} ${t.customerDisplay ?? ""} ${t.policyNumber ?? ""} ${t.assignedToUserName ?? ""} ${t.producerName ?? ""}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     if (f.dueBucket !== "all") {
@@ -396,7 +409,7 @@ function filterTasks(tasks: TaskDto[], f: Filters): TaskDto[] {
   });
 }
 
-function FiltersBar({
+export function LegacyFiltersBar({
   filters, setFilters, activeCount, users, customers
 }: {
   filters: Filters;
@@ -506,6 +519,137 @@ function FiltersBar({
           })}
         </Stack>
       </Stack>
+    </Card>
+  );
+}
+
+/** Compact task filters. Detailed filters live in a popup so the task board
+ * keeps its useful width on desktop and does not become a long scroll on
+ * mobile. The old layout remains exported for backwards-compatible imports. */
+function FiltersBar({
+  filters, setFilters, activeCount, users, customers, producers
+}: {
+  filters: Filters;
+  setFilters: (v: Filters | ((prev: Filters) => Filters)) => void;
+  activeCount: number;
+  users: UserLite[];
+  customers: CustomerLite[];
+  producers: ProducerLite[];
+}) {
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const toggleInArray = <T extends string>(arr: T[], value: T): T[] =>
+    arr.includes(value) ? arr.filter(x => x !== value) : [...arr, value];
+
+  return (
+    <Card variant="outlined" sx={{ mb: 2, p: 1.25 }}>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} alignItems={{ sm: "center" }}>
+        <TextField
+          size="small"
+          fullWidth
+          placeholder="Αναζήτηση εργασίας, πελάτη, συμβολαίου…"
+          value={filters.search}
+          onChange={e => setFilters({ ...filters, search: e.target.value })}
+          InputProps={{
+            startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+            endAdornment: filters.search ? <InputAdornment position="end"><IconButton size="small" onClick={() => setFilters({ ...filters, search: "" })}><ClearIcon fontSize="small" /></IconButton></InputAdornment> : undefined,
+          }}
+          sx={{ flex: 1, minWidth: 0 }}
+        />
+        <Button
+          size="small"
+          variant={activeCount > 0 ? "contained" : "outlined"}
+          startIcon={<FilterAltIcon fontSize="small" />}
+          onClick={e => setAnchorEl(e.currentTarget)}
+          sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
+        >
+          Φίλτρα{activeCount > 0 ? ` (${activeCount})` : ""}
+        </Button>
+        {activeCount > 0 && (
+          <Button
+            size="small"
+            color="error"
+            variant="contained"
+            startIcon={<ClearIcon fontSize="small" />}
+            onClick={() => setFilters(EMPTY_FILTERS)}
+            sx={{ minWidth: 155, flexShrink: 0, whiteSpace: "nowrap", fontWeight: 700 }}
+          >
+            Καθαρισμός φίλτρων
+          </Button>
+        )}
+      </Stack>
+
+      <Popover
+        open={Boolean(anchorEl)}
+        anchorEl={anchorEl}
+        onClose={() => setAnchorEl(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        slotProps={{ paper: { sx: { mt: 1, width: { xs: "calc(100vw - 32px)", sm: 520 }, maxWidth: "calc(100vw - 32px)", maxHeight: "min(78vh, 680px)" } } }}
+      >
+        <Box sx={{ p: 2, overflowY: "auto" }}>
+          <Stack spacing={1.5}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <SearchableSelect
+                label="Υπάλληλος"
+                value={filters.assignedToUserId}
+                onChange={v => setFilters({ ...filters, assignedToUserId: v })}
+                emptyLabel="Όλοι"
+                options={users.map(u => ({ value: u.id, label: `${u.firstName} ${u.lastName}`.trim() }))}
+              />
+              <SearchableSelect
+                label="Πελάτης"
+                value={filters.customerId}
+                onChange={v => setFilters({ ...filters, customerId: v })}
+                emptyLabel="Όλοι"
+                options={customers.map(c => ({
+                  value: c.id,
+                  label: c.type === "Individual" ? `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() : (c.companyName ?? ""),
+                  hint: c.customerNumber,
+                }))}
+              />
+              <SearchableSelect
+                label="Συνεργάτης"
+                value={filters.producerId}
+                onChange={v => setFilters({ ...filters, producerId: v })}
+                emptyLabel="Όλοι"
+                options={producers.map(p => ({ value: p.id, label: p.name }))}
+              />
+            </Stack>
+            <SearchableTextField
+              label="Προθεσμία"
+              value={filters.dueBucket}
+              onChange={e => setFilters({ ...filters, dueBucket: e.target.value as DueBucket })}
+              fullWidth
+            >
+              <MenuItem value="all">Ανεξάρτητα</MenuItem>
+              <MenuItem value="overdue">Ληξιπρόθεσμες</MenuItem>
+              <MenuItem value="today">Σήμερα</MenuItem>
+              <MenuItem value="week">Αυτή την εβδομάδα</MenuItem>
+              <MenuItem value="month">Αυτόν τον μήνα</MenuItem>
+              <MenuItem value="none">Χωρίς προθεσμία</MenuItem>
+            </SearchableTextField>
+          </Stack>
+
+          <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" gap={0.5} mt={2}>
+            <Typography variant="caption" sx={{ fontWeight: 700, mr: 0.5 }}>Κατάσταση:</Typography>
+            {STATUS_COLUMN.map(s => {
+              const on = filters.statuses.includes(s);
+              return <Chip key={s} size="small" icon={STATUS_ICON[s] as React.ReactElement} label={statusLabel(s)} color={on ? STATUS_COLOR[s] : "default"} variant={on ? "filled" : "outlined"} onClick={() => setFilters({ ...filters, statuses: toggleInArray(filters.statuses, s) })} sx={{ cursor: "pointer" }} />;
+            })}
+          </Stack>
+          <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" gap={0.5} mt={1}>
+            <Typography variant="caption" sx={{ fontWeight: 700, mr: 0.5 }}>Προτεραιότητα:</Typography>
+            {(["Urgent", "High", "Normal", "Low"] as TaskPriority[]).map(p => {
+              const on = filters.priorities.includes(p);
+              return <Chip key={p} size="small" icon={<FlagIcon />} label={priorityLabel(p)} color={on ? PRIORITY_COLOR[p] : "default"} variant={on ? "filled" : "outlined"} onClick={() => setFilters({ ...filters, priorities: toggleInArray(filters.priorities, p) })} sx={{ cursor: "pointer" }} />;
+            })}
+          </Stack>
+          <Stack direction="row" justifyContent="flex-end" spacing={1} mt={2}>
+            {activeCount > 0 && <Button color="error" variant="contained" startIcon={<ClearIcon />} onClick={() => setFilters(EMPTY_FILTERS)} sx={{ minWidth: 155, fontWeight: 700 }}>Καθαρισμός φίλτρων</Button>}
+            <Button variant="outlined" onClick={() => setAnchorEl(null)}>Κλείσιμο</Button>
+          </Stack>
+        </Box>
+      </Popover>
     </Card>
   );
 }
@@ -628,6 +772,7 @@ function TaskCard({
             <Chip icon={<PersonIcon />} label={task.assignedToUserName} size="small" variant="outlined" />
           )}
           {task.customerDisplay && <Chip label={task.customerDisplay} size="small" variant="outlined" />}
+          {task.producerName && <Chip icon={<PersonIcon />} label={task.producerName} size="small" color="secondary" variant="outlined" />}
           {task.policyNumber && <Chip label={task.policyNumber} size="small" variant="outlined" sx={{ fontFamily: "monospace" }} />}
         </Stack>
       </CardContent>
@@ -777,7 +922,7 @@ function TableView({
     headerMenu.open(e, { key, label, type, canHide: true });
 
   const searchable = (t: TaskDto) =>
-    `${t.title} ${t.description ?? ""} ${t.customerDisplay ?? ""} ${t.policyNumber ?? ""} ${t.assignedToUserName ?? ""}`;
+    `${t.title} ${t.description ?? ""} ${t.customerDisplay ?? ""} ${t.policyNumber ?? ""} ${t.assignedToUserName ?? ""} ${t.producerName ?? ""}`;
 
   const filtered = useMemo(() => {
     const q = innerSearch.trim().toLowerCase();
@@ -841,6 +986,7 @@ function TableView({
           { key: "priority", label: "Προτεραιότητα", map: (t) => priorityLabel(t.priority) },
           { key: "assignedToUserName", label: "Ανάθεση" },
           { key: "customerDisplay", label: "Πελάτης" },
+          { key: "producerName", label: "Συνεργάτης" },
           { key: "policyNumber", label: "Συμβόλαιο" },
           { key: "dueAt", label: "Προθεσμία", map: (t) => t.dueAt ? dateTime(t.dueAt) : "" },
           { key: "completedAt", label: "Ολοκληρώθηκε", map: (t) => t.completedAt ? dateTime(t.completedAt) : "" },
@@ -913,6 +1059,9 @@ function TableView({
               {!hiddenCols.has("customerDisplay") && (
                 <TableCell onContextMenu={(e) => openHeader(e, "customerDisplay", "Πελάτης", "string")}>Πελάτης</TableCell>
               )}
+              {!hiddenCols.has("producerName") && (
+                <TableCell onContextMenu={(e) => openHeader(e, "producerName", "Συνεργάτης", "string")}>Συνεργάτης</TableCell>
+              )}
               {!hiddenCols.has("policyNumber") && (
                 <TableCell onContextMenu={(e) => openHeader(e, "policyNumber", "Συμβόλαιο", "string")}>Συμβόλαιο</TableCell>
               )}
@@ -922,7 +1071,7 @@ function TableView({
           <TableBody>
             {pageItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9 - hiddenCols.size} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                <TableCell colSpan={10 - hiddenCols.size} align="center" sx={{ py: 4, color: "text.secondary" }}>
                   Κανένα αποτέλεσμα.
                 </TableCell>
               </TableRow>
@@ -964,6 +1113,7 @@ function TableView({
                   )}
                   {!hiddenCols.has("assignedToUserName") && <TableCell>{t.assignedToUserName ?? "—"}</TableCell>}
                   {!hiddenCols.has("customerDisplay") && <TableCell>{t.customerDisplay ?? "—"}</TableCell>}
+                  {!hiddenCols.has("producerName") && <TableCell>{t.producerName ?? "—"}</TableCell>}
                   {!hiddenCols.has("policyNumber") && <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{t.policyNumber ?? "—"}</TableCell>}
                   <TableCell align="right">
                     <IconButton size="small" onClick={() => onEdit(t)}><EditIcon fontSize="small" /></IconButton>
@@ -1002,10 +1152,18 @@ function TaskFormDialog({ open, onClose, task, onSaved }: {
     queryKey: ["customers-lite"], enabled: open,
     queryFn: async () => (await api.get<CustomerLite[]>("/customers")).data
   });
+  const producersQuery = useQuery({
+    queryKey: ["producers-lite"], enabled: open,
+    queryFn: async () => (await api.get<ProducerLite[]>("/producers")).data
+  });
+  const policiesQuery = useQuery({
+    queryKey: ["policies-lite"], enabled: open,
+    queryFn: async () => (await api.get<PolicyLite[]>("/policies")).data
+  });
 
   const [form, setForm] = useState({
     title: "", description: "", status: "Open" as TaskStatus, priority: "Normal" as TaskPriority,
-    assignedToUserId: "", customerId: "", policyId: "", dueAt: ""
+    assignedToUserId: "", customerId: "", policyId: "", producerId: "", dueAt: ""
   });
   const [error, setError] = useState<string | null>(null);
   const [inlineCustomerCreate, setInlineCustomerCreate] = useState<string | null>(null);
@@ -1018,12 +1176,13 @@ function TaskFormDialog({ open, onClose, task, onSaved }: {
         assignedToUserId: task.assignedToUserId ?? "",
         customerId: task.customerId ?? "",
         policyId: task.policyId ?? "",
+        producerId: task.producerId ?? "",
         dueAt: task.dueAt ? task.dueAt.slice(0, 16) : ""
       });
     } else if (open) {
       setForm({
         title: "", description: "", status: "Open", priority: "Normal",
-        assignedToUserId: "", customerId: "", policyId: "", dueAt: ""
+        assignedToUserId: "", customerId: "", policyId: "", producerId: "", dueAt: ""
       });
     }
   }, [task, open]);
@@ -1037,6 +1196,7 @@ function TaskFormDialog({ open, onClose, task, onSaved }: {
         assignedToUserId: form.assignedToUserId || null,
         customerId: form.customerId || null,
         policyId: form.policyId || null,
+        producerId: form.producerId || null,
         dueAt: form.dueAt ? new Date(form.dueAt).toISOString() : null,
         ...(editing ? { status: form.status } : {})
       };
@@ -1100,6 +1260,22 @@ function TaskFormDialog({ open, onClose, task, onSaved }: {
             }))}
             createNewLabel="+ Νέος πελάτης"
             onCreateNew={(input) => setInlineCustomerCreate(input || "")}
+          />
+          <SearchableSelect
+            label="Συνεργάτης / παραγωγός"
+            value={form.producerId}
+            onChange={(v) => setForm({ ...form, producerId: v })}
+            emptyLabel="Χωρίς συνεργάτη"
+            options={(producersQuery.data ?? []).map(p => ({ value: p.id, label: p.name }))}
+          />
+          <SearchableSelect
+            label="Σχετικό συμβόλαιο"
+            value={form.policyId}
+            onChange={(v) => setForm({ ...form, policyId: v })}
+            emptyLabel="Χωρίς συμβόλαιο"
+            options={(policiesQuery.data ?? [])
+              .filter(p => !form.customerId || !p.customerId || p.customerId === form.customerId)
+              .map(p => ({ value: p.id, label: p.policyNumber }))}
           />
           <InlineCreateCustomerDialog
             open={inlineCustomerCreate !== null}

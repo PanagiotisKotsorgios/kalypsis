@@ -20,6 +20,10 @@ public class AgencyTask : TenantEntity
     public Guid? PolicyId { get; set; }
     public Policy? Policy { get; set; }
 
+    /// <summary>Optional producer/partner responsible for the task.</summary>
+    public Guid? ProducerId { get; set; }
+    public Producer? Producer { get; set; }
+
     public DateTime? DueAt { get; set; }
     public DateTime? CompletedAt { get; set; }
 }

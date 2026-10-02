@@ -27,9 +27,12 @@ interface AppointmentDto {
   assignedToUserId: string | null; assignedToUserName: string | null;
   customerId: string | null; customerName: string | null;
   policyId: string | null; policyNumber: string | null;
+  producerId: string | null; producerName: string | null;
 }
 interface UserLite { id: string; firstName: string; lastName: string }
 interface CustomerLite { id: string; type: "Individual" | "Company"; firstName?: string; lastName?: string; companyName?: string }
+interface ProducerLite { id: string; name: string }
+interface PolicyLite { id: string; policyNumber: string; customerId: string | null }
 
 // Lightweight task shape — only the fields the calendar cares about.
 // Full task management still lives on the Tasks page; the appointments
@@ -99,7 +102,7 @@ export function AppointmentsPage() {
       title: a.title,
       at: a.startsAt,
       until: a.endsAt,
-      meta: [a.assignedToUserName, a.customerName, a.policyNumber].filter(Boolean).join(" · ") || undefined,
+      meta: [a.assignedToUserName, a.customerName, a.producerName, a.policyNumber].filter(Boolean).join(" · ") || undefined,
       detail: [a.location, a.description].filter(Boolean).join("\n") || undefined,
       statusLabel: t(`appointments.status.${a.status}`, a.status) as string,
       statusColor: STATUS_COLOR[a.status],
@@ -213,6 +216,7 @@ export function AppointmentsPage() {
                           <Stack direction="row" spacing={0.75} mt={1} flexWrap="wrap" gap={0.5}>
                             {a.assignedToUserName && <Chip label={a.assignedToUserName} size="small" variant="outlined" />}
                             {a.customerName && <Chip label={a.customerName} size="small" variant="outlined" />}
+                            {a.producerName && <Chip label={a.producerName} size="small" color="secondary" variant="outlined" />}
                             {a.policyNumber && <Chip label={a.policyNumber} size="small" variant="outlined" />}
                           </Stack>
                         </Box>
@@ -246,11 +250,13 @@ function FormDialog({ open, onClose, item, prefillDate, onSaved }: { open: boole
 
   const usersQ = useQuery({ queryKey: ["users-staff"], enabled: open, queryFn: async () => (await api.get<UserLite[]>("/users")).data });
   const custsQ = useQuery({ queryKey: ["customers-lite"], enabled: open, queryFn: async () => (await api.get<CustomerLite[]>("/customers")).data });
+  const producersQ = useQuery({ queryKey: ["producers-lite"], enabled: open, queryFn: async () => (await api.get<ProducerLite[]>("/producers")).data });
+  const policiesQ = useQuery({ queryKey: ["policies-lite"], enabled: open, queryFn: async () => (await api.get<PolicyLite[]>("/policies")).data });
 
   const [form, setForm] = useState({
     title: "", description: "", location: "",
     startsAt: "", endsAt: "", status: "Scheduled" as Status,
-    assignedToUserId: "", customerId: "", policyId: ""
+    assignedToUserId: "", customerId: "", policyId: "", producerId: ""
   });
   const [error, setError] = useState<string | null>(null);
   const [inlineCustomerCreate, setInlineCustomerCreate] = useState<string | null>(null);
@@ -261,7 +267,7 @@ function FormDialog({ open, onClose, item, prefillDate, onSaved }: { open: boole
         title: item.title, description: item.description ?? "", location: item.location ?? "",
         startsAt: item.startsAt.slice(0, 16), endsAt: item.endsAt.slice(0, 16),
         status: item.status, assignedToUserId: item.assignedToUserId ?? "",
-        customerId: item.customerId ?? "", policyId: item.policyId ?? ""
+        customerId: item.customerId ?? "", policyId: item.policyId ?? "", producerId: item.producerId ?? ""
       });
     } else if (open) {
       // If the user clicked a day in the calendar, honor that date and set
@@ -275,7 +281,7 @@ function FormDialog({ open, onClose, item, prefillDate, onSaved }: { open: boole
       setForm({
         title: "", description: "", location: "",
         startsAt: fmt(base), endsAt: fmt(plusHour),
-        status: "Scheduled", assignedToUserId: "", customerId: "", policyId: ""
+        status: "Scheduled", assignedToUserId: "", customerId: "", policyId: "", producerId: ""
       });
     }
   }, [item, open, prefillDate]);
@@ -291,7 +297,8 @@ function FormDialog({ open, onClose, item, prefillDate, onSaved }: { open: boole
         status: form.status,
         assignedToUserId: form.assignedToUserId || null,
         customerId: form.customerId || null,
-        policyId: form.policyId || null
+        policyId: form.policyId || null,
+        producerId: form.producerId || null
       };
       if (editing) return (await api.put(`/appointments/${item!.id}`, body)).data;
       return (await api.post("/appointments", body)).data;
@@ -345,6 +352,24 @@ function FormDialog({ open, onClose, item, prefillDate, onSaved }: { open: boole
             createNewLabel="+ Νέος πελάτης"
             onCreateNew={(input) => setInlineCustomerCreate(input || "")}
           />
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <SearchableSelect
+              label="Συνεργάτης / παραγωγός"
+              value={form.producerId}
+              onChange={(v) => setForm({ ...form, producerId: v })}
+              emptyLabel="Χωρίς συνεργάτη"
+              options={(producersQ.data ?? []).map(p => ({ value: p.id, label: p.name }))}
+            />
+            <SearchableSelect
+              label="Σχετικό συμβόλαιο"
+              value={form.policyId}
+              onChange={(v) => setForm({ ...form, policyId: v })}
+              emptyLabel="Χωρίς συμβόλαιο"
+              options={(policiesQ.data ?? [])
+                .filter(p => !form.customerId || !p.customerId || p.customerId === form.customerId)
+                .map(p => ({ value: p.id, label: p.policyNumber }))}
+            />
+          </Stack>
           <InlineCreateCustomerDialog
             open={inlineCustomerCreate !== null}
             prefillText={inlineCustomerCreate ?? ""}

@@ -22,4 +22,8 @@ public class Appointment : TenantEntity
 
     public Guid? PolicyId { get; set; }
     public Policy? Policy { get; set; }
+
+    /// <summary>Optional producer/partner responsible for the appointment.</summary>
+    public Guid? ProducerId { get; set; }
+    public Producer? Producer { get; set; }
 }

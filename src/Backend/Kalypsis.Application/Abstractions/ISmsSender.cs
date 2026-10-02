@@ -4,7 +4,7 @@ public record SmsMessage(string ToPhone, string Body, Guid? TenantId = null);
 public record SmsResult(bool Success, string? ErrorMessage = null);
 
 /// <summary>
-/// Pluggable SMS gateway. Production implementations: Twilio, Viva SMS, Vonage, etc.
+/// Pluggable SMS gateway. Production configuration uses the office's Bulker credentials.
 /// Development uses <c>DevSmsSender</c> which only writes to the log.
 /// </summary>
 public interface ISmsSender

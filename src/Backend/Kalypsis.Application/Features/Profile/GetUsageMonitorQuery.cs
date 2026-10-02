@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Kalypsis.Application.Features.Profile;
 
 // Usage monitor — reports the calling user's current-month outgoing
-// communications count per channel (Email / SMS / Viber / Phone) alongside
+// communications count per channel (Email / SMS / Phone) alongside
 // the tenant limits set by the platform admin. Frontend renders progress
 // bars and pops the «pay for more» dialog when a channel is at capacity.
 //
@@ -36,7 +36,7 @@ public class GetMyUsageMonitorHandler : IRequestHandler<GetMyUsageMonitorQuery, 
         var start = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         var end = start.AddMonths(1);
 
-        int emailUsed = 0, smsUsed = 0, viberUsed = 0, phoneUsed = 0;
+        int emailUsed = 0, smsUsed = 0, phoneUsed = 0;
         try
         {
             var logs = await _db.CommunicationLogs
@@ -48,8 +48,6 @@ public class GetMyUsageMonitorHandler : IRequestHandler<GetMyUsageMonitorQuery, 
             emailUsed = logs.Count(k => k == CommunicationKind.Email);
             smsUsed = logs.Count(k => k == CommunicationKind.Sms);
             phoneUsed = logs.Count(k => k == CommunicationKind.Phone);
-            // Viber isn't in the enum yet — placeholder for future integration.
-            viberUsed = 0;
         }
         catch
         {
@@ -67,14 +65,12 @@ public class GetMyUsageMonitorHandler : IRequestHandler<GetMyUsageMonitorQuery, 
 
         int emailLimit = settings?.EmailMonthlyLimit ?? 500;
         int smsLimit   = settings?.SmsMonthlyLimit   ?? 100;
-        int viberLimit = settings?.ViberMonthlyLimit ?? 100;
         int phoneLimit = settings?.PhoneMonthlyLimit ?? 200;
 
         var channels = new List<UsageChannelDto>
         {
             new("email", emailUsed, emailLimit, "Email"),
             new("sms",   smsUsed,   smsLimit,   "SMS"),
-            new("viber", viberUsed, viberLimit, "Viber Business"),
             new("phone", phoneUsed, phoneLimit, "Τηλεφωνικές κλήσεις"),
         };
 

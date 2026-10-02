@@ -134,7 +134,6 @@ const CONSENT_TYPES_LEGAL = [
 const CONSENT_TYPES_MARKETING = [
   "EmailMarketing",
   "SmsMarketing",
-  "ViberMarketing",
   "PhoneMarketing",
   "AutomatedDecisionMaking",
   "DataSharingPartners"
