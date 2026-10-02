@@ -122,6 +122,10 @@ import { TasksPage } from "./pages/TasksPage";
 import { ProducersPage } from "./pages/ProducersPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { IntelligenceWorkbenchPage } from "./pages/IntelligenceWorkbenchPage";
+import { IntelligencePromptsPage } from "./pages/IntelligencePromptsPage";
+import { IntelligenceChatPage } from "./pages/IntelligenceChatPage";
+import { IntelligenceHistoryPage } from "./pages/IntelligenceHistoryPage";
+import { IntelligenceAutomationsPage } from "./pages/IntelligenceAutomationsPage";
 import { ProductionReportPage } from "./pages/ProductionReportPage";
 import { CommissionDistributionPage } from "./pages/CommissionDistributionPage";
 import { FinancialReportPage } from "./pages/FinancialReportPage";
@@ -810,10 +814,10 @@ export default function App() {
                   <Route path="claims" element={<ClaimsPage />} />
                   <Route path="reports" element={<ReportsPage />} />
                   <Route path="intelligence-workbench" element={<PackageGate package="Intelligence"><IntelligenceWorkbenchPage /></PackageGate>} />
-                  <Route path="intelligence-workbench/prompts" element={<PackageGate package="Intelligence"><IntelligenceWorkbenchPage initialTab={0} /></PackageGate>} />
-                  <Route path="intelligence-workbench/chat" element={<PackageGate package="Intelligence"><IntelligenceWorkbenchPage initialTab={2} /></PackageGate>} />
-                  <Route path="intelligence-workbench/history" element={<PackageGate package="Intelligence"><IntelligenceWorkbenchPage initialTab={1} /></PackageGate>} />
-                  <Route path="intelligence-workbench/automations" element={<PackageGate package="Intelligence"><IntelligenceWorkbenchPage initialTab={3} /></PackageGate>} />
+                  <Route path="intelligence-workbench/prompts" element={<PackageGate package="Intelligence"><IntelligencePromptsPage /></PackageGate>} />
+                  <Route path="intelligence-workbench/chat" element={<PackageGate package="Intelligence"><IntelligenceChatPage /></PackageGate>} />
+                  <Route path="intelligence-workbench/history" element={<PackageGate package="Intelligence"><IntelligenceHistoryPage /></PackageGate>} />
+                  <Route path="intelligence-workbench/automations" element={<PackageGate package="Intelligence"><IntelligenceAutomationsPage /></PackageGate>} />
                   <Route path="production-report" element={<ProductionReportPage />} />
                   <Route path="commission-distribution" element={<CommissionDistributionPage />} />
                   <Route path="financial-report" element={<FinancialReportPage />} />
