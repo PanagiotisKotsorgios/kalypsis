@@ -156,7 +156,9 @@ public class SendMarketingCampaignCommandHandler : IRequestHandler<SendMarketing
             {
                 if (granted.Contains(ConsentType.EmailMarketing))
                 {
-                    var result = await _email.SendAsync(new EmailMessage(customer.Email!, name, Render(campaign.Subject, customer), htmlBody), ct);
+                    var result = await _email.SendAsync(new EmailMessage(
+                        customer.Email!, name, Render(campaign.Subject, customer), htmlBody,
+                        AllowCustomerRecipient: true, TenantId: campaign.TenantId), ct);
                     if (result.Success) { sent++; AddCommunication(campaign, customer, CommunicationKind.Email, campaign.Subject, "Email campaign sent."); }
                     else failed++;
                 }
@@ -169,7 +171,7 @@ public class SendMarketingCampaignCommandHandler : IRequestHandler<SendMarketing
             {
                 if (granted.Contains(ConsentType.SmsMarketing))
                 {
-                    var result = await _sms.SendAsync(new SmsMessage(phone!, smsBody), ct);
+                    var result = await _sms.SendAsync(new SmsMessage(phone!, smsBody, campaign.TenantId), ct);
                     _db.SmsLogs.Add(new SmsLog
                     {
                         Id = Guid.NewGuid(), TenantId = campaign.TenantId, CustomerId = customer.Id,
@@ -227,6 +229,17 @@ public class SendMarketingCampaignCommandHandler : IRequestHandler<SendMarketing
             query = query.Where(customer => expiringCustomerIds.Contains(customer.Id));
         }
         if (campaign.SegmentKey == "with_email") query = query.Where(customer => customer.Email != null && customer.Email != "");
+        if (campaign.SegmentKey?.StartsWith("group:", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            var rawGroupId = campaign.SegmentKey[6..];
+            if (Guid.TryParse(rawGroupId, out var groupId))
+            {
+                var groupMemberIds = _db.CrmGroupMembers
+                    .Where(member => member.GroupId == groupId && member.EntityType == "Customer" && member.DeletedAt == null)
+                    .Select(member => member.EntityId);
+                query = query.Where(customer => groupMemberIds.Contains(customer.Id));
+            }
+        }
         if (!string.IsNullOrWhiteSpace(campaign.OccupationFilter))
         {
             var occupation = $"%{campaign.OccupationFilter.Trim()}%";

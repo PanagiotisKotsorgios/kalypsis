@@ -139,6 +139,7 @@ import { CoverNotesPage } from "./pages/CoverNotesPage";
 import { BranchesPage } from "./pages/BranchesPage";
 import { BankConnectionsPage } from "./pages/BankConnectionsPage";
 import { MarketingCampaignsPage } from "./pages/MarketingCampaignsPage";
+import { CrmGroupsPage } from "./pages/CrmGroupsPage";
 import { DeliveryTrackingPage } from "./pages/DeliveryTrackingPage";
 import { DocumentManagerPage } from "./pages/DocumentManagerPage";
 import { PartnerPortalsPage } from "./pages/PartnerPortalsPage";
@@ -387,6 +388,8 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/appointments", labelKey: "nav.appointments", icon: <EventIcon />, package: "Crm", permission: "appointments.read" },
     { to: "/marketing", labelKey: "nav.marketing", icon: <MailOutlineIcon />, package: "Crm", group: "crm", permission: "marketing.read" },
+    { to: "/crm-groups", labelKey: "nav.crmGroups", icon: <GroupWorkIconRC />, package: "Crm", group: "crm", permission: "marketing.read" },
+    { to: "/crm-settings", labelKey: "nav.crmSettings", icon: <VpnKeyIcon />, package: "Crm", group: "crm", permission: "marketing.read" },
     { to: "/name-days", labelKey: "nav.nameDays", icon: <CakeIcon />, package: "Crm", group: "crm", permission: "customers.read" },
     { to: "/document-manager", labelKey: "nav.documentManager", icon: <FolderSpecialIcon />, package: "Crm", group: "crm", permission: "documents.read" },
     { to: "/delivery-tracking", labelKey: "nav.deliveryTracking", icon: <LocalShippingIcon />, package: "Crm", group: "crm", permission: "delivery.read" },
@@ -467,6 +470,8 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
     { to: "/tasks", labelKey: "nav.tasks", icon: <AssignmentIcon />, package: "Crm" },
     { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
+    { to: "/crm-groups", labelKey: "nav.crmGroups", icon: <GroupWorkIconRC />, package: "Crm", permission: "marketing.read" },
+    { to: "/crm-settings", labelKey: "nav.crmSettings", icon: <VpnKeyIcon />, package: "Crm", permission: "marketing.read" },
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
@@ -969,6 +974,8 @@ export default function App() {
                   <Route path="securities" element={<Navigate to="/app/financials?tab=securities" replace />} />
                   <Route path="bank-connections" element={<PackageGate package="Integrations"><BankConnectionsPage /></PackageGate>} />
                   <Route path="marketing" element={<PackageGate package="Crm"><MarketingCampaignsPage /></PackageGate>} />
+                  <Route path="crm-groups" element={<PackageGate package="Crm"><CrmGroupsPage /></PackageGate>} />
+                  <Route path="crm-settings" element={<PackageGate package="Crm"><IntegrationSettingsPage crmOnly /></PackageGate>} />
                   <Route path="delivery-tracking" element={<PackageGate package="Crm"><DeliveryTrackingPage /></PackageGate>} />
                   <Route path="document-manager" element={<PackageGate package="Crm"><DocumentManagerPage /></PackageGate>} />
                   <Route path="partner-portals" element={<PackageGate package="Integrations"><PartnerPortalsPage /></PackageGate>} />

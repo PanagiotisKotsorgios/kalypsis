@@ -118,7 +118,10 @@ public class WorkflowEngine : IWorkflowEngine
                 var subj = Render(payload.GetPropertyOrEmpty("subject"), ctx);
                 var body = Render(payload.GetPropertyOrEmpty("body"), ctx);
                 if (string.IsNullOrWhiteSpace(to)) return "skipped (no recipient)";
-                await email.SendAsync(new EmailMessage(to, to, subj, body), ct);
+                var workflowTenant = ctx.TryGetValue("tenantId", out var tenantValue) && tenantValue is Guid tenantGuid
+                    ? tenantGuid : (Guid?)null;
+                await email.SendAsync(new EmailMessage(to, to, subj, body,
+                    AllowCustomerRecipient: true, TenantId: workflowTenant), ct);
                 return $"emailed {to}";
 
             case WorkflowAction.SendSms:
@@ -126,7 +129,9 @@ public class WorkflowEngine : IWorkflowEngine
                 var phone = payload.GetPropertyOrEmpty("phone");
                 var smsBody = Render(payload.GetPropertyOrEmpty("body"), ctx);
                 if (string.IsNullOrWhiteSpace(phone)) return "skipped (no phone)";
-                await sms.SendAsync(new SmsMessage(phone, smsBody), ct);
+                var smsTenant = ctx.TryGetValue("tenantId", out var smsTenantValue) && smsTenantValue is Guid smsTenantGuid
+                    ? smsTenantGuid : (Guid?)null;
+                await sms.SendAsync(new SmsMessage(phone, smsBody, smsTenant), ct);
                 return $"sms→ {phone}";
 
             case WorkflowAction.CreateNotification:

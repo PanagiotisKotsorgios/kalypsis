@@ -285,6 +285,18 @@ function CelebrantCard({ c, note, onNoteChange }: { c: CelebrantDto; note: strin
   const { t } = useTranslation();
   const [editingNote, setEditingNote] = useState(false);
   const [draft, setDraft] = useState(note);
+  const [sendMessage, setSendMessage] = useState<string | null>(null);
+  const send = useMutation({
+    mutationFn: async (channel: "Email" | "Sms") => {
+      const greeting = `Χρόνια πολλά ${c.customerName}! Με εκτίμηση, το γραφείο μας.`;
+      if (channel === "Email") {
+        return (await api.post("/messaging/email", { toEmail: c.email, toName: c.customerName, subject: "Χρόνια πολλά!", bodyHtml: `<p>${greeting}</p>`, customerId: c.customerId, policyId: null })).data;
+      }
+      return (await api.post("/messaging/sms", { toPhone: c.phone, body: greeting, customerId: c.customerId, policyId: null })).data;
+    },
+    onSuccess: (_, channel) => setSendMessage(channel === "Email" ? "Το email στάλθηκε." : "Το SMS στάλθηκε."),
+    onError: e => setSendMessage(extractErrorMessage(e)),
+  });
   useEffect(() => { setDraft(note); }, [note]);
   const initials = (c.customerName || "?").split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
 
@@ -299,14 +311,18 @@ function CelebrantCard({ c, note, onNoteChange }: { c: CelebrantDto; note: strin
           </Box>
           <Chip size="small" color="secondary" variant="outlined" label={c.nameDay} />
         </Stack>
-        <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5} mb={1}>
+        <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5} mb={1}
+          onClick={event => {
+            const anchor = (event.target as HTMLElement).closest("a");
+            if (anchor?.href.startsWith("mailto:")) { event.preventDefault(); send.mutate("Email"); }
+          }}>
           {c.phone && (
             <Button size="small" variant="outlined" startIcon={<PhoneIcon fontSize="small" />} href={`tel:${c.phone}`}>
               {c.phone}
             </Button>
           )}
           {c.phone && (
-            <Button size="small" variant="outlined" color="success" startIcon={<SmsIcon fontSize="small" />} href={`sms:${c.phone}`}>
+            <Button size="small" variant="outlined" color="success" startIcon={<SmsIcon fontSize="small" />} onClick={() => send.mutate("Sms")} disabled={send.isPending}>
               SMS
             </Button>
           )}
@@ -319,6 +335,7 @@ function CelebrantCard({ c, note, onNoteChange }: { c: CelebrantDto; note: strin
             {t("nameDays.openCustomer", "Άνοιγμα καρτέλας")}
           </Button>
         </Stack>
+        {sendMessage && <Alert severity={sendMessage.includes("στάλθηκε") ? "success" : "warning"} sx={{ mt: 1 }} onClose={() => setSendMessage(null)}>{sendMessage}</Alert>}
         <Divider sx={{ my: 1 }} />
         {editingNote ? (
           <Stack spacing={1}>

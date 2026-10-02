@@ -33,15 +33,26 @@ const SERVICES: { code: string; label: string; keys: string[]; hint: string; key
   { code: "InfoCenter", label: "Greek Info Center",           keys: ["MemberId", "ApiKey", "Endpoint"],
     hint: "Ενημερώσεις κλάδου και κοινοποιήσεις από την Ένωση Ασφαλιστικών Εταιρειών.",
     keyHints: { MemberId: "Ο κωδικός μέλους στο Info Center.", ApiKey: "Το API key που δόθηκε στο γραφείο.", Endpoint: "Το endpoint του Info Center." } },
-  { code: "Brevo",      label: "Brevo (Email)",              keys: ["ApiKey", "FromAddress", "FromName"],
+  { code: "Crm",        label: "CRM (Brevo + Bulker)",         keys: ["BrevoApiKey", "BrevoFromAddress", "BrevoFromName", "BulkerAuthKey", "BulkerFrom", "BulkerEndpoint"],
+    hint: "Ρυθμίσεις επικοινωνίας του συγκεκριμένου γραφείου. Οι αποστολές CRM δεν χρησιμοποιούν το γενικό κλειδί της πλατφόρμας.",
+    keyHints: {
+      BrevoApiKey: "Το API key του λογαριασμού Brevo του γραφείου.",
+      BrevoFromAddress: "Επαληθευμένη διεύθυνση αποστολέα στο Brevo.",
+      BrevoFromName: "Το όνομα του γραφείου στα εξερχόμενα email.",
+      BulkerAuthKey: "Το Auth Key από τις ρυθμίσεις API του λογαριασμού Bulker του γραφείου.",
+      BulkerFrom: "Ο εγκεκριμένος αποστολέας SMS του Bulker.",
+      BulkerEndpoint: "Αφήστε κενό για το επίσημο endpoint https://api.bulker.gr/http/sms.php."
+    } },
+  { code: "Brevo",      label: "Brevo (legacy email)",       keys: ["ApiKey", "FromAddress", "FromName"],
     hint: "Αποστολή email (ενημερώσεις, ανανεώσεις, campaigns) μέσω Brevo (πρώην Sendinblue).",
     keyHints: { ApiKey: "Το API key από το dashboard του Brevo (Account → SMTP & API).", FromAddress: "Η διεύθυνση αποστολέα (πρέπει να έχει επαληθευτεί στο Brevo).", FromName: "Το εμφανιζόμενο όνομα του γραφείου στα εξερχόμενα mail." } }
 ];
 
-export function IntegrationSettingsPage() {
+export function IntegrationSettingsPage({ crmOnly = false }: { crmOnly?: boolean }) {
   const { t } = useTranslation();
+  const services = crmOnly ? SERVICES.filter(s => s.code === "Crm") : SERVICES;
   const [tab, setTab] = useState(0);
-  const service = SERVICES[tab];
+  const service = services[Math.min(tab, Math.max(services.length - 1, 0))];
 
   return (
     <Box>
@@ -49,15 +60,15 @@ export function IntegrationSettingsPage() {
         <KeyIcon sx={{ fontSize: 36 }} color="primary" />
         <Box>
           <Stack direction="row" alignItems="center" spacing={0.5}>
-            <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("integrations.title")}</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 800 }}>{crmOnly ? "Ρυθμίσεις CRM" : t("integrations.title")}</Typography>
             <HelpHint id="page.integrations" />
           </Stack>
           <Typography color="text.secondary">{t("integrations.subtitle")}</Typography>
         </Box>
       </Stack>
       <Alert severity="info" sx={{ mb: 2 }}>{t("integrations.note")}</Alert>
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" sx={{ mb: 2 }}>
-        {SERVICES.map(s => (
+      <Tabs value={Math.min(tab, Math.max(services.length - 1, 0))} onChange={(_, v) => setTab(v)} variant="scrollable" sx={{ mb: 2 }}>
+        {services.map(s => (
           <Tab key={s.code} label={
             <Tooltip title={s.hint} arrow placement="top">
               <span>{s.label}</span>

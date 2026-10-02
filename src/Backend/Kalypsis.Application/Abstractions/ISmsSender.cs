@@ -1,6 +1,6 @@
 namespace Kalypsis.Application.Abstractions;
 
-public record SmsMessage(string ToPhone, string Body);
+public record SmsMessage(string ToPhone, string Body, Guid? TenantId = null);
 public record SmsResult(bool Success, string? ErrorMessage = null);
 
 /// <summary>

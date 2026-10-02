@@ -67,6 +67,9 @@ public interface IAppDbContext
     DbSet<CustomerFormSigning> CustomerFormSignings { get; }
     DbSet<CustomerFormSigningLink> CustomerFormSigningLinks { get; }
     DbSet<CommunicationLog> CommunicationLogs { get; }
+    DbSet<ProducerCommunicationLog> ProducerCommunicationLogs { get; }
+    DbSet<CrmGroup> CrmGroups { get; }
+    DbSet<CrmGroupMember> CrmGroupMembers { get; }
     DbSet<CustomerContact> CustomerContacts { get; }
     DbSet<EmailTemplate> EmailTemplates { get; }
     DbSet<TwoFactorRecoveryCode> TwoFactorRecoveryCodes { get; }

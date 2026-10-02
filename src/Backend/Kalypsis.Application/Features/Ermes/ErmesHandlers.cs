@@ -572,7 +572,7 @@ public class SendErmesHandler : IRequestHandler<SendErmesCommand, Guid>
                     var html = BuildExternalEmailHtml(msg, u);
                     var res = await _email.SendAsync(new EmailMessage(
                         u.Email, ($"{u.FirstName} {u.LastName}").Trim(),
-                        subject, html), ct);
+                        subject, html, AllowCustomerRecipient: false, TenantId: _current.TenantId), ct);
                     if (res.Success) deliveredCount++; else failCount++;
                 }
                 msg.ExternalEmailDelivered = deliveredCount > 0 && failCount == 0;

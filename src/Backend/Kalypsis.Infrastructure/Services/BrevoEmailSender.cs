@@ -12,25 +12,38 @@ public sealed class BrevoEmailSender : IEmailSender
     private const string BrevoEndpoint = "https://api.brevo.com/v3/smtp/email";
     private readonly IHttpClientFactory _httpFactory;
     private readonly AppDbContext _db;
+    private readonly ICurrentUser _current;
     private readonly ILogger<BrevoEmailSender> _logger;
 
-    public BrevoEmailSender(IHttpClientFactory httpFactory, AppDbContext db, ILogger<BrevoEmailSender> logger)
+    public BrevoEmailSender(IHttpClientFactory httpFactory, AppDbContext db, ICurrentUser current, ILogger<BrevoEmailSender> logger)
     {
         _httpFactory = httpFactory;
         _db = db;
+        _current = current;
         _logger = logger;
     }
 
     public async Task<bool> IsConfiguredAsync(CancellationToken cancellationToken = default)
     {
-        var settings = await GetSettingsAsync(cancellationToken);
+        var settings = _current.TenantId is Guid tenantId
+            ? await GetOfficeSettingsAsync(tenantId, cancellationToken)
+            : await GetSettingsAsync(null, cancellationToken);
         return !string.IsNullOrWhiteSpace(settings?.BrevoApiKey)
                && !string.IsNullOrWhiteSpace(settings?.BrevoSenderEmail);
     }
 
     public async Task<EmailResult> SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
     {
-        var settings = await GetSettingsAsync(cancellationToken);
+        var tenantId = message.TenantId ?? _current.TenantId;
+        var officeSettings = tenantId.HasValue
+            ? await GetOfficeSettingsAsync(tenantId.Value, cancellationToken)
+            : null;
+        // CRM/customer-facing sends are deliberately isolated from the
+        // platform key. Missing office credentials must fail closed rather
+        // than silently sending through Kalypsis' global account.
+        var settings = tenantId.HasValue
+            ? officeSettings
+            : await GetSettingsAsync(null, cancellationToken);
 
         // Hard policy — NEVER send an automated outbound email to any
         // address that is on file as a Customer or Producer of any
@@ -72,7 +85,9 @@ public sealed class BrevoEmailSender : IEmailSender
             || string.IsNullOrWhiteSpace(settings.BrevoSenderEmail))
         {
             _logger.LogWarning("Brevo not configured; refusing to send email to {Email}", message.ToEmail);
-            return new EmailResult(false, "Email sending is not configured by the platform administrator.");
+            return new EmailResult(false, tenantId.HasValue
+                ? "Το CRM email δεν έχει ρυθμιστεί για το συγκεκριμένο γραφείο. Συμπληρώστε το Brevo API key και τον αποστολέα στις Ρυθμίσεις CRM."
+                : "Email sending is not configured by the platform administrator.");
         }
 
         var client = _httpFactory.CreateClient("brevo");
@@ -121,7 +136,9 @@ public sealed class BrevoEmailSender : IEmailSender
 
     public async Task<KeyValidationResult> ValidateKeyAsync(CancellationToken cancellationToken = default)
     {
-        var settings = await GetSettingsAsync(cancellationToken);
+        var settings = _current.TenantId is Guid tenantId
+            ? await GetOfficeSettingsAsync(tenantId, cancellationToken)
+            : await GetSettingsAsync(null, cancellationToken);
         var key = settings?.BrevoApiKey?.Trim();
         if (string.IsNullOrWhiteSpace(key))
             return new KeyValidationResult(false, null, null, null,
@@ -193,8 +210,36 @@ public sealed class BrevoEmailSender : IEmailSender
         return $"{prefix}…{tail}";
     }
 
-    private Task<Kalypsis.Domain.Entities.PlatformSetting?> GetSettingsAsync(CancellationToken ct)
-        => _db.PlatformSettings.IgnoreQueryFilters().OrderBy(s => s.CreatedAt).FirstOrDefaultAsync(ct);
+    private async Task<EmailProviderSettings?> GetSettingsAsync(Guid? tenantId, CancellationToken ct)
+    {
+        var row = await _db.PlatformSettings.IgnoreQueryFilters().OrderBy(s => s.CreatedAt).FirstOrDefaultAsync(ct);
+        return row is null ? null : new EmailProviderSettings(row.BrevoApiKey, row.BrevoSenderEmail, row.BrevoSenderName, row.OutboundEmailsDisabled);
+    }
+
+    private async Task<EmailProviderSettings?> GetOfficeSettingsAsync(Guid tenantId, CancellationToken ct)
+    {
+        var rows = await _db.IntegrationSettings.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && (x.Service == "Crm" || x.Service == "Brevo"))
+            .ToListAsync(ct);
+
+        // The explicit Crm keys are preferred. Brevo is retained as a
+        // backwards-compatible alias for offices that already configured the
+        // integration before the CRM settings screen was introduced.
+        string? Get(params string[] names) => rows
+            .Where(x => names.Contains(x.KeyName, StringComparer.OrdinalIgnoreCase))
+            .OrderByDescending(x => x.Service.Equals("Crm", StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.Value)
+            .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+
+        var key = Get("BrevoApiKey", "ApiKey");
+        var from = Get("BrevoFromAddress", "FromAddress");
+        var name = Get("BrevoFromName", "FromName");
+        return string.IsNullOrWhiteSpace(key) && string.IsNullOrWhiteSpace(from)
+            ? null
+            : new EmailProviderSettings(key, from, name);
+    }
+
+    private sealed record EmailProviderSettings(string? BrevoApiKey, string? BrevoSenderEmail, string? BrevoSenderName, bool OutboundEmailsDisabled = false);
 
     private static string StripHtml(string html) =>
         System.Text.RegularExpressions.Regex.Replace(html, "<.*?>", string.Empty);

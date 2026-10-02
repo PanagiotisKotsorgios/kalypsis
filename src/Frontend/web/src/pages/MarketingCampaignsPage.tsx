@@ -64,7 +64,7 @@ import { SearchableTextField } from "../components/SearchableTextField";
 const STATUSES = ["Draft", "Scheduled", "Sent"] as const;
 type Status = typeof STATUSES[number];
 const SEGMENTS = ["all", "expiring", "with_email"] as const;
-type Segment = typeof SEGMENTS[number];
+type Segment = string;
 const NEED_KINDS = ["Home", "Vehicle", "Health", "Life", "Business", "Travel", "Pet", "Liability", "Cyber", "Other"] as const;
 const CHANNELS = ["Email", "Sms", "Viber"] as const;
 type Channel = typeof CHANNELS[number];
@@ -558,6 +558,11 @@ function CampaignFormDialog({ open, onClose, item, onSaved }: { open: boolean; o
   const [err, setErr] = useState<string | null>(null);
 
   const [templates] = useLocalStore<MarketingTemplate>(`kalypsis:marketing:templates:${user?.userId ?? "anon"}`, DEFAULT_TEMPLATES);
+  const groupsQ = useQuery({
+    queryKey: ["crm-groups", "Customer"],
+    queryFn: async () => (await api.get<Array<{ id: string; name: string; entityType: string; memberCount: number }>>("/crm/groups", { params: { entityType: "Customer" } })).data,
+    enabled: open,
+  });
 
   useEffect(() => {
     if (item) setForm({
@@ -633,6 +638,7 @@ function CampaignFormDialog({ open, onClose, item, onSaved }: { open: boolean; o
             <SearchableTextField label={t("marketing.segment", "Κοινό")} value={form.segmentKey}
               onChange={e => setForm({ ...form, segmentKey: e.target.value as Segment })} fullWidth>
               {SEGMENTS.map(s => <MenuItem key={s} value={s}>{t(`marketing.segmentLabel.${s}`, s)}</MenuItem>)}
+              {(groupsQ.data ?? []).map(group => <MenuItem key={`group:${group.id}`} value={`group:${group.id}`}>Ομάδα: {group.name} ({group.memberCount})</MenuItem>)}
             </SearchableTextField>
             <SearchableTextField label={t("common.status", "Κατάσταση")} value={form.status}
               onChange={e => setForm({ ...form, status: e.target.value as Status })} fullWidth>

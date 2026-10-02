@@ -81,6 +81,9 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<CustomerFormSigning> CustomerFormSignings => Set<CustomerFormSigning>();
     public DbSet<CustomerFormSigningLink> CustomerFormSigningLinks => Set<CustomerFormSigningLink>();
     public DbSet<CommunicationLog> CommunicationLogs => Set<CommunicationLog>();
+    public DbSet<ProducerCommunicationLog> ProducerCommunicationLogs => Set<ProducerCommunicationLog>();
+    public DbSet<CrmGroup> CrmGroups => Set<CrmGroup>();
+    public DbSet<CrmGroupMember> CrmGroupMembers => Set<CrmGroupMember>();
     public DbSet<CustomerContact> CustomerContacts => Set<CustomerContact>();
     public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
     public DbSet<TwoFactorRecoveryCode> TwoFactorRecoveryCodes => Set<TwoFactorRecoveryCode>();
@@ -356,6 +359,9 @@ public class AppDbContext : DbContext, IAppDbContext
         Encrypt<MailboxConnection>(x => x.ImapPasswordEncrypted);
         Encrypt<TelephonyConnection>(x => x.AccountSidEncrypted);
         Encrypt<TelephonyConnection>(x => x.AuthTokenEncrypted);
+        // Office-owned CRM provider credentials (Brevo/Bulker) are tenant
+        // scoped and must be encrypted at rest just like the other secrets.
+        Encrypt<IntegrationSetting>(x => x.Value, maxLength: 3000);
         Encrypt<BackofficeBridgeConnection>(x => x.SecretEncrypted);
         // Insurance-carrier portal codes handed over by tenants who want
         // us to log in on their behalf. These live in the μηχανογράφιση

@@ -22,6 +22,19 @@ interface ProducerDetail {
   performanceGrade: string;
 }
 
+interface ProducerCommunication {
+  id: string;
+  kind: number;
+  direction: number;
+  outcome: number;
+  occurredAt: string;
+  subject: string;
+  body: string | null;
+}
+
+const COMM_KIND: Record<number, string> = { 1: "Σημείωση", 2: "Τηλέφωνο", 3: "Email", 4: "Συνάντηση", 5: "SMS", 6: "Επίσκεψη" };
+const COMM_OUTCOME: Record<number, string> = { 0: "Χωρίς αποτέλεσμα", 1: "Ολοκληρώθηκε", 2: "Απαιτείται follow-up", 3: "Δεν απάντησε", 4: "Ακυρώθηκε" };
+
 const GRADE_COLOR: Record<string, string> = {
   A: "#1b873f", B: "#3aa56b", C: "#c98a1d", D: "#d65f2d", F: "#c43838"
 };
@@ -37,6 +50,11 @@ export function ProducerDetailDrawer({ producerId, open, onClose }: {
     queryKey: ["producer-detail", producerId],
     enabled: open && !!producerId,
     queryFn: async () => (await api.get<ProducerDetail>(`/producers/${producerId}/detail`)).data
+  });
+  const communications = useQuery({
+    queryKey: ["producer-communications", producerId],
+    enabled: open && !!producerId,
+    queryFn: async () => (await api.get<ProducerCommunication[]>(`/crm/producers/${producerId}/communications`)).data
   });
 
   const p = q.data;
@@ -104,6 +122,31 @@ export function ProducerDetailDrawer({ producerId, open, onClose }: {
                 <PerfBar label={t("producerDetail.renewalRate")} value={p.renewalRate} target={70} unit="%" />
                 <PerfBar label={t("producerDetail.premiumGrowth")} value={p.premiumGrowthPercent} target={10} unit="%" allowNegative />
                 <PerfBar label={t("producerDetail.claimRatio")} value={p.claimRatio} target={25} unit="%" inverted />
+              </Box>
+
+              <Divider />
+
+              <Box>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
+                  <Typography fontWeight={700}>Ιστορικό επικοινωνίας</Typography>
+                  <Chip size="small" label={`${communications.data?.length ?? 0}`} />
+                </Stack>
+                {communications.isLoading ? <CircularProgress size={20} /> : (communications.data ?? []).length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">Δεν έχει καταγραφεί ακόμη επικοινωνία με τον συνεργάτη.</Typography>
+                ) : (
+                  <Stack spacing={1}>
+                    {(communications.data ?? []).map(item => (
+                      <Box key={item.id} sx={{ p: 1.25, borderRadius: 1.5, bgcolor: "background.default", border: "1px solid", borderColor: "divider" }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                          <Typography variant="body2" fontWeight={700}>{COMM_KIND[item.kind] ?? "Επικοινωνία"} · {item.subject}</Typography>
+                          <Typography variant="caption" color="text.secondary">{new Date(item.occurredAt).toLocaleString("el-GR")}</Typography>
+                        </Stack>
+                        <Typography variant="caption" color="text.secondary">{COMM_OUTCOME[item.outcome] ?? ""}</Typography>
+                        {item.body && <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}>{item.body}</Typography>}
+                      </Box>
+                    ))}
+                  </Stack>
+                )}
               </Box>
 
               <Divider />

@@ -7,7 +7,12 @@ public record EmailMessage(
     string HtmlBody,
     string? TextBody = null,
     IReadOnlyList<EmailAttachment>? Attachments = null,
-    bool AllowCustomerRecipient = false);
+    bool AllowCustomerRecipient = false,
+    /// <summary>
+    /// Tenant whose office-owned CRM provider must be used. Null keeps the
+    /// existing platform/global provider behaviour for system mail.
+    /// </summary>
+    Guid? TenantId = null);
 
 /// <summary>Optional attachment sent with an email. Bytes are encoded by the provider adapter.</summary>
 public record EmailAttachment(string FileName, string ContentType, byte[] Content);

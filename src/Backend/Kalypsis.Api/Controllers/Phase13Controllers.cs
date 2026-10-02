@@ -1,4 +1,5 @@
 using Kalypsis.Application.Features.Phase13;
+using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,19 +8,28 @@ namespace Kalypsis.Api.Controllers;
 
 [ApiController]
 [Route("api/integration-settings")]
-[Authorize(Policy = "AgencyAdmin")]
+[Authorize(Policy = "AgencyManager")]
 public class IntegrationSettingsController : ControllerBase
 {
     private readonly IMediator _mediator;
-    public IntegrationSettingsController(IMediator mediator) => _mediator = mediator;
+    private readonly Kalypsis.Application.Abstractions.ICurrentUser _current;
+    public IntegrationSettingsController(IMediator mediator, Kalypsis.Application.Abstractions.ICurrentUser current)
+    { _mediator = mediator; _current = current; }
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<IntegrationSettingDto>>> List([FromQuery] string? service, CancellationToken ct)
-        => Ok(await _mediator.Send(new ListIntegrationSettingsQuery(service), ct));
+    {
+        if (_current.Role == Role.AgencyOfficeAdmin && string.IsNullOrWhiteSpace(service)) service = "Crm";
+        if (_current.Role == Role.AgencyOfficeAdmin && !string.Equals(service, "Crm", StringComparison.OrdinalIgnoreCase)) return Forbid();
+        return Ok(await _mediator.Send(new ListIntegrationSettingsQuery(service), ct));
+    }
 
     [HttpPost]
     public async Task<ActionResult<IntegrationSettingDto>> Save([FromBody] IntegrationSettingBody body, CancellationToken ct)
-        => Ok(await _mediator.Send(new SaveIntegrationSettingCommand(body), ct));
+    {
+        if (_current.Role == Role.AgencyOfficeAdmin && !string.Equals(body.Service, "Crm", StringComparison.OrdinalIgnoreCase)) return Forbid();
+        return Ok(await _mediator.Send(new SaveIntegrationSettingCommand(body), ct));
+    }
 }
 
 [ApiController]

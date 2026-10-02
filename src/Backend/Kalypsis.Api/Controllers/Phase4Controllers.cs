@@ -580,23 +580,33 @@ public class OnlinePaymentsController : ControllerBase
 public class MessagingController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IEmailSender _email;
     private readonly ISmsSender _sms;
     private readonly IViberSender _viber;
     private readonly IDateTimeProvider _clock;
-    public MessagingController(AppDbContext db, ISmsSender sms, IViberSender viber, IDateTimeProvider clock)
-    { _db = db; _sms = sms; _viber = viber; _clock = clock; }
+    public MessagingController(AppDbContext db, IEmailSender email, ISmsSender sms, IViberSender viber, IDateTimeProvider clock)
+    { _db = db; _email = email; _sms = sms; _viber = viber; _clock = clock; }
 
+    public record SendEmailBody(string ToEmail, string ToName, string Subject, string BodyHtml, Guid? CustomerId, Guid? PolicyId);
     public record SendSmsBody(string ToPhone, string Body, Guid? CustomerId, Guid? PolicyId);
     public record SendViberBody(string ToPhone, string Body, string? ImageUrl, Guid? CustomerId, Guid? PolicyId);
 
     [HttpPost("sms")]
     public async Task<ActionResult> SendSms([FromBody] SendSmsBody body, CancellationToken ct)
     {
-        var result = await _sms.SendAsync(new SmsMessage(body.ToPhone, body.Body), ct);
+        if (body.CustomerId.HasValue)
+        {
+            var customer = await _db.Customers.FirstOrDefaultAsync(x => x.Id == body.CustomerId.Value, ct);
+            if (customer is null) return NotFound("Customer");
+            var allowed = await _db.ConsentRecords.AnyAsync(x => x.CustomerId == customer.Id
+                && x.Type == ConsentType.SmsMarketing && x.Granted && x.RevokedAt == null && x.DeletedAt == null, ct);
+            if (!allowed) return BadRequest("Ο πελάτης δεν έχει ενεργή συγκατάθεση για SMS marketing.");
+        }
+        var result = await _sms.SendAsync(new SmsMessage(body.ToPhone, body.Body, _db.CurrentTenantId), ct);
         var log = new SmsLog
         {
             Id = Guid.NewGuid(),
-            Provider = "stub",
+            Provider = "bulker",
             ToNumber = body.ToPhone,
             Body = body.Body,
             Status = result.Success ? "Sent" : "Failed",
@@ -607,8 +617,46 @@ public class MessagingController : ControllerBase
             DeliveredAt = result.Success ? _clock.UtcNow : null
         };
         _db.SmsLogs.Add(log);
+        if (body.CustomerId.HasValue && result.Success)
+        {
+            _db.CommunicationLogs.Add(new CommunicationLog
+            {
+                Id = Guid.NewGuid(), TenantId = _db.CurrentTenantId, CustomerId = body.CustomerId.Value,
+                Kind = CommunicationKind.Sms, Direction = CommunicationDirection.Outbound,
+                Outcome = CommunicationOutcome.Resolved, OccurredAt = _clock.UtcNow,
+                Subject = "CRM SMS", Body = body.Body
+            });
+        }
         await _db.SaveChangesAsync(ct);
         return Ok(new { success = result.Success, logId = log.Id });
+    }
+
+    [HttpPost("email")]
+    public async Task<ActionResult> SendEmail([FromBody] SendEmailBody body, CancellationToken ct)
+    {
+        if (body.CustomerId.HasValue)
+        {
+            var customer = await _db.Customers.FirstOrDefaultAsync(x => x.Id == body.CustomerId.Value, ct);
+            if (customer is null) return NotFound("Customer");
+            var allowed = await _db.ConsentRecords.AnyAsync(x => x.CustomerId == customer.Id
+                && x.Type == ConsentType.EmailMarketing && x.Granted && x.RevokedAt == null && x.DeletedAt == null, ct);
+            if (!allowed) return BadRequest("Ο πελάτης δεν έχει ενεργή συγκατάθεση για email marketing.");
+        }
+        var result = await _email.SendAsync(new EmailMessage(body.ToEmail, body.ToName, body.Subject, body.BodyHtml,
+            AllowCustomerRecipient: true, TenantId: _db.CurrentTenantId), ct);
+        if (!result.Success) return BadRequest(result.ErrorMessage);
+        if (body.CustomerId.HasValue)
+        {
+            _db.CommunicationLogs.Add(new CommunicationLog
+            {
+                Id = Guid.NewGuid(), TenantId = _db.CurrentTenantId, CustomerId = body.CustomerId.Value,
+                Kind = CommunicationKind.Email, Direction = CommunicationDirection.Outbound,
+                Outcome = CommunicationOutcome.Resolved, OccurredAt = _clock.UtcNow,
+                Subject = body.Subject, Body = "Name-day CRM email"
+            });
+            await _db.SaveChangesAsync(ct);
+        }
+        return Ok(new { success = true });
     }
 
     [HttpPost("viber")]
