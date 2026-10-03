@@ -495,6 +495,7 @@ export function CustomersPage() {
             display: { xs: "flex", md: "grid" },
             gridTemplateColumns: { md: "minmax(200px, 1.45fr) repeat(3, minmax(125px, 1fr))" },
             gridAutoFlow: "row",
+            rowGap: { md: 1 },
             width: "100%",
             minWidth: 0,
             overflowX: { xs: "visible", md: "auto" },
