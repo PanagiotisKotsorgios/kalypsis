@@ -60,6 +60,30 @@ public static class DataSeeder
         "user_public_keys",
     ];
 
+    // MySQL commits CREATE TABLE statements independently of the surrounding
+    // transaction. If a container is restarted after those DDL statements but
+    // before EF writes __EFMigrationsHistory, the next boot sees the tables as
+    // "already exists" and can never reach the login endpoint. These are the
+    // migrations introduced with the insurance-company workspace feature. We
+    // only repair history when every table belonging to a migration is already
+    // present; no table or user data is deleted or modified.
+    private static readonly (string Id, string[] Tables)[] OrphanableMigrations =
+    [
+        ("20261003184050_AddInsuranceCompanyWorkspace", [
+            "InsuranceCompanyFieldDefinitions",
+            "InsuranceCompanyFolders",
+            "office_websites",
+            "InsuranceCompanyFieldValues",
+            "InsuranceCompanyDocuments",
+            "office_website_events",
+            "office_website_requests"
+        ]),
+        ("20261003185032_AddInsuranceCompanyContactsAndCategories", [
+            "InsuranceCompanyCategories",
+            "InsuranceCompanyContacts"
+        ])
+    ];
+
     public static async Task SeedAsync(IServiceProvider services, CancellationToken cancellationToken = default)
     {
         using var scope = services.CreateScope();
@@ -68,6 +92,10 @@ public static class DataSeeder
         var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
         var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DataSeeder");
 
+        // Repair a partially committed MySQL migration before asking EF to
+        // apply pending migrations. Without this, every retry fails on the
+        // first existing CREATE TABLE and the API remains in service_starting.
+        await ReconcileOrphanedMigrationHistoryAsync(db, logger, cancellationToken);
         await db.Database.MigrateAsync(cancellationToken);
 
         // Schema safety net: some migrations in this project ship without a
@@ -701,6 +729,61 @@ public static class DataSeeder
         {
             logger.LogInformation("Global carrier catalogue: all {Total} entries already present.", GlobalCarriers.Length);
         }
+    }
+
+    private static async Task ReconcileOrphanedMigrationHistoryAsync(
+        AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        var databaseName = db.Database.GetDbConnection().Database;
+        if (string.IsNullOrWhiteSpace(databaseName)) return;
+
+        // On a brand-new database EF creates this table itself as part of
+        // MigrateAsync. There is nothing to reconcile yet.
+        if (!await DatabaseTableExistsAsync(db, databaseName, "__EFMigrationsHistory", ct))
+            return;
+
+        var applied = (await db.Database.SqlQueryRaw<string>(
+                "SELECT `MigrationId` AS `Value` FROM `__EFMigrationsHistory`")
+            .ToListAsync(ct))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var migration in OrphanableMigrations)
+        {
+            if (applied.Contains(migration.Id)) continue;
+
+            var complete = true;
+            foreach (var table in migration.Tables)
+            {
+                if (!await DatabaseTableExistsAsync(db, databaseName, table, ct))
+                {
+                    complete = false;
+                    break;
+                }
+            }
+
+            if (!complete) continue;
+
+            // ProductVersion is informational; keep it aligned with the EF
+            // package version used by this API. INSERT IGNORE also makes this
+            // safe if two API instances race during a rolling restart.
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"INSERT IGNORE INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`) VALUES ({migration.Id}, {"10.0.9"})",
+                ct);
+            logger.LogWarning(
+                "Reconciled orphaned EF migration history for {Migration}; all expected tables already existed.",
+                migration.Id);
+        }
+    }
+
+    private static async Task<bool> DatabaseTableExistsAsync(
+        AppDbContext db, string databaseName, string tableName, CancellationToken ct)
+    {
+        var count = await db.Database.SqlQueryRaw<long>(
+                "SELECT COUNT(*) AS `Value` FROM information_schema.TABLES " +
+                "WHERE TABLE_SCHEMA = {0} AND TABLE_NAME = {1}",
+                databaseName, tableName)
+            .SingleAsync(ct);
+        return count > 0;
     }
 
     private static async Task EnsureSchemaSafetyAsync(AppDbContext db, ILogger logger, CancellationToken ct)
