@@ -492,10 +492,14 @@ export function CustomersPage() {
           alignItems={{ xs: "stretch", md: "center" }}
           flexWrap={{ xs: "wrap", md: "nowrap" }} useFlexGap
           sx={{
+            display: { xs: "flex", md: "grid" },
+            gridTemplateColumns: { md: "minmax(200px, 1.45fr) repeat(3, minmax(125px, 1fr))" },
+            gridAutoFlow: "row",
             width: "100%",
             minWidth: 0,
             overflowX: { xs: "visible", md: "auto" },
             overflowY: "hidden",
+            pt: { xs: 0, md: 1 },
             pb: { xs: 0, md: 0.25 },
             "& > .MuiTextField-root, & > .MuiFormControl-root, & > .MuiFormControlLabel-root, & > .MuiBox-root": {
               flex: { md: "0 0 auto" },
