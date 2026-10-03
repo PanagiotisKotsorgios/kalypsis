@@ -111,6 +111,82 @@ public record PolicyDetailDto(
 
 public record GetPolicyDetailQuery(Guid Id) : IRequest<PolicyDetailDto>;
 
+/// <summary>
+/// Small, vehicle-focused update used by the vehicle card. It deliberately
+/// does not replace the full policy editor: associating/removing a vehicle
+/// must not change premium, dates, commissions or claims.
+/// </summary>
+public record UpdatePolicyVehicleBody(
+    string? VehicleRegistrationPlate = null,
+    string? VehicleUseCategory = null,
+    string? DriverVatNumber = null,
+    string? ReasonForCirculation = null,
+    string? Characteristic = null,
+    decimal? Deductible = null,
+    string? Position = null,
+    string? SpecsJson = null,
+    string? Notes = null,
+    bool ReplaceDetails = false,
+    bool ClearVehicleRegistrationPlate = false);
+
+public record UpdatePolicyVehicleCommand(Guid Id, UpdatePolicyVehicleBody Body) : IRequest<PolicyDetailDto>;
+
+public sealed class UpdatePolicyVehicleHandler : IRequestHandler<UpdatePolicyVehicleCommand, PolicyDetailDto>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    private readonly IMediator _mediator;
+
+    public UpdatePolicyVehicleHandler(IAppDbContext db, ICurrentUser current, IMediator mediator)
+    { _db = db; _current = current; _mediator = mediator; }
+
+    public async Task<PolicyDetailDto> Handle(UpdatePolicyVehicleCommand request, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var policy = await _db.Policies.FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId, ct)
+            ?? throw AppException.NotFound("Συμβόλαιο");
+        var body = request.Body;
+
+        if (body.ClearVehicleRegistrationPlate)
+            policy.VehicleRegistrationPlate = null;
+        else if (body.VehicleRegistrationPlate is not null)
+            policy.VehicleRegistrationPlate = string.IsNullOrWhiteSpace(body.VehicleRegistrationPlate)
+                ? null : body.VehicleRegistrationPlate.Trim().ToUpperInvariant();
+
+        // Association/removal requests only touch the plate. Detail editing
+        // is explicit so an omitted optional field never clears old data.
+        if (body.ReplaceDetails)
+        {
+            policy.DriverVatNumber = body.DriverVatNumber?.Trim() is { Length: > 0 } driverVat ? driverVat : null;
+            policy.ReasonForCirculation = body.ReasonForCirculation?.Trim() is { Length: > 0 } reason ? reason : null;
+            policy.Characteristic = body.Characteristic?.Trim() is { Length: > 0 } characteristic ? characteristic : null;
+            policy.Position = body.Position?.Trim() is { Length: > 0 } position ? position : null;
+            policy.Notes = body.Notes?.Trim() is { Length: > 0 } notes ? notes : null;
+            policy.Deductible = body.Deductible;
+            policy.SpecsJson = body.SpecsJson?.Trim() is { Length: > 0 } specs ? specs : null;
+
+            if (string.IsNullOrWhiteSpace(body.VehicleUseCategory))
+            {
+                policy.VehicleUseCategory = null;
+                policy.CarrierUseCode = null;
+            }
+            else if (Enum.TryParse<VehicleUseCategory>(body.VehicleUseCategory.Trim(), true, out var category))
+            {
+                policy.VehicleUseCategory = category;
+                policy.CarrierUseCode = null;
+            }
+            else
+            {
+                policy.VehicleUseCategory = null;
+                policy.CarrierUseCode = body.VehicleUseCategory.Trim();
+            }
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return await _mediator.Send(new GetPolicyDetailQuery(policy.Id), ct);
+    }
+}
+
 public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery, PolicyDetailDto>
 {
     private readonly IAppDbContext _db;

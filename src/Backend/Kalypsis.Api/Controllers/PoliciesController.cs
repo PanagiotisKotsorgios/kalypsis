@@ -44,6 +44,13 @@ public class PoliciesController : ControllerBase
     public async Task<ActionResult<PolicyDetailDto>> Detail(Guid id, CancellationToken ct)
         => Ok(await _mediator.Send(new GetPolicyDetailQuery(id), ct));
 
+    [HttpPatch("{id:guid}/vehicle")]
+    [Authorize(Policy = "AgencyStaff")]
+    [RequirePermission("policies.write")]
+    public async Task<ActionResult<PolicyDetailDto>> UpdateVehicle(
+        Guid id, [FromBody] UpdatePolicyVehicleBody body, CancellationToken ct)
+        => Ok(await _mediator.Send(new UpdatePolicyVehicleCommand(id, body), ct));
+
     [HttpPut("{id:guid}/extended")]
     [Authorize(Policy = "AgencyStaff")]
     [RequirePermission("policies.write")]
