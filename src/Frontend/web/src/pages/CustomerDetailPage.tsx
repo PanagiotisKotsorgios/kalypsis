@@ -42,7 +42,7 @@ import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { useParams, Link as RouterLink } from "react-router-dom";
+import { useNavigate, useParams, Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { VehicleDetailDialog } from "./CustomerVehiclesPage";
@@ -175,6 +175,7 @@ const COMMUNICATION_KINDS = ["Note", "Phone", "Email", "Meeting", "Sms", "WalkIn
 
 export function CustomerDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState(0);
@@ -213,7 +214,21 @@ export function CustomerDetailPage() {
     : [customer.firstName, customer.lastName].filter(Boolean).join(" ") || "—";
 
   return (
-    <Box>
+    <Dialog
+      open
+      fullWidth
+      maxWidth="xl"
+      onClose={() => navigate("/app/customers")}
+      PaperProps={{ sx: { height: { xs: "100vh", md: "calc(100vh - 32px)" }, maxHeight: "none", m: { xs: 0, md: 2 } } }}
+    >
+      <DialogTitle sx={{ py: 1.5, borderBottom: 1, borderColor: "divider" }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Typography fontWeight={800}>Καρτέλα πελάτη</Typography>
+          <Typography variant="caption" color="text.secondary">Προβολή στοιχείων · επεξεργασία μόνο με το κουμπί επεξεργασίας</Typography>
+        </Stack>
+      </DialogTitle>
+      <DialogContent dividers sx={{ p: { xs: 1.5, md: 3 } }}>
+      <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
           <Typography variant="overline" color="text.secondary">{customer.customerNumber}</Typography>
@@ -276,7 +291,12 @@ export function CustomerDetailPage() {
       {tab === 3 && <Stack spacing={3}><CommunicationsTab customerId={id} /><CustomerNotificationsTab customerId={id} /></Stack>}
       {tab === 4 && <Stack spacing={3}><ContactsTab customerId={id} customerType={customer.type} /><FamilyNeedsTab customerId={id} /></Stack>}
       {tab === 5 && <Stack spacing={3}><GdprActionsTab customerId={id} /><InsuranceOpportunitiesTab customerId={id} /></Stack>}
-    </Box>
+      </Box>
+      </DialogContent>
+      <DialogActions sx={{ borderTop: 1, borderColor: "divider" }}>
+        <Button component={RouterLink} to="/app/customers" color="inherit">Κλείσιμο καρτέλας</Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
