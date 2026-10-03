@@ -2,20 +2,24 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
   DialogTitle, IconButton, Popover, Stack, Tab, Table, TableBody, TableCell, TableHead,
-  TableRow, Tabs, TextField, Typography
+  TableRow, Tabs, TextField, Tooltip, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import BusinessIcon from "@mui/icons-material/Business";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import ContactPhoneIcon from "@mui/icons-material/ContactPhone";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
+import DescriptionIcon from "@mui/icons-material/Description";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import DownloadIcon from "@mui/icons-material/Download";
 import EditIcon from "@mui/icons-material/Edit";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import FolderIcon from "@mui/icons-material/Folder";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import StarIcon from "@mui/icons-material/Star";
+import TuneIcon from "@mui/icons-material/Tune";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
@@ -106,6 +110,8 @@ export default function ProductionCompaniesAgenciesPage() {
   const [officeProfile, setOfficeProfile] = useState<OfficeDto | null>(null);
   const [companyEditor, setCompanyEditor] = useState<CompanyDto | null | undefined>(undefined);
   const [officeEditor, setOfficeEditor] = useState<OfficeDto | null | undefined>(undefined);
+  const [companyDeleteTarget, setCompanyDeleteTarget] = useState<CompanyDto | null>(null);
+  const [officeDeleteTarget, setOfficeDeleteTarget] = useState<OfficeDto | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const companiesQ = useQuery({
@@ -129,6 +135,11 @@ export default function ProductionCompaniesAgenciesPage() {
   const deleteOffice = useMutation({
     mutationFn: async (id: string) => api.delete(`/agency-offices/${id}`),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["production-agency-offices-directory"] }),
+    onError: e => setError(extractErrorMessage(e)),
+  });
+  const deleteCompany = useMutation({
+    mutationFn: async (id: string) => api.delete(`/insurance-companies/${id}`),
+    onSuccess: () => { setCompanyDeleteTarget(null); void qc.invalidateQueries({ queryKey: ["production-companies-directory"] }); void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); },
     onError: e => setError(extractErrorMessage(e)),
   });
 
@@ -161,10 +172,10 @@ export default function ProductionCompaniesAgenciesPage() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
       {loading ? <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box> : tab === 0 ? (
-        <CompanyDirectoryTable companies={companies} onOpen={setCompanyProfile} onEdit={setCompanyEditor} />
+        <CompanyDirectoryTable companies={companies} onOpen={setCompanyProfile} onEdit={setCompanyEditor} onDelete={setCompanyDeleteTarget} />
       ) : (
         <OfficeDirectoryTable offices={offices} onOpen={setOfficeProfile} onEdit={setOfficeEditor}
-          onDelete={office => { if (!office.isHeadquarters && confirm(`Διαγραφή πρακτορείου «${office.name}»;`)) deleteOffice.mutate(office.id); }} />
+          onDelete={setOfficeDeleteTarget} />
       )}
 
       <CompanyDialog open={companyEditor !== undefined} item={companyEditor ?? null}
@@ -175,11 +186,21 @@ export default function ProductionCompaniesAgenciesPage() {
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["production-agency-offices-directory"] }); void qc.invalidateQueries({ queryKey: ["agency-offices"] }); setOfficeEditor(undefined); }} />
       <ProductionCompanyProfileDialog open={!!companyProfile} company={companyProfile} onClose={() => setCompanyProfile(null)} onEdit={company => { setCompanyProfile(null); setCompanyEditor(company); }} />
       <ProductionOfficeProfileDialog open={!!officeProfile} office={officeProfile} onClose={() => setOfficeProfile(null)} onEdit={office => { setOfficeProfile(null); setOfficeEditor(office); }} />
+      <Dialog open={!!companyDeleteTarget} onClose={() => setCompanyDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Διαγραφή ασφαλιστικής εταιρείας</DialogTitle>
+        <DialogContent><Typography>Είστε σίγουρος ότι θέλετε να διαγράψετε την εταιρεία «{companyDeleteTarget?.name}»; Η ενέργεια θα την αποσύρει από το γραφείο.</Typography></DialogContent>
+        <DialogActions><Button onClick={() => setCompanyDeleteTarget(null)}>Ακύρωση</Button><Button color="error" variant="contained" onClick={() => companyDeleteTarget && deleteCompany.mutate(companyDeleteTarget.id)} disabled={deleteCompany.isPending}>Διαγραφή</Button></DialogActions>
+      </Dialog>
+      <Dialog open={!!officeDeleteTarget} onClose={() => setOfficeDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Διαγραφή πρακτορείου</DialogTitle>
+        <DialogContent><Typography>Είστε σίγουρος ότι θέλετε να διαγράψετε το πρακτορείο «{officeDeleteTarget?.name}»;</Typography></DialogContent>
+        <DialogActions><Button onClick={() => setOfficeDeleteTarget(null)}>Ακύρωση</Button><Button color="error" variant="contained" onClick={() => officeDeleteTarget && deleteOffice.mutate(officeDeleteTarget.id)} disabled={deleteOffice.isPending}>Διαγραφή</Button></DialogActions>
+      </Dialog>
     </Box>
   );
 }
 
-function CompanyDirectoryTable({ companies, onOpen, onEdit }: { companies: CompanyDto[]; onOpen: (company: CompanyDto) => void; onEdit: (company: CompanyDto) => void }) {
+function CompanyDirectoryTable({ companies, onOpen, onEdit, onDelete }: { companies: CompanyDto[]; onOpen: (company: CompanyDto) => void; onEdit: (company: CompanyDto) => void; onDelete: (company: CompanyDto) => void }) {
   return <Card variant="outlined" sx={{ overflow: "hidden" }}>
     <Box sx={{ overflowX: "auto" }}>
       <Table size="small" sx={{ minWidth: 860 }}>
@@ -196,7 +217,11 @@ function CompanyDirectoryTable({ companies, onOpen, onEdit }: { companies: Compa
           <TableCell>{company.country || "—"}</TableCell>
           <TableCell>{company.contactName || company.contactEmail || company.contactPhone || "—"}</TableCell>
           <TableCell align="right">{company.parameterItemCount}</TableCell>
-          <TableCell align="right"><Stack direction="row" justifyContent="flex-end" spacing={.5}><Button size="small" variant="text" onClick={event => { event.stopPropagation(); onOpen(company); }}>Προβολή</Button><IconButton size="small" aria-label="Επεξεργασία" onClick={event => { event.stopPropagation(); onEdit(company); }}><EditIcon fontSize="small" /></IconButton></Stack></TableCell>
+          <TableCell align="right"><Stack direction="row" justifyContent="flex-end" spacing={.25}>
+            <Tooltip title="Προβολή εταιρείας"><IconButton size="small" color="primary" aria-label="Προβολή εταιρείας" onClick={event => { event.stopPropagation(); onOpen(company); }}><VisibilityIcon fontSize="small" /></IconButton></Tooltip>
+            <Tooltip title="Επεξεργασία εταιρείας"><IconButton size="small" color="success" aria-label="Επεξεργασία εταιρείας" onClick={event => { event.stopPropagation(); onEdit(company); }}><EditIcon fontSize="small" /></IconButton></Tooltip>
+            <Tooltip title={company.isGlobal ? "Η καθολική εταιρεία δεν διαγράφεται" : "Διαγραφή εταιρείας"}><span><IconButton size="small" color="error" aria-label="Διαγραφή εταιρείας" disabled={company.isGlobal} onClick={event => { event.stopPropagation(); onDelete(company); }}><DeleteOutlineIcon fontSize="small" /></IconButton></span></Tooltip>
+          </Stack></TableCell>
         </TableRow>)}{companies.length === 0 && <TableRow><TableCell colSpan={7}><EmptyDirectory text="Δεν βρέθηκαν ασφαλιστικές εταιρείες." /></TableCell></TableRow>}</TableBody>
       </Table>
     </Box>
@@ -220,7 +245,11 @@ function OfficeDirectoryTable({ offices, onOpen, onEdit, onDelete }: { offices: 
           <TableCell>{[office.city, office.postalCode].filter(Boolean).join(" · ") || "—"}</TableCell>
           <TableCell>{office.email || office.phone || office.address || "—"}</TableCell>
           <TableCell align="right">{office.userCount}</TableCell>
-          <TableCell align="right"><Stack direction="row" justifyContent="flex-end" spacing={.5}><Button size="small" variant="text" onClick={event => { event.stopPropagation(); onOpen(office); }}>Προβολή</Button><IconButton size="small" aria-label="Επεξεργασία" onClick={event => { event.stopPropagation(); onEdit(office); }}><EditIcon fontSize="small" /></IconButton>{!office.isHeadquarters && <IconButton size="small" color="error" aria-label="Διαγραφή" onClick={event => { event.stopPropagation(); onDelete(office); }}><DeleteOutlineIcon fontSize="small" /></IconButton>}</Stack></TableCell>
+          <TableCell align="right"><Stack direction="row" justifyContent="flex-end" spacing={.25}>
+            <Tooltip title="Προβολή πρακτορείου"><IconButton size="small" color="primary" aria-label="Προβολή πρακτορείου" onClick={event => { event.stopPropagation(); onOpen(office); }}><VisibilityIcon fontSize="small" /></IconButton></Tooltip>
+            <Tooltip title="Επεξεργασία πρακτορείου"><IconButton size="small" color="success" aria-label="Επεξεργασία πρακτορείου" onClick={event => { event.stopPropagation(); onEdit(office); }}><EditIcon fontSize="small" /></IconButton></Tooltip>
+            {!office.isHeadquarters && <Tooltip title="Διαγραφή πρακτορείου"><IconButton size="small" color="error" aria-label="Διαγραφή πρακτορείου" onClick={event => { event.stopPropagation(); onDelete(office); }}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>}
+          </Stack></TableCell>
         </TableRow>)}{offices.length === 0 && <TableRow><TableCell colSpan={7}><EmptyDirectory text="Δεν βρέθηκαν πρακτορεία ή υποκαταστήματα." /></TableCell></TableRow>}</TableBody>
       </Table>
     </Box>
@@ -397,7 +426,7 @@ function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { op
             "&.Mui-selected:hover": { background: "linear-gradient(135deg, #1565c0 0%, #0b3d91 100%)", color: "#fff" },
           },
         }}>
-          <Tab label="Σύνοψη" /><Tab label="Παραγωγή & συμβόλαια" /><Tab label="Σύνδεση & παραμετρικά" /><Tab label="Επικοινωνία" /><Tab icon={<FolderIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & πεδία" />
+          <Tab icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" /><Tab icon={<DescriptionIcon fontSize="small" />} iconPosition="start" label="Παραγωγή & συμβόλαια" /><Tab icon={<TuneIcon fontSize="small" />} iconPosition="start" label="Σύνδεση & παραμετρικά" /><Tab icon={<ContactPhoneIcon fontSize="small" />} iconPosition="start" label="Επικοινωνία" /><Tab icon={<FolderIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & πεδία" />
         </Tabs>
         {tab === 0 && <Stack spacing={1.5}>
           <ProfileMetricGrid items={[
