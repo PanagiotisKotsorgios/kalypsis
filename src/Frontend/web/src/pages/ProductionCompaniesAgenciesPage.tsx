@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, FormControlLabel, IconButton, Popover, Stack, Switch, Tab, Table, TableBody, TableCell, TableHead,
+  Checkbox, DialogTitle, FormControlLabel, IconButton, Popover, Stack, Switch, Tab, Table, TableBody, TableCell, TableHead,
   TableRow, Tabs, TextField, Tooltip, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -113,6 +113,14 @@ export default function ProductionCompaniesAgenciesPage() {
   const [officeEditor, setOfficeEditor] = useState<OfficeDto | null | undefined>(undefined);
   const [companyDeleteTarget, setCompanyDeleteTarget] = useState<CompanyDto | null>(null);
   const [officeDeleteTarget, setOfficeDeleteTarget] = useState<OfficeDto | null>(null);
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<string>>(new Set());
+  const [selectedOfficeIds, setSelectedOfficeIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteKind, setBulkDeleteKind] = useState<"company" | "office" | null>(null);
+  const [bulkDeleteText, setBulkDeleteText] = useState("");
+  useEffect(() => {
+    setSelectedCompanyIds(new Set());
+    setSelectedOfficeIds(new Set());
+  }, [tab, search]);
   const [error, setError] = useState<string | null>(null);
 
   const companiesQ = useQuery({
@@ -133,6 +141,10 @@ export default function ProductionCompaniesAgenciesPage() {
     .filter(o => !needle || [o.name, o.code, o.city, o.phone, o.email]
       .some(value => value?.toLocaleLowerCase("el").includes(needle))), [officesQ.data, needle]);
 
+  const eligibleCompanies = useMemo(() => companies.filter(company => !company.isGlobal), [companies]);
+  const eligibleOffices = useMemo(() => offices.filter(office => !office.isHeadquarters), [offices]);
+  const selectedCount = tab === 0 ? selectedCompanyIds.size : selectedOfficeIds.size;
+
   const deleteOffice = useMutation({
     mutationFn: async (id: string) => api.delete(`/agency-offices/${id}`),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["production-agency-offices-directory"] }),
@@ -141,6 +153,31 @@ export default function ProductionCompaniesAgenciesPage() {
   const deleteCompany = useMutation({
     mutationFn: async (id: string) => api.delete(`/insurance-companies/${id}`),
     onSuccess: () => { setCompanyDeleteTarget(null); void qc.invalidateQueries({ queryKey: ["production-companies-directory"] }); void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); },
+    onError: e => setError(extractErrorMessage(e)),
+  });
+  const bulkDelete = useMutation({
+    mutationFn: async ({ kind, ids }: { kind: "company" | "office"; ids: string[] }) => {
+      const failed: string[] = [];
+      for (const id of ids) {
+        try {
+          await api.delete(kind === "company" ? `/insurance-companies/${id}` : `/agency-offices/${id}`);
+        } catch {
+          failed.push(id);
+        }
+      }
+      return failed;
+    },
+    onSuccess: failed => {
+      if (failed.length > 0) setError(`${failed.length} εγγραφές δεν διαγράφηκαν. Ελέγξτε τα δικαιώματα και δοκιμάστε ξανά.`);
+      setSelectedCompanyIds(new Set());
+      setSelectedOfficeIds(new Set());
+      setBulkDeleteKind(null);
+      setBulkDeleteText("");
+      void qc.invalidateQueries({ queryKey: ["production-companies-directory"] });
+      void qc.invalidateQueries({ queryKey: ["insurance-companies"] });
+      void qc.invalidateQueries({ queryKey: ["production-agency-offices-directory"] });
+      void qc.invalidateQueries({ queryKey: ["agency-offices"] });
+    },
     onError: e => setError(extractErrorMessage(e)),
   });
 
@@ -159,6 +196,9 @@ export default function ProductionCompaniesAgenciesPage() {
             </Box>
           </Stack>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            {selectedCount > 0 && <Button variant="contained" color="error" startIcon={<DeleteOutlineIcon />} onClick={() => { setBulkDeleteKind(tab === 0 ? "company" : "office"); setBulkDeleteText(""); }}>
+              Μαζική διαγραφή ({selectedCount})
+            </Button>}
             <Button variant="outlined" startIcon={<AddIcon />} onClick={() => tab === 0 ? setCompanyEditor(null) : setOfficeEditor(null)}>
               {tab === 0 ? "Νέα ασφαλιστική" : "Νέο πρακτορείο"}
             </Button>
@@ -173,9 +213,9 @@ export default function ProductionCompaniesAgenciesPage() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
       {loading ? <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box> : tab === 0 ? (
-        <CompanyDirectoryTable companies={companies} onOpen={setCompanyProfile} onEdit={setCompanyEditor} onDelete={setCompanyDeleteTarget} />
+        <CompanyDirectoryTable companies={companies} selectedIds={selectedCompanyIds} onToggle={id => setSelectedCompanyIds(current => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; })} onToggleAll={checked => setSelectedCompanyIds(checked ? new Set(eligibleCompanies.map(company => company.id)) : new Set())} onOpen={setCompanyProfile} onEdit={setCompanyEditor} onDelete={setCompanyDeleteTarget} />
       ) : (
-        <OfficeDirectoryTable offices={offices} onOpen={setOfficeProfile} onEdit={setOfficeEditor}
+        <OfficeDirectoryTable offices={offices} selectedIds={selectedOfficeIds} onToggle={id => setSelectedOfficeIds(current => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; })} onToggleAll={checked => setSelectedOfficeIds(checked ? new Set(eligibleOffices.map(office => office.id)) : new Set())} onOpen={setOfficeProfile} onEdit={setOfficeEditor}
           onDelete={setOfficeDeleteTarget} />
       )}
 
@@ -197,21 +237,35 @@ export default function ProductionCompaniesAgenciesPage() {
         <DialogContent><Typography>Είστε σίγουρος ότι θέλετε να διαγράψετε το πρακτορείο «{officeDeleteTarget?.name}»;</Typography></DialogContent>
         <DialogActions><Button onClick={() => setOfficeDeleteTarget(null)}>Ακύρωση</Button><Button color="error" variant="contained" onClick={() => officeDeleteTarget && deleteOffice.mutate(officeDeleteTarget.id)} disabled={deleteOffice.isPending}>Διαγραφή</Button></DialogActions>
       </Dialog>
+      <Dialog open={!!bulkDeleteKind} onClose={() => { if (!bulkDelete.isPending) { setBulkDeleteKind(null); setBulkDeleteText(""); } }} maxWidth="sm" fullWidth>
+        <DialogTitle>Οριστική μαζική διαγραφή</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>Θα διαγραφούν {selectedCount} {bulkDeleteKind === "company" ? "ασφαλιστικές εταιρείες" : "πρακτορεία"}. Η ενέργεια δεν αναιρείται.</Alert>
+          <Typography variant="body2" sx={{ mb: 1 }}>Πληκτρολογήστε <strong>ΔΙΑΓΡΑΦΗ</strong> για επιβεβαίωση.</Typography>
+          <TextField fullWidth autoFocus value={bulkDeleteText} onChange={event => setBulkDeleteText(event.target.value)} placeholder="ΔΙΑΓΡΑΦΗ" disabled={bulkDelete.isPending} />
+        </DialogContent>
+        <DialogActions><Button color="inherit" onClick={() => { setBulkDeleteKind(null); setBulkDeleteText(""); }} disabled={bulkDelete.isPending}>Ακύρωση</Button><Button color="error" variant="contained" startIcon={<DeleteOutlineIcon />} disabled={bulkDelete.isPending || bulkDeleteText.trim() !== "ΔΙΑΓΡΑΦΗ"} onClick={() => bulkDelete.mutate({ kind: bulkDeleteKind!, ids: Array.from(bulkDeleteKind === "company" ? selectedCompanyIds : selectedOfficeIds) })}>{bulkDelete.isPending ? <CircularProgress size={18} color="inherit" /> : "Διαγραφή"}</Button></DialogActions>
+      </Dialog>
     </Box>
   );
 }
 
-function CompanyDirectoryTable({ companies, onOpen, onEdit, onDelete }: { companies: CompanyDto[]; onOpen: (company: CompanyDto) => void; onEdit: (company: CompanyDto) => void; onDelete: (company: CompanyDto) => void }) {
+function CompanyDirectoryTable({ companies, selectedIds, onToggle, onToggleAll, onOpen, onEdit, onDelete }: { companies: CompanyDto[]; selectedIds: Set<string>; onToggle: (id: string) => void; onToggleAll: (checked: boolean) => void; onOpen: (company: CompanyDto) => void; onEdit: (company: CompanyDto) => void; onDelete: (company: CompanyDto) => void }) {
+  const selectable = companies.filter(company => !company.isGlobal);
+  const allSelected = selectable.length > 0 && selectable.every(company => selectedIds.has(company.id));
+  const someSelected = selectable.some(company => selectedIds.has(company.id));
   return <Card variant="outlined" sx={{ overflow: "hidden" }}>
     <Box sx={{ overflowX: "auto" }}>
-      <Table size="small" sx={{ minWidth: 860 }}>
+      <Table size="small" sx={{ minWidth: 900 }}>
         <TableHead><TableRow sx={{ bgcolor: "rgba(25,118,210,.07)" }}>
+          <TableCell padding="checkbox"><Checkbox size="small" checked={allSelected} indeterminate={!allSelected && someSelected} onChange={event => onToggleAll(event.target.checked)} inputProps={{ "aria-label": "Επιλογή εταιρειών" }} /></TableCell>
           <TableCell sx={{ fontWeight: 800 }}>Εταιρεία</TableCell><TableCell sx={{ fontWeight: 800 }}>Κωδικός</TableCell>
           <TableCell sx={{ fontWeight: 800 }}>Κατάσταση</TableCell><TableCell sx={{ fontWeight: 800 }}>Χώρα</TableCell>
           <TableCell sx={{ fontWeight: 800 }}>Επικοινωνία</TableCell><TableCell align="right" sx={{ fontWeight: 800 }}>Παραμετρικά</TableCell>
           <TableCell align="right" sx={{ fontWeight: 800 }}>Ενέργειες</TableCell>
         </TableRow></TableHead>
         <TableBody>{companies.map(company => <TableRow key={company.id} hover onClick={() => onOpen(company)} sx={{ cursor: "pointer", "&:last-child td": { borderBottom: 0 } }}>
+          <TableCell padding="checkbox"><Checkbox size="small" checked={selectedIds.has(company.id)} disabled={company.isGlobal} onClick={event => event.stopPropagation()} onChange={() => onToggle(company.id)} inputProps={{ "aria-label": `Επιλογή ${company.name}` }} /></TableCell>
           <TableCell><Stack direction="row" spacing={1} alignItems="center"><BusinessIcon color="primary" fontSize="small" /><Box><Typography fontWeight={750}>{company.name}</Typography>{company.bridgeLinked && <Chip size="small" color="info" variant="outlined" label="Γέφυρα" sx={{ mt: .25 }} />}</Box></Stack></TableCell>
           <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{company.code || "—"}</TableCell>
           <TableCell><Chip size="small" color={company.isActive ? "success" : "default"} label={company.isActive ? "Ενεργή" : "Ανενεργή"} /></TableCell>
@@ -223,23 +277,28 @@ function CompanyDirectoryTable({ companies, onOpen, onEdit, onDelete }: { compan
             <Tooltip title="Επεξεργασία εταιρείας"><IconButton size="small" color="success" aria-label="Επεξεργασία εταιρείας" onClick={event => { event.stopPropagation(); onEdit(company); }}><EditIcon fontSize="small" /></IconButton></Tooltip>
             <Tooltip title={company.isGlobal ? "Η καθολική εταιρεία δεν διαγράφεται" : "Διαγραφή εταιρείας"}><span><IconButton size="small" color="error" aria-label="Διαγραφή εταιρείας" disabled={company.isGlobal} onClick={event => { event.stopPropagation(); onDelete(company); }}><DeleteOutlineIcon fontSize="small" /></IconButton></span></Tooltip>
           </Stack></TableCell>
-        </TableRow>)}{companies.length === 0 && <TableRow><TableCell colSpan={7}><EmptyDirectory text="Δεν βρέθηκαν ασφαλιστικές εταιρείες." /></TableCell></TableRow>}</TableBody>
+        </TableRow>)}{companies.length === 0 && <TableRow><TableCell colSpan={8}><EmptyDirectory text="Δεν βρέθηκαν ασφαλιστικές εταιρείες." /></TableCell></TableRow>}</TableBody>
       </Table>
     </Box>
   </Card>;
 }
 
-function OfficeDirectoryTable({ offices, onOpen, onEdit, onDelete }: { offices: OfficeDto[]; onOpen: (office: OfficeDto) => void; onEdit: (office: OfficeDto) => void; onDelete: (office: OfficeDto) => void }) {
+function OfficeDirectoryTable({ offices, selectedIds, onToggle, onToggleAll, onOpen, onEdit, onDelete }: { offices: OfficeDto[]; selectedIds: Set<string>; onToggle: (id: string) => void; onToggleAll: (checked: boolean) => void; onOpen: (office: OfficeDto) => void; onEdit: (office: OfficeDto) => void; onDelete: (office: OfficeDto) => void }) {
+  const selectable = offices.filter(office => !office.isHeadquarters);
+  const allSelected = selectable.length > 0 && selectable.every(office => selectedIds.has(office.id));
+  const someSelected = selectable.some(office => selectedIds.has(office.id));
   return <Card variant="outlined" sx={{ overflow: "hidden" }}>
     <Box sx={{ overflowX: "auto" }}>
-      <Table size="small" sx={{ minWidth: 860 }}>
+      <Table size="small" sx={{ minWidth: 900 }}>
         <TableHead><TableRow sx={{ bgcolor: "rgba(25,118,210,.07)" }}>
+          <TableCell padding="checkbox"><Checkbox size="small" checked={allSelected} indeterminate={!allSelected && someSelected} onChange={event => onToggleAll(event.target.checked)} inputProps={{ "aria-label": "Επιλογή πρακτορείων" }} /></TableCell>
           <TableCell sx={{ fontWeight: 800 }}>Πρακτορείο / υποκατάστημα</TableCell><TableCell sx={{ fontWeight: 800 }}>Κωδικός</TableCell>
           <TableCell sx={{ fontWeight: 800 }}>Κατάσταση</TableCell><TableCell sx={{ fontWeight: 800 }}>Πόλη</TableCell>
           <TableCell sx={{ fontWeight: 800 }}>Επικοινωνία</TableCell><TableCell align="right" sx={{ fontWeight: 800 }}>Χρήστες</TableCell>
           <TableCell align="right" sx={{ fontWeight: 800 }}>Ενέργειες</TableCell>
         </TableRow></TableHead>
         <TableBody>{offices.map(office => <TableRow key={office.id} hover onClick={() => onOpen(office)} sx={{ cursor: "pointer", "&:last-child td": { borderBottom: 0 } }}>
+          <TableCell padding="checkbox"><Checkbox size="small" checked={selectedIds.has(office.id)} disabled={office.isHeadquarters} onClick={event => event.stopPropagation()} onChange={() => onToggle(office.id)} inputProps={{ "aria-label": `Επιλογή ${office.name}` }} /></TableCell>
           <TableCell><Stack direction="row" spacing={1} alignItems="center"><HomeWorkIcon color="primary" fontSize="small" /><Box><Typography fontWeight={750}>{office.name}</Typography>{office.isHeadquarters && <Chip size="small" icon={<StarIcon />} color="warning" label="Κεντρικό" sx={{ mt: .25 }} />}</Box></Stack></TableCell>
           <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{office.code || "—"}</TableCell>
           <TableCell><Chip size="small" color={office.isActive ? "success" : "default"} label={office.isActive ? "Ενεργό" : "Ανενεργό"} /></TableCell>
@@ -459,6 +518,9 @@ function ProductionCompanyEditorDialog({ open, item, onClose, onSaved }: {
           <ProfileSection title="Διεύθυνση & στοιχεία"><TextField fullWidth label="ΑΦΜ / VAT" value={form.afmVat ?? ""} onChange={e => update({ afmVat: e.target.value })} /><TextField fullWidth label="Website" value={form.website ?? ""} onChange={e => update({ website: e.target.value })} sx={{ mt: 1.25 }} /><TextField fullWidth label="Κωδικός συνεργασίας" value={form.agentCode ?? ""} onChange={e => update({ agentCode: e.target.value })} sx={{ mt: 1.25 }} /></ProfileSection>
           <ProfileSection title="Κατάσταση"><FormControlLabel control={<Switch checked={form.isActive} onChange={e => update({ isActive: e.target.checked })} />} label={form.isActive ? "Ενεργή" : "Ανενεργή"} /><Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Η εταιρεία θα εμφανίζεται στις λίστες παραγωγής και στις νέες καταχωρήσεις.</Typography></ProfileSection>
         </Box>
+        <ProfileSection title="Επικοινωνία"><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 1.5 }}><TextField label="Ονοματεπώνυμο επαφής" value={form.contactName ?? ""} onChange={e => update({ contactName: e.target.value })} /><TextField label="Email" type="email" value={form.contactEmail ?? ""} onChange={e => update({ contactEmail: e.target.value })} /><TextField label="Τηλέφωνο" value={form.contactPhone ?? ""} onChange={e => update({ contactPhone: e.target.value })} /></Box></ProfileSection>
+        <ProfileSection title="Σύνδεση και γέφυρα"><FormControlLabel control={<Switch checked={form.createBridge} onChange={e => update({ createBridge: e.target.checked })} />} label="Δημιουργία γέφυρας εταιρείας" />{form.createBridge && <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5, mt: 1 }}><TextField label="Όνομα γέφυρας" value={form.bridgeName ?? ""} onChange={e => update({ bridgeName: e.target.value })} /><FormControlLabel control={<Switch checked={form.bridgeAutoSync} onChange={e => update({ bridgeAutoSync: e.target.checked })} />} label="Αυτόματος συγχρονισμός" /><TextField label="Ρυθμίσεις γέφυρας (JSON)" value={form.bridgeConfigJson ?? ""} onChange={e => update({ bridgeConfigJson: e.target.value })} multiline minRows={3} sx={{ gridColumn: { md: "1 / -1" } }} /></Box>}</ProfileSection>
+        <ProfileSection title="Παραγωγή και προμήθειες"><FormControlLabel control={<Switch checked={form.installZeroCommissionDefaults} onChange={e => update({ installZeroCommissionDefaults: e.target.checked })} />} label="Προσθήκη αρχικών κανόνων προμήθειας" /><TextField fullWidth label="Κωδικός συνεργασίας / πρακτορείου" value={form.agentCode ?? ""} onChange={e => update({ agentCode: e.target.value })} sx={{ mt: 1 }} /></ProfileSection>
         <ProfileSection title="Σημειώσεις"><TextField fullWidth multiline minRows={4} label="Εσωτερικές σημειώσεις" value={form.notes ?? ""} onChange={e => update({ notes: e.target.value })} /></ProfileSection>
       </Stack>}
       {tab === 1 && <Stack spacing={1.5}><ProfileSection title="Παραγωγή και συμβόλαια"><TextField fullWidth label="Κωδικός συνεργασίας / πρακτορείου" value={form.agentCode ?? ""} onChange={e => update({ agentCode: e.target.value })} /><FormControlLabel sx={{ mt: 1 }} control={<Switch checked={form.installZeroCommissionDefaults} onChange={e => update({ installZeroCommissionDefaults: e.target.checked })} />} label="Προσθήκη αρχικών κανόνων προμήθειας" /><Alert severity="info">Οι κανόνες προμηθειών και τα παραμετρικά μπορούν να συμπληρωθούν από την καρτέλα μετά τη δημιουργία.</Alert></ProfileSection></Stack>}
@@ -800,7 +862,7 @@ function ProductionOfficeEditorDialog({ open, item, onClose, onSaved }: {
     <DialogContent dividers sx={{ pt: 0, maxHeight: "75vh", overflowY: "auto" }}>
       {error && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError(null)}>{error}</Alert>}
       <WorkspaceProfileTabs value={tab} onChange={setTab} />
-      {tab === 0 && <Stack spacing={1.5}><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 1.5 }}><ProfileSection title="Ταυτότητα πρακτορείου"><TextField fullWidth required label="Κωδικός" value={form.code} onChange={e => update({ code: e.target.value.toUpperCase() })} /><TextField fullWidth required label="Όνομα" value={form.name} onChange={e => update({ name: e.target.value })} sx={{ mt: 1.25 }} /></ProfileSection><ProfileSection title="Διεύθυνση"><TextField fullWidth label="Πόλη" value={form.city ?? ""} onChange={e => update({ city: e.target.value })} /><TextField fullWidth label="Τ.Κ." value={form.postalCode ?? ""} onChange={e => update({ postalCode: e.target.value })} sx={{ mt: 1.25 }} /><TextField fullWidth label="Διεύθυνση" value={form.address ?? ""} onChange={e => update({ address: e.target.value })} sx={{ mt: 1.25 }} /></ProfileSection><ProfileSection title="Κατάσταση"><FormControlLabel control={<Switch checked={form.isHeadquarters} onChange={e => update({ isHeadquarters: e.target.checked })} />} label="Κεντρικό πρακτορείο" /><FormControlLabel control={<Switch checked={form.isActive} onChange={e => update({ isActive: e.target.checked })} />} label={form.isActive ? "Ενεργό" : "Ανενεργό"} /></ProfileSection></Box><ProfileSection title="Σημειώσεις"><TextField fullWidth multiline minRows={4} label="Εσωτερικές σημειώσεις" value={form.notes ?? ""} onChange={e => update({ notes: e.target.value })} /></ProfileSection></Stack>}
+      {tab === 0 && <Stack spacing={1.5}><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 1.5 }}><ProfileSection title="Ταυτότητα πρακτορείου"><TextField fullWidth required label="Κωδικός" value={form.code} onChange={e => update({ code: e.target.value.toUpperCase() })} /><TextField fullWidth required label="Όνομα" value={form.name} onChange={e => update({ name: e.target.value })} sx={{ mt: 1.25 }} /></ProfileSection><ProfileSection title="Διεύθυνση"><TextField fullWidth label="Πόλη" value={form.city ?? ""} onChange={e => update({ city: e.target.value })} /><TextField fullWidth label="Τ.Κ." value={form.postalCode ?? ""} onChange={e => update({ postalCode: e.target.value })} sx={{ mt: 1.25 }} /><TextField fullWidth label="Διεύθυνση" value={form.address ?? ""} onChange={e => update({ address: e.target.value })} sx={{ mt: 1.25 }} /></ProfileSection><ProfileSection title="Επικοινωνία"><TextField fullWidth label="Τηλέφωνο" value={form.phone ?? ""} onChange={e => update({ phone: e.target.value })} /><TextField fullWidth label="Email" type="email" value={form.email ?? ""} onChange={e => update({ email: e.target.value })} sx={{ mt: 1.25 }} /></ProfileSection></Box><ProfileSection title="Κατάσταση"><FormControlLabel control={<Switch checked={form.isHeadquarters} onChange={e => update({ isHeadquarters: e.target.checked })} />} label="Κεντρικό πρακτορείο" /><FormControlLabel control={<Switch checked={form.isActive} onChange={e => update({ isActive: e.target.checked })} />} label={form.isActive ? "Ενεργό" : "Ανενεργό"} /></ProfileSection><ProfileSection title="Σημειώσεις"><TextField fullWidth multiline minRows={4} label="Εσωτερικές σημειώσεις" value={form.notes ?? ""} onChange={e => update({ notes: e.target.value })} /></ProfileSection></Stack>}
       {tab === 1 && <ProfileSection title="Παραγωγή και συμβόλαια"><Alert severity="info">Τα συμβόλαια, οι πελάτες και η παραγωγή του πρακτορείου εμφανίζονται στην πλήρη καρτέλα μετά την αποθήκευση.</Alert></ProfileSection>}
       {tab === 2 && <ProfileSection title="Σύνδεση και παραμετρικά"><Alert severity="info">Οι χρήστες και τα δικαιώματα του πρακτορείου μπορούν να ανατεθούν από την καρτέλα προβολής.</Alert></ProfileSection>}
       {tab === 3 && <ProfileSection title="Επικοινωνία πρακτορείου"><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}><TextField label="Τηλέφωνο" value={form.phone ?? ""} onChange={e => update({ phone: e.target.value })} /><TextField label="Email" type="email" value={form.email ?? ""} onChange={e => update({ email: e.target.value })} /></Box></ProfileSection>}
