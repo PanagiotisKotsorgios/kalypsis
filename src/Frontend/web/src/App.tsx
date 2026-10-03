@@ -108,6 +108,7 @@ import { TenantsPage } from "./pages/TenantsPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
 import { CustomersPage } from "./pages/CustomersPage";
 import { CustomerDetailPage } from "./pages/CustomerDetailPage";
+import { CustomerVehiclesPage } from "./pages/CustomerVehiclesPage";
 import { GdprSigningPage } from "./pages/GdprSigningPage";
 import { AdminSettingsPage } from "./pages/AdminSettingsPage";
 import { RequestsPage } from "./pages/RequestsPage";
@@ -229,7 +230,7 @@ import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import CakeIcon from "@mui/icons-material/Cake";
 // MergeIcon was the customer-merge sidebar row — folded into
 // /reconciliation-hub as a tile, icon no longer needed here.
-// DirectionsCarIcon was the vehicle-models entry — removed from sidebar.
+import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import HubIcon from "@mui/icons-material/Hub";
 import FolderSpecialIcon from "@mui/icons-material/FolderSpecial";
@@ -308,6 +309,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     // reachable as a button inside /production-lists.
     { to: "/production-lists", labelKey: "nav.productionLists", icon: <LeaderboardIcon />, package: "BackOffice", group: "production" },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice", group: "production" },
+    { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice", group: "production" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice", group: "production" },
     // "Ανανεώσεις" is now a button inside the Συμβόλαια page — one less sidebar
     // entry to scan through. Legacy /renewals route still lives so anyone
@@ -466,6 +468,7 @@ export const navByRole: Record<Role, NavItem[]> = {
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
     // BackOffice
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
+    { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice" },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
@@ -485,6 +488,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/documentation", labelKey: "nav.documentation", icon: <MenuBookIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
     { to: "/bookkeeping", labelKey: "nav.bookkeeping", icon: <FolderIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
+    { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice" },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
@@ -804,6 +808,7 @@ export default function App() {
                   <Route path="dashboard" element={<DashboardPage />} />
                   <Route path="customers" element={<CustomersPage />} />
                   <Route path="customers/:id" element={<CustomerDetailPage />} />
+                  <Route path="vehicles" element={<CustomerVehiclesPage />} />
                   <Route path="contracts/new" element={<NewContractWizardPage />} />
                   <Route path="contracts/:id" element={<CustomerContractDetailsPage />} />
                   <Route path="policies" element={<PoliciesPage />} />

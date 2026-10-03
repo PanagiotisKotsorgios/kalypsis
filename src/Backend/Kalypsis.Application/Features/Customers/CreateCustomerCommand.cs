@@ -81,6 +81,26 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             Nationality = r.Nationality?.Trim(),
             Zone = r.Zone?.Trim(),
             ActivityCode = r.ActivityCode?.Trim(),
+            TaxOffice = r.TaxOffice?.Trim(),
+            GemiNumber = r.GemiNumber?.Trim(),
+            LegalForm = r.LegalForm?.Trim(),
+            AltPhone = r.AltPhone?.Trim(),
+            MobilePhone = r.MobilePhone?.Trim(),
+            Amka = r.Amka?.Trim(),
+            IdNumber = r.IdNumber?.Trim(),
+            PassportNumber = r.PassportNumber?.Trim(),
+            Region = r.Region?.Trim(),
+            Gender = r.Gender?.Trim(),
+            MaritalStatus = r.MaritalStatus?.Trim(),
+            Employer = r.Employer?.Trim(),
+            DriverLicenseNumber = r.DriverLicenseNumber?.Trim(),
+            DriverLicenseClass = r.DriverLicenseClass?.Trim(),
+            DriverLicenseIssueDate = r.DriverLicenseIssueDate,
+            DriverLicenseExpiryDate = r.DriverLicenseExpiryDate,
+            Source = r.Source?.Trim(),
+            TagsJson = r.TagsJson?.Trim(),
+            PhotoUrl = r.PhotoUrl?.Trim(),
+            AssignedAdvisorId = r.AssignedAdvisorId,
             PaymentDueDate = r.PaymentDueDate
         };
         _db.Customers.Add(customer);
@@ -91,7 +111,13 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             customer.Id, customer.CustomerNumber, customer.Type, customer.Status,
             customer.FirstName, customer.LastName, customer.CompanyName,
             customer.VatNumber, customer.Email, customer.Phone, customer.City, customer.Notes,
-            customer.CreatedAt, false, customer.PaymentDueDate);
+            customer.CreatedAt, false, customer.PaymentDueDate, customer.Address, customer.PostalCode,
+            customer.BirthDate, customer.Occupation, customer.FatherName, customer.MotherName, customer.SpouseName,
+            customer.Nationality, customer.Zone, customer.ActivityCode, customer.TaxOffice, customer.GemiNumber,
+            customer.LegalForm, customer.AltPhone, customer.MobilePhone, customer.Amka, customer.IdNumber,
+            customer.PassportNumber, customer.Region, customer.Gender, customer.MaritalStatus, customer.Employer,
+            customer.DriverLicenseNumber, customer.DriverLicenseClass, customer.DriverLicenseIssueDate,
+            customer.DriverLicenseExpiryDate, customer.Source, customer.TagsJson, customer.PhotoUrl);
 
         return new CreateCustomerResponse(dto, null, null);
     }

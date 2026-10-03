@@ -44,6 +44,10 @@ public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, Custome
             c.Id, c.CustomerNumber, c.Type, c.Status, c.FirstName, c.LastName,
             c.CompanyName, c.VatNumber, c.Email, c.Phone, c.City, c.Notes, c.CreatedAt,
             await _db.Users.AnyAsync(u => u.CustomerId == c.Id && u.DeletedAt == null, ct),
-            c.PaymentDueDate);
+            c.PaymentDueDate, c.Address, c.PostalCode, c.BirthDate, c.Occupation, c.FatherName, c.MotherName,
+            c.SpouseName, c.Nationality, c.Zone, c.ActivityCode, c.TaxOffice, c.GemiNumber, c.LegalForm,
+            c.AltPhone, c.MobilePhone, c.Amka, c.IdNumber, c.PassportNumber, c.Region, c.Gender, c.MaritalStatus,
+            c.Employer, c.DriverLicenseNumber, c.DriverLicenseClass, c.DriverLicenseIssueDate,
+            c.DriverLicenseExpiryDate, c.Source, c.TagsJson, c.PhotoUrl);
     }
 }

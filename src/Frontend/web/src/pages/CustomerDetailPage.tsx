@@ -54,10 +54,41 @@ interface CustomerDto {
   firstName?: string;
   lastName?: string;
   companyName?: string;
+  vatNumber?: string | null;
   email?: string;
   phone?: string;
   notes?: string;
   paymentDueDate?: string | null;
+  address?: string | null;
+  city?: string | null;
+  postalCode?: string | null;
+  birthDate?: string | null;
+  occupation?: string | null;
+  fatherName?: string | null;
+  motherName?: string | null;
+  spouseName?: string | null;
+  nationality?: string | null;
+  zone?: string | null;
+  activityCode?: string | null;
+  taxOffice?: string | null;
+  gemiNumber?: string | null;
+  legalForm?: string | null;
+  altPhone?: string | null;
+  mobilePhone?: string | null;
+  amka?: string | null;
+  idNumber?: string | null;
+  passportNumber?: string | null;
+  region?: string | null;
+  gender?: string | null;
+  maritalStatus?: string | null;
+  employer?: string | null;
+  driverLicenseNumber?: string | null;
+  driverLicenseClass?: string | null;
+  driverLicenseIssueDate?: string | null;
+  driverLicenseExpiryDate?: string | null;
+  source?: string | null;
+  tagsJson?: string | null;
+  photoUrl?: string | null;
 }
 
 interface ConsentRow {
@@ -147,6 +178,7 @@ export function CustomerDetailPage() {
   const qc = useQueryClient();
   const [tab, setTab] = useState(0);
   const [showProducers, setShowProducers] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
 
   const customerQ = useQuery({
     queryKey: ["customer", id],
@@ -194,14 +226,19 @@ export function CustomerDetailPage() {
           </Stack>
         </Box>
         {canManageCustomer && (
-          <Button
-            variant={customer.status === "Prospect" ? "contained" : "outlined"}
-            color={customer.status === "Prospect" ? "success" : "warning"}
-            disabled={statusMutation.isPending}
-            onClick={() => statusMutation.mutate(customer.status === "Prospect" ? "Active" : "Prospect")}
-          >
-            {customer.status === "Prospect" ? "Μετατροπή σε πελάτη" : "Ορισμός ως πιθανός"}
-          </Button>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+            <Button startIcon={<EditIcon />} variant="contained" onClick={() => setShowEditor(true)}>
+              Επεξεργασία πλήρους καρτέλας
+            </Button>
+            <Button
+              variant={customer.status === "Prospect" ? "contained" : "outlined"}
+              color={customer.status === "Prospect" ? "success" : "warning"}
+              disabled={statusMutation.isPending}
+              onClick={() => statusMutation.mutate(customer.status === "Prospect" ? "Active" : "Prospect")}
+            >
+              {customer.status === "Prospect" ? "Μετατροπή σε πελάτη" : "Ορισμός ως πιθανός"}
+            </Button>
+          </Stack>
         )}
         <Button
           startIcon={<GroupsIcon />}
@@ -219,33 +256,25 @@ export function CustomerDetailPage() {
         customerDisplay={displayName}
       />
 
+      <CustomerEditorDialog open={showEditor} customer={customer} onClose={() => setShowEditor(false)} />
+
       <CustomerSummaryCard customerId={id} />
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" allowScrollButtonsMobile sx={{ mb: 3, borderBottom: 1, borderColor: "divider" }}>
-        <Tab label="Επισκόπηση" />
-        <Tab label="Συμβόλαια" />
-        <Tab label="Ζημίες" />
-        <Tab label="Εμπλεκόμενοι" />
-        <Tab label="Επικοινωνία" />
-        <Tab label="Ειδοποιήσεις" />
-        <Tab label="Οικονομικά / καρτέλα" />
-        <Tab label="Επαφές" />
-        <Tab label="GDPR ενέργειες" />
-        <Tab icon={<FamilyRestroomIcon fontSize="small" />} iconPosition="start" label="Οικογένεια & ανάγκες" />
-        <Tab label="Προτεινόμενα" />
+        <Tab label="Επισκόπηση & στοιχεία" />
+        <Tab icon={<DirectionsCarIcon fontSize="small" />} iconPosition="start" label="Συμβόλαια & οχήματα" />
+        <Tab label="Ζημίες & οικονομικά" />
+        <Tab label="Επικοινωνία & ειδοποιήσεις" />
+        <Tab icon={<FamilyRestroomIcon fontSize="small" />} iconPosition="start" label="Επαφές & οικογένεια" />
+        <Tab label="Έντυπα & προτάσεις" />
       </Tabs>
 
       {tab === 0 && <OverviewTab customer={customer} />}
-      {tab === 1 && <CustomerPoliciesTab customerId={id} />}
-      {tab === 2 && <CustomerClaimsTab customerId={id} />}
-      {tab === 3 && <ClaimInvolvedPartiesTab customerId={id} />}
-      {tab === 4 && <CommunicationsTab customerId={id} />}
-      {tab === 5 && <CustomerNotificationsTab customerId={id} />}
-      {tab === 6 && <CustomerAccountTab customerId={id} />}
-      {tab === 7 && <ContactsTab customerId={id} customerType={customer.type} />}
-      {tab === 8 && <GdprActionsTab customerId={id} />}
-      {tab === 9 && <FamilyNeedsTab customerId={id} />}
-      {tab === 10 && <InsuranceOpportunitiesTab customerId={id} />}
+      {tab === 1 && <Stack spacing={3}><CustomerPoliciesTab customerId={id} /><CustomerVehiclesTab customerId={id} /></Stack>}
+      {tab === 2 && <Stack spacing={3}><CustomerClaimsTab customerId={id} /><CustomerAccountTab customerId={id} /></Stack>}
+      {tab === 3 && <Stack spacing={3}><CommunicationsTab customerId={id} /><CustomerNotificationsTab customerId={id} /></Stack>}
+      {tab === 4 && <Stack spacing={3}><ContactsTab customerId={id} customerType={customer.type} /><FamilyNeedsTab customerId={id} /></Stack>}
+      {tab === 5 && <Stack spacing={3}><GdprActionsTab customerId={id} /><InsuranceOpportunitiesTab customerId={id} /></Stack>}
     </Box>
   );
 }
@@ -387,6 +416,50 @@ function CustomerSummaryCard({ customerId }: { customerId: string }) {
           </Box>
         </Stack>
       ) : <Typography color="text.secondary">—</Typography>}
+    </Card>
+  );
+}
+
+interface CustomerVehicleRow {
+  id: string;
+  policyNumber: string;
+  insuranceCompanyName: string;
+  policyType: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  premium: number;
+  currency: string;
+  vehicleRegistrationPlate?: string | null;
+}
+
+function CustomerVehiclesTab({ customerId, compact = false }: { customerId: string; compact?: boolean }) {
+  const q = useQuery({
+    queryKey: ["customer-vehicles", customerId],
+    queryFn: async () => (await api.get<CustomerVehicleRow[]>("/policies", { params: { customerId, type: "Auto" } })).data
+  });
+  if (q.isLoading) return <Card variant="outlined" sx={{ p: 2 }}><CircularProgress size={22} /></Card>;
+  if (q.isError) return <Alert severity="error">{extractErrorMessage(q.error)}</Alert>;
+  const rows = q.data ?? [];
+  return (
+    <Card variant="outlined" sx={{ p: compact ? 2 : 2.5 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+        <Box><Typography variant={compact ? "subtitle1" : "h6"} fontWeight={800}>Οχήματα πελάτη</Typography><Typography variant="body2" color="text.secondary">Αυτόματη προβολή από τα συμβόλαια αυτοκινήτου.</Typography></Box>
+        <Chip size="small" icon={<DirectionsCarIcon />} label={`${rows.length} συμβόλαια`} />
+      </Stack>
+      {rows.length === 0 ? <Alert severity="info">Δεν έχει καταχωρηθεί ακόμη συμβόλαιο αυτοκινήτου ή πινακίδα για τον πελάτη.</Alert> : (
+        <Table size="small">
+          <TableHead><TableRow><TableCell>Πινακίδα</TableCell><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Ισχύς</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Κατάσταση</TableCell></TableRow></TableHead>
+          <TableBody>{rows.map(row => <TableRow key={row.id} hover>
+            <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.vehicleRegistrationPlate ?? "—"}</TableCell>
+            <TableCell><Button size="small" component={RouterLink} to={`/app/policies?focus=${row.id}`}>{row.policyNumber}</Button></TableCell>
+            <TableCell>{row.insuranceCompanyName}</TableCell>
+            <TableCell>{row.startDate} → {row.endDate}</TableCell>
+            <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell>
+            <TableCell><Chip size="small" label={row.status} /></TableCell>
+          </TableRow>)}</TableBody>
+        </Table>
+      )}
     </Card>
   );
 }
@@ -582,27 +655,109 @@ function CustomerNotificationsTab({ customerId }: { customerId: string }) {
 /* ---------- Overview ---------- */
 
 function OverviewTab({ customer }: { customer: CustomerDto }) {
+  const groups: { title: string; fields: [string, React.ReactNode][] }[] = [
+    { title: "Επικοινωνία & διεύθυνση", fields: [
+      ["Email", customer.email ?? "—"], ["Κύριο τηλέφωνο", customer.phone ?? "—"], ["Κινητό", customer.mobilePhone ?? "—"], ["2ο τηλέφωνο", customer.altPhone ?? "—"],
+      ["Διεύθυνση", customer.address ?? "—"], ["Πόλη / Τ.Κ.", [customer.city, customer.postalCode].filter(Boolean).join(" · ") || "—"], ["Περιφέρεια", customer.region ?? "—"]
+    ] },
+    { title: "Ταυτότητα & προσωπικά στοιχεία", fields: [
+      ["ΑΦΜ", customer.vatNumber ?? "—"], ["Αριθμός ταυτότητας", customer.idNumber ?? "—"], ["ΑΜΚΑ", customer.amka ?? "—"], ["Διαβατήριο", customer.passportNumber ?? "—"],
+      ["Ημ. γέννησης", customer.birthDate ?? "—"], ["Φύλο", customer.gender ?? "—"], ["Οικογενειακή κατάσταση", customer.maritalStatus ?? "—"], ["Εθνικότητα", customer.nationality ?? "—"]
+    ] },
+    { title: "Εργασία & εταιρικά στοιχεία", fields: [
+      ["Επάγγελμα", customer.occupation ?? "—"], ["Εργοδότης", customer.employer ?? "—"], ["Δραστηριότητα", customer.activityCode ?? "—"], ["Ζώνη", customer.zone ?? "—"],
+      ["ΔΟΥ", customer.taxOffice ?? "—"], ["ΓΕΜΗ", customer.gemiNumber ?? "—"], ["Νομική μορφή", customer.legalForm ?? "—"], ["Πηγή", customer.source ?? "—"]
+    ] },
+    { title: "Οδήγηση & εσωτερική πληροφόρηση", fields: [
+      ["Αριθμός διπλώματος", customer.driverLicenseNumber ?? "—"], ["Κατηγορία", customer.driverLicenseClass ?? "—"], ["Λήξη διπλώματος", customer.driverLicenseExpiryDate ?? "—"], ["Ετικέτες", customer.tagsJson ?? "—"]
+    ] }
+  ];
   return (
-    <Card variant="outlined" sx={{ p: 3 }}>
-      <Typography variant="h6" sx={{ mb: 2 }}>Στοιχεία πελάτη</Typography>
-      <Stack spacing={1.5}>
-        <Row label="Τύπος">{customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο"}</Row>
-        <Row label="Κατάσταση">{customer.status}</Row>
-        <Row label="Email">{customer.email ?? "—"}</Row>
-        <Row label="Τηλέφωνο">{customer.phone ?? "—"}</Row>
-        <Row label="Σημειώσεις πελάτη">{customer.notes ?? "—"}</Row>
-      </Stack>
-    </Card>
+    <Stack spacing={2}>
+      <Card variant="outlined" sx={{ p: 2.5 }}>
+        <Typography variant="h6" sx={{ mb: 1 }}>Ενιαία καρτέλα πελάτη</Typography>
+        <Typography variant="body2" color="text.secondary">Όλα τα στοιχεία του πελάτη συγκεντρωμένα σε μία προβολή. Για αλλαγές πατήστε «Επεξεργασία πλήρους καρτέλας» επάνω.</Typography>
+      </Card>
+      {groups.map(group => <Card key={group.title} variant="outlined" sx={{ p: 2.5 }}>
+        <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 1.5 }}>{group.title}</Typography>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }, gap: 1.5 }}>
+          {group.fields.map(([label, value]) => <Box key={label} sx={{ p: 1.25, bgcolor: "background.default", borderRadius: 1 }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={600} sx={{ wordBreak: "break-word" }}>{value}</Typography></Box>)}
+        </Box>
+      </Card>)}
+      <Card variant="outlined" sx={{ p: 2.5 }}>
+        <Typography variant="subtitle1" fontWeight={800}>Σημειώσεις</Typography>
+        <Typography sx={{ mt: 1, whiteSpace: "pre-wrap" }}>{customer.notes ?? "Δεν υπάρχουν σημειώσεις."}</Typography>
+      </Card>
+      <CustomerVehiclesTab customerId={customer.id} compact />
+    </Stack>
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <Stack direction="row" spacing={2}>
-      <Typography sx={{ width: 160, color: "text.secondary" }}>{label}</Typography>
-      <Typography sx={{ fontWeight: 600 }}>{children}</Typography>
-    </Stack>
-  );
+type CustomerEditForm = Record<string, string> & { type: string; status: string };
+
+function CustomerEditorDialog({ open, customer, onClose }: { open: boolean; customer: CustomerDto; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [tab, setTab] = useState(0);
+  const [form, setForm] = useState<CustomerEditForm>(() => customerEditForm(customer));
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => { if (open) { setTab(0); setForm(customerEditForm(customer)); setError(null); } }, [open, customer]);
+  const save = useMutation({
+    mutationFn: async () => api.put(`/customers/${customer.id}`, {
+      ...form,
+      createPortalAccount: false,
+      paymentDueDate: form.paymentDueDate || undefined,
+      birthDate: form.birthDate || undefined,
+      driverLicenseIssueDate: form.driverLicenseIssueDate || undefined,
+      driverLicenseExpiryDate: form.driverLicenseExpiryDate || undefined,
+      assignedAdvisorId: undefined
+    }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["customer", customer.id] }); void qc.invalidateQueries({ queryKey: ["customers"] }); onClose(); },
+    onError: e => setError(extractErrorMessage(e))
+  });
+  const set = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
+  const field = (label: string, key: string, options?: { type?: string; multiline?: boolean; select?: string[]; placeholder?: string }) => options?.select ? (
+    <TextField key={key} select label={label} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} fullWidth>
+      <MenuItem value="">Δεν έχει οριστεί</MenuItem>{options.select.map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
+    </TextField>
+  ) : <TextField key={key} label={label} type={options?.type} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} fullWidth multiline={options?.multiline} rows={options?.multiline ? 3 : undefined} placeholder={options?.placeholder} InputLabelProps={options?.type === "date" ? { shrink: true } : undefined} />;
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
+    <DialogTitle>Πλήρης καρτέλα πελάτη · {customer.customerNumber}</DialogTitle>
+    <DialogContent>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Επεξεργαστείτε όλα τα στοιχεία από ένα ενιαίο παράθυρο. Η ίδια καρτέλα χρησιμοποιείται για κανονικούς και πιθανούς πελάτες.</Typography>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      <Tabs value={tab} onChange={(_, value) => setTab(value)} variant="scrollable" allowScrollButtonsMobile sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+        <Tab label="Βασικά & επικοινωνία" /><Tab label="Ταυτότητα & οικογένεια" /><Tab label="Εργασία, εταιρεία & όχημα" />
+      </Tabs>
+      {tab === 0 && <Stack spacing={2}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Τύπος", "type", { select: ["Individual", "Company"] })}{field("Κατάσταση", "status", { select: ["Prospect", "Active", "Inactive", "Churned", "Blocked"] })}</Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Όνομα", "firstName")}{field("Επώνυμο", "lastName")}{field("Επωνυμία", "companyName")}</Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Email", "email", { type: "email" })}{field("Κύριο τηλέφωνο", "phone")}{field("Κινητό", "mobilePhone")}{field("2ο τηλέφωνο", "altPhone")}</Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Διεύθυνση", "address")}{field("Πόλη", "city")}{field("Τ.Κ.", "postalCode")}{field("Περιφέρεια", "region")}</Stack>
+        {field("Σημειώσεις", "notes", { multiline: true })}
+        {field("Ημερομηνία εξόφλησης", "paymentDueDate", { type: "date" })}
+      </Stack>}
+      {tab === 1 && <Stack spacing={2}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Ημερομηνία γέννησης", "birthDate", { type: "date" })}{field("Φύλο", "gender", { select: ["Male", "Female", "Other"] })}{field("Εθνικότητα", "nationality")}{field("Οικογενειακή κατάσταση", "maritalStatus")}</Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Αριθμός ταυτότητας", "idNumber")}{field("ΑΜΚΑ", "amka")}{field("Διαβατήριο", "passportNumber")}</Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Πατρώνυμο", "fatherName")}{field("Μητρώνυμο", "motherName")}{field("Σύζυγος / σύντροφος", "spouseName")}</Stack>
+      </Stack>}
+      {tab === 2 && <Stack spacing={2}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Επάγγελμα", "occupation")}{field("Εργοδότης", "employer")}{field("Κωδικός δραστηριότητας", "activityCode")}{field("Ζώνη", "zone")}</Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("ΑΦΜ", "vatNumber")}{field("ΔΟΥ", "taxOffice")}{field("ΓΕΜΗ", "gemiNumber")}{field("Νομική μορφή", "legalForm")}</Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Αριθμός διπλώματος", "driverLicenseNumber")}{field("Κατηγορία διπλώματος", "driverLicenseClass")}{field("Έκδοση", "driverLicenseIssueDate", { type: "date" })}{field("Λήξη", "driverLicenseExpiryDate", { type: "date" })}</Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Πηγή", "source")}{field("Ετικέτες", "tagsJson", { placeholder: "π.χ. premium, εταιρεία" })}{field("URL φωτογραφίας", "photoUrl")}</Stack>
+        <Alert severity="info">Τα οχήματα δεν καταχωρούνται ξεχωριστά: εμφανίζονται αυτόματα από τα συμβόλαια αυτοκινήτου και τις πινακίδες τους.</Alert>
+      </Stack>}
+    </DialogContent>
+    <DialogActions><Button onClick={onClose} color="error">Άκυρο</Button><Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση πλήρους καρτέλας"}</Button></DialogActions>
+  </Dialog>;
+}
+
+function customerEditForm(customer: CustomerDto): CustomerEditForm {
+  const keys = ["firstName", "lastName", "companyName", "vatNumber", "email", "phone", "address", "city", "postalCode", "notes", "paymentDueDate", "birthDate", "occupation", "fatherName", "motherName", "spouseName", "nationality", "zone", "activityCode", "taxOffice", "gemiNumber", "legalForm", "altPhone", "mobilePhone", "amka", "idNumber", "passportNumber", "region", "gender", "maritalStatus", "employer", "driverLicenseNumber", "driverLicenseClass", "driverLicenseIssueDate", "driverLicenseExpiryDate", "source", "tagsJson", "photoUrl"];
+  const result: Record<string, string> = {};
+  for (const key of keys) result[key] = String((customer as unknown as Record<string, unknown>)[key] ?? "");
+  return { ...result, type: customer.type, status: customer.status };
 }
 
 /* ---------- Communications ---------- */
@@ -1792,6 +1947,7 @@ const INVOLVED_ROLE_LABEL: Record<string, string> = {
   Expert: "Πραγματογνώμονας", Other: "Άλλο"
 };
 
+void ClaimInvolvedPartiesTab;
 function ClaimInvolvedPartiesTab({ customerId }: { customerId: string }) {
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);

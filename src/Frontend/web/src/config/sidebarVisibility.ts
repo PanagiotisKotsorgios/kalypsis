@@ -101,6 +101,7 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     items: [
       { path: "/production-lists", label: "Λίστες παραγωγής" },
       { path: "/customers", label: "Πελάτες" },
+      { path: "/vehicles", label: "Οχήματα πελατών" },
       { path: "/policies", label: "Συμβόλαια" },
       { path: "/claims", label: "Ζημιές" },
       { path: "/producers", label: "Συνεργάτες" },

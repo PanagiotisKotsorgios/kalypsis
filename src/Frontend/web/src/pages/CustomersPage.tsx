@@ -17,6 +17,8 @@ import {
   MenuItem,
   Stack,
   Switch,
+  Tab,
+  Tabs,
   Table,
   TableBody,
   TableCell,
@@ -89,6 +91,35 @@ interface CustomerDto {
   city?: string;
   notes?: string | null;
   paymentDueDate?: string | null;
+  address?: string | null;
+  postalCode?: string | null;
+  birthDate?: string | null;
+  occupation?: string | null;
+  fatherName?: string | null;
+  motherName?: string | null;
+  spouseName?: string | null;
+  nationality?: string | null;
+  zone?: string | null;
+  activityCode?: string | null;
+  taxOffice?: string | null;
+  gemiNumber?: string | null;
+  legalForm?: string | null;
+  altPhone?: string | null;
+  mobilePhone?: string | null;
+  amka?: string | null;
+  idNumber?: string | null;
+  passportNumber?: string | null;
+  region?: string | null;
+  gender?: string | null;
+  maritalStatus?: string | null;
+  employer?: string | null;
+  driverLicenseNumber?: string | null;
+  driverLicenseClass?: string | null;
+  driverLicenseIssueDate?: string | null;
+  driverLicenseExpiryDate?: string | null;
+  source?: string | null;
+  tagsJson?: string | null;
+  photoUrl?: string | null;
   createdAt: string;
 }
 
@@ -128,6 +159,32 @@ interface CreateBody {
   occupation?: string;
   notes?: string;
   paymentDueDate?: string;
+  birthDate?: string;
+  fatherName?: string;
+  motherName?: string;
+  spouseName?: string;
+  nationality?: string;
+  zone?: string;
+  activityCode?: string;
+  taxOffice?: string;
+  gemiNumber?: string;
+  legalForm?: string;
+  altPhone?: string;
+  mobilePhone?: string;
+  amka?: string;
+  idNumber?: string;
+  passportNumber?: string;
+  region?: string;
+  gender?: string;
+  maritalStatus?: string;
+  employer?: string;
+  driverLicenseNumber?: string;
+  driverLicenseClass?: string;
+  driverLicenseIssueDate?: string;
+  driverLicenseExpiryDate?: string;
+  source?: string;
+  tagsJson?: string;
+  photoUrl?: string;
 }
 
 function newCustomerForm(status: CustomerStatus): CreateBody {
@@ -135,7 +192,10 @@ function newCustomerForm(status: CustomerStatus): CreateBody {
     type: "Individual", status,
     firstName: "", lastName: "", companyName: "", vatNumber: "",
     email: "", phone: "", address: "", city: "", postalCode: "",
-    occupation: "", notes: "", paymentDueDate: ""
+    occupation: "", notes: "", paymentDueDate: "", birthDate: "", fatherName: "", motherName: "", spouseName: "", nationality: "", zone: "", activityCode: "",
+    taxOffice: "", gemiNumber: "", legalForm: "", altPhone: "", mobilePhone: "", amka: "", idNumber: "", passportNumber: "",
+    region: "", gender: "", maritalStatus: "", employer: "", driverLicenseNumber: "", driverLicenseClass: "",
+    driverLicenseIssueDate: "", driverLicenseExpiryDate: "", source: "", tagsJson: "", photoUrl: ""
   };
 }
 
@@ -708,15 +768,26 @@ function CreateCustomerDialog({
 }) {
   const { t } = useTranslation();
   const [form, setForm] = useState<CreateBody>(() => newCustomerForm(initialStatus));
+  const [formTab, setFormTab] = useState(0);
   useEffect(() => {
     if (open) {
+      setFormTab(0);
       setForm(initialCustomer ? {
         type: initialCustomer.type, status: initialCustomer.status,
         firstName: initialCustomer.firstName ?? "", lastName: initialCustomer.lastName ?? "",
         companyName: initialCustomer.companyName ?? "", vatNumber: initialCustomer.vatNumber ?? "",
-        email: initialCustomer.email ?? "", phone: initialCustomer.phone ?? "", city: initialCustomer.city ?? "",
-        notes: initialCustomer.notes ?? "",
-        paymentDueDate: initialCustomer.paymentDueDate ?? ""
+        email: initialCustomer.email ?? "", phone: initialCustomer.phone ?? "", address: initialCustomer.address ?? "",
+        city: initialCustomer.city ?? "", postalCode: initialCustomer.postalCode ?? "", occupation: initialCustomer.occupation ?? "",
+        notes: initialCustomer.notes ?? "", paymentDueDate: initialCustomer.paymentDueDate ?? "", birthDate: initialCustomer.birthDate ?? "",
+        fatherName: initialCustomer.fatherName ?? "", motherName: initialCustomer.motherName ?? "", spouseName: initialCustomer.spouseName ?? "",
+        nationality: initialCustomer.nationality ?? "", zone: initialCustomer.zone ?? "", activityCode: initialCustomer.activityCode ?? "",
+        taxOffice: initialCustomer.taxOffice ?? "", gemiNumber: initialCustomer.gemiNumber ?? "", legalForm: initialCustomer.legalForm ?? "",
+        altPhone: initialCustomer.altPhone ?? "", mobilePhone: initialCustomer.mobilePhone ?? "", amka: initialCustomer.amka ?? "",
+        idNumber: initialCustomer.idNumber ?? "", passportNumber: initialCustomer.passportNumber ?? "", region: initialCustomer.region ?? "",
+        gender: initialCustomer.gender ?? "", maritalStatus: initialCustomer.maritalStatus ?? "", employer: initialCustomer.employer ?? "",
+        driverLicenseNumber: initialCustomer.driverLicenseNumber ?? "", driverLicenseClass: initialCustomer.driverLicenseClass ?? "",
+        driverLicenseIssueDate: initialCustomer.driverLicenseIssueDate ?? "", driverLicenseExpiryDate: initialCustomer.driverLicenseExpiryDate ?? "",
+        source: initialCustomer.source ?? "", tagsJson: initialCustomer.tagsJson ?? "", photoUrl: initialCustomer.photoUrl ?? ""
       } : newCustomerForm(initialStatus));
     }
   }, [open, initialStatus, initialCustomer]);
@@ -728,19 +799,35 @@ function CreateCustomerDialog({
       lastName: form.type === "Individual" ? form.lastName : undefined,
       companyName: form.type === "Company" ? form.companyName : undefined,
       vatNumber: form.type === "Company" ? form.vatNumber : undefined,
-      paymentDueDate: form.paymentDueDate || undefined
+      paymentDueDate: form.paymentDueDate || undefined,
+      birthDate: form.birthDate || undefined,
+      fatherName: form.fatherName || undefined, motherName: form.motherName || undefined, spouseName: form.spouseName || undefined,
+      nationality: form.nationality || undefined, zone: form.zone || undefined, activityCode: form.activityCode || undefined,
+      taxOffice: form.taxOffice || undefined, gemiNumber: form.gemiNumber || undefined, legalForm: form.legalForm || undefined,
+      altPhone: form.altPhone || undefined, mobilePhone: form.mobilePhone || undefined, amka: form.amka || undefined,
+      idNumber: form.idNumber || undefined, passportNumber: form.passportNumber || undefined, region: form.region || undefined,
+      gender: form.gender || undefined, maritalStatus: form.maritalStatus || undefined, employer: form.employer || undefined,
+      driverLicenseNumber: form.driverLicenseNumber || undefined, driverLicenseClass: form.driverLicenseClass || undefined,
+      driverLicenseIssueDate: form.driverLicenseIssueDate || undefined, driverLicenseExpiryDate: form.driverLicenseExpiryDate || undefined,
+      source: form.source || undefined, tagsJson: form.tagsJson || undefined, photoUrl: form.photoUrl || undefined
     };
     onSubmit(payload);
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
       <DialogTitle>{t("customers.createTitle")}</DialogTitle>
       <DialogContent>
         <Typography color="text.secondary" mb={2}>
           {t("customers.createHelp")}
         </Typography>
+        <Tabs value={formTab} onChange={(_, value) => setFormTab(value)} variant="scrollable" allowScrollButtonsMobile sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+          <Tab label="Βασικά & επικοινωνία" />
+          <Tab label="Ταυτότητα & οικογένεια" />
+          <Tab label="Επιχείρηση & οδήγηση" />
+        </Tabs>
         <Stack spacing={2} mt={1}>
+          <Box sx={{ display: formTab === 0 ? "block" : "none" }}>
           <SearchableTextField
             select
             label={t("customers.type")}
@@ -909,6 +996,61 @@ function CreateCustomerDialog({
             InputLabelProps={{ shrink: true }}
             helperText="Αν υπάρχει υπόλοιπο μετά την ημερομηνία, εμφανίζεται κόκκινη ειδοποίηση στο dashboard. Αφήστε κενό για απενεργοποίηση."
           />
+          </Box>
+
+          <Box sx={{ display: formTab === 1 ? "block" : "none" }}>
+            <Stack spacing={2}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField label="Ημερομηνία γέννησης" type="date" value={form.birthDate ?? ""} onChange={e => setForm({ ...form, birthDate: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
+                <TextField select label="Φύλο" value={form.gender ?? ""} onChange={e => setForm({ ...form, gender: e.target.value })} fullWidth>
+                  <MenuItem value="">Δεν έχει οριστεί</MenuItem><MenuItem value="Male">Άνδρας</MenuItem><MenuItem value="Female">Γυναίκα</MenuItem><MenuItem value="Other">Άλλο</MenuItem>
+                </TextField>
+                <TextField label="Εθνικότητα" value={form.nationality ?? ""} onChange={e => setForm({ ...form, nationality: e.target.value })} fullWidth />
+              </Stack>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField label="Πατρώνυμο" value={form.fatherName ?? ""} onChange={e => setForm({ ...form, fatherName: e.target.value })} fullWidth />
+                <TextField label="Μητρώνυμο" value={form.motherName ?? ""} onChange={e => setForm({ ...form, motherName: e.target.value })} fullWidth />
+                <TextField label="Σύζυγος / σύντροφος" value={form.spouseName ?? ""} onChange={e => setForm({ ...form, spouseName: e.target.value })} fullWidth />
+              </Stack>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField label="Αριθμός ταυτότητας" value={form.idNumber ?? ""} onChange={e => setForm({ ...form, idNumber: e.target.value })} fullWidth />
+                <TextField label="ΑΜΚΑ" value={form.amka ?? ""} onChange={e => setForm({ ...form, amka: e.target.value })} fullWidth />
+                <TextField label="Αριθμός διαβατηρίου" value={form.passportNumber ?? ""} onChange={e => setForm({ ...form, passportNumber: e.target.value })} fullWidth />
+              </Stack>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField label="2ο τηλέφωνο" value={form.altPhone ?? ""} onChange={e => setForm({ ...form, altPhone: e.target.value })} fullWidth />
+                <TextField label="Κινητό" value={form.mobilePhone ?? ""} onChange={e => setForm({ ...form, mobilePhone: e.target.value })} fullWidth />
+                <TextField label="Οικογενειακή κατάσταση" value={form.maritalStatus ?? ""} onChange={e => setForm({ ...form, maritalStatus: e.target.value })} fullWidth />
+              </Stack>
+              <TextField label="Περιφέρεια / περιοχή" value={form.region ?? ""} onChange={e => setForm({ ...form, region: e.target.value })} fullWidth />
+            </Stack>
+          </Box>
+
+          <Box sx={{ display: formTab === 2 ? "block" : "none" }}>
+            <Stack spacing={2}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField label="Εργοδότης" value={form.employer ?? ""} onChange={e => setForm({ ...form, employer: e.target.value })} fullWidth />
+                <TextField label="Κωδικός δραστηριότητας" value={form.activityCode ?? ""} onChange={e => setForm({ ...form, activityCode: e.target.value })} fullWidth />
+                <TextField label="Ζώνη / περιοχή δραστηριότητας" value={form.zone ?? ""} onChange={e => setForm({ ...form, zone: e.target.value })} fullWidth />
+              </Stack>
+              {form.type === "Company" && <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField label="ΔΟΥ" value={form.taxOffice ?? ""} onChange={e => setForm({ ...form, taxOffice: e.target.value })} fullWidth />
+                <TextField label="Αριθμός ΓΕΜΗ" value={form.gemiNumber ?? ""} onChange={e => setForm({ ...form, gemiNumber: e.target.value })} fullWidth />
+                <TextField label="Νομική μορφή" value={form.legalForm ?? ""} onChange={e => setForm({ ...form, legalForm: e.target.value })} fullWidth />
+              </Stack>}
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField label="Αριθμός διπλώματος" value={form.driverLicenseNumber ?? ""} onChange={e => setForm({ ...form, driverLicenseNumber: e.target.value })} fullWidth />
+                <TextField label="Κατηγορία διπλώματος" value={form.driverLicenseClass ?? ""} onChange={e => setForm({ ...form, driverLicenseClass: e.target.value })} fullWidth />
+                <TextField label="Λήξη διπλώματος" type="date" value={form.driverLicenseExpiryDate ?? ""} onChange={e => setForm({ ...form, driverLicenseExpiryDate: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
+              </Stack>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField label="Πηγή πελάτη" value={form.source ?? ""} onChange={e => setForm({ ...form, source: e.target.value })} fullWidth placeholder="π.χ. σύσταση, website, καμπάνια" />
+                <TextField label="Ετικέτες" value={form.tagsJson ?? ""} onChange={e => setForm({ ...form, tagsJson: e.target.value })} fullWidth placeholder="π.χ. premium, εταιρεία" />
+                <TextField label="URL φωτογραφίας" value={form.photoUrl ?? ""} onChange={e => setForm({ ...form, photoUrl: e.target.value })} fullWidth />
+              </Stack>
+              <Alert severity="info">Τα οχήματα και τα ασφαλιστήρια προστίθενται από τα συμβόλαια και θα εμφανίζονται αυτόματα στην καρτέλα «Οχήματα».</Alert>
+            </Stack>
+          </Box>
 
         </Stack>
       </DialogContent>

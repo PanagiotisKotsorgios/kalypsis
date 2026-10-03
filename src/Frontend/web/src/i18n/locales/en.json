@@ -135,6 +135,7 @@
     "carrierBridgesHub": "Carrier Bridges",
     "bridgeCodeMappings": "Bridge Code Mappings",
     "productionLists": "Production Reports",
+    "vehicleRegistry": "Customer vehicles",
     "group": {
       "operations": "Policy Operations",
       "claimsOps": "Claims & Settlements",
