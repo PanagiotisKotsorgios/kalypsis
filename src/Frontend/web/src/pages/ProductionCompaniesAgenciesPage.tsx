@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, Divider, IconButton, Stack, Tab, Table, TableBody, TableCell, TableHead,
+  DialogTitle, IconButton, Stack, Tab, Table, TableBody, TableCell, TableHead,
   TableRow, Tabs, TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -98,18 +98,10 @@ export default function ProductionCompaniesAgenciesPage() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
       {loading ? <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box> : tab === 0 ? (
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0,1fr))", xl: "repeat(3, minmax(0,1fr))" }, gap: 1.5 }}>
-          {companies.map(company => <CompanyProductionCard key={company.id} company={company}
-            onOpen={() => setCompanyProfile(company)} onEdit={() => setCompanyEditor(company)} />)}
-          {companies.length === 0 && <EmptyDirectory text="Δεν βρέθηκαν ασφαλιστικές εταιρείες." />}
-        </Box>
+        <CompanyDirectoryTable companies={companies} onOpen={setCompanyProfile} onEdit={setCompanyEditor} />
       ) : (
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0,1fr))", xl: "repeat(3, minmax(0,1fr))" }, gap: 1.5 }}>
-          {offices.map(office => <OfficeProductionCard key={office.id} office={office}
-            onOpen={() => setOfficeProfile(office)} onEdit={() => setOfficeEditor(office)}
-            onDelete={() => office.isHeadquarters ? undefined : deleteOffice.mutate(office.id)} />)}
-          {offices.length === 0 && <EmptyDirectory text="Δεν βρέθηκαν πρακτορεία ή υποκαταστήματα." />}
-        </Box>
+        <OfficeDirectoryTable offices={offices} onOpen={setOfficeProfile} onEdit={setOfficeEditor}
+          onDelete={office => { if (!office.isHeadquarters && confirm(`Διαγραφή πρακτορείου «${office.name}»;`)) deleteOffice.mutate(office.id); }} />
       )}
 
       <CompanyDialog open={companyEditor !== undefined} item={companyEditor ?? null}
@@ -124,64 +116,52 @@ export default function ProductionCompaniesAgenciesPage() {
   );
 }
 
-function CompanyProductionCard({ company, onOpen, onEdit }: { company: CompanyDto; onOpen: () => void; onEdit: () => void }) {
-  return <Card variant="outlined" onClick={onOpen} sx={{ p: 1.5, cursor: "pointer", transition: "box-shadow .2s, transform .2s", "&:hover": { boxShadow: 4, transform: "translateY(-1px)" } }}>
-    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1}>
-      <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
-        <BusinessIcon color="primary" />
-        <Box minWidth={0}><Typography fontWeight={800} noWrap>{company.name}</Typography><Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>{company.code}</Typography></Box>
-      </Stack>
-      <IconButton size="small" onClick={e => { e.stopPropagation(); onEdit(); }}><EditIcon fontSize="small" /></IconButton>
-    </Stack>
-    <Stack direction="row" spacing={0.5} mt={1} flexWrap="wrap" useFlexGap>
-      <Chip size="small" color={company.isActive ? "success" : "default"} label={company.isActive ? "Ενεργή" : "Ανενεργή"} />
-      <Chip size="small" variant="outlined" label={company.country ?? "Χώρα —"} />
-      {company.bridgeLinked && <Chip size="small" color="info" variant="outlined" label="Γέφυρα συνδεδεμένη" />}
-    </Stack>
-    <Divider sx={{ my: 1 }} />
-    <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 0.75 }}>
-      <ProductionCardField label="Επαφή" value={company.contactName} />
-      <ProductionCardField label="Κωδικός συνεργασίας" value={company.agentCode} mono />
-      <ProductionCardField label="Email" value={company.contactEmail} />
-      <ProductionCardField label="Τηλέφωνο" value={company.contactPhone} />
-      <ProductionCardField label="Παραμετρικά" value={String(company.parameterItemCount)} />
-      <ProductionCardField label="Κανόνες προμήθειας" value={String(company.commissionDefaultCount)} />
+function CompanyDirectoryTable({ companies, onOpen, onEdit }: { companies: CompanyDto[]; onOpen: (company: CompanyDto) => void; onEdit: (company: CompanyDto) => void }) {
+  return <Card variant="outlined" sx={{ overflow: "hidden" }}>
+    <Box sx={{ overflowX: "auto" }}>
+      <Table size="small" sx={{ minWidth: 860 }}>
+        <TableHead><TableRow sx={{ bgcolor: "rgba(25,118,210,.07)" }}>
+          <TableCell sx={{ fontWeight: 800 }}>Εταιρεία</TableCell><TableCell sx={{ fontWeight: 800 }}>Κωδικός</TableCell>
+          <TableCell sx={{ fontWeight: 800 }}>Κατάσταση</TableCell><TableCell sx={{ fontWeight: 800 }}>Χώρα</TableCell>
+          <TableCell sx={{ fontWeight: 800 }}>Επικοινωνία</TableCell><TableCell align="right" sx={{ fontWeight: 800 }}>Παραμετρικά</TableCell>
+          <TableCell align="right" sx={{ fontWeight: 800 }}>Ενέργειες</TableCell>
+        </TableRow></TableHead>
+        <TableBody>{companies.map(company => <TableRow key={company.id} hover onClick={() => onOpen(company)} sx={{ cursor: "pointer", "&:last-child td": { borderBottom: 0 } }}>
+          <TableCell><Stack direction="row" spacing={1} alignItems="center"><BusinessIcon color="primary" fontSize="small" /><Box><Typography fontWeight={750}>{company.name}</Typography>{company.bridgeLinked && <Chip size="small" color="info" variant="outlined" label="Γέφυρα" sx={{ mt: .25 }} />}</Box></Stack></TableCell>
+          <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{company.code || "—"}</TableCell>
+          <TableCell><Chip size="small" color={company.isActive ? "success" : "default"} label={company.isActive ? "Ενεργή" : "Ανενεργή"} /></TableCell>
+          <TableCell>{company.country || "—"}</TableCell>
+          <TableCell>{company.contactName || company.contactEmail || company.contactPhone || "—"}</TableCell>
+          <TableCell align="right">{company.parameterItemCount}</TableCell>
+          <TableCell align="right"><Stack direction="row" justifyContent="flex-end" spacing={.5}><Button size="small" variant="text" onClick={event => { event.stopPropagation(); onOpen(company); }}>Προβολή</Button><IconButton size="small" aria-label="Επεξεργασία" onClick={event => { event.stopPropagation(); onEdit(company); }}><EditIcon fontSize="small" /></IconButton></Stack></TableCell>
+        </TableRow>)}{companies.length === 0 && <TableRow><TableCell colSpan={7}><EmptyDirectory text="Δεν βρέθηκαν ασφαλιστικές εταιρείες." /></TableCell></TableRow>}</TableBody>
+      </Table>
     </Box>
   </Card>;
 }
 
-function OfficeProductionCard({ office, onOpen, onEdit, onDelete }: { office: OfficeDto; onOpen: () => void; onEdit: () => void; onDelete: () => void }) {
-  return <Card variant="outlined" onClick={onOpen} sx={{ p: 1.5, cursor: "pointer", transition: "box-shadow .2s, transform .2s", "&:hover": { boxShadow: 4, transform: "translateY(-1px)" } }}>
-    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1}>
-      <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
-        <HomeWorkIcon color="primary" />
-        <Box minWidth={0}><Typography fontWeight={800} noWrap>{office.name}</Typography><Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>{office.code}</Typography></Box>
-      </Stack>
-      <Stack direction="row" spacing={0.25}>
-        <IconButton size="small" onClick={e => { e.stopPropagation(); onEdit(); }}><EditIcon fontSize="small" /></IconButton>
-        {!office.isHeadquarters && <IconButton size="small" color="error" onClick={e => { e.stopPropagation(); if (confirm(`Διαγραφή πρακτορείου «${office.name}»;`)) onDelete(); }}><span aria-hidden>×</span></IconButton>}
-      </Stack>
-    </Stack>
-    <Stack direction="row" spacing={0.5} mt={1} flexWrap="wrap" useFlexGap>
-      <Chip size="small" color={office.isActive ? "success" : "default"} label={office.isActive ? "Ενεργό" : "Ανενεργό"} />
-      {office.isHeadquarters && <Chip size="small" icon={<StarIcon />} color="warning" label="Κεντρικό" />}
-      <Chip size="small" variant="outlined" label={`${office.userCount} χρήστες`} />
-    </Stack>
-    <Divider sx={{ my: 1 }} />
-    <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 0.75 }}>
-      <ProductionCardField label="Πόλη / ΤΚ" value={[office.city, office.postalCode].filter(Boolean).join(" · ")} />
-      <ProductionCardField label="Διεύθυνση" value={office.address} />
-      <ProductionCardField label="Email" value={office.email} />
-      <ProductionCardField label="Τηλέφωνο" value={office.phone} />
+function OfficeDirectoryTable({ offices, onOpen, onEdit, onDelete }: { offices: OfficeDto[]; onOpen: (office: OfficeDto) => void; onEdit: (office: OfficeDto) => void; onDelete: (office: OfficeDto) => void }) {
+  return <Card variant="outlined" sx={{ overflow: "hidden" }}>
+    <Box sx={{ overflowX: "auto" }}>
+      <Table size="small" sx={{ minWidth: 860 }}>
+        <TableHead><TableRow sx={{ bgcolor: "rgba(25,118,210,.07)" }}>
+          <TableCell sx={{ fontWeight: 800 }}>Πρακτορείο / υποκατάστημα</TableCell><TableCell sx={{ fontWeight: 800 }}>Κωδικός</TableCell>
+          <TableCell sx={{ fontWeight: 800 }}>Κατάσταση</TableCell><TableCell sx={{ fontWeight: 800 }}>Πόλη</TableCell>
+          <TableCell sx={{ fontWeight: 800 }}>Επικοινωνία</TableCell><TableCell align="right" sx={{ fontWeight: 800 }}>Χρήστες</TableCell>
+          <TableCell align="right" sx={{ fontWeight: 800 }}>Ενέργειες</TableCell>
+        </TableRow></TableHead>
+        <TableBody>{offices.map(office => <TableRow key={office.id} hover onClick={() => onOpen(office)} sx={{ cursor: "pointer", "&:last-child td": { borderBottom: 0 } }}>
+          <TableCell><Stack direction="row" spacing={1} alignItems="center"><HomeWorkIcon color="primary" fontSize="small" /><Box><Typography fontWeight={750}>{office.name}</Typography>{office.isHeadquarters && <Chip size="small" icon={<StarIcon />} color="warning" label="Κεντρικό" sx={{ mt: .25 }} />}</Box></Stack></TableCell>
+          <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{office.code || "—"}</TableCell>
+          <TableCell><Chip size="small" color={office.isActive ? "success" : "default"} label={office.isActive ? "Ενεργό" : "Ανενεργό"} /></TableCell>
+          <TableCell>{[office.city, office.postalCode].filter(Boolean).join(" · ") || "—"}</TableCell>
+          <TableCell>{office.email || office.phone || office.address || "—"}</TableCell>
+          <TableCell align="right">{office.userCount}</TableCell>
+          <TableCell align="right"><Stack direction="row" justifyContent="flex-end" spacing={.5}><Button size="small" variant="text" onClick={event => { event.stopPropagation(); onOpen(office); }}>Προβολή</Button><IconButton size="small" aria-label="Επεξεργασία" onClick={event => { event.stopPropagation(); onEdit(office); }}><EditIcon fontSize="small" /></IconButton>{!office.isHeadquarters && <IconButton size="small" color="error" aria-label="Διαγραφή" onClick={event => { event.stopPropagation(); onDelete(office); }}><DeleteOutlineIcon fontSize="small" /></IconButton>}</Stack></TableCell>
+        </TableRow>)}{offices.length === 0 && <TableRow><TableCell colSpan={7}><EmptyDirectory text="Δεν βρέθηκαν πρακτορεία ή υποκαταστήματα." /></TableCell></TableRow>}</TableBody>
+      </Table>
     </Box>
   </Card>;
-}
-
-function ProductionCardField({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) {
-  return <Box sx={{ minWidth: 0, p: 0.65, borderRadius: 0.8, bgcolor: value?.trim() ? "rgba(46,125,50,0.06)" : "rgba(211,47,47,0.055)", border: "1px solid", borderColor: value?.trim() ? "rgba(46,125,50,0.18)" : "rgba(211,47,47,0.18)" }}>
-    <Typography variant="caption" color="text.secondary" display="block">{label}</Typography>
-    <Typography variant="body2" fontWeight={650} sx={{ fontFamily: mono ? "monospace" : undefined, wordBreak: "break-word" }}>{value?.trim() || "Δεν έχει καταχωρηθεί"}</Typography>
-  </Box>;
 }
 
 function EmptyDirectory({ text }: { text: string }) {
@@ -195,12 +175,40 @@ function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { op
   const eur = (value: number) => value.toLocaleString("el-GR", { style: "currency", currency: "EUR" });
   const date = (value: string | null) => value ? new Date(value).toLocaleDateString("el-GR") : "—";
   return <Dialog open={open} onClose={onClose} fullWidth maxWidth="xl">
-    <DialogTitle sx={{ pr: 6 }}><Stack direction="row" alignItems="center" spacing={1.25}><BusinessIcon color="primary" /><Box flex={1}><Typography variant="h5" fontWeight={850}>{company?.name ?? "—"}</Typography><Typography variant="caption" sx={{ fontFamily: "monospace" }}>{company?.code}</Typography></Box>{company && <Button size="small" startIcon={<EditIcon />} onClick={() => onEdit(company)}>Επεξεργασία</Button>}</Stack></DialogTitle>
+    <DialogTitle sx={{ pr: 6 }}><Stack direction="row" alignItems="center" spacing={1.25}><BusinessIcon color="primary" /><Box flex={1}><Typography variant="h5" fontWeight={850}>{company?.name ?? "—"}</Typography><Typography variant="caption" sx={{ fontFamily: "monospace" }}>{company?.code}</Typography></Box>{company && <Button variant="contained" size="small" color="success" startIcon={<EditIcon />} onClick={() => onEdit(company)} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, boxShadow: 2, "&:hover": { bgcolor: "success.dark", color: "#fff" } }}>Επεξεργασία</Button>}</Stack></DialogTitle>
     <DialogContent dividers>
       {q.isLoading && <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>}
       {q.error && <Alert severity="error">Δεν φορτώθηκαν τα στοιχεία της εταιρείας.</Alert>}
       {p && <>
-        <Tabs value={tab} onChange={(_, value: number) => setTab(value)} sx={{ mb: 2 }}>
+        <Tabs value={tab} onChange={(_, value: number) => setTab(value)} variant="scrollable" scrollButtons="auto" sx={{
+          mb: 2,
+          px: .5,
+          py: .5,
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 2,
+          bgcolor: "rgba(25,118,210,.025)",
+          "& .MuiTabs-flexContainer": { gap: .75 },
+          "& .MuiTabs-indicator": { display: "none" },
+          "& .MuiTab-root": {
+            minHeight: 64,
+            minWidth: { xs: 150, md: 185 },
+            px: 2,
+            py: 1,
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 1.5,
+            bgcolor: "background.paper",
+            color: "text.secondary",
+            textTransform: "none",
+            fontWeight: 750,
+            fontSize: { xs: ".82rem", md: ".9rem" },
+            lineHeight: 1.25,
+            transition: "all .18s ease",
+            "&:hover": { bgcolor: "rgba(25,118,210,.08)", borderColor: "primary.light", color: "primary.dark" },
+            "&.Mui-selected": { bgcolor: "primary.main", borderColor: "primary.main", color: "primary.contrastText", boxShadow: 2 },
+          },
+        }}>
           <Tab label="Σύνοψη" /><Tab label="Παραγωγή & συμβόλαια" /><Tab label="Σύνδεση & παραμετρικά" /><Tab label="Επικοινωνία" /><Tab icon={<FolderIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & πεδία" />
         </Tabs>
         {tab === 0 && <Stack spacing={1.5}>
@@ -220,7 +228,7 @@ function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { op
         {tab === 3 && <Stack spacing={1.5}><ProfileSection title="Στοιχεία επικοινωνίας"><ProfileLine label="Όνομα επαφής" value={p.contactName} /><ProfileLine label="Email" value={p.contactEmail} link={p.contactEmail ? `mailto:${p.contactEmail}` : undefined} /><ProfileLine label="Τηλέφωνο" value={p.contactPhone} link={p.contactPhone ? `tel:${p.contactPhone}` : undefined} /></ProfileSection><ProfileSection title="Σημειώσεις"><Typography sx={{ whiteSpace: "pre-wrap" }}>{p.notes || "Δεν υπάρχουν σημειώσεις."}</Typography></ProfileSection></Stack>}
         {tab === 4 && company && <CompanyDocumentsWorkspace companyId={company.id} />}
       </>}
-    </DialogContent><DialogActions><Button onClick={onClose}>Κλείσιμο</Button></DialogActions>
+    </DialogContent><DialogActions sx={{ px: 3, py: 2 }}><Button variant="contained" color="error" onClick={onClose} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, "&:hover": { bgcolor: "error.dark", color: "#fff" } }}>Κλείσιμο</Button></DialogActions>
   </Dialog>;
 }
 
@@ -381,5 +389,5 @@ function ProfileLine({ label, value, mono, link }: { label: string; value?: stri
 function ProductionOfficeProfileDialog({ open, office, onClose, onEdit }: { open: boolean; office: OfficeDto | null; onClose: () => void; onEdit: (office: OfficeDto) => void }) {
   const usersQ = useQuery({ queryKey: ["production-office-users", office?.id], enabled: open && !!office, queryFn: async () => (await api.get<OfficeUserDto[]>(`/agency-offices/${office!.id}/users`)).data });
   const users = (usersQ.data ?? []).filter(user => user.isAssigned);
-  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg"><DialogTitle><Stack direction="row" alignItems="center" spacing={1.25}><HomeWorkIcon color="primary" /><Box flex={1}><Typography variant="h5" fontWeight={850}>{office?.name}</Typography><Typography variant="caption" sx={{ fontFamily: "monospace" }}>{office?.code}</Typography></Box>{office && <Button size="small" startIcon={<EditIcon />} onClick={() => onEdit(office)}>Επεξεργασία</Button>}</Stack></DialogTitle><DialogContent dividers><Stack spacing={1.5}><ProfileMetricGrid items={[["Κατάσταση", office?.isActive ? "Ενεργό" : "Ανενεργό", office?.isActive ? "success" : "warning"], ["Ρόλος", office?.isHeadquarters ? "Κεντρικό" : "Υποκατάστημα", office?.isHeadquarters ? "info" : "info"], ["Χρήστες", String(office?.userCount ?? 0), "info"]]} /><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}><ProfileSection title="Ταυτότητα & διεύθυνση"><ProfileLine label="Κωδικός" value={office?.code} mono /><ProfileLine label="Όνομα" value={office?.name} /><ProfileLine label="Πόλη / ΤΚ" value={[office?.city, office?.postalCode].filter(Boolean).join(" · ")} /><ProfileLine label="Διεύθυνση" value={office?.address} /></ProfileSection><ProfileSection title="Επικοινωνία"><ProfileLine label="Email" value={office?.email} link={office?.email ? `mailto:${office.email}` : undefined} /><ProfileLine label="Τηλέφωνο" value={office?.phone} link={office?.phone ? `tel:${office.phone}` : undefined} /></ProfileSection></Box><ProfileSection title="Πρόσωπα & ρόλοι">{usersQ.isLoading ? <CircularProgress size={20} /> : users.length === 0 ? <Typography color="text.secondary">Δεν έχουν ανατεθεί χρήστες.</Typography> : users.map(user => <Box key={user.userId} sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 0.5, py: 0.65, borderBottom: "1px solid", borderColor: "divider" }}><Typography fontWeight={700}>{`${user.firstName} ${user.lastName}`.trim() || user.email}</Typography><Typography variant="body2" color="text.secondary">{user.role} · {user.email}{user.isPrimary ? " · κύριο γραφείο" : ""}</Typography></Box>)}</ProfileSection><ProfileSection title="Σημειώσεις & εσωτερική πληροφόρηση"><Typography sx={{ whiteSpace: "pre-wrap" }}>{office?.notes || "Δεν έχουν καταχωρηθεί σημειώσεις."}</Typography></ProfileSection></Stack></DialogContent><DialogActions><Button onClick={onClose}>Κλείσιμο</Button></DialogActions></Dialog>;
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg"><DialogTitle><Stack direction="row" alignItems="center" spacing={1.25}><HomeWorkIcon color="primary" /><Box flex={1}><Typography variant="h5" fontWeight={850}>{office?.name}</Typography><Typography variant="caption" sx={{ fontFamily: "monospace" }}>{office?.code}</Typography></Box>{office && <Button variant="contained" size="small" color="success" startIcon={<EditIcon />} onClick={() => onEdit(office)} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, boxShadow: 2, "&:hover": { bgcolor: "success.dark", color: "#fff" } }}>Επεξεργασία</Button>}</Stack></DialogTitle><DialogContent dividers><Stack spacing={1.5}><ProfileMetricGrid items={[["Κατάσταση", office?.isActive ? "Ενεργό" : "Ανενεργό", office?.isActive ? "success" : "warning"], ["Ρόλος", office?.isHeadquarters ? "Κεντρικό" : "Υποκατάστημα", office?.isHeadquarters ? "info" : "info"], ["Χρήστες", String(office?.userCount ?? 0), "info"]]} /><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}><ProfileSection title="Ταυτότητα & διεύθυνση"><ProfileLine label="Κωδικός" value={office?.code} mono /><ProfileLine label="Όνομα" value={office?.name} /><ProfileLine label="Πόλη / ΤΚ" value={[office?.city, office?.postalCode].filter(Boolean).join(" · ")} /><ProfileLine label="Διεύθυνση" value={office?.address} /></ProfileSection><ProfileSection title="Επικοινωνία"><ProfileLine label="Email" value={office?.email} link={office?.email ? `mailto:${office.email}` : undefined} /><ProfileLine label="Τηλέφωνο" value={office?.phone} link={office?.phone ? `tel:${office.phone}` : undefined} /></ProfileSection></Box><ProfileSection title="Πρόσωπα & ρόλοι">{usersQ.isLoading ? <CircularProgress size={20} /> : users.length === 0 ? <Typography color="text.secondary">Δεν έχουν ανατεθεί χρήστες.</Typography> : users.map(user => <Box key={user.userId} sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 0.5, py: 0.65, borderBottom: "1px solid", borderColor: "divider" }}><Typography fontWeight={700}>{`${user.firstName} ${user.lastName}`.trim() || user.email}</Typography><Typography variant="body2" color="text.secondary">{user.role} · {user.email}{user.isPrimary ? " · κύριο γραφείο" : ""}</Typography></Box>)}</ProfileSection><ProfileSection title="Σημειώσεις & εσωτερική πληροφόρηση"><Typography sx={{ whiteSpace: "pre-wrap" }}>{office?.notes || "Δεν έχουν καταχωρηθεί σημειώσεις."}</Typography></ProfileSection></Stack></DialogContent><DialogActions sx={{ px: 3, py: 2 }}><Button variant="contained" color="error" onClick={onClose} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, "&:hover": { bgcolor: "error.dark", color: "#fff" } }}>Κλείσιμο</Button></DialogActions></Dialog>;
 }
