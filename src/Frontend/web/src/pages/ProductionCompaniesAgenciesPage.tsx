@@ -171,7 +171,10 @@ function EmptyDirectory({ text }: { text: string }) {
 function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { open: boolean; company: CompanyDto | null; onClose: () => void; onEdit: (company: CompanyDto) => void }) {
   const [tab, setTab] = useState(0);
   const q = useQuery({ queryKey: ["production-company-profile", company?.id], enabled: open && !!company, queryFn: async () => (await api.get<CarrierProfile>(`/insurance-companies/${company!.id}/profile`)).data });
+  const workspaceQ = useQuery({ queryKey: ["production-company-workspace", company?.id], enabled: open && !!company, queryFn: async () => (await api.get<CompanyWorkspace>(`/insurance-companies/${company!.id}/workspace`)).data });
   const p = q.data;
+  const workspace = workspaceQ.data;
+  const customValue = (...aliases: string[]) => workspace?.fields.find(field => aliases.some(alias => field.key.toLocaleLowerCase("el-GR").includes(alias) || field.label.toLocaleLowerCase("el-GR").includes(alias)))?.value ?? null;
   const eur = (value: number) => value.toLocaleString("el-GR", { style: "currency", currency: "EUR" });
   const date = (value: string | null) => value ? new Date(value).toLocaleDateString("el-GR") : "—";
   return <Dialog open={open} onClose={onClose} fullWidth maxWidth="xl">
@@ -225,6 +228,40 @@ function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { op
           ]} />
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}><ProfileSection title="Ταυτότητα εταιρείας"><ProfileLine label="ΑΦΜ / VAT" value={p.afmVat} /><ProfileLine label="Χώρα" value={p.country} /><ProfileLine label="Κωδικός συνεργασίας" value={p.agentCode} mono /><ProfileLine label="Website" value={p.website} link={p.website ?? undefined} /></ProfileSection><ProfileSection title="Επαφή & υπεύθυνοι"><ProfileLine label="Υπεύθυνος" value={p.contactName} /><ProfileLine label="Email" value={p.contactEmail} link={p.contactEmail ? `mailto:${p.contactEmail}` : undefined} /><ProfileLine label="Τηλέφωνο" value={p.contactPhone} link={p.contactPhone ? `tel:${p.contactPhone}` : undefined} /></ProfileSection></Box>
           <ProfileSection title="Σημειώσεις"><Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>{p.notes || "Δεν έχουν καταχωρηθεί σημειώσεις."}</Typography></ProfileSection>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}>
+            <ProfileSection title="Διεύθυνση & στοιχεία έδρας">
+              <ProfileLine label="Διεύθυνση" value={customValue("address", "διεύθυνση", "εδρα", "έδρα")} />
+              <ProfileLine label="Πόλη" value={customValue("city", "πόλη")} />
+              <ProfileLine label="Τ.Κ." value={customValue("postal", "ταχυδρομ", "τκ", "zip")} mono />
+              <ProfileLine label="Χώρα" value={p.country} />
+              <ProfileLine label="ΑΦΜ / VAT" value={p.afmVat} mono />
+              <ProfileLine label="Κωδικός συνεργασίας" value={p.agentCode} mono />
+            </ProfileSection>
+            <ProfileSection title="Ιστοσελίδα & ψηφιακή παρουσία">
+              <ProfileLine label="Ιστοσελίδα" value={p.website} link={p.website ?? undefined} />
+              <ProfileLine label="Facebook" value={customValue("facebook", "fb")} link={customValue("facebook", "fb") ?? undefined} />
+              <ProfileLine label="Instagram" value={customValue("instagram", "insta")} link={customValue("instagram", "insta") ?? undefined} />
+              <ProfileLine label="LinkedIn" value={customValue("linkedin", "linked in")} link={customValue("linkedin", "linked in") ?? undefined} />
+              <ProfileLine label="X / Twitter" value={customValue("twitter", "x.com")} link={customValue("twitter", "x.com") ?? undefined} />
+              <ProfileLine label="Google Maps" value={customValue("google maps", "maps")} link={customValue("google maps", "maps") ?? undefined} />
+            </ProfileSection>
+          </Box>
+          <ProfileSection title="Πρόσωπα, στελέχη & πολλαπλές επικοινωνίες">
+            {workspaceQ.isLoading && <Typography variant="body2" color="text.secondary">Φόρτωση επαφών…</Typography>}
+            {!workspaceQ.isLoading && (workspace?.contacts ?? []).filter(contact => contact.isActive).length === 0 && <Typography variant="body2" color="text.secondary">Δεν έχουν καταχωρηθεί επιπλέον στελέχη. Μπορείτε να τα προσθέσετε από την καρτέλα «Έγγραφα & πεδία».</Typography>}
+            <Stack spacing={.75}>
+              {(workspace?.contacts ?? []).filter(contact => contact.isActive).map(contact => <Box key={contact.id} sx={{ p: 1, border: "1px solid", borderColor: contact.isPrimary ? "primary.light" : "divider", borderRadius: 1.25, bgcolor: contact.isPrimary ? "rgba(25,118,210,.06)" : "rgba(248,250,252,.8)" }}>
+                <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" gap={.5}>
+                  <Box><Typography fontWeight={800}>{contact.name}{contact.isPrimary && <Chip size="small" color="primary" label="Κύρια επαφή" sx={{ ml: .75 }} />}</Typography><Typography variant="caption" color="text.secondary">{[contact.role, contact.department].filter(Boolean).join(" · ") || "Στέλεχος / επαφή"}</Typography></Box>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap><Typography variant="body2">{contact.email || "—"}</Typography><Typography variant="body2">{contact.phone || "—"}</Typography><Typography variant="body2">{contact.mobile || "—"}</Typography></Stack>
+                </Stack>
+                {contact.notes && <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: .5 }}>{contact.notes}</Typography>}
+              </Box>)}
+            </Stack>
+          </ProfileSection>
+          <ProfileSection title="Επιπλέον στοιχεία εταιρείας">
+            {(workspace?.fields ?? []).filter(field => field.isActive && field.value?.trim()).length === 0 ? <Typography variant="body2" color="text.secondary">Δεν έχουν συμπληρωθεί πρόσθετα πεδία. Τα πεδία που δημιουργεί το γραφείο εμφανίζονται αυτόματα εδώ.</Typography> : <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, columnGap: 2 }}>{(workspace?.fields ?? []).filter(field => field.isActive && field.value?.trim()).map(field => <ProfileLine key={field.id} label={field.label} value={field.value} link={/^https?:\/\//i.test(field.value ?? "") ? field.value ?? undefined : undefined} />)}</Box>}
+          </ProfileSection>
         </Stack>}
         {tab === 1 && <Stack spacing={1.5}><ProfileMetricGrid items={[["Ενεργά", String(p.activePolicies), "success"], ["Μικτά", eur(p.activePremiumTotal), "info"], ["Καθαρά", eur(p.activeNetPremiumTotal), "info"], ["Σύνολο ζημιών", String(p.totalClaims), p.openClaims ? "warning" : "success"]]} /><ProfileSection title="Πρόσφατα συμβόλαια"><Table size="small"><TableHead><TableRow><TableCell>Αριθμός</TableCell><TableCell>Πελάτης</TableCell><TableCell>Κλάδος</TableCell><TableCell>Έναρξη</TableCell><TableCell>Λήξη</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Κατάσταση</TableCell></TableRow></TableHead><TableBody>{p.recentPolicies.map(row => <TableRow key={row.id} hover><TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{row.policyNumber}</TableCell><TableCell>{row.customerName || "—"}</TableCell><TableCell>{row.policyType}</TableCell><TableCell>{date(row.startDate)}</TableCell><TableCell>{date(row.endDate)}</TableCell><TableCell align="right">{eur(row.premium)}</TableCell><TableCell><Chip size="small" label={row.status} /></TableCell></TableRow>)}</TableBody></Table>{p.recentPolicies.length === 0 && <Typography color="text.secondary">Δεν υπάρχουν πρόσφατα συμβόλαια.</Typography>}</ProfileSection></Stack>}
         {tab === 2 && <Stack spacing={1.5}><ProfileMetricGrid items={[["Κλάδοι", String(p.branchCount), "info"], ["Πακέτα", String(p.packageCount), "info"], ["Χρήσεις", String(p.useCount), "info"], ["Καλύψεις", String(p.coverageCount), "info"], ["Γέφυρα", p.bridgeLinked ? "Συνδεδεμένη" : "Χωρίς σύνδεση", p.bridgeLinked ? "success" : "warning"]]} /><ProfileSection title="Σύνδεση εταιρείας"><ProfileLine label="Πηγή γέφυρας" value={p.bridgeLinkedSourceCarrier} /><ProfileLine label="Κατάσταση" value={p.isActive ? "Ενεργή" : "Ανενεργή"} /><ProfileLine label="Δημιουργήθηκε" value={date(p.createdAt)} /></ProfileSection></Stack>}
