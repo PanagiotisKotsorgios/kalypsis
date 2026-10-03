@@ -488,7 +488,22 @@ export function CustomersPage() {
           ]}
         />}
       >
-        <Stack direction={{ xs: "column", md: "row" }} spacing={0.5} alignItems={{ xs: "stretch", md: "center" }} flexWrap="wrap" useFlexGap sx={{ "& > .MuiTextField-root, & > .MuiFormControl-root, & > .MuiFormControlLabel-root, & > .MuiBox-root": { flex: { md: "1 1 135px" }, minWidth: { md: 125 } }, "& .MuiInputBase-root": { minHeight: 38 }, "& .MuiInputLabel-root": { fontSize: "0.78rem" } }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={0.5}
+          alignItems={{ xs: "stretch", md: "center" }}
+          flexWrap={{ xs: "wrap", md: "nowrap" }} useFlexGap
+          sx={{
+            width: "100%",
+            minWidth: 0,
+            overflowX: { xs: "visible", md: "auto" },
+            overflowY: "hidden",
+            pb: { xs: 0, md: 0.25 },
+            "& > .MuiTextField-root, & > .MuiFormControl-root, & > .MuiFormControlLabel-root, & > .MuiBox-root": {
+              flex: { md: "0 0 auto" },
+              minWidth: { md: 125 },
+            },
+            "& .MuiInputBase-root": { minHeight: 36 },
+            "& .MuiInputLabel-root": { fontSize: "0.76rem" },
+          }}>
           <TextField
             size="small"
             placeholder={t("customers.searchPlaceholder")}
