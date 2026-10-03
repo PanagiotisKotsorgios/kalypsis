@@ -259,6 +259,12 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<PlatformCarrierReference> PlatformCarrierReferences => Set<PlatformCarrierReference>();
     public DbSet<PlatformBackup> PlatformBackups => Set<PlatformBackup>();
     public DbSet<CarrierBridgeConfig> CarrierBridgeConfigs => Set<CarrierBridgeConfig>();
+    public DbSet<InsuranceCompanyFolder> InsuranceCompanyFolders => Set<InsuranceCompanyFolder>();
+    public DbSet<InsuranceCompanyDocument> InsuranceCompanyDocuments => Set<InsuranceCompanyDocument>();
+    public DbSet<InsuranceCompanyCategory> InsuranceCompanyCategories => Set<InsuranceCompanyCategory>();
+    public DbSet<InsuranceCompanyContact> InsuranceCompanyContacts => Set<InsuranceCompanyContact>();
+    public DbSet<InsuranceCompanyFieldDefinition> InsuranceCompanyFieldDefinitions => Set<InsuranceCompanyFieldDefinition>();
+    public DbSet<InsuranceCompanyFieldValue> InsuranceCompanyFieldValues => Set<InsuranceCompanyFieldValue>();
     public DbSet<OverCommissionStatement> OverCommissionStatements => Set<OverCommissionStatement>();
     public DbSet<GeneralFinancialEntry>   GeneralFinancialEntries   => Set<GeneralFinancialEntry>();
 

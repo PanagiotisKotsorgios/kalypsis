@@ -13,6 +13,12 @@ public interface IAppDbContext
     DbSet<CustomerInsuranceNeed> CustomerInsuranceNeeds { get; }
     DbSet<Producer> Producers { get; }
     DbSet<InsuranceCompany> InsuranceCompanies { get; }
+    DbSet<InsuranceCompanyFolder> InsuranceCompanyFolders { get; }
+    DbSet<InsuranceCompanyDocument> InsuranceCompanyDocuments { get; }
+    DbSet<InsuranceCompanyCategory> InsuranceCompanyCategories { get; }
+    DbSet<InsuranceCompanyContact> InsuranceCompanyContacts { get; }
+    DbSet<InsuranceCompanyFieldDefinition> InsuranceCompanyFieldDefinitions { get; }
+    DbSet<InsuranceCompanyFieldValue> InsuranceCompanyFieldValues { get; }
     DbSet<CompanyParameterItem> CompanyParameterItems { get; }
     DbSet<Policy> Policies { get; }
     DbSet<PolicyDocument> PolicyDocuments { get; }

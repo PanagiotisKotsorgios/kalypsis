@@ -181,6 +181,7 @@ import { PlatformMaintenancePage } from "./pages/PlatformMaintenancePage";
 import { PlatformAnnouncementsPage } from "./pages/PlatformAnnouncementsPage";
 import { InsuranceCompaniesPage } from "./pages/InsuranceCompaniesPage";
 import { CompaniesAndAgenciesPage } from "./pages/CompaniesAndAgenciesPage";
+import ProductionCompaniesAgenciesPage from "./pages/ProductionCompaniesAgenciesPage";
 import { EndorsementsPage } from "./pages/EndorsementsPage";
 import { PolicyCancellationsPage } from "./pages/PolicyCancellationsPage";
 import { CommissionRulesPage } from "./pages/CommissionRulesPage";
@@ -308,7 +309,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     // Sidebar consolidation: /production-report (ετήσια παραγωγή) is
     // reachable as a button inside /production-lists.
     { to: "/production-lists", labelKey: "nav.productionLists", icon: <LeaderboardIcon />, package: "BackOffice", group: "production" },
-    { to: "/companies-agencies", labelKey: "nav.companiesAgencies", icon: <BusinessIcon />, package: "BackOffice", group: "production" },
+    { to: "/production-companies-agencies", labelKey: "nav.companiesAgencies", icon: <BusinessIcon />, package: "BackOffice", group: "production" },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice", group: "production" },
     { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice", group: "production" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice", group: "production" },
@@ -1045,6 +1046,7 @@ export default function App() {
                   <Route path="company-bridges" element={<CompanyBridgesPage />} />
                   <Route path="insurance-companies" element={<InsuranceCompaniesPage />} />
                   <Route path="companies-agencies" element={<CompaniesAndAgenciesPage />} />
+                  <Route path="production-companies-agencies" element={<ProductionCompaniesAgenciesPage />} />
                   <Route path="endorsements" element={<EndorsementsPage />} />
                   <Route path="cancellations" element={<PolicyCancellationsPage />} />
                   <Route path="credit-notes" element={<Navigate to="/app/financials?tab=creditNotes" replace />} />

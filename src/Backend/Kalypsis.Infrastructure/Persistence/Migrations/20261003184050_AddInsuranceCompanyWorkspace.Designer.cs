@@ -4,6 +4,7 @@ using Kalypsis.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Kalypsis.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261003184050_AddInsuranceCompanyWorkspace")]
+    partial class AddInsuranceCompanyWorkspace
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -7384,114 +7387,6 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("insurance_companies", (string)null);
-                });
-
-            modelBuilder.Entity("Kalypsis.Domain.Entities.InsuranceCompanyCategory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<Guid?>("AgencyOfficeScopeId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Color")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<Guid>("InsuranceCompanyId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InsuranceCompanyId");
-
-                    b.ToTable("InsuranceCompanyCategories");
-                });
-
-            modelBuilder.Entity("Kalypsis.Domain.Entities.InsuranceCompanyContact", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<Guid?>("AgencyOfficeScopeId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Department")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Email")
-                        .HasColumnType("longtext");
-
-                    b.Property<Guid>("InsuranceCompanyId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsPrimary")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Mobile")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Phone")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("PreferredChannel")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Role")
-                        .HasColumnType("longtext");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InsuranceCompanyId");
-
-                    b.ToTable("InsuranceCompanyContacts");
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.InsuranceCompanyDocument", b =>
@@ -15889,28 +15784,6 @@ namespace Kalypsis.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Installment");
-                });
-
-            modelBuilder.Entity("Kalypsis.Domain.Entities.InsuranceCompanyCategory", b =>
-                {
-                    b.HasOne("Kalypsis.Domain.Entities.InsuranceCompany", "InsuranceCompany")
-                        .WithMany()
-                        .HasForeignKey("InsuranceCompanyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("InsuranceCompany");
-                });
-
-            modelBuilder.Entity("Kalypsis.Domain.Entities.InsuranceCompanyContact", b =>
-                {
-                    b.HasOne("Kalypsis.Domain.Entities.InsuranceCompany", "InsuranceCompany")
-                        .WithMany()
-                        .HasForeignKey("InsuranceCompanyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("InsuranceCompany");
                 });
 
             modelBuilder.Entity("Kalypsis.Domain.Entities.InsuranceCompanyDocument", b =>

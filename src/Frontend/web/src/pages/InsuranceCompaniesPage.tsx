@@ -16,7 +16,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
 import { BulkImportDialog, type BulkImportColumn, type BulkImportResult } from "../components/BulkImportDialog";
 
-interface CompanyDto {
+export interface CompanyDto {
   id: string;
   name: string;
   code: string;
@@ -495,7 +495,7 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
   );
 }
 
-function CompanyDialog({ open, onClose, item, onSaved }: {
+export function CompanyDialog({ open, onClose, item, onSaved }: {
   open: boolean; onClose: () => void; item: CompanyDto | null; onSaved: () => void;
 }) {
   // A fresh carrier starts EMPTY: no auto-provisioned bridge, no zero-
@@ -624,7 +624,7 @@ function CompanyDialog({ open, onClose, item, onSaved }: {
    a "recent policies" sample. Fires "Επεξεργασία" from the header so the
    operator can jump straight into the edit dialog.
    ========================================================================= */
-interface CarrierProfile {
+export interface CarrierProfile {
   id: string; code: string; name: string;
   country: string | null; website: string | null;
   agentCode: string | null; afmVat: string | null;
@@ -643,7 +643,7 @@ interface CarrierProfile {
   }>;
 }
 
-function CarrierProfileDialog({ open, carrier, onClose, onEdit }: {
+export function CarrierProfileDialog({ open, carrier, onClose, onEdit }: {
   open: boolean;
   carrier: CompanyDto | null;
   onClose: () => void;

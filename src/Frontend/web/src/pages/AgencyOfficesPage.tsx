@@ -15,7 +15,7 @@ import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 
-interface OfficeDto {
+export interface OfficeDto {
   id: string;
   code: string;
   name: string;
@@ -286,7 +286,7 @@ function OfficeUsersDialog({ open, office, onClose, onSaved }: {
   );
 }
 
-function OfficeDialog({ open, onClose, item, onSaved }: {
+export function OfficeDialog({ open, onClose, item, onSaved }: {
   open: boolean; onClose: () => void; item: OfficeDto | null; onSaved: () => void;
 }) {
   const editing = !!item;
