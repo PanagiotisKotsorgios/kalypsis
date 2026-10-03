@@ -19,6 +19,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<Kalypsis.Api.Startup.StartupReadiness>();
 
 // ── DataProtection: persist keys across container restarts ────────────
 // The default provider stores keys under ~/.aspnet/DataProtection-Keys
@@ -349,6 +350,29 @@ app.UseMiddleware<ExceptionMiddleware>();
 app.UseStaticFiles();
 app.UseCors("frontend");
 app.UseRateLimiter();
+// Start serving the API before the database bootstrap completes.  During a
+// cold deploy this keeps nginx/Cloudflare connected to a live process instead
+// of a closed upstream port.  Health/version stay reachable; application API
+// calls receive a retryable 503 until migrations and seeders are ready.
+var startupReadiness = app.Services.GetRequiredService<Kalypsis.Api.Startup.StartupReadiness>();
+app.Use(async (context, next) =>
+{
+    var isHealth = context.Request.Path.Equals("/api/health", StringComparison.OrdinalIgnoreCase)
+                   || context.Request.Path.Equals("/api/version", StringComparison.OrdinalIgnoreCase);
+    if (context.Request.Path.StartsWithSegments("/api") && !isHealth && !startupReadiness.IsReady)
+    {
+        context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+        context.Response.Headers.RetryAfter = "10";
+        await context.Response.WriteAsJsonAsync(new
+        {
+            code = "service_starting",
+            message = "Η υπηρεσία προετοιμάζεται. Δοκιμάστε ξανά σε λίγα δευτερόλεπτα."
+        });
+        return;
+    }
+
+    await next();
+});
 app.UseAuthentication();
 // Resolve and validate the selected agency office before authorization and
 // controller queries.  This keeps office isolation server-side; the header is
@@ -374,12 +398,26 @@ app.Use(async (context, next) =>
 });
 app.UseAuthorization();
 
-app.MapGet("/api/health", () => Results.Ok(new
+app.MapGet("/api/health", (Kalypsis.Api.Startup.StartupReadiness readiness) =>
 {
-    status = "ok",
-    service = "kalypsis-api",
-    utcNow = DateTime.UtcNow
-}));
+    if (!readiness.IsReady)
+    {
+        return Results.Json(new
+        {
+            status = "starting",
+            service = "kalypsis-api",
+            utcNow = DateTime.UtcNow,
+            retryAfterSeconds = 10
+        }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+
+    return Results.Ok(new
+    {
+        status = "ok",
+        service = "kalypsis-api",
+        utcNow = DateTime.UtcNow
+    });
+});
 
 // Lightweight contract-discovery endpoint. Clients hit this on boot to confirm
 // they're talking to a compatible API version (today: 1). When a breaking
@@ -394,14 +432,53 @@ app.MapControllers();
 
 // Prime the EncryptedStringConverter BEFORE any DbContext resolves — every
 // entity read/write for the sensitive columns depends on this having run.
-using (var bootScope = app.Services.CreateScope())
+// Start listening before migrations/seeders. This prevents the reverse proxy
+// and Cloudflare from seeing a closed upstream during a cold deploy. The
+// readiness middleware keeps application requests out until bootstrap is done,
+// while transient database failures are retried instead of killing the API.
+async Task BootstrapDatabaseAsync(CancellationToken stoppingToken)
 {
-    bootScope.ServiceProvider
-        .GetRequiredService<Kalypsis.Infrastructure.Persistence.EncryptedStringBootstrapper>()
-        .Initialize();
+    var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("StartupBootstrap");
+
+    while (!stoppingToken.IsCancellationRequested)
+    {
+        try
+        {
+            // Prime the encrypted-string converter before any DbContext resolves.
+            using (var bootScope = app.Services.CreateScope())
+            {
+                bootScope.ServiceProvider
+                    .GetRequiredService<Kalypsis.Infrastructure.Persistence.EncryptedStringBootstrapper>()
+                    .Initialize();
+            }
+
+            await DataSeeder.SeedAsync(app.Services, stoppingToken);
+            await DemoDataSeeder.SeedAsync(app.Services, stoppingToken);
+            startupReadiness.MarkReady();
+            logger.LogInformation("Database bootstrap completed; API is ready.");
+            return;
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            startupReadiness.MarkFailure(ex);
+            logger.LogError(ex, "Database bootstrap failed; retrying in 15 seconds.");
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+        }
+    }
 }
 
-await DataSeeder.SeedAsync(app.Services);
-await DemoDataSeeder.SeedAsync(app.Services);
-
-app.Run();
+await app.StartAsync();
+var bootstrapTask = BootstrapDatabaseAsync(app.Lifetime.ApplicationStopping);
+await app.WaitForShutdownAsync();
+await bootstrapTask;
