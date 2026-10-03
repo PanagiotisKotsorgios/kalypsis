@@ -227,13 +227,13 @@ export function CustomerDetailPage() {
           <Typography variant="caption" color="text.secondary">Προβολή στοιχείων · επεξεργασία μόνο με το κουμπί επεξεργασίας</Typography>
         </Stack>
       </DialogTitle>
-      <DialogContent dividers sx={{ p: { xs: 1.5, md: 3 } }}>
+      <DialogContent dividers sx={{ p: { xs: 1, md: 1.75 }, "& .MuiTypography-root": { lineHeight: 1.25 } }}>
       <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5} gap={1.5}>
         <Box>
           <Typography variant="overline" color="text.secondary">{customer.customerNumber}</Typography>
           <Typography variant="h4" sx={{ fontWeight: 800 }}>{displayName}</Typography>
-          <Stack direction="row" spacing={1} mt={1}>
+          <Stack direction="row" spacing={0.75} mt={0.5} flexWrap="wrap" useFlexGap>
             <Chip label={customer.status === "Prospect" ? "Πιθανός πελάτης" : customer.status} size="small" color={statusColor(customer.status)} />
             <Chip label={customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο"} size="small" />
             {customer.email && <Chip label={customer.email} size="small" variant="outlined" />}
@@ -276,7 +276,7 @@ export function CustomerDetailPage() {
 
       <CustomerSummaryCard customerId={id} />
 
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" allowScrollButtonsMobile sx={{ mb: 3, borderBottom: 1, borderColor: "divider" }}>
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" allowScrollButtonsMobile sx={{ mb: 1.5, minHeight: 40, borderBottom: 1, borderColor: "divider", "& .MuiTab-root": { minHeight: 40, py: 0.5, px: 1.25 } }}>
         <Tab label="Επισκόπηση & στοιχεία" />
         <Tab icon={<DirectionsCarIcon fontSize="small" />} iconPosition="start" label="Συμβόλαια & οχήματα" />
         <Tab label="Ζημίες & οικονομικά" />
@@ -405,9 +405,9 @@ function CustomerSummaryCard({ customerId }: { customerId: string }) {
   const fmt = (n: number) => n.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
-    <Card variant="outlined" sx={{ p: 2.5, mb: 3 }}>
+    <Card variant="outlined" sx={{ p: { xs: 1.25, md: 1.5 }, mb: 1.5 }}>
       {q.isLoading ? <CircularProgress size={22} /> : q.data ? (
-        <Stack direction="row" spacing={3} flexWrap="wrap" alignItems="center">
+        <Stack direction="row" spacing={{ xs: 1.25, md: 2 }} flexWrap="wrap" useFlexGap alignItems="center">
           <Chip label={`Κατηγορία: ${q.data.tier}`}
             color={TIER_COLOR[q.data.tier] ?? "default"} sx={{ fontWeight: 800 }}
             title={q.data.tierReason} />
@@ -464,8 +464,8 @@ function CustomerVehiclesTab({ customerId, compact = false }: { customerId: stri
   if (q.isError) return <Alert severity="error">{extractErrorMessage(q.error)}</Alert>;
   const rows = q.data ?? [];
   return (
-    <Card variant="outlined" sx={{ p: compact ? 2 : 2.5 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+    <Card variant="outlined" sx={{ p: compact ? 1.25 : 2.5 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: compact ? 0.75 : 1.5 }}>
         <Box><Typography variant={compact ? "subtitle1" : "h6"} fontWeight={800}>Οχήματα πελάτη</Typography><Typography variant="body2" color="text.secondary">Αυτόματη προβολή από τα συμβόλαια αυτοκινήτου.</Typography></Box>
         <Chip size="small" icon={<DirectionsCarIcon />} label={`${rows.length} συμβόλαια`} />
       </Stack>
@@ -697,20 +697,20 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
     ] }
   ];
   return (
-    <Stack spacing={2}>
-      <Card variant="outlined" sx={{ p: 2.5 }}>
-        <Typography variant="h6" sx={{ mb: 1 }}>Ενιαία καρτέλα πελάτη</Typography>
-        <Typography variant="body2" color="text.secondary">Όλα τα στοιχεία του πελάτη συγκεντρωμένα σε μία προβολή. Για αλλαγές πατήστε «Επεξεργασία πλήρους καρτέλας» επάνω.</Typography>
+    <Stack spacing={1.25}>
+      <Card variant="outlined" sx={{ p: { xs: 1.25, md: 1.5 } }}>
+        <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.5 }}>Ενιαία καρτέλα πελάτη</Typography>
+        <Typography variant="body2" color="text.secondary">Όλα τα στοιχεία συγκεντρωμένα εδώ. Για αλλαγές πατήστε «Επεξεργασία πλήρους καρτέλας».</Typography>
       </Card>
-      {groups.map(group => <Card key={group.title} variant="outlined" sx={{ p: 2.5 }}>
-        <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 1.5 }}>{group.title}</Typography>
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }, gap: 1.5 }}>
-          {group.fields.map(([label, value]) => <Box key={label} sx={{ p: 1.25, bgcolor: "background.default", borderRadius: 1 }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={600} sx={{ wordBreak: "break-word" }}>{value}</Typography></Box>)}
+      {groups.map(group => <Card key={group.title} variant="outlined" sx={{ p: { xs: 1.25, md: 1.5 } }}>
+        <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75 }}>{group.title}</Typography>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 0.75 }}>
+          {group.fields.map(([label, value]) => <Box key={label} sx={{ p: 0.75, bgcolor: "background.default", borderRadius: 1, minWidth: 0 }}><Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.7rem" }}>{label}</Typography><Typography variant="body2" fontWeight={600} sx={{ wordBreak: "break-word" }}>{value}</Typography></Box>)}
         </Box>
       </Card>)}
-      <Card variant="outlined" sx={{ p: 2.5 }}>
-        <Typography variant="subtitle1" fontWeight={800}>Σημειώσεις</Typography>
-        <Typography sx={{ mt: 1, whiteSpace: "pre-wrap" }}>{customer.notes ?? "Δεν υπάρχουν σημειώσεις."}</Typography>
+      <Card variant="outlined" sx={{ p: { xs: 1.25, md: 1.5 } }}>
+        <Typography variant="subtitle2" fontWeight={800}>Σημειώσεις</Typography>
+        <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}>{customer.notes ?? "Δεν υπάρχουν σημειώσεις."}</Typography>
       </Card>
       <CustomerVehiclesTab customerId={customer.id} compact />
     </Stack>
