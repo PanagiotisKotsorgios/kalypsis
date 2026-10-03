@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, IconButton, Popover, Stack, Tab, Table, TableBody, TableCell, TableHead,
+  DialogTitle, FormControlLabel, IconButton, Popover, Stack, Switch, Tab, Table, TableBody, TableCell, TableHead,
   TableRow, Tabs, TextField, Tooltip, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -18,14 +18,15 @@ import FolderIcon from "@mui/icons-material/Folder";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import SearchIcon from "@mui/icons-material/Search";
+import SaveIcon from "@mui/icons-material/Save";
 import StarIcon from "@mui/icons-material/Star";
 import TuneIcon from "@mui/icons-material/Tune";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
-import { CompanyDialog, type CarrierProfile, type CompanyDto } from "./InsuranceCompaniesPage";
-import { OfficeDialog, type OfficeDto } from "./AgencyOfficesPage";
+import { type CarrierProfile, type CompanyDto } from "./InsuranceCompaniesPage";
+import { type OfficeDto } from "./AgencyOfficesPage";
 
 interface OfficeUserDto {
   userId: string;
@@ -178,10 +179,10 @@ export default function ProductionCompaniesAgenciesPage() {
           onDelete={setOfficeDeleteTarget} />
       )}
 
-      <CompanyDialog open={companyEditor !== undefined} item={companyEditor ?? null}
+      <ProductionCompanyEditorDialog open={companyEditor !== undefined} item={companyEditor ?? null}
         onClose={() => setCompanyEditor(undefined)}
         onSaved={(saved) => { void qc.invalidateQueries({ queryKey: ["production-companies-directory"] }); void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); setCompanyEditor(undefined); if (saved) setCompanyProfile(saved); }} />
-      <OfficeDialog open={officeEditor !== undefined} item={officeEditor ?? null}
+      <ProductionOfficeEditorDialog open={officeEditor !== undefined} item={officeEditor ?? null}
         onClose={() => setOfficeEditor(undefined)}
         onSaved={(saved) => { void qc.invalidateQueries({ queryKey: ["production-agency-offices-directory"] }); void qc.invalidateQueries({ queryKey: ["agency-offices"] }); setOfficeEditor(undefined); if (saved) setOfficeProfile(saved); }} />
       <ProductionCompanyProfileDialog open={!!companyProfile} company={companyProfile} onClose={() => setCompanyProfile(null)} onEdit={company => { setCompanyProfile(null); setCompanyEditor(company); }} />
@@ -377,6 +378,96 @@ function CompanyCommunicationSection({ companyId, workspace }: { companyId: stri
     </ProfileSection>
     <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm"><DialogTitle>Προσθήκη πρόσφατης επικοινωνίας</DialogTitle><DialogContent><Stack spacing={1.25} sx={{ pt: 1 }}><TextField select size="small" label="Κανάλι" value={form.kind} onChange={event => setForm({ ...form, kind: event.target.value })} SelectProps={{ native: true }}><option>Email</option><option>Τηλέφωνο</option><option>SMS</option><option>Συνάντηση</option><option>Σημείωση</option></TextField><TextField select size="small" label="Κατεύθυνση" value={form.direction} onChange={event => setForm({ ...form, direction: event.target.value })} SelectProps={{ native: true }}><option value="Outbound">Εξερχόμενη</option><option value="Inbound">Εισερχόμενη</option><option value="Internal">Εσωτερική σημείωση</option></TextField>{contacts.length > 0 && <TextField select size="small" label="Επαφή εταιρείας" value={form.contactId} onChange={event => chooseContact(event.target.value)} SelectProps={{ native: true }}><option value="">Χωρίς επιλογή</option>{contacts.map(contact => <option key={contact.id} value={contact.id}>{contact.name}</option>)}</TextField>}<Stack direction={{ xs: "column", sm: "row" }} spacing={1}><TextField fullWidth size="small" label="Όνομα επαφής" value={form.contactName} onChange={event => setForm({ ...form, contactName: event.target.value })} /><TextField fullWidth size="small" label="Email / τηλέφωνο" value={form.contactEmail || form.contactPhone} onChange={event => setForm({ ...form, contactEmail: event.target.value })} /></Stack><TextField size="small" type="datetime-local" label="Ημερομηνία & ώρα" value={form.occurredAt} onChange={event => setForm({ ...form, occurredAt: event.target.value })} InputLabelProps={{ shrink: true }} /><TextField size="small" label="Θέμα" value={form.subject} onChange={event => setForm({ ...form, subject: event.target.value })} /><TextField size="small" label="Σημειώσεις επικοινωνίας" value={form.body} onChange={event => setForm({ ...form, body: event.target.value })} multiline minRows={4} /></Stack></DialogContent><DialogActions><Button onClick={() => setOpen(false)}>Ακύρωση</Button><Button variant="contained" color="primary" onClick={() => save.mutate()} disabled={save.isPending}>Αποθήκευση</Button></DialogActions></Dialog>
   </Stack>;
+}
+
+type CompanyEditorForm = {
+  name: string; code: string; country: string | null; website: string | null; isActive: boolean;
+  agentCode: string | null; contactName: string | null; contactEmail: string | null;
+  contactPhone: string | null; afmVat: string | null; notes: string | null;
+  createBridge: boolean; bridgeName: string | null; bridgeAutoSync: boolean; bridgeConfigJson: string | null;
+  installZeroCommissionDefaults: boolean;
+};
+
+const blankCompanyEditorForm = (): CompanyEditorForm => ({
+  name: "", code: "", country: "Ελλάδα", website: null, isActive: true,
+  agentCode: null, contactName: null, contactEmail: null, contactPhone: null,
+  afmVat: null, notes: null, createBridge: false, bridgeName: null,
+  bridgeAutoSync: false, bridgeConfigJson: null, installZeroCommissionDefaults: false,
+});
+
+const PROFILE_TAB_LABELS = [
+  { label: "Σύνοψη", icon: <InfoOutlinedIcon fontSize="small" /> },
+  { label: "Παραγωγή & συμβόλαια", icon: <DescriptionIcon fontSize="small" /> },
+  { label: "Σύνδεση & παραμετρικά", icon: <TuneIcon fontSize="small" /> },
+  { label: "Επικοινωνία", icon: <ContactPhoneIcon fontSize="small" /> },
+  { label: "Έγγραφα & πεδία", icon: <FolderIcon fontSize="small" /> },
+];
+
+function WorkspaceProfileTabs({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  return <Tabs value={value} onChange={(_, next: number) => onChange(next)} variant="standard" sx={{
+    position: "sticky", top: 0, zIndex: 4, mb: 2, px: .5, py: .5,
+    border: "1px solid", borderColor: "divider", borderRadius: 2,
+    bgcolor: "background.paper", boxShadow: "0 3px 10px rgba(15,23,42,.12)",
+    overflow: "visible", "& .MuiTabs-scroller": { overflow: "visible !important" },
+    "& .MuiTabs-flexContainer": { gap: .75, flexWrap: "wrap" },
+    "& .MuiTabs-indicator": { display: "none" },
+    "& .MuiTab-root": {
+      minHeight: 54, minWidth: { xs: 132, md: 168 }, px: 1.5, py: .75,
+      border: "1px solid #b8c0c8", borderRadius: 1.5,
+      background: "linear-gradient(180deg, #f7f8fa 0%, #e1e5e9 100%)",
+      color: "#263238", textTransform: "none", fontWeight: 750,
+      transition: "background .15s ease, color .15s ease, border-color .15s ease",
+      "&:hover": { background: "#d6dce2", color: "#0b2545", transform: "none" },
+      "&.Mui-selected": { background: "linear-gradient(135deg, #1976d2 0%, #0b4f92 100%)", color: "#fff", borderColor: "#0b4f92", boxShadow: "0 3px 8px rgba(25,118,210,.28)" },
+    },
+  }}>{PROFILE_TAB_LABELS.map(item => <Tab key={item.label} icon={item.icon} iconPosition="start" label={item.label} />)}</Tabs>;
+}
+
+function ProductionCompanyEditorDialog({ open, item, onClose, onSaved }: {
+  open: boolean; item: CompanyDto | null; onClose: () => void; onSaved: (saved?: CompanyDto) => void;
+}) {
+  const [tab, setTab] = useState(0);
+  const [form, setForm] = useState<CompanyEditorForm>(blankCompanyEditorForm);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTab(0);
+    setError(null);
+    if (item) setForm({ ...blankCompanyEditorForm(), name: item.name, code: item.code, country: item.country, website: item.website, isActive: item.isActive, agentCode: item.agentCode, contactName: item.contactName, contactEmail: item.contactEmail, contactPhone: item.contactPhone, afmVat: item.afmVat, notes: item.notes });
+    else if (open) setForm(blankCompanyEditorForm());
+  }, [item, open]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const body = { ...form, name: form.name.trim(), code: form.code.trim().toUpperCase(), country: form.country?.trim() || null, website: form.website?.trim() || null, agentCode: form.agentCode?.trim() || null, contactName: form.contactName?.trim() || null, contactEmail: form.contactEmail?.trim() || null, contactPhone: form.contactPhone?.trim() || null, afmVat: form.afmVat?.trim() || null, notes: form.notes?.trim() || null, bridgeName: form.createBridge ? (form.bridgeName?.trim() || null) : null, bridgeConfigJson: form.createBridge ? (form.bridgeConfigJson?.trim() || null) : null };
+      if (item) return (await api.put(`/insurance-companies/${item.id}`, body)).data;
+      return (await api.post("/insurance-companies", body)).data;
+    },
+    onSuccess: saved => onSaved(saved as CompanyDto),
+    onError: e => setError(extractErrorMessage(e)),
+  });
+  const update = (patch: Partial<CompanyEditorForm>) => setForm(current => ({ ...current, ...patch }));
+
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="xl">
+    <DialogTitle sx={{ pr: 6 }}><Stack direction="row" alignItems="center" spacing={1.25}><BusinessIcon color="primary" /><Box flex={1}><Typography variant="h5" fontWeight={850}>{item ? "Επεξεργασία ασφαλιστικής εταιρείας" : "Νέα ασφαλιστική εταιρεία"}</Typography><Typography variant="body2" color="text.secondary">Η ίδια πλήρης καρτέλα χρησιμοποιείται για δημιουργία και επεξεργασία.</Typography></Box></Stack></DialogTitle>
+    <DialogContent dividers sx={{ pt: 0, maxHeight: "75vh", overflowY: "auto" }}>
+      {error && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError(null)}>{error}</Alert>}
+      <WorkspaceProfileTabs value={tab} onChange={setTab} />
+      {tab === 0 && <Stack spacing={1.5}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 1.5 }}>
+          <ProfileSection title="Ταυτότητα εταιρείας"><TextField fullWidth required label="Κωδικός" value={form.code} onChange={e => update({ code: e.target.value.toUpperCase() })} /><TextField fullWidth required label="Επωνυμία" value={form.name} onChange={e => update({ name: e.target.value })} sx={{ mt: 1.25 }} /><TextField fullWidth label="Χώρα" value={form.country ?? ""} onChange={e => update({ country: e.target.value })} sx={{ mt: 1.25 }} /></ProfileSection>
+          <ProfileSection title="Διεύθυνση & στοιχεία"><TextField fullWidth label="ΑΦΜ / VAT" value={form.afmVat ?? ""} onChange={e => update({ afmVat: e.target.value })} /><TextField fullWidth label="Website" value={form.website ?? ""} onChange={e => update({ website: e.target.value })} sx={{ mt: 1.25 }} /><TextField fullWidth label="Κωδικός συνεργασίας" value={form.agentCode ?? ""} onChange={e => update({ agentCode: e.target.value })} sx={{ mt: 1.25 }} /></ProfileSection>
+          <ProfileSection title="Κατάσταση"><FormControlLabel control={<Switch checked={form.isActive} onChange={e => update({ isActive: e.target.checked })} />} label={form.isActive ? "Ενεργή" : "Ανενεργή"} /><Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Η εταιρεία θα εμφανίζεται στις λίστες παραγωγής και στις νέες καταχωρήσεις.</Typography></ProfileSection>
+        </Box>
+        <ProfileSection title="Σημειώσεις"><TextField fullWidth multiline minRows={4} label="Εσωτερικές σημειώσεις" value={form.notes ?? ""} onChange={e => update({ notes: e.target.value })} /></ProfileSection>
+      </Stack>}
+      {tab === 1 && <Stack spacing={1.5}><ProfileSection title="Παραγωγή και συμβόλαια"><TextField fullWidth label="Κωδικός συνεργασίας / πρακτορείου" value={form.agentCode ?? ""} onChange={e => update({ agentCode: e.target.value })} /><FormControlLabel sx={{ mt: 1 }} control={<Switch checked={form.installZeroCommissionDefaults} onChange={e => update({ installZeroCommissionDefaults: e.target.checked })} />} label="Προσθήκη αρχικών κανόνων προμήθειας" /><Alert severity="info">Οι κανόνες προμηθειών και τα παραμετρικά μπορούν να συμπληρωθούν από την καρτέλα μετά τη δημιουργία.</Alert></ProfileSection></Stack>}
+      {tab === 2 && <Stack spacing={1.5}><ProfileSection title="Σύνδεση εταιρείας και γέφυρα"><FormControlLabel control={<Switch checked={form.createBridge} onChange={e => update({ createBridge: e.target.checked })} />} label="Δημιουργία γέφυρας εταιρείας" />{form.createBridge && <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5, mt: 1 }}><TextField label="Όνομα γέφυρας" value={form.bridgeName ?? ""} onChange={e => update({ bridgeName: e.target.value })} /><FormControlLabel control={<Switch checked={form.bridgeAutoSync} onChange={e => update({ bridgeAutoSync: e.target.checked })} />} label="Αυτόματος συγχρονισμός" /><TextField label="Ρυθμίσεις γέφυρας (JSON)" value={form.bridgeConfigJson ?? ""} onChange={e => update({ bridgeConfigJson: e.target.value })} multiline minRows={4} sx={{ gridColumn: { md: "1 / -1" } }} /></Box>}</ProfileSection></Stack>}
+      {tab === 3 && <Stack spacing={1.5}><ProfileSection title="Επικοινωνία εταιρείας"><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 1.5 }}><TextField label="Ονοματεπώνυμο επαφής" value={form.contactName ?? ""} onChange={e => update({ contactName: e.target.value })} /><TextField label="Email" type="email" value={form.contactEmail ?? ""} onChange={e => update({ contactEmail: e.target.value })} /><TextField label="Τηλέφωνο" value={form.contactPhone ?? ""} onChange={e => update({ contactPhone: e.target.value })} /></Box></ProfileSection></Stack>}
+      {tab === 4 && <Stack spacing={1.5}><ProfileSection title="Έγγραφα και προσαρμόσιμα πεδία"><Alert severity="info">Μετά την αποθήκευση ενεργοποιούνται τα έγγραφα, οι φάκελοι και τα προσαρμόσιμα πεδία της εταιρείας.</Alert><Typography color="text.secondary">Η καρτέλα θα ανοίξει αυτόματα μετά τη δημιουργία ώστε να συνεχίσετε με αρχεία, επαφές, παραμετρικά και επικοινωνίες.</Typography></ProfileSection></Stack>}
+    </DialogContent>
+    <DialogActions sx={{ px: 3, py: 2 }}><Button onClick={onClose} color="error" variant="contained" sx={{ color: "#fff", fontWeight: 800 }}>Ακύρωση</Button><Button variant="contained" color="primary" startIcon={<SaveIcon />} disabled={save.isPending || !form.name.trim() || !form.code.trim()} onClick={() => save.mutate()}>{save.isPending ? <CircularProgress size={18} color="inherit" /> : item ? "Αποθήκευση αλλαγών" : "Δημιουργία & αποθήκευση"}</Button></DialogActions>
+  </Dialog>;
 }
 
 function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { open: boolean; company: CompanyDto | null; onClose: () => void; onEdit: (company: CompanyDto) => void }) {
@@ -674,6 +765,49 @@ function ProfileSection({ title, children }: { title: string; children: React.Re
 function ProfileLine({ label, value, mono, link }: { label: string; value?: string | null; mono?: boolean; link?: string }) {
   const shown = value?.trim() || "Δεν έχει καταχωρηθεί";
   return <Box sx={{ display: "grid", gridTemplateColumns: "minmax(130px, 0.45fr) 1fr", gap: 1, py: 0.45, borderBottom: "1px solid", borderColor: "divider" }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography variant="body2" fontWeight={650} sx={{ fontFamily: mono ? "monospace" : undefined, wordBreak: "break-word", color: value?.trim() ? "success.dark" : "error.dark" }}>{link && value ? <a href={link} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>{shown}</a> : shown}</Typography></Box>;
+}
+
+type OfficeEditorForm = {
+  code: string; name: string; city: string | null; address: string | null; postalCode: string | null;
+  phone: string | null; email: string | null; isHeadquarters: boolean; isActive: boolean; notes: string | null;
+};
+
+const blankOfficeEditorForm = (): OfficeEditorForm => ({ code: "", name: "", city: null, address: null, postalCode: null, phone: null, email: null, isHeadquarters: false, isActive: true, notes: null });
+
+function ProductionOfficeEditorDialog({ open, item, onClose, onSaved }: {
+  open: boolean; item: OfficeDto | null; onClose: () => void; onSaved: (saved?: OfficeDto) => void;
+}) {
+  const [tab, setTab] = useState(0);
+  const [form, setForm] = useState<OfficeEditorForm>(blankOfficeEditorForm);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    setTab(0); setError(null);
+    if (item) setForm({ code: item.code, name: item.name, city: item.city, address: item.address, postalCode: item.postalCode, phone: item.phone, email: item.email, isHeadquarters: item.isHeadquarters, isActive: item.isActive, notes: item.notes });
+    else if (open) setForm(blankOfficeEditorForm());
+  }, [item, open]);
+  const save = useMutation({
+    mutationFn: async () => {
+      const body = { ...form, code: form.code.trim().toUpperCase(), name: form.name.trim(), city: form.city?.trim() || null, address: form.address?.trim() || null, postalCode: form.postalCode?.trim() || null, phone: form.phone?.trim() || null, email: form.email?.trim() || null, notes: form.notes?.trim() || null };
+      if (item) return (await api.put(`/agency-offices/${item.id}`, body)).data;
+      return (await api.post("/agency-offices", body)).data;
+    },
+    onSuccess: saved => onSaved(saved as OfficeDto),
+    onError: e => setError(extractErrorMessage(e)),
+  });
+  const update = (patch: Partial<OfficeEditorForm>) => setForm(current => ({ ...current, ...patch }));
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="xl">
+    <DialogTitle sx={{ pr: 6 }}><Stack direction="row" alignItems="center" spacing={1.25}><HomeWorkIcon color="primary" /><Box flex={1}><Typography variant="h5" fontWeight={850}>{item ? "Επεξεργασία πρακτορείου" : "Νέο πρακτορείο"}</Typography><Typography variant="body2" color="text.secondary">Η ίδια πλήρης καρτέλα χρησιμοποιείται για δημιουργία και επεξεργασία.</Typography></Box></Stack></DialogTitle>
+    <DialogContent dividers sx={{ pt: 0, maxHeight: "75vh", overflowY: "auto" }}>
+      {error && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError(null)}>{error}</Alert>}
+      <WorkspaceProfileTabs value={tab} onChange={setTab} />
+      {tab === 0 && <Stack spacing={1.5}><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 1.5 }}><ProfileSection title="Ταυτότητα πρακτορείου"><TextField fullWidth required label="Κωδικός" value={form.code} onChange={e => update({ code: e.target.value.toUpperCase() })} /><TextField fullWidth required label="Όνομα" value={form.name} onChange={e => update({ name: e.target.value })} sx={{ mt: 1.25 }} /></ProfileSection><ProfileSection title="Διεύθυνση"><TextField fullWidth label="Πόλη" value={form.city ?? ""} onChange={e => update({ city: e.target.value })} /><TextField fullWidth label="Τ.Κ." value={form.postalCode ?? ""} onChange={e => update({ postalCode: e.target.value })} sx={{ mt: 1.25 }} /><TextField fullWidth label="Διεύθυνση" value={form.address ?? ""} onChange={e => update({ address: e.target.value })} sx={{ mt: 1.25 }} /></ProfileSection><ProfileSection title="Κατάσταση"><FormControlLabel control={<Switch checked={form.isHeadquarters} onChange={e => update({ isHeadquarters: e.target.checked })} />} label="Κεντρικό πρακτορείο" /><FormControlLabel control={<Switch checked={form.isActive} onChange={e => update({ isActive: e.target.checked })} />} label={form.isActive ? "Ενεργό" : "Ανενεργό"} /></ProfileSection></Box><ProfileSection title="Σημειώσεις"><TextField fullWidth multiline minRows={4} label="Εσωτερικές σημειώσεις" value={form.notes ?? ""} onChange={e => update({ notes: e.target.value })} /></ProfileSection></Stack>}
+      {tab === 1 && <ProfileSection title="Παραγωγή και συμβόλαια"><Alert severity="info">Τα συμβόλαια, οι πελάτες και η παραγωγή του πρακτορείου εμφανίζονται στην πλήρη καρτέλα μετά την αποθήκευση.</Alert></ProfileSection>}
+      {tab === 2 && <ProfileSection title="Σύνδεση και παραμετρικά"><Alert severity="info">Οι χρήστες και τα δικαιώματα του πρακτορείου μπορούν να ανατεθούν από την καρτέλα προβολής.</Alert></ProfileSection>}
+      {tab === 3 && <ProfileSection title="Επικοινωνία πρακτορείου"><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}><TextField label="Τηλέφωνο" value={form.phone ?? ""} onChange={e => update({ phone: e.target.value })} /><TextField label="Email" type="email" value={form.email ?? ""} onChange={e => update({ email: e.target.value })} /></Box></ProfileSection>}
+      {tab === 4 && <ProfileSection title="Έγγραφα και πεδία"><Alert severity="info">Μετά την αποθήκευση μπορείτε να συνεχίσετε με χρήστες, έγγραφα και επιπλέον στοιχεία του πρακτορείου.</Alert></ProfileSection>}
+    </DialogContent>
+    <DialogActions sx={{ px: 3, py: 2 }}><Button onClick={onClose} color="error" variant="contained" sx={{ color: "#fff", fontWeight: 800 }}>Ακύρωση</Button><Button variant="contained" color="success" startIcon={<SaveIcon />} disabled={save.isPending || !form.name.trim() || !form.code.trim()} onClick={() => save.mutate()}>{save.isPending ? <CircularProgress size={18} color="inherit" /> : item ? "Αποθήκευση αλλαγών" : "Δημιουργία & αποθήκευση"}</Button></DialogActions>
+  </Dialog>;
 }
 
 function ProductionOfficeProfileDialog({ open, office, onClose, onEdit }: { open: boolean; office: OfficeDto | null; onClose: () => void; onEdit: (office: OfficeDto) => void }) {
