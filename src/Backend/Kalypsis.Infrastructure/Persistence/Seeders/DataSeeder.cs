@@ -751,26 +751,61 @@ public static class DataSeeder
         {
             if (applied.Contains(migration.Id)) continue;
 
-            var complete = true;
+            var existingTables = new List<string>();
             foreach (var table in migration.Tables)
             {
-                if (!await DatabaseTableExistsAsync(db, databaseName, table, ct))
-                {
-                    complete = false;
-                    break;
-                }
+                if (await DatabaseTableExistsAsync(db, databaseName, table, ct))
+                    existingTables.Add(table);
             }
 
-            if (!complete) continue;
+            if (existingTables.Count == migration.Tables.Length)
+            {
+                // ProductVersion is informational; keep it aligned with the EF
+                // package version used by this API. INSERT IGNORE also makes this
+                // safe if two API instances race during a rolling restart.
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"INSERT IGNORE INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`) VALUES ({migration.Id}, {"10.0.9"})",
+                    ct);
+                logger.LogWarning(
+                    "Reconciled orphaned EF migration history for {Migration}; all expected tables already existed.",
+                    migration.Id);
+                continue;
+            }
 
-            // ProductVersion is informational; keep it aligned with the EF
-            // package version used by this API. INSERT IGNORE also makes this
-            // safe if two API instances race during a rolling restart.
-            await db.Database.ExecuteSqlInterpolatedAsync(
-                $"INSERT IGNORE INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`) VALUES ({migration.Id}, {"10.0.9"})",
-                ct);
+            if (existingTables.Count == 0) continue;
+
+            // The migration may have been interrupted after one or more DDL
+            // statements. MySQL DDL is not transactional, so an empty partial
+            // table would otherwise make every retry fail on CREATE TABLE. It
+            // is safe to remove only these known, empty orphan tables and let
+            // EF recreate the complete migration below.
+            var populated = new List<string>();
+            foreach (var table in existingTables)
+            {
+                var count = await db.Database.SqlQueryRaw<long>(
+                        $"SELECT COUNT(*) AS `Value` FROM `{table}`")
+                    .SingleAsync(ct);
+                if (count > 0) populated.Add(table);
+            }
+
+            if (populated.Count > 0)
+            {
+                logger.LogError(
+                    "Cannot auto-repair partial migration {Migration}: existing table(s) contain data: {Tables}.",
+                    migration.Id, string.Join(", ", populated));
+                continue;
+            }
+
+            foreach (var table in existingTables.AsEnumerable().Reverse())
+            {
+                await db.Database.ExecuteSqlRawAsync($"DROP TABLE IF EXISTS `{table}`", ct);
+                logger.LogWarning(
+                    "Removed empty orphan table {Table} from interrupted migration {Migration}.",
+                    table, migration.Id);
+            }
+
             logger.LogWarning(
-                "Reconciled orphaned EF migration history for {Migration}; all expected tables already existed.",
+                "Partial migration {Migration} was reset because all orphan tables were empty; EF will recreate it.",
                 migration.Id);
         }
     }
