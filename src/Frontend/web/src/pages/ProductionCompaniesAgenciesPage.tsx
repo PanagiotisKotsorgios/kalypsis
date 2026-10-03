@@ -180,10 +180,10 @@ export default function ProductionCompaniesAgenciesPage() {
 
       <CompanyDialog open={companyEditor !== undefined} item={companyEditor ?? null}
         onClose={() => setCompanyEditor(undefined)}
-        onSaved={() => { void qc.invalidateQueries({ queryKey: ["production-companies-directory"] }); void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); setCompanyEditor(undefined); }} />
+        onSaved={(saved) => { void qc.invalidateQueries({ queryKey: ["production-companies-directory"] }); void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); setCompanyEditor(undefined); if (saved) setCompanyProfile(saved); }} />
       <OfficeDialog open={officeEditor !== undefined} item={officeEditor ?? null}
         onClose={() => setOfficeEditor(undefined)}
-        onSaved={() => { void qc.invalidateQueries({ queryKey: ["production-agency-offices-directory"] }); void qc.invalidateQueries({ queryKey: ["agency-offices"] }); setOfficeEditor(undefined); }} />
+        onSaved={(saved) => { void qc.invalidateQueries({ queryKey: ["production-agency-offices-directory"] }); void qc.invalidateQueries({ queryKey: ["agency-offices"] }); setOfficeEditor(undefined); if (saved) setOfficeProfile(saved); }} />
       <ProductionCompanyProfileDialog open={!!companyProfile} company={companyProfile} onClose={() => setCompanyProfile(null)} onEdit={company => { setCompanyProfile(null); setCompanyEditor(company); }} />
       <ProductionOfficeProfileDialog open={!!officeProfile} office={officeProfile} onClose={() => setOfficeProfile(null)} onEdit={office => { setOfficeProfile(null); setOfficeEditor(office); }} />
       <Dialog open={!!companyDeleteTarget} onClose={() => setCompanyDeleteTarget(null)} maxWidth="xs" fullWidth>

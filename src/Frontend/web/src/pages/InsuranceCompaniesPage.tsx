@@ -11,6 +11,7 @@ import BusinessIcon from "@mui/icons-material/Business";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import AddIcon from "@mui/icons-material/Add";
 import LayersClearIcon from "@mui/icons-material/LayersClear";
+import SaveIcon from "@mui/icons-material/Save";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { DataExportButton } from "../components/DataExportButton";
@@ -496,7 +497,7 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
 }
 
 export function CompanyDialog({ open, onClose, item, onSaved }: {
-  open: boolean; onClose: () => void; item: CompanyDto | null; onSaved: () => void;
+  open: boolean; onClose: () => void; item: CompanyDto | null; onSaved: (saved?: CompanyDto) => void;
 }) {
   // A fresh carrier starts EMPTY: no auto-provisioned bridge, no zero-
   // commission scaffolding. The office builds its own parametrics, sets its
@@ -559,14 +560,14 @@ export function CompanyDialog({ open, onClose, item, onSaved }: {
       if (item) return (await api.put(`/insurance-companies/${item.id}`, body)).data;
       return (await api.post(`/insurance-companies`, body)).data;
     },
-    onSuccess: onSaved,
+    onSuccess: saved => onSaved(saved as CompanyDto),
     onError: (e) => setErr(extractErrorMessage(e))
   });
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xl">
       <DialogTitle sx={{ fontWeight: 800 }}>{item ? "Επεξεργασία ασφαλιστικής" : "Νέα ασφαλιστική εταιρεία"}</DialogTitle>
-      <DialogContent>
+      <DialogContent dividers sx={{ maxHeight: "72vh", overflowY: "auto" }}>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2} mt={1}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -600,6 +601,25 @@ export function CompanyDialog({ open, onClose, item, onSaved }: {
           </Stack>
           <TextField label="Σημειώσεις" multiline minRows={2} fullWidth value={form.notes ?? ""}
             onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          <Card variant="outlined" sx={{ p: { xs: 1.5, md: 2 }, bgcolor: "rgba(25,118,210,.035)" }}>
+            <Typography fontWeight={800} sx={{ mb: 1 }}>Γέφυρα εισαγωγής και αρχικές ρυθμίσεις</Typography>
+            <FormControlLabel control={<Switch checked={form.createBridge}
+              onChange={(e) => setForm({ ...form, createBridge: e.target.checked })} />}
+              label="Δημιουργία γέφυρας εταιρείας" />
+            {form.createBridge && <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5, mt: 1 }}>
+              <TextField label="Όνομα γέφυρας" value={form.bridgeName ?? ""}
+                onChange={(e) => setForm({ ...form, bridgeName: e.target.value })} />
+              <FormControlLabel control={<Switch checked={form.bridgeAutoSync}
+                onChange={(e) => setForm({ ...form, bridgeAutoSync: e.target.checked })} />}
+                label="Αυτόματος συγχρονισμός" />
+              <TextField label="Ρυθμίσεις γέφυρας (JSON)" value={form.bridgeConfigJson ?? ""}
+                onChange={(e) => setForm({ ...form, bridgeConfigJson: e.target.value })}
+                multiline minRows={3} sx={{ gridColumn: { md: "1 / -1" } }} />
+            </Box>}
+            <FormControlLabel control={<Switch checked={form.installZeroCommissionDefaults}
+              onChange={(e) => setForm({ ...form, installZeroCommissionDefaults: e.target.checked })} />}
+              label="Προσθήκη αρχικών κανόνων προμήθειας" />
+          </Card>
           <FormControlLabel control={<Switch checked={form.isActive}
             onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />}
             label={form.isActive ? "Ενεργή" : "Ανενεργή"} />
@@ -607,9 +627,9 @@ export function CompanyDialog({ open, onClose, item, onSaved }: {
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
-        <Button variant="contained" disabled={save.isPending || !form.name.trim() || !form.code.trim()}
+        <Button variant="contained" color="primary" startIcon={<SaveIcon />} disabled={save.isPending || !form.name.trim() || !form.code.trim()}
           onClick={() => save.mutate()}>
-          {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
+          {save.isPending ? <CircularProgress size={18} color="inherit" /> : item ? "Αποθήκευση αλλαγών" : "Δημιουργία & αποθήκευση"}
         </Button>
       </DialogActions>
     </Dialog>

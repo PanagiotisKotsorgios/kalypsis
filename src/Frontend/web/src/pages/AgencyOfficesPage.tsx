@@ -12,6 +12,7 @@ import StarIcon from "@mui/icons-material/Star";
 import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
 import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
+import SaveIcon from "@mui/icons-material/Save";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 
@@ -287,7 +288,7 @@ function OfficeUsersDialog({ open, office, onClose, onSaved }: {
 }
 
 export function OfficeDialog({ open, onClose, item, onSaved }: {
-  open: boolean; onClose: () => void; item: OfficeDto | null; onSaved: () => void;
+  open: boolean; onClose: () => void; item: OfficeDto | null; onSaved: (saved?: OfficeDto) => void;
 }) {
   const editing = !!item;
   const [form, setForm] = useState<UpsertBody>({
@@ -327,20 +328,20 @@ export function OfficeDialog({ open, onClose, item, onSaved }: {
       if (editing && item) return (await api.put(`/agency-offices/${item.id}`, body)).data;
       return (await api.post("/agency-offices", body)).data;
     },
-    onSuccess: () => {
+    onSuccess: saved => {
       setForm({ code: "", name: "", city: null, address: null, postalCode: null,
         phone: null, email: null, isHeadquarters: false, isActive: true, notes: null });
-      onSaved();
+      onSaved(saved as OfficeDto);
     },
     onError: (e) => setErr(extractErrorMessage(e))
   });
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xl">
       <DialogTitle sx={{ fontWeight: 800 }}>
         {editing ? `Επεξεργασία — ${item?.name}` : "Νέο υποκατάστημα"}
       </DialogTitle>
-      <DialogContent>
+      <DialogContent dividers sx={{ maxHeight: "72vh", overflowY: "auto" }}>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2.5} mt={1}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -394,9 +395,9 @@ export function OfficeDialog({ open, onClose, item, onSaved }: {
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} color="error" variant="contained">Άκυρο</Button>
-        <Button variant="contained" disabled={save.isPending || !form.code.trim() || !form.name.trim()}
+        <Button variant="contained" color="success" startIcon={<SaveIcon />} disabled={save.isPending || !form.code.trim() || !form.name.trim()}
           onClick={() => save.mutate()}>
-          {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
+          {save.isPending ? <CircularProgress size={18} color="inherit" /> : editing ? "Αποθήκευση αλλαγών" : "Δημιουργία & αποθήκευση"}
         </Button>
       </DialogActions>
     </Dialog>
