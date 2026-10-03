@@ -358,6 +358,9 @@ export function CustomersPage() {
   const creditorCount = allCustomers.filter(c => (c.account?.balance ?? 0) < -0.005).length;
   const overdueCount = allCustomers.filter(c => (c.account?.overdueAmount ?? 0) > 0.005).length;
   const goodPayerCount = allCustomers.filter(c => c.account && (c.account.credits > 0.005 || c.account.paidInstallments > 0) && c.account.overdueAmount <= 0.005 && c.account.latePayments === 0 && c.account.balance <= 0.005).length;
+  const badPayerCount = allCustomers.filter(c => (c.account?.overdueAmount ?? 0) > 0.005 || (c.account?.latePayments ?? 0) > 0).length;
+  const unpaidCount = allCustomers.filter(c => c.account && c.account.balance > 0.005 && c.account.credits <= 0.005).length;
+  const settledCount = allCustomers.filter(c => c.account && Math.abs(c.account.balance) <= 0.005).length;
   const table = useTableState<CustomerListRow>({
     rows: financeFilteredCustomers,
     searchableText: (c) => `${c.customerNumber} ${c.firstName ?? ""} ${c.lastName ?? ""} ${c.companyName ?? ""} ${c.vatNumber ?? ""} ${c.email ?? ""} ${c.phone ?? ""} ${c.city ?? ""}`,
@@ -470,22 +473,28 @@ export function CustomersPage() {
           onClear={clearFilters}
           options={[
             { key: "all", label: "Όλοι", active: customerFilterCount === 0, onClick: clearFilters },
-            { key: "debtors", label: "Οφειλέτες", active: paymentFilter === "debtors", color: "error", onClick: () => setPaymentFilter("debtors") },
-            { key: "overdue", label: "Ληξιπρόθεσμοι", active: paymentFilter === "overdue", color: "warning", onClick: () => setPaymentFilter("overdue") },
-            { key: "good", label: "Καλοπληρωτές", active: paymentFilter === "good", color: "success", onClick: () => setPaymentFilter("good") },
-            { key: "bad", label: "Κακοπληρωτές", active: paymentFilter === "bad", color: "error", onClick: () => setPaymentFilter("bad") },
+            { key: "debtors", label: "Οφειλέτες", count: debtorCount, active: paymentFilter === "debtors", color: "error", onClick: () => setPaymentFilter("debtors") },
+            { key: "creditors", label: "Πιστωτικοί", count: creditorCount, active: paymentFilter === "creditors", color: "info", onClick: () => setPaymentFilter("creditors") },
+            { key: "overdue", label: "Ληξιπρόθεσμοι", count: overdueCount, active: paymentFilter === "overdue", color: "warning", onClick: () => setPaymentFilter("overdue") },
+            { key: "good", label: "Καλοπληρωτές", count: goodPayerCount, active: paymentFilter === "good", color: "success", onClick: () => setPaymentFilter("good") },
+            { key: "bad", label: "Κακοπληρωτές", count: badPayerCount, active: paymentFilter === "bad", color: "error", onClick: () => setPaymentFilter("bad") },
+            { key: "unpaid", label: "Χωρίς καταβολή", count: unpaidCount, active: paymentFilter === "unpaid", onClick: () => setPaymentFilter("unpaid") },
+            { key: "settled", label: "Εξοφλημένοι", count: settledCount, active: paymentFilter === "settled", color: "success", onClick: () => setPaymentFilter("settled") },
             { key: "last7", label: "Οφειλές 7 ημερών", active: paymentWindow === "last7", onClick: () => setPaymentWindow("last7") },
             { key: "last30", label: "Οφειλές 30 ημερών", active: paymentWindow === "last30", onClick: () => setPaymentWindow("last30") },
+            { key: "previousWeek", label: "Προηγούμενη εβδομάδα", active: paymentWindow === "previousWeek", onClick: () => setPaymentWindow("previousWeek") },
+            { key: "previousMonth", label: "Προηγούμενος μήνας", active: paymentWindow === "previousMonth", onClick: () => setPaymentWindow("previousMonth") },
+            { key: "thisMonth", label: "Τρέχων μήνας", active: paymentWindow === "thisMonth", onClick: () => setPaymentWindow("thisMonth") },
           ]}
         />}
       >
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }} flexWrap="wrap" useFlexGap sx={{ "& > .MuiTextField-root, & > .MuiFormControl-root, & > .MuiFormControlLabel-root, & > .MuiBox-root": { flex: { md: "1 1 180px" }, minWidth: { md: 160 } } }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={0.5} alignItems={{ xs: "stretch", md: "center" }} flexWrap="wrap" useFlexGap sx={{ "& > .MuiTextField-root, & > .MuiFormControl-root, & > .MuiFormControlLabel-root, & > .MuiBox-root": { flex: { md: "1 1 135px" }, minWidth: { md: 125 } }, "& .MuiInputBase-root": { minHeight: 38 }, "& .MuiInputLabel-root": { fontSize: "0.78rem" } }}>
           <TextField
             size="small"
             placeholder={t("customers.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            sx={{ flex: 1, minWidth: 220 }}
+            sx={{ flex: 1, minWidth: { md: 200, xs: "100%" } }}
             InputProps={{
               startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" color="action" /></InputAdornment>,
               endAdornment: <FilterHelp title="Αναζήτηση σε όνομα, ΑΦΜ, email, τηλέφωνο, αρ. πελάτη ή πόλη." />
@@ -493,25 +502,25 @@ export function CustomersPage() {
           />
           <FilterFieldWrap tip="Ελεύθερο κείμενο για επάγγελμα ή κλάδο δραστηριότητας (π.χ. «εστίαση»).">
             <TextField size="small" label="Επάγγελμα / κλάδος" value={occupationFilter}
-              onChange={(e) => setOccupationFilter(e.target.value)} sx={{ minWidth: 190, width: "100%", flex: "1 1 190px" }}
+              onChange={(e) => setOccupationFilter(e.target.value)} sx={{ minWidth: 150, width: "100%", flex: "1 1 150px" }}
               placeholder="π.χ. εστίαση" />
           </FilterFieldWrap>
           <FilterFieldWrap tip="Φιλτράρετε τους πελάτες βάσει ασφαλιστικής ανάγκης ή περιουσιακού στοιχείου.">
             <SearchableTextField size="small" label="Ανάγκη / περιουσία" value={needKind}
-              onChange={(e) => setNeedKind(e.target.value)} sx={{ minWidth: 180, width: "100%", flex: "1 1 180px" }}>
+              onChange={(e) => setNeedKind(e.target.value)} sx={{ minWidth: 145, width: "100%", flex: "1 1 145px" }}>
               <MenuItem value="">Όλες</MenuItem>
               {NEED_KINDS.map(kind => <MenuItem key={kind} value={kind}>{NEED_KIND_LABEL[kind] ?? kind}</MenuItem>)}
             </SearchableTextField>
           </FilterFieldWrap>
-          <FormControlLabel control={<Switch checked={onlyUninsuredNeeds} disabled={!needKind}
+          <FormControlLabel sx={{ mx: 0, minWidth: "auto", "& .MuiFormControlLabel-label": { fontSize: "0.78rem", whiteSpace: "nowrap" } }} control={<Switch size="small" checked={onlyUninsuredNeeds} disabled={!needKind}
             onChange={(e) => setOnlyUninsuredNeeds(e.target.checked)} />} label="Μόνο χωρίς κάλυψη" />
           <SearchableTextField select size="small" label="Κατάσταση" value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as CustomerStatus | "")} sx={{ minWidth: 160, width: "100%", flex: "1 1 160px" }}>
+            onChange={(e) => setStatusFilter(e.target.value as CustomerStatus | "")} sx={{ minWidth: 130, width: "100%", flex: "1 1 130px" }}>
             <MenuItem value="">Όλες</MenuItem>
             {Object.entries(CUSTOMER_STATUS_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
           </SearchableTextField>
           <SearchableTextField select size="small" label="Οικονομική εικόνα" value={paymentFilter}
-            onChange={(e) => setPaymentFilter(e.target.value as PaymentFilter)} sx={{ minWidth: 190, width: "100%", flex: "1 1 190px" }}>
+            onChange={(e) => setPaymentFilter(e.target.value as PaymentFilter)} sx={{ minWidth: 155, width: "100%", flex: "1 1 155px" }}>
             <MenuItem value="all">Όλοι οι πελάτες</MenuItem>
             <MenuItem value="debtors">Χρωστάνε στο γραφείο</MenuItem>
             <MenuItem value="unpaid">Χρέος χωρίς καταβολή</MenuItem>
@@ -522,7 +531,7 @@ export function CustomersPage() {
             <MenuItem value="settled">Εξοφλημένοι</MenuItem>
           </SearchableTextField>
           <SearchableTextField select size="small" label="Περίοδος οφειλής" value={paymentWindow}
-            onChange={(e) => setPaymentWindow(e.target.value as PaymentWindow)} sx={{ minWidth: 175, width: "100%", flex: "1 1 175px" }}>
+            onChange={(e) => setPaymentWindow(e.target.value as PaymentWindow)} sx={{ minWidth: 145, width: "100%", flex: "1 1 145px" }}>
             <MenuItem value="all">Όλο το ιστορικό</MenuItem>
             <MenuItem value="last7">Τελευταίες 7 ημέρες</MenuItem>
             <MenuItem value="last30">Τελευταίες 30 ημέρες</MenuItem>
@@ -538,24 +547,11 @@ export function CustomersPage() {
               onChange={(e) => setPaymentTo(e.target.value)} InputLabelProps={{ shrink: true }} />
           </>}
           <Button size="small" variant="contained" color="error" startIcon={<FilterAltOffIcon />}
-            onClick={clearFilters} sx={{ whiteSpace: "nowrap" }}>
+            onClick={clearFilters} sx={{ minWidth: "auto", px: 1, whiteSpace: "nowrap", color: "common.white" }}>
             Καθαρισμός φίλτρων
           </Button>
         </Stack>
       </ResponsiveFilterPanel>
-
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} mb={2} flexWrap="wrap" useFlexGap>
-        <Chip color={paymentFilter === "debtors" ? "error" : "default"} variant={paymentFilter === "debtors" ? "filled" : "outlined"}
-          label={`Οφειλέτες: ${debtorCount}`} onClick={() => setPaymentFilter("debtors")} />
-        <Chip color={paymentFilter === "creditors" ? "info" : "default"} variant={paymentFilter === "creditors" ? "filled" : "outlined"}
-          label={`Πιστωτικοί: ${creditorCount}`} onClick={() => setPaymentFilter("creditors")} />
-        <Chip color={paymentFilter === "overdue" ? "warning" : "default"} variant={paymentFilter === "overdue" ? "filled" : "outlined"}
-          label={`Ληξιπρόθεσμοι: ${overdueCount}`} onClick={() => setPaymentFilter("overdue")} />
-        <Chip color={paymentFilter === "good" ? "success" : "default"} variant={paymentFilter === "good" ? "filled" : "outlined"}
-          label={`Καλοπληρωτές: ${goodPayerCount}`} onClick={() => setPaymentFilter("good")} />
-        <Chip variant="outlined" label={paymentRange.from || paymentRange.to ? `Περίοδος: ${paymentRange.from ?? "…"} – ${paymentRange.to ?? "…"}` : "Περίοδος: όλο το ιστορικό"} />
-        {accountsQuery.isLoading && <Chip icon={<CircularProgress size={14} />} label="Φόρτωση οικονομικών…" />}
-      </Stack>
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>

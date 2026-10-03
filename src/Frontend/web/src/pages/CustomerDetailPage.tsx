@@ -744,11 +744,10 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
     ] }
   ];
   return (
-    <Stack spacing={1.25}>
-      <Card variant="outlined" sx={{ p: { xs: 1.25, md: 1.5 } }}>
-        <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.5 }}>Ενιαία καρτέλα πελάτη</Typography>
-        <Typography variant="body2" color="text.secondary">Όλα τα στοιχεία συγκεντρωμένα εδώ. Για αλλαγές πατήστε «Επεξεργασία πλήρους καρτέλας».</Typography>
-        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 1 }}>
+    <Stack spacing={0.75}>
+      <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 } }}>
+        <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.35 }}>Ενιαία καρτέλα πελάτη</Typography>
+        <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
           <Chip size="small" color={hasDriverLicense ? "success" : "default"} label={`Οδηγός: ${hasDriverLicense ? "Ναι" : "Όχι"}`} />
           <Chip size="small" color={customer.amka ? "success" : "default"} label={`ΑΜΚΑ: ${customer.amka ? "Ναι" : "Όχι"}`} />
           <Chip size="small" color={identityDocument === "Καταχωρημένο" ? "success" : "default"} label={`Ταυτοποίηση: ${identityDocument}`} />
@@ -757,15 +756,15 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
           <Chip size="small" color={customer.hasPortalAccount ? "success" : "default"} label={`Portal: ${customer.hasPortalAccount ? "Ενεργό" : "Όχι"}`} />
         </Stack>
       </Card>
-      {groups.map(group => <Card key={group.title} variant="outlined" sx={{ p: { xs: 1.25, md: 1.5 } }}>
-        <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75 }}>{group.title}</Typography>
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 0.75 }}>
-          {group.fields.map(([label, value]) => <Box key={label} sx={{ p: 0.75, bgcolor: "background.default", borderRadius: 1, minWidth: 0 }}><Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.7rem" }}>{label}</Typography><Typography variant="body2" fontWeight={600} sx={{ wordBreak: "break-word" }}>{value}</Typography></Box>)}
+      {groups.map(group => <Card key={group.title} variant="outlined" sx={{ p: { xs: 0.75, md: 1 } }}>
+        <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.5 }}>{group.title}</Typography>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))", xl: "repeat(5, minmax(0, 1fr))" }, gap: 0.5 }}>
+          {group.fields.map(([label, value]) => <Box key={label} sx={{ p: 0.5, bgcolor: "background.default", borderRadius: 0.75, minWidth: 0 }}><Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.66rem", lineHeight: 1.1 }}>{label}</Typography><Typography variant="body2" fontWeight={600} sx={{ wordBreak: "break-word", fontSize: "0.78rem", lineHeight: 1.2 }}>{value}</Typography></Box>)}
         </Box>
       </Card>)}
-      <Card variant="outlined" sx={{ p: { xs: 1.25, md: 1.5 } }}>
+      <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 } }}>
         <Typography variant="subtitle2" fontWeight={800}>Σημειώσεις</Typography>
-        <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}>{customer.notes ?? "Δεν υπάρχουν σημειώσεις."}</Typography>
+        <Typography variant="body2" sx={{ mt: 0.25, whiteSpace: "pre-wrap", fontSize: "0.8rem" }}>{customer.notes ?? "Δεν υπάρχουν σημειώσεις."}</Typography>
       </Card>
       <CustomerVehiclesTab customerId={customer.id} compact />
     </Stack>
@@ -798,37 +797,38 @@ function CustomerEditorDialog({ open, customer, onClose }: { open: boolean; cust
     <TextField key={key} size="small" select label={label} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} fullWidth>
       <MenuItem value="">Δεν έχει οριστεί</MenuItem>{options.select.map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
     </TextField>
-  ) : <TextField key={key} size="small" label={label} type={options?.type} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} fullWidth multiline={options?.multiline} rows={options?.multiline ? 3 : undefined} placeholder={options?.placeholder} InputLabelProps={options?.type === "date" ? { shrink: true } : undefined} />;
+  ) : <TextField key={key} size="small" label={label} type={options?.type} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} fullWidth multiline={options?.multiline} rows={options?.multiline ? 2 : undefined} placeholder={options?.placeholder} InputLabelProps={options?.type === "date" ? { shrink: true } : undefined} />;
+  const editorGridSx = { display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }, gap: 0.75, alignItems: "start", "& > .MuiFormControl-root, & > .MuiBox-root": { minWidth: 0 }, "& .MuiInputLabel-root": { fontSize: "0.78rem" }, "& .MuiInputBase-root": { minHeight: 38 } };
   if (!open) return null;
-  return <Card variant="outlined" sx={{ p: { xs: 1.25, md: 1.5 } }}>
-    <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} gap={1} sx={{ mb: 1 }}>
+  return <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, "& .MuiTextField-root": { minWidth: 0 } }}>
+    <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1} sx={{ mb: 0.75 }}>
       <Box><Typography variant="subtitle1" fontWeight={800}>Επεξεργασία καρτέλας · {customer.customerNumber}</Typography><Typography variant="caption" color="text.secondary">Τα πεδία επεξεργάζονται απευθείας μέσα στην καρτέλα πελάτη.</Typography></Box>
       <Button size="small" color="inherit" onClick={onClose}>Κλείσιμο επεξεργασίας</Button>
     </Stack>
       {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
-      <Tabs value={tab} onChange={(_, value) => setTab(value)} variant="scrollable" allowScrollButtonsMobile sx={{ borderBottom: 1, borderColor: "divider", mb: 1.25, minHeight: 38, "& .MuiTab-root": { minHeight: 38, py: 0.5, px: 1 } }}>
+      <Tabs value={tab} onChange={(_, value) => setTab(value)} variant="scrollable" allowScrollButtonsMobile sx={{ borderBottom: 1, borderColor: "divider", mb: 0.75, minHeight: 34, "& .MuiTab-root": { minHeight: 34, py: 0.25, px: 0.75, fontSize: "0.76rem" } }}>
         <Tab label="Βασικά & επικοινωνία" /><Tab label="Ταυτότητα & οικογένεια" /><Tab label="Εργασία, εταιρεία & όχημα" />
       </Tabs>
-      {tab === 0 && <Stack spacing={1}>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Τύπος", "type", { select: ["Individual", "Company"] })}{field("Κατάσταση", "status", { select: ["Prospect", "Active", "Inactive", "Churned", "Blocked"] })}</Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Όνομα", "firstName")}{field("Επώνυμο", "lastName")}{field("Επωνυμία", "companyName")}</Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Email", "email", { type: "email" })}{field("Κύριο τηλέφωνο", "phone")}{field("Κινητό", "mobilePhone")}{field("2ο τηλέφωνο", "altPhone")}</Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Διεύθυνση", "address")}{field("Πόλη", "city")}{field("Τ.Κ.", "postalCode")}{field("Περιφέρεια", "region")}</Stack>
-        {field("Σημειώσεις", "notes", { multiline: true })}
+      {tab === 0 && <Box sx={editorGridSx}>
+        {field("Τύπος", "type", { select: ["Individual", "Company"] })}{field("Κατάσταση", "status", { select: ["Prospect", "Active", "Inactive", "Churned", "Blocked"] })}
+        {field("Όνομα", "firstName")}{field("Επώνυμο", "lastName")}{field("Επωνυμία", "companyName")}
+        {field("Email", "email", { type: "email" })}{field("Κύριο τηλέφωνο", "phone")}{field("Κινητό", "mobilePhone")}{field("2ο τηλέφωνο", "altPhone")}
+        {field("Διεύθυνση", "address")}{field("Πόλη", "city")}{field("Τ.Κ.", "postalCode")}{field("Περιφέρεια", "region")}
         {field("Ημερομηνία εξόφλησης", "paymentDueDate", { type: "date" })}
-      </Stack>}
-      {tab === 1 && <Stack spacing={1}>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Ημερομηνία γέννησης", "birthDate", { type: "date" })}{field("Φύλο", "gender", { select: ["Male", "Female", "Other"] })}{field("Εθνικότητα", "nationality")}{field("Οικογενειακή κατάσταση", "maritalStatus")}</Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Αριθμός ταυτότητας", "idNumber")}{field("ΑΜΚΑ", "amka")}{field("Διαβατήριο", "passportNumber")}</Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Πατρώνυμο", "fatherName")}{field("Μητρώνυμο", "motherName")}{field("Σύζυγος / σύντροφος", "spouseName")}</Stack>
-      </Stack>}
-      {tab === 2 && <Stack spacing={1}>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Επάγγελμα", "occupation")}{field("Εργοδότης", "employer")}{field("Κωδικός δραστηριότητας", "activityCode")}{field("Ζώνη", "zone")}</Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("ΑΦΜ", "vatNumber")}{field("ΔΟΥ", "taxOffice")}{field("ΓΕΜΗ", "gemiNumber")}{field("Νομική μορφή", "legalForm")}</Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Αριθμός διπλώματος", "driverLicenseNumber")}{field("Κατηγορία διπλώματος", "driverLicenseClass")}{field("Έκδοση", "driverLicenseIssueDate", { type: "date" })}{field("Λήξη", "driverLicenseExpiryDate", { type: "date" })}</Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Πηγή", "source")}{field("Ετικέτες", "tagsJson", { placeholder: "π.χ. premium, εταιρεία" })}{field("URL φωτογραφίας", "photoUrl")}</Stack>
-        <Alert severity="info">Τα οχήματα δεν καταχωρούνται ξεχωριστά: εμφανίζονται αυτόματα από τα συμβόλαια αυτοκινήτου και τις πινακίδες τους.</Alert>
-      </Stack>}
+        <Box sx={{ gridColumn: { sm: "1 / -1" } }}>{field("Σημειώσεις", "notes", { multiline: true })}</Box>
+      </Box>}
+      {tab === 1 && <Box sx={editorGridSx}>
+        {field("Ημερομηνία γέννησης", "birthDate", { type: "date" })}{field("Φύλο", "gender", { select: ["Male", "Female", "Other"] })}{field("Εθνικότητα", "nationality")}{field("Οικογενειακή κατάσταση", "maritalStatus")}
+        {field("Αριθμός ταυτότητας", "idNumber")}{field("ΑΜΚΑ", "amka")}{field("Διαβατήριο", "passportNumber")}{field("Πατρώνυμο", "fatherName")}
+        {field("Μητρώνυμο", "motherName")}{field("Σύζυγος / σύντροφος", "spouseName")}
+      </Box>}
+      {tab === 2 && <Box sx={editorGridSx}>
+        {field("Επάγγελμα", "occupation")}{field("Εργοδότης", "employer")}{field("Κωδικός δραστηριότητας", "activityCode")}{field("Ζώνη", "zone")}
+        {field("ΑΦΜ", "vatNumber")}{field("ΔΟΥ", "taxOffice")}{field("ΓΕΜΗ", "gemiNumber")}{field("Νομική μορφή", "legalForm")}
+        {field("Αριθμός διπλώματος", "driverLicenseNumber")}{field("Κατηγορία διπλώματος", "driverLicenseClass")}{field("Έκδοση", "driverLicenseIssueDate", { type: "date" })}{field("Λήξη", "driverLicenseExpiryDate", { type: "date" })}
+        {field("Πηγή", "source")}{field("Ετικέτες", "tagsJson", { placeholder: "π.χ. premium, εταιρεία" })}{field("URL φωτογραφίας", "photoUrl")}
+        <Alert severity="info" sx={{ gridColumn: { sm: "1 / -1" }, py: 0 }}>Τα οχήματα εμφανίζονται αυτόματα από τα συμβόλαια και τις πινακίδες τους.</Alert>
+      </Box>}
     <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 1.25 }}>
       <Button size="small" onClick={onClose} color="inherit">Άκυρο</Button>
       <Button size="small" variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση πλήρους καρτέλας"}</Button>

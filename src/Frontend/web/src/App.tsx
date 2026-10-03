@@ -180,6 +180,7 @@ import { PlatformEmailTemplatesPage } from "./pages/PlatformEmailTemplatesPage";
 import { PlatformMaintenancePage } from "./pages/PlatformMaintenancePage";
 import { PlatformAnnouncementsPage } from "./pages/PlatformAnnouncementsPage";
 import { InsuranceCompaniesPage } from "./pages/InsuranceCompaniesPage";
+import { CompaniesAndAgenciesPage } from "./pages/CompaniesAndAgenciesPage";
 import { EndorsementsPage } from "./pages/EndorsementsPage";
 import { PolicyCancellationsPage } from "./pages/PolicyCancellationsPage";
 import { CommissionRulesPage } from "./pages/CommissionRulesPage";
@@ -235,7 +236,6 @@ import InventoryIcon from "@mui/icons-material/Inventory";
 import HubIcon from "@mui/icons-material/Hub";
 import FolderSpecialIcon from "@mui/icons-material/FolderSpecial";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
-import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import LanguageIcon from "@mui/icons-material/Language";
 import { AllToolsPage } from "./pages/AllToolsPage";
@@ -356,7 +356,7 @@ export const navByRole: Record<Role, NavItem[]> = {
 
     // BackOffice → ΠΑΡΑΜΕΤΡΟΠΟΙΗΣΗ — fewer sidebar entries:
     // Εταιρείες → Κλάδοι/Πακέτα/Καλύψεις → ενιαία παραμετροποίηση προμηθειών/προεπιλογών.
-    { to: "/insurance-companies", labelKey: "nav.insuranceCompanies", icon: <BusinessIcon />,           package: "BackOffice", group: "params" },
+    { to: "/companies-agencies", labelKey: "nav.companiesAgencies", icon: <BusinessIcon />, package: "BackOffice", group: "params" },
     { to: "/company-parametrics", labelKey: "nav.companyParametrics", icon: <TuneOutlinedIcon />,       package: "BackOffice", group: "params" },
     // Παραμετροποίηση προμηθειών sits right under «Παραμετρικά ασφαλιστικών»
     // — the two screens are used back-to-back when onboarding a new carrier.
@@ -443,7 +443,6 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/partner-portals", labelKey: "nav.b2bPortal", icon: <HubIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/api-keys", labelKey: "nav.thirdParty", icon: <ExtensionIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/branches", labelKey: "nav.branchDesigner", icon: <AccountTreeIcon />, package: "Integrations", group: "setup" },
-    { to: "/agency-offices", labelKey: "nav.agencyOffices", icon: <HomeWorkIcon />, package: "Integrations", group: "setup" },
     { to: "/all-tools", labelKey: "nav.allTools", icon: <AppsIcon />, package: "Integrations" },
 
     // Always-visible footer.
@@ -1044,6 +1043,7 @@ export default function App() {
                   <Route path="commission-runs" element={<CommissionRunsPage />} />
                   <Route path="company-bridges" element={<CompanyBridgesPage />} />
                   <Route path="insurance-companies" element={<InsuranceCompaniesPage />} />
+                  <Route path="companies-agencies" element={<CompaniesAndAgenciesPage />} />
                   <Route path="endorsements" element={<EndorsementsPage />} />
                   <Route path="cancellations" element={<PolicyCancellationsPage />} />
                   <Route path="credit-notes" element={<Navigate to="/app/financials?tab=creditNotes" replace />} />

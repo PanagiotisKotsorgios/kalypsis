@@ -49,6 +49,7 @@ export function AgencyOfficesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<OfficeDto | null>(null);
   const [assigning, setAssigning] = useState<OfficeDto | null>(null);
+  const [profileFor, setProfileFor] = useState<OfficeDto | null>(null);
 
   const q = useQuery({
     queryKey: ["agency-offices"],
@@ -104,7 +105,10 @@ export function AgencyOfficesPage() {
                 </TableCell></TableRow>
               )}
               {(q.data ?? []).map((o) => (
-                <TableRow key={o.id} hover>
+                <TableRow key={o.id} hover onClick={(event) => {
+                  const target = event.target as HTMLElement;
+                  if (!target.closest("button,a,input,[role='button']")) setProfileFor(o);
+                }} sx={{ cursor: "pointer" }}>
                   <TableCell>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <Chip size="small" label={o.code} sx={{ fontFamily: "monospace" }} />
@@ -168,8 +172,70 @@ export function AgencyOfficesPage() {
       <OfficeUsersDialog open={!!assigning} office={assigning}
         onClose={() => setAssigning(null)}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["agency-offices"] }); setAssigning(null); }} />
+      <OfficeProfileDialog open={!!profileFor} office={profileFor} onClose={() => setProfileFor(null)} />
     </Box>
   );
+}
+
+function OfficeProfileDialog({ open, office, onClose }: { open: boolean; office: OfficeDto | null; onClose: () => void }) {
+  const users = useQuery({
+    queryKey: ["agency-office-profile-users", office?.id],
+    enabled: open && !!office,
+    queryFn: async () => (await api.get<OfficeUserDto[]>(`/agency-offices/${office!.id}/users`)).data
+  });
+  const assigned = (users.data ?? []).filter(user => user.isAssigned);
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+      <DialogTitle sx={{ pr: 6 }}>
+        <Stack direction="row" alignItems="center" spacing={1.25} flexWrap="wrap">
+          <HomeWorkIcon color="primary" />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="h6" fontWeight={800}>{office?.name ?? "…"}</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>{office?.code}</Typography>
+          </Box>
+          {office?.isHeadquarters && <Chip size="small" icon={<StarIcon />} color="warning" label="Κεντρικό" />}
+          <Chip size="small" color={office?.isActive ? "success" : "default"} label={office?.isActive ? "Ενεργό" : "Ανενεργό"} />
+        </Stack>
+      </DialogTitle>
+      <DialogContent dividers>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1 }}>
+          <Card variant="outlined" sx={{ p: 1.25 }}>
+            <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75 }}>Στοιχεία πρακτορείου</Typography>
+            <OfficeProfileField label="Πόλη / ΤΚ" value={[office?.city, office?.postalCode].filter(Boolean).join(" · ")} />
+            <OfficeProfileField label="Διεύθυνση" value={office?.address} />
+            <OfficeProfileField label="Τηλέφωνο" value={office?.phone} link={office?.phone ? `tel:${office.phone}` : undefined} />
+            <OfficeProfileField label="Email" value={office?.email} link={office?.email ? `mailto:${office.email}` : undefined} />
+          </Card>
+          <Card variant="outlined" sx={{ p: 1.25 }}>
+            <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75 }}>Πρόσωπα &amp; ρόλοι</Typography>
+            {users.isLoading ? <CircularProgress size={20} /> : assigned.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">Δεν έχουν ανατεθεί χρήστες.</Typography>
+            ) : assigned.map(user => (
+              <Box key={user.userId} sx={{ py: 0.45, borderBottom: "1px solid", borderColor: "divider" }}>
+                <Typography variant="body2" fontWeight={700}>{`${user.firstName} ${user.lastName}`.trim() || user.email}</Typography>
+                <Typography variant="caption" color="text.secondary">{user.role} · {user.email}{user.isPrimary ? " · κύριο γραφείο" : ""}</Typography>
+              </Box>
+            ))}
+          </Card>
+          <Card variant="outlined" sx={{ p: 1.25, gridColumn: { sm: "1 / -1" } }}>
+            <Typography variant="subtitle2" fontWeight={800}>Σημειώσεις / ιστορικό γραφείου</Typography>
+            <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}>
+              {office?.notes?.trim() || "Δεν έχουν καταχωρηθεί σημειώσεις για το πρακτορείο."}
+            </Typography>
+          </Card>
+        </Box>
+      </DialogContent>
+      <DialogActions><Button onClick={onClose}>Κλείσιμο</Button></DialogActions>
+    </Dialog>
+  );
+}
+
+function OfficeProfileField({ label, value, link }: { label: string; value?: string | null; link?: string }) {
+  const shown = value?.trim() || "—";
+  return <Box sx={{ mb: 0.65 }}>
+    <Typography variant="caption" color="text.secondary">{label}</Typography>
+    <Typography variant="body2" fontWeight={600}>{link && value ? <a href={link} style={{ color: "inherit" }}>{shown}</a> : shown}</Typography>
+  </Box>;
 }
 
 function OfficeUsersDialog({ open, office, onClose, onSaved }: {
