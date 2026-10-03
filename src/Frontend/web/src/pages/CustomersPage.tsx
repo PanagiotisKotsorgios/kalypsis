@@ -479,7 +479,7 @@ export function CustomersPage() {
           ]}
         />}
       >
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }} flexWrap="wrap" useFlexGap sx={{ "& > .MuiTextField-root, & > .MuiFormControl-root, & > .MuiFormControlLabel-root, & > .MuiBox-root": { flex: { md: "1 1 180px" }, minWidth: { md: 160 } } }}>
           <TextField
             size="small"
             placeholder={t("customers.searchPlaceholder")}
@@ -493,12 +493,12 @@ export function CustomersPage() {
           />
           <FilterFieldWrap tip="Ελεύθερο κείμενο για επάγγελμα ή κλάδο δραστηριότητας (π.χ. «εστίαση»).">
             <TextField size="small" label="Επάγγελμα / κλάδος" value={occupationFilter}
-              onChange={(e) => setOccupationFilter(e.target.value)} sx={{ minWidth: 190, width: "100%" }}
+              onChange={(e) => setOccupationFilter(e.target.value)} sx={{ minWidth: 190, width: "100%", flex: "1 1 190px" }}
               placeholder="π.χ. εστίαση" />
           </FilterFieldWrap>
           <FilterFieldWrap tip="Φιλτράρετε τους πελάτες βάσει ασφαλιστικής ανάγκης ή περιουσιακού στοιχείου.">
             <SearchableTextField size="small" label="Ανάγκη / περιουσία" value={needKind}
-              onChange={(e) => setNeedKind(e.target.value)} sx={{ minWidth: 180, width: "100%" }}>
+              onChange={(e) => setNeedKind(e.target.value)} sx={{ minWidth: 180, width: "100%", flex: "1 1 180px" }}>
               <MenuItem value="">Όλες</MenuItem>
               {NEED_KINDS.map(kind => <MenuItem key={kind} value={kind}>{NEED_KIND_LABEL[kind] ?? kind}</MenuItem>)}
             </SearchableTextField>
@@ -506,12 +506,12 @@ export function CustomersPage() {
           <FormControlLabel control={<Switch checked={onlyUninsuredNeeds} disabled={!needKind}
             onChange={(e) => setOnlyUninsuredNeeds(e.target.checked)} />} label="Μόνο χωρίς κάλυψη" />
           <SearchableTextField select size="small" label="Κατάσταση" value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as CustomerStatus | "")} sx={{ minWidth: 160, width: "100%" }}>
+            onChange={(e) => setStatusFilter(e.target.value as CustomerStatus | "")} sx={{ minWidth: 160, width: "100%", flex: "1 1 160px" }}>
             <MenuItem value="">Όλες</MenuItem>
             {Object.entries(CUSTOMER_STATUS_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
           </SearchableTextField>
           <SearchableTextField select size="small" label="Οικονομική εικόνα" value={paymentFilter}
-            onChange={(e) => setPaymentFilter(e.target.value as PaymentFilter)} sx={{ minWidth: 190, width: "100%" }}>
+            onChange={(e) => setPaymentFilter(e.target.value as PaymentFilter)} sx={{ minWidth: 190, width: "100%", flex: "1 1 190px" }}>
             <MenuItem value="all">Όλοι οι πελάτες</MenuItem>
             <MenuItem value="debtors">Χρωστάνε στο γραφείο</MenuItem>
             <MenuItem value="unpaid">Χρέος χωρίς καταβολή</MenuItem>
@@ -522,7 +522,7 @@ export function CustomersPage() {
             <MenuItem value="settled">Εξοφλημένοι</MenuItem>
           </SearchableTextField>
           <SearchableTextField select size="small" label="Περίοδος οφειλής" value={paymentWindow}
-            onChange={(e) => setPaymentWindow(e.target.value as PaymentWindow)} sx={{ minWidth: 175, width: "100%" }}>
+            onChange={(e) => setPaymentWindow(e.target.value as PaymentWindow)} sx={{ minWidth: 175, width: "100%", flex: "1 1 175px" }}>
             <MenuItem value="all">Όλο το ιστορικό</MenuItem>
             <MenuItem value="last7">Τελευταίες 7 ημέρες</MenuItem>
             <MenuItem value="last30">Τελευταίες 30 ημέρες</MenuItem>
