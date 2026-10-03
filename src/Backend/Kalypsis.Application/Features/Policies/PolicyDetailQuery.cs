@@ -94,7 +94,20 @@ public record PolicyDetailDto(
     // FinancialMovements that were created when the bridge import ran.
     // Non-null only for policies that landed via a carrier bridge; manual
     // policies stay at null (they never had a bridge posting).
-    decimal? BridgeAgencyCommissionAmount = null);
+    decimal? BridgeAgencyCommissionAmount = null,
+    // Vehicle card fields (nullable for non-motor policies). Keeping these
+    // at the end preserves binary/JSON compatibility for existing clients.
+    string? VehicleUseCategory = null,
+    string? CarrierUseCode = null,
+    string? Characteristic = null,
+    decimal? Deductible = null,
+    string? Position = null,
+    DateOnly? HandoverDate = null,
+    DateOnly? OfficeReceivedAt = null,
+    bool PaidOnCredit = false,
+    DateOnly? PaymentPromisedOn = null,
+    string? CreditReason = null,
+    string? PolicyNotes = null);
 
 public record GetPolicyDetailQuery(Guid Id) : IRequest<PolicyDetailDto>;
 
@@ -265,7 +278,18 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             p.DriverVatNumber,
             p.ReasonForCirculation,
             p.SpecialLevelPercentsJson,
-            bridgeAgencyCommission);
+            bridgeAgencyCommission,
+            p.VehicleUseCategory?.ToString(),
+            p.CarrierUseCode,
+            p.Characteristic,
+            p.Deductible,
+            p.Position,
+            p.HandoverDate,
+            p.OfficeReceivedAt,
+            p.PaidOnCredit,
+            p.PaymentPromisedOn,
+            p.CreditReason,
+            p.Notes);
     }
 }
 

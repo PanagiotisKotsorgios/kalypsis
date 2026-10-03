@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Alert, Box, Button, Card, Chip, CircularProgress, InputAdornment, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, InputAdornment, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadIcon from "@mui/icons-material/Download";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
@@ -22,8 +22,107 @@ interface VehiclePolicyRow {
   vehicleRegistrationPlate?: string | null;
 }
 
+interface VehiclePolicyDetail {
+  id: string;
+  policyNumber: string;
+  policyType: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  premium: number;
+  currency: string;
+  insuranceCompanyName: string;
+  customerDisplay: string;
+  vehicleRegistrationPlate?: string | null;
+  driverVatNumber?: string | null;
+  reasonForCirculation?: string | null;
+  vehicleUseCategory?: string | null;
+  carrierUseCode?: string | null;
+  characteristic?: string | null;
+  deductible?: number | null;
+  position?: string | null;
+  specsJson?: string | null;
+  netPremium?: number | null;
+  vatAmount?: number | null;
+  stampDutyAmount?: number | null;
+  insuranceContributionAmount?: number | null;
+  otherChargesAmount?: number | null;
+  totalReceived?: number;
+  outstanding?: number;
+  totalCommissions?: number;
+  claimCount?: number;
+  paymentCollectionMethod?: string | null;
+  paidDirectlyToCarrier?: boolean;
+  paidOnCredit?: boolean;
+  paymentPromisedOn?: string | null;
+  creditReason?: string | null;
+  policyNotes?: string | null;
+}
+
+function parseSpecs(value?: string | null): Record<string, unknown> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    const result: Record<string, unknown> = {};
+    const walk = (item: unknown, prefix = "") => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) { if (prefix) result[prefix] = item; return; }
+      for (const [key, child] of Object.entries(item as Record<string, unknown>)) walk(child, prefix ? `${prefix}.${key}` : key);
+    };
+    walk(parsed);
+    return result;
+  } catch { return {}; }
+}
+
+function money(value?: number | null, currency = "EUR") {
+  return value == null ? "—" : `${value.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+}
+
+export function VehicleDetailDialog({ open, plate, policyIds, onClose }: { open: boolean; plate: string; policyIds: string[]; onClose: () => void }) {
+  const q = useQuery({
+    queryKey: ["vehicle-detail", plate, policyIds.join(",")],
+    enabled: open && policyIds.length > 0,
+    queryFn: async () => {
+      const [details, claims] = await Promise.all([
+        Promise.all(policyIds.map(id => api.get<VehiclePolicyDetail>(`/policies/${id}/detail`).then(response => response.data))),
+        api.get<any[]>("/claims").then(response => response.data)
+      ]);
+      const claimRows = claims.filter(claim => policyIds.includes(String(claim.policyId)));
+      return { details, claims: claimRows };
+    }
+  });
+  const details = q.data?.details ?? [];
+  const first = details[0];
+  const specs = details.reduce<Record<string, unknown>>((all, detail) => ({ ...all, ...parseSpecs(detail.specsJson) }), {});
+  const specEntries = Object.entries(specs).filter(([, value]) => value !== null && value !== undefined && value !== "");
+  const specLabel: Record<string, string> = {
+    taxableHorsepower: "Φορολογήσιμοι ίπποι", taxableHp: "Φορολογήσιμοι ίπποι", taxable_horsepower: "Φορολογήσιμοι ίπποι", horsepower: "Ιπποδύναμη (HP)",
+    engineCapacity: "Κυβισμός", vin: "VIN / αριθμός πλαισίου", make: "Μάρκα", model: "Μοντέλο", year: "Έτος κατασκευής",
+    color: "Χρώμα", seats: "Θέσεις", usage: "Χρήση"
+  };
+  const total = (key: keyof VehiclePolicyDetail) => details.reduce((sum, detail) => sum + (Number(detail[key]) || 0), 0);
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
+    <DialogTitle><Stack direction="row" spacing={1} alignItems="center"><DirectionsCarIcon color="primary" /> <Box><Typography variant="h6" fontWeight={800}>Καρτέλα οχήματος · {plate || "Χωρίς πινακίδα"}</Typography><Typography variant="caption" color="text.secondary">Συγκεντρωμένα στοιχεία από όλα τα σχετικά συμβόλαια</Typography></Box></Stack></DialogTitle>
+    <DialogContent dividers>
+      {q.isLoading && <Box sx={{ p: 4, textAlign: "center" }}><CircularProgress /></Box>}
+      {q.isError && <Alert severity="error">{extractErrorMessage(q.error)}</Alert>}
+      {!q.isLoading && !q.isError && first && <Stack spacing={2.5}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }, gap: 1.5 }}>
+          {[["Ιδιοκτήτης / πελάτης", first.customerDisplay], ["Χρήση", first.vehicleUseCategory ?? first.carrierUseCode ?? "—"], ["Λόγος κυκλοφορίας", first.reasonForCirculation ?? "—"], ["ΑΦΜ οδηγού", first.driverVatNumber ?? "—"], ["Χαρακτηριστικό", first.characteristic ?? "—"], ["Απαλλαγή", money(first.deductible, first.currency)], ["Θέση / spot", first.position ?? "—"], ["Τρόπος είσπραξης", first.paymentCollectionMethod ?? "—"]].map(([label, value]) => <Box key={label} sx={{ p: 1.25, bgcolor: "background.default", borderRadius: 1 }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={700}>{value}</Typography></Box>)}
+        </Box>
+        <Card variant="outlined" sx={{ p: 2 }}><Typography variant="subtitle1" fontWeight={800} sx={{ mb: 1.5 }}>Τεχνικά στοιχεία οχήματος</Typography>{specEntries.length === 0 ? <Typography color="text.secondary">Δεν έχουν σταλεί τεχνικά στοιχεία από την ασφαλιστική. Μπορούν να αποθηκευτούν στο πεδίο παραμετρικών του συμβολαίου.</Typography> : <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" }, gap: 1.25 }}>{specEntries.map(([key, value]) => <Box key={key}><Typography variant="caption" color="text.secondary">{specLabel[key] ?? specLabel[key.split(".").pop() ?? ""] ?? key}</Typography><Typography fontWeight={600}>{typeof value === "object" ? JSON.stringify(value) : String(value)}</Typography></Box>)}</Box>}</Card>
+        <Card variant="outlined" sx={{ p: 2 }}><Typography variant="subtitle1" fontWeight={800} sx={{ mb: 1.5 }}>Κόστος, φόροι και εισπράξεις</Typography><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" }, gap: 1.25 }}>{[["Μεικτά", total("premium")], ["Καθαρά", total("netPremium")], ["Φόρος / ΦΠΑ", total("vatAmount")], ["Χαρτόσημο", total("stampDutyAmount")], ["Ασφαλιστική εισφορά", total("insuranceContributionAmount")], ["Λοιπές επιβαρύνσεις", total("otherChargesAmount")], ["Εισπράξεις", total("totalReceived")], ["Υπόλοιπο", total("outstanding")], ["Προμήθειες", total("totalCommissions")]].map(([label, value]) => <Box key={label}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={800}>{money(Number(value), first.currency)}</Typography></Box>)}</Box><Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.5 }}>Οι φόροι και οι προμήθειες προέρχονται από τα επιμέρους συμβόλαια· δεν υπολογίζονται ξανά στην καρτέλα.</Typography></Card>
+        <Card variant="outlined" sx={{ p: 2 }}><Typography variant="subtitle1" fontWeight={800} sx={{ mb: 1.5 }}>Ασφαλιστήρια</Typography><Table size="small"><TableHead><TableRow><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Ισχύς</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Μεικτά</TableCell></TableRow></TableHead><TableBody>{details.map(detail => <TableRow key={detail.id}><TableCell>{detail.policyNumber}</TableCell><TableCell>{detail.insuranceCompanyName}</TableCell><TableCell>{detail.startDate} → {detail.endDate}</TableCell><TableCell><Chip size="small" label={detail.status} /></TableCell><TableCell align="right">{money(detail.premium, detail.currency)}</TableCell></TableRow>)}</TableBody></Table></Card>
+        <Card variant="outlined" sx={{ p: 2 }}><Typography variant="subtitle1" fontWeight={800} sx={{ mb: 1.5 }}>Ζημιές</Typography>{(q.data?.claims ?? []).length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν καταχωρημένες ζημιές για το όχημα.</Typography> : <Table size="small"><TableHead><TableRow><TableCell>Αρ. ζημιάς</TableCell><TableCell>Ημερομηνία</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Διεκδίκηση</TableCell><TableCell align="right">Έγκριση</TableCell></TableRow></TableHead><TableBody>{(q.data?.claims ?? []).map(claim => <TableRow key={claim.id}><TableCell>{claim.claimNumber ?? "—"}</TableCell><TableCell>{claim.incidentDate ?? "—"}</TableCell><TableCell><Chip size="small" label={claim.status ?? "—"} /></TableCell><TableCell align="right">{money(claim.claimedAmount, first.currency)}</TableCell><TableCell align="right">{money(claim.approvedAmount, first.currency)}</TableCell></TableRow>)}</TableBody></Table>}</Card>
+        {details.some(detail => detail.paidOnCredit || detail.paymentPromisedOn || detail.creditReason || detail.policyNotes) && <Card variant="outlined" sx={{ p: 2 }}><Typography variant="subtitle1" fontWeight={800}>Πληρωμές & σημειώσεις</Typography>{details.map(detail => <Box key={detail.id} sx={{ mt: 1.5 }}><Typography fontWeight={700}>{detail.policyNumber}</Typography><Typography variant="body2">{detail.paidOnCredit ? "Πληρωμή επί πιστώσει" : ""}{detail.paymentPromisedOn ? ` · Υπόσχεση πληρωμής: ${detail.paymentPromisedOn}` : ""}{detail.creditReason ? ` · ${detail.creditReason}` : ""}</Typography>{detail.policyNotes && <Typography variant="body2" color="text.secondary">{detail.policyNotes}</Typography>}</Box>)}</Card>}
+      </Stack>}
+    </DialogContent>
+    <DialogActions><Button onClick={onClose}>Κλείσιμο</Button></DialogActions>
+  </Dialog>;
+}
+
 export function CustomerVehiclesPage() {
   const [search, setSearch] = useState("");
+  const [selectedPlate, setSelectedPlate] = useState<string | null>(null);
   const q = useQuery({
     queryKey: ["customer-vehicles-all"],
     queryFn: async () => (await api.get<VehiclePolicyRow[]>("/policies", { params: { type: "Auto" } })).data
@@ -62,8 +161,9 @@ export function CustomerVehiclesPage() {
         <TableCell><Button component={RouterLink} to={`/app/customers/${row.customerId}`} size="small">{row.customerDisplay ?? "Πελάτης"}</Button></TableCell>
         <TableCell><Button component={RouterLink} to={`/app/policies?focus=${row.id}`} size="small">{row.policyNumber}</Button></TableCell>
         <TableCell>{row.insuranceCompanyName}</TableCell><TableCell>{row.startDate}</TableCell><TableCell>{row.endDate}</TableCell>
-        <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell><TableCell><Chip size="small" label={row.status} /></TableCell>
+        <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell><TableCell><Chip size="small" label={row.status} /></TableCell><TableCell><Button size="small" onClick={() => setSelectedPlate(row.vehicleRegistrationPlate ?? "")}>Καρτέλα οχήματος</Button></TableCell>
       </TableRow>)}</TableBody>
     </Table></Card>}
+    <VehicleDetailDialog open={selectedPlate !== null} plate={selectedPlate ?? ""} policyIds={rows.filter(row => (row.vehicleRegistrationPlate ?? "") === (selectedPlate ?? "")).map(row => row.id)} onClose={() => setSelectedPlate(null)} />
   </Stack>;
 }

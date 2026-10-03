@@ -45,6 +45,7 @@ import { useTranslation } from "react-i18next";
 import { useParams, Link as RouterLink } from "react-router-dom";
 import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { VehicleDetailDialog } from "./CustomerVehiclesPage";
 
 interface CustomerDto {
   id: string;
@@ -434,6 +435,7 @@ interface CustomerVehicleRow {
 }
 
 function CustomerVehiclesTab({ customerId, compact = false }: { customerId: string; compact?: boolean }) {
+  const [selectedPlate, setSelectedPlate] = useState<string | null>(null);
   const q = useQuery({
     queryKey: ["customer-vehicles", customerId],
     queryFn: async () => (await api.get<CustomerVehicleRow[]>("/policies", { params: { customerId, type: "Auto" } })).data
@@ -449,7 +451,7 @@ function CustomerVehiclesTab({ customerId, compact = false }: { customerId: stri
       </Stack>
       {rows.length === 0 ? <Alert severity="info">Δεν έχει καταχωρηθεί ακόμη συμβόλαιο αυτοκινήτου ή πινακίδα για τον πελάτη.</Alert> : (
         <Table size="small">
-          <TableHead><TableRow><TableCell>Πινακίδα</TableCell><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Ισχύς</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Κατάσταση</TableCell></TableRow></TableHead>
+          <TableHead><TableRow><TableCell>Πινακίδα</TableCell><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Ισχύς</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Κατάσταση</TableCell><TableCell /></TableRow></TableHead>
           <TableBody>{rows.map(row => <TableRow key={row.id} hover>
             <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.vehicleRegistrationPlate ?? "—"}</TableCell>
             <TableCell><Button size="small" component={RouterLink} to={`/app/policies?focus=${row.id}`}>{row.policyNumber}</Button></TableCell>
@@ -457,9 +459,11 @@ function CustomerVehiclesTab({ customerId, compact = false }: { customerId: stri
             <TableCell>{row.startDate} → {row.endDate}</TableCell>
             <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell>
             <TableCell><Chip size="small" label={row.status} /></TableCell>
+            <TableCell><Button size="small" onClick={() => setSelectedPlate(row.vehicleRegistrationPlate ?? "")}>Καρτέλα</Button></TableCell>
           </TableRow>)}</TableBody>
         </Table>
       )}
+      <VehicleDetailDialog open={selectedPlate !== null} plate={selectedPlate ?? ""} policyIds={rows.filter(row => (row.vehicleRegistrationPlate ?? "") === (selectedPlate ?? "")).map(row => row.id)} onClose={() => setSelectedPlate(null)} />
     </Card>
   );
 }

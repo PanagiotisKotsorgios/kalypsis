@@ -9,8 +9,14 @@
 # =============================================================================
 
 ARG DOTNET_VERSION=10.0
+# Keep the production build reproducible and avoid pulling a new, very large
+# SDK layer on every Coolify deployment. Update these digests deliberately
+# after testing a base-image upgrade; the current pair is already used by the
+# running deployment and remains available in the server's Docker cache.
+ARG DOTNET_SDK_DIGEST=sha256:35d40304542c8689331f8cab17c65926cdf48fe711e289321d71924b230a7d29
+ARG DOTNET_RUNTIME_DIGEST=sha256:2d584d8147faddb0d678c5748d47953e5b8e18621ed4fb7049a91381d9d7746f
 
-FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS build
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}@${DOTNET_SDK_DIGEST} AS build
 WORKDIR /src
 
 # Copy csproj files first so we cache the restore layer when only sources change.
@@ -26,7 +32,7 @@ RUN dotnet publish Kalypsis.Api/Kalypsis.Api.csproj \
     -c Release -o /app/publish \
     --no-restore /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION} AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION}@${DOTNET_RUNTIME_DIGEST} AS runtime
 WORKDIR /app
 
 # Curl is handy for Coolify's healthcheck pings.
