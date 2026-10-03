@@ -743,6 +743,12 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
       ["Έκδοση διπλώματος", customer.driverLicenseIssueDate ?? "—"], ["Λήξη διπλώματος", customer.driverLicenseExpiryDate ?? "—"], ["Έγγραφο ταυτοποίησης", identityDocument], ["Ετικέτες", customer.tagsJson ?? "—"]
     ] }
   ];
+  const isMissingField = (value: React.ReactNode) => {
+    if (value === null || value === undefined || value === false) return true;
+    if (typeof value !== "string") return false;
+    const text = value.trim();
+    return !text || text === "—" || text === "-" || text === "0 από 4" || /^(Δεν |Χωρίς )/i.test(text);
+  };
   return (
     <Stack spacing={0.75}>
       <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 } }}>
@@ -756,10 +762,26 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
           <Chip size="small" color={customer.hasPortalAccount ? "success" : "default"} label={`Portal: ${customer.hasPortalAccount ? "Ενεργό" : "Όχι"}`} />
         </Stack>
       </Card>
-      {groups.map(group => <Card key={group.title} variant="outlined" sx={{ p: { xs: 0.75, md: 1 } }}>
-        <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.5 }}>{group.title}</Typography>
+      {groups.map(group => <Card key={group.title} variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)", borderColor: "rgba(100,116,139,0.2)", borderRadius: 1.5 }}>
+        <Box sx={{ mb: 0.75, px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}>
+          <Typography variant="subtitle2" fontWeight={800}>{group.title}</Typography>
+        </Box>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))", xl: "repeat(5, minmax(0, 1fr))" }, gap: 0.5 }}>
-          {group.fields.map(([label, value]) => <Box key={label} sx={{ p: 0.5, bgcolor: "background.default", borderRadius: 0.75, minWidth: 0 }}><Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.66rem", lineHeight: 1.1 }}>{label}</Typography><Typography variant="body2" fontWeight={600} sx={{ wordBreak: "break-word", fontSize: "0.78rem", lineHeight: 1.2 }}>{value}</Typography></Box>)}
+          {group.fields.map(([label, value]) => {
+            const missing = isMissingField(value);
+            return <Box key={label} sx={{
+              p: 0.65,
+              minWidth: 0,
+              minHeight: 42,
+              borderRadius: 0.9,
+              bgcolor: missing ? "rgba(211,47,47,0.055)" : "rgba(46,125,50,0.065)",
+              border: "1px solid",
+              borderColor: missing ? "rgba(211,47,47,0.2)" : "rgba(46,125,50,0.2)",
+            }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.66rem", lineHeight: 1.1, mb: 0.2 }}>{label}</Typography>
+              <Typography variant="body2" fontWeight={600} color={missing ? "error.dark" : "success.dark"} sx={{ wordBreak: "break-word", fontSize: "0.78rem", lineHeight: 1.2 }}>{value}</Typography>
+            </Box>;
+          })}
         </Box>
       </Card>)}
       <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 } }}>

@@ -308,10 +308,10 @@ export const navByRole: Record<Role, NavItem[]> = {
     // Sidebar consolidation: /production-report (ετήσια παραγωγή) is
     // reachable as a button inside /production-lists.
     { to: "/production-lists", labelKey: "nav.productionLists", icon: <LeaderboardIcon />, package: "BackOffice", group: "production" },
+    { to: "/companies-agencies", labelKey: "nav.companiesAgencies", icon: <BusinessIcon />, package: "BackOffice", group: "production" },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice", group: "production" },
     { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice", group: "production" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice", group: "production" },
-    { to: "/companies-agencies", labelKey: "nav.companiesAgencies", icon: <BusinessIcon />, package: "BackOffice", group: "production" },
     // "Ανανεώσεις" is now a button inside the Συμβόλαια page — one less sidebar
     // entry to scan through. Legacy /renewals route still lives so anyone
     // with the URL bookmarked keeps working.
