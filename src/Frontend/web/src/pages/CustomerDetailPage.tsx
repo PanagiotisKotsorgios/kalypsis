@@ -52,6 +52,8 @@ interface CustomerDto {
   customerNumber: string;
   type: string;
   status: string;
+  createdAt?: string;
+  hasPortalAccount?: boolean;
   firstName?: string;
   lastName?: string;
   companyName?: string;
@@ -243,7 +245,7 @@ export function CustomerDetailPage() {
         </Box>
         {canManageCustomer && (
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
-            <Button startIcon={<EditIcon />} variant="contained" onClick={() => setShowEditor(true)}>
+            <Button startIcon={<EditIcon />} variant="contained" onClick={() => { setTab(0); setShowEditor(true); }}>
               Επεξεργασία πλήρους καρτέλας
             </Button>
             <Button
@@ -272,8 +274,6 @@ export function CustomerDetailPage() {
         customerDisplay={displayName}
       />
 
-      <CustomerEditorDialog open={showEditor} customer={customer} onClose={() => setShowEditor(false)} />
-
       <CustomerSummaryCard customerId={id} />
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" allowScrollButtonsMobile sx={{ mb: 1.5, minHeight: 40, borderBottom: 1, borderColor: "divider", "& .MuiTab-root": { minHeight: 40, py: 0.5, px: 1.25 } }}>
@@ -285,7 +285,9 @@ export function CustomerDetailPage() {
         <Tab label="Έντυπα & προτάσεις" />
       </Tabs>
 
-      {tab === 0 && <OverviewTab customer={customer} />}
+      {tab === 0 && (showEditor
+        ? <CustomerEditorDialog open customer={customer} onClose={() => setShowEditor(false)} />
+        : <OverviewTab customer={customer} />)}
       {tab === 1 && <Stack spacing={3}><CustomerPoliciesTab customerId={id} /><CustomerVehiclesTab customerId={id} /></Stack>}
       {tab === 2 && <Stack spacing={3}><CustomerClaimsTab customerId={id} /><CustomerAccountTab customerId={id} /></Stack>}
       {tab === 3 && <Stack spacing={3}><CommunicationsTab customerId={id} /><CustomerNotificationsTab customerId={id} /></Stack>}
@@ -679,21 +681,66 @@ function CustomerNotificationsTab({ customerId }: { customerId: string }) {
 /* ---------- Overview ---------- */
 
 function OverviewTab({ customer }: { customer: CustomerDto }) {
+  const nameDaysQ = useQuery({
+    queryKey: ["customer-name-days", customer.id],
+    retry: false,
+    queryFn: async () => (await api.get<{ name: string; month: number; day: number; isActive: boolean }[]>("/name-days")).data
+  });
+  const matchingNameDays = (nameDaysQ.data ?? []).filter(nameDay => nameDay.isActive && Boolean(customer.firstName) && nameDay.name.localeCompare(customer.firstName ?? "", "el", { sensitivity: "base" }) === 0);
+  const annualDate = (value?: string | null, label = "") => {
+    if (!value) return "Δεν έχει οριστεί";
+    const parts = value.slice(0, 10).split("-").map(Number);
+    if (parts.length !== 3 || parts.some(Number.isNaN)) return value;
+    const [, month, day] = parts;
+    const today = new Date();
+    let year = today.getFullYear();
+    const candidate = new Date(year, month - 1, day);
+    if (candidate.getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) year += 1;
+    return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}${label ? ` · ${label}` : ""}`;
+  };
+  const nextNameDay = matchingNameDays.map(item => {
+    const today = new Date();
+    let year = today.getFullYear();
+    let date = new Date(year, item.month - 1, item.day);
+    if (date.getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) {
+      year += 1;
+      date = new Date(year, item.month - 1, item.day);
+    }
+    return { date, label: `${String(item.day).padStart(2, "0")}/${String(item.month).padStart(2, "0")}/${year}` };
+  }).sort((a, b) => a.date.getTime() - b.date.getTime())[0]?.label;
+  const hasDriverLicense = Boolean(customer.driverLicenseNumber || customer.driverLicenseClass || customer.driverLicenseIssueDate || customer.driverLicenseExpiryDate);
+  const licenseExpired = customer.driverLicenseExpiryDate ? new Date(customer.driverLicenseExpiryDate).getTime() < Date.now() : false;
+  const licenseStatus = !hasDriverLicense ? "Δεν έχει καταχωρηθεί" : licenseExpired ? "Έχει λήξει" : "Καταχωρημένο / ενεργό";
+  const contactMethodCount = [customer.email, customer.phone, customer.mobilePhone, customer.altPhone].filter(value => Boolean(value?.trim())).length;
+  const identityDocument = customer.idNumber || customer.passportNumber ? "Καταχωρημένο" : "Δεν έχει καταχωρηθεί";
+  const taxProfile = customer.vatNumber || customer.taxOffice || customer.gemiNumber ? "Συμπληρωμένο" : "Δεν έχει συμπληρωθεί";
+  const age = customer.birthDate ? (() => {
+    const birth = new Date(customer.birthDate);
+    if (Number.isNaN(birth.getTime())) return "—";
+    const today = new Date();
+    let years = today.getFullYear() - birth.getFullYear();
+    if (today.getMonth() < birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) years -= 1;
+    return years >= 0 ? `${years} ετών` : "—";
+  })() : "—";
   const groups: { title: string; fields: [string, React.ReactNode][] }[] = [
     { title: "Επικοινωνία & διεύθυνση", fields: [
       ["Email", customer.email ?? "—"], ["Κύριο τηλέφωνο", customer.phone ?? "—"], ["Κινητό", customer.mobilePhone ?? "—"], ["2ο τηλέφωνο", customer.altPhone ?? "—"],
-      ["Διεύθυνση", customer.address ?? "—"], ["Πόλη / Τ.Κ.", [customer.city, customer.postalCode].filter(Boolean).join(" · ") || "—"], ["Περιφέρεια", customer.region ?? "—"]
+      ["Διεύθυνση", customer.address ?? "—"], ["Πόλη / Τ.Κ.", [customer.city, customer.postalCode].filter(Boolean).join(" · ") || "—"], ["Περιφέρεια", customer.region ?? "—"],
+      ["Καταχωρημένα κανάλια", `${contactMethodCount} από 4`], ["Ημ. εξόφλησης", customer.paymentDueDate ?? "Δεν έχει οριστεί"], ["Λογαριασμός portal", customer.hasPortalAccount ? "Ενεργός" : "Δεν έχει δημιουργηθεί"]
     ] },
     { title: "Ταυτότητα & προσωπικά στοιχεία", fields: [
       ["ΑΦΜ", customer.vatNumber ?? "—"], ["Αριθμός ταυτότητας", customer.idNumber ?? "—"], ["ΑΜΚΑ", customer.amka ?? "—"], ["Διαβατήριο", customer.passportNumber ?? "—"],
-      ["Ημ. γέννησης", customer.birthDate ?? "—"], ["Φύλο", customer.gender ?? "—"], ["Οικογενειακή κατάσταση", customer.maritalStatus ?? "—"], ["Εθνικότητα", customer.nationality ?? "—"]
+      ["Ημ. γέννησης", customer.birthDate ?? "—"], ["Επόμενα γενέθλια", annualDate(customer.birthDate)], ["Ηλικία", age], ["Ονομαστική εορτή", matchingNameDays.length ? `${matchingNameDays.map(item => `${String(item.day).padStart(2, "0")}/${String(item.month).padStart(2, "0")}`).join(", ")} · επόμενη ${nextNameDay}` : "Δεν έχει αντιστοίχιση"], ["Φύλο", customer.gender ?? "—"], ["Οικογενειακή κατάσταση", customer.maritalStatus ?? "—"], ["Εθνικότητα", customer.nationality ?? "—"],
+      ["Πατρώνυμο", customer.fatherName ?? "—"], ["Μητρώνυμο", customer.motherName ?? "—"], ["Σύζυγος / σύντροφος", customer.spouseName ?? "—"]
     ] },
     { title: "Εργασία & εταιρικά στοιχεία", fields: [
       ["Επάγγελμα", customer.occupation ?? "—"], ["Εργοδότης", customer.employer ?? "—"], ["Δραστηριότητα", customer.activityCode ?? "—"], ["Ζώνη", customer.zone ?? "—"],
-      ["ΔΟΥ", customer.taxOffice ?? "—"], ["ΓΕΜΗ", customer.gemiNumber ?? "—"], ["Νομική μορφή", customer.legalForm ?? "—"], ["Πηγή", customer.source ?? "—"]
+      ["ΔΟΥ", customer.taxOffice ?? "—"], ["ΓΕΜΗ", customer.gemiNumber ?? "—"], ["Νομική μορφή", customer.legalForm ?? "—"], ["Πηγή", customer.source ?? "—"],
+      ["Φορολογικό προφίλ", taxProfile], ["Φωτογραφία προφίλ", customer.photoUrl ? "Καταχωρημένη" : "Δεν έχει καταχωρηθεί"], ["Αριθμός πελάτη", customer.customerNumber]
     ] },
     { title: "Οδήγηση & εσωτερική πληροφόρηση", fields: [
-      ["Αριθμός διπλώματος", customer.driverLicenseNumber ?? "—"], ["Κατηγορία", customer.driverLicenseClass ?? "—"], ["Λήξη διπλώματος", customer.driverLicenseExpiryDate ?? "—"], ["Ετικέτες", customer.tagsJson ?? "—"]
+      ["Οδηγός", hasDriverLicense ? "Ναι" : "Δεν έχει καταχωρηθεί"], ["Κατάσταση διπλώματος", licenseStatus], ["Αριθμός διπλώματος", customer.driverLicenseNumber ?? "—"], ["Κατηγορία", customer.driverLicenseClass ?? "—"],
+      ["Έκδοση διπλώματος", customer.driverLicenseIssueDate ?? "—"], ["Λήξη διπλώματος", customer.driverLicenseExpiryDate ?? "—"], ["Έγγραφο ταυτοποίησης", identityDocument], ["Ετικέτες", customer.tagsJson ?? "—"]
     ] }
   ];
   return (
@@ -701,6 +748,14 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
       <Card variant="outlined" sx={{ p: { xs: 1.25, md: 1.5 } }}>
         <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.5 }}>Ενιαία καρτέλα πελάτη</Typography>
         <Typography variant="body2" color="text.secondary">Όλα τα στοιχεία συγκεντρωμένα εδώ. Για αλλαγές πατήστε «Επεξεργασία πλήρους καρτέλας».</Typography>
+        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 1 }}>
+          <Chip size="small" color={hasDriverLicense ? "success" : "default"} label={`Οδηγός: ${hasDriverLicense ? "Ναι" : "Όχι"}`} />
+          <Chip size="small" color={customer.amka ? "success" : "default"} label={`ΑΜΚΑ: ${customer.amka ? "Ναι" : "Όχι"}`} />
+          <Chip size="small" color={identityDocument === "Καταχωρημένο" ? "success" : "default"} label={`Ταυτοποίηση: ${identityDocument}`} />
+          <Chip size="small" label={`Επικοινωνία: ${contactMethodCount}/4`} />
+          <Chip size="small" label={`Φορολογικά: ${taxProfile}`} />
+          <Chip size="small" color={customer.hasPortalAccount ? "success" : "default"} label={`Portal: ${customer.hasPortalAccount ? "Ενεργό" : "Όχι"}`} />
+        </Stack>
       </Card>
       {groups.map(group => <Card key={group.title} variant="outlined" sx={{ p: { xs: 1.25, md: 1.5 } }}>
         <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75 }}>{group.title}</Typography>
@@ -740,41 +795,45 @@ function CustomerEditorDialog({ open, customer, onClose }: { open: boolean; cust
   });
   const set = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
   const field = (label: string, key: string, options?: { type?: string; multiline?: boolean; select?: string[]; placeholder?: string }) => options?.select ? (
-    <TextField key={key} select label={label} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} fullWidth>
+    <TextField key={key} size="small" select label={label} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} fullWidth>
       <MenuItem value="">Δεν έχει οριστεί</MenuItem>{options.select.map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
     </TextField>
-  ) : <TextField key={key} label={label} type={options?.type} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} fullWidth multiline={options?.multiline} rows={options?.multiline ? 3 : undefined} placeholder={options?.placeholder} InputLabelProps={options?.type === "date" ? { shrink: true } : undefined} />;
-  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
-    <DialogTitle>Πλήρης καρτέλα πελάτη · {customer.customerNumber}</DialogTitle>
-    <DialogContent>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Επεξεργαστείτε όλα τα στοιχεία από ένα ενιαίο παράθυρο. Η ίδια καρτέλα χρησιμοποιείται για κανονικούς και πιθανούς πελάτες.</Typography>
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      <Tabs value={tab} onChange={(_, value) => setTab(value)} variant="scrollable" allowScrollButtonsMobile sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+  ) : <TextField key={key} size="small" label={label} type={options?.type} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} fullWidth multiline={options?.multiline} rows={options?.multiline ? 3 : undefined} placeholder={options?.placeholder} InputLabelProps={options?.type === "date" ? { shrink: true } : undefined} />;
+  if (!open) return null;
+  return <Card variant="outlined" sx={{ p: { xs: 1.25, md: 1.5 } }}>
+    <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} gap={1} sx={{ mb: 1 }}>
+      <Box><Typography variant="subtitle1" fontWeight={800}>Επεξεργασία καρτέλας · {customer.customerNumber}</Typography><Typography variant="caption" color="text.secondary">Τα πεδία επεξεργάζονται απευθείας μέσα στην καρτέλα πελάτη.</Typography></Box>
+      <Button size="small" color="inherit" onClick={onClose}>Κλείσιμο επεξεργασίας</Button>
+    </Stack>
+      {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
+      <Tabs value={tab} onChange={(_, value) => setTab(value)} variant="scrollable" allowScrollButtonsMobile sx={{ borderBottom: 1, borderColor: "divider", mb: 1.25, minHeight: 38, "& .MuiTab-root": { minHeight: 38, py: 0.5, px: 1 } }}>
         <Tab label="Βασικά & επικοινωνία" /><Tab label="Ταυτότητα & οικογένεια" /><Tab label="Εργασία, εταιρεία & όχημα" />
       </Tabs>
-      {tab === 0 && <Stack spacing={2}>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Τύπος", "type", { select: ["Individual", "Company"] })}{field("Κατάσταση", "status", { select: ["Prospect", "Active", "Inactive", "Churned", "Blocked"] })}</Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Όνομα", "firstName")}{field("Επώνυμο", "lastName")}{field("Επωνυμία", "companyName")}</Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Email", "email", { type: "email" })}{field("Κύριο τηλέφωνο", "phone")}{field("Κινητό", "mobilePhone")}{field("2ο τηλέφωνο", "altPhone")}</Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Διεύθυνση", "address")}{field("Πόλη", "city")}{field("Τ.Κ.", "postalCode")}{field("Περιφέρεια", "region")}</Stack>
+      {tab === 0 && <Stack spacing={1}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Τύπος", "type", { select: ["Individual", "Company"] })}{field("Κατάσταση", "status", { select: ["Prospect", "Active", "Inactive", "Churned", "Blocked"] })}</Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Όνομα", "firstName")}{field("Επώνυμο", "lastName")}{field("Επωνυμία", "companyName")}</Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Email", "email", { type: "email" })}{field("Κύριο τηλέφωνο", "phone")}{field("Κινητό", "mobilePhone")}{field("2ο τηλέφωνο", "altPhone")}</Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Διεύθυνση", "address")}{field("Πόλη", "city")}{field("Τ.Κ.", "postalCode")}{field("Περιφέρεια", "region")}</Stack>
         {field("Σημειώσεις", "notes", { multiline: true })}
         {field("Ημερομηνία εξόφλησης", "paymentDueDate", { type: "date" })}
       </Stack>}
-      {tab === 1 && <Stack spacing={2}>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Ημερομηνία γέννησης", "birthDate", { type: "date" })}{field("Φύλο", "gender", { select: ["Male", "Female", "Other"] })}{field("Εθνικότητα", "nationality")}{field("Οικογενειακή κατάσταση", "maritalStatus")}</Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Αριθμός ταυτότητας", "idNumber")}{field("ΑΜΚΑ", "amka")}{field("Διαβατήριο", "passportNumber")}</Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Πατρώνυμο", "fatherName")}{field("Μητρώνυμο", "motherName")}{field("Σύζυγος / σύντροφος", "spouseName")}</Stack>
+      {tab === 1 && <Stack spacing={1}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Ημερομηνία γέννησης", "birthDate", { type: "date" })}{field("Φύλο", "gender", { select: ["Male", "Female", "Other"] })}{field("Εθνικότητα", "nationality")}{field("Οικογενειακή κατάσταση", "maritalStatus")}</Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Αριθμός ταυτότητας", "idNumber")}{field("ΑΜΚΑ", "amka")}{field("Διαβατήριο", "passportNumber")}</Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Πατρώνυμο", "fatherName")}{field("Μητρώνυμο", "motherName")}{field("Σύζυγος / σύντροφος", "spouseName")}</Stack>
       </Stack>}
-      {tab === 2 && <Stack spacing={2}>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Επάγγελμα", "occupation")}{field("Εργοδότης", "employer")}{field("Κωδικός δραστηριότητας", "activityCode")}{field("Ζώνη", "zone")}</Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("ΑΦΜ", "vatNumber")}{field("ΔΟΥ", "taxOffice")}{field("ΓΕΜΗ", "gemiNumber")}{field("Νομική μορφή", "legalForm")}</Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Αριθμός διπλώματος", "driverLicenseNumber")}{field("Κατηγορία διπλώματος", "driverLicenseClass")}{field("Έκδοση", "driverLicenseIssueDate", { type: "date" })}{field("Λήξη", "driverLicenseExpiryDate", { type: "date" })}</Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{field("Πηγή", "source")}{field("Ετικέτες", "tagsJson", { placeholder: "π.χ. premium, εταιρεία" })}{field("URL φωτογραφίας", "photoUrl")}</Stack>
+      {tab === 2 && <Stack spacing={1}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Επάγγελμα", "occupation")}{field("Εργοδότης", "employer")}{field("Κωδικός δραστηριότητας", "activityCode")}{field("Ζώνη", "zone")}</Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("ΑΦΜ", "vatNumber")}{field("ΔΟΥ", "taxOffice")}{field("ΓΕΜΗ", "gemiNumber")}{field("Νομική μορφή", "legalForm")}</Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Αριθμός διπλώματος", "driverLicenseNumber")}{field("Κατηγορία διπλώματος", "driverLicenseClass")}{field("Έκδοση", "driverLicenseIssueDate", { type: "date" })}{field("Λήξη", "driverLicenseExpiryDate", { type: "date" })}</Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>{field("Πηγή", "source")}{field("Ετικέτες", "tagsJson", { placeholder: "π.χ. premium, εταιρεία" })}{field("URL φωτογραφίας", "photoUrl")}</Stack>
         <Alert severity="info">Τα οχήματα δεν καταχωρούνται ξεχωριστά: εμφανίζονται αυτόματα από τα συμβόλαια αυτοκινήτου και τις πινακίδες τους.</Alert>
       </Stack>}
-    </DialogContent>
-    <DialogActions><Button onClick={onClose} color="error">Άκυρο</Button><Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση πλήρους καρτέλας"}</Button></DialogActions>
-  </Dialog>;
+    <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 1.25 }}>
+      <Button size="small" onClick={onClose} color="inherit">Άκυρο</Button>
+      <Button size="small" variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση πλήρους καρτέλας"}</Button>
+    </Stack>
+  </Card>;
 }
 
 function customerEditForm(customer: CustomerDto): CustomerEditForm {
