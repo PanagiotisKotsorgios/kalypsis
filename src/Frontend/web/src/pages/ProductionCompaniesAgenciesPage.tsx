@@ -180,7 +180,7 @@ function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { op
       {q.isLoading && <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>}
       {q.error && <Alert severity="error">Δεν φορτώθηκαν τα στοιχεία της εταιρείας.</Alert>}
       {p && <>
-        <Tabs value={tab} onChange={(_, value: number) => setTab(value)} variant="scrollable" scrollButtons="auto" sx={{
+        <Tabs value={tab} onChange={(_, value: number) => setTab(value)} variant="standard" sx={{
           mb: 2,
           px: .5,
           py: .5,
@@ -188,7 +188,9 @@ function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { op
           borderColor: "divider",
           borderRadius: 2,
           bgcolor: "rgba(25,118,210,.025)",
-          "& .MuiTabs-flexContainer": { gap: .75 },
+          overflow: "visible",
+          "& .MuiTabs-scroller": { overflow: "visible !important" },
+          "& .MuiTabs-flexContainer": { gap: .75, flexWrap: "wrap" },
           "& .MuiTabs-indicator": { display: "none" },
           "& .MuiTab-root": {
             minHeight: 54,
@@ -204,10 +206,10 @@ function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { op
             fontSize: { xs: ".82rem", md: ".9rem" },
             lineHeight: 1.25,
             boxShadow: "inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(15,23,42,.12)",
-            transition: "all .18s ease",
-            "&:hover": { background: "linear-gradient(180deg, #ffffff 0%, #d6e3ee 100%)", borderColor: "#5b8db5", color: "#0d47a1", transform: "translateY(-1px)" },
+            transition: "background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease",
+            "&:hover": { background: "linear-gradient(180deg, #e7e9ec 0%, #cbd1d6 100%)", borderColor: "#7b8792", color: "#17212b", boxShadow: "inset 0 1px 0 rgba(255,255,255,.65), 0 2px 5px rgba(15,23,42,.18)" },
             "&.Mui-selected": { background: "linear-gradient(135deg, #1976d2 0%, #0d47a1 100%)", borderColor: "#0d47a1", color: "#fff", boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(13,71,161,.3)" },
-            "&.Mui-selected:hover": { background: "linear-gradient(135deg, #2196f3 0%, #0b3d91 100%)", color: "#fff" },
+            "&.Mui-selected:hover": { background: "linear-gradient(135deg, #1565c0 0%, #0b3d91 100%)", color: "#fff" },
           },
         }}>
           <Tab label="Σύνοψη" /><Tab label="Παραγωγή & συμβόλαια" /><Tab label="Σύνδεση & παραμετρικά" /><Tab label="Επικοινωνία" /><Tab icon={<FolderIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & πεδία" />
