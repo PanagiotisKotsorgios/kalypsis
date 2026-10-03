@@ -395,13 +395,17 @@ function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { op
       {q.error && <Alert severity="error">Δεν φορτώθηκαν τα στοιχεία της εταιρείας.</Alert>}
       {p && <>
         <Tabs value={tab} onChange={(_, value: number) => setTab(value)} variant="standard" sx={{
+          position: "sticky",
+          top: 0,
+          zIndex: 4,
           mb: 2,
           px: .5,
           py: .5,
           border: "1px solid",
           borderColor: "divider",
           borderRadius: 2,
-          bgcolor: "rgba(25,118,210,.025)",
+          bgcolor: "background.paper",
+          boxShadow: "0 3px 10px rgba(15,23,42,.12)",
           overflow: "visible",
           "& .MuiTabs-scroller": { overflow: "visible !important" },
           "& .MuiTabs-flexContainer": { gap: .75, flexWrap: "wrap" },
