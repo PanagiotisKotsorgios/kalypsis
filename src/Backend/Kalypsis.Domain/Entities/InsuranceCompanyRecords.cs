@@ -65,6 +65,23 @@ public class InsuranceCompanyContact : TenantEntity
     public bool IsActive { get; set; } = true;
 }
 
+/// <summary>One dated interaction with an insurer or its representatives.</summary>
+public class InsuranceCompanyCommunication : TenantEntity
+{
+    public Guid InsuranceCompanyId { get; set; }
+    public InsuranceCompany InsuranceCompany { get; set; } = null!;
+    public Guid? UserId { get; set; }
+    public User? User { get; set; }
+    public string Kind { get; set; } = "Email";
+    public string Direction { get; set; } = "Outbound";
+    public string? Subject { get; set; }
+    public string? Body { get; set; }
+    public string? ContactName { get; set; }
+    public string? ContactEmail { get; set; }
+    public string? ContactPhone { get; set; }
+    public DateTime OccurredAt { get; set; }
+}
+
 /// <summary>Per-insurer custom field definition created by the office.</summary>
 public class InsuranceCompanyFieldDefinition : TenantEntity
 {

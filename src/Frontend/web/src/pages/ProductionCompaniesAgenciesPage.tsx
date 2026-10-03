@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, IconButton, Stack, Tab, Table, TableBody, TableCell, TableHead,
+  DialogTitle, IconButton, Popover, Stack, Tab, Table, TableBody, TableCell, TableHead,
   TableRow, Tabs, TextField, Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -11,11 +11,15 @@ import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import DownloadIcon from "@mui/icons-material/Download";
 import EditIcon from "@mui/icons-material/Edit";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import FolderIcon from "@mui/icons-material/Folder";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
+import SearchIcon from "@mui/icons-material/Search";
 import StarIcon from "@mui/icons-material/Star";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
 import { CompanyDialog, type CarrierProfile, type CompanyDto } from "./InsuranceCompaniesPage";
 import { OfficeDialog, type OfficeDto } from "./AgencyOfficesPage";
 
@@ -27,6 +31,65 @@ interface OfficeUserDto {
   role: "AgencyAdmin" | "AgencyOfficeAdmin" | "AgencyUser";
   isAssigned: boolean;
   isPrimary: boolean;
+}
+
+interface CompanyPolicyRow {
+  id: string;
+  policyNumber: string;
+  customerId: string;
+  customerDisplay: string;
+  insuranceCompanyId: string;
+  insuranceCompanyName: string;
+  producerId: string | null;
+  producerName: string | null;
+  policyType: string;
+  status: string;
+  paidDirectlyToCarrier: boolean;
+  startDate: string;
+  endDate: string;
+  premium: number;
+  netPremium: string | number;
+  specialCommissionPercent: string | number;
+  currency: string;
+  createdAt: string;
+}
+
+type CompanyParameterKind = "Branch" | "Coverage" | "Use" | "Package";
+
+interface CompanyParameterRow {
+  id: string;
+  insuranceCompanyId: string;
+  insuranceCompanyCode: string;
+  insuranceCompanyName: string;
+  kind: CompanyParameterKind;
+  code: string;
+  name: string;
+  policyType: string | null;
+  vehicleUseCategory: string | null;
+  parentCode: string | null;
+  bridgeSystem: string | null;
+  bridgeCode: string | null;
+  bridgeField: string | null;
+  defaultValuesJson: string | null;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  isActive: boolean;
+  displayOrder: number;
+  source: string;
+  notes: string | null;
+}
+
+interface CompanyCommunicationRow {
+  id: string;
+  kind: string;
+  direction: string;
+  subject: string | null;
+  body: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  occurredAt: string;
+  userId: string | null;
 }
 
 /**
@@ -168,6 +231,125 @@ function EmptyDirectory({ text }: { text: string }) {
   return <Card variant="outlined" sx={{ p: 4, textAlign: "center", gridColumn: "1 / -1" }}><Typography color="text.secondary">{text}</Typography></Card>;
 }
 
+function CompanyPoliciesSection({ companyId }: { companyId: string }) {
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [type, setType] = useState("all");
+  const [expiry, setExpiry] = useState("all");
+  const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
+  const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null);
+  const policiesQ = useQuery({
+    queryKey: ["production-company-policies", companyId],
+    queryFn: async () => (await api.get<CompanyPolicyRow[]>("/policies", { params: { insuranceCompanyId: companyId } })).data,
+  });
+  const rows = useMemo(() => {
+    const needle = search.trim().toLocaleLowerCase("el-GR");
+    const today = new Date();
+    const limit30 = new Date(today); limit30.setDate(limit30.getDate() + 30);
+    const limit90 = new Date(today); limit90.setDate(limit90.getDate() + 90);
+    return (policiesQ.data ?? []).filter(row => {
+      const haystack = [row.policyNumber, row.customerDisplay, row.producerName, row.policyType, row.status].filter(Boolean).join(" ").toLocaleLowerCase("el-GR");
+      if (needle && !haystack.includes(needle)) return false;
+      if (status !== "all" && row.status !== status) return false;
+      if (type !== "all" && row.policyType !== type) return false;
+      const end = new Date(row.endDate);
+      if (expiry === "expired" && end >= today) return false;
+      if (expiry === "next30" && (end < today || end > limit30)) return false;
+      if (expiry === "next90" && (end < today || end > limit90)) return false;
+      return true;
+    }).sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
+  }, [policiesQ.data, search, status, type, expiry]);
+  const filterCount = [status !== "all", type !== "all", expiry !== "all"].filter(Boolean).length;
+  const clearFilters = () => { setStatus("all"); setType("all"); setExpiry("all"); setSearch(""); };
+  const money = (value: number | string) => Number(value || 0).toLocaleString("el-GR", { style: "currency", currency: "EUR" });
+  const date = (value: string) => new Date(value).toLocaleDateString("el-GR");
+  const types = [...new Set((policiesQ.data ?? []).map(row => row.policyType).filter(Boolean))];
+  const statuses = [...new Set((policiesQ.data ?? []).map(row => row.status).filter(Boolean))];
+  return <ProfileSection title="Όλα τα συμβόλαια εταιρείας">
+    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }} sx={{ mb: 1.25 }}>
+      <TextField size="small" fullWidth placeholder="Αναζήτηση αριθμού, πελάτη, συνεργάτη ή κλάδου…" value={search} onChange={event => setSearch(event.target.value)} InputProps={{ startAdornment: <SearchIcon fontSize="small" sx={{ mr: .75, color: "text.secondary" }} /> }} />
+      <Button variant="outlined" startIcon={<FilterListIcon />} onClick={event => setFilterAnchor(event.currentTarget)} sx={{ whiteSpace: "nowrap" }}>Λοιπά φίλτρα{filterCount ? ` (${filterCount})` : ""}</Button>
+      <Chip size="small" color="info" variant="outlined" label={`${rows.length} / ${(policiesQ.data ?? []).length} συμβόλαια`} />
+    </Stack>
+    <Popover open={!!filterAnchor} anchorEl={filterAnchor} onClose={() => setFilterAnchor(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}>
+      <Stack spacing={1.25} sx={{ p: 1.75, width: { xs: 270, sm: 330 } }}>
+        <Typography fontWeight={800}>Φίλτρα συμβολαίων</Typography>
+        <TextField select size="small" label="Κατάσταση" value={status} onChange={event => setStatus(event.target.value)} SelectProps={{ native: true }}><option value="all">Όλες</option>{statuses.map(option => <option key={option} value={option}>{option}</option>)}</TextField>
+        <TextField select size="small" label="Κλάδος" value={type} onChange={event => setType(event.target.value)} SelectProps={{ native: true }}><option value="all">Όλοι</option>{types.map(option => <option key={option} value={option}>{option}</option>)}</TextField>
+        <TextField select size="small" label="Λήξη" value={expiry} onChange={event => setExpiry(event.target.value)} SelectProps={{ native: true }}><option value="all">Όλες οι ημερομηνίες</option><option value="expired">Έχουν λήξει</option><option value="next30">Λήγουν σε 30 ημέρες</option><option value="next90">Λήγουν σε 90 ημέρες</option></TextField>
+        <Button color="error" variant="outlined" onClick={clearFilters}>Καθαρισμός φίλτρων</Button>
+      </Stack>
+    </Popover>
+    <Box sx={{ maxHeight: 500, overflow: "auto", border: "1px solid", borderColor: "divider", borderRadius: 1.25 }}>
+      {policiesQ.isLoading ? <Box sx={{ p: 3, textAlign: "center" }}><CircularProgress size={24} /></Box> : <Table size="small" stickyHeader sx={{ minWidth: 920 }}>
+        <TableHead><TableRow><TableCell>Συμβόλαιο</TableCell><TableCell>Πελάτης</TableCell><TableCell>Κλάδος / κατάσταση</TableCell><TableCell>Έναρξη</TableCell><TableCell>Λήξη</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Συνεργάτης</TableCell><TableCell align="right">Προβολή</TableCell></TableRow></TableHead>
+        <TableBody>{rows.map(row => <TableRow key={row.id} hover onClick={() => setSelectedPolicyId(row.id)} sx={{ cursor: "pointer" }}>
+          <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.policyNumber || "—"}</TableCell><TableCell>{row.customerDisplay || "—"}</TableCell><TableCell><Stack spacing={.25}><Typography variant="body2">{row.policyType || "—"}</Typography><Chip size="small" label={row.status} /></Stack></TableCell><TableCell>{date(row.startDate)}</TableCell><TableCell>{date(row.endDate)}</TableCell><TableCell align="right">{money(row.premium)}</TableCell><TableCell>{row.producerName || "Έδρα"}</TableCell><TableCell align="right"><IconButton size="small" aria-label="Προβολή συμβολαίου" onClick={event => { event.stopPropagation(); setSelectedPolicyId(row.id); }}><VisibilityIcon fontSize="small" /></IconButton></TableCell>
+        </TableRow>)}{rows.length === 0 && <TableRow><TableCell colSpan={8}><Typography color="text.secondary" textAlign="center" sx={{ py: 3 }}>{policiesQ.isError ? "Δεν φορτώθηκαν τα συμβόλαια." : "Δεν βρέθηκαν συμβόλαια με τα συγκεκριμένα φίλτρα."}</Typography></TableCell></TableRow>}</TableBody>
+      </Table>}
+    </Box>
+    <PolicyDetailDrawer policyId={selectedPolicyId} open={!!selectedPolicyId} onClose={() => setSelectedPolicyId(null)} />
+  </ProfileSection>;
+}
+
+function CompanyParametricsSection({ companyId, companyName }: { companyId: string; companyName: string }) {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [kind, setKind] = useState<CompanyParameterKind | "all">("all");
+  const [editing, setEditing] = useState<CompanyParameterRow | null>(null);
+  const paramsQ = useQuery({ queryKey: ["production-company-parameters", companyId], queryFn: async () => (await api.get<CompanyParameterRow[]>("/company-parameters", { params: { insuranceCompanyId: companyId } })).data });
+  const rows = useMemo(() => {
+    const needle = search.trim().toLocaleLowerCase("el-GR");
+    return (paramsQ.data ?? []).filter(row => (kind === "all" || row.kind === kind) && (!needle || `${row.code} ${row.name} ${row.parentCode ?? ""} ${row.notes ?? ""}`.toLocaleLowerCase("el-GR").includes(needle))).sort((a, b) => a.kind.localeCompare(b.kind) || a.displayOrder - b.displayOrder || a.code.localeCompare(b.code));
+  }, [paramsQ.data, search, kind]);
+  const groups = (paramsQ.data ?? []).reduce<Record<string, number>>((acc, row) => { acc[row.kind] = (acc[row.kind] ?? 0) + 1; return acc; }, {});
+  return <ProfileSection title="Σύνδεση & όλα τα παραμετρικά">
+    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }} sx={{ mb: 1.25 }}>
+      <TextField size="small" fullWidth placeholder="Αναζήτηση κωδικού, ονόματος, γονέα…" value={search} onChange={event => setSearch(event.target.value)} InputProps={{ startAdornment: <SearchIcon fontSize="small" sx={{ mr: .75, color: "text.secondary" }} /> }} />
+      <TextField select size="small" label="Κατηγορία" value={kind} onChange={event => setKind(event.target.value as CompanyParameterKind | "all")} SelectProps={{ native: true }} sx={{ minWidth: 150 }}><option value="all">Όλες</option><option value="Branch">Κλάδοι</option><option value="Package">Πακέτα</option><option value="Use">Χρήσεις</option><option value="Coverage">Καλύψεις</option></TextField>
+    </Stack>
+    <Stack direction="row" spacing={.75} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>{Object.entries(groups).map(([name, count]) => <Chip key={name} size="small" variant="outlined" label={`${name}: ${count}`} />)}<Chip size="small" color="info" label={`${rows.length} εμφανίζονται`} /></Stack>
+    <Box sx={{ maxHeight: 500, overflow: "auto", border: "1px solid", borderColor: "divider", borderRadius: 1.25 }}>
+      {paramsQ.isLoading ? <Box sx={{ p: 3, textAlign: "center" }}><CircularProgress size={24} /></Box> : <Table size="small" stickyHeader sx={{ minWidth: 900 }}>
+        <TableHead><TableRow><TableCell>Κατηγορία</TableCell><TableCell>Κωδικός</TableCell><TableCell>Ονομασία</TableCell><TableCell>Κλάδος</TableCell><TableCell>Γονέας</TableCell><TableCell>Γέφυρα</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Ενέργεια</TableCell></TableRow></TableHead>
+        <TableBody>{rows.map(row => <TableRow key={row.id} hover><TableCell><Chip size="small" variant="outlined" label={row.kind} /></TableCell><TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.code}</TableCell><TableCell>{row.name}</TableCell><TableCell>{row.policyType || "—"}{row.vehicleUseCategory ? ` · ${row.vehicleUseCategory}` : ""}</TableCell><TableCell>{row.parentCode || "—"}</TableCell><TableCell>{row.bridgeSystem || row.bridgeCode ? `${row.bridgeSystem ?? ""} ${row.bridgeCode ?? ""}`.trim() : "—"}</TableCell><TableCell><Chip size="small" color={row.isActive ? "success" : "default"} label={row.isActive ? "Ενεργό" : "Ανενεργό"} /></TableCell><TableCell align="right"><Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => setEditing(row)}>Επεξεργασία</Button></TableCell></TableRow>)}{rows.length === 0 && <TableRow><TableCell colSpan={8}><Typography color="text.secondary" textAlign="center" sx={{ py: 3 }}>Δεν βρέθηκαν παραμετρικά.</Typography></TableCell></TableRow>}</TableBody>
+      </Table>}
+    </Box>
+    <ParametricEditDialog item={editing} companyId={companyId} companyName={companyName} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void qc.invalidateQueries({ queryKey: ["production-company-parameters", companyId] }); }} />
+  </ProfileSection>;
+}
+
+function ParametricEditDialog({ item, companyId, companyName, onClose, onSaved }: { item: CompanyParameterRow | null; companyId: string; companyName: string; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState({ code: "", name: "", parentCode: "", notes: "", displayOrder: "0", isActive: true });
+  useEffect(() => { if (item) setForm({ code: item.code, name: item.name, parentCode: item.parentCode ?? "", notes: item.notes ?? "", displayOrder: String(item.displayOrder), isActive: item.isActive }); }, [item]);
+  const mutation = useMutation({ mutationFn: async () => api.put(`/company-parameters/${item!.id}`, { insuranceCompanyId: companyId, kind: item!.kind, code: form.code.trim(), name: form.name.trim(), policyType: item!.policyType, vehicleUseCategory: item!.vehicleUseCategory, parentCode: form.parentCode.trim() || null, bridgeSystem: item!.bridgeSystem, bridgeCode: item!.bridgeCode, bridgeField: item!.bridgeField, defaultValuesJson: item!.defaultValuesJson, effectiveFrom: item!.effectiveFrom, effectiveTo: item!.effectiveTo, isActive: form.isActive, displayOrder: Number(form.displayOrder) || 0, source: item!.source, notes: form.notes.trim() || null }).then(response => response.data), onSuccess: onSaved });
+  return <Dialog open={!!item} onClose={onClose} fullWidth maxWidth="sm"><DialogTitle>Επεξεργασία παραμετρικού · {companyName}</DialogTitle><DialogContent><Stack spacing={1.25} sx={{ pt: 1 }}><TextField label="Κωδικός" value={form.code} onChange={event => setForm({ ...form, code: event.target.value })} /><TextField label="Ονομασία" value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} /><TextField label="Γονικός κωδικός" value={form.parentCode} onChange={event => setForm({ ...form, parentCode: event.target.value })} /><TextField label="Σημειώσεις" value={form.notes} onChange={event => setForm({ ...form, notes: event.target.value })} multiline minRows={2} /><TextField label="Σειρά εμφάνισης" type="number" value={form.displayOrder} onChange={event => setForm({ ...form, displayOrder: event.target.value })} /><Button variant={form.isActive ? "contained" : "outlined"} onClick={() => setForm({ ...form, isActive: !form.isActive })}>{form.isActive ? "Ενεργό" : "Ανενεργό"}</Button></Stack></DialogContent><DialogActions><Button onClick={onClose}>Ακύρωση</Button><Button variant="contained" onClick={() => mutation.mutate()} disabled={!form.code.trim() || !form.name.trim() || mutation.isPending}>Αποθήκευση</Button></DialogActions></Dialog>;
+}
+
+function CompanyCommunicationSection({ companyId, workspace }: { companyId: string; workspace?: CompanyWorkspace }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ kind: "Email", direction: "Outbound", subject: "", body: "", contactId: "", contactName: "", contactEmail: "", contactPhone: "", occurredAt: new Date().toISOString().slice(0, 16) });
+  const contacts = workspace?.contacts ?? [];
+  const communications = workspace?.communications ?? [];
+  const save = useMutation({
+    mutationFn: async () => api.post(`/insurance-companies/${companyId}/workspace/communications`, { kind: form.kind, direction: form.direction, subject: form.subject || null, body: form.body || null, contactName: form.contactName || null, contactEmail: form.contactEmail || null, contactPhone: form.contactPhone || null, occurredAt: form.occurredAt ? new Date(form.occurredAt).toISOString() : null }),
+    onSuccess: () => { setOpen(false); setForm(current => ({ ...current, subject: "", body: "", occurredAt: new Date().toISOString().slice(0, 16) })); void qc.invalidateQueries({ queryKey: ["production-company-workspace", companyId] }); },
+  });
+  const remove = useMutation({ mutationFn: async (id: string) => api.delete(`/insurance-companies/${companyId}/workspace/communications/${id}`), onSuccess: () => void qc.invalidateQueries({ queryKey: ["production-company-workspace", companyId] }) });
+  const chooseContact = (id: string) => { const contact = contacts.find(row => row.id === id); setForm(current => ({ ...current, contactId: id, contactName: contact?.name ?? "", contactEmail: contact?.email ?? "", contactPhone: contact?.phone || contact?.mobile || "" })); };
+  return <Stack spacing={1.5}>
+    <ProfileSection title="Πολλαπλές επαφές, τηλέφωνα & email">
+      {contacts.length === 0 ? <Typography color="text.secondary">Δεν έχουν καταχωρηθεί επαφές.</Typography> : <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: .9 }}>{contacts.map(contact => <Box key={contact.id} sx={{ p: 1, border: "1px solid", borderColor: contact.isPrimary ? "primary.light" : "divider", borderRadius: 1.25, bgcolor: contact.isPrimary ? "rgba(25,118,210,.06)" : "transparent" }}><Typography fontWeight={800}>{contact.name}{contact.isPrimary && <Chip size="small" color="primary" label="Κύρια" sx={{ ml: .75 }} />}</Typography><Typography variant="caption" color="text.secondary">{[contact.role, contact.department].filter(Boolean).join(" · ") || "Επαφή"}</Typography><Stack direction="row" spacing={1.25} flexWrap="wrap" useFlexGap sx={{ mt: .5 }}><Typography variant="body2">{contact.email || "—"}</Typography><Typography variant="body2">{contact.phone || "—"}</Typography><Typography variant="body2">{contact.mobile || "—"}</Typography></Stack></Box>)}</Box>}
+    </ProfileSection>
+    <ProfileSection title="Τελευταίες επικοινωνίες">
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}><Typography variant="body2" color="text.secondary">Ιστορικό επικοινωνίας με την ασφαλιστική εταιρεία.</Typography><Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => setOpen(true)}>Προσθήκη πρόσφατης επικοινωνίας</Button></Stack>
+      <Box sx={{ maxHeight: 330, overflow: "auto" }}>{communications.length === 0 ? <Typography color="text.secondary">Δεν έχει καταχωρηθεί επικοινωνία.</Typography> : <Stack spacing={.75}>{communications.map(item => <Box key={item.id} sx={{ p: 1, border: "1px solid", borderColor: "divider", borderRadius: 1.25, bgcolor: "rgba(248,250,252,.8)" }}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" gap={.75}><Box><Stack direction="row" spacing={.5} alignItems="center"><Chip size="small" color="info" variant="outlined" label={item.kind} /><Chip size="small" variant="outlined" label={item.direction === "Inbound" ? "Εισερχόμενη" : item.direction === "Outbound" ? "Εξερχόμενη" : item.direction} /></Stack><Typography fontWeight={800} sx={{ mt: .45 }}>{item.subject || "Χωρίς θέμα"}</Typography><Typography variant="caption" color="text.secondary">{new Date(item.occurredAt).toLocaleString("el-GR")} · {item.contactName || item.contactEmail || item.contactPhone || "Χωρίς επαφή"}</Typography></Box><IconButton size="small" color="error" aria-label="Διαγραφή επικοινωνίας" onClick={() => remove.mutate(item.id)}><DeleteOutlineIcon fontSize="small" /></IconButton></Stack>{item.body && <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", mt: .75 }}>{item.body}</Typography>}</Box>)}</Stack>}</Box>
+    </ProfileSection>
+    <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm"><DialogTitle>Προσθήκη πρόσφατης επικοινωνίας</DialogTitle><DialogContent><Stack spacing={1.25} sx={{ pt: 1 }}><TextField select size="small" label="Κανάλι" value={form.kind} onChange={event => setForm({ ...form, kind: event.target.value })} SelectProps={{ native: true }}><option>Email</option><option>Τηλέφωνο</option><option>SMS</option><option>Συνάντηση</option><option>Σημείωση</option></TextField><TextField select size="small" label="Κατεύθυνση" value={form.direction} onChange={event => setForm({ ...form, direction: event.target.value })} SelectProps={{ native: true }}><option value="Outbound">Εξερχόμενη</option><option value="Inbound">Εισερχόμενη</option><option value="Internal">Εσωτερική σημείωση</option></TextField>{contacts.length > 0 && <TextField select size="small" label="Επαφή εταιρείας" value={form.contactId} onChange={event => chooseContact(event.target.value)} SelectProps={{ native: true }}><option value="">Χωρίς επιλογή</option>{contacts.map(contact => <option key={contact.id} value={contact.id}>{contact.name}</option>)}</TextField>}<Stack direction={{ xs: "column", sm: "row" }} spacing={1}><TextField fullWidth size="small" label="Όνομα επαφής" value={form.contactName} onChange={event => setForm({ ...form, contactName: event.target.value })} /><TextField fullWidth size="small" label="Email / τηλέφωνο" value={form.contactEmail || form.contactPhone} onChange={event => setForm({ ...form, contactEmail: event.target.value })} /></Stack><TextField size="small" type="datetime-local" label="Ημερομηνία & ώρα" value={form.occurredAt} onChange={event => setForm({ ...form, occurredAt: event.target.value })} InputLabelProps={{ shrink: true }} /><TextField size="small" label="Θέμα" value={form.subject} onChange={event => setForm({ ...form, subject: event.target.value })} /><TextField size="small" label="Σημειώσεις επικοινωνίας" value={form.body} onChange={event => setForm({ ...form, body: event.target.value })} multiline minRows={4} /></Stack></DialogContent><DialogActions><Button onClick={() => setOpen(false)}>Ακύρωση</Button><Button variant="contained" color="primary" onClick={() => save.mutate()} disabled={save.isPending}>Αποθήκευση</Button></DialogActions></Dialog>
+  </Stack>;
+}
+
 function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { open: boolean; company: CompanyDto | null; onClose: () => void; onEdit: (company: CompanyDto) => void }) {
   const [tab, setTab] = useState(0);
   const q = useQuery({ queryKey: ["production-company-profile", company?.id], enabled: open && !!company, queryFn: async () => (await api.get<CarrierProfile>(`/insurance-companies/${company!.id}/profile`)).data });
@@ -266,6 +448,9 @@ function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { op
         {tab === 1 && <Stack spacing={1.5}><ProfileMetricGrid items={[["Ενεργά", String(p.activePolicies), "success"], ["Μικτά", eur(p.activePremiumTotal), "info"], ["Καθαρά", eur(p.activeNetPremiumTotal), "info"], ["Σύνολο ζημιών", String(p.totalClaims), p.openClaims ? "warning" : "success"]]} /><ProfileSection title="Πρόσφατα συμβόλαια"><Table size="small"><TableHead><TableRow><TableCell>Αριθμός</TableCell><TableCell>Πελάτης</TableCell><TableCell>Κλάδος</TableCell><TableCell>Έναρξη</TableCell><TableCell>Λήξη</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Κατάσταση</TableCell></TableRow></TableHead><TableBody>{p.recentPolicies.map(row => <TableRow key={row.id} hover><TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{row.policyNumber}</TableCell><TableCell>{row.customerName || "—"}</TableCell><TableCell>{row.policyType}</TableCell><TableCell>{date(row.startDate)}</TableCell><TableCell>{date(row.endDate)}</TableCell><TableCell align="right">{eur(row.premium)}</TableCell><TableCell><Chip size="small" label={row.status} /></TableCell></TableRow>)}</TableBody></Table>{p.recentPolicies.length === 0 && <Typography color="text.secondary">Δεν υπάρχουν πρόσφατα συμβόλαια.</Typography>}</ProfileSection></Stack>}
         {tab === 2 && <Stack spacing={1.5}><ProfileMetricGrid items={[["Κλάδοι", String(p.branchCount), "info"], ["Πακέτα", String(p.packageCount), "info"], ["Χρήσεις", String(p.useCount), "info"], ["Καλύψεις", String(p.coverageCount), "info"], ["Γέφυρα", p.bridgeLinked ? "Συνδεδεμένη" : "Χωρίς σύνδεση", p.bridgeLinked ? "success" : "warning"]]} /><ProfileSection title="Σύνδεση εταιρείας"><ProfileLine label="Πηγή γέφυρας" value={p.bridgeLinkedSourceCarrier} /><ProfileLine label="Κατάσταση" value={p.isActive ? "Ενεργή" : "Ανενεργή"} /><ProfileLine label="Δημιουργήθηκε" value={date(p.createdAt)} /></ProfileSection></Stack>}
         {tab === 3 && <Stack spacing={1.5}><ProfileSection title="Στοιχεία επικοινωνίας"><ProfileLine label="Όνομα επαφής" value={p.contactName} /><ProfileLine label="Email" value={p.contactEmail} link={p.contactEmail ? `mailto:${p.contactEmail}` : undefined} /><ProfileLine label="Τηλέφωνο" value={p.contactPhone} link={p.contactPhone ? `tel:${p.contactPhone}` : undefined} /></ProfileSection><ProfileSection title="Σημειώσεις"><Typography sx={{ whiteSpace: "pre-wrap" }}>{p.notes || "Δεν υπάρχουν σημειώσεις."}</Typography></ProfileSection></Stack>}
+        {tab === 1 && company && <CompanyPoliciesSection companyId={company.id} />}
+        {tab === 2 && company && <CompanyParametricsSection companyId={company.id} companyName={company.name} />}
+        {tab === 3 && company && <CompanyCommunicationSection companyId={company.id} workspace={workspace} />}
         {tab === 4 && company && <CompanyDocumentsWorkspace companyId={company.id} />}
       </>}
     </DialogContent><DialogActions sx={{ px: 3, py: 2 }}><Button variant="contained" color="error" onClick={onClose} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, "&:hover": { bgcolor: "error.dark", color: "#fff" } }}>Κλείσιμο</Button></DialogActions>
@@ -277,7 +462,7 @@ interface CompanyWorkspaceDocument { id: string; folderId: string | null; fileNa
 interface CompanyWorkspaceField { id: string; key: string; label: string; fieldType: string; options: string[]; isRequired: boolean; isActive: boolean; sortOrder: number; value: string | null; }
 interface CompanyWorkspaceCategory { id: string; name: string; color: string; isActive: boolean; sortOrder: number; documentCount: number; }
 interface CompanyWorkspaceContact { id: string; name: string; role: string | null; department: string | null; email: string | null; phone: string | null; mobile: string | null; notes: string | null; preferredChannel: string; isPrimary: boolean; isActive: boolean; }
-interface CompanyWorkspace { folders: CompanyWorkspaceFolder[]; documents: CompanyWorkspaceDocument[]; fields: CompanyWorkspaceField[]; categories: CompanyWorkspaceCategory[]; contacts: CompanyWorkspaceContact[]; }
+interface CompanyWorkspace { folders: CompanyWorkspaceFolder[]; documents: CompanyWorkspaceDocument[]; fields: CompanyWorkspaceField[]; categories: CompanyWorkspaceCategory[]; contacts: CompanyWorkspaceContact[]; communications: CompanyCommunicationRow[]; }
 
 function CompanyDocumentsWorkspace({ companyId }: { companyId: string }) {
   const qc = useQueryClient();

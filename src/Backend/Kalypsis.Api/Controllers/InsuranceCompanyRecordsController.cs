@@ -42,9 +42,13 @@ public sealed class InsuranceCompanyRecordsController : ControllerBase
     public record ContactDto(Guid Id, string Name, string? Role, string? Department,
         string? Email, string? Phone, string? Mobile, string? Notes, string PreferredChannel,
         bool IsPrimary, bool IsActive);
+    public record CommunicationDto(Guid Id, string Kind, string Direction, string? Subject,
+        string? Body, string? ContactName, string? ContactEmail, string? ContactPhone,
+        DateTime OccurredAt, Guid? UserId);
     public record WorkspaceDto(IReadOnlyList<FolderDto> Folders,
         IReadOnlyList<DocumentDto> Documents, IReadOnlyList<FieldDefinitionDto> Fields,
-        IReadOnlyList<CategoryDto> Categories, IReadOnlyList<ContactDto> Contacts);
+        IReadOnlyList<CategoryDto> Categories, IReadOnlyList<ContactDto> Contacts,
+        IReadOnlyList<CommunicationDto> Communications);
 
     public record FolderBody(string Name, string? Description, Guid? ParentFolderId,
         string? Color, int SortOrder = 0);
@@ -54,6 +58,8 @@ public sealed class InsuranceCompanyRecordsController : ControllerBase
     public record ContactBody(string Name, string? Role, string? Department, string? Email,
         string? Phone, string? Mobile, string? Notes, string PreferredChannel = "Email",
         bool IsPrimary = false);
+    public record CommunicationBody(string Kind, string Direction, string? Subject, string? Body,
+        string? ContactName, string? ContactEmail, string? ContactPhone, DateTime? OccurredAt);
 
     private Guid TenantId => _current.TenantId ?? throw AppException.Forbidden();
 
@@ -102,10 +108,17 @@ public sealed class InsuranceCompanyRecordsController : ControllerBase
             .OrderByDescending(c => c.IsPrimary).ThenBy(c => c.Name)
             .Select(c => new ContactDto(c.Id, c.Name, c.Role, c.Department, c.Email, c.Phone,
                 c.Mobile, c.Notes, c.PreferredChannel, c.IsPrimary, c.IsActive)).ToListAsync(ct);
+        var communications = await _db.InsuranceCompanyCommunications
+            .Where(c => c.InsuranceCompanyId == companyId)
+            .OrderByDescending(c => c.OccurredAt)
+            .Take(100)
+            .Select(c => new CommunicationDto(c.Id, c.Kind, c.Direction, c.Subject, c.Body,
+                c.ContactName, c.ContactEmail, c.ContactPhone, c.OccurredAt, c.UserId))
+            .ToListAsync(ct);
         return Ok(new WorkspaceDto(folders, docs, defs.Select(d => new FieldDefinitionDto(
             d.Id, d.Key, d.Label, d.FieldType,
             string.IsNullOrWhiteSpace(d.OptionsJson) ? Array.Empty<string>() : JsonSerializer.Deserialize<string[]>(d.OptionsJson!)!,
-            d.IsRequired, d.IsActive, d.SortOrder, d.Value)).ToList(), categories, contacts));
+            d.IsRequired, d.IsActive, d.SortOrder, d.Value)).ToList(), categories, contacts, communications));
     }
 
     [HttpPost("folders")]
@@ -211,6 +224,39 @@ public sealed class InsuranceCompanyRecordsController : ControllerBase
         await Company(companyId, ct);
         var contact = await _db.InsuranceCompanyContacts.FirstOrDefaultAsync(c => c.Id == contactId && c.InsuranceCompanyId == companyId, ct) ?? throw AppException.NotFound("Επαφή");
         contact.IsActive = false; contact.DeletedAt = _clock.UtcNow; await _db.SaveChangesAsync(ct); return NoContent();
+    }
+
+    [HttpPost("communications")]
+    [RequirePermission("documents.write")]
+    public async Task<ActionResult<CommunicationDto>> CreateCommunication(Guid companyId,
+        [FromBody] CommunicationBody body, CancellationToken ct)
+    {
+        await Company(companyId, ct);
+        var kind = string.IsNullOrWhiteSpace(body.Kind) ? "Note" : body.Kind.Trim();
+        var direction = string.IsNullOrWhiteSpace(body.Direction) ? "Outbound" : body.Direction.Trim();
+        var row = new InsuranceCompanyCommunication
+        {
+            Id = Guid.NewGuid(), InsuranceCompanyId = companyId, UserId = _current.UserId,
+            Kind = kind, Direction = direction, Subject = body.Subject?.Trim(), Body = body.Body?.Trim(),
+            ContactName = body.ContactName?.Trim(), ContactEmail = body.ContactEmail?.Trim(),
+            ContactPhone = body.ContactPhone?.Trim(), OccurredAt = body.OccurredAt ?? _clock.UtcNow,
+            CreatedAt = _clock.UtcNow
+        };
+        _db.InsuranceCompanyCommunications.Add(row);
+        await _db.SaveChangesAsync(ct);
+        return Ok(ToCommunicationDto(row));
+    }
+
+    [HttpDelete("communications/{communicationId:guid}")]
+    [RequirePermission("documents.write")]
+    public async Task<IActionResult> DeleteCommunication(Guid companyId, Guid communicationId, CancellationToken ct)
+    {
+        await Company(companyId, ct);
+        var row = await _db.InsuranceCompanyCommunications.FirstOrDefaultAsync(c => c.Id == communicationId && c.InsuranceCompanyId == companyId, ct)
+            ?? throw AppException.NotFound("Επικοινωνία");
+        row.DeletedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
     }
 
     [HttpPost("documents")]
@@ -324,4 +370,8 @@ public sealed class InsuranceCompanyRecordsController : ControllerBase
     private static ContactDto ToContactDto(InsuranceCompanyContact c)
         => new(c.Id, c.Name, c.Role, c.Department, c.Email, c.Phone, c.Mobile, c.Notes,
             c.PreferredChannel, c.IsPrimary, c.IsActive);
+
+    private static CommunicationDto ToCommunicationDto(InsuranceCompanyCommunication c)
+        => new(c.Id, c.Kind, c.Direction, c.Subject, c.Body, c.ContactName,
+            c.ContactEmail, c.ContactPhone, c.OccurredAt, c.UserId);
 }

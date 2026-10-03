@@ -17,6 +17,7 @@ public interface IAppDbContext
     DbSet<InsuranceCompanyDocument> InsuranceCompanyDocuments { get; }
     DbSet<InsuranceCompanyCategory> InsuranceCompanyCategories { get; }
     DbSet<InsuranceCompanyContact> InsuranceCompanyContacts { get; }
+    DbSet<InsuranceCompanyCommunication> InsuranceCompanyCommunications { get; }
     DbSet<InsuranceCompanyFieldDefinition> InsuranceCompanyFieldDefinitions { get; }
     DbSet<InsuranceCompanyFieldValue> InsuranceCompanyFieldValues { get; }
     DbSet<CompanyParameterItem> CompanyParameterItems { get; }

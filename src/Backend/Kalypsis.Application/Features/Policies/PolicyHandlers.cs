@@ -94,10 +94,17 @@ public class ListPoliciesQueryHandler : IRequestHandler<ListPoliciesQuery, IRead
                           || (p.VehicleRegistrationPlate != null && EF.Functions.Like(p.VehicleRegistrationPlate, s)));
         }
 
-        var rows = await q
+        var ordered = q
             .Include(p => p.ContractPartyCustomer)
             .Include(p => p.PreviousInsuranceCompany)
-            .OrderByDescending(p => p.CreatedAt).Take(500).ToListAsync(ct);
+            .OrderByDescending(p => p.CreatedAt);
+        // The production company profile explicitly requests the complete
+        // carrier register so its local search/filter can cover every
+        // contract. Keep the historic safety cap for the unfiltered global
+        // list, which is used by dashboards and general-purpose pages.
+        var rows = request.InsuranceCompanyId.HasValue
+            ? await ordered.ToListAsync(ct)
+            : await ordered.Take(500).ToListAsync(ct);
         return rows.Select(ToDto).ToList();
     }
 

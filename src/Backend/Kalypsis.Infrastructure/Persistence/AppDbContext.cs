@@ -263,6 +263,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<InsuranceCompanyDocument> InsuranceCompanyDocuments => Set<InsuranceCompanyDocument>();
     public DbSet<InsuranceCompanyCategory> InsuranceCompanyCategories => Set<InsuranceCompanyCategory>();
     public DbSet<InsuranceCompanyContact> InsuranceCompanyContacts => Set<InsuranceCompanyContact>();
+    public DbSet<InsuranceCompanyCommunication> InsuranceCompanyCommunications => Set<InsuranceCompanyCommunication>();
     public DbSet<InsuranceCompanyFieldDefinition> InsuranceCompanyFieldDefinitions => Set<InsuranceCompanyFieldDefinition>();
     public DbSet<InsuranceCompanyFieldValue> InsuranceCompanyFieldValues => Set<InsuranceCompanyFieldValue>();
     public DbSet<OverCommissionStatement> OverCommissionStatements => Set<OverCommissionStatement>();
