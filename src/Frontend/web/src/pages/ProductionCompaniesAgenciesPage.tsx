@@ -396,7 +396,10 @@ function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { op
       {p && <>
         <Tabs value={tab} onChange={(_, value: number) => setTab(value)} variant="standard" sx={{
           position: "sticky",
-          top: 0,
+          // DialogContent keeps a padded scroll edge. Start the sticky
+          // surface above that edge so content can never show through the
+          // gap while the user scrolls the long company profile.
+          top: "-24px",
           zIndex: 4,
           mb: 2,
           px: .5,
@@ -478,7 +481,7 @@ function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { op
             {(workspace?.fields ?? []).filter(field => field.isActive && field.value?.trim()).length === 0 ? <Typography variant="body2" color="text.secondary">Δεν έχουν συμπληρωθεί πρόσθετα πεδία. Τα πεδία που δημιουργεί το γραφείο εμφανίζονται αυτόματα εδώ.</Typography> : <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, columnGap: 2 }}>{(workspace?.fields ?? []).filter(field => field.isActive && field.value?.trim()).map(field => <ProfileLine key={field.id} label={field.label} value={field.value} link={/^https?:\/\//i.test(field.value ?? "") ? field.value ?? undefined : undefined} />)}</Box>}
           </ProfileSection>
         </Stack>}
-        {tab === 1 && <Stack spacing={1.5}><ProfileMetricGrid items={[["Ενεργά", String(p.activePolicies), "success"], ["Μικτά", eur(p.activePremiumTotal), "info"], ["Καθαρά", eur(p.activeNetPremiumTotal), "info"], ["Σύνολο ζημιών", String(p.totalClaims), p.openClaims ? "warning" : "success"]]} /><ProfileSection title="Πρόσφατα συμβόλαια"><Table size="small"><TableHead><TableRow><TableCell>Αριθμός</TableCell><TableCell>Πελάτης</TableCell><TableCell>Κλάδος</TableCell><TableCell>Έναρξη</TableCell><TableCell>Λήξη</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Κατάσταση</TableCell></TableRow></TableHead><TableBody>{p.recentPolicies.map(row => <TableRow key={row.id} hover><TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{row.policyNumber}</TableCell><TableCell>{row.customerName || "—"}</TableCell><TableCell>{row.policyType}</TableCell><TableCell>{date(row.startDate)}</TableCell><TableCell>{date(row.endDate)}</TableCell><TableCell align="right">{eur(row.premium)}</TableCell><TableCell><Chip size="small" label={row.status} /></TableCell></TableRow>)}</TableBody></Table>{p.recentPolicies.length === 0 && <Typography color="text.secondary">Δεν υπάρχουν πρόσφατα συμβόλαια.</Typography>}</ProfileSection></Stack>}
+        {tab === 1 && <Stack spacing={1.5}><ProfileMetricGrid items={[["Ενεργά", String(p.activePolicies), "success"], ["Μικτά", eur(p.activePremiumTotal), "info"], ["Καθαρά", eur(p.activeNetPremiumTotal), "info"], ["Σύνολο ζημιών", String(p.totalClaims), p.openClaims ? "warning" : "success"]]} /></Stack>}
         {tab === 2 && <Stack spacing={1.5}><ProfileMetricGrid items={[["Κλάδοι", String(p.branchCount), "info"], ["Πακέτα", String(p.packageCount), "info"], ["Χρήσεις", String(p.useCount), "info"], ["Καλύψεις", String(p.coverageCount), "info"], ["Γέφυρα", p.bridgeLinked ? "Συνδεδεμένη" : "Χωρίς σύνδεση", p.bridgeLinked ? "success" : "warning"]]} /><ProfileSection title="Σύνδεση εταιρείας"><ProfileLine label="Πηγή γέφυρας" value={p.bridgeLinkedSourceCarrier} /><ProfileLine label="Κατάσταση" value={p.isActive ? "Ενεργή" : "Ανενεργή"} /><ProfileLine label="Δημιουργήθηκε" value={date(p.createdAt)} /></ProfileSection></Stack>}
         {tab === 3 && <Stack spacing={1.5}><ProfileSection title="Στοιχεία επικοινωνίας"><ProfileLine label="Όνομα επαφής" value={p.contactName} /><ProfileLine label="Email" value={p.contactEmail} link={p.contactEmail ? `mailto:${p.contactEmail}` : undefined} /><ProfileLine label="Τηλέφωνο" value={p.contactPhone} link={p.contactPhone ? `tel:${p.contactPhone}` : undefined} /></ProfileSection><ProfileSection title="Σημειώσεις"><Typography sx={{ whiteSpace: "pre-wrap" }}>{p.notes || "Δεν υπάρχουν σημειώσεις."}</Typography></ProfileSection></Stack>}
         {tab === 1 && company && <CompanyPoliciesSection companyId={company.id} />}
