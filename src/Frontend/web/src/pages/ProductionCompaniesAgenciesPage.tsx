@@ -390,16 +390,45 @@ function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { op
   const date = (value: string | null) => value ? new Date(value).toLocaleDateString("el-GR") : "—";
   return <Dialog open={open} onClose={onClose} fullWidth maxWidth="xl">
     <DialogTitle sx={{ pr: 6, "& .MuiButton-root": { minWidth: 150, minHeight: 44, px: 2.5, fontSize: ".95rem", fontWeight: 850, color: "#fff", borderRadius: 1.75, background: "linear-gradient(135deg, #43a047 0%, #1b5e20 100%)", boxShadow: "0 3px 8px rgba(46,125,50,.3)", "&:hover": { background: "linear-gradient(135deg, #4caf50 0%, #145214 100%)", color: "#fff", transform: "translateY(-1px)" } } }}><Stack direction="row" alignItems="center" spacing={1.25}><BusinessIcon color="primary" /><Box flex={1}><Typography variant="h5" fontWeight={850}>{company?.name ?? "—"}</Typography><Typography variant="caption" sx={{ fontFamily: "monospace" }}>{company?.code}</Typography></Box>{company && <Button variant="contained" size="small" color="success" startIcon={<EditIcon />} onClick={() => onEdit(company)} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, boxShadow: 2, "&:hover": { bgcolor: "success.dark", color: "#fff" } }}>Επεξεργασία</Button>}</Stack></DialogTitle>
-    <DialogContent dividers>
+    <DialogContent dividers sx={{
+      // Keep the profile surface flush with the dialog edge so its sticky
+      // navigation never leaves a gap or gets clipped while scrolling.
+      pt: 0,
+      scrollbarWidth: "thin",
+      scrollbarColor: "#0b2545 #e8eef5",
+      "&::-webkit-scrollbar": { width: 10, height: 10 },
+      "&::-webkit-scrollbar-track": { background: "#e8eef5", borderRadius: 999 },
+      "&::-webkit-scrollbar-thumb": {
+        background: "linear-gradient(180deg, #123b67 0%, #0b2545 100%)",
+        borderRadius: 999,
+        border: "2px solid #e8eef5",
+      },
+      "&::-webkit-scrollbar-thumb:hover": { background: "#1976d2" },
+      "&::-webkit-scrollbar-corner": { background: "#e8eef5" },
+      // Apply the same cross-browser treatment to any nested scroll surface
+      // (for example the contracts and documents panes).
+      "& *": {
+        scrollbarWidth: "thin",
+        scrollbarColor: "#0b2545 #e8eef5",
+      },
+      "& *::-webkit-scrollbar": { width: 10, height: 10 },
+      "& *::-webkit-scrollbar-track": { background: "#e8eef5", borderRadius: 999 },
+      "& *::-webkit-scrollbar-thumb": {
+        background: "linear-gradient(180deg, #123b67 0%, #0b2545 100%)",
+        borderRadius: 999,
+        border: "2px solid #e8eef5",
+      },
+      "& *::-webkit-scrollbar-thumb:hover": { background: "#1976d2" },
+      "& *::-webkit-scrollbar-corner": { background: "#e8eef5" },
+    }}>
       {q.isLoading && <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>}
       {q.error && <Alert severity="error">Δεν φορτώθηκαν τα στοιχεία της εταιρείας.</Alert>}
       {p && <>
         <Tabs value={tab} onChange={(_, value: number) => setTab(value)} variant="standard" sx={{
           position: "sticky",
-          // DialogContent keeps a padded scroll edge. Start the sticky
-          // surface above that edge so content can never show through the
-          // gap while the user scrolls the long company profile.
-          top: "-24px",
+          // Keep the navigation flush with the dialog's scroll viewport so it
+          // remains fully visible while the long company profile is scrolled.
+          top: 0,
           zIndex: 4,
           mb: 2,
           px: .5,
