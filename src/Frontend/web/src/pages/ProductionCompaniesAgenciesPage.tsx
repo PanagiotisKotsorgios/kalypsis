@@ -17,6 +17,7 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import FolderIcon from "@mui/icons-material/Folder";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import BarChartIcon from "@mui/icons-material/BarChart";
 import SearchIcon from "@mui/icons-material/Search";
 import SaveIcon from "@mui/icons-material/Save";
 import StarIcon from "@mui/icons-material/Star";
@@ -27,6 +28,10 @@ import { api, extractErrorMessage } from "../api/client";
 import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
 import { type CarrierProfile, type CompanyDto } from "./InsuranceCompaniesPage";
 import { type OfficeDto } from "./AgencyOfficesPage";
+import {
+  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
+  ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis,
+} from "recharts";
 
 interface OfficeUserDto {
   userId: string;
@@ -381,6 +386,140 @@ function CompanyPoliciesSection({ companyId }: { companyId: string }) {
   </ProfileSection>;
 }
 
+function CompanyStatisticsSection({ companyId, profile }: { companyId: string; profile: CarrierProfile }) {
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [type, setType] = useState("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
+  const policiesQ = useQuery({
+    queryKey: ["production-company-statistics-policies", companyId],
+    queryFn: async () => (await api.get<CompanyPolicyRow[]>("/policies", { params: { insuranceCompanyId: companyId } })).data,
+  });
+
+  const allRows = policiesQ.data ?? [];
+  const statuses = useMemo(() => [...new Set(allRows.map(row => row.status).filter(Boolean))].sort(), [allRows]);
+  const types = useMemo(() => [...new Set(allRows.map(row => row.policyType).filter(Boolean))].sort(), [allRows]);
+  const filteredRows = useMemo(() => {
+    const needle = search.trim().toLocaleLowerCase("el-GR");
+    const from = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : null;
+    const to = toDate ? new Date(`${toDate}T23:59:59`).getTime() : null;
+    return allRows.filter(row => {
+      const haystack = [row.policyNumber, row.customerDisplay, row.producerName, row.policyType, row.status]
+        .filter(Boolean).join(" ").toLocaleLowerCase("el-GR");
+      if (needle && !haystack.includes(needle)) return false;
+      if (status !== "all" && row.status !== status) return false;
+      if (type !== "all" && row.policyType !== type) return false;
+      const start = new Date(row.startDate).getTime();
+      if (from !== null && (!Number.isFinite(start) || start < from)) return false;
+      if (to !== null && (!Number.isFinite(start) || start > to)) return false;
+      return true;
+    });
+  }, [allRows, fromDate, search, status, toDate, type]);
+
+  const stats = useMemo(() => {
+    const gross = filteredRows.reduce((sum, row) => sum + Number(row.premium || 0), 0);
+    const net = filteredRows.reduce((sum, row) => sum + Number(row.netPremium || 0), 0);
+    const active = filteredRows.filter(row => row.status.toLocaleLowerCase("el-GR") === "active" || row.status.toLocaleLowerCase("el-GR") === "ενεργό" || row.status.toLocaleLowerCase("el-GR") === "ενεργη").length;
+    const avg = filteredRows.length ? gross / filteredRows.length : 0;
+    const commissionValues = filteredRows.map(row => Number(row.specialCommissionPercent || 0)).filter(value => Number.isFinite(value));
+    const averageCommission = commissionValues.length ? commissionValues.reduce((sum, value) => sum + value, 0) / commissionValues.length : 0;
+    return { gross, net, active, avg, averageCommission };
+  }, [filteredRows]);
+
+  const monthly = useMemo(() => {
+    const grouped = new Map<string, { label: string; sort: number; policies: number; gross: number; net: number }>();
+    for (const row of filteredRows) {
+      const parsed = new Date(row.startDate);
+      if (Number.isNaN(parsed.getTime())) continue;
+      const key = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}`;
+      const existing = grouped.get(key) ?? { label: parsed.toLocaleDateString("el-GR", { month: "short", year: "2-digit" }), sort: parsed.getTime(), policies: 0, gross: 0, net: 0 };
+      existing.policies += 1;
+      existing.gross += Number(row.premium || 0);
+      existing.net += Number(row.netPremium || 0);
+      grouped.set(key, existing);
+    }
+    return [...grouped.values()].sort((a, b) => a.sort - b.sort);
+  }, [filteredRows]);
+
+  const statusData = useMemo(() => {
+    const grouped = new Map<string, number>();
+    for (const row of filteredRows) grouped.set(row.status || "Χωρίς κατάσταση", (grouped.get(row.status || "Χωρίς κατάσταση") ?? 0) + 1);
+    return [...grouped.entries()].map(([name, value]) => ({ name, value }));
+  }, [filteredRows]);
+
+  const typeData = useMemo(() => {
+    const grouped = new Map<string, { name: string; policies: number; gross: number }>();
+    for (const row of filteredRows) {
+      const name = row.policyType || "Χωρίς κλάδο";
+      const current = grouped.get(name) ?? { name, policies: 0, gross: 0 };
+      current.policies += 1;
+      current.gross += Number(row.premium || 0);
+      grouped.set(name, current);
+    }
+    return [...grouped.values()].sort((a, b) => b.gross - a.gross).slice(0, 10);
+  }, [filteredRows]);
+
+  const eur = (value: number) => value.toLocaleString("el-GR", { style: "currency", currency: "EUR" });
+  const chartTooltip = (value: unknown, name: unknown): [string, string] => [
+    name === "policies" ? String(value ?? "") : eur(Number(value ?? 0)),
+    name === "policies" ? "Συμβόλαια" : name === "gross" ? "Μικτά" : "Καθαρά",
+  ];
+  const clearFilters = () => { setSearch(""); setStatus("all"); setType("all"); setFromDate(""); setToDate(""); };
+  const filterCount = [search.trim(), status !== "all", type !== "all", fromDate, toDate].filter(Boolean).length;
+  const exportCsv = () => {
+    const headers = ["Αριθμός συμβολαίου", "Έναρξη", "Λήξη", "Πελάτης", "Κλάδος", "Κατάσταση", "Μικτά ασφάλιστρα", "Καθαρά ασφάλιστρα", "Προμήθεια %"];
+    const escape = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+    const lines = filteredRows.map(row => [row.policyNumber, row.startDate, row.endDate, row.customerDisplay, row.policyType, row.status, row.premium, row.netPremium, row.specialCommissionPercent].map(escape).join(";"));
+    const blob = new Blob([`\uFEFF${headers.map(escape).join(";")}\n${lines.join("\n")}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `στατιστικά-${companyId}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+  const colors = ["#1976d2", "#43a047", "#f9a825", "#e53935", "#8e24aa", "#00838f"];
+
+  return <Stack spacing={1.5}>
+    <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }}>
+      <TextField size="small" fullWidth placeholder="Αναζήτηση συμβολαίου, πελάτη ή συνεργάτη" value={search} onChange={event => setSearch(event.target.value)} InputProps={{ startAdornment: <SearchIcon fontSize="small" sx={{ mr: .75, color: "text.secondary" }} /> }} />
+      <Button variant="outlined" startIcon={<FilterListIcon />} onClick={event => setFilterAnchor(event.currentTarget)} sx={{ whiteSpace: "nowrap" }}>Λοιπά φίλτρα{filterCount ? ` (${filterCount})` : ""}</Button>
+      <Button variant="contained" color="primary" startIcon={<DownloadIcon />} onClick={exportCsv} disabled={!filteredRows.length} sx={{ whiteSpace: "nowrap" }}>Εξαγωγή CSV</Button>
+    </Stack>
+    <Popover open={!!filterAnchor} anchorEl={filterAnchor} onClose={() => setFilterAnchor(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}>
+      <Stack spacing={1.25} sx={{ p: 1.75, width: { xs: 280, sm: 360 } }}>
+        <Typography fontWeight={800}>Φίλτρα στατιστικών</Typography>
+        <TextField select size="small" label="Κατάσταση" value={status} onChange={event => setStatus(event.target.value)} SelectProps={{ native: true }}><option value="all">Όλες</option>{statuses.map(option => <option key={option} value={option}>{option}</option>)}</TextField>
+        <TextField select size="small" label="Κλάδος / τύπος" value={type} onChange={event => setType(event.target.value)} SelectProps={{ native: true }}><option value="all">Όλοι</option>{types.map(option => <option key={option} value={option}>{option}</option>)}</TextField>
+        <Stack direction="row" spacing={1}><TextField type="date" size="small" label="Από έναρξη" value={fromDate} onChange={event => setFromDate(event.target.value)} InputLabelProps={{ shrink: true }} fullWidth /><TextField type="date" size="small" label="Έως έναρξη" value={toDate} onChange={event => setToDate(event.target.value)} InputLabelProps={{ shrink: true }} fullWidth /></Stack>
+        <Button color="error" variant="outlined" onClick={clearFilters}>Καθαρισμός φίλτρων</Button>
+      </Stack>
+    </Popover>
+    <ProfileMetricGrid items={[
+      ["Συμβόλαια", `${filteredRows.length} / ${allRows.length}`, "info"],
+      ["Ενεργά", String(stats.active), "success"],
+      ["Μικτά ασφάλιστρα", eur(stats.gross), "info"],
+      ["Καθαρά ασφάλιστρα", eur(stats.net), "info"],
+      ["Μέσο ασφάλιστρο", eur(stats.avg), "info"],
+      ["Μέση προμήθεια", `${stats.averageCommission.toLocaleString("el-GR", { maximumFractionDigits: 2 })}%`, "success"],
+      ["Ζημιές", `${profile.totalClaims} (${profile.openClaims} ανοιχτές)`, profile.openClaims ? "warning" : "success"],
+      ["Κανόνες προμήθειας", String(profile.commissionRuleCount), "info"],
+      ["Παραμετρικά", `${profile.branchCount} κλάδοι · ${profile.packageCount} πακέτα`, "info"],
+    ]} />
+    {policiesQ.isLoading && <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}><CircularProgress /></Box>}
+    {policiesQ.isError && <Alert severity="error">Δεν φορτώθηκαν τα δεδομένα συμβολαίων για τα στατιστικά.</Alert>}
+    {!policiesQ.isLoading && <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1.6fr 1fr" }, gap: 1.5 }}>
+      <Card variant="outlined" sx={{ p: 1.5 }}><Typography fontWeight={800} sx={{ mb: 1 }}>Παραγωγή ανά μήνα</Typography><Box sx={{ height: 280 }}><ResponsiveContainer width="100%" height="100%"><LineChart data={monthly} margin={{ top: 12, right: 12, left: 0, bottom: 4 }}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" /><YAxis tickFormatter={value => `${value}`} /><RechartsTooltip formatter={chartTooltip} /><Legend formatter={value => value === "gross" ? "Μικτά" : value === "net" ? "Καθαρά" : "Συμβόλαια"} /><Line type="monotone" dataKey="gross" stroke="#1976d2" strokeWidth={3} dot={false} /><Line type="monotone" dataKey="net" stroke="#43a047" strokeWidth={3} dot={false} /></LineChart></ResponsiveContainer></Box></Card>
+      <Card variant="outlined" sx={{ p: 1.5 }}><Typography fontWeight={800} sx={{ mb: 1 }}>Κατανομή κατάστασης</Typography><Box sx={{ height: 280 }}><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={88} label>{statusData.map((entry, index) => <Cell key={entry.name} fill={colors[index % colors.length]} />)}</Pie><RechartsTooltip /><Legend /></PieChart></ResponsiveContainer></Box></Card>
+      <Card variant="outlined" sx={{ p: 1.5 }}><Typography fontWeight={800} sx={{ mb: 1 }}>Πλήθος συμβολαίων ανά μήνα</Typography><Box sx={{ height: 260 }}><ResponsiveContainer width="100%" height="100%"><BarChart data={monthly} margin={{ top: 12, right: 12, left: 0, bottom: 4 }}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" /><YAxis allowDecimals={false} /><RechartsTooltip /><Bar dataKey="policies" name="Συμβόλαια" fill="#0b4f92" radius={[5, 5, 0, 0]} /></BarChart></ResponsiveContainer></Box></Card>
+      <Card variant="outlined" sx={{ p: 1.5 }}><Typography fontWeight={800} sx={{ mb: 1 }}>Παραγωγή ανά κλάδο</Typography><Box sx={{ height: 260 }}><ResponsiveContainer width="100%" height="100%"><BarChart data={typeData} layout="vertical" margin={{ top: 8, right: 16, left: 28, bottom: 4 }}><CartesianGrid strokeDasharray="3 3" /><XAxis type="number" tickFormatter={value => `${value}`} /><YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 11 }} /><RechartsTooltip formatter={chartTooltip} /><Bar dataKey="gross" name="Μικτά" fill="#43a047" radius={[0, 5, 5, 0]} /></BarChart></ResponsiveContainer></Box></Card>
+    </Box>}
+    {!policiesQ.isLoading && filteredRows.length === 0 && <Alert severity="info">Δεν υπάρχουν συμβόλαια με τα επιλεγμένα φίλτρα.</Alert>}
+  </Stack>;
+}
+
 function CompanyParametricsSection({ companyId, companyName }: { companyId: string; companyName: string }) {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
@@ -539,7 +678,6 @@ function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { op
   const p = q.data;
   const workspace = workspaceQ.data;
   const customValue = (...aliases: string[]) => workspace?.fields.find(field => aliases.some(alias => field.key.toLocaleLowerCase("el-GR").includes(alias) || field.label.toLocaleLowerCase("el-GR").includes(alias)))?.value ?? null;
-  const eur = (value: number) => value.toLocaleString("el-GR", { style: "currency", currency: "EUR" });
   const date = (value: string | null) => value ? new Date(value).toLocaleDateString("el-GR") : "—";
   return <Dialog open={open} onClose={onClose} fullWidth maxWidth="xl">
     <DialogTitle sx={{ pr: 6, "& .MuiButton-root": { minWidth: 150, minHeight: 44, px: 2.5, fontSize: ".95rem", fontWeight: 850, color: "#fff", borderRadius: 1.75, background: "linear-gradient(135deg, #43a047 0%, #1b5e20 100%)", boxShadow: "0 3px 8px rgba(46,125,50,.3)", "&:hover": { background: "linear-gradient(135deg, #4caf50 0%, #145214 100%)", color: "#fff", transform: "translateY(-1px)" } } }}><Stack direction="row" alignItems="center" spacing={1.25}><BusinessIcon color="primary" /><Box flex={1}><Typography variant="h5" fontWeight={850}>{company?.name ?? "—"}</Typography><Typography variant="caption" sx={{ fontFamily: "monospace" }}>{company?.code}</Typography></Box>{company && <Button variant="contained" size="small" color="success" startIcon={<EditIcon />} onClick={() => onEdit(company)} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, boxShadow: 2, "&:hover": { bgcolor: "success.dark", color: "#fff" } }}>Επεξεργασία</Button>}</Stack></DialogTitle>
@@ -615,17 +753,9 @@ function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { op
             "&.Mui-selected:hover": { background: "linear-gradient(135deg, #1565c0 0%, #0b3d91 100%)", color: "#fff" },
           },
         }}>
-          <Tab icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" /><Tab icon={<DescriptionIcon fontSize="small" />} iconPosition="start" label="Παραγωγή & συμβόλαια" /><Tab icon={<TuneIcon fontSize="small" />} iconPosition="start" label="Σύνδεση & παραμετρικά" /><Tab icon={<ContactPhoneIcon fontSize="small" />} iconPosition="start" label="Επικοινωνία" /><Tab icon={<FolderIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & πεδία" />
+          <Tab icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" /><Tab icon={<DescriptionIcon fontSize="small" />} iconPosition="start" label="Παραγωγή & συμβόλαια" /><Tab icon={<TuneIcon fontSize="small" />} iconPosition="start" label="Σύνδεση & παραμετρικά" /><Tab icon={<ContactPhoneIcon fontSize="small" />} iconPosition="start" label="Επικοινωνία" /><Tab icon={<FolderIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & πεδία" /><Tab icon={<BarChartIcon fontSize="small" />} iconPosition="start" label="Στατιστικά" />
         </Tabs>
         {tab === 0 && <Stack spacing={1.5}>
-          <ProfileMetricGrid items={[
-            ["Ενεργά συμβόλαια", `${p.activePolicies} / ${p.totalPolicies}`, "success"],
-            ["Μικτά ασφάλιστρα", eur(p.activePremiumTotal), "info"],
-            ["Καθαρά ασφάλιστρα", eur(p.activeNetPremiumTotal), "info"],
-            ["Ζημιές", `${p.totalClaims} (${p.openClaims} ανοιχτές)`, p.openClaims ? "warning" : "success"],
-            ["Κανόνες προμήθειας", String(p.commissionRuleCount), "info"],
-            ["Παραμετρικά", `${p.branchCount} κλάδοι · ${p.packageCount} πακέτα`, "info"],
-          ]} />
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}><ProfileSection title="Ταυτότητα εταιρείας"><ProfileLine label="ΑΦΜ / VAT" value={p.afmVat} /><ProfileLine label="Χώρα" value={p.country} /><ProfileLine label="Κωδικός συνεργασίας" value={p.agentCode} mono /><ProfileLine label="Website" value={p.website} link={p.website ?? undefined} /></ProfileSection><ProfileSection title="Επαφή & υπεύθυνοι"><ProfileLine label="Υπεύθυνος" value={p.contactName} /><ProfileLine label="Email" value={p.contactEmail} link={p.contactEmail ? `mailto:${p.contactEmail}` : undefined} /><ProfileLine label="Τηλέφωνο" value={p.contactPhone} link={p.contactPhone ? `tel:${p.contactPhone}` : undefined} /></ProfileSection></Box>
           <ProfileSection title="Σημειώσεις"><Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>{p.notes || "Δεν έχουν καταχωρηθεί σημειώσεις."}</Typography></ProfileSection>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}>
@@ -663,13 +793,13 @@ function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { op
             {(workspace?.fields ?? []).filter(field => field.isActive && field.value?.trim()).length === 0 ? <Typography variant="body2" color="text.secondary">Δεν έχουν συμπληρωθεί πρόσθετα πεδία. Τα πεδία που δημιουργεί το γραφείο εμφανίζονται αυτόματα εδώ.</Typography> : <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, columnGap: 2 }}>{(workspace?.fields ?? []).filter(field => field.isActive && field.value?.trim()).map(field => <ProfileLine key={field.id} label={field.label} value={field.value} link={/^https?:\/\//i.test(field.value ?? "") ? field.value ?? undefined : undefined} />)}</Box>}
           </ProfileSection>
         </Stack>}
-        {tab === 1 && <Stack spacing={1.5}><ProfileMetricGrid items={[["Ενεργά", String(p.activePolicies), "success"], ["Μικτά", eur(p.activePremiumTotal), "info"], ["Καθαρά", eur(p.activeNetPremiumTotal), "info"], ["Σύνολο ζημιών", String(p.totalClaims), p.openClaims ? "warning" : "success"]]} /></Stack>}
         {tab === 2 && <Stack spacing={1.5}><ProfileMetricGrid items={[["Κλάδοι", String(p.branchCount), "info"], ["Πακέτα", String(p.packageCount), "info"], ["Χρήσεις", String(p.useCount), "info"], ["Καλύψεις", String(p.coverageCount), "info"], ["Γέφυρα", p.bridgeLinked ? "Συνδεδεμένη" : "Χωρίς σύνδεση", p.bridgeLinked ? "success" : "warning"]]} /><ProfileSection title="Σύνδεση εταιρείας"><ProfileLine label="Πηγή γέφυρας" value={p.bridgeLinkedSourceCarrier} /><ProfileLine label="Κατάσταση" value={p.isActive ? "Ενεργή" : "Ανενεργή"} /><ProfileLine label="Δημιουργήθηκε" value={date(p.createdAt)} /></ProfileSection></Stack>}
         {tab === 3 && <Stack spacing={1.5}><ProfileSection title="Στοιχεία επικοινωνίας"><ProfileLine label="Όνομα επαφής" value={p.contactName} /><ProfileLine label="Email" value={p.contactEmail} link={p.contactEmail ? `mailto:${p.contactEmail}` : undefined} /><ProfileLine label="Τηλέφωνο" value={p.contactPhone} link={p.contactPhone ? `tel:${p.contactPhone}` : undefined} /></ProfileSection><ProfileSection title="Σημειώσεις"><Typography sx={{ whiteSpace: "pre-wrap" }}>{p.notes || "Δεν υπάρχουν σημειώσεις."}</Typography></ProfileSection></Stack>}
         {tab === 1 && company && <CompanyPoliciesSection companyId={company.id} />}
         {tab === 2 && company && <CompanyParametricsSection companyId={company.id} companyName={company.name} />}
         {tab === 3 && company && <CompanyCommunicationSection companyId={company.id} workspace={workspace} />}
         {tab === 4 && company && <CompanyDocumentsWorkspace companyId={company.id} />}
+        {tab === 5 && company && <CompanyStatisticsSection companyId={company.id} profile={p} />}
       </>}
     </DialogContent><DialogActions sx={{ px: 3, py: 2 }}><Button variant="contained" color="error" onClick={onClose} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, "&:hover": { bgcolor: "error.dark", color: "#fff" } }}>Κλείσιμο</Button></DialogActions>
   </Dialog>;
