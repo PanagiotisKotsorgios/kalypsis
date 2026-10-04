@@ -115,6 +115,7 @@ export default function ProductionCompaniesAgenciesPage() {
   const [search, setSearch] = useState("");
   const [companyProfile, setCompanyProfile] = useState<CompanyDto | null>(null);
   const [companyProfileEditing, setCompanyProfileEditing] = useState(false);
+  const [companyQuickCreateOpen, setCompanyQuickCreateOpen] = useState(false);
   const [officeProfile, setOfficeProfile] = useState<OfficeDto | null>(null);
   const [companyEditor, setCompanyEditor] = useState<CompanyDto | null | undefined>(undefined);
   const [officeEditor, setOfficeEditor] = useState<OfficeDto | null | undefined>(undefined);
@@ -206,7 +207,7 @@ export default function ProductionCompaniesAgenciesPage() {
             {selectedCount > 0 && <Button variant="contained" color="error" startIcon={<DeleteOutlineIcon />} onClick={() => { setBulkDeleteKind(tab === 0 ? "company" : "office"); setBulkDeleteText(""); }}>
               Μαζική διαγραφή ({selectedCount})
             </Button>}
-            <Button variant="outlined" startIcon={<AddIcon />} onClick={() => tab === 0 ? setCompanyEditor(null) : setOfficeEditor(null)}>
+            <Button variant="contained" color="success" startIcon={<AddIcon />} onClick={() => tab === 0 ? setCompanyQuickCreateOpen(true) : setOfficeEditor(null)} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, boxShadow: 2, "&:hover": { bgcolor: "success.dark", color: "#fff" } }}>
               {tab === 0 ? "Νέα ασφαλιστική" : "Νέο πρακτορείο"}
             </Button>
             <TextField size="small" label="Αναζήτηση" value={search} onChange={e => setSearch(e.target.value)} sx={{ minWidth: 220 }} />
@@ -226,6 +227,9 @@ export default function ProductionCompaniesAgenciesPage() {
           onDelete={setOfficeDeleteTarget} />
       )}
 
+      <ProductionCompanyQuickCreateDialog open={companyQuickCreateOpen}
+        onClose={() => setCompanyQuickCreateOpen(false)}
+        onSaved={(saved) => { setCompanyQuickCreateOpen(false); void qc.invalidateQueries({ queryKey: ["production-companies-directory"] }); void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); if (saved) { setCompanyProfileEditing(false); setCompanyProfile(saved); } }} />
       <ProductionCompanyEditorDialog open={companyEditor !== undefined} item={companyEditor ?? null}
         onClose={() => setCompanyEditor(undefined)}
         onSaved={(saved) => { void qc.invalidateQueries({ queryKey: ["production-companies-directory"] }); void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); setCompanyEditor(undefined); if (saved) setCompanyProfile(saved); }} />
@@ -617,6 +621,84 @@ const blankCompanyEditorForm = (): CompanyEditorForm => ({
   bridgeAutoSync: false, bridgeConfigJson: null, installZeroCommissionDefaults: false,
 });
 
+// The API intentionally rejects unmapped JSON properties.  The editor also
+// holds workspace-only fields (address/social links), so never spread the
+// complete form into the carrier endpoint.  Keep this payload in one place so
+// create, edit and inline profile edit cannot drift apart again.
+const toCompanyApiPayload = (form: CompanyEditorForm, options?: {
+  createBridge?: boolean;
+  bridgeName?: string | null;
+  bridgeAutoSync?: boolean;
+  bridgeConfigJson?: string | null;
+  installZeroCommissionDefaults?: boolean;
+}) => {
+  const createBridge = options?.createBridge ?? Boolean(form.createBridge);
+  return {
+    name: form.name.trim(),
+    code: form.code.trim().toUpperCase(),
+    country: form.country?.trim() || null,
+    website: form.website?.trim() || null,
+    isActive: Boolean(form.isActive),
+    agentCode: form.agentCode?.trim() || null,
+    contactName: form.contactName?.trim() || null,
+    contactEmail: form.contactEmail?.trim() || null,
+    contactPhone: form.contactPhone?.trim() || null,
+    afmVat: form.afmVat?.trim() || null,
+    notes: form.notes?.trim() || null,
+    createBridge,
+    bridgeName: createBridge ? (options?.bridgeName ?? form.bridgeName)?.trim() || null : null,
+    bridgeAutoSync: createBridge ? (options?.bridgeAutoSync ?? Boolean(form.bridgeAutoSync)) : false,
+    bridgeConfigJson: createBridge ? (options?.bridgeConfigJson ?? form.bridgeConfigJson)?.trim() || null : null,
+    installZeroCommissionDefaults: options?.installZeroCommissionDefaults ?? Boolean(form.installZeroCommissionDefaults),
+  };
+};
+
+/**
+ * Fast first entry: only the two identity fields are required.  Once saved,
+ * the normal profile opens so the operator can use the full editor without
+ * forcing a long form on the very first step.
+ */
+function ProductionCompanyQuickCreateDialog({ open, onClose, onSaved }: {
+  open: boolean;
+  onClose: () => void;
+  onSaved: (saved?: CompanyDto) => void;
+}) {
+  const [form, setForm] = useState({ name: "", code: "" });
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (open) {
+      setForm({ name: "", code: "" });
+      setError(null);
+    }
+  }, [open]);
+  const save = useMutation({
+    mutationFn: async () => {
+      const draft = { ...blankCompanyEditorForm(), name: form.name, code: form.code };
+      const payload = toCompanyApiPayload(draft, {
+        createBridge: false,
+        installZeroCommissionDefaults: false,
+      });
+      return (await api.post<CompanyDto>("/insurance-companies", payload)).data;
+    },
+    onSuccess: saved => onSaved(saved),
+    onError: error => setError(extractErrorMessage(error)),
+  });
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+    <DialogTitle><Stack direction="row" spacing={1} alignItems="center"><BusinessIcon color="primary" /><Box><Typography variant="h6" fontWeight={850}>Νέα ασφαλιστική</Typography><Typography variant="body2" color="text.secondary">Καταχωρήστε μόνο τα βασικά στοιχεία. Τα υπόλοιπα συμπληρώνονται μετά από την «Επεξεργασία».</Typography></Box></Stack></DialogTitle>
+    <DialogContent dividers>
+      {error && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError(null)}>{error}</Alert>}
+      <Stack spacing={1.5} sx={{ pt: .5 }}>
+        <TextField autoFocus required fullWidth label="Επωνυμία ασφαλιστικής" value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} />
+        <TextField required fullWidth label="Κωδικός εταιρείας" value={form.code} onChange={event => setForm(current => ({ ...current, code: event.target.value.toUpperCase() }))} helperText="Ο κωδικός χρησιμοποιείται στις γέφυρες και στα αρχεία παραγωγής." />
+      </Stack>
+    </DialogContent>
+    <DialogActions sx={{ px: 2.5, py: 1.5 }}>
+      <Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={onClose} sx={{ color: "#fff", fontWeight: 800 }}>Ακύρωση</Button>
+      <Button color="success" variant="contained" startIcon={save.isPending ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />} disabled={save.isPending || !form.name.trim() || !form.code.trim()} onClick={() => save.mutate()} sx={{ color: "#fff", fontWeight: 800 }}>{save.isPending ? "Αποθήκευση…" : "Δημιουργία"}</Button>
+    </DialogActions>
+  </Dialog>;
+}
+
 const PROFILE_TAB_LABELS = [
   { label: "Σύνοψη", icon: <InfoOutlinedIcon fontSize="small" /> },
   { label: "Παραγωγή & συμβόλαια", icon: <DescriptionIcon fontSize="small" /> },
@@ -663,7 +745,7 @@ function ProductionCompanyEditorDialog({ open, item, onClose, onSaved }: {
 
   const save = useMutation({
     mutationFn: async () => {
-      const body = { ...form, name: form.name.trim(), code: form.code.trim().toUpperCase(), country: form.country?.trim() || null, website: form.website?.trim() || null, agentCode: form.agentCode?.trim() || null, contactName: form.contactName?.trim() || null, contactEmail: form.contactEmail?.trim() || null, contactPhone: form.contactPhone?.trim() || null, afmVat: form.afmVat?.trim() || null, notes: form.notes?.trim() || null, bridgeName: form.createBridge ? (form.bridgeName?.trim() || null) : null, bridgeConfigJson: form.createBridge ? (form.bridgeConfigJson?.trim() || null) : null };
+      const body = toCompanyApiPayload(form);
       if (item) {
         const saved = (await api.put<CompanyDto>(`/insurance-companies/${item.id}`, body)).data;
         if (logoFile) {
@@ -776,7 +858,13 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
   const save = useMutation({
     mutationFn: async () => {
       if (!company) throw new Error("Δεν επιλέχθηκε εταιρεία.");
-      const body = { ...draft, name: draft.name.trim(), code: draft.code.trim().toUpperCase(), country: draft.country?.trim() || null, website: draft.website?.trim() || null, agentCode: draft.agentCode?.trim() || null, contactName: draft.contactName?.trim() || null, contactEmail: draft.contactEmail?.trim() || null, contactPhone: draft.contactPhone?.trim() || null, afmVat: draft.afmVat?.trim() || null, notes: draft.notes?.trim() || null, createBridge: false, bridgeName: null, bridgeAutoSync: false, bridgeConfigJson: null };
+      const body = toCompanyApiPayload(draft, {
+        createBridge: false,
+        bridgeName: null,
+        bridgeAutoSync: false,
+        bridgeConfigJson: null,
+        installZeroCommissionDefaults: false,
+      });
       return (await api.put<CompanyDto>(`/insurance-companies/${company.id}`, body)).data;
     },
     onSuccess: saved => { setEditing(false); setInlineError(null); onChanged?.(saved); void qc.invalidateQueries({ queryKey: ["production-company-profile", company?.id] }); void qc.invalidateQueries({ queryKey: ["production-company-workspace", company?.id] }); },
