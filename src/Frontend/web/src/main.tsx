@@ -10,6 +10,7 @@ import { ThemeProvider, CssBaseline } from "@mui/material";
 import App from "./App";
 import { theme as staticLightTheme } from "./theme";
 import "./styles/editorial.css";
+import "./styles/scrollbars.css";
 import "./styles/a11y.css";
 import "./styles/app-mobile.css";
 import "./styles/print.css";
