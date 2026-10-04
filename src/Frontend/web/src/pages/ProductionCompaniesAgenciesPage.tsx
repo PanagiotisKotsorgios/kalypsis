@@ -113,6 +113,7 @@ export default function ProductionCompaniesAgenciesPage() {
   const [tab, setTab] = useState(0);
   const [search, setSearch] = useState("");
   const [companyProfile, setCompanyProfile] = useState<CompanyDto | null>(null);
+  const [companyProfileEditing, setCompanyProfileEditing] = useState(false);
   const [officeProfile, setOfficeProfile] = useState<OfficeDto | null>(null);
   const [companyEditor, setCompanyEditor] = useState<CompanyDto | null | undefined>(undefined);
   const [officeEditor, setOfficeEditor] = useState<OfficeDto | null | undefined>(undefined);
@@ -218,7 +219,7 @@ export default function ProductionCompaniesAgenciesPage() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
       {loading ? <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box> : tab === 0 ? (
-        <CompanyDirectoryTable companies={companies} selectedIds={selectedCompanyIds} onToggle={id => setSelectedCompanyIds(current => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; })} onToggleAll={checked => setSelectedCompanyIds(checked ? new Set(eligibleCompanies.map(company => company.id)) : new Set())} onOpen={setCompanyProfile} onEdit={setCompanyEditor} onDelete={setCompanyDeleteTarget} />
+        <CompanyDirectoryTable companies={companies} selectedIds={selectedCompanyIds} onToggle={id => setSelectedCompanyIds(current => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; })} onToggleAll={checked => setSelectedCompanyIds(checked ? new Set(eligibleCompanies.map(company => company.id)) : new Set())} onOpen={company => { setCompanyProfileEditing(false); setCompanyProfile(company); }} onEdit={company => { setCompanyProfileEditing(true); setCompanyProfile(company); }} onDelete={setCompanyDeleteTarget} />
       ) : (
         <OfficeDirectoryTable offices={offices} selectedIds={selectedOfficeIds} onToggle={id => setSelectedOfficeIds(current => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; })} onToggleAll={checked => setSelectedOfficeIds(checked ? new Set(eligibleOffices.map(office => office.id)) : new Set())} onOpen={setOfficeProfile} onEdit={setOfficeEditor}
           onDelete={setOfficeDeleteTarget} />
@@ -230,7 +231,7 @@ export default function ProductionCompaniesAgenciesPage() {
       <ProductionOfficeEditorDialog open={officeEditor !== undefined} item={officeEditor ?? null}
         onClose={() => setOfficeEditor(undefined)}
         onSaved={(saved) => { void qc.invalidateQueries({ queryKey: ["production-agency-offices-directory"] }); void qc.invalidateQueries({ queryKey: ["agency-offices"] }); setOfficeEditor(undefined); if (saved) setOfficeProfile(saved); }} />
-      <ProductionCompanyProfileDialog open={!!companyProfile} company={companyProfile} onClose={() => setCompanyProfile(null)} onEdit={company => { setCompanyProfile(null); setCompanyEditor(company); }} />
+      <ProductionCompanyProfileDialog open={!!companyProfile} company={companyProfile} startEditing={companyProfileEditing} onClose={() => { setCompanyProfile(null); setCompanyProfileEditing(false); }} onChanged={() => { setCompanyProfileEditing(false); void qc.invalidateQueries({ queryKey: ["production-companies-directory"] }); void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); }} />
       <ProductionOfficeProfileDialog open={!!officeProfile} office={officeProfile} onClose={() => setOfficeProfile(null)} onEdit={office => { setOfficeProfile(null); setOfficeEditor(office); }} />
       <Dialog open={!!companyDeleteTarget} onClose={() => setCompanyDeleteTarget(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Διαγραφή ασφαλιστικής εταιρείας</DialogTitle>
@@ -386,8 +387,27 @@ function CompanyPoliciesSection({ companyId }: { companyId: string }) {
   </ProfileSection>;
 }
 
+const POLICY_STATUS_LABELS: Record<string, string> = {
+  Prospect: "Πιθανό συμβόλαιο",
+  Draft: "Πρόχειρο",
+  Active: "Ενεργό",
+  Expired: "Ληγμένο",
+  Cancelled: "Ακυρωμένο",
+  Renewed: "Ανανεωμένο",
+  PendingRenewal: "Προς ανανέωση",
+  Undelivered: "Απαράδοτο",
+  AwaitingIssue: "Προς έκδοση",
+  ActiveProspect: "Ενεργός πιθανός πελάτης",
+};
+const POLICY_TYPE_LABELS: Record<string, string> = {
+  Auto: "Αυτοκίνητο", Home: "Κατοικία", Health: "Υγεία", Life: "Ζωή",
+  Business: "Επιχείρηση", Travel: "Ταξίδι", Other: "Λοιπά",
+};
+const policyStatusLabel = (status: string) => POLICY_STATUS_LABELS[status] ?? status;
+const policyTypeLabel = (type: string) => POLICY_TYPE_LABELS[type] ?? type;
+const isActivePolicyStatus = (status: string) => ["Active", "Ενεργό", "Ενεργη", "Ενεργό συμβόλαιο"].includes(status);
+
 function CompanyStatisticsSection({ companyId, profile }: { companyId: string; profile: CarrierProfile }) {
-  const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [type, setType] = useState("all");
   const [fromDate, setFromDate] = useState("");
@@ -402,13 +422,9 @@ function CompanyStatisticsSection({ companyId, profile }: { companyId: string; p
   const statuses = useMemo(() => [...new Set(allRows.map(row => row.status).filter(Boolean))].sort(), [allRows]);
   const types = useMemo(() => [...new Set(allRows.map(row => row.policyType).filter(Boolean))].sort(), [allRows]);
   const filteredRows = useMemo(() => {
-    const needle = search.trim().toLocaleLowerCase("el-GR");
     const from = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : null;
     const to = toDate ? new Date(`${toDate}T23:59:59`).getTime() : null;
     return allRows.filter(row => {
-      const haystack = [row.policyNumber, row.customerDisplay, row.producerName, row.policyType, row.status]
-        .filter(Boolean).join(" ").toLocaleLowerCase("el-GR");
-      if (needle && !haystack.includes(needle)) return false;
       if (status !== "all" && row.status !== status) return false;
       if (type !== "all" && row.policyType !== type) return false;
       const start = new Date(row.startDate).getTime();
@@ -416,12 +432,12 @@ function CompanyStatisticsSection({ companyId, profile }: { companyId: string; p
       if (to !== null && (!Number.isFinite(start) || start > to)) return false;
       return true;
     });
-  }, [allRows, fromDate, search, status, toDate, type]);
+  }, [allRows, fromDate, status, toDate, type]);
 
   const stats = useMemo(() => {
     const gross = filteredRows.reduce((sum, row) => sum + Number(row.premium || 0), 0);
     const net = filteredRows.reduce((sum, row) => sum + Number(row.netPremium || 0), 0);
-    const active = filteredRows.filter(row => row.status.toLocaleLowerCase("el-GR") === "active" || row.status.toLocaleLowerCase("el-GR") === "ενεργό" || row.status.toLocaleLowerCase("el-GR") === "ενεργη").length;
+    const active = filteredRows.filter(row => isActivePolicyStatus(row.status)).length;
     const avg = filteredRows.length ? gross / filteredRows.length : 0;
     const commissionValues = filteredRows.map(row => Number(row.specialCommissionPercent || 0)).filter(value => Number.isFinite(value));
     const averageCommission = commissionValues.length ? commissionValues.reduce((sum, value) => sum + value, 0) / commissionValues.length : 0;
@@ -445,14 +461,17 @@ function CompanyStatisticsSection({ companyId, profile }: { companyId: string; p
 
   const statusData = useMemo(() => {
     const grouped = new Map<string, number>();
-    for (const row of filteredRows) grouped.set(row.status || "Χωρίς κατάσταση", (grouped.get(row.status || "Χωρίς κατάσταση") ?? 0) + 1);
+    for (const row of filteredRows) {
+      const label = policyStatusLabel(row.status || "Χωρίς κατάσταση");
+      grouped.set(label, (grouped.get(label) ?? 0) + 1);
+    }
     return [...grouped.entries()].map(([name, value]) => ({ name, value }));
   }, [filteredRows]);
 
   const typeData = useMemo(() => {
     const grouped = new Map<string, { name: string; policies: number; gross: number }>();
     for (const row of filteredRows) {
-      const name = row.policyType || "Χωρίς κλάδο";
+      const name = policyTypeLabel(row.policyType || "Χωρίς κλάδο");
       const current = grouped.get(name) ?? { name, policies: 0, gross: 0 };
       current.policies += 1;
       current.gross += Number(row.premium || 0);
@@ -466,12 +485,12 @@ function CompanyStatisticsSection({ companyId, profile }: { companyId: string; p
     name === "policies" ? String(value ?? "") : eur(Number(value ?? 0)),
     name === "policies" ? "Συμβόλαια" : name === "gross" ? "Μικτά" : "Καθαρά",
   ];
-  const clearFilters = () => { setSearch(""); setStatus("all"); setType("all"); setFromDate(""); setToDate(""); };
-  const filterCount = [search.trim(), status !== "all", type !== "all", fromDate, toDate].filter(Boolean).length;
+  const clearFilters = () => { setStatus("all"); setType("all"); setFromDate(""); setToDate(""); };
+  const filterCount = [status !== "all", type !== "all", fromDate, toDate].filter(Boolean).length;
   const exportCsv = () => {
     const headers = ["Αριθμός συμβολαίου", "Έναρξη", "Λήξη", "Πελάτης", "Κλάδος", "Κατάσταση", "Μικτά ασφάλιστρα", "Καθαρά ασφάλιστρα", "Προμήθεια %"];
     const escape = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
-    const lines = filteredRows.map(row => [row.policyNumber, row.startDate, row.endDate, row.customerDisplay, row.policyType, row.status, row.premium, row.netPremium, row.specialCommissionPercent].map(escape).join(";"));
+    const lines = filteredRows.map(row => [row.policyNumber, row.startDate, row.endDate, row.customerDisplay, policyTypeLabel(row.policyType), policyStatusLabel(row.status), row.premium, row.netPremium, row.specialCommissionPercent].map(escape).join(";"));
     const blob = new Blob([`\uFEFF${headers.map(escape).join(";")}\n${lines.join("\n")}`], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -484,15 +503,14 @@ function CompanyStatisticsSection({ companyId, profile }: { companyId: string; p
 
   return <Stack spacing={1.5}>
     <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }}>
-      <TextField size="small" fullWidth placeholder="Αναζήτηση συμβολαίου, πελάτη ή συνεργάτη" value={search} onChange={event => setSearch(event.target.value)} InputProps={{ startAdornment: <SearchIcon fontSize="small" sx={{ mr: .75, color: "text.secondary" }} /> }} />
       <Button variant="outlined" startIcon={<FilterListIcon />} onClick={event => setFilterAnchor(event.currentTarget)} sx={{ whiteSpace: "nowrap" }}>Λοιπά φίλτρα{filterCount ? ` (${filterCount})` : ""}</Button>
       <Button variant="contained" color="primary" startIcon={<DownloadIcon />} onClick={exportCsv} disabled={!filteredRows.length} sx={{ whiteSpace: "nowrap" }}>Εξαγωγή CSV</Button>
     </Stack>
     <Popover open={!!filterAnchor} anchorEl={filterAnchor} onClose={() => setFilterAnchor(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}>
       <Stack spacing={1.25} sx={{ p: 1.75, width: { xs: 280, sm: 360 } }}>
         <Typography fontWeight={800}>Φίλτρα στατιστικών</Typography>
-        <TextField select size="small" label="Κατάσταση" value={status} onChange={event => setStatus(event.target.value)} SelectProps={{ native: true }}><option value="all">Όλες</option>{statuses.map(option => <option key={option} value={option}>{option}</option>)}</TextField>
-        <TextField select size="small" label="Κλάδος / τύπος" value={type} onChange={event => setType(event.target.value)} SelectProps={{ native: true }}><option value="all">Όλοι</option>{types.map(option => <option key={option} value={option}>{option}</option>)}</TextField>
+        <TextField select size="small" label="Κατάσταση" value={status} onChange={event => setStatus(event.target.value)} SelectProps={{ native: true }}><option value="all">Όλες</option>{statuses.map(option => <option key={option} value={option}>{policyStatusLabel(option)}</option>)}</TextField>
+        <TextField select size="small" label="Κλάδος / τύπος" value={type} onChange={event => setType(event.target.value)} SelectProps={{ native: true }}><option value="all">Όλοι</option>{types.map(option => <option key={option} value={option}>{policyTypeLabel(option)}</option>)}</TextField>
         <Stack direction="row" spacing={1}><TextField type="date" size="small" label="Από έναρξη" value={fromDate} onChange={event => setFromDate(event.target.value)} InputLabelProps={{ shrink: true }} fullWidth /><TextField type="date" size="small" label="Έως έναρξη" value={toDate} onChange={event => setToDate(event.target.value)} InputLabelProps={{ shrink: true }} fullWidth /></Stack>
         <Button color="error" variant="outlined" onClick={clearFilters}>Καθαρισμός φίλτρων</Button>
       </Stack>
@@ -671,16 +689,62 @@ function ProductionCompanyEditorDialog({ open, item, onClose, onSaved }: {
   </Dialog>;
 }
 
-function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { open: boolean; company: CompanyDto | null; onClose: () => void; onEdit: (company: CompanyDto) => void }) {
+function ProductionCompanyProfileDialog({ open, company, startEditing = false, onClose, onChanged }: { open: boolean; company: CompanyDto | null; startEditing?: boolean; onClose: () => void; onChanged?: (saved: CompanyDto) => void }) {
   const [tab, setTab] = useState(0);
+  const [editing, setEditing] = useState(startEditing);
+  const [draft, setDraft] = useState<CompanyEditorForm>(blankCompanyEditorForm);
+  const [inlineError, setInlineError] = useState<string | null>(null);
+  const [fieldDrafts, setFieldDrafts] = useState<Record<string, string>>({});
+  const [savingFieldId, setSavingFieldId] = useState<string | null>(null);
   const q = useQuery({ queryKey: ["production-company-profile", company?.id], enabled: open && !!company, queryFn: async () => (await api.get<CarrierProfile>(`/insurance-companies/${company!.id}/profile`)).data });
   const workspaceQ = useQuery({ queryKey: ["production-company-workspace", company?.id], enabled: open && !!company, queryFn: async () => (await api.get<CompanyWorkspace>(`/insurance-companies/${company!.id}/workspace`)).data });
+  const qc = useQueryClient();
   const p = q.data;
   const workspace = workspaceQ.data;
-  const customValue = (...aliases: string[]) => workspace?.fields.find(field => aliases.some(alias => field.key.toLocaleLowerCase("el-GR").includes(alias) || field.label.toLocaleLowerCase("el-GR").includes(alias)))?.value ?? null;
   const date = (value: string | null) => value ? new Date(value).toLocaleDateString("el-GR") : "—";
+  useEffect(() => {
+    setTab(0);
+    setEditing(startEditing);
+    setInlineError(null);
+  }, [company?.id, open, startEditing]);
+  useEffect(() => {
+    if (!p) return;
+    setDraft({ ...blankCompanyEditorForm(), name: p.name, code: p.code, country: p.country, website: p.website, isActive: p.isActive, agentCode: p.agentCode, contactName: p.contactName, contactEmail: p.contactEmail, contactPhone: p.contactPhone, afmVat: p.afmVat, notes: p.notes });
+  }, [p]);
+  useEffect(() => {
+    if (!workspace) return;
+    setFieldDrafts(Object.fromEntries(workspace.fields.map(field => [field.id, field.value ?? ""])));
+  }, [workspace]);
+  const updateDraft = (patch: Partial<CompanyEditorForm>) => setDraft(current => ({ ...current, ...patch }));
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!company) throw new Error("Δεν επιλέχθηκε εταιρεία.");
+      const body = { ...draft, name: draft.name.trim(), code: draft.code.trim().toUpperCase(), country: draft.country?.trim() || null, website: draft.website?.trim() || null, agentCode: draft.agentCode?.trim() || null, contactName: draft.contactName?.trim() || null, contactEmail: draft.contactEmail?.trim() || null, contactPhone: draft.contactPhone?.trim() || null, afmVat: draft.afmVat?.trim() || null, notes: draft.notes?.trim() || null, createBridge: false, bridgeName: null, bridgeAutoSync: false, bridgeConfigJson: null };
+      return (await api.put<CompanyDto>(`/insurance-companies/${company.id}`, body)).data;
+    },
+    onSuccess: saved => { setEditing(false); setInlineError(null); onChanged?.(saved); void qc.invalidateQueries({ queryKey: ["production-company-profile", company?.id] }); void qc.invalidateQueries({ queryKey: ["production-company-workspace", company?.id] }); },
+    onError: error => setInlineError(extractErrorMessage(error)),
+  });
+  const saveField = async (fieldId: string) => {
+    if (!company) return;
+    setSavingFieldId(fieldId);
+    try {
+      await api.put(`/insurance-companies/${company.id}/workspace/fields/${fieldId}/value`, { value: fieldDrafts[fieldId] ?? "" });
+      await qc.invalidateQueries({ queryKey: ["production-company-workspace", company.id] });
+    } catch (error) {
+      setInlineError(extractErrorMessage(error));
+    } finally {
+      setSavingFieldId(null);
+    }
+  };
+  const customField = (...aliases: string[]) => workspace?.fields.find(field => aliases.some(alias => field.key.toLocaleLowerCase("el-GR").includes(alias) || field.label.toLocaleLowerCase("el-GR").includes(alias)));
+  const renderCustomField = (label: string, aliases: string[], mono = false) => {
+    const field = customField(...aliases);
+    if (editing && field) return <Stack direction="row" spacing={.75} alignItems="flex-start" sx={{ py: .4 }}><TextField fullWidth size="small" label={label} value={fieldDrafts[field.id] ?? ""} onChange={event => setFieldDrafts(current => ({ ...current, [field.id]: event.target.value }))} /><Button size="small" variant="outlined" onClick={() => void saveField(field.id)} disabled={savingFieldId === field.id}>{savingFieldId === field.id ? <CircularProgress size={16} /> : "Αποθήκευση"}</Button></Stack>;
+    return <ProfileLine label={label} value={field?.value ?? null} mono={mono} link={field?.value && /^https?:\/\//i.test(field.value) ? field.value : undefined} />;
+  };
   return <Dialog open={open} onClose={onClose} fullWidth maxWidth="xl">
-    <DialogTitle sx={{ pr: 6, "& .MuiButton-root": { minWidth: 150, minHeight: 44, px: 2.5, fontSize: ".95rem", fontWeight: 850, color: "#fff", borderRadius: 1.75, background: "linear-gradient(135deg, #43a047 0%, #1b5e20 100%)", boxShadow: "0 3px 8px rgba(46,125,50,.3)", "&:hover": { background: "linear-gradient(135deg, #4caf50 0%, #145214 100%)", color: "#fff", transform: "translateY(-1px)" } } }}><Stack direction="row" alignItems="center" spacing={1.25}><BusinessIcon color="primary" /><Box flex={1}><Typography variant="h5" fontWeight={850}>{company?.name ?? "—"}</Typography><Typography variant="caption" sx={{ fontFamily: "monospace" }}>{company?.code}</Typography></Box>{company && <Button variant="contained" size="small" color="success" startIcon={<EditIcon />} onClick={() => onEdit(company)} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, boxShadow: 2, "&:hover": { bgcolor: "success.dark", color: "#fff" } }}>Επεξεργασία</Button>}</Stack></DialogTitle>
+    <DialogTitle sx={{ pr: 6, "& .MuiButton-root": { minWidth: 150, minHeight: 44, px: 2.5, fontSize: ".95rem", fontWeight: 850, color: "#fff", borderRadius: 1.75, background: "linear-gradient(135deg, #43a047 0%, #1b5e20 100%)", boxShadow: "0 3px 8px rgba(46,125,50,.3)", "&:hover": { background: "linear-gradient(135deg, #4caf50 0%, #145214 100%)", color: "#fff", transform: "translateY(-1px)" } } }}><Stack direction="row" alignItems="center" spacing={1.25}><BusinessIcon color="primary" /><Box flex={1}><Typography variant="h5" fontWeight={850}>{company?.name ?? "—"}</Typography><Typography variant="caption" sx={{ fontFamily: "monospace" }}>{company?.code}</Typography></Box>{company && (editing ? <Stack direction="row" spacing={.75}><Button variant="contained" color="success" startIcon={<SaveIcon />} onClick={() => save.mutate()} disabled={save.isPending || !draft.name.trim() || !draft.code.trim()}>{save.isPending ? <CircularProgress size={18} color="inherit" /> : "Αποθήκευση"}</Button><Button variant="outlined" onClick={() => { setEditing(false); setInlineError(null); setDraft({ ...blankCompanyEditorForm(), name: p?.name ?? company.name, code: p?.code ?? company.code, country: p?.country ?? company.country, website: p?.website ?? company.website, isActive: p?.isActive ?? company.isActive, agentCode: p?.agentCode ?? company.agentCode, contactName: p?.contactName ?? company.contactName, contactEmail: p?.contactEmail ?? company.contactEmail, contactPhone: p?.contactPhone ?? company.contactPhone, afmVat: p?.afmVat ?? company.afmVat, notes: p?.notes ?? company.notes }); }}>Ακύρωση</Button></Stack> : <Button variant="contained" size="small" color="success" startIcon={<EditIcon />} onClick={() => setEditing(true)} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, boxShadow: 2, "&:hover": { bgcolor: "success.dark", color: "#fff" } }}>Επεξεργασία</Button>)}</Stack></DialogTitle>
     <DialogContent dividers sx={{
       // Keep the profile surface flush with the dialog edge so its sticky
       // navigation never leaves a gap or gets clipped while scrolling.
@@ -714,6 +778,7 @@ function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { op
     }}>
       {q.isLoading && <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>}
       {q.error && <Alert severity="error">Δεν φορτώθηκαν τα στοιχεία της εταιρείας.</Alert>}
+      {inlineError && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setInlineError(null)}>{inlineError}</Alert>}
       {p && <>
         <Tabs value={tab} onChange={(_, value: number) => setTab(value)} variant="standard" sx={{
           position: "sticky",
@@ -756,24 +821,29 @@ function ProductionCompanyProfileDialog({ open, company, onClose, onEdit }: { op
           <Tab icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" /><Tab icon={<DescriptionIcon fontSize="small" />} iconPosition="start" label="Παραγωγή & συμβόλαια" /><Tab icon={<TuneIcon fontSize="small" />} iconPosition="start" label="Σύνδεση & παραμετρικά" /><Tab icon={<ContactPhoneIcon fontSize="small" />} iconPosition="start" label="Επικοινωνία" /><Tab icon={<FolderIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & πεδία" /><Tab icon={<BarChartIcon fontSize="small" />} iconPosition="start" label="Στατιστικά" />
         </Tabs>
         {tab === 0 && <Stack spacing={1.5}>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}><ProfileSection title="Ταυτότητα εταιρείας"><ProfileLine label="ΑΦΜ / VAT" value={p.afmVat} /><ProfileLine label="Χώρα" value={p.country} /><ProfileLine label="Κωδικός συνεργασίας" value={p.agentCode} mono /><ProfileLine label="Website" value={p.website} link={p.website ?? undefined} /></ProfileSection><ProfileSection title="Επαφή & υπεύθυνοι"><ProfileLine label="Υπεύθυνος" value={p.contactName} /><ProfileLine label="Email" value={p.contactEmail} link={p.contactEmail ? `mailto:${p.contactEmail}` : undefined} /><ProfileLine label="Τηλέφωνο" value={p.contactPhone} link={p.contactPhone ? `tel:${p.contactPhone}` : undefined} /></ProfileSection></Box>
-          <ProfileSection title="Σημειώσεις"><Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>{p.notes || "Δεν έχουν καταχωρηθεί σημειώσεις."}</Typography></ProfileSection>
+          <Box sx={{ display: editing ? "none" : "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}><ProfileSection title="Ταυτότητα εταιρείας"><ProfileLine label="ΑΦΜ / VAT" value={p.afmVat} /><ProfileLine label="Χώρα" value={p.country} /><ProfileLine label="Κωδικός συνεργασίας" value={p.agentCode} mono /><ProfileLine label="Website" value={p.website} link={p.website ?? undefined} /></ProfileSection><ProfileSection title="Επαφή & υπεύθυνοι"><ProfileLine label="Υπεύθυνος" value={p.contactName} /><ProfileLine label="Email" value={p.contactEmail} link={p.contactEmail ? `mailto:${p.contactEmail}` : undefined} /><ProfileLine label="Τηλέφωνο" value={p.contactPhone} link={p.contactPhone ? `tel:${p.contactPhone}` : undefined} /></ProfileSection></Box>
+          <Box sx={{ display: editing ? "none" : "block" }}><ProfileSection title="Σημειώσεις"><Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>{p.notes || "Δεν έχουν καταχωρηθεί σημειώσεις."}</Typography></ProfileSection></Box>
+          {editing && <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}>
+            <ProfileSection title="Ταυτότητα εταιρείας"><Stack spacing={1}><TextField fullWidth required size="small" label="Επωνυμία" value={draft.name} onChange={event => updateDraft({ name: event.target.value })} /><TextField fullWidth required size="small" label="Κωδικός" value={draft.code} onChange={event => updateDraft({ code: event.target.value.toUpperCase() })} /><TextField fullWidth size="small" label="ΑΦΜ / VAT" value={draft.afmVat ?? ""} onChange={event => updateDraft({ afmVat: event.target.value })} /><TextField fullWidth size="small" label="Χώρα" value={draft.country ?? ""} onChange={event => updateDraft({ country: event.target.value })} /><TextField fullWidth size="small" label="Κωδικός συνεργασίας" value={draft.agentCode ?? ""} onChange={event => updateDraft({ agentCode: event.target.value })} /><TextField fullWidth size="small" label="Website" value={draft.website ?? ""} onChange={event => updateDraft({ website: event.target.value })} /></Stack></ProfileSection>
+            <ProfileSection title="Επαφή & υπεύθυνοι"><Stack spacing={1}><TextField fullWidth size="small" label="Ονοματεπώνυμο επαφής" value={draft.contactName ?? ""} onChange={event => updateDraft({ contactName: event.target.value })} /><TextField fullWidth size="small" type="email" label="Email" value={draft.contactEmail ?? ""} onChange={event => updateDraft({ contactEmail: event.target.value })} /><TextField fullWidth size="small" label="Τηλέφωνο" value={draft.contactPhone ?? ""} onChange={event => updateDraft({ contactPhone: event.target.value })} /><FormControlLabel control={<Switch checked={draft.isActive} onChange={event => updateDraft({ isActive: event.target.checked })} />} label={draft.isActive ? "Ενεργή" : "Ανενεργή"} /></Stack></ProfileSection>
+            <Box sx={{ gridColumn: { md: "1 / -1" } }}><ProfileSection title="Σημειώσεις"><TextField fullWidth multiline minRows={3} size="small" label="Εσωτερικές σημειώσεις" value={draft.notes ?? ""} onChange={event => updateDraft({ notes: event.target.value })} /></ProfileSection></Box>
+          </Box>}
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}>
             <ProfileSection title="Διεύθυνση & στοιχεία έδρας">
-              <ProfileLine label="Διεύθυνση" value={customValue("address", "διεύθυνση", "εδρα", "έδρα")} />
-              <ProfileLine label="Πόλη" value={customValue("city", "πόλη")} />
-              <ProfileLine label="Τ.Κ." value={customValue("postal", "ταχυδρομ", "τκ", "zip")} mono />
+              {renderCustomField("Διεύθυνση", ["address", "διεύθυνση", "εδρα", "έδρα"])}
+              {renderCustomField("Πόλη", ["city", "πόλη"])}
+              {renderCustomField("Τ.Κ.", ["postal", "ταχυδρομ", "τκ", "zip"], true)}
               <ProfileLine label="Χώρα" value={p.country} />
               <ProfileLine label="ΑΦΜ / VAT" value={p.afmVat} mono />
               <ProfileLine label="Κωδικός συνεργασίας" value={p.agentCode} mono />
             </ProfileSection>
             <ProfileSection title="Ιστοσελίδα & ψηφιακή παρουσία">
               <ProfileLine label="Ιστοσελίδα" value={p.website} link={p.website ?? undefined} />
-              <ProfileLine label="Facebook" value={customValue("facebook", "fb")} link={customValue("facebook", "fb") ?? undefined} />
-              <ProfileLine label="Instagram" value={customValue("instagram", "insta")} link={customValue("instagram", "insta") ?? undefined} />
-              <ProfileLine label="LinkedIn" value={customValue("linkedin", "linked in")} link={customValue("linkedin", "linked in") ?? undefined} />
-              <ProfileLine label="X / Twitter" value={customValue("twitter", "x.com")} link={customValue("twitter", "x.com") ?? undefined} />
-              <ProfileLine label="Google Maps" value={customValue("google maps", "maps")} link={customValue("google maps", "maps") ?? undefined} />
+              {renderCustomField("Facebook", ["facebook", "fb"])}
+              {renderCustomField("Instagram", ["instagram", "insta"])}
+              {renderCustomField("LinkedIn", ["linkedin", "linked in"])}
+              {renderCustomField("X / Twitter", ["twitter", "x.com"])}
+              {renderCustomField("Google Maps", ["google maps", "maps"])}
             </ProfileSection>
           </Box>
           <ProfileSection title="Πρόσωπα, στελέχη & πολλαπλές επικοινωνίες">

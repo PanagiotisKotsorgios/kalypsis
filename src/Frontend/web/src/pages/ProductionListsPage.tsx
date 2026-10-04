@@ -537,7 +537,7 @@ export function ProductionListsPage() {
         </Stack>
         {/* Compact grid — 6 columns on lg, 3 on md. Same ? position unchanged
             (next to the page title above). */}
-        <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)", lg: "repeat(6, 1fr)" } }}>
+        <Box sx={{ display: "grid", gap: .85, alignItems: "start", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)", lg: "repeat(6, 1fr)" } }}>
           {/* «Πεδίο ημερομηνίας» — switches which policy date the Από/Έως
               window filters on. Default «Έναρξη» preserves backward-compat
               with saved reports. «Πληρωμή» is intentionally omitted for
@@ -600,9 +600,6 @@ export function ProductionListsPage() {
             label={t("productionList.type")}
             value={f.policyType} onChange={(v) => setF({ ...f, policyType: v })}
             disabled={branchOptions.length === 0}
-            helperText={branchOptions.length === 0
-              ? "Δεν υπάρχουν παραμετρικά"
-              : f.insuranceCompanyId ? "Από παραμετρικά εταιρίας" : "Από όλα τα παραμετρικά γραφείου"}
             emptyLabel={t("common.all")}
             options={branchOptions.map(o => ({ value: o.value, label: o.label }))}
           />
@@ -610,9 +607,6 @@ export function ProductionListsPage() {
             label="Χρήση οχήματος"
             value={f.vehicleUseCategory} onChange={(v) => setF({ ...f, vehicleUseCategory: v })}
             disabled={useOptions.length === 0}
-            helperText={useOptions.length === 0
-              ? "Δεν υπάρχουν παραμετρικά"
-              : f.insuranceCompanyId ? "Από παραμετρικά εταιρίας" : "Από όλα τα παραμετρικά γραφείου"}
             emptyLabel={t("common.all")}
             options={useOptions.map(o => ({ value: o.value, label: o.label }))}
           />
@@ -620,9 +614,6 @@ export function ProductionListsPage() {
             label="Κάλυψη"
             value={f.coverCode} onChange={(v) => setF({ ...f, coverCode: v })}
             disabled={coverageOptions.length === 0}
-            helperText={coverageOptions.length === 0
-              ? "Δεν υπάρχουν παραμετρικά"
-              : f.insuranceCompanyId ? "Από παραμετρικά εταιρίας" : "Από όλα τα παραμετρικά γραφείου"}
             emptyLabel={t("common.all")}
             options={coverageOptions.map(o => ({ value: o.value, label: o.label }))}
           />
@@ -630,9 +621,6 @@ export function ProductionListsPage() {
             label="Πακέτο"
             value={f.packageCode} onChange={(v) => setF({ ...f, packageCode: v })}
             disabled={packageOptions.length === 0}
-            helperText={packageOptions.length === 0
-              ? "Δεν υπάρχουν παραμετρικά"
-              : f.insuranceCompanyId ? "Από παραμετρικά εταιρίας" : "Από όλα τα παραμετρικά γραφείου"}
             emptyLabel={t("common.all")}
             options={packageOptions.map(o => ({ value: o.value, label: o.label }))}
           />
