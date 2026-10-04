@@ -558,38 +558,42 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           onChange={(_, value) => modalPresentation ? selectTab(value) : setTab(value)}
           variant={modalPresentation ? "standard" : "scrollable"}
           sx={modalPresentation ? {
-            mx: 1,
-            my: .75,
+            position: "sticky",
+            top: 0,
+            zIndex: 4,
+            mx: 0,
+            my: 0,
+            mb: 2,
             px: .5,
             py: .5,
             border: "1px solid #b8c0c8",
             borderRadius: 2,
-            bgcolor: "#f4f6f8",
+            bgcolor: "background.paper",
             boxShadow: "0 3px 10px rgba(15,23,42,.12)",
             overflow: "visible",
             "& .MuiTabs-scroller": { overflow: "visible !important" },
-            "& .MuiTabs-flexContainer": { gap: .65, flexWrap: "wrap" },
+            "& .MuiTabs-flexContainer": { gap: .75, flexWrap: "wrap" },
             "& .MuiTabs-indicator": { display: "none" },
-              "& .MuiTab-root": {
-              minHeight: 44,
-              minWidth: { xs: 112, sm: 148, md: 168 },
+            "& .MuiTab-root": {
+              minHeight: 54,
+              minWidth: { xs: 132, md: 168 },
               flex: { xs: "1 1 45%", sm: "0 1 auto" },
-              px: 1.25,
-              py: .6,
-              border: "1px solid #9aa6b2",
+              px: 1.5,
+              py: .75,
+              border: "1px solid #b8c0c8",
               borderRadius: 1.5,
-              background: "linear-gradient(180deg, #e8edf1 0%, #cbd3da 100%)",
-              color: "#17212b",
+              background: "linear-gradient(180deg, #f7f8fa 0%, #e1e5e9 100%)",
+              color: "#263238",
               textTransform: "none",
-              fontWeight: 850,
+              fontWeight: 750,
               fontSize: { xs: ".78rem", md: ".86rem" },
               lineHeight: 1.2,
               boxShadow: "inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(15,23,42,.12)",
-              transition: "background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease",
+              transition: "background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease",
               "&:hover": {
-                background: "linear-gradient(180deg, #d9e0e6 0%, #b8c3cc 100%)",
-                borderColor: "#687785",
-                color: "#0f1c27",
+                background: "#d6dce2",
+                borderColor: "#8b98a5",
+                color: "#0b2545",
                 boxShadow: "inset 0 1px 0 rgba(255,255,255,.65), 0 2px 5px rgba(15,23,42,.18)",
               },
               "&.Mui-selected": {
@@ -672,41 +676,40 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                   <Typography variant="overline" color="text.secondary" fontWeight={700}>
                     Πρόσθετα στοιχεία
                   </Typography>
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                    <TextField fullWidth label="Αρ. αίτησης"
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? 1 : 2 }}>
+                    <TextField fullWidth size="small" label="Αρ. αίτησης"
                       disabled={!canEdit}
                       value={form.applicationNumber}
                       onChange={e => setForm({ ...form, applicationNumber: e.target.value })}
-                      helperText="Ο αριθμός αίτησης που εκδίδει η εταιρεία πριν το οριστικό policy number." />
-                    <TextField fullWidth type="date" label="Ημ. έκδοσης" InputLabelProps={{ shrink: true }}
+                      helperText={modalPresentation ? undefined : "Ο αριθμός αίτησης που εκδίδει η εταιρεία πριν το οριστικό policy number."} />
+                    <TextField fullWidth size="small" type="date" label="Ημ. έκδοσης" InputLabelProps={{ shrink: true }}
                       disabled={!canEdit}
                       value={form.issuedAt}
                       onChange={e => setForm({ ...form, issuedAt: e.target.value })}
-                      helperText="Πότε εκδόθηκε το συμβόλαιο από την εταιρεία." />
-                  </Stack>
-                  <TextField fullWidth label="Αρ. κυκλοφορίας"
+                      helperText={modalPresentation ? undefined : "Πότε εκδόθηκε το συμβόλαιο από την εταιρεία."} />
+                    <TextField fullWidth size="small" label="Αρ. κυκλοφορίας"
                     disabled={!canEdit}
                     value={form.vehicleRegistrationPlate}
                     onChange={e => setForm({ ...form, vehicleRegistrationPlate: e.target.value.toUpperCase() })}
-                    helperText="Πινακίδα οχήματος (μόνο για κλάδο αυτοκινήτου)." />
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                    <TextField fullWidth label="ΑΦΜ οδηγού"
+                    helperText={modalPresentation ? undefined : "Πινακίδα οχήματος (μόνο για κλάδο αυτοκινήτου)."} />
+                    <TextField fullWidth size="small" label="ΑΦΜ οδηγού"
                       disabled={!canEdit}
                       value={form.driverVatNumber}
                       onChange={e => setForm({ ...form, driverVatNumber: e.target.value })}
-                      helperText="Όταν ο οδηγός διαφέρει από τον ασφαλιζόμενο (π.χ. παιδί οδηγεί όχημα γονέα)." />
-                    <TextField fullWidth label="Λόγος κυκλοφορίας"
+                      helperText={modalPresentation ? undefined : "Όταν ο οδηγός διαφέρει από τον ασφαλιζόμενο (π.χ. παιδί οδηγεί όχημα γονέα)."} />
+                    <TextField fullWidth size="small" label="Λόγος κυκλοφορίας"
                       disabled={!canEdit}
                       value={form.reasonForCirculation}
                       onChange={e => setForm({ ...form, reasonForCirculation: e.target.value })}
                       placeholder="π.χ. Ιδιωτική, Επαγγελματική, Ταξί, Ασθενοφόρο"
-                      helperText="Διαφορετικό από τη χρήση οχήματος (ΕΙΧ/ΦΔΧ) — αφορά τον σκοπό χρήσης." />
-                  </Stack>
+                      helperText={modalPresentation ? undefined : "Διαφορετικό από τη χρήση οχήματος (ΕΙΧ/ΦΔΧ) — αφορά τον σκοπό χρήσης."} />
+                  </Box>
                   {(p.vehicleRegistrationPlate || form.vehicleRegistrationPlate) && (
                     <Button size="small" variant="outlined" color="primary" onClick={() => setVehiclePreviewOpen(true)} sx={{ alignSelf: "flex-start" }}>
                       Προβολή πλήρους καρτέλας οχήματος · {form.vehicleRegistrationPlate || p.vehicleRegistrationPlate}
                     </Button>
                   )}
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? 1 : 2 }}>
                   <SearchableSelect
                     disabled={!canEdit}
                     label="Συμβαλλόμενος (αν διαφέρει από τον ασφαλιζόμενο)"
@@ -718,7 +721,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                       label: c.companyName || `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() || "—",
                       hint: c.vatNumber ?? undefined
                     }))}
-                    helperText="Το πρόσωπο που υπογράφει τη σύμβαση και έχει την υποχρέωση καταβολής." />
+                    helperText={modalPresentation ? undefined : "Το πρόσωπο που υπογράφει τη σύμβαση και έχει την υποχρέωση καταβολής."} />
                   <SearchableSelect
                     disabled={!canEdit}
                     label="Προηγούμενη ασφαλιστική εταιρεία"
@@ -728,7 +731,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     options={(carriersLookup.data ?? []).map(c => ({
                       value: c.id, label: c.name, hint: c.code
                     }))}
-                    helperText="Από πού μεταφέρθηκε το συμβόλαιο. Χρησιμοποιείται για churn / win-back analytics." />
+                    helperText={modalPresentation ? undefined : "Από πού μεταφέρθηκε το συμβόλαιο. Χρησιμοποιείται για churn / win-back analytics."} />
+                  </Box>
                 </Stack>
               )}
 
