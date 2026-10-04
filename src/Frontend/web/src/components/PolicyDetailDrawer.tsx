@@ -443,7 +443,9 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
       transitionDuration={modalPresentation ? 0 : undefined}
       ModalProps={modalPresentation ? { sx: { zIndex: 1600 } } : undefined}
       PaperProps={{ sx: modalPresentation ? {
-        width: { xs: "calc(100vw - 16px)", md: "min(1180px, 94vw)" },
+        // Match the company profile modal width so nested contracts have a
+        // readable, compact two-column layout instead of a narrow sparse view.
+        width: { xs: "calc(100vw - 16px)", md: "min(1536px, 94vw)" },
         height: { xs: "calc(100vh - 16px)", md: "min(900px, 92vh)" },
         maxHeight: "calc(100vh - 16px)", top: "50%", bottom: "auto", left: "50%", right: "auto",
         transform: "translate(-50%, -50%) !important", borderRadius: 2, overflow: "hidden",
@@ -536,7 +538,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                 )}
               </Stack>
               {p.documentCount === 0 && (
-                <Alert severity="warning" sx={{ mt: 2, fontWeight: 700 }} action={
+                <Alert severity="warning" sx={{ mt: 1.25, py: .25, fontWeight: 700, "& .MuiAlert-message": { py: .25 }, "& .MuiAlert-action": { alignItems: "center", py: 0 } }} action={
                   <Button color="inherit" size="small" onClick={() => selectTab(modalPresentation ? 4 : 8)}>
                     Ανέβασμα αρχείου
                   </Button>
@@ -586,23 +588,23 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               color: "#263238",
               textTransform: "none",
               fontWeight: 750,
-              fontSize: { xs: ".78rem", md: ".86rem" },
-              lineHeight: 1.2,
+              fontSize: { xs: ".82rem", md: ".9rem" },
+              lineHeight: 1.25,
               boxShadow: "inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(15,23,42,.12)",
-              transition: "background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease",
+              transition: "background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease",
               "&:hover": {
-                background: "#d6dce2",
-                borderColor: "#8b98a5",
-                color: "#0b2545",
+                background: "linear-gradient(180deg, #e7e9ec 0%, #cbd1d6 100%)",
+                borderColor: "#7b8792",
+                color: "#17212b",
                 boxShadow: "inset 0 1px 0 rgba(255,255,255,.65), 0 2px 5px rgba(15,23,42,.18)",
               },
               "&.Mui-selected": {
-                background: "linear-gradient(135deg, #1976d2 0%, #0b4f92 100%)",
-                borderColor: "#0b4f92",
+                background: "linear-gradient(135deg, #1976d2 0%, #0d47a1 100%)",
+                borderColor: "#0d47a1",
                 color: "#fff",
-                boxShadow: "0 3px 8px rgba(25,118,210,.28)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(13,71,161,.3)",
               },
-              "&.Mui-selected:hover": { background: "linear-gradient(135deg, #1565c0 0%, #0b3d7a 100%)", color: "#fff" },
+              "&.Mui-selected:hover": { background: "linear-gradient(135deg, #1565c0 0%, #0b3d91 100%)", color: "#fff" },
               "& .MuiSvgIcon-root": { color: "inherit" },
             },
           } : {
@@ -655,15 +657,17 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               {/* SUMMARY */}
               {showSummary && (
                 <Stack spacing={modalPresentation ? 1 : 2}>
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? .5 : 0 }}>
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? .5 : 0, ...(modalPresentation ? { p: 1.25, bgcolor: "rgba(248,250,252,.85)", border: "1px solid", borderColor: "divider", borderRadius: 1 } : {}) }}>
+                    {modalPresentation && <Typography variant="subtitle2" fontWeight={800} sx={{ gridColumn: "1 / -1", mb: .25, color: "primary.dark" }}>Στοιχεία συμβολαίου</Typography>}
                     <KV label={t("policyDetail.policyNumber")} value={p.policyNumber} mono />
                     <KV label={t("policyDetail.policyType")} value={policyTypeLabel(p.policyType)} />
                     <KV label={t("policyDetail.status")} value={<Chip size="small" color={STATUS_COLOR[p.status]} label={policyStatusLabel(p.status)} />} />
                     <KV label={t("policyDetail.startDate")} value={p.startDate} />
                     <KV label={t("policyDetail.endDate")} value={p.endDate} />
                   </Box>
-                  <Divider />
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? .5 : 0 }}>
+                  <Divider sx={modalPresentation ? { display: "none" } : undefined} />
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? .5 : 0, ...(modalPresentation ? { p: 1.25, bgcolor: "rgba(248,250,252,.85)", border: "1px solid", borderColor: "divider", borderRadius: 1 } : {}) }}>
+                    {modalPresentation && <Typography variant="subtitle2" fontWeight={800} sx={{ gridColumn: "1 / -1", mb: .25, color: "primary.dark" }}>Ιστορικό καταχώρησης</Typography>}
                     <KV label={t("policyDetail.createdAt")} value={new Date(p.createdAt).toLocaleString("el-GR")} />
                     {p.updatedAt && <KV label={t("policyDetail.updatedAt")} value={new Date(p.updatedAt).toLocaleString("el-GR")} />}
                     {p.createdByName && <KV label={t("policyDetail.createdBy")} value={p.createdByName} />}
@@ -672,11 +676,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     )}
                   </Box>
 
-                  <Divider />
+                  <Divider sx={modalPresentation ? { display: "none" } : undefined} />
                   <Typography variant="overline" color="text.secondary" fontWeight={700}>
                     Πρόσθετα στοιχεία
                   </Typography>
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? 1 : 2 }}>
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? 1 : 2, ...(modalPresentation ? { p: 1.25, bgcolor: "rgba(248,250,252,.85)", border: "1px solid", borderColor: "divider", borderRadius: 1 } : {}) }}>
                     <TextField fullWidth size="small" label="Αρ. αίτησης"
                       disabled={!canEdit}
                       value={form.applicationNumber}
@@ -709,7 +713,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                       Προβολή πλήρους καρτέλας οχήματος · {form.vehicleRegistrationPlate || p.vehicleRegistrationPlate}
                     </Button>
                   )}
-                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? 1 : 2 }}>
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? 1 : 2, ...(modalPresentation ? { p: 1.25, bgcolor: "rgba(248,250,252,.85)", border: "1px solid", borderColor: "divider", borderRadius: 1 } : {}) }}>
                   <SearchableSelect
                     disabled={!canEdit}
                     label="Συμβαλλόμενος (αν διαφέρει από τον ασφαλιζόμενο)"
@@ -1396,12 +1400,12 @@ function CoversBreakdown({ p }: { p: PolicyDetail }) {
 
 function KV({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
-    <Stack className="policy-kv" direction="row" spacing={1.25} sx={{ py: 0.5, alignItems: "baseline" }}>
-      <Typography sx={{ width: 200, color: "text.secondary", flexShrink: 0 }}>{label}</Typography>
-      <Typography sx={{ fontFamily: mono ? "monospace" : undefined, fontWeight: 500, wordBreak: "break-word" }}>
+    <Box className="policy-kv" sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(118px, .45fr) 1fr", sm: "minmax(145px, .52fr) 1fr" }, gap: 1, py: .35, alignItems: "baseline", borderBottom: "1px solid", borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
+      <Typography variant="caption" color="text.secondary">{label}</Typography>
+      <Typography variant="body2" sx={{ fontFamily: mono ? "monospace" : undefined, fontWeight: 650, wordBreak: "break-word" }}>
         {value}
       </Typography>
-    </Stack>
+    </Box>
   );
 }
 
