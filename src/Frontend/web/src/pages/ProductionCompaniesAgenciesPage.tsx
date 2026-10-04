@@ -1008,29 +1008,29 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
       // Keep the profile surface flush with the dialog edge so its sticky
       // navigation never leaves a gap or gets clipped while scrolling.
       pt: 0,
-      scrollbarWidth: "thin",
+      scrollbarWidth: "auto",
       scrollbarColor: "#0b2545 #e8eef5",
-      "&::-webkit-scrollbar": { width: 10, height: 10 },
+      "&::-webkit-scrollbar": { width: 14, height: 14 },
       "&::-webkit-scrollbar-track": { background: "#e8eef5", borderRadius: 999 },
       "&::-webkit-scrollbar-thumb": {
         background: "linear-gradient(180deg, #123b67 0%, #0b2545 100%)",
         borderRadius: 999,
-        border: "2px solid #e8eef5",
+        border: "3px solid #e8eef5",
       },
       "&::-webkit-scrollbar-thumb:hover": { background: "#1976d2" },
       "&::-webkit-scrollbar-corner": { background: "#e8eef5" },
       // Apply the same cross-browser treatment to any nested scroll surface
       // (for example the contracts and documents panes).
       "& *": {
-        scrollbarWidth: "thin",
+        scrollbarWidth: "auto",
         scrollbarColor: "#0b2545 #e8eef5",
       },
-      "& *::-webkit-scrollbar": { width: 10, height: 10 },
+      "& *::-webkit-scrollbar": { width: 14, height: 14 },
       "& *::-webkit-scrollbar-track": { background: "#e8eef5", borderRadius: 999 },
       "& *::-webkit-scrollbar-thumb": {
         background: "linear-gradient(180deg, #123b67 0%, #0b2545 100%)",
         borderRadius: 999,
-        border: "2px solid #e8eef5",
+        border: "3px solid #e8eef5",
       },
       "& *::-webkit-scrollbar-thumb:hover": { background: "#1976d2" },
       "& *::-webkit-scrollbar-corner": { background: "#e8eef5" },

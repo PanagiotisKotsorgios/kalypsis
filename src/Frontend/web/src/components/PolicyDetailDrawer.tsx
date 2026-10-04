@@ -6,6 +6,11 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
+import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import SaveIcon from "@mui/icons-material/Save";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -154,10 +159,29 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const [tab, setTab] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [modalTab, setModalTab] = useState(0);
   const [changeProducerOpen, setChangeProducerOpen] = useState(false);
   const [customerPreviewOpen, setCustomerPreviewOpen] = useState(false);
   const [vehiclePreviewOpen, setVehiclePreviewOpen] = useState(false);
   const modalPresentation = presentation === "modal";
+  const modalTabTargets = [0, 1, 2, 5, 8] as const;
+  const selectTab = (next: number) => {
+    if (modalPresentation) {
+      setModalTab(next);
+      setTab(modalTabTargets[next] ?? 0);
+      return;
+    }
+    setTab(next);
+  };
+
+  useEffect(() => {
+    if (open) {
+      setModalTab(0);
+      setTab(0);
+      setEditing(false);
+    }
+  }, [open, policyId]);
 
   const q = useQuery({
     queryKey: ["policy-detail", policyId],
@@ -193,35 +217,36 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
     reasonForCirculation: "",
     specialLevelPercentsJson: ""
   });
+  const resetFormFromPolicy = (data: PolicyDetail) => {
+    setForm({
+      paymentFrequency: data.paymentFrequency,
+      premiumIncludesVat: data.premiumIncludesVat,
+      specialCommissionPercent: data.specialCommissionPercent?.toString() ?? "",
+      specsJson: data.specsJson ?? "",
+      nextRenewalDate: data.nextRenewalDate ?? "",
+      renewalTransferToProducerId: data.renewalTransferToProducerId ?? "",
+      renewalTransferToCarrierId: data.renewalTransferToCarrierId ?? "",
+      retainCommissionsOnRenewal: data.retainCommissionsOnRenewal,
+      retainDocumentNumberOnRenewal: data.retainDocumentNumberOnRenewal,
+      retainSpecialCommissionsOnRenewal: data.retainSpecialCommissionsOnRenewal,
+      renewalInstructions: data.renewalInstructions ?? "",
+      deliveredAt: data.deliveredAt ?? "",
+      deliveredTo: data.deliveredTo ?? "",
+      deliveryMethod: data.deliveryMethod ?? "",
+      paymentCollectionMethod: data.paymentCollectionMethod ?? "",
+      paidDirectlyToCarrier: data.paidDirectlyToCarrier,
+      applicationNumber: data.applicationNumber ?? "",
+      contractPartyCustomerId: data.contractPartyCustomerId ?? "",
+      previousInsuranceCompanyId: data.previousInsuranceCompanyId ?? "",
+      issuedAt: data.issuedAt ?? "",
+      vehicleRegistrationPlate: data.vehicleRegistrationPlate ?? "",
+      driverVatNumber: data.driverVatNumber ?? "",
+      reasonForCirculation: data.reasonForCirculation ?? "",
+      specialLevelPercentsJson: data.specialLevelPercentsJson ?? ""
+    });
+  };
   useEffect(() => {
-    if (q.data) {
-      setForm({
-        paymentFrequency: q.data.paymentFrequency,
-        premiumIncludesVat: q.data.premiumIncludesVat,
-        specialCommissionPercent: q.data.specialCommissionPercent?.toString() ?? "",
-        specsJson: q.data.specsJson ?? "",
-        nextRenewalDate: q.data.nextRenewalDate ?? "",
-        renewalTransferToProducerId: q.data.renewalTransferToProducerId ?? "",
-        renewalTransferToCarrierId: q.data.renewalTransferToCarrierId ?? "",
-        retainCommissionsOnRenewal: q.data.retainCommissionsOnRenewal,
-        retainDocumentNumberOnRenewal: q.data.retainDocumentNumberOnRenewal,
-        retainSpecialCommissionsOnRenewal: q.data.retainSpecialCommissionsOnRenewal,
-        renewalInstructions: q.data.renewalInstructions ?? "",
-        deliveredAt: q.data.deliveredAt ?? "",
-        deliveredTo: q.data.deliveredTo ?? "",
-        deliveryMethod: q.data.deliveryMethod ?? "",
-        paymentCollectionMethod: q.data.paymentCollectionMethod ?? "",
-        paidDirectlyToCarrier: q.data.paidDirectlyToCarrier,
-        applicationNumber: q.data.applicationNumber ?? "",
-        contractPartyCustomerId: q.data.contractPartyCustomerId ?? "",
-        previousInsuranceCompanyId: q.data.previousInsuranceCompanyId ?? "",
-        issuedAt: q.data.issuedAt ?? "",
-        vehicleRegistrationPlate: q.data.vehicleRegistrationPlate ?? "",
-        driverVatNumber: q.data.driverVatNumber ?? "",
-        reasonForCirculation: q.data.reasonForCirculation ?? "",
-        specialLevelPercentsJson: q.data.specialLevelPercentsJson ?? ""
-      });
-    }
+    if (q.data) resetFormFromPolicy(q.data);
   }, [q.data]);
 
   // Lookups for the SUMMARY tab's ALIS-parity fields — loaded once when the
@@ -240,23 +265,23 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   // Tab-specific data sources (loaded only when the tab is opened).
   const endorsements = useQuery({
     queryKey: ["policy-endorsements", policyId],
-    enabled: open && tab === 5 && !!policyId,
+    enabled: open && (tab === 5 || (modalPresentation && modalTab === 3)) && !!policyId,
     queryFn: async () => (await api.get<any[]>("/endorsements", { params: { policyId } })).data.filter((e: any) => e.policyId === policyId)
   });
   const claims = useQuery({
     queryKey: ["policy-claims", policyId],
-    enabled: open && tab === 6 && !!policyId,
+    enabled: open && (tab === 6 || (modalPresentation && modalTab === 3)) && !!policyId,
     queryFn: async () => (await api.get<any[]>("/claims", { params: { policyId } })).data
   });
   const receipts = useQuery({
     queryKey: ["policy-receipts", policyId],
-    enabled: open && tab === 7 && !!policyId,
+    enabled: open && (tab === 7 || (modalPresentation && modalTab === 3)) && !!policyId,
     queryFn: async () => (await api.get<any[]>("/receipts")).data.filter((r: any) => r.policyId === policyId)
   });
   const communications = useQuery({
     queryKey: ["policy-communications", policyId],
     // Communications lazy-load moved to the merged Δραστηριότητα tab (index 11).
-    enabled: open && tab === 11 && !!policyId,
+    enabled: open && (tab === 11 || (modalPresentation && modalTab === 4)) && !!policyId,
     queryFn: async () => (await api.get<PolicyCommunicationRow[]>(`/policies/${policyId}/communications`)).data
   });
   const commissionMatrix = useQuery({
@@ -264,7 +289,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
     // Also enabled on the Οικονομικά tab (index 1) so its summary card can
     // show the parametrization-computed producer / agency totals alongside
     // the bridge-supplied premiums.
-    enabled: !readOnly && open && tab === 1 && !!policyId,
+    enabled: !readOnly && open && ((tab === 1) || (modalPresentation && modalTab === 1)) && !!policyId,
     queryFn: async () => (await api.get<PolicyCommissionMatrix>(`/policies/${policyId}/commission-splits`)).data
   });
 
@@ -359,7 +384,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
       if (target === undefined) return;
       if (isEditable(e.target)) return;
       e.preventDefault();
-      setTab(target);
+      selectTab(modalPresentation ? (target === 0 ? 0 : target === 1 ? 1 : target === 12 ? 4 : 2) : target);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -400,6 +425,13 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
     };
   }, [resizing]);
 
+  const showSummary = modalPresentation ? modalTab === 0 : tab === 0;
+  const showFinancials = modalPresentation ? modalTab === 1 : tab === 1;
+  const showContract = modalPresentation ? modalTab === 2 : tab === 2;
+  const showMovements = modalPresentation ? modalTab === 3 : false;
+  const showDocumentsHistory = modalPresentation ? modalTab === 4 : false;
+  const canEdit = !readOnly && (!modalPresentation || editing);
+
   return (
     <Drawer anchor="right" open={open} onClose={onClose}
       transitionDuration={modalPresentation ? 0 : undefined}
@@ -433,11 +465,37 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
         {/* Sticky header */}
         <Box sx={{ p: modalPresentation ? 1.5 : 2.5, borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.paper" }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" mb={modalPresentation ? .75 : 1}>
             <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 700 }}>
               {t("policyDetail.header")}
             </Typography>
-            <IconButton size="small" onClick={onClose}><CloseIcon /></IconButton>
+            <Stack direction="row" spacing={.75} alignItems="center">
+              {modalPresentation && !readOnly && !editing && (
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="success"
+                  startIcon={<EditIcon />}
+                  onClick={() => setEditing(true)}
+                  sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, boxShadow: 2, "&:hover": { color: "#fff", bgcolor: "success.dark" } }}
+                >
+                  Επεξεργασία
+                </Button>
+              )}
+              {modalPresentation && !readOnly && editing && (
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="error"
+                  startIcon={<CloseIcon />}
+                  onClick={() => { setEditing(false); if (q.data) resetFormFromPolicy(q.data); }}
+                  sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, "&:hover": { color: "#fff", bgcolor: "error.dark" } }}
+                >
+                  Ακύρωση επεξεργασίας
+                </Button>
+              )}
+              <IconButton size="small" onClick={onClose}><CloseIcon /></IconButton>
+            </Stack>
           </Stack>
           {q.isLoading ? <CircularProgress size={20} /> : p ? (
             <>
@@ -473,7 +531,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               </Stack>
               {p.documentCount === 0 && (
                 <Alert severity="warning" sx={{ mt: 2, fontWeight: 700 }} action={
-                  <Button color="inherit" size="small" onClick={() => setTab(8)}>
+                  <Button color="inherit" size="small" onClick={() => selectTab(modalPresentation ? 4 : 8)}>
                     Ανέβασμα αρχείου
                   </Button>
                 }>
@@ -489,25 +547,94 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
             stacked), Ιστορικό + Επικοινωνία collapsed into "Δραστηριότητα"
             (audit timeline + comms feed one under the other). Fewer tabs
             = less mental load per policy for the operator. */}
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" sx={{ px: modalPresentation ? .5 : 1, minHeight: modalPresentation ? 42 : undefined, borderBottom: "1px solid", borderColor: "divider", "& .MuiTab-root": { minHeight: modalPresentation ? 42 : undefined, py: modalPresentation ? .5 : undefined } }}>
-          <Tab label={t("policyDetail.tab.summary")} />
-          <Tab label={t("policyDetail.tab.financials")} />
-          <Tab label={t("policyDetail.tab.parties")} />
-          <Tab label={t("policyDetail.tab.renewal")} />
-          <Tab label={t("policyDetail.tab.delivery")} />
-          <Tab label={`${t("policyDetail.tab.endorsements")} (${p?.endorsementCount ?? 0})`} />
-          <Tab label={`${t("policyDetail.tab.claims")} (${p?.claimCount ?? 0})`} />
-          <Tab label={`${t("policyDetail.tab.receipts")} (${p?.receiptCount ?? 0})`} />
-          <Tab label={`PDF Συμβολαίου (${p?.documentCount ?? 0})`} />
-          <Tab label="Δεδομένα συμβολαίου" />
-          <Tab label="Δόσεις" />
-          <Tab label="Δραστηριότητα" />
+        <Tabs
+          value={modalPresentation ? modalTab : tab}
+          onChange={(_, value) => modalPresentation ? selectTab(value) : setTab(value)}
+          variant={modalPresentation ? "standard" : "scrollable"}
+          sx={modalPresentation ? {
+            mx: 1,
+            my: .75,
+            px: .5,
+            py: .5,
+            border: "1px solid #b8c0c8",
+            borderRadius: 2,
+            bgcolor: "#f4f6f8",
+            boxShadow: "0 3px 10px rgba(15,23,42,.12)",
+            overflow: "visible",
+            "& .MuiTabs-scroller": { overflow: "visible !important" },
+            "& .MuiTabs-flexContainer": { gap: .65, flexWrap: "wrap" },
+            "& .MuiTabs-indicator": { display: "none" },
+            "& .MuiTab-root": {
+              minHeight: 44,
+              minWidth: { xs: 112, sm: 148, md: 168 },
+              flex: { xs: "1 1 45%", sm: "0 1 auto" },
+              px: 1.25,
+              py: .6,
+              border: "1px solid #b8c0c8",
+              borderRadius: 1.5,
+              background: "linear-gradient(180deg, #f7f8fa 0%, #e1e5e9 100%)",
+              color: "#263238",
+              textTransform: "none",
+              fontWeight: 750,
+              fontSize: { xs: ".78rem", md: ".86rem" },
+              lineHeight: 1.2,
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(15,23,42,.12)",
+              transition: "background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease",
+              "&:hover": {
+                background: "linear-gradient(180deg, #e7e9ec 0%, #cbd1d6 100%)",
+                borderColor: "#7b8792",
+                color: "#17212b",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.65), 0 2px 5px rgba(15,23,42,.18)",
+              },
+              "&.Mui-selected": {
+                background: "linear-gradient(135deg, #1976d2 0%, #0d47a1 100%)",
+                borderColor: "#0d47a1",
+                color: "#fff",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(13,71,161,.3)",
+              },
+              "&.Mui-selected:hover": { background: "linear-gradient(135deg, #1565c0 0%, #0b3d91 100%)", color: "#fff" },
+            },
+          } : {
+            px: 1,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            "& .MuiTab-root": { minHeight: 42, py: .5 },
+          }}
+        >
+          {modalPresentation ? <>
+            <Tab icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" />
+            <Tab icon={<AccountBalanceWalletOutlinedIcon fontSize="small" />} iconPosition="start" label="Οικονομικά" />
+            <Tab icon={<DescriptionOutlinedIcon fontSize="small" />} iconPosition="start" label="Στοιχεία συμβολαίου" />
+            <Tab icon={<ReceiptLongOutlinedIcon fontSize="small" />} iconPosition="start" label="Κινήσεις" />
+            <Tab icon={<HistoryOutlinedIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & ιστορικό" />
+          </> : <>
+            <Tab label={t("policyDetail.tab.summary")} />
+            <Tab label={t("policyDetail.tab.financials")} />
+            <Tab label={t("policyDetail.tab.parties")} />
+            <Tab label={t("policyDetail.tab.renewal")} />
+            <Tab label={t("policyDetail.tab.delivery")} />
+            <Tab label={`${t("policyDetail.tab.endorsements")} (${p?.endorsementCount ?? 0})`} />
+            <Tab label={`${t("policyDetail.tab.claims")} (${p?.claimCount ?? 0})`} />
+            <Tab label={`${t("policyDetail.tab.receipts")} (${p?.receiptCount ?? 0})`} />
+            <Tab label={`PDF Συμβολαίου (${p?.documentCount ?? 0})`} />
+            <Tab label="Δεδομένα συμβολαίου" />
+            <Tab label="Δόσεις" />
+            <Tab label="Δραστηριότητα" />
+          </>}
         </Tabs>
 
         {/* Scrollable content */}
         <Box sx={{
-          flex: 1, overflowY: "auto", p: modalPresentation ? 1.5 : 3,
-          ...(readOnly ? { "& button, & input, & textarea, & [role=button]": { pointerEvents: "none" } } : {})
+          flex: 1, overflowY: "auto", p: modalPresentation ? { xs: 1, md: 1.5 } : 3,
+          ...(readOnly ? { "& button, & input, & textarea, & [role=button]": { pointerEvents: "none" } } : {}),
+          ...(modalPresentation && !editing && !readOnly ? {
+            "& input, & textarea, & .MuiSelect-select, & .MuiSwitch-switchBase": { pointerEvents: "none" },
+            "& .MuiInputBase-root": { bgcolor: "rgba(248,250,252,.86)" },
+          } : {}),
+          ...(modalPresentation ? {
+            "& .policy-kv": { py: .3, minHeight: 28 },
+            "& .MuiDivider-root": { my: .75 },
+          } : {}),
         }}>
           {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
           {saved && <Alert severity="success" sx={{ mb: 2 }}>{t("common.savedOk")}</Alert>}
@@ -515,20 +642,24 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           {!p ? <CircularProgress /> : (
             <>
               {/* SUMMARY */}
-              {tab === 0 && (
-                <Stack spacing={2}>
-                  <KV label={t("policyDetail.policyNumber")} value={p.policyNumber} mono />
-                  <KV label={t("policyDetail.policyType")} value={policyTypeLabel(p.policyType)} />
-                  <KV label={t("policyDetail.status")} value={<Chip size="small" color={STATUS_COLOR[p.status]} label={policyStatusLabel(p.status)} />} />
-                  <KV label={t("policyDetail.startDate")} value={p.startDate} />
-                  <KV label={t("policyDetail.endDate")} value={p.endDate} />
+              {showSummary && (
+                <Stack spacing={modalPresentation ? 1 : 2}>
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? .5 : 0 }}>
+                    <KV label={t("policyDetail.policyNumber")} value={p.policyNumber} mono />
+                    <KV label={t("policyDetail.policyType")} value={policyTypeLabel(p.policyType)} />
+                    <KV label={t("policyDetail.status")} value={<Chip size="small" color={STATUS_COLOR[p.status]} label={policyStatusLabel(p.status)} />} />
+                    <KV label={t("policyDetail.startDate")} value={p.startDate} />
+                    <KV label={t("policyDetail.endDate")} value={p.endDate} />
+                  </Box>
                   <Divider />
-                  <KV label={t("policyDetail.createdAt")} value={new Date(p.createdAt).toLocaleString("el-GR")} />
-                  {p.updatedAt && <KV label={t("policyDetail.updatedAt")} value={new Date(p.updatedAt).toLocaleString("el-GR")} />}
-                  {p.createdByName && <KV label={t("policyDetail.createdBy")} value={p.createdByName} />}
-                  {p.renewedFromPolicyNumber && (
-                    <KV label={t("policyDetail.renewedFrom")} value={p.renewedFromPolicyNumber} mono />
-                  )}
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? .5 : 0 }}>
+                    <KV label={t("policyDetail.createdAt")} value={new Date(p.createdAt).toLocaleString("el-GR")} />
+                    {p.updatedAt && <KV label={t("policyDetail.updatedAt")} value={new Date(p.updatedAt).toLocaleString("el-GR")} />}
+                    {p.createdByName && <KV label={t("policyDetail.createdBy")} value={p.createdByName} />}
+                    {p.renewedFromPolicyNumber && (
+                      <KV label={t("policyDetail.renewedFrom")} value={p.renewedFromPolicyNumber} mono />
+                    )}
+                  </Box>
 
                   <Divider />
                   <Typography variant="overline" color="text.secondary" fontWeight={700}>
@@ -588,7 +719,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               )}
 
               {/* FINANCIALS */}
-              {tab === 1 && (
+              {showFinancials && (
                 readOnly ? (
                   <Alert severity="info">
                     Η παραμετροποίηση και ο πίνακας προμηθειών ανήκουν στο γραφείο. Η δική σας ανάλυση ανά συμβόλαιο και μήνα είναι διαθέσιμη στον Πίνακα ελέγχου.
@@ -687,7 +818,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               )}
 
               {/* PARTIES */}
-              {tab === 2 && (
+              {showContract && (
                 <Stack spacing={2}>
                   <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
                     <Typography variant="overline" color="text.secondary" fontWeight={700}>{t("policyDetail.customer")}</Typography>
@@ -704,7 +835,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                   <Divider />
                   <Stack direction="row" alignItems="center" justifyContent="space-between">
                     <Typography variant="overline" color="text.secondary" fontWeight={700}>{t("policyDetail.producer")}</Typography>
-                    {!readOnly && (
+                    {canEdit && (
                     <Button size="small" variant="text" onClick={() => setChangeProducerOpen(true)}>
                       Αλλαγή συνεργάτη
                     </Button>
@@ -712,6 +843,43 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                   </Stack>
                   <KV label={t("policyDetail.name")} value={p.producerName ?? "—"} />
                   {p.producerCode && <KV label={t("policyDetail.code")} value={p.producerCode} mono />}
+                  {modalPresentation && (
+                    <>
+                      <Divider />
+                      <Typography variant="overline" color="text.secondary" fontWeight={800}>
+                        Ανανέωση, παράδοση και καλύψεις
+                      </Typography>
+                      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1 }}>
+                        <TextField size="small" type="date" label={t("policyDetail.nextRenewal")} InputLabelProps={{ shrink: true }}
+                          value={form.nextRenewalDate} onChange={e => setForm({ ...form, nextRenewalDate: e.target.value })} />
+                        <TextField size="small" type="date" label={t("policyDetail.deliveredAt")} InputLabelProps={{ shrink: true }}
+                          value={form.deliveredAt} onChange={e => setForm({ ...form, deliveredAt: e.target.value })} />
+                        <TextField size="small" label={t("policyDetail.deliveredTo")} value={form.deliveredTo}
+                          onChange={e => setForm({ ...form, deliveredTo: e.target.value })} />
+                        <TextField select size="small" label={t("policyDetail.deliveryMethod")} value={form.deliveryMethod}
+                          onChange={e => setForm({ ...form, deliveryMethod: e.target.value })}>
+                          <MenuItem value="">—</MenuItem>
+                          {DELIVERY_METHODS.map(m => <MenuItem key={m} value={m}>{DELIVERY_METHOD_LABELS[m] ?? m}</MenuItem>)}
+                        </TextField>
+                      </Box>
+                      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
+                        <FormControlLabel control={<Switch checked={form.retainCommissionsOnRenewal} onChange={e => setForm({ ...form, retainCommissionsOnRenewal: e.target.checked })} />} label={t("policyDetail.retainCommissions")} />
+                        <FormControlLabel control={<Switch checked={form.retainDocumentNumberOnRenewal} onChange={e => setForm({ ...form, retainDocumentNumberOnRenewal: e.target.checked })} />} label={t("policyDetail.retainDocNumber")} />
+                      </Stack>
+                      <TextField size="small" fullWidth multiline minRows={2} label={t("policyDetail.renewalInstructions")}
+                        value={form.renewalInstructions} onChange={e => setForm({ ...form, renewalInstructions: e.target.value })} />
+                      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1 }}>
+                        <Box sx={{ p: 1, border: "1px solid", borderColor: "divider", borderRadius: 1.25, bgcolor: "rgba(248,250,252,.78)" }}>
+                          <Typography variant="caption" color="text.secondary" fontWeight={800} display="block" mb={.5}>Αντικείμενα</Typography>
+                          <PolicyObjectsTab policyId={p.id} />
+                        </Box>
+                        <Box sx={{ p: 1, border: "1px solid", borderColor: "divider", borderRadius: 1.25, bgcolor: "rgba(248,250,252,.78)" }}>
+                          <Typography variant="caption" color="text.secondary" fontWeight={800} display="block" mb={.5}>Καλύψεις</Typography>
+                          <PolicyCoversTab policyId={p.id} />
+                        </Box>
+                      </Box>
+                    </>
+                  )}
                 </Stack>
               )}
 
@@ -760,7 +928,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               )}
 
               {/* RELATED LISTS */}
-              {tab === 5 && (
+              {tab === 5 && !modalPresentation && (
                 endorsements.isLoading ? <CircularProgress /> :
                 <SimpleList rows={endorsements.data ?? []}
                   cols={[
@@ -771,7 +939,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                   ]}
                   emptyKey="policyDetail.noEndorsements" />
               )}
-              {tab === 6 && (
+              {tab === 6 && !modalPresentation && (
                 claims.isLoading ? <CircularProgress /> :
                 <SimpleList rows={claims.data ?? []}
                   cols={[
@@ -783,7 +951,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                   ]}
                   emptyKey="policyDetail.noClaims" />
               )}
-              {tab === 7 && (
+              {tab === 7 && !modalPresentation && (
                 receipts.isLoading ? <CircularProgress /> :
                 <SimpleList rows={receipts.data ?? []}
                   cols={[
@@ -795,12 +963,50 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                   ]}
                   emptyKey="policyDetail.noReceipts" />
               )}
-              {tab === 8 && <PolicyContractPdf policyId={p.id} />}
+              {showMovements && (
+                <Stack spacing={1.5}>
+                  <Typography variant="overline" color="text.secondary" fontWeight={800}>Πρόσθετες πράξεις</Typography>
+                  {endorsements.isLoading ? <CircularProgress size={22} /> : <SimpleList rows={endorsements.data ?? []}
+                    cols={[{ key: "endorsementNumber", label: t("policyDetail.endorsementNo") }, { key: "issuedAt", label: t("policyDetail.issuedAt") }, { key: "premiumDelta", label: "Διαφορά ασφαλίστρου", numeric: true }, { key: "description", label: t("common.description") }]}
+                    emptyKey="policyDetail.noEndorsements" />}
+                  <Divider />
+                  <Typography variant="overline" color="text.secondary" fontWeight={800}>Ζημιές</Typography>
+                  {claims.isLoading ? <CircularProgress size={22} /> : <SimpleList rows={claims.data ?? []}
+                    cols={[{ key: "claimNumber", label: t("policyDetail.claimNo") }, { key: "incidentDate", label: t("policyDetail.incidentDate") }, { key: "status", label: t("common.status"), format: (v) => v ? String(t(`claimStatus.${v}`, v)) : "—" }, { key: "approvedAmount", label: t("policyDetail.amount"), numeric: true }]}
+                    emptyKey="policyDetail.noClaims" />}
+                  <Divider />
+                  <Typography variant="overline" color="text.secondary" fontWeight={800}>Εισπράξεις</Typography>
+                  {receipts.isLoading ? <CircularProgress size={22} /> : <SimpleList rows={receipts.data ?? []}
+                    cols={[{ key: "number", label: t("policyDetail.receiptNo") }, { key: "receivedOn", label: t("policyDetail.paidOn") }, { key: "method", label: t("policyDetail.method"), format: (v) => v ? String(t(`paymentMethod.${v}`, v)) : "—" }, { key: "amount", label: t("policyDetail.amount"), numeric: true }]}
+                    emptyKey="policyDetail.noReceipts" />}
+                  <Divider />
+                  <Typography variant="overline" color="text.secondary" fontWeight={800}>Δόσεις</Typography>
+                  <PolicyInstallmentsTab policyId={p.id} />
+                </Stack>
+              )}
+              {tab === 8 && !modalPresentation && <PolicyContractPdf policyId={p.id} />}
+              {showDocumentsHistory && (
+                <Stack spacing={1.5}>
+                  <Typography variant="overline" color="text.secondary" fontWeight={800}>Έγγραφο συμβολαίου</Typography>
+                  <PolicyContractPdf policyId={p.id} />
+                  <Divider />
+                  <Typography variant="overline" color="text.secondary" fontWeight={800}>Ιστορικό αλλαγών</Typography>
+                  <EntityAuditTimeline entityName="Policy" entityId={p.id} />
+                  <Divider />
+                  <Typography variant="overline" color="text.secondary" fontWeight={800}>Επικοινωνίες</Typography>
+                  <PolicyCommunicationsTab
+                    policyId={p.id}
+                    loading={communications.isLoading}
+                    rows={communications.data ?? []}
+                    onSaved={() => void qc.invalidateQueries({ queryKey: ["policy-communications", p.id] })}
+                  />
+                </Stack>
+              )}
               {/* Merged "Δεδομένα συμβολαίου": objects (insured items) on
                   top, covers table below, one Divider between them so the
                   operator sees the shape of the contract in a single glance
                   instead of jumping between two tabs. */}
-              {tab === 9 && (
+              {tab === 9 && !modalPresentation && (
                 <Stack spacing={3}>
                   <Box>
                     <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ mb: 1, display: "block" }}>
@@ -817,11 +1023,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                   </Box>
                 </Stack>
               )}
-              {tab === 10 && <PolicyInstallmentsTab policyId={p.id} />}
+              {tab === 10 && !modalPresentation && <PolicyInstallmentsTab policyId={p.id} />}
               {/* Merged "Δραστηριότητα": audit trail (created / edited /
                   fields changed) on top, communications log (emails /
                   calls / notes) below. */}
-              {tab === 11 && (
+              {tab === 11 && !modalPresentation && (
                 <Stack spacing={3}>
                   <Box>
                     <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ mb: 1, display: "block" }}>
@@ -848,12 +1054,16 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
         </Box>
 
         {/* Sticky footer with save (Summary now editable via ALIS-parity fields). */}
-        {(tab >= 0 && tab <= 4) && (
+        {((!modalPresentation && tab >= 0 && tab <= 4) || (modalPresentation && editing)) && (
           <Box sx={{ p: modalPresentation ? 1 : 2, borderTop: "1px solid", borderColor: "divider" }}>
             <Stack direction="row" spacing={1} justifyContent="flex-end">
-              <Button onClick={onClose}>{t("common.cancel")}</Button>
-              {!readOnly && (
-                <Button variant="contained" startIcon={<SaveIcon />} disabled={save.isPending} onClick={() => save.mutate()}>
+              {modalPresentation && editing ? (
+                <Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={() => { setEditing(false); if (q.data) resetFormFromPolicy(q.data); }} sx={{ color: "#fff", fontWeight: 800 }}>
+                  Ακύρωση επεξεργασίας
+                </Button>
+              ) : <Button onClick={onClose}>{t("common.cancel")}</Button>}
+              {!readOnly && (!modalPresentation || editing) && (
+                <Button variant="contained" color={modalPresentation ? "success" : "primary"} startIcon={<SaveIcon />} disabled={save.isPending} onClick={() => save.mutate()} sx={modalPresentation ? { color: "#fff", fontWeight: 800, "&:hover": { color: "#fff", bgcolor: "success.dark" } } : undefined}>
                   {save.isPending ? <CircularProgress size={18} /> : t("common.save")}
                 </Button>
               )}
@@ -1158,7 +1368,7 @@ function CoversBreakdown({ p }: { p: PolicyDetail }) {
 
 function KV({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
-    <Stack direction="row" spacing={2} sx={{ py: 0.5 }}>
+    <Stack className="policy-kv" direction="row" spacing={1.25} sx={{ py: 0.5, alignItems: "baseline" }}>
       <Typography sx={{ width: 200, color: "text.secondary", flexShrink: 0 }}>{label}</Typography>
       <Typography sx={{ fontFamily: mono ? "monospace" : undefined, fontWeight: 500, wordBreak: "break-word" }}>
         {value}
