@@ -568,7 +568,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
             mb: 2,
             px: .5,
             py: .5,
-            border: "1px solid #263238",
+            border: "1px solid #000000",
             borderRadius: 2,
             bgcolor: "background.paper",
             boxShadow: "0 3px 10px rgba(15,23,42,.12)",
@@ -582,10 +582,10 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               flex: { xs: "1 1 45%", sm: "0 1 auto" },
               px: 1.5,
               py: .75,
-              border: "1px solid #263238",
+              border: "1px solid #000000",
               borderRadius: 1.5,
-              background: "linear-gradient(180deg, #e5e7eb 0%, #b8c0c8 100%)",
-              color: "#111827",
+              background: "linear-gradient(180deg, #9ca3af 0%, #6b7280 100%)",
+              color: "#000000",
               textTransform: "none",
               fontWeight: 750,
               fontSize: { xs: ".82rem", md: ".9rem" },
@@ -593,27 +593,27 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               boxShadow: "inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(15,23,42,.12)",
               transition: "background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease",
               "&:hover": {
-                background: "linear-gradient(180deg, #d4d8de 0%, #9ca6b1 100%)",
-                borderColor: "#111827",
-                color: "#0b2545",
+                background: "linear-gradient(180deg, #7b8794 0%, #4b5563 100%)",
+                borderColor: "#000000",
+                color: "#000000",
                 boxShadow: "inset 0 1px 0 rgba(255,255,255,.65), 0 2px 5px rgba(15,23,42,.18)",
               },
               "&.Mui-selected": {
-                background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%)",
-                borderColor: "#062f63",
+                background: "linear-gradient(135deg, #043463 0%, #011a33 100%)",
+                borderColor: "#000000",
                 color: "#fff",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(6,47,99,.35)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.2), 0 3px 8px rgba(1,26,51,.5)",
               },
               // aria-selected is kept as a second selector because the
               // nested drawer can be rendered inside another Tabs surface.
               // It guarantees the active contract tab is visibly blue.
               "&[aria-selected=\"true\"]": {
-                background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%)",
-                borderColor: "#062f63",
+                background: "linear-gradient(135deg, #043463 0%, #011a33 100%)",
+                borderColor: "#000000",
                 color: "#fff",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(6,47,99,.35)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.2), 0 3px 8px rgba(1,26,51,.5)",
               },
-              "&.Mui-selected:hover": { background: "linear-gradient(135deg, #084d91 0%, #042b54 100%)", color: "#fff" },
+              "&.Mui-selected:hover": { background: "linear-gradient(135deg, #03294f 0%, #000d1a 100%)", color: "#fff" },
               "& .MuiSvgIcon-root": { color: "inherit" },
             },
           } : {
@@ -624,11 +624,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           }}
         >
           {modalPresentation ? <>
-            <Tab value={0} onClick={() => selectTab(0)} sx={modalTab === 0 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" />
-            <Tab value={1} onClick={() => selectTab(1)} sx={modalTab === 1 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<AccountBalanceWalletOutlinedIcon fontSize="small" />} iconPosition="start" label="Οικονομικά" />
-            <Tab value={2} onClick={() => selectTab(2)} sx={modalTab === 2 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<DescriptionOutlinedIcon fontSize="small" />} iconPosition="start" label="Στοιχεία συμβολαίου" />
-            <Tab value={3} onClick={() => selectTab(3)} sx={modalTab === 3 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<ReceiptLongOutlinedIcon fontSize="small" />} iconPosition="start" label="Κινήσεις" />
-            <Tab value={4} onClick={() => selectTab(4)} sx={modalTab === 4 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<HistoryOutlinedIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & ιστορικό" />
+            <Tab value={0} onClick={() => selectTab(0)} sx={modalTab === 0 ? { background: "linear-gradient(135deg, #043463 0%, #011a33 100%) !important", borderColor: "#000000 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(1,26,51,.5)" } : undefined} icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" />
+            <Tab value={1} onClick={() => selectTab(1)} sx={modalTab === 1 ? { background: "linear-gradient(135deg, #043463 0%, #011a33 100%) !important", borderColor: "#000000 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(1,26,51,.5)" } : undefined} icon={<AccountBalanceWalletOutlinedIcon fontSize="small" />} iconPosition="start" label="Οικονομικά" />
+            <Tab value={2} onClick={() => selectTab(2)} sx={modalTab === 2 ? { background: "linear-gradient(135deg, #043463 0%, #011a33 100%) !important", borderColor: "#000000 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(1,26,51,.5)" } : undefined} icon={<DescriptionOutlinedIcon fontSize="small" />} iconPosition="start" label="Στοιχεία συμβολαίου" />
+            <Tab value={3} onClick={() => selectTab(3)} sx={modalTab === 3 ? { background: "linear-gradient(135deg, #043463 0%, #011a33 100%) !important", borderColor: "#000000 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(1,26,51,.5)" } : undefined} icon={<ReceiptLongOutlinedIcon fontSize="small" />} iconPosition="start" label="Κινήσεις" />
+            <Tab value={4} onClick={() => selectTab(4)} sx={modalTab === 4 ? { background: "linear-gradient(135deg, #043463 0%, #011a33 100%) !important", borderColor: "#000000 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(1,26,51,.5)" } : undefined} icon={<HistoryOutlinedIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & ιστορικό" />
           </> : <>
             <Tab label={t("policyDetail.tab.summary")} />
             <Tab label={t("policyDetail.tab.financials")} />
@@ -707,7 +707,14 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                           {(form.reasonForCirculation || p.reasonForCirculation) && <PolicySummaryLine label="Λόγος κυκλοφορίας" value={form.reasonForCirculation || p.reasonForCirculation} />}
                           <Button size="small" variant="contained" color="primary" onClick={() => setVehiclePreviewOpen(true)} sx={{ mt: .75, color: "#fff", fontWeight: 700 }}>Άνοιγμα πλήρους προφίλ οχήματος</Button>
                         </>
-                      ) : <Typography variant="body2" color="text.secondary" sx={{ py: .5 }}>Δεν έχει συνδεθεί όχημα.</Typography>}
+                      ) : (
+                        <Stack spacing={.75} sx={{ pt: .5 }}>
+                          <Typography variant="body2" color="error.dark" fontWeight={650}>Δεν έχει συνδεθεί όχημα.</Typography>
+                          <Button size="small" variant="outlined" color="primary" onClick={() => setVehiclePreviewOpen(true)} sx={{ alignSelf: "flex-start" }}>
+                            Άνοιγμα κενής καρτέλας οχήματος
+                          </Button>
+                        </Stack>
+                      )}
                     </PolicySummarySection>
                   </Box>
 
@@ -814,11 +821,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                       placeholder="π.χ. Ιδιωτική, Επαγγελματική, Ταξί, Ασθενοφόρο"
                       helperText={modalPresentation ? undefined : "Διαφορετικό από τη χρήση οχήματος (ΕΙΧ/ΦΔΧ) — αφορά τον σκοπό χρήσης."} />
                   </Box>
-                  {(p.vehicleRegistrationPlate || form.vehicleRegistrationPlate) && (
-                    <Button size="small" variant="outlined" color="primary" onClick={() => setVehiclePreviewOpen(true)} sx={{ alignSelf: "flex-start" }}>
-                      Προβολή πλήρους καρτέλας οχήματος · {form.vehicleRegistrationPlate || p.vehicleRegistrationPlate}
-                    </Button>
-                  )}
+                  <Button size="small" variant="outlined" color="primary" onClick={() => setVehiclePreviewOpen(true)} sx={{ alignSelf: "flex-start" }}>
+                    {form.vehicleRegistrationPlate || p.vehicleRegistrationPlate
+                      ? `Προβολή πλήρους καρτέλας οχήματος · ${form.vehicleRegistrationPlate || p.vehicleRegistrationPlate}`
+                      : "Άνοιγμα κενής καρτέλας οχήματος"}
+                  </Button>
                   <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? 1 : 2, ...(modalPresentation ? { p: 1.25, bgcolor: "rgba(248,250,252,.85)", border: "1px solid", borderColor: "divider", borderRadius: 1 } : {}) }}>
                   <SearchableSelect
                     disabled={!canEdit}
@@ -1342,7 +1349,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           zIndex={1700}
         />
       )}
-      {p && (p.vehicleRegistrationPlate || form.vehicleRegistrationPlate) && (
+      {p && (
         <VehicleDetailDialog
           open={vehiclePreviewOpen}
           plate={form.vehicleRegistrationPlate || p.vehicleRegistrationPlate || ""}
@@ -2596,11 +2603,9 @@ function PolicyCommissionMatrixTab({ loading, matrix, currency, readOnly = false
     return <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}><CircularProgress /></Box>;
   }
   if (!matrix || matrix.rows.length === 0) {
-    // Fallback view — the office hasn't set up its commission rules yet
-    // so the calculated matrix is empty. If the bridge brought a total
-    // commission for this policy we surface it as a single "Προμήθεια
-    // γραφείου (από γέφυρα)" figure so nothing is hidden. Once rules exist
-    // the full ALIS-style matrix takes over.
+    // Fallback view — the office hasn't set up its commission rules yet.
+    // Keep the display focused on the final amount, without exposing the
+    // technical source of the imported value to the office user.
     const bridgeTotal = fallback?.totalCommissions ?? 0;
     return (
       <Stack spacing={2}>
@@ -2610,15 +2615,14 @@ function PolicyCommissionMatrixTab({ loading, matrix, currency, readOnly = false
             bgcolor: "success.lighter"
           }}>
             <Typography variant="overline" color="success.dark" fontWeight={700}>
-              Προμήθεια Γραφείου (από γέφυρα)
+              Προμήθεια Γραφείου
             </Typography>
             <Typography variant="h6" sx={{ mt: 0.5, fontWeight: 800 }}>
               {bridgeTotal.toFixed(2)} {fallback?.currency ?? currency}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Το ποσό ήρθε από το αρχείο της ασφαλιστικής. Είναι το σύνολο που δικαιούται
-              το γραφείο — δεν έχει διαχωριστεί σε παραγωγό / manager / unit / assistant
-              γιατί δεν έχει οριστεί κατανομή.
+              Το ποσό είναι το σύνολο που δικαιούται το γραφείο. Δεν έχει διαχωριστεί
+              σε παραγωγό / διευθυντή / μονάδα / βοηθό, επειδή δεν έχει οριστεί κατανομή.
             </Typography>
           </Box>
         )}
@@ -2811,8 +2815,8 @@ const LEVEL_LABEL: Record<string, string> = {
 
 /**
  * Compact side-by-side card that renders at the top of the Οικονομικά tab:
- *   • Left column  — Πηγή γέφυρας: gross + net premium from the policy row.
- *   • Right column — Από παραμετροποίηση: agency + producer commissions
+ *   • Left column  — ασφάλιστρα: gross + net premium from the policy row.
+ *   • Right column — προμήθειες γραφείου και συνεργάτη
  *     computed on demand from the office's commission-rules matrix. Loads
  *     once when the tab opens, refetches when the operator hits "Υπολογισμός
  *     από παραμετροποίηση". A footer button jumps to the full commission
@@ -2824,7 +2828,6 @@ function BridgeVsParametrizationCard({ policy, matrix, matrixLoading, onCompute 
     netPremium: number | null;
     currency: string;
     producerName: string | null;
-    bridgeAgencyCommissionAmount: number | null;
   };
   matrix: PolicyCommissionMatrix | undefined;
   matrixLoading: boolean;
@@ -2856,27 +2859,18 @@ function BridgeVsParametrizationCard({ policy, matrix, matrixLoading, onCompute 
         {/* Bridge column */}
         <Box>
           <Typography variant="overline" color="text.secondary" fontWeight={700}>
-            Από τη γέφυρα
+            Ασφάλιστρα
           </Typography>
           <Stack spacing={0.5} mt={1}>
             <Row label="Μικτά" value={fmt(policy.premium)} bold />
             <Row label="Καθαρά" value={policy.netPremium != null ? fmt(policy.netPremium) : "—"} />
-            {/* Bridge-imported agency commission — shown only for policies
-                that actually landed through a carrier bridge. */}
-            <Row
-              label="Προμήθεια Γραφείου"
-              value={policy.bridgeAgencyCommissionAmount != null
-                ? fmt(policy.bridgeAgencyCommissionAmount)
-                : "—"}
-              bold
-            />
           </Stack>
         </Box>
 
         {/* Parametrization column */}
         <Box>
           <Typography variant="overline" color="text.secondary" fontWeight={700}>
-            Από παραμετροποίηση
+            Προμήθειες
           </Typography>
           {matrixLoading ? (
             <Box sx={{ py: 2, display: "flex", justifyContent: "center" }}>
