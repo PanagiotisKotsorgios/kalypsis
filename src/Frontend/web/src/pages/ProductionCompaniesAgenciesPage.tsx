@@ -1282,7 +1282,7 @@ function ProductionOfficeEditorDialog({ open, item, onClose, onSaved }: {
       {tab === 3 && <ProfileSection title="Επικοινωνία πρακτορείου"><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}><TextField label="Τηλέφωνο" value={form.phone ?? ""} onChange={e => update({ phone: e.target.value })} /><TextField label="Email" type="email" value={form.email ?? ""} onChange={e => update({ email: e.target.value })} /></Box></ProfileSection>}
       {tab === 4 && <ProfileSection title="Έγγραφα και πεδία"><Alert severity="info">Μετά την αποθήκευση μπορείτε να συνεχίσετε με χρήστες, έγγραφα και επιπλέον στοιχεία του πρακτορείου.</Alert></ProfileSection>}
     </DialogContent>
-    <DialogActions sx={{ px: 3, py: 2 }}><Button onClick={onClose} color="error" variant="contained" sx={{ color: "#fff", fontWeight: 800 }}>Ακύρωση</Button><Button variant="contained" color="success" startIcon={<SaveIcon />} disabled={save.isPending || !form.name.trim() || !form.code.trim()} onClick={() => save.mutate()}>{save.isPending ? <CircularProgress size={18} color="inherit" /> : item ? "Αποθήκευση αλλαγών" : "Δημιουργία & αποθήκευση"}</Button></DialogActions>
+    <DialogActions sx={{ px: 3, py: 2 }}><Button onClick={onClose} color="error" variant="contained" sx={{ color: "#fff", fontWeight: 800 }}>Ακύρωση επεξεργασίας</Button><Button variant="contained" color="success" startIcon={<SaveIcon />} disabled={save.isPending || !form.name.trim() || !form.code.trim()} onClick={() => save.mutate()}>{save.isPending ? <CircularProgress size={18} color="inherit" /> : item ? "Αποθήκευση αλλαγών" : "Δημιουργία & αποθήκευση"}</Button></DialogActions>
   </Dialog>;
 }
 
