@@ -55,21 +55,85 @@
       href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=DM+Sans:opsz,wght@9..40,400..700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800;900&family=Manrope:wght@500;700;800&display=swap"
       rel="stylesheet"
     />
+    <!-- Keep the first paint branded while the JavaScript bundle downloads.
+         The old SEO copy inside #root was visible as an unstyled page for a
+         moment on every hard reload/login, which looked like a broken app. -->
+    <style>
+      :root { background: #f5f7fb; }
+      html, body { min-height: 100%; margin: 0; background: #f5f7fb; }
+      #boot-splash {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        box-sizing: border-box;
+        color: #0b2545;
+        font-family: Inter, "DM Sans", system-ui, -apple-system, sans-serif;
+      }
+      .boot-card {
+        width: min(420px, 100%);
+        display: grid;
+        justify-items: center;
+        gap: 14px;
+        padding: 32px 28px;
+        border: 1px solid rgba(11, 37, 69, .12);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, .94);
+        box-shadow: 0 18px 50px rgba(11, 37, 69, .10);
+      }
+      .boot-mark {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        background: #0b2545;
+        font-weight: 800;
+        letter-spacing: -.04em;
+        box-shadow: 0 8px 20px rgba(11, 37, 69, .22);
+      }
+      .boot-title { margin: 0; font-size: 18px; font-weight: 800; }
+      .boot-copy { margin: 0; color: #5e7188; font-size: 13px; }
+      .boot-progress {
+        width: 130px;
+        height: 4px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #dce5ef;
+      }
+      .boot-progress::after {
+        content: "";
+        display: block;
+        width: 42%;
+        height: 100%;
+        border-radius: inherit;
+        background: #1c7ed6;
+        animation: boot-progress 1.05s ease-in-out infinite;
+      }
+      @keyframes boot-progress {
+        0% { transform: translateX(-120%); }
+        100% { transform: translateX(310%); }
+      }
+    </style>
   </head>
   <body>
     <div id="root">
+      <div id="boot-splash" role="status" aria-live="polite" aria-label="Φόρτωση Kalypsis">
+        <div class="boot-card">
+          <div class="boot-mark" aria-hidden="true">K</div>
+          <p class="boot-title">Kalypsis</p>
+          <p class="boot-copy">Φόρτωση ασφαλούς περιβάλλοντος…</p>
+          <div class="boot-progress" aria-hidden="true"></div>
+        </div>
+      </div>
+    </div>
+    <noscript>
       <main aria-label="Kalypsis">
         <h1>Kalypsis — Πλατφόρμα διαχείρισης ασφαλιστικού γραφείου</h1>
-        <p>Συμβόλαια, πελάτες, ανανεώσεις, ζημιές, προμήθειες και οικονομικά σε ένα ασφαλές σύστημα για ασφαλιστικά γραφεία στην Ελλάδα.</p>
-        <nav aria-label="Δημόσιες σελίδες Kalypsis">
-          <a href="/pricing">Τιμές</a>
-          <a href="/faq">Συχνές ερωτήσεις</a>
-          <a href="/documentation">Οδηγίες χρήσης</a>
-          <a href="/contact">Επικοινωνία</a>
-          <a href="/login">Σύνδεση</a>
-        </nav>
+        <p>Ενεργοποιήστε τη JavaScript για να χρησιμοποιήσετε την πλατφόρμα.</p>
       </main>
-    </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
