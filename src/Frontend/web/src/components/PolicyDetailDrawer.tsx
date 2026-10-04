@@ -568,7 +568,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
             mb: 2,
             px: .5,
             py: .5,
-            border: "1px solid #b8c0c8",
+            border: "1px solid #263238",
             borderRadius: 2,
             bgcolor: "background.paper",
             boxShadow: "0 3px 10px rgba(15,23,42,.12)",
@@ -582,10 +582,10 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               flex: { xs: "1 1 45%", sm: "0 1 auto" },
               px: 1.5,
               py: .75,
-              border: "1px solid #b8c0c8",
+              border: "1px solid #263238",
               borderRadius: 1.5,
-              background: "linear-gradient(180deg, #f7f8fa 0%, #e1e5e9 100%)",
-              color: "#263238",
+              background: "linear-gradient(180deg, #e5e7eb 0%, #b8c0c8 100%)",
+              color: "#111827",
               textTransform: "none",
               fontWeight: 750,
               fontSize: { xs: ".82rem", md: ".9rem" },
@@ -593,27 +593,27 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               boxShadow: "inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(15,23,42,.12)",
               transition: "background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease",
               "&:hover": {
-                background: "linear-gradient(180deg, #e7e9ec 0%, #cbd1d6 100%)",
-                borderColor: "#7b8792",
-                color: "#17212b",
+                background: "linear-gradient(180deg, #d4d8de 0%, #9ca6b1 100%)",
+                borderColor: "#111827",
+                color: "#0b2545",
                 boxShadow: "inset 0 1px 0 rgba(255,255,255,.65), 0 2px 5px rgba(15,23,42,.18)",
               },
               "&.Mui-selected": {
-                background: "linear-gradient(135deg, #1976d2 0%, #0d47a1 100%)",
-                borderColor: "#0d47a1",
+                background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%)",
+                borderColor: "#062f63",
                 color: "#fff",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(13,71,161,.3)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(6,47,99,.35)",
               },
               // aria-selected is kept as a second selector because the
               // nested drawer can be rendered inside another Tabs surface.
               // It guarantees the active contract tab is visibly blue.
               "&[aria-selected=\"true\"]": {
-                background: "linear-gradient(135deg, #1976d2 0%, #0d47a1 100%)",
-                borderColor: "#0d47a1",
+                background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%)",
+                borderColor: "#062f63",
                 color: "#fff",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(13,71,161,.3)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(6,47,99,.35)",
               },
-              "&.Mui-selected:hover": { background: "linear-gradient(135deg, #1565c0 0%, #0b3d91 100%)", color: "#fff" },
+              "&.Mui-selected:hover": { background: "linear-gradient(135deg, #084d91 0%, #042b54 100%)", color: "#fff" },
               "& .MuiSvgIcon-root": { color: "inherit" },
             },
           } : {
@@ -624,11 +624,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           }}
         >
           {modalPresentation ? <>
-            <Tab value={0} onClick={() => selectTab(0)} sx={modalTab === 0 ? { background: "linear-gradient(135deg, #1976d2 0%, #0d47a1 100%) !important", borderColor: "#0d47a1 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(13,71,161,.3)" } : undefined} icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" />
-            <Tab value={1} onClick={() => selectTab(1)} sx={modalTab === 1 ? { background: "linear-gradient(135deg, #1976d2 0%, #0d47a1 100%) !important", borderColor: "#0d47a1 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(13,71,161,.3)" } : undefined} icon={<AccountBalanceWalletOutlinedIcon fontSize="small" />} iconPosition="start" label="Οικονομικά" />
-            <Tab value={2} onClick={() => selectTab(2)} sx={modalTab === 2 ? { background: "linear-gradient(135deg, #1976d2 0%, #0d47a1 100%) !important", borderColor: "#0d47a1 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(13,71,161,.3)" } : undefined} icon={<DescriptionOutlinedIcon fontSize="small" />} iconPosition="start" label="Στοιχεία συμβολαίου" />
-            <Tab value={3} onClick={() => selectTab(3)} sx={modalTab === 3 ? { background: "linear-gradient(135deg, #1976d2 0%, #0d47a1 100%) !important", borderColor: "#0d47a1 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(13,71,161,.3)" } : undefined} icon={<ReceiptLongOutlinedIcon fontSize="small" />} iconPosition="start" label="Κινήσεις" />
-            <Tab value={4} onClick={() => selectTab(4)} sx={modalTab === 4 ? { background: "linear-gradient(135deg, #1976d2 0%, #0d47a1 100%) !important", borderColor: "#0d47a1 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(13,71,161,.3)" } : undefined} icon={<HistoryOutlinedIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & ιστορικό" />
+            <Tab value={0} onClick={() => selectTab(0)} sx={modalTab === 0 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" />
+            <Tab value={1} onClick={() => selectTab(1)} sx={modalTab === 1 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<AccountBalanceWalletOutlinedIcon fontSize="small" />} iconPosition="start" label="Οικονομικά" />
+            <Tab value={2} onClick={() => selectTab(2)} sx={modalTab === 2 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<DescriptionOutlinedIcon fontSize="small" />} iconPosition="start" label="Στοιχεία συμβολαίου" />
+            <Tab value={3} onClick={() => selectTab(3)} sx={modalTab === 3 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<ReceiptLongOutlinedIcon fontSize="small" />} iconPosition="start" label="Κινήσεις" />
+            <Tab value={4} onClick={() => selectTab(4)} sx={modalTab === 4 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<HistoryOutlinedIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & ιστορικό" />
           </> : <>
             <Tab label={t("policyDetail.tab.summary")} />
             <Tab label={t("policyDetail.tab.financials")} />
@@ -1213,11 +1213,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                   <PolicyInstallmentsTab policyId={p.id} readOnly={!canEdit} />
                 </Stack>
               )}
-              {tab === 8 && !modalPresentation && <PolicyContractPdf policyId={p.id} />}
+              {tab === 8 && !modalPresentation && <PolicyContractPdf policyId={p.id} readOnly={readOnly} />}
               {showDocumentsHistory && (
                 <Stack spacing={1.5}>
                   <Typography variant="overline" color="text.secondary" fontWeight={800}>Έγγραφο συμβολαίου</Typography>
-                  <PolicyContractPdf policyId={p.id} readOnly={!canEdit} />
+                  <PolicyContractPdf policyId={p.id} readOnly={readOnly} />
                   <Divider />
                   <Typography variant="overline" color="text.secondary" fontWeight={800}>Ιστορικό αλλαγών</Typography>
                   <EntityAuditTimeline entityName="Policy" entityId={p.id} />
@@ -1617,10 +1617,12 @@ function PolicySummarySection({ title, children }: { title: string; children: Re
 }
 
 function PolicySummaryLine({ label, value, mono, valueColor }: { label: string; value: React.ReactNode; mono?: boolean; valueColor?: string }) {
+  const textValue = typeof value === "string" || typeof value === "number" ? String(value) : "";
+  const missing = textValue.trim() === "" || textValue === "—" || textValue === "Δεν αναφέρεται" || textValue === "Δεν έχει καταχωρηθεί";
   return (
     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(118px, .45fr) 1fr", sm: "minmax(135px, .5fr) 1fr" }, gap: 1, py: .35, alignItems: "baseline", borderBottom: "1px solid", borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
       <Typography variant="caption" color="text.secondary">{label}</Typography>
-      <Typography variant="body2" fontWeight={650} sx={{ fontFamily: mono ? "monospace" : undefined, color: valueColor, wordBreak: "break-word", whiteSpace: "pre-wrap" }}>{value}</Typography>
+      <Typography variant="body2" fontWeight={650} sx={{ fontFamily: mono ? "monospace" : undefined, color: valueColor ?? (textValue ? (missing ? "error.dark" : "success.dark") : undefined), wordBreak: "break-word", whiteSpace: "pre-wrap" }}>{value}</Typography>
     </Box>
   );
 }
@@ -1921,21 +1923,21 @@ function PolicyObjectsTab({ policyId, readOnly = false }: { policyId: string; re
             )}
             {(q.data ?? []).map((o: any) => (
               <TableRow key={o.id} hover>
-                <TableCell>{o.objectKind}</TableCell>
-                <TableCell sx={{ fontFamily: "monospace" }}>{o.identifier ?? "—"}</TableCell>
-                <TableCell>{o.description ?? "—"}</TableCell>
-                <TableCell sx={{ fontFamily: "monospace", fontSize: 11 }}>{o.fbcLinkCode ?? "—"}</TableCell>
+                <TableCell sx={{ color: o.objectKind?.trim() ? "success.dark" : "error.dark", fontWeight: 650 }}>{o.objectKind || "Δεν έχει καταχωρηθεί"}</TableCell>
+                <TableCell sx={{ fontFamily: "monospace", color: o.identifier?.trim() ? "success.dark" : "error.dark" }}>{o.identifier || "Δεν έχει καταχωρηθεί"}</TableCell>
+                <TableCell sx={{ color: o.description?.trim() ? "success.dark" : "error.dark" }}>{o.description || "Δεν έχει καταχωρηθεί"}</TableCell>
+                <TableCell sx={{ fontFamily: "monospace", fontSize: 11, color: o.fbcLinkCode?.trim() ? "success.dark" : "error.dark" }}>{o.fbcLinkCode || "Δεν έχει καταχωρηθεί"}</TableCell>
                 <TableCell>
-                  <IconButton size="small" color="error" disabled={readOnly} onClick={() => { if (confirm("Διαγραφή;")) del.mutate(o.id); }}>
+                  {!readOnly && <IconButton size="small" color="error" onClick={() => { if (confirm("Διαγραφή;")) del.mutate(o.id); }}>
                     <CloseIcon fontSize="small" />
-                  </IconButton>
+                  </IconButton>}
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       )}
-      <Box sx={{ p: 2, bgcolor: "background.default", borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
+      {!readOnly && <Box sx={{ p: 1.25, bgcolor: "background.default", borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
         <Typography variant="caption" color="text.secondary">Νέο αντικείμενο</Typography>
         <Stack spacing={1.5} mt={1}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
@@ -1956,7 +1958,7 @@ function PolicyObjectsTab({ policyId, readOnly = false }: { policyId: string; re
             </Button>
           </Stack>
         </Stack>
-      </Box>
+      </Box>}
     </Stack>
   );
 }
@@ -2068,9 +2070,9 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
         <Typography variant="overline" color="text.secondary" fontWeight={700}>Καλύψεις</Typography>
         <Chip size="small" label={`${rows.length}`} sx={{ height: 20, fontSize: 11 }} />
         <Box sx={{ flex: 1 }} />
-        <Button size="small" variant="text" disabled={readOnly} onClick={() => setBulkOpen(true)}>
+        {!readOnly && <Button size="small" variant="text" onClick={() => setBulkOpen(true)}>
           Μαζική εισαγωγή CSV
-        </Button>
+        </Button>}
       </Stack>
       <BulkCoversImportDialog
         open={bulkOpen}
@@ -2095,31 +2097,32 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
             </TableHead>
             <TableBody>
               {rows.length === 0 && (
-                <TableRow><TableCell colSpan={8} align="center" sx={{ color: "text.secondary", py: 3 }}>
+                <TableRow><TableCell colSpan={8} align="center" sx={{ color: "error.dark", fontWeight: 650, py: 2 }}>
                   Δεν υπάρχουν καταχωρημένες καλύψεις.
                 </TableCell></TableRow>
               )}
               {rows.map((c) => (
                 <TableRow key={c.id} hover selected={editingId === c.id}>
-                  <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{c.coverCode}</TableCell>
-                  <TableCell>{c.coverName ?? "—"}</TableCell>
-                  <TableCell align="right">{c.grossPremium.toFixed(2)}</TableCell>
-                  <TableCell align="right">{c.netPremium.toFixed(2)}</TableCell>
-                  <TableCell align="right">{c.coverageAmount === null ? "—" : c.coverageAmount.toFixed(2)}</TableCell>
-                  <TableCell align="right" sx={{ color: c.commissionPercent === null ? "text.disabled" : undefined }}>
+                  <TableCell sx={{ fontFamily: "monospace", fontWeight: 700, color: c.coverCode?.trim() ? "success.dark" : "error.dark" }}>{c.coverCode || "Δεν έχει καταχωρηθεί"}</TableCell>
+                  <TableCell sx={{ color: c.coverName?.trim() ? "success.dark" : "error.dark" }}>{c.coverName || "Δεν έχει καταχωρηθεί"}</TableCell>
+                  <TableCell align="right" sx={{ color: c.grossPremium > 0 ? "success.dark" : "error.dark" }}>{c.grossPremium.toFixed(2)}</TableCell>
+                  <TableCell align="right" sx={{ color: c.netPremium > 0 ? "success.dark" : "error.dark" }}>{c.netPremium.toFixed(2)}</TableCell>
+                  <TableCell align="right" sx={{ color: c.coverageAmount === null ? "error.dark" : "success.dark" }}>{c.coverageAmount === null ? "Δεν έχει καταχωρηθεί" : c.coverageAmount.toFixed(2)}</TableCell>
+                  <TableCell align="right" sx={{ color: c.commissionPercent === null ? "error.dark" : "success.dark" }}>
                     {c.commissionPercent === null ? "—" : `${c.commissionPercent.toFixed(2)}%`}
                   </TableCell>
-                  <TableCell align="right" sx={{ color: c.agencyCommissionPercent === null ? "text.disabled" : undefined }}>
+                  <TableCell align="right" sx={{ color: c.agencyCommissionPercent === null ? "error.dark" : "success.dark" }}>
                     {c.agencyCommissionPercent === null ? "—" : `${c.agencyCommissionPercent.toFixed(2)}%`}
                   </TableCell>
                   <TableCell align="right">
-                    <IconButton size="small" onClick={() => startEdit(c)} disabled={readOnly || (editing && editingId !== c.id)}>
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton size="small" color="error" disabled={readOnly}
-                      onClick={() => { if (confirm(`Διαγραφή της κάλυψης ${c.coverCode};`)) del.mutate(c.id); }}>
-                      <CloseIcon fontSize="small" />
-                    </IconButton>
+                    {!readOnly && <>
+                      <IconButton size="small" onClick={() => startEdit(c)} disabled={editing && editingId !== c.id}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton size="small" color="error" onClick={() => { if (confirm(`Διαγραφή της κάλυψης ${c.coverCode};`)) del.mutate(c.id); }}>
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    </>}
                   </TableCell>
                 </TableRow>
               ))}
@@ -2135,7 +2138,7 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
           </Table>
         </Box>
       )}
-      <Box sx={{ p: 2, bgcolor: "background.default", borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
+      {!readOnly && <Box sx={{ p: 1.25, bgcolor: "background.default", borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
         <Typography variant="caption" color="text.secondary" fontWeight={700}>
           {editing ? `Επεξεργασία κάλυψης · ${form.coverCode}` : "Νέα κάλυψη"}
         </Typography>
@@ -2210,7 +2213,7 @@ function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string
             </Stack>
           </Stack>
         </Stack>
-      </Box>
+      </Box>}
       <Typography variant="caption" color="text.secondary">
         Το ασφάλιστρο του συμβολαίου συγχρονίζεται αυτόματα με το σύνολο των Μικτών των καλύψεων.
         Ποσοστά που αφήνετε κενά κληρονομούνται από τον κανόνα προμηθειών.
