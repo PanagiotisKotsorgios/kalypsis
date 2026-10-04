@@ -33,8 +33,8 @@ import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import { IconButton, Tooltip } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
 import FilterAltOffIcon from "@mui/icons-material/FilterAltOff";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
@@ -243,6 +243,7 @@ export function CustomersPage() {
   const [paymentWindow, setPaymentWindow] = useState<PaymentWindow>("all");
   const [paymentFrom, setPaymentFrom] = useState("");
   const [paymentTo, setPaymentTo] = useState("");
+  const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
   const [createStatus, setCreateStatus] = useState<CustomerStatus | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<CustomerDto | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -370,7 +371,7 @@ export function CustomersPage() {
   const customerFilterCount = [
     search, occupationFilter, needKind, onlyUninsuredNeeds ? "needs" : "", statusFilter,
     paymentFilter !== "all" ? paymentFilter : "", paymentWindow !== "all" ? paymentWindow : "",
-    paymentFrom, paymentTo, table.query,
+    paymentFrom, paymentTo,
   ].filter(Boolean).length;
   const clearFilters = () => {
     setSearch("");
@@ -468,6 +469,9 @@ export function CustomersPage() {
       <ResponsiveFilterPanel
         activeCount={customerFilterCount}
         title="Φίλτρα πελατών"
+        quickButtonPlacement="external"
+        quickOpen={quickFiltersOpen}
+        onQuickOpenChange={setQuickFiltersOpen}
         quickFilters={<QuickFilterBar
           activeCount={customerFilterCount}
           onClear={clearFilters}
@@ -493,7 +497,7 @@ export function CustomersPage() {
           flexWrap={{ xs: "wrap", md: "nowrap" }} useFlexGap
           sx={{
             display: { xs: "flex", md: "grid" },
-            gridTemplateColumns: { md: "minmax(200px, 1.45fr) repeat(3, minmax(125px, 1fr))" },
+            gridTemplateColumns: { md: "repeat(4, minmax(125px, 1fr))" },
             gridAutoFlow: "row",
             rowGap: { md: 1 },
             width: "100%",
@@ -509,17 +513,6 @@ export function CustomersPage() {
             "& .MuiInputBase-root": { minHeight: 36 },
             "& .MuiInputLabel-root": { fontSize: "0.76rem" },
           }}>
-          <TextField
-            size="small"
-            placeholder={t("customers.searchPlaceholder")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            sx={{ flex: 1, minWidth: { md: 200, xs: "100%" } }}
-            InputProps={{
-              startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" color="action" /></InputAdornment>,
-              endAdornment: <FilterHelp title="Αναζήτηση σε όνομα, ΑΦΜ, email, τηλέφωνο, αρ. πελάτη ή πόλη." />
-            }}
-          />
           <FilterFieldWrap tip="Ελεύθερο κείμενο για επάγγελμα ή κλάδο δραστηριότητας (π.χ. «εστίαση»).">
             <TextField size="small" label="Επάγγελμα / κλάδος" value={occupationFilter}
               onChange={(e) => setOccupationFilter(e.target.value)} sx={{ minWidth: 150, width: "100%", flex: "1 1 150px" }}
@@ -581,7 +574,7 @@ export function CustomersPage() {
 
       <Box sx={{ mb: 2 }}>
         <TableToolbar<CustomerListRow>
-          query={table.query} onQuery={table.setQuery}
+          query={search} onQuery={(value) => { setSearch(value); table.setQuery(value); }}
           count={financeFilteredCustomers.length} filteredCount={table.filtered.length}
           pageSize={table.pageSize} onPageSize={table.setPageSize}
           exportRows={table.filtered}
@@ -602,6 +595,17 @@ export function CustomersPage() {
             { key: "onTimeRatePercent", label: "Έγκαιρες πληρωμές %", map: (r) => r.account?.onTimeRatePercent ?? null },
             { key: "lastPaymentDate", label: "Τελευταία πληρωμή", map: (r) => r.account?.lastPaymentDate ?? null }
           ]}
+          rightSlot={
+            <Button
+              size="small"
+              variant={customerFilterCount > 0 ? "contained" : "outlined"}
+              startIcon={<FilterListIcon />}
+              onClick={() => setQuickFiltersOpen(true)}
+              sx={{ whiteSpace: "nowrap" }}
+            >
+              Γρήγορα φίλτρα{customerFilterCount > 0 ? ` (${customerFilterCount})` : ""}
+            </Button>
+          }
         />
       </Box>
       {customersQuery.isLoading ? (

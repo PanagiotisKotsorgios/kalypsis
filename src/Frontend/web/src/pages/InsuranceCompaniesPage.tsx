@@ -49,7 +49,7 @@ interface UpsertBody {
   agentCode: string | null; contactName: string | null; contactEmail: string | null;
   contactPhone: string | null; afmVat: string | null; notes: string | null;
   createBridge: boolean; bridgeName: string | null; bridgeAutoSync: boolean; bridgeConfigJson: string | null;
-  installZeroCommissionDefaults: boolean;
+  installZeroCommissionDefaults: boolean; isBroker: boolean;
 }
 
 const INSURANCE_COMPANY_IMPORT_COLUMNS: BulkImportColumn[] = [
@@ -74,7 +74,7 @@ const isBridgeOnlyCarrier = (company: Pick<CompanyDto, "code" | "name">) => {
   return key.includes("MINETTA") || key.includes("ΜΙΝΕΤΤΑ");
 };
 
-export function InsuranceCompaniesPage() {
+export function InsuranceCompaniesPage({ onlyBrokers = false }: { onlyBrokers?: boolean } = {}) {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -137,6 +137,7 @@ export function InsuranceCompaniesPage() {
           bridgeAutoSync: false,
           bridgeConfigJson: null,
           installZeroCommissionDefaults: true,
+          isBroker: onlyBrokers,
         });
         imported += 1;
       } catch (error) {
@@ -162,8 +163,13 @@ export function InsuranceCompaniesPage() {
   // Flat list — the broker/sub-broker hierarchy has been dropped from this
   // screen. Each office manages its own carriers and wires up bridges per
   // carrier; the multi-level tree caused more confusion than it solved.
-  const ownTenantRows = allData.filter(c => !c.isGlobal && !isBridgeOnlyCarrier(c));
-  const usedGlobalRows = allData.filter(c => c.isGlobal && c.isUsedByTenant && !isBridgeOnlyCarrier(c));
+  const kindRows = allData.filter(c => Boolean(c.isBroker) === onlyBrokers);
+  const ownTenantRows = kindRows.filter(c => !c.isGlobal && !isBridgeOnlyCarrier(c));
+  // Brokers are shared business partners (Grand Cover, Din Cover, Brokers
+  // Union), not office branches. Show the platform catalogue entries to every
+  // tenant without requiring an office-level opt-in. Insurers keep the
+  // existing opt-in behaviour.
+  const usedGlobalRows = kindRows.filter(c => c.isGlobal && (onlyBrokers || c.isUsedByTenant) && !isBridgeOnlyCarrier(c));
   const allOwnRows = [...ownTenantRows, ...usedGlobalRows];
 
   const [search, setSearch] = useState("");
@@ -190,9 +196,11 @@ export function InsuranceCompaniesPage() {
         <Stack direction="row" alignItems="center" spacing={2}>
           <BusinessIcon sx={{ fontSize: 36 }} color="primary" />
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 800 }}>Ασφαλιστικές Εταιρείες</Typography>
-            <Typography color="text.secondary">
-              Οι εταιρείες με τις οποίες συνεργάζεστε. Προσθέστε καινούριες και ρυθμίστε τις γέφυρες για κάθε μία.
+          <Typography variant="h4" sx={{ fontWeight: 800 }}>{onlyBrokers ? "Πρακτορεία / διαμεσολαβητές" : "Ασφαλιστικές Εταιρείες"}</Typography>
+          <Typography color="text.secondary">
+              {onlyBrokers
+                ? "Συνεργαζόμενα πρακτορεία και διαμεσολαβητές που συνεργάζονται με πολλές ασφαλιστικές. Δεν είναι υποκαταστήματα."
+                : "Οι ασφαλιστικές εταιρείες με τις οποίες συνεργάζεστε. Προσθέστε καινούριες και ρυθμίστε τις γέφυρες για κάθε μία."}
             </Typography>
           </Box>
         </Stack>
@@ -207,7 +215,7 @@ export function InsuranceCompaniesPage() {
           <DataExportButton
             entity="insurance-companies"
             search={search || undefined}
-            printTitle="Ασφαλιστικές Εταιρείες"
+            printTitle={onlyBrokers ? "Πρακτορεία και διαμεσολαβητές" : "Ασφαλιστικές Εταιρείες"}
             printSubtitle={`Συνολικά: ${ownRows.length}`}
             printRows={ownRows}
             printColumns={[
@@ -226,7 +234,7 @@ export function InsuranceCompaniesPage() {
             Εισαγωγή XLSX
           </Button>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
-            Νέα ασφαλιστική
+            {onlyBrokers ? "Νέο πρακτορείο" : "Νέα ασφαλιστική"}
           </Button>
         </Stack>
       </Stack>
@@ -234,8 +242,8 @@ export function InsuranceCompaniesPage() {
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}
       <Alert severity="info" sx={{ mb: 2 }}>
-        Ροή: <strong>1)</strong> Δημιουργήστε ασφαλιστική → <strong>2)</strong> Ανοίξτε τις «Γέφυρες Εταιριών» και ρυθμίστε πώς θα διαβάζονται τα αρχεία της.
-        Αν η γέφυρα για μια εταιρεία δεν είναι έτοιμη, θα δείτε μήνυμα «υπό ανάπτυξη».
+        Ροή: <strong>1)</strong> Δημιουργήστε {onlyBrokers ? "πρακτορείο" : "ασφαλιστική"} → <strong>2)</strong> ανοίξτε την πλήρη καρτέλα και καταχωρήστε τα στοιχεία συνεργασίας.
+        {onlyBrokers ? " Το πρακτορείο είναι συνεργαζόμενη εταιρική οντότητα και δεν αποτελεί υποκατάστημα." : " Για ασφαλιστικές μπορείτε επιπλέον να ρυθμίσετε τη γέφυρα εισαγωγής αρχείων."}
       </Alert>
 
       {q.isLoading ? (
@@ -251,13 +259,13 @@ export function InsuranceCompaniesPage() {
             <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <Stack direction="row" alignItems="center" spacing={1.5}>
                 <BusinessIcon sx={{ color: "primary.main" }} />
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>Δικές μου ασφαλιστικές</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>{onlyBrokers ? "Συνεργαζόμενα πρακτορεία" : "Δικές μου ασφαλιστικές"}</Typography>
                 <Chip size="small" label={ownRows.length} />
               </Stack>
             </Box>
             {ownRows.length === 0 ? (
               <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
-                Δεν υπάρχουν ασφαλιστικές ακόμη — πατήστε «Νέα ασφαλιστική» για να δημιουργήσετε την πρώτη.
+                Δεν υπάρχουν {onlyBrokers ? "πρακτορεία" : "ασφαλιστικές εταιρείες"} ακόμη — πατήστε «{onlyBrokers ? "Νέο πρακτορείο" : "Νέα ασφαλιστική"}" για να δημιουργήσετε την πρώτη.
               </Box>
             ) : (
               <CompanyTable rows={ownRows}
@@ -281,15 +289,20 @@ export function InsuranceCompaniesPage() {
         </Stack>
       )}
 
-      <CompanyDialog open={createOpen} onClose={() => setCreateOpen(false)} item={null}
+      <CompanyDialog open={createOpen} onClose={() => setCreateOpen(false)} item={null} isBroker={onlyBrokers}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); setCreateOpen(false); }} />
       <CompanyDialog open={!!editing} onClose={() => setEditing(null)} item={editing}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); setEditing(null); }} />
       <BulkImportDialog
         open={importOpen}
-        title="Μαζική εισαγωγή ασφαλιστικών εταιρειών"
-        description="Κατεβάστε το ελληνικό πρότυπο XLSX και συμπληρώστε μία ασφαλιστική ανά γραμμή. Για κάθε επιτυχή γραμμή δημιουργείται και η βασική γέφυρα της εταιρείας. Οι αποτυχίες επιστρέφουν για διόρθωση χωρίς να ακυρώνονται οι επιτυχίες."
-        columns={INSURANCE_COMPANY_IMPORT_COLUMNS}
+        title={`Μαζική εισαγωγή ${onlyBrokers ? "πρακτορείων" : "ασφαλιστικών εταιρειών"}`}
+        description={`Κατεβάστε το ελληνικό πρότυπο XLSX και συμπληρώστε μία ${onlyBrokers ? "εταιρική οντότητα πρακτορείου" : "ασφαλιστική"} ανά γραμμή. Οι αποτυχίες επιστρέφουν για διόρθωση χωρίς να ακυρώνονται οι επιτυχίες.`}
+        columns={onlyBrokers
+          ? INSURANCE_COMPANY_IMPORT_COLUMNS.map(column => ({
+              ...column,
+              label: column.label.replaceAll("ασφαλιστικής", "πρακτορείου").replaceAll("ασφαλιστική", "πρακτορείο"),
+            }))
+          : INSURANCE_COMPANY_IMPORT_COLUMNS}
         onClose={() => setImportOpen(false)}
         onImport={async (rows) => { const result = await importInsuranceCompanies(rows); void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); return result; }}
       />
@@ -497,8 +510,8 @@ function CompanyTable({ rows, onEdit, onDelete, readonly, onToggleOptIn, onClear
   );
 }
 
-export function CompanyDialog({ open, onClose, item, onSaved }: {
-  open: boolean; onClose: () => void; item: CompanyDto | null; onSaved: (saved?: CompanyDto) => void;
+export function CompanyDialog({ open, onClose, item, isBroker = false, onSaved }: {
+  open: boolean; onClose: () => void; item: CompanyDto | null; isBroker?: boolean; onSaved: (saved?: CompanyDto) => void;
 }) {
   // A fresh carrier starts EMPTY: no auto-provisioned bridge, no zero-
   // commission scaffolding. The office builds its own parametrics, sets its
@@ -512,7 +525,8 @@ export function CompanyDialog({ open, onClose, item, onSaved }: {
     bridgeName: null,
     bridgeAutoSync: false,
     bridgeConfigJson: null,
-    installZeroCommissionDefaults: false
+    installZeroCommissionDefaults: false,
+    isBroker
   });
   const [err, setErr] = useState<string | null>(null);
 
@@ -526,7 +540,8 @@ export function CompanyDialog({ open, onClose, item, onSaved }: {
         bridgeName: null,
         bridgeAutoSync: false,
         bridgeConfigJson: null,
-        installZeroCommissionDefaults: false
+        installZeroCommissionDefaults: false,
+        isBroker: Boolean(item.isBroker)
       });
     } else if (open) {
       setForm({
@@ -537,7 +552,8 @@ export function CompanyDialog({ open, onClose, item, onSaved }: {
         bridgeName: null,
         bridgeAutoSync: false,
         bridgeConfigJson: null,
-        installZeroCommissionDefaults: false
+        installZeroCommissionDefaults: false,
+        isBroker
       });
     }
   }, [item, open]);
@@ -567,7 +583,7 @@ export function CompanyDialog({ open, onClose, item, onSaved }: {
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xl">
-      <DialogTitle sx={{ fontWeight: 800 }}>{item ? "Επεξεργασία ασφαλιστικής" : "Νέα ασφαλιστική εταιρεία"}</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 800 }}>{item ? (item.isBroker ? "Επεξεργασία πρακτορείου" : "Επεξεργασία ασφαλιστικής") : (isBroker ? "Νέο πρακτορείο" : "Νέα ασφαλιστική εταιρεία")}</DialogTitle>
       <DialogContent dividers sx={{ maxHeight: "72vh", overflowY: "auto" }}>
         {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
         <Stack spacing={2} mt={1}>
@@ -646,7 +662,7 @@ export function CompanyDialog({ open, onClose, item, onSaved }: {
    operator can jump straight into the edit dialog.
    ========================================================================= */
 export interface CarrierProfile {
-  id: string; code: string; name: string;
+  id: string; code: string; name: string; isBroker?: boolean;
   country: string | null; website: string | null; logoUrl: string | null;
   agentCode: string | null; afmVat: string | null;
   contactName: string | null; contactEmail: string | null; contactPhone: string | null;

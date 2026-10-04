@@ -17,11 +17,11 @@ import EditIcon from "@mui/icons-material/Edit";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import FolderIcon from "@mui/icons-material/Folder";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
+import HandshakeIcon from "@mui/icons-material/Handshake";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import SearchIcon from "@mui/icons-material/Search";
 import SaveIcon from "@mui/icons-material/Save";
-import StarIcon from "@mui/icons-material/Star";
 import TuneIcon from "@mui/icons-material/Tune";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -137,23 +137,19 @@ export default function ProductionCompaniesAgenciesPage() {
     queryKey: ["production-companies-directory"],
     queryFn: async () => (await api.get<CompanyDto[]>("/insurance-companies")).data,
   });
-  const officesQ = useQuery({
-    queryKey: ["production-agency-offices-directory"],
-    queryFn: async () => (await api.get<OfficeDto[]>("/agency-offices")).data,
-  });
-
   const needle = search.trim().toLocaleLowerCase("el");
   const companies = useMemo(() => (companiesQ.data ?? [])
-    .filter(c => !c.isGlobal || c.isUsedByTenant)
+    // Brokers are shared business partners, not office branches. Keep global
+    // broker catalogue rows visible to every office; insurers retain the
+    // existing tenant/opt-in visibility rule.
+    .filter(c => c.isBroker ? true : (!c.isGlobal || c.isUsedByTenant))
     .filter(c => !needle || [c.name, c.code, c.agentCode, c.contactName, c.contactEmail, c.afmVat]
       .some(value => value?.toLocaleLowerCase("el").includes(needle))), [companiesQ.data, needle]);
-  const offices = useMemo(() => (officesQ.data ?? [])
-    .filter(o => !needle || [o.name, o.code, o.city, o.phone, o.email]
-      .some(value => value?.toLocaleLowerCase("el").includes(needle))), [officesQ.data, needle]);
-
-  const eligibleCompanies = useMemo(() => companies.filter(company => !company.isGlobal), [companies]);
-  const eligibleOffices = useMemo(() => offices.filter(office => !office.isHeadquarters), [offices]);
-  const selectedCount = tab === 0 ? selectedCompanyIds.size : selectedOfficeIds.size;
+  const insuranceCompanies = useMemo(() => companies.filter(c => !c.isBroker), [companies]);
+  const brokerAgencies = useMemo(() => companies.filter(c => !!c.isBroker), [companies]);
+  const visibleCompanies = tab === 0 ? insuranceCompanies : brokerAgencies;
+  const eligibleCompanies = useMemo(() => visibleCompanies.filter(company => !company.isGlobal), [visibleCompanies]);
+  const selectedCount = selectedCompanyIds.size;
 
   const deleteOffice = useMutation({
     mutationFn: async (id: string) => api.delete(`/agency-offices/${id}`),
@@ -192,45 +188,42 @@ export default function ProductionCompaniesAgenciesPage() {
     onError: e => setError(extractErrorMessage(e)),
   });
 
-  const loading = companiesQ.isLoading || officesQ.isLoading;
+  const loading = companiesQ.isLoading;
   return (
     <Box>
       <Card variant="outlined" sx={{ mb: 2, p: { xs: 1.25, md: 2 }, bgcolor: "rgba(25,118,210,0.035)" }}>
         <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ md: "center" }} gap={1.5}>
           <Stack direction="row" spacing={1.25} alignItems="center">
-            {tab === 0 ? <BusinessIcon color="primary" sx={{ fontSize: 34 }} /> : <HomeWorkIcon color="primary" sx={{ fontSize: 34 }} />}
+            {tab === 0 ? <BusinessIcon color="primary" sx={{ fontSize: 34 }} /> : <HandshakeIcon color="primary" sx={{ fontSize: 34 }} />}
             <Box>
               <Typography variant="h4" fontWeight={850}>Εταιρείες &amp; Πρακτορεία Παραγωγής</Typography>
               <Typography variant="body2" color="text.secondary">
-                Λειτουργική εικόνα συνεργαζόμενων εταιρειών και γραφείων: παραγωγή, συμβόλαια, ζημιές, επαφές και υπεύθυνοι.
+                Λειτουργική εικόνα ασφαλιστικών εταιρειών και συνεργαζόμενων πρακτορείων: παραγωγή, συμβόλαια, ζημιές, επαφές και υπεύθυνοι.
               </Typography>
             </Box>
           </Stack>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            {selectedCount > 0 && <Button variant="contained" color="error" startIcon={<DeleteOutlineIcon />} onClick={() => { setBulkDeleteKind(tab === 0 ? "company" : "office"); setBulkDeleteText(""); }}>
+            {selectedCount > 0 && <Button variant="contained" color="error" startIcon={<DeleteOutlineIcon />} onClick={() => { setBulkDeleteKind("company"); setBulkDeleteText(""); }}>
               Μαζική διαγραφή ({selectedCount})
             </Button>}
-            <Button variant="contained" color="success" startIcon={<AddIcon />} onClick={() => tab === 0 ? setCompanyQuickCreateOpen(true) : setOfficeQuickCreateOpen(true)} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, boxShadow: 2, "&:hover": { bgcolor: "success.dark", color: "#fff" } }}>
+            <Button variant="contained" color="success" startIcon={<AddIcon />} onClick={() => setCompanyQuickCreateOpen(true)} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, boxShadow: 2, "&:hover": { bgcolor: "success.dark", color: "#fff" } }}>
               {tab === 0 ? "Νέα ασφαλιστική" : "Νέο πρακτορείο"}
             </Button>
             <TextField size="small" label="Αναζήτηση" value={search} onChange={e => setSearch(e.target.value)} sx={{ minWidth: 220 }} />
           </Stack>
         </Stack>
         <Tabs value={tab} onChange={(_, value: number) => setTab(value)} sx={{ mt: 1 }}>
-          <Tab icon={<BusinessIcon fontSize="small" />} iconPosition="start" label={`Ασφαλιστικές (${companies.length})`} />
-          <Tab icon={<HomeWorkIcon fontSize="small" />} iconPosition="start" label={`Πρακτορεία (${offices.length})`} />
+          <Tab icon={<BusinessIcon fontSize="small" />} iconPosition="start" label={`Ασφαλιστικές (${insuranceCompanies.length})`} />
+          <Tab icon={<HandshakeIcon fontSize="small" />} iconPosition="start" label={`Πρακτορεία (${brokerAgencies.length})`} />
         </Tabs>
       </Card>
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
-      {loading ? <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box> : tab === 0 ? (
-        <CompanyDirectoryTable companies={companies} selectedIds={selectedCompanyIds} onToggle={id => setSelectedCompanyIds(current => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; })} onToggleAll={checked => setSelectedCompanyIds(checked ? new Set(eligibleCompanies.map(company => company.id)) : new Set())} onOpen={company => { setCompanyProfileEditing(false); setCompanyProfile(company); }} onEdit={company => { setCompanyProfileEditing(true); setCompanyProfile(company); }} onDelete={setCompanyDeleteTarget} />
-      ) : (
-        <OfficeDirectoryTable offices={offices} selectedIds={selectedOfficeIds} onToggle={id => setSelectedOfficeIds(current => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; })} onToggleAll={checked => setSelectedOfficeIds(checked ? new Set(eligibleOffices.map(office => office.id)) : new Set())} onOpen={setOfficeProfile} onEdit={setOfficeEditor}
-          onDelete={setOfficeDeleteTarget} />
+      {loading ? <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box> : (
+        <CompanyDirectoryTable isBroker={tab === 1} companies={visibleCompanies} selectedIds={selectedCompanyIds} onToggle={id => setSelectedCompanyIds(current => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; })} onToggleAll={checked => setSelectedCompanyIds(checked ? new Set(eligibleCompanies.map(company => company.id)) : new Set())} onOpen={company => { setCompanyProfileEditing(false); setCompanyProfile(company); }} onEdit={company => { setCompanyProfileEditing(true); setCompanyProfile(company); }} onDelete={setCompanyDeleteTarget} />
       )}
 
-      <ProductionCompanyQuickCreateDialog open={companyQuickCreateOpen}
+      <ProductionCompanyQuickCreateDialog open={companyQuickCreateOpen} isBroker={tab === 1}
         onClose={() => setCompanyQuickCreateOpen(false)}
         onSaved={(saved) => { setCompanyQuickCreateOpen(false); void qc.invalidateQueries({ queryKey: ["production-companies-directory"] }); void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); if (saved) { setCompanyProfileEditing(false); setCompanyProfile(saved); } }} />
       <ProductionOfficeQuickCreateDialog open={officeQuickCreateOpen}
@@ -270,7 +263,7 @@ export default function ProductionCompaniesAgenciesPage() {
   );
 }
 
-function CompanyDirectoryTable({ companies, selectedIds, onToggle, onToggleAll, onOpen, onEdit, onDelete }: { companies: CompanyDto[]; selectedIds: Set<string>; onToggle: (id: string) => void; onToggleAll: (checked: boolean) => void; onOpen: (company: CompanyDto) => void; onEdit: (company: CompanyDto) => void; onDelete: (company: CompanyDto) => void }) {
+function CompanyDirectoryTable({ isBroker = false, companies, selectedIds, onToggle, onToggleAll, onOpen, onEdit, onDelete }: { isBroker?: boolean; companies: CompanyDto[]; selectedIds: Set<string>; onToggle: (id: string) => void; onToggleAll: (checked: boolean) => void; onOpen: (company: CompanyDto) => void; onEdit: (company: CompanyDto) => void; onDelete: (company: CompanyDto) => void }) {
   const selectable = companies.filter(company => !company.isGlobal);
   const allSelected = selectable.length > 0 && selectable.every(company => selectedIds.has(company.id));
   const someSelected = selectable.some(company => selectedIds.has(company.id));
@@ -279,7 +272,7 @@ function CompanyDirectoryTable({ companies, selectedIds, onToggle, onToggleAll, 
       <Table size="small" sx={{ minWidth: 900 }}>
         <TableHead><TableRow sx={{ bgcolor: "rgba(25,118,210,.07)" }}>
           <TableCell padding="checkbox"><Checkbox size="small" checked={allSelected} indeterminate={!allSelected && someSelected} onChange={event => onToggleAll(event.target.checked)} inputProps={{ "aria-label": "Επιλογή εταιρειών" }} /></TableCell>
-          <TableCell sx={{ fontWeight: 800 }}>Εταιρεία</TableCell><TableCell sx={{ fontWeight: 800 }}>Κωδικός</TableCell>
+          <TableCell sx={{ fontWeight: 800 }}>{isBroker ? "Πρακτορείο / διαμεσολαβητής" : "Ασφαλιστική εταιρεία"}</TableCell><TableCell sx={{ fontWeight: 800 }}>Κωδικός</TableCell>
           <TableCell sx={{ fontWeight: 800 }}>Κατάσταση</TableCell><TableCell sx={{ fontWeight: 800 }}>Χώρα</TableCell>
           <TableCell sx={{ fontWeight: 800 }}>Επικοινωνία</TableCell><TableCell align="right" sx={{ fontWeight: 800 }}>Παραμετρικά</TableCell>
           <TableCell align="right" sx={{ fontWeight: 800 }}>Ενέργειες</TableCell>
@@ -293,44 +286,11 @@ function CompanyDirectoryTable({ companies, selectedIds, onToggle, onToggleAll, 
           <TableCell>{company.contactName || company.contactEmail || company.contactPhone || "—"}</TableCell>
           <TableCell align="right">{company.parameterItemCount}</TableCell>
           <TableCell align="right"><Stack direction="row" justifyContent="flex-end" spacing={.25}>
-            <Tooltip title="Προβολή εταιρείας"><IconButton size="small" color="primary" aria-label="Προβολή εταιρείας" onClick={event => { event.stopPropagation(); onOpen(company); }}><VisibilityIcon fontSize="small" /></IconButton></Tooltip>
-            <Tooltip title="Επεξεργασία εταιρείας"><IconButton size="small" color="success" aria-label="Επεξεργασία εταιρείας" onClick={event => { event.stopPropagation(); onEdit(company); }}><EditIcon fontSize="small" /></IconButton></Tooltip>
-            <Tooltip title={company.isGlobal ? "Η καθολική εταιρεία δεν διαγράφεται" : "Διαγραφή εταιρείας"}><span><IconButton size="small" color="error" aria-label="Διαγραφή εταιρείας" disabled={company.isGlobal} onClick={event => { event.stopPropagation(); onDelete(company); }}><DeleteOutlineIcon fontSize="small" /></IconButton></span></Tooltip>
+            <Tooltip title={isBroker ? "Προβολή πρακτορείου" : "Προβολή εταιρείας"}><IconButton size="small" color="primary" aria-label={isBroker ? "Προβολή πρακτορείου" : "Προβολή εταιρείας"} onClick={event => { event.stopPropagation(); onOpen(company); }}><VisibilityIcon fontSize="small" /></IconButton></Tooltip>
+            <Tooltip title={isBroker ? "Επεξεργασία πρακτορείου" : "Επεξεργασία εταιρείας"}><IconButton size="small" color="success" aria-label={isBroker ? "Επεξεργασία πρακτορείου" : "Επεξεργασία εταιρείας"} onClick={event => { event.stopPropagation(); onEdit(company); }}><EditIcon fontSize="small" /></IconButton></Tooltip>
+            <Tooltip title={company.isGlobal ? `Η καθολική ${isBroker ? "οντότητα" : "εταιρεία"} δεν διαγράφεται` : `Διαγραφή ${isBroker ? "πρακτορείου" : "εταιρείας"}`}><span><IconButton size="small" color="error" aria-label={`Διαγραφή ${isBroker ? "πρακτορείου" : "εταιρείας"}`} disabled={company.isGlobal} onClick={event => { event.stopPropagation(); onDelete(company); }}><DeleteOutlineIcon fontSize="small" /></IconButton></span></Tooltip>
           </Stack></TableCell>
-        </TableRow>)}{companies.length === 0 && <TableRow><TableCell colSpan={8}><EmptyDirectory text="Δεν βρέθηκαν ασφαλιστικές εταιρείες." /></TableCell></TableRow>}</TableBody>
-      </Table>
-    </Box>
-  </Card>;
-}
-
-function OfficeDirectoryTable({ offices, selectedIds, onToggle, onToggleAll, onOpen, onEdit, onDelete }: { offices: OfficeDto[]; selectedIds: Set<string>; onToggle: (id: string) => void; onToggleAll: (checked: boolean) => void; onOpen: (office: OfficeDto) => void; onEdit: (office: OfficeDto) => void; onDelete: (office: OfficeDto) => void }) {
-  const selectable = offices.filter(office => !office.isHeadquarters);
-  const allSelected = selectable.length > 0 && selectable.every(office => selectedIds.has(office.id));
-  const someSelected = selectable.some(office => selectedIds.has(office.id));
-  return <Card variant="outlined" sx={{ overflow: "hidden" }}>
-    <Box sx={{ overflowX: "auto" }}>
-      <Table size="small" sx={{ minWidth: 900 }}>
-        <TableHead><TableRow sx={{ bgcolor: "rgba(25,118,210,.07)" }}>
-          <TableCell padding="checkbox"><Checkbox size="small" checked={allSelected} indeterminate={!allSelected && someSelected} onChange={event => onToggleAll(event.target.checked)} inputProps={{ "aria-label": "Επιλογή πρακτορείων" }} /></TableCell>
-          <TableCell sx={{ fontWeight: 800 }}>Πρακτορείο / υποκατάστημα</TableCell><TableCell sx={{ fontWeight: 800 }}>Κωδικός</TableCell>
-          <TableCell sx={{ fontWeight: 800 }}>Κατάσταση</TableCell><TableCell sx={{ fontWeight: 800 }}>Πόλη</TableCell>
-          <TableCell sx={{ fontWeight: 800 }}>Επικοινωνία</TableCell><TableCell align="right" sx={{ fontWeight: 800 }}>Χρήστες</TableCell>
-          <TableCell align="right" sx={{ fontWeight: 800 }}>Ενέργειες</TableCell>
-        </TableRow></TableHead>
-        <TableBody>{offices.map(office => <TableRow key={office.id} hover onClick={() => onOpen(office)} sx={{ cursor: "pointer", "&:last-child td": { borderBottom: 0 } }}>
-          <TableCell padding="checkbox"><Checkbox size="small" checked={selectedIds.has(office.id)} disabled={office.isHeadquarters} onClick={event => event.stopPropagation()} onChange={() => onToggle(office.id)} inputProps={{ "aria-label": `Επιλογή ${office.name}` }} /></TableCell>
-          <TableCell><Stack direction="row" spacing={1} alignItems="center"><HomeWorkIcon color="primary" fontSize="small" /><Box><Typography fontWeight={750}>{office.name}</Typography>{office.isHeadquarters && <Chip size="small" icon={<StarIcon />} color="warning" label="Κεντρικό" sx={{ mt: .25 }} />}</Box></Stack></TableCell>
-          <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{office.code || "—"}</TableCell>
-          <TableCell><Chip size="small" color={office.isActive ? "success" : "default"} label={office.isActive ? "Ενεργό" : "Ανενεργό"} /></TableCell>
-          <TableCell>{[office.city, office.postalCode].filter(Boolean).join(" · ") || "—"}</TableCell>
-          <TableCell>{office.email || office.phone || office.address || "—"}</TableCell>
-          <TableCell align="right">{office.userCount}</TableCell>
-          <TableCell align="right"><Stack direction="row" justifyContent="flex-end" spacing={.25}>
-            <Tooltip title="Προβολή πρακτορείου"><IconButton size="small" color="primary" aria-label="Προβολή πρακτορείου" onClick={event => { event.stopPropagation(); onOpen(office); }}><VisibilityIcon fontSize="small" /></IconButton></Tooltip>
-            <Tooltip title="Επεξεργασία πρακτορείου"><IconButton size="small" color="success" aria-label="Επεξεργασία πρακτορείου" onClick={event => { event.stopPropagation(); onEdit(office); }}><EditIcon fontSize="small" /></IconButton></Tooltip>
-            {!office.isHeadquarters && <Tooltip title="Διαγραφή πρακτορείου"><IconButton size="small" color="error" aria-label="Διαγραφή πρακτορείου" onClick={event => { event.stopPropagation(); onDelete(office); }}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>}
-          </Stack></TableCell>
-        </TableRow>)}{offices.length === 0 && <TableRow><TableCell colSpan={7}><EmptyDirectory text="Δεν βρέθηκαν πρακτορεία ή υποκαταστήματα." /></TableCell></TableRow>}</TableBody>
+        </TableRow>)}{companies.length === 0 && <TableRow><TableCell colSpan={8}><EmptyDirectory text={isBroker ? "Δεν βρέθηκαν συνεργαζόμενα πρακτορεία." : "Δεν βρέθηκαν ασφαλιστικές εταιρείες."} /></TableCell></TableRow>}</TableBody>
       </Table>
     </Box>
   </Card>;
@@ -612,6 +572,7 @@ function CompanyCommunicationSection({ companyId, workspace }: { companyId: stri
 
 type CompanyEditorForm = {
   name: string; code: string; country: string | null; website: string | null; isActive: boolean;
+  isBroker: boolean;
   agentCode: string | null; contactName: string | null; contactEmail: string | null;
   contactPhone: string | null; afmVat: string | null; notes: string | null;
   address: string | null; city: string | null; postalCode: string | null;
@@ -622,7 +583,7 @@ type CompanyEditorForm = {
 };
 
 const blankCompanyEditorForm = (): CompanyEditorForm => ({
-  name: "", code: "", country: "", website: null, isActive: true,
+  name: "", code: "", country: "", website: null, isActive: true, isBroker: false,
   agentCode: null, contactName: null, contactEmail: null, contactPhone: null,
   afmVat: null, notes: null, address: null, city: null, postalCode: null,
   facebook: null, instagram: null, linkedin: null, twitter: null, googleMaps: null,
@@ -648,6 +609,7 @@ const toCompanyApiPayload = (form: CompanyEditorForm, options?: {
     country: form.country?.trim() || null,
     website: form.website?.trim() || null,
     isActive: Boolean(form.isActive),
+    isBroker: Boolean(form.isBroker),
     agentCode: form.agentCode?.trim() || null,
     contactName: form.contactName?.trim() || null,
     contactEmail: form.contactEmail?.trim() || null,
@@ -667,8 +629,9 @@ const toCompanyApiPayload = (form: CompanyEditorForm, options?: {
  * the normal profile opens so the operator can use the full editor without
  * forcing a long form on the very first step.
  */
-function ProductionCompanyQuickCreateDialog({ open, onClose, onSaved }: {
+function ProductionCompanyQuickCreateDialog({ open, isBroker = false, onClose, onSaved }: {
   open: boolean;
+  isBroker?: boolean;
   onClose: () => void;
   onSaved: (saved?: CompanyDto) => void;
 }) {
@@ -682,7 +645,7 @@ function ProductionCompanyQuickCreateDialog({ open, onClose, onSaved }: {
   }, [open]);
   const save = useMutation({
     mutationFn: async () => {
-      const draft = { ...blankCompanyEditorForm(), name: form.name, code: form.code };
+      const draft = { ...blankCompanyEditorForm(), name: form.name, code: form.code, isBroker };
       const payload = toCompanyApiPayload(draft, {
         createBridge: false,
         installZeroCommissionDefaults: false,
@@ -693,7 +656,7 @@ function ProductionCompanyQuickCreateDialog({ open, onClose, onSaved }: {
     onError: error => setError(extractErrorMessage(error)),
   });
   return <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-    <DialogTitle><Stack direction="row" spacing={1} alignItems="center"><BusinessIcon color="primary" /><Box><Typography variant="h6" fontWeight={850}>Νέα ασφαλιστική</Typography><Typography variant="body2" color="text.secondary">Καταχωρήστε μόνο τα βασικά στοιχεία. Τα υπόλοιπα συμπληρώνονται μετά από την «Επεξεργασία».</Typography></Box></Stack></DialogTitle>
+    <DialogTitle><Stack direction="row" spacing={1} alignItems="center"><BusinessIcon color="primary" /><Box><Typography variant="h6" fontWeight={850}>{isBroker ? "Νέο πρακτορείο" : "Νέα ασφαλιστική"}</Typography><Typography variant="body2" color="text.secondary">Καταχωρήστε μόνο τα βασικά στοιχεία. Τα υπόλοιπα συμπληρώνονται μετά από την «Επεξεργασία».</Typography></Box></Stack></DialogTitle>
     <DialogContent dividers>
       {error && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError(null)}>{error}</Alert>}
       <Stack spacing={1.5} sx={{ pt: .5 }}>
@@ -833,7 +796,7 @@ function ProductionCompanyEditorDialog({ open, item, onClose, onSaved }: {
     setTab(0);
     setError(null);
     setLogoFile(null);
-    if (item) setForm({ ...blankCompanyEditorForm(), name: item.name, code: item.code, country: item.country, website: item.website, isActive: item.isActive, agentCode: item.agentCode, contactName: item.contactName, contactEmail: item.contactEmail, contactPhone: item.contactPhone, afmVat: item.afmVat, notes: item.notes });
+    if (item) setForm({ ...blankCompanyEditorForm(), name: item.name, code: item.code, country: item.country, website: item.website, isActive: item.isActive, isBroker: Boolean(item.isBroker), agentCode: item.agentCode, contactName: item.contactName, contactEmail: item.contactEmail, contactPhone: item.contactPhone, afmVat: item.afmVat, notes: item.notes });
     else if (open) setForm(blankCompanyEditorForm());
   }, [item, open]);
 
@@ -942,7 +905,7 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
   }, [logoQ.data, logoLocalPreview]);
   useEffect(() => {
     if (!p) return;
-    setDraft({ ...blankCompanyEditorForm(), name: p.name, code: p.code, country: p.country, website: p.website, isActive: p.isActive, agentCode: p.agentCode, contactName: p.contactName, contactEmail: p.contactEmail, contactPhone: p.contactPhone, afmVat: p.afmVat, notes: p.notes });
+    setDraft({ ...blankCompanyEditorForm(), name: p.name, code: p.code, country: p.country, website: p.website, isActive: p.isActive, isBroker: Boolean(p.isBroker), agentCode: p.agentCode, contactName: p.contactName, contactEmail: p.contactEmail, contactPhone: p.contactPhone, afmVat: p.afmVat, notes: p.notes });
   }, [p]);
   useEffect(() => {
     if (!workspace) return;

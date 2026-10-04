@@ -225,7 +225,8 @@ public class InsuranceCompaniesController : ControllerBase
         string? AgentCode, string? ContactName, string? ContactEmail, string? ContactPhone,
         string? AfmVat, string? Notes,
         bool CreateBridge = true, string? BridgeName = null, bool BridgeAutoSync = false,
-        string? BridgeConfigJson = null, bool InstallZeroCommissionDefaults = true);
+        string? BridgeConfigJson = null, bool InstallZeroCommissionDefaults = true,
+        bool IsBroker = false);
 
     public record ImportDefaultCompaniesResult(
         int Imported, int AlreadyImported, int BridgesCreated, int CommissionRulesCreated);
@@ -368,6 +369,7 @@ public class InsuranceCompaniesController : ControllerBase
             existing.ContactPhone = Clean(body.ContactPhone);
             existing.AfmVat = Clean(body.AfmVat);
             existing.Notes = Clean(body.Notes);
+            existing.IsBroker = body.IsBroker;
             existing.UpdatedAt = _clock.UtcNow;
             c = existing;
         }
@@ -388,6 +390,7 @@ public class InsuranceCompaniesController : ControllerBase
                 ContactPhone = Clean(body.ContactPhone),
                 AfmVat = Clean(body.AfmVat),
                 Notes = Clean(body.Notes),
+                IsBroker = body.IsBroker,
                 CreatedAt = _clock.UtcNow
             };
             _db.InsuranceCompanies.Add(c);
@@ -418,7 +421,7 @@ public class InsuranceCompaniesController : ControllerBase
         return Ok(new InsuranceCompanyExtendedDto(c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
             c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(c.Id, ct),
             c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes,
-            IsUsedByTenant: true, LogoUrl: LogoEndpoint(c)));
+            IsBroker: c.IsBroker, IsUsedByTenant: true, LogoUrl: LogoEndpoint(c)));
     }
 
     [HttpPut("{id:guid}")]
@@ -463,7 +466,7 @@ public class InsuranceCompaniesController : ControllerBase
         return Ok(new InsuranceCompanyExtendedDto(c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
             c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(c.Id, ct),
             c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes,
-            IsUsedByTenant: true, LogoUrl: LogoEndpoint(c)));
+            IsBroker: c.IsBroker, IsUsedByTenant: true, LogoUrl: LogoEndpoint(c)));
     }
 
     [HttpPost("{id:guid}/logo")]
@@ -591,7 +594,7 @@ public class InsuranceCompaniesController : ControllerBase
         return Ok(new InsuranceCompanyExtendedDto(tenantCompany.Id, tenantCompany.Name, tenantCompany.Code, tenantCompany.Country, tenantCompany.Website, tenantCompany.IsActive,
             tenantCompany.TenantId, false, tenantCompany.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(tenantCompany.Id, ct),
             tenantCompany.AgentCode, tenantCompany.ContactName, tenantCompany.ContactEmail, tenantCompany.ContactPhone, tenantCompany.AfmVat, tenantCompany.Notes,
-            IsUsedByTenant: true, LogoUrl: LogoEndpoint(tenantCompany)));
+            IsBroker: tenantCompany.IsBroker, IsUsedByTenant: true, LogoUrl: LogoEndpoint(tenantCompany)));
     }
 
     [HttpPost("import-defaults")]
@@ -671,6 +674,7 @@ public class InsuranceCompaniesController : ControllerBase
     /// </summary>
     public record CarrierProfileDto(
         Guid Id, string Code, string Name,
+        bool IsBroker,
         string? Country, string? Website,
         string? AgentCode, string? AfmVat,
         string? ContactName, string? ContactEmail, string? ContactPhone,
@@ -756,7 +760,7 @@ public class InsuranceCompaniesController : ControllerBase
             .ToListAsync(ct);
 
         return Ok(new CarrierProfileDto(
-            c.Id, c.Code, c.Name, c.Country, c.Website,
+            c.Id, c.Code, c.Name, c.IsBroker, c.Country, c.Website,
             c.AgentCode, c.AfmVat,
             c.ContactName, c.ContactEmail, c.ContactPhone,
             c.Notes, c.IsActive, c.CreatedAt,
