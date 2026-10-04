@@ -66,6 +66,12 @@ interface CompanyPolicyRow {
 }
 
 type CompanyParameterKind = "Branch" | "Coverage" | "Use" | "Package";
+const COMPANY_PARAMETER_KIND_LABEL: Record<CompanyParameterKind, string> = {
+  Branch: "Κλάδος",
+  Coverage: "Κάλυψη",
+  Use: "Χρήση",
+  Package: "Πακέτο",
+};
 
 interface CompanyParameterRow {
   id: string;
@@ -599,11 +605,11 @@ function CompanyParametricsSection({ companyId, companyName }: { companyId: stri
       <TextField size="small" fullWidth placeholder="Αναζήτηση κωδικού, ονόματος, γονέα…" value={search} onChange={event => setSearch(event.target.value)} InputProps={{ startAdornment: <SearchIcon fontSize="small" sx={{ mr: .75, color: "text.secondary" }} /> }} />
       <TextField select size="small" label="Κατηγορία" value={kind} onChange={event => setKind(event.target.value as CompanyParameterKind | "all")} SelectProps={{ native: true }} sx={{ minWidth: 150 }}><option value="all">Όλες</option><option value="Branch">Κλάδοι</option><option value="Package">Πακέτα</option><option value="Use">Χρήσεις</option><option value="Coverage">Καλύψεις</option></TextField>
     </Stack>
-    <Stack direction="row" spacing={.75} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>{Object.entries(groups).map(([name, count]) => <Chip key={name} size="small" variant="outlined" label={`${name}: ${count}`} />)}<Chip size="small" color="info" label={`${rows.length} εμφανίζονται`} /></Stack>
+    <Stack direction="row" spacing={.75} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>{Object.entries(groups).map(([name, count]) => <Chip key={name} size="small" variant="outlined" label={`${COMPANY_PARAMETER_KIND_LABEL[name as CompanyParameterKind] ?? name}: ${count}`} />)}<Chip size="small" color="info" label={`${rows.length} εγγραφές εμφανίζονται`} /></Stack>
     <Box sx={{ maxHeight: 500, overflow: "auto", border: "1px solid", borderColor: "divider", borderRadius: 1.25 }}>
       {paramsQ.isLoading ? <Box sx={{ p: 3, textAlign: "center" }}><CircularProgress size={24} /></Box> : <Table size="small" stickyHeader sx={{ minWidth: 900 }}>
         <TableHead><TableRow><TableCell>Κατηγορία</TableCell><TableCell>Κωδικός</TableCell><TableCell>Ονομασία</TableCell><TableCell>Κλάδος</TableCell><TableCell>Γονέας</TableCell><TableCell>Γέφυρα</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Ενέργεια</TableCell></TableRow></TableHead>
-        <TableBody>{rows.map(row => <TableRow key={row.id} hover><TableCell><Chip size="small" variant="outlined" label={row.kind} /></TableCell><TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.code}</TableCell><TableCell>{row.name}</TableCell><TableCell>{row.policyType || "—"}{row.vehicleUseCategory ? ` · ${row.vehicleUseCategory}` : ""}</TableCell><TableCell>{row.parentCode || "—"}</TableCell><TableCell>{row.bridgeSystem || row.bridgeCode ? `${row.bridgeSystem ?? ""} ${row.bridgeCode ?? ""}`.trim() : "—"}</TableCell><TableCell><Chip size="small" color={row.isActive ? "success" : "default"} label={row.isActive ? "Ενεργό" : "Ανενεργό"} /></TableCell><TableCell align="right"><Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => setEditing(row)}>Επεξεργασία</Button></TableCell></TableRow>)}{rows.length === 0 && <TableRow><TableCell colSpan={8}><Typography color="text.secondary" textAlign="center" sx={{ py: 3 }}>Δεν βρέθηκαν παραμετρικά.</Typography></TableCell></TableRow>}</TableBody>
+        <TableBody>{rows.map(row => <TableRow key={row.id} hover><TableCell><Chip size="small" variant="outlined" label={COMPANY_PARAMETER_KIND_LABEL[row.kind] ?? row.kind} /></TableCell><TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.code}</TableCell><TableCell>{row.name}</TableCell><TableCell>{row.policyType || "—"}{row.vehicleUseCategory ? ` · ${row.vehicleUseCategory}` : ""}</TableCell><TableCell>{row.parentCode || "—"}</TableCell><TableCell>{row.bridgeSystem || row.bridgeCode ? `${row.bridgeSystem ?? ""} ${row.bridgeCode ?? ""}`.trim() : "—"}</TableCell><TableCell><Chip size="small" color={row.isActive ? "success" : "default"} label={row.isActive ? "Ενεργό" : "Ανενεργό"} /></TableCell><TableCell align="right"><Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => setEditing(row)}>Επεξεργασία</Button></TableCell></TableRow>)}{rows.length === 0 && <TableRow><TableCell colSpan={8}><Typography color="text.secondary" textAlign="center" sx={{ py: 3 }}>Δεν βρέθηκαν παραμετρικά.</Typography></TableCell></TableRow>}</TableBody>
       </Table>}
     </Box>
     <ParametricEditDialog item={editing} companyId={companyId} companyName={companyName} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void qc.invalidateQueries({ queryKey: ["production-company-parameters", companyId] }); }} />
@@ -846,11 +852,11 @@ function WorkspaceProfileTabs({ value, onChange }: { value: number; onChange: (v
     "& .MuiTab-root": {
       minHeight: 54, minWidth: { xs: 132, md: 168 }, px: 1.5, py: .75,
       border: "1px solid #263238", borderRadius: 1.5,
-      background: "linear-gradient(180deg, #e5e7eb 0%, #b8c0c8 100%)",
-      color: "#111827", textTransform: "none", fontWeight: 750,
+      background: "linear-gradient(180deg, #e5e7eb 0%, #b8c0c8 100%) !important",
+      color: "#111827 !important", borderColor: "#263238 !important", opacity: "1 !important", textTransform: "none", fontWeight: 750,
       transition: "background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease",
-      "&:hover": { background: "linear-gradient(180deg, #d4d8de 0%, #9ca6b1 100%)", color: "#0b2545", borderColor: "#111827", transform: "none" },
-      "&.Mui-selected": { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%)", color: "#fff", borderColor: "#062f63", boxShadow: "0 3px 8px rgba(6,47,99,.35)" },
+      "&:hover": { background: "linear-gradient(180deg, #d4d8de 0%, #9ca6b1 100%) !important", color: "#0b2545 !important", borderColor: "#111827 !important", transform: "none" },
+      "&.Mui-selected": { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", color: "#fff !important", borderColor: "#062f63 !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" },
     },
   }}>{PROFILE_TAB_LABELS.map(item => <Tab key={item.label} icon={item.icon} iconPosition="start" label={item.label} />)}</Tabs>;
 }
@@ -1192,17 +1198,19 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
             py: .75,
             border: "1px solid #263238",
             borderRadius: 1.5,
-            background: "linear-gradient(180deg, #e5e7eb 0%, #b8c0c8 100%)",
-            color: "#111827",
+            background: "linear-gradient(180deg, #e5e7eb 0%, #b8c0c8 100%) !important",
+            color: "#111827 !important",
+            borderColor: "#263238 !important",
+            opacity: "1 !important",
             textTransform: "none",
             fontWeight: 750,
             fontSize: { xs: ".82rem", md: ".9rem" },
             lineHeight: 1.25,
             boxShadow: "inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(15,23,42,.12)",
             transition: "background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease",
-            "&:hover": { background: "linear-gradient(180deg, #d4d8de 0%, #9ca6b1 100%)", borderColor: "#111827", color: "#0b2545", boxShadow: "inset 0 1px 0 rgba(255,255,255,.65), 0 2px 5px rgba(15,23,42,.22)" },
-            "&.Mui-selected": { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%)", borderColor: "#062f63", color: "#fff", boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(6,47,99,.35)" },
-            "&.Mui-selected:hover": { background: "linear-gradient(135deg, #084d91 0%, #042b54 100%)", color: "#fff" },
+            "&:hover": { background: "linear-gradient(180deg, #d4d8de 0%, #9ca6b1 100%) !important", borderColor: "#111827 !important", color: "#0b2545 !important", boxShadow: "inset 0 1px 0 rgba(255,255,255,.65), 0 2px 5px rgba(15,23,42,.22)" },
+            "&.Mui-selected": { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(6,47,99,.35)" },
+            "&.Mui-selected:hover": { background: "linear-gradient(135deg, #084d91 0%, #042b54 100%) !important", color: "#fff !important" },
           },
         }}>
           <Tab icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" /><Tab icon={<DescriptionIcon fontSize="small" />} iconPosition="start" label="Παραγωγή & συμβόλαια" /><Tab icon={<TuneIcon fontSize="small" />} iconPosition="start" label="Σύνδεση & παραμετρικά" /><Tab icon={<ContactPhoneIcon fontSize="small" />} iconPosition="start" label="Επικοινωνία" /><Tab icon={<FolderIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & πεδία" /><Tab icon={<BarChartIcon fontSize="small" />} iconPosition="start" label="Στατιστικά" />
