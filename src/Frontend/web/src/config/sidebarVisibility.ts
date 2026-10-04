@@ -139,6 +139,7 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     groupKey: "admin",
     items: [
       { path: "/users", label: "Χρήστες" },
+      { path: "/agency-offices", label: "Διαχείριση Γραφείων" },
       { path: "/audit", label: "Ιστορικό ενεργειών" },
       { path: "/recycle-bin", label: "Κάδος ανακύκλωσης" },
       { path: "/reconciliation-hub", label: "Ταυτοποιήσεις & καταμερισμοί" }
@@ -225,8 +226,7 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     packages: ["Integrations"],
     groupKey: "setup",
     items: [
-      { path: "/branches", label: "Σχεδιασμός κλάδων" },
-      { path: "/agency-offices", label: "Υποκαταστήματα" }
+      { path: "/branches", label: "Σχεδιασμός κλάδων" }
     ]
   },
   {

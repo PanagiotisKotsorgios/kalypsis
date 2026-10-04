@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, Chip, FormControl, FormHelperText, InputLabel, MenuItem, Select, Stack, Typography } from "@mui/material";
+import { Alert, Box, FormControl, FormHelperText, InputLabel, MenuItem, Select, Stack, Typography } from "@mui/material";
 import BusinessIcon from "@mui/icons-material/Business";
 import { api } from "../api/client";
 import type { Role } from "../auth/AuthContext";
@@ -47,7 +47,6 @@ export function AgencyOfficeSwitcher({ role }: { role: Role | undefined }) {
 
   if (!isAgency || offices.length === 0) return null;
 
-  const selectedOffice = offices.find(o => o.officeId === selected);
   const change = (value: string) => {
     setSelected(value);
     if (value) localStorage.setItem("kalypsis.activeOfficeId", value);
@@ -87,13 +86,6 @@ export function AgencyOfficeSwitcher({ role }: { role: Role | undefined }) {
         </Select>
         <FormHelperText>Εφαρμόζεται σε dashboard, λίστες παραγωγής, οικονομικά και αναφορές.</FormHelperText>
       </FormControl>
-      <Chip
-        size="small"
-        color={isAdmin && !selected ? "primary" : "default"}
-        variant={isAdmin && !selected ? "filled" : "outlined"}
-        label={isAdmin && !selected ? "Όλα τα γραφεία" : `Γραφείο: ${selectedOffice?.officeName ?? "ενεργό"}`}
-        sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}
-      />
       </Stack>
     </Box>
   );

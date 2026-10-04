@@ -65,6 +65,195 @@ public class AgencyOfficesController : ControllerBase
             o.IsHeadquarters, o.IsActive, count, o.Notes, o.ProfileJson));
     }
 
+    /// <summary>
+    /// Management overview for one office.  Counts are deliberately scoped
+    /// explicitly instead of relying on the current selector, so the central
+    /// administrator can compare offices without changing the active session.
+    /// Legacy rows with a null office scope are included only for headquarters.
+    /// </summary>
+    public record OfficeOverviewDto(Guid OfficeId, string OfficeName, int UserCount,
+        int CustomerCount, int ProducerCount, int PolicyCount, int ActivePolicyCount,
+        int ClaimCount, int CommissionRuleCount, int ParametricCount,
+        decimal GrossPremium, decimal NetPremium);
+
+    [HttpGet("{id:guid}/overview")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<OfficeOverviewDto>> Overview(Guid id, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var office = await _db.AgencyOffices.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(o => o.Id == id && o.TenantId == tenantId && o.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Office");
+
+        var userCount = await _db.UserAgencyOffices.IgnoreQueryFilters()
+            .CountAsync(a => a.TenantId == tenantId && a.AgencyOfficeId == id && a.DeletedAt == null, ct);
+        var customers = await _db.Customers.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null
+                && (x.AgencyOfficeScopeId == id || (office.IsHeadquarters && x.AgencyOfficeScopeId == null)))
+            .CountAsync(ct);
+        var producers = await _db.Producers.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null
+                && (x.AgencyOfficeScopeId == id || (office.IsHeadquarters && x.AgencyOfficeScopeId == null)))
+            .CountAsync(ct);
+        var policiesQuery = _db.Policies.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null
+                && (x.AgencyOfficeScopeId == id || (office.IsHeadquarters && x.AgencyOfficeScopeId == null)));
+        var policyCount = await policiesQuery.CountAsync(ct);
+        var today = DateOnly.FromDateTime(_clock.UtcNow);
+        var activePolicies = await policiesQuery.CountAsync(x => x.StartDate <= today && x.EndDate >= today, ct);
+        var grossPremium = await policiesQuery.SumAsync(x => (decimal?)x.Premium, ct) ?? 0m;
+        var netPremium = await policiesQuery.SumAsync(x => (decimal?)x.NetPremium, ct) ?? 0m;
+        var claims = await _db.Claims.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null
+                && (x.AgencyOfficeScopeId == id || (office.IsHeadquarters && x.AgencyOfficeScopeId == null)))
+            .CountAsync(ct);
+        var commissionRules = await _db.CommissionRules.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null
+                && (x.AgencyOfficeScopeId == id || (office.IsHeadquarters && x.AgencyOfficeScopeId == null)))
+            .CountAsync(ct);
+        var branches = await _db.Branches.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null
+                && (x.AgencyOfficeScopeId == id || (office.IsHeadquarters && x.AgencyOfficeScopeId == null)))
+            .CountAsync(ct);
+        var defaults = await _db.DefaultValueRules.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null
+                && (x.AgencyOfficeScopeId == id || (office.IsHeadquarters && x.AgencyOfficeScopeId == null)))
+            .CountAsync(ct);
+        var renewals = await _db.RenewalRules.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null
+                && (x.AgencyOfficeScopeId == id || (office.IsHeadquarters && x.AgencyOfficeScopeId == null)))
+            .CountAsync(ct);
+
+        return Ok(new OfficeOverviewDto(office.Id, office.Name, userCount, customers, producers,
+            policyCount, activePolicies, claims, commissionRules, branches + defaults + renewals,
+            grossPremium, netPremium));
+    }
+
+    public record CopyParametricsBody(Guid? SourceOfficeId);
+    public record CopyParametricsResult(Guid SourceOfficeId, Guid TargetOfficeId,
+        int BranchesCopied, int CommissionRulesCopied, int DefaultRulesCopied,
+        int RenewalRulesCopied, int BonusMalusRulesCopied, int RegisterTemplatesCopied);
+
+    /// <summary>
+    /// Copies office-owned configuration from headquarters (or a selected
+    /// source office) into the target office.  Global insurance companies and
+    /// their carrier catalogue remain tenant-wide and are not duplicated.
+    /// Existing rows are matched by their stable business keys, making the
+    /// operation safe to run repeatedly.
+    /// </summary>
+    [HttpPost("{id:guid}/copy-parametrics")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<ActionResult<CopyParametricsResult>> CopyParametrics(
+        Guid id, [FromBody] CopyParametricsBody? body, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var target = await _db.AgencyOffices.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(o => o.Id == id && o.TenantId == tenantId && o.DeletedAt == null, ct)
+            ?? throw AppException.NotFound("Office");
+        var sourceId = body?.SourceOfficeId;
+        var source = sourceId.HasValue
+            ? await _db.AgencyOffices.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id == sourceId && o.TenantId == tenantId && o.DeletedAt == null, ct)
+            : await _db.AgencyOffices.IgnoreQueryFilters().OrderByDescending(o => o.IsHeadquarters).FirstOrDefaultAsync(o => o.TenantId == tenantId && o.DeletedAt == null, ct);
+        if (source is null) throw AppException.NotFound("Source office");
+        if (source.Id == target.Id)
+            return BadRequest(new { code = "same_office", message = "Το γραφείο προέλευσης και προορισμού πρέπει να είναι διαφορετικά." });
+
+        var branchesCopied = 0;
+        var commissionCopied = 0;
+        var defaultsCopied = 0;
+        var renewalsCopied = 0;
+        var bonusCopied = 0;
+        var templatesCopied = 0;
+        var sourceScope = source.Id;
+        var includeLegacy = source.IsHeadquarters;
+
+        var sourceBranches = await _db.Branches.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null
+                && (x.AgencyOfficeScopeId == sourceScope || (includeLegacy && x.AgencyOfficeScopeId == null)))
+            .ToListAsync(ct);
+        var targetBranches = await _db.Branches.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.AgencyOfficeScopeId == target.Id && x.DeletedAt == null)
+            .ToListAsync(ct);
+        foreach (var row in sourceBranches.Where(x => targetBranches.All(t => !string.Equals(t.Code, x.Code, StringComparison.OrdinalIgnoreCase))))
+        {
+            _db.Branches.Add(new Branch { Id = Guid.NewGuid(), TenantId = tenantId, AgencyOfficeScopeId = target.Id,
+                Code = row.Code, Name = row.Name, Description = row.Description, FieldsJson = row.FieldsJson,
+                CoveragesJson = row.CoveragesJson, IsActive = row.IsActive });
+            branchesCopied++;
+        }
+
+        var sourceCommissions = await _db.CommissionRules.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null && x.ProducerId == null
+                && (x.AgencyOfficeScopeId == sourceScope || (includeLegacy && x.AgencyOfficeScopeId == null)))
+            .ToListAsync(ct);
+        var targetCommissions = await _db.CommissionRules.IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId && x.AgencyOfficeScopeId == target.Id && x.DeletedAt == null)
+            .ToListAsync(ct);
+        foreach (var row in sourceCommissions.Where(x => targetCommissions.All(t =>
+            t.ProducerId != null || t.InsuranceCompanyId != x.InsuranceCompanyId || t.PolicyType != x.PolicyType
+            || t.CoverCode != x.CoverCode || t.VehicleUseCategory != x.VehicleUseCategory
+            || t.ProducerTier != x.ProducerTier || t.EffectiveFrom != x.EffectiveFrom)))
+        {
+            _db.CommissionRules.Add(new CommissionRule { Id = Guid.NewGuid(), TenantId = tenantId, AgencyOfficeScopeId = target.Id,
+                ProducerId = null, ProducerTier = row.ProducerTier, InsuranceCompanyId = row.InsuranceCompanyId,
+                PolicyType = row.PolicyType, CoverCode = row.CoverCode, VehicleUseCategory = row.VehicleUseCategory,
+                CommissionType = row.CommissionType, Value = row.Value, AgencyPercent = row.AgencyPercent,
+                ProducerPercent = row.ProducerPercent, LevelPercentsJson = row.LevelPercentsJson,
+                TaxWithholdingPercent = row.TaxWithholdingPercent, EffectiveFrom = row.EffectiveFrom,
+                EffectiveTo = row.EffectiveTo, RateSource = row.RateSource });
+            commissionCopied++;
+        }
+
+        var sourceDefaults = await _db.DefaultValueRules.IgnoreQueryFilters().Where(x => x.TenantId == tenantId && x.DeletedAt == null
+            && (x.AgencyOfficeScopeId == sourceScope || (includeLegacy && x.AgencyOfficeScopeId == null))).ToListAsync(ct);
+        var targetDefaults = await _db.DefaultValueRules.IgnoreQueryFilters().Where(x => x.TenantId == tenantId && x.AgencyOfficeScopeId == target.Id && x.DeletedAt == null).ToListAsync(ct);
+        foreach (var row in sourceDefaults.Where(x => targetDefaults.All(t => !string.Equals(t.Name, x.Name, StringComparison.OrdinalIgnoreCase))))
+        {
+            _db.DefaultValueRules.Add(new DefaultValueRule { Id = Guid.NewGuid(), TenantId = tenantId, AgencyOfficeScopeId = target.Id,
+                Name = row.Name, InsuranceCompanyId = row.InsuranceCompanyId, PolicyType = row.PolicyType, CoverCode = row.CoverCode,
+                PackageCode = row.PackageCode, ValuesJson = row.ValuesJson, Priority = row.Priority, IsActive = row.IsActive, Notes = row.Notes });
+            defaultsCopied++;
+        }
+
+        var sourceRenewals = await _db.RenewalRules.IgnoreQueryFilters().Where(x => x.TenantId == tenantId && x.DeletedAt == null
+            && (x.AgencyOfficeScopeId == sourceScope || (includeLegacy && x.AgencyOfficeScopeId == null))).ToListAsync(ct);
+        var targetRenewals = await _db.RenewalRules.IgnoreQueryFilters().Where(x => x.TenantId == tenantId && x.AgencyOfficeScopeId == target.Id && x.DeletedAt == null).ToListAsync(ct);
+        foreach (var row in sourceRenewals.Where(x => targetRenewals.All(t => !string.Equals(t.Name, x.Name, StringComparison.OrdinalIgnoreCase))))
+        {
+            _db.RenewalRules.Add(new RenewalRule { Id = Guid.NewGuid(), TenantId = tenantId, AgencyOfficeScopeId = target.Id,
+                Name = row.Name, PolicyTypeFilter = row.PolicyTypeFilter, InsuranceCompanyId = row.InsuranceCompanyId,
+                ConditionJson = row.ConditionJson, ActionJson = row.ActionJson, DisplayOrder = row.DisplayOrder, IsActive = row.IsActive });
+            renewalsCopied++;
+        }
+
+        var sourceBonus = await _db.BonusMalusRules.IgnoreQueryFilters().Where(x => x.TenantId == tenantId && x.DeletedAt == null
+            && (x.AgencyOfficeScopeId == sourceScope || (includeLegacy && x.AgencyOfficeScopeId == null))).ToListAsync(ct);
+        var targetBonus = await _db.BonusMalusRules.IgnoreQueryFilters().Where(x => x.TenantId == tenantId && x.AgencyOfficeScopeId == target.Id && x.DeletedAt == null).ToListAsync(ct);
+        foreach (var row in sourceBonus.Where(x => targetBonus.All(t => !string.Equals(t.Name, x.Name, StringComparison.OrdinalIgnoreCase))))
+        {
+            _db.BonusMalusRules.Add(new BonusMalusRule { Id = Guid.NewGuid(), TenantId = tenantId, AgencyOfficeScopeId = target.Id,
+                Name = row.Name, InsuranceCompanyId = row.InsuranceCompanyId, PolicyTypeFilter = row.PolicyTypeFilter,
+                ClaimsCountFrom = row.ClaimsCountFrom, ClaimsCountTo = row.ClaimsCountTo, AdjustmentPercent = row.AdjustmentPercent,
+                AdjustmentDirection = row.AdjustmentDirection, EffectiveFrom = row.EffectiveFrom, EffectiveTo = row.EffectiveTo, IsActive = row.IsActive });
+            bonusCopied++;
+        }
+
+        var sourceTemplates = await _db.RegisterTemplates.IgnoreQueryFilters().Where(x => x.TenantId == tenantId && x.DeletedAt == null
+            && (x.AgencyOfficeScopeId == sourceScope || (includeLegacy && x.AgencyOfficeScopeId == null))).ToListAsync(ct);
+        var targetTemplates = await _db.RegisterTemplates.IgnoreQueryFilters().Where(x => x.TenantId == tenantId && x.AgencyOfficeScopeId == target.Id && x.DeletedAt == null).ToListAsync(ct);
+        foreach (var row in sourceTemplates.Where(x => targetTemplates.All(t => !string.Equals(t.Code, x.Code, StringComparison.OrdinalIgnoreCase))))
+        {
+            _db.RegisterTemplates.Add(new RegisterTemplate { Id = Guid.NewGuid(), TenantId = tenantId, AgencyOfficeScopeId = target.Id,
+                Code = row.Code, Name = row.Name, PolicyTypeFilter = row.PolicyTypeFilter, ColumnsJson = row.ColumnsJson,
+                ShowSubtotals = row.ShowSubtotals, GroupByField = row.GroupByField, IsDefault = row.IsDefault, IsActive = row.IsActive });
+            templatesCopied++;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(new CopyParametricsResult(source.Id, target.Id, branchesCopied, commissionCopied, defaultsCopied,
+            renewalsCopied, bonusCopied, templatesCopied));
+    }
+
     [HttpPost]
     [Authorize(Policy = "AgencyAdmin")]
     public async Task<ActionResult<OfficeDto>> Create([FromBody] UpsertOfficeBody body, CancellationToken ct)

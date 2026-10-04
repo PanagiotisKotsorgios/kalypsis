@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   Checkbox, FormControlLabel, IconButton, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow,
@@ -13,6 +13,12 @@ import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
 import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
 import SaveIcon from "@mui/icons-material/Save";
+import LoginIcon from "@mui/icons-material/Login";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import InsightsIcon from "@mui/icons-material/Insights";
+import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
+import BusinessIcon from "@mui/icons-material/Business";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 
@@ -45,13 +51,29 @@ interface OfficeUserDto {
   role: "AgencyAdmin" | "AgencyOfficeAdmin" | "AgencyUser"; isAssigned: boolean; isPrimary: boolean;
 }
 
+interface OfficeOverviewDto {
+  officeId: string; officeName: string; userCount: number; customerCount: number;
+  producerCount: number; policyCount: number; activePolicyCount: number;
+  claimCount: number; commissionRuleCount: number; parametricCount: number;
+  grossPremium: number; netPremium: number;
+}
+
+interface CopyParametricsResult {
+  sourceOfficeId: string; targetOfficeId: string; branchesCopied: number;
+  commissionRulesCopied: number; defaultRulesCopied: number; renewalRulesCopied: number;
+  bonusMalusRulesCopied: number; registerTemplatesCopied: number;
+}
+
 export function AgencyOfficesPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<OfficeDto | null>(null);
   const [assigning, setAssigning] = useState<OfficeDto | null>(null);
   const [profileFor, setProfileFor] = useState<OfficeDto | null>(null);
+  const [overviewOffice, setOverviewOffice] = useState<OfficeDto | null>(null);
+  const [copyTarget, setCopyTarget] = useState<OfficeDto | null>(null);
 
   const q = useQuery({
     queryKey: ["agency-offices"],
@@ -64,21 +86,66 @@ export function AgencyOfficesPage() {
     onError: (e) => setError(extractErrorMessage(e))
   });
 
+  const offices = q.data ?? [];
+  const headquarters = useMemo(() => offices.find(o => o.isHeadquarters) ?? offices[0], [offices]);
+  const overview = useQuery({
+    queryKey: ["agency-office-overview", overviewOffice?.id],
+    enabled: !!overviewOffice,
+    queryFn: async () => (await api.get<OfficeOverviewDto>(`/agency-offices/${overviewOffice!.id}/overview`)).data
+  });
+  const copy = useMutation({
+    mutationFn: async (target: OfficeDto) => (await api.post<CopyParametricsResult>(`/agency-offices/${target.id}/copy-parametrics`, {
+      sourceOfficeId: headquarters?.id ?? null
+    })).data,
+    onSuccess: result => {
+      setCopyTarget(null);
+      setError(`Τα παραμετρικά αντιγράφηκαν: ${result.branchesCopied} κλάδοι, ${result.commissionRulesCopied} κανόνες προμηθειών, ${result.defaultRulesCopied + result.renewalRulesCopied} αυτοματισμοί.`);
+    },
+    onError: e => setError(extractErrorMessage(e))
+  });
+
+  const enterOffice = (office: OfficeDto) => {
+    localStorage.setItem("kalypsis.activeOfficeId", office.id);
+    window.location.reload();
+  };
+  const showAllOffices = () => {
+    localStorage.removeItem("kalypsis.activeOfficeId");
+    window.location.reload();
+  };
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Stack direction="row" alignItems="center" spacing={2}>
           <HomeWorkIcon sx={{ fontSize: 36 }} color="primary" />
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 800 }}>Υποκαταστήματα</Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800 }}>Διαχείριση Γραφείων</Typography>
             <Typography color="text.secondary">
-              Όλα τα φυσικά γραφεία του πρακτορείου σε διαφορετικές πόλεις. Το κεντρικό
-              περιλαμβάνεται στη βασική συνδρομή — για κάθε επιπλέον προστίθεται μηνιαία χρέωση.
+              Κεντρική εποπτεία, δημιουργία γραφείων, ανάθεση υπαλλήλων, παραμετρικά και στατιστικά ανά γραφείο.
             </Typography>
           </Box>
         </Stack>
         <Button size="large" variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
-          Νέο υποκατάστημα
+          Νέο γραφείο
+        </Button>
+      </Stack>
+
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, gap: 1.25, mb: 2 }}>
+        <ManagementCard icon={<BusinessIcon />} label="Σύνολο γραφείων" value={offices.length} />
+        <ManagementCard icon={<HomeWorkIcon />} label="Ενεργά γραφεία" value={offices.filter(o => o.isActive).length} tone="success" />
+        <ManagementCard icon={<PeopleAltIcon />} label="Σύνολο υπαλλήλων" value={offices.reduce((sum, office) => sum + office.userCount, 0)} />
+        <ManagementCard icon={<StarIcon />} label="Κεντρικό γραφείο" value={headquarters?.name ?? "Δεν έχει οριστεί"} compact />
+      </Box>
+
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }} flexWrap="wrap">
+        <Button variant="outlined" startIcon={<LoginIcon />} onClick={showAllOffices}>
+          Εποπτεία όλων των γραφείων
+        </Button>
+        <Button variant="outlined" startIcon={<PeopleAltIcon />} onClick={() => navigate("/users")}>
+          Διαχείριση υπαλλήλων & ρόλων
+        </Button>
+        <Button variant="outlined" startIcon={<BusinessIcon />} onClick={() => navigate("/production-companies-agencies")}>
+          Εταιρείες & παραμετρικά
         </Button>
       </Stack>
 
@@ -145,6 +212,20 @@ export function AgencyOfficesPage() {
                       label={o.isActive ? "Ενεργό" : "Ανενεργό"} />
                   </TableCell>
                   <TableCell align="right">
+                    <IconButton size="small" color="success" title="Είσοδος στο γραφείο"
+                      onClick={() => enterOffice(o)}>
+                      <LoginIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton size="small" color="info" title="Στατιστικά γραφείου"
+                      onClick={() => setOverviewOffice(o)}>
+                      <InsightsIcon fontSize="small" />
+                    </IconButton>
+                    {!o.isHeadquarters && headquarters && (
+                      <IconButton size="small" color="secondary" title="Αντιγραφή παραμετρικών από το κεντρικό"
+                        onClick={() => setCopyTarget(o)}>
+                        <ContentCopyIcon fontSize="small" />
+                      </IconButton>
+                    )}
                     <IconButton size="small" onClick={() => setEditing(o)}>
                       <EditIcon fontSize="small" />
                     </IconButton>
@@ -175,8 +256,75 @@ export function AgencyOfficesPage() {
         onClose={() => setAssigning(null)}
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["agency-offices"] }); setAssigning(null); }} />
       <OfficeProfileDialog open={!!profileFor} office={profileFor} onClose={() => setProfileFor(null)} />
+      <OfficeOverviewDialog open={!!overviewOffice} office={overviewOffice} overview={overview.data}
+        loading={overview.isLoading} onClose={() => setOverviewOffice(null)} />
+      <CopyParametricsDialog open={!!copyTarget} source={headquarters} target={copyTarget}
+        pending={copy.isPending} onClose={() => setCopyTarget(null)} onConfirm={() => copyTarget && copy.mutate(copyTarget)} />
     </Box>
   );
+}
+
+function ManagementCard({ icon, label, value, tone, compact }: {
+  icon: ReactNode; label: string; value: ReactNode; tone?: "success"; compact?: boolean;
+}) {
+  return <Card variant="outlined" sx={{ p: 1.35, minWidth: 0, bgcolor: tone === "success" ? "rgba(46,125,50,.045)" : "rgba(11,37,69,.025)" }}>
+    <Stack direction="row" spacing={1} alignItems="center">
+      <Box sx={{ display: "grid", placeItems: "center", width: 30, height: 30, borderRadius: 1.5,
+        bgcolor: tone === "success" ? "success.main" : "primary.main", color: "common.white" }}>{icon}</Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="caption" color="text.secondary" noWrap>{label}</Typography>
+        <Typography variant={compact ? "body2" : "h6"} fontWeight={800} noWrap>{value}</Typography>
+      </Box>
+    </Stack>
+  </Card>;
+}
+
+function OfficeOverviewDialog({ open, office, overview, loading, onClose }: {
+  open: boolean; office: OfficeDto | null; overview?: OfficeOverviewDto; loading: boolean; onClose: () => void;
+}) {
+  const money = (value: number) => new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR" }).format(value ?? 0);
+  const items = overview ? [
+    ["Πελάτες", overview.customerCount], ["Συνεργάτες", overview.producerCount],
+    ["Συμβόλαια", overview.policyCount], ["Ενεργά συμβόλαια", overview.activePolicyCount],
+    ["Ζημιές", overview.claimCount], ["Κανόνες προμηθειών", overview.commissionRuleCount],
+    ["Παραμετρικά", overview.parametricCount], ["Μικτά ασφάλιστρα", money(overview.grossPremium)],
+    ["Καθαρά ασφάλιστρα", money(overview.netPremium)]
+  ] : [];
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+    <DialogTitle sx={{ fontWeight: 800 }}><Stack direction="row" spacing={1} alignItems="center"><InsightsIcon color="primary" />Στατιστικά γραφείου · {office?.name ?? ""}</Stack></DialogTitle>
+    <DialogContent dividers>
+      {loading ? <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}><CircularProgress /></Box> : (
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, 1fr)" }, gap: 1 }}>
+          {items.map(([label, value]) => <Card key={String(label)} variant="outlined" sx={{ p: 1.25, bgcolor: "rgba(11,37,69,.025)" }}>
+            <Typography variant="caption" color="text.secondary">{label}</Typography>
+            <Typography variant="h6" fontWeight={800}>{value}</Typography>
+          </Card>)}
+        </Box>
+      )}
+    </DialogContent>
+    <DialogActions><Button onClick={onClose} variant="contained">Κλείσιμο</Button></DialogActions>
+  </Dialog>;
+}
+
+function CopyParametricsDialog({ open, source, target, pending, onClose, onConfirm }: {
+  open: boolean; source?: OfficeDto; target: OfficeDto | null; pending: boolean; onClose: () => void; onConfirm: () => void;
+}) {
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <DialogTitle sx={{ fontWeight: 800 }}><Stack direction="row" spacing={1} alignItems="center"><ContentCopyIcon color="secondary" />Αντιγραφή παραμετρικών</Stack></DialogTitle>
+    <DialogContent dividers>
+      <Typography variant="body2">
+        Θα αντιγραφούν στο <strong>{target?.name}</strong> οι κλάδοι, οι κανόνες προμηθειών,
+        οι προεπιλογές συμβολαίων, οι κανόνες ανανέωσης, οι κανόνες bonus–malus και τα πρότυπα μητρώων από το <strong>{source?.name ?? "κεντρικό γραφείο"}</strong>.
+      </Typography>
+      <Alert severity="info" sx={{ mt: 1.5 }}>Οι υπάρχουσες εγγραφές δεν διπλασιάζονται και οι ασφαλιστικές εταιρείες παραμένουν κοινές για το γραφείο.</Alert>
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={onClose} color="error" variant="contained">Ακύρωση</Button>
+      <Button onClick={onConfirm} color="success" variant="contained" startIcon={pending ? <CircularProgress size={16} color="inherit" /> : <ContentCopyIcon />} disabled={pending || !target || !source}>
+        Αντιγραφή
+      </Button>
+    </DialogActions>
+  </Dialog>;
 }
 
 function OfficeProfileDialog({ open, office, onClose }: { open: boolean; office: OfficeDto | null; onClose: () => void }) {
@@ -185,6 +333,7 @@ function OfficeProfileDialog({ open, office, onClose }: { open: boolean; office:
     enabled: open && !!office,
     queryFn: async () => (await api.get<OfficeUserDto[]>(`/agency-offices/${office!.id}/users`)).data
   });
+
   const assigned = (users.data ?? []).filter(user => user.isAssigned);
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">

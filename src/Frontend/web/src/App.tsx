@@ -36,6 +36,7 @@ import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import LeaderboardIcon from "@mui/icons-material/Leaderboard";
 import EngineeringIcon from "@mui/icons-material/Engineering";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
+import HomeWorkIcon from "@mui/icons-material/HomeWork";
 
 import { useAuth, type Role } from "./auth/AuthContext";
 import { useImpersonation } from "./impersonation/ImpersonationContext";
@@ -375,6 +376,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     // /compliance-dashboard removed from sidebar per user request (route still resolves for deep links).
 
     // BackOffice → ΔΙΟΙΚΗΣΗ
+    { to: "/agency-offices", labelKey: "nav.officeManagement", icon: <HomeWorkIcon />, package: "BackOffice", group: "admin", premium: "multi-branch" },
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
     { to: "/audit", labelKey: "nav.audit", icon: <GavelIcon />, package: "BackOffice", group: "admin" },
     { to: "/recycle-bin", labelKey: "nav.recycleBin", icon: <RestoreFromTrashIcon />, package: "BackOffice", group: "admin", premium: "recycle-bin" },
