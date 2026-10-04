@@ -243,8 +243,173 @@ public static class DataSeeder
 
         await SeedTestCustomerAsync(db, hasher, platformTenant.Id, logger, cancellationToken);
 
+        // Multi-office was introduced after many tenants and users already
+        // existed.  Backfill one real headquarters office (and a primary
+        // assignment) for those accounts so the selector offers the concrete
+        // central office as well as the administrator-only "Όλα τα γραφεία"
+        // view.  This is deliberately idempotent and never replaces an
+        // existing office assignment.
+        try { await BackfillAgencyHeadquartersAsync(db, logger, cancellationToken); }
+        catch (Exception ex) { logger.LogError(ex, "Agency headquarters backfill failed; continuing boot."); }
+
         await BackfillPackageGrantsAsync(db, logger, cancellationToken);
     }
+
+    /// <summary>
+    /// Creates the missing central office for legacy tenants and gives legacy
+    /// agency users a concrete primary office.  Before multi-office support,
+    /// users had no UserAgencyOffice row at all; leaving them that way made a
+    /// fresh selector show only the organisation-wide option and left office
+    /// sub-administrators without a valid context.
+    /// </summary>
+    private static async Task BackfillAgencyHeadquartersAsync(
+        AppDbContext db,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        var tenants = await db.Tenants.IgnoreQueryFilters()
+            .Where(t => t.IsActive && t.DeletedAt == null)
+            .ToListAsync(cancellationToken);
+        var totalOfficesCreated = 0;
+        var totalAssignmentsCreated = 0;
+
+        foreach (var tenant in tenants)
+        {
+            var users = await db.Users.IgnoreQueryFilters()
+                .Where(u => u.TenantId == tenant.Id && u.DeletedAt == null
+                    && u.IsActive
+                    && (u.Role == Role.AgencyAdmin
+                        || u.Role == Role.AgencyOfficeAdmin
+                        || u.Role == Role.AgencyUser))
+                .ToListAsync(cancellationToken);
+            if (users.Count == 0) continue;
+
+            var allOffices = await db.AgencyOffices.IgnoreQueryFilters()
+                .Where(o => o.TenantId == tenant.Id && o.DeletedAt == null)
+                .OrderByDescending(o => o.IsHeadquarters)
+                .ThenBy(o => o.CreatedAt)
+                .ThenBy(o => o.Name)
+                .ToListAsync(cancellationToken);
+            var activeOffices = allOffices.Where(o => o.IsActive).ToList();
+
+            AgencyOffice? headquarters = activeOffices.FirstOrDefault(o => o.IsHeadquarters);
+            if (headquarters is null && activeOffices.Count > 0)
+            {
+                headquarters = activeOffices[0];
+                headquarters.IsHeadquarters = true;
+                // Keep the invariant of one active headquarters for legacy
+                // data that predates the office administration screen.
+                foreach (var other in activeOffices.Where(o => o.Id != headquarters.Id && o.IsHeadquarters))
+                    other.IsHeadquarters = false;
+            }
+
+            if (headquarters is null)
+            {
+                var usedCodes = allOffices
+                    .Select(o => o.Code)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var code = "HQ";
+                var suffix = 2;
+                while (usedCodes.Contains(code)) code = $"HQ-{suffix++}";
+
+                headquarters = new AgencyOffice
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    Code = code,
+                    Name = TrimOfficeName($"{tenant.Name} — Κεντρικό"),
+                    Address = tenant.AddressLine,
+                    Phone = tenant.ContactPhone,
+                    Email = tenant.ContactEmail,
+                    IsHeadquarters = true,
+                    IsActive = true,
+                    CreatedAt = tenant.CreatedAt == default ? DateTime.UtcNow : tenant.CreatedAt
+                };
+                db.AgencyOffices.Add(headquarters);
+                activeOffices.Add(headquarters);
+                allOffices.Add(headquarters);
+                totalOfficesCreated++;
+            }
+
+            var assignments = await db.UserAgencyOffices.IgnoreQueryFilters()
+                .Where(a => a.TenantId == tenant.Id && users.Select(u => u.Id).Contains(a.UserId))
+                .ToListAsync(cancellationToken);
+            var activeOfficeIds = activeOffices.Select(o => o.Id).ToHashSet();
+
+            foreach (var user in users)
+            {
+                var userRows = assignments.Where(a => a.UserId == user.Id).ToList();
+                var validRows = userRows
+                    .Where(a => a.DeletedAt == null && activeOfficeIds.Contains(a.AgencyOfficeId))
+                    .ToList();
+
+                // Preserve a valid legacy scope when one exists; otherwise the
+                // tenant's headquarters is the safe, explicit default.
+                var preferredOfficeId = user.AgencyOfficeScopeId is Guid scoped
+                    && activeOfficeIds.Contains(scoped)
+                    ? scoped
+                    : headquarters.Id;
+
+                if (validRows.Count == 0)
+                {
+                    var historic = userRows.FirstOrDefault(a => a.AgencyOfficeId == preferredOfficeId);
+                    if (historic is not null)
+                    {
+                        historic.DeletedAt = null;
+                        historic.IsPrimary = true;
+                    }
+                    else
+                    {
+                        var assignment = new UserAgencyOffice
+                        {
+                            Id = Guid.NewGuid(),
+                            TenantId = tenant.Id,
+                            UserId = user.Id,
+                            AgencyOfficeId = preferredOfficeId,
+                            IsPrimary = true
+                        };
+                        db.UserAgencyOffices.Add(assignment);
+                        userRows.Add(assignment);
+                        assignments.Add(assignment);
+                        totalAssignmentsCreated++;
+                    }
+                    validRows = userRows
+                        .Where(a => a.DeletedAt == null && activeOfficeIds.Contains(a.AgencyOfficeId))
+                        .ToList();
+                }
+
+                if (!validRows.Any(a => a.IsPrimary))
+                {
+                    var primary = validRows.FirstOrDefault(a => a.AgencyOfficeId == headquarters.Id)
+                        ?? validRows[0];
+                    primary.IsPrimary = true;
+                }
+
+                // Non-admin roles are always constrained to their primary
+                // office by the middleware.  Keep the legacy scope column in
+                // sync with the backfilled assignment; admins remain tenant-
+                // wide and intentionally keep a null scope.
+                if (user.Role != Role.AgencyAdmin)
+                {
+                    var primary = validRows.FirstOrDefault(a => a.IsPrimary);
+                    if (primary is not null) user.AgencyOfficeScopeId = primary.AgencyOfficeId;
+                }
+                else
+                {
+                    user.AgencyOfficeScopeId = null;
+                }
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        if (totalOfficesCreated > 0 || totalAssignmentsCreated > 0)
+            logger.LogInformation("Backfilled multi-office defaults: {Offices} headquarters, {Assignments} primary user assignments.",
+                totalOfficesCreated, totalAssignmentsCreated);
+    }
+
+    private static string TrimOfficeName(string value)
+        => value.Length <= 160 ? value : value[..160];
 
     /// <summary>
     /// Phase 5 backfill — every tenant that exists when the package layer goes

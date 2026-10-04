@@ -86,6 +86,30 @@ public class CreateTenantCommandHandler : IRequestHandler<CreateTenantCommand, C
         };
         _db.Users.Add(admin);
 
+        // Every new tenant starts with a real headquarters office.  This gives
+        // the admin a concrete office in the selector immediately; the
+        // organisation-wide view remains an explicit second choice.
+        var headquarters = new AgencyOffice
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenant.Id,
+            Code = "HQ",
+            Name = $"{tenant.Name} — Κεντρικό"[..Math.Min(160, $"{tenant.Name} — Κεντρικό".Length)],
+            Phone = r.AdminPhone?.Trim(),
+            Email = email,
+            IsHeadquarters = true,
+            IsActive = true
+        };
+        _db.AgencyOffices.Add(headquarters);
+        _db.UserAgencyOffices.Add(new UserAgencyOffice
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenant.Id,
+            UserId = admin.Id,
+            AgencyOfficeId = headquarters.Id,
+            IsPrimary = true
+        });
+
         await _db.SaveChangesAsync(cancellationToken);
 
         // Every new γραφείο needs default package grants — without this,
