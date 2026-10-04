@@ -851,5 +851,5 @@ public class AppDbContext : DbContext, IAppDbContext
     }
 
     private static bool IsOfficeMetadata(BaseEntity entity)
-        => entity is AgencyOffice or UserAgencyOffice;
+        => entity is AgencyOffice or UserAgencyOffice or DpaAcceptance;
 }

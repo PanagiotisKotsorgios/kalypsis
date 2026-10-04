@@ -80,7 +80,11 @@ export function DpaAcceptancePrompt() {
   const shouldCheck = !!user && user.role === "AgencyAdmin";
 
   const status = useQuery({
-    queryKey: ["dpa-status"],
+    // Keep tenants isolated in the client cache too.  Without the tenant in
+    // the key, a switch from one office account to another could briefly reuse
+    // the previous account's acceptance state until the five-minute stale
+    // window expired.
+    queryKey: ["dpa-status", user?.tenantId],
     enabled: shouldCheck,
     queryFn: async () => (await api.get<DpaStatus>("/gdpr/dpa/status")).data,
     staleTime: 5 * 60_000
@@ -91,7 +95,15 @@ export function DpaAcceptancePrompt() {
       setError(null);
       return (await api.post<DpaStatus>("/gdpr/dpa/accept", { version })).data;
     },
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["dpa-status"] }); },
+    onSuccess: data => {
+      // Update the cached status immediately.  Waiting for a background
+      // refetch left the blocking dialog visible for a render (and, on a
+      // slow connection, made users think the acceptance had not worked).
+      qc.setQueryData<DpaStatus>(["dpa-status", user?.tenantId], data);
+      setChecked({});
+      setError(null);
+      void qc.invalidateQueries({ queryKey: ["dpa-status"] });
+    },
     onError: e => setError(extractErrorMessage(e))
   });
 

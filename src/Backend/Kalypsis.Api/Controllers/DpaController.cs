@@ -82,7 +82,13 @@ public class DpaController : ControllerBase
     public async Task<ActionResult<DpaStatusDto>> Status(CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        // Legal-suite acceptance belongs to the tenant/legal entity, not to a
+        // selected branch.  Bypass the office query filter explicitly so an
+        // acceptance created before the multi-office rollout (and carrying a
+        // legacy AgencyOfficeScopeId) still satisfies the gate after the admin
+        // switches offices.
         var latest = await _db.DpaAcceptances
+            .IgnoreQueryFilters()
             .Where(x => x.TenantId == tenantId && x.DeletedAt == null)
             .OrderByDescending(x => x.AcceptedAt)
             .FirstOrDefaultAsync(ct);
@@ -110,8 +116,13 @@ public class DpaController : ControllerBase
 
         // Idempotent: αν το γραφείο έχει ήδη αποδεχθεί αυτή την έκδοση, δεν
         // δημιουργούμε δεύτερη γραμμή (unique index θα το απέρριπτε ούτως ή άλλως).
-        var existing = await _db.DpaAcceptances.FirstOrDefaultAsync(
-            x => x.TenantId == tenantId && x.Version == version && x.DeletedAt == null, ct);
+        // Keep the idempotency check tenant-wide as well.  Otherwise selecting
+        // a different office could make the same accepted version look absent
+        // and trigger the modal/unique-index path again.
+        var existing = await _db.DpaAcceptances
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                x => x.TenantId == tenantId && x.Version == version && x.DeletedAt == null, ct);
         if (existing != null)
         {
             return Ok(new DpaStatusDto(CurrentVersion, true, existing.Version,
