@@ -604,6 +604,15 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                 color: "#fff",
                 boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(13,71,161,.3)",
               },
+              // aria-selected is kept as a second selector because the
+              // nested drawer can be rendered inside another Tabs surface.
+              // It guarantees the active contract tab is visibly blue.
+              "&[aria-selected=\"true\"]": {
+                background: "linear-gradient(135deg, #1976d2 0%, #0d47a1 100%)",
+                borderColor: "#0d47a1",
+                color: "#fff",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(13,71,161,.3)",
+              },
               "&.Mui-selected:hover": { background: "linear-gradient(135deg, #1565c0 0%, #0b3d91 100%)", color: "#fff" },
               "& .MuiSvgIcon-root": { color: "inherit" },
             },
@@ -655,7 +664,104 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           {!p ? <CircularProgress /> : (
             <>
               {/* SUMMARY */}
-              {showSummary && (
+              {showSummary && modalPresentation && (
+                <Stack spacing={1.25}>
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.25 }}>
+                    <PolicySummarySection title="Στοιχεία συμβολαίου">
+                      <PolicySummaryLine label={t("policyDetail.policyNumber")} value={p.policyNumber} mono />
+                      <PolicySummaryLine label={t("policyDetail.policyType")} value={policyTypeLabel(p.policyType)} />
+                      <PolicySummaryLine label={t("policyDetail.status")} value={<Chip size="small" color={STATUS_COLOR[p.status]} label={policyStatusLabel(p.status)} />} />
+                      <PolicySummaryLine label={t("policyDetail.startDate")} value={p.startDate} />
+                      <PolicySummaryLine label={t("policyDetail.endDate")} value={p.endDate} />
+                      <PolicySummaryLine label={t("policyDetail.createdAt")} value={new Date(p.createdAt).toLocaleString("el-GR")} />
+                      {p.updatedAt && <PolicySummaryLine label={t("policyDetail.updatedAt")} value={new Date(p.updatedAt).toLocaleString("el-GR")} />}
+                      {p.createdByName && <PolicySummaryLine label={t("policyDetail.createdBy")} value={p.createdByName} />}
+                      {p.renewedFromPolicyNumber && <PolicySummaryLine label={t("policyDetail.renewedFrom")} value={p.renewedFromPolicyNumber} mono />}
+                    </PolicySummarySection>
+                    <PolicySummarySection title="Πρόσωπα & σύνδεση">
+                      <PolicySummaryLine label={t("policyDetail.customer")} value={p.customerDisplay} />
+                      {p.customerVat && <PolicySummaryLine label="ΑΦΜ πελάτη" value={p.customerVat} mono />}
+                      <PolicySummaryLine label={t("policyDetail.insurer")} value={p.insuranceCompanyName} />
+                      <PolicySummaryLine label={t("policyDetail.producer")} value={p.producerName ?? "—"} />
+                      <PolicySummaryLine label="Συμβαλλόμενος" value={p.contractPartyDisplay || "Ίδιος με τον ασφαλιζόμενο"} />
+                      <PolicySummaryLine label="Προηγούμενη ασφαλιστική" value={p.previousInsuranceCompanyName || "Δεν αναφέρεται"} />
+                    </PolicySummarySection>
+                  </Box>
+
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.25 }}>
+                    <PolicySummarySection title="Οικονομική εικόνα">
+                      <PolicySummaryLine label={t("policyDetail.premium")} value={`${p.premium.toFixed(2)} ${p.currency}`} mono />
+                      {p.netPremium !== null && <PolicySummaryLine label="Καθαρά ασφάλιστρα" value={`${p.netPremium.toFixed(2)} ${p.currency}`} mono />}
+                      {p.vatAmount !== null && <PolicySummaryLine label="Φόρος ασφαλίστρων" value={`${p.vatAmount.toFixed(2)} ${p.currency}`} mono />}
+                      <PolicySummaryLine label={t("policyDetail.received")} value={`${p.totalReceived.toFixed(2)} ${p.currency}`} valueColor="success.dark" mono />
+                      <PolicySummaryLine label={t("policyDetail.outstanding")} value={`${p.outstanding.toFixed(2)} ${p.currency}`} valueColor={p.outstanding > 0 ? "error.dark" : undefined} mono />
+                      {!readOnly && <PolicySummaryLine label={t("policyDetail.commissions")} value={`${p.totalCommissions.toFixed(2)} ${p.currency}`} mono />}
+                    </PolicySummarySection>
+                    <PolicySummarySection title="Καλύψεις & όχημα">
+                      {p.covers.length > 0 ? <CoversBreakdown p={p} /> : <Typography variant="body2" color="text.secondary" sx={{ py: .5 }}>Δεν έχουν καταχωρηθεί αναλυτικές καλύψεις.</Typography>}
+                      {(p.vehicleRegistrationPlate || form.vehicleRegistrationPlate) ? (
+                        <>
+                          <Divider sx={{ my: .75 }} />
+                          <PolicySummaryLine label="Αρ. κυκλοφορίας" value={form.vehicleRegistrationPlate || p.vehicleRegistrationPlate} mono />
+                          {(form.driverVatNumber || p.driverVatNumber) && <PolicySummaryLine label="ΑΦΜ οδηγού" value={form.driverVatNumber || p.driverVatNumber} mono />}
+                          {(form.reasonForCirculation || p.reasonForCirculation) && <PolicySummaryLine label="Λόγος κυκλοφορίας" value={form.reasonForCirculation || p.reasonForCirculation} />}
+                          <Button size="small" variant="contained" color="primary" onClick={() => setVehiclePreviewOpen(true)} sx={{ mt: .75, color: "#fff", fontWeight: 700 }}>Άνοιγμα πλήρους προφίλ οχήματος</Button>
+                        </>
+                      ) : <Typography variant="body2" color="text.secondary" sx={{ py: .5 }}>Δεν έχει συνδεθεί όχημα.</Typography>}
+                    </PolicySummarySection>
+                  </Box>
+
+                  <PolicySummarySection title="Πρόσθετα στοιχεία">
+                    {editing ? (
+                      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1 }}>
+                        <TextField fullWidth size="small" label="Αρ. αίτησης" value={form.applicationNumber} onChange={e => setForm({ ...form, applicationNumber: e.target.value })} />
+                        <TextField fullWidth size="small" type="date" label="Ημ. έκδοσης" InputLabelProps={{ shrink: true }} value={form.issuedAt} onChange={e => setForm({ ...form, issuedAt: e.target.value })} />
+                        <TextField fullWidth size="small" label="Αρ. κυκλοφορίας" value={form.vehicleRegistrationPlate} onChange={e => setForm({ ...form, vehicleRegistrationPlate: e.target.value.toUpperCase() })} />
+                        <TextField fullWidth size="small" label="ΑΦΜ οδηγού" value={form.driverVatNumber} onChange={e => setForm({ ...form, driverVatNumber: e.target.value })} />
+                        <TextField fullWidth size="small" label="Λόγος κυκλοφορίας" value={form.reasonForCirculation} onChange={e => setForm({ ...form, reasonForCirculation: e.target.value })} />
+                        <SearchableSelect disabled={!canEdit} label="Συμβαλλόμενος" value={form.contractPartyCustomerId} onChange={v => setForm({ ...form, contractPartyCustomerId: v })} emptyLabel="Ίδιος με τον ασφαλιζόμενο" options={(customersLookup.data ?? []).map(c => ({ value: c.id, label: c.companyName || `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() || "—", hint: c.vatNumber ?? undefined }))} />
+                        <SearchableSelect disabled={!canEdit} label="Προηγούμενη ασφαλιστική" value={form.previousInsuranceCompanyId} onChange={v => setForm({ ...form, previousInsuranceCompanyId: v })} emptyLabel="Δεν αναφέρεται" options={(carriersLookup.data ?? []).map(c => ({ value: c.id, label: c.name, hint: c.code }))} />
+                      </Box>
+                    ) : (
+                      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, columnGap: 2 }}>
+                        <PolicySummaryLine label="Αρ. αίτησης" value={form.applicationNumber || "—"} mono />
+                        <PolicySummaryLine label="Ημ. έκδοσης" value={form.issuedAt || "—"} />
+                        <PolicySummaryLine label="ΑΦΜ οδηγού" value={form.driverVatNumber || "—"} mono />
+                        <PolicySummaryLine label="Λόγος κυκλοφορίας" value={form.reasonForCirculation || "—"} />
+                        <PolicySummaryLine label="Συμβαλλόμενος" value={p.contractPartyDisplay || "Ίδιος με τον ασφαλιζόμενο"} />
+                        <PolicySummaryLine label="Προηγούμενη ασφαλιστική" value={p.previousInsuranceCompanyName || "Δεν αναφέρεται"} />
+                      </Box>
+                    )}
+                  </PolicySummarySection>
+
+                  <PolicySummarySection title="Πληρωμές, παράδοση & ανανέωση">
+                    {editing ? (
+                      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1 }}>
+                        <TextField select fullWidth size="small" label="Συχνότητα πληρωμής" value={form.paymentFrequency} onChange={e => setForm({ ...form, paymentFrequency: e.target.value })}>{FREQUENCIES.map(f => <MenuItem key={f} value={f}>{FREQUENCY_LABELS[f] ?? f}</MenuItem>)}</TextField>
+                        <TextField select fullWidth size="small" label="Τρόπος είσπραξης" value={form.paymentCollectionMethod} onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })}><MenuItem value="">—</MenuItem>{COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}</TextField>
+                        <TextField fullWidth size="small" type="date" label="Ημ. παράδοσης" InputLabelProps={{ shrink: true }} value={form.deliveredAt} onChange={e => setForm({ ...form, deliveredAt: e.target.value })} />
+                        <TextField fullWidth size="small" label="Παραδόθηκε σε" value={form.deliveredTo} onChange={e => setForm({ ...form, deliveredTo: e.target.value })} />
+                        <TextField select fullWidth size="small" label="Μέθοδος παράδοσης" value={form.deliveryMethod} onChange={e => setForm({ ...form, deliveryMethod: e.target.value })}><MenuItem value="">—</MenuItem>{DELIVERY_METHODS.map(m => <MenuItem key={m} value={m}>{DELIVERY_METHOD_LABELS[m] ?? m}</MenuItem>)}</TextField>
+                        <TextField fullWidth size="small" type="date" label="Επόμενη ανανέωση" InputLabelProps={{ shrink: true }} value={form.nextRenewalDate} onChange={e => setForm({ ...form, nextRenewalDate: e.target.value })} />
+                        <TextField fullWidth size="small" label="Οδηγίες ανανέωσης" value={form.renewalInstructions} onChange={e => setForm({ ...form, renewalInstructions: e.target.value })} sx={{ gridColumn: { sm: "1 / -1" } }} />
+                        <FormControlLabel control={<Switch checked={form.paidDirectlyToCarrier} onChange={e => setForm({ ...form, paidDirectlyToCarrier: e.target.checked })} />} label="Πληρώθηκε απευθείας στην ασφαλιστική" />
+                        <FormControlLabel control={<Switch checked={form.premiumIncludesVat} onChange={e => setForm({ ...form, premiumIncludesVat: e.target.checked })} />} label="Το ασφάλιστρο περιλαμβάνει φόρο" />
+                      </Box>
+                    ) : (
+                      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, columnGap: 2 }}>
+                        <PolicySummaryLine label="Συχνότητα πληρωμής" value={FREQUENCY_LABELS[form.paymentFrequency] ?? form.paymentFrequency} />
+                        <PolicySummaryLine label="Τρόπος είσπραξης" value={form.paymentCollectionMethod ? (COLLECTION_METHODS_LABEL[form.paymentCollectionMethod] ?? form.paymentCollectionMethod) : "—"} />
+                        <PolicySummaryLine label="Ημ. παράδοσης" value={form.deliveredAt || "—"} />
+                        <PolicySummaryLine label="Μέθοδος παράδοσης" value={form.deliveryMethod ? (DELIVERY_METHOD_LABELS[form.deliveryMethod] ?? form.deliveryMethod) : "—"} />
+                        <PolicySummaryLine label="Επόμενη ανανέωση" value={form.nextRenewalDate || p.nextRenewalDate || "—"} />
+                        <PolicySummaryLine label="Πληρωμή στην ασφαλιστική" value={form.paidDirectlyToCarrier ? "Ναι" : "Όχι"} valueColor={form.paidDirectlyToCarrier ? "success.dark" : undefined} />
+                        {form.renewalInstructions && <PolicySummaryLine label="Οδηγίες ανανέωσης" value={form.renewalInstructions} />}
+                      </Box>
+                    )}
+                  </PolicySummarySection>
+                </Stack>
+              )}
+              {showSummary && !modalPresentation && (
                 <Stack spacing={modalPresentation ? 1 : 2}>
                   <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? .5 : 0, ...(modalPresentation ? { p: 1.25, bgcolor: "rgba(248,250,252,.85)", border: "1px solid", borderColor: "divider", borderRadius: 1 } : {}) }}>
                     {modalPresentation && <Typography variant="subtitle2" fontWeight={800} sx={{ gridColumn: "1 / -1", mb: .25, color: "primary.dark" }}>Στοιχεία συμβολαίου</Typography>}
@@ -1405,6 +1511,24 @@ function KV({ label, value, mono }: { label: string; value: React.ReactNode; mon
       <Typography variant="body2" sx={{ fontFamily: mono ? "monospace" : undefined, fontWeight: 650, wordBreak: "break-word" }}>
         {value}
       </Typography>
+    </Box>
+  );
+}
+
+function PolicySummarySection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <Box sx={{ p: 1.25, bgcolor: "rgba(248,250,252,.85)", border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
+      <Typography variant="subtitle2" fontWeight={800} sx={{ mb: .7, color: "primary.dark" }}>{title}</Typography>
+      {children}
+    </Box>
+  );
+}
+
+function PolicySummaryLine({ label, value, mono, valueColor }: { label: string; value: React.ReactNode; mono?: boolean; valueColor?: string }) {
+  return (
+    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(118px, .45fr) 1fr", sm: "minmax(135px, .5fr) 1fr" }, gap: 1, py: .35, alignItems: "baseline", borderBottom: "1px solid", borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
+      <Typography variant="caption" color="text.secondary">{label}</Typography>
+      <Typography variant="body2" fontWeight={650} sx={{ fontFamily: mono ? "monospace" : undefined, color: valueColor, wordBreak: "break-word", whiteSpace: "pre-wrap" }}>{value}</Typography>
     </Box>
   );
 }
