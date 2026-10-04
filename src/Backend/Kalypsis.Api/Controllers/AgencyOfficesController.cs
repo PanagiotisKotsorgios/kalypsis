@@ -13,13 +13,16 @@ namespace Kalypsis.Api.Controllers;
 // ============================================================================
 // Phase 6 — Multi-office agencies (παραρτήματα / υποκαταστήματα)
 // CRUD for AgencyOffice plus user-to-office assignments.
-// Gated under Integrations package — see Phase 5 / pricing copy.
+// Agency offices are part of the core Back Office workspace.  Keeping this
+// endpoint under Integrations made the production directory show a usable
+// screen but reject every create/update request for offices that only license
+// Back Office, resulting in the misleading package-lock message.
 // ============================================================================
 
 [ApiController]
 [Route("api/agency-offices")]
 [Authorize(Policy = "AgencyStaff")]
-[RequiresPackage(PackageCode.Integrations)]
+[RequiresPackage(PackageCode.BackOffice)]
 public class AgencyOfficesController : ControllerBase
 {
     private readonly AppDbContext _db;

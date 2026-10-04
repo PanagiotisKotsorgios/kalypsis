@@ -83,6 +83,7 @@ export function ProductionListsPage() {
     policyType: "", vehicleUseCategory: "", coverCode: "", packageCode: "",
     status: "", groupBy: "carrier"
   });
+  const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
 
   const carriers = useQuery({
     queryKey: ["carriers-prod-list"],
@@ -498,6 +499,14 @@ export function ProductionListsPage() {
           <Button variant="outlined" startIcon={<PrintIcon />} onClick={openPrint}>
             {t("common.print", "Εκτύπωση")}
           </Button>
+          <Button
+            variant="outlined"
+            startIcon={<FilterAltIcon />}
+            onClick={() => setQuickFiltersOpen(true)}
+            sx={{ whiteSpace: "nowrap" }}
+          >
+            Γρήγορα φίλτρα
+          </Button>
         </Stack>
       </Stack>
 
@@ -512,6 +521,9 @@ export function ProductionListsPage() {
           f.coverCode, f.packageCode, f.status,
         ].filter(Boolean).length}
         title="Φίλτρα λίστας παραγωγής"
+        quickButtonPlacement="external"
+        quickOpen={quickFiltersOpen}
+        onQuickOpenChange={setQuickFiltersOpen}
         quickFilters={<QuickFilterBar
           activeCount={[
             f.insuranceCompanyId, f.producerId, f.policyType, f.vehicleUseCategory,

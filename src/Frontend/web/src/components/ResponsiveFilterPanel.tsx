@@ -16,19 +16,32 @@ export function ResponsiveFilterPanel({
   activeCount = 0,
   title = "Φίλτρα",
   cardSx,
+  quickButtonPlacement = "panel",
+  quickOpen: controlledQuickOpen,
+  onQuickOpenChange,
 }: {
   children: ReactNode;
   quickFilters?: ReactNode;
   activeCount?: number;
   title?: string;
   cardSx?: object;
+  /** Render the quick-filter trigger outside this card (for example beside Print). */
+  quickButtonPlacement?: "panel" | "external";
+  /** Optional controlled state so a page-level toolbar button can open the drawer. */
+  quickOpen?: boolean;
+  onQuickOpenChange?: (open: boolean) => void;
 }) {
   const theme = useTheme();
   // Treat phones and narrow tablets as compact so dense filter forms never
   // push the actual table far below the fold.
   const isCompact = useMediaQuery(theme.breakpoints.down("md"));
   const [open, setOpen] = useState(false);
-  const [quickOpen, setQuickOpen] = useState(false);
+  const [internalQuickOpen, setInternalQuickOpen] = useState(false);
+  const quickOpen = controlledQuickOpen ?? internalQuickOpen;
+  const setQuickOpen = (next: boolean) => {
+    onQuickOpenChange?.(next);
+    if (controlledQuickOpen === undefined) setInternalQuickOpen(next);
+  };
 
   const quickDrawer = quickFilters ? (
     <Drawer
@@ -65,7 +78,7 @@ export function ResponsiveFilterPanel({
           >
             {title}{activeCount > 0 ? ` (${activeCount})` : ""}
           </Button>
-          {quickFilters && (
+          {quickFilters && quickButtonPlacement === "panel" && (
             <Button
               size="small"
               variant="outlined"
@@ -104,7 +117,7 @@ export function ResponsiveFilterPanel({
   return (
     <>
       <Card sx={{ px: 1.5, py: 1.25, mb: 2, ...cardSx }}>
-        {quickFilters && (
+        {quickFilters && quickButtonPlacement === "panel" && (
           <Stack direction="row" justifyContent="flex-end" sx={{ mb: 0.75 }}>
             <Button
               size="small"

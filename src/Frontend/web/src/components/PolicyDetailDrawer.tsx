@@ -165,12 +165,14 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const [customerPreviewOpen, setCustomerPreviewOpen] = useState(false);
   const [vehiclePreviewOpen, setVehiclePreviewOpen] = useState(false);
   const modalPresentation = presentation === "modal";
-  const selectTab = (next: number) => {
+  const selectTab = (next: number | string) => {
+    const normalized = Number(next);
+    if (!Number.isInteger(normalized) || normalized < 0) return;
     if (modalPresentation) {
-      setModalTab(next);
+      setModalTab(normalized);
       return;
     }
-    setTab(next);
+    setTab(normalized);
   };
 
   useEffect(() => {
@@ -606,11 +608,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           }}
         >
           {modalPresentation ? <>
-            <Tab icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" />
-            <Tab icon={<AccountBalanceWalletOutlinedIcon fontSize="small" />} iconPosition="start" label="Οικονομικά" />
-            <Tab icon={<DescriptionOutlinedIcon fontSize="small" />} iconPosition="start" label="Στοιχεία συμβολαίου" />
-            <Tab icon={<ReceiptLongOutlinedIcon fontSize="small" />} iconPosition="start" label="Κινήσεις" />
-            <Tab icon={<HistoryOutlinedIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & ιστορικό" />
+            <Tab value={0} onClick={() => selectTab(0)} icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" />
+            <Tab value={1} onClick={() => selectTab(1)} icon={<AccountBalanceWalletOutlinedIcon fontSize="small" />} iconPosition="start" label="Οικονομικά" />
+            <Tab value={2} onClick={() => selectTab(2)} icon={<DescriptionOutlinedIcon fontSize="small" />} iconPosition="start" label="Στοιχεία συμβολαίου" />
+            <Tab value={3} onClick={() => selectTab(3)} icon={<ReceiptLongOutlinedIcon fontSize="small" />} iconPosition="start" label="Κινήσεις" />
+            <Tab value={4} onClick={() => selectTab(4)} icon={<HistoryOutlinedIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & ιστορικό" />
           </> : <>
             <Tab label={t("policyDetail.tab.summary")} />
             <Tab label={t("policyDetail.tab.financials")} />
