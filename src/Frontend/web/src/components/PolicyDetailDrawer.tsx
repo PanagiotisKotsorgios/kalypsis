@@ -568,7 +568,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
             mb: 2,
             px: .5,
             py: .5,
-            border: "1px solid #000000",
+            border: "1px solid #263238",
             borderRadius: 2,
             bgcolor: "background.paper",
             boxShadow: "0 3px 10px rgba(15,23,42,.12)",
@@ -582,10 +582,10 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               flex: { xs: "1 1 45%", sm: "0 1 auto" },
               px: 1.5,
               py: .75,
-              border: "1px solid #000000",
+              border: "1px solid #263238",
               borderRadius: 1.5,
-              background: "linear-gradient(180deg, #9ca3af 0%, #6b7280 100%)",
-              color: "#000000",
+              background: "linear-gradient(180deg, #e5e7eb 0%, #b8c0c8 100%)",
+              color: "#111827",
               textTransform: "none",
               fontWeight: 750,
               fontSize: { xs: ".82rem", md: ".9rem" },
@@ -593,27 +593,27 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
               boxShadow: "inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(15,23,42,.12)",
               transition: "background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease",
               "&:hover": {
-                background: "linear-gradient(180deg, #7b8794 0%, #4b5563 100%)",
-                borderColor: "#000000",
-                color: "#000000",
+                background: "linear-gradient(180deg, #d4d8de 0%, #9ca6b1 100%)",
+                borderColor: "#111827",
+                color: "#0b2545",
                 boxShadow: "inset 0 1px 0 rgba(255,255,255,.65), 0 2px 5px rgba(15,23,42,.18)",
               },
               "&.Mui-selected": {
-                background: "linear-gradient(135deg, #043463 0%, #011a33 100%)",
-                borderColor: "#000000",
+                background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%)",
+                borderColor: "#062f63",
                 color: "#fff",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,.2), 0 3px 8px rgba(1,26,51,.5)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(6,47,99,.35)",
               },
               // aria-selected is kept as a second selector because the
               // nested drawer can be rendered inside another Tabs surface.
               // It guarantees the active contract tab is visibly blue.
               "&[aria-selected=\"true\"]": {
-                background: "linear-gradient(135deg, #043463 0%, #011a33 100%)",
-                borderColor: "#000000",
+                background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%)",
+                borderColor: "#062f63",
                 color: "#fff",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,.2), 0 3px 8px rgba(1,26,51,.5)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(6,47,99,.35)",
               },
-              "&.Mui-selected:hover": { background: "linear-gradient(135deg, #03294f 0%, #000d1a 100%)", color: "#fff" },
+              "&.Mui-selected:hover": { background: "linear-gradient(135deg, #084d91 0%, #042b54 100%)", color: "#fff" },
               "& .MuiSvgIcon-root": { color: "inherit" },
             },
           } : {
@@ -624,11 +624,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           }}
         >
           {modalPresentation ? <>
-            <Tab value={0} onClick={() => selectTab(0)} sx={modalTab === 0 ? { background: "linear-gradient(135deg, #043463 0%, #011a33 100%) !important", borderColor: "#000000 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(1,26,51,.5)" } : undefined} icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" />
-            <Tab value={1} onClick={() => selectTab(1)} sx={modalTab === 1 ? { background: "linear-gradient(135deg, #043463 0%, #011a33 100%) !important", borderColor: "#000000 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(1,26,51,.5)" } : undefined} icon={<AccountBalanceWalletOutlinedIcon fontSize="small" />} iconPosition="start" label="Οικονομικά" />
-            <Tab value={2} onClick={() => selectTab(2)} sx={modalTab === 2 ? { background: "linear-gradient(135deg, #043463 0%, #011a33 100%) !important", borderColor: "#000000 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(1,26,51,.5)" } : undefined} icon={<DescriptionOutlinedIcon fontSize="small" />} iconPosition="start" label="Στοιχεία συμβολαίου" />
-            <Tab value={3} onClick={() => selectTab(3)} sx={modalTab === 3 ? { background: "linear-gradient(135deg, #043463 0%, #011a33 100%) !important", borderColor: "#000000 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(1,26,51,.5)" } : undefined} icon={<ReceiptLongOutlinedIcon fontSize="small" />} iconPosition="start" label="Κινήσεις" />
-            <Tab value={4} onClick={() => selectTab(4)} sx={modalTab === 4 ? { background: "linear-gradient(135deg, #043463 0%, #011a33 100%) !important", borderColor: "#000000 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(1,26,51,.5)" } : undefined} icon={<HistoryOutlinedIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & ιστορικό" />
+            <Tab value={0} onClick={() => selectTab(0)} sx={modalTab === 0 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" />
+            <Tab value={1} onClick={() => selectTab(1)} sx={modalTab === 1 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<AccountBalanceWalletOutlinedIcon fontSize="small" />} iconPosition="start" label="Οικονομικά" />
+            <Tab value={2} onClick={() => selectTab(2)} sx={modalTab === 2 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<DescriptionOutlinedIcon fontSize="small" />} iconPosition="start" label="Στοιχεία συμβολαίου" />
+            <Tab value={3} onClick={() => selectTab(3)} sx={modalTab === 3 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<ReceiptLongOutlinedIcon fontSize="small" />} iconPosition="start" label="Κινήσεις" />
+            <Tab value={4} onClick={() => selectTab(4)} sx={modalTab === 4 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<HistoryOutlinedIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & ιστορικό" />
           </> : <>
             <Tab label={t("policyDetail.tab.summary")} />
             <Tab label={t("policyDetail.tab.financials")} />
