@@ -609,7 +609,7 @@ type CompanyEditorForm = {
 };
 
 const blankCompanyEditorForm = (): CompanyEditorForm => ({
-  name: "", code: "", country: "Ελλάδα", website: null, isActive: true,
+  name: "", code: "", country: "", website: null, isActive: true,
   agentCode: null, contactName: null, contactEmail: null, contactPhone: null,
   afmVat: null, notes: null, address: null, city: null, postalCode: null,
   facebook: null, instagram: null, linkedin: null, twitter: null, googleMaps: null,
