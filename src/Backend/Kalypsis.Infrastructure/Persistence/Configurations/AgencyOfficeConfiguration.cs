@@ -18,6 +18,7 @@ public class AgencyOfficeConfiguration : IEntityTypeConfiguration<AgencyOffice>
         b.Property(x => x.Phone).HasMaxLength(40);
         b.Property(x => x.Email).HasMaxLength(160);
         b.Property(x => x.Notes).HasMaxLength(1000);
+        b.Property(x => x.ProfileJson).HasColumnType("longtext");
         b.HasMany(x => x.UserAssignments).WithOne(x => x.AgencyOffice!).HasForeignKey(x => x.AgencyOfficeId).OnDelete(DeleteBehavior.Cascade);
     }
 }

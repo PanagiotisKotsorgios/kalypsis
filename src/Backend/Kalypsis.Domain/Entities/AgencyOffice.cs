@@ -25,6 +25,14 @@ public class AgencyOffice : TenantEntity
     public string? Phone { get; set; }
     public string? Email { get; set; }
 
+    /// <summary>
+    /// Extended office profile kept as versioned JSON so every branch can store
+    /// its own contacts, insurer relationships, quoting systems, opening
+    /// hours and other office-specific information without another schema
+    /// migration for every new profile field.
+    /// </summary>
+    public string? ProfileJson { get; set; }
+
     /// <summary>The one office included in the base subscription. Only one per tenant.</summary>
     public bool IsHeadquarters { get; set; }
 

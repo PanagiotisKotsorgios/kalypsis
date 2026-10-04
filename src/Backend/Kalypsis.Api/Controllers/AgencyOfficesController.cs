@@ -34,11 +34,11 @@ public class AgencyOfficesController : ControllerBase
 
     public record OfficeDto(Guid Id, string Code, string Name, string? City, string? Address,
         string? PostalCode, string? Phone, string? Email, bool IsHeadquarters, bool IsActive,
-        int UserCount, string? Notes);
+        int UserCount, string? Notes, string? ProfileJson);
 
     public record UpsertOfficeBody(string Code, string Name, string? City, string? Address,
         string? PostalCode, string? Phone, string? Email, bool IsHeadquarters, bool IsActive,
-        string? Notes);
+        string? Notes, string? ProfileJson = null);
 
     [HttpGet]
     [Authorize(Policy = "AgencyAdmin")]
@@ -51,7 +51,7 @@ public class AgencyOfficesController : ControllerBase
                 o.Id, o.Code, o.Name, o.City, o.Address, o.PostalCode, o.Phone, o.Email,
                 o.IsHeadquarters, o.IsActive,
                 _db.UserAgencyOffices.Count(a => a.AgencyOfficeId == o.Id && a.DeletedAt == null),
-                o.Notes))
+                o.Notes, o.ProfileJson))
             .ToListAsync(ct));
 
     [HttpGet("{id:guid}")]
@@ -62,7 +62,7 @@ public class AgencyOfficesController : ControllerBase
             ?? throw AppException.NotFound("Office");
         var count = await _db.UserAgencyOffices.CountAsync(a => a.AgencyOfficeId == o.Id && a.DeletedAt == null, ct);
         return Ok(new OfficeDto(o.Id, o.Code, o.Name, o.City, o.Address, o.PostalCode, o.Phone, o.Email,
-            o.IsHeadquarters, o.IsActive, count, o.Notes));
+            o.IsHeadquarters, o.IsActive, count, o.Notes, o.ProfileJson));
     }
 
     [HttpPost]
@@ -86,12 +86,13 @@ public class AgencyOfficesController : ControllerBase
             Phone = body.Phone, Email = body.Email,
             IsHeadquarters = body.IsHeadquarters,
             IsActive = body.IsActive,
-            Notes = body.Notes
+            Notes = body.Notes,
+            ProfileJson = body.ProfileJson
         };
         _db.AgencyOffices.Add(office);
         await _db.SaveChangesAsync(ct);
         return Ok(new OfficeDto(office.Id, office.Code, office.Name, office.City, office.Address,
-            office.PostalCode, office.Phone, office.Email, office.IsHeadquarters, office.IsActive, 0, office.Notes));
+            office.PostalCode, office.Phone, office.Email, office.IsHeadquarters, office.IsActive, 0, office.Notes, office.ProfileJson));
     }
 
     [HttpPut("{id:guid}")]
@@ -110,11 +111,15 @@ public class AgencyOfficesController : ControllerBase
         office.IsHeadquarters = body.IsHeadquarters;
         office.IsActive = body.IsActive;
         office.Notes = body.Notes;
+        // Legacy office forms do not send ProfileJson; preserve the richer
+        // profile in that case instead of clearing it on an unrelated edit.
+        if (body.ProfileJson is not null)
+            office.ProfileJson = body.ProfileJson;
         office.UpdatedAt = _clock.UtcNow;
         await _db.SaveChangesAsync(ct);
         var count = await _db.UserAgencyOffices.CountAsync(a => a.AgencyOfficeId == office.Id && a.DeletedAt == null, ct);
         return Ok(new OfficeDto(office.Id, office.Code, office.Name, office.City, office.Address,
-            office.PostalCode, office.Phone, office.Email, office.IsHeadquarters, office.IsActive, count, office.Notes));
+            office.PostalCode, office.Phone, office.Email, office.IsHeadquarters, office.IsActive, count, office.Notes, office.ProfileJson));
     }
 
     [HttpDelete("{id:guid}")]

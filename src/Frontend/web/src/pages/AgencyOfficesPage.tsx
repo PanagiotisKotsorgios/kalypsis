@@ -29,6 +29,7 @@ export interface OfficeDto {
   isActive: boolean;
   userCount: number;
   notes: string | null;
+  profileJson?: string | null;
 }
 
 interface UpsertBody {
