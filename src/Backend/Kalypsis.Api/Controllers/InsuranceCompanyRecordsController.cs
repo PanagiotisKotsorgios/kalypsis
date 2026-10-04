@@ -332,6 +332,32 @@ public sealed class InsuranceCompanyRecordsController : ControllerBase
         return Ok(new FieldDefinitionDto(field.Id, field.Key, field.Label, field.FieldType, body.Options ?? Array.Empty<string>(), field.IsRequired, field.IsActive, field.SortOrder, null));
     }
 
+    [HttpPut("fields/{definitionId:guid}")]
+    [RequirePermission("documents.write")]
+    public async Task<IActionResult> UpdateField(Guid companyId, Guid definitionId,
+        [FromBody] FieldBody body, CancellationToken ct)
+    {
+        await Company(companyId, ct);
+        if (string.IsNullOrWhiteSpace(body.Label) || string.IsNullOrWhiteSpace(body.Key))
+            throw AppException.Validation("Συμπληρώστε τίτλο και κλειδί πεδίου.");
+        var field = await _db.InsuranceCompanyFieldDefinitions
+            .FirstOrDefaultAsync(f => f.Id == definitionId && f.InsuranceCompanyId == companyId && f.IsActive, ct)
+            ?? throw AppException.NotFound("Προσαρμοσμένο πεδίο");
+        var key = body.Key.Trim().ToLowerInvariant().Replace(' ', '-');
+        if (await _db.InsuranceCompanyFieldDefinitions.AnyAsync(f => f.InsuranceCompanyId == companyId
+            && f.Id != definitionId && f.Key == key && f.IsActive, ct))
+            throw AppException.Validation("Υπάρχει ήδη πεδίο με αυτό το κλειδί.");
+        field.Label = body.Label.Trim();
+        field.Key = key;
+        field.FieldType = string.IsNullOrWhiteSpace(body.FieldType) ? "text" : body.FieldType.Trim();
+        field.OptionsJson = JsonSerializer.Serialize(body.Options ?? Array.Empty<string>());
+        field.IsRequired = body.IsRequired;
+        field.SortOrder = body.SortOrder;
+        field.UpdatedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     [HttpPut("fields/{definitionId:guid}/value")]
     [RequirePermission("documents.write")]
     public async Task<IActionResult> SetFieldValue(Guid companyId, Guid definitionId, [FromBody] FieldValueBody body, CancellationToken ct)

@@ -105,4 +105,5 @@ public record CancelPolicyBody(string? Reason);
 public record InsuranceCompanyDto(
     Guid Id, string Name, string Code, string? Country, bool IsActive,
     bool IsBroker = false,
-    Guid? ParentCompanyId = null);
+    Guid? ParentCompanyId = null,
+    string? LogoUrl = null);

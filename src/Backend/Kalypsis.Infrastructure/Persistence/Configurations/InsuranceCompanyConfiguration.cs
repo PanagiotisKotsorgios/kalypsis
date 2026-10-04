@@ -14,6 +14,7 @@ public class InsuranceCompanyConfiguration : IEntityTypeConfiguration<InsuranceC
         b.Property(x => x.Code).HasMaxLength(64).IsRequired();
         b.Property(x => x.Country).HasMaxLength(80);
         b.Property(x => x.Website).HasMaxLength(255);
+        b.Property(x => x.LogoUrl).HasMaxLength(500);
         // Phase 8.7 — extended fields
         b.Property(x => x.AgentCode).HasMaxLength(80);
         b.Property(x => x.ContactName).HasMaxLength(160);

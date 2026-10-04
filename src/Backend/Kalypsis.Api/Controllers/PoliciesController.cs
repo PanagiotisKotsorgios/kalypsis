@@ -1,6 +1,8 @@
 using Kalypsis.Api.Authorization;
 using Kalypsis.Application.Features.Communications;
 using Kalypsis.Application.Features.Policies;
+using Kalypsis.Application.Abstractions;
+using Kalypsis.Application.Common;
 using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -191,13 +193,17 @@ public class InsuranceCompaniesController : ControllerBase
     private readonly Kalypsis.Infrastructure.Persistence.AppDbContext _db;
     private readonly Kalypsis.Application.Abstractions.ICurrentUser _current;
     private readonly Kalypsis.Application.Abstractions.IDateTimeProvider _clock;
+    private readonly IFileStorage _storage;
+    private readonly FileUploadGate _fileUploadGate;
 
     public InsuranceCompaniesController(
         IMediator mediator,
         Kalypsis.Infrastructure.Persistence.AppDbContext db,
         Kalypsis.Application.Abstractions.ICurrentUser current,
-        Kalypsis.Application.Abstractions.IDateTimeProvider clock)
-    { _mediator = mediator; _db = db; _current = current; _clock = clock; }
+        Kalypsis.Application.Abstractions.IDateTimeProvider clock,
+        IFileStorage storage,
+        FileUploadGate fileUploadGate)
+    { _mediator = mediator; _db = db; _current = current; _clock = clock; _storage = storage; _fileUploadGate = fileUploadGate; }
 
     public record InsuranceCompanyExtendedDto(
         Guid Id, string Name, string Code, string? Country, string? Website, bool IsActive,
@@ -211,7 +217,8 @@ public class InsuranceCompaniesController : ControllerBase
         // IsUsedByTenant = true when the tenant has explicitly ticked "Χρησιμοποιώ"
         // (universal catalog rows) OR the row is the tenant's own carrier
         // (which is implicitly opted-in). Filter surfaces gate on this flag.
-        bool IsUsedByTenant = false);
+        bool IsUsedByTenant = false,
+        string? LogoUrl = null);
 
     public record UpsertCompanyBody(
         string Name, string Code, string? Country, string? Website, bool IsActive,
@@ -411,7 +418,7 @@ public class InsuranceCompaniesController : ControllerBase
         return Ok(new InsuranceCompanyExtendedDto(c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
             c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(c.Id, ct),
             c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes,
-            IsUsedByTenant: true));
+            IsUsedByTenant: true, LogoUrl: LogoEndpoint(c)));
     }
 
     [HttpPut("{id:guid}")]
@@ -456,8 +463,89 @@ public class InsuranceCompaniesController : ControllerBase
         return Ok(new InsuranceCompanyExtendedDto(c.Id, c.Name, c.Code, c.Country, c.Website, c.IsActive,
             c.TenantId, false, c.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(c.Id, ct),
             c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes,
-            IsUsedByTenant: true));
+            IsUsedByTenant: true, LogoUrl: LogoEndpoint(c)));
     }
+
+    [HttpPost("{id:guid}/logo")]
+    [Authorize(Policy = "AgencyAdmin")]
+    [RequestSizeLimit(5_000_000)]
+    public async Task<ActionResult<object>> UploadLogo(Guid id, IFormFile file, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId
+            ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        var company = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null && x.TenantId == tenantId, ct)
+            ?? throw Kalypsis.Application.Common.AppException.NotFound("Ασφαλιστική εταιρεία");
+        if (file is null || file.Length == 0)
+            throw Kalypsis.Application.Common.AppException.Validation("Επιλέξτε αρχείο λογοτύπου.");
+
+        await using var stream = file.OpenReadStream();
+        var contentType = await _fileUploadGate.InspectAsync(
+            file.FileName, file.ContentType ?? "application/octet-stream", file.Length, stream,
+            FileUploadKind.Image, maxBytes: 4_000_000, ct: ct);
+        var path = await _storage.UploadAsync(
+            $"insurance-company-logo/{tenantId:N}/{company.Id:N}", file.FileName,
+            contentType, stream, ct);
+        var oldPath = company.LogoUrl;
+        company.LogoUrl = path;
+        company.UpdatedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        if (!string.IsNullOrWhiteSpace(oldPath) && oldPath != path)
+        {
+            try { await _storage.DeleteAsync(oldPath, ct); } catch { /* best effort */ }
+        }
+        return Ok(new { logoUrl = LogoEndpoint(company) });
+    }
+
+    [HttpGet("{id:guid}/logo")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<IActionResult> GetLogo(Guid id, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId
+            ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        var company = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null
+                && (x.TenantId == null || x.TenantId == tenantId), ct)
+            ?? throw Kalypsis.Application.Common.AppException.NotFound("Ασφαλιστική εταιρεία");
+        if (string.IsNullOrWhiteSpace(company.LogoUrl)) return NoContent();
+        Stream stream;
+        try { stream = await _storage.DownloadAsync(company.LogoUrl, ct); }
+        catch (FileNotFoundException) { return NoContent(); }
+        catch (DirectoryNotFoundException) { return NoContent(); }
+        Response.Headers.CacheControl = "private, max-age=300";
+        var fileName = Path.GetFileName(company.LogoUrl);
+        return File(stream, GuessLogoMime(fileName), fileName);
+    }
+
+    [HttpDelete("{id:guid}/logo")]
+    [Authorize(Policy = "AgencyAdmin")]
+    public async Task<IActionResult> DeleteLogo(Guid id, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId
+            ?? throw Kalypsis.Application.Common.AppException.Forbidden();
+        var company = await _db.InsuranceCompanies.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null && x.TenantId == tenantId, ct)
+            ?? throw Kalypsis.Application.Common.AppException.NotFound("Ασφαλιστική εταιρεία");
+        var oldPath = company.LogoUrl;
+        company.LogoUrl = null;
+        company.UpdatedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        if (!string.IsNullOrWhiteSpace(oldPath))
+        {
+            try { await _storage.DeleteAsync(oldPath, ct); } catch { /* best effort */ }
+        }
+        return NoContent();
+    }
+
+    private static string GuessLogoMime(string fileName)
+        => Path.GetExtension(fileName).ToLowerInvariant() switch
+        {
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".svg" => "image/svg+xml",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
+        };
 
     [HttpPost("{id:guid}/import-default")]
     [Authorize(Policy = "AgencyAdmin")]
@@ -503,7 +591,7 @@ public class InsuranceCompaniesController : ControllerBase
         return Ok(new InsuranceCompanyExtendedDto(tenantCompany.Id, tenantCompany.Name, tenantCompany.Code, tenantCompany.Country, tenantCompany.Website, tenantCompany.IsActive,
             tenantCompany.TenantId, false, tenantCompany.Id, true, bridge?.Id, bridge != null, ruleCount, await CountParameterItemsAsync(tenantCompany.Id, ct),
             tenantCompany.AgentCode, tenantCompany.ContactName, tenantCompany.ContactEmail, tenantCompany.ContactPhone, tenantCompany.AfmVat, tenantCompany.Notes,
-            IsUsedByTenant: true));
+            IsUsedByTenant: true, LogoUrl: LogoEndpoint(tenantCompany)));
     }
 
     [HttpPost("import-defaults")]
@@ -594,7 +682,8 @@ public class InsuranceCompaniesController : ControllerBase
         int CommissionRuleCount,
         int BranchCount, int CoverageCount, int UseCount, int PackageCount,
         bool BridgeLinked, string? BridgeLinkedSourceCarrier,
-        IReadOnlyList<CarrierProfileRecentPolicy> RecentPolicies);
+        IReadOnlyList<CarrierProfileRecentPolicy> RecentPolicies,
+        string? LogoUrl = null);
 
     public record CarrierProfileRecentPolicy(
         Guid Id, string PolicyNumber, string? CustomerName,
@@ -681,7 +770,8 @@ public class InsuranceCompaniesController : ControllerBase
             PC(CompanyParameterItemKind.Package),
             linkedMapping is not null,
             linkedMapping?.SourceCarrier,
-            recent));
+            recent,
+            LogoEndpoint(c)));
     }
 
     /// <summary>
@@ -980,8 +1070,14 @@ public class InsuranceCompaniesController : ControllerBase
             bridge?.Id, bridge != null, ruleCount, parameterCount,
             c.AgentCode, c.ContactName, c.ContactEmail, c.ContactPhone, c.AfmVat, c.Notes,
             c.IsBroker, c.ParentCompanyId,
-            isUsedByTenant);
+            isUsedByTenant,
+            LogoEndpoint(c));
     }
+
+    private static string? LogoEndpoint(Kalypsis.Domain.Entities.InsuranceCompany company)
+        => string.IsNullOrWhiteSpace(company.LogoUrl)
+            ? null
+            : $"/api/insurance-companies/{company.Id:D}/logo";
 
     private static bool IsBridgeOnlyCarrier(Kalypsis.Domain.Entities.InsuranceCompany company)
     {

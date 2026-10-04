@@ -8,6 +8,8 @@ public class InsuranceCompany : BaseEntity
     public string Code { get; set; } = string.Empty;
     public string? Country { get; set; }
     public string? Website { get; set; }
+    /// <summary>Tenant-owned company logo stored through the file-storage abstraction.</summary>
+    public string? LogoUrl { get; set; }
     public bool IsActive { get; set; } = true;
 
     /// <summary>

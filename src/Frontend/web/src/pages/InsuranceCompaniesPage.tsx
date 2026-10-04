@@ -23,6 +23,7 @@ export interface CompanyDto {
   code: string;
   country: string | null;
   website: string | null;
+  logoUrl: string | null;
   isActive: boolean;
   tenantId: string | null;
   isGlobal: boolean;
@@ -646,7 +647,7 @@ export function CompanyDialog({ open, onClose, item, onSaved }: {
    ========================================================================= */
 export interface CarrierProfile {
   id: string; code: string; name: string;
-  country: string | null; website: string | null;
+  country: string | null; website: string | null; logoUrl: string | null;
   agentCode: string | null; afmVat: string | null;
   contactName: string | null; contactEmail: string | null; contactPhone: string | null;
   notes: string | null; isActive: boolean; createdAt: string;

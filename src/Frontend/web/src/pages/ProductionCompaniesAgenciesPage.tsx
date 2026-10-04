@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
+  Alert, Avatar, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
   Checkbox, DialogTitle, FormControlLabel, IconButton, Popover, Stack, Switch, Tab, Table, TableBody, TableCell, TableHead,
   TableRow, Tabs, TextField, Tooltip, Typography
 } from "@mui/material";
@@ -601,6 +601,9 @@ type CompanyEditorForm = {
   name: string; code: string; country: string | null; website: string | null; isActive: boolean;
   agentCode: string | null; contactName: string | null; contactEmail: string | null;
   contactPhone: string | null; afmVat: string | null; notes: string | null;
+  address: string | null; city: string | null; postalCode: string | null;
+  facebook: string | null; instagram: string | null; linkedin: string | null;
+  twitter: string | null; googleMaps: string | null;
   createBridge: boolean; bridgeName: string | null; bridgeAutoSync: boolean; bridgeConfigJson: string | null;
   installZeroCommissionDefaults: boolean;
 };
@@ -608,7 +611,9 @@ type CompanyEditorForm = {
 const blankCompanyEditorForm = (): CompanyEditorForm => ({
   name: "", code: "", country: "Ελλάδα", website: null, isActive: true,
   agentCode: null, contactName: null, contactEmail: null, contactPhone: null,
-  afmVat: null, notes: null, createBridge: false, bridgeName: null,
+  afmVat: null, notes: null, address: null, city: null, postalCode: null,
+  facebook: null, instagram: null, linkedin: null, twitter: null, googleMaps: null,
+  createBridge: false, bridgeName: null,
   bridgeAutoSync: false, bridgeConfigJson: null, installZeroCommissionDefaults: false,
 });
 
@@ -646,10 +651,12 @@ function ProductionCompanyEditorDialog({ open, item, onClose, onSaved }: {
   const [tab, setTab] = useState(0);
   const [form, setForm] = useState<CompanyEditorForm>(blankCompanyEditorForm);
   const [error, setError] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
 
   useEffect(() => {
     setTab(0);
     setError(null);
+    setLogoFile(null);
     if (item) setForm({ ...blankCompanyEditorForm(), name: item.name, code: item.code, country: item.country, website: item.website, isActive: item.isActive, agentCode: item.agentCode, contactName: item.contactName, contactEmail: item.contactEmail, contactPhone: item.contactPhone, afmVat: item.afmVat, notes: item.notes });
     else if (open) setForm(blankCompanyEditorForm());
   }, [item, open]);
@@ -657,8 +664,34 @@ function ProductionCompanyEditorDialog({ open, item, onClose, onSaved }: {
   const save = useMutation({
     mutationFn: async () => {
       const body = { ...form, name: form.name.trim(), code: form.code.trim().toUpperCase(), country: form.country?.trim() || null, website: form.website?.trim() || null, agentCode: form.agentCode?.trim() || null, contactName: form.contactName?.trim() || null, contactEmail: form.contactEmail?.trim() || null, contactPhone: form.contactPhone?.trim() || null, afmVat: form.afmVat?.trim() || null, notes: form.notes?.trim() || null, bridgeName: form.createBridge ? (form.bridgeName?.trim() || null) : null, bridgeConfigJson: form.createBridge ? (form.bridgeConfigJson?.trim() || null) : null };
-      if (item) return (await api.put(`/insurance-companies/${item.id}`, body)).data;
-      return (await api.post("/insurance-companies", body)).data;
+      if (item) {
+        const saved = (await api.put<CompanyDto>(`/insurance-companies/${item.id}`, body)).data;
+        if (logoFile) {
+          if (logoFile.size > 4_000_000) throw new Error("Το λογότυπο δεν μπορεί να ξεπερνά τα 4 MB.");
+          const logoData = new FormData();
+          logoData.append("file", logoFile);
+          await api.post(`/insurance-companies/${item.id}/logo`, logoData, { headers: { "Content-Type": "multipart/form-data" } });
+        }
+        return saved;
+      }
+      const created = (await api.post<CompanyDto>("/insurance-companies", body)).data;
+      if (logoFile) {
+        if (logoFile.size > 4_000_000) throw new Error("Το λογότυπο δεν μπορεί να ξεπερνά τα 4 MB.");
+        const logoData = new FormData();
+        logoData.append("file", logoFile);
+        await api.post(`/insurance-companies/${created.id}/logo`, logoData, { headers: { "Content-Type": "multipart/form-data" } });
+      }
+      const extraFields = [
+        ["address", "Διεύθυνση", form.address], ["city", "Πόλη", form.city], ["postal-code", "Τ.Κ.", form.postalCode],
+        ["facebook", "Facebook", form.facebook], ["instagram", "Instagram", form.instagram], ["linkedin", "LinkedIn", form.linkedin],
+        ["twitter", "X / Twitter", form.twitter], ["google-maps", "Google Maps", form.googleMaps],
+      ] as const;
+      for (const [key, label, value] of extraFields) {
+        if (!value?.trim()) continue;
+        const field = (await api.post<CompanyWorkspaceField>(`/insurance-companies/${created.id}/workspace/fields`, { label, key, fieldType: key.includes("facebook") || key.includes("instagram") || key.includes("linkedin") || key.includes("twitter") || key.includes("maps") ? "url" : "text", options: [], isRequired: false, sortOrder: 0 })).data;
+        await api.put(`/insurance-companies/${created.id}/workspace/fields/${field.id}/value`, { value: value.trim() });
+      }
+      return created;
     },
     onSuccess: saved => onSaved(saved as CompanyDto),
     onError: e => setError(extractErrorMessage(e)),
@@ -671,12 +704,14 @@ function ProductionCompanyEditorDialog({ open, item, onClose, onSaved }: {
       {error && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError(null)}>{error}</Alert>}
       <WorkspaceProfileTabs value={tab} onChange={setTab} />
       {tab === 0 && <Stack spacing={1.5}>
+        <ProfileSection title="Λογότυπο εταιρείας"><Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap><Button component="label" size="small" variant="outlined" color="primary" startIcon={<CloudUploadIcon />}>{logoFile ? logoFile.name : "Επιλογή λογοτύπου"}<input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { const file = event.target.files?.[0] ?? null; if (file && file.size > 4_000_000) { setError("Το λογότυπο δεν μπορεί να ξεπερνά τα 4 MB."); setLogoFile(null); } else { setError(null); setLogoFile(file); } event.currentTarget.value = ""; }} /></Button><Typography variant="caption" color="text.secondary">PNG, JPG ή WEBP · προαιρετικό</Typography></Stack></ProfileSection>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 1.5 }}>
           <ProfileSection title="Ταυτότητα εταιρείας"><TextField fullWidth required label="Κωδικός" value={form.code} onChange={e => update({ code: e.target.value.toUpperCase() })} /><TextField fullWidth required label="Επωνυμία" value={form.name} onChange={e => update({ name: e.target.value })} sx={{ mt: 1.25 }} /><TextField fullWidth label="Χώρα" value={form.country ?? ""} onChange={e => update({ country: e.target.value })} sx={{ mt: 1.25 }} /></ProfileSection>
-          <ProfileSection title="Διεύθυνση & στοιχεία"><TextField fullWidth label="ΑΦΜ / VAT" value={form.afmVat ?? ""} onChange={e => update({ afmVat: e.target.value })} /><TextField fullWidth label="Website" value={form.website ?? ""} onChange={e => update({ website: e.target.value })} sx={{ mt: 1.25 }} /><TextField fullWidth label="Κωδικός συνεργασίας" value={form.agentCode ?? ""} onChange={e => update({ agentCode: e.target.value })} sx={{ mt: 1.25 }} /></ProfileSection>
+          <ProfileSection title="Διεύθυνση & στοιχεία"><TextField fullWidth label="ΑΦΜ / VAT" value={form.afmVat ?? ""} onChange={e => update({ afmVat: e.target.value })} /><TextField fullWidth label="Διεύθυνση" value={form.address ?? ""} onChange={e => update({ address: e.target.value })} sx={{ mt: 1.25 }} /><Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.25, mt: 1.25 }}><TextField fullWidth label="Πόλη" value={form.city ?? ""} onChange={e => update({ city: e.target.value })} /><TextField fullWidth label="Τ.Κ." value={form.postalCode ?? ""} onChange={e => update({ postalCode: e.target.value })} /></Box><TextField fullWidth label="Website" value={form.website ?? ""} onChange={e => update({ website: e.target.value })} sx={{ mt: 1.25 }} /><TextField fullWidth label="Κωδικός συνεργασίας" value={form.agentCode ?? ""} onChange={e => update({ agentCode: e.target.value })} sx={{ mt: 1.25 }} /></ProfileSection>
           <ProfileSection title="Κατάσταση"><FormControlLabel control={<Switch checked={form.isActive} onChange={e => update({ isActive: e.target.checked })} />} label={form.isActive ? "Ενεργή" : "Ανενεργή"} /><Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Η εταιρεία θα εμφανίζεται στις λίστες παραγωγής και στις νέες καταχωρήσεις.</Typography></ProfileSection>
         </Box>
         <ProfileSection title="Επικοινωνία"><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 1.5 }}><TextField label="Ονοματεπώνυμο επαφής" value={form.contactName ?? ""} onChange={e => update({ contactName: e.target.value })} /><TextField label="Email" type="email" value={form.contactEmail ?? ""} onChange={e => update({ contactEmail: e.target.value })} /><TextField label="Τηλέφωνο" value={form.contactPhone ?? ""} onChange={e => update({ contactPhone: e.target.value })} /></Box></ProfileSection>
+        <ProfileSection title="Ιστοσελίδα & ψηφιακή παρουσία"><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 1.25 }}><TextField label="Facebook" value={form.facebook ?? ""} onChange={e => update({ facebook: e.target.value })} /><TextField label="Instagram" value={form.instagram ?? ""} onChange={e => update({ instagram: e.target.value })} /><TextField label="LinkedIn" value={form.linkedin ?? ""} onChange={e => update({ linkedin: e.target.value })} /><TextField label="X / Twitter" value={form.twitter ?? ""} onChange={e => update({ twitter: e.target.value })} /><TextField label="Google Maps" value={form.googleMaps ?? ""} onChange={e => update({ googleMaps: e.target.value })} /></Box></ProfileSection>
         <ProfileSection title="Σύνδεση και γέφυρα"><FormControlLabel control={<Switch checked={form.createBridge} onChange={e => update({ createBridge: e.target.checked })} />} label="Δημιουργία γέφυρας εταιρείας" />{form.createBridge && <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5, mt: 1 }}><TextField label="Όνομα γέφυρας" value={form.bridgeName ?? ""} onChange={e => update({ bridgeName: e.target.value })} /><FormControlLabel control={<Switch checked={form.bridgeAutoSync} onChange={e => update({ bridgeAutoSync: e.target.checked })} />} label="Αυτόματος συγχρονισμός" /><TextField label="Ρυθμίσεις γέφυρας (JSON)" value={form.bridgeConfigJson ?? ""} onChange={e => update({ bridgeConfigJson: e.target.value })} multiline minRows={3} sx={{ gridColumn: { md: "1 / -1" } }} /></Box>}</ProfileSection>
         <ProfileSection title="Παραγωγή και προμήθειες"><FormControlLabel control={<Switch checked={form.installZeroCommissionDefaults} onChange={e => update({ installZeroCommissionDefaults: e.target.checked })} />} label="Προσθήκη αρχικών κανόνων προμήθειας" /><TextField fullWidth label="Κωδικός συνεργασίας / πρακτορείου" value={form.agentCode ?? ""} onChange={e => update({ agentCode: e.target.value })} sx={{ mt: 1 }} /></ProfileSection>
         <ProfileSection title="Σημειώσεις"><TextField fullWidth multiline minRows={4} label="Εσωτερικές σημειώσεις" value={form.notes ?? ""} onChange={e => update({ notes: e.target.value })} /></ProfileSection>
@@ -686,7 +721,7 @@ function ProductionCompanyEditorDialog({ open, item, onClose, onSaved }: {
       {tab === 3 && <Stack spacing={1.5}><ProfileSection title="Επικοινωνία εταιρείας"><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 1.5 }}><TextField label="Ονοματεπώνυμο επαφής" value={form.contactName ?? ""} onChange={e => update({ contactName: e.target.value })} /><TextField label="Email" type="email" value={form.contactEmail ?? ""} onChange={e => update({ contactEmail: e.target.value })} /><TextField label="Τηλέφωνο" value={form.contactPhone ?? ""} onChange={e => update({ contactPhone: e.target.value })} /></Box></ProfileSection></Stack>}
       {tab === 4 && <Stack spacing={1.5}><ProfileSection title="Έγγραφα και προσαρμόσιμα πεδία"><Alert severity="info">Μετά την αποθήκευση ενεργοποιούνται τα έγγραφα, οι φάκελοι και τα προσαρμόσιμα πεδία της εταιρείας.</Alert><Typography color="text.secondary">Η καρτέλα θα ανοίξει αυτόματα μετά τη δημιουργία ώστε να συνεχίσετε με αρχεία, επαφές, παραμετρικά και επικοινωνίες.</Typography></ProfileSection></Stack>}
     </DialogContent>
-    <DialogActions sx={{ px: 3, py: 2 }}><Button onClick={onClose} color="error" variant="contained" sx={{ color: "#fff", fontWeight: 800 }}>Ακύρωση</Button><Button variant="contained" color="primary" startIcon={<SaveIcon />} disabled={save.isPending || !form.name.trim() || !form.code.trim()} onClick={() => save.mutate()}>{save.isPending ? <CircularProgress size={18} color="inherit" /> : item ? "Αποθήκευση αλλαγών" : "Δημιουργία & αποθήκευση"}</Button></DialogActions>
+    <DialogActions sx={{ px: 3, py: 2 }}><Button onClick={onClose} color="error" variant="contained" sx={{ color: "#fff", fontWeight: 800 }}>Ακύρωση επεξεργασίας</Button><Button variant="contained" color="primary" startIcon={<SaveIcon />} disabled={save.isPending || !form.name.trim() || !form.code.trim()} onClick={() => save.mutate()}>{save.isPending ? <CircularProgress size={18} color="inherit" /> : item ? "Αποθήκευση αλλαγών" : "Δημιουργία & αποθήκευση"}</Button></DialogActions>
   </Dialog>;
 }
 
@@ -698,21 +733,37 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
   const [fieldDrafts, setFieldDrafts] = useState<Record<string, string>>({});
   const [savingFieldId, setSavingFieldId] = useState<string | null>(null);
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
+  const [fieldEntryOpen, setFieldEntryOpen] = useState(false);
   const [newField, setNewField] = useState({ label: "", key: "", fieldType: "text", value: "" });
+  const [fieldEdit, setFieldEdit] = useState<{ id: string; label: string; key: string; fieldType: string; value: string } | null>(null);
+  const [logoLocalPreview, setLogoLocalPreview] = useState<string | null>(null);
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [contactDraft, setContactDraft] = useState({ name: "", role: "", department: "", email: "", phone: "", mobile: "", notes: "", isPrimary: false });
   const q = useQuery({ queryKey: ["production-company-profile", company?.id], enabled: open && !!company, queryFn: async () => (await api.get<CarrierProfile>(`/insurance-companies/${company!.id}/profile`)).data });
   const workspaceQ = useQuery({ queryKey: ["production-company-workspace", company?.id], enabled: open && !!company, queryFn: async () => (await api.get<CompanyWorkspace>(`/insurance-companies/${company!.id}/workspace`)).data });
-  const qc = useQueryClient();
   const p = q.data;
+  const logoQ = useQuery<string | null>({
+    queryKey: ["production-company-logo", company?.id, p?.logoUrl],
+    enabled: open && !!company && !!p?.logoUrl,
+    queryFn: async () => {
+      const response = await api.get<Blob>(`/insurance-companies/${company!.id}/logo`, { responseType: "blob" });
+      return response.data?.size ? URL.createObjectURL(response.data) : null;
+    },
+  });
+  const qc = useQueryClient();
   const workspace = workspaceQ.data;
   const date = (value: string | null) => value ? new Date(value).toLocaleDateString("el-GR") : "—";
   useEffect(() => {
     setTab(0);
     setEditing(startEditing);
     setInlineError(null);
+    setLogoLocalPreview(null);
   }, [company?.id, open, startEditing]);
+  useEffect(() => () => {
+    if (logoQ.data) URL.revokeObjectURL(logoQ.data);
+    if (logoLocalPreview) URL.revokeObjectURL(logoLocalPreview);
+  }, [logoQ.data, logoLocalPreview]);
   useEffect(() => {
     if (!p) return;
     setDraft({ ...blankCompanyEditorForm(), name: p.name, code: p.code, country: p.country, website: p.website, isActive: p.isActive, agentCode: p.agentCode, contactName: p.contactName, contactEmail: p.contactEmail, contactPhone: p.contactPhone, afmVat: p.afmVat, notes: p.notes });
@@ -731,6 +782,44 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
     onSuccess: saved => { setEditing(false); setInlineError(null); onChanged?.(saved); void qc.invalidateQueries({ queryKey: ["production-company-profile", company?.id] }); void qc.invalidateQueries({ queryKey: ["production-company-workspace", company?.id] }); },
     onError: error => setInlineError(extractErrorMessage(error)),
   });
+  const uploadLogo = useMutation({
+    mutationFn: async (file: File) => {
+      if (!company) throw new Error("Δεν επιλέχθηκε εταιρεία.");
+      const formData = new FormData();
+      formData.append("file", file);
+      return (await api.post<{ logoUrl: string | null }>(`/insurance-companies/${company.id}/logo`, formData, { headers: { "Content-Type": "multipart/form-data" } })).data;
+    },
+    onSuccess: async () => {
+      setLogoLocalPreview(null);
+      await qc.invalidateQueries({ queryKey: ["production-company-profile", company?.id] });
+      await qc.invalidateQueries({ queryKey: ["production-company-logo", company?.id] });
+      await qc.invalidateQueries({ queryKey: ["production-companies-directory"] });
+      await qc.invalidateQueries({ queryKey: ["insurance-companies"] });
+    },
+    onError: error => setInlineError(extractErrorMessage(error)),
+  });
+  const deleteLogo = useMutation({
+    mutationFn: async () => {
+      if (!company) throw new Error("Δεν επιλέχθηκε εταιρεία.");
+      await api.delete(`/insurance-companies/${company.id}/logo`);
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["production-company-profile", company?.id] });
+      await qc.invalidateQueries({ queryKey: ["production-company-logo", company?.id] });
+      await qc.invalidateQueries({ queryKey: ["production-companies-directory"] });
+      await qc.invalidateQueries({ queryKey: ["insurance-companies"] });
+    },
+    onError: error => setInlineError(extractErrorMessage(error)),
+  });
+  const handleLogoFile = (file: File) => {
+    if (file.size > 4_000_000) {
+      setInlineError("Το λογότυπο δεν μπορεί να ξεπερνά τα 4 MB.");
+      return;
+    }
+    setInlineError(null);
+    setLogoLocalPreview(URL.createObjectURL(file));
+    uploadLogo.mutate(file);
+  };
   const saveField = async (fieldId: string) => {
     if (!company) return;
     setSavingFieldId(fieldId);
@@ -771,16 +860,48 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
     }
   };
   const openFieldCreator = (label: string, key: string) => {
-    setNewField({ label, key, fieldType: key === "website" || key.includes("facebook") || key.includes("instagram") || key.includes("linkedin") || key.includes("maps") ? "url" : "text", value: "" });
-    setFieldDialogOpen(true);
+    setNewField({ label: label === "Νέο πεδίο" ? "" : label, key, fieldType: key === "website" || key.includes("facebook") || key.includes("instagram") || key.includes("linkedin") || key.includes("maps") ? "url" : "text", value: "" });
+    setFieldEntryOpen(true);
+  };
+  const fieldKeyForLabel = (label: string, fallback: string) => {
+    const slug = label.trim().toLocaleLowerCase("el-GR").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "");
+    return slug || `${fallback}-${Date.now()}`;
   };
   const createField = async () => {
-    if (!company || !newField.label.trim() || !newField.key.trim()) return;
+    if (!company || !newField.label.trim() || !newField.value.trim()) return;
     try {
-      const created = (await api.post<CompanyWorkspaceField>(`/insurance-companies/${company.id}/workspace/fields`, { label: newField.label.trim(), key: newField.key.trim(), fieldType: newField.fieldType, options: [], isRequired: false, sortOrder: workspace?.fields.length ?? 0 })).data;
+      const key = newField.key === "custom-field" ? fieldKeyForLabel(newField.label, "custom-field") : newField.key;
+      const created = (await api.post<CompanyWorkspaceField>(`/insurance-companies/${company.id}/workspace/fields`, { label: newField.label.trim(), key, fieldType: newField.fieldType, options: [], isRequired: false, sortOrder: workspace?.fields.length ?? 0 })).data;
       if (newField.value.trim()) await api.put(`/insurance-companies/${company.id}/workspace/fields/${created.id}/value`, { value: newField.value.trim() });
       setFieldDialogOpen(false);
+      setFieldEntryOpen(false);
       setNewField({ label: "", key: "", fieldType: "text", value: "" });
+      await qc.invalidateQueries({ queryKey: ["production-company-workspace", company.id] });
+    } catch (error) {
+      setInlineError(extractErrorMessage(error));
+    }
+  };
+  const openFieldEditor = (field: CompanyWorkspaceField) => {
+    setFieldEdit({ id: field.id, label: field.label, key: field.key, fieldType: field.fieldType, value: field.value ?? "" });
+  };
+  const updateField = async () => {
+    if (!company || !fieldEdit?.label.trim() || !fieldEdit.value.trim()) return;
+    try {
+      await api.put(`/insurance-companies/${company.id}/workspace/fields/${fieldEdit.id}`, {
+        label: fieldEdit.label.trim(), key: fieldEdit.key, fieldType: fieldEdit.fieldType,
+        options: [], isRequired: false, sortOrder: workspace?.fields.find(field => field.id === fieldEdit.id)?.sortOrder ?? 0,
+      });
+      await api.put(`/insurance-companies/${company.id}/workspace/fields/${fieldEdit.id}/value`, { value: fieldEdit.value.trim() });
+      setFieldEdit(null);
+      await qc.invalidateQueries({ queryKey: ["production-company-workspace", company.id] });
+    } catch (error) {
+      setInlineError(extractErrorMessage(error));
+    }
+  };
+  const deleteField = async (field: CompanyWorkspaceField) => {
+    if (!company || !window.confirm(`Διαγραφή του πεδίου «${field.label}»;`)) return;
+    try {
+      await api.delete(`/insurance-companies/${company.id}/workspace/fields/${field.id}`);
       await qc.invalidateQueries({ queryKey: ["production-company-workspace", company.id] });
     } catch (error) {
       setInlineError(extractErrorMessage(error));
@@ -871,6 +992,21 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
           <Tab icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" /><Tab icon={<DescriptionIcon fontSize="small" />} iconPosition="start" label="Παραγωγή & συμβόλαια" /><Tab icon={<TuneIcon fontSize="small" />} iconPosition="start" label="Σύνδεση & παραμετρικά" /><Tab icon={<ContactPhoneIcon fontSize="small" />} iconPosition="start" label="Επικοινωνία" /><Tab icon={<FolderIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & πεδία" /><Tab icon={<BarChartIcon fontSize="small" />} iconPosition="start" label="Στατιστικά" />
         </Tabs>
         {tab === 0 && <Stack spacing={1.5}>
+          <ProfileSection title="Λογότυπο εταιρείας">
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ sm: "center" }}>
+              <Avatar src={logoLocalPreview ?? logoQ.data ?? undefined} variant="rounded" sx={{ width: 88, height: 64, bgcolor: "rgba(11,37,69,.06)", border: "1px solid", borderColor: "divider", "& img": { objectFit: "contain", p: .75 } }}>
+                <BusinessIcon color="disabled" />
+              </Avatar>
+              <Stack direction="row" spacing={.75} flexWrap="wrap" useFlexGap>
+                {editing && <Button component="label" size="small" variant="contained" color="primary" startIcon={<CloudUploadIcon />} disabled={uploadLogo.isPending}>
+                  {uploadLogo.isPending ? <CircularProgress size={16} color="inherit" /> : "Ανέβασμα λογοτύπου"}
+                  <input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { const file = event.target.files?.[0]; if (file) handleLogoFile(file); event.currentTarget.value = ""; }} />
+                </Button>}
+                {editing && p.logoUrl && <Button size="small" variant="outlined" color="error" startIcon={<DeleteOutlineIcon />} onClick={() => deleteLogo.mutate()} disabled={deleteLogo.isPending}>Αφαίρεση</Button>}
+              </Stack>
+              {!editing && !p.logoUrl && <Typography variant="body2" color="text.secondary">Δεν έχει καταχωρηθεί λογότυπο.</Typography>}
+            </Stack>
+          </ProfileSection>
           <Box sx={{ display: editing ? "none" : "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}><ProfileSection title="Ταυτότητα εταιρείας"><ProfileLine label="ΑΦΜ / VAT" value={p.afmVat} /><ProfileLine label="Χώρα" value={p.country} /><ProfileLine label="Κωδικός συνεργασίας" value={p.agentCode} mono /><ProfileLine label="Website" value={p.website} link={p.website ?? undefined} /></ProfileSection><ProfileSection title="Επαφή & υπεύθυνοι"><ProfileLine label="Υπεύθυνος" value={p.contactName} /><ProfileLine label="Email" value={p.contactEmail} link={p.contactEmail ? `mailto:${p.contactEmail}` : undefined} /><ProfileLine label="Τηλέφωνο" value={p.contactPhone} link={p.contactPhone ? `tel:${p.contactPhone}` : undefined} /></ProfileSection></Box>
           <Box sx={{ display: editing ? "none" : "block" }}><ProfileSection title="Σημειώσεις"><Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>{p.notes || "Δεν έχουν καταχωρηθεί σημειώσεις."}</Typography></ProfileSection></Box>
           {editing && <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}>
@@ -918,7 +1054,7 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
               <Typography variant="body2" color="text.secondary">Πρόσθετα πεδία που ορίζει το γραφείο.</Typography>
               {editing && <Button size="small" variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => openFieldCreator("Νέο πεδίο", "custom-field")}>Προσθήκη πεδίου</Button>}
             </Stack>
-            {(workspace?.fields ?? []).filter(field => field.isActive).length === 0 ? <Typography color="text.secondary">Δεν έχουν συμπληρωθεί πρόσθετα πεδία.</Typography> : <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, columnGap: 2 }}>{(workspace?.fields ?? []).filter(field => field.isActive).map(field => editing ? <Stack key={field.id} direction="row" spacing={.75} alignItems="flex-start" sx={{ py: .4 }}><TextField fullWidth size="small" label={field.label} value={fieldDrafts[field.id] ?? ""} onChange={event => setFieldDrafts(current => ({ ...current, [field.id]: event.target.value }))} /><Button size="small" variant="outlined" onClick={() => void saveField(field.id)} disabled={savingFieldId === field.id}>{savingFieldId === field.id ? <CircularProgress size={16} /> : "Αποθήκευση"}</Button></Stack> : <ProfileLine key={field.id} label={field.label} value={field.value} link={/^https?:\/\//i.test(field.value ?? "") ? field.value ?? undefined : undefined} />)}</Box>}
+            {(workspace?.fields ?? []).filter(field => field.isActive).length === 0 ? <Typography color="text.secondary">Δεν έχουν συμπληρωθεί πρόσθετα πεδία.</Typography> : <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, columnGap: 2 }}>{(workspace?.fields ?? []).filter(field => field.isActive).map(field => editing ? <Stack key={field.id} direction="row" spacing={.75} alignItems="flex-start" sx={{ py: .4 }}><TextField fullWidth size="small" label={field.label} value={fieldDrafts[field.id] ?? ""} onChange={event => setFieldDrafts(current => ({ ...current, [field.id]: event.target.value }))} /><Button size="small" variant="outlined" onClick={() => void saveField(field.id)} disabled={savingFieldId === field.id}>{savingFieldId === field.id ? <CircularProgress size={16} /> : "Αποθήκευση"}</Button><IconButton size="small" color="primary" title="Επεξεργασία τίτλου και περιεχομένου" onClick={() => openFieldEditor(field)}><EditIcon fontSize="small" /></IconButton><IconButton size="small" color="error" title="Διαγραφή πεδίου" onClick={() => void deleteField(field)}><DeleteOutlineIcon fontSize="small" /></IconButton></Stack> : <ProfileLine key={field.id} label={field.label} value={field.value} link={/^https?:\/\//i.test(field.value ?? "") ? field.value ?? undefined : undefined} />)}</Box>}
           </ProfileSection>
         </Stack>}
         {tab === 2 && <Stack spacing={1.5}><ProfileMetricGrid items={[["Κλάδοι", String(p.branchCount), "info"], ["Πακέτα", String(p.packageCount), "info"], ["Χρήσεις", String(p.useCount), "info"], ["Καλύψεις", String(p.coverageCount), "info"], ["Γέφυρα", p.bridgeLinked ? "Συνδεδεμένη" : "Χωρίς σύνδεση", p.bridgeLinked ? "success" : "warning"]]} /><ProfileSection title="Σύνδεση εταιρείας"><ProfileLine label="Πηγή γέφυρας" value={p.bridgeLinkedSourceCarrier} /><ProfileLine label="Κατάσταση" value={p.isActive ? "Ενεργή" : "Ανενεργή"} /><ProfileLine label="Δημιουργήθηκε" value={date(p.createdAt)} /></ProfileSection></Stack>}
@@ -929,6 +1065,8 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
         {tab === 4 && company && <CompanyDocumentsWorkspace companyId={company.id} />}
         {tab === 5 && company && <CompanyStatisticsSection companyId={company.id} profile={p} />}
       </>}
+      <Dialog open={fieldEntryOpen} onClose={() => setFieldEntryOpen(false)} fullWidth maxWidth="sm"><DialogTitle>Προσθήκη πεδίου</DialogTitle><DialogContent><Stack spacing={1.25} sx={{ pt: 1 }}><TextField autoFocus fullWidth size="small" label="Τίτλος πεδίου" value={newField.label} onChange={event => setNewField(current => ({ ...current, label: event.target.value }))} /><TextField fullWidth size="small" label="Περιεχόμενο πεδίου" value={newField.value} onChange={event => setNewField(current => ({ ...current, value: event.target.value }))} multiline minRows={3} /></Stack></DialogContent><DialogActions><Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={() => setFieldEntryOpen(false)} sx={{ color: "#fff" }}>Ακύρωση επεξεργασίας</Button><Button variant="contained" color="primary" startIcon={<SaveIcon />} onClick={() => void createField()} disabled={!newField.label.trim() || !newField.value.trim()}>Αποθήκευση</Button></DialogActions></Dialog>
+      <Dialog open={!!fieldEdit} onClose={() => setFieldEdit(null)} fullWidth maxWidth="sm"><DialogTitle>Επεξεργασία πεδίου</DialogTitle><DialogContent><Stack spacing={1.25} sx={{ pt: 1 }}><TextField autoFocus fullWidth size="small" label="Τίτλος πεδίου" value={fieldEdit?.label ?? ""} onChange={event => setFieldEdit(current => current ? ({ ...current, label: event.target.value }) : current)} /><TextField fullWidth size="small" label="Περιεχόμενο πεδίου" value={fieldEdit?.value ?? ""} onChange={event => setFieldEdit(current => current ? ({ ...current, value: event.target.value }) : current)} multiline minRows={3} /></Stack></DialogContent><DialogActions><Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={() => setFieldEdit(null)} sx={{ color: "#fff" }}>Ακύρωση επεξεργασίας</Button><Button variant="contained" color="primary" startIcon={<SaveIcon />} onClick={() => void updateField()} disabled={!fieldEdit?.label.trim() || !fieldEdit?.value.trim()}>Αποθήκευση</Button></DialogActions></Dialog>
       </DialogContent><Dialog open={fieldDialogOpen} onClose={() => setFieldDialogOpen(false)} fullWidth maxWidth="sm"><DialogTitle>Προσθήκη κειμένου</DialogTitle><DialogContent><TextField autoFocus fullWidth size="small" label="Κείμενο" value={newField.value} onChange={event => setNewField(current => ({ ...current, value: event.target.value }))} multiline minRows={3} sx={{ mt: 1 }} /></DialogContent><DialogActions><Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={() => setFieldDialogOpen(false)} sx={{ color: "#fff" }}>Ακύρωση</Button><Button variant="contained" color="primary" startIcon={<SaveIcon />} onClick={() => void createField()} disabled={!newField.value.trim()}>Αποθήκευση</Button></DialogActions></Dialog><Dialog open={contactDialogOpen} onClose={() => setContactDialogOpen(false)} fullWidth maxWidth="md"><DialogTitle>{editingContactId ? "Επεξεργασία επαφής" : "Προσθήκη επαφής"}</DialogTitle><DialogContent><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.25, pt: 1 }}><TextField autoFocus size="small" label="Ονοματεπώνυμο *" value={contactDraft.name} onChange={event => setContactDraft(current => ({ ...current, name: event.target.value }))} /><TextField size="small" label="Ρόλος" value={contactDraft.role} onChange={event => setContactDraft(current => ({ ...current, role: event.target.value }))} /><TextField size="small" label="Τμήμα" value={contactDraft.department} onChange={event => setContactDraft(current => ({ ...current, department: event.target.value }))} /><TextField size="small" type="email" label="Email" value={contactDraft.email} onChange={event => setContactDraft(current => ({ ...current, email: event.target.value }))} /><TextField size="small" label="Τηλέφωνο" value={contactDraft.phone} onChange={event => setContactDraft(current => ({ ...current, phone: event.target.value }))} /><TextField size="small" label="Κινητό" value={contactDraft.mobile} onChange={event => setContactDraft(current => ({ ...current, mobile: event.target.value }))} /><TextField size="small" multiline minRows={2} label="Σημειώσεις" value={contactDraft.notes} onChange={event => setContactDraft(current => ({ ...current, notes: event.target.value }))} sx={{ gridColumn: { sm: "1 / -1" } }} /><FormControlLabel control={<Switch checked={contactDraft.isPrimary} onChange={event => setContactDraft(current => ({ ...current, isPrimary: event.target.checked }))} />} label="Κύρια επαφή" /></Box></DialogContent><DialogActions><Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={() => setContactDialogOpen(false)} sx={{ color: "#fff" }}>Ακύρωση</Button><Button variant="contained" color="primary" startIcon={<SaveIcon />} onClick={() => void saveContact()} disabled={!contactDraft.name.trim()}>Αποθήκευση</Button></DialogActions></Dialog><DialogActions sx={{ px: 3, py: 2 }}><Button variant="contained" color="error" startIcon={editing ? <CloseIcon /> : undefined} onClick={onClose} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, "&:hover": { bgcolor: "error.dark", color: "#fff" } }}>{editing ? "Ακύρωση" : "Κλείσιμο"}</Button></DialogActions>
   </Dialog>;
 }
