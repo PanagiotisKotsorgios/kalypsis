@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   Checkbox, FormControlLabel, IconButton, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow,
-  TextField, Typography, List, ListItem, ListItemText
+  TextField, Typography, List, ListItem, ListItemText, LinearProgress
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -21,6 +21,7 @@ import BusinessIcon from "@mui/icons-material/Business";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
+import { ALL_OFFICES_VALUE } from "../components/AgencyOfficeSwitcher";
 
 export interface OfficeDto {
   id: string;
@@ -58,6 +59,8 @@ interface OfficeOverviewDto {
   grossPremium: number; netPremium: number;
 }
 
+interface OverviewFilters { from: string; to: string; }
+
 interface CopyParametricsResult {
   sourceOfficeId: string; targetOfficeId: string; branchesCopied: number;
   commissionRulesCopied: number; defaultRulesCopied: number; renewalRulesCopied: number;
@@ -73,6 +76,9 @@ export function AgencyOfficesPage() {
   const [assigning, setAssigning] = useState<OfficeDto | null>(null);
   const [profileFor, setProfileFor] = useState<OfficeDto | null>(null);
   const [overviewOffice, setOverviewOffice] = useState<OfficeDto | null>(null);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const yearStartIso = `${new Date().getFullYear()}-01-01`;
+  const [overviewFilters, setOverviewFilters] = useState<OverviewFilters>({ from: yearStartIso, to: todayIso });
   const [copyTarget, setCopyTarget] = useState<OfficeDto | null>(null);
 
   const q = useQuery({
@@ -89,9 +95,11 @@ export function AgencyOfficesPage() {
   const offices = q.data ?? [];
   const headquarters = useMemo(() => offices.find(o => o.isHeadquarters) ?? offices[0], [offices]);
   const overview = useQuery({
-    queryKey: ["agency-office-overview", overviewOffice?.id],
+    queryKey: ["agency-office-overview", overviewOffice?.id, overviewFilters],
     enabled: !!overviewOffice,
-    queryFn: async () => (await api.get<OfficeOverviewDto>(`/agency-offices/${overviewOffice!.id}/overview`)).data
+    queryFn: async () => (await api.get<OfficeOverviewDto>(`/agency-offices/${overviewOffice!.id}/overview`, {
+      params: { from: overviewFilters.from || undefined, to: overviewFilters.to || undefined }
+    })).data
   });
   const copy = useMutation({
     mutationFn: async (target: OfficeDto) => (await api.post<CopyParametricsResult>(`/agency-offices/${target.id}/copy-parametrics`, {
@@ -109,7 +117,7 @@ export function AgencyOfficesPage() {
     window.location.reload();
   };
   const showAllOffices = () => {
-    localStorage.removeItem("kalypsis.activeOfficeId");
+    localStorage.setItem("kalypsis.activeOfficeId", ALL_OFFICES_VALUE);
     window.location.reload();
   };
 
@@ -217,7 +225,7 @@ export function AgencyOfficesPage() {
                       <LoginIcon fontSize="small" />
                     </IconButton>
                     <IconButton size="small" color="info" title="Στατιστικά γραφείου"
-                      onClick={() => setOverviewOffice(o)}>
+                      onClick={() => { setOverviewFilters({ from: yearStartIso, to: todayIso }); setOverviewOffice(o); }}>
                       <InsightsIcon fontSize="small" />
                     </IconButton>
                     {!o.isHeadquarters && headquarters && (
@@ -257,7 +265,8 @@ export function AgencyOfficesPage() {
         onSaved={() => { void qc.invalidateQueries({ queryKey: ["agency-offices"] }); setAssigning(null); }} />
       <OfficeProfileDialog open={!!profileFor} office={profileFor} onClose={() => setProfileFor(null)} />
       <OfficeOverviewDialog open={!!overviewOffice} office={overviewOffice} overview={overview.data}
-        loading={overview.isLoading} onClose={() => setOverviewOffice(null)} />
+        loading={overview.isLoading} filters={overviewFilters} onFiltersChange={setOverviewFilters}
+        onClose={() => setOverviewOffice(null)} />
       <CopyParametricsDialog open={!!copyTarget} source={headquarters} target={copyTarget}
         pending={copy.isPending} onClose={() => setCopyTarget(null)} onConfirm={() => copyTarget && copy.mutate(copyTarget)} />
     </Box>
@@ -279,10 +288,19 @@ function ManagementCard({ icon, label, value, tone, compact }: {
   </Card>;
 }
 
-function OfficeOverviewDialog({ open, office, overview, loading, onClose }: {
-  open: boolean; office: OfficeDto | null; overview?: OfficeOverviewDto; loading: boolean; onClose: () => void;
+function OfficeOverviewDialog({ open, office, overview, loading, filters, onFiltersChange, onClose }: {
+  open: boolean; office: OfficeDto | null; overview?: OfficeOverviewDto; loading: boolean;
+  filters: OverviewFilters; onFiltersChange: (next: OverviewFilters) => void; onClose: () => void;
 }) {
   const money = (value: number) => new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR" }).format(value ?? 0);
+  const setPreset = (days: number | null) => {
+    const to = new Date();
+    const from = days === null ? null : new Date(to.getTime() - days * 86400000);
+    onFiltersChange({
+      from: from ? from.toISOString().slice(0, 10) : "",
+      to: to.toISOString().slice(0, 10),
+    });
+  };
   const items = overview ? [
     ["Πελάτες", overview.customerCount], ["Συνεργάτες", overview.producerCount],
     ["Συμβόλαια", overview.policyCount], ["Ενεργά συμβόλαια", overview.activePolicyCount],
@@ -290,20 +308,87 @@ function OfficeOverviewDialog({ open, office, overview, loading, onClose }: {
     ["Παραμετρικά", overview.parametricCount], ["Μικτά ασφάλιστρα", money(overview.grossPremium)],
     ["Καθαρά ασφάλιστρα", money(overview.netPremium)]
   ] : [];
-  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+  const countMetrics = overview ? [
+    { label: "Πελάτες", value: overview.customerCount, color: "#1976d2" },
+    { label: "Συνεργάτες", value: overview.producerCount, color: "#00897b" },
+    { label: "Συμβόλαια", value: overview.policyCount, color: "#7b1fa2" },
+    { label: "Ενεργά συμβόλαια", value: overview.activePolicyCount, color: "#2e7d32" },
+    { label: "Ζημιές", value: overview.claimCount, color: "#d32f2f" },
+    { label: "Κανόνες προμηθειών", value: overview.commissionRuleCount, color: "#ed6c02" },
+    { label: "Παραμετρικά", value: overview.parametricCount, color: "#455a64" },
+  ] : [];
+  const maxCount = Math.max(1, ...countMetrics.map(m => m.value));
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
     <DialogTitle sx={{ fontWeight: 800 }}><Stack direction="row" spacing={1} alignItems="center"><InsightsIcon color="primary" />Στατιστικά γραφείου · {office?.name ?? ""}</Stack></DialogTitle>
     <DialogContent dividers>
+      <Card variant="outlined" sx={{ p: 1.25, mb: 1.5, bgcolor: "rgba(11,37,69,.025)" }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }}>
+          <Typography variant="subtitle2" fontWeight={800} sx={{ mr: 1 }}>Περίοδος αναφοράς</Typography>
+          <Button size="small" variant="outlined" onClick={() => setPreset(30)}>30 ημέρες</Button>
+          <Button size="small" variant="outlined" onClick={() => setPreset(90)}>90 ημέρες</Button>
+          <Button size="small" variant="outlined" onClick={() => setPreset(365)}>12 μήνες</Button>
+          <Button size="small" variant="outlined" onClick={() => setPreset(null)}>Όλο το ιστορικό</Button>
+          <Box sx={{ flex: 1 }} />
+          <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }}
+            value={filters.from} onChange={e => onFiltersChange({ ...filters, from: e.target.value })} />
+          <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }}
+            value={filters.to} onChange={e => onFiltersChange({ ...filters, to: e.target.value })} />
+        </Stack>
+      </Card>
       {loading ? <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}><CircularProgress /></Box> : (
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, 1fr)" }, gap: 1 }}>
-          {items.map(([label, value]) => <Card key={String(label)} variant="outlined" sx={{ p: 1.25, bgcolor: "rgba(11,37,69,.025)" }}>
-            <Typography variant="caption" color="text.secondary">{label}</Typography>
-            <Typography variant="h6" fontWeight={800}>{value}</Typography>
-          </Card>)}
-        </Box>
+        <>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, 1fr)" }, gap: 1, mb: 1.5 }}>
+            {items.map(([label, value]) => <Card key={String(label)} variant="outlined" sx={{ p: 1.25, bgcolor: "rgba(11,37,69,.025)" }}>
+              <Typography variant="caption" color="text.secondary">{label}</Typography>
+              <Typography variant="h6" fontWeight={800}>{value}</Typography>
+            </Card>)}
+          </Box>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1.25fr .75fr" }, gap: 1.5 }}>
+            <Card variant="outlined" sx={{ p: 1.5 }}>
+              <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1 }}>Σύνθεση χαρτοφυλακίου</Typography>
+              <Stack spacing={1}>
+                {countMetrics.map(metric => (
+                  <Box key={metric.label}>
+                    <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.25 }}>
+                      <Typography variant="body2">{metric.label}</Typography>
+                      <Typography variant="body2" fontWeight={800}>{metric.value}</Typography>
+                    </Stack>
+                    <LinearProgress variant="determinate" value={(metric.value / maxCount) * 100}
+                      sx={{ height: 9, borderRadius: 5, bgcolor: "action.hover", "& .MuiLinearProgress-bar": { bgcolor: metric.color, borderRadius: 5 } }} />
+                  </Box>
+                ))}
+              </Stack>
+            </Card>
+            <Card variant="outlined" sx={{ p: 1.5 }}>
+              <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1 }}>Οικονομική εικόνα</Typography>
+              <Stack spacing={1.25}>
+                <MetricComparison label="Μικτά ασφάλιστρα" value={overview?.grossPremium ?? 0} color="#1976d2" money={money} max={Math.max(1, overview?.grossPremium ?? 0)} />
+                <MetricComparison label="Καθαρά ασφάλιστρα" value={overview?.netPremium ?? 0} color="#2e7d32" money={money} max={Math.max(1, overview?.grossPremium ?? 0)} />
+                <Box sx={{ mt: 1, p: 1, borderRadius: 1, bgcolor: "rgba(46,125,50,.07)" }}>
+                  <Typography variant="caption" color="text.secondary">Περιθώριο φόρων/λοιπών επιβαρύνσεων</Typography>
+                  <Typography variant="h6" fontWeight={800}>{money(Math.max(0, (overview?.grossPremium ?? 0) - (overview?.netPremium ?? 0)))}</Typography>
+                </Box>
+              </Stack>
+            </Card>
+          </Box>
+        </>
       )}
     </DialogContent>
     <DialogActions><Button onClick={onClose} variant="contained">Κλείσιμο</Button></DialogActions>
   </Dialog>;
+}
+
+function MetricComparison({ label, value, color, money, max }: {
+  label: string; value: number; color: string; money: (value: number) => string; max: number;
+}) {
+  return <Box>
+    <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.25 }}>
+      <Typography variant="body2">{label}</Typography>
+      <Typography variant="body2" fontWeight={800}>{money(value)}</Typography>
+    </Stack>
+    <LinearProgress variant="determinate" value={Math.min(100, Math.max(0, value / max * 100))}
+      sx={{ height: 10, borderRadius: 5, bgcolor: "action.hover", "& .MuiLinearProgress-bar": { bgcolor: color, borderRadius: 5 } }} />
+  </Box>;
 }
 
 function CopyParametricsDialog({ open, source, target, pending, onClose, onConfirm }: {

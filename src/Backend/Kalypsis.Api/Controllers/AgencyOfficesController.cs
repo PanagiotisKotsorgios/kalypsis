@@ -78,7 +78,8 @@ public class AgencyOfficesController : ControllerBase
 
     [HttpGet("{id:guid}/overview")]
     [Authorize(Policy = "AgencyAdmin")]
-    public async Task<ActionResult<OfficeOverviewDto>> Overview(Guid id, CancellationToken ct)
+    public async Task<ActionResult<OfficeOverviewDto>> Overview(
+        Guid id, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken ct)
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var office = await _db.AgencyOffices.IgnoreQueryFilters()
@@ -89,15 +90,21 @@ public class AgencyOfficesController : ControllerBase
             .CountAsync(a => a.TenantId == tenantId && a.AgencyOfficeId == id && a.DeletedAt == null, ct);
         var customers = await _db.Customers.IgnoreQueryFilters()
             .Where(x => x.TenantId == tenantId && x.DeletedAt == null
-                && (x.AgencyOfficeScopeId == id || (office.IsHeadquarters && x.AgencyOfficeScopeId == null)))
+                && (x.AgencyOfficeScopeId == id || (office.IsHeadquarters && x.AgencyOfficeScopeId == null))
+                && (!from.HasValue || x.CreatedAt >= from.Value.ToDateTime(TimeOnly.MinValue))
+                && (!to.HasValue || x.CreatedAt <= to.Value.ToDateTime(TimeOnly.MaxValue)))
             .CountAsync(ct);
         var producers = await _db.Producers.IgnoreQueryFilters()
             .Where(x => x.TenantId == tenantId && x.DeletedAt == null
-                && (x.AgencyOfficeScopeId == id || (office.IsHeadquarters && x.AgencyOfficeScopeId == null)))
+                && (x.AgencyOfficeScopeId == id || (office.IsHeadquarters && x.AgencyOfficeScopeId == null))
+                && (!from.HasValue || x.CreatedAt >= from.Value.ToDateTime(TimeOnly.MinValue))
+                && (!to.HasValue || x.CreatedAt <= to.Value.ToDateTime(TimeOnly.MaxValue)))
             .CountAsync(ct);
         var policiesQuery = _db.Policies.IgnoreQueryFilters()
             .Where(x => x.TenantId == tenantId && x.DeletedAt == null
-                && (x.AgencyOfficeScopeId == id || (office.IsHeadquarters && x.AgencyOfficeScopeId == null)));
+                && (x.AgencyOfficeScopeId == id || (office.IsHeadquarters && x.AgencyOfficeScopeId == null))
+                && (!from.HasValue || x.StartDate >= from.Value)
+                && (!to.HasValue || x.StartDate <= to.Value));
         var policyCount = await policiesQuery.CountAsync(ct);
         var today = DateOnly.FromDateTime(_clock.UtcNow);
         var activePolicies = await policiesQuery.CountAsync(x => x.StartDate <= today && x.EndDate >= today, ct);
@@ -105,7 +112,9 @@ public class AgencyOfficesController : ControllerBase
         var netPremium = await policiesQuery.SumAsync(x => (decimal?)x.NetPremium, ct) ?? 0m;
         var claims = await _db.Claims.IgnoreQueryFilters()
             .Where(x => x.TenantId == tenantId && x.DeletedAt == null
-                && (x.AgencyOfficeScopeId == id || (office.IsHeadquarters && x.AgencyOfficeScopeId == null)))
+                && (x.AgencyOfficeScopeId == id || (office.IsHeadquarters && x.AgencyOfficeScopeId == null))
+                && (!from.HasValue || x.CreatedAt >= from.Value.ToDateTime(TimeOnly.MinValue))
+                && (!to.HasValue || x.CreatedAt <= to.Value.ToDateTime(TimeOnly.MaxValue)))
             .CountAsync(ct);
         var commissionRules = await _db.CommissionRules.IgnoreQueryFilters()
             .Where(x => x.TenantId == tenantId && x.DeletedAt == null

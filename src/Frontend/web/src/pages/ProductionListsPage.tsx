@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Button, Card, Chip, CircularProgress, MenuItem,
+  Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions,
+  DialogContent, DialogTitle, MenuItem,
   Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow,
   TextField, Typography
 } from "@mui/material";
@@ -8,6 +9,7 @@ import StackedBarChartIcon from "@mui/icons-material/StackedBarChart";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import DownloadIcon from "@mui/icons-material/Download";
 import PrintIcon from "@mui/icons-material/Print";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { ExportFormatMenu } from "../components/ExportFormatMenu";
 import CalculateIcon from "@mui/icons-material/Calculate";
 import { useQuery } from "@tanstack/react-query";
@@ -37,6 +39,8 @@ interface Row {
   startDate: string; endDate: string;
   customerName: string; insuranceCompany: string; producer: string | null;
   policyType: string; vehicleUseCategory: string | null; coverCode: string | null; status: string;
+  /** All cover codes for the contract; legacy rows may omit this field. */
+  coverageCodes?: string[];
   gross: number; net: number; vat: number;
   partnerCommissionPercent: number; partnerCommission: number;
   agencyCommissionPercent: number; agencyCommission: number;
@@ -203,6 +207,30 @@ export function ProductionListsPage() {
   // Open the PolicyDetailDrawer (καρτέλα with καλύψεις / πακέτα / τα
   // πάντα ανά συμβόλαιο) when the operator clicks a row's Αρ. Συμβ.
   const [detailPolicyId, setDetailPolicyId] = useState<string | null>(null);
+  const [coveragePolicyId, setCoveragePolicyId] = useState<string | null>(null);
+  const coveragePolicyRow = useMemo(
+    () => (q.data?.rows ?? []).find(r => r.policyId === coveragePolicyId) ?? null,
+    [q.data?.rows, coveragePolicyId]
+  );
+  interface CoverageDetail {
+    id: string;
+    coverCode: string;
+    coverName: string | null;
+    grossPremium: number;
+    netPremium: number;
+    coverageAmount: number | null;
+  }
+  const coverageDetails = useQuery({
+    queryKey: ["production-policy-covers", coveragePolicyId],
+    enabled: !!coveragePolicyId,
+    queryFn: async () => (await api.get<CoverageDetail[]>(`/policies/${coveragePolicyId}/covers`)).data,
+  });
+  const coverageCodesForRow = (r: Row): string[] => {
+    const codes = (r.coverageCodes ?? []).map(c => c.trim()).filter(Boolean);
+    if (codes.length > 0) return codes;
+    if (!r.coverCode) return [];
+    return r.coverCode.split(",").map(c => c.trim()).filter(Boolean);
+  };
   const columns: ProductionColumn[] = [
     { key: "policyNumber",   label: t("productionList.col.policy"),
       render: r => (
@@ -227,7 +255,29 @@ export function ProductionListsPage() {
     { key: "producer",       label: t("productionList.col.producer"), render: r => r.producer ?? "—",  text: r => r.producer ?? "" },
     { key: "type",           label: t("productionList.col.type"),     render: r => <Chip size="small" variant="outlined" label={r.policyType} />, text: r => r.policyType },
     { key: "use",            label: "Χρήση",                           render: r => r.vehicleUseCategory ? <Chip size="small" label={r.vehicleUseCategory} /> : <Box component="span" sx={{ color: "text.disabled" }}>—</Box>, text: r => r.vehicleUseCategory ?? "", defaultOff: true },
-    { key: "cover",          label: "Κάλυψη",                          render: r => r.coverCode ? <Chip size="small" variant="outlined" label={r.coverCode} /> : <Box component="span" sx={{ color: "text.disabled" }}>—</Box>, text: r => r.coverCode ?? "", defaultOff: true },
+    { key: "cover",          label: "Καλύψεις",                        render: r => {
+      const codes = coverageCodesForRow(r);
+      const summary = codes.length === 0
+        ? <Box component="span" sx={{ color: "text.disabled" }}>—</Box>
+        : codes.length === 1
+          ? <Chip size="small" variant="outlined" label={codes[0]} />
+          : <Chip size="small" color="info" variant="outlined" label={`${codes.length} καλύψεις`} />;
+      return (
+        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ minWidth: 150 }}>
+          {summary}
+          <Button
+            size="small"
+            variant="text"
+            color="primary"
+            startIcon={<InfoOutlinedIcon fontSize="small" />}
+            onClick={() => setCoveragePolicyId(r.policyId)}
+            sx={{ minWidth: 0, px: 0.5, whiteSpace: "nowrap", fontSize: 11 }}
+          >
+            Προβολή
+          </Button>
+        </Stack>
+      );
+    }, text: r => coverageCodesForRow(r).join(", ") },
     { key: "status",         label: t("productionList.status"),        render: r => r.status, text: r => r.status, defaultOff: true },
     { key: "gross",          label: t("productionList.col.gross"),    align: "right", render: r => <Box component="span" sx={{ fontWeight: 700 }}>{money(r.gross)}</Box>, text: r => money(r.gross) },
     { key: "net",            label: t("productionList.col.net"),      align: "right", render: r => money(r.net),  text: r => money(r.net) },
@@ -875,6 +925,68 @@ export function ProductionListsPage() {
           </Alert>
         </>
       )}
+      <Dialog
+        open={coveragePolicyId !== null}
+        onClose={() => setCoveragePolicyId(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          Καλύψεις συμβολαίου {coveragePolicyRow?.policyNumber ?? ""}
+          {coveragePolicyRow?.customerName ? (
+            <Typography component="span" color="text.secondary" sx={{ ml: 1, fontSize: 13 }}>
+              · {coveragePolicyRow.customerName}
+            </Typography>
+          ) : null}
+        </DialogTitle>
+        <DialogContent dividers>
+          {coverageDetails.isLoading && <CircularProgress size={24} />}
+          {coverageDetails.isError && (
+            <Alert severity="error" sx={{ mb: 1 }}>
+              Δεν ήταν δυνατή η ανάκτηση των αναλυτικών καλύψεων. Εμφανίζονται οι διαθέσιμοι κωδικοί της λίστας.
+            </Alert>
+          )}
+          {!coverageDetails.isLoading && (coverageDetails.data?.length ?? 0) > 0 && (
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700 }}>Κωδικός</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Περιγραφή</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>Μικτά</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>Καθαρά</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>Κεφάλαιο</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {coverageDetails.data!.map(c => (
+                  <TableRow key={c.id} hover>
+                    <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{c.coverCode}</TableCell>
+                    <TableCell>{c.coverName || "—"}</TableCell>
+                    <TableCell align="right">{money(c.grossPremium)}</TableCell>
+                    <TableCell align="right">{money(c.netPremium)}</TableCell>
+                    <TableCell align="right">{c.coverageAmount == null ? "—" : money(c.coverageAmount)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          {!coverageDetails.isLoading && (coverageDetails.data?.length ?? 0) === 0 && coveragePolicyRow && (
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Το συμβόλαιο δεν έχει ακόμη αναλυτικές γραμμές κάλυψης. Διαθέσιμοι κωδικοί από την εισαγωγή:
+              </Typography>
+              <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                {coverageCodesForRow(coveragePolicyRow).length > 0
+                  ? coverageCodesForRow(coveragePolicyRow).map(code => <Chip key={code} size="small" label={code} />)
+                  : <Typography color="text.disabled">Δεν έχουν καταχωρηθεί καλύψεις.</Typography>}
+              </Stack>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCoveragePolicyId(null)}>Κλείσιμο</Button>
+        </DialogActions>
+      </Dialog>
       <PolicyDetailDrawer
         policyId={detailPolicyId}
         open={detailPolicyId !== null}

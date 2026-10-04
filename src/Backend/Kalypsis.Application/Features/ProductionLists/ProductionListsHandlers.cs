@@ -79,6 +79,7 @@ public record ProductionRowDto(
     DateOnly StartDate, DateOnly EndDate,
     string CustomerName, string InsuranceCompany, string? Producer, string PolicyType, string Status,
     VehicleUseCategory? VehicleUseCategory, string? CoverCode,
+    IReadOnlyList<string> CoverageCodes,
     decimal Gross, decimal Net, decimal Vat,
     decimal PartnerCommissionPercent, decimal PartnerCommission,
     decimal AgencyCommissionPercent, decimal AgencyCommission,
@@ -245,6 +246,51 @@ public static class ProductionListBuilder
                 .ToDictionaryAsync(x => x.Id, x => x.Tier, ct);
 
         var policyIds = policies.Select(p => p.Id).ToList();
+
+        // A policy can contain many PolicyCover rows.  The old production
+        // list only extracted one legacy value from SpecsJson, which made a
+        // multi-cover contract look as if it had a single cover (or none).
+        // Keep the legacy CoverCode for matching/compatibility, but expose a
+        // complete, de-duplicated code list for the UI summary and details
+        // popup.  CarrierCoverageCode is the safe fallback for bridge rows
+        // whose detailed cover table has not been populated yet.
+        var coverageCodesByPolicy = new Dictionary<Guid, IReadOnlyList<string>>();
+        try
+        {
+            var coverRows = await _db.PolicyCovers
+                .Where(c => c.TenantId == tenantId && c.DeletedAt == null && policyIds.Contains(c.PolicyId))
+                .Select(c => new { c.PolicyId, c.CoverCode })
+                .ToListAsync(ct);
+            coverageCodesByPolicy = coverRows
+                .GroupBy(c => c.PolicyId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => (IReadOnlyList<string>)g
+                        .Select(x => x.CoverCode.Trim())
+                        .Where(x => x.Length > 0)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList());
+        }
+        catch
+        {
+            // Older installations may be running before the policy_covers
+            // migration.  The production list must still load; fallbacks
+            // below use the indexed carrier/specs values in that case.
+        }
+
+        static IReadOnlyList<string> FallbackCoverageCodes(Policy policy, string? legacyCode)
+        {
+            var raw = !string.IsNullOrWhiteSpace(policy.CarrierCoverageCode)
+                ? policy.CarrierCoverageCode
+                : legacyCode;
+            if (string.IsNullOrWhiteSpace(raw)) return Array.Empty<string>();
+            return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(x => x.Trim())
+                .Where(x => x.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
         var bridgeAgencyCommissionByPolicy = policyIds.Count == 0
             ? new Dictionary<Guid, decimal>()
             : await _db.FinancialMovements
@@ -350,6 +396,10 @@ public static class ProductionListBuilder
         return policies.Select(p =>
         {
             var coverCode = ExtractCoverCode(p.SpecsJson);
+            var coverageCodes = coverageCodesByPolicy.TryGetValue(p.Id, out var persistedCodes)
+                && persistedCodes.Count > 0
+                ? persistedCodes
+                : FallbackCoverageCodes(p, coverCode);
             var match = LookupRule(p, coverCode);
             var totalRule = LookupTotalRule(p, coverCode);
             var hasProducer = p.ProducerId.HasValue;
@@ -441,6 +491,7 @@ public static class ProductionListBuilder
                 p.Status.ToString(),
                 p.VehicleUseCategory,
                 coverCode,
+                coverageCodes,
                 p.Premium, net, vat,
                 partnerPct, partnerComm,
                 agencyPct, agencyComm,

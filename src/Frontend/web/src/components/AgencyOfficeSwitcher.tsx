@@ -5,6 +5,7 @@ import { api } from "../api/client";
 import type { Role } from "../auth/AuthContext";
 
 interface OfficeOption { officeId: string; officeName: string; isPrimary: boolean; }
+export const ALL_OFFICES_VALUE = "__all_offices__";
 
 /**
  * Visible only to office-facing roles.  Changing it reloads the current page
@@ -25,19 +26,19 @@ export function AgencyOfficeSwitcher({ role }: { role: Role | undefined }) {
         if (!alive) return;
         setOffices(r.data ?? []);
         const current = localStorage.getItem("kalypsis.activeOfficeId");
-        const valid = current && (r.data ?? []).some(o => o.officeId === current);
+        const valid = current === ALL_OFFICES_VALUE
+          || Boolean(current && (r.data ?? []).some(o => o.officeId === current));
         if (!valid) {
-          // Administrators start in a safe all-office reporting view. Staff
-          // without a saved choice start in their primary office.
-          const primary = isAdmin
-            ? undefined
-            : ((r.data ?? []).find(o => o.isPrimary) ?? (r.data ?? [])[0]);
+          // The current/primary office is the safe default for every user.
+          // The organisation-wide view remains an explicit administrator
+          // choice below, never the implicit first view.
+          const primary = (r.data ?? []).find(o => o.isPrimary) ?? (r.data ?? [])[0];
           if (primary) {
             localStorage.setItem("kalypsis.activeOfficeId", primary.officeId);
             setSelected(primary.officeId);
           } else {
-            localStorage.removeItem("kalypsis.activeOfficeId");
-            setSelected("");
+            localStorage.setItem("kalypsis.activeOfficeId", ALL_OFFICES_VALUE);
+            setSelected(ALL_OFFICES_VALUE);
           }
         }
       })
@@ -49,8 +50,7 @@ export function AgencyOfficeSwitcher({ role }: { role: Role | undefined }) {
 
   const change = (value: string) => {
     setSelected(value);
-    if (value) localStorage.setItem("kalypsis.activeOfficeId", value);
-    else localStorage.removeItem("kalypsis.activeOfficeId");
+    localStorage.setItem("kalypsis.activeOfficeId", value || ALL_OFFICES_VALUE);
     window.location.reload();
   };
 
@@ -68,7 +68,7 @@ export function AgencyOfficeSwitcher({ role }: { role: Role | undefined }) {
           startAdornment={<BusinessIcon sx={{ mr: 1, color: "text.secondary" }} />}
         >
           {isAdmin && (
-            <MenuItem value="">
+            <MenuItem value={ALL_OFFICES_VALUE}>
               <Box>
                 <Typography variant="body2" fontWeight={700}>Όλα τα γραφεία</Typography>
                 <Typography variant="caption" color="text.secondary">Συγκεντρωτικά δεδομένα όλου του οργανισμού</Typography>

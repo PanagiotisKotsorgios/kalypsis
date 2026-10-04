@@ -37,7 +37,9 @@ api.interceptors.request.use((config) => {
   // validates this value against the signed-in user's assignments on every
   // request before applying its tenant/office query filters.
   const officeId = localStorage.getItem("kalypsis.activeOfficeId");
-  if (officeId) {
+  // The all-office value is a UI sentinel.  Omitting the header preserves
+  // the server's validated organisation-wide scope for administrators.
+  if (officeId && officeId !== "__all_offices__") {
     config.headers["X-Agency-Office"] = officeId;
   }
   return config;
