@@ -165,11 +165,9 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const [customerPreviewOpen, setCustomerPreviewOpen] = useState(false);
   const [vehiclePreviewOpen, setVehiclePreviewOpen] = useState(false);
   const modalPresentation = presentation === "modal";
-  const modalTabTargets = [0, 1, 2, 5, 8] as const;
   const selectTab = (next: number) => {
     if (modalPresentation) {
       setModalTab(next);
-      setTab(modalTabTargets[next] ?? 0);
       return;
     }
     setTab(next);
@@ -349,6 +347,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
     onSuccess: (diff) => {
       void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] });
       void qc.invalidateQueries({ queryKey: ["policies"] });
+      if (modalPresentation) setEditing(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
       // Trigger the propagation prompt only when at least one propagatable
@@ -384,7 +383,12 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
       if (target === undefined) return;
       if (isEditable(e.target)) return;
       e.preventDefault();
-      selectTab(modalPresentation ? (target === 0 ? 0 : target === 1 ? 1 : target === 12 ? 4 : 2) : target);
+      if (modalPresentation) {
+        const modalTarget = target === 0 ? 0 : target === 1 ? 1 : target === 12 ? 4 : (target === 6 || target === 7 || target === 14 ? 3 : 2);
+        selectTab(modalTarget);
+      } else {
+        selectTab(target);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -667,24 +671,29 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                   </Typography>
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
                     <TextField fullWidth label="Αρ. αίτησης"
+                      disabled={!canEdit}
                       value={form.applicationNumber}
                       onChange={e => setForm({ ...form, applicationNumber: e.target.value })}
                       helperText="Ο αριθμός αίτησης που εκδίδει η εταιρεία πριν το οριστικό policy number." />
                     <TextField fullWidth type="date" label="Ημ. έκδοσης" InputLabelProps={{ shrink: true }}
+                      disabled={!canEdit}
                       value={form.issuedAt}
                       onChange={e => setForm({ ...form, issuedAt: e.target.value })}
                       helperText="Πότε εκδόθηκε το συμβόλαιο από την εταιρεία." />
                   </Stack>
                   <TextField fullWidth label="Αρ. κυκλοφορίας"
+                    disabled={!canEdit}
                     value={form.vehicleRegistrationPlate}
                     onChange={e => setForm({ ...form, vehicleRegistrationPlate: e.target.value.toUpperCase() })}
                     helperText="Πινακίδα οχήματος (μόνο για κλάδο αυτοκινήτου)." />
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
                     <TextField fullWidth label="ΑΦΜ οδηγού"
+                      disabled={!canEdit}
                       value={form.driverVatNumber}
                       onChange={e => setForm({ ...form, driverVatNumber: e.target.value })}
                       helperText="Όταν ο οδηγός διαφέρει από τον ασφαλιζόμενο (π.χ. παιδί οδηγεί όχημα γονέα)." />
                     <TextField fullWidth label="Λόγος κυκλοφορίας"
+                      disabled={!canEdit}
                       value={form.reasonForCirculation}
                       onChange={e => setForm({ ...form, reasonForCirculation: e.target.value })}
                       placeholder="π.χ. Ιδιωτική, Επαγγελματική, Ταξί, Ασθενοφόρο"
@@ -696,6 +705,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     </Button>
                   )}
                   <SearchableSelect
+                    disabled={!canEdit}
                     label="Συμβαλλόμενος (αν διαφέρει από τον ασφαλιζόμενο)"
                     value={form.contractPartyCustomerId}
                     onChange={(v) => setForm({ ...form, contractPartyCustomerId: v })}
@@ -707,6 +717,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     }))}
                     helperText="Το πρόσωπο που υπογράφει τη σύμβαση και έχει την υποχρέωση καταβολής." />
                   <SearchableSelect
+                    disabled={!canEdit}
                     label="Προηγούμενη ασφαλιστική εταιρεία"
                     value={form.previousInsuranceCompanyId}
                     onChange={(v) => setForm({ ...form, previousInsuranceCompanyId: v })}
@@ -757,16 +768,18 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                       calculations. */}
                   {p.covers && p.covers.length > 0 && <CoversBreakdown p={p} />}
                   <TextField select fullWidth label={t("policyDetail.paymentFrequency")} value={form.paymentFrequency}
+                    disabled={!canEdit}
                     onChange={e => setForm({ ...form, paymentFrequency: e.target.value })}>
                     {FREQUENCIES.map(f => <MenuItem key={f} value={f}>{FREQUENCY_LABELS[f] ?? f}</MenuItem>)}
                   </TextField>
                   <TextField select fullWidth label="Τρόπος είσπραξης" value={form.paymentCollectionMethod}
+                    disabled={!canEdit}
                     onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })}>
                     <MenuItem value="">—</MenuItem>
                     {COLLECTION_METHODS.map(m => <MenuItem key={m} value={m}>{COLLECTION_METHODS_LABEL[m]}</MenuItem>)}
                   </TextField>
                   <FormControlLabel
-                    control={<Switch checked={form.paidDirectlyToCarrier}
+                    control={<Switch disabled={!canEdit} checked={form.paidDirectlyToCarrier}
                       onChange={e => setForm({ ...form, paidDirectlyToCarrier: e.target.checked })} />}
                     label="Ο πελάτης πλήρωσε απευθείας στην ασφαλιστική"
                   />
@@ -774,10 +787,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     Η πληρωμή δεν περνά από το ταμείο του γραφείου και δεν εμφανίζεται ως εκκρεμής οφειλή προς την ασφαλιστική.
                   </Typography>
                   <Stack direction="row" alignItems="center" spacing={1}>
-                    <Switch checked={form.premiumIncludesVat} onChange={e => setForm({ ...form, premiumIncludesVat: e.target.checked })} />
+                    <Switch disabled={!canEdit} checked={form.premiumIncludesVat} onChange={e => setForm({ ...form, premiumIncludesVat: e.target.checked })} />
                     <Typography>Το ασφάλιστρο περιλαμβάνει φόρο ασφαλίστρων</Typography>
                   </Stack>
                   <TextField type="number" fullWidth label={t("policyDetail.specialCommission")}
+                    disabled={!canEdit}
                     value={form.specialCommissionPercent}
                     onChange={e => setForm({ ...form, specialCommissionPercent: e.target.value })}
                     helperText={t("policyDetail.specialCommissionHelp")} />
@@ -803,6 +817,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     loading={commissionMatrix.isLoading}
                     matrix={commissionMatrix.data}
                     currency={p.currency}
+                    readOnly={!canEdit}
                     overrideJson={form.specialLevelPercentsJson}
                     onOverrideChange={(next) => setForm({ ...form, specialLevelPercentsJson: next })}
                     onSave={() => save.mutate()}
@@ -851,31 +866,36 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                       </Typography>
                       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1 }}>
                         <TextField size="small" type="date" label={t("policyDetail.nextRenewal")} InputLabelProps={{ shrink: true }}
+                          disabled={!canEdit}
                           value={form.nextRenewalDate} onChange={e => setForm({ ...form, nextRenewalDate: e.target.value })} />
                         <TextField size="small" type="date" label={t("policyDetail.deliveredAt")} InputLabelProps={{ shrink: true }}
+                          disabled={!canEdit}
                           value={form.deliveredAt} onChange={e => setForm({ ...form, deliveredAt: e.target.value })} />
                         <TextField size="small" label={t("policyDetail.deliveredTo")} value={form.deliveredTo}
+                          disabled={!canEdit}
                           onChange={e => setForm({ ...form, deliveredTo: e.target.value })} />
                         <TextField select size="small" label={t("policyDetail.deliveryMethod")} value={form.deliveryMethod}
+                          disabled={!canEdit}
                           onChange={e => setForm({ ...form, deliveryMethod: e.target.value })}>
                           <MenuItem value="">—</MenuItem>
                           {DELIVERY_METHODS.map(m => <MenuItem key={m} value={m}>{DELIVERY_METHOD_LABELS[m] ?? m}</MenuItem>)}
                         </TextField>
                       </Box>
                       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
-                        <FormControlLabel control={<Switch checked={form.retainCommissionsOnRenewal} onChange={e => setForm({ ...form, retainCommissionsOnRenewal: e.target.checked })} />} label={t("policyDetail.retainCommissions")} />
-                        <FormControlLabel control={<Switch checked={form.retainDocumentNumberOnRenewal} onChange={e => setForm({ ...form, retainDocumentNumberOnRenewal: e.target.checked })} />} label={t("policyDetail.retainDocNumber")} />
+                        <FormControlLabel control={<Switch disabled={!canEdit} checked={form.retainCommissionsOnRenewal} onChange={e => setForm({ ...form, retainCommissionsOnRenewal: e.target.checked })} />} label={t("policyDetail.retainCommissions")} />
+                        <FormControlLabel control={<Switch disabled={!canEdit} checked={form.retainDocumentNumberOnRenewal} onChange={e => setForm({ ...form, retainDocumentNumberOnRenewal: e.target.checked })} />} label={t("policyDetail.retainDocNumber")} />
                       </Stack>
                       <TextField size="small" fullWidth multiline minRows={2} label={t("policyDetail.renewalInstructions")}
+                        disabled={!canEdit}
                         value={form.renewalInstructions} onChange={e => setForm({ ...form, renewalInstructions: e.target.value })} />
                       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1 }}>
                         <Box sx={{ p: 1, border: "1px solid", borderColor: "divider", borderRadius: 1.25, bgcolor: "rgba(248,250,252,.78)" }}>
                           <Typography variant="caption" color="text.secondary" fontWeight={800} display="block" mb={.5}>Αντικείμενα</Typography>
-                          <PolicyObjectsTab policyId={p.id} />
+                          <PolicyObjectsTab policyId={p.id} readOnly={!canEdit} />
                         </Box>
                         <Box sx={{ p: 1, border: "1px solid", borderColor: "divider", borderRadius: 1.25, bgcolor: "rgba(248,250,252,.78)" }}>
                           <Typography variant="caption" color="text.secondary" fontWeight={800} display="block" mb={.5}>Καλύψεις</Typography>
-                          <PolicyCoversTab policyId={p.id} />
+                          <PolicyCoversTab policyId={p.id} readOnly={!canEdit} />
                         </Box>
                       </Box>
                     </>
@@ -981,14 +1001,14 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     emptyKey="policyDetail.noReceipts" />}
                   <Divider />
                   <Typography variant="overline" color="text.secondary" fontWeight={800}>Δόσεις</Typography>
-                  <PolicyInstallmentsTab policyId={p.id} />
+                  <PolicyInstallmentsTab policyId={p.id} readOnly={!canEdit} />
                 </Stack>
               )}
               {tab === 8 && !modalPresentation && <PolicyContractPdf policyId={p.id} />}
               {showDocumentsHistory && (
                 <Stack spacing={1.5}>
                   <Typography variant="overline" color="text.secondary" fontWeight={800}>Έγγραφο συμβολαίου</Typography>
-                  <PolicyContractPdf policyId={p.id} />
+                  <PolicyContractPdf policyId={p.id} readOnly={!canEdit} />
                   <Divider />
                   <Typography variant="overline" color="text.secondary" fontWeight={800}>Ιστορικό αλλαγών</Typography>
                   <EntityAuditTimeline entityName="Policy" entityId={p.id} />
@@ -998,6 +1018,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     policyId={p.id}
                     loading={communications.isLoading}
                     rows={communications.data ?? []}
+                    readOnly={!canEdit}
                     onSaved={() => void qc.invalidateQueries({ queryKey: ["policy-communications", p.id] })}
                   />
                 </Stack>
@@ -1431,7 +1452,7 @@ interface PolicyDoc {
   createdAt: string;
 }
 
-function PolicyContractPdf({ policyId }: { policyId: string }) {
+function PolicyContractPdf({ policyId, readOnly = false }: { policyId: string; readOnly?: boolean }) {
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -1556,7 +1577,7 @@ function PolicyContractPdf({ policyId }: { policyId: string }) {
             Δεκτά: PDF και εικόνες · έως 50MB · αποθηκεύεται κρυπτογραφημένα.
           </Typography>
         </Box>
-        <Button component="label" variant="contained" disabled={upload.isPending}>
+        <Button component="label" variant="contained" disabled={readOnly || upload.isPending}>
           {upload.isPending ? <CircularProgress size={18} /> : "Επιλογή αρχείου"}
           <input hidden type="file" accept="application/pdf,image/*"
             onChange={(e) => onPick(e.target.files?.[0])} />
@@ -1598,7 +1619,7 @@ function PolicyContractPdf({ policyId }: { policyId: string }) {
                 <Button size="small" onClick={() => preview(d)}>Προβολή</Button>
                 <Button size="small" onClick={() => print(d)}>Εκτύπωση</Button>
                 <Button size="small" onClick={() => download(d)}>Λήψη</Button>
-                <Button size="small" color="error"
+                <Button size="small" color="error" disabled={readOnly}
                   onClick={() => { if (confirm("Διαγραφή του αρχείου;")) del.mutate(d.id); }}>
                   Διαγραφή
                 </Button>
@@ -1632,7 +1653,7 @@ function PolicyContractPdf({ policyId }: { policyId: string }) {
 
 /* ============== EXTENSION TABS ============== */
 
-function PolicyObjectsTab({ policyId }: { policyId: string }) {
+function PolicyObjectsTab({ policyId, readOnly = false }: { policyId: string; readOnly?: boolean }) {
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["policy-objects", policyId],
@@ -1678,7 +1699,7 @@ function PolicyObjectsTab({ policyId }: { policyId: string }) {
                 <TableCell>{o.description ?? "—"}</TableCell>
                 <TableCell sx={{ fontFamily: "monospace", fontSize: 11 }}>{o.fbcLinkCode ?? "—"}</TableCell>
                 <TableCell>
-                  <IconButton size="small" color="error" onClick={() => { if (confirm("Διαγραφή;")) del.mutate(o.id); }}>
+                  <IconButton size="small" color="error" disabled={readOnly} onClick={() => { if (confirm("Διαγραφή;")) del.mutate(o.id); }}>
                     <CloseIcon fontSize="small" />
                   </IconButton>
                 </TableCell>
@@ -1691,19 +1712,19 @@ function PolicyObjectsTab({ policyId }: { policyId: string }) {
         <Typography variant="caption" color="text.secondary">Νέο αντικείμενο</Typography>
         <Stack spacing={1.5} mt={1}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <TextField size="small" label="Είδος" value={form.objectKind}
+            <TextField disabled={readOnly} size="small" label="Είδος" value={form.objectKind}
               onChange={e => setForm({ ...form, objectKind: e.target.value })} sx={{ flex: 1 }} />
-            <TextField size="small" label="Αναγνωριστικό" value={form.identifier}
+            <TextField disabled={readOnly} size="small" label="Αναγνωριστικό" value={form.identifier}
               onChange={e => setForm({ ...form, identifier: e.target.value })} sx={{ flex: 1 }} />
-            <TextField size="small" label="FBC" value={form.fbcLinkCode}
+            <TextField disabled={readOnly} size="small" label="FBC" value={form.fbcLinkCode}
               onChange={e => setForm({ ...form, fbcLinkCode: e.target.value })} sx={{ width: 120 }} />
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <TextField size="small" label="Περιγραφή" value={form.description}
+            <TextField disabled={readOnly} size="small" label="Περιγραφή" value={form.description}
               onChange={e => setForm({ ...form, description: e.target.value })} sx={{ flex: 1 }} />
-            <TextField size="small" label="Χαρακτηριστικό" value={form.characteristic}
+            <TextField disabled={readOnly} size="small" label="Χαρακτηριστικό" value={form.characteristic}
               onChange={e => setForm({ ...form, characteristic: e.target.value })} sx={{ flex: 1 }} />
-            <Button variant="contained" onClick={() => add.mutate()} disabled={!form.objectKind.trim() || add.isPending}>
+            <Button variant="contained" onClick={() => add.mutate()} disabled={readOnly || !form.objectKind.trim() || add.isPending}>
               {add.isPending ? <CircularProgress size={18} /> : "Προσθήκη"}
             </Button>
           </Stack>
@@ -1713,8 +1734,8 @@ function PolicyObjectsTab({ policyId }: { policyId: string }) {
   );
 }
 
-function PolicyCoversTab({ policyId }: { policyId: string }) {
-  return <PolicyCoversTabInner policyId={policyId} />;
+function PolicyCoversTab({ policyId, readOnly = false }: { policyId: string; readOnly?: boolean }) {
+  return <PolicyCoversTabInner policyId={policyId} readOnly={readOnly} />;
 }
 
 interface CoverRow {
@@ -1759,7 +1780,7 @@ function toBody(f: CoverFormState) {
   };
 }
 
-function PolicyCoversTabInner({ policyId }: { policyId: string }) {
+function PolicyCoversTabInner({ policyId, readOnly = false }: { policyId: string; readOnly?: boolean }) {
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["policy-covers", policyId],
@@ -1820,7 +1841,7 @@ function PolicyCoversTabInner({ policyId }: { policyId: string }) {
         <Typography variant="overline" color="text.secondary" fontWeight={700}>Καλύψεις</Typography>
         <Chip size="small" label={`${rows.length}`} sx={{ height: 20, fontSize: 11 }} />
         <Box sx={{ flex: 1 }} />
-        <Button size="small" variant="text" onClick={() => setBulkOpen(true)}>
+        <Button size="small" variant="text" disabled={readOnly} onClick={() => setBulkOpen(true)}>
           Μαζική εισαγωγή CSV
         </Button>
       </Stack>
@@ -1865,10 +1886,10 @@ function PolicyCoversTabInner({ policyId }: { policyId: string }) {
                     {c.agencyCommissionPercent === null ? "—" : `${c.agencyCommissionPercent.toFixed(2)}%`}
                   </TableCell>
                   <TableCell align="right">
-                    <IconButton size="small" onClick={() => startEdit(c)} disabled={editing && editingId !== c.id}>
+                    <IconButton size="small" onClick={() => startEdit(c)} disabled={readOnly || (editing && editingId !== c.id)}>
                       <EditIcon fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" color="error"
+                    <IconButton size="small" color="error" disabled={readOnly}
                       onClick={() => { if (confirm(`Διαγραφή της κάλυψης ${c.coverCode};`)) del.mutate(c.id); }}>
                       <CloseIcon fontSize="small" />
                     </IconButton>
@@ -1893,27 +1914,27 @@ function PolicyCoversTabInner({ policyId }: { policyId: string }) {
         </Typography>
         <Stack spacing={1.5} mt={1}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <TextField size="small" label="Κωδικός" value={form.coverCode}
+            <TextField disabled={readOnly || editing} size="small" label="Κωδικός" value={form.coverCode}
               onChange={e => setForm({ ...form, coverCode: e.target.value.toUpperCase() })}
-              disabled={editing} sx={{ width: 140 }} />
-            <TextField size="small" label="Όνομα" value={form.coverName}
+              sx={{ width: 140 }} />
+            <TextField disabled={readOnly} size="small" label="Όνομα" value={form.coverName}
               onChange={e => setForm({ ...form, coverName: e.target.value })} sx={{ flex: 1 }} />
-            <TextField size="small" select label="Αντικείμενο" value={form.policyObjectId}
+            <TextField disabled={readOnly} size="small" select label="Αντικείμενο" value={form.policyObjectId}
               onChange={e => setForm({ ...form, policyObjectId: e.target.value })} sx={{ width: 200 }}>
               <MenuItem value="">—</MenuItem>
               {(objects.data ?? []).map((o: any) => <MenuItem key={o.id} value={o.id}>{o.objectKind}{o.identifier ? ` · ${o.identifier}` : ""}</MenuItem>)}
             </TextField>
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <TextField size="small" type="number" label="Μικτά" value={form.grossPremium}
+            <TextField disabled={readOnly} size="small" type="number" label="Μικτά" value={form.grossPremium}
               onChange={e => setForm({ ...form, grossPremium: e.target.value })} sx={{ flex: 1 }} />
-            <TextField size="small" type="number" label="Καθαρά" value={form.netPremium}
+            <TextField disabled={readOnly} size="small" type="number" label="Καθαρά" value={form.netPremium}
               onChange={e => setForm({ ...form, netPremium: e.target.value })} sx={{ flex: 1 }} />
-            <TextField size="small" type="number" label="Κεφάλαιο" value={form.coverageAmount}
+            <TextField disabled={readOnly} size="small" type="number" label="Κεφάλαιο" value={form.coverageAmount}
               onChange={e => setForm({ ...form, coverageAmount: e.target.value })} sx={{ flex: 1 }} />
           </Stack>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems="center">
-            <TextField size="small" type="number" label="Προμ. συνεργάτη %"
+            <TextField disabled={readOnly} size="small" type="number" label="Προμ. συνεργάτη %"
               value={form.commissionPercent}
               onChange={e => setForm({ ...form, commissionPercent: e.target.value })}
               helperText={(() => {
@@ -1925,7 +1946,7 @@ function PolicyCoversTabInner({ policyId }: { policyId: string }) {
                 return "Κενό = από κανόνα";
               })()}
               sx={{ flex: 1 }} />
-            <TextField size="small" type="number" label="Ή σε €"
+            <TextField disabled={readOnly} size="small" type="number" label="Ή σε €"
               value={(() => {
                 const pct = parseFloat(form.commissionPercent);
                 const net = parseFloat(form.netPremium);
@@ -1945,7 +1966,7 @@ function PolicyCoversTabInner({ policyId }: { policyId: string }) {
               }}
               helperText="Ενημερώνει αυτόματα το %"
               sx={{ flex: 1 }} />
-            <TextField size="small" type="number" label="Προμ. γραφείου %"
+            <TextField disabled={readOnly} size="small" type="number" label="Προμ. γραφείου %"
               value={form.agencyCommissionPercent}
               onChange={e => setForm({ ...form, agencyCommissionPercent: e.target.value })}
               helperText="Κενό = από κανόνα"
@@ -1954,9 +1975,9 @@ function PolicyCoversTabInner({ policyId }: { policyId: string }) {
               {editing && (
                 <Button onClick={cancelEdit} color="error" variant="contained">Άκυρο</Button>
               )}
-              <Button variant="contained"
+              <Button variant="contained" disabled={readOnly || !form.coverCode.trim() || add.isPending || update.isPending}
                 onClick={() => (editing ? update.mutate() : add.mutate())}
-                disabled={!form.coverCode.trim() || add.isPending || update.isPending}>
+                >
                 {(add.isPending || update.isPending) ? <CircularProgress size={18} /> : (editing ? "Αποθήκευση" : "Προσθήκη")}
               </Button>
             </Stack>
@@ -2071,7 +2092,7 @@ function BulkCoversImportDialog({
   );
 }
 
-function PolicyInstallmentsTab({ policyId }: { policyId: string }) {
+function PolicyInstallmentsTab({ policyId, readOnly = false }: { policyId: string; readOnly?: boolean }) {
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["policy-installments", policyId],
@@ -2092,7 +2113,7 @@ function PolicyInstallmentsTab({ policyId }: { policyId: string }) {
     <Stack spacing={2}>
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <Typography variant="overline" color="text.secondary" fontWeight={700}>Δόσεις</Typography>
-        <Button size="small" variant="outlined" onClick={() => generate.mutate()} disabled={generate.isPending}>
+        <Button size="small" variant="outlined" onClick={() => generate.mutate()} disabled={readOnly || generate.isPending}>
           {generate.isPending ? <CircularProgress size={16} /> : "Δημιουργία δόσεων"}
         </Button>
       </Stack>
@@ -2123,7 +2144,7 @@ function PolicyInstallmentsTab({ policyId }: { policyId: string }) {
                 <TableCell>{i.paidVia ?? "—"}</TableCell>
                 <TableCell>
                   {!i.paidAt && (
-                    <Button size="small" onClick={() => markPaid.mutate(i.id)} disabled={markPaid.isPending}>
+                    <Button size="small" onClick={() => markPaid.mutate(i.id)} disabled={readOnly || markPaid.isPending}>
                       Πληρώθηκε
                     </Button>
                   )}
@@ -2170,10 +2191,11 @@ const COMM_OUTCOME_LABEL: Record<string, string> = {
   NoAnswer: "Χωρίς απάντηση", Cancelled: "Ακυρώθηκε"
 };
 
-function PolicyCommunicationsTab({ policyId, loading, rows, onSaved }: {
+function PolicyCommunicationsTab({ policyId, loading, rows, readOnly = false, onSaved }: {
   policyId: string;
   loading: boolean;
   rows: PolicyCommunicationRow[];
+  readOnly?: boolean;
   onSaved: () => void;
 }) {
   const [creating, setCreating] = useState(false);
@@ -2185,6 +2207,9 @@ function PolicyCommunicationsTab({ policyId, loading, rows, onSaved }: {
     subject: "",
     body: ""
   });
+  useEffect(() => {
+    if (readOnly) setCreating(false);
+  }, [readOnly]);
   const save = useMutation({
     mutationFn: async () => (await api.post(`/policies/${policyId}/communications`, {
       kind: form.kind,
@@ -2210,14 +2235,14 @@ function PolicyCommunicationsTab({ policyId, loading, rows, onSaved }: {
         <Typography variant="body2" color="text.secondary">
           Καταγραφές επικοινωνίας για αυτό το συμβόλαιο. Οι εγγραφές εμφανίζονται και στο ενοποιημένο timeline του πελάτη.
         </Typography>
-        <Button size="small" variant="contained" onClick={() => setCreating(true)} disabled={creating}>
+        <Button size="small" variant="contained" onClick={() => setCreating(true)} disabled={readOnly || creating}>
           Νέα καταγραφή
         </Button>
       </Stack>
 
       {err && <Alert severity="error" onClose={() => setErr(null)}>{err}</Alert>}
 
-      {creating && (
+      {creating && !readOnly && (
         <Box sx={{ p: 2, border: "1px solid", borderColor: "divider", borderRadius: 1.5 }}>
           <Stack spacing={1.5}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
@@ -2245,7 +2270,7 @@ function PolicyCommunicationsTab({ policyId, loading, rows, onSaved }: {
             <Stack direction="row" spacing={1} justifyContent="flex-end">
               <Button onClick={() => setCreating(false)} color="error" variant="contained">Ακύρωση</Button>
               <Button variant="contained" onClick={() => save.mutate()}
-                disabled={save.isPending || !form.subject.trim()}>
+                disabled={readOnly || save.isPending || !form.subject.trim()}>
                 {save.isPending ? <CircularProgress size={18} /> : "Καταχώρηση"}
               </Button>
             </Stack>
@@ -2324,10 +2349,11 @@ interface BridgeFallbackCommissions {
   currency: string;
 }
 
-function PolicyCommissionMatrixTab({ loading, matrix, currency, overrideJson, onOverrideChange, onSave, saving, fallback }: {
+function PolicyCommissionMatrixTab({ loading, matrix, currency, readOnly = false, overrideJson, onOverrideChange, onSave, saving, fallback }: {
   loading: boolean;
   matrix: PolicyCommissionMatrix | undefined;
   currency: string;
+  readOnly?: boolean;
   overrideJson: string;
   onOverrideChange: (nextJson: string) => void;
   onSave: () => void;
@@ -2437,6 +2463,7 @@ function PolicyCommissionMatrixTab({ loading, matrix, currency, overrideJson, on
         </TableBody>
       </Table>
       <PolicyCommissionOverrideEditor
+        readOnly={readOnly}
         overrideJson={overrideJson}
         onChange={onOverrideChange}
         onSave={onSave}
@@ -2451,7 +2478,8 @@ function PolicyCommissionMatrixTab({ loading, matrix, currency, overrideJson, on
    time. Only affects THIS specific policy. Empty inputs mean "don't
    override that level" — the rule takes over. Clear button wipes the
    whole blob. */
-function PolicyCommissionOverrideEditor({ overrideJson, onChange, onSave, saving }: {
+function PolicyCommissionOverrideEditor({ readOnly = false, overrideJson, onChange, onSave, saving }: {
+  readOnly?: boolean;
   overrideJson: string;
   onChange: (nextJson: string) => void;
   onSave: () => void;
@@ -2508,16 +2536,16 @@ function PolicyCommissionOverrideEditor({ overrideJson, onChange, onSave, saving
               : "Προαιρετικό — ορίστε ποσοστά μόνο για συμβόλαια με ειδική συμφωνία. Αλλιώς εφαρμόζονται οι κανόνες του γραφείου."}
           </Typography>
         </Box>
-        {!editing ? (
+        {!readOnly && !editing ? (
           <Button size="small" variant={hasOverride ? "outlined" : "contained"} onClick={() => setEditing(true)}>
             {hasOverride ? "Επεξεργασία" : "Προσθήκη"}
           </Button>
-        ) : (
+        ) : !readOnly ? (
           <Button size="small" onClick={() => setEditing(false)} color="error" variant="contained">Άκυρο</Button>
-        )}
+        ) : null}
       </Stack>
 
-      {editing && (
+      {editing && !readOnly && (
         <>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} mt={1.5} flexWrap="wrap" useFlexGap>
             {(["Producer", "Manager", "Unit", "Assistant", "Agency"] as const).map(level => (

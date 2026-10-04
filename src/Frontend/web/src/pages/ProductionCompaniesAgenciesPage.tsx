@@ -116,6 +116,7 @@ export default function ProductionCompaniesAgenciesPage() {
   const [companyProfile, setCompanyProfile] = useState<CompanyDto | null>(null);
   const [companyProfileEditing, setCompanyProfileEditing] = useState(false);
   const [companyQuickCreateOpen, setCompanyQuickCreateOpen] = useState(false);
+  const [officeQuickCreateOpen, setOfficeQuickCreateOpen] = useState(false);
   const [officeProfile, setOfficeProfile] = useState<OfficeDto | null>(null);
   const [companyEditor, setCompanyEditor] = useState<CompanyDto | null | undefined>(undefined);
   const [officeEditor, setOfficeEditor] = useState<OfficeDto | null | undefined>(undefined);
@@ -207,7 +208,7 @@ export default function ProductionCompaniesAgenciesPage() {
             {selectedCount > 0 && <Button variant="contained" color="error" startIcon={<DeleteOutlineIcon />} onClick={() => { setBulkDeleteKind(tab === 0 ? "company" : "office"); setBulkDeleteText(""); }}>
               Μαζική διαγραφή ({selectedCount})
             </Button>}
-            <Button variant="contained" color="success" startIcon={<AddIcon />} onClick={() => tab === 0 ? setCompanyQuickCreateOpen(true) : setOfficeEditor(null)} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, boxShadow: 2, "&:hover": { bgcolor: "success.dark", color: "#fff" } }}>
+            <Button variant="contained" color="success" startIcon={<AddIcon />} onClick={() => tab === 0 ? setCompanyQuickCreateOpen(true) : setOfficeQuickCreateOpen(true)} sx={{ color: "#fff", fontWeight: 800, borderRadius: 1.5, boxShadow: 2, "&:hover": { bgcolor: "success.dark", color: "#fff" } }}>
               {tab === 0 ? "Νέα ασφαλιστική" : "Νέο πρακτορείο"}
             </Button>
             <TextField size="small" label="Αναζήτηση" value={search} onChange={e => setSearch(e.target.value)} sx={{ minWidth: 220 }} />
@@ -230,6 +231,9 @@ export default function ProductionCompaniesAgenciesPage() {
       <ProductionCompanyQuickCreateDialog open={companyQuickCreateOpen}
         onClose={() => setCompanyQuickCreateOpen(false)}
         onSaved={(saved) => { setCompanyQuickCreateOpen(false); void qc.invalidateQueries({ queryKey: ["production-companies-directory"] }); void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); if (saved) { setCompanyProfileEditing(false); setCompanyProfile(saved); } }} />
+      <ProductionOfficeQuickCreateDialog open={officeQuickCreateOpen}
+        onClose={() => setOfficeQuickCreateOpen(false)}
+        onSaved={(saved) => { setOfficeQuickCreateOpen(false); void qc.invalidateQueries({ queryKey: ["production-agency-offices-directory"] }); void qc.invalidateQueries({ queryKey: ["agency-offices"] }); if (saved) setOfficeProfile(saved); }} />
       <ProductionCompanyEditorDialog open={companyEditor !== undefined} item={companyEditor ?? null}
         onClose={() => setCompanyEditor(undefined)}
         onSaved={(saved) => { void qc.invalidateQueries({ queryKey: ["production-companies-directory"] }); void qc.invalidateQueries({ queryKey: ["insurance-companies"] }); setCompanyEditor(undefined); if (saved) setCompanyProfile(saved); }} />
@@ -695,6 +699,91 @@ function ProductionCompanyQuickCreateDialog({ open, onClose, onSaved }: {
     <DialogActions sx={{ px: 2.5, py: 1.5 }}>
       <Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={onClose} sx={{ color: "#fff", fontWeight: 800 }}>Ακύρωση</Button>
       <Button color="success" variant="contained" startIcon={save.isPending ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />} disabled={save.isPending || !form.name.trim() || !form.code.trim()} onClick={() => save.mutate()} sx={{ color: "#fff", fontWeight: 800 }}>{save.isPending ? "Αποθήκευση…" : "Δημιουργία"}</Button>
+    </DialogActions>
+  </Dialog>;
+}
+
+/**
+ * Fast first entry for a new agency office. Keep the first step deliberately
+ * small, matching the insurance-company flow; the saved office then opens in
+ * its full profile where all address, contact, status and notes fields can be
+ * completed.
+ */
+function ProductionOfficeQuickCreateDialog({ open, onClose, onSaved }: {
+  open: boolean;
+  onClose: () => void;
+  onSaved: (saved?: OfficeDto) => void;
+}) {
+  const [form, setForm] = useState({ name: "", code: "" });
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (open) {
+      setForm({ name: "", code: "" });
+      setError(null);
+    }
+  }, [open]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const body = {
+        code: form.code.trim().toUpperCase(),
+        name: form.name.trim(),
+        city: null,
+        address: null,
+        postalCode: null,
+        phone: null,
+        email: null,
+        isHeadquarters: false,
+        isActive: true,
+        notes: null,
+      };
+      return (await api.post<OfficeDto>("/agency-offices", body)).data;
+    },
+    onSuccess: saved => onSaved(saved),
+    onError: error => setError(extractErrorMessage(error)),
+  });
+
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+    <DialogTitle>
+      <Stack direction="row" spacing={1} alignItems="center">
+        <HomeWorkIcon color="primary" />
+        <Box>
+          <Typography variant="h6" fontWeight={850}>Νέο πρακτορείο</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Καταχωρήστε μόνο τα βασικά στοιχεία. Τα υπόλοιπα συμπληρώνονται από την πλήρη καρτέλα.
+          </Typography>
+        </Box>
+      </Stack>
+    </DialogTitle>
+    <DialogContent dividers>
+      {error && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError(null)}>{error}</Alert>}
+      <Stack spacing={1.5} sx={{ pt: .5 }}>
+        <TextField
+          autoFocus required fullWidth label="Όνομα πρακτορείου"
+          value={form.name}
+          onChange={event => setForm(current => ({ ...current, name: event.target.value }))}
+        />
+        <TextField
+          required fullWidth label="Κωδικός πρακτορείου"
+          value={form.code}
+          onChange={event => setForm(current => ({ ...current, code: event.target.value.toUpperCase() }))}
+          helperText="Ο κωδικός χρησιμοποιείται στις λίστες και στις εσωτερικές αναφορές."
+        />
+      </Stack>
+    </DialogContent>
+    <DialogActions sx={{ px: 2.5, py: 1.5 }}>
+      <Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={onClose} sx={{ color: "#fff", fontWeight: 800 }}>
+        Ακύρωση
+      </Button>
+      <Button
+        color="success" variant="contained"
+        startIcon={save.isPending ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />}
+        disabled={save.isPending || !form.name.trim() || !form.code.trim()}
+        onClick={() => save.mutate()}
+        sx={{ color: "#fff", fontWeight: 800 }}
+      >
+        {save.isPending ? "Αποθήκευση…" : "Δημιουργία"}
+      </Button>
     </DialogActions>
   </Dialog>;
 }
