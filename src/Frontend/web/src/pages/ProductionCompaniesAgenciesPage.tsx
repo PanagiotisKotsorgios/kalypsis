@@ -374,8 +374,8 @@ function CompanyPoliciesSection({ companyId }: { companyId: string }) {
     <Popover open={!!filterAnchor} anchorEl={filterAnchor} onClose={() => setFilterAnchor(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}>
       <Stack spacing={1.25} sx={{ p: 1.75, width: { xs: 270, sm: 330 } }}>
         <Typography fontWeight={800}>Φίλτρα συμβολαίων</Typography>
-        <TextField select size="small" label="Κατάσταση" value={status} onChange={event => setStatus(event.target.value)} SelectProps={{ native: true }}><option value="all">Όλες</option>{statuses.map(option => <option key={option} value={option}>{option}</option>)}</TextField>
-        <TextField select size="small" label="Κλάδος" value={type} onChange={event => setType(event.target.value)} SelectProps={{ native: true }}><option value="all">Όλοι</option>{types.map(option => <option key={option} value={option}>{option}</option>)}</TextField>
+        <TextField select size="small" label="Κατάσταση" value={status} onChange={event => setStatus(event.target.value)} SelectProps={{ native: true }}><option value="all">Όλες</option>{statuses.map(option => <option key={option} value={option}>{policyStatusLabel(option)}</option>)}</TextField>
+        <TextField select size="small" label="Κλάδος" value={type} onChange={event => setType(event.target.value)} SelectProps={{ native: true }}><option value="all">Όλοι</option>{types.map(option => <option key={option} value={option}>{policyTypeLabel(option)}</option>)}</TextField>
         <TextField select size="small" label="Λήξη" value={expiry} onChange={event => setExpiry(event.target.value)} SelectProps={{ native: true }}><option value="all">Όλες οι ημερομηνίες</option><option value="expired">Έχουν λήξει</option><option value="next30">Λήγουν σε 30 ημέρες</option><option value="next90">Λήγουν σε 90 ημέρες</option></TextField>
         <Button color="error" variant="outlined" onClick={clearFilters}>Καθαρισμός φίλτρων</Button>
       </Stack>
@@ -384,11 +384,11 @@ function CompanyPoliciesSection({ companyId }: { companyId: string }) {
       {policiesQ.isLoading ? <Box sx={{ p: 3, textAlign: "center" }}><CircularProgress size={24} /></Box> : <Table size="small" stickyHeader sx={{ minWidth: 920 }}>
         <TableHead><TableRow><TableCell>Συμβόλαιο</TableCell><TableCell>Πελάτης</TableCell><TableCell>Κλάδος / κατάσταση</TableCell><TableCell>Έναρξη</TableCell><TableCell>Λήξη</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Συνεργάτης</TableCell><TableCell align="right">Προβολή</TableCell></TableRow></TableHead>
         <TableBody>{rows.map(row => <TableRow key={row.id} hover onClick={() => setSelectedPolicyId(row.id)} sx={{ cursor: "pointer" }}>
-          <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.policyNumber || "—"}</TableCell><TableCell>{row.customerDisplay || "—"}</TableCell><TableCell><Stack spacing={.25}><Typography variant="body2">{row.policyType || "—"}</Typography><Chip size="small" label={row.status} /></Stack></TableCell><TableCell>{date(row.startDate)}</TableCell><TableCell>{date(row.endDate)}</TableCell><TableCell align="right">{money(row.premium)}</TableCell><TableCell>{row.producerName || "Έδρα"}</TableCell><TableCell align="right"><IconButton size="small" aria-label="Προβολή συμβολαίου" onClick={event => { event.stopPropagation(); setSelectedPolicyId(row.id); }}><VisibilityIcon fontSize="small" /></IconButton></TableCell>
+          <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.policyNumber || "—"}</TableCell><TableCell>{row.customerDisplay || "—"}</TableCell><TableCell><Stack spacing={.25}><Typography variant="body2">{policyTypeLabel(row.policyType || "") || "—"}</Typography><Chip size="small" label={policyStatusLabel(row.status)} /></Stack></TableCell><TableCell>{date(row.startDate)}</TableCell><TableCell>{date(row.endDate)}</TableCell><TableCell align="right">{money(row.premium)}</TableCell><TableCell>{row.producerName || "Έδρα"}</TableCell><TableCell align="right"><IconButton size="small" aria-label="Προβολή συμβολαίου" onClick={event => { event.stopPropagation(); setSelectedPolicyId(row.id); }}><VisibilityIcon fontSize="small" /></IconButton></TableCell>
         </TableRow>)}{rows.length === 0 && <TableRow><TableCell colSpan={8}><Typography color="text.secondary" textAlign="center" sx={{ py: 3 }}>{policiesQ.isError ? "Δεν φορτώθηκαν τα συμβόλαια." : "Δεν βρέθηκαν συμβόλαια με τα συγκεκριμένα φίλτρα."}</Typography></TableCell></TableRow>}</TableBody>
       </Table>}
     </Box>
-    <PolicyDetailDrawer policyId={selectedPolicyId} open={!!selectedPolicyId} onClose={() => setSelectedPolicyId(null)} />
+    <PolicyDetailDrawer policyId={selectedPolicyId} open={!!selectedPolicyId} presentation="modal" onClose={() => setSelectedPolicyId(null)} />
   </ProfileSection>;
 }
 

@@ -6,6 +6,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import SaveIcon from "@mui/icons-material/Save";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -13,6 +14,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { EntityAuditTimeline } from "./EntityAuditTimeline";
 import { PropagateChangesDialog, type PropagatableChanges } from "./PropagateChangesDialog";
 import { SearchableSelect } from "./SearchableSelect";
+import { VehicleDetailDialog } from "../pages/CustomerVehiclesPage";
 
 // Mirrors PolicyDetailDto from the backend (see PolicyDetailQuery.cs).
 export interface PolicyDetail {
@@ -81,6 +83,29 @@ interface Props {
   onClose: () => void;
   /** Producer portal: show the office-assigned policy without any edits or office commission configuration. */
   readOnly?: boolean;
+  /** Use a centered modal when the policy is opened from another modal (for example a company profile). */
+  presentation?: "drawer" | "modal";
+}
+
+interface PolicyCustomerPreview {
+  id: string;
+  customerNumber?: string;
+  type?: string;
+  status?: string;
+  firstName?: string;
+  lastName?: string;
+  companyName?: string;
+  vatNumber?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  mobilePhone?: string | null;
+  altPhone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  postalCode?: string | null;
+  birthDate?: string | null;
+  occupation?: string | null;
+  notes?: string | null;
 }
 
 const STATUS_COLOR: Record<string, "default" | "success" | "warning" | "info" | "error"> = {
@@ -90,6 +115,29 @@ const STATUS_COLOR: Record<string, "default" | "success" | "warning" | "info" | 
 
 const FREQUENCIES = ["Annual", "Semiannual", "Quarterly", "Monthly", "Single"];
 const DELIVERY_METHODS = ["Hand", "Post", "Email", "Courier"];
+const POLICY_STATUS_LABELS: Record<string, string> = {
+  Prospect: "Πιθανό συμβόλαιο", Draft: "Πρόχειρο", Active: "Ενεργό",
+  Expired: "Ληγμένο", Cancelled: "Ακυρωμένο", Renewed: "Ανανεωμένο",
+  PendingRenewal: "Προς ανανέωση", Undelivered: "Απαράδοτο", AwaitingIssue: "Προς έκδοση",
+  ActiveProspect: "Ενεργός πιθανός πελάτης"
+};
+const POLICY_TYPE_LABELS: Record<string, string> = {
+  Auto: "Αυτοκίνητο", Home: "Κατοικία", Health: "Υγεία", Life: "Ζωή",
+  Business: "Επιχείρηση", Travel: "Ταξίδι", Other: "Λοιπά"
+};
+const CUSTOMER_STATUS_LABELS: Record<string, string> = {
+  Prospect: "Πιθανός πελάτης", Active: "Ενεργός", Inactive: "Ανενεργός",
+  Archived: "Αρχειοθετημένος", Lost: "Απολεσθείς"
+};
+const FREQUENCY_LABELS: Record<string, string> = {
+  Annual: "Ετήσια", Semiannual: "Εξαμηνιαία", Quarterly: "Τριμηνιαία", Monthly: "Μηνιαία", Single: "Εφάπαξ"
+};
+const DELIVERY_METHOD_LABELS: Record<string, string> = {
+  Hand: "Παράδοση με το χέρι", Post: "Ταχυδρομείο", Email: "Ηλεκτρονικό ταχυδρομείο", Courier: "Ταχυμεταφορά"
+};
+const policyStatusLabel = (value: string) => POLICY_STATUS_LABELS[value] ?? value;
+const policyTypeLabel = (value: string) => POLICY_TYPE_LABELS[value] ?? value;
+const customerStatusLabel = (value?: string) => value ? (CUSTOMER_STATUS_LABELS[value] ?? value) : "—";
 const COLLECTION_METHODS = ["Cash", "BankDeposit", "Card", "DebitOrder", "Cheque", "Other"];
 const COLLECTION_METHODS_LABEL: Record<string, string> = {
   Cash: "Μετρητά",
@@ -100,13 +148,16 @@ const COLLECTION_METHODS_LABEL: Record<string, string> = {
   Other: "Άλλο",
 };
 
-export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }: Props) {
+export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, presentation = "drawer" }: Props) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [tab, setTab] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [changeProducerOpen, setChangeProducerOpen] = useState(false);
+  const [customerPreviewOpen, setCustomerPreviewOpen] = useState(false);
+  const [vehiclePreviewOpen, setVehiclePreviewOpen] = useState(false);
+  const modalPresentation = presentation === "modal";
 
   const q = useQuery({
     queryKey: ["policy-detail", policyId],
@@ -351,7 +402,15 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
 
   return (
     <Drawer anchor="right" open={open} onClose={onClose}
-      PaperProps={{ sx: { width: { xs: "100%", md: `min(${drawerWidth}px, 98vw)` }, overflow: "visible" } }}>
+      transitionDuration={modalPresentation ? 0 : undefined}
+      ModalProps={modalPresentation ? { sx: { zIndex: 1600 } } : undefined}
+      PaperProps={{ sx: modalPresentation ? {
+        width: { xs: "calc(100vw - 16px)", md: "min(1180px, 94vw)" },
+        height: { xs: "calc(100vh - 16px)", md: "min(900px, 92vh)" },
+        maxHeight: "calc(100vh - 16px)", top: "50%", bottom: "auto", left: "50%", right: "auto",
+        transform: "translate(-50%, -50%) !important", borderRadius: 2, overflow: "hidden",
+        boxShadow: "0 24px 80px rgba(2, 18, 42, .38)",
+      } : { width: { xs: "100%", md: `min(${drawerWidth}px, 98vw)` }, overflow: "visible" } }}>
       {/* Left-edge drag handle — same UX as sidebar. Positioned outside
           the scroll area so it stays reachable while the operator scrolls
           the drawer content. */}
@@ -373,7 +432,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
       />
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
         {/* Sticky header */}
-        <Box sx={{ p: 2.5, borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.paper" }}>
+        <Box sx={{ p: modalPresentation ? 1.5 : 2.5, borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.paper" }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
             <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 700 }}>
               {t("policyDetail.header")}
@@ -384,13 +443,13 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
             <>
               <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap">
                 <Typography variant="h5" fontWeight={800} sx={{ fontFamily: "monospace" }}>{p.policyNumber}</Typography>
-                <Chip size="small" color={STATUS_COLOR[p.status] ?? "default"} label={p.status === "Prospect" ? "Πιθανό συμβόλαιο" : p.status} />
-                <Chip size="small" variant="outlined" label={p.policyType} />
+                <Chip size="small" color={STATUS_COLOR[p.status] ?? "default"} label={policyStatusLabel(p.status)} />
+                <Chip size="small" variant="outlined" label={policyTypeLabel(p.policyType)} />
               </Stack>
               <Typography color="text.secondary" sx={{ mt: 0.5 }}>
                 {p.customerDisplay} · {p.insuranceCompanyName}
               </Typography>
-              <Stack direction="row" spacing={3} mt={2}>
+              <Stack direction="row" spacing={modalPresentation ? 1.5 : 3} mt={modalPresentation ? 1 : 2} flexWrap="wrap" useFlexGap>
                 <Box>
                   <Typography variant="caption" color="text.secondary">{t("policyDetail.premium")}</Typography>
                   <Typography fontWeight={700}>{p.premium.toFixed(2)} {p.currency}</Typography>
@@ -430,7 +489,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
             stacked), Ιστορικό + Επικοινωνία collapsed into "Δραστηριότητα"
             (audit timeline + comms feed one under the other). Fewer tabs
             = less mental load per policy for the operator. */}
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" sx={{ px: 1, borderBottom: "1px solid", borderColor: "divider" }}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" sx={{ px: modalPresentation ? .5 : 1, minHeight: modalPresentation ? 42 : undefined, borderBottom: "1px solid", borderColor: "divider", "& .MuiTab-root": { minHeight: modalPresentation ? 42 : undefined, py: modalPresentation ? .5 : undefined } }}>
           <Tab label={t("policyDetail.tab.summary")} />
           <Tab label={t("policyDetail.tab.financials")} />
           <Tab label={t("policyDetail.tab.parties")} />
@@ -447,7 +506,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
 
         {/* Scrollable content */}
         <Box sx={{
-          flex: 1, overflowY: "auto", p: 3,
+          flex: 1, overflowY: "auto", p: modalPresentation ? 1.5 : 3,
           ...(readOnly ? { "& button, & input, & textarea, & [role=button]": { pointerEvents: "none" } } : {})
         }}>
           {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
@@ -459,8 +518,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
               {tab === 0 && (
                 <Stack spacing={2}>
                   <KV label={t("policyDetail.policyNumber")} value={p.policyNumber} mono />
-                  <KV label={t("policyDetail.policyType")} value={p.policyType} />
-                  <KV label={t("policyDetail.status")} value={<Chip size="small" color={STATUS_COLOR[p.status]} label={p.status === "Prospect" ? "Πιθανό συμβόλαιο" : p.status} />} />
+                  <KV label={t("policyDetail.policyType")} value={policyTypeLabel(p.policyType)} />
+                  <KV label={t("policyDetail.status")} value={<Chip size="small" color={STATUS_COLOR[p.status]} label={policyStatusLabel(p.status)} />} />
                   <KV label={t("policyDetail.startDate")} value={p.startDate} />
                   <KV label={t("policyDetail.endDate")} value={p.endDate} />
                   <Divider />
@@ -498,8 +557,13 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
                       value={form.reasonForCirculation}
                       onChange={e => setForm({ ...form, reasonForCirculation: e.target.value })}
                       placeholder="π.χ. Ιδιωτική, Επαγγελματική, Ταξί, Ασθενοφόρο"
-                      helperText="Distinct από τη χρήση οχήματος (ΕΙΧ/ΦΔΧ) — αφορά τον σκοπό χρήσης." />
+                      helperText="Διαφορετικό από τη χρήση οχήματος (ΕΙΧ/ΦΔΧ) — αφορά τον σκοπό χρήσης." />
                   </Stack>
+                  {(p.vehicleRegistrationPlate || form.vehicleRegistrationPlate) && (
+                    <Button size="small" variant="outlined" color="primary" onClick={() => setVehiclePreviewOpen(true)} sx={{ alignSelf: "flex-start" }}>
+                      Προβολή πλήρους καρτέλας οχήματος · {form.vehicleRegistrationPlate || p.vehicleRegistrationPlate}
+                    </Button>
+                  )}
                   <SearchableSelect
                     label="Συμβαλλόμενος (αν διαφέρει από τον ασφαλιζόμενο)"
                     value={form.contractPartyCustomerId}
@@ -563,7 +627,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
                   {p.covers && p.covers.length > 0 && <CoversBreakdown p={p} />}
                   <TextField select fullWidth label={t("policyDetail.paymentFrequency")} value={form.paymentFrequency}
                     onChange={e => setForm({ ...form, paymentFrequency: e.target.value })}>
-                    {FREQUENCIES.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
+                    {FREQUENCIES.map(f => <MenuItem key={f} value={f}>{FREQUENCY_LABELS[f] ?? f}</MenuItem>)}
                   </TextField>
                   <TextField select fullWidth label="Τρόπος είσπραξης" value={form.paymentCollectionMethod}
                     onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })}>
@@ -625,7 +689,10 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
               {/* PARTIES */}
               {tab === 2 && (
                 <Stack spacing={2}>
-                  <Typography variant="overline" color="text.secondary" fontWeight={700}>{t("policyDetail.customer")}</Typography>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
+                    <Typography variant="overline" color="text.secondary" fontWeight={700}>{t("policyDetail.customer")}</Typography>
+                    <Button size="small" variant="outlined" color="primary" startIcon={<PersonOutlineIcon />} onClick={() => setCustomerPreviewOpen(true)}>Προβολή καρτέλας</Button>
+                  </Stack>
                   <KV label={t("policyDetail.name")} value={p.customerDisplay} />
                   {p.customerVat && <KV label="ΑΦΜ" value={p.customerVat} mono />}
                   {p.customerEmail && <KV label="Email" value={<a href={`mailto:${p.customerEmail}`}>{p.customerEmail}</a>} />}
@@ -681,7 +748,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
                   <TextField select fullWidth label={t("policyDetail.deliveryMethod")} value={form.deliveryMethod}
                     onChange={e => setForm({ ...form, deliveryMethod: e.target.value })}>
                     <MenuItem value="">—</MenuItem>
-                    {DELIVERY_METHODS.map(m => <MenuItem key={m} value={m}>{t(`deliveryMethod.${m}`, m)}</MenuItem>)}
+                    {DELIVERY_METHODS.map(m => <MenuItem key={m} value={m}>{DELIVERY_METHOD_LABELS[m] ?? m}</MenuItem>)}
                   </TextField>
                   <TextField select fullWidth label="Τρόπος πληρωμής" value={form.paymentCollectionMethod}
                     onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })}
@@ -782,7 +849,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
 
         {/* Sticky footer with save (Summary now editable via ALIS-parity fields). */}
         {(tab >= 0 && tab <= 4) && (
-          <Box sx={{ p: 2, borderTop: "1px solid", borderColor: "divider" }}>
+          <Box sx={{ p: modalPresentation ? 1 : 2, borderTop: "1px solid", borderColor: "divider" }}>
             <Stack direction="row" spacing={1} justifyContent="flex-end">
               <Button onClick={onClose}>{t("common.cancel")}</Button>
               {!readOnly && (
@@ -821,8 +888,76 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false }
           }}
         />
       )}
+      {p && (
+        <PolicyCustomerPreviewDialog
+          open={customerPreviewOpen}
+          customerId={p.customerId}
+          fallback={{
+            customerDisplay: p.customerDisplay,
+            email: p.customerEmail,
+            phone: p.customerPhone,
+            vatNumber: p.customerVat,
+          }}
+          onClose={() => setCustomerPreviewOpen(false)}
+          zIndex={1700}
+        />
+      )}
+      {p && (p.vehicleRegistrationPlate || form.vehicleRegistrationPlate) && (
+        <VehicleDetailDialog
+          open={vehiclePreviewOpen}
+          plate={form.vehicleRegistrationPlate || p.vehicleRegistrationPlate || ""}
+          policyIds={[p.id]}
+          onClose={() => setVehiclePreviewOpen(false)}
+          zIndex={1700}
+        />
+      )}
     </Drawer>
   );
+}
+
+function PolicyCustomerPreviewDialog({ open, customerId, fallback, onClose, zIndex }: {
+  open: boolean;
+  customerId: string;
+  fallback: { customerDisplay: string; email: string | null; phone: string | null; vatNumber: string | null };
+  onClose: () => void;
+  zIndex?: number;
+}) {
+  const q = useQuery({
+    queryKey: ["policy-customer-preview", customerId],
+    enabled: open && !!customerId,
+    queryFn: async () => (await api.get<PolicyCustomerPreview>(`/customers/${customerId}`)).data,
+  });
+  const customer = q.data;
+  const displayName = customer?.companyName || [customer?.firstName, customer?.lastName].filter(Boolean).join(" ") || fallback.customerDisplay;
+  const phones = [customer?.phone, customer?.mobilePhone, customer?.altPhone].filter(Boolean).join(" · ") || fallback.phone || "—";
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" sx={zIndex ? { zIndex } : undefined}>
+    <DialogTitle sx={{ py: 1.5 }}><Stack direction="row" spacing={1} alignItems="center"><PersonOutlineIcon color="primary" /><Box flex={1}><Typography variant="h6" fontWeight={850}>{displayName}</Typography><Typography variant="caption" color="text.secondary">Πλήρης σύνοψη πελάτη · {customer?.customerNumber || "—"}</Typography></Box><IconButton size="small" onClick={onClose}><CloseIcon /></IconButton></Stack></DialogTitle>
+    <DialogContent dividers sx={{ p: { xs: 1.25, md: 2 } }}>
+      {q.isLoading && <Box sx={{ py: 4, textAlign: "center" }}><CircularProgress size={26} /></Box>}
+      {q.isError && <Alert severity="error">{extractErrorMessage(q.error)}</Alert>}
+      {!q.isLoading && !q.isError && <Stack spacing={1.25}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(3, minmax(0, 1fr))" }, gap: .9 }}>
+          <CompactCustomerValue label="Κατάσταση" value={customerStatusLabel(customer?.status)} />
+          <CompactCustomerValue label="Τύπος" value={customer?.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο"} />
+          <CompactCustomerValue label="ΑΦΜ" value={customer?.vatNumber || fallback.vatNumber || "—"} />
+          <CompactCustomerValue label="Email" value={customer?.email || fallback.email || "—"} />
+          <CompactCustomerValue label="Τηλέφωνα" value={phones} />
+          <CompactCustomerValue label="Επάγγελμα" value={customer?.occupation || "—"} />
+          <CompactCustomerValue label="Ημερομηνία γέννησης" value={customer?.birthDate ? new Date(customer.birthDate).toLocaleDateString("el-GR") : "—"} />
+          <CompactCustomerValue label="Διεύθυνση" value={[customer?.address, customer?.city, customer?.postalCode].filter(Boolean).join(" · ") || "—"} />
+        </Box>
+        <Box sx={{ p: 1.1, borderRadius: 1.25, bgcolor: "rgba(25,118,210,.05)", border: "1px solid rgba(25,118,210,.16)" }}>
+          <Typography variant="caption" color="text.secondary" display="block">Σημειώσεις</Typography>
+          <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>{customer?.notes || "Δεν έχουν καταχωρηθεί σημειώσεις."}</Typography>
+        </Box>
+      </Stack>}
+    </DialogContent>
+    <DialogActions sx={{ px: 2, py: 1.25 }}><Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={onClose} sx={{ color: "#fff", fontWeight: 800 }}>Κλείσιμο</Button></DialogActions>
+  </Dialog>;
+}
+
+function CompactCustomerValue({ label, value }: { label: string; value: string }) {
+  return <Box sx={{ p: .9, borderRadius: 1, bgcolor: "rgba(248,250,252,.9)", border: "1px solid", borderColor: "divider", minWidth: 0 }}><Typography variant="caption" color="text.secondary" display="block">{label}</Typography><Typography variant="body2" fontWeight={700} sx={{ wordBreak: "break-word" }}>{value}</Typography></Box>;
 }
 
 /**
@@ -2200,9 +2335,9 @@ function PolicyCommissionOverrideEditor({ overrideJson, onChange, onSave, saving
 
 const LEVEL_LABEL: Record<string, string> = {
   Producer: "Παραγωγός",
-  Manager: "Manager",
-  Unit: "Unit",
-  Assistant: "Assistant",
+  Manager: "Διευθυντής",
+  Unit: "Μονάδα",
+  Assistant: "Βοηθός",
   Agency: "Γραφείο"
 };
 

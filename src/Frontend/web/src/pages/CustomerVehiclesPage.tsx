@@ -79,7 +79,7 @@ function money(value?: number | null, currency = "EUR") {
   return value == null ? "—" : `${value.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 }
 
-export function VehicleDetailDialog({ open, plate, policyIds, onClose }: { open: boolean; plate: string; policyIds: string[]; onClose: () => void }) {
+export function VehicleDetailDialog({ open, plate, policyIds, onClose, zIndex }: { open: boolean; plate: string; policyIds: string[]; onClose: () => void; zIndex?: number }) {
   const q = useQuery({
     queryKey: ["vehicle-detail", plate, policyIds.join(",")],
     enabled: open && policyIds.length > 0,
@@ -159,7 +159,7 @@ export function VehicleDetailDialog({ open, plate, policyIds, onClose }: { open:
     color: "Χρώμα", seats: "Θέσεις", usage: "Χρήση"
   };
   const total = (key: keyof VehiclePolicyDetail) => details.reduce((sum, detail) => sum + (Number(detail[key]) || 0), 0);
-  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" sx={zIndex ? { zIndex } : undefined}>
     <DialogTitle><Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }} justifyContent="space-between"><Stack direction="row" spacing={1} alignItems="center"><DirectionsCarIcon color="primary" /> <Box><Typography variant="h6" fontWeight={800}>Καρτέλα οχήματος · {plate || "Χωρίς πινακίδα"}</Typography><Typography variant="caption" color="text.secondary">Συγκεντρωμένα στοιχεία από όλα τα σχετικά συμβόλαια</Typography></Box></Stack><Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => setEditing(value => !value)} disabled={!first}>{editing ? "Κλείσιμο επεξεργασίας" : "Επεξεργασία"}</Button></Stack></DialogTitle>
     <DialogContent dividers>
       {q.isLoading && <Box sx={{ p: 4, textAlign: "center" }}><CircularProgress /></Box>}
