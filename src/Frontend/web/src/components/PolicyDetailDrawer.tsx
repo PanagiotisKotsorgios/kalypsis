@@ -20,6 +20,7 @@ import { EntityAuditTimeline } from "./EntityAuditTimeline";
 import { PropagateChangesDialog, type PropagatableChanges } from "./PropagateChangesDialog";
 import { SearchableSelect } from "./SearchableSelect";
 import { VehicleDetailDialog } from "../pages/CustomerVehiclesPage";
+import { contractDurationLabel } from "../utils/contractDuration";
 
 // Mirrors PolicyDetailDto from the backend (see PolicyDetailQuery.cs).
 export interface PolicyDetail {
@@ -63,6 +64,12 @@ export interface PolicyDetail {
   // Motor-only extras
   driverVatNumber: string | null;
   reasonForCirculation: string | null;
+  vehicleUseCategory?: string | null;
+  carrierUseCode?: string | null;
+  characteristic?: string | null;
+  deductible?: number | null;
+  position?: string | null;
+  policyNotes?: string | null;
   // Per-policy commission override (JSON blob {"Producer":15,"Manager":3,...})
   specialLevelPercentsJson: string | null;
   // Bridge-supplied Προμήθεια Γραφείου — summed from FinancialMovements
@@ -111,6 +118,19 @@ interface PolicyCustomerPreview {
   birthDate?: string | null;
   occupation?: string | null;
   notes?: string | null;
+}
+
+interface StoredVehiclePolicy {
+  id: string;
+  policyNumber: string;
+  customerId: string;
+  customerDisplay: string;
+  insuranceCompanyName: string;
+  startDate: string;
+  endDate: string;
+  premium: number;
+  status: string;
+  vehicleRegistrationPlate: string | null;
 }
 
 const STATUS_COLOR: Record<string, "default" | "success" | "warning" | "info" | "error"> = {
@@ -164,6 +184,8 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const [changeProducerOpen, setChangeProducerOpen] = useState(false);
   const [customerPreviewOpen, setCustomerPreviewOpen] = useState(false);
   const [vehiclePreviewOpen, setVehiclePreviewOpen] = useState(false);
+  const [vehiclePickerOpen, setVehiclePickerOpen] = useState(false);
+  const [vehicleSearch, setVehicleSearch] = useState("");
   const modalPresentation = presentation === "modal";
   const selectTab = (next: number | string) => {
     const normalized = Number(next);
@@ -262,6 +284,27 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
     queryFn: async () => (await api.get<Array<{ id: string; name: string; code?: string }>>("/insurance-companies", { params: { onlyUsed: true } })).data
   });
 
+  const storedVehiclesQuery = useQuery({
+    queryKey: ["policy-stored-vehicles", vehiclePickerOpen],
+    enabled: open && vehiclePickerOpen,
+    queryFn: async () => (await api.get<StoredVehiclePolicy[]>("/policies", { params: { type: "Auto" } })).data,
+  });
+
+  const storedVehicles = useMemo(() => {
+    const rows = storedVehiclesQuery.data ?? [];
+    const needle = vehicleSearch.trim().toLocaleLowerCase("el-GR");
+    const unique = new Map<string, StoredVehiclePolicy>();
+    for (const row of rows) {
+      const plate = row.vehicleRegistrationPlate?.trim().toUpperCase();
+      if (!plate || row.id === policyId) continue;
+      if (!unique.has(plate)) unique.set(plate, { ...row, vehicleRegistrationPlate: plate });
+    }
+    return [...unique.values()]
+      .filter(row => !needle || [row.vehicleRegistrationPlate, row.policyNumber, row.customerDisplay, row.insuranceCompanyName]
+        .some(value => String(value ?? "").toLocaleLowerCase("el-GR").includes(needle)))
+      .sort((a, b) => (a.customerId === q.data?.customerId ? -1 : 0) - (b.customerId === q.data?.customerId ? -1 : 0));
+  }, [policyId, q.data?.customerId, storedVehiclesQuery.data, vehicleSearch]);
+
   // Tab-specific data sources (loaded only when the tab is opened).
   const endorsements = useQuery({
     queryKey: ["policy-endorsements", policyId],
@@ -358,6 +401,37 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
       if (Object.keys(diff).length > 0) setPropagateChanges(diff);
     },
     onError: (e) => setErr(extractErrorMessage(e))
+  });
+
+  const linkVehicle = useMutation({
+    mutationFn: async (vehicle: StoredVehiclePolicy) => {
+      // Copy the vehicle-specific fields from the selected stored policy so
+      // the new contract immediately has the same vehicle card details,
+      // rather than only displaying the registration plate.
+      const source = await api.get<PolicyDetail>(`/policies/${vehicle.id}/detail`).then(response => response.data);
+      return api.patch(`/policies/${policyId}/vehicle`, {
+        vehicleRegistrationPlate: vehicle.vehicleRegistrationPlate,
+        vehicleUseCategory: source.vehicleUseCategory ?? source.carrierUseCode ?? null,
+        driverVatNumber: source.driverVatNumber ?? null,
+        reasonForCirculation: source.reasonForCirculation ?? null,
+        characteristic: source.characteristic ?? null,
+        deductible: source.deductible ?? null,
+        position: source.position ?? null,
+        specsJson: source.specsJson ?? null,
+        notes: source.policyNotes ?? null,
+        replaceDetails: true,
+      });
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] });
+      void qc.invalidateQueries({ queryKey: ["policies"] });
+      void qc.invalidateQueries({ queryKey: ["customer-vehicles-all"] });
+      setVehiclePickerOpen(false);
+      setVehicleSearch("");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    },
+    onError: (e) => setErr(extractErrorMessage(e)),
   });
 
   // ALIS-parity function-key shortcuts. F2 = Summary, F5 = Renewal,
@@ -530,6 +604,10 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     {p.outstanding.toFixed(2)}
                   </Typography>
                 </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Διάρκεια</Typography>
+                  <Typography fontWeight={700}>{contractDurationLabel(p.startDate, p.endDate)}</Typography>
+                </Box>
                 {!readOnly && (
                   <Box>
                     <Typography variant="caption" color="text.secondary">{t("policyDetail.commissions")}</Typography>
@@ -615,6 +693,13 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                 color: "#fff !important",
                 boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(6,47,99,.35)",
               },
+              "&.contract-tab-active": {
+                background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important",
+                borderColor: "#062f63 !important",
+                color: "#fff !important",
+                opacity: "1 !important",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 3px 8px rgba(6,47,99,.35)",
+              },
               "&.Mui-selected:hover": { background: "linear-gradient(135deg, #084d91 0%, #042b54 100%) !important", color: "#fff !important" },
               "& .MuiSvgIcon-root": { color: "inherit" },
             },
@@ -626,11 +711,11 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           }}
         >
           {modalPresentation ? <>
-            <Tab value={0} onClick={() => selectTab(0)} sx={modalTab === 0 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" />
-            <Tab value={1} onClick={() => selectTab(1)} sx={modalTab === 1 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<AccountBalanceWalletOutlinedIcon fontSize="small" />} iconPosition="start" label="Οικονομικά" />
-            <Tab value={2} onClick={() => selectTab(2)} sx={modalTab === 2 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<DescriptionOutlinedIcon fontSize="small" />} iconPosition="start" label="Στοιχεία συμβολαίου" />
-            <Tab value={3} onClick={() => selectTab(3)} sx={modalTab === 3 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<ReceiptLongOutlinedIcon fontSize="small" />} iconPosition="start" label="Κινήσεις" />
-            <Tab value={4} onClick={() => selectTab(4)} sx={modalTab === 4 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<HistoryOutlinedIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & ιστορικό" />
+            <Tab value={0} className={modalTab === 0 ? "contract-tab-active" : undefined} onClick={() => selectTab(0)} sx={modalTab === 0 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" />
+            <Tab value={1} className={modalTab === 1 ? "contract-tab-active" : undefined} onClick={() => selectTab(1)} sx={modalTab === 1 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<AccountBalanceWalletOutlinedIcon fontSize="small" />} iconPosition="start" label="Οικονομικά" />
+            <Tab value={2} className={modalTab === 2 ? "contract-tab-active" : undefined} onClick={() => selectTab(2)} sx={modalTab === 2 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<DescriptionOutlinedIcon fontSize="small" />} iconPosition="start" label="Στοιχεία συμβολαίου" />
+            <Tab value={3} className={modalTab === 3 ? "contract-tab-active" : undefined} onClick={() => selectTab(3)} sx={modalTab === 3 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<ReceiptLongOutlinedIcon fontSize="small" />} iconPosition="start" label="Κινήσεις" />
+            <Tab value={4} className={modalTab === 4 ? "contract-tab-active" : undefined} onClick={() => selectTab(4)} sx={modalTab === 4 ? { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", borderColor: "#062f63 !important", color: "#fff !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } : undefined} icon={<HistoryOutlinedIcon fontSize="small" />} iconPosition="start" label="Έγγραφα & ιστορικό" />
           </> : <>
             <Tab label={t("policyDetail.tab.summary")} />
             <Tab label={t("policyDetail.tab.financials")} />
@@ -675,6 +760,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                       <PolicySummaryLine label={t("policyDetail.status")} value={<Chip size="small" color={STATUS_COLOR[p.status]} label={policyStatusLabel(p.status)} />} />
                       <PolicySummaryLine label={t("policyDetail.startDate")} value={p.startDate} />
                       <PolicySummaryLine label={t("policyDetail.endDate")} value={p.endDate} />
+                      <PolicySummaryLine label="Διάρκεια" value={contractDurationLabel(p.startDate, p.endDate)} />
                       <PolicySummaryLine label={t("policyDetail.createdAt")} value={new Date(p.createdAt).toLocaleString("el-GR")} />
                       {p.updatedAt && <PolicySummaryLine label={t("policyDetail.updatedAt")} value={new Date(p.updatedAt).toLocaleString("el-GR")} />}
                       {p.createdByName && <PolicySummaryLine label={t("policyDetail.createdBy")} value={p.createdByName} />}
@@ -704,6 +790,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                       {(p.vehicleRegistrationPlate || form.vehicleRegistrationPlate) ? (
                         <>
                           <Divider sx={{ my: .75 }} />
+                          {!readOnly && <Button size="small" variant="outlined" color="primary" onClick={() => setVehiclePickerOpen(true)} sx={{ mb: .5 }}>Αλλαγή συνδεδεμένου οχήματος</Button>}
                           <PolicySummaryLine label="Αρ. κυκλοφορίας" value={form.vehicleRegistrationPlate || p.vehicleRegistrationPlate} mono />
                           {(form.driverVatNumber || p.driverVatNumber) && <PolicySummaryLine label="ΑΦΜ οδηγού" value={form.driverVatNumber || p.driverVatNumber} mono />}
                           {(form.reasonForCirculation || p.reasonForCirculation) && <PolicySummaryLine label="Λόγος κυκλοφορίας" value={form.reasonForCirculation || p.reasonForCirculation} />}
@@ -711,6 +798,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                         </>
                       ) : (
                         <Stack spacing={.75} sx={{ pt: .5 }}>
+                          {!readOnly && <Button size="small" variant="contained" color="primary" onClick={() => setVehiclePickerOpen(true)} sx={{ alignSelf: "flex-start", color: "#fff", fontWeight: 700 }}>Σύνδεση αποθηκευμένου οχήματος</Button>}
                           <Typography variant="body2" color="error.dark" fontWeight={650}>Δεν έχει συνδεθεί όχημα.</Typography>
                           <Button size="small" variant="outlined" color="primary" onClick={() => setVehiclePreviewOpen(true)} sx={{ alignSelf: "flex-start" }}>
                             Άνοιγμα κενής καρτέλας οχήματος
@@ -779,6 +867,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     <KV label={t("policyDetail.status")} value={<Chip size="small" color={STATUS_COLOR[p.status]} label={policyStatusLabel(p.status)} />} />
                     <KV label={t("policyDetail.startDate")} value={p.startDate} />
                     <KV label={t("policyDetail.endDate")} value={p.endDate} />
+                    <KV label="Διάρκεια" value={contractDurationLabel(p.startDate, p.endDate)} />
                   </Box>
                   <Divider sx={modalPresentation ? { display: "none" } : undefined} />
                   <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: modalPresentation ? .5 : 0, ...(modalPresentation ? { p: 1.25, bgcolor: "rgba(248,250,252,.85)", border: "1px solid", borderColor: "divider", borderRadius: 1 } : {}) }}>
@@ -1360,7 +1449,98 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           zIndex={1700}
         />
       )}
+      {p && !readOnly && (
+        <VehicleAssociationDialog
+          open={vehiclePickerOpen}
+          currentPlate={form.vehicleRegistrationPlate || p.vehicleRegistrationPlate}
+          options={storedVehicles}
+          loading={storedVehiclesQuery.isLoading}
+          error={storedVehiclesQuery.isError ? extractErrorMessage(storedVehiclesQuery.error) : null}
+          search={vehicleSearch}
+          onSearch={setVehicleSearch}
+          pending={linkVehicle.isPending}
+          onSelect={(vehicle) => linkVehicle.mutate(vehicle)}
+          onClose={() => { if (!linkVehicle.isPending) { setVehiclePickerOpen(false); setVehicleSearch(""); } }}
+        />
+      )}
     </Drawer>
+  );
+}
+
+function VehicleAssociationDialog({ open, currentPlate, options, loading, error, search, onSearch, pending, onSelect, onClose }: {
+  open: boolean;
+  currentPlate: string | null | undefined;
+  options: StoredVehiclePolicy[];
+  loading: boolean;
+  error: string | null;
+  search: string;
+  onSearch: (value: string) => void;
+  pending: boolean;
+  onSelect: (vehicle: StoredVehiclePolicy) => void;
+  onClose: () => void;
+}) {
+  const [statusFilter, setStatusFilter] = useState("all");
+  const statusOptions = useMemo(() => [...new Set(options.map(vehicle => vehicle.status).filter(Boolean))], [options]);
+  const visibleOptions = useMemo(
+    () => statusFilter === "all" ? options : options.filter(vehicle => vehicle.status === statusFilter),
+    [options, statusFilter],
+  );
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" sx={{ zIndex: 1750 }}>
+      <DialogTitle>Σύνδεση αποθηκευμένου οχήματος</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={1.25}>
+          <Typography variant="body2" color="text.secondary">
+            Επιλέξτε όχημα που υπάρχει ήδη σε άλλο συμβόλαιο του γραφείου. Η σύνδεση αντιγράφει και τα διαθέσιμα στοιχεία του οχήματος στο τρέχον συμβόλαιο.
+          </Typography>
+          <TextField
+            size="small"
+            fullWidth
+            label="Αναζήτηση πινακίδας, πελάτη, συμβολαίου ή ασφαλιστικής"
+            value={search}
+            onChange={event => onSearch(event.target.value)}
+            autoFocus
+          />
+          <TextField select size="small" label="Φίλτρο κατάστασης" value={statusFilter} onChange={event => setStatusFilter(event.target.value)} SelectProps={{ native: true }}>
+            <option value="all">Όλες οι καταστάσεις</option>
+            {statusOptions.map(status => <option key={status} value={status}>{status}</option>)}
+          </TextField>
+          {currentPlate && <Chip size="small" variant="outlined" color="info" label={`Τρέχουσα πινακίδα: ${currentPlate}`} sx={{ alignSelf: "flex-start" }} />}
+          {error && <Alert severity="error">{error}</Alert>}
+          {loading ? <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}><CircularProgress /></Box> : visibleOptions.length === 0 ? (
+            <Alert severity="info">Δεν βρέθηκαν αποθηκευμένα οχήματα με αυτά τα κριτήρια.</Alert>
+          ) : (
+            <Box sx={{ maxHeight: 430, overflow: "auto", border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
+              <Table size="small" stickyHeader>
+                <TableHead><TableRow>
+                  <TableCell>Πινακίδα</TableCell>
+                  <TableCell>Πελάτης</TableCell>
+                  <TableCell>Συμβόλαιο</TableCell>
+                  <TableCell>Ασφαλιστική</TableCell>
+                  <TableCell>Περίοδος</TableCell>
+                  <TableCell align="right">Ενέργεια</TableCell>
+                </TableRow></TableHead>
+                <TableBody>{visibleOptions.map(vehicle => (
+                  <TableRow key={`${vehicle.id}-${vehicle.vehicleRegistrationPlate}`} hover>
+                    <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{vehicle.vehicleRegistrationPlate}</TableCell>
+                    <TableCell>{vehicle.customerDisplay || "—"}</TableCell>
+                    <TableCell>{vehicle.policyNumber || "—"}</TableCell>
+                    <TableCell>{vehicle.insuranceCompanyName || "—"}</TableCell>
+                    <TableCell sx={{ whiteSpace: "nowrap" }}>{vehicle.startDate} → {vehicle.endDate}</TableCell>
+                    <TableCell align="right">
+                      <Button size="small" variant="contained" color="primary" onClick={() => onSelect(vehicle)} disabled={pending || vehicle.vehicleRegistrationPlate === currentPlate}>
+                        {pending ? <CircularProgress size={16} color="inherit" /> : vehicle.vehicleRegistrationPlate === currentPlate ? "Συνδεδεμένο" : "Σύνδεση"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}</TableBody>
+              </Table>
+            </Box>
+          )}
+        </Stack>
+      </DialogContent>
+      <DialogActions><Button color="error" onClick={onClose} disabled={pending}>Κλείσιμο</Button></DialogActions>
+    </Dialog>
   );
 }
 
@@ -1376,6 +1556,7 @@ function PolicyCustomerPreviewDialog({ open, customerId, fallback, onClose, zInd
     enabled: open && !!customerId,
     queryFn: async () => (await api.get<PolicyCustomerPreview>(`/customers/${customerId}`)).data,
   });
+
   const customer = q.data;
   const displayName = customer?.companyName || [customer?.firstName, customer?.lastName].filter(Boolean).join(" ") || fallback.customerDisplay;
   const phones = [customer?.phone, customer?.mobilePhone, customer?.altPhone].filter(Boolean).join(" · ") || fallback.phone || "—";

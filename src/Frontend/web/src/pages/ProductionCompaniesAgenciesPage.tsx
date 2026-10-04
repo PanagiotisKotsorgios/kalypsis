@@ -29,6 +29,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
 import { type CarrierProfile, type CompanyDto } from "./InsuranceCompaniesPage";
 import { type OfficeDto } from "./AgencyOfficesPage";
+import { contractDurationLabel } from "../utils/contractDuration";
 import {
   Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
   ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis,
@@ -357,10 +358,10 @@ function CompanyPoliciesSection({ companyId }: { companyId: string }) {
     </Popover>
     <Box sx={{ maxHeight: 500, overflow: "auto", border: "1px solid", borderColor: "divider", borderRadius: 1.25 }}>
       {policiesQ.isLoading ? <Box sx={{ p: 3, textAlign: "center" }}><CircularProgress size={24} /></Box> : <Table size="small" stickyHeader sx={{ minWidth: 920 }}>
-        <TableHead><TableRow><TableCell>Συμβόλαιο</TableCell><TableCell>Πελάτης</TableCell><TableCell>Κλάδος / κατάσταση</TableCell><TableCell>Έναρξη</TableCell><TableCell>Λήξη</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Συνεργάτης</TableCell><TableCell align="right">Προβολή</TableCell></TableRow></TableHead>
+        <TableHead><TableRow><TableCell>Συμβόλαιο</TableCell><TableCell>Πελάτης</TableCell><TableCell>Κλάδος / κατάσταση</TableCell><TableCell>Έναρξη</TableCell><TableCell>Λήξη</TableCell><TableCell>Διάρκεια</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Συνεργάτης</TableCell><TableCell align="right">Προβολή</TableCell></TableRow></TableHead>
         <TableBody>{rows.map(row => <TableRow key={row.id} hover onClick={() => setSelectedPolicyId(row.id)} sx={{ cursor: "pointer" }}>
-          <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.policyNumber || "—"}</TableCell><TableCell>{row.customerDisplay || "—"}</TableCell><TableCell><Stack spacing={.25}><Typography variant="body2">{policyTypeLabel(row.policyType || "") || "—"}</Typography><Chip size="small" label={policyStatusLabel(row.status)} /></Stack></TableCell><TableCell>{date(row.startDate)}</TableCell><TableCell>{date(row.endDate)}</TableCell><TableCell align="right">{money(row.premium)}</TableCell><TableCell>{row.producerName || "Έδρα"}</TableCell><TableCell align="right"><IconButton size="small" aria-label="Προβολή συμβολαίου" onClick={event => { event.stopPropagation(); setSelectedPolicyId(row.id); }}><VisibilityIcon fontSize="small" /></IconButton></TableCell>
-        </TableRow>)}{rows.length === 0 && <TableRow><TableCell colSpan={8}><Typography color="text.secondary" textAlign="center" sx={{ py: 3 }}>{policiesQ.isError ? "Δεν φορτώθηκαν τα συμβόλαια." : "Δεν βρέθηκαν συμβόλαια με τα συγκεκριμένα φίλτρα."}</Typography></TableCell></TableRow>}</TableBody>
+          <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.policyNumber || "—"}</TableCell><TableCell>{row.customerDisplay || "—"}</TableCell><TableCell><Stack spacing={.25}><Typography variant="body2">{policyTypeLabel(row.policyType || "") || "—"}</Typography><Chip size="small" label={policyStatusLabel(row.status)} /></Stack></TableCell><TableCell>{date(row.startDate)}</TableCell><TableCell>{date(row.endDate)}</TableCell><TableCell>{contractDurationLabel(row.startDate, row.endDate)}</TableCell><TableCell align="right">{money(row.premium)}</TableCell><TableCell>{row.producerName || "Έδρα"}</TableCell><TableCell align="right"><IconButton size="small" aria-label="Προβολή συμβολαίου" onClick={event => { event.stopPropagation(); setSelectedPolicyId(row.id); }}><VisibilityIcon fontSize="small" /></IconButton></TableCell>
+        </TableRow>)}{rows.length === 0 && <TableRow><TableCell colSpan={9}><Typography color="text.secondary" textAlign="center" sx={{ py: 3 }}>{policiesQ.isError ? "Δεν φορτώθηκαν τα συμβόλαια." : "Δεν βρέθηκαν συμβόλαια με τα συγκεκριμένα φίλτρα."}</Typography></TableCell></TableRow>}</TableBody>
       </Table>}
     </Box>
     <PolicyDetailDrawer policyId={selectedPolicyId} open={!!selectedPolicyId} presentation="modal" onClose={() => setSelectedPolicyId(null)} />
@@ -468,9 +469,9 @@ function CompanyStatisticsSection({ companyId, profile }: { companyId: string; p
   const clearFilters = () => { setStatus("all"); setType("all"); setFromDate(""); setToDate(""); };
   const filterCount = [status !== "all", type !== "all", fromDate, toDate].filter(Boolean).length;
   const exportCsv = () => {
-    const headers = ["Αριθμός συμβολαίου", "Έναρξη", "Λήξη", "Πελάτης", "Κλάδος", "Κατάσταση", "Μικτά ασφάλιστρα", "Καθαρά ασφάλιστρα", "Προμήθεια %"];
+    const headers = ["Αριθμός συμβολαίου", "Έναρξη", "Λήξη", "Διάρκεια", "Πελάτης", "Κλάδος", "Κατάσταση", "Μικτά ασφάλιστρα", "Καθαρά ασφάλιστρα", "Προμήθεια %"];
     const escape = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
-    const lines = filteredRows.map(row => [row.policyNumber, row.startDate, row.endDate, row.customerDisplay, policyTypeLabel(row.policyType), policyStatusLabel(row.status), row.premium, row.netPremium, row.specialCommissionPercent].map(escape).join(";"));
+    const lines = filteredRows.map(row => [row.policyNumber, row.startDate, row.endDate, contractDurationLabel(row.startDate, row.endDate), row.customerDisplay, policyTypeLabel(row.policyType), policyStatusLabel(row.status), row.premium, row.netPremium, row.specialCommissionPercent].map(escape).join(";"));
     const blob = new Blob([`\uFEFF${headers.map(escape).join(";")}\n${lines.join("\n")}`], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");

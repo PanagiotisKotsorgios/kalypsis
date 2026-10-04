@@ -18,6 +18,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money, date } from "../utils/format";
+import { contractDurationLabel } from "../utils/contractDuration";
 import { SavedReportsButton } from "../components/SavedReportsButton";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
@@ -249,6 +250,7 @@ export function ProductionListsPage() {
       ),
       text: r => r.policyNumber },
     { key: "startDate",      label: t("productionList.col.start"),    render: r => <Box component="span" sx={{ fontSize: 12 }}>{date(r.startDate)}</Box>, text: r => date(r.startDate) },
+    { key: "duration",       label: "Διάρκεια",                       render: r => <Box component="span" sx={{ fontSize: 12 }}>{contractDurationLabel(r.startDate, r.endDate)}</Box>, text: r => contractDurationLabel(r.startDate, r.endDate) },
     { key: "endDate",        label: "Λήξη",                            render: r => <Box component="span" sx={{ fontSize: 12 }}>{date(r.endDate)}</Box>,   text: r => date(r.endDate), defaultOff: true },
     { key: "customerName",   label: t("productionList.col.customer"), render: r => r.customerName,      text: r => r.customerName },
     { key: "carrier",        label: t("productionList.col.carrier"),  render: r => r.insuranceCompany, text: r => r.insuranceCompany },

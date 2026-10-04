@@ -49,6 +49,7 @@ import EventRepeatIcon from "@mui/icons-material/EventRepeat";
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
 import { money, date } from "../utils/format";
+import { contractDurationLabel } from "../utils/contractDuration";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
 import { ExportButton } from "../components/ExportButton";
@@ -786,6 +787,7 @@ export function PoliciesPage() {
                           case "dates":
                             return (
                               <TableCell key={c.key}>
+                                <Typography variant="caption" color="text.secondary">Διάρκεια: {contractDurationLabel(p.startDate, p.endDate)}</Typography>
                                 <Typography variant="body2">{date(p.startDate)} → {date(p.endDate)}</Typography>
                                 {expiringSoon && (
                                   <Typography variant="caption" color="warning.main" fontWeight={700}>
