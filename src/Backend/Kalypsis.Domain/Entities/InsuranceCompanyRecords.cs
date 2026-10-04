@@ -105,3 +105,27 @@ public class InsuranceCompanyFieldValue : TenantEntity
     public InsuranceCompanyFieldDefinition Definition { get; set; } = null!;
     public string? Value { get; set; }
 }
+
+/// <summary>
+/// A tenant-owned relationship from a broker/agency to another company.
+/// This is intentionally separate from <see cref="InsuranceCompany.ParentCompanyId"/>
+/// because that property is reserved for the carrier-parametric hierarchy.
+/// An agency can therefore keep a rich, editable list of insurers, networks,
+/// sub-companies and other business partners without changing policy routing.
+/// </summary>
+public class InsuranceCompanyPartner : TenantEntity
+{
+    public Guid InsuranceCompanyId { get; set; }
+    public InsuranceCompany InsuranceCompany { get; set; } = null!;
+
+    public Guid PartnerInsuranceCompanyId { get; set; }
+    public InsuranceCompany PartnerInsuranceCompany { get; set; } = null!;
+
+    public string RelationshipType { get; set; } = "Συνεργαζόμενη ασφαλιστική";
+    public string? CooperationCode { get; set; }
+    public string? ContactName { get; set; }
+    public string? ContactEmail { get; set; }
+    public string? ContactPhone { get; set; }
+    public string? Notes { get; set; }
+    public bool IsActive { get; set; } = true;
+}

@@ -84,6 +84,9 @@ public static class DataSeeder
         ]),
         ("20261003201950_AddInsuranceCompanyCommunications", [
             "insurance_company_communications"
+        ]),
+        ("20261004204627_AddInsuranceCompanyPartners", [
+            "insurance_company_partners"
         ])
     ];
 

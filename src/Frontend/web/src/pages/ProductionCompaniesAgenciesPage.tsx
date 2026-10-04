@@ -139,10 +139,10 @@ export default function ProductionCompaniesAgenciesPage() {
   });
   const needle = search.trim().toLocaleLowerCase("el");
   const companies = useMemo(() => (companiesQ.data ?? [])
-    // Brokers are shared business partners, not office branches. Keep global
-    // broker catalogue rows visible to every office; insurers retain the
-    // existing tenant/opt-in visibility rule.
-    .filter(c => c.isBroker ? true : (!c.isGlobal || c.isUsedByTenant))
+    // Broker/praktoreio records are office-owned relationships.  A global
+    // carrier catalogue row (for example the platform's Grand Cover seed)
+    // must never appear as an agency that belongs to every office.
+    .filter(c => c.isBroker ? !c.isGlobal : (!c.isGlobal || c.isUsedByTenant))
     .filter(c => !needle || [c.name, c.code, c.agentCode, c.contactName, c.contactEmail, c.afmVat]
       .some(value => value?.toLocaleLowerCase("el").includes(needle))), [companiesQ.data, needle]);
   const insuranceCompanies = useMemo(() => companies.filter(c => !c.isBroker), [companies]);
@@ -510,6 +510,77 @@ function CompanyStatisticsSection({ companyId, profile }: { companyId: string; p
     </Box>}
     {!policiesQ.isLoading && filteredRows.length === 0 && <Alert severity="info">Δεν υπάρχουν συμβόλαια με τα επιλεγμένα φίλτρα.</Alert>}
   </Stack>;
+}
+
+function CompanyPartnerCompaniesSection({ companyId }: { companyId: string }) {
+  const qc = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<CompanyPartnerRow | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [draft, setDraft] = useState({
+    partnerInsuranceCompanyId: "", relationshipType: "Συνεργαζόμενη ασφαλιστική",
+    cooperationCode: "", contactName: "", contactEmail: "", contactPhone: "", notes: "", isActive: true,
+  });
+  const partnersQ = useQuery({
+    queryKey: ["production-company-partners", companyId],
+    queryFn: async () => (await api.get<CompanyPartnerRow[]>(`/insurance-companies/${companyId}/partners`)).data,
+  });
+  const companiesQ = useQuery({
+    queryKey: ["insurance-companies", "partner-options"],
+    queryFn: async () => (await api.get<CompanyDto[]>("/insurance-companies")).data,
+  });
+  const options = useMemo(() => (companiesQ.data ?? [])
+    .filter(item => item.isActive && item.id !== companyId && (!item.isBroker || !item.isGlobal))
+    .sort((a, b) => a.name.localeCompare(b.name, "el")), [companiesQ.data, companyId]);
+  const openEditor = (row?: CompanyPartnerRow) => {
+    setError(null);
+    setEditing(row ?? null);
+    setDraft({
+      partnerInsuranceCompanyId: row?.partnerInsuranceCompanyId ?? options[0]?.id ?? "",
+      relationshipType: row?.relationshipType ?? "Συνεργαζόμενη ασφαλιστική",
+      cooperationCode: row?.cooperationCode ?? "", contactName: row?.contactName ?? "",
+      contactEmail: row?.contactEmail ?? "", contactPhone: row?.contactPhone ?? "",
+      notes: row?.notes ?? "", isActive: row?.isActive ?? true,
+    });
+    setDialogOpen(true);
+  };
+  const save = async () => {
+    if (!draft.partnerInsuranceCompanyId) return;
+    setSaving(true); setError(null);
+    try {
+      const body = { ...draft, cooperationCode: draft.cooperationCode.trim() || null,
+        contactName: draft.contactName.trim() || null, contactEmail: draft.contactEmail.trim() || null,
+        contactPhone: draft.contactPhone.trim() || null, notes: draft.notes.trim() || null };
+      if (editing) await api.put(`/insurance-companies/${companyId}/partners/${editing.id}`, body);
+      else await api.post(`/insurance-companies/${companyId}/partners`, body);
+      setDialogOpen(false);
+      await qc.invalidateQueries({ queryKey: ["production-company-partners", companyId] });
+    } catch (e) { setError(extractErrorMessage(e)); }
+    finally { setSaving(false); }
+  };
+  const remove = async (row: CompanyPartnerRow) => {
+    if (!window.confirm(`Αφαίρεση της «${row.partnerName}» από τις συνεργασίες του πρακτορείου;`)) return;
+    try { await api.delete(`/insurance-companies/${companyId}/partners/${row.id}`); await qc.invalidateQueries({ queryKey: ["production-company-partners", companyId] }); }
+    catch (e) { setError(extractErrorMessage(e)); }
+  };
+  const rows = partnersQ.data ?? [];
+  return <ProfileSection title="Συνεργαζόμενες ασφαλιστικές και υποεταιρείες">
+    <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={1} sx={{ mb: 1 }}>
+      <Typography variant="body2" color="text.secondary">Καταχωρήστε όλες τις εταιρείες, τα δίκτυα και τις υποεταιρείες με τις οποίες συνεργάζεται το πρακτορείο.</Typography>
+      <Button size="small" variant="contained" color="primary" startIcon={<HandshakeIcon />} onClick={() => openEditor()} sx={{ flexShrink: 0 }}>Προσθήκη συνεργασίας</Button>
+    </Stack>
+    {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 1 }}>{error}</Alert>}
+    {partnersQ.isLoading ? <CircularProgress size={22} /> : rows.length === 0 ? <Alert severity="info">Δεν έχουν καταχωρηθεί συνεργαζόμενες εταιρείες ακόμη.</Alert> : <Box sx={{ overflowX: "auto", border: "1px solid", borderColor: "divider", borderRadius: 1.25 }}>
+      <Table size="small" sx={{ minWidth: 760 }}><TableHead><TableRow><TableCell>Εταιρεία / υποεταιρεία</TableCell><TableCell>Τύπος σχέσης</TableCell><TableCell>Κωδικός συνεργασίας</TableCell><TableCell>Επικοινωνία</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Ενέργειες</TableCell></TableRow></TableHead><TableBody>
+        {rows.map(row => <TableRow key={row.id} hover><TableCell><Typography fontWeight={800}>{row.partnerName}</Typography><Typography variant="caption" color="text.secondary">{row.partnerCode}{row.partnerIsBroker ? " · Πρακτορείο / δίκτυο" : " · Ασφαλιστική εταιρεία"}</Typography></TableCell><TableCell>{row.relationshipType}</TableCell><TableCell sx={{ fontFamily: "monospace" }}>{row.cooperationCode || "—"}</TableCell><TableCell><Typography variant="body2">{row.contactName || "—"}</Typography><Typography variant="caption" color="text.secondary">{row.contactEmail || row.contactPhone || "—"}</Typography></TableCell><TableCell><Chip size="small" color={row.isActive ? "success" : "default"} label={row.isActive ? "Ενεργή" : "Ανενεργή"} /></TableCell><TableCell align="right"><Stack direction="row" spacing={.5} justifyContent="flex-end"><IconButton size="small" color="primary" title="Επεξεργασία συνεργασίας" onClick={() => openEditor(row)}><EditIcon fontSize="small" /></IconButton><IconButton size="small" color="error" title="Αφαίρεση συνεργασίας" onClick={() => void remove(row)}><DeleteOutlineIcon fontSize="small" /></IconButton></Stack></TableCell></TableRow>)}
+      </TableBody></Table>
+    </Box>}
+    <Dialog open={dialogOpen} onClose={() => !saving && setDialogOpen(false)} fullWidth maxWidth="md"><DialogTitle>{editing ? "Επεξεργασία συνεργασίας" : "Προσθήκη συνεργαζόμενης εταιρείας"}</DialogTitle><DialogContent><Stack spacing={1.25} sx={{ pt: 1 }}>
+      <TextField select fullWidth size="small" label="Εταιρεία / υποεταιρεία" value={draft.partnerInsuranceCompanyId} onChange={event => setDraft(current => ({ ...current, partnerInsuranceCompanyId: event.target.value }))} SelectProps={{ native: true }} disabled={!!editing || companiesQ.isLoading}><option value="">Επιλέξτε εταιρεία</option>{options.map(item => <option key={item.id} value={item.id}>{item.name} · {item.code}{item.isBroker ? " · πρακτορείο" : ""}</option>)}</TextField>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.25 }}><TextField select size="small" label="Τύπος σχέσης" value={draft.relationshipType} onChange={event => setDraft(current => ({ ...current, relationshipType: event.target.value }))} SelectProps={{ native: true }}><option>Συνεργαζόμενη ασφαλιστική</option><option>Υποεταιρεία / θυγατρική</option><option>Δίκτυο / διαχειριστής χαρτοφυλακίου</option><option>Πρακτορείο / broker</option><option>Άλλη επιχειρηματική συνεργασία</option></TextField><TextField size="small" label="Κωδικός συνεργασίας" value={draft.cooperationCode} onChange={event => setDraft(current => ({ ...current, cooperationCode: event.target.value }))} /><TextField size="small" label="Υπεύθυνος επικοινωνίας" value={draft.contactName} onChange={event => setDraft(current => ({ ...current, contactName: event.target.value }))} /><TextField size="small" type="email" label="Email συνεργασίας" value={draft.contactEmail} onChange={event => setDraft(current => ({ ...current, contactEmail: event.target.value }))} /><TextField size="small" label="Τηλέφωνο συνεργασίας" value={draft.contactPhone} onChange={event => setDraft(current => ({ ...current, contactPhone: event.target.value }))} /><FormControlLabel control={<Switch checked={draft.isActive} onChange={event => setDraft(current => ({ ...current, isActive: event.target.checked }))} />} label={draft.isActive ? "Ενεργή συνεργασία" : "Ανενεργή συνεργασία"} /></Box><TextField fullWidth multiline minRows={3} size="small" label="Σημειώσεις και όροι συνεργασίας" value={draft.notes} onChange={event => setDraft(current => ({ ...current, notes: event.target.value }))} />
+    </Stack></DialogContent><DialogActions><Button color="error" variant="contained" startIcon={<CloseIcon />} onClick={() => setDialogOpen(false)} sx={{ color: "#fff" }}>Ακύρωση</Button><Button variant="contained" color="success" startIcon={<SaveIcon />} onClick={() => void save()} disabled={saving || !draft.partnerInsuranceCompanyId} sx={{ color: "#fff" }}>{saving ? "Αποθήκευση…" : "Αποθήκευση συνεργασίας"}</Button></DialogActions></Dialog>
+  </ProfileSection>;
 }
 
 function CompanyParametricsSection({ companyId, companyName }: { companyId: string; companyName: string }) {
@@ -1205,7 +1276,7 @@ function ProductionCompanyProfileDialog({ open, company, startEditing = false, o
         {tab === 2 && <Stack spacing={1.5}><ProfileMetricGrid items={[["Κλάδοι", String(p.branchCount), "info"], ["Πακέτα", String(p.packageCount), "info"], ["Χρήσεις", String(p.useCount), "info"], ["Καλύψεις", String(p.coverageCount), "info"], ["Γέφυρα", p.bridgeLinked ? "Συνδεδεμένη" : "Χωρίς σύνδεση", p.bridgeLinked ? "success" : "warning"]]} /><ProfileSection title="Σύνδεση εταιρείας"><ProfileLine label="Πηγή γέφυρας" value={p.bridgeLinkedSourceCarrier} /><ProfileLine label="Κατάσταση" value={p.isActive ? "Ενεργή" : "Ανενεργή"} /><ProfileLine label="Δημιουργήθηκε" value={date(p.createdAt)} /></ProfileSection></Stack>}
           {tab === 3 && <Stack spacing={1.5}>{editing ? <ProfileSection title="Στοιχεία επικοινωνίας"><Stack spacing={1.25}><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 1.25 }}><TextField size="small" label="Όνομα επαφής" value={draft.contactName ?? ""} onChange={event => updateDraft({ contactName: event.target.value })} /><TextField size="small" type="email" label="Email" value={draft.contactEmail ?? ""} onChange={event => updateDraft({ contactEmail: event.target.value })} /><TextField size="small" label="Τηλέφωνο" value={draft.contactPhone ?? ""} onChange={event => updateDraft({ contactPhone: event.target.value })} /></Box><Button size="small" variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => openContactEditor()}>Προσθήκη 2ης επικοινωνίας / στελέχους</Button></Stack></ProfileSection> : <ProfileSection title="Στοιχεία επικοινωνίας"><ProfileLine label="Όνομα επαφής" value={p.contactName} /><ProfileLine label="Email" value={p.contactEmail} link={p.contactEmail ? `mailto:${p.contactEmail}` : undefined} /><ProfileLine label="Τηλέφωνο" value={p.contactPhone} link={p.contactPhone ? `tel:${p.contactPhone}` : undefined} /></ProfileSection>}<ProfileSection title="Σημειώσεις">{editing ? <TextField fullWidth multiline minRows={3} size="small" label="Εσωτερικές σημειώσεις" value={draft.notes ?? ""} onChange={event => updateDraft({ notes: event.target.value })} /> : <Typography sx={{ whiteSpace: "pre-wrap" }}>{p.notes || "Δεν υπάρχουν σημειώσεις."}</Typography>}</ProfileSection></Stack>}
         {tab === 1 && company && <CompanyPoliciesSection companyId={company.id} />}
-        {tab === 2 && company && <CompanyParametricsSection companyId={company.id} companyName={company.name} />}
+        {tab === 2 && company && <><CompanyParametricsSection companyId={company.id} companyName={company.name} />{(company.isBroker || p.isBroker) && <CompanyPartnerCompaniesSection companyId={company.id} />}</>}
         {tab === 3 && company && <CompanyCommunicationSection companyId={company.id} workspace={workspace} />}
         {tab === 4 && company && <CompanyDocumentsWorkspace companyId={company.id} />}
         {tab === 5 && company && <CompanyStatisticsSection companyId={company.id} profile={p} />}
@@ -1222,6 +1293,23 @@ interface CompanyWorkspaceField { id: string; key: string; label: string; fieldT
 interface CompanyWorkspaceCategory { id: string; name: string; color: string; isActive: boolean; sortOrder: number; documentCount: number; }
 interface CompanyWorkspaceContact { id: string; name: string; role: string | null; department: string | null; email: string | null; phone: string | null; mobile: string | null; notes: string | null; preferredChannel: string; isPrimary: boolean; isActive: boolean; }
 interface CompanyWorkspace { folders: CompanyWorkspaceFolder[]; documents: CompanyWorkspaceDocument[]; fields: CompanyWorkspaceField[]; categories: CompanyWorkspaceCategory[]; contacts: CompanyWorkspaceContact[]; communications: CompanyCommunicationRow[]; }
+
+interface CompanyPartnerRow {
+  id: string;
+  partnerInsuranceCompanyId: string;
+  partnerName: string;
+  partnerCode: string;
+  partnerIsBroker: boolean;
+  relationshipType: string;
+  cooperationCode: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  notes: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+}
 
 function CompanyDocumentsWorkspace({ companyId }: { companyId: string }) {
   const qc = useQueryClient();
