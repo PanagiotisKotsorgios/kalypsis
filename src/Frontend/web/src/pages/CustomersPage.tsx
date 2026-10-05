@@ -629,7 +629,9 @@ export function CustomersPage() {
                       onContextMenu={(e) => headerMenu.open(e, {
                         key: c.key, label: c.label, type: inferColumnType(c.key), canHide: !c.alwaysVisible,
                       })}
-                      sx={{ userSelect: "none" }}
+                      sx={c.key === "type"
+                        ? { userSelect: "none", width: 150, minWidth: 150, whiteSpace: "nowrap" }
+                        : { userSelect: "none" }}
                     >
                       {c.label}
                     </TableCell>
@@ -663,7 +665,13 @@ export function CustomersPage() {
                         case "number":
                           return <TableCell key={col.key}><Chip label={c.customerNumber} size="small" variant="outlined" /></TableCell>;
                         case "type":
-                          return <TableCell key={col.key}>{c.type === "Individual" ? t("customers.individual") : t("customers.company")}</TableCell>;
+                          return (
+                            <TableCell key={col.key} sx={{ width: 150, minWidth: 150, maxWidth: 170, whiteSpace: "nowrap" }}>
+                              <Typography variant="body2" noWrap sx={{ fontSize: "0.78rem", lineHeight: 1.2 }}>
+                                {c.type === "Individual" ? t("customers.individual") : t("customers.company")}
+                              </Typography>
+                            </TableCell>
+                          );
                         case "name":
                           return (
                             <TableCell key={col.key}>
