@@ -4,6 +4,7 @@ import BusinessIcon from "@mui/icons-material/Business";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { api } from "../api/client";
 import type { Role } from "../auth/AuthContext";
+import { useLocation } from "react-router-dom";
 
 interface OfficeOption { officeId: string; officeName: string; isPrimary: boolean; }
 export const ALL_OFFICES_VALUE = "__all_offices__";
@@ -13,15 +14,17 @@ export const ALL_OFFICES_VALUE = "__all_offices__";
  * so every query starts with the new server-validated office scope.
  */
 export function AgencyOfficeSwitcher({ role }: { role: Role | undefined }) {
+  const location = useLocation();
   const isAgency = role === "AgencyAdmin" || role === "AgencyOfficeAdmin" || role === "AgencyUser";
   const isAdmin = role === "AgencyAdmin";
+  const isHome = location.pathname === "/app" || location.pathname === "/app/";
   const [offices, setOffices] = useState<OfficeOption[]>([]);
   const [selected, setSelected] = useState(() => localStorage.getItem("kalypsis.activeOfficeId") ?? "");
   const [error, setError] = useState<string | null>(null);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (!isAgency) return;
+    if (!isAgency || !isHome) return;
     let alive = true;
     api.get<OfficeOption[]>("/agency-offices/mine")
       .then(r => {
@@ -46,9 +49,9 @@ export function AgencyOfficeSwitcher({ role }: { role: Role | undefined }) {
       })
       .catch(() => { if (alive) setError("Δεν ήταν δυνατή η φόρτωση των γραφείων."); });
     return () => { alive = false; };
-  }, [isAgency, isAdmin]);
+  }, [isAgency, isAdmin, isHome]);
 
-  if (!isAgency || offices.length === 0) return null;
+  if (!isAgency || !isHome || offices.length === 0) return null;
 
   const change = (value: string) => {
     setAnchorEl(null);
@@ -67,8 +70,8 @@ export function AgencyOfficeSwitcher({ role }: { role: Role | undefined }) {
       sx={{
         position: "absolute",
         top: { xs: 0, sm: 1 },
-        right: { xs: 0, md: "auto" },
-        left: { xs: "auto", md: "clamp(120px, 20%, 280px)" },
+        right: { xs: 0, md: 12 },
+        left: "auto",
         zIndex: 2,
         display: "flex",
         justifyContent: "flex-end",
@@ -86,14 +89,14 @@ export function AgencyOfficeSwitcher({ role }: { role: Role | undefined }) {
           aria-label={`Επιλογή γραφείου: ${selectedOfficeName}`}
           sx={{
             minWidth: 0,
-            maxWidth: { xs: 150, sm: 175 },
-            height: 28,
-            px: 0.5,
+            maxWidth: { xs: 185, sm: 250, md: 290 },
+            height: 36,
+            px: 1,
             borderRadius: 1,
             bgcolor: "rgba(255,255,255,0.96)",
             color: "#0b2545",
             borderColor: "rgba(11,37,69,0.28)",
-            fontSize: { xs: "0.62rem", sm: "0.67rem" },
+            fontSize: { xs: "0.72rem", sm: "0.8rem" },
             fontWeight: 800,
             textTransform: "none",
             boxShadow: "0 1px 3px rgba(11,37,69,0.10)",
