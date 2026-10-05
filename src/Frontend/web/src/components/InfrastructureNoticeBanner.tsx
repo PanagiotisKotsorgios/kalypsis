@@ -1,13 +1,28 @@
+import { useState } from "react";
 import { Alert, Box, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
 /** Public notice shown consistently on every unauthenticated/pre-login page. */
 export function InfrastructureNoticeBanner() {
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("kalypsis.infrastructureNotice.dismissed.v1") === "1";
+  });
+
+  if (dismissed) return null;
+
+  const dismiss = () => {
+    setDismissed(true);
+    window.localStorage.setItem("kalypsis.infrastructureNotice.dismissed.v1", "1");
+  };
+
   return (
     <Box component="aside" role="status" aria-label="Ενημέρωση τεχνικής υποστήριξης">
       <Alert
         severity="warning"
         icon={<WarningAmberIcon fontSize="inherit" />}
+        onClose={dismiss}
+        closeText="Κλείσιμο ενημέρωσης"
         sx={{
           borderRadius: 0,
           background: "#b71c1c",
@@ -17,6 +32,14 @@ export function InfrastructureNoticeBanner() {
           boxShadow: "0 2px 12px rgba(127, 0, 0, 0.32)",
           fontSize: { xs: "0.9rem", sm: "1rem" },
           "& .MuiAlert-icon": { color: "#fff" },
+          "& .MuiAlert-action": { color: "#fff", alignItems: "center", pt: 0 },
+          "& .MuiAlert-action .MuiIconButton-root": {
+            color: "#fff",
+            border: "1px solid rgba(255,255,255,0.55)",
+            borderRadius: "50%",
+            p: 0.5,
+            "&:hover": { bgcolor: "rgba(255,255,255,0.16)" },
+          },
           "& .MuiAlert-message": { width: "100%", fontWeight: 700, lineHeight: 1.45 },
           px: { xs: 1.5, sm: 3 },
           py: 1.1,
