@@ -9,7 +9,7 @@ import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import EditIcon from "@mui/icons-material/Edit";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
-import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import { ExcelImportButton } from "../components/ExcelImportButton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { BulkImportDialog, type BulkImportResult } from "../components/BulkImportDialog";
@@ -161,9 +161,9 @@ export function GeneralFinancialEntriesPage() {
           </Typography>
         </Box>
         <Stack direction="row" spacing={1}>
-          <Button startIcon={<UploadFileOutlinedIcon />} variant="outlined" size="large" onClick={() => setImportOpen(true)}>
+          <ExcelImportButton size="large" onClick={() => setImportOpen(true)}>
             Εισαγωγή
-          </Button>
+          </ExcelImportButton>
           <Button startIcon={<AddIcon />} variant="contained" size="large" onClick={() => setDialog("new")}>
             Νέα εγγραφή
           </Button>

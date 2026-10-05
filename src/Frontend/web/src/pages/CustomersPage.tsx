@@ -29,7 +29,7 @@ import {
   Typography
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import { ExcelImportButton } from "../components/ExcelImportButton";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import { IconButton, Tooltip } from "@mui/material";
@@ -450,9 +450,9 @@ export function CustomersPage() {
           <HelpHint id="page.customers" />
         </Stack>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" size="large" startIcon={<UploadFileOutlinedIcon />} onClick={() => setImportOpen(true)}>
+          <ExcelImportButton size="large" onClick={() => setImportOpen(true)}>
             Εισαγωγή
-          </Button>
+          </ExcelImportButton>
           {/* Export handled by the TableToolbar dropdown below — the old
               header ExportButton was a duplicate CSV-only shortcut. */}
           <Button variant="outlined" size="large" onClick={() => { setError(null); setCreateStatus("Prospect"); }}>

@@ -34,7 +34,7 @@ import { SearchableSelect } from "../components/SearchableSelect";
 import { money } from "../utils/format";
 import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
-import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import { ExcelImportButton } from "../components/ExcelImportButton";
 import { BulkImportDialog, type BulkImportResult } from "../components/BulkImportDialog";
 
 type ProducerStatus = "Active" | "Suspended" | "Terminated" | "Prospect";
@@ -228,9 +228,9 @@ export function ProducersPage() {
           <Typography color="text.secondary">{t("producers.subtitle")}</Typography>
         </Box>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" size="large" startIcon={<UploadFileOutlinedIcon />} onClick={() => setImportOpen(true)}>
+          <ExcelImportButton size="large" onClick={() => setImportOpen(true)}>
             Εισαγωγή
-          </Button>
+          </ExcelImportButton>
           <Button variant="outlined" size="large" onClick={() => { setError(null); setCreateStatus("Prospect"); }}>
             Πιθανός συνεργάτης
           </Button>

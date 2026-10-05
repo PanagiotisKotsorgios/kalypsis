@@ -31,7 +31,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import GridOnIcon from "@mui/icons-material/GridOn";
-import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import { ExcelImportButton } from "./ExcelImportButton";
 import { Tooltip } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
@@ -262,10 +262,10 @@ export function CompanyCatalogueDialog({
             }}>
             Για συνεργάτες
           </Button>
-          <Button startIcon={<UploadFileOutlinedIcon />} variant="outlined" size="small"
+          <ExcelImportButton size="small"
             onClick={() => setImportOpen(true)} disabled={!insuranceCompanyId}>
             Εισαγωγή XLSX
-          </Button>
+          </ExcelImportButton>
           <Button startIcon={<AddIcon />} variant="contained" size="small"
             onClick={() => setCreating(true)} disabled={!insuranceCompanyId}>
             Νέα εγγραφή

@@ -27,7 +27,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
-import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import { ExcelImportButton } from "../components/ExcelImportButton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { money, date } from "../utils/format";
@@ -285,9 +285,9 @@ export function ClaimsPage() {
         </Box>
         {canEdit && (
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <Button startIcon={<UploadFileOutlinedIcon />} variant="outlined" size="large" onClick={() => setImportOpen(true)}>
+            <ExcelImportButton size="large" onClick={() => setImportOpen(true)}>
               Μαζική εισαγωγή
-            </Button>
+            </ExcelImportButton>
             <Button data-tour="claims-new" startIcon={<AddIcon />} variant="contained" size="large" onClick={() => { setError(null); setCreateOpen(true); }}>
               {t("claims.create")}
             </Button>

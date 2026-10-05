@@ -9,6 +9,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import BusinessIcon from "@mui/icons-material/Business";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import { ExcelImportButton } from "../components/ExcelImportButton";
 import AddIcon from "@mui/icons-material/Add";
 import LayersClearIcon from "@mui/icons-material/LayersClear";
 import SaveIcon from "@mui/icons-material/Save";
@@ -230,9 +231,9 @@ export function InsuranceCompaniesPage({ onlyBrokers = false }: { onlyBrokers?: 
               { key: "bridgeLinked", label: "Γέφυρα", map: (c) => (c.bridgeLinked || linkedCarrierIds.has(c.id) ? "Συνδεδεμένη" : "—") },
             ]}
           />
-          <Button variant="outlined" startIcon={<CloudUploadIcon />} onClick={() => setImportOpen(true)}>
+          <ExcelImportButton onClick={() => setImportOpen(true)}>
             Εισαγωγή XLSX
-          </Button>
+          </ExcelImportButton>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
             {onlyBrokers ? "Νέο πρακτορείο" : "Νέα ασφαλιστική"}
           </Button>

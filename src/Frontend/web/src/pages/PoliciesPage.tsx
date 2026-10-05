@@ -48,12 +48,12 @@ import { useSearchParams, Link as RouterLink } from "react-router-dom";
 import EventRepeatIcon from "@mui/icons-material/EventRepeat";
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
+import TuneIcon from "@mui/icons-material/Tune";
 import { money, date } from "../utils/format";
 import { contractDurationLabel } from "../utils/contractDuration";
 import { useAuth } from "../auth/AuthContext";
 import { api, extractErrorMessage } from "../api/client";
-import { ExportButton } from "../components/ExportButton";
-import { DataExportButton } from "../components/DataExportButton";
 import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
 import { useTableState } from "../components/useTableState";
 import { TableToolbar, NumberedPager } from "../components/TableToolbar";
@@ -67,8 +67,8 @@ import { useColumnPreferences } from "../hooks/useColumnPreferences";
 import { ColumnPreferencesButton } from "../components/ColumnPreferencesButton";
 import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
-import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import { BulkImportDialog, type BulkImportResult } from "../components/BulkImportDialog";
+import { ExcelImportButton } from "../components/ExcelImportButton";
 
 type PolicyType = "Auto" | "Home" | "Health" | "Life" | "Business" | "Travel" | "Other";
 type PolicyStatus = "Draft" | "Active" | "Expired" | "Cancelled" | "Renewed" | "PendingRenewal" | "Undelivered" | "AwaitingIssue" | "Prospect";
@@ -203,6 +203,8 @@ export function PoliciesPage() {
   const [renewing, setRenewing] = useState<PolicyDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+  const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
 
   // Deep-link support — the customer card sends operators here as
   // /app/policies?focus=<policyId>. Read the id once on mount and open
@@ -426,6 +428,26 @@ export function PoliciesPage() {
     },
   });
 
+  const policyQuickFilters = (
+    <QuickFilterBar
+      activeCount={policyFilterCount}
+      onClear={clearPolicyFilters}
+      options={[
+        { key: "all", label: "Όλα", active: policyFilterCount === 0, onClick: clearPolicyFilters },
+        ...([5, 10, 20, 30, 60, 90] as const).map(days => ({
+          key: `expiry-${days}`,
+          label: `Λήγουν ≤${days} ημέρες`,
+          active: expiryWindow === String(days),
+          color: days <= 20 ? "error" as const : days <= 30 ? "warning" as const : "info" as const,
+          onClick: () => { setExpiryWindow(String(days) as typeof expiryWindow); setStatusFilter("Active"); setQuickFiltersOpen(false); },
+        })),
+        { key: "prospects", label: "Πιθανά", active: statusFilter === "Prospect", color: "warning", onClick: () => { setExpiryWindow(""); setStatusFilter("Prospect"); setQuickFiltersOpen(false); } },
+        { key: "direct", label: "Πληρώθηκαν απευθείας", active: paymentRouteFilter === "direct", color: "info", onClick: () => { setPaymentRouteFilter("direct"); setQuickFiltersOpen(false); } },
+        { key: "office", label: "Πληρωμή στο γραφείο", active: paymentRouteFilter === "office", onClick: () => { setPaymentRouteFilter("office"); setQuickFiltersOpen(false); } },
+      ]}
+    />
+  );
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} gap={2} flexWrap="wrap">
@@ -441,19 +463,10 @@ export function PoliciesPage() {
           </Typography>
         </Box>
         <Stack direction="row" spacing={1}>
-          {canEdit && activeView === "policies" && <ExportButton href="/api/exports/policies.csv" />}
           {canEdit && activeView === "policies" && (
-            <Button variant="outlined" size="large" startIcon={<UploadFileOutlinedIcon />} onClick={() => setImportOpen(true)}>
+            <ExcelImportButton size="large" onClick={() => setImportOpen(true)}>
               Εισαγωγή
-            </Button>
-          )}
-          {isProducer && activeView === "policies" && (
-            <DataExportButton
-              entity="policies"
-              endpoint="/producer/me/exports/policies"
-              formats={["xlsx", "csv"]}
-              label="Εξαγωγή συμβολαίων"
-            />
+            </ExcelImportButton>
           )}
           {/* Ανανεώσεις / Πρόσθετες πράξεις / Ακυρώσεις were briefly here;
               moved down next to the «Ομαδικά συμβόλαια» view-switcher
@@ -527,7 +540,110 @@ export function PoliciesPage() {
           Τα συμβόλαια καταχωρούνται και ανατίθενται από το γραφείο. Εδώ βλέπετε μόνο όσα έχουν ανατεθεί σε εσάς, μαζί με τυχόν πιθανά συμβόλαια.
         </Alert>
       )}
-      {!isCustomer && (
+       {!isCustomer && (
+         <>
+           <Card variant="outlined" sx={{ p: 1, mb: 2 }}>
+             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }} flexWrap="wrap" useFlexGap>
+               <TextField
+                 size="small"
+                 fullWidth
+                 placeholder="Αναζήτηση αριθμού συμβολαίου, πελάτη, ΑΦΜ ή πινακίδας…"
+                 value={search}
+                 onChange={(e) => setSearch(e.target.value)}
+                 sx={{ flex: "1 1 320px", minWidth: { sm: 280 } }}
+                 InputProps={{
+                   startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                   endAdornment: <FilterHelp title="Αναζήτηση σε αριθμό συμβολαίου, πελάτη, ΑΦΜ, απόδειξη ή πινακίδα οχήματος." />,
+                 }}
+               />
+               <SearchableSelect
+                 label="Εταιρεία"
+                 value={carrierFilter}
+                 onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); }}
+                 emptyLabel="Όλες"
+                 sx={{ flex: "1 1 190px", minWidth: { sm: 180 } }}
+                 options={(carriersQuery.data ?? [])
+                   .filter(c => !c.parentCompanyId)
+                   .map(c => ({ value: c.id, label: c.name, hint: c.isBroker ? "Πρακτορείο" : c.code }))}
+               />
+               <SearchableTextField
+                 size="small"
+                 label={t("policies.col.type")}
+                 value={typeFilter}
+                 onChange={(e) => setTypeFilter(e.target.value as PolicyType | "")}
+                 disabled={!carrierFilter}
+                 sx={{ flex: "1 1 170px", minWidth: { sm: 160 } }}
+               >
+                 <MenuItem value="">Όλοι οι κλάδοι</MenuItem>
+                 {filterCatalogue.branches.map(b => <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>)}
+               </SearchableTextField>
+               <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ flex: "0 1 150px" }} />
+               <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ flex: "0 1 150px" }} />
+               <Button
+                 size="small"
+                 variant={policyFilterCount > 0 ? "contained" : "outlined"}
+                 startIcon={<TuneIcon />}
+                 onClick={() => setAdvancedFiltersOpen(true)}
+                 sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+               >
+                 Σύνθετα φίλτρα{policyFilterCount > 0 ? ` (${policyFilterCount})` : ""}
+               </Button>
+               <Button
+                 size="small"
+                 variant="outlined"
+                 startIcon={<FilterAltIcon />}
+                 onClick={() => setQuickFiltersOpen(true)}
+                 sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+               >
+                 Γρήγορα φίλτρα
+               </Button>
+             </Stack>
+           </Card>
+           <Dialog open={advancedFiltersOpen} onClose={() => setAdvancedFiltersOpen(false)} fullWidth maxWidth="md">
+             <DialogTitle>Σύνθετα φίλτρα συμβολαίων</DialogTitle>
+             <DialogContent dividers>
+               <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, pt: .5 }}>
+                 <SearchableTextField size="small" label={t("policies.col.status")} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as PolicyStatus | "")}>
+                   <MenuItem value="">Όλες οι καταστάσεις</MenuItem>
+                   {(["Prospect", "Draft", "Active", "Expired", "Cancelled", "Renewed", "PendingRenewal", "Undelivered", "AwaitingIssue"] as const).map(s => <MenuItem key={s} value={s}>{s === "Prospect" ? "Πιθανό συμβόλαιο" : t(`policies.statuses.${s}`)}</MenuItem>)}
+                 </SearchableTextField>
+                 <SearchableSelect
+                   label="Συνεργάτης"
+                   value={producerFilter}
+                   onChange={(v) => setProducerFilter(v)}
+                   emptyLabel="Όλοι"
+                   options={(producersQuery.data ?? []).map(p => ({ value: p.id, label: p.name, hint: p.code }))}
+                 />
+                 {(() => {
+                   const selected = (carriersQuery.data ?? []).find(c => c.id === carrierFilter);
+                    if (!selected || !selected.isBroker) return null;
+                   const subs = (carriersQuery.data ?? []).filter(c => c.parentCompanyId === selected.id);
+                   return <Autocomplete<CarrierDto, true> multiple size="small" options={subs} value={subs.filter(s => subCarrierFilter.includes(s.id))} onChange={(_, value) => setSubCarrierFilter(value.map(v => v.id))} getOptionLabel={(s) => s.name} isOptionEqualToValue={(a, b) => a.id === b.id} renderInput={(params) => <TextField {...params} label="Υποασφαλιστικές" size="small" />} />;
+                 })()}
+                 <TextField size="small" label="Αρ. κυκλοφορίας" value={plateFilter} onChange={(e) => setPlateFilter(e.target.value.toUpperCase())} />
+                 <TextField size="small" label="Αρ. αίτησης" value={appNumberFilter} onChange={(e) => setAppNumberFilter(e.target.value)} />
+                 <TextField size="small" type="number" label="Μεικτά από" value={premiumMin} onChange={(e) => setPremiumMin(e.target.value)} />
+                 <TextField size="small" type="number" label="Μεικτά έως" value={premiumMax} onChange={(e) => setPremiumMax(e.target.value)} />
+                 <SearchableTextField size="small" label="Πληρωμή" value={paymentRouteFilter} onChange={(e) => setPaymentRouteFilter(e.target.value as PaymentRoute)}>
+                   <MenuItem value="">Όλες</MenuItem>
+                   <MenuItem value="office">Πληρωμή στο γραφείο</MenuItem>
+                   <MenuItem value="direct">Απευθείας στην ασφαλιστική</MenuItem>
+                 </SearchableTextField>
+               </Box>
+             </DialogContent>
+             <DialogActions>
+               <Button color="error" variant="contained" onClick={clearPolicyFilters}>Καθαρισμός φίλτρων</Button>
+               <Button variant="contained" onClick={() => setAdvancedFiltersOpen(false)}>Εφαρμογή</Button>
+             </DialogActions>
+           </Dialog>
+           <Dialog open={quickFiltersOpen} onClose={() => setQuickFiltersOpen(false)} fullWidth maxWidth="md">
+             <DialogTitle>Γρήγορα φίλτρα</DialogTitle>
+             <DialogContent dividers>{policyQuickFilters}</DialogContent>
+             <DialogActions><Button variant="contained" onClick={() => setQuickFiltersOpen(false)}>Κλείσιμο</Button></DialogActions>
+           </Dialog>
+         </>
+       )}
+       {false && !isCustomer && (
         <ResponsiveFilterPanel
           activeCount={policyFilterCount}
           title="Φίλτρα συμβολαίων"
@@ -611,9 +727,10 @@ export function PoliciesPage() {
               }))}
             />
             {(() => {
-              const selected = (carriersQuery.data ?? []).find(c => c.id === carrierFilter);
-              if (!selected?.isBroker) return null;
-              const subs = (carriersQuery.data ?? []).filter(c => c.parentCompanyId === selected.id);
+              const selectedCarrier = (carriersQuery.data ?? []).find(c => c.id === carrierFilter);
+              const selectedId = selectedCarrier?.id;
+              if (!selectedCarrier?.isBroker || !selectedId) return null;
+              const subs = (carriersQuery.data ?? []).filter(c => c.parentCompanyId === selectedId);
               return (
                 <Autocomplete<CarrierDto, true>
                   multiple size="small"
@@ -668,6 +785,7 @@ export function PoliciesPage() {
               exportFileName={`policies-${new Date().toISOString().slice(0, 10)}`}
               serverEntity="policies"
               serverParams={{ search: table.query }}
+              hideSearch
               exportColumns={[
                 { key: "policyNumber", label: "Αρ. Συμβ." },
                 { key: "policyType", label: "Κλάδος" },

@@ -53,7 +53,18 @@ export function ExportFormatMenu(props: {
         endIcon={<ArrowDropDownIcon />}
         onClick={e => setAnchor(e.currentTarget)}
         disabled={disabled}
-        sx={sx}
+        sx={{
+          bgcolor: "#217346",
+          color: "#fff",
+          borderColor: "#217346",
+          fontWeight: 800,
+          "&:hover": {
+            bgcolor: "#185c37",
+            borderColor: "#185c37",
+            color: "#fff",
+          },
+          ...sx,
+        }}
       >
         {label}
       </Button>
