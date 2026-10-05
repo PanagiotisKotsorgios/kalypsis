@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Autocomplete,
@@ -28,6 +28,7 @@ import {
 } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import DownloadIcon from "@mui/icons-material/Download";
+import SaveIcon from "@mui/icons-material/Save";
 import HistoryIcon from "@mui/icons-material/History";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
@@ -217,6 +218,12 @@ export function CustomerDetailPage() {
   const qc = useQueryClient();
   const [tab, setTab] = useState(0);
   const [showEditor, setShowEditor] = useState(false);
+  const [editorSave, setEditorSave] = useState<(() => void) | null>(null);
+  const [editorSaving, setEditorSaving] = useState(false);
+  const registerEditorSave = useCallback((save: (() => void) | null, pending: boolean) => {
+    setEditorSave(() => save);
+    setEditorSaving(pending);
+  }, []);
 
   const customerQ = useQuery({
     queryKey: ["customer", id],
@@ -275,6 +282,18 @@ export function CustomerDetailPage() {
             <Button startIcon={<EditIcon />} variant="contained" color="success" sx={{ color: "#fff", fontWeight: 800 }} onClick={() => { setTab(0); setShowEditor(true); }}>
               Επεξεργασία πελάτη
             </Button>
+            {showEditor && tab === 0 && (
+              <Button
+                startIcon={<SaveIcon />}
+                variant="contained"
+                color="primary"
+                disabled={!editorSave || editorSaving}
+                onClick={() => editorSave?.()}
+                sx={{ color: "#fff", fontWeight: 800 }}
+              >
+                {editorSaving ? "Αποθήκευση..." : "Αποθήκευση"}
+              </Button>
+            )}
             <Button
               variant={customer.status === "Prospect" ? "contained" : "outlined"}
               color={customer.status === "Prospect" ? "success" : "warning"}
@@ -290,7 +309,7 @@ export function CustomerDetailPage() {
       <CustomerProfileTabs value={tab} onChange={setTab} />
 
       {tab === 0 && (showEditor
-        ? <CustomerEditorDialog open customer={customer} onClose={() => setShowEditor(false)} />
+        ? <CustomerEditorDialog open customer={customer} onClose={() => { setShowEditor(false); setEditorSave(null); setEditorSaving(false); }} onSaveReady={registerEditorSave} />
         : <OverviewTab customer={customer} />)}
       {tab === 1 && <Stack spacing={3}><CustomerPoliciesTab customerId={id} /><CustomerVehiclesTab customerId={id} /></Stack>}
       {tab === 2 && <Stack spacing={3}><CustomerClaimsTab customerId={id} /><CustomerAccountTab customerId={id} /></Stack>}
@@ -935,7 +954,7 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
 
 type CustomerEditForm = Record<string, string> & { type: string; status: string };
 
-function CustomerEditorDialog({ open, customer, onClose }: { open: boolean; customer: CustomerDto; onClose: () => void }) {
+function CustomerEditorDialog({ open, customer, onClose, onSaveReady }: { open: boolean; customer: CustomerDto; onClose: () => void; onSaveReady: (save: (() => void) | null, pending: boolean) => void }) {
   const qc = useQueryClient();
   const [tab, setTab] = useState(0);
   const [form, setForm] = useState<CustomerEditForm>(() => customerEditForm(customer));
@@ -954,6 +973,14 @@ function CustomerEditorDialog({ open, customer, onClose }: { open: boolean; cust
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ["customer", customer.id] }); void qc.invalidateQueries({ queryKey: ["customers"] }); onClose(); },
     onError: e => setError(extractErrorMessage(e))
   });
+  useEffect(() => {
+    if (!open) {
+      onSaveReady(null, false);
+      return;
+    }
+    onSaveReady(() => save.mutate(), save.isPending);
+    return () => onSaveReady(null, false);
+  }, [open, save.isPending, onSaveReady]);
   const set = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
   const field = (label: string, key: string, options?: { type?: string; multiline?: boolean; select?: string[]; placeholder?: string }) => options?.select ? (
     <TextField key={key} size="small" select label={label} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} fullWidth>
