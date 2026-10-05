@@ -86,7 +86,8 @@ function vehicleStatusLabel(status: string) {
     Inactive: "Ανενεργό",
     Cancelled: "Ακυρωμένο",
     Expired: "Ληγμένο",
-    Pending: "Σε εκκρεμότητα"
+    Pending: "Σε εκκρεμότητα",
+    Prospect: "Πιθανό συμβόλαιο"
   };
   return labels[status] ?? status;
 }
