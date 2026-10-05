@@ -20,7 +20,9 @@ export function PreloginDesktopDownload() {
       sx={{
         position: "fixed",
         right: { xs: 12, sm: 22 },
-        top: { xs: 78, sm: 104 },
+        // Keep the floating installer below the infrastructure notice on phones
+        // so the two controls never overlap the page header or each other.
+        top: { xs: 132, sm: 104 },
         zIndex: (theme) => theme.zIndex.drawer + 1,
         display: "flex",
         alignItems: "stretch",
