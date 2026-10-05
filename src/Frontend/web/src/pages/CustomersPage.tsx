@@ -35,6 +35,7 @@ import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import { IconButton, Tooltip } from "@mui/material";
 import FilterAltOffIcon from "@mui/icons-material/FilterAltOff";
 import FilterListIcon from "@mui/icons-material/FilterList";
+import SearchIcon from "@mui/icons-material/Search";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
@@ -235,7 +236,6 @@ export function CustomersPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const [occupationFilter, setOccupationFilter] = useState("");
   const [needKind, setNeedKind] = useState("");
   const [onlyUninsuredNeeds, setOnlyUninsuredNeeds] = useState(false);
   const [statusFilter, setStatusFilter] = useState<CustomerStatus | "">("");
@@ -250,11 +250,10 @@ export function CustomersPage() {
   const [error, setError] = useState<string | null>(null);
 
   const customersQuery = useQuery({
-    queryKey: ["customers", search, occupationFilter, needKind, onlyUninsuredNeeds, statusFilter],
+    queryKey: ["customers", search, needKind, onlyUninsuredNeeds, statusFilter],
     queryFn: async () =>
       (await api.get<CustomerDto[]>("/customers", { params: {
         search: search || undefined,
-        occupation: occupationFilter || undefined,
         needKind: needKind || undefined,
         onlyUninsuredNeeds: needKind && onlyUninsuredNeeds ? true : undefined,
         status: statusFilter || undefined,
@@ -369,13 +368,12 @@ export function CustomersPage() {
   });
   const customers = table.paged;
   const customerFilterCount = [
-    search, occupationFilter, needKind, onlyUninsuredNeeds ? "needs" : "", statusFilter,
+    search, needKind, onlyUninsuredNeeds ? "needs" : "", statusFilter,
     paymentFilter !== "all" ? paymentFilter : "", paymentWindow !== "all" ? paymentWindow : "",
     paymentFrom, paymentTo,
   ].filter(Boolean).length;
   const clearFilters = () => {
     setSearch("");
-    setOccupationFilter("");
     setNeedKind("");
     setOnlyUninsuredNeeds(false);
     setStatusFilter("");
@@ -472,25 +470,33 @@ export function CustomersPage() {
         quickButtonPlacement="external"
         quickOpen={quickFiltersOpen}
         onQuickOpenChange={setQuickFiltersOpen}
-        quickFilters={<QuickFilterBar
-          activeCount={customerFilterCount}
-          onClear={clearFilters}
-          options={[
-            { key: "all", label: "Όλοι", active: customerFilterCount === 0, onClick: clearFilters },
-            { key: "debtors", label: "Οφειλέτες", count: debtorCount, active: paymentFilter === "debtors", color: "error", onClick: () => setPaymentFilter("debtors") },
-            { key: "creditors", label: "Πιστωτικοί", count: creditorCount, active: paymentFilter === "creditors", color: "info", onClick: () => setPaymentFilter("creditors") },
-            { key: "overdue", label: "Ληξιπρόθεσμοι", count: overdueCount, active: paymentFilter === "overdue", color: "warning", onClick: () => setPaymentFilter("overdue") },
-            { key: "good", label: "Καλοπληρωτές", count: goodPayerCount, active: paymentFilter === "good", color: "success", onClick: () => setPaymentFilter("good") },
-            { key: "bad", label: "Κακοπληρωτές", count: badPayerCount, active: paymentFilter === "bad", color: "error", onClick: () => setPaymentFilter("bad") },
-            { key: "unpaid", label: "Χωρίς καταβολή", count: unpaidCount, active: paymentFilter === "unpaid", onClick: () => setPaymentFilter("unpaid") },
-            { key: "settled", label: "Εξοφλημένοι", count: settledCount, active: paymentFilter === "settled", color: "success", onClick: () => setPaymentFilter("settled") },
-            { key: "last7", label: "Οφειλές 7 ημερών", active: paymentWindow === "last7", onClick: () => setPaymentWindow("last7") },
-            { key: "last30", label: "Οφειλές 30 ημερών", active: paymentWindow === "last30", onClick: () => setPaymentWindow("last30") },
-            { key: "previousWeek", label: "Προηγούμενη εβδομάδα", active: paymentWindow === "previousWeek", onClick: () => setPaymentWindow("previousWeek") },
-            { key: "previousMonth", label: "Προηγούμενος μήνας", active: paymentWindow === "previousMonth", onClick: () => setPaymentWindow("previousMonth") },
-            { key: "thisMonth", label: "Τρέχων μήνας", active: paymentWindow === "thisMonth", onClick: () => setPaymentWindow("thisMonth") },
-          ]}
-        />}
+        quickFilters={<Stack spacing={1}>
+          <QuickFilterBar
+            activeCount={customerFilterCount}
+            onClear={clearFilters}
+            options={[
+              { key: "all", label: "Όλοι", active: customerFilterCount === 0, onClick: clearFilters },
+              { key: "debtors", label: "Οφειλέτες", count: debtorCount, active: paymentFilter === "debtors", color: "error", onClick: () => setPaymentFilter("debtors") },
+              { key: "creditors", label: "Πιστωτικοί", count: creditorCount, active: paymentFilter === "creditors", color: "info", onClick: () => setPaymentFilter("creditors") },
+              { key: "overdue", label: "Ληξιπρόθεσμοι", count: overdueCount, active: paymentFilter === "overdue", color: "warning", onClick: () => setPaymentFilter("overdue") },
+              { key: "good", label: "Καλοπληρωτές", count: goodPayerCount, active: paymentFilter === "good", color: "success", onClick: () => setPaymentFilter("good") },
+              { key: "bad", label: "Κακοπληρωτές", count: badPayerCount, active: paymentFilter === "bad", color: "error", onClick: () => setPaymentFilter("bad") },
+              { key: "unpaid", label: "Χωρίς καταβολή", count: unpaidCount, active: paymentFilter === "unpaid", onClick: () => setPaymentFilter("unpaid") },
+              { key: "settled", label: "Εξοφλημένοι", count: settledCount, active: paymentFilter === "settled", color: "success", onClick: () => setPaymentFilter("settled") },
+              { key: "last7", label: "Οφειλές 7 ημερών", active: paymentWindow === "last7", onClick: () => setPaymentWindow("last7") },
+              { key: "last30", label: "Οφειλές 30 ημερών", active: paymentWindow === "last30", onClick: () => setPaymentWindow("last30") },
+              { key: "previousWeek", label: "Προηγούμενη εβδομάδα", active: paymentWindow === "previousWeek", onClick: () => setPaymentWindow("previousWeek") },
+              { key: "previousMonth", label: "Προηγούμενος μήνας", active: paymentWindow === "previousMonth", onClick: () => setPaymentWindow("previousMonth") },
+              { key: "thisMonth", label: "Τρέχων μήνας", active: paymentWindow === "thisMonth", onClick: () => setPaymentWindow("thisMonth") },
+            ]}
+          />
+          <FormControlLabel
+            sx={{ mt: 0.5, mx: 0, "& .MuiFormControlLabel-label": { fontSize: "0.82rem", fontWeight: 650 } }}
+            control={<Switch size="small" checked={onlyUninsuredNeeds} disabled={!needKind}
+              onChange={(e) => setOnlyUninsuredNeeds(e.target.checked)} />}
+            label={needKind ? "Μόνο ανάγκες χωρίς κάλυψη" : "Μόνο χωρίς κάλυψη (επιλέξτε πρώτα ανάγκη)"}
+          />
+        </Stack>}
       >
         <Stack direction={{ xs: "column", md: "row" }} spacing={0.5}
           alignItems={{ xs: "stretch", md: "center" }}
@@ -513,11 +519,11 @@ export function CustomersPage() {
             "& .MuiInputBase-root": { minHeight: 36 },
             "& .MuiInputLabel-root": { fontSize: "0.76rem" },
           }}>
-          <FilterFieldWrap tip="Ελεύθερο κείμενο για επάγγελμα ή κλάδο δραστηριότητας (π.χ. «εστίαση»).">
-            <TextField size="small" label="Επάγγελμα / κλάδος" value={occupationFilter}
-              onChange={(e) => setOccupationFilter(e.target.value)} sx={{ minWidth: 150, width: "100%", flex: "1 1 150px" }}
-              placeholder="π.χ. εστίαση" />
-          </FilterFieldWrap>
+          <TextField size="small" label="Αναζήτηση πελατών" value={search}
+            onChange={(e) => { setSearch(e.target.value); table.setQuery(e.target.value); }}
+            placeholder="Όνομα, ΑΦΜ, email, τηλέφωνο ή πόλη"
+            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+            sx={{ minWidth: 220, width: "100%", flex: "1 1 220px" }} />
           <FilterFieldWrap tip="Φιλτράρετε τους πελάτες βάσει ασφαλιστικής ανάγκης ή περιουσιακού στοιχείου.">
             <SearchableTextField size="small" label="Ανάγκη / περιουσία" value={needKind}
               onChange={(e) => setNeedKind(e.target.value)} sx={{ minWidth: 145, width: "100%", flex: "1 1 145px" }}>
@@ -525,8 +531,6 @@ export function CustomersPage() {
               {NEED_KINDS.map(kind => <MenuItem key={kind} value={kind}>{NEED_KIND_LABEL[kind] ?? kind}</MenuItem>)}
             </SearchableTextField>
           </FilterFieldWrap>
-          <FormControlLabel sx={{ mx: 0, minWidth: "auto", "& .MuiFormControlLabel-label": { fontSize: "0.78rem", whiteSpace: "nowrap" } }} control={<Switch size="small" checked={onlyUninsuredNeeds} disabled={!needKind}
-            onChange={(e) => setOnlyUninsuredNeeds(e.target.checked)} />} label="Μόνο χωρίς κάλυψη" />
           <SearchableTextField select size="small" label="Κατάσταση" value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as CustomerStatus | "")} sx={{ minWidth: 130, width: "100%", flex: "1 1 130px" }}>
             <MenuItem value="">Όλες</MenuItem>
@@ -575,6 +579,7 @@ export function CustomersPage() {
       <Box sx={{ mb: 2 }}>
         <TableToolbar<CustomerListRow>
           query={search} onQuery={(value) => { setSearch(value); table.setQuery(value); }}
+          hideSearch
           count={financeFilteredCustomers.length} filteredCount={table.filtered.length}
           pageSize={table.pageSize} onPageSize={table.setPageSize}
           exportRows={table.filtered}

@@ -32,11 +32,16 @@ import HistoryIcon from "@mui/icons-material/History";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
+import CloseIcon from "@mui/icons-material/Close";
 import FamilyRestroomIcon from "@mui/icons-material/FamilyRestroom";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import HealthAndSafetyIcon from "@mui/icons-material/HealthAndSafety";
 import GroupsIcon from "@mui/icons-material/Groups";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
+import ContactPhoneIcon from "@mui/icons-material/ContactPhone";
+import FolderIcon from "@mui/icons-material/Folder";
 import { CustomerProducersDialog } from "../components/CustomerProducersDialog";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
@@ -175,6 +180,35 @@ const CONSENT_TYPES_MARKETING = [
 
 const COMMUNICATION_KINDS = ["Note", "Phone", "Email", "Meeting", "Sms", "WalkIn"];
 
+const CUSTOMER_PROFILE_TAB_LABELS = [
+  { label: "Επισκόπηση & στοιχεία", icon: <InfoOutlinedIcon fontSize="small" /> },
+  { label: "Συμβόλαια & οχήματα", icon: <DirectionsCarIcon fontSize="small" /> },
+  { label: "Ζημίες & οικονομικά", icon: <AccountBalanceWalletOutlinedIcon fontSize="small" /> },
+  { label: "Επικοινωνία & ειδοποιήσεις", icon: <ContactPhoneIcon fontSize="small" /> },
+  { label: "Επαφές & οικογένεια", icon: <FamilyRestroomIcon fontSize="small" /> },
+  { label: "Έντυπα & προτάσεις", icon: <FolderIcon fontSize="small" /> },
+];
+
+function CustomerProfileTabs({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  return <Tabs value={value} onChange={(_, next: number) => onChange(next)} variant="standard" sx={{
+    position: "sticky", top: 0, zIndex: 4, mb: 2, px: .5, py: .5,
+    border: "1px solid", borderColor: "divider", borderRadius: 2,
+    bgcolor: "background.paper", boxShadow: "0 3px 10px rgba(15,23,42,.12)",
+    overflow: "visible", "& .MuiTabs-scroller": { overflow: "visible !important" },
+    "& .MuiTabs-flexContainer": { gap: .75, flexWrap: "wrap" },
+    "& .MuiTabs-indicator": { display: "none" },
+    "& .MuiTab-root": {
+      minHeight: 54, minWidth: { xs: 132, md: 168 }, px: 1.5, py: .75,
+      border: "1px solid #263238", borderRadius: 1.5,
+      background: "linear-gradient(180deg, #e5e7eb 0%, #b8c0c8 100%) !important",
+      color: "#111827 !important", borderColor: "#263238 !important", opacity: "1 !important", textTransform: "none", fontWeight: 750,
+      transition: "background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease",
+      "&:hover": { background: "linear-gradient(180deg, #d4d8de 0%, #9ca6b1 100%) !important", color: "#0b2545 !important", borderColor: "#111827 !important", transform: "none" },
+      "&.Mui-selected": { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", color: "#fff !important", borderColor: "#062f63 !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" },
+    },
+  }}>{CUSTOMER_PROFILE_TAB_LABELS.map(item => <Tab key={item.label} icon={item.icon} iconPosition="start" label={item.label} />)}</Tabs>;
+}
+
 export function CustomerDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -276,14 +310,7 @@ export function CustomerDetailPage() {
 
       <CustomerSummaryCard customerId={id} />
 
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" allowScrollButtonsMobile sx={{ mb: 1.5, minHeight: 40, borderBottom: 1, borderColor: "divider", "& .MuiTab-root": { minHeight: 40, py: 0.5, px: 1.25 } }}>
-        <Tab label="Επισκόπηση & στοιχεία" />
-        <Tab icon={<DirectionsCarIcon fontSize="small" />} iconPosition="start" label="Συμβόλαια & οχήματα" />
-        <Tab label="Ζημίες & οικονομικά" />
-        <Tab label="Επικοινωνία & ειδοποιήσεις" />
-        <Tab icon={<FamilyRestroomIcon fontSize="small" />} iconPosition="start" label="Επαφές & οικογένεια" />
-        <Tab label="Έντυπα & προτάσεις" />
-      </Tabs>
+      <CustomerProfileTabs value={tab} onChange={setTab} />
 
       {tab === 0 && (showEditor
         ? <CustomerEditorDialog open customer={customer} onClose={() => setShowEditor(false)} />
@@ -296,7 +323,9 @@ export function CustomerDetailPage() {
       </Box>
       </DialogContent>
       <DialogActions sx={{ borderTop: 1, borderColor: "divider" }}>
-        <Button component={RouterLink} to="/app/customers" color="inherit">Κλείσιμο καρτέλας</Button>
+        <Button component={RouterLink} to="/app/customers" color="error" variant="contained" startIcon={<CloseIcon />} sx={{ color: "#fff", fontWeight: 800 }}>
+          Κλείσιμο καρτέλας
+        </Button>
       </DialogActions>
     </Dialog>
   );

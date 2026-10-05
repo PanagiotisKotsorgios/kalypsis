@@ -101,6 +101,7 @@ export function TableToolbar<T>({
   printSubtitle,
   columnSelectionId,
   hideColumnPicker,
+  hideSearch,
   extraExportColumns,
   rightSlot
 }: {
@@ -136,6 +137,9 @@ export function TableToolbar<T>({
   /** Hide the export-column picker even when exportColumns is provided
    *  (useful for very small/synthetic column sets). */
   hideColumnPicker?: boolean;
+  /** Hide the toolbar search when the page renders its single search field
+   *  alongside the rest of its filters. */
+  hideSearch?: boolean;
   /** Columns that are NOT rendered on-screen but can be opted into the
    *  export. Useful for internal ids, audit fields, and similar. */
   extraExportColumns?: { key: keyof T | string; label: string; map?: (r: T) => any; defaultOff?: boolean }[];
@@ -267,12 +271,12 @@ export function TableToolbar<T>({
 
   return (
     <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }} sx={{ mb: 2 }}>
-      <TextField
-        size="small" fullWidth placeholder={t("table.searchPlaceholder")} value={query}
-        onChange={(e) => onQuery(e.target.value)}
-        InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
-        sx={{ maxWidth: 480 }}
-      />
+      {!hideSearch && <TextField
+          size="small" fullWidth placeholder={t("table.searchPlaceholder")} value={query}
+          onChange={(e) => onQuery(e.target.value)}
+          InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+          sx={{ maxWidth: 480 }}
+        />}
       <Typography variant="body2" color="text.secondary" sx={{ minWidth: 130 }}>
         {filteredCount === count
           ? t("table.totalCount", { n: count })
