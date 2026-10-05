@@ -45,8 +45,8 @@ type ProducerTier = "None" | "A" | "B" | "C" | "D" | "E";
 type HierarchyLevel = "Producer" | "Manager" | "Unit" | "Assistant" | "Agency";
 
 const HIERARCHY_LABEL: Record<HierarchyLevel, string> = {
-  Producer:  "Παραγωγός (πωλητής)",
-  Manager:   "Προϊστάμενος ομάδας",
+  Producer:  "Συνεργάτης",
+  Manager:   "Υπεύθυνος ομάδας",
   Unit:      "Υπεύθυνος μονάδας",
   Assistant: "Βοηθός διοίκησης",
   Agency:    "Γραφείο (κεντρικό)"
@@ -57,8 +57,8 @@ const HIERARCHY_LABEL: Record<HierarchyLevel, string> = {
 // Assistant) come from ALIS parity and are opaque without context.
 const HIERARCHY_DESC: Record<HierarchyLevel, string> = {
   Producer:  "Ο συνεργάτης που φέρνει το συμβόλαιο. Είναι το πρώτο επίπεδο προμήθειας.",
-  Manager:   "Προϊστάμενος μιας ομάδας παραγωγών. Παίρνει ένα ποσοστό από κάθε συμβόλαιο των παραγωγών του.",
-  Unit:      "Επικεφαλής μιας μονάδας από ομάδες. Παίρνει ποσοστό πάνω από τον Προϊστάμενο ομάδας.",
+  Manager:   "Υπεύθυνος μιας ομάδας συνεργατών. Παίρνει ένα ποσοστό από κάθε συμβόλαιο της ομάδας του.",
+  Unit:      "Επικεφαλής μιας μονάδας από ομάδες. Παίρνει ποσοστό πάνω από τον υπεύθυνο ομάδας.",
   Assistant: "Βοηθός διοίκησης πάνω από τη μονάδα. Παίρνει ένα μικρό ποσοστό συντονισμού.",
   Agency:    "Το ίδιο το γραφείο. Είναι η κορυφή της ιεραρχίας — παίρνει ό,τι μένει μετά όλες τις προμήθειες."
 };
@@ -245,7 +245,7 @@ export function ProducersPage() {
     },
   });
   const rowMenu = useRowContextMenu<ProducerDto>({
-    entityLabel: "παραγωγού",
+    entityLabel: "συνεργάτη",
     onEdit: (p) => setEditing(p),
     onDelete: (p) => del.mutate(p.id),
   });
@@ -570,6 +570,10 @@ export function ProducersPage() {
         producerId={detailId}
         open={!!detailId}
         onClose={() => setDetailId(null)}
+        onEdit={() => {
+          const item = rawProducers.find(candidate => candidate.id === detailId);
+          if (item) { setDetailId(null); setEditing(item); }
+        }}
       />
 
       <ProducerCustomersDialog
@@ -735,19 +739,19 @@ function ProducerDialog({ open, initialStatus = "Active", onClose, producer, onS
                 <MenuItem key={tier} value={tier}>{TIER_LABEL[tier as ProducerTier]}</MenuItem>)}
             </SearchableTextField>
           </FilterFieldWrap>
-          {/* ALIS-parity hierarchy — determines who gets paid at each level of
+          {/* Hierarchy determines who gets paid at each level of
               the commission matrix. Leaf sales agents keep the default
-              "Παραγωγός" level; supervisors move up the chain. The Alert
+              "Συνεργάτης" level; supervisors move up the chain. The Alert
               below primes the operator on what each rank actually means so
               they aren't guessing between «Manager» / «Unit» / «Assistant». */}
           <Alert severity="info" variant="outlined" sx={{ mb: -1 }}>
-            <b>Πώς δουλεύει η ιεραρχία:</b> Κάθε συμβόλαιο πληρώνει τον <i>Παραγωγό</i> που το φέρνει.
-            Ένα κομμάτι της προμήθειας ανεβαίνει και στον <i>Προϊστάμενο ομάδας</i>, μετά στον <i>Υπεύθυνο μονάδας</i>,
+            <b>Πώς δουλεύει η ιεραρχία:</b> Κάθε συμβόλαιο πληρώνει τον <i>Συνεργάτη</i> που το φέρνει.
+            Ένα κομμάτι της προμήθειας ανεβαίνει και στον <i>Υπεύθυνο ομάδας</i>, μετά στον <i>Υπεύθυνο μονάδας</i>,
             μετά στον <i>Βοηθό διοίκησης</i>, και ό,τι μένει πάει στο <i>Γραφείο</i>.
             Αν αυτός ο συνεργάτης είναι στην κορυφή της ιεραρχίας του, αφήστε το «Προϊστάμενος» → <i>Ίδιος</i>.
           </Alert>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <FilterFieldWrap tip="Θέση στην ιεραρχία προμηθειών. Ένας απλός Παραγωγός έχει έναν Προϊστάμενο ομάδας ως γονέα, εκείνος έναν Υπεύθυνο μονάδας, κ.ο.κ." sx={{ flex: 2 }}>
+            <FilterFieldWrap tip="Θέση στην ιεραρχία προμηθειών. Ένας απλός συνεργάτης έχει έναν υπεύθυνο ομάδας ως γονέα, εκείνος έναν υπεύθυνο μονάδας, κ.ο.κ." sx={{ flex: 2 }}>
               <SearchableSelect
                 label="Επίπεδο ιεραρχίας"
                 value={form.hierarchyLevel}
@@ -1142,16 +1146,16 @@ function VerifyUserDialog({ open, user, onClose }: {
               <Stack direction="row" spacing={1} alignItems="center">
                 <LinkIcon fontSize="small" color="warning" />
                 <Typography variant="body2">
-                  Ο χρήστης είναι <b>ήδη συνδεδεμένος</b> με τον παραγωγό
+                  Ο χρήστης είναι <b>ήδη συνδεδεμένος</b> με τον συνεργάτη
                   {" "}<b>{user.linkedProducerCode} — {user.linkedProducerName}</b>.
-                  Η αποθήκευση θα επαναφέρει τη σύνδεση σε αυτόν τον παραγωγό.
+                  Η αποθήκευση θα επαναφέρει τη σύνδεση σε αυτόν τον συνεργάτη.
                 </Typography>
               </Stack>
             ) : (
               <Stack direction="row" spacing={1} alignItems="center">
                 <LinkIcon fontSize="small" color="success" />
                 <Typography variant="body2">
-                  Ο χρήστης δεν έχει σύνδεση με παραγωγό. Θα συνδεθεί αυτόματα με τη νέα εγγραφή στην αποθήκευση.
+                  Ο χρήστης δεν έχει σύνδεση με συνεργάτη. Θα συνδεθεί αυτόματα με τη νέα εγγραφή στην αποθήκευση.
                 </Typography>
               </Stack>
             )}

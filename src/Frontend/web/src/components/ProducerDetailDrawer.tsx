@@ -1,10 +1,17 @@
+import { useEffect, useState } from "react";
 import {
-  Box, Chip, CircularProgress, Divider, Drawer, IconButton,
-  LinearProgress, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography
+  Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
+  DialogTitle, IconButton, LinearProgress, Stack, Table, TableBody,
+  TableCell, TableHead, TableRow, Tabs, Tab, Typography
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
+import EditIcon from "@mui/icons-material/Edit";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import DescriptionIcon from "@mui/icons-material/Description";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import ContactPhoneIcon from "@mui/icons-material/ContactPhone";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
@@ -42,8 +49,8 @@ const GRADE_LABEL: Record<string, string> = {
   A: "Άριστος", B: "Πολύ καλός", C: "Μέτριος", D: "Φτωχός", F: "Προβληματικός"
 };
 
-export function ProducerDetailDrawer({ producerId, open, onClose }: {
-  producerId: string | null; open: boolean; onClose: () => void;
+export function ProducerDetailDrawer({ producerId, open, onClose, onEdit }: {
+  producerId: string | null; open: boolean; onClose: () => void; onEdit?: () => void;
 }) {
   const { t } = useTranslation();
   const q = useQuery({
@@ -58,162 +65,63 @@ export function ProducerDetailDrawer({ producerId, open, onClose }: {
   });
 
   const p = q.data;
+  const [tab, setTab] = useState(0);
+  useEffect(() => { if (open) setTab(0); }, [open, producerId]);
 
+  const statusLabel = p?.status === "Active" ? "Ενεργός" : p?.status === "Prospect" ? "Πιθανός συνεργάτης" : p?.status === "Suspended" ? "Σε αναστολή" : p?.status === "Terminated" ? "Τερματισμένος" : p?.status ?? "—";
   return (
-    <Drawer anchor="right" open={open} onClose={onClose}
-      PaperProps={{ sx: { width: { xs: "100%", md: 680 } } }}>
-      <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <Box sx={{ p: 2.5, borderBottom: "1px solid", borderColor: "divider" }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
-            <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 700 }}>
-              {t("producerDetail.header")}
-            </Typography>
-            <IconButton size="small" onClick={onClose}><CloseIcon /></IconButton>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" PaperProps={{ sx: { maxHeight: "calc(100vh - 28px)", borderRadius: 2, overflow: "hidden" } }}>
+      <DialogTitle sx={{ px: 1.5, py: 1.15, borderBottom: "1px solid", borderColor: "divider" }}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between" alignItems={{ sm: "center" }}>
+          <Stack direction="row" alignItems="center" spacing={1.25} minWidth={0}>
+            <Box sx={{ width: 48, height: 48, borderRadius: 1.5, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: GRADE_COLOR[p?.performanceGrade ?? ""] ?? "#78909c", color: "#fff", flexShrink: 0 }}><Typography fontWeight={900} sx={{ fontSize: 24 }}>{p?.performanceGrade ?? "—"}</Typography></Box>
+            <Box minWidth={0}><Typography variant="caption" color="text.secondary" fontWeight={800}>{t("producerDetail.header")}</Typography><Typography variant="h6" fontWeight={900} noWrap>{p?.name ?? "Συνεργάτης"}</Typography><Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>{p?.code ?? ""}</Typography></Box>
+            {p && <Chip size="small" color={p.status === "Active" ? "success" : p.status === "Prospect" ? "warning" : "default"} label={statusLabel} />}
           </Stack>
-          {q.isLoading ? <CircularProgress size={20} /> : p ? (
-            <>
-              <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap">
-                <Box sx={{
-                  width: 64, height: 64, borderRadius: 2, display: "flex",
-                  alignItems: "center", justifyContent: "center",
-                  bgcolor: GRADE_COLOR[p.performanceGrade] ?? "grey.400", color: "white"
-                }}>
-                  <Typography fontWeight={900} sx={{ fontSize: 32 }}>{p.performanceGrade}</Typography>
-                </Box>
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="h5" fontWeight={800} noWrap>{p.name}</Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>{p.code}</Typography>
-                  <Typography variant="body2" sx={{ mt: 0.3 }}>
-                    {t("producerDetail.gradeLabel")}: <strong>{GRADE_LABEL[p.performanceGrade] ?? p.performanceGrade}</strong>
-                  </Typography>
-                </Box>
-                <Chip size="small" color={p.status === "Active" ? "success" : p.status === "Prospect" ? "warning" : "default"} label={p.status === "Prospect" ? "Πιθανός συνεργάτης" : p.status} />
-              </Stack>
-              <Stack direction="row" spacing={2} mt={2} flexWrap="wrap">
-                {p.email && <Chip size="small" icon={<EmailIcon fontSize="small" />} component="a" href={`mailto:${p.email}`} clickable label={p.email} />}
-                {p.phone && <Chip size="small" icon={<PhoneIcon fontSize="small" />} component="a" href={`tel:${p.phone}`} clickable label={p.phone} />}
-              </Stack>
-              {p.notes && (
-                <Box sx={{ mt: 2, p: 1.25, borderRadius: 1.5, bgcolor: "rgba(245, 158, 11, 0.10)" }}>
-                  <Typography variant="caption" color="text.secondary">Σημειώσεις</Typography>
-                  <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>{p.notes}</Typography>
-                </Box>
-              )}
-            </>
-          ) : null}
-        </Box>
-
-        <Box sx={{ flex: 1, overflowY: "auto", p: 3 }}>
-          {!p ? <CircularProgress /> : (
-            <Stack spacing={3}>
-              {/* KPI cards */}
-              <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(4, 1fr)" } }}>
+          <Stack direction="row" spacing={.75} alignItems="center" justifyContent="flex-end">
+            {onEdit && <Button size="small" variant="contained" color="success" sx={{ color: "#fff", fontWeight: 800 }} startIcon={<EditIcon />} onClick={onEdit}>Επεξεργασία συνεργάτη</Button>}
+            <IconButton size="small" onClick={onClose} aria-label="Κλείσιμο"><CloseIcon /></IconButton>
+          </Stack>
+        </Stack>
+        {p && <Stack direction="row" spacing={.75} mt={.9} flexWrap="wrap" useFlexGap>
+          {p.email && <Chip size="small" icon={<EmailIcon fontSize="small" />} component="a" href={`mailto:${p.email}`} clickable label={p.email} />}
+          {p.phone && <Chip size="small" icon={<PhoneIcon fontSize="small" />} component="a" href={`tel:${p.phone}`} clickable label={p.phone} />}
+          <Chip size="small" variant="outlined" label={`${t("producerDetail.gradeLabel")}: ${GRADE_LABEL[p.performanceGrade] ?? p.performanceGrade}`} />
+        </Stack>}
+      </DialogTitle>
+      <DialogContent dividers sx={{ p: 1.25, overflowY: "auto", "&::-webkit-scrollbar": { width: 12 }, "&::-webkit-scrollbar-thumb": { background: "#0b2545", borderRadius: 999, border: "3px solid #eef3f8" } }}>
+        {q.isLoading && <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>}
+        {q.isError && <Typography color="error">Δεν ήταν δυνατή η φόρτωση της καρτέλας συνεργάτη.</Typography>}
+        {p && <>
+          <Tabs value={tab} onChange={(_, value: number) => setTab(value)} variant="standard" sx={{ position: "sticky", top: 0, zIndex: 4, mb: 1.25, px: .5, py: .5, border: "1px solid #263238", borderRadius: 2, bgcolor: "background.paper", boxShadow: "0 3px 10px rgba(15,23,42,.12)", overflow: "visible", "& .MuiTabs-scroller": { overflow: "visible !important" }, "& .MuiTabs-flexContainer": { gap: .65, flexWrap: "wrap" }, "& .MuiTabs-indicator": { display: "none" }, "& .MuiTab-root": { minHeight: 48, minWidth: { xs: 120, md: 156 }, px: 1.25, py: .6, border: "1px solid #263238", borderRadius: 1.5, background: "linear-gradient(180deg, #e5e7eb 0%, #b8c0c8 100%) !important", color: "#111827 !important", opacity: "1 !important", textTransform: "none", fontWeight: 750, fontSize: { xs: ".78rem", md: ".86rem" }, transition: "background .18s ease, color .18s ease, box-shadow .18s ease", "&:hover": { background: "linear-gradient(180deg, #d4d8de 0%, #9ca6b1 100%) !important", color: "#0b2545 !important", transform: "none" }, "&.Mui-selected": { background: "linear-gradient(135deg, #0b5cad 0%, #063b73 100%) !important", color: "#fff !important", borderColor: "#062f63 !important", boxShadow: "0 3px 8px rgba(6,47,99,.35)" } } }}>
+            <Tab icon={<InfoOutlinedIcon fontSize="small" />} iconPosition="start" label="Σύνοψη" />
+            <Tab icon={<DescriptionIcon fontSize="small" />} iconPosition="start" label="Παραγωγή & συμβόλαια" />
+            <Tab icon={<AccountBalanceWalletIcon fontSize="small" />} iconPosition="start" label="Οικονομικά" />
+            <Tab icon={<ContactPhoneIcon fontSize="small" />} iconPosition="start" label="Επικοινωνία" />
+          </Tabs>
+          <Stack spacing={1.25}>
+            {tab === 0 && <Stack spacing={1.25}>
+              <Box sx={{ display: "grid", gap: .8, gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr)" } }}>
                 <KPI label={t("producerDetail.totalPolicies")} value={p.totalPolicies} hint={`${p.activePolicies} ${t("producerDetail.active").toLowerCase()}`} />
                 <KPI label={t("producerDetail.customers")} value={p.customerCount} />
                 <KPI label={t("producerDetail.newThisYear")} value={p.newPoliciesThisYear} />
-                <KPI label={t("producerDetail.renewalsDue")} value={p.renewalsDueNext60Days} hint="next 60d" />
+                <KPI label={t("producerDetail.renewalsDue")} value={p.renewalsDueNext60Days} hint="επόμενες 60 ημέρες" />
               </Box>
-
-              <Divider />
-
-              {/* Performance bars */}
-              <Box>
-                <Typography fontWeight={700} mb={1.5}>{t("producerDetail.performance")}</Typography>
-                <PerfBar label={t("producerDetail.renewalRate")} value={p.renewalRate} target={70} unit="%" />
-                <PerfBar label={t("producerDetail.premiumGrowth")} value={p.premiumGrowthPercent} target={10} unit="%" allowNegative />
-                <PerfBar label={t("producerDetail.claimRatio")} value={p.claimRatio} target={25} unit="%" inverted />
-              </Box>
-
-              <Divider />
-
-              <Box>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
-                  <Typography fontWeight={700}>Ιστορικό επικοινωνίας</Typography>
-                  <Chip size="small" label={`${communications.data?.length ?? 0}`} />
-                </Stack>
-                {communications.isLoading ? <CircularProgress size={20} /> : (communications.data ?? []).length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">Δεν έχει καταγραφεί ακόμη επικοινωνία με τον συνεργάτη.</Typography>
-                ) : (
-                  <Stack spacing={1}>
-                    {(communications.data ?? []).map(item => (
-                      <Box key={item.id} sx={{ p: 1.25, borderRadius: 1.5, bgcolor: "background.default", border: "1px solid", borderColor: "divider" }}>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                          <Typography variant="body2" fontWeight={700}>{COMM_KIND[item.kind] ?? "Επικοινωνία"} · {item.subject}</Typography>
-                          <Typography variant="caption" color="text.secondary">{new Date(item.occurredAt).toLocaleString("el-GR")}</Typography>
-                        </Stack>
-                        <Typography variant="caption" color="text.secondary">{COMM_OUTCOME[item.outcome] ?? ""}</Typography>
-                        {item.body && <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}>{item.body}</Typography>}
-                      </Box>
-                    ))}
-                  </Stack>
-                )}
-              </Box>
-
-              <Divider />
-
-              {/* Financials */}
-              <Box>
-                <Typography fontWeight={700} mb={1.5}>{t("producerDetail.financials")}</Typography>
-                <Stack spacing={1}>
-                  <KV label={t("producerDetail.premiumYtd")} value={`${p.totalPremiumYtd.toFixed(2)} €`} />
-                  <KV label={t("producerDetail.premiumLastYear")} value={`${p.totalPremiumLastYear.toFixed(2)} €`} />
-                  <KV label={t("producerDetail.commissionsAll")} value={`${p.totalCommissionsEarned.toFixed(2)} €`} />
-                  <KV label={t("producerDetail.commissionsYtd")} value={`${p.commissionsThisYear.toFixed(2)} €`} />
-                </Stack>
-              </Box>
-
-              <Divider />
-
-              {/* By carrier */}
-              {p.byCarrier.length > 0 && (
-                <Box>
-                  <Typography fontWeight={700} mb={1.5}>{t("producerDetail.byCarrier")}</Typography>
-                  <Table size="small">
-                    <TableHead><TableRow>
-                      <TableCell>{t("producerDetail.carrier")}</TableCell>
-                      <TableCell align="right">{t("producerDetail.policies")}</TableCell>
-                      <TableCell align="right">{t("producerDetail.premium")}</TableCell>
-                    </TableRow></TableHead>
-                    <TableBody>
-                      {p.byCarrier.map(c => (
-                        <TableRow key={c.carrierName}>
-                          <TableCell>{c.carrierName}</TableCell>
-                          <TableCell align="right">{c.policyCount}</TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 700 }}>{c.totalPremium.toFixed(2)} €</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </Box>
-              )}
-
-              {/* By type */}
-              {p.byPolicyType.length > 0 && (
-                <Box>
-                  <Typography fontWeight={700} mb={1.5}>{t("producerDetail.byType")}</Typography>
-                  <Table size="small">
-                    <TableHead><TableRow>
-                      <TableCell>{t("producerDetail.type")}</TableCell>
-                      <TableCell align="right">{t("producerDetail.policies")}</TableCell>
-                      <TableCell align="right">{t("producerDetail.premium")}</TableCell>
-                    </TableRow></TableHead>
-                    <TableBody>
-                      {p.byPolicyType.map(t1 => (
-                        <TableRow key={t1.policyType}>
-                          <TableCell>{t1.policyType}</TableCell>
-                          <TableCell align="right">{t1.policyCount}</TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 700 }}>{t1.totalPremium.toFixed(2)} €</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </Box>
-              )}
-            </Stack>
-          )}
-        </Box>
-      </Box>
-    </Drawer>
+              <Card variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800} mb={.75}>Απόδοση συνεργάτη</Typography><PerfBar label={t("producerDetail.renewalRate")} value={p.renewalRate} target={70} unit="%" /><PerfBar label={t("producerDetail.premiumGrowth")} value={p.premiumGrowthPercent} target={10} unit="%" allowNegative /><PerfBar label={t("producerDetail.claimRatio")} value={p.claimRatio} target={25} unit="%" inverted /></Card>
+              {p.notes && <Card variant="outlined" sx={{ p: 1.25, bgcolor: "rgba(245, 158, 11, .08)" }}><Typography variant="caption" color="text.secondary">Σημειώσεις συνεργάτη</Typography><Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>{p.notes}</Typography></Card>}
+            </Stack>}
+            {tab === 1 && <Stack spacing={1.25}>
+              {p.byCarrier.length > 0 && <Card variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800} mb={.75}>{t("producerDetail.byCarrier")}</Typography><Table size="small"><TableHead><TableRow><TableCell>{t("producerDetail.carrier")}</TableCell><TableCell align="right">{t("producerDetail.policies")}</TableCell><TableCell align="right">{t("producerDetail.premium")}</TableCell></TableRow></TableHead><TableBody>{p.byCarrier.map(c => <TableRow key={c.carrierName}><TableCell>{c.carrierName}</TableCell><TableCell align="right">{c.policyCount}</TableCell><TableCell align="right" sx={{ fontWeight: 700 }}>{c.totalPremium.toFixed(2)} €</TableCell></TableRow>)}</TableBody></Table></Card>}
+              {p.byPolicyType.length > 0 && <Card variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800} mb={.75}>{t("producerDetail.byType")}</Typography><Table size="small"><TableHead><TableRow><TableCell>{t("producerDetail.type")}</TableCell><TableCell align="right">{t("producerDetail.policies")}</TableCell><TableCell align="right">{t("producerDetail.premium")}</TableCell></TableRow></TableHead><TableBody>{p.byPolicyType.map(item => <TableRow key={item.policyType}><TableCell>{item.policyType}</TableCell><TableCell align="right">{item.policyCount}</TableCell><TableCell align="right" sx={{ fontWeight: 700 }}>{item.totalPremium.toFixed(2)} €</TableCell></TableRow>)}</TableBody></Table></Card>}
+              {p.byCarrier.length === 0 && p.byPolicyType.length === 0 && <Typography color="text.secondary">Δεν υπάρχουν ακόμη συμβόλαια ή στοιχεία παραγωγής.</Typography>}
+            </Stack>}
+            {tab === 2 && <Card variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800} mb={.75}>{t("producerDetail.financials")}</Typography><Box sx={{ display: "grid", gap: .5, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" } }}><KV label={t("producerDetail.premiumYtd")} value={`${p.totalPremiumYtd.toFixed(2)} €`} /><KV label={t("producerDetail.premiumLastYear")} value={`${p.totalPremiumLastYear.toFixed(2)} €`} /><KV label={t("producerDetail.commissionsAll")} value={`${p.totalCommissionsEarned.toFixed(2)} €`} /><KV label={t("producerDetail.commissionsYtd")} value={`${p.commissionsThisYear.toFixed(2)} €`} /></Box></Card>}
+            {tab === 3 && <Card variant="outlined" sx={{ p: 1.25 }}><Stack direction="row" justifyContent="space-between" alignItems="center" mb={.75}><Typography fontWeight={800}>Ιστορικό επικοινωνίας</Typography><Chip size="small" label={`${communications.data?.length ?? 0}`} /></Stack>{communications.isLoading ? <CircularProgress size={20} /> : (communications.data ?? []).length === 0 ? <Typography variant="body2" color="text.secondary">Δεν έχει καταγραφεί ακόμη επικοινωνία με τον συνεργάτη.</Typography> : <Stack spacing={.75}>{(communications.data ?? []).map(item => <Box key={item.id} sx={{ p: 1, borderRadius: 1.25, bgcolor: "background.default", border: "1px solid", borderColor: "divider" }}><Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={.5}><Typography variant="body2" fontWeight={700}>{COMM_KIND[item.kind] ?? "Επικοινωνία"} · {item.subject}</Typography><Typography variant="caption" color="text.secondary">{new Date(item.occurredAt).toLocaleString("el-GR")}</Typography></Stack><Typography variant="caption" color="text.secondary">{COMM_OUTCOME[item.outcome] ?? ""}</Typography>{item.body && <Typography variant="body2" sx={{ mt: .35, whiteSpace: "pre-wrap" }}>{item.body}</Typography>}</Box>)}</Stack>}</Card>}
+          </Stack>
+        </>}
+      </DialogContent>
+      <DialogActions sx={{ px: 1.5, py: 1 }}><Button color="error" variant="contained" sx={{ color: "#fff", fontWeight: 800 }} onClick={onClose}>Κλείσιμο</Button></DialogActions>
+    </Dialog>
   );
 }
 
