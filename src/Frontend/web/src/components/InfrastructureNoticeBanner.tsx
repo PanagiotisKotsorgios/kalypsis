@@ -10,13 +10,13 @@ export function InfrastructureNoticeBanner() {
         icon={<WarningAmberIcon fontSize="inherit" />}
         sx={{
           borderRadius: 0,
-          background: "linear-gradient(90deg, #fff4c2 0%, #ffe082 58%, #ffcdd2 100%)",
-          color: "#7f1d1d",
-          borderTop: "4px solid #d32f2f",
-          borderBottom: "4px solid #b71c1c",
-          boxShadow: "0 2px 10px rgba(183, 28, 28, 0.18)",
+          background: "#b71c1c",
+          color: "#fff",
+          borderTop: "4px solid #7f0000",
+          borderBottom: "4px solid #7f0000",
+          boxShadow: "0 2px 12px rgba(127, 0, 0, 0.32)",
           fontSize: { xs: "0.9rem", sm: "1rem" },
-          "& .MuiAlert-icon": { color: "#c62828" },
+          "& .MuiAlert-icon": { color: "#fff" },
           "& .MuiAlert-message": { width: "100%", fontWeight: 700, lineHeight: 1.45 },
           px: { xs: 1.5, sm: 3 },
           py: 1.1,
@@ -26,7 +26,7 @@ export function InfrastructureNoticeBanner() {
           component="span"
           sx={{
             display: "inline-block",
-            bgcolor: "#b71c1c",
+            bgcolor: "#7f0000",
             color: "#fff",
             borderRadius: 0.75,
             px: 1,
