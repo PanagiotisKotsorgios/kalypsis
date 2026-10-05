@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, FormControl, FormHelperText, InputLabel, MenuItem, Select, Stack, Typography } from "@mui/material";
+import { Alert, Box, FormControl, InputLabel, MenuItem, Select, Stack, Typography } from "@mui/material";
 import BusinessIcon from "@mui/icons-material/Business";
 import { api } from "../api/client";
 import type { Role } from "../auth/AuthContext";
@@ -84,7 +84,6 @@ export function AgencyOfficeSwitcher({ role }: { role: Role | undefined }) {
             </MenuItem>
           ))}
         </Select>
-        <FormHelperText>Εφαρμόζεται σε dashboard, λίστες παραγωγής, οικονομικά και αναφορές.</FormHelperText>
       </FormControl>
       </Stack>
     </Box>
