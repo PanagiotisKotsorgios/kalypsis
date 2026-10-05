@@ -560,15 +560,25 @@ export function PoliciesPage() {
       )}
        {!isCustomer && (
          <>
-           <Card variant="outlined" sx={{ p: 1, mb: 2 }}>
-             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }} flexWrap="wrap" useFlexGap>
-               <TextField
-                 size="small"
-                 fullWidth
+            <Card variant="outlined" sx={{ p: 1, mb: 2 }}>
+              <Box sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "repeat(4, minmax(0, 1fr))",
+                  md: "repeat(6, minmax(0, 1fr))",
+                  lg: "minmax(260px, 2fr) minmax(150px, 1fr) minmax(135px, 1fr) 125px 125px auto auto",
+                },
+                gap: 0.75,
+                alignItems: "center",
+              }}>
+                <TextField
+                  size="small"
+                  fullWidth
                  placeholder="Αναζήτηση αριθμού συμβολαίου, πελάτη, ΑΦΜ ή πινακίδας…"
                  value={search}
                  onChange={(e) => setSearch(e.target.value)}
-                 sx={{ flex: "1 1 320px", minWidth: { sm: 280 } }}
+                  sx={{ minWidth: 0, gridColumn: { xs: "auto", sm: "span 2", md: "span 2", lg: "auto" } }}
                  InputProps={{
                    startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
                    endAdornment: <FilterHelp title="Αναζήτηση σε αριθμό συμβολαίου, πελάτη, ΑΦΜ, απόδειξη ή πινακίδα οχήματος." />,
@@ -579,7 +589,7 @@ export function PoliciesPage() {
                  value={carrierFilter}
                  onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); }}
                  emptyLabel="Όλες"
-                 sx={{ flex: "1 1 190px", minWidth: { sm: 180 } }}
+                  sx={{ minWidth: 0, width: "100%" }}
                  options={(carriersQuery.data ?? [])
                    .filter(c => !c.parentCompanyId)
                    .map(c => ({ value: c.id, label: c.name, hint: c.isBroker ? "Πρακτορείο" : c.code }))}
@@ -590,19 +600,26 @@ export function PoliciesPage() {
                  value={typeFilter}
                  onChange={(e) => setTypeFilter(e.target.value as PolicyType | "")}
                  disabled={!carrierFilter}
-                 sx={{ flex: "1 1 170px", minWidth: { sm: 160 } }}
+                  sx={{ minWidth: 0, width: "100%" }}
                >
                  <MenuItem value="">Όλοι οι κλάδοι</MenuItem>
                  {filterCatalogue.branches.map(b => <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>)}
                </SearchableTextField>
-               <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ flex: "0 1 150px" }} />
-               <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ flex: "0 1 150px" }} />
+                <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 0, width: "100%" }} />
+                <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 0, width: "100%" }} />
                <Button
                  size="small"
                  variant={policyFilterCount > 0 ? "contained" : "outlined"}
                  startIcon={<TuneIcon />}
                  onClick={() => setAdvancedFiltersOpen(true)}
-                 sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+                  sx={{
+                    whiteSpace: "nowrap",
+                    minWidth: 0,
+                    bgcolor: "#e3f2fd",
+                    color: "#1565c0",
+                    borderColor: "#90caf9",
+                    "&:hover": { bgcolor: "#bbdefb", borderColor: "#64b5f6", color: "#0d47a1" },
+                  }}
                >
                  Σύνθετα φίλτρα{policyFilterCount > 0 ? ` (${policyFilterCount})` : ""}
                </Button>
@@ -611,11 +628,18 @@ export function PoliciesPage() {
                  variant="outlined"
                  startIcon={<FilterAltIcon />}
                  onClick={() => setQuickFiltersOpen(true)}
-                 sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+                  sx={{
+                    whiteSpace: "nowrap",
+                    minWidth: 0,
+                    bgcolor: "#e3f2fd",
+                    color: "#1565c0",
+                    borderColor: "#90caf9",
+                    "&:hover": { bgcolor: "#bbdefb", borderColor: "#64b5f6", color: "#0d47a1" },
+                  }}
                >
                  Γρήγορα φίλτρα
                </Button>
-             </Stack>
+             </Box>
            </Card>
            <Dialog open={advancedFiltersOpen} onClose={() => setAdvancedFiltersOpen(false)} fullWidth maxWidth="md">
              <DialogTitle>Σύνθετα φίλτρα συμβολαίων</DialogTitle>
