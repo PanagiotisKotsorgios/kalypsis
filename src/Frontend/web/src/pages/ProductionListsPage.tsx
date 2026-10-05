@@ -563,11 +563,6 @@ export function ProductionListsPage() {
         </Stack>
       </Stack>
 
-      <Alert severity="info" sx={{ mb: 3 }}>
-        Οι λίστες παραγωγής είναι αναφορά και εξαγωγή του χαρτοφυλακίου. Από το «Εκκαθαρίσεις προμηθειών» δημιουργείτε, ελέγχετε και οριστικοποιείτε τις μηνιαίες εκκαθαρίσεις συνεργατών.
-      </Alert>
-
-
       <ResponsiveFilterPanel
         activeCount={[
           f.insuranceCompanyId, f.producerId, f.policyType, f.vehicleUseCategory,
