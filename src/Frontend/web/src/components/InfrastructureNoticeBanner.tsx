@@ -26,8 +26,8 @@ export function InfrastructureNoticeBanner() {
           component="span"
           sx={{
             display: "inline-block",
-            bgcolor: "#7f0000",
-            color: "#fff",
+            bgcolor: "#ffd600",
+            color: "#3b1f00",
             borderRadius: 0.75,
             px: 1,
             py: 0.2,
@@ -37,7 +37,7 @@ export function InfrastructureNoticeBanner() {
             whiteSpace: "nowrap",
           }}
         >
-          Προσωρινή ενημέρωση:
+          ΕΝΗΜΕΡΩΣΗ ΠΡΟΣ ΧΡΗΣΤΕΣ
         </Typography>
         <Typography component="span" sx={{ fontWeight: 600 }}>
           Η εξυπηρέτηση και η τεχνική υποστήριξη θα πραγματοποιούνται προσωρινά, λόγω τεχνικών αναβαθμίσεων στις υποδομές μας, από τις 15:30 έως τις 20:30. Ευχαριστούμε θερμά για την κατανόηση και την υπομονή σας.
