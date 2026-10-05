@@ -16,19 +16,82 @@ public record ProducerDto(
     HierarchyLevel HierarchyLevel = HierarchyLevel.Producer,
     Guid? ParentProducerId = null,
     string? ParentProducerName = null,
-    string? Notes = null);
+    string? Notes = null,
+    string? SecondaryEmail = null,
+    string? SecondaryPhone = null,
+    string? TaxId = null,
+    string? TaxOffice = null,
+    string? BusinessType = null,
+    string? ProfessionalCategory = null,
+    bool HasContract = false,
+    string? ContractNumber = null,
+    DateOnly? ContractStartDate = null,
+    DateOnly? ContractEndDate = null,
+    string? Address = null,
+    string? City = null,
+    string? PostalCode = null,
+    string? Website = null,
+    string? IdentityNumber = null,
+    string? ProfessionalLicenseNumber = null,
+    DateOnly? LicenseExpiryDate = null,
+    string? Iban = null,
+    string? BankName = null,
+    string? PaymentMethod = null,
+    string? AdditionalInfoJson = null);
 
 public record CreateProducerBody(string Code, string Name, string? Email, string? Phone, ProducerStatus Status,
     ProducerTier Tier = ProducerTier.None,
     HierarchyLevel HierarchyLevel = HierarchyLevel.Producer,
     Guid? ParentProducerId = null,
     string? Notes = null,
-    string? InitialPassword = null);
+    string? InitialPassword = null,
+    string? SecondaryEmail = null,
+    string? SecondaryPhone = null,
+    string? TaxId = null,
+    string? TaxOffice = null,
+    string? BusinessType = null,
+    string? ProfessionalCategory = null,
+    bool HasContract = false,
+    string? ContractNumber = null,
+    DateOnly? ContractStartDate = null,
+    DateOnly? ContractEndDate = null,
+    string? Address = null,
+    string? City = null,
+    string? PostalCode = null,
+    string? Website = null,
+    string? IdentityNumber = null,
+    string? ProfessionalLicenseNumber = null,
+    DateOnly? LicenseExpiryDate = null,
+    string? Iban = null,
+    string? BankName = null,
+    string? PaymentMethod = null,
+    string? AdditionalInfoJson = null);
 public record UpdateProducerBody(string Code, string Name, string? Email, string? Phone, ProducerStatus Status,
     ProducerTier Tier = ProducerTier.None,
     HierarchyLevel HierarchyLevel = HierarchyLevel.Producer,
     Guid? ParentProducerId = null,
-    string? Notes = null);
+    string? Notes = null,
+    string? SecondaryEmail = null,
+    string? SecondaryPhone = null,
+    string? TaxId = null,
+    string? TaxOffice = null,
+    string? BusinessType = null,
+    string? ProfessionalCategory = null,
+    bool HasContract = false,
+    string? ContractNumber = null,
+    DateOnly? ContractStartDate = null,
+    DateOnly? ContractEndDate = null,
+    string? Address = null,
+    string? City = null,
+    string? PostalCode = null,
+    string? Website = null,
+    string? IdentityNumber = null,
+    string? ProfessionalLicenseNumber = null,
+    DateOnly? LicenseExpiryDate = null,
+    string? Iban = null,
+    string? BankName = null,
+    string? PaymentMethod = null,
+    string? AdditionalInfoJson = null);
 
 public record CreateProducerResponse(
     ProducerDto Producer,
@@ -59,7 +122,12 @@ public class ListProducersQueryHandler : IRequestHandler<ListProducersQuery, IRe
                 p.HierarchyLevel,
                 p.ParentProducerId,
                 p.ParentProducer != null ? p.ParentProducer.Name : null,
-                p.Notes))
+                p.Notes,
+                p.SecondaryEmail, p.SecondaryPhone, p.TaxId, p.TaxOffice, p.BusinessType,
+                p.ProfessionalCategory, p.HasContract, p.ContractNumber, p.ContractStartDate,
+                p.ContractEndDate, p.Address, p.City, p.PostalCode, p.Website, p.IdentityNumber,
+                p.ProfessionalLicenseNumber, p.LicenseExpiryDate, p.Iban, p.BankName,
+                p.PaymentMethod, p.AdditionalInfoJson))
             .ToListAsync(ct);
         return rows;
     }
@@ -111,6 +179,17 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
             Code = code, Name = b.Name.Trim(),
             Email = b.Email?.Trim().ToLowerInvariant(), Phone = b.Phone?.Trim(),
             Notes = string.IsNullOrWhiteSpace(b.Notes) ? null : b.Notes.Trim(),
+            SecondaryEmail = b.SecondaryEmail?.Trim().ToLowerInvariant(),
+            SecondaryPhone = b.SecondaryPhone?.Trim(),
+            TaxId = b.TaxId?.Trim(), TaxOffice = b.TaxOffice?.Trim(),
+            BusinessType = b.BusinessType?.Trim(), ProfessionalCategory = b.ProfessionalCategory?.Trim(),
+            HasContract = b.HasContract, ContractNumber = b.ContractNumber?.Trim(),
+            ContractStartDate = b.ContractStartDate, ContractEndDate = b.ContractEndDate,
+            Address = b.Address?.Trim(), City = b.City?.Trim(), PostalCode = b.PostalCode?.Trim(),
+            Website = b.Website?.Trim(), IdentityNumber = b.IdentityNumber?.Trim(),
+            ProfessionalLicenseNumber = b.ProfessionalLicenseNumber?.Trim(), LicenseExpiryDate = b.LicenseExpiryDate,
+            Iban = b.Iban?.Trim(), BankName = b.BankName?.Trim(), PaymentMethod = b.PaymentMethod?.Trim(),
+            AdditionalInfoJson = string.IsNullOrWhiteSpace(b.AdditionalInfoJson) ? null : b.AdditionalInfoJson.Trim(),
             Status = b.Status, Tier = b.Tier,
             HierarchyLevel = b.HierarchyLevel,
             ParentProducerId = b.ParentProducerId
@@ -168,7 +247,12 @@ public class CreateProducerCommandHandler : IRequestHandler<CreateProducerComman
         }
         return new CreateProducerResponse(
             new ProducerDto(p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, p.Tier, 0, p.CreatedAt,
-                p.HierarchyLevel, p.ParentProducerId, parentName, p.Notes),
+                p.HierarchyLevel, p.ParentProducerId, parentName, p.Notes,
+                p.SecondaryEmail, p.SecondaryPhone, p.TaxId, p.TaxOffice, p.BusinessType,
+                p.ProfessionalCategory, p.HasContract, p.ContractNumber, p.ContractStartDate,
+                p.ContractEndDate, p.Address, p.City, p.PostalCode, p.Website, p.IdentityNumber,
+                p.ProfessionalLicenseNumber, p.LicenseExpiryDate, p.Iban, p.BankName,
+                p.PaymentMethod, p.AdditionalInfoJson),
             portalEmail,
             temporaryPassword);
     }
@@ -210,6 +294,27 @@ public class UpdateProducerCommandHandler : IRequestHandler<UpdateProducerComman
         var emailChanged = !string.Equals(p.Email, newEmail, StringComparison.OrdinalIgnoreCase);
         p.Email = newEmail;
         p.Phone = b.Phone?.Trim();
+        p.SecondaryEmail = b.SecondaryEmail?.Trim().ToLowerInvariant();
+        p.SecondaryPhone = b.SecondaryPhone?.Trim();
+        p.TaxId = b.TaxId?.Trim();
+        p.TaxOffice = b.TaxOffice?.Trim();
+        p.BusinessType = b.BusinessType?.Trim();
+        p.ProfessionalCategory = b.ProfessionalCategory?.Trim();
+        p.HasContract = b.HasContract;
+        p.ContractNumber = b.ContractNumber?.Trim();
+        p.ContractStartDate = b.ContractStartDate;
+        p.ContractEndDate = b.ContractEndDate;
+        p.Address = b.Address?.Trim();
+        p.City = b.City?.Trim();
+        p.PostalCode = b.PostalCode?.Trim();
+        p.Website = b.Website?.Trim();
+        p.IdentityNumber = b.IdentityNumber?.Trim();
+        p.ProfessionalLicenseNumber = b.ProfessionalLicenseNumber?.Trim();
+        p.LicenseExpiryDate = b.LicenseExpiryDate;
+        p.Iban = b.Iban?.Trim();
+        p.BankName = b.BankName?.Trim();
+        p.PaymentMethod = b.PaymentMethod?.Trim();
+        p.AdditionalInfoJson = string.IsNullOrWhiteSpace(b.AdditionalInfoJson) ? null : b.AdditionalInfoJson.Trim();
         var wasProspect = p.Status == ProducerStatus.Prospect;
         p.Status = b.Status;
         p.Notes = string.IsNullOrWhiteSpace(b.Notes) ? null : b.Notes.Trim();
@@ -274,7 +379,12 @@ public class UpdateProducerCommandHandler : IRequestHandler<UpdateProducerComman
                 .Select(x => x.Name).FirstOrDefaultAsync(ct);
         }
         return new ProducerDto(p.Id, p.Code, p.Name, p.Email, p.Phone, p.Status, p.Tier, count, p.CreatedAt,
-            p.HierarchyLevel, p.ParentProducerId, parentName, p.Notes);
+            p.HierarchyLevel, p.ParentProducerId, parentName, p.Notes,
+            p.SecondaryEmail, p.SecondaryPhone, p.TaxId, p.TaxOffice, p.BusinessType,
+            p.ProfessionalCategory, p.HasContract, p.ContractNumber, p.ContractStartDate,
+            p.ContractEndDate, p.Address, p.City, p.PostalCode, p.Website, p.IdentityNumber,
+            p.ProfessionalLicenseNumber, p.LicenseExpiryDate, p.Iban, p.BankName,
+            p.PaymentMethod, p.AdditionalInfoJson);
     }
 }
 

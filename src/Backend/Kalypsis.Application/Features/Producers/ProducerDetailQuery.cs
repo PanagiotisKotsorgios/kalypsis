@@ -22,7 +22,32 @@ public record ProducerDetailDto(
     IReadOnlyList<ProducerTypeStat> ByPolicyType,
     // Overall performance grade
     string PerformanceGrade,
-    string? Notes = null);
+    string? Notes = null,
+    string? SecondaryEmail = null,
+    string? SecondaryPhone = null,
+    string? TaxId = null,
+    string? TaxOffice = null,
+    string? BusinessType = null,
+    string? ProfessionalCategory = null,
+    bool HasContract = false,
+    string? ContractNumber = null,
+    DateOnly? ContractStartDate = null,
+    DateOnly? ContractEndDate = null,
+    string? Address = null,
+    string? City = null,
+    string? PostalCode = null,
+    string? Website = null,
+    string? IdentityNumber = null,
+    string? ProfessionalLicenseNumber = null,
+    DateOnly? LicenseExpiryDate = null,
+    string? Iban = null,
+    string? BankName = null,
+    string? PaymentMethod = null,
+    string? AdditionalInfoJson = null,
+    ProducerTier Tier = ProducerTier.None,
+    HierarchyLevel HierarchyLevel = HierarchyLevel.Producer,
+    Guid? ParentProducerId = null,
+    string? ParentProducerName = null);
 
 public record ProducerCarrierStat(string CarrierName, int PolicyCount, decimal TotalPremium);
 public record ProducerTypeStat(string PolicyType, int PolicyCount, decimal TotalPremium);
@@ -39,6 +64,7 @@ public class GetProducerDetailQueryHandler : IRequestHandler<GetProducerDetailQu
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var p = await _db.Producers
+            .Include(x => x.ParentProducer)
             .FirstOrDefaultAsync(x => x.Id == r.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Producer");
 
@@ -109,6 +135,12 @@ public class GetProducerDetailQueryHandler : IRequestHandler<GetProducerDetailQu
             commissionsAll, commissionsThisYear,
             claimCount, claimRatio,
             renewalRate, customerCount,
-            byCarrier, byType, grade, p.Notes);
+            byCarrier, byType, grade, p.Notes,
+            p.SecondaryEmail, p.SecondaryPhone, p.TaxId, p.TaxOffice, p.BusinessType,
+            p.ProfessionalCategory, p.HasContract, p.ContractNumber, p.ContractStartDate,
+            p.ContractEndDate, p.Address, p.City, p.PostalCode, p.Website, p.IdentityNumber,
+            p.ProfessionalLicenseNumber, p.LicenseExpiryDate, p.Iban, p.BankName,
+            p.PaymentMethod, p.AdditionalInfoJson, p.Tier, p.HierarchyLevel,
+            p.ParentProducerId, p.ParentProducer != null ? p.ParentProducer.Name : null);
     }
 }

@@ -67,6 +67,16 @@ interface ProducerDto {
   id: string; code: string; name: string;
   email: string | null; phone: string | null;
   notes?: string | null;
+  secondaryEmail?: string | null; secondaryPhone?: string | null;
+  taxId?: string | null; taxOffice?: string | null;
+  businessType?: string | null; professionalCategory?: string | null;
+  hasContract?: boolean; contractNumber?: string | null;
+  contractStartDate?: string | null; contractEndDate?: string | null;
+  address?: string | null; city?: string | null; postalCode?: string | null;
+  website?: string | null; identityNumber?: string | null;
+  professionalLicenseNumber?: string | null; licenseExpiryDate?: string | null;
+  iban?: string | null; bankName?: string | null; paymentMethod?: string | null;
+  additionalInfoJson?: string | null;
   status: ProducerStatus; tier: ProducerTier;
   policyCount: number; createdAt: string;
   // ALIS-parity hierarchy
@@ -624,6 +634,12 @@ function ProducerDialog({ open, initialStatus = "Active", onClose, producer, onS
   const editing = !!producer;
   const [form, setForm] = useState({
     code: "", name: "", email: "", phone: "", notes: "",
+    secondaryEmail: "", secondaryPhone: "", taxId: "", taxOffice: "",
+    businessType: "", professionalCategory: "", hasContract: false,
+    contractNumber: "", contractStartDate: "", contractEndDate: "",
+    address: "", city: "", postalCode: "", website: "", identityNumber: "",
+    professionalLicenseNumber: "", licenseExpiryDate: "", iban: "", bankName: "",
+    paymentMethod: "", additionalInfoJson: "",
     status: "Active" as ProducerStatus,
     tier: "None" as ProducerTier,
     hierarchyLevel: "Producer" as HierarchyLevel,
@@ -652,13 +668,26 @@ function ProducerDialog({ open, initialStatus = "Active", onClose, producer, onS
         code: producer.code, name: producer.name,
         email: producer.email ?? "", phone: producer.phone ?? "",
         notes: producer.notes ?? "",
+        secondaryEmail: producer.secondaryEmail ?? "", secondaryPhone: producer.secondaryPhone ?? "",
+        taxId: producer.taxId ?? "", taxOffice: producer.taxOffice ?? "",
+        businessType: producer.businessType ?? "", professionalCategory: producer.professionalCategory ?? "",
+        hasContract: producer.hasContract ?? false, contractNumber: producer.contractNumber ?? "",
+        contractStartDate: producer.contractStartDate ?? "", contractEndDate: producer.contractEndDate ?? "",
+        address: producer.address ?? "", city: producer.city ?? "", postalCode: producer.postalCode ?? "",
+        website: producer.website ?? "", identityNumber: producer.identityNumber ?? "",
+        professionalLicenseNumber: producer.professionalLicenseNumber ?? "", licenseExpiryDate: producer.licenseExpiryDate ?? "",
+        iban: producer.iban ?? "", bankName: producer.bankName ?? "", paymentMethod: producer.paymentMethod ?? "",
+        additionalInfoJson: producer.additionalInfoJson ?? "",
         status: producer.status, tier: producer.tier ?? "None",
         hierarchyLevel: producer.hierarchyLevel ?? "Producer",
         parentProducerId: producer.parentProducerId ?? "",
         initialPassword: ""
       });
     } else if (open) {
-      setForm({ code: "", name: "", email: "", phone: "", notes: "", status: initialStatus, tier: "None",
+      setForm({ code: "", name: "", email: "", phone: "", notes: "", secondaryEmail: "", secondaryPhone: "", taxId: "", taxOffice: "",
+        businessType: "", professionalCategory: "", hasContract: false, contractNumber: "", contractStartDate: "", contractEndDate: "",
+        address: "", city: "", postalCode: "", website: "", identityNumber: "", professionalLicenseNumber: "", licenseExpiryDate: "",
+        iban: "", bankName: "", paymentMethod: "", additionalInfoJson: "", status: initialStatus, tier: "None",
         hierarchyLevel: "Producer", parentProducerId: "", initialPassword: "" });
     }
   }, [producer, open, initialStatus]);
@@ -692,7 +721,21 @@ function ProducerDialog({ open, initialStatus = "Active", onClose, producer, onS
   const save = useMutation({
     mutationFn: async () => {
       const { initialPassword, ...body } = form;
-      const payload = { ...body, parentProducerId: form.parentProducerId || null };
+      const payload = {
+        ...body,
+        parentProducerId: form.parentProducerId || null,
+        secondaryEmail: form.secondaryEmail.trim() || null,
+        secondaryPhone: form.secondaryPhone.trim() || null,
+        taxId: form.taxId.trim() || null, taxOffice: form.taxOffice.trim() || null,
+        businessType: form.businessType.trim() || null, professionalCategory: form.professionalCategory.trim() || null,
+        contractNumber: form.contractNumber.trim() || null,
+        contractStartDate: form.contractStartDate || null, contractEndDate: form.contractEndDate || null,
+        address: form.address.trim() || null, city: form.city.trim() || null, postalCode: form.postalCode.trim() || null,
+        website: form.website.trim() || null, identityNumber: form.identityNumber.trim() || null,
+        professionalLicenseNumber: form.professionalLicenseNumber.trim() || null, licenseExpiryDate: form.licenseExpiryDate || null,
+        iban: form.iban.trim() || null, bankName: form.bankName.trim() || null, paymentMethod: form.paymentMethod.trim() || null,
+        additionalInfoJson: form.additionalInfoJson.trim() || null,
+      };
       if (editing) {
         await api.put(`/producers/${producer!.id}`, payload);
         return null;
@@ -835,6 +878,49 @@ function ProducerDialog({ open, initialStatus = "Active", onClose, producer, onS
               inputProps={{ minLength: 8, maxLength: 128 }}
             />
           )}
+          <Card variant="outlined" sx={{ p: 1.5, bgcolor: "#f8fafc" }}>
+            <Typography fontWeight={800} mb={1}>Ταυτότητα, φορολογικά & επαγγελματικά στοιχεία</Typography>
+            <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" } }}>
+              <TextField label="ΑΦΜ" value={form.taxId} onChange={(e) => setForm({ ...form, taxId: e.target.value })} />
+              <TextField label="ΔΟΥ" value={form.taxOffice} onChange={(e) => setForm({ ...form, taxOffice: e.target.value })} />
+              <TextField select label="Τύπος επιχείρησης / συνεργάτη" value={form.businessType} onChange={(e) => setForm({ ...form, businessType: e.target.value })}>
+                <MenuItem value="">— Δεν έχει οριστεί —</MenuItem>
+                <MenuItem value="Φυσικό πρόσωπο">Φυσικό πρόσωπο</MenuItem>
+                <MenuItem value="Ατομική επιχείρηση">Ατομική επιχείρηση</MenuItem>
+                <MenuItem value="Νομικό πρόσωπο">Νομικό πρόσωπο</MenuItem>
+                <MenuItem value="Πρακτορείο / εταιρεία">Πρακτορείο / εταιρεία</MenuItem>
+              </TextField>
+              <TextField label="Επαγγελματική κατηγορία" value={form.professionalCategory} onChange={(e) => setForm({ ...form, professionalCategory: e.target.value })} />
+              <TextField label="Αριθμός ταυτότητας / διαβατηρίου" value={form.identityNumber} onChange={(e) => setForm({ ...form, identityNumber: e.target.value })} />
+              <TextField label="Αρ. επαγγελματικής άδειας / μητρώου" value={form.professionalLicenseNumber} onChange={(e) => setForm({ ...form, professionalLicenseNumber: e.target.value })} />
+              <TextField type="date" label="Λήξη άδειας" value={form.licenseExpiryDate} onChange={(e) => setForm({ ...form, licenseExpiryDate: e.target.value })} InputLabelProps={{ shrink: true }} />
+            </Box>
+          </Card>
+          <Card variant="outlined" sx={{ p: 1.5, bgcolor: "#f8fafc" }}>
+            <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} mb={1}>
+              <Typography fontWeight={800}>Σύμβαση συνεργασίας</Typography>
+              <FormControlLabel control={<Switch checked={form.hasContract} onChange={(e) => setForm({ ...form, hasContract: e.target.checked })} color="success" />} label={form.hasContract ? "Με ενεργή σύμβαση" : "Χωρίς σύμβαση"} />
+            </Stack>
+            <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" } }}>
+              <TextField label="Αριθμός σύμβασης" value={form.contractNumber} onChange={(e) => setForm({ ...form, contractNumber: e.target.value })} disabled={!form.hasContract} />
+              <TextField type="date" label="Έναρξη σύμβασης" value={form.contractStartDate} onChange={(e) => setForm({ ...form, contractStartDate: e.target.value })} InputLabelProps={{ shrink: true }} disabled={!form.hasContract} />
+              <TextField type="date" label="Λήξη σύμβασης" value={form.contractEndDate} onChange={(e) => setForm({ ...form, contractEndDate: e.target.value })} InputLabelProps={{ shrink: true }} disabled={!form.hasContract} />
+            </Box>
+          </Card>
+          <Card variant="outlined" sx={{ p: 1.5, bgcolor: "#f8fafc" }}>
+            <Typography fontWeight={800} mb={1}>Επιπλέον επικοινωνία, διεύθυνση & πληρωμές</Typography>
+            <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" } }}>
+              <TextField type="email" label="Δευτερεύον email" value={form.secondaryEmail} onChange={(e) => setForm({ ...form, secondaryEmail: e.target.value })} />
+              <TextField label="Δευτερεύον τηλέφωνο" value={form.secondaryPhone} onChange={(e) => setForm({ ...form, secondaryPhone: e.target.value })} />
+              <TextField label="Διεύθυνση" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+              <TextField label="Πόλη" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+              <TextField label="Τ.Κ." value={form.postalCode} onChange={(e) => setForm({ ...form, postalCode: e.target.value })} />
+              <TextField label="Ιστοσελίδα" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
+              <TextField label="Τράπεζα" value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} />
+              <TextField label="IBAN" value={form.iban} onChange={(e) => setForm({ ...form, iban: e.target.value })} />
+              <TextField label="Τρόπος πληρωμής προμηθειών" value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })} />
+            </Box>
+          </Card>
           <TextField
             label="Σημειώσεις"
             value={form.notes}
@@ -845,6 +931,9 @@ function ProducerDialog({ open, initialStatus = "Active", onClose, producer, onS
           <TextField label={t("producers.col.phone")} value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })} fullWidth
             InputProps={{ endAdornment: <FilterHelp title="Τηλέφωνο επικοινωνίας. Χρησιμοποιείται για CRM δραστηριότητες όπως τηλεφωνήματα και SMS." /> }} />
+          <TextField label="Πρόσθετες πληροφορίες" value={form.additionalInfoJson}
+            onChange={(e) => setForm({ ...form, additionalInfoJson: e.target.value })} fullWidth multiline minRows={2}
+            helperText="Ελεύθερο κείμενο ή JSON για πρόσθετα στοιχεία του συνεργάτη." />
         </Stack>
       </DialogContent>
       <DialogActions>

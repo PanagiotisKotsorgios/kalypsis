@@ -18,6 +18,13 @@ import { api } from "../api/client";
 
 interface ProducerDetail {
   id: string; code: string; name: string; email: string | null; phone: string | null; notes: string | null; status: string;
+  secondaryEmail?: string | null; secondaryPhone?: string | null;
+  taxId?: string | null; taxOffice?: string | null; businessType?: string | null; professionalCategory?: string | null;
+  hasContract?: boolean; contractNumber?: string | null; contractStartDate?: string | null; contractEndDate?: string | null;
+  address?: string | null; city?: string | null; postalCode?: string | null; website?: string | null; identityNumber?: string | null;
+  professionalLicenseNumber?: string | null; licenseExpiryDate?: string | null; iban?: string | null; bankName?: string | null;
+  paymentMethod?: string | null; additionalInfoJson?: string | null;
+  tier?: string; hierarchyLevel?: string; parentProducerId?: string | null; parentProducerName?: string | null;
   totalPolicies: number; activePolicies: number; renewedPolicies: number; cancelledPolicies: number;
   newPoliciesThisYear: number; renewalsDueNext60Days: number;
   totalPremiumYtd: number; totalPremiumLastYear: number; premiumGrowthPercent: number;
@@ -108,6 +115,39 @@ export function ProducerDetailDrawer({ producerId, open, onClose, onEdit }: {
                 <KPI label={t("producerDetail.renewalsDue")} value={p.renewalsDueNext60Days} hint="επόμενες 60 ημέρες" />
               </Box>
               <Card variant="outlined" sx={{ p: 1.25 }}><Typography fontWeight={800} mb={.75}>Απόδοση συνεργάτη</Typography><PerfBar label={t("producerDetail.renewalRate")} value={p.renewalRate} target={70} unit="%" /><PerfBar label={t("producerDetail.premiumGrowth")} value={p.premiumGrowthPercent} target={10} unit="%" allowNegative /><PerfBar label={t("producerDetail.claimRatio")} value={p.claimRatio} target={25} unit="%" inverted /></Card>
+              <Card variant="outlined" sx={{ p: 1.25 }}>
+                <Typography fontWeight={800} mb={.85}>Επαγγελματικό & φορολογικό προφίλ</Typography>
+                <Box sx={{ display: "grid", gap: .75, gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr)" } }}>
+                  <InfoField label="ΑΦΜ" value={p.taxId} /><InfoField label="ΔΟΥ" value={p.taxOffice} />
+                  <InfoField label="Τύπος επιχείρησης" value={p.businessType} /><InfoField label="Κατηγορία" value={p.professionalCategory} />
+                  <InfoField label="Αρ. ταυτότητας" value={p.identityNumber} /><InfoField label="Κατηγορία προμηθειών" value={p.tier && p.tier !== "None" ? `Κατηγορία ${p.tier}` : null} />
+                  <InfoField label="Επίπεδο ιεραρχίας" value={hierarchyLabel(p.hierarchyLevel)} /><InfoField label="Προϊστάμενος" value={p.parentProducerName} />
+                </Box>
+              </Card>
+              <Card variant="outlined" sx={{ p: 1.25 }}>
+                <Typography fontWeight={800} mb={.85}>Σύμβαση & επαγγελματική άδεια</Typography>
+                <Box sx={{ display: "grid", gap: .75, gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr)" } }}>
+                  <InfoField label="Σύμβαση" value={p.hasContract ? "Ναι" : "Όχι"} />
+                  <InfoField label="Κατάσταση σύμβασης" value={contractStatus(p)} />
+                  <InfoField label="Αριθμός σύμβασης" value={p.contractNumber} />
+                  <InfoField label="Έναρξη" value={formatDate(p.contractStartDate)} />
+                  <InfoField label="Λήξη" value={formatDate(p.contractEndDate)} />
+                  <InfoField label="Αρ. άδειας / μητρώου" value={p.professionalLicenseNumber} />
+                  <InfoField label="Λήξη άδειας" value={formatDate(p.licenseExpiryDate)} />
+                </Box>
+              </Card>
+              <Card variant="outlined" sx={{ p: 1.25 }}>
+                <Typography fontWeight={800} mb={.85}>Επικοινωνία, έδρα & πληρωμές</Typography>
+                <Box sx={{ display: "grid", gap: .75, gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr)" } }}>
+                  <InfoField label="Email" value={p.email} /><InfoField label="Δευτερεύον email" value={p.secondaryEmail} />
+                  <InfoField label="Τηλέφωνο" value={p.phone} /><InfoField label="Δευτερεύον τηλέφωνο" value={p.secondaryPhone} />
+                  <InfoField label="Διεύθυνση" value={p.address} /><InfoField label="Πόλη" value={p.city} />
+                  <InfoField label="Τ.Κ." value={p.postalCode} /><InfoField label="Ιστοσελίδα" value={p.website} />
+                  <InfoField label="Τράπεζα" value={p.bankName} /><InfoField label="IBAN" value={p.iban} />
+                  <InfoField label="Τρόπος πληρωμής" value={p.paymentMethod} />
+                </Box>
+              </Card>
+              {p.additionalInfoJson && <Card variant="outlined" sx={{ p: 1.25, bgcolor: "#fff8e1" }}><Typography fontWeight={800} mb={.5}>Πρόσθετες πληροφορίες</Typography><Typography variant="body2" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{p.additionalInfoJson}</Typography></Card>}
               {p.notes && <Card variant="outlined" sx={{ p: 1.25, bgcolor: "rgba(245, 158, 11, .08)" }}><Typography variant="caption" color="text.secondary">Σημειώσεις συνεργάτη</Typography><Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>{p.notes}</Typography></Card>}
             </Stack>}
             {tab === 1 && <Stack spacing={1.25}>
@@ -163,4 +203,34 @@ function KV({ label, value }: { label: string; value: React.ReactNode }) {
       <Typography variant="body2" fontWeight={600}>{value}</Typography>
     </Stack>
   );
+}
+
+function InfoField({ label, value }: { label: string; value?: React.ReactNode | null }) {
+  const present = value !== null && value !== undefined && value !== "" && value !== "—";
+  return (
+    <Box sx={{ p: .75, minWidth: 0, borderRadius: 1.25, bgcolor: present ? "#e8f5e9" : "#ffebee", border: "1px solid", borderColor: present ? "#a5d6a7" : "#ef9a9a" }}>
+      <Typography variant="caption" sx={{ display: "block", color: present ? "#1b5e20" : "#b71c1c", fontWeight: 800, lineHeight: 1.2 }}>{label}</Typography>
+      <Typography variant="body2" sx={{ color: present ? "#1b5e20" : "#b71c1c", fontWeight: 700, wordBreak: "break-word" }}>{present ? value : "Δεν έχει καταχωρηθεί"}</Typography>
+    </Box>
+  );
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString("el-GR");
+}
+
+function hierarchyLabel(value?: string) {
+  const labels: Record<string, string> = {
+    Producer: "Συνεργάτης", Manager: "Υπεύθυνος ομάδας", Unit: "Υπεύθυνος μονάδας",
+    Assistant: "Βοηθός διοίκησης", Agency: "Γραφείο"
+  };
+  return value ? labels[value] ?? value : null;
+}
+
+function contractStatus(p: ProducerDetail) {
+  if (!p.hasContract) return "Χωρίς σύμβαση";
+  if (p.contractEndDate && new Date(p.contractEndDate) < new Date()) return "Ληγμένη";
+  return "Ενεργή";
 }

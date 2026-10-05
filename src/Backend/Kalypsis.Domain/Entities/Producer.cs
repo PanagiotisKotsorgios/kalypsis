@@ -9,6 +9,27 @@ public class Producer : TenantEntity
     public string Name { get; set; } = string.Empty;
     public string? Email { get; set; }
     public string? Phone { get; set; }
+    public string? SecondaryEmail { get; set; }
+    public string? SecondaryPhone { get; set; }
+    public string? TaxId { get; set; }
+    public string? TaxOffice { get; set; }
+    public string? BusinessType { get; set; }
+    public string? ProfessionalCategory { get; set; }
+    public bool HasContract { get; set; }
+    public string? ContractNumber { get; set; }
+    public DateOnly? ContractStartDate { get; set; }
+    public DateOnly? ContractEndDate { get; set; }
+    public string? Address { get; set; }
+    public string? City { get; set; }
+    public string? PostalCode { get; set; }
+    public string? Website { get; set; }
+    public string? IdentityNumber { get; set; }
+    public string? ProfessionalLicenseNumber { get; set; }
+    public DateOnly? LicenseExpiryDate { get; set; }
+    public string? Iban { get; set; }
+    public string? BankName { get; set; }
+    public string? PaymentMethod { get; set; }
+    public string? AdditionalInfoJson { get; set; }
     public string? Notes { get; set; }
     public ProducerStatus Status { get; set; } = ProducerStatus.Active;
     /// <summary>
