@@ -514,15 +514,33 @@ export function PoliciesPage() {
                 Kept in the same card row per user request. */}
             <Box sx={{ borderLeft: 1, borderColor: "divider", height: 28, mx: 0.5 }} />
             <Button component={RouterLink} to="/app/renewals"
-              variant="outlined" startIcon={<EventRepeatIcon />}>
+              variant="outlined" startIcon={<EventRepeatIcon />}
+              sx={{
+                bgcolor: "#e8f5e9",
+                color: "#2e7d32",
+                borderColor: "#81c784",
+                "&:hover": { bgcolor: "#c8e6c9", borderColor: "#66bb6a", color: "#1b5e20" },
+              }}>
               {t("nav.renewals", "Ανανεώσεις")}
             </Button>
             <Button component={RouterLink} to="/app/endorsements"
-              variant="outlined" startIcon={<EditNoteIcon />}>
+              variant="outlined" startIcon={<EditNoteIcon />}
+              sx={{
+                bgcolor: "#fff8e1",
+                color: "#8a6d1d",
+                borderColor: "#e0c26a",
+                "&:hover": { bgcolor: "#ffecb3", borderColor: "#d6a928", color: "#6d5314" },
+              }}>
               {t("nav.endorsements", "Πρόσθετες πράξεις")}
             </Button>
             <Button component={RouterLink} to="/app/cancellations"
-              variant="outlined" startIcon={<CancelPresentationIcon />}>
+              variant="outlined" startIcon={<CancelPresentationIcon />}
+              sx={{
+                bgcolor: "#ffebee",
+                color: "#c62828",
+                borderColor: "#ef9a9a",
+                "&:hover": { bgcolor: "#ffcdd2", borderColor: "#e57373", color: "#b71c1c" },
+              }}>
               {t("nav.cancellations", "Ακυρώσεις")}
             </Button>
           </Stack>
