@@ -35,18 +35,20 @@ export function AppShell({
   return (
     <AppLayout navItems={navItems}>
       {shouldTrackEmployeeActivity && <EmployeeActivityTracker />}
-      <AgencyOfficeSwitcher role={role} />
       {/* Global banner rendered once per authenticated shell — every
           logged-in role sees the platform admin's active announcements
           until they dismiss each one individually. Mounted here rather
           than per-page so the banner survives route changes. */}
       <AnnouncementsBanner />
-      {isAgencyRole ? (
-        <Box data-backoffice-help-root>
-          {children}
-          <BackOfficeActionHelp />
-        </Box>
-      ) : children}
+      <Box sx={{ position: "relative" }}>
+        <AgencyOfficeSwitcher role={role} />
+        {isAgencyRole ? (
+          <Box data-backoffice-help-root>
+            {children}
+            <BackOfficeActionHelp />
+          </Box>
+        ) : children}
+      </Box>
     </AppLayout>
   );
 }

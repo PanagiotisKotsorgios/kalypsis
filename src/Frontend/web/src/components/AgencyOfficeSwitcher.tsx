@@ -55,10 +55,22 @@ export function AgencyOfficeSwitcher({ role }: { role: Role | undefined }) {
   };
 
   return (
-    <Box sx={{ px: { xs: 1, md: 2 }, pt: 1, pb: 0.5 }}>
-      {error && <Alert severity="warning" sx={{ mb: 1 }}>{error}</Alert>}
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "stretch", sm: "center" }}>
-      <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 300 }, maxWidth: "100%" }}>
+    <Box
+      data-agency-office-switcher
+      sx={{
+        position: "absolute",
+        top: { xs: 0, sm: 1 },
+        right: 0,
+        left: { xs: "auto", md: "50%" },
+        zIndex: 2,
+        display: "flex",
+        justifyContent: "flex-end",
+        pointerEvents: "none",
+      }}
+    >
+      {error && <Alert severity="warning" sx={{ position: "absolute", right: 0, top: 42, width: 280, pointerEvents: "auto" }}>{error}</Alert>}
+      <Stack direction="row" spacing={0.5} alignItems="center" sx={{ pointerEvents: "auto" }}>
+      <FormControl size="small" sx={{ minWidth: { xs: 185, sm: 220 }, maxWidth: { xs: 210, sm: 260 } }}>
         <InputLabel id="agency-office-label">Γραφείο</InputLabel>
         <Select
           labelId="agency-office-label"
@@ -66,6 +78,15 @@ export function AgencyOfficeSwitcher({ role }: { role: Role | undefined }) {
           label="Γραφείο"
           onChange={e => change(e.target.value)}
           startAdornment={<BusinessIcon sx={{ mr: 1, color: "text.secondary" }} />}
+          sx={{
+            height: 38,
+            bgcolor: "rgba(255,255,255,0.96)",
+            borderRadius: 1.25,
+            fontSize: { xs: "0.78rem", sm: "0.82rem" },
+            fontWeight: 700,
+            boxShadow: "0 1px 4px rgba(11,37,69,0.10)",
+            "& .MuiSelect-select": { py: 0.75, pr: 3.5 },
+          }}
         >
           {isAdmin && (
             <MenuItem value={ALL_OFFICES_VALUE}>
