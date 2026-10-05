@@ -295,7 +295,7 @@ export function CustomerDetailPage() {
       {tab === 1 && <Stack spacing={3}><CustomerPoliciesTab customerId={id} /><CustomerVehiclesTab customerId={id} /></Stack>}
       {tab === 2 && <Stack spacing={3}><CustomerClaimsTab customerId={id} /><CustomerAccountTab customerId={id} /></Stack>}
       {tab === 3 && <Stack spacing={3}><CommunicationsTab customerId={id} /><CustomerNotificationsTab customerId={id} /></Stack>}
-      {tab === 4 && <Stack spacing={3}><ContactsTab customerId={id} customerType={customer.type} /><FamilyNeedsTab customerId={id} /></Stack>}
+      {tab === 4 && <Stack spacing={0.75}><ContactsTab customerId={id} customerType={customer.type} /><FamilyNeedsTab customerId={id} /></Stack>}
       {tab === 5 && <Stack spacing={3}><GdprActionsTab customerId={id} /><InsuranceOpportunitiesTab customerId={id} /></Stack>}
       {tab === 6 && <CustomerStatisticsTab customerId={id} />}
       </Box>
@@ -1320,23 +1320,23 @@ function ContactsTab({ customerId, customerType }: { customerId: string; custome
   });
 
   return (
-    <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h6">
+    <Box sx={{ display: "grid", gap: 0.75 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ p: { xs: 0.75, md: 1 }, border: "1px solid", borderColor: "divider", borderRadius: 1.5, bgcolor: "rgba(248,250,252,0.92)" }}>
+        <Box sx={{ px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}><Typography variant="subtitle2" fontWeight={800}>
           Επαφές
           {customerType !== "Company" && (
-            <Typography component="span" color="text.secondary" sx={{ ml: 2, fontSize: 13 }}>
+            <Typography component="span" color="text.secondary" sx={{ ml: 1, fontSize: 12 }}>
               (συνήθως για νομικά πρόσωπα)
             </Typography>
           )}
-        </Typography>
-        <Button variant="contained" onClick={startCreate}>+ Νέα επαφή</Button>
+        </Typography></Box>
+        <Button size="small" variant="contained" onClick={startCreate}>+ Νέα επαφή</Button>
       </Stack>
 
       {err && <Alert severity="error" onClose={() => setErr(null)} sx={{ mb: 2 }}>{err}</Alert>}
 
       {q.isLoading ? <CircularProgress /> : q.data?.length === 0 ? (
-        <Card variant="outlined" sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
+        <Card variant="outlined" sx={{ p: 1.5, textAlign: "center", color: "text.secondary" }}>
           Δεν έχουν προστεθεί επιπλέον επαφές.
         </Card>
       ) : (
@@ -1428,7 +1428,7 @@ function FamilyNeedsTab({ customerId }: { customerId: string }) {
   if (q.isError || !q.data) return <Alert severity="error">{q.isError ? extractErrorMessage(q.error) : "Δεν φορτώθηκε η οικογενειακή καρτέλα."}</Alert>;
 
   return (
-    <Stack spacing={2.5}>
+    <Stack spacing={0.75}>
       <CustomerProfileCard customerId={customerId} profile={q.data.profile} />
       <DriverLicenseCard customerId={customerId} />
       <CustomerNeedsCard customerId={customerId} needs={q.data.needs} />
@@ -1524,10 +1524,10 @@ function CommunicationsCard({ customerId }: { customerId: string }) {
     }
   });
   return (
-    <Card variant="outlined" sx={{ p: 2.5 }}>
-      <Stack mb={2}>
-        <Typography variant="h6">Επικοινωνίες</Typography>
-        <Typography variant="body2" color="text.secondary">
+    <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)" }}>
+      <Stack mb={0.75} sx={{ px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}>
+        <Typography variant="subtitle2" fontWeight={800}>Επικοινωνίες</Typography>
+        <Typography variant="caption" color="text.secondary">
           Ιστορικό κλήσεων / email / SMS / επιστολών με τον πελάτη.
         </Typography>
       </Stack>
@@ -1596,13 +1596,13 @@ function DriverLicenseCard({ customerId }: { customerId: string }) {
     onError: e => setErr(extractErrorMessage(e))
   });
   return (
-    <Card variant="outlined" sx={{ p: 2.5 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-        <Box><Typography variant="h6">Δίπλωμα οδήγησης</Typography>
-          <Typography variant="body2" color="text.secondary">
+    <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)" }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
+        <Box sx={{ px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}><Typography variant="subtitle2" fontWeight={800}>Δίπλωμα οδήγησης</Typography>
+          <Typography variant="caption" color="text.secondary">
             Χρησιμοποιείται στις ασφαλίσεις αυτοκινήτου και στη λίστα επιτρεπτών οδηγών.
           </Typography></Box>
-        <Button startIcon={<EditIcon />} onClick={() => setEditing(!editing)} color="error" variant="contained">{editing ? "Ακύρωση" : "Επεξεργασία"}</Button>
+        <Button size="small" startIcon={<EditIcon />} onClick={() => setEditing(!editing)} color="error" variant="contained">{editing ? "Ακύρωση" : "Επεξεργασία"}</Button>
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       {editing ? (
@@ -1670,11 +1670,11 @@ function CustomerProfileCard({ customerId, profile }: { customerId: string; prof
   });
 
   return (
-    <Card variant="outlined" sx={{ p: 2.5 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-        <Box><Typography variant="h6">Προφίλ και οικογενειακή κατάσταση</Typography>
-          <Typography variant="body2" color="text.secondary">Τα στοιχεία αυτά χρησιμοποιούνται στα φίλτρα πελατών, στα ασφαλιστικά έντυπα και στις προτάσεις κάλυψης.</Typography></Box>
-        <Button startIcon={<EditIcon />} onClick={() => setEditing(!editing)} color="error" variant="contained">{editing ? "Ακύρωση" : "Επεξεργασία"}</Button>
+    <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)" }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
+        <Box sx={{ px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}><Typography variant="subtitle2" fontWeight={800}>Προφίλ και οικογενειακή κατάσταση</Typography>
+          <Typography variant="caption" color="text.secondary">Τα στοιχεία αυτά χρησιμοποιούνται στα φίλτρα πελατών, στα ασφαλιστικά έντυπα και στις προτάσεις κάλυψης.</Typography></Box>
+        <Button size="small" startIcon={<EditIcon />} onClick={() => setEditing(!editing)} color="error" variant="contained">{editing ? "Ακύρωση" : "Επεξεργασία"}</Button>
       </Stack>
       {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
       {editing ? (
@@ -1721,7 +1721,7 @@ function CustomerProfileCard({ customerId, profile }: { customerId: string; prof
           <Stack direction="row" justifyContent="flex-end"><Button variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>Αποθήκευση</Button></Stack>
         </Stack>
       ) : (
-        <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "repeat(4, 1fr)" } }}>
+        <Box sx={{ display: "grid", gap: 0.5, gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" } }}>
           <ProfileValue label="Οικογενειακή κατάσταση" value={profile.maritalStatus} />
           <ProfileValue label="Επάγγελμα / κλάδος" value={profile.occupation} />
           <ProfileValue label="Εργοδότης / επιχείρηση" value={profile.employer} />
@@ -1740,7 +1740,8 @@ function CustomerProfileCard({ customerId, profile }: { customerId: string; prof
 }
 
 function ProfileValue({ label, value }: { label: string; value?: string | null }) {
-  return <Box><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={700}>{value || "—"}</Typography></Box>;
+  const missing = !value || value === "—";
+  return <Box sx={{ p: 0.65, minWidth: 0, minHeight: 42, borderRadius: 0.9, bgcolor: missing ? "rgba(211,47,47,0.055)" : "rgba(46,125,50,0.065)", border: "1px solid", borderColor: missing ? "rgba(211,47,47,0.2)" : "rgba(46,125,50,0.2)" }}><Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.66rem", lineHeight: 1.1 }}>{label}</Typography><Typography fontWeight={700} color={missing ? "error.dark" : "success.dark"} sx={{ wordBreak: "break-word", fontSize: "0.78rem", lineHeight: 1.2 }}>{value || "—"}</Typography></Box>;
 }
 
 function CustomerNeedsCard({ customerId, needs }: { customerId: string; needs: CustomerNeed[] }) {
@@ -1764,10 +1765,10 @@ function CustomerNeedsCard({ customerId, needs }: { customerId: string; needs: C
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["customer-family", customerId] }), onError: e => setErr(extractErrorMessage(e)) });
 
   return (
-    <Card variant="outlined" sx={{ p: 2.5 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5} flexWrap="wrap" gap={1}>
-        <Box><Typography variant="h6">Περιουσία και ανάγκες ασφάλισης</Typography><Typography variant="body2" color="text.secondary">Καταχωρήστε όχημα, σπίτι, υγεία ή οποιαδήποτε ανάγκη. Η κατάσταση «χωρίς κάλυψη» τροφοδοτεί τις προτάσεις.</Typography></Box>
-        <Button variant="contained" onClick={() => openCreate()}>+ Νέα ανάγκη</Button>
+    <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)" }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.75} flexWrap="wrap" gap={1}>
+        <Box sx={{ px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}><Typography variant="subtitle2" fontWeight={800}>Περιουσία και ανάγκες ασφάλισης</Typography><Typography variant="caption" color="text.secondary">Καταχωρήστε όχημα, σπίτι, υγεία ή οποιαδήποτε ανάγκη. Η κατάσταση «χωρίς κάλυψη» τροφοδοτεί τις προτάσεις.</Typography></Box>
+        <Button size="small" variant="contained" onClick={() => openCreate()}>+ Νέα ανάγκη</Button>
       </Stack>
       <Stack direction="row" spacing={1} flexWrap="wrap" mb={2}>
         <Button size="small" startIcon={<HomeWorkIcon />} onClick={() => openCreate("Home")}>Έχει σπίτι</Button>
@@ -1813,8 +1814,8 @@ function FamilyMembersCard({ customerId, members }: { customerId: string; member
   const candidates = (customersQ.data ?? []).filter(c => c.id !== customerId && !members.some(member => member.customerId === c.id));
   const display = (candidate: typeof candidates[number]) => candidate.type === "Company" ? candidate.companyName ?? candidate.customerNumber : `${candidate.firstName ?? ""} ${candidate.lastName ?? ""}`.trim();
 
-  return <Card variant="outlined" sx={{ p: 2.5 }}>
-    <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}><Box><Typography variant="h6">Οικογένεια και συνδεδεμένοι πελάτες</Typography><Typography variant="body2" color="text.secondary">Κάθε μέλος βλέπει τα δικά του συμβόλαια, ανάγκες και τις εκκρεμείς ευκαιρίες κάλυψης.</Typography></Box><Button variant="contained" onClick={() => setOpen(true)}>+ Σύνδεση μέλους</Button></Stack>
+  return <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)" }}>
+    <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.75}><Box sx={{ px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}><Typography variant="subtitle2" fontWeight={800}>Οικογένεια και συνδεδεμένοι πελάτες</Typography><Typography variant="caption" color="text.secondary">Κάθε μέλος βλέπει τα δικά του συμβόλαια, ανάγκες και τις εκκρεμείς ευκαιρίες κάλυψης.</Typography></Box><Button size="small" variant="contained" onClick={() => setOpen(true)}>+ Σύνδεση μέλους</Button></Stack>
     {err && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErr(null)}>{err}</Alert>}
     {members.length === 0 ? <Alert severity="info">Δεν έχουν συνδεθεί ακόμη σύζυγος, παιδιά ή άλλα μέλη.</Alert> : <Stack spacing={1}>{members.map(member => <Card key={member.relationshipId} variant="outlined" sx={{ p: 1.5 }}><Stack direction="row" justifyContent="space-between" gap={1}><Box><Stack direction="row" spacing={1} alignItems="center"><Typography fontWeight={800}>{member.displayName}</Typography><Chip size="small" label={RELATION_LABEL[member.relationshipType] ?? member.relationshipType} /></Stack>
       <Stack direction="row" spacing={0.5} flexWrap="wrap" mt={1}>{member.policies.length ? member.policies.map(policy => <Chip key={policy.id} size="small" color="success" variant="outlined" label={`${policy.policyType} · ${policy.policyNumber}`} />) : <Typography variant="caption" color="text.secondary">Δεν έχει συμβόλαια.</Typography>}</Stack>
@@ -1840,8 +1841,8 @@ function FamilyMembersCard({ customerId, members }: { customerId: string; member
 }
 
 function OpportunitiesCard({ opportunities }: { opportunities: FamilyProfile["opportunities"] }) {
-  return <Card variant="outlined" sx={{ p: 2.5, borderColor: opportunities.length ? "warning.light" : "divider" }}>
-    <Typography variant="h6" mb={0.5}>Προτεινόμενες καλύψεις</Typography><Typography variant="body2" color="text.secondary" mb={2}>Παράγονται από την καταχωρημένη περιουσία/ανάγκη όταν δεν υπάρχει ενεργό συμβόλαιο του αντίστοιχου κλάδου.</Typography>
+  return <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)", borderColor: opportunities.length ? "warning.light" : "divider" }}>
+    <Box sx={{ px: 0.75, py: 0.5, mb: 0.75, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}><Typography variant="subtitle2" fontWeight={800}>Προτεινόμενες καλύψεις</Typography><Typography variant="caption" color="text.secondary">Παράγονται από την καταχωρημένη περιουσία/ανάγκη όταν δεν υπάρχει ενεργό συμβόλαιο του αντίστοιχου κλάδου.</Typography></Box>
     {opportunities.length === 0 ? <Alert severity="success">Δεν υπάρχουν ανοικτές προτάσεις με βάση τα σημερινά στοιχεία.</Alert> : <Stack spacing={1}>{opportunities.map((opportunity, index) => <Alert key={`${opportunity.customerId}-${opportunity.needKind}-${index}`} severity="warning"><strong>{opportunity.customerName}</strong>{opportunity.relationship ? ` (${RELATION_LABEL[opportunity.relationship] ?? opportunity.relationship})` : ""}: {NEED_LABEL[opportunity.needKind] ?? opportunity.needKind} — {opportunity.needTitle}. {opportunity.reason}</Alert>)}</Stack>}
   </Card>;
 }
