@@ -503,7 +503,7 @@ export function CustomersPage() {
           flexWrap={{ xs: "wrap", md: "nowrap" }} useFlexGap
           sx={{
             display: { xs: "flex", md: "grid" },
-            gridTemplateColumns: { md: "repeat(4, minmax(125px, 1fr))" },
+            gridTemplateColumns: { md: "repeat(4, minmax(110px, 1fr))" },
             gridAutoFlow: "row",
             rowGap: { md: 1 },
             width: "100%",
@@ -514,7 +514,7 @@ export function CustomersPage() {
             pb: { xs: 0, md: 0.25 },
             "& > .MuiTextField-root, & > .MuiFormControl-root, & > .MuiFormControlLabel-root, & > .MuiBox-root": {
               flex: { md: "0 0 auto" },
-              minWidth: { md: 125 },
+              minWidth: { md: 110 },
             },
             "& .MuiInputBase-root": { minHeight: 36 },
             "& .MuiInputLabel-root": { fontSize: "0.76rem" },
@@ -523,21 +523,21 @@ export function CustomersPage() {
             onChange={(e) => { setSearch(e.target.value); table.setQuery(e.target.value); }}
             placeholder="Όνομα, ΑΦΜ, email, τηλέφωνο ή πόλη"
             InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
-            sx={{ minWidth: 220, width: "100%", flex: "1 1 220px" }} />
+            sx={{ minWidth: 200, width: "100%", flex: "1 1 200px" }} />
           <FilterFieldWrap tip="Φιλτράρετε τους πελάτες βάσει ασφαλιστικής ανάγκης ή περιουσιακού στοιχείου.">
             <SearchableTextField size="small" label="Ανάγκη / περιουσία" value={needKind}
-              onChange={(e) => setNeedKind(e.target.value)} sx={{ minWidth: 145, width: "100%", flex: "1 1 145px" }}>
+              onChange={(e) => setNeedKind(e.target.value)} sx={{ minWidth: 130, width: "100%", flex: "1 1 130px" }}>
               <MenuItem value="">Όλες</MenuItem>
               {NEED_KINDS.map(kind => <MenuItem key={kind} value={kind}>{NEED_KIND_LABEL[kind] ?? kind}</MenuItem>)}
             </SearchableTextField>
           </FilterFieldWrap>
           <SearchableTextField select size="small" label="Κατάσταση" value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as CustomerStatus | "")} sx={{ minWidth: 130, width: "100%", flex: "1 1 130px" }}>
+            onChange={(e) => setStatusFilter(e.target.value as CustomerStatus | "")} sx={{ minWidth: 115, width: "100%", flex: "1 1 115px" }}>
             <MenuItem value="">Όλες</MenuItem>
             {Object.entries(CUSTOMER_STATUS_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
           </SearchableTextField>
           <SearchableTextField select size="small" label="Οικονομική εικόνα" value={paymentFilter}
-            onChange={(e) => setPaymentFilter(e.target.value as PaymentFilter)} sx={{ minWidth: 155, width: "100%", flex: "1 1 155px" }}>
+            onChange={(e) => setPaymentFilter(e.target.value as PaymentFilter)} sx={{ minWidth: 140, width: "100%", flex: "1 1 140px" }}>
             <MenuItem value="all">Όλοι οι πελάτες</MenuItem>
             <MenuItem value="debtors">Χρωστάνε στο γραφείο</MenuItem>
             <MenuItem value="unpaid">Χρέος χωρίς καταβολή</MenuItem>
@@ -548,7 +548,7 @@ export function CustomersPage() {
             <MenuItem value="settled">Εξοφλημένοι</MenuItem>
           </SearchableTextField>
           <SearchableTextField select size="small" label="Περίοδος οφειλής" value={paymentWindow}
-            onChange={(e) => setPaymentWindow(e.target.value as PaymentWindow)} sx={{ minWidth: 145, width: "100%", flex: "1 1 145px" }}>
+            onChange={(e) => setPaymentWindow(e.target.value as PaymentWindow)} sx={{ minWidth: 130, width: "100%", flex: "1 1 130px" }}>
             <MenuItem value="all">Όλο το ιστορικό</MenuItem>
             <MenuItem value="last7">Τελευταίες 7 ημέρες</MenuItem>
             <MenuItem value="last30">Τελευταίες 30 ημέρες</MenuItem>

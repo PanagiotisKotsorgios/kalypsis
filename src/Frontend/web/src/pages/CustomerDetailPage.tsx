@@ -37,12 +37,12 @@ import FamilyRestroomIcon from "@mui/icons-material/FamilyRestroom";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import HealthAndSafetyIcon from "@mui/icons-material/HealthAndSafety";
-import GroupsIcon from "@mui/icons-material/Groups";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import ContactPhoneIcon from "@mui/icons-material/ContactPhone";
 import FolderIcon from "@mui/icons-material/Folder";
-import { CustomerProducersDialog } from "../components/CustomerProducersDialog";
+import BarChartIcon from "@mui/icons-material/BarChart";
+import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { SearchableTextField } from "../components/SearchableTextField";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -187,6 +187,7 @@ const CUSTOMER_PROFILE_TAB_LABELS = [
   { label: "Επικοινωνία & ειδοποιήσεις", icon: <ContactPhoneIcon fontSize="small" /> },
   { label: "Επαφές & οικογένεια", icon: <FamilyRestroomIcon fontSize="small" /> },
   { label: "Έντυπα & προτάσεις", icon: <FolderIcon fontSize="small" /> },
+  { label: "Στατιστικά", icon: <BarChartIcon fontSize="small" /> },
 ];
 
 function CustomerProfileTabs({ value, onChange }: { value: number; onChange: (value: number) => void }) {
@@ -215,7 +216,6 @@ export function CustomerDetailPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState(0);
-  const [showProducers, setShowProducers] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
 
   const customerQ = useQuery({
@@ -269,18 +269,11 @@ export function CustomerDetailPage() {
         <Box>
           <Typography variant="overline" color="text.secondary">{customer.customerNumber}</Typography>
           <Typography variant="h4" sx={{ fontWeight: 800 }}>{displayName}</Typography>
-          <Stack direction="row" spacing={0.75} mt={0.5} flexWrap="wrap" useFlexGap>
-            <Chip label={customer.status === "Prospect" ? "Πιθανός πελάτης" : customer.status} size="small" color={statusColor(customer.status)} />
-            <Chip label={customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο"} size="small" />
-            {customer.email && <Chip label={customer.email} size="small" variant="outlined" />}
-            {customer.phone && <Chip label={customer.phone} size="small" variant="outlined" />}
-            {customer.paymentDueDate && <Chip label={`Ημ. εξόφλησης: ${customer.paymentDueDate}`} size="small" variant="outlined" color="warning" />}
-          </Stack>
         </Box>
         {canManageCustomer && (
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
-            <Button startIcon={<EditIcon />} variant="contained" onClick={() => { setTab(0); setShowEditor(true); }}>
-              Επεξεργασία πλήρους καρτέλας
+            <Button startIcon={<EditIcon />} variant="contained" color="success" sx={{ color: "#fff", fontWeight: 800 }} onClick={() => { setTab(0); setShowEditor(true); }}>
+              Επεξεργασία πελάτη
             </Button>
             <Button
               variant={customer.status === "Prospect" ? "contained" : "outlined"}
@@ -292,23 +285,7 @@ export function CustomerDetailPage() {
             </Button>
           </Stack>
         )}
-        <Button
-          startIcon={<GroupsIcon />}
-          variant="outlined"
-          onClick={() => setShowProducers(true)}
-        >
-          Συνεργάτες πελάτη
-        </Button>
       </Stack>
-
-      <CustomerProducersDialog
-        open={showProducers}
-        onClose={() => setShowProducers(false)}
-        customerId={id}
-        customerDisplay={displayName}
-      />
-
-      <CustomerSummaryCard customerId={id} />
 
       <CustomerProfileTabs value={tab} onChange={setTab} />
 
@@ -320,6 +297,7 @@ export function CustomerDetailPage() {
       {tab === 3 && <Stack spacing={3}><CommunicationsTab customerId={id} /><CustomerNotificationsTab customerId={id} /></Stack>}
       {tab === 4 && <Stack spacing={3}><ContactsTab customerId={id} customerType={customer.type} /><FamilyNeedsTab customerId={id} /></Stack>}
       {tab === 5 && <Stack spacing={3}><GdprActionsTab customerId={id} /><InsuranceOpportunitiesTab customerId={id} /></Stack>}
+      {tab === 6 && <CustomerStatisticsTab customerId={id} />}
       </Box>
       </DialogContent>
       <DialogActions sx={{ borderTop: 1, borderColor: "divider" }}>
@@ -400,17 +378,6 @@ function CustomerAccountTab({ customerId }: { customerId: string }) {
   );
 }
 
-function statusColor(s: string): "default" | "primary" | "warning" | "error" | "success" {
-  switch (s) {
-    case "Active": return "success";
-    case "Prospect": return "warning";
-    case "Inactive": return "default";
-    case "Churned": return "warning";
-    case "Blocked": return "error";
-    default: return "default";
-  }
-}
-
 /* ---------- Summary card ---------- */
 
 interface CustomerSummary {
@@ -426,6 +393,9 @@ interface CustomerSummary {
 const TIER_COLOR: Record<string, "default" | "primary" | "success" | "warning"> = {
   Premium: "warning", Gold: "primary", Standard: "success", Basic: "default"
 };
+const TIER_LABEL: Record<string, string> = {
+  Premium: "Premium", Gold: "Gold", Standard: "Τυπικός", Basic: "Βασικό"
+};
 
 function CustomerSummaryCard({ customerId }: { customerId: string }) {
   const q = useQuery({
@@ -439,7 +409,7 @@ function CustomerSummaryCard({ customerId }: { customerId: string }) {
     <Card variant="outlined" sx={{ p: { xs: 1.25, md: 1.5 }, mb: 1.5 }}>
       {q.isLoading ? <CircularProgress size={22} /> : q.data ? (
         <Stack direction="row" spacing={{ xs: 1.25, md: 2 }} flexWrap="wrap" useFlexGap alignItems="center">
-          <Chip label={`Κατηγορία: ${q.data.tier}`}
+          <Chip label={`Κατηγορία: ${TIER_LABEL[q.data.tier] ?? q.data.tier}`}
             color={TIER_COLOR[q.data.tier] ?? "default"} sx={{ fontWeight: 800 }}
             title={q.data.tierReason} />
           <Box>
@@ -516,6 +486,119 @@ function CustomerVehiclesTab({ customerId, compact = false }: { customerId: stri
       )}
       <VehicleDetailDialog open={selectedPlate !== null} plate={selectedPlate ?? ""} policyIds={rows.filter(row => (row.vehicleRegistrationPlate ?? "") === (selectedPlate ?? "")).map(row => row.id)} onClose={() => setSelectedPlate(null)} />
     </Card>
+  );
+}
+
+interface CustomerStatisticsPolicy {
+  id: string;
+  policyNumber: string;
+  policyType: string;
+  status: string;
+  startDate: string;
+  premium: number;
+  currency: string;
+}
+
+function CustomerStatisticsTab({ customerId }: { customerId: string }) {
+  const summaryQ = useQuery({
+    queryKey: ["customer-summary", customerId],
+    queryFn: async () => (await api.get<CustomerSummary>(`/customers/${customerId}/summary`)).data,
+    enabled: !!customerId
+  });
+  const policiesQ = useQuery({
+    queryKey: ["customer-statistics-policies", customerId],
+    queryFn: async () => (await api.get<CustomerStatisticsPolicy[]>("/policies", { params: { customerId } })).data,
+    enabled: !!customerId
+  });
+  const accountQ = useQuery({
+    queryKey: ["customer-account", customerId, "statistics"],
+    retry: false,
+    queryFn: async () => (await api.get<CustomerAccount>(`/customers/${customerId}/account`)).data,
+    enabled: !!customerId
+  });
+
+  const policies = policiesQ.data ?? [];
+  const premiumByMonth = useMemo(() => {
+    const totals = new Map<string, { label: string; premium: number; contracts: number }>();
+    for (const policy of policies) {
+      const key = (policy.startDate ?? "").slice(0, 7) || "Χωρίς ημερομηνία";
+      const label = key === "Χωρίς ημερομηνία" ? key : key.split("-").reverse().join("/");
+      const row = totals.get(key) ?? { label, premium: 0, contracts: 0 };
+      row.premium += Number(policy.premium) || 0;
+      row.contracts += 1;
+      totals.set(key, row);
+    }
+    return [...totals.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, row]) => row);
+  }, [policies]);
+  const typeData = useMemo(() => {
+    const totals = new Map<string, { contracts: number; premium: number }>();
+    for (const policy of policies) {
+      const type = policy.policyType || "Άλλο";
+      const row = totals.get(type) ?? { contracts: 0, premium: 0 };
+      row.contracts += 1;
+      row.premium += Number(policy.premium) || 0;
+      totals.set(type, row);
+    }
+    return [...totals.entries()].map(([name, value]) => ({ name, ...value }));
+  }, [policies]);
+  const statusData = useMemo(() => {
+    const labels: Record<string, string> = { Active: "Ενεργά", Inactive: "Ανενεργά", Expired: "Ληγμένα", Cancelled: "Ακυρωμένα" };
+    const totals = new Map<string, number>();
+    for (const policy of policies) {
+      const label = labels[policy.status] ?? policy.status ?? "Άγνωστη κατάσταση";
+      totals.set(label, (totals.get(label) ?? 0) + 1);
+    }
+    return [...totals.entries()].map(([name, contracts]) => ({ name, contracts }));
+  }, [policies]);
+  const monthlyAccount = (accountQ.data?.monthly ?? []).map(item => ({
+    label: `${String(item.month).padStart(2, "0")}/${item.year}`,
+    charges: item.charges,
+    credits: item.credits,
+    balance: item.balance
+  }));
+
+  if (summaryQ.isLoading || policiesQ.isLoading || accountQ.isLoading) {
+    return <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>;
+  }
+  if (summaryQ.isError || policiesQ.isError) {
+    return <Alert severity="error">Δεν ήταν δυνατή η φόρτωση των στατιστικών πελάτη.</Alert>;
+  }
+  const summary = summaryQ.data;
+  const formatMoney = (value: number) => value.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formatChartValue = (value: unknown, name: unknown): [string, string] => {
+    const key = String(name ?? "");
+    const numeric = Number(value ?? 0);
+    return [key === "premium" || key === "charges" || key === "credits" || key === "balance" ? `${formatMoney(numeric)} €` : String(value ?? 0), key === "premium" ? "Μεικτά" : key === "contracts" ? "Συμβόλαια" : key === "charges" ? "Χρεώσεις" : key === "credits" ? "Εισπράξεις" : "Υπόλοιπο"];
+  };
+  const chartCard = (title: string, children: React.ReactNode) => (
+    <Card variant="outlined" sx={{ p: 1.5, minWidth: 0 }}>
+      <Typography fontWeight={800} sx={{ mb: 1 }}>{title}</Typography>
+      <Box sx={{ width: "100%", height: 250 }}>{children}</Box>
+    </Card>
+  );
+
+  return (
+    <Stack spacing={1.5}>
+      <Box>
+        <Typography variant="h6" fontWeight={800}>Στατιστικά πελάτη</Typography>
+        <Typography variant="body2" color="text.secondary">Παραγωγή, οικονομική εικόνα, συμβόλαια και πορεία χαρτοφυλακίου.</Typography>
+      </Box>
+      <CustomerSummaryCard customerId={customerId} />
+      {summary && <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }, gap: 1 }}>
+        {[
+          ["Ενεργά συμβόλαια", `${summary.activePolicyCount} / ${summary.totalPolicyCount}`, "#0b5cad"],
+          ["Μεικτά φέτος", `${formatMoney(summary.currentYearGrossPremium)} €`, "#1976d2"],
+          ["Έσοδα γραφείου", `${formatMoney(summary.lifetimeAgencyCommission)} €`, "#2e7d32"],
+          ["Ανοιχτές ζημίες", `${summary.openClaimCount} / ${summary.totalClaimCount}`, "#c62828"],
+        ].map(([label, value, color]) => <Card key={label} variant="outlined" sx={{ p: 1.25, borderTop: `3px solid ${color}` }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={900}>{value}</Typography></Card>)}
+      </Box>}
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 1.5 }}>
+        {chartCard("Παραγωγή ανά μήνα", premiumByMonth.length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν δεδομένα συμβολαίων.</Typography> : <ResponsiveContainer width="100%" height="100%"><LineChart data={premiumByMonth}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" /><YAxis /><ChartTooltip formatter={formatChartValue} /><Legend formatter={name => name === "premium" ? "Μεικτά" : "Συμβόλαια"} /><Line type="monotone" dataKey="premium" stroke="#0b5cad" strokeWidth={3} dot /><Line type="monotone" dataKey="contracts" stroke="#2e7d32" strokeWidth={2} yAxisId="right" /></LineChart></ResponsiveContainer>)}
+        {chartCard("Μεικτά ανά κλάδο", typeData.length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν δεδομένα κλάδων.</Typography> : <ResponsiveContainer width="100%" height="100%"><BarChart data={typeData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><ChartTooltip formatter={formatChartValue} /><Legend formatter={name => name === "premium" ? "Μεικτά" : "Συμβόλαια"} /><Bar dataKey="premium" fill="#1976d2" radius={[5, 5, 0, 0]} /><Bar dataKey="contracts" fill="#66bb6a" radius={[5, 5, 0, 0]} /></BarChart></ResponsiveContainer>)}
+        {chartCard("Οικονομική πορεία ανά μήνα", monthlyAccount.length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν οικονομικές κινήσεις.</Typography> : <ResponsiveContainer width="100%" height="100%"><LineChart data={monthlyAccount}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" /><YAxis /><ChartTooltip formatter={formatChartValue} /><Legend formatter={name => name === "charges" ? "Χρεώσεις" : name === "credits" ? "Εισπράξεις" : "Υπόλοιπο"} /><Line type="monotone" dataKey="charges" stroke="#c62828" strokeWidth={2} /><Line type="monotone" dataKey="credits" stroke="#2e7d32" strokeWidth={2} /><Line type="monotone" dataKey="balance" stroke="#0b5cad" strokeWidth={3} /></LineChart></ResponsiveContainer>)}
+        {chartCard("Κατάσταση συμβολαίων", statusData.length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν συμβόλαια.</Typography> : <ResponsiveContainer width="100%" height="100%"><BarChart data={statusData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis allowDecimals={false} /><ChartTooltip /><Bar dataKey="contracts" name="Συμβόλαια" fill="#0b5cad" radius={[5, 5, 0, 0]} /></BarChart></ResponsiveContainer>)}
+      </Box>
+    </Stack>
   );
 }
 
@@ -709,6 +792,43 @@ function CustomerNotificationsTab({ customerId }: { customerId: string }) {
 
 /* ---------- Overview ---------- */
 
+interface CustomerProducerSummaryRow {
+  producerId: string;
+  producerCode: string;
+  producerName: string;
+  policyCount: number;
+  totalPremium: number;
+  currency: string;
+  latestPolicyStart: string | null;
+}
+
+function CustomerProducersSummary({ customerId }: { customerId: string }) {
+  const q = useQuery({
+    queryKey: ["customer-producers", customerId],
+    queryFn: async () => (await api.get<CustomerProducerSummaryRow[]>(`/customers/${customerId}/producers`)).data,
+    enabled: !!customerId
+  });
+  const rows = q.data ?? [];
+  return <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 } }}>
+    <Box sx={{ mb: 0.75, px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}>
+      <Typography variant="subtitle2" fontWeight={800}>Συνεργάτες πελάτη</Typography>
+      <Typography variant="caption" color="text.secondary">Οι συνεργάτες που έχουν εκδώσει συμβόλαια για τον πελάτη.</Typography>
+    </Box>
+    {q.isLoading ? <CircularProgress size={20} /> : q.isError ? <Typography variant="body2" color="error.main">Δεν ήταν δυνατή η φόρτωση συνεργατών.</Typography> : rows.length === 0 ? <Typography variant="body2" color="text.secondary">Δεν έχουν καταχωρηθεί συνεργάτες από συμβόλαια.</Typography> : (
+      <Table size="small">
+        <TableHead><TableRow><TableCell>Κωδικός</TableCell><TableCell>Συνεργάτης</TableCell><TableCell align="right">Συμβόλαια</TableCell><TableCell align="right">Σύνολο</TableCell><TableCell>Τελευταία έναρξη</TableCell></TableRow></TableHead>
+        <TableBody>{rows.map(row => <TableRow key={row.producerId} hover>
+          <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{row.producerCode || "—"}</TableCell>
+          <TableCell sx={{ fontWeight: 700 }}>{row.producerName || "—"}</TableCell>
+          <TableCell align="right">{row.policyCount}</TableCell>
+          <TableCell align="right" sx={{ fontWeight: 700 }}>{row.totalPremium.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell>
+          <TableCell>{row.latestPolicyStart ?? "—"}</TableCell>
+        </TableRow>)}</TableBody>
+      </Table>
+    )}
+  </Card>;
+}
+
 function OverviewTab({ customer }: { customer: CustomerDto }) {
   const nameDaysQ = useQuery({
     queryKey: ["customer-name-days", customer.id],
@@ -753,6 +873,7 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
   })() : "—";
   const groups: { title: string; fields: [string, React.ReactNode][] }[] = [
     { title: "Επικοινωνία & διεύθυνση", fields: [
+      ["Κατάσταση", customer.status === "Prospect" ? "Πιθανός πελάτης" : customer.status === "Active" ? "Ενεργός" : customer.status], ["Τύπος πελάτη", customer.type === "Company" ? "Νομικό πρόσωπο" : "Φυσικό πρόσωπο"],
       ["Email", customer.email ?? "—"], ["Κύριο τηλέφωνο", customer.phone ?? "—"], ["Κινητό", customer.mobilePhone ?? "—"], ["2ο τηλέφωνο", customer.altPhone ?? "—"],
       ["Διεύθυνση", customer.address ?? "—"], ["Πόλη / Τ.Κ.", [customer.city, customer.postalCode].filter(Boolean).join(" · ") || "—"], ["Περιφέρεια", customer.region ?? "—"],
       ["Καταχωρημένα κανάλια", `${contactMethodCount} από 4`], ["Ημ. εξόφλησης", customer.paymentDueDate ?? "Δεν έχει οριστεί"], ["Λογαριασμός portal", customer.hasPortalAccount ? "Ενεργός" : "Δεν έχει δημιουργηθεί"]
@@ -780,17 +901,6 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
   };
   return (
     <Stack spacing={0.75}>
-      <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 } }}>
-        <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.35 }}>Ενιαία καρτέλα πελάτη</Typography>
-        <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
-          <Chip size="small" color={hasDriverLicense ? "success" : "default"} label={`Οδηγός: ${hasDriverLicense ? "Ναι" : "Όχι"}`} />
-          <Chip size="small" color={customer.amka ? "success" : "default"} label={`ΑΜΚΑ: ${customer.amka ? "Ναι" : "Όχι"}`} />
-          <Chip size="small" color={identityDocument === "Καταχωρημένο" ? "success" : "default"} label={`Ταυτοποίηση: ${identityDocument}`} />
-          <Chip size="small" label={`Επικοινωνία: ${contactMethodCount}/4`} />
-          <Chip size="small" label={`Φορολογικά: ${taxProfile}`} />
-          <Chip size="small" color={customer.hasPortalAccount ? "success" : "default"} label={`Portal: ${customer.hasPortalAccount ? "Ενεργό" : "Όχι"}`} />
-        </Stack>
-      </Card>
       {groups.map(group => <Card key={group.title} variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)", borderColor: "rgba(100,116,139,0.2)", borderRadius: 1.5 }}>
         <Box sx={{ mb: 0.75, px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}>
           <Typography variant="subtitle2" fontWeight={800}>{group.title}</Typography>
@@ -817,6 +927,7 @@ function OverviewTab({ customer }: { customer: CustomerDto }) {
         <Typography variant="subtitle2" fontWeight={800}>Σημειώσεις</Typography>
         <Typography variant="body2" sx={{ mt: 0.25, whiteSpace: "pre-wrap", fontSize: "0.8rem" }}>{customer.notes ?? "Δεν υπάρχουν σημειώσεις."}</Typography>
       </Card>
+      <CustomerProducersSummary customerId={customer.id} />
       <CustomerVehiclesTab customerId={customer.id} compact />
     </Stack>
   );
