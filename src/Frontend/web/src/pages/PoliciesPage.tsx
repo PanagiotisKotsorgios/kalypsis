@@ -566,8 +566,8 @@ export function PoliciesPage() {
                 gridTemplateColumns: {
                   xs: "1fr",
                   sm: "repeat(4, minmax(0, 1fr))",
-                  md: "repeat(4, minmax(0, 1fr))",
-                  lg: "minmax(300px, 2fr) 130px 130px auto auto",
+                  md: "minmax(220px, 1.4fr) 120px 120px auto auto",
+                  lg: "minmax(240px, 1.4fr) 125px 125px auto auto",
                 },
                 gap: 0.75,
                 alignItems: "center",
@@ -578,7 +578,7 @@ export function PoliciesPage() {
                  placeholder="Αναζήτηση αριθμού συμβολαίου, πελάτη, ΑΦΜ ή πινακίδας…"
                  value={search}
                  onChange={(e) => setSearch(e.target.value)}
-                  sx={{ minWidth: 0, gridColumn: { xs: "auto", sm: "span 2", md: "span 2", lg: "auto" } }}
+                  sx={{ minWidth: 0, gridColumn: { xs: "auto", sm: "span 2", md: "auto", lg: "auto" } }}
                  InputProps={{
                    startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
                    endAdornment: <FilterHelp title="Αναζήτηση σε αριθμό συμβολαίου, πελάτη, ΑΦΜ, απόδειξη ή πινακίδα οχήματος." />,
@@ -854,7 +854,14 @@ export function PoliciesPage() {
           )}
           <TableContainer>
             <Table>
-              <TableHead>
+              <TableHead sx={{
+                "& .MuiTableCell-root": {
+                  backgroundColor: "#e3e7eb !important",
+                  color: "#263238",
+                  fontWeight: 800,
+                  borderBottom: "2px solid #c1c9d0",
+                },
+              }}>
                 <TableRow sx={{
                   "& .MuiTableCell-root": {
                     bgcolor: "#eef1f4",
