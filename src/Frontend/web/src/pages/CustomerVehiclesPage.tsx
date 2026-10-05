@@ -383,8 +383,42 @@ export function CustomerVehiclesPage() {
         <TableBody>{pageRows.map(row => <TableRow key={row.id} hover onClick={() => setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: false })} sx={{ cursor: "pointer" }}>
           <TableCell padding="checkbox"><Checkbox size="small" checked={selectedIds.has(row.id)} onClick={event => event.stopPropagation()} onChange={event => setSelectedIds(previous => { const next = new Set(previous); event.target.checked ? next.add(row.id) : next.delete(row.id); return next; })} /></TableCell>
           <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.vehicleRegistrationPlate ?? "—"}</TableCell>
-          <TableCell><Button component={RouterLink} to={`/app/customers/${row.customerId}`} size="small" onClick={event => event.stopPropagation()}>{row.customerDisplay ?? "Πελάτης"}</Button></TableCell>
-          <TableCell><Button component={RouterLink} to={`/app/policies?focus=${row.id}`} size="small" onClick={event => event.stopPropagation()}>{row.policyNumber}</Button></TableCell>
+          <TableCell>
+            <Tooltip title="Άνοιγμα καρτέλας πελάτη — δεν ανοίγει την καρτέλα οχήματος" arrow>
+              <Button
+                component={RouterLink}
+                to={`/app/customers/${row.customerId}`}
+                size="small"
+                onClick={event => event.stopPropagation()}
+                sx={{
+                  fontWeight: 700,
+                  borderRadius: 1,
+                  transition: "background-color .15s ease, color .15s ease, box-shadow .15s ease",
+                  "&:hover": { bgcolor: "success.main", color: "#fff", boxShadow: 2 },
+                }}
+              >
+                {row.customerDisplay ?? "Πελάτης"}
+              </Button>
+            </Tooltip>
+          </TableCell>
+          <TableCell>
+            <Tooltip title="Άνοιγμα καρτέλας συμβολαίου — δεν ανοίγει την καρτέλα οχήματος" arrow>
+              <Button
+                component={RouterLink}
+                to={`/app/policies?focus=${row.id}`}
+                size="small"
+                onClick={event => event.stopPropagation()}
+                sx={{
+                  fontWeight: 700,
+                  borderRadius: 1,
+                  transition: "background-color .15s ease, color .15s ease, box-shadow .15s ease",
+                  "&:hover": { bgcolor: "success.main", color: "#fff", boxShadow: 2 },
+                }}
+              >
+                {row.policyNumber}
+              </Button>
+            </Tooltip>
+          </TableCell>
           <TableCell>{row.insuranceCompanyName}</TableCell><TableCell>{row.startDate}</TableCell><TableCell>{row.endDate}</TableCell>
           <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell><TableCell><Chip size="small" label={vehicleStatusLabel(row.status)} /></TableCell>
           <TableCell align="right"><Stack direction="row" justifyContent="flex-end" spacing={0.25}><Tooltip title="Προεπισκόπηση καρτέλας οχήματος" arrow><IconButton size="small" color="info" onClick={event => { event.stopPropagation(); setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: false }); }}><VisibilityIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Επεξεργασία οχήματος" arrow><IconButton size="small" color="success" onClick={event => { event.stopPropagation(); setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: true }); }}><EditIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Αφαίρεση οχήματος από το συμβόλαιο" arrow><IconButton size="small" color="error" onClick={event => { event.stopPropagation(); requestDelete([row.id]); }}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip></Stack></TableCell>
