@@ -307,7 +307,22 @@ export function TableToolbar<T>({
             else downloadPdf();
           }}
         />
-        <Button size="small" variant="outlined" startIcon={<PrintIcon />} onClick={openPrint}>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<PrintIcon />}
+          onClick={openPrint}
+          sx={{
+            bgcolor: "#e3f2fd",
+            color: "#145ea8",
+            borderColor: "#90caf9",
+            "&:hover": {
+              bgcolor: "#bbdefb",
+              borderColor: "#64b5f6",
+              color: "#0d47a1",
+            },
+          }}
+        >
           {t("common.print", "Εκτύπωση")}
         </Button>
       </Stack>
