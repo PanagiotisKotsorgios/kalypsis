@@ -961,6 +961,14 @@ function CustomerEditorDialog({ open, customer, onClose }: { open: boolean; cust
     </TextField>
   ) : <TextField key={key} size="small" label={label} type={options?.type} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} fullWidth multiline={options?.multiline} rows={options?.multiline ? 2 : undefined} placeholder={options?.placeholder} InputLabelProps={options?.type === "date" ? { shrink: true } : undefined} />;
   const editorGridSx = { display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }, gap: 0.75, alignItems: "start", "& > .MuiFormControl-root, & > .MuiBox-root": { minWidth: 0 }, "& .MuiInputLabel-root": { fontSize: "0.78rem" }, "& .MuiInputBase-root": { minHeight: 38 } };
+  const editorSection = (title: string, content: React.ReactNode) => (
+    <Card key={title} variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)" }}>
+      <Box sx={{ mb: 0.75, px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}>
+        <Typography variant="subtitle2" fontWeight={800}>{title}</Typography>
+      </Box>
+      <Box sx={editorGridSx}>{content}</Box>
+    </Card>
+  );
   if (!open) return null;
   return <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, "& .MuiTextField-root": { minWidth: 0 } }}>
     <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1} sx={{ mb: 0.75 }}>
@@ -968,6 +976,31 @@ function CustomerEditorDialog({ open, customer, onClose }: { open: boolean; cust
       <Button size="small" color="inherit" onClick={onClose}>Κλείσιμο επεξεργασίας</Button>
     </Stack>
       {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
+      <Stack spacing={0.75}>
+        {editorSection("Επικοινωνία & διεύθυνση", <>
+          {field("Τύπος", "type", { select: ["Individual", "Company"] })}{field("Κατάσταση", "status", { select: ["Prospect", "Active", "Inactive", "Churned", "Blocked"] })}
+          {field("Όνομα", "firstName")}{field("Επώνυμο", "lastName")}{field("Επωνυμία", "companyName")}
+          {field("Email", "email", { type: "email" })}{field("Κύριο τηλέφωνο", "phone")}{field("Κινητό", "mobilePhone")}{field("2ο τηλέφωνο", "altPhone")}
+          {field("Διεύθυνση", "address")}{field("Πόλη", "city")}{field("Τ.Κ.", "postalCode")}{field("Περιφέρεια", "region")}
+          {field("Ημερομηνία εξόφλησης", "paymentDueDate", { type: "date" })}
+          <Box sx={{ gridColumn: { sm: "1 / -1" } }}>{field("Σημειώσεις", "notes", { multiline: true })}</Box>
+        </>)}
+        {editorSection("Ταυτότητα & οικογένεια", <>
+          {field("Ημερομηνία γέννησης", "birthDate", { type: "date" })}{field("Φύλο", "gender", { select: ["Male", "Female", "Other"] })}{field("Εθνικότητα", "nationality")}{field("Οικογενειακή κατάσταση", "maritalStatus")}
+          {field("Αριθμός ταυτότητας", "idNumber")}{field("ΑΜΚΑ", "amka")}{field("Διαβατήριο", "passportNumber")}{field("Πατρώνυμο", "fatherName")}
+          {field("Μητρώνυμο", "motherName")}{field("Σύζυγος / σύντροφος", "spouseName")}
+        </>)}
+        {editorSection("Εργασία, φορολογικά & ψηφιακά στοιχεία", <>
+          {field("Επάγγελμα", "occupation")}{field("Εργοδότης", "employer")}{field("Κωδικός δραστηριότητας", "activityCode")}{field("Ζώνη", "zone")}
+          {field("ΑΦΜ", "vatNumber")}{field("ΔΟΥ", "taxOffice")}{field("ΓΕΜΗ", "gemiNumber")}{field("Νομική μορφή", "legalForm")}
+          {field("Πηγή", "source")}{field("Ετικέτες", "tagsJson", { placeholder: "π.χ. premium, εταιρεία" })}{field("URL φωτογραφίας", "photoUrl")}
+        </>)}
+        {editorSection("Οδήγηση & άδεια οδηγού", <>
+          {field("Αριθμός διπλώματος", "driverLicenseNumber")}{field("Κατηγορία διπλώματος", "driverLicenseClass")}{field("Έκδοση", "driverLicenseIssueDate", { type: "date" })}{field("Λήξη", "driverLicenseExpiryDate", { type: "date" })}
+          <Alert severity="info" sx={{ gridColumn: { sm: "1 / -1" }, py: 0 }}>Τα οχήματα εμφανίζονται αυτόματα από τα συμβόλαια και τις πινακίδες τους.</Alert>
+        </>)}
+      </Stack>
+      <Box sx={{ display: "none" }}>
       <Tabs value={tab} onChange={(_, value) => setTab(value)} variant="scrollable" allowScrollButtonsMobile sx={{ borderBottom: 1, borderColor: "divider", mb: 0.75, minHeight: 34, "& .MuiTab-root": { minHeight: 34, py: 0.25, px: 0.75, fontSize: "0.76rem" } }}>
         <Tab label="Βασικά & επικοινωνία" /><Tab label="Ταυτότητα & οικογένεια" /><Tab label="Εργασία, εταιρεία & όχημα" />
       </Tabs>
@@ -991,6 +1024,7 @@ function CustomerEditorDialog({ open, customer, onClose }: { open: boolean; cust
         {field("Πηγή", "source")}{field("Ετικέτες", "tagsJson", { placeholder: "π.χ. premium, εταιρεία" })}{field("URL φωτογραφίας", "photoUrl")}
         <Alert severity="info" sx={{ gridColumn: { sm: "1 / -1" }, py: 0 }}>Τα οχήματα εμφανίζονται αυτόματα από τα συμβόλαια και τις πινακίδες τους.</Alert>
       </Box>}
+      </Box>
     <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 1.25 }}>
       <Button size="small" onClick={onClose} color="inherit">Άκυρο</Button>
       <Button size="small" variant="contained" onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση πλήρους καρτέλας"}</Button>
@@ -1511,6 +1545,7 @@ void ConsentsCard;
 function CommunicationsCard({ customerId }: { customerId: string }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
   const q = useQuery({
     queryKey: ["communications", customerId],
     queryFn: async () => (await api.get<any[]>(`/customers/${customerId}/communications`)).data
@@ -1519,17 +1554,23 @@ function CommunicationsCard({ customerId }: { customerId: string }) {
   const log = useMutation({
     mutationFn: async () => (await api.post(`/customers/${customerId}/communications`, form)).data,
     onSuccess: () => {
+      setOpen(false);
       setForm({ kind: "Call", subject: "", summary: "" });
       void qc.invalidateQueries({ queryKey: ["communications", customerId] });
     }
   });
   return (
     <Card variant="outlined" sx={{ p: { xs: 0.75, md: 1 }, bgcolor: "rgba(248,250,252,0.92)" }}>
-      <Stack mb={0.75} sx={{ px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}>
-        <Typography variant="subtitle2" fontWeight={800}>Επικοινωνίες</Typography>
-        <Typography variant="caption" color="text.secondary">
-          Ιστορικό κλήσεων / email / SMS / επιστολών με τον πελάτη.
-        </Typography>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1} mb={0.75} sx={{ px: 0.75, py: 0.5, borderRadius: 0.75, bgcolor: "rgba(25,118,210,0.08)", borderLeft: "3px solid", borderColor: "primary.main" }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="subtitle2" fontWeight={800}>Επικοινωνίες</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Ιστορικό κλήσεων / email / SMS / επιστολών με τον πελάτη.
+          </Typography>
+        </Box>
+        <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)} sx={{ flexShrink: 0 }}>
+          Προσθήκη επικοινωνίας
+        </Button>
       </Stack>
       {q.isLoading ? <CircularProgress size={20} /> : (q.data ?? []).length === 0 ? (
         <Typography variant="body2" color="text.secondary">Δεν έχουν καταγραφεί επικοινωνίες.</Typography>
@@ -1546,27 +1587,29 @@ function CommunicationsCard({ customerId }: { customerId: string }) {
           ))}
         </Stack>
       )}
-      <Box sx={{ mt: 2, p: 1.5, bgcolor: "background.default", borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
-        <Typography variant="caption" color="text.secondary">Καταγραφή επικοινωνίας</Typography>
-        <Stack spacing={1} mt={1}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <SearchableTextField size="small" label="Είδος" value={form.kind}
-              onChange={e => setForm({ ...form, kind: e.target.value })} sx={{ minWidth: 140 }}>
-              {["Call", "Email", "Sms", "Postal", "Meeting", "Note"].map(k => <MenuItem key={k} value={k}>{String(t(`communicationKind.${k}`, k))}</MenuItem>)}
-            </SearchableTextField>
-            <TextField size="small" label="Θέμα" value={form.subject}
-              onChange={e => setForm({ ...form, subject: e.target.value })} sx={{ flex: 1 }} />
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Προσθήκη επικοινωνίας</DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.5} mt={1}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <SearchableTextField size="small" label="Είδος" value={form.kind}
+                onChange={e => setForm({ ...form, kind: e.target.value })} sx={{ minWidth: { sm: 180 } }}>
+                {["Call", "Email", "Sms", "Postal", "Meeting", "Note"].map(k => <MenuItem key={k} value={k}>{String(t(`communicationKind.${k}`, k))}</MenuItem>)}
+              </SearchableTextField>
+              <TextField size="small" label="Θέμα" value={form.subject}
+                onChange={e => setForm({ ...form, subject: e.target.value })} fullWidth />
+            </Stack>
+            <TextField size="small" label="Σύνοψη" value={form.summary} multiline rows={4}
+              onChange={e => setForm({ ...form, summary: e.target.value })} fullWidth />
           </Stack>
-          <TextField size="small" label="Σύνοψη" value={form.summary} multiline rows={2}
-            onChange={e => setForm({ ...form, summary: e.target.value })} fullWidth />
-          <Box>
-            <Button variant="contained" size="small" onClick={() => log.mutate()}
-              disabled={log.isPending || !form.subject.trim()}>
-              {log.isPending ? <CircularProgress size={18} /> : "Καταγραφή"}
-            </Button>
-          </Box>
-        </Stack>
-      </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpen(false)} color="error" variant="contained">Ακύρωση</Button>
+          <Button variant="contained" onClick={() => log.mutate()} disabled={log.isPending || !form.subject.trim()}>
+            {log.isPending ? <CircularProgress size={18} /> : "Καταγραφή"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 }
