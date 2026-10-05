@@ -855,7 +855,14 @@ export function PoliciesPage() {
           <TableContainer>
             <Table>
               <TableHead>
-                <TableRow>
+                <TableRow sx={{
+                  "& .MuiTableCell-root": {
+                    bgcolor: "#eef1f4",
+                    color: "#263238",
+                    fontWeight: 800,
+                    borderBottom: "2px solid #cfd8dc",
+                  },
+                }}>
                   {canEdit && (
                     <TableCell padding="checkbox">
                       <Checkbox
