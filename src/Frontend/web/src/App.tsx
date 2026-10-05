@@ -56,6 +56,7 @@ import { ScrollToTop } from "./components/ScrollToTop";
 import { SeoController } from "./components/SeoController";
 import { PreloginResponsiveStyles } from "./components/PreloginResponsiveStyles";
 import { PreloginDesktopDownload } from "./components/PreloginDesktopDownload";
+import { InfrastructureNoticeBanner } from "./components/InfrastructureNoticeBanner";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
@@ -702,12 +703,16 @@ export default function App() {
   }
   const staffOverride =
     typeof window !== "undefined" && window.localStorage.getItem(overrideKey) === "1";
+  const showPreloginNotice = !user
+    && !location.pathname.startsWith("/app")
+    && !location.pathname.startsWith("/ermes-app");
 
   // Site-wide maintenance hides everything except platform staff
   const isPlatformStaff = user?.role === "PlatformAdmin" || user?.role === "PlatformEmployee";
   if (maintenance.maintenanceModeEnabled && !isPlatformStaff && !staffOverride) {
     return (
       <>
+        {showPreloginNotice && <InfrastructureNoticeBanner />}
         <SiteMaintenancePage
           title={maintenance.maintenanceTitle}
           message={maintenance.maintenanceMessage}
@@ -727,6 +732,7 @@ export default function App() {
 
   return (
     <>
+      {showPreloginNotice && <InfrastructureNoticeBanner />}
       <ScrollToTop />
       <SeoController />
       <PreloginResponsiveStyles />
