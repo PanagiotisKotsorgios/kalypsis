@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Alert, Box, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
-/** Public notice shown consistently on every unauthenticated/pre-login page. */
-export function InfrastructureNoticeBanner() {
+/** Notice shown on the dashboard home page. */
+export function InfrastructureNoticeBanner({ home = false }: { home?: boolean }) {
   // Dismissal is intentionally session-only: a refresh shows the notice again.
   const [dismissed, setDismissed] = useState(false);
 
@@ -14,7 +14,19 @@ export function InfrastructureNoticeBanner() {
   };
 
   return (
-    <Box component="aside" role="status" aria-label="Ενημέρωση τεχνικής υποστήριξης">
+    <Box
+      component="aside"
+      role="status"
+      aria-label="Ενημέρωση τεχνικής υποστήριξης"
+      sx={home ? {
+        position: "absolute",
+        top: { xs: 0, sm: 1 },
+        right: 0,
+        zIndex: 2,
+        width: { xs: "calc(100vw - 32px)", sm: 570, md: 700 },
+        maxWidth: "100%",
+      } : undefined}
+    >
       <Alert
         severity="warning"
         icon={<WarningAmberIcon fontSize="inherit" />}
@@ -27,7 +39,7 @@ export function InfrastructureNoticeBanner() {
           borderTop: "4px solid #7f0000",
           borderBottom: "4px solid #7f0000",
           boxShadow: "0 2px 12px rgba(127, 0, 0, 0.32)",
-          fontSize: { xs: "0.9rem", sm: "1rem" },
+          fontSize: home ? { xs: "0.95rem", sm: "1.08rem" } : { xs: "0.9rem", sm: "1rem" },
           "& .MuiAlert-icon": { color: "#fff" },
           "& .MuiAlert-action": { color: "#fff", alignItems: "center", pt: 0 },
           "& .MuiAlert-action .MuiIconButton-root": {
@@ -38,8 +50,8 @@ export function InfrastructureNoticeBanner() {
             "&:hover": { bgcolor: "rgba(255,255,255,0.16)" },
           },
           "& .MuiAlert-message": { width: "100%", fontWeight: 700, lineHeight: 1.45 },
-          px: { xs: 1.5, sm: 3 },
-          py: 1.1,
+          px: home ? { xs: 1.75, sm: 2.5 } : { xs: 1.5, sm: 3 },
+          py: home ? 1.35 : 1.1,
         }}
       >
         <Typography
@@ -53,7 +65,7 @@ export function InfrastructureNoticeBanner() {
             py: 0.2,
             mr: 0.8,
             fontWeight: 900,
-            fontSize: { xs: "0.9rem", sm: "1rem" },
+            fontSize: home ? { xs: "0.95rem", sm: "1.08rem" } : { xs: "0.9rem", sm: "1rem" },
             whiteSpace: "nowrap",
           }}
         >

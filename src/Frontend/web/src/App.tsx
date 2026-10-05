@@ -703,16 +703,11 @@ export default function App() {
   }
   const staffOverride =
     typeof window !== "undefined" && window.localStorage.getItem(overrideKey) === "1";
-  const showPreloginNotice = !user
-    && !location.pathname.startsWith("/app")
-    && !location.pathname.startsWith("/ermes-app");
-
   // Site-wide maintenance hides everything except platform staff
   const isPlatformStaff = user?.role === "PlatformAdmin" || user?.role === "PlatformEmployee";
   if (maintenance.maintenanceModeEnabled && !isPlatformStaff && !staffOverride) {
     return (
       <>
-        {showPreloginNotice && <InfrastructureNoticeBanner />}
         <SiteMaintenancePage
           title={maintenance.maintenanceTitle}
           message={maintenance.maintenanceMessage}
@@ -732,7 +727,6 @@ export default function App() {
 
   return (
     <>
-      {showPreloginNotice && <InfrastructureNoticeBanner />}
       <ScrollToTop />
       <SeoController />
       <PreloginResponsiveStyles />
@@ -810,9 +804,12 @@ export default function App() {
                 <Routes>
                   {/* Agency users land on the Workspace Hub; other roles keep their dashboard. */}
                   <Route index element={
-                    (effectiveRole === "AgencyAdmin" || effectiveRole === "AgencyOfficeAdmin" || effectiveRole === "AgencyUser")
-                      ? <WorkspaceHubPage />
-                      : <DashboardPage />
+                    <>
+                      <InfrastructureNoticeBanner home />
+                      {(effectiveRole === "AgencyAdmin" || effectiveRole === "AgencyOfficeAdmin" || effectiveRole === "AgencyUser")
+                        ? <WorkspaceHubPage />
+                        : <DashboardPage />}
+                    </>
                   } />
                   <Route path="dashboard" element={<DashboardPage />} />
                   <Route path="customers" element={<CustomersPage />} />
