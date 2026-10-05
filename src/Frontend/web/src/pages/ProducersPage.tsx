@@ -5,7 +5,7 @@ import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, MenuItem, Stack, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
-  FormControlLabel, Switch
+  FormControlLabel, Switch, Snackbar
 } from "@mui/material";
 import { InputAdornment, Fade, Slide, Divider, alpha } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -116,6 +116,8 @@ export function ProducersPage() {
   const [goalPlanFor, setGoalPlanFor] = useState<ProducerDto | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ProducerDto | null>(null);
   const [issuedCreds, setIssuedCreds] = useState<{ email: string; password: string } | null>(null);
 
   const q = useQuery({
@@ -135,7 +137,11 @@ export function ProducersPage() {
 
   const del = useMutation({
     mutationFn: async (id: string) => api.delete(`/producers/${id}`),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["producers"] }),
+    onSuccess: () => {
+      setDeleteTarget(null);
+      setSuccess("Ο συνεργάτης διαγράφηκε επιτυχώς.");
+      void qc.invalidateQueries({ queryKey: ["producers"] });
+    },
     onError: (err) => setError(extractErrorMessage(err))
   });
 
@@ -241,7 +247,7 @@ export function ProducersPage() {
   const rowMenu = useRowContextMenu<ProducerDto>({
     entityLabel: "παραγωγού",
     onEdit: (p) => setEditing(p),
-    onDelete: (p) => { if (confirm(t("producers.confirmDelete", { name: p.name }))) del.mutate(p.id); },
+    onDelete: (p) => del.mutate(p.id),
   });
 
   return (
@@ -487,7 +493,7 @@ export function ProducersPage() {
                           <SettingsSuggestIcon fontSize="small" />
                         </IconButton>
                         <IconButton size="small" onClick={() => setEditing(p)}><EditIcon fontSize="small" /></IconButton>
-                        <IconButton size="small" color="error" onClick={() => { if (confirm(t("producers.confirmDelete", { name: p.name }))) del.mutate(p.id); }}>
+                        <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); setDeleteTarget(p); }}>
                           <DeleteIcon fontSize="small" />
                         </IconButton>
                       </Stack>
@@ -509,6 +515,22 @@ export function ProducersPage() {
       )}
       {headerMenu.menu}
       {rowMenu.menu}
+
+      <Dialog open={deleteTarget !== null} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Επιβεβαίωση διαγραφής συνεργάτη</DialogTitle>
+        <DialogContent>
+          Θέλετε να διαγράψετε τον συνεργάτη «{deleteTarget?.name ?? ""}»; Η ενέργεια δεν μπορεί να αναιρεθεί.
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)}>Ακύρωση</Button>
+          <Button color="error" variant="contained" disabled={del.isPending} onClick={() => deleteTarget && del.mutate(deleteTarget.id)}>
+            {del.isPending ? <CircularProgress size={18} color="inherit" /> : "Είμαι σίγουρος"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Snackbar open={success !== null} autoHideDuration={3500} onClose={() => setSuccess(null)}>
+        <Alert severity="success" variant="filled" onClose={() => setSuccess(null)}>{success}</Alert>
+      </Snackbar>
 
       <ProducerDialog
         open={createStatus !== null} initialStatus={createStatus ?? "Active"} onClose={() => setCreateStatus(null)} producer={null}

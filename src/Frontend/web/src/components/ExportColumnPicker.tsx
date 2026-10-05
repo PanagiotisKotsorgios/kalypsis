@@ -111,15 +111,20 @@ export function ExportColumnPicker({
           onClick={(e) => setAnchor(e.currentTarget)}
           aria-label={String(t("common.exportColumns", "Στήλες εξαγωγής"))}
           sx={{
-            border: "1px solid",
-            borderColor: "divider",
+            border: "1px solid #ed6c02",
             borderRadius: 1,
             px: 0.75,
             py: 0.5,
+            bgcolor: "#ed6c02",
+            color: "#fff",
+            "&:hover": {
+              bgcolor: "#e65100",
+              borderColor: "#e65100",
+            },
           }}
         >
           <TuneIcon fontSize="small" />
-          <Typography variant="caption" sx={{ ml: 0.5, fontWeight: 600, color: "text.secondary" }}>
+          <Typography variant="caption" sx={{ ml: 0.5, fontWeight: 800, color: "inherit" }}>
             {activeCount}/{columns.length}
           </Typography>
         </IconButton>

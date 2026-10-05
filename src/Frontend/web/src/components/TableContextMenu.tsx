@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import {
-  Divider, ListItemIcon, ListItemText, Menu, MenuItem
+  Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, ListItemIcon, ListItemText, Menu, MenuItem
 } from "@mui/material";
 import SortByAlphaIcon from "@mui/icons-material/SortByAlpha";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
@@ -141,6 +141,7 @@ interface RowMenuState<T> {
 
 export function useRowContextMenu<T>(options: RowMenuOptions<T>) {
   const [state, setState] = useState<RowMenuState<T>>({ position: null, row: null });
+  const [deleteTarget, setDeleteTarget] = useState<T | null>(null);
 
   const open = useCallback((e: React.MouseEvent, row: T) => {
     e.preventDefault();
@@ -184,7 +185,7 @@ export function useRowContextMenu<T>(options: RowMenuOptions<T>) {
       )}
       {(options.onEdit || options.onDuplicate || options.onPin) && options.onDelete && <Divider />}
       {state.row !== null && options.onDelete && (
-        <MenuItem onClick={() => { options.onDelete!(state.row as T); close(); }} sx={{ color: "error.main" }}>
+        <MenuItem onClick={() => { setDeleteTarget(state.row as T); close(); }} sx={{ color: "error.main" }}>
           <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
           <ListItemText primary={`Διαγραφή${suffix}`} />
         </MenuItem>
@@ -192,7 +193,29 @@ export function useRowContextMenu<T>(options: RowMenuOptions<T>) {
     </Menu>
   );
 
-  return { open, close, menu, isOpen };
+  const confirmation = options.onDelete ? (
+    <Dialog open={deleteTarget !== null} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+      <DialogTitle>Επιβεβαίωση διαγραφής</DialogTitle>
+      <DialogContent>
+        Θέλετε να διαγράψετε{suffix}; Η ενέργεια δεν μπορεί να αναιρεθεί.
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setDeleteTarget(null)}>Ακύρωση</Button>
+        <Button
+          color="error"
+          variant="contained"
+          onClick={() => {
+            if (deleteTarget !== null) options.onDelete!(deleteTarget);
+            setDeleteTarget(null);
+          }}
+        >
+          Είμαι σίγουρος
+        </Button>
+      </DialogActions>
+    </Dialog>
+  ) : null;
+
+  return { open, close, menu: <>{menu}{confirmation}</>, isOpen };
 }
 
 // -----------------------------------------------------------------------------
