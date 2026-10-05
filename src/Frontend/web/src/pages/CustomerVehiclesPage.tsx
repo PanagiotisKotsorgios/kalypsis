@@ -6,6 +6,7 @@ import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 import { exportActionSx, printActionSx } from "../components/actionButtonStyles";
 import { Link as RouterLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -290,6 +291,7 @@ export function CustomerVehiclesPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [statsFocus, setStatsFocus] = useState<string | null>(null);
   const [deleteIds, setDeleteIds] = useState<string[]>([]);
   const [deleteText, setDeleteText] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -311,6 +313,7 @@ export function CustomerVehiclesPage() {
       if (renewalFilter !== "all") {
         const days = (new Date(row.endDate).getTime() - now) / 86400000;
         if (renewalFilter === "30" && !(days >= 0 && days <= 30)) return false;
+        if (renewalFilter === "31-90" && !(days > 30 && days <= 90)) return false;
         if (renewalFilter === "90" && !(days >= 0 && days <= 90)) return false;
         if (renewalFilter === "expired" && days >= 0) return false;
       }
@@ -337,6 +340,57 @@ export function CustomerVehiclesPage() {
     }
     return [...map.entries()].sort((a, b) => b[1].contracts - a[1].contracts);
   }, [filteredRows]);
+  const statusStats = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const row of filteredRows) map.set(row.status, (map.get(row.status) ?? 0) + 1);
+    return [...map.entries()].map(([key, value]) => ({ key, name: vehicleStatusLabel(key), value })).sort((a, b) => b.value - a.value);
+  }, [filteredRows]);
+  const typeStats = useMemo(() => {
+    const map = new Map<string, { contracts: number; premium: number }>();
+    for (const row of filteredRows) {
+      const key = row.policyType || "Χωρίς κλάδο";
+      const current = map.get(key) ?? { contracts: 0, premium: 0 };
+      current.contracts += 1;
+      current.premium += Number(row.premium) || 0;
+      map.set(key, current);
+    }
+    return [...map.entries()].map(([name, value]) => ({ name, ...value })).sort((a, b) => b.contracts - a.contracts);
+  }, [filteredRows]);
+  const expiryStats = useMemo(() => {
+    const now = Date.now();
+    const buckets = new Map([
+      ["expired", { name: "Ληγμένα", value: 0, filter: "expired" }],
+      ["30", { name: "Έως 30 ημέρες", value: 0, filter: "30" }],
+      ["31-90", { name: "31–90 ημέρες", value: 0, filter: "31-90" }],
+      ["later", { name: "Πάνω από 90 ημέρες", value: 0, filter: null }]
+    ]);
+    for (const row of filteredRows) {
+      const days = (new Date(row.endDate).getTime() - now) / 86400000;
+      const bucket = days < 0 ? buckets.get("expired") : days <= 30 ? buckets.get("30") : days <= 90 ? buckets.get("31-90") : buckets.get("later");
+      if (bucket) bucket.value += 1;
+    }
+    return [...buckets.values()];
+  }, [filteredRows]);
+  const monthlyExpiryStats = useMemo(() => {
+    const map = new Map<string, { label: string; contracts: number; premium: number; sort: number }>();
+    for (const row of filteredRows) {
+      const date = new Date(row.endDate);
+      if (Number.isNaN(date.getTime())) continue;
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const current = map.get(key) ?? { label: date.toLocaleDateString("el-GR", { month: "short", year: "numeric" }), contracts: 0, premium: 0, sort: date.getTime() };
+      current.contracts += 1;
+      current.premium += Number(row.premium) || 0;
+      map.set(key, current);
+    }
+    return [...map.values()].sort((a, b) => a.sort - b.sort).slice(0, 12);
+  }, [filteredRows]);
+  const chartColors = ["#0b5cad", "#2e7d32", "#ed6c02", "#c62828", "#6a1b9a", "#00838f", "#546e7a"];
+  const applyChartFilter = (kind: "status" | "company" | "expiry", value: string) => {
+    if (kind === "status") setStatusFilter(value);
+    if (kind === "company") setCompanyFilter(value);
+    if (kind === "expiry") setRenewalFilter(value);
+    setStatsFocus(`${kind}:${value}`);
+  };
   const clearVehicle = useMutation({
     mutationFn: async (ids: string[]) => Promise.all(ids.map(id => api.patch(`/policies/${id}/vehicle`, { clearVehicleRegistrationPlate: true }))),
     onSuccess: () => {
@@ -364,7 +418,7 @@ export function CustomerVehiclesPage() {
     <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" gap={1} alignItems={{ md: "center" }}>
       <Box><Typography variant="h4" fontWeight={800}>Οχήματα πελατών</Typography><Typography color="text.secondary">Κεντρική αναζήτηση, φίλτρα, στατιστικά και ενέργειες για όλα τα οχήματα των συμβολαίων.</Typography></Box>
       <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-        <Button size="small" variant="outlined" startIcon={<DirectionsCarIcon />} onClick={() => setStatsOpen(true)}>Στατιστικά</Button>
+        <Button size="small" variant="outlined" startIcon={<DirectionsCarIcon />} onClick={() => { setStatsFocus(null); setStatsOpen(true); }}>Στατιστικά</Button>
         <Button size="small" variant="outlined" startIcon={<DownloadIcon />} sx={exportActionSx} onClick={() => exportCsv()}>Εξαγωγή CSV</Button>
         <Button size="small" variant="outlined" sx={printActionSx} onClick={() => window.print()}>Εκτύπωση</Button>
         {selectedCount > 0 && <Button size="small" color="error" variant="contained" startIcon={<DeleteOutlineIcon />} onClick={() => requestDelete([...selectedIds])}>Διαγραφή ({selectedCount})</Button>}
@@ -375,7 +429,7 @@ export function CustomerVehiclesPage() {
         <TextField size="small" value={search} onChange={e => setSearch(e.target.value)} placeholder="Αναζήτηση πινακίδας, πελάτη, συμβολαίου ή ασφαλιστικής" InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }} sx={{ flex: 1, minWidth: { md: 260 } }} />
         <TextField select size="small" label="Κατάσταση" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} sx={{ minWidth: 150 }}><MenuItem value="">Όλες</MenuItem>{[...new Set(sourceRows.map(row => row.status))].filter(Boolean).map(value => <MenuItem key={value} value={value}>{vehicleStatusLabel(value)}</MenuItem>)}</TextField>
         <TextField select size="small" label="Ασφαλιστική" value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} sx={{ minWidth: 180 }}><MenuItem value="">Όλες</MenuItem>{companies.map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}</TextField>
-        <TextField select size="small" label="Λήξη" value={renewalFilter} onChange={e => setRenewalFilter(e.target.value)} sx={{ minWidth: 145 }}><MenuItem value="all">Όλες</MenuItem><MenuItem value="30">Σε 30 ημέρες</MenuItem><MenuItem value="90">Σε 90 ημέρες</MenuItem><MenuItem value="expired">Ληγμένα</MenuItem></TextField>
+        <TextField select size="small" label="Λήξη" value={renewalFilter} onChange={e => setRenewalFilter(e.target.value)} sx={{ minWidth: 145 }}><MenuItem value="all">Όλες</MenuItem><MenuItem value="30">Σε 30 ημέρες</MenuItem><MenuItem value="31-90">31–90 ημέρες</MenuItem><MenuItem value="90">Σε 90 ημέρες</MenuItem><MenuItem value="expired">Ληγμένα</MenuItem></TextField>
         <Button size="small" color="error" variant="contained" onClick={resetFilters}>Καθαρισμός</Button>
       </Stack>
     </Card>
@@ -429,7 +483,55 @@ export function CustomerVehiclesPage() {
       <TablePagination component="div" count={filteredRows.length} page={page} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage} onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50, 100]} labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />
     </Card>}
     <VehicleDetailDialog open={selectedVehicle !== null} plate={selectedVehicle?.plate ?? ""} initialEditing={selectedVehicle?.edit ?? false} policyIds={sourceRows.filter(row => (row.vehicleRegistrationPlate ?? "") === (selectedVehicle?.plate ?? "")).map(row => row.id)} onClose={() => setSelectedVehicle(null)} />
-    <Dialog open={statsOpen} onClose={() => setStatsOpen(false)} fullWidth maxWidth="md"><DialogTitle>Στατιστικά οχημάτων</DialogTitle><DialogContent dividers><Stack spacing={1.5}><Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 1 }}>{[["Συμβόλαια", filteredRows.length], ["Πινακίδες", uniquePlates], ["Λήξεις 30 ημερών", expiring], ["Ασφάλιστρα", money(totalPremium)]].map(([label, value]) => <Card key={String(label)} variant="outlined" sx={{ p: 1.25 }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={900}>{value}</Typography></Card>)}</Box><Typography variant="subtitle2" fontWeight={800}>Ανά ασφαλιστική</Typography><Table size="small"><TableHead><TableRow><TableCell>Ασφαλιστική</TableCell><TableCell align="right">Συμβόλαια</TableCell><TableCell align="right">Πινακίδες</TableCell></TableRow></TableHead><TableBody>{companyStats.map(([name, value]) => <TableRow key={name}><TableCell>{name}</TableCell><TableCell align="right">{value.contracts}</TableCell><TableCell align="right">{value.plates.size}</TableCell></TableRow>)}</TableBody></Table></Stack></DialogContent><DialogActions><Button startIcon={<DownloadIcon />} onClick={() => exportCsv()}>Εξαγωγή CSV</Button><Button onClick={() => window.print()}>Εκτύπωση</Button><Button variant="contained" onClick={() => setStatsOpen(false)}>Κλείσιμο</Button></DialogActions></Dialog>
+    <Dialog open={statsOpen} onClose={() => setStatsOpen(false)} fullWidth maxWidth="lg">
+      <DialogTitle sx={{ pb: 1 }}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between" alignItems={{ sm: "center" }}>
+          <Box><Typography variant="h6" fontWeight={900}>Στατιστικά οχημάτων</Typography><Typography variant="body2" color="text.secondary">Ζωντανή εικόνα των {filteredRows.length} εγγραφών που ταιριάζουν στα τρέχοντα φίλτρα.</Typography></Box>
+          {statsFocus && <Button size="small" color="error" onClick={() => { setStatsFocus(null); resetFilters(); }}>Καθαρισμός φίλτρου γραφήματος</Button>}
+        </Stack>
+      </DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={1.5}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 1 }}>{[["Συμβόλαια", filteredRows.length], ["Πινακίδες", uniquePlates], ["Λήξεις 30 ημερών", expiring], ["Ασφάλιστρα", money(totalPremium)]].map(([label, value]) => <Card key={String(label)} variant="outlined" sx={{ p: 1.25, bgcolor: "#f7f9fc" }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={900}>{value}</Typography></Card>)}</Box>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 1.5 }}>
+            <Card variant="outlined" sx={{ p: 1.25 }}>
+              <Typography variant="subtitle2" fontWeight={900}>Κατάσταση συμβολαίων</Typography>
+              <Typography variant="caption" color="text.secondary">Κάντε κλικ σε τμήμα για φιλτράρισμα της λίστας.</Typography>
+              <Box sx={{ height: 250, mt: 0.5 }}>
+                {statusStats.length === 0 ? <Typography color="text.secondary" sx={{ p: 2 }}>Δεν υπάρχουν δεδομένα.</Typography> : <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={statusStats} dataKey="value" nameKey="name" innerRadius={52} outerRadius={86} paddingAngle={2} label onClick={entry => { if (entry?.key != null) applyChartFilter("status", String(entry.key)); }}>{statusStats.map((entry, index) => <Cell key={entry.key} fill={chartColors[index % chartColors.length]} />)}</Pie><ChartTooltip /><Legend /></PieChart></ResponsiveContainer>}
+              </Box>
+            </Card>
+            <Card variant="outlined" sx={{ p: 1.25 }}>
+              <Typography variant="subtitle2" fontWeight={900}>Συμβόλαια ανά ασφαλιστική</Typography>
+              <Typography variant="caption" color="text.secondary">Κλικ σε μπάρα για εφαρμογή φίλτρου ασφαλιστικής.</Typography>
+              <Box sx={{ height: 250, mt: 0.5 }}>
+                {companyStats.length === 0 ? <Typography color="text.secondary" sx={{ p: 2 }}>Δεν υπάρχουν δεδομένα.</Typography> : <ResponsiveContainer width="100%" height="100%"><BarChart data={companyStats.map(([name, value]) => ({ name, contracts: value.contracts }))} margin={{ top: 8, right: 8, left: -12, bottom: 8 }} onClick={event => { const chartEvent = event as unknown as { activePayload?: Array<{ payload?: { name?: string } }> }; const name = chartEvent.activePayload?.[0]?.payload?.name; if (name) applyChartFilter("company", name); }}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-18} textAnchor="end" height={55} /><YAxis allowDecimals={false} /><ChartTooltip /><Bar dataKey="contracts" name="Συμβόλαια" fill="#0b5cad" radius={[5, 5, 0, 0]} /></BarChart></ResponsiveContainer>}
+              </Box>
+            </Card>
+            <Card variant="outlined" sx={{ p: 1.25 }}>
+              <Typography variant="subtitle2" fontWeight={900}>Λήξεις ανά χρονικό διάστημα</Typography>
+              <Typography variant="caption" color="text.secondary">Παρακολούθηση άμεσων ανανεώσεων και ληγμένων.</Typography>
+              <Box sx={{ height: 250, mt: 0.5 }}>
+                <ResponsiveContainer width="100%" height="100%"><BarChart data={expiryStats} margin={{ top: 8, right: 8, left: -12, bottom: 8 }} onClick={event => { const chartEvent = event as unknown as { activePayload?: Array<{ payload?: { filter?: string | null } }> }; const item = chartEvent.activePayload?.[0]?.payload; if (item?.filter) applyChartFilter("expiry", item.filter); }}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-14} textAnchor="end" height={52} /><YAxis allowDecimals={false} /><ChartTooltip /><Bar dataKey="value" name="Συμβόλαια" radius={[5, 5, 0, 0]}>{expiryStats.map((entry, index) => <Cell key={entry.name} fill={index === 0 ? "#c62828" : index === 1 ? "#ed6c02" : index === 2 ? "#f9a825" : "#2e7d32"} />)}</Bar></BarChart></ResponsiveContainer>
+              </Box>
+            </Card>
+            <Card variant="outlined" sx={{ p: 1.25 }}>
+              <Typography variant="subtitle2" fontWeight={900}>Μηνιαία εικόνα λήξεων και ασφαλίστρων</Typography>
+              <Typography variant="caption" color="text.secondary">Υπολογίζεται αυτόματα από τις ημερομηνίες λήξης.</Typography>
+              <Box sx={{ height: 250, mt: 0.5 }}>
+                {monthlyExpiryStats.length === 0 ? <Typography color="text.secondary" sx={{ p: 2 }}>Δεν υπάρχουν έγκυρες ημερομηνίες.</Typography> : <ResponsiveContainer width="100%" height="100%"><LineChart data={monthlyExpiryStats} margin={{ top: 8, right: 12, left: -12, bottom: 8 }}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" tick={{ fontSize: 11 }} /><YAxis yAxisId="left" allowDecimals={false} /><YAxis yAxisId="right" orientation="right" /><ChartTooltip formatter={(value, name) => [name === "premium" ? money(Number(value)) : value, name === "premium" ? "Ασφάλιστρα" : "Συμβόλαια"]} /><Legend formatter={name => name === "premium" ? "Ασφάλιστρα" : "Συμβόλαια"} /><Line yAxisId="left" type="monotone" dataKey="contracts" name="Συμβόλαια" stroke="#0b5cad" strokeWidth={3} dot /><Line yAxisId="right" type="monotone" dataKey="premium" name="premium" stroke="#2e7d32" strokeWidth={2} dot /></LineChart></ResponsiveContainer>}
+              </Box>
+            </Card>
+          </Box>
+          <Card variant="outlined" sx={{ p: 1.25 }}>
+            <Typography variant="subtitle2" fontWeight={900} sx={{ mb: 0.75 }}>Κλάδοι οχημάτων</Typography>
+            {typeStats.length === 0 ? <Typography color="text.secondary">Δεν υπάρχουν δεδομένα κλάδων.</Typography> : <Box sx={{ height: Math.max(180, Math.min(330, typeStats.length * 42)) }}><ResponsiveContainer width="100%" height="100%"><BarChart data={typeStats} layout="vertical" margin={{ top: 4, right: 16, left: 24, bottom: 4 }}><CartesianGrid strokeDasharray="3 3" /><XAxis type="number" allowDecimals={false} /><YAxis type="category" dataKey="name" width={95} tick={{ fontSize: 11 }} /><ChartTooltip formatter={(value, name) => [name === "premium" ? money(Number(value)) : value, name === "premium" ? "Ασφάλιστρα" : "Συμβόλαια"]} /><Legend formatter={name => name === "premium" ? "Ασφάλιστρα" : "Συμβόλαια"} /><Bar dataKey="contracts" name="Συμβόλαια" fill="#0b5cad" radius={[0, 5, 5, 0]} /><Bar dataKey="premium" name="premium" fill="#2e7d32" radius={[0, 5, 5, 0]} /></BarChart></ResponsiveContainer></Box>}
+          </Card>
+          <Typography variant="caption" color="text.secondary">Τα γραφήματα ανανεώνονται άμεσα όταν αλλάζετε αναζήτηση ή φίλτρα. Τα ποσά είναι τα ασφάλιστρα των συμβολαίων που εμφανίζονται.</Typography>
+        </Stack>
+      </DialogContent>
+      <DialogActions><Button startIcon={<DownloadIcon />} onClick={() => exportCsv()}>Εξαγωγή CSV</Button><Button onClick={() => window.print()}>Εκτύπωση</Button><Button variant="contained" color="error" sx={{ color: "#fff" }} onClick={() => setStatsOpen(false)}>Κλείσιμο</Button></DialogActions>
+    </Dialog>
     <Dialog open={deleteOpen} onClose={() => !clearVehicle.isPending && setDeleteOpen(false)} fullWidth maxWidth="xs"><DialogTitle>Επιβεβαίωση αφαίρεσης</DialogTitle><DialogContent><Typography variant="body2" sx={{ mb: 1 }}>Θα αφαιρεθεί η σύνδεση οχήματος από {deleteIds.length} συμβόλαιο/α. Δεν διαγράφεται το συμβόλαιο. Πληκτρολόγησε <strong>ΔΙΑΓΡΑΦΗ</strong> για επιβεβαίωση.</Typography><TextField autoFocus fullWidth label="Πληκτρολόγησε ΔΙΑΓΡΑΦΗ" value={deleteText} onChange={event => setDeleteText(event.target.value)} /></DialogContent><DialogActions><Button color="inherit" onClick={() => setDeleteOpen(false)} disabled={clearVehicle.isPending}>Ακύρωση</Button><Button color="error" variant="contained" onClick={() => clearVehicle.mutate(deleteIds)} disabled={deleteText.trim().toUpperCase() !== "ΔΙΑΓΡΑΦΗ" || clearVehicle.isPending}>{clearVehicle.isPending ? "Αφαιρείται..." : "Αφαίρεση"}</Button></DialogActions></Dialog>
   </Stack>;
 }
