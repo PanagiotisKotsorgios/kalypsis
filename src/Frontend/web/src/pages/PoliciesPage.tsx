@@ -26,6 +26,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Snackbar,
   TextField,
   Typography
 } from "@mui/material";
@@ -95,6 +96,11 @@ interface PolicyDto {
   currency: string;
   createdAt: string;
 }
+
+type PolicyConfirmationAction = {
+  kind: "delete" | "cancel" | "renew";
+  policy: PolicyDto;
+};
 
 // Kept for typing; the picker now uses useCustomerSearch's own CustomerLite.
 // @ts-expect-error kept for backwards-compat with older imports
@@ -202,6 +208,8 @@ export function PoliciesPage() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [renewing, setRenewing] = useState<PolicyDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<PolicyConfirmationAction | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
@@ -233,7 +241,10 @@ export function PoliciesPage() {
   const cancelMutation = useMutation({
     mutationFn: async (id: string) =>
       (await api.post<PolicyDto>(`/policies/${id}/cancel`, { reason: null })).data,
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["policies"] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["policies"] });
+      setSuccess("Το συμβόλαιο ακυρώθηκε επιτυχώς.");
+    },
     onError: (err) => setError(extractErrorMessage(err))
   });
 
@@ -272,6 +283,7 @@ export function PoliciesPage() {
       if (!res.deleted) { setBlockers(res.blockers); return; }
       setBlockers(null);
       void qc.invalidateQueries({ queryKey: ["policies"] });
+      setSuccess("Το συμβόλαιο διαγράφηκε επιτυχώς.");
       pushUndoable({
         category: "policies", id: res.id,
         message: "Το συμβόλαιο διαγράφηκε",
@@ -280,6 +292,15 @@ export function PoliciesPage() {
     },
     onError: (err) => setError(extractErrorMessage(err))
   });
+
+  const executePendingAction = () => {
+    const action = pendingAction;
+    if (!action) return;
+    setPendingAction(null);
+    if (action.kind === "delete") deleteMutation.mutate(action.policy.id);
+    else if (action.kind === "cancel") cancelMutation.mutate(action.policy.id);
+    else setRenewing(action.policy);
+  };
 
   const rawRows = policiesQuery.data ?? [];
   const documentPolicyId = searchParams.get("documentPolicyId");
@@ -424,7 +445,7 @@ export function PoliciesPage() {
     entityLabel: "συμβολαίου",
     onEdit: (p) => { window.location.href = `/app/policies/${p.id}`; },
     onDelete: (p) => {
-      if (canEdit && confirm(`Διαγραφή συμβολαίου ${p.policyNumber};`)) deleteMutation.mutate(p.id);
+      if (canEdit) setPendingAction({ kind: "delete", policy: p });
     },
   });
 
@@ -990,7 +1011,7 @@ export function PoliciesPage() {
                             </IconButton>
                             <IconButton
                               size="small"
-                              onClick={() => setRenewing(p)}
+                              onClick={() => setPendingAction({ kind: "renew", policy: p })}
                               title={t("policies.actions.renew")}
                               disabled={p.status === "Cancelled" || p.status === "Renewed" || p.status === "Prospect"}
                             >
@@ -998,7 +1019,7 @@ export function PoliciesPage() {
                             </IconButton>
                             <IconButton
                               size="small"
-                              onClick={() => { if (confirm(t("policies.confirmCancel"))) cancelMutation.mutate(p.id); }}
+                              onClick={() => setPendingAction({ kind: "cancel", policy: p })}
                               title={t("policies.actions.cancel")}
                               disabled={p.status === "Cancelled" || p.status === "Prospect"}
                               color="error"
@@ -1007,7 +1028,7 @@ export function PoliciesPage() {
                             </IconButton>
                             <IconButton
                               size="small"
-                              onClick={() => deleteMutation.mutate(p.id)}
+                              onClick={() => setPendingAction({ kind: "delete", policy: p })}
                               title="Διαγραφή"
                               color="error">
                               <DeleteIcon fontSize="small" />
@@ -1074,7 +1095,11 @@ export function PoliciesPage() {
           <RenewDialog
             policy={renewing}
             onClose={() => setRenewing(null)}
-            onSaved={() => { void qc.invalidateQueries({ queryKey: ["policies"] }); setRenewing(null); }}
+            onSaved={() => {
+              void qc.invalidateQueries({ queryKey: ["policies"] });
+              setRenewing(null);
+              setSuccess("Η ανανέωση του συμβολαίου ολοκληρώθηκε επιτυχώς.");
+            }}
           />
           <BulkEditDialog
             open={bulkOpen}
@@ -1107,6 +1132,37 @@ export function PoliciesPage() {
           <Button onClick={() => setBlockers(null)} variant="contained">Κατάλαβα</Button>
         </DialogActions>
       </Dialog>
+      <Dialog open={!!pendingAction} onClose={() => setPendingAction(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>
+          {pendingAction?.kind === "delete" ? "Διαγραφή συμβολαίου" : pendingAction?.kind === "cancel" ? "Ακύρωση συμβολαίου" : "Ανανέωση συμβολαίου"}
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Είστε σίγουρος ότι θέλετε να {pendingAction?.kind === "delete" ? "διαγράψετε" : pendingAction?.kind === "cancel" ? "ακυρώσετε" : "ξεκινήσετε την ανανέωση του"} το συμβόλαιο <strong>{pendingAction?.policy.policyNumber ?? "—"}</strong>;
+          </Typography>
+          {pendingAction?.kind === "delete" && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              Η διαγραφή μπορεί να αποκλειστεί αν υπάρχουν συνδεδεμένες οικονομικές ή άλλες εγγραφές.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPendingAction(null)}>Ακύρωση</Button>
+          <Button
+            variant="contained"
+            color={pendingAction?.kind === "renew" ? "success" : "error"}
+            onClick={executePendingAction}
+            startIcon={pendingAction?.kind === "delete" ? <DeleteIcon /> : pendingAction?.kind === "cancel" ? <CancelIcon /> : <AutorenewIcon />}
+          >
+            Είμαι σίγουρος
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Snackbar open={!!success} autoHideDuration={4500} onClose={() => setSuccess(null)} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        <Alert severity="success" variant="filled" onClose={() => setSuccess(null)} sx={{ color: "#fff", fontWeight: 800 }}>
+          {success}
+        </Alert>
+      </Snackbar>
         </>
       )}
       {headerMenu.menu}

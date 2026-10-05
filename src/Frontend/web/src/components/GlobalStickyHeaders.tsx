@@ -19,11 +19,12 @@ export function GlobalStickyHeaders() {
         position: "sticky",
         top: 0,
         zIndex: 3,
-        backgroundColor: "#ffffff",
+        backgroundColor: "#e3e7eb !important",
       },
       "body:not([data-prelogin]) .MuiTableHead-root .MuiTableCell-root": {
-        backgroundColor: "#ffffff",
-        borderBottom: "2px solid rgba(11,37,69,0.1)",
+        backgroundColor: "#e3e7eb !important",
+        color: "#263238",
+        borderBottom: "2px solid #c1c9d0",
         fontWeight: 700,
       },
     }} />
