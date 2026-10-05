@@ -147,7 +147,8 @@ public class ListPoliciesQueryHandler : IRequestHandler<ListPoliciesQuery, IRead
             p.PreviousInsuranceCompany?.Name,
             p.IssuedAt,
             p.VehicleRegistrationPlate,
-            p.PaidDirectlyToCarrier);
+            p.PaidDirectlyToCarrier,
+            p.DeliveredAt.HasValue);
     }
 }
 
@@ -302,7 +303,15 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
             IssuedAt = r.IssuedAt,
             VehicleRegistrationPlate = string.IsNullOrWhiteSpace(r.VehicleRegistrationPlate)
                 ? null : r.VehicleRegistrationPlate.Trim().ToUpperInvariant(),
-            PaidDirectlyToCarrier = r.PaidDirectlyToCarrier
+            PaidDirectlyToCarrier = r.PaidDirectlyToCarrier,
+            // New contracts are delivered immediately by default. Keep the
+            // explicit flag in the API so the create form can opt out and
+            // leave the item in the delivery queue.
+            DeliveredAt = r.Delivered ? DateOnly.FromDateTime(DateTime.UtcNow) : null,
+            DeliveredTo = r.Delivered
+                ? (customer.CompanyName ?? $"{customer.FirstName} {customer.LastName}").Trim()
+                : null,
+            DeliveryMethod = r.Delivered ? "Email" : null
         };
         _db.Policies.Add(p);
 
@@ -448,6 +457,23 @@ public class UpdatePolicyCommandHandler : IRequestHandler<UpdatePolicyCommand, P
         p.VehicleRegistrationPlate = string.IsNullOrWhiteSpace(b.VehicleRegistrationPlate)
             ? null : b.VehicleRegistrationPlate.Trim().ToUpperInvariant();
         p.PaidDirectlyToCarrier = b.PaidDirectlyToCarrier;
+        // Delivery is optional on updates so older edit payloads preserve the
+        // current state. When the checkbox is explicitly changed, keep the
+        // date/method fields consistent with it.
+        if (b.Delivered.HasValue)
+        {
+            if (b.Delivered.Value)
+            {
+                p.DeliveredAt ??= DateOnly.FromDateTime(DateTime.UtcNow);
+                p.DeliveryMethod ??= "Email";
+            }
+            else
+            {
+                p.DeliveredAt = null;
+                p.DeliveredTo = null;
+                p.DeliveryMethod = null;
+            }
+        }
 
         // Cover-driven premium sync — if the policy has PolicyCover rows on
         // file, its Premium column becomes read-only and always equals the
@@ -580,6 +606,7 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
     {
         var tenantId = _current.TenantId ?? throw AppException.Forbidden();
         var src = await _db.Policies
+            .Include(x => x.Customer)
             .FirstOrDefaultAsync(x => x.Id == request.Id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Συμβόλαιο");
 
@@ -606,6 +633,9 @@ public class RenewPolicyCommandHandler : IRequestHandler<RenewPolicyCommand, Pol
             Currency = src.Currency,
             CreatedByUserId = _current.UserId,
             RenewedFromPolicyId = src.Id,
+            DeliveredAt = DateOnly.FromDateTime(DateTime.UtcNow),
+            DeliveredTo = src.Customer?.CompanyName ?? null,
+            DeliveryMethod = "Email",
             VehicleUseCategory = VehicleUseCategorySplit.Parse(b.VehicleUseCategory).Enum ?? src.VehicleUseCategory,
             CarrierUseCode = VehicleUseCategorySplit.Parse(b.VehicleUseCategory).Raw ?? src.CarrierUseCode,
             ApplicationNumber = b.ApplicationNumber ?? src.ApplicationNumber,

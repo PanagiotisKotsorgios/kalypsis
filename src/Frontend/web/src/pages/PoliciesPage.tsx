@@ -86,6 +86,7 @@ interface PolicyDto {
   policyType: PolicyType;
   status: PolicyStatus;
   paidDirectlyToCarrier: boolean;
+  deliveredAt: string | null;
   startDate: string;
   endDate: string;
   premium: number;
@@ -870,6 +871,7 @@ export function PoliciesPage() {
         policyId={detailId}
         open={!!detailId}
         onClose={() => setDetailId(null)}
+        presentation="modal"
         readOnly={isProducer}
       />
 
@@ -960,6 +962,7 @@ interface FormBody {
   currency: string;
   status: PolicyStatus;
   paidDirectlyToCarrier: boolean;
+  delivered: boolean;
 }
 
 function PolicyFormDialog({
@@ -1019,7 +1022,8 @@ function PolicyFormDialog({
     insuranceTaxAmount: "",
     currency: "EUR",
     status: "Active",
-    paidDirectlyToCarrier: false
+    paidDirectlyToCarrier: false,
+    delivered: true
   });
   const [error, setError] = useState<string | null>(null);
   const dialogCatalogue = useCarrierCatalogue(form.insuranceCompanyId);
@@ -1049,7 +1053,8 @@ function PolicyFormDialog({
         insuranceTaxAmount: "",
         currency: policy.currency,
         status: policy.status,
-        paidDirectlyToCarrier: policy.paidDirectlyToCarrier ?? false
+        paidDirectlyToCarrier: policy.paidDirectlyToCarrier ?? false,
+        delivered: !!policy.deliveredAt
       });
     } else if (open) {
       setForm({
@@ -1069,7 +1074,8 @@ function PolicyFormDialog({
         insuranceTaxAmount: "",
         currency: "EUR",
         status: initialStatus,
-        paidDirectlyToCarrier: false
+        paidDirectlyToCarrier: false,
+        delivered: true
       });
     }
   }, [policy, open, initialStatus]);
@@ -1101,6 +1107,7 @@ function PolicyFormDialog({
         currency: form.currency,
         status: form.status,
         paidDirectlyToCarrier: form.paidDirectlyToCarrier,
+        delivered: form.delivered,
       };
       if (editing && policy) {
         return (await api.put<PolicyDto>(`/policies/${policy.id}`, body)).data;
@@ -1340,6 +1347,11 @@ function PolicyFormDialog({
             control={<Checkbox checked={form.paidDirectlyToCarrier}
               onChange={e => setForm({ ...form, paidDirectlyToCarrier: e.target.checked })} />}
             label="Ο πελάτης πλήρωσε απευθείας στην ασφαλιστική"
+          />
+          <FormControlLabel
+            control={<Checkbox checked={form.delivered}
+              onChange={e => setForm({ ...form, delivered: e.target.checked })} />}
+            label="Παραδόθηκε"
           />
           <Typography variant="caption" color="text.secondary" sx={{ mt: -1.5 }}>
             Δεν δημιουργείται είσπραξη στο ταμείο του γραφείου και η οφειλή προς την ασφαλιστική εξαιρείται από τις εκκρεμείς πληρωμές.

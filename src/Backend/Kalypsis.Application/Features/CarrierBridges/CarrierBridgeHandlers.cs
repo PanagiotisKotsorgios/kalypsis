@@ -3732,6 +3732,11 @@ public class CommitBridgeImportHandler : IRequestHandler<CommitBridgeImportComma
                     CarrierPackageCode  = carrierPackageCode,
                     CarrierCoverageCode = carrierCoverageCode,
                     RenewedFromPolicyId = row.LinkedPolicyId,
+                    DeliveredAt = policyStatus == PolicyStatus.Cancelled ? null : DateOnly.FromDateTime(DateTime.UtcNow),
+                    DeliveredTo = policyStatus == PolicyStatus.Cancelled
+                        ? null
+                        : (customerEntity.CompanyName ?? $"{customerEntity.FirstName} {customerEntity.LastName}").Trim(),
+                    DeliveryMethod = policyStatus == PolicyStatus.Cancelled ? null : "Email",
                     SpecsJson = !string.IsNullOrEmpty(row.PlateNumber) || !string.IsNullOrEmpty(row.ProposalNumber)
                         ? System.Text.Json.JsonSerializer.Serialize(new {
                             plate = row.PlateNumber,

@@ -26,7 +26,11 @@ public record PolicyDto(
     string? PreviousInsuranceCompanyName = null,
     DateOnly? IssuedAt = null,
     string? VehicleRegistrationPlate = null,
-    bool PaidDirectlyToCarrier = false);
+    bool PaidDirectlyToCarrier = false,
+    // A manually created contract is considered delivered by default. The
+    // form exposes this as the "Παραδόθηκε" checkbox so an operator can
+    // explicitly clear it when the document is still pending.
+    bool Delivered = true);
 
 public record CreatePolicyBody(
     Guid CustomerId,
@@ -56,7 +60,8 @@ public record CreatePolicyBody(
     Guid? PreviousInsuranceCompanyId = null,
     DateOnly? IssuedAt = null,
     string? VehicleRegistrationPlate = null,
-    bool PaidDirectlyToCarrier = false);
+    bool PaidDirectlyToCarrier = false,
+    bool Delivered = true);
 
 public record UpdatePolicyBody(
     Guid InsuranceCompanyId,
@@ -79,7 +84,8 @@ public record UpdatePolicyBody(
     Guid? PreviousInsuranceCompanyId = null,
     DateOnly? IssuedAt = null,
     string? VehicleRegistrationPlate = null,
-    bool PaidDirectlyToCarrier = false);
+    bool PaidDirectlyToCarrier = false,
+    bool? Delivered = null);
 
 public record RenewPolicyBody(
     DateOnly StartDate,
