@@ -15,6 +15,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { OverCommissionGridEditor } from "../components/OverCommissionGridEditor";
+import { exportActionSx, printActionSx } from "../components/actionButtonStyles";
 
 /**
  * Οικονομικά → Υπερπρομήθειες (per-producer per-month actuals).
@@ -362,9 +363,9 @@ export function OverCommissionStatementsPage() {
             Στήλες εκτύπωσης ({selectedPrintCols.size}/{PRINT_COLS.length})
           </Button>
         </Tooltip>
-        <Button size="small" variant="outlined" onClick={() => exportRows("csv")}>Εξαγωγή CSV</Button>
-        <Button size="small" variant="outlined" onClick={() => exportRows("xlsx")}>Εξαγωγή XLSX</Button>
-        <Button size="small" variant="outlined" onClick={() => exportRows("print")}>🖨 Εκτύπωση</Button>
+        <Button size="small" variant="outlined" sx={exportActionSx} onClick={() => exportRows("csv")}>Εξαγωγή CSV</Button>
+        <Button size="small" variant="outlined" sx={exportActionSx} onClick={() => exportRows("xlsx")}>Εξαγωγή XLSX</Button>
+        <Button size="small" variant="outlined" sx={printActionSx} onClick={() => exportRows("print")}>🖨 Εκτύπωση</Button>
       </Stack>
 
       <Dialog open={printColsOpen} onClose={() => setPrintColsOpen(false)} maxWidth="xs" fullWidth>

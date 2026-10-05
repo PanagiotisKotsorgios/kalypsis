@@ -10,6 +10,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import LinkIcon from "@mui/icons-material/Link";
 import PrintIcon from "@mui/icons-material/Print";
 import DownloadIcon from "@mui/icons-material/Download";
+import { exportActionSx, printActionSx } from "../components/actionButtonStyles";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { SearchableSelect } from "../components/SearchableSelect";
@@ -111,7 +112,7 @@ export function BridgeCodeMappingsPage() {
           </Typography>
         </Box>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" startIcon={<DownloadIcon />} disabled={!(mappings.data?.length)}
+          <Button variant="outlined" startIcon={<DownloadIcon />} sx={exportActionSx} disabled={!(mappings.data?.length)}
             onClick={() => exportRowsCsv<Mapping>({
               fileName: "bridge-code-mappings",
               columns: [
@@ -132,7 +133,7 @@ export function BridgeCodeMappingsPage() {
             })}>
             Εξαγωγή CSV
           </Button>
-          <Button variant="outlined" startIcon={<PrintIcon />} disabled={!(mappings.data?.length)}
+          <Button variant="outlined" startIcon={<PrintIcon />} sx={printActionSx} disabled={!(mappings.data?.length)}
             onClick={() => printTable<Mapping>({
               title: "Αντιστοιχίσεις γεφυρών",
               subtitle: [

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Grid, Stack, Typography } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
+import { exportActionSx } from "../components/actionButtonStyles";
 import InsightsIcon from "@mui/icons-material/Insights";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
@@ -41,7 +42,7 @@ export function OfficeWebsiteAnalyticsPage() {
   return <Box>
     <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", md: "center" }} gap={2} mb={3}>
       <Stack direction="row" spacing={1.5} alignItems="center"><InsightsIcon color="primary" sx={{ fontSize: 38 }} /><Box><Typography variant="h4" sx={{ fontWeight: 800 }}>Επισκεψιμότητα & στατιστικά</Typography><Typography color="text.secondary">Κατανοήστε τι λειτουργεί στην ιστοσελίδα σας και ποια ενδιαφέροντα μετατρέπονται σε αιτήματα.</Typography></Box></Stack>
-      <Button variant="outlined" startIcon={<DownloadIcon />} onClick={() => void download()}>Εξαγωγή CSV</Button>
+      <Button variant="outlined" startIcon={<DownloadIcon />} sx={exportActionSx} onClick={() => void download()}>Εξαγωγή CSV</Button>
     </Stack>
     <Card variant="outlined" sx={{ mb: 2.5 }}><CardContent><Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ xs: "stretch", md: "center" }} justifyContent="space-between"><Stack direction="row" spacing={1} alignItems="center"><Typography fontWeight={700}>Περίοδος</Typography><Button size="small" onClick={() => setPeriod(7)}>7 ημέρες</Button><Button size="small" onClick={() => setPeriod(30)}>30 ημέρες</Button><Button size="small" onClick={() => setPeriod(90)}>90 ημέρες</Button></Stack><Stack direction="row" spacing={1}><input aria-label="Από" type="date" value={from} onChange={e => setFrom(e.target.value)} /><input aria-label="Έως" type="date" value={to} onChange={e => setTo(e.target.value)} /></Stack></Stack></CardContent></Card>
     <Alert severity="info" sx={{ mb: 2.5 }}>Τα analytics είναι first-party και ανώνυμα: δεν αποθηκεύεται IP ή όνομα επισκέπτη. Οι μετρήσεις ενεργοποιούνται μόνο για τη δημοσιευμένη ιστοσελίδα.</Alert>

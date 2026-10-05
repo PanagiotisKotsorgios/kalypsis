@@ -28,6 +28,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import CategoryIcon from "@mui/icons-material/Category";
 import PrintIcon from "@mui/icons-material/Print";
 import DownloadIcon from "@mui/icons-material/Download";
+import { exportActionSx, printActionSx } from "../components/actionButtonStyles";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { SearchableTextField } from "../components/SearchableTextField";
@@ -135,7 +136,7 @@ export function RecycleBinPage() {
             label={`${totalCount.toLocaleString("el-GR")} διαγραμμένες εγγραφές`}
             sx={{ fontWeight: 800, bgcolor: "rgba(11,37,69,0.06)" }}
           />
-          <Button variant="outlined" size="small" startIcon={<DownloadIcon />} disabled={!data?.items?.length}
+          <Button variant="outlined" size="small" startIcon={<DownloadIcon />} sx={exportActionSx} disabled={!data?.items?.length}
             onClick={() => exportRowsCsv<RecycleItemDto>({
               fileName: "recycle-bin",
               columns: [
@@ -150,7 +151,7 @@ export function RecycleBinPage() {
             })}>
             Εξαγωγή CSV
           </Button>
-          <Button variant="outlined" size="small" startIcon={<PrintIcon />} disabled={!data?.items?.length}
+          <Button variant="outlined" size="small" startIcon={<PrintIcon />} sx={printActionSx} disabled={!data?.items?.length}
             onClick={() => printTable<RecycleItemDto>({
               title: "Κάδος ανακύκλωσης",
               subtitle: [

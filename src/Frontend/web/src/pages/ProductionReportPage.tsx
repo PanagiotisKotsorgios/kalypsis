@@ -5,6 +5,7 @@ import {
   TextField, Typography, FormControlLabel
 } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
+import { exportActionSx } from "../components/actionButtonStyles";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
@@ -185,7 +186,7 @@ export function ProductionReportPage() {
               setCarrierId(""); setProducerId(""); setPolicyType("");
               setGroupBy("month"); setIncludeCancelled(false);
             }} color="error" variant="contained">Καθαρισμός</Button>
-            <Button size="small" variant="contained" startIcon={<DownloadIcon />}
+            <Button size="small" variant="contained" startIcon={<DownloadIcon />} sx={exportActionSx}
               disabled={!rows.length} onClick={downloadCsv}>Εξαγωγή CSV</Button>
           </Stack>
         </Stack>

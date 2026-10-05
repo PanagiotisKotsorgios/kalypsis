@@ -19,6 +19,7 @@ import PrintIcon from "@mui/icons-material/Print";
 import { useTranslation } from "react-i18next";
 import { api, API_BASE_URL } from "../api/client";
 import { printTable, type PrintColumn } from "../utils/printableTable";
+import { exportActionSx } from "./actionButtonStyles";
 
 type ExportFormat = "xlsx" | "csv" | "pdf";
 type AnyAction = ExportFormat | "print";
@@ -151,7 +152,7 @@ export function DataExportButton<T = unknown>({
             startIcon={busy === defaultFormat ? <CircularProgress size={14} /> : <DownloadIcon />}
             disabled={busy !== null}
             onClick={() => void download(defaultFormat)}
-            sx={{ fontWeight: 700 }}
+            sx={exportActionSx}
           >
             {label}
           </Button>
@@ -161,7 +162,7 @@ export function DataExportButton<T = unknown>({
           disabled={busy !== null}
           onClick={() => setOpen(true)}
           aria-label="Επιλογή μορφής εξαγωγής"
-          sx={{ minWidth: 0, px: 0.5 }}
+          sx={{ minWidth: 0, px: 0.5, ...exportActionSx }}
         >
           <ArrowDropDownIcon />
         </Button>

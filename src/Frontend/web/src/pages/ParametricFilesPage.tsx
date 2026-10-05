@@ -10,6 +10,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import PrintIcon from "@mui/icons-material/Print";
 import DownloadIcon from "@mui/icons-material/Download";
+import { exportActionSx, printActionSx } from "../components/actionButtonStyles";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
@@ -78,7 +79,7 @@ export function ParametricFilesPage() {
           </Box>
         </Stack>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" startIcon={<DownloadIcon />} disabled={!q.data?.length}
+          <Button variant="outlined" startIcon={<DownloadIcon />} sx={exportActionSx} disabled={!q.data?.length}
             onClick={() => exportRowsCsv<CatalogEntry>({
               fileName: "parametric-files",
               columns: [
@@ -98,7 +99,7 @@ export function ParametricFilesPage() {
             })}>
             Εξαγωγή CSV
           </Button>
-          <Button variant="outlined" startIcon={<PrintIcon />} disabled={!q.data?.length}
+          <Button variant="outlined" startIcon={<PrintIcon />} sx={printActionSx} disabled={!q.data?.length}
             onClick={() => printTable<CatalogEntry>({
               title: "Παραμετρικά Αρχεία Ασφαλιστικών",
               subtitle: `Καταχωρήσεις: ${q.data?.length ?? 0}`,

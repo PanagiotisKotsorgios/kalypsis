@@ -9,6 +9,7 @@ import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { exportActionSx } from "../components/actionButtonStyles";
 
 interface StatementLine {
   policyId: string;
@@ -125,7 +126,7 @@ export function ProducerStatementPage() {
           <Button size="small" onClick={() => {
             setFrom(`${y}-01-01`); setTo(`${y}-12-31`); setProducerId(""); setSearch("");
           }} color="error" variant="contained">Καθαρισμός φίλτρων</Button>
-          <Button size="small" variant="contained" startIcon={<DownloadIcon />}
+          <Button size="small" variant="contained" startIcon={<DownloadIcon />} sx={exportActionSx}
             disabled={!producerId || !data?.lines.length} onClick={downloadCsv}>Εξαγωγή CSV</Button>
         </Stack>
       </Card>

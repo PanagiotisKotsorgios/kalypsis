@@ -26,6 +26,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { dateTime } from "../utils/format";
 import { HelpHint } from "../components/HelpHint";
+import { printActionSx } from "../components/actionButtonStyles";
 
 interface InstructionsDto {
   id: string;
@@ -150,7 +151,7 @@ function ReaderPanel({ data }: { data: InstructionsDto | null }) {
             <Chip size="small" variant="outlined" color="default" label={dateTime(data.updatedAt)} />
             <Box sx={{ flex: 1 }} />
             <Tooltip title={t("agencyInstructions.print", "Εκτύπωση / PDF")}>
-              <Button size="small" variant="outlined" startIcon={<PrintIcon />} onClick={openPrint}>
+              <Button size="small" variant="outlined" startIcon={<PrintIcon />} sx={printActionSx} onClick={openPrint}>
                 {t("agencyInstructions.print", "Εκτύπωση / PDF")}
               </Button>
             </Tooltip>

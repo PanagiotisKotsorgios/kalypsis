@@ -1,6 +1,7 @@
 import { Button, Tooltip } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import { useTranslation } from "react-i18next";
+import { exportActionSx } from "./actionButtonStyles";
 
 /**
  * Renders a "Λήψη Excel" anchor that hits a CSV endpoint. The backend returns
@@ -16,6 +17,7 @@ export function ExportButton({ href, label }: { href: string; label?: string }) 
         startIcon={<DownloadIcon />}
         variant="outlined"
         size="small"
+        sx={exportActionSx}
       >
         {label ?? t("common.exportToExcel")}
       </Button>

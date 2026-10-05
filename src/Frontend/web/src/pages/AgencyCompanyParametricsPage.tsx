@@ -10,6 +10,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import PrintIcon from "@mui/icons-material/Print";
 import DownloadIcon from "@mui/icons-material/Download";
+import { exportActionSx, printActionSx } from "../components/actionButtonStyles";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { InlineCreateInsuranceCompanyDialog } from "../components/InlineCreateInsuranceCompanyDialog";
@@ -140,7 +141,7 @@ export function AgencyCompanyParametricsPage() {
           </Typography>
         </Box>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" size="small" startIcon={<DownloadIcon />}
+          <Button variant="outlined" size="small" startIcon={<DownloadIcon />} sx={exportActionSx}
             disabled={!selectedCarrierId || filteredParams.length === 0}
             onClick={() => exportRowsCsv<ParameterDto>({
               fileName: `parametrics-${selectedCarrier?.code ?? "carrier"}-${tab}`,
@@ -160,7 +161,7 @@ export function AgencyCompanyParametricsPage() {
             })}>
             Εξαγωγή CSV
           </Button>
-          <Button variant="outlined" size="small" startIcon={<PrintIcon />}
+          <Button variant="outlined" size="small" startIcon={<PrintIcon />} sx={printActionSx}
             disabled={!selectedCarrierId || filteredParams.length === 0}
             onClick={() => printTable<ParameterDto>({
               title: `Παραμετρικά · ${selectedCarrier?.name ?? ""} · ${KIND_LABEL[tab]}`,

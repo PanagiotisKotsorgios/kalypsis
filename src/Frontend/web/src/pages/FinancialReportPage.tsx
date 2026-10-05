@@ -4,6 +4,7 @@ import {
   TableCell, TableFooter, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
+import { exportActionSx } from "../components/actionButtonStyles";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import {
   Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis
@@ -86,7 +87,7 @@ export function FinancialReportPage() {
         </Box>
         <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 1 }}>
           <Button size="small" onClick={() => { setFrom(`${y}-01-01`); setTo(`${y}-12-31`); }} color="error" variant="contained">Καθαρισμός</Button>
-          <Button size="small" variant="contained" startIcon={<DownloadIcon />}
+          <Button size="small" variant="contained" startIcon={<DownloadIcon />} sx={exportActionSx}
             disabled={!months.length} onClick={downloadCsv}>Εξαγωγή CSV</Button>
         </Stack>
       </Card>

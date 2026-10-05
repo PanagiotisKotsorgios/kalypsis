@@ -33,6 +33,7 @@ import GroupIcon from "@mui/icons-material/Group";
 import HistoryIcon from "@mui/icons-material/History";
 import PrintIcon from "@mui/icons-material/Print";
 import DownloadIcon from "@mui/icons-material/Download";
+import { exportActionSx, printActionSx } from "../components/actionButtonStyles";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -160,7 +161,7 @@ export function AuditLogsPage() {
           <HelpHint id="page.audit" />
         </Stack>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" size="small" startIcon={<DownloadIcon />} disabled={!items.length}
+          <Button variant="outlined" size="small" startIcon={<DownloadIcon />} sx={exportActionSx} disabled={!items.length}
             onClick={() => exportRowsCsv<AuditLog>({
               fileName: "audit-logs",
               columns: [
@@ -177,7 +178,7 @@ export function AuditLogsPage() {
             })}>
             Εξαγωγή CSV
           </Button>
-          <Button variant="outlined" size="small" startIcon={<PrintIcon />} disabled={!items.length}
+          <Button variant="outlined" size="small" startIcon={<PrintIcon />} sx={printActionSx} disabled={!items.length}
             onClick={() => printTable<AuditLog>({
               title: "Ιστορικό ενεργειών προσωπικού",
               subtitle: [

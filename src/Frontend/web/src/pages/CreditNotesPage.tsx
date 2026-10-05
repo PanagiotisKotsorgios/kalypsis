@@ -13,6 +13,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { HelpHint } from "../components/HelpHint";
 import { money, date } from "../utils/format";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { exportActionSx, printActionSx } from "../components/actionButtonStyles";
 import { printTable } from "../utils/printableTable";
 import { exportRowsCsv } from "../utils/exportCsv";
 
@@ -82,7 +83,7 @@ export function CreditNotesPage() {
           </Box>
         </Stack>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" startIcon={<DownloadIcon />} onClick={() => exportRowsCsv({
+          <Button variant="outlined" startIcon={<DownloadIcon />} sx={exportActionSx} onClick={() => exportRowsCsv({
             fileName: "credit-notes",
             columns: [
               { key: "creditNoteNumber", label: "Αρ. πιστωτικού" },
@@ -96,7 +97,7 @@ export function CreditNotesPage() {
             ],
             rows: filtered,
           })}>Εξαγωγή CSV</Button>
-          <Button variant="outlined" startIcon={<PrintIcon />} onClick={() => printTable<CreditNoteDto>({
+          <Button variant="outlined" startIcon={<PrintIcon />} sx={printActionSx} onClick={() => printTable<CreditNoteDto>({
             title: "Πιστωτικά Σημειώματα",
             subtitle: [
               search && `Αναζήτηση: ${search}`,

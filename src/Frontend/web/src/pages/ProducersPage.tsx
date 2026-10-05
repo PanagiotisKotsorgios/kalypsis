@@ -10,6 +10,8 @@ import {
 import { InputAdornment, Fade, Slide, Divider, alpha } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
+import TuneIcon from "@mui/icons-material/Tune";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VpnKeyIcon from "@mui/icons-material/VpnKey";
 import SettingsSuggestIcon from "@mui/icons-material/SettingsSuggest";
@@ -141,6 +143,8 @@ export function ProducersPage() {
   const [tierFilter, setTierFilter] = useState<ProducerTier | "">("");
   const [hasPoliciesOnly, setHasPoliciesOnly] = useState(false);
   const [hierarchyFilter, setHierarchyFilter] = useState<HierarchyLevel | "">("");
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+  const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
   const rawProducers = q.data ?? [];
   const allRows = rawProducers.filter(p => {
     if (statusFilter && p.status !== statusFilter) return false;
@@ -155,6 +159,29 @@ export function ProducersPage() {
     pageSize: 25
   });
   const rows = table.paged;
+
+  const clearProducerFilters = () => {
+    setStatusFilter("");
+    setTierFilter("");
+    setHasPoliciesOnly(false);
+    setHierarchyFilter("");
+    table.setQuery("");
+    table.setPage(1);
+  };
+  const producerFilterCount = [statusFilter, tierFilter, hasPoliciesOnly ? "policies" : "", hierarchyFilter, table.query].filter(Boolean).length;
+  const producerQuickFilters = (
+    <QuickFilterBar
+      activeCount={producerFilterCount}
+      onClear={clearProducerFilters}
+      options={[
+        { key: "all", label: "Όλοι", active: producerFilterCount === 0, onClick: clearProducerFilters },
+        { key: "active", label: "Ενεργοί", active: statusFilter === "Active", color: "success", onClick: () => { setStatusFilter("Active"); setQuickFiltersOpen(false); } },
+        { key: "prospects", label: "Πιθανοί", active: statusFilter === "Prospect", color: "warning", onClick: () => { setStatusFilter("Prospect"); setQuickFiltersOpen(false); } },
+        { key: "withPolicies", label: "Με συμβόλαια", active: hasPoliciesOnly, onClick: () => { setHasPoliciesOnly(true); setQuickFiltersOpen(false); } },
+        { key: "managers", label: "Υπεύθυνοι ομάδας", active: hierarchyFilter === "Manager", onClick: () => { setHierarchyFilter("Manager"); setQuickFiltersOpen(false); } },
+      ]}
+    />
+  );
 
   const importProducers = async (importRows: Record<string, string>[]): Promise<BulkImportResult> => {
     let imported = 0;
@@ -242,6 +269,69 @@ export function ProducersPage() {
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
 
+      <>
+        <Card variant="outlined" sx={{ p: 1, mb: 2 }}>
+          <Box sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(4, minmax(0, 1fr))",
+              md: "minmax(220px, 1.4fr) auto auto",
+              lg: "minmax(240px, 1.4fr) auto auto",
+            },
+            gap: 0.75,
+            alignItems: "center",
+          }}>
+            <TextField
+              size="small"
+              fullWidth
+              label="Αναζήτηση συνεργάτη"
+              placeholder="Κωδικός, όνομα, email ή τηλέφωνο…"
+              value={table.query}
+              onChange={(e) => table.setQuery(e.target.value)}
+              sx={{ minWidth: 0, gridColumn: { xs: "auto", sm: "span 2", md: "auto", lg: "auto" } }}
+              InputProps={{ endAdornment: <FilterHelp title="Αναζήτηση σε κωδικό, όνομα, email ή τηλέφωνο συνεργάτη." /> }}
+            />
+            <Button size="small" variant={producerFilterCount > 0 ? "contained" : "outlined"} startIcon={<TuneIcon />} onClick={() => setAdvancedFiltersOpen(true)} sx={{ whiteSpace: "nowrap", bgcolor: "#e3f2fd", color: "#1565c0", borderColor: "#90caf9", "&:hover": { bgcolor: "#bbdefb", borderColor: "#64b5f6", color: "#0d47a1" } }}>
+              Σύνθετα φίλτρα{producerFilterCount > 0 ? ` (${producerFilterCount})` : ""}
+            </Button>
+            <Button size="small" variant="outlined" startIcon={<FilterAltIcon />} onClick={() => setQuickFiltersOpen(true)} sx={{ whiteSpace: "nowrap", bgcolor: "#e3f2fd", color: "#1565c0", borderColor: "#90caf9", "&:hover": { bgcolor: "#bbdefb", borderColor: "#64b5f6", color: "#0d47a1" } }}>
+              Γρήγορα φίλτρα
+            </Button>
+          </Box>
+        </Card>
+        <Dialog open={advancedFiltersOpen} onClose={() => setAdvancedFiltersOpen(false)} fullWidth maxWidth="sm">
+          <DialogTitle>Σύνθετα φίλτρα συνεργατών</DialogTitle>
+          <DialogContent dividers>
+            <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, pt: .5 }}>
+              <SearchableTextField size="small" label={t("producers.col.status")} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ProducerStatus | "")}>
+                <MenuItem value="">Όλες</MenuItem>
+                {(["Prospect", "Active", "Suspended", "Terminated"] as const).map(s => <MenuItem key={s} value={s}>{s === "Prospect" ? "Πιθανός συνεργάτης" : t(`producers.statuses.${s}`)}</MenuItem>)}
+              </SearchableTextField>
+              <SearchableTextField size="small" label="Κατηγορία" value={tierFilter} onChange={(e) => setTierFilter(e.target.value as ProducerTier | "")}>
+                <MenuItem value="">Όλες</MenuItem>
+                {(["A", "B", "C", "D", "E"] as const).map(tier => <MenuItem key={tier} value={tier}>{TIER_LABEL[tier as ProducerTier]}</MenuItem>)}
+                <MenuItem value="None">Χωρίς κατηγορία</MenuItem>
+              </SearchableTextField>
+              <SearchableTextField size="small" label="Επίπεδο ιεραρχίας" value={hierarchyFilter} onChange={(e) => setHierarchyFilter(e.target.value as HierarchyLevel | "")}>
+                <MenuItem value="">Όλα</MenuItem>
+                {(Object.keys(HIERARCHY_LABEL) as HierarchyLevel[]).map(level => <MenuItem key={level} value={level}>{HIERARCHY_LABEL[level]}</MenuItem>)}
+              </SearchableTextField>
+              <Stack direction="row" alignItems="center" spacing={1} sx={{ minHeight: 40 }}>
+                <input type="checkbox" id="advanced-has-policies-only" checked={hasPoliciesOnly} onChange={(e) => setHasPoliciesOnly(e.target.checked)} />
+                <Box component="label" htmlFor="advanced-has-policies-only" sx={{ fontSize: 14, cursor: "pointer" }}>Μόνο με συμβόλαια</Box>
+              </Stack>
+            </Box>
+          </DialogContent>
+          <DialogActions><Button color="error" variant="contained" onClick={clearProducerFilters}>Καθαρισμός φίλτρων</Button><Button variant="contained" onClick={() => setAdvancedFiltersOpen(false)}>Εφαρμογή</Button></DialogActions>
+        </Dialog>
+        <Dialog open={quickFiltersOpen} onClose={() => setQuickFiltersOpen(false)} fullWidth maxWidth="sm">
+          <DialogTitle>Γρήγορα φίλτρα</DialogTitle>
+          <DialogContent dividers>{producerQuickFilters}</DialogContent>
+          <DialogActions><Button variant="contained" onClick={() => setQuickFiltersOpen(false)}>Κλείσιμο</Button></DialogActions>
+        </Dialog>
+      </>
+      {false && (
       <ResponsiveFilterPanel
         activeCount={[statusFilter, tierFilter, hasPoliciesOnly ? "policies" : "", hierarchyFilter, table.query].filter(Boolean).length}
         title="Φίλτρα συνεργατών"
@@ -296,6 +386,7 @@ export function ProducersPage() {
           <Button size="small" onClick={() => { setStatusFilter(""); setTierFilter(""); setHasPoliciesOnly(false); setHierarchyFilter(""); table.setQuery(""); table.setPage(1); }} color="error" variant="contained">Καθαρισμός</Button>
         </Stack>
       </ResponsiveFilterPanel>
+      )}
 
       <Box sx={{ mb: 2 }}>
         <TableToolbar<ProducerDto>
@@ -306,6 +397,7 @@ export function ProducersPage() {
           exportFileName={`producers-${new Date().toISOString().slice(0, 10)}`}
           serverEntity="producers"
           serverParams={{ search: table.query }}
+          hideSearch
           exportColumns={[
             { key: "code", label: "Κωδικός" },
             { key: "name", label: "Όνομα" },

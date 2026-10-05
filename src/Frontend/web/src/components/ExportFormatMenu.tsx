@@ -5,6 +5,7 @@ import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import TableChartIcon from "@mui/icons-material/TableChart";
 import GridOnIcon from "@mui/icons-material/GridOn";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import { exportActionSx } from "./actionButtonStyles";
 
 export type ExportFormat = "csv" | "xlsx" | "pdf";
 
@@ -53,18 +54,7 @@ export function ExportFormatMenu(props: {
         endIcon={<ArrowDropDownIcon />}
         onClick={e => setAnchor(e.currentTarget)}
         disabled={disabled}
-        sx={{
-          bgcolor: "#217346",
-          color: "#fff",
-          borderColor: "#217346",
-          fontWeight: 800,
-          "&:hover": {
-            bgcolor: "#185c37",
-            borderColor: "#185c37",
-            color: "#fff",
-          },
-          ...sx,
-        }}
+        sx={{ ...exportActionSx, ...sx }}
       >
         {label}
       </Button>

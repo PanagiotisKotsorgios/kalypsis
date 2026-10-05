@@ -34,6 +34,7 @@ import { api, extractErrorMessage } from "../api/client";
 import { PasswordField } from "../components/PasswordField";
 import { UserPermissionsDialog } from "../components/UserPermissionsDialog";
 import { SearchableTextField } from "../components/SearchableTextField";
+import { exportActionSx, printActionSx } from "../components/actionButtonStyles";
 import { printTable } from "../utils/printableTable";
 import { exportRowsCsv } from "../utils/exportCsv";
 import { date } from "../utils/format";
@@ -109,7 +110,7 @@ export function EmployeesPage() {
           <HelpHint id="page.users" />
         </Stack>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" startIcon={<DownloadIcon />} disabled={!filteredUsers.length}
+          <Button variant="outlined" startIcon={<DownloadIcon />} sx={exportActionSx} disabled={!filteredUsers.length}
             onClick={() => exportRowsCsv<UserDto>({
               fileName: "employees",
               columns: [
@@ -126,7 +127,7 @@ export function EmployeesPage() {
             })}>
             Εξαγωγή CSV
           </Button>
-          <Button variant="outlined" startIcon={<PrintIcon />} disabled={!filteredUsers.length}
+          <Button variant="outlined" startIcon={<PrintIcon />} sx={printActionSx} disabled={!filteredUsers.length}
             onClick={() => printTable<UserDto>({
               title: t("users.title"),
               subtitle: `Καταχωρημένοι: ${filteredUsers.length}`,

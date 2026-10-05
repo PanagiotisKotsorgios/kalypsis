@@ -27,6 +27,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
+import { exportActionSx } from "../components/actionButtonStyles";
 import { type CarrierProfile, type CompanyDto } from "./InsuranceCompaniesPage";
 import { type OfficeDto } from "./AgencyOfficesPage";
 import { contractDurationLabel } from "../utils/contractDuration";
@@ -485,7 +486,7 @@ function CompanyStatisticsSection({ companyId, profile }: { companyId: string; p
   return <Stack spacing={1.5}>
     <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }}>
       <Button variant="outlined" startIcon={<FilterListIcon />} onClick={event => setFilterAnchor(event.currentTarget)} sx={{ whiteSpace: "nowrap" }}>Λοιπά φίλτρα{filterCount ? ` (${filterCount})` : ""}</Button>
-      <Button variant="contained" color="primary" startIcon={<DownloadIcon />} onClick={exportCsv} disabled={!filteredRows.length} sx={{ whiteSpace: "nowrap" }}>Εξαγωγή CSV</Button>
+      <Button variant="contained" startIcon={<DownloadIcon />} onClick={exportCsv} disabled={!filteredRows.length} sx={{ ...exportActionSx, whiteSpace: "nowrap" }}>Εξαγωγή CSV</Button>
     </Stack>
     <Popover open={!!filterAnchor} anchorEl={filterAnchor} onClose={() => setFilterAnchor(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}>
       <Stack spacing={1.25} sx={{ p: 1.75, width: { xs: 280, sm: 360 } }}>

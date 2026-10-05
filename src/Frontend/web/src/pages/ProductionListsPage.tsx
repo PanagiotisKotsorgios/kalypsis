@@ -32,6 +32,7 @@ import { useHeaderContextMenu, type ColumnType } from "../components/TableContex
 import { PolicyDetailDrawer } from "../components/PolicyDetailDrawer";
 import { QuickFilterBar } from "../components/QuickFilterBar";
 import { ResponsiveFilterPanel } from "../components/ResponsiveFilterPanel";
+import { printActionSx } from "../components/actionButtonStyles";
 
 interface Carrier { id: string; name: string; isBroker?: boolean; parentCompanyId?: string | null; }
 interface Producer { id: string; name: string; }
@@ -548,7 +549,7 @@ export function ProductionListsPage() {
               intent was redundant. To send a producer sheet without the
               agency's commission, un-tick those columns in the picker. */}
           <ExportFormatMenu onExport={downloadExport} />
-          <Button variant="outlined" startIcon={<PrintIcon />} onClick={openPrint}>
+          <Button variant="outlined" startIcon={<PrintIcon />} sx={printActionSx} onClick={openPrint}>
             {t("common.print", "Εκτύπωση")}
           </Button>
           <Button

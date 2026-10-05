@@ -6,6 +6,7 @@ import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import { exportActionSx, printActionSx } from "../components/actionButtonStyles";
 import { Link as RouterLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
@@ -254,7 +255,7 @@ function LegacyCustomerVehiclesPage() {
   return <Stack spacing={2.5}>
     <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" gap={2}>
       <Box><Typography variant="h4" fontWeight={800}>Οχήματα πελατών</Typography><Typography color="text.secondary">Όλα τα οχήματα όπως προκύπτουν από τα ενεργά και ιστορικά συμβόλαια αυτοκινήτου.</Typography></Box>
-      <Button startIcon={<DownloadIcon />} variant="outlined" onClick={exportCsv}>Εξαγωγή CSV</Button>
+      <Button startIcon={<DownloadIcon />} variant="outlined" sx={exportActionSx} onClick={exportCsv}>Εξαγωγή CSV</Button>
     </Stack>
     <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
       <Card variant="outlined" sx={{ p: 2, flex: 1 }}><Typography variant="caption" color="text.secondary">Συμβόλαια αυτοκινήτου</Typography><Typography variant="h5" fontWeight={800}>{rows.length}</Typography></Card>
@@ -364,8 +365,8 @@ export function CustomerVehiclesPage() {
       <Box><Typography variant="h4" fontWeight={800}>Οχήματα πελατών</Typography><Typography color="text.secondary">Κεντρική αναζήτηση, φίλτρα, στατιστικά και ενέργειες για όλα τα οχήματα των συμβολαίων.</Typography></Box>
       <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
         <Button size="small" variant="outlined" startIcon={<DirectionsCarIcon />} onClick={() => setStatsOpen(true)}>Στατιστικά</Button>
-        <Button size="small" variant="outlined" startIcon={<DownloadIcon />} onClick={() => exportCsv()}>Εξαγωγή CSV</Button>
-        <Button size="small" variant="outlined" onClick={() => window.print()}>Εκτύπωση</Button>
+        <Button size="small" variant="outlined" startIcon={<DownloadIcon />} sx={exportActionSx} onClick={() => exportCsv()}>Εξαγωγή CSV</Button>
+        <Button size="small" variant="outlined" sx={printActionSx} onClick={() => window.print()}>Εκτύπωση</Button>
         {selectedCount > 0 && <Button size="small" color="error" variant="contained" startIcon={<DeleteOutlineIcon />} onClick={() => requestDelete([...selectedIds])}>Διαγραφή ({selectedCount})</Button>}
       </Stack>
     </Stack>

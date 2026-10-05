@@ -5,6 +5,7 @@ import {
   TextField, Typography
 } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
+import { exportActionSx } from "../components/actionButtonStyles";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
@@ -144,7 +145,7 @@ export function CommissionDistributionPage() {
             setFrom(`${y}-01-01`); setTo(`${y}-12-31`);
             setProducerId(""); setCarrierId(""); setLevel(""); setScope("policies");
           }} color="error" variant="contained">Καθαρισμός</Button>
-          <Button size="small" variant="contained" startIcon={<DownloadIcon />}
+          <Button size="small" variant="contained" startIcon={<DownloadIcon />} sx={exportActionSx}
             disabled={!rows.length} onClick={downloadCsv}>Εξαγωγή CSV</Button>
         </Stack>
       </Card>

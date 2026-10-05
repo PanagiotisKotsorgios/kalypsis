@@ -27,6 +27,8 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
+import TuneIcon from "@mui/icons-material/Tune";
 import { ExcelImportButton } from "../components/ExcelImportButton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -141,6 +143,8 @@ export function ClaimsPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate,   setToDate]   = useState("");
   const [dateWindow, setDateWindow] = useState<"" | "7" | "30" | "90">("");
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+  const [quickFiltersOpen, setQuickFiltersOpen] = useState(false);
 
   const importClaims = async (rows: Record<string, string>[]): Promise<BulkImportResult> => {
     let imported = 0;
@@ -269,6 +273,19 @@ export function ClaimsPage() {
     onEdit: (c) => setEditing(c),
   });
 
+  const claimQuickFilters = (
+    <QuickFilterBar
+      activeCount={claimFilterCount}
+      onClear={clearClaimFilters}
+      options={[
+        { key: "all", label: "Όλες", active: claimFilterCount === 0, onClick: clearClaimFilters },
+        { key: "open", label: "Ανοιχτές", active: statusFilter === "Reported" || statusFilter === "UnderReview", color: "warning", onClick: () => { setDateWindow(""); setStatusFilter("UnderReview"); setQuickFiltersOpen(false); } },
+        ...(["7", "30", "90"] as const).map(days => ({ key: days, label: `Τελευταίες ${days} ημέρες`, active: dateWindow === days, color: "info" as const, onClick: () => { setDateWindow(days); setQuickFiltersOpen(false); } })),
+        { key: "paid", label: "Πληρωμένες", active: statusFilter === "Paid", color: "success", onClick: () => { setDateWindow(""); setStatusFilter("Paid"); setQuickFiltersOpen(false); } },
+      ]}
+    />
+  );
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} gap={2} flexWrap="wrap">
@@ -296,6 +313,64 @@ export function ClaimsPage() {
       </Stack>
 
       {!isCustomer && (
+        <>
+          <Card variant="outlined" sx={{ p: 1, mb: 2 }}>
+            <Box sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(4, minmax(0, 1fr))",
+                md: "minmax(220px, 1.4fr) 120px 120px auto auto",
+                lg: "minmax(240px, 1.4fr) 125px 125px auto auto",
+              },
+              gap: 0.75,
+              alignItems: "center",
+            }}>
+              <TextField
+                size="small"
+                fullWidth
+                label="Πελάτης / συμβόλαιο / ΑΦΜ"
+                placeholder="Αναζήτηση…"
+                value={customerFilter}
+                onChange={(e) => setCustomerFilter(e.target.value)}
+                sx={{ minWidth: 0, gridColumn: { xs: "auto", sm: "span 2", md: "auto", lg: "auto" } }}
+                InputProps={{ endAdornment: <FilterHelp title="Αναζήτηση σε ονοματεπώνυμο πελάτη, αριθμό συμβολαίου ή ΑΦΜ." /> }}
+              />
+              <TextField size="small" type="date" label="Συμβάν από" InputLabelProps={{ shrink: true }} fullWidth value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 0, width: "100%" }} />
+              <TextField size="small" type="date" label="Συμβάν έως" InputLabelProps={{ shrink: true }} fullWidth value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 0, width: "100%" }} />
+              <Button size="small" variant={claimFilterCount > 0 ? "contained" : "outlined"} startIcon={<TuneIcon />} onClick={() => setAdvancedFiltersOpen(true)} sx={{ whiteSpace: "nowrap", bgcolor: "#e3f2fd", color: "#1565c0", borderColor: "#90caf9", "&:hover": { bgcolor: "#bbdefb", borderColor: "#64b5f6", color: "#0d47a1" } }}>
+                Σύνθετα φίλτρα{claimFilterCount > 0 ? ` (${claimFilterCount})` : ""}
+              </Button>
+              <Button size="small" variant="outlined" startIcon={<FilterAltIcon />} onClick={() => setQuickFiltersOpen(true)} sx={{ whiteSpace: "nowrap", bgcolor: "#e3f2fd", color: "#1565c0", borderColor: "#90caf9", "&:hover": { bgcolor: "#bbdefb", borderColor: "#64b5f6", color: "#0d47a1" } }}>
+                Γρήγορα φίλτρα
+              </Button>
+            </Box>
+          </Card>
+          <Dialog open={advancedFiltersOpen} onClose={() => setAdvancedFiltersOpen(false)} fullWidth maxWidth="md">
+            <DialogTitle>Σύνθετα φίλτρα ζημιών</DialogTitle>
+            <DialogContent dividers>
+              <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, pt: .5 }}>
+                <SearchableTextField size="small" label={t("claims.col.status")} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "")}>
+                  <MenuItem value="">Όλες οι καταστάσεις</MenuItem>
+                  {(["Reported", "UnderReview", "Approved", "Rejected", "Paid", "Closed"] as const).map(s => <MenuItem key={s} value={s}>{t(`claims.statuses.${s}`)}</MenuItem>)}
+                </SearchableTextField>
+                <SearchableSelect label="Εταιρία" value={carrierFilter} onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); setUseFilter(""); setCoverFilter(""); setPackageFilter(""); }} emptyLabel="Όλες" options={(carriersQ.data ?? []).filter(c => !c.parentCompanyId).map(c => ({ value: c.id, label: c.name, hint: c.isBroker ? "Πρακτορείο" : undefined }))} />
+                <SearchableSelect label="Κλάδος" value={typeFilter} onChange={(v) => setTypeFilter(v)} disabled={!carrierFilter} emptyLabel="Όλοι" options={filterCatalogue.branches.map(b => ({ value: b.value, label: b.label }))} />
+                <SearchableSelect label="Χρήση οχήματος" value={useFilter} onChange={(v) => setUseFilter(v)} disabled={!carrierFilter} emptyLabel="Όλες" options={filterCatalogue.uses.map(u => ({ value: u.value, label: u.label }))} />
+                <SearchableSelect label="Κάλυψη" value={coverFilter} onChange={(v) => setCoverFilter(v)} disabled={!carrierFilter} emptyLabel="Όλες" options={filterCatalogue.coverages.map(c => ({ value: c.value, label: c.label }))} />
+                <SearchableSelect label="Πακέτο" value={packageFilter} onChange={(v) => setPackageFilter(v)} disabled={!carrierFilter} emptyLabel="Όλα" options={filterCatalogue.packages.map(p => ({ value: p.value, label: p.label }))} />
+              </Box>
+            </DialogContent>
+            <DialogActions><Button color="error" variant="contained" onClick={clearClaimFilters}>Καθαρισμός φίλτρων</Button><Button variant="contained" onClick={() => setAdvancedFiltersOpen(false)}>Εφαρμογή</Button></DialogActions>
+          </Dialog>
+          <Dialog open={quickFiltersOpen} onClose={() => setQuickFiltersOpen(false)} fullWidth maxWidth="sm">
+            <DialogTitle>Γρήγορα φίλτρα</DialogTitle>
+            <DialogContent dividers>{claimQuickFilters}</DialogContent>
+            <DialogActions><Button variant="contained" onClick={() => setQuickFiltersOpen(false)}>Κλείσιμο</Button></DialogActions>
+          </Dialog>
+        </>
+      )}
+      {false && !isCustomer && (
         <ResponsiveFilterPanel
           activeCount={claimFilterCount}
           title="Φίλτρα ζημιών"
@@ -407,6 +482,7 @@ export function ClaimsPage() {
           exportFileName={`claims-${new Date().toISOString().slice(0, 10)}`}
           serverEntity="claims"
           serverParams={{ search: table.query }}
+          hideSearch
           exportColumns={[
             { key: "claimNumber", label: "Αρ. Ζημιάς" },
             { key: "policyNumber", label: "Αρ. Συμβ." },

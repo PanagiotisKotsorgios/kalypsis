@@ -7,6 +7,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import FirstPageIcon from "@mui/icons-material/FirstPage";
 import LastPageIcon from "@mui/icons-material/LastPage";
 import PrintIcon from "@mui/icons-material/Print";
+import { printActionSx } from "./actionButtonStyles";
 import { useTranslation } from "react-i18next";
 import * as XLSX from "xlsx";
 import { api } from "../api/client";
@@ -312,16 +313,7 @@ export function TableToolbar<T>({
           variant="outlined"
           startIcon={<PrintIcon />}
           onClick={openPrint}
-          sx={{
-            bgcolor: "#e3f2fd",
-            color: "#145ea8",
-            borderColor: "#90caf9",
-            "&:hover": {
-              bgcolor: "#bbdefb",
-              borderColor: "#64b5f6",
-              color: "#0d47a1",
-            },
-          }}
+          sx={printActionSx}
         >
           {t("common.print", "Εκτύπωση")}
         </Button>
