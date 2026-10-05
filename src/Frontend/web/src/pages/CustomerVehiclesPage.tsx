@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadIcon from "@mui/icons-material/Download";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
@@ -322,7 +322,6 @@ export function CustomerVehiclesPage() {
     const days = (new Date(row.endDate).getTime() - Date.now()) / 86400000;
     return days >= 0 && days <= 30;
   }).length;
-  const activeCount = filteredRows.filter(row => row.status === "Active").length;
   const totalPremium = filteredRows.reduce((sum, row) => sum + (Number(row.premium) || 0), 0);
   const allPageSelected = pageRows.length > 0 && pageRows.every(row => selectedIds.has(row.id));
   const selectedCount = selectedIds.size;
@@ -378,20 +377,17 @@ export function CustomerVehiclesPage() {
         <Button size="small" color="error" variant="contained" onClick={resetFilters}>Καθαρισμός</Button>
       </Stack>
     </Card>
-    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(5, minmax(0, 1fr))" }, gap: 1 }}>
-      {[ ["Συμβόλαια αυτοκινήτου", filteredRows.length], ["Μοναδικές πινακίδες", uniquePlates], ["Λήγουν σε 30 ημέρες", expiring], ["Ενεργά", activeCount], ["Σύνολο ασφαλίστρων", money(totalPremium)] ].map(([label, value]) => <Card key={String(label)} variant="outlined" sx={{ p: 1.25, borderTop: "3px solid", borderColor: label === "Λήγουν σε 30 ημέρες" && expiring ? "warning.main" : "primary.main" }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography variant="h6" fontWeight={900}>{value}</Typography></Card>)}
-    </Box>
     {filteredRows.length === 0 ? <Alert severity="info"><DirectionsCarIcon sx={{ verticalAlign: "middle", mr: 1 }} />Δεν βρέθηκαν οχήματα με τα συγκεκριμένα φίλτρα.</Alert> : <Card variant="outlined" sx={{ overflowX: "auto" }}>
       <Table size="small">
         <TableHead><TableRow><TableCell padding="checkbox"><Checkbox size="small" checked={allPageSelected} onChange={event => { const checked = event.target.checked; setSelectedIds(previous => { const next = new Set(previous); pageRows.forEach(row => checked ? next.add(row.id) : next.delete(row.id)); return next; }); }} /></TableCell><TableCell>Πινακίδα</TableCell><TableCell>Πελάτης</TableCell><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Έναρξη</TableCell><TableCell>Λήξη</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Ενέργειες</TableCell></TableRow></TableHead>
-        <TableBody>{pageRows.map(row => <TableRow key={row.id} hover>
-          <TableCell padding="checkbox"><Checkbox size="small" checked={selectedIds.has(row.id)} onChange={event => setSelectedIds(previous => { const next = new Set(previous); event.target.checked ? next.add(row.id) : next.delete(row.id); return next; })} /></TableCell>
+        <TableBody>{pageRows.map(row => <TableRow key={row.id} hover onClick={() => setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: false })} sx={{ cursor: "pointer" }}>
+          <TableCell padding="checkbox"><Checkbox size="small" checked={selectedIds.has(row.id)} onClick={event => event.stopPropagation()} onChange={event => setSelectedIds(previous => { const next = new Set(previous); event.target.checked ? next.add(row.id) : next.delete(row.id); return next; })} /></TableCell>
           <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.vehicleRegistrationPlate ?? "—"}</TableCell>
-          <TableCell><Button component={RouterLink} to={`/app/customers/${row.customerId}`} size="small">{row.customerDisplay ?? "Πελάτης"}</Button></TableCell>
-          <TableCell><Button component={RouterLink} to={`/app/policies?focus=${row.id}`} size="small">{row.policyNumber}</Button></TableCell>
+          <TableCell><Button component={RouterLink} to={`/app/customers/${row.customerId}`} size="small" onClick={event => event.stopPropagation()}>{row.customerDisplay ?? "Πελάτης"}</Button></TableCell>
+          <TableCell><Button component={RouterLink} to={`/app/policies?focus=${row.id}`} size="small" onClick={event => event.stopPropagation()}>{row.policyNumber}</Button></TableCell>
           <TableCell>{row.insuranceCompanyName}</TableCell><TableCell>{row.startDate}</TableCell><TableCell>{row.endDate}</TableCell>
           <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell><TableCell><Chip size="small" label={vehicleStatusLabel(row.status)} /></TableCell>
-          <TableCell align="right"><Stack direction="row" justifyContent="flex-end" spacing={0.25}><IconButton size="small" color="info" title="Προεπισκόπηση καρτέλας οχήματος" onClick={() => setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: false })}><VisibilityIcon fontSize="small" /></IconButton><IconButton size="small" color="success" title="Επεξεργασία οχήματος" onClick={() => setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: true })}><EditIcon fontSize="small" /></IconButton><IconButton size="small" color="error" title="Αφαίρεση οχήματος από το συμβόλαιο" onClick={() => requestDelete([row.id])}><DeleteOutlineIcon fontSize="small" /></IconButton></Stack></TableCell>
+          <TableCell align="right"><Stack direction="row" justifyContent="flex-end" spacing={0.25}><Tooltip title="Προεπισκόπηση καρτέλας οχήματος" arrow><IconButton size="small" color="info" onClick={event => { event.stopPropagation(); setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: false }); }}><VisibilityIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Επεξεργασία οχήματος" arrow><IconButton size="small" color="success" onClick={event => { event.stopPropagation(); setSelectedVehicle({ plate: row.vehicleRegistrationPlate ?? "", edit: true }); }}><EditIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Αφαίρεση οχήματος από το συμβόλαιο" arrow><IconButton size="small" color="error" onClick={event => { event.stopPropagation(); requestDelete([row.id]); }}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip></Stack></TableCell>
         </TableRow>)}</TableBody>
       </Table>
       <TablePagination component="div" count={filteredRows.length} page={page} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage} onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50, 100]} labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />

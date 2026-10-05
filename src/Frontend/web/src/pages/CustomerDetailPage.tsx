@@ -224,6 +224,17 @@ export function CustomerDetailPage() {
     setEditorSave(() => save);
     setEditorSaving(pending);
   }, []);
+  const changeProfileTab = useCallback((next: number) => {
+    setTab(next);
+    // The inline customer editor belongs only to the overview tab. Closing it
+    // before switching keeps each profile tab isolated and prevents the old
+    // editor content from remaining above the newly selected tab.
+    if (showEditor) {
+      setShowEditor(false);
+      setEditorSave(null);
+      setEditorSaving(false);
+    }
+  }, [showEditor]);
 
   const customerQ = useQuery({
     queryKey: ["customer", id],
@@ -279,7 +290,7 @@ export function CustomerDetailPage() {
         </Box>
         {canManageCustomer && (
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
-            <Button startIcon={<EditIcon />} variant="contained" color="success" sx={{ color: "#fff", fontWeight: 800 }} onClick={() => setShowEditor(true)}>
+            <Button startIcon={<EditIcon />} variant="contained" color="success" sx={{ color: "#fff", fontWeight: 800 }} onClick={() => { setTab(0); setShowEditor(true); }}>
               Επεξεργασία πελάτη
             </Button>
             {showEditor && (
@@ -306,9 +317,9 @@ export function CustomerDetailPage() {
         )}
       </Stack>
 
-      <CustomerProfileTabs value={tab} onChange={setTab} />
+      <CustomerProfileTabs value={tab} onChange={changeProfileTab} />
 
-      {showEditor && <CustomerEditorDialog open customer={customer} onClose={() => { setShowEditor(false); setEditorSave(null); setEditorSaving(false); }} onSaveReady={registerEditorSave} />}
+      {showEditor && tab === 0 && <CustomerEditorDialog open customer={customer} onClose={() => { setShowEditor(false); setEditorSave(null); setEditorSaving(false); }} onSaveReady={registerEditorSave} />}
       {tab === 0 && !showEditor && <OverviewTab customer={customer} />}
       {tab === 1 && <Stack spacing={3}><CustomerPoliciesTab customerId={id} /><CustomerVehiclesTab customerId={id} /></Stack>}
       {tab === 2 && <Stack spacing={3}><CustomerClaimsTab customerId={id} /><CustomerAccountTab customerId={id} /></Stack>}
