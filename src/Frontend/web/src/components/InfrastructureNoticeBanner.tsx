@@ -4,16 +4,13 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
 /** Public notice shown consistently on every unauthenticated/pre-login page. */
 export function InfrastructureNoticeBanner() {
-  const [dismissed, setDismissed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("kalypsis.infrastructureNotice.dismissed.v1") === "1";
-  });
+  // Dismissal is intentionally session-only: a refresh shows the notice again.
+  const [dismissed, setDismissed] = useState(false);
 
   if (dismissed) return null;
 
   const dismiss = () => {
     setDismissed(true);
-    window.localStorage.setItem("kalypsis.infrastructureNotice.dismissed.v1", "1");
   };
 
   return (

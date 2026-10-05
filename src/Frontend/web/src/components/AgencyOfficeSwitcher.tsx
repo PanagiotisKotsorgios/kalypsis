@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, FormControl, InputLabel, MenuItem, Select, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Menu, MenuItem, Stack, Typography } from "@mui/material";
 import BusinessIcon from "@mui/icons-material/Business";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { api } from "../api/client";
 import type { Role } from "../auth/AuthContext";
 
@@ -17,6 +18,7 @@ export function AgencyOfficeSwitcher({ role }: { role: Role | undefined }) {
   const [offices, setOffices] = useState<OfficeOption[]>([]);
   const [selected, setSelected] = useState(() => localStorage.getItem("kalypsis.activeOfficeId") ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!isAgency) return;
@@ -49,10 +51,15 @@ export function AgencyOfficeSwitcher({ role }: { role: Role | undefined }) {
   if (!isAgency || offices.length === 0) return null;
 
   const change = (value: string) => {
+    setAnchorEl(null);
     setSelected(value);
     localStorage.setItem("kalypsis.activeOfficeId", value || ALL_OFFICES_VALUE);
     window.location.reload();
   };
+
+  const selectedOfficeName = selected === ALL_OFFICES_VALUE
+    ? "Όλα τα γραφεία"
+    : offices.find(o => o.officeId === selected)?.officeName ?? "Γραφείο";
 
   return (
     <Box
@@ -60,8 +67,8 @@ export function AgencyOfficeSwitcher({ role }: { role: Role | undefined }) {
       sx={{
         position: "absolute",
         top: { xs: 0, sm: 1 },
-        right: 0,
-        left: { xs: "auto", md: "50%" },
+        right: { xs: 0, md: "auto" },
+        left: { xs: "auto", md: "clamp(120px, 20%, 280px)" },
         zIndex: 2,
         display: "flex",
         justifyContent: "flex-end",
@@ -70,42 +77,58 @@ export function AgencyOfficeSwitcher({ role }: { role: Role | undefined }) {
     >
       {error && <Alert severity="warning" sx={{ position: "absolute", right: 0, top: 42, width: 280, pointerEvents: "auto" }}>{error}</Alert>}
       <Stack direction="row" spacing={0.5} alignItems="center" sx={{ pointerEvents: "auto" }}>
-      <FormControl size="small" sx={{ minWidth: { xs: 185, sm: 220 }, maxWidth: { xs: 210, sm: 260 } }}>
-        <InputLabel id="agency-office-label">Γραφείο</InputLabel>
-        <Select
-          labelId="agency-office-label"
-          value={selected}
-          label="Γραφείο"
-          onChange={e => change(e.target.value)}
-          startAdornment={<BusinessIcon sx={{ mr: 1, color: "text.secondary" }} />}
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<BusinessIcon sx={{ fontSize: "16px !important" }} />}
+          endIcon={<ArrowDropDownIcon sx={{ fontSize: "17px !important" }} />}
+          onClick={e => setAnchorEl(e.currentTarget)}
+          aria-label={`Επιλογή γραφείου: ${selectedOfficeName}`}
           sx={{
-            height: 38,
+            minWidth: 0,
+            maxWidth: { xs: 150, sm: 175 },
+            height: 28,
+            px: 0.5,
+            borderRadius: 1,
             bgcolor: "rgba(255,255,255,0.96)",
-            borderRadius: 1.25,
-            fontSize: { xs: "0.78rem", sm: "0.82rem" },
-            fontWeight: 700,
-            boxShadow: "0 1px 4px rgba(11,37,69,0.10)",
-            "& .MuiSelect-select": { py: 0.75, pr: 3.5 },
+            color: "#0b2545",
+            borderColor: "rgba(11,37,69,0.28)",
+            fontSize: { xs: "0.62rem", sm: "0.67rem" },
+            fontWeight: 800,
+            textTransform: "none",
+            boxShadow: "0 1px 3px rgba(11,37,69,0.10)",
+            "& .MuiButton-startIcon, & .MuiButton-endIcon": { mx: 0.15 },
+            "&:hover": { bgcolor: "rgba(11,37,69,0.06)", borderColor: "#0b2545" },
           }}
         >
+          <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {selectedOfficeName}
+          </Box>
+        </Button>
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={() => setAnchorEl(null)}
+          MenuListProps={{ dense: true, "aria-label": "Επιλογή γραφείου" }}
+          slotProps={{ paper: { sx: { minWidth: 230, maxWidth: 300 } } }}
+        >
           {isAdmin && (
-            <MenuItem value={ALL_OFFICES_VALUE}>
+            <MenuItem onClick={() => change(ALL_OFFICES_VALUE)} selected={selected === ALL_OFFICES_VALUE}>
               <Box>
                 <Typography variant="body2" fontWeight={700}>Όλα τα γραφεία</Typography>
-                <Typography variant="caption" color="text.secondary">Συγκεντρωτικά δεδομένα όλου του οργανισμού</Typography>
+                <Typography variant="caption" color="text.secondary">Συγκεντρωτικά δεδομένα</Typography>
               </Box>
             </MenuItem>
           )}
           {offices.map(o => (
-            <MenuItem key={o.officeId} value={o.officeId}>
+            <MenuItem key={o.officeId} onClick={() => change(o.officeId)} selected={o.officeId === selected}>
               <Box>
                 <Typography variant="body2">{o.officeName}</Typography>
                 {o.isPrimary && <Typography variant="caption" color="text.secondary">Κύριο υποκατάστημα</Typography>}
               </Box>
             </MenuItem>
           ))}
-        </Select>
-      </FormControl>
+        </Menu>
       </Stack>
     </Box>
   );
