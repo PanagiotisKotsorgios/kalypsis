@@ -566,8 +566,8 @@ export function PoliciesPage() {
                 gridTemplateColumns: {
                   xs: "1fr",
                   sm: "repeat(4, minmax(0, 1fr))",
-                  md: "repeat(6, minmax(0, 1fr))",
-                  lg: "minmax(260px, 2fr) minmax(150px, 1fr) minmax(135px, 1fr) 125px 125px auto auto",
+                  md: "repeat(4, minmax(0, 1fr))",
+                  lg: "minmax(300px, 2fr) 130px 130px auto auto",
                 },
                 gap: 0.75,
                 alignItems: "center",
@@ -584,27 +584,6 @@ export function PoliciesPage() {
                    endAdornment: <FilterHelp title="Αναζήτηση σε αριθμό συμβολαίου, πελάτη, ΑΦΜ, απόδειξη ή πινακίδα οχήματος." />,
                  }}
                />
-               <SearchableSelect
-                 label="Εταιρεία"
-                 value={carrierFilter}
-                 onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); }}
-                 emptyLabel="Όλες"
-                  sx={{ minWidth: 0, width: "100%" }}
-                 options={(carriersQuery.data ?? [])
-                   .filter(c => !c.parentCompanyId)
-                   .map(c => ({ value: c.id, label: c.name, hint: c.isBroker ? "Πρακτορείο" : c.code }))}
-               />
-               <SearchableTextField
-                 size="small"
-                 label={t("policies.col.type")}
-                 value={typeFilter}
-                 onChange={(e) => setTypeFilter(e.target.value as PolicyType | "")}
-                 disabled={!carrierFilter}
-                  sx={{ minWidth: 0, width: "100%" }}
-               >
-                 <MenuItem value="">Όλοι οι κλάδοι</MenuItem>
-                 {filterCatalogue.branches.map(b => <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>)}
-               </SearchableTextField>
                 <TextField size="small" type="date" label="Από" InputLabelProps={{ shrink: true }} value={fromDate} onChange={(e) => setFromDate(e.target.value)} sx={{ minWidth: 0, width: "100%" }} />
                 <TextField size="small" type="date" label="Έως" InputLabelProps={{ shrink: true }} value={toDate} onChange={(e) => setToDate(e.target.value)} sx={{ minWidth: 0, width: "100%" }} />
                <Button
@@ -645,7 +624,27 @@ export function PoliciesPage() {
              <DialogTitle>Σύνθετα φίλτρα συμβολαίων</DialogTitle>
              <DialogContent dividers>
                <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, pt: .5 }}>
-                 <SearchableTextField size="small" label={t("policies.col.status")} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as PolicyStatus | "")}>
+                  <SearchableSelect
+                    label="Εταιρεία"
+                    value={carrierFilter}
+                    onChange={(v) => { setCarrierFilter(v); setSubCarrierFilter([]); setTypeFilter(""); }}
+                    emptyLabel="Όλες"
+                    options={(carriersQuery.data ?? [])
+                      .filter(c => !c.parentCompanyId)
+                      .map(c => ({ value: c.id, label: c.name, hint: c.isBroker ? "Πρακτορείο" : c.code }))}
+                  />
+                  <SearchableTextField
+                    size="small"
+                    label={t("policies.col.type")}
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value as PolicyType | "")}
+                    disabled={!carrierFilter}
+                    helperText={!carrierFilter ? "Επιλέξτε πρώτα εταιρεία" : filterCatalogue.branches.length === 0 ? "Δεν υπάρχουν κλάδοι" : ""}
+                  >
+                    <MenuItem value="">Όλοι οι κλάδοι</MenuItem>
+                    {filterCatalogue.branches.map(b => <MenuItem key={b.key} value={b.value}>{b.label}</MenuItem>)}
+                  </SearchableTextField>
+                  <SearchableTextField size="small" label={t("policies.col.status")} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as PolicyStatus | "")}>
                    <MenuItem value="">Όλες οι καταστάσεις</MenuItem>
                    {(["Prospect", "Draft", "Active", "Expired", "Cancelled", "Renewed", "PendingRenewal", "Undelivered", "AwaitingIssue"] as const).map(s => <MenuItem key={s} value={s}>{s === "Prospect" ? "Πιθανό συμβόλαιο" : t(`policies.statuses.${s}`)}</MenuItem>)}
                  </SearchableTextField>
