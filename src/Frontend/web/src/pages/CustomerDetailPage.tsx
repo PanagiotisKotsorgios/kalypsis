@@ -290,10 +290,10 @@ export function CustomerDetailPage() {
         </Box>
         {canManageCustomer && (
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
-            <Button startIcon={<EditIcon />} variant="contained" color="success" sx={{ color: "#fff", fontWeight: 800 }} onClick={() => { setTab(0); setShowEditor(true); }}>
+            {tab === 0 && <Button startIcon={<EditIcon />} variant="contained" color="success" sx={{ color: "#fff", fontWeight: 800 }} onClick={() => setShowEditor(true)}>
               Επεξεργασία πελάτη
-            </Button>
-            {showEditor && (
+            </Button>}
+            {tab === 0 && showEditor && (
               <Button
                 startIcon={<SaveIcon />}
                 variant="contained"

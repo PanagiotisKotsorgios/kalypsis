@@ -175,7 +175,7 @@ export function VehicleDetailDialog({ open, plate, policyIds, onClose, zIndex, i
   };
   const total = (key: keyof VehiclePolicyDetail) => details.reduce((sum, detail) => sum + (Number(detail[key]) || 0), 0);
   return <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" sx={zIndex ? { zIndex } : undefined}>
-    <DialogTitle sx={{ px: 1.5, py: 1.25 }}><Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "stretch", sm: "center" }} justifyContent="space-between"><Stack direction="row" spacing={1} alignItems="center"><DirectionsCarIcon color="primary" /> <Box><Typography variant="h6" fontWeight={800}>Καρτέλα οχήματος · {plate || "Χωρίς πινακίδα"}</Typography><Typography variant="caption" color="text.secondary">Συγκεντρωμένα στοιχεία από όλα τα σχετικά συμβόλαια</Typography></Box></Stack><Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => setEditing(value => !value)} disabled={!first}>{editing ? "Κλείσιμο επεξεργασίας" : "Επεξεργασία"}</Button></Stack></DialogTitle>
+    <DialogTitle sx={{ px: 1.5, py: 1.25 }}><Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "stretch", sm: "center" }} justifyContent="space-between"><Stack direction="row" spacing={1} alignItems="center"><DirectionsCarIcon color="primary" /> <Box><Typography variant="h6" fontWeight={800}>Καρτέλα οχήματος · {plate || "Χωρίς πινακίδα"}</Typography><Typography variant="caption" color="text.secondary">Συγκεντρωμένα στοιχεία από όλα τα σχετικά συμβόλαια</Typography></Box></Stack><Button size="small" variant="contained" color={editing ? "error" : "success"} sx={{ color: "#fff", fontWeight: 800 }} startIcon={<EditIcon />} onClick={() => setEditing(value => !value)} disabled={!first}>{editing ? "Ακύρωση επεξεργασίας" : "Επεξεργασία"}</Button></Stack></DialogTitle>
     <DialogContent dividers sx={{ p: 1.25 }}>
       {q.isLoading && <Box sx={{ p: 4, textAlign: "center" }}><CircularProgress /></Box>}
       {q.isError && <Alert severity="error">{extractErrorMessage(q.error)}</Alert>}
@@ -195,7 +195,7 @@ export function VehicleDetailDialog({ open, plate, policyIds, onClose, zIndex, i
             <TextField label="Τεχνικά στοιχεία (JSON)" value={form.specsJson} onChange={e => setForm(current => ({ ...current, specsJson: e.target.value }))} multiline minRows={3} helperText={'Προαιρετικά, π.χ. {"make":"Toyota","model":"Yaris"}'} />
             <TextField label="Σημειώσεις οχήματος" value={form.notes} onChange={e => setForm(current => ({ ...current, notes: e.target.value }))} multiline minRows={2} />
             {updateVehicle.isError && <Alert severity="error">{extractErrorMessage(updateVehicle.error)}</Alert>}
-            <Button variant="contained" startIcon={<EditIcon />} onClick={() => updateVehicle.mutate()} disabled={updateVehicle.isPending}>{updateVehicle.isPending ? "Αποθήκευση…" : "Αποθήκευση στοιχείων"}</Button>
+            <Button variant="contained" color="success" sx={{ color: "#fff", fontWeight: 800 }} startIcon={<EditIcon />} onClick={() => updateVehicle.mutate()} disabled={updateVehicle.isPending}>{updateVehicle.isPending ? "Αποθήκευση…" : "Αποθήκευση στοιχείων"}</Button>
           </Stack>
         </Card>}
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }, gap: 0.75 }}>
@@ -222,7 +222,7 @@ export function VehicleDetailDialog({ open, plate, policyIds, onClose, zIndex, i
     </DialogContent>
     <DialogActions sx={{ justifyContent: "space-between" }}>
       <Button color="error" startIcon={<DeleteOutlineIcon />} onClick={() => { if (window.confirm("Να διαγραφεί η συσχέτιση του οχήματος από όλα τα συμβόλαια; Τα συμβόλαια, οι ζημιές και τα οικονομικά τους δεν διαγράφονται.")) removeAllVehicle.mutate(); }} disabled={!first || removeAllVehicle.isPending}>{removeAllVehicle.isPending ? "Διαγραφή…" : "Διαγραφή οχήματος"}</Button>
-      <Button onClick={onClose}>Κλείσιμο</Button>
+      <Button color="error" variant="contained" sx={{ color: "#fff", fontWeight: 800 }} onClick={onClose}>Κλείσιμο</Button>
     </DialogActions>
   </Dialog>;
 }
