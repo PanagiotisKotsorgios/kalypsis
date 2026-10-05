@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, InputAdornment, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Typography } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadIcon from "@mui/icons-material/Download";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
@@ -77,6 +77,17 @@ function parseSpecs(value?: string | null): Record<string, unknown> {
 
 function money(value?: number | null, currency = "EUR") {
   return value == null ? "—" : `${value.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+}
+
+function vehicleStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    Active: "Ενεργό",
+    Inactive: "Ανενεργό",
+    Cancelled: "Ακυρωμένο",
+    Expired: "Ληγμένο",
+    Pending: "Σε εκκρεμότητα"
+  };
+  return labels[status] ?? status;
 }
 
 export function VehicleDetailDialog({ open, plate, policyIds, onClose, zIndex }: { open: boolean; plate: string; policyIds: string[]; onClose: () => void; zIndex?: number }) {
@@ -212,7 +223,7 @@ export function VehicleDetailDialog({ open, plate, policyIds, onClose, zIndex }:
   </Dialog>;
 }
 
-export function CustomerVehiclesPage() {
+function LegacyCustomerVehiclesPage() {
   const [search, setSearch] = useState("");
   const [selectedPlate, setSelectedPlate] = useState<string | null>(null);
   const q = useQuery({
@@ -257,5 +268,132 @@ export function CustomerVehiclesPage() {
       </TableRow>)}</TableBody>
     </Table></Card>}
     <VehicleDetailDialog open={selectedPlate !== null} plate={selectedPlate ?? ""} policyIds={rows.filter(row => (row.vehicleRegistrationPlate ?? "") === (selectedPlate ?? "")).map(row => row.id)} onClose={() => setSelectedPlate(null)} />
+  </Stack>;
+}
+
+void LegacyCustomerVehiclesPage;
+
+export function CustomerVehiclesPage() {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [companyFilter, setCompanyFilter] = useState("");
+  const [renewalFilter, setRenewalFilter] = useState("all");
+  const [selectedPlate, setSelectedPlate] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [deleteIds, setDeleteIds] = useState<string[]>([]);
+  const [deleteText, setDeleteText] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const q = useQuery({
+    queryKey: ["customer-vehicles-all"],
+    queryFn: async () => (await api.get<VehiclePolicyRow[]>("/policies", { params: { type: "Auto" } })).data
+  });
+
+  const sourceRows = q.data ?? [];
+  const companies = useMemo(() => [...new Set(sourceRows.map(row => row.insuranceCompanyName).filter(Boolean))].sort((a, b) => a.localeCompare(b, "el")), [sourceRows]);
+  const filteredRows = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase("el-GR");
+    const now = Date.now();
+    return sourceRows.filter(row => {
+      const haystack = [row.vehicleRegistrationPlate, row.customerDisplay, row.policyNumber, row.insuranceCompanyName, row.policyType].join(" ").toLocaleLowerCase("el-GR");
+      if (term && !haystack.includes(term)) return false;
+      if (statusFilter && row.status !== statusFilter) return false;
+      if (companyFilter && row.insuranceCompanyName !== companyFilter) return false;
+      if (renewalFilter !== "all") {
+        const days = (new Date(row.endDate).getTime() - now) / 86400000;
+        if (renewalFilter === "30" && !(days >= 0 && days <= 30)) return false;
+        if (renewalFilter === "90" && !(days >= 0 && days <= 90)) return false;
+        if (renewalFilter === "expired" && days >= 0) return false;
+      }
+      return true;
+    });
+  }, [sourceRows, search, statusFilter, companyFilter, renewalFilter]);
+  useEffect(() => { setPage(0); }, [search, statusFilter, companyFilter, renewalFilter, rowsPerPage]);
+  const pageRows = filteredRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const uniquePlates = new Set(filteredRows.map(row => row.vehicleRegistrationPlate).filter(Boolean)).size;
+  const expiring = filteredRows.filter(row => {
+    const days = (new Date(row.endDate).getTime() - Date.now()) / 86400000;
+    return days >= 0 && days <= 30;
+  }).length;
+  const activeCount = filteredRows.filter(row => row.status === "Active").length;
+  const totalPremium = filteredRows.reduce((sum, row) => sum + (Number(row.premium) || 0), 0);
+  const allPageSelected = pageRows.length > 0 && pageRows.every(row => selectedIds.has(row.id));
+  const selectedCount = selectedIds.size;
+  const companyStats = useMemo(() => {
+    const map = new Map<string, { contracts: number; plates: Set<string> }>();
+    for (const row of filteredRows) {
+      const item = map.get(row.insuranceCompanyName) ?? { contracts: 0, plates: new Set<string>() };
+      item.contracts += 1;
+      if (row.vehicleRegistrationPlate) item.plates.add(row.vehicleRegistrationPlate);
+      map.set(row.insuranceCompanyName, item);
+    }
+    return [...map.entries()].sort((a, b) => b[1].contracts - a[1].contracts);
+  }, [filteredRows]);
+  const clearVehicle = useMutation({
+    mutationFn: async (ids: string[]) => Promise.all(ids.map(id => api.patch(`/policies/${id}/vehicle`, { clearVehicleRegistrationPlate: true }))),
+    onSuccess: () => {
+      setSelectedIds(new Set());
+      setDeleteOpen(false);
+      setDeleteText("");
+      setDeleteIds([]);
+      void qc.invalidateQueries({ queryKey: ["customer-vehicles-all"] });
+      void qc.invalidateQueries({ queryKey: ["customer-vehicles"] });
+    }
+  });
+  const requestDelete = (ids: string[]) => { setDeleteIds(ids); setDeleteText(""); setDeleteOpen(true); };
+  const exportCsv = (dataset = filteredRows) => {
+    const header = ["Πινακίδα", "Πελάτης", "Αριθμός συμβολαίου", "Ασφαλιστική", "Έναρξη", "Λήξη", "Ασφάλιστρο", "Κατάσταση"];
+    const body = dataset.map(row => [row.vehicleRegistrationPlate ?? "", row.customerDisplay ?? "", row.policyNumber, row.insuranceCompanyName, row.startDate, row.endDate, String(row.premium ?? ""), row.status]);
+    const csv = [header, ...body].map(line => line.map(value => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\r\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "οχήματα-πελατών.csv"; anchor.click(); URL.revokeObjectURL(url);
+  };
+  const resetFilters = () => { setSearch(""); setStatusFilter(""); setCompanyFilter(""); setRenewalFilter("all"); setSelectedIds(new Set()); };
+  if (q.isLoading) return <Box sx={{ p: 6, textAlign: "center" }}><CircularProgress /></Box>;
+  if (q.isError) return <Alert severity="error">{extractErrorMessage(q.error)}</Alert>;
+
+  return <Stack spacing={1.5}>
+    <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" gap={1} alignItems={{ md: "center" }}>
+      <Box><Typography variant="h4" fontWeight={800}>Οχήματα πελατών</Typography><Typography color="text.secondary">Κεντρική αναζήτηση, φίλτρα, στατιστικά και ενέργειες για όλα τα οχήματα των συμβολαίων.</Typography></Box>
+      <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+        <Button size="small" variant="outlined" startIcon={<DirectionsCarIcon />} onClick={() => setStatsOpen(true)}>Στατιστικά</Button>
+        <Button size="small" variant="outlined" startIcon={<DownloadIcon />} onClick={() => exportCsv()}>Εξαγωγή CSV</Button>
+        <Button size="small" variant="outlined" onClick={() => window.print()}>Εκτύπωση</Button>
+        {selectedCount > 0 && <Button size="small" color="error" variant="contained" startIcon={<DeleteOutlineIcon />} onClick={() => requestDelete([...selectedIds])}>Διαγραφή ({selectedCount})</Button>}
+      </Stack>
+    </Stack>
+    <Card variant="outlined" sx={{ p: 1 }}>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} flexWrap="wrap" useFlexGap>
+        <TextField size="small" value={search} onChange={e => setSearch(e.target.value)} placeholder="Αναζήτηση πινακίδας, πελάτη, συμβολαίου ή ασφαλιστικής" InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }} sx={{ flex: 1, minWidth: { md: 260 } }} />
+        <TextField select size="small" label="Κατάσταση" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} sx={{ minWidth: 150 }}><MenuItem value="">Όλες</MenuItem>{[...new Set(sourceRows.map(row => row.status))].filter(Boolean).map(value => <MenuItem key={value} value={value}>{vehicleStatusLabel(value)}</MenuItem>)}</TextField>
+        <TextField select size="small" label="Ασφαλιστική" value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} sx={{ minWidth: 180 }}><MenuItem value="">Όλες</MenuItem>{companies.map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}</TextField>
+        <TextField select size="small" label="Λήξη" value={renewalFilter} onChange={e => setRenewalFilter(e.target.value)} sx={{ minWidth: 145 }}><MenuItem value="all">Όλες</MenuItem><MenuItem value="30">Σε 30 ημέρες</MenuItem><MenuItem value="90">Σε 90 ημέρες</MenuItem><MenuItem value="expired">Ληγμένα</MenuItem></TextField>
+        <Button size="small" color="error" variant="contained" onClick={resetFilters}>Καθαρισμός</Button>
+      </Stack>
+    </Card>
+    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(5, minmax(0, 1fr))" }, gap: 1 }}>
+      {[ ["Συμβόλαια αυτοκινήτου", filteredRows.length], ["Μοναδικές πινακίδες", uniquePlates], ["Λήγουν σε 30 ημέρες", expiring], ["Ενεργά", activeCount], ["Σύνολο ασφαλίστρων", money(totalPremium)] ].map(([label, value]) => <Card key={String(label)} variant="outlined" sx={{ p: 1.25, borderTop: "3px solid", borderColor: label === "Λήγουν σε 30 ημέρες" && expiring ? "warning.main" : "primary.main" }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography variant="h6" fontWeight={900}>{value}</Typography></Card>)}
+    </Box>
+    {filteredRows.length === 0 ? <Alert severity="info"><DirectionsCarIcon sx={{ verticalAlign: "middle", mr: 1 }} />Δεν βρέθηκαν οχήματα με τα συγκεκριμένα φίλτρα.</Alert> : <Card variant="outlined" sx={{ overflowX: "auto" }}>
+      <Table size="small">
+        <TableHead><TableRow><TableCell padding="checkbox"><Checkbox size="small" checked={allPageSelected} onChange={event => { const checked = event.target.checked; setSelectedIds(previous => { const next = new Set(previous); pageRows.forEach(row => checked ? next.add(row.id) : next.delete(row.id)); return next; }); }} /></TableCell><TableCell>Πινακίδα</TableCell><TableCell>Πελάτης</TableCell><TableCell>Συμβόλαιο</TableCell><TableCell>Ασφαλιστική</TableCell><TableCell>Έναρξη</TableCell><TableCell>Λήξη</TableCell><TableCell align="right">Ασφάλιστρο</TableCell><TableCell>Κατάσταση</TableCell><TableCell align="right">Ενέργειες</TableCell></TableRow></TableHead>
+        <TableBody>{pageRows.map(row => <TableRow key={row.id} hover>
+          <TableCell padding="checkbox"><Checkbox size="small" checked={selectedIds.has(row.id)} onChange={event => setSelectedIds(previous => { const next = new Set(previous); event.target.checked ? next.add(row.id) : next.delete(row.id); return next; })} /></TableCell>
+          <TableCell sx={{ fontFamily: "monospace", fontWeight: 800 }}>{row.vehicleRegistrationPlate ?? "—"}</TableCell>
+          <TableCell><Button component={RouterLink} to={`/app/customers/${row.customerId}`} size="small">{row.customerDisplay ?? "Πελάτης"}</Button></TableCell>
+          <TableCell><Button component={RouterLink} to={`/app/policies?focus=${row.id}`} size="small">{row.policyNumber}</Button></TableCell>
+          <TableCell>{row.insuranceCompanyName}</TableCell><TableCell>{row.startDate}</TableCell><TableCell>{row.endDate}</TableCell>
+          <TableCell align="right">{row.premium?.toLocaleString("el-GR", { minimumFractionDigits: 2 })} {row.currency}</TableCell><TableCell><Chip size="small" label={vehicleStatusLabel(row.status)} /></TableCell>
+          <TableCell align="right"><Stack direction="row" justifyContent="flex-end" spacing={0.25}><IconButton size="small" color="primary" title="Προβολή / επεξεργασία οχήματος" onClick={() => setSelectedPlate(row.vehicleRegistrationPlate ?? "")}><EditIcon fontSize="small" /></IconButton><IconButton size="small" color="error" title="Αφαίρεση οχήματος από το συμβόλαιο" onClick={() => requestDelete([row.id])}><DeleteOutlineIcon fontSize="small" /></IconButton></Stack></TableCell>
+        </TableRow>)}</TableBody>
+      </Table>
+      <TablePagination component="div" count={filteredRows.length} page={page} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage} onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50, 100]} labelRowsPerPage="Ανά σελίδα" labelDisplayedRows={({ from, to, count }) => `${from}–${to} από ${count}`} />
+    </Card>}
+    <VehicleDetailDialog open={selectedPlate !== null} plate={selectedPlate ?? ""} policyIds={sourceRows.filter(row => (row.vehicleRegistrationPlate ?? "") === (selectedPlate ?? "")).map(row => row.id)} onClose={() => setSelectedPlate(null)} />
+    <Dialog open={statsOpen} onClose={() => setStatsOpen(false)} fullWidth maxWidth="md"><DialogTitle>Στατιστικά οχημάτων</DialogTitle><DialogContent dividers><Stack spacing={1.5}><Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 1 }}>{[["Συμβόλαια", filteredRows.length], ["Πινακίδες", uniquePlates], ["Λήξεις 30 ημερών", expiring], ["Ασφάλιστρα", money(totalPremium)]].map(([label, value]) => <Card key={String(label)} variant="outlined" sx={{ p: 1.25 }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={900}>{value}</Typography></Card>)}</Box><Typography variant="subtitle2" fontWeight={800}>Ανά ασφαλιστική</Typography><Table size="small"><TableHead><TableRow><TableCell>Ασφαλιστική</TableCell><TableCell align="right">Συμβόλαια</TableCell><TableCell align="right">Πινακίδες</TableCell></TableRow></TableHead><TableBody>{companyStats.map(([name, value]) => <TableRow key={name}><TableCell>{name}</TableCell><TableCell align="right">{value.contracts}</TableCell><TableCell align="right">{value.plates.size}</TableCell></TableRow>)}</TableBody></Table></Stack></DialogContent><DialogActions><Button startIcon={<DownloadIcon />} onClick={() => exportCsv()}>Εξαγωγή CSV</Button><Button onClick={() => window.print()}>Εκτύπωση</Button><Button variant="contained" onClick={() => setStatsOpen(false)}>Κλείσιμο</Button></DialogActions></Dialog>
+    <Dialog open={deleteOpen} onClose={() => !clearVehicle.isPending && setDeleteOpen(false)} fullWidth maxWidth="xs"><DialogTitle>Επιβεβαίωση αφαίρεσης</DialogTitle><DialogContent><Typography variant="body2" sx={{ mb: 1 }}>Θα αφαιρεθεί η σύνδεση οχήματος από {deleteIds.length} συμβόλαιο/α. Δεν διαγράφεται το συμβόλαιο. Πληκτρολόγησε <strong>ΔΙΑΓΡΑΦΗ</strong> για επιβεβαίωση.</Typography><TextField autoFocus fullWidth label="Πληκτρολόγησε ΔΙΑΓΡΑΦΗ" value={deleteText} onChange={event => setDeleteText(event.target.value)} /></DialogContent><DialogActions><Button color="inherit" onClick={() => setDeleteOpen(false)} disabled={clearVehicle.isPending}>Ακύρωση</Button><Button color="error" variant="contained" onClick={() => clearVehicle.mutate(deleteIds)} disabled={deleteText.trim().toUpperCase() !== "ΔΙΑΓΡΑΦΗ" || clearVehicle.isPending}>{clearVehicle.isPending ? "Αφαιρείται..." : "Αφαίρεση"}</Button></DialogActions></Dialog>
   </Stack>;
 }

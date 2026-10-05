@@ -279,10 +279,10 @@ export function CustomerDetailPage() {
         </Box>
         {canManageCustomer && (
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
-            <Button startIcon={<EditIcon />} variant="contained" color="success" sx={{ color: "#fff", fontWeight: 800 }} onClick={() => { setTab(0); setShowEditor(true); }}>
+            <Button startIcon={<EditIcon />} variant="contained" color="success" sx={{ color: "#fff", fontWeight: 800 }} onClick={() => setShowEditor(true)}>
               Επεξεργασία πελάτη
             </Button>
-            {showEditor && tab === 0 && (
+            {showEditor && (
               <Button
                 startIcon={<SaveIcon />}
                 variant="contained"
@@ -308,9 +308,8 @@ export function CustomerDetailPage() {
 
       <CustomerProfileTabs value={tab} onChange={setTab} />
 
-      {tab === 0 && (showEditor
-        ? <CustomerEditorDialog open customer={customer} onClose={() => { setShowEditor(false); setEditorSave(null); setEditorSaving(false); }} onSaveReady={registerEditorSave} />
-        : <OverviewTab customer={customer} />)}
+      {showEditor && <CustomerEditorDialog open customer={customer} onClose={() => { setShowEditor(false); setEditorSave(null); setEditorSaving(false); }} onSaveReady={registerEditorSave} />}
+      {tab === 0 && !showEditor && <OverviewTab customer={customer} />}
       {tab === 1 && <Stack spacing={3}><CustomerPoliciesTab customerId={id} /><CustomerVehiclesTab customerId={id} /></Stack>}
       {tab === 2 && <Stack spacing={3}><CustomerClaimsTab customerId={id} /><CustomerAccountTab customerId={id} /></Stack>}
       {tab === 3 && <Stack spacing={3}><CommunicationsTab customerId={id} /><CustomerNotificationsTab customerId={id} /></Stack>}
