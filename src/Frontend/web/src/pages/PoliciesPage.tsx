@@ -91,6 +91,7 @@ interface PolicyDto {
   startDate: string;
   endDate: string;
   premium: number;
+  vehicleRegistrationPlate?: string | null;
   netPremium: string;
   specialCommissionPercent: string;
   currency: string;
@@ -143,6 +144,7 @@ const POLICY_IMPORT_COLUMNS = [
   { key: "producerId", label: "ID συνεργάτη", example: "" },
   { key: "policyType", label: "Κλάδος (Auto/Home/Health/Life/Business/Travel/Other ή κωδικός γραφείου)", required: true, example: "Auto" },
   { key: "vehicleUseCategory", label: "Χρήση οχήματος", example: "Ιδιωτική χρήση" },
+  { key: "vehicleRegistrationPlate", label: "Αριθμός κυκλοφορίας", example: "ΑΒC1234" },
   { key: "coverCode", label: "Κωδικός κάλυψης", example: "" },
   { key: "packageCode", label: "Κωδικός πακέτου", example: "" },
   { key: "startDate", label: "Έναρξη (YYYY-MM-DD)", required: true, example: "2026-10-01" },
@@ -402,6 +404,7 @@ export function PoliciesPage() {
           producerId: row.producerId?.trim() || null,
           policyType: row.policyType.trim(),
           vehicleUseCategory: row.vehicleUseCategory?.trim() || null,
+          vehicleRegistrationPlate: row.vehicleRegistrationPlate?.trim().toUpperCase() || null,
           coverCode: row.coverCode?.trim() || null,
           packageCode: row.packageCode?.trim() || null,
           startDate: row.startDate,
@@ -1180,6 +1183,7 @@ interface FormBody {
   producerId: string;
   policyType: PolicyType;
   vehicleUseCategory: string;
+  vehicleRegistrationPlate: string;
   coverCode: string;
   packageCode: string;
   startDate: string;
@@ -1249,6 +1253,7 @@ function PolicyFormDialog({
     producerId: "",
     policyType: "Auto",
     vehicleUseCategory: "",
+    vehicleRegistrationPlate: "",
     coverCode: "",
     packageCode: "",
     startDate: new Date().toISOString().slice(0, 10),
@@ -1282,6 +1287,7 @@ function PolicyFormDialog({
         producerId: policy.producerId ?? "",
         policyType: policy.policyType,
         vehicleUseCategory: "",
+        vehicleRegistrationPlate: policy.vehicleRegistrationPlate ?? "",
         coverCode: "",
         packageCode: "",
         startDate: policy.startDate,
@@ -1305,6 +1311,7 @@ function PolicyFormDialog({
         producerId: "",
         policyType: "Auto",
         vehicleUseCategory: "",
+        vehicleRegistrationPlate: "",
         coverCode: "",
         packageCode: "",
         startDate: new Date().toISOString().slice(0, 10),
@@ -1350,6 +1357,7 @@ function PolicyFormDialog({
         producerId: form.producerId || null,
         policyType: form.policyType,
         vehicleUseCategory: form.vehicleUseCategory || null,
+        vehicleRegistrationPlate: form.vehicleRegistrationPlate.trim() || null,
         coverCode: form.coverCode || null,
         packageCode: form.packageCode || null,
         startDate: form.startDate,
@@ -1506,6 +1514,15 @@ function PolicyFormDialog({
             />
           </Stack>
 
+          <TextField
+            label="Αριθμός κυκλοφορίας"
+            value={form.vehicleRegistrationPlate}
+            onChange={(e) => setForm({ ...form, vehicleRegistrationPlate: e.target.value.toUpperCase() })}
+            helperText="Για συμβόλαια οχήματος· χρησιμοποιείται για αυτόματη σύνδεση με την καρτέλα οχήματος."
+            placeholder="π.χ. ΑΒC1234"
+            fullWidth
+          />
+
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <SearchableSelect
               label="Κάλυψη"
@@ -1532,9 +1549,32 @@ function PolicyFormDialog({
           </Stack>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField type="number" label="Καθαρά ασφάλιστρα" value={form.netPremium}
+            <TextField
+              type="number"
+              label="Μικτά ασφάλιστρα"
+              value={form.premium}
+              onChange={(e) => setForm({ ...form, premium: Number(e.target.value) })}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    {form.currency}
+                    <FilterHelp title="Το συνολικό μικτό ασφάλιστρο του συμβολαίου." />
+                  </InputAdornment>
+                )
+              }}
+              fullWidth
+              required
+            />
+            <TextField
+              type="number"
+              label="Καθαρά ασφάλιστρα"
+              value={form.netPremium}
               onChange={e => setForm({ ...form, netPremium: e.target.value })}
-              helperText="Κενό = υπολογισμός από μικτά / κανόνες" fullWidth />
+              helperText="Κενό = υπολογισμός από μικτά / κανόνες"
+              fullWidth
+            />
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField type="number" label="Προμήθεια συνεργάτη %" value={form.specialCommissionPercent}
               onChange={e => setForm({ ...form, specialCommissionPercent: e.target.value })}
               helperText="Κενό = χρήση κανόνα προμηθειών" fullWidth />
@@ -1574,20 +1614,6 @@ function PolicyFormDialog({
           </Stack>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField
-              type="number" label={t("policies.form.premium")}
-              value={form.premium}
-              onChange={(e) => setForm({ ...form, premium: Number(e.target.value) })}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    {form.currency}
-                    <FilterHelp title="Μικτό ασφάλιστρο συμβολαίου. Τα ασφαλιστήρια δεν έχουν ΦΠΑ· τυχόν επιβάρυνση καταχωρείται ως φόρος ασφαλίστρων." />
-                  </InputAdornment>
-                )
-              }}
-              fullWidth required
-            />
             <SearchableTextField
               select label={t("policies.col.status")}
               value={form.status}
@@ -1627,7 +1653,7 @@ function PolicyFormDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t("common.cancel")}</Button>
+        <Button onClick={onClose} color="error" variant="contained" startIcon={<CancelIcon />}>{t("common.cancel")}</Button>
         <Button variant="contained" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
           {saveMutation.isPending ? <CircularProgress size={18} /> : t("common.save")}
         </Button>
