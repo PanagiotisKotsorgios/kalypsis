@@ -48,6 +48,12 @@ public record GreenCardBody(
 
 public record ListGreenCardsQuery(Guid PolicyId) : IRequest<IReadOnlyList<GreenCardDto>>;
 
+public record ListAllGreenCardsQuery(
+    string? Search,
+    GreenCardStatus? Status,
+    DateOnly? ValidFrom,
+    DateOnly? ValidTo) : IRequest<IReadOnlyList<GreenCardDto>>;
+
 public sealed class ListGreenCardsQueryHandler : IRequestHandler<ListGreenCardsQuery, IReadOnlyList<GreenCardDto>>
 {
     private readonly IAppDbContext _db;
@@ -90,6 +96,48 @@ public sealed class ListGreenCardsQueryHandler : IRequestHandler<ListGreenCardsQ
             x.HolderName, x.InsuredName, x.VehicleRegistrationPlate,
             x.VehicleMakeModel, x.VehicleVin, x.Territories, x.IssuingOffice,
             x.DeliveryMethod, x.Notes, x.IssuedAt, x.DeliveredAt, x.PolicyDocumentId);
+    }
+}
+
+public sealed class ListAllGreenCardsQueryHandler : IRequestHandler<ListAllGreenCardsQuery, IReadOnlyList<GreenCardDto>>
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+
+    public ListAllGreenCardsQueryHandler(IAppDbContext db, ICurrentUser current)
+    {
+        _db = db;
+        _current = current;
+    }
+
+    public async Task<IReadOnlyList<GreenCardDto>> Handle(ListAllGreenCardsQuery request, CancellationToken ct)
+    {
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var q = _db.GreenCards
+            .Include(x => x.Policy).ThenInclude(x => x.Customer)
+            .Where(x => x.TenantId == tenantId && x.DeletedAt == null);
+
+        if (_current.Role == Role.Customer)
+        {
+            var userId = _current.UserId ?? throw AppException.Unauthorized();
+            var customerId = await _db.Users.Where(x => x.Id == userId).Select(x => x.CustomerId).FirstOrDefaultAsync(ct);
+            if (customerId is null) return Array.Empty<GreenCardDto>();
+            q = q.Where(x => x.Policy.CustomerId == customerId);
+        }
+        if (request.Status.HasValue) q = q.Where(x => x.Status == request.Status.Value);
+        if (request.ValidFrom.HasValue) q = q.Where(x => x.ValidTo >= request.ValidFrom.Value);
+        if (request.ValidTo.HasValue) q = q.Where(x => x.ValidFrom <= request.ValidTo.Value);
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var term = request.Search.Trim();
+            q = q.Where(x => x.CardNumber.Contains(term) || x.VehicleRegistrationPlate.Contains(term) ||
+                x.HolderName.Contains(term) || x.InsuredName.Contains(term) ||
+                x.Policy.PolicyNumber.Contains(term) || (x.Policy.Customer.FirstName + " " + x.Policy.Customer.LastName).Contains(term) ||
+                (x.Policy.Customer.CompanyName ?? "").Contains(term));
+        }
+
+        var rows = await q.OrderByDescending(x => x.ValidFrom).ThenByDescending(x => x.CreatedAt).Take(2000).ToListAsync(ct);
+        return rows.Select(ListGreenCardsQueryHandler.Map).ToList();
     }
 }
 
@@ -139,9 +187,14 @@ public sealed class CreateGreenCardCommandHandler : IRequestHandler<CreateGreenC
     }
 
     private async Task<Policy> LoadPolicy(Guid id, Guid tenantId, CancellationToken ct)
-        => await _db.Policies.Include(x => x.Customer).Include(x => x.InsuranceCompany)
+    {
+        var policy = await _db.Policies.Include(x => x.Customer).Include(x => x.InsuranceCompany)
             .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId && x.DeletedAt == null, ct)
             ?? throw AppException.NotFound("Policy");
+        if (policy.PolicyType != PolicyType.Auto)
+            throw AppException.Validation("Η πράσινη κάρτα συνδέεται μόνο με συμβόλαια αυτοκινήτου.");
+        return policy;
+    }
 
     internal static void ValidateDates(DateOnly from, DateOnly to)
     {

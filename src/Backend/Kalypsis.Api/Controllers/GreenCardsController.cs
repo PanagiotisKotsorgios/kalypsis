@@ -1,4 +1,5 @@
 using Kalypsis.Application.Features.GreenCards;
+using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,6 +13,16 @@ public sealed class GreenCardsController : ControllerBase
 {
     private readonly IMediator _mediator;
     public GreenCardsController(IMediator mediator) => _mediator = mediator;
+
+    [HttpGet("~/api/green-cards")]
+    [Authorize(Policy = "AgencyStaff")]
+    public async Task<ActionResult<IReadOnlyList<GreenCardDto>>> ListAll(
+        [FromQuery] string? search,
+        [FromQuery] GreenCardStatus? status,
+        [FromQuery] DateOnly? validFrom,
+        [FromQuery] DateOnly? validTo,
+        CancellationToken ct)
+        => Ok(await _mediator.Send(new ListAllGreenCardsQuery(search, status, validFrom, validTo), ct));
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<GreenCardDto>>> List(Guid policyId, CancellationToken ct)

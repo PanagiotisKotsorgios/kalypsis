@@ -235,6 +235,7 @@ import CakeIcon from "@mui/icons-material/Cake";
 // MergeIcon was the customer-merge sidebar row — folded into
 // /reconciliation-hub as a tile, icon no longer needed here.
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
+import CardMembershipIcon from "@mui/icons-material/CardMembership";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import HubIcon from "@mui/icons-material/Hub";
 import FolderSpecialIcon from "@mui/icons-material/FolderSpecial";
@@ -250,6 +251,7 @@ import { CarrierBridgesHubPage } from "./pages/CarrierBridgesHubPage";
 import { OverCommissionBridgesPage } from "./pages/OverCommissionBridgesPage";
 import { BridgeCodeMappingsPage } from "./pages/BridgeCodeMappingsPage";
 import { ProductionListsPage } from "./pages/ProductionListsPage";
+import { GreenCardsPage } from "./pages/GreenCardsPage";
 import { ProducerProductionPage } from "./pages/ProducerProductionPage";
 import { ProducerProductionAnalyticsPage } from "./pages/ProducerProductionAnalyticsPage";
 import { ProducerGoalsPage } from "./pages/ProducerGoalsPage";
@@ -315,6 +317,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice", group: "production" },
     { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice", group: "production" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice", group: "production" },
+    { to: "/green-cards", labelKey: "nav.greenCards", icon: <CardMembershipIcon />, package: "BackOffice", group: "production" },
     // "Ανανεώσεις" is now a button inside the Συμβόλαια page — one less sidebar
     // entry to scan through. Legacy /renewals route still lives so anyone
     // with the URL bookmarked keeps working.
@@ -474,6 +477,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
     { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice" },
+    { to: "/green-cards", labelKey: "nav.greenCards", icon: <CardMembershipIcon />, package: "BackOffice" },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
     { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
@@ -494,6 +498,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
     { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice" },
     { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "BackOffice" },
+    { to: "/green-cards", labelKey: "nav.greenCards", icon: <CardMembershipIcon />, package: "BackOffice" },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
     { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
@@ -820,6 +825,7 @@ export default function App() {
                   <Route path="contracts/new" element={<NewContractWizardPage />} />
                   <Route path="contracts/:id" element={<CustomerContractDetailsPage />} />
                   <Route path="policies" element={<PoliciesPage />} />
+                  <Route path="green-cards" element={<GreenCardsPage />} />
                   <Route path="all-users" element={<AllUsersPage />} />
                   <Route path="documents" element={<DocumentsPage />} />
                   <Route path="notifications" element={<NotificationsPage />} />
