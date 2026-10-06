@@ -265,6 +265,31 @@ internal static class DemoShowcaseSeeder
                     new PolicyCover { Id = Guid.NewGuid(), TenantId = tenant.Id, PolicyId = policy.Id, PolicyObjectId = obj.Id, CoverCode = "DEMO-OPT", CoverName = "Προαιρετική κάλυψη", GrossPremium = decimal.Round(policy.Premium * .38m, 2), NetPremium = decimal.Round(net * .38m, 2), CoverageAmount = 250000m, CommissionPercent = 10m, AgencyCommissionPercent = 6m, CreatedAt = now });
             }
 
+            // Keep one ready-to-edit manual green-card record in the showcase
+            // tenant. It deliberately remains a draft: the walkthrough can
+            // demonstrate the real issue-PDF and delivery actions.
+            if (policy.PolicyType == PolicyType.Auto &&
+                !await db.GreenCards.IgnoreQueryFilters().AnyAsync(x => x.TenantId == tenant.Id && x.PolicyId == policy.Id && x.DeletedAt == null, ct))
+            {
+                var customer = customers.FirstOrDefault(x => x.Id == policy.CustomerId);
+                var customerName = customer is null ? string.Empty : customer.Type == CustomerType.Individual
+                    ? $"{customer.FirstName} {customer.LastName}".Trim()
+                    : customer.CompanyName ?? string.Empty;
+                db.GreenCards.Add(new GreenCard
+                {
+                    Id = Guid.NewGuid(), TenantId = tenant.Id, PolicyId = policy.Id,
+                    CardNumber = $"{Marker}-GREEN-{index + 1:D3}", Status = GreenCardStatus.Draft,
+                    ValidFrom = policy.StartDate, ValidTo = policy.EndDate,
+                    HolderName = customerName, InsuredName = customerName,
+                    VehicleRegistrationPlate = policy.VehicleRegistrationPlate ?? $"DEMO-{index + 1:D3}",
+                    VehicleMakeModel = "Toyota Corolla · ενδεικτικό όχημα",
+                    Territories = "GR, AL, BG, IT",
+                    IssuingOffice = tenant.Name,
+                    Notes = "Ενδεικτική πράσινη κάρτα demo — έτοιμη για έκδοση PDF.",
+                    CreatedAt = now
+                });
+            }
+
             if (!await db.PolicyInstallments.IgnoreQueryFilters().AnyAsync(x => x.TenantId == tenant.Id && x.PolicyId == policy.Id, ct))
             {
                 var half = decimal.Round(policy.Premium / 2m, 2);

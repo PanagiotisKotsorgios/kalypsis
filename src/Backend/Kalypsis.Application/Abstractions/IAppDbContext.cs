@@ -23,6 +23,7 @@ public interface IAppDbContext
     DbSet<CompanyParameterItem> CompanyParameterItems { get; }
     DbSet<Policy> Policies { get; }
     DbSet<PolicyDocument> PolicyDocuments { get; }
+    DbSet<GreenCard> GreenCards { get; }
     DbSet<PolicyObject> PolicyObjects { get; }
     DbSet<PolicyCover> PolicyCovers { get; }
     DbSet<PolicyInstallment> PolicyInstallments { get; }
