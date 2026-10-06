@@ -1192,6 +1192,8 @@ interface FormBody {
   status: PolicyStatus;
   paidDirectlyToCarrier: boolean;
   delivered: boolean;
+  createReceipt: boolean;
+  paymentCollectionMethod: string;
 }
 
 function PolicyFormDialog({
@@ -1233,6 +1235,12 @@ function PolicyFormDialog({
     queryFn: async () => (await api.get<{ id: string; name: string; code: string }[]>("/producers")).data,
     enabled: open,
   });
+  const workflowSettings = useQuery({
+    queryKey: ["office-workflow-settings"],
+    enabled: open,
+    queryFn: async () => (await api.get<{ keyName: string; value: string | null }[]>("/integration-settings", { params: { service: "OfficeWorkflow" } })).data,
+    staleTime: 60_000,
+  });
 
   const [form, setForm] = useState<FormBody>({
     customerId: "",
@@ -1252,7 +1260,9 @@ function PolicyFormDialog({
     currency: "EUR",
     status: "Active",
     paidDirectlyToCarrier: false,
-    delivered: true
+    delivered: true,
+    createReceipt: false,
+    paymentCollectionMethod: "Cash"
   });
   const [error, setError] = useState<string | null>(null);
   const dialogCatalogue = useCarrierCatalogue(form.insuranceCompanyId);
@@ -1283,7 +1293,9 @@ function PolicyFormDialog({
         currency: policy.currency,
         status: policy.status,
         paidDirectlyToCarrier: policy.paidDirectlyToCarrier ?? false,
-        delivered: !!policy.deliveredAt
+        delivered: !!policy.deliveredAt,
+        createReceipt: false,
+        paymentCollectionMethod: "Cash"
       });
     } else if (open) {
       setForm({
@@ -1304,10 +1316,23 @@ function PolicyFormDialog({
         currency: "EUR",
         status: initialStatus,
         paidDirectlyToCarrier: false,
-        delivered: true
+        delivered: true,
+        createReceipt: false,
+        paymentCollectionMethod: "Cash"
       });
     }
   }, [policy, open, initialStatus]);
+
+  useEffect(() => {
+    if (open && !editing && !hasDraft && workflowSettings.data) {
+      const map = new Map(workflowSettings.data.map(x => [x.keyName, x.value]));
+      setForm(prev => ({
+        ...prev,
+        delivered: map.get("AutoMarkPolicyDelivered") !== "false",
+        createReceipt: map.get("AutoCreateReceiptOnPolicy") === "true",
+      }));
+    }
+  }, [workflowSettings.data, open, editing, hasDraft]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -1345,6 +1370,8 @@ function PolicyFormDialog({
           customerId: form.customerId,
           policyNumber: form.policyNumber.trim() || null,
           ...body,
+          createReceipt: form.createReceipt,
+          paymentCollectionMethod: form.paymentCollectionMethod || null,
         })).data;
       }
     },
@@ -1574,7 +1601,7 @@ function PolicyFormDialog({
           </Stack>
           <FormControlLabel
             control={<Checkbox checked={form.paidDirectlyToCarrier}
-              onChange={e => setForm({ ...form, paidDirectlyToCarrier: e.target.checked })} />}
+              onChange={e => setForm({ ...form, paidDirectlyToCarrier: e.target.checked, createReceipt: e.target.checked ? false : form.createReceipt })} />}
             label="Ο πελάτης πλήρωσε απευθείας στην ασφαλιστική"
           />
           <FormControlLabel
@@ -1582,8 +1609,20 @@ function PolicyFormDialog({
               onChange={e => setForm({ ...form, delivered: e.target.checked })} />}
             label="Παραδόθηκε"
           />
+          <FormControlLabel
+            control={<Checkbox checked={form.createReceipt} disabled={form.paidDirectlyToCarrier}
+              onChange={e => setForm({ ...form, createReceipt: e.target.checked })} />}
+            label="Εισπράχθηκε κατά την καταχώρηση"
+          />
+          {form.createReceipt && !form.paidDirectlyToCarrier && (
+            <SearchableTextField label="Τρόπος είσπραξης" value={form.paymentCollectionMethod}
+              onChange={e => setForm({ ...form, paymentCollectionMethod: e.target.value })} fullWidth>
+              {(["Cash", "Card", "BankTransfer", "Cheque", "PromissoryNote", "Other"] as const).map(method =>
+                <MenuItem key={method} value={method}>{({ Cash: "Μετρητά", Card: "Κάρτα", BankTransfer: "Τραπεζική μεταφορά", Cheque: "Επιταγή", PromissoryNote: "Γραμμάτιο", Other: "Άλλο" } as Record<string, string>)[method]}</MenuItem>)}
+            </SearchableTextField>
+          )}
           <Typography variant="caption" color="text.secondary" sx={{ mt: -1.5 }}>
-            Δεν δημιουργείται είσπραξη στο ταμείο του γραφείου και η οφειλή προς την ασφαλιστική εξαιρείται από τις εκκρεμείς πληρωμές.
+            Η «Παραδόθηκε» ενημερώνει την παρακολούθηση παράδοσης. Η «Εισπράχθηκε» δημιουργεί πραγματική απόδειξη και κίνηση ταμείου για όλο το ασφάλιστρο. Για απευθείας πληρωμή στην ασφαλιστική δεν δημιουργείται είσπραξη γραφείου.
           </Typography>
         </Stack>
       </DialogContent>

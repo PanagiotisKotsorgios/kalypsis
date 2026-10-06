@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
 import { GdprSigningSettingsCard } from "../components/GdprSigningSettingsCard";
+import { OfficeWorkflowSettingsCard } from "../components/OfficeWorkflowSettingsCard";
 
 interface AgencyProfile {
   tenantId: string;
@@ -290,6 +291,8 @@ export function AgencySettingsPage() {
         </Card>
 
         <GdprSigningSettingsCard />
+
+        <OfficeWorkflowSettingsCard />
 
         <Button variant="contained" size="large" startIcon={<SaveIcon />}
           onClick={() => save.mutate()} disabled={save.isPending}

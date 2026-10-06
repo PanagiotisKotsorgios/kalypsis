@@ -273,6 +273,10 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
 
         var (useEnum, useRaw) = VehicleUseCategorySplit.Parse(r.VehicleUseCategory);
         var (branchEnum, branchRaw) = PolicyTypeSplit.Parse(r.PolicyType);
+        var autoDelivered = await ReadOfficeWorkflowFlagAsync(tenantId, "AutoMarkPolicyDelivered", true, ct);
+        var shouldDeliver = r.Delivered ?? autoDelivered;
+        var autoReceipt = await ReadOfficeWorkflowFlagAsync(tenantId, "AutoCreateReceiptOnPolicy", false, ct);
+        var shouldCreateReceipt = r.CreateReceipt ?? autoReceipt;
         var p = new Policy
         {
             Id = Guid.NewGuid(),
@@ -304,16 +308,55 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
             VehicleRegistrationPlate = string.IsNullOrWhiteSpace(r.VehicleRegistrationPlate)
                 ? null : r.VehicleRegistrationPlate.Trim().ToUpperInvariant(),
             PaidDirectlyToCarrier = r.PaidDirectlyToCarrier,
+            PaymentCollectionMethod = string.IsNullOrWhiteSpace(r.PaymentCollectionMethod) ? null : r.PaymentCollectionMethod.Trim(),
             // New contracts are delivered immediately by default. Keep the
             // explicit flag in the API so the create form can opt out and
-            // leave the item in the delivery queue.
-            DeliveredAt = r.Delivered ? DateOnly.FromDateTime(DateTime.UtcNow) : null,
-            DeliveredTo = r.Delivered
+            // leave the item in the delivery queue. The office setting is
+            // used only when the caller did not send an explicit choice.
+            DeliveredAt = shouldDeliver ? DateOnly.FromDateTime(DateTime.UtcNow) : null,
+            DeliveredTo = shouldDeliver
                 ? (customer.CompanyName ?? $"{customer.FirstName} {customer.LastName}").Trim()
                 : null,
-            DeliveryMethod = r.Delivered ? "Email" : null
+            DeliveryMethod = shouldDeliver ? "Email" : null
         };
         _db.Policies.Add(p);
+
+        // A policy receipt is a real financial entry, not just a visual flag.
+        // Keep it opt-in by default, and never create an office receipt when
+        // the customer pays directly to the carrier.
+        if (shouldCreateReceipt && !p.PaidDirectlyToCarrier && p.Status != PolicyStatus.Prospect && p.Premium > 0)
+        {
+            var receiptNumber = $"R-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..36];
+            var receiptId = Guid.NewGuid();
+            var method = ParsePaymentMethod(r.PaymentCollectionMethod);
+            _db.Receipts.Add(new Receipt
+            {
+                Id = receiptId,
+                TenantId = tenantId,
+                Number = receiptNumber,
+                ReceivedOn = DateOnly.FromDateTime(DateTime.UtcNow),
+                CustomerId = p.CustomerId,
+                PolicyId = p.Id,
+                Method = method,
+                Amount = p.Premium,
+                Currency = p.Currency,
+                Notes = "Αυτόματη είσπραξη κατά τη δημιουργία συμβολαίου",
+                RecordedByUserId = _current.UserId
+            });
+            _db.FinancialMovements.Add(new FinancialMovement
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                MovementDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                Kind = FinancialMovementKind.CustomerCredit,
+                Amount = p.Premium,
+                Currency = p.Currency,
+                CustomerId = p.CustomerId,
+                PolicyId = p.Id,
+                ReceiptId = receiptId,
+                Description = $"Είσπραξη #{receiptNumber}"
+            });
+        }
 
         // Auto-generate installments when the customer picked a non-annual /
         // non-single payment plan. The manual "Regenerate installments" button
@@ -384,6 +427,17 @@ public class CreatePolicyCommandHandler : IRequestHandler<CreatePolicyCommand, P
             .FirstAsync(x => x.Id == p.Id, ct);
         return ListPoliciesQueryHandler.ToDto(saved);
     }
+
+    private async Task<bool> ReadOfficeWorkflowFlagAsync(Guid tenantId, string key, bool fallback, CancellationToken ct)
+    {
+        var raw = await _db.IntegrationSettings.AsNoTracking()
+            .Where(x => x.TenantId == tenantId && x.Service == "OfficeWorkflow" && x.KeyName == key)
+            .Select(x => x.Value).FirstOrDefaultAsync(ct);
+        return raw is null ? fallback : bool.TryParse(raw, out var result) ? result : fallback;
+    }
+
+    private static PaymentMethod ParsePaymentMethod(string? value) =>
+        Enum.TryParse<PaymentMethod>(value, true, out var method) ? method : PaymentMethod.Cash;
 }
 
 /* ========= Update ========= */

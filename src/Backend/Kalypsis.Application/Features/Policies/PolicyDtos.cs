@@ -61,7 +61,9 @@ public record CreatePolicyBody(
     DateOnly? IssuedAt = null,
     string? VehicleRegistrationPlate = null,
     bool PaidDirectlyToCarrier = false,
-    bool Delivered = true);
+    bool? Delivered = null,
+    bool? CreateReceipt = null,
+    string? PaymentCollectionMethod = null);
 
 public record UpdatePolicyBody(
     Guid InsuranceCompanyId,

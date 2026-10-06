@@ -34,7 +34,8 @@ public class IntegrationSettingsController : ControllerBase
     private static bool IsOfficeAdminService(string? service) =>
         string.Equals(service, "Crm", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(service, "Ai", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(service, "OpenAI", StringComparison.OrdinalIgnoreCase);
+        string.Equals(service, "OpenAI", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(service, "OfficeWorkflow", StringComparison.OrdinalIgnoreCase);
 }
 
 [ApiController]
