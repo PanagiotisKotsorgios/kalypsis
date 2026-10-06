@@ -63,15 +63,12 @@ const formatCell = (value: unknown, locale: string): string => {
 
 export function printTable<T>(opts: PrintOptions<T>): void {
   const locale = opts.locale ?? "el-GR";
-  // When the caller doesn't force an orientation, ask the operator —
-  // most exports look better landscape once there are more than ~5
-  // columns. Native confirm() is intentional: no imports, no library
-  // dependency, works from the .ts utility layer.
-  const orientation: "portrait" | "landscape" = opts.orientation ?? (
-    typeof window !== "undefined" && window.confirm(
-      "Οριζόντια εκτύπωση;\n\n· OK  → Οριζόντιος προσανατολισμός (landscape)\n· Cancel → Κάθετος προσανατολισμός (portrait)"
-    ) ? "landscape" : "portrait"
-  );
+  // When the caller doesn't force an orientation, select it automatically.
+  // This helper is synchronous, so it must not open a native browser
+  // confirmation dialog. Wide tables print in landscape; smaller tables
+  // remain portrait unless the caller explicitly overrides the choice.
+  const orientation: "portrait" | "landscape" = opts.orientation ??
+    (opts.columns.length > 5 ? "landscape" : "portrait");
   const now = new Date().toLocaleString(locale);
 
   const head = opts.columns.map(c => `<th>${escapeHtml(c.label)}</th>`).join("");

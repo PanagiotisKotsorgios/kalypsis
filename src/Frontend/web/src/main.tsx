@@ -19,6 +19,7 @@ import { AuthProvider } from "./auth/AuthContext";
 import { PackagesProvider } from "./auth/PackagesContext";
 import { PremiumProvider } from "./auth/PremiumContext";
 import { UndoProvider } from "./components/UndoToast";
+import { GlobalConfirmationDialog } from "./components/GlobalConfirmationDialog";
 import { WorkspaceProvider } from "./auth/WorkspaceContext";
 import { MaintenanceProvider } from "./auth/MaintenanceContext";
 import { ImpersonationProvider } from "./impersonation/ImpersonationContext";
@@ -117,6 +118,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
                     <PremiumProvider>
                       <WorkspaceProvider>
                         <UndoProvider>
+                          <GlobalConfirmationDialog />
                           <BrowserRouter>
                             <App />
                           </BrowserRouter>

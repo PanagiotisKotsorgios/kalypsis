@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import {
-  Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, ListItemIcon, ListItemText, Menu, MenuItem
+  Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Snackbar
 } from "@mui/material";
 import SortByAlphaIcon from "@mui/icons-material/SortByAlpha";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
@@ -142,6 +142,7 @@ interface RowMenuState<T> {
 export function useRowContextMenu<T>(options: RowMenuOptions<T>) {
   const [state, setState] = useState<RowMenuState<T>>({ position: null, row: null });
   const [deleteTarget, setDeleteTarget] = useState<T | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const open = useCallback((e: React.MouseEvent, row: T) => {
     e.preventDefault();
@@ -205,7 +206,10 @@ export function useRowContextMenu<T>(options: RowMenuOptions<T>) {
           color="error"
           variant="contained"
           onClick={() => {
-            if (deleteTarget !== null) options.onDelete!(deleteTarget);
+            if (deleteTarget !== null) {
+              options.onDelete!(deleteTarget);
+              setSuccess(true);
+            }
             setDeleteTarget(null);
           }}
         >
@@ -215,7 +219,25 @@ export function useRowContextMenu<T>(options: RowMenuOptions<T>) {
     </Dialog>
   ) : null;
 
-  return { open, close, menu: <>{menu}{confirmation}</>, isOpen };
+  return {
+    open,
+    close,
+    menu: <>
+      {menu}
+      {confirmation}
+      <Snackbar
+        open={success}
+        autoHideDuration={3500}
+        onClose={() => setSuccess(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity="success" variant="filled" onClose={() => setSuccess(false)} sx={{ fontWeight: 700 }}>
+          Η διαγραφή ολοκληρώθηκε επιτυχώς.
+        </Alert>
+      </Snackbar>
+    </>,
+    isOpen,
+  };
 }
 
 // -----------------------------------------------------------------------------
