@@ -120,6 +120,9 @@ public static class DemoDataSeeder
             demoAdmin.LastName = "DEMO";
             demoAdmin.TenantId = tenant.Id;
             demoAdmin.IsActive = true;
+            // Keep the published walkthrough credentials deterministic even if
+            // an older demo installation already had this user.
+            demoAdmin.PasswordHash = hasher.Hash(DemoPassword);
             await db.SaveChangesAsync(ct);
         }
 
