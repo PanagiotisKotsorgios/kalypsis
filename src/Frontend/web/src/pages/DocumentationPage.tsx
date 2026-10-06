@@ -11,6 +11,7 @@ import PrintIcon from "@mui/icons-material/Print";
 import MenuIcon from "@mui/icons-material/Menu";
 import LoginIcon from "@mui/icons-material/Login";
 import DownloadIcon from "@mui/icons-material/Download";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import EditIcon from "@mui/icons-material/Edit";
@@ -321,6 +322,22 @@ export function DocumentationPage() {
               onClick={() => window.print()} sx={{ whiteSpace: "nowrap" }}>
               Εκτύπωση / PDF
             </Button>
+            {!isPublic && (
+              <Button
+                component="a"
+                href="/docs/kalypsis-backoffice-guide.pdf"
+                download="Kalypsis-BackOffice-Guide.pdf"
+                target="_blank"
+                rel="noopener"
+                variant="contained"
+                color="primary"
+                size="small"
+                startIcon={<PictureAsPdfIcon />}
+                sx={{ whiteSpace: "nowrap" }}
+              >
+                Πλήρης οδηγός PDF
+              </Button>
+            )}
           </Stack>
         </Box>
 
