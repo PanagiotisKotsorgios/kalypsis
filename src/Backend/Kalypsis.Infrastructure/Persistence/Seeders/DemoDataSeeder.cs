@@ -69,6 +69,16 @@ public static class DemoDataSeeder
             log.LogInformation("Seeded demo tenant {Code}", DemoTenantCode);
         }
 
+        // Keep the showcase tenant unmistakable in every screen. The seed is
+        // corrective as well as additive, so older demo installs are renamed
+        // without touching any real tenant.
+        tenant.Name = "ΓΡΑΦΕΙΟ DEMO";
+        tenant.ContactEmail = DemoAdminEmail;
+        tenant.ContactPhone = "+30 210 555 0000";
+        tenant.AddressLine = "Λεωφόρος Demo 1, Αθήνα";
+        tenant.BrandColorHex = "#0b2545";
+        await db.SaveChangesAsync(ct);
+
         // Demo tenant gets every package so screenshots and QA cover all features.
         // Idempotent — skips any grant that already exists (works even with soft-deleted
         // rows because the unique index includes deleted entries).
@@ -101,6 +111,17 @@ public static class DemoDataSeeder
             Role.AgencyUser, isActive: true, ct);
         await EnsureUserAsync(db, hasher, clock, tenant.Id, DemoProducerEmail, "Δημήτρης", "Σταυρίδης",
             Role.Producer, isActive: true, ct);
+
+        var demoAdmin = await db.Users.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Email == DemoAdminEmail, ct);
+        if (demoAdmin is not null)
+        {
+            demoAdmin.FirstName = "ΓΡΑΦΕΙΟ";
+            demoAdmin.LastName = "DEMO";
+            demoAdmin.TenantId = tenant.Id;
+            demoAdmin.IsActive = true;
+            await db.SaveChangesAsync(ct);
+        }
 
         // ----- 3. Producers ------------------------------------------------
         if (!await db.Producers.IgnoreQueryFilters().AnyAsync(p => p.TenantId == tenant.Id, ct))
@@ -311,6 +332,10 @@ public static class DemoDataSeeder
             await db.SaveChangesAsync(ct);
             log.LogInformation("Seeded subscription");
         }
+
+        // The broad showcase seed is isolated and retry-safe. A failure in an
+        // optional demo relation must never prevent the API from starting.
+        await DemoShowcaseSeeder.SeedAsync(db, clock, tenant, demoAdmin, log, ct);
 
         log.LogInformation("Demo data seed complete for tenant {Tenant}", tenant.Code);
     }
