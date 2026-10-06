@@ -38,6 +38,7 @@ export function GlobalConfirmationDialog() {
     window.confirm = (message?: string) => {
       if (bypassNextConfirm.current) {
         bypassNextConfirm.current = false;
+        lastTarget.current = null;
         return true;
       }
 
@@ -59,11 +60,15 @@ export function GlobalConfirmationDialog() {
     };
   }, []);
 
-  const close = () => setPending(null);
+  const close = () => {
+    setPending(null);
+    lastTarget.current = null;
+  };
   const confirm = () => {
     const target = pending?.target;
     const message = pending?.message ?? "";
     setPending(null);
+    lastTarget.current = null;
     if (target?.isConnected) {
       // Replay the original click. The patched confirm returns true exactly
       // once, so the existing mutation executes after the custom dialog.
