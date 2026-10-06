@@ -107,7 +107,20 @@ public record PolicyDetailDto(
     bool PaidOnCredit = false,
     DateOnly? PaymentPromisedOn = null,
     string? CreditReason = null,
-    string? PolicyNotes = null);
+    string? PolicyNotes = null,
+    // Per-policy settlement snapshot. These values distinguish an expected
+    // obligation from a payment that has actually been recorded in the
+    // office ledger; creating a policy alone must never mark a beneficiary
+    // as paid.
+    decimal CarrierDue = 0m,
+    decimal CarrierPaid = 0m,
+    decimal CarrierOutstanding = 0m,
+    decimal ProducerDue = 0m,
+    decimal ProducerPaid = 0m,
+    decimal ProducerOutstanding = 0m,
+    decimal AgencyCommissionExpected = 0m,
+    decimal AgencyCommissionReceived = 0m,
+    decimal AgencyCommissionOutstanding = 0m);
 
 public record GetPolicyDetailQuery(Guid Id) : IRequest<PolicyDetailDto>;
 
@@ -191,11 +204,13 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
 {
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _current;
+    private readonly PolicyCommissionCalculator _commissionCalc;
 
-    public GetPolicyDetailQueryHandler(IAppDbContext db, ICurrentUser current)
+    public GetPolicyDetailQueryHandler(IAppDbContext db, ICurrentUser current, PolicyCommissionCalculator commissionCalc)
     {
         _db = db;
         _current = current;
+        _commissionCalc = commissionCalc;
     }
 
     public async Task<PolicyDetailDto> Handle(GetPolicyDetailQuery request, CancellationToken ct)
@@ -255,6 +270,58 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             .Where(x => x.PolicyId == p.Id && x.DeletedAt == null)
             .SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
 
+        // Payments linked to this policy are the only payments that can be
+        // presented as settled for this contract. Company/producer totals on
+        // the global Payments page remain available for bulk settlements.
+        var carrierPaid = await _db.Payments
+            .Where(x => x.PolicyId == p.Id && x.DeletedAt == null
+                && x.BeneficiaryType == BeneficiaryType.InsuranceCompany)
+            .SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
+        var producerPaid = await _db.Payments
+            .Where(x => x.PolicyId == p.Id && x.DeletedAt == null
+                && x.BeneficiaryType == BeneficiaryType.Producer)
+            .SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
+
+        decimal producerDue = 0m;
+        decimal agencyExpected = 0m;
+        try
+        {
+            var splits = await _db.PolicyCommissionSplits
+                .Where(x => x.PolicyId == p.Id && x.DeletedAt == null)
+                .ToListAsync(ct);
+            // Legacy/imported policies may not have materialised split rows.
+            // Heal them on the first detail read so the financial card never
+            // reports a false zero while the commission matrix already knows
+            // the configured office/producer percentages.
+            var needsRecompute = splits.Count == 0
+                || splits.All(x => x.HierarchyLevel != HierarchyLevel.Agency)
+                || splits.Any(x => x.HierarchyLevel == HierarchyLevel.Agency && x.Percent <= 0m);
+            if (needsRecompute)
+            {
+                try
+                {
+                    await _commissionCalc.RecomputeAsync(p, ct);
+                    await _db.SaveChangesAsync(ct);
+                    splits = await _db.PolicyCommissionSplits
+                        .Where(x => x.PolicyId == p.Id && x.DeletedAt == null)
+                        .ToListAsync(ct);
+                }
+                catch { /* a missing rule/table must not block policy detail */ }
+            }
+            producerDue = splits
+                .Where(x => x.HierarchyLevel != HierarchyLevel.Agency)
+                .Sum(x => x.GrossAmount);
+            agencyExpected = splits
+                .Where(x => x.HierarchyLevel == HierarchyLevel.Agency)
+                .Sum(x => x.GrossAmount);
+        }
+        catch
+        {
+            // Older installations may not have the split table yet. The
+            // policy detail still loads with zero expected commission data.
+        }
+        var carrierDue = p.PaidDirectlyToCarrier ? 0m : p.Premium;
+
         // Bridge-supplied agency commission — summed from every
         // FinancialMovement the carrier-bridge commit wrote for this
         // policy with kind = CommissionEarned. Wrapped so a missing FK
@@ -271,6 +338,7 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             if (raw is not null) bridgeAgencyCommission = raw;
         }
         catch { /* best-effort */ }
+        var agencyReceived = bridgeAgencyCommission ?? 0m;
 
         // Cover breakdown. Wrapped so a missing table (partial deploy on an
         // old DB) doesn't fail the whole detail load — the safety net will
@@ -365,7 +433,16 @@ public class GetPolicyDetailQueryHandler : IRequestHandler<GetPolicyDetailQuery,
             p.PaidOnCredit,
             p.PaymentPromisedOn,
             p.CreditReason,
-            p.Notes);
+            p.Notes,
+            carrierDue,
+            carrierPaid,
+            Math.Max(0m, carrierDue - carrierPaid),
+            producerDue,
+            producerPaid,
+            Math.Max(0m, producerDue - producerPaid),
+            agencyExpected,
+            agencyReceived,
+            Math.Max(0m, agencyExpected - agencyReceived));
     }
 }
 

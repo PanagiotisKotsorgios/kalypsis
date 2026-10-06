@@ -69,6 +69,20 @@ public class CreateReceiptCommandHandler : IRequestHandler<CreateReceiptCommand,
     public async Task<ReceiptDto> Handle(CreateReceiptCommand r, CancellationToken ct)
     {
         var b = r.Body;
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        var customerExists = await _db.Customers
+            .AnyAsync(x => x.Id == b.CustomerId && x.TenantId == tenantId && x.DeletedAt == null, ct);
+        if (!customerExists) throw AppException.NotFound("Ξ ΞµΞ»Ξ¬Ο„Ξ·Ο‚");
+        if (b.PolicyId.HasValue)
+        {
+            var policyCustomerId = await _db.Policies
+                .Where(x => x.Id == b.PolicyId.Value && x.TenantId == tenantId && x.DeletedAt == null)
+                .Select(x => (Guid?)x.CustomerId)
+                .FirstOrDefaultAsync(ct);
+            if (!policyCustomerId.HasValue) throw AppException.NotFound("Ξ£Ο…ΞΌΞ²ΞΏΞ»Ξ±Ξ―ΞΏ");
+            if (policyCustomerId.Value != b.CustomerId)
+                throw AppException.Validation("Η είσπραξη πρέπει να συνδέεται με τον πελάτη του συμβολαίου.");
+        }
         var rc = new Receipt
         {
             Id = Guid.NewGuid(), Number = b.Number.Trim(), ReceivedOn = b.ReceivedOn,

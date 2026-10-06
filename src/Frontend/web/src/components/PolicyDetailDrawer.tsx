@@ -47,6 +47,9 @@ export interface PolicyDetail {
   endorsementCount: number; cancellationCount: number; claimCount: number; commissionTxnCount: number;
   documentCount: number; receiptCount: number;
   totalReceived: number; outstanding: number; totalCommissions: number;
+  carrierDue: number; carrierPaid: number; carrierOutstanding: number;
+  producerDue: number; producerPaid: number; producerOutstanding: number;
+  agencyCommissionExpected: number; agencyCommissionReceived: number; agencyCommissionOutstanding: number;
   covers: PolicyCoverRow[]; coversGrossTotal: number;
   netPremium: number | null;
   vatAmount: number | null;
@@ -98,6 +101,8 @@ interface Props {
   /** Use a centered modal when the policy is opened from another modal (for example a company profile). */
   presentation?: "drawer" | "modal";
 }
+
+type PolicySettlementMode = "receipt" | "carrierPayment" | "producerPayment";
 
 interface PolicyCustomerPreview {
   id: string;
@@ -186,6 +191,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
   const [vehiclePreviewOpen, setVehiclePreviewOpen] = useState(false);
   const [vehiclePickerOpen, setVehiclePickerOpen] = useState(false);
   const [vehicleSearch, setVehicleSearch] = useState("");
+  const [settlementMode, setSettlementMode] = useState<PolicySettlementMode | null>(null);
   const modalPresentation = presentation === "modal";
   const selectTab = (next: number | string) => {
     const normalized = Number(next);
@@ -980,6 +986,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                     </PolicySummarySection>
                   </Box>
                   <PolicySummarySection title="Πηγή τιμών & προμήθειες">
+                    <PolicySettlementPanel policy={p} readOnly={readOnly} onSettle={setSettlementMode} />
                     <BridgeVsParametrizationCard policy={p} matrix={commissionMatrix.data} matrixLoading={commissionMatrix.isLoading} onCompute={() => commissionMatrix.refetch()} />
                     <Divider sx={{ my: 1 }} />
                     <PolicyCommissionMatrixTab loading={commissionMatrix.isLoading} matrix={commissionMatrix.data} currency={p.currency} readOnly={!canEdit} overrideJson={form.specialLevelPercentsJson} onOverrideChange={next => setForm({ ...form, specialLevelPercentsJson: next })} onSave={() => save.mutate()} saving={save.isPending} fallback={{ premium: p.premium, totalCommissions: p.totalCommissions, currency: p.currency }} />
@@ -1001,6 +1008,7 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
                       Producer / Agency commissions are computed on demand
                       from the office's commission-rules matrix — the button
                       below fetches / refreshes them. */}
+                  <PolicySettlementPanel policy={p} readOnly={readOnly} onSettle={setSettlementMode} />
                   <BridgeVsParametrizationCard
                     policy={p}
                     matrix={commissionMatrix.data}
@@ -1463,6 +1471,23 @@ export function PolicyDetailDrawer({ policyId, open, onClose, readOnly = false, 
           onClose={() => { if (!linkVehicle.isPending) { setVehiclePickerOpen(false); setVehicleSearch(""); } }}
         />
       )}
+      {p && !readOnly && settlementMode && (
+        <PolicySettlementDialog
+          open
+          mode={settlementMode}
+          policy={p}
+          onClose={() => setSettlementMode(null)}
+          onSaved={() => {
+            setSettlementMode(null);
+            setSaved(true);
+            void qc.invalidateQueries({ queryKey: ["policy-detail", policyId] });
+            void qc.invalidateQueries({ queryKey: ["policy-receipts", policyId] });
+            void qc.invalidateQueries({ queryKey: ["receipts"] });
+            void qc.invalidateQueries({ queryKey: ["payments"] });
+            void qc.invalidateQueries({ queryKey: ["financial-movements"] });
+          }}
+        />
+      )}
     </Drawer>
   );
 }
@@ -1814,6 +1839,176 @@ function PolicySummaryLine({ label, value, mono, valueColor }: { label: string; 
       <Typography variant="caption" color="text.secondary">{label}</Typography>
       <Typography variant="body2" fontWeight={650} sx={{ fontFamily: mono ? "monospace" : undefined, color: valueColor ?? (textValue ? (missing ? "error.dark" : "success.dark") : undefined), wordBreak: "break-word", whiteSpace: "pre-wrap" }}>{value}</Typography>
     </Box>
+  );
+}
+
+function settlementAmount(value: number | undefined, currency: string) {
+  return `${(value ?? 0).toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+}
+
+function PolicySettlementPanel({ policy, readOnly, onSettle }: {
+  policy: PolicyDetail;
+  readOnly: boolean;
+  onSettle: (mode: PolicySettlementMode) => void;
+}) {
+  const rows = [
+    {
+      title: "Πελάτης προς γραφείο",
+      due: policy.premium,
+      paid: policy.totalReceived,
+      outstanding: policy.outstanding,
+      action: "receipt" as const,
+      actionLabel: "Καταχώρηση είσπραξης",
+      color: "success" as const,
+    },
+    {
+      title: "Γραφείο προς ασφαλιστική",
+      due: policy.carrierDue,
+      paid: policy.carrierPaid,
+      outstanding: policy.carrierOutstanding,
+      action: "carrierPayment" as const,
+      actionLabel: "Πληρωμή ασφαλιστικής",
+      color: "warning" as const,
+    },
+    {
+      title: "Γραφείο προς συνεργάτη",
+      due: policy.producerDue,
+      paid: policy.producerPaid,
+      outstanding: policy.producerOutstanding,
+      action: "producerPayment" as const,
+      actionLabel: "Πληρωμή συνεργάτη",
+      color: "info" as const,
+    },
+    {
+      title: "Αναμενόμενη προμήθεια έδρας",
+      due: policy.agencyCommissionExpected,
+      paid: policy.agencyCommissionReceived,
+      outstanding: policy.agencyCommissionOutstanding,
+      action: null,
+      actionLabel: "",
+      color: "primary" as const,
+    },
+  ];
+  return (
+    <Box sx={{ p: 1.25, borderRadius: 1.25, border: "1px solid", borderColor: "rgba(11,92,173,.25)", bgcolor: "rgba(239,246,255,.72)" }}>
+      <Typography variant="subtitle2" fontWeight={850} color="primary.dark" sx={{ mb: .9 }}>
+        Οικονομική εικόνα ανά συμβόλαιο
+      </Typography>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: .9 }}>
+        {rows.map(row => (
+          <Box key={row.title} sx={{ p: .9, borderRadius: 1, bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}>
+            <Typography variant="caption" fontWeight={800} display="block" color={`${row.color}.dark`}>{row.title}</Typography>
+            <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mt: .45 }}>
+              <Typography variant="body2"><strong>Υποχρέωση:</strong> {settlementAmount(row.due, policy.currency)}</Typography>
+              <Typography variant="body2" color="success.dark"><strong>Πληρωμένο:</strong> {settlementAmount(row.paid, policy.currency)}</Typography>
+              <Typography variant="body2" color={row.outstanding > 0 ? "error.dark" : "success.dark"}><strong>Υπόλοιπο:</strong> {settlementAmount(row.outstanding, policy.currency)}</Typography>
+            </Stack>
+            {!readOnly && row.action && row.outstanding > 0 && (
+              <Button size="small" variant="outlined" color={row.color} sx={{ mt: .75, fontWeight: 750 }} onClick={() => onSettle(row.action!)}>
+                {row.actionLabel}
+              </Button>
+            )}
+          </Box>
+        ))}
+      </Box>
+      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: .9 }}>
+        Οι «Πληρωμές» ενημερώνονται μόνο μετά από πραγματική καταχώρηση. Η δημιουργία συμβολαίου δημιουργεί υποχρέωση, όχι αυτόματη εξόφληση.
+      </Typography>
+    </Box>
+  );
+}
+
+function PolicySettlementDialog({ open, mode, policy, onClose, onSaved }: {
+  open: boolean;
+  mode: PolicySettlementMode;
+  policy: PolicyDetail;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const isReceipt = mode === "receipt";
+  const isCarrierPayment = mode === "carrierPayment";
+  const [number, setNumber] = useState("");
+  const [dateValue, setDateValue] = useState("");
+  const [amount, setAmount] = useState("0");
+  const [method, setMethod] = useState(isReceipt ? "Cash" : "BankTransfer");
+  const [commissionsNetted, setCommissionsNetted] = useState("0");
+  const [notes, setNotes] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const base = isReceipt ? policy.outstanding : isCarrierPayment ? policy.carrierOutstanding : policy.producerOutstanding;
+    setNumber(`${isReceipt ? "R" : "P"}-${Date.now().toString().slice(-8)}`);
+    setDateValue(today);
+    setAmount(Math.max(0, base ?? 0).toFixed(2));
+    setMethod(isReceipt ? "Cash" : "BankTransfer");
+    setCommissionsNetted("0");
+    setNotes("");
+    setError(null);
+  }, [open, mode, policy.id]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const numericAmount = Number(amount);
+      if (!Number.isFinite(numericAmount) || numericAmount <= 0) throw new Error("Το ποσό πρέπει να είναι μεγαλύτερο από μηδέν.");
+      if (mode === "producerPayment" && !policy.producerId) {
+        throw new Error("Δεν έχει οριστεί συνεργάτης στο συμβόλαιο.");
+      }
+      if (isReceipt) {
+        return (await api.post("/receipts", {
+          number: number.trim(), receivedOn: dateValue, customerId: policy.customerId,
+          policyId: policy.id, method, amount: numericAmount, currency: policy.currency,
+          notes: notes.trim() || null, transactionReference: null,
+        })).data;
+      }
+      return (await api.post("/payments", {
+        number: number.trim(), paidOn: dateValue,
+        beneficiaryType: isCarrierPayment ? "InsuranceCompany" : "Producer",
+        beneficiaryInsuranceCompanyId: isCarrierPayment ? policy.insuranceCompanyId : null,
+        beneficiaryProducerId: isCarrierPayment ? null : policy.producerId,
+        beneficiaryName: null, method, amount: numericAmount,
+        commissionsNetted: Number(commissionsNetted) || 0, currency: policy.currency,
+        notes: notes.trim() || null, transactionReference: null, policyId: policy.id,
+      })).data;
+    },
+    onSuccess: onSaved,
+    onError: error => setError(extractErrorMessage(error)),
+  });
+
+  const title = isReceipt ? "Καταχώρηση είσπραξης πελάτη" : isCarrierPayment ? "Καταχώρηση πληρωμής ασφαλιστικής" : "Καταχώρηση πληρωμής συνεργάτη";
+  return (
+    <Dialog open={open} onClose={save.isPending ? undefined : onClose} fullWidth maxWidth="sm" sx={{ zIndex: 1900 }}>
+      <DialogTitle>{title}</DialogTitle>
+      <DialogContent>
+        {error && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError(null)}>{error}</Alert>}
+        <Stack spacing={1.5} mt={.5}>
+          <Alert severity="info" sx={{ py: .25 }}>
+            Συμβόλαιο <strong>{policy.policyNumber}</strong> · {isReceipt ? policy.customerDisplay : isCarrierPayment ? policy.insuranceCompanyName : (policy.producerName ?? "Δεν έχει οριστεί συνεργάτης")}
+          </Alert>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+            <TextField label="Αριθμός εγγραφής" value={number} onChange={e => setNumber(e.target.value)} fullWidth required />
+            <TextField type="date" label="Ημερομηνία" value={dateValue} onChange={e => setDateValue(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth required />
+          </Stack>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+            <TextField type="number" label="Ποσό" value={amount} onChange={e => setAmount(e.target.value)} fullWidth required inputProps={{ min: 0, step: "0.01" }} />
+            <TextField select label="Μέθοδος" value={method} onChange={e => setMethod(e.target.value)} fullWidth>
+              {(["Cash", "BankTransfer", "Card", "Cheque", "PromissoryNote", "Other"] as const).map(value => (
+                <MenuItem key={value} value={value}>{({ Cash: "Μετρητά", BankTransfer: "Τραπεζική μεταφορά", Card: "Κάρτα", Cheque: "Επιταγή", PromissoryNote: "Γραμμάτιο", Other: "Άλλο" } as Record<string, string>)[value]}</MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+          {!isReceipt && <TextField type="number" label="Συμψηφισμός προμηθειών" value={commissionsNetted} onChange={e => setCommissionsNetted(e.target.value)} inputProps={{ min: 0, step: "0.01" }} helperText="Προαιρετικά· δεν μειώνει την υποχρέωση που εμφανίζεται στο συμβόλαιο." fullWidth />}
+          <TextField label="Σημειώσεις" value={notes} onChange={e => setNotes(e.target.value)} multiline minRows={2} fullWidth />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button color="error" variant="contained" onClick={onClose} disabled={save.isPending}>Ακύρωση</Button>
+        <Button variant="contained" color="success" onClick={() => save.mutate()} disabled={save.isPending}>
+          {save.isPending ? <CircularProgress size={18} /> : "Αποθήκευση"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 

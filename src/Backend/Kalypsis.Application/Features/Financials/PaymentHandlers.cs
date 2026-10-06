@@ -182,10 +182,22 @@ public class CreatePaymentCommandValidator : AbstractValidator<CreatePaymentComm
 public class CreatePaymentCommandHandler : IRequestHandler<CreatePaymentCommand, PaymentDto>
 {
     private readonly IAppDbContext _db;
-    public CreatePaymentCommandHandler(IAppDbContext db) => _db = db;
+    private readonly ICurrentUser _current;
+    public CreatePaymentCommandHandler(IAppDbContext db, ICurrentUser current) { _db = db; _current = current; }
     public async Task<PaymentDto> Handle(CreatePaymentCommand r, CancellationToken ct)
     {
         var b = r.Body;
+        var tenantId = _current.TenantId ?? throw AppException.Forbidden();
+        if (b.PolicyId.HasValue)
+        {
+            var policy = await _db.Policies
+                .FirstOrDefaultAsync(x => x.Id == b.PolicyId.Value && x.TenantId == tenantId && x.DeletedAt == null, ct)
+                ?? throw AppException.NotFound("Ξ£Ο…ΞΌΞ²ΞΏΞ»Ξ±Ξ―ΞΏ");
+            if (b.BeneficiaryType == BeneficiaryType.InsuranceCompany && b.BeneficiaryInsuranceCompanyId != policy.InsuranceCompanyId)
+                throw AppException.Validation("Η πληρωμή πρέπει να αφορά την ασφαλιστική εταιρεία του συμβολαίου.");
+            if (b.BeneficiaryType == BeneficiaryType.Producer && b.BeneficiaryProducerId != policy.ProducerId)
+                throw AppException.Validation("Η πληρωμή πρέπει να αφορά τον συνεργάτη του συμβολαίου.");
+        }
         var p = new Payment
         {
             Id = Guid.NewGuid(), Number = b.Number.Trim(), PaidOn = b.PaidOn,
