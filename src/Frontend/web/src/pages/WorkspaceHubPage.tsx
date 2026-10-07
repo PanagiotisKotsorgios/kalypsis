@@ -1,4 +1,4 @@
-import { Alert, AlertTitle, Box, Button, Card, CardActionArea, CardContent, CircularProgress, Stack, Typography } from "@mui/material";
+import { Alert, AlertTitle, Box, Button, ButtonBase, Card, CardActionArea, CardContent, CircularProgress, Stack, Typography } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { useState as useLocalState } from "react";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
@@ -19,6 +19,8 @@ import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import PolicyIcon from "@mui/icons-material/Policy";
 import EventBusyIcon from "@mui/icons-material/EventBusy";
 import EuroIcon from "@mui/icons-material/Euro";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import { useAuth } from "../auth/AuthContext";
 import { usePackages, type PackageCode } from "../auth/PackagesContext";
 import { useWorkspace, WORKSPACE_DEFAULT_ROUTE } from "../auth/WorkspaceContext";
@@ -370,6 +372,12 @@ function DashboardSummary() {
     queryFn: async () => (await api.get<AgencyReport>("/reports/agency")).data,
     staleTime: 60_000
   });
+  const [openPanels, setOpenPanels] = useLocalState<Set<string>>(() => new Set());
+  const togglePanel = (key: string) => setOpenPanels(previous => {
+    const next = new Set(previous);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
 
   if (q.isLoading) return null; // silent — hub already has plenty above the fold
   if (!q.data)     return null;
@@ -396,17 +404,18 @@ function DashboardSummary() {
         gap: 1.5,
         gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr) 1.5fr" }
       }}>
-        <AnimatedKpiCard index={0} label="Πελάτες" value={k.customers}
-          accent={INK} icon={<PeopleAltIcon />} />
-        <AnimatedKpiCard index={1} label="Ενεργά συμβόλαια" value={k.activePolicies}
-          accent="#16a34a" icon={<PolicyIcon />} />
-        <AnimatedKpiCard index={2} label="Λήγουν σύντομα" value={k.expiringSoon}
-          accent="#a05a00" icon={<EventBusyIcon />} />
-        <AnimatedKpiCard index={3} label="Ασφάλιστρα μήνα" value={k.monthlyPremium} currency
-          accent={ACCENT} icon={<EuroIcon />} />
+        <SummaryMetric label="Πελάτες" value={k.customers} accent={INK} icon={<PeopleAltIcon />}
+          open={openPanels.has("customers")} onToggle={() => togglePanel("customers")} index={0} />
+        <SummaryMetric label="Ενεργά συμβόλαια" value={k.activePolicies} accent="#16a34a" icon={<PolicyIcon />}
+          open={openPanels.has("activePolicies")} onToggle={() => togglePanel("activePolicies")} index={1} />
+        <SummaryMetric label="Λήγουν σύντομα" value={k.expiringSoon} accent="#a05a00" icon={<EventBusyIcon />}
+          open={openPanels.has("expiringSoon")} onToggle={() => togglePanel("expiringSoon")} index={2} />
+        <SummaryMetric label="Ασφάλιστρα μήνα" value={k.monthlyPremium} currency accent={ACCENT} icon={<EuroIcon />}
+          open={openPanels.has("monthlyPremium")} onToggle={() => togglePanel("monthlyPremium")} index={3} />
         <MiniChartCard title="Παραγωγή 6 μηνών"
           rightLabel={moneyFmt.format(series.reduce((s, p) => s + p.value, 0))}
-          kind="area" isEmpty={premiumSpark.every(v => !v)}>
+          kind="area" isEmpty={premiumSpark.every(v => !v)}
+          open={openPanels.has("monthlyTrend")} onToggle={() => togglePanel("monthlyTrend")}>
           <ModernAreaChart data={series} color={ACCENT}
             format={(v) => moneyFmt.format(v)} />
         </MiniChartCard>
@@ -422,7 +431,8 @@ function DashboardSummary() {
       }}>
         <MiniChartCard title="Συμβόλαια ανά κατάσταση"
           rightLabel={`${intFmt.format(statuses.reduce((s, x) => s + x.value, 0))}`} height={150}
-          kind="donut" isEmpty={statuses.length === 0 || statuses.every(s => !s.value)}>
+          kind="donut" isEmpty={statuses.length === 0 || statuses.every(s => !s.value)}
+          open={openPanels.has("status")} onToggle={() => togglePanel("status")}>
           <ModernDonutChart
             data={statuses.map(s => ({ label: trStatus(s.label), value: s.value }))}
             colors={statusColors}
@@ -432,7 +442,8 @@ function DashboardSummary() {
 
         <MiniChartCard title="Κορυφαίες εταιρίες"
           rightLabel={carriers.length > 0 ? carriers[0].carrier : "—"} height={150}
-          kind="bar" isEmpty={carriers.length === 0}>
+          kind="bar" isEmpty={carriers.length === 0}
+          open={openPanels.has("carriers")} onToggle={() => togglePanel("carriers")}>
           <ModernBarChart
             data={carriers.map(c => ({ label: c.carrier, value: Number(c.premium) }))}
             color={ACCENT}
@@ -444,7 +455,8 @@ function DashboardSummary() {
           title={secondaryTitle}
           rightLabel={`${intFmt.format(secondaryData.reduce((s, x) => s + x.value, 0))}`}
           height={150}
-          kind="area" isEmpty={secondaryData.length === 0 || secondaryData.every(x => !x.value)}>
+          kind="area" isEmpty={secondaryData.length === 0 || secondaryData.every(x => !x.value)}
+          open={openPanels.has("secondary")} onToggle={() => togglePanel("secondary")}>
           <ModernAreaChart
             data={secondaryData.map(x => ({
               label: claims.length > 0 ? trStatus(x.label) : trType(x.label),
@@ -459,13 +471,83 @@ function DashboardSummary() {
   );
 }
 
-function MiniChartCard({ title, rightLabel, children, height = 76, kind, isEmpty }: {
+function SummaryMetric({ label, value, currency, accent, icon, open, onToggle, index }: {
+  label: string;
+  value: number;
+  currency?: boolean;
+  accent: string;
+  icon: React.ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  index: number;
+}) {
+  if (!open) {
+    return (
+      <Card variant="outlined" sx={{
+        borderRadius: 2.5,
+        border: "1.5px solid",
+        borderColor: `${accent}55`,
+        bgcolor: "background.paper",
+        minHeight: 112,
+        animation: "summaryPanelIn 260ms ease both",
+        animationDelay: `${index * 40}ms`,
+        "@keyframes summaryPanelIn": { from: { opacity: 0, transform: "scale(.98)" }, to: { opacity: 1, transform: "scale(1)" } },
+      }}>
+        <CardActionArea onClick={onToggle} sx={{ height: "100%", minHeight: 112, p: 1.5 }}>
+          <Stack direction="row" alignItems="center" spacing={1.25}>
+            <Box sx={{ width: 40, height: 40, borderRadius: 1.5, display: "flex", alignItems: "center", justifyContent: "center", color: accent, bgcolor: `${accent}15`, flexShrink: 0 }}>
+              {icon}
+            </Box>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography variant="overline" color="text.secondary" sx={{ display: "block", lineHeight: 1.2, letterSpacing: "0.08em" }}>{label}</Typography>
+              <Typography variant="caption" color="primary.main" sx={{ fontWeight: 700 }}>Πατήστε για προβολή</Typography>
+            </Box>
+            <ExpandMoreIcon color="action" />
+          </Stack>
+        </CardActionArea>
+      </Card>
+    );
+  }
+
+  return (
+    <Box sx={{ position: "relative", minWidth: 0 }}>
+      <Box sx={{ position: "absolute", zIndex: 2, right: 5, top: 4 }}>
+        <ButtonBase onClick={(event) => { event.stopPropagation(); onToggle(); }} aria-label={`Απόκρυψη ${label}`} sx={{ borderRadius: 1, p: 0.25, color: "text.secondary", "&:hover": { bgcolor: "action.hover" } }}>
+          <ExpandLessIcon fontSize="small" />
+        </ButtonBase>
+      </Box>
+      <Box onClick={onToggle} sx={{ cursor: "pointer" }}>
+        <AnimatedKpiCard index={index} label={label} value={value} currency={currency} accent={accent} icon={icon} />
+      </Box>
+    </Box>
+  );
+}
+
+function MiniChartCard({ title, rightLabel, children, height = 76, kind, isEmpty, open, onToggle }: {
   title: string; rightLabel?: string; children: React.ReactNode; height?: number;
   /** Optional chart-type hint so the empty-state hover shows a matching skeleton. */
   kind?: "area" | "bar" | "donut";
   /** True when the underlying data has zero rows — enables the hover skeleton. */
   isEmpty?: boolean;
+  open: boolean;
+  onToggle: () => void;
 }) {
+  if (!open) {
+    return (
+      <Card variant="outlined" sx={{ borderRadius: 2.5, border: "1.5px solid", borderColor: "rgba(11,37,69,0.25)", bgcolor: "background.paper", minHeight: 112 }}>
+        <CardActionArea onClick={onToggle} sx={{ minHeight: 112, p: 1.75 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: INK_SOFT, fontWeight: 700 }}>{title}</Typography>
+              <Typography variant="caption" color="primary.main" sx={{ fontWeight: 700 }}>Πατήστε για προβολή γραφήματος</Typography>
+            </Box>
+            <ExpandMoreIcon color="action" />
+          </Stack>
+        </CardActionArea>
+      </Card>
+    );
+  }
+
   return (
     <Box sx={{
       // Permanent navy-tinted frame so the chart reads as a container even
@@ -495,6 +577,9 @@ function MiniChartCard({ title, rightLabel, children, height = 76, kind, isEmpty
             {rightLabel}
           </Typography>
         )}
+        <ButtonBase onClick={onToggle} aria-label={`Απόκρυψη ${title}`} sx={{ borderRadius: 1, p: 0.25, color: "text.secondary", "&:hover": { bgcolor: "action.hover" } }}>
+          <ExpandLessIcon fontSize="small" />
+        </ButtonBase>
       </Stack>
       <Box sx={{ position: "relative", height }}>
         {children}
