@@ -142,7 +142,18 @@ class GuideDoc(BaseDocTemplate):
 
 def draw_background(canvas, doc):
     canvas.saveState()
-    canvas.drawImage(str(LETTERHEAD), 0, 0, width=PAGE_W, height=PAGE_H, preserveAspectRatio=False, mask="auto")
+    # The guide is intentionally text-only: use vector branding instead of
+    # embedding the supplied raster letterhead or any screenshots. This keeps
+    # the PDF crisp, searchable and lightweight on every device.
+    canvas.setFillColor(NAVY)
+    canvas.rect(0, PAGE_H - 96, PAGE_W, 96, stroke=0, fill=1)
+    canvas.setFillColor(CYAN)
+    canvas.rect(0, PAGE_H - 102, PAGE_W, 6, stroke=0, fill=1)
+    canvas.setFillColor(colors.white)
+    canvas.setFont("GuideSans-Bold", 18)
+    canvas.drawString(42, PAGE_H - 47, "KALYPSIS")
+    canvas.setFont("GuideSans", 8.5)
+    canvas.drawRightString(PAGE_W - 42, PAGE_H - 45, "Οδηγός χρήσης BackOffice")
     canvas.setFillColor(colors.white)
     try:
         canvas.setFillAlpha(0.94)
@@ -462,13 +473,71 @@ def bullet(text: str, styles: dict) -> Paragraph:
     return Paragraph(html_text("• " + text), styles["Bullet"])
 
 
+def section_guidance(item: dict) -> tuple[list[str], list[str], str]:
+    """Return practical, text-only guidance for one BackOffice screen."""
+    haystack = " ".join(str(item.get(k) or "") for k in ("name", "title", "route")).lower()
+    workflow = [
+        "Άνοιξε τη σελίδα από το sidebar και επιβεβαίωσε ότι βρίσκεσαι στο σωστό γραφείο πριν κάνεις οποιαδήποτε αλλαγή.",
+        "Χρησιμοποίησε πρώτα την αναζήτηση και τα φίλτρα· τα αποτελέσματα αφορούν μόνο το επιλεγμένο εύρος και το επιτρεπόμενο office scope.",
+        "Άνοιξε την εγγραφή με Προβολή για έλεγχο και πάτησε Επεξεργασία μόνο όταν χρειάζεται αλλαγή.",
+        "Συμπλήρωσε τα υποχρεωτικά πεδία, έλεγξε ημερομηνίες, ποσά και συνδέσεις και πάτησε Αποθήκευση.",
+        "Περίμενε το μήνυμα επιτυχίας πριν αλλάξεις σελίδα. Αν εμφανιστεί σφάλμα επικύρωσης, διόρθωσε τα πεδία που επισημαίνονται και επανέλαβε.",
+    ]
+    checks = [
+        "Οι διαγραφές, ακυρώσεις και μαζικές ενέργειες απαιτούν επιβεβαίωση· έλεγξε το αποτέλεσμα και το ιστορικό ενεργειών.",
+        "Μην αναμειγνύεις δεδομένα διαφορετικών γραφείων. Ο διαχειριστής μπορεί να αλλάξει scope, ενώ ο υπάλληλος βλέπει μόνο όσα του επιτρέπονται.",
+        "Πριν από εξαγωγή ή αποστολή, έλεγξε ξανά περίοδο, ασφαλιστική, συνεργάτη και κατάσταση ώστε να μην συμπεριληφθούν λάθος εγγραφές.",
+    ]
+    if any(word in haystack for word in ("πελάτ", "customer")):
+        workflow += [
+            "Στην καρτέλα πελάτη χρησιμοποίησε τις καρτέλες για ταυτότητα, επικοινωνίες, οικογένεια, οχήματα, συμβόλαια, οικονομικά, ζημιές και έγγραφα.",
+            "Κατέγραψε κάθε σημαντική επικοινωνία ως δραστηριότητα και σύνδεσέ την με το αντίστοιχο συμβόλαιο ή όχημα.",
+        ]
+    elif any(word in haystack for word in ("συμβόλ", "policy", "contract")):
+        workflow += [
+            "Έλεγξε πελάτη, ασφαλιστική, κλάδο, έναρξη, λήξη, διάρκεια, ασφάλιστρο, εισπράξεις, καλύψεις, όχημα και προμήθειες στη σύνοψη.",
+            "Στα οικονομικά παρακολούθησε τι πληρώθηκε, τι εκκρεμεί, τι οφείλεται στην ασφαλιστική και τι στον συνεργάτη.",
+        ]
+    elif any(word in haystack for word in ("παραγωγ", "production", "report", "στατισ")):
+        workflow += [
+            "Ρύθμισε την περίοδο και την ημερομηνία αναφοράς πριν συγκρίνεις ποσά ή πλήθος συμβολαίων.",
+            "Χρησιμοποίησε την ομαδοποίηση και τη στήλη «Σύνολα» για έλεγχο μεικτών, καθαρών και προμηθειών συνεργάτη/γραφείου.",
+        ]
+    elif any(word in haystack for word in ("οικονομ", "ταμεί", "payment", "receipt", "finance")):
+        workflow += [
+            "Σύνδεσε κάθε είσπραξη ή πληρωμή με συμβόλαιο, δικαιούχο και μέθοδο, ώστε το ταμείο και οι εκκρεμότητες να συμφωνούν.",
+            "Έλεγξε την καθαρή εκροή και τις καταχωρημένες πληρωμές πριν οριστικοποιήσεις περίοδο ή συμφωνία.",
+        ]
+    elif any(word in haystack for word in ("γέφυρ", "bridge", "εισαγωγ", "import")):
+        workflow += [
+            "Ανέβασε το αρχείο της σωστής ασφαλιστικής και περίμενε την προεπισκόπηση πριν δημιουργήσεις εγγραφές.",
+            "Διόρθωσε άγνωστους κωδικούς, διπλοεγγραφές και ασύνδετες ανανεώσεις από το πάνελ αντιστοιχίσεων.",
+        ]
+    elif any(word in haystack for word in ("crm", "επικοινων", "μάρκετιν", "marketing", "εργασ", "task", "ραντεβ")):
+        workflow += [
+            "Σύνδεσε την εργασία ή την αποστολή με πελάτη, συνεργάτη και υπεύθυνο και όρισε σαφή ημερομηνία επόμενης ενέργειας.",
+            "Σε μαζική επικοινωνία χρησιμοποίησε μόνο παραλήπτες με ενεργή συγκατάθεση και τις ρυθμίσεις Brevo/Bulker του γραφείου.",
+        ]
+    elif any(word in haystack for word in ("εταιρ", "πρακτορ", "carrier", "company")):
+        workflow += [
+            "Διατήρησε πλήρη καρτέλα με στοιχεία έδρας, επαφές, στελέχη, ψηφιακά στοιχεία, συμβόλαια, αρχεία και δυναμικά πεδία.",
+            "Χρησιμοποίησε τις επικοινωνίες και τα έγγραφα ως ενιαίο ιστορικό συνεργασίας με την εταιρεία ή το πρακτορείο.",
+        ]
+    elif any(word in haystack for word in ("χρήστ", "γραφεί", "ρόλ", "setting", "agency")):
+        workflow += [
+            "Δώσε μόνο τα απαραίτητα δικαιώματα και έλεγξε τη σύνδεση χρήστη με το σωστό γραφείο ή υποκατάστημα.",
+            "Μετά από αλλαγή ρόλου ή scope, κάνε αποσύνδεση/επανασύνδεση και επαλήθευσε τι εμφανίζεται στο sidebar.",
+        ]
+    return workflow, checks, "Η ασφαλής ροή είναι: επιλογή γραφείου → αναζήτηση/φίλτρα → προβολή → επεξεργασία → έλεγχος → αποθήκευση → ιστορικό."
+
+
 def build_story():
     st = make_styles()
     story = [Spacer(1, 34 * mm), para("KALYPSIS", ParagraphStyle("CoverBrand", parent=st["GuideTitle"], fontSize=34, leading=38, textColor=NAVY)), para("Οδηγός χρήσης BackOffice", ParagraphStyle("CoverTitle", parent=st["GuideTitle"], fontSize=25, leading=30, textColor=BLUE)), Spacer(1, 8 * mm)]
-    cover = Table([[para("Πλήρης οδηγός πλοήγησης, παραγωγής, συμβολαίων, οικονομικών, παραμετροποίησης, CRM, FrontOffice και εποπτείας γραφείων.\n\nΠεριλαμβάνει εσωτερικό ευρετήριο PDF, annotated screenshots με βέλη, πρακτικά βήματα, σημεία ελέγχου και καθημερινή ρουτίνα.", st["Body"])]], colWidths=[130 * mm])
+    cover = Table([[para("Πλήρες, καθαρά περιγραφικό εγχειρίδιο πλοήγησης, παραγωγής, συμβολαίων, οικονομικών, παραμετροποίησης, CRM, FrontOffice και εποπτείας γραφείων.\n\nΠεριλαμβάνει εσωτερικό ευρετήριο PDF, διαδρομές σελίδων, αναλυτικές διαδικασίες, σημεία ελέγχου, οδηγίες ασφάλειας δεδομένων και καθημερινή ρουτίνα εργασίας.", st["Body"])]], colWidths=[130 * mm])
     cover.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.white), ("BOX", (0, 0), (-1, -1), 1, CYAN), ("LEFTPADDING", (0, 0), (-1, -1), 14), ("RIGHTPADDING", (0, 0), (-1, -1), 14), ("TOPPADDING", (0, 0), (-1, -1), 12), ("BOTTOMPADDING", (0, 0), (-1, -1), 12)]))
     story += [cover, Spacer(1, 8 * mm), para("Έκδοση 2026 · Για διαχειριστές, υποδιαχειριστές και υπαλλήλους ασφαλιστικών γραφείων", st["Small"]), PageBreak()]
-    story += [para("Περιεχόμενα και τρόπος χρήσης", st["GuideTitle"]), para("Κάντε κλικ σε οποιοδήποτε κεφάλαιο του PDF για άμεση μετάβαση. Τα βέλη στα screenshots δείχνουν το κουμπί ή το πεδίο που περιγράφεται.", st["Body"]), Spacer(1, 3 * mm)]
+    story += [para("Περιεχόμενα και τρόπος χρήσης", st["GuideTitle"]), para("Κάντε κλικ σε οποιοδήποτε κεφάλαιο του PDF για άμεση μετάβαση. Κάθε κεφάλαιο εξηγεί τον σκοπό της σελίδας, τη σωστή σειρά ενεργειών, τους ελέγχους πριν την αποθήκευση και τις συνηθισμένες παγίδες.", st["Body"]), Spacer(1, 3 * mm)]
     entries = []
     for index, item in enumerate(SECTIONS, 1):
         title = item["title"]
@@ -483,23 +552,20 @@ def build_story():
     story += [toc, PageBreak()]
     for index, item in enumerate(SECTIONS, 1):
         title, intro = item["title"], item["intro"]
-        story += [para(f"{index}. {title}", st["GuideH1"]), para(intro, st["Body"]), para("Πώς το χρησιμοποιείς", st["GuideH2"]), bullet(f"Άνοιξε το sidebar και επίλεξε «{title}» ή χρησιμοποίησε την αναζήτηση σελίδων.", st), bullet("Έλεγξε πρώτα την επιλογή γραφείου και τα δικαιώματα του λογαριασμού σου.", st)]
+        workflow, checks, summary = section_guidance(item)
+        story += [para(f"{index}. {title}", st["GuideH1"]), para(intro, st["Body"]), para("Σκοπός και βασική ροή", st["GuideH2"]), para(summary, st["Tip"])]
         if item.get("route") is not None:
             route_path = "/app" + (f"/{item['route']}" if item["route"] else "")
             story.append(Paragraph(
                 f'<b>Διαδρομή:</b> <link href="https://mykalypsis.gr{html.escape(route_path)}" color="#1167B1">{html.escape(route_path)}</link>',
                 st["Small"],
             ))
-        if item["name"] not in {"dashboard", "troubleshooting"}:
-            story.append(bullet("Χρησιμοποίησε αναζήτηση και φίλτρα πριν ανοίξεις ή επεξεργαστείς μια εγγραφή.", st))
-        raw = annotated_screen(ASSETS / item["image"] if item["image"] else None, title, index, item["callouts"])
-        reader = ImageReader(io.BytesIO(raw))
-        image_w, image_h = reader.getSize()
-        width = 155 * mm
-        height = min(width * image_h / image_w, 90 * mm)
-        caption = ("Screenshot της λειτουργίας με σημειωμένα κουμπιά και βέλη. "
-                   "Όπου δεν υπάρχει διαθέσιμη λήψη, εμφανίζεται ενδεικτική οθόνη της ίδιας ροής.")
-        story += [Spacer(1, 2 * mm), PdfImage(io.BytesIO(raw), width=width, height=height), para(caption, st["Caption"]), para("Σημεία ελέγχου", st["GuideH2"]), bullet("Οι αλλαγές αποθηκεύονται μόνο μετά το πράσινο κουμπί αποθήκευσης και το μήνυμα επιτυχίας.", st), bullet("Για διαγραφή, ακύρωση ή μαζική ενέργεια επιβεβαίωσε το popup και έλεγξε το ιστορικό.", st), para("Συμβουλή: ξεκίνα με μικρό φίλτρο, έλεγξε τα αποτελέσματα και μετά κάνε εξαγωγή ή μαζική ενέργεια.", st["Tip"]), PageBreak()]
+        story.append(para("Βήματα χρήσης", st["GuideH2"]))
+        story.extend(bullet(step, st) for step in workflow)
+        story.append(para("Έλεγχοι πριν την ολοκλήρωση", st["GuideH2"]))
+        story.extend(bullet(check, st) for check in checks)
+        story.append(para("Συμβουλή: κράτησε μικρό και σαφές το φίλτρο, έλεγξε τα αποτελέσματα και μόνο μετά κάνε εξαγωγή, αποστολή ή μαζική ενέργεια.", st["Tip"]))
+        story.append(PageBreak())
     story += [para("Γρήγορη καθημερινή ρουτίνα", st["GuideH1"]), para("Προτεινόμενη σειρά για ασφαλή λειτουργία γραφείου:", st["Body"])]
     for text in ["Έλεγξε dashboard, ειδοποιήσεις λήξεων και οφειλές.", "Άνοιξε τις λίστες παραγωγής και έλεγξε νέες εισαγωγές και αντιστοιχίσεις.", "Κατέγραψε εισπράξεις και πληρωμές και συμφώνησε το ταμείο.", "Επεξεργάσου follow-ups, ραντεβού και επικοινωνίες CRM.", "Πάρε αντίγραφο/εξαγωγή των κρίσιμων λιστών και εγγράφων.", "Για κάθε απρόσμενη αλλαγή αναζήτησε πρώτα το audit log."]:
         story.append(bullet(text, st))
@@ -509,8 +575,6 @@ def build_story():
 
 def main():
     register_fonts()
-    if not LETTERHEAD.exists():
-        raise FileNotFoundError(f"Λείπει το letterhead: {LETTERHEAD}")
     OUT.parent.mkdir(parents=True, exist_ok=True)
     doc = GuideDoc(str(OUT))
     doc.build(build_story())
