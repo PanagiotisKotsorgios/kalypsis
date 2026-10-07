@@ -290,11 +290,29 @@ export function ProductionListsPage() {
     { key: "partner",        label: t("productionList.col.partner"),  align: "right", render: r => <Box component="span" sx={{ color: "warning.main" }}>{money(r.partnerCommission)}</Box>, text: r => money(r.partnerCommission) },
     { key: "agency",         label: "Προμ. έδρας (υπόλοιπο)",          align: "right", render: r => <Box component="span" sx={{ color: "success.main", fontWeight: 700 }}>{money(r.agencyCommission)}</Box>, text: r => money(r.agencyCommission) },
     { key: "check",          label: "Έλεγχος",                         render: r => r.commissionWarning ? <Chip size="small" color="warning" label="Έλεγχος σύμβασης" title={r.commissionWarning} /> : <Chip size="small" color="success" variant="outlined" label="OK" />, text: r => r.commissionWarning ?? "OK" },
+    // Keep one final, always-visible financial summary column. This makes
+    // the production list immediately useful when the operator hides the
+    // individual money columns: all amounts (including both commission
+    // shares) remain together at the end of each contract row.
+    { key: "totals",         label: "Σύνολα",                          align: "right", render: r => (
+      <Stack spacing={0} sx={{ minWidth: 250, textAlign: "right", lineHeight: 1.15 }}>
+        <Typography variant="caption" sx={{ whiteSpace: "nowrap" }}>
+          Μικτά <b>{money(r.gross)}</b> · Καθαρά <b>{money(r.net)}</b>
+        </Typography>
+        <Typography variant="caption" sx={{ whiteSpace: "nowrap" }}>
+          Προμ. συνεργάτη <b style={{ color: "#ed6c02" }}>{money(r.partnerCommission)}</b>
+          {` · `}
+          Προμ. έδρας <b style={{ color: "#2e7d32" }}>{money(r.agencyCommission)}</b>
+        </Typography>
+      </Stack>
+    ), text: r => `Μικτά ${money(r.gross)} · Καθαρά ${money(r.net)} · Προμ. συνεργάτη ${money(r.partnerCommission)} · Προμ. έδρας ${money(r.agencyCommission)}` },
   ];
 
   const pickerDescriptors: ExportColumnDescriptor[] = columns.map((c, i) => ({
     key: c.key, label: c.label,
-    alwaysOn: i === 0,
+    // The policy number and the final financial summary are anchors of the
+    // report, so they remain visible even when the operator hides columns.
+    alwaysOn: i === 0 || c.key === "totals",
     defaultOff: c.defaultOff,
   }));
   const selection = useExportColumnSelection("production-lists", pickerDescriptors);
@@ -375,6 +393,19 @@ export function ProductionListsPage() {
     return { gross, net, partner, agency, count: rows.length };
   };
 
+  const totalsCell = (totals: { gross: number; net: number; partner: number; agency: number }) => (
+    <Stack spacing={0} sx={{ minWidth: 250, textAlign: "right", lineHeight: 1.15 }}>
+      <Typography variant="caption" sx={{ whiteSpace: "nowrap" }}>
+        Μικτά <b>{money(totals.gross)}</b> · Καθαρά <b>{money(totals.net)}</b>
+      </Typography>
+      <Typography variant="caption" sx={{ whiteSpace: "nowrap" }}>
+        Προμ. συνεργάτη <b style={{ color: "#ed6c02" }}>{money(totals.partner)}</b>
+        {` · `}
+        Προμ. έδρας <b style={{ color: "#2e7d32" }}>{money(totals.agency)}</b>
+      </Typography>
+    </Stack>
+  );
+
   // Turn the filtered row set into ordered sections based on the current
   // «Ομαδοποίηση». String groups sort alphabetically (Greek locale) with
   // «Χωρίς συνεργάτη» / «—» pinned at the end; month groups sort
@@ -448,9 +479,14 @@ export function ProductionListsPage() {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       return;
     }
+    // `totals` is a screen/print summary column composed from the row DTO;
+    // older server exporters do not know that synthetic key. Never send it
+    // to the API, while keeping it in the on-screen and grouped CSV view.
     const activeKeys = selection.activeKeys;
-    const columnsParam = activeKeys.length > 0 && activeKeys.length < columns.length
-      ? activeKeys.join(",")
+    const exportableColumns = columns.filter(c => c.key !== "totals");
+    const exportableKeys = activeKeys.filter(key => key !== "totals");
+    const columnsParam = exportableKeys.length > 0 && exportableKeys.length < exportableColumns.length
+      ? exportableKeys.join(",")
       : undefined;
     const res = await api.get("/production-lists/export", {
       params: { ...params, format: fmt, columns: columnsParam },
@@ -867,6 +903,7 @@ export function ProductionListsPage() {
                             if (c.key === "net")    return <TableCell key={c.key} align="right" sx={{ fontWeight: 700 }}>{money(totals.net)}</TableCell>;
                             if (c.key === "partner") return <TableCell key={c.key} align="right" sx={{ fontWeight: 700, color: "warning.main" }}>{money(totals.partner)}</TableCell>;
                             if (c.key === "agency")  return <TableCell key={c.key} align="right" sx={{ fontWeight: 800, color: "success.main" }}>{money(totals.agency)}</TableCell>;
+                            if (c.key === "totals") return <TableCell key={c.key} align="right" sx={{ fontWeight: 700 }}>{totalsCell(totals)}</TableCell>;
                             return (
                               <TableCell key={c.key} align={c.align}
                                 sx={{ fontWeight: 800, color: "text.primary" }}>

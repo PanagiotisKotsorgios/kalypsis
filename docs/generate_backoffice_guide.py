@@ -178,8 +178,21 @@ def make_styles():
     }
 
 
-def S(name, title, intro, image, callouts):
-    return {"name": name, "title": title, "intro": intro, "image": image, "callouts": callouts}
+def S(name, title, intro, image, callouts, route=None):
+    """Create one guide section.
+
+    ``route`` is kept separately from the human title so the generated PDF can
+    show a clickable, copyable BackOffice URL while retaining a clean Greek
+    heading and an internal bookmark.
+    """
+    return {
+        "name": name,
+        "title": title,
+        "intro": intro,
+        "image": image,
+        "callouts": callouts,
+        "route": route,
+    }
 
 
 SECTIONS = [
@@ -215,6 +228,236 @@ SECTIONS = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Route-complete BackOffice catalogue
+# ---------------------------------------------------------------------------
+# The hand-authored sections above contain the most important workflows with
+# real screenshots.  The route catalogue below is generated from App.tsx so
+# the downloadable guide does not silently become stale when a new BackOffice
+# screen is added.  Routes without a captured production screenshot receive a
+# polished annotated wireframe with the same Kalypsis navigation, search,
+# filter, primary-action and row-action affordances.
+ROUTE_EXCLUSIONS = {
+    "*", "platform/*", "agency/*", "my-expected-rates", "my-reconciliation",
+}
+
+ROUTE_LABELS = {
+    "": "Αρχική σελίδα / Πίνακας ελέγχου",
+    "dashboard": "Πίνακας ελέγχου",
+    "customers": "Πελάτες",
+    "customers/:id": "Καρτέλα πελάτη",
+    "vehicles": "Οχήματα",
+    "contracts/new": "Νέο συμβόλαιο",
+    "contracts/:id": "Καρτέλα συμβολαίου",
+    "policies": "Συμβόλαια",
+    "green-cards": "Πράσινες κάρτες",
+    "all-users": "Όλοι οι χρήστες",
+    "documents": "Έγγραφα",
+    "notifications": "Ειδοποιήσεις",
+    "users": "Χρήστες και υπάλληλοι",
+    "tenants": "Γραφεία και μισθώσεις",
+    "tenants/:id": "Καρτέλα γραφείου",
+    "settings": "Ρυθμίσεις διαχειριστή",
+    "requests": "Αιτήματα",
+    "audit": "Audit logs / Ιστορικό ενεργειών",
+    "recycle-bin": "Κάδος ανακύκλωσης",
+    "producer-reconciliation": "Εκκαθάριση συνεργατών",
+    "reconciliation-dashboard": "Πίνακας εκκαθαρίσεων",
+    "reconciliation-hub": "Κέντρο εκκαθαρίσεων",
+    "tasks": "Εργασίες",
+    "producers": "Συνεργάτες",
+    "claims": "Ζημιές",
+    "reports": "Αναφορές",
+    "intelligence-workbench": "Αναλυτικά και Νοημοσύνη",
+    "intelligence-workbench/prompts": "Prompts και πρότυπα AI",
+    "intelligence-workbench/chat": "Συνομιλία AI",
+    "intelligence-workbench/history": "Ιστορικό αποτελεσμάτων AI",
+    "intelligence-workbench/automations": "Αυτοματισμοί AI",
+    "production-report": "Αναφορά παραγωγής",
+    "commission-distribution": "Κατανομή προμηθειών",
+    "financial-report": "Οικονομική αναφορά",
+    "producer-statement": "Πινάκιο συνεργάτη",
+    "legal-templates": "Νομικά έντυπα πελατών",
+    "legal": "Νομική βιβλιοθήκη",
+    "compliance-dashboard": "Πίνακας συμμόρφωσης",
+    "dynamic-fields": "Δυναμικά πεδία",
+    "groupings": "Ομαδοποιήσεις",
+    "period-locks": "Κλειδώματα περιόδων",
+    "bulk-receipts": "Μαζικές εισπράξεις",
+    "auto-receipt-matching": "Αυτόματος συμψηφισμός εισπράξεων",
+    "ageing-analysis": "Ανάλυση ληξιπρόθεσμων",
+    "journal-entries": "Εγγραφές ημερολογίου",
+    "commission-certificates": "Βεβαιώσεις προμηθειών",
+    "carrier-ledger": "Λογιστήριο ασφαλιστικών",
+    "statement-mailer": "Αποστολή πινακίων",
+    "federation/championships": "Πρωταθλήματα",
+    "profile": "Προφίλ χρήστη",
+    "agency-settings": "Ρυθμίσεις γραφείου",
+    "agency-settings-hub": "Κέντρο ρυθμίσεων γραφείου",
+    "agency-and-profile": "Γραφείο και προφίλ",
+    "appointments": "Ραντεβού",
+    "tariffs": "Τιμολόγια",
+    "cover-notes": "Cover notes",
+    "office-website/overview": "Επισκόπηση ιστοσελίδας γραφείου",
+    "office-website/requests": "Αιτήματα ιστοσελίδας",
+    "office-website/analytics": "Στατιστικά ιστοσελίδας",
+    "office-website": "Διαχείριση ιστοσελίδας γραφείου",
+    "branches": "Υποκαταστήματα",
+    "bank-connections": "Τραπεζικές συνδέσεις",
+    "marketing": "Καμπάνιες CRM",
+    "crm-groups": "Ομάδες CRM",
+    "crm-settings": "Ρυθμίσεις CRM",
+    "intelligence-settings": "Ρυθμίσεις AI",
+    "delivery-tracking": "Παρακολούθηση αποστολών",
+    "document-manager": "Διαχειριστής εγγράφων",
+    "partner-portals": "Πύλες συνεργατών",
+    "api-keys": "Κλειδιά API",
+    "dias": "Κωδικοί ΔΙΑΣ",
+    "kepyo": "ΚΕΠΥΟ",
+    "magnetic-import": "Μαγνητικές εισαγωγές",
+    "over-commissions": "Επιπλέον προμήθειες",
+    "over-commission-statements": "Καταστάσεις επιπλέον προμηθειών",
+    "over-commission-bridges": "Γέφυρες επιπλέον προμηθειών",
+    "goals": "Στόχοι παραγωγής",
+    "production-stats": "Στατιστικά παραγωγής",
+    "commission-runs": "Εκκαθαρίσεις προμηθειών",
+    "company-bridges": "Γέφυρες ασφαλιστικών",
+    "insurance-companies": "Ασφαλιστικές εταιρείες",
+    "companies-agencies": "Εταιρείες και πρακτορεία",
+    "production-companies-agencies": "Εταιρείες και πρακτορεία παραγωγής",
+    "endorsements": "Πρόσθετες πράξεις",
+    "cancellations": "Ακυρώσεις",
+    "credit-notes": "Πιστωτικά",
+    "commission-rules": "Κανόνες προμηθειών",
+    "lookups": "Κατάλογοι παραμέτρων",
+    "parametric-files": "Παραμετρικά αρχεία",
+    "company-parametrics": "Παραμετρικά ασφαλιστικών",
+    "quote-builder": "Δημιουργία προσφοράς",
+    "workflows": "Ροές εργασίας",
+    "churn": "Πρόβλεψη απώλειας πελατών",
+    "report-builder": "Δημιουργός αναφορών",
+    "print-pay": "Εκτυπώνω και πληρώνω",
+    "plafond": "Όρια και plafond",
+    "risk-profiles": "Προφίλ κινδύνου",
+    "agency-offices": "Διαχείριση γραφείων",
+    "garages": "Συνεργεία",
+    "claim-provisions": "Προβλέψεις ζημιών",
+    "indemnities": "Αποζημιώσεις ζημιών",
+    "name-days": "Εορτολόγιο",
+    "instructions": "Εσωτερικές οδηγίες γραφείου",
+    "backups": "Αντίγραφα ασφαλείας",
+    "support-request": "Αίτημα υποστήριξης",
+    "mydata": "myDATA",
+    "document-designer": "Σχεδιαστής εγγράφων",
+    "friendly-settlements": "Φιλικοί διακανονισμοί",
+    "customer-merge": "Συγχώνευση πελατών",
+    "persistency": "Persistency χαρτοφυλακίου",
+    "all-tools": "Όλα τα εργαλεία",
+    "ermes": "ΕΡΜΗΣ επικοινωνίες",
+    "documentation": "Οδηγίες χρήσης",
+    "platform/documentation": "Επεξεργασία οδηγού πλατφόρμας",
+    "platform/landing": "Επεξεργασία δημόσιας αρχικής",
+    "carrier-bridges-hub": "Κέντρο γεφυρών εταιρειών",
+    "carrier-bridges": "Εισαγωγές ασφαλιστικών",
+    "collection-files-bridges": "Γέφυρες αρχείων εισπράξεων",
+    "bridge-code-mappings": "Αντιστοιχίσεις κωδικών γεφυρών",
+    "production-lists": "Λίστες παραγωγής",
+    "producer-production": "Παραγωγή συνεργάτη",
+    "producer-statistics": "Στατιστικά συνεργάτη",
+    "producer-goals": "Στόχοι συνεργάτη",
+    "renewals": "Ανανεώσεις",
+    "financials": "Οικονομικά",
+    "receipts": "Εισπράξεις",
+    "payments": "Πληρωμές",
+    "financial-movements": "Οικονομικές κινήσεις",
+    "cash": "Ταμείο",
+    "gl": "Γενικό καθολικό",
+    "platform/carriers": "Κατάλογος ασφαλιστικών πλατφόρμας",
+    "platform/oc-bridges": "Γέφυρες επιπλέον προμηθειών πλατφόρμας",
+    "platform/finance": "Οικονομικά πλατφόρμας",
+    "platform/broadcast": "Μαζικές ανακοινώσεις",
+    "platform/backups": "Αντίγραφα πλατφόρμας",
+    "platform/storage": "Αποθηκευτικός χώρος πλατφόρμας",
+    "platform/jobs": "Εργασίες υποβάθρου",
+    "platform/status": "Κατάσταση υπηρεσίας",
+    "platform/breach-incidents": "Περιστατικά ασφάλειας",
+    "platform/compliance": "Συμμόρφωση πλατφόρμας",
+    "platform/support": "Υποστήριξη πλατφόρμας",
+    "integration-settings": "Ρυθμίσεις συνδέσεων",
+    "named-reports": "Ονομαστικές αναφορές",
+    "config-hub": "Κέντρο παραμετροποίησης",
+    "advance-payments": "Προκαταβολές",
+    "reconciliation": "Συμφωνίες οικονομικών",
+    "tachypayments": "Ταχείες πληρωμές",
+    "info-center": "Κέντρο ενημέρωσης",
+    "vehicle-models": "Μοντέλα οχημάτων",
+}
+
+
+def route_label(route: str) -> str:
+    if route in ROUTE_LABELS:
+        return ROUTE_LABELS[route]
+    text = route.replace(":id", "ID").replace(":token", "token").replace("/", " · ")
+    text = text.replace("-", " ")
+    return "Σελίδα BackOffice · " + text
+
+
+def route_sections() -> list[dict]:
+    app_source = (ROOT / "src" / "Frontend" / "web" / "src" / "App.tsx").read_text(encoding="utf-8")
+    marker = app_source.find('path="/app/*"')
+    if marker < 0:
+        return []
+    routes = re.findall(r'<Route path="([^"]+)"', app_source[marker:])
+    # Preserve source order while removing aliases and the catch-all route.
+    unique = []
+    for route in [""] + routes:
+        if route in ROUTE_EXCLUSIONS or route in unique:
+            continue
+        unique.append(route)
+    result = []
+    for route in unique:
+        label = route_label(route)
+        path = "/app" + (f"/{route}" if route else "")
+        image_by_route = {
+            "": "dashboard.jpg",
+            "dashboard": "dashboard.jpg",
+            "customers": "customers.jpg",
+            "customers/:id": "customer-profile.jpg",
+            "policies": "production-lists.jpg",
+            "contracts/:id": "contract-profile.jpg",
+            "vehicles": "customer-profile.jpg",
+            "production-lists": "production-lists.jpg",
+            "production-companies-agencies": "company-list.jpg",
+            "companies-agencies": "company-list.jpg",
+            "insurance-companies": "company-list.jpg",
+            "company-parametrics": "company-parametrics.jpg",
+            "reports": "company-stats.jpg",
+            "legal-templates": "forms.jpg",
+            "documentation": "documentation.jpg",
+            "agency-settings": "office-settings.jpg",
+            "agency-and-profile": "office-settings.jpg",
+            "marketing": "workspace-cards.jpg",
+            "intelligence-workbench": "front-dashboard.jpg",
+        }
+        result.append(S(
+            f"route-{slug(route or 'home')}",
+            label,
+            f"Η σελίδα «{label}» είναι διαθέσιμη στη διαδρομή {path}. Χρησιμοποιήστε το sidebar για πλοήγηση, την αναζήτηση και τα φίλτρα για περιορισμό αποτελεσμάτων, και τις ενέργειες της γραμμής για προβολή ή επεξεργασία.",
+            image_by_route.get(route),
+            [
+                (.22, .18, "Πλοήγηση από το sidebar", "#1167B1"),
+                (.46, .24, "Αναζήτηση και φίλτρα", "#1167B1"),
+                (.84, .20, "Νέα / κύρια ενέργεια", "#1B8A4B"),
+                (.84, .63, "Ενέργειες γραμμής", "#D99000"),
+            ],
+            route=route,
+        ))
+    return result
+
+
+SECTIONS.extend(route_sections())
+
+
 def bullet(text: str, styles: dict) -> Paragraph:
     return Paragraph(html_text("• " + text), styles["Bullet"])
 
@@ -241,6 +484,12 @@ def build_story():
     for index, item in enumerate(SECTIONS, 1):
         title, intro = item["title"], item["intro"]
         story += [para(f"{index}. {title}", st["GuideH1"]), para(intro, st["Body"]), para("Πώς το χρησιμοποιείς", st["GuideH2"]), bullet(f"Άνοιξε το sidebar και επίλεξε «{title}» ή χρησιμοποίησε την αναζήτηση σελίδων.", st), bullet("Έλεγξε πρώτα την επιλογή γραφείου και τα δικαιώματα του λογαριασμού σου.", st)]
+        if item.get("route") is not None:
+            route_path = "/app" + (f"/{item['route']}" if item["route"] else "")
+            story.append(Paragraph(
+                f'<b>Διαδρομή:</b> <link href="https://mykalypsis.gr{html.escape(route_path)}" color="#1167B1">{html.escape(route_path)}</link>',
+                st["Small"],
+            ))
         if item["name"] not in {"dashboard", "troubleshooting"}:
             story.append(bullet("Χρησιμοποίησε αναζήτηση και φίλτρα πριν ανοίξεις ή επεξεργαστείς μια εγγραφή.", st))
         raw = annotated_screen(ASSETS / item["image"] if item["image"] else None, title, index, item["callouts"])
@@ -248,7 +497,9 @@ def build_story():
         image_w, image_h = reader.getSize()
         width = 155 * mm
         height = min(width * image_h / image_w, 90 * mm)
-        story += [Spacer(1, 2 * mm), PdfImage(io.BytesIO(raw), width=width, height=height), para("Annotated screenshot · μπλε = πλοήγηση/φίλτρα, πράσινο = δημιουργία/αποθήκευση, χρυσό = προβολή/εξαγωγή.", st["Caption"]), para("Σημεία ελέγχου", st["GuideH2"]), bullet("Οι αλλαγές αποθηκεύονται μόνο μετά το πράσινο κουμπί αποθήκευσης και το μήνυμα επιτυχίας.", st), bullet("Για διαγραφή, ακύρωση ή μαζική ενέργεια επιβεβαίωσε το popup και έλεγξε το ιστορικό.", st), para("Συμβουλή: ξεκίνα με μικρό φίλτρο, έλεγξε τα αποτελέσματα και μετά κάνε εξαγωγή ή μαζική ενέργεια.", st["Tip"]), PageBreak()]
+        caption = ("Screenshot της λειτουργίας με σημειωμένα κουμπιά και βέλη. "
+                   "Όπου δεν υπάρχει διαθέσιμη λήψη, εμφανίζεται ενδεικτική οθόνη της ίδιας ροής.")
+        story += [Spacer(1, 2 * mm), PdfImage(io.BytesIO(raw), width=width, height=height), para(caption, st["Caption"]), para("Σημεία ελέγχου", st["GuideH2"]), bullet("Οι αλλαγές αποθηκεύονται μόνο μετά το πράσινο κουμπί αποθήκευσης και το μήνυμα επιτυχίας.", st), bullet("Για διαγραφή, ακύρωση ή μαζική ενέργεια επιβεβαίωσε το popup και έλεγξε το ιστορικό.", st), para("Συμβουλή: ξεκίνα με μικρό φίλτρο, έλεγξε τα αποτελέσματα και μετά κάνε εξαγωγή ή μαζική ενέργεια.", st["Tip"]), PageBreak()]
     story += [para("Γρήγορη καθημερινή ρουτίνα", st["GuideH1"]), para("Προτεινόμενη σειρά για ασφαλή λειτουργία γραφείου:", st["Body"])]
     for text in ["Έλεγξε dashboard, ειδοποιήσεις λήξεων και οφειλές.", "Άνοιξε τις λίστες παραγωγής και έλεγξε νέες εισαγωγές και αντιστοιχίσεις.", "Κατέγραψε εισπράξεις και πληρωμές και συμφώνησε το ταμείο.", "Επεξεργάσου follow-ups, ραντεβού και επικοινωνίες CRM.", "Πάρε αντίγραφο/εξαγωγή των κρίσιμων λιστών και εγγράφων.", "Για κάθε απρόσμενη αλλαγή αναζήτησε πρώτα το audit log."]:
         story.append(bullet(text, st))
