@@ -297,7 +297,7 @@ export function ProductionListsPage() {
     { key: "totals",         label: "Σύνολα",                          align: "right", render: r => (
       <Stack spacing={0} sx={{ minWidth: 250, textAlign: "right", lineHeight: 1.15 }}>
         <Typography variant="caption" sx={{ whiteSpace: "nowrap" }}>
-          Μικτά <b>{money(r.gross)}</b> · Καθαρά <b>{money(r.net)}</b>
+          Πλήθος <b>1</b> · Μικτά <b>{money(r.gross)}</b> · Καθαρά <b>{money(r.net)}</b>
         </Typography>
         <Typography variant="caption" sx={{ whiteSpace: "nowrap" }}>
           Προμ. συνεργάτη <b style={{ color: "#ed6c02" }}>{money(r.partnerCommission)}</b>
@@ -305,7 +305,7 @@ export function ProductionListsPage() {
           Προμ. έδρας <b style={{ color: "#2e7d32" }}>{money(r.agencyCommission)}</b>
         </Typography>
       </Stack>
-    ), text: r => `Μικτά ${money(r.gross)} · Καθαρά ${money(r.net)} · Προμ. συνεργάτη ${money(r.partnerCommission)} · Προμ. έδρας ${money(r.agencyCommission)}` },
+    ), text: r => `Πλήθος 1 · Μικτά ${money(r.gross)} · Καθαρά ${money(r.net)} · Προμ. συνεργάτη ${money(r.partnerCommission)} · Προμ. έδρας ${money(r.agencyCommission)}` },
   ];
 
   const pickerDescriptors: ExportColumnDescriptor[] = columns.map((c, i) => ({
@@ -393,9 +393,10 @@ export function ProductionListsPage() {
     return { gross, net, partner, agency, count: rows.length };
   };
 
-  const totalsCell = (totals: { gross: number; net: number; partner: number; agency: number }) => (
+  const totalsCell = (totals: { count?: number; gross: number; net: number; partner: number; agency: number }) => (
     <Stack spacing={0} sx={{ minWidth: 250, textAlign: "right", lineHeight: 1.15 }}>
       <Typography variant="caption" sx={{ whiteSpace: "nowrap" }}>
+        {totals.count !== undefined && <>Πλήθος <b>{totals.count}</b> · </>}
         Μικτά <b>{money(totals.gross)}</b> · Καθαρά <b>{money(totals.net)}</b>
       </Typography>
       <Typography variant="caption" sx={{ whiteSpace: "nowrap" }}>
