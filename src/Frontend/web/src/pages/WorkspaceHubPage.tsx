@@ -23,6 +23,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import AssignmentLateIcon from "@mui/icons-material/AssignmentLate";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useAuth } from "../auth/AuthContext";
 import { usePackages, type PackageCode } from "../auth/PackagesContext";
 import { useWorkspace, WORKSPACE_DEFAULT_ROUTE } from "../auth/WorkspaceContext";
@@ -109,7 +110,7 @@ export function WorkspaceHubPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { has, isPlatformBypass, loading, packages, refresh } = usePackages();
-  const { enter } = useWorkspace();
+  const { enter, workspace } = useWorkspace();
   const [manualRefreshing, setManualRefreshing] = useLocalState(false);
 
   if (loading) {
@@ -195,6 +196,7 @@ export function WorkspaceHubPage() {
       }}>
         {enabledPackages.map((pkg) => {
           const enabled = isPlatformBypass || has(pkg.code);
+          const active = enabled && workspace === pkg.code;
           return (
             <Card
               key={pkg.code}
@@ -203,14 +205,17 @@ export function WorkspaceHubPage() {
                 position: "relative",
                 // Permanent navy-tinted frame — matches the KPI + chart
                 // containers so the whole hub reads as one design system.
-                borderColor: (theme) => enabled
-                  ? (theme.palette.mode === "dark" ? "rgba(148,191,230,0.32)" : "rgba(11,37,69,0.32)")
+                borderColor: (theme) => active
+                  ? (theme.palette.mode === "dark" ? "#6fd2ff" : ACCENT)
+                  : enabled
+                    ? (theme.palette.mode === "dark" ? "rgba(148,191,230,0.32)" : "rgba(11,37,69,0.32)")
                   : "divider",
-                borderWidth: 1.5,
+                borderWidth: active ? 2.5 : 1.5,
                 borderRadius: 2.5,
-                bgcolor: "background.paper",
+                bgcolor: active ? (theme) => theme.palette.mode === "dark" ? "rgba(31,123,179,0.16)" : "rgba(31,123,179,0.06)" : "background.paper",
                 opacity: enabled ? 1 : 0.65,
                 overflow: "hidden",
+                boxShadow: active ? 5 : undefined,
                 transition: "transform 220ms cubic-bezier(.22,.61,.36,1), box-shadow 220ms cubic-bezier(.22,.61,.36,1), border-color 220ms ease",
                 "&:hover": enabled ? {
                   transform: "translateY(-3px)",
@@ -225,13 +230,26 @@ export function WorkspaceHubPage() {
                   left: 0, right: 0, bottom: 0,
                   height: 3,
                   background: `linear-gradient(90deg, ${ACCENT}, ${INK})`,
-                  transform: "scaleX(0)",
+                  transform: active ? "scaleX(1)" : "scaleX(0)",
                   transformOrigin: "left",
                   transition: "transform 360ms cubic-bezier(.22,.61,.36,1)"
                 } : {},
                 "&:hover::after": enabled ? { transform: "scaleX(1)" } : {}
               }}
             >
+              {active && (
+                <Box sx={{
+                  position: "absolute", top: 12, right: 14, zIndex: 3,
+                  display: "inline-flex", alignItems: "center", gap: 0.5,
+                  px: 1, py: 0.45, borderRadius: 99,
+                  bgcolor: ACCENT, color: "#fff",
+                  fontSize: 11, fontWeight: 800, letterSpacing: "0.04em",
+                  boxShadow: `0 3px 10px ${ACCENT}55`,
+                }}>
+                  <CheckCircleIcon sx={{ fontSize: 15 }} />
+                  Ενεργό
+                </Box>
+              )}
               {/* Permanent L-bracket ornament in the bottom-right corner —
                   two thick navy strokes making the card feel like a labeled,
                   bordered container even when idle. Sits behind the click
@@ -339,8 +357,8 @@ export function WorkspaceHubPage() {
                     letterSpacing: "0.06em",
                     textTransform: "uppercase"
                   }}>
-                    <span>{enabled ? t("ws.hub.open") : t("ws.hub.locked")}</span>
-                    {enabled && <ArrowForwardIcon sx={{ fontSize: 16 }} />}
+                    <span>{active ? "Ενεργό πακέτο" : enabled ? t("ws.hub.open") : t("ws.hub.locked")}</span>
+                    {active ? <CheckCircleIcon sx={{ fontSize: 17 }} /> : enabled && <ArrowForwardIcon sx={{ fontSize: 16 }} />}
                   </Stack>
                 </CardContent>
               </CardActionArea>
