@@ -21,12 +21,14 @@ import EventBusyIcon from "@mui/icons-material/EventBusy";
 import EuroIcon from "@mui/icons-material/Euro";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ReportProblemIcon from "@mui/icons-material/ReportProblem";
+import AssignmentLateIcon from "@mui/icons-material/AssignmentLate";
 import { useAuth } from "../auth/AuthContext";
 import { usePackages, type PackageCode } from "../auth/PackagesContext";
 import { useWorkspace, WORKSPACE_DEFAULT_ROUTE } from "../auth/WorkspaceContext";
 import { api } from "../api/client";
 import {
-  AnimatedKpiCard, ModernAreaChart, ModernBarChart, ModernDonutChart,
+  AnimatedKpiCard, ChartCard, ModernAreaChart, ModernBarChart, ModernDonutChart, ModernDualLineChart,
 } from "../components/ModernDashboard";
 
 interface PackageMeta {
@@ -364,7 +366,7 @@ export function WorkspaceHubPage() {
    cards. Four KPI tiles + one tiny monthly-premium area chart so the user
    has a glance at how the agency is doing without leaving the hub.
    ============================================================================ */
-function DashboardSummary() {
+function LegacyDashboardSummary() {
   const moneyFmt = new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
   const intFmt   = new Intl.NumberFormat("el-GR");
   const q = useQuery({
@@ -468,6 +470,138 @@ function DashboardSummary() {
         </MiniChartCard>
       </Box>
     </Box>
+  );
+}
+
+void LegacyDashboardSummary;
+
+function DashboardSummary() {
+  const moneyFmt = new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+  const intFmt = new Intl.NumberFormat("el-GR");
+  const q = useQuery({
+    queryKey: ["agency-report-hub"],
+    queryFn: async () => (await api.get<AgencyReport>("/reports/agency")).data,
+    staleTime: 60_000,
+  });
+  const [showAnalytics, setShowAnalytics] = useLocalState(false);
+
+  if (q.isLoading || !q.data) return null;
+
+  const k = q.data.kpis;
+  const series = q.data.monthlyPremium.slice(-6);
+  const statuses = q.data.policiesByStatus ?? [];
+  const carriers = (q.data.topCarriers ?? []).slice(0, 5);
+  const claims = q.data.claimsByStatus ?? [];
+  const types = q.data.policiesByType ?? [];
+
+  const monthlyData = series.map(point => ({ label: point.label, value: Number(point.value) }));
+  const cumulativeData = monthlyData.reduce<{ label: string; a: number; b: number }[]>((result, point) => {
+    const previous = result[result.length - 1]?.b ?? 0;
+    result.push({ label: point.label, a: point.value, b: previous + point.value });
+    return result;
+  }, []);
+  const statusData = statuses.map(item => ({ label: trStatus(item.label), value: item.value }));
+  const carrierData = carriers.map(item => ({ label: item.carrier, value: Number(item.premium) }));
+  const typeData = types.map(item => ({ label: trType(item.label), value: item.value }));
+  const claimData = claims.map(item => ({ label: trStatus(item.label), value: item.value }));
+  const statusColors = statuses.map((item, index) => STATUS_PALETTE[item.label] ?? CHART_PALETTE[index % CHART_PALETTE.length]);
+
+  return (
+    <Box sx={{ mb: { xs: 4, md: 5 } }}>
+      {!showAnalytics ? (
+        <Card variant="outlined" sx={{
+          borderRadius: 2.5,
+          border: "1.5px solid",
+          borderColor: "rgba(11,37,69,0.28)",
+          bgcolor: "background.paper",
+          overflow: "hidden",
+          animation: "summaryPanelIn 260ms ease both",
+          "@keyframes summaryPanelIn": { from: { opacity: 0, transform: "scale(.985)" }, to: { opacity: 1, transform: "scale(1)" } },
+        }}>
+          <CardActionArea onClick={() => setShowAnalytics(true)} sx={{ p: { xs: 1.75, md: 2.25 } }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 48, height: 48, borderRadius: 2, display: "flex", alignItems: "center", justifyContent: "center", color: ACCENT, bgcolor: `${ACCENT}15`, flexShrink: 0 }}>
+                <InsightsIcon />
+              </Box>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography sx={{ fontWeight: 800, color: INK, fontSize: { xs: 15, md: 17 } }}>
+                  Στατιστικά &amp; γραφήματα
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Ανοίξτε όλους τους δείκτες και τις αναλύσεις του γραφείου σε ένα ενιαίο panel · 6 δείκτες · 6 γραφήματα
+                </Typography>
+              </Box>
+              <ExpandMoreIcon color="action" />
+            </Stack>
+          </CardActionArea>
+        </Card>
+      ) : (
+        <Card variant="outlined" sx={{
+          borderRadius: 2.5,
+          border: "1.5px solid",
+          borderColor: "rgba(11,37,69,0.28)",
+          bgcolor: "background.paper",
+          overflow: "hidden",
+          animation: "summaryPanelIn 260ms ease both",
+          "@keyframes summaryPanelIn": { from: { opacity: 0, transform: "scale(.985)" }, to: { opacity: 1, transform: "scale(1)" } },
+        }}>
+          <CardContent sx={{ p: { xs: 1.5, md: 2.25 }, "&:last-child": { pb: { xs: 1.5, md: 2.25 } } }}>
+            <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }} spacing={1.25} sx={{ mb: 2 }}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <InsightsIcon sx={{ color: ACCENT }} />
+                <Box>
+                  <Typography sx={{ fontWeight: 800, color: INK }}>Στατιστικά &amp; γραφήματα</Typography>
+                  <Typography variant="caption" color="text.secondary">Συγκεντρωτική εικόνα παραγωγής, συμβολαίων και ζημιών</Typography>
+                </Box>
+              </Stack>
+              <Button variant="outlined" size="small" onClick={() => setShowAnalytics(false)} endIcon={<ExpandLessIcon />}
+                sx={{ alignSelf: { xs: "flex-start", sm: "auto" }, borderColor: "rgba(11,37,69,0.3)", color: INK, fontWeight: 700 }}>
+                Απόκρυψη
+              </Button>
+            </Stack>
+
+            <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))", lg: "repeat(6, minmax(0, 1fr))" }, mb: 1.5 }}>
+              <AnimatedKpiCard index={0} label="Πελάτες" value={k.customers} accent={INK} icon={<PeopleAltIcon />} />
+              <AnimatedKpiCard index={1} label="Ενεργά συμβόλαια" value={k.activePolicies} accent="#16a34a" icon={<PolicyIcon />} />
+              <AnimatedKpiCard index={2} label="Λήγουν σύντομα" value={k.expiringSoon} accent="#a05a00" icon={<EventBusyIcon />} />
+              <AnimatedKpiCard index={3} label="Ασφάλιστρα μήνα" value={k.monthlyPremium} currency accent={ACCENT} icon={<EuroIcon />} />
+              <AnimatedKpiCard index={4} label="Ανοιχτές ζημιές" value={k.openClaims} accent="#dc2626" icon={<ReportProblemIcon />} />
+              <AnimatedKpiCard index={5} label="Εκκρεμή αιτήματα" value={k.openRequests} accent="#7c3aed" icon={<AssignmentLateIcon />} />
+            </Box>
+
+            <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" } }}>
+              <ChartCard title="Ασφάλιστρα τελευταίων 6 μηνών" subtitle={moneyFmt.format(monthlyData.reduce((sum, item) => sum + item.value, 0))} height={220}>
+                {monthlyData.length > 0 ? <ModernAreaChart data={monthlyData} color={ACCENT} format={(value) => moneyFmt.format(value)} /> : <HubChartEmpty />}
+              </ChartCard>
+              <ChartCard title="Συσσωρευμένα ασφάλιστρα" subtitle="Συνολική πορεία περιόδου" height={220}>
+                {cumulativeData.length > 0 ? <ModernDualLineChart data={cumulativeData} aLabel="Μηνιαία" bLabel="Συσσωρευμένα" aColor={ACCENT} bColor={INK} format={(value) => moneyFmt.format(value)} /> : <HubChartEmpty />}
+              </ChartCard>
+              <ChartCard title="Συμβόλαια ανά κατάσταση" subtitle={`${intFmt.format(statusData.reduce((sum, item) => sum + item.value, 0))} συνολικά`} height={220}>
+                {statusData.length > 0 ? <ModernDonutChart data={statusData} colors={statusColors} format={(value) => intFmt.format(value)} /> : <HubChartEmpty />}
+              </ChartCard>
+              <ChartCard title="Κλάδοι συμβολαίων" subtitle="Κατανομή χαρτοφυλακίου" height={220}>
+                {typeData.length > 0 ? <ModernBarChart data={typeData} color={INK} format={(value) => intFmt.format(value)} /> : <HubChartEmpty />}
+              </ChartCard>
+              <ChartCard title="Κορυφαίες ασφαλιστικές" subtitle="Με βάση τα ασφάλιστρα" height={220}>
+                {carrierData.length > 0 ? <ModernBarChart data={carrierData} color={ACCENT} format={(value) => moneyFmt.format(value)} /> : <HubChartEmpty />}
+              </ChartCard>
+              <ChartCard title="Ζημιές ανά κατάσταση" subtitle="Ανοιχτές και ολοκληρωμένες ζημιές" height={220}>
+                {claimData.length > 0 ? <ModernDonutChart data={claimData} colors={["#dc2626", "#d97706", "#16a34a", "#64748b"]} format={(value) => intFmt.format(value)} /> : <HubChartEmpty />}
+              </ChartCard>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+    </Box>
+  );
+}
+
+function HubChartEmpty() {
+  return (
+    <Stack sx={{ height: "100%" }} alignItems="center" justifyContent="center" spacing={0.5}>
+      <Typography variant="body2" color="text.secondary">Δεν υπάρχουν δεδομένα ακόμη</Typography>
+      <Typography variant="caption" color="text.disabled">Τα στοιχεία θα εμφανιστούν μόλις καταχωρηθούν εγγραφές.</Typography>
+    </Stack>
   );
 }
 
