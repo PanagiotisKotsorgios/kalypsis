@@ -300,12 +300,12 @@ export function ProductionListsPage() {
           Πλήθος <b>1</b> · Μεικτό <b>{money(r.gross)}</b> · Καθαρό <b>{money(r.net)}</b>
         </Typography>
         <Typography variant="caption" sx={{ whiteSpace: "nowrap" }}>
-          Προμ. συνεργάτη <b style={{ color: "#ed6c02" }}>{money(r.partnerCommission)}</b>
+          Προμ. Συνεργάτη <b style={{ color: "#ed6c02" }}>{money(r.partnerCommission)}</b>
           {` · `}
           Προμ. έδρας <b style={{ color: "#2e7d32" }}>{money(r.agencyCommission)}</b>
         </Typography>
       </Stack>
-    ), text: r => `Πλήθος 1 · Μεικτό ${money(r.gross)} · Καθαρό ${money(r.net)} · Προμ. συνεργάτη ${money(r.partnerCommission)} · Προμ. έδρας ${money(r.agencyCommission)}` },
+    ), text: r => `Πλήθος 1 · Μεικτό ${money(r.gross)} · Καθαρό ${money(r.net)} · Προμ. Συνεργάτη ${money(r.partnerCommission)} · Προμ. έδρας ${money(r.agencyCommission)}` },
   ];
 
   const pickerDescriptors: ExportColumnDescriptor[] = columns.map((c, i) => ({
@@ -400,7 +400,7 @@ export function ProductionListsPage() {
         Μεικτό <b>{money(totals.gross)}</b> · Καθαρό <b>{money(totals.net)}</b>
       </Typography>
       <Typography variant="caption" sx={{ whiteSpace: "nowrap" }}>
-        Προμ. συνεργάτη <b style={{ color: "#ed6c02" }}>{money(totals.partner)}</b>
+        Προμ. Συνεργάτη <b style={{ color: "#ed6c02" }}>{money(totals.partner)}</b>
         {` · `}
         Προμ. έδρας <b style={{ color: "#2e7d32" }}>{money(totals.agency)}</b>
       </Typography>
