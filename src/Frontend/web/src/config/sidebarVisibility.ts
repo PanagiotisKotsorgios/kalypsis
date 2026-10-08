@@ -204,6 +204,7 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     packages: ["Integrations"],
     items: [
       { path: "/integration-settings", label: "Ρυθμίσεις διασυνδέσεων" },
+      { path: "/timologion", label: "Πάροχος ηλεκτρονικής τιμολόγησης" },
       { path: "/mydata", label: "myDATA" }
     ]
   },

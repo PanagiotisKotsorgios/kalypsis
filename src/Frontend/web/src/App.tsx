@@ -203,6 +203,7 @@ import { CustomerMergePage } from "./pages/CustomerMergePage";
 import { PersistencyPage } from "./pages/PersistencyPage";
 import { UsaeSubmissionsPage } from "./pages/UsaeSubmissionsPage";
 import { IntegrationSettingsPage } from "./pages/IntegrationSettingsPage";
+import { TimologionProviderPage } from "./pages/TimologionProviderPage";
 import { NamedReportsPage } from "./pages/NamedReportsPage";
 import { AgencyInstructionsPage } from "./pages/AgencyInstructionsPage";
 import { BackupsPage } from "./pages/BackupsPage";
@@ -443,6 +444,7 @@ export const navByRole: Record<Role, NavItem[]> = {
 
     // ===== Integrations =====
     { to: "/integration-settings", labelKey: "nav.integrationSettings", icon: <VpnKeyIcon />, package: "Integrations" },
+    { to: "/timologion", labelKey: "nav.timologion", icon: <ReceiptLongIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/mydata", labelKey: "nav.mydata", icon: <GavelOutlinedIcon />, package: "Integrations" },
     { to: "/usae", labelKey: "nav.usae", icon: <RuleIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/dias", labelKey: "nav.dias", icon: <AccountBalanceIcon />, package: "Integrations", group: "integrationsGrp" },
@@ -1152,6 +1154,7 @@ export default function App() {
                   <Route path="platform/compliance" element={<PlatformCompliancePage />} />
                   <Route path="platform/support" element={<PlatformSupportPage />} />
                   <Route path="integration-settings" element={<PackageGate package="Integrations"><IntegrationSettingsPage /></PackageGate>} />
+                  <Route path="timologion" element={<PackageGate package="Integrations"><TimologionProviderPage /></PackageGate>} />
                   <Route path="named-reports" element={<NamedReportsPage />} />
                   <Route path="config-hub" element={<ConfigHubPage />} />
                   <Route path="advance-payments" element={<AdvancePaymentsPage />} />
