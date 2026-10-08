@@ -163,7 +163,35 @@ public sealed class OfficeAiService : IAiService
         catch (Exception ex) { _log.LogWarning(ex, "Office OpenAI request failed"); await RecordAsync(task, model, prompt[..Math.Min(prompt.Length, 500)], null, 0, 0, false, ex.Message[..Math.Min(ex.Message.Length, 500)], ct); return (false, null, "Η κλήση στο OpenAI απέτυχε. Ελέγξτε το office key και το μοντέλο.", 0, 0); }
     }
 
-    private async Task<string?> GetSettingAsync(string keyName, CancellationToken ct) { var tenant = _current.TenantId; if (!tenant.HasValue) return null; return await _db.IntegrationSettings.AsNoTracking().Where(x => x.TenantId == tenant.Value && (x.Service == "Ai" || x.Service == "OpenAI") && x.KeyName == keyName).Select(x => x.Value).FirstOrDefaultAsync(ct); }
+    private async Task<string?> GetSettingAsync(string keyName, CancellationToken ct)
+    {
+        var tenant = _current.TenantId;
+        if (!tenant.HasValue) return null;
+
+        var query = _db.IntegrationSettings.AsNoTracking()
+            .Where(x => x.TenantId == tenant.Value
+                && (x.Service == "Ai" || x.Service == "OpenAI")
+                && x.KeyName == keyName);
+
+        // Never choose an arbitrary office key when a tenant administrator is
+        // viewing the whole tenant. AI credentials are strictly office-owned;
+        // a request without an office scope can use only a legacy tenant-level
+        // value (null scope), while a scoped request can use that office and,
+        // for the headquarters, an older tenant-level fallback.
+        if (_current.AgencyOfficeId is Guid officeId)
+        {
+            query = query.Where(x => x.AgencyOfficeScopeId == officeId
+                || (_current.AgencyOfficeIsHeadquarters && x.AgencyOfficeScopeId == null));
+        }
+        else
+        {
+            query = query.Where(x => x.AgencyOfficeScopeId == null);
+        }
+
+        return await query.OrderByDescending(x => x.AgencyOfficeScopeId.HasValue)
+            .Select(x => x.Value)
+            .FirstOrDefaultAsync(ct);
+    }
     private async Task<(bool Allowed, string? Reason)> CheckBudgetAsync(string model, CancellationToken ct)
     {
         var tenant = _current.TenantId;

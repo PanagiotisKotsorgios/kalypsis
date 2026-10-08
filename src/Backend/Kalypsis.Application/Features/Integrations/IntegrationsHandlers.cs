@@ -233,7 +233,11 @@ public class ListKepyoReportsQueryHandler : IRequestHandler<ListKepyoReportsQuer
 }
 
 public record MagneticImportDto(Guid Id, string FileName, string Source, ImportStatus Status, int Rows, int Matched, int Failed, DateTime CreatedAt, DateTime? CompletedAt, string? Notes);
-public record CreateMagneticImportCommand(string FileName, string Source, int Rows) : IRequest<MagneticImportDto>;
+public record CreateMagneticImportCommand(string FileName, string Source, int Rows, int Matched, int Failed, string? Notes = null) : IRequest<MagneticImportDto>
+{
+    public CreateMagneticImportCommand(string fileName, string source, int rows)
+        : this(fileName, source, rows, rows, 0, null) { }
+}
 
 public class CreateMagneticImportCommandHandler : IRequestHandler<CreateMagneticImportCommand, MagneticImportDto>
 {
@@ -241,16 +245,19 @@ public class CreateMagneticImportCommandHandler : IRequestHandler<CreateMagnetic
     public CreateMagneticImportCommandHandler(IAppDbContext db) => _db = db;
     public async Task<MagneticImportDto> Handle(CreateMagneticImportCommand r, CancellationToken ct)
     {
-        var matched = (int)(r.Rows * 0.9);
-        var failed = r.Rows - matched;
         var m = new MagneticImport
         {
             Id = Guid.NewGuid(),
             FileName = string.IsNullOrWhiteSpace(r.FileName) ? "(empty)" : r.FileName,
             Source = string.IsNullOrWhiteSpace(r.Source) ? "—" : r.Source,
-            Rows = r.Rows, Matched = matched, Failed = failed,
-            Status = ImportStatus.Completed,
-            CompletedAt = DateTime.UtcNow
+            Rows = Math.Max(0, r.Rows),
+            Matched = Math.Clamp(r.Matched, 0, Math.Max(0, r.Rows)),
+            Failed = Math.Clamp(r.Failed, 0, Math.Max(0, r.Rows)),
+            Status = r.Rows > 0 && r.Failed == 0 ? ImportStatus.Completed : ImportStatus.Failed,
+            CompletedAt = DateTime.UtcNow,
+            Notes = r.Notes ?? (r.Rows > 0
+                ? "Το αρχείο διαβάστηκε και καταγράφηκε στο ιστορικό εισαγωγών."
+                : "Το αρχείο δεν περιέχει μη κενές γραμμές.")
         };
         _db.MagneticImports.Add(m);
         await _db.SaveChangesAsync(ct);

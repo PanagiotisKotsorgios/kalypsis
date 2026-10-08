@@ -25,10 +25,13 @@ public record ListIntegrationSettingsQuery(string? Service) : IRequest<IReadOnly
 public class ListIntegrationSettingsHandler : IRequestHandler<ListIntegrationSettingsQuery, IReadOnlyList<IntegrationSettingDto>>
 {
     private readonly IAppDbContext _db;
-    public ListIntegrationSettingsHandler(IAppDbContext db) => _db = db;
+    private readonly ICurrentUser _current;
+    public ListIntegrationSettingsHandler(IAppDbContext db, ICurrentUser current)
+    { _db = db; _current = current; }
     public async Task<IReadOnlyList<IntegrationSettingDto>> Handle(ListIntegrationSettingsQuery r, CancellationToken ct)
     {
-        var q = _db.IntegrationSettings.AsQueryable();
+        var q = _db.IntegrationSettings.AsQueryable()
+            .Where(x => x.AgencyOfficeScopeId == _current.AgencyOfficeId);
         if (!string.IsNullOrEmpty(r.Service)) q = q.Where(x => x.Service == r.Service);
         var rows = await q.OrderBy(x => x.Service).ThenBy(x => x.KeyName).ToListAsync(ct);
         return rows.Select(s => new IntegrationSettingDto(
@@ -42,15 +45,25 @@ public record SaveIntegrationSettingCommand(IntegrationSettingBody Body) : IRequ
 public class SaveIntegrationSettingHandler : IRequestHandler<SaveIntegrationSettingCommand, IntegrationSettingDto>
 {
     private readonly IAppDbContext _db;
-    public SaveIntegrationSettingHandler(IAppDbContext db) => _db = db;
+    private readonly ICurrentUser _current;
+    public SaveIntegrationSettingHandler(IAppDbContext db, ICurrentUser current)
+    { _db = db; _current = current; }
     public async Task<IntegrationSettingDto> Handle(SaveIntegrationSettingCommand r, CancellationToken ct)
     {
         var b = r.Body;
         var existing = await _db.IntegrationSettings
-            .FirstOrDefaultAsync(x => x.Service == b.Service && x.KeyName == b.KeyName, ct);
+            .FirstOrDefaultAsync(x => x.Service == b.Service && x.KeyName == b.KeyName
+                && x.AgencyOfficeScopeId == _current.AgencyOfficeId, ct);
         if (existing is null)
         {
-            existing = new IntegrationSetting { Id = Guid.NewGuid(), Service = b.Service, KeyName = b.KeyName };
+            existing = new IntegrationSetting
+            {
+                Id = Guid.NewGuid(),
+                TenantId = _current.TenantId ?? throw AppException.Forbidden(),
+                AgencyOfficeScopeId = _current.AgencyOfficeId,
+                Service = b.Service,
+                KeyName = b.KeyName
+            };
             _db.IntegrationSettings.Add(existing);
         }
         // Don't overwrite secret with the redacted mask

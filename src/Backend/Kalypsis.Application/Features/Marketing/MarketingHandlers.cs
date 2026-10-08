@@ -17,7 +17,10 @@ public static class MarketingChannels
     public const string Email = "Email";
     public const string Sms = "Sms";
     public const string Viber = "Viber";
-    public static readonly string[] All = { Email, Sms, Viber };
+    // Viber is kept as a legacy database value for old delivery logs, but it
+    // is no longer an active CRM channel. New campaigns can only use the
+    // office-configured Brevo email and Bulker SMS providers.
+    public static readonly string[] All = { Email, Sms };
 
     public static string[] Parse(string? json)
     {

@@ -64,7 +64,7 @@ import { usePackages } from "../auth/PackagesContext";
 /** True when the tenant has any back-office package that would let it use
  *  «Λίστα παραγωγής» (data pulled from /production-lists). Ermes-only
  *  tenants return false so BackOffice-specific composer affordances hide. */
-function hasBackofficeAccess(): boolean {
+function useHasBackofficeAccess(): boolean {
   const p = usePackages();
   return p.has("BackOffice") || p.has("FrontOffice");
 }
@@ -1513,7 +1513,7 @@ function ComposeDialog({
   // endpoint — Ermes-only tenants (very small offices with ONLY the
   // ΕΡΜΗΣ package) don't have that data, so we hide the button rather
   // than let it 403 with a scary error.
-  const canInsertProductionList = hasBackofficeAccess();
+  const canInsertProductionList = useHasBackofficeAccess();
   // Custom templates persisted per-browser in localStorage; merged with
   // the built-in TEMPLATES in the picker menu.
   const [customTemplates, setCustomTemplates] = useState<Template[]>(() => {

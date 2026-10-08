@@ -69,6 +69,25 @@ public static class DataSeeder
     // present; no table or user data is deleted or modified.
     private static readonly (string Id, string[] Tables)[] OrphanableMigrations =
     [
+        // These migrations pre-date the insurance-company workspace and can
+        // also be left behind when MySQL commits DDL before the history row.
+        // They are included here so a redeploy can recover from an interrupted
+        // first boot instead of looping forever on "table already exists".
+        ("20260807170000_AddDesktopLicensing", [
+            "desktop_licenses", "desktop_license_payments"
+        ]),
+        ("20260927131803_AddCustomerGdprSigning", [
+            "customer_form_signings", "tenant_gdpr_signing_settings", "customer_form_signing_links"
+        ]),
+        ("20261002090854_AddCrmGroupsAndOfficeProviderSecrets", [
+            "crm_groups", "producer_communication_logs", "crm_group_members"
+        ]),
+        ("20261002110249_AddCrmOpportunitiesAndDeliveryLogs", [
+            "crm_opportunities", "marketing_delivery_logs"
+        ]),
+        ("20261002130403_AddAiWorkbench", [
+            "ai_prompt_templates", "ai_conversations", "ai_conversation_messages"
+        ]),
         ("20261003184050_AddInsuranceCompanyWorkspace", [
             "InsuranceCompanyFieldDefinitions",
             "InsuranceCompanyFolders",
@@ -87,6 +106,52 @@ public static class DataSeeder
         ]),
         ("20261004204627_AddInsuranceCompanyPartners", [
             "insurance_company_partners"
+        ]),
+        ("20261006215954_AddManualGreenCards", [
+            "green_cards"
+        ]),
+        ("20261008152253_AddPartnerNetworks", [
+            "partner_networks", "partner_network_documents", "partner_network_members"
+        ])
+    ];
+
+    // A migration containing only ALTER TABLE statements cannot be repaired
+    // by checking table names.  These descriptors are deliberately strict:
+    // history is reconciled only after every column is present.  If even one
+    // is missing, EF is allowed to run the real migration on the next line.
+    private static readonly (string Id, (string Table, string Column)[] Columns)[] OrphanableColumnMigrations =
+    [
+        ("20260818200000_AddPolicyCarrierUseCode", [("policies", "CarrierUseCode")]),
+        ("20260818201000_AddPolicyCarrierBranchPackageCoverage", [
+            ("policies", "CarrierBranchCode"), ("policies", "CarrierPackageCode"), ("policies", "CarrierCoverageCode")
+        ]),
+        ("20260916131500_AddTenantSidebarVisibility", [("tenants", "HiddenSidebarItemsJson")]),
+        ("20260923085000_AddProducerNotes", [("producers", "Notes")]),
+        ("20260923173000_AddProducerGoalPlan", [
+            ("producers", "GoalBaseCommissionPercent"), ("producers", "GoalCommissionIncreasePercent"),
+            ("producers", "GoalLevelCount"), ("producers", "GoalFirstTargetPremium"),
+            ("producers", "GoalMaximumCommissionPercent"), ("producers", "GoalPlanEnabled"),
+            ("producers", "GoalPremiumStep")
+        ]),
+        ("20260925170000_AddProducerGoalCountModes", [
+            ("producers", "GoalTargetMode"), ("producers", "GoalFirstTargetCount"), ("producers", "GoalCountStep")
+        ]),
+        ("20260927133757_AddCustomerNeedsFormData", [("customers", "FormDataJson")]),
+        ("20261002101931_AddProducerLinksToTasksAndAppointments", [
+            ("appointments", "ProducerId"), ("agency_tasks", "ProducerId")
+        ]),
+        ("20261002130709_AddAiWorkbenchResultPreview", [("ai_conversations", "ResultPreview")]),
+        ("20261004134007_AddInsuranceCompanyLogo", [("insurance_companies", "LogoUrl")]),
+        ("20261004164155_AddAgencyOfficeProfile", [("AgencyOffices", "ProfileJson")]),
+        ("20261005232425_AddProducerProfileDetails", [
+            ("producers", "AdditionalInfoJson"), ("producers", "Address"), ("producers", "BankName"),
+            ("producers", "BusinessType"), ("producers", "City"), ("producers", "ContractEndDate"),
+            ("producers", "ContractNumber"), ("producers", "ContractStartDate"), ("producers", "HasContract"),
+            ("producers", "Iban"), ("producers", "IdentityNumber"), ("producers", "LicenseExpiryDate"),
+            ("producers", "PaymentMethod"), ("producers", "PostalCode"), ("producers", "ProfessionalCategory"),
+            ("producers", "ProfessionalLicenseNumber"), ("producers", "SecondaryEmail"),
+            ("producers", "SecondaryPhone"), ("producers", "TaxId"), ("producers", "TaxOffice"),
+            ("producers", "Website")
         ])
     ];
 
@@ -255,7 +320,127 @@ public static class DataSeeder
         try { await BackfillAgencyHeadquartersAsync(db, logger, cancellationToken); }
         catch (Exception ex) { logger.LogError(ex, "Agency headquarters backfill failed; continuing boot."); }
 
+        // CRM templates are durable, office-scoped records.  Older releases
+        // kept the editor defaults only in localStorage, which left a fresh
+        // office with no usable template for a campaign or workflow.  Seed
+        // the small, editable system set additively; existing office content
+        // is never overwritten or deleted.
+        try { await SeedOfficeEmailTemplatesAsync(db, logger, cancellationToken); }
+        catch (Exception ex) { logger.LogError(ex, "Office CRM template seed failed; continuing boot."); }
+
+        // Give every office a small, editable Intelligence starter library.
+        // These are additive defaults: an office's own prompts are never
+        // replaced or removed on a redeploy.
+        try { await SeedOfficeAiPromptTemplatesAsync(db, logger, cancellationToken); }
+        catch (Exception ex) { logger.LogError(ex, "Office AI prompt seed failed; continuing boot."); }
+
         await BackfillPackageGrantsAsync(db, logger, cancellationToken);
+    }
+
+    private static async Task SeedOfficeEmailTemplatesAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        var offices = await db.AgencyOffices.IgnoreQueryFilters()
+            .Where(x => x.DeletedAt == null && x.IsActive)
+            .Select(x => new { x.Id, x.TenantId })
+            .ToListAsync(ct);
+        if (offices.Count == 0) return;
+
+        var tenantIds = offices.Select(x => x.TenantId).Distinct().ToArray();
+        var existing = await db.EmailTemplates.IgnoreQueryFilters()
+            .Where(x => tenantIds.Contains(x.TenantId) && x.DeletedAt == null && x.AgencyOfficeScopeId != null)
+            .Select(x => new { x.TenantId, x.AgencyOfficeScopeId, x.Code })
+            .ToListAsync(ct);
+        var existingKeys = existing
+            .Select(x => $"{x.TenantId:N}:{x.AgencyOfficeScopeId:N}:{x.Code}")
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var definitions = new[]
+        {
+            (Code: "welcome", Name: "Καλωσόρισμα νέου πελάτη", Subject: "Καλωσορίσατε στο {{agency}}", Trigger: (string?)null,
+                Body: "<p>Αγαπητέ/ή {{firstName}},</p><p>Σας ευχαριστούμε για την εμπιστοσύνη σας.</p><p>{{agency}}</p>", Sms: (string?)null),
+            (Code: "renewal-30d", Name: "Υπενθύμιση ανανέωσης 30 ημερών", Subject: "Το συμβόλαιό σας λήγει σύντομα", Trigger: "renewal-30d",
+                Body: "<p>Αγαπητέ/ή {{firstName}},</p><p>Το συμβόλαιό σας {{policyNumber}} λήγει στις {{endDate}}. Επικοινωνήστε μαζί μας για την ανανέωση.</p><p>{{agency}}</p>", Sms: "{{agency}}: Το συμβόλαιό σας {{policyNumber}} λήγει στις {{endDate}}. Επικοινωνήστε μαζί μας."),
+            (Code: "renewal-7d", Name: "Υπενθύμιση ανανέωσης 7 ημερών", Subject: "Η ανανέωση του συμβολαίου σας πλησιάζει", Trigger: "renewal-7d",
+                Body: "<p>Υπενθύμιση: το συμβόλαιό σας {{policyNumber}} λήγει στις {{endDate}}. Καλέστε μας για να ολοκληρώσουμε την ανανέωση.</p>", Sms: "{{agency}}: Το συμβόλαιό σας {{policyNumber}} λήγει στις {{endDate}}."),
+            (Code: "birthday", Name: "Ευχές γενεθλίων", Subject: "Χρόνια πολλά από το {{agency}}", Trigger: "birthday",
+                Body: "<p>Χρόνια πολλά {{firstName}}! Σας ευχόμαστε υγεία και κάθε καλό.</p><p>{{agency}}</p>", Sms: "{{agency}}: Χρόνια πολλά {{firstName}}! Υγεία και χαρά."),
+            (Code: "payment-due", Name: "Υπενθύμιση οφειλής", Subject: "Υπενθύμιση πληρωμής", Trigger: "payment-due",
+                Body: "<p>Αγαπητέ/ή {{firstName}},</p><p>Υπάρχει εκκρεμής πληρωμή στο ασφαλιστήριό σας. Επικοινωνήστε μαζί μας για βοήθεια.</p>", Sms: "{{agency}}: Υπάρχει εκκρεμής πληρωμή στο ασφαλιστήριό σας. Επικοινωνήστε μαζί μας.")
+        };
+
+        var added = 0;
+        foreach (var office in offices)
+        foreach (var definition in definitions)
+        {
+            var key = $"{office.TenantId:N}:{office.Id:N}:{definition.Code}";
+            if (existingKeys.Contains(key)) continue;
+            db.EmailTemplates.Add(new EmailTemplate
+            {
+                Id = Guid.NewGuid(), TenantId = office.TenantId, AgencyOfficeScopeId = office.Id,
+                Code = definition.Code, Name = definition.Name, Subject = definition.Subject,
+                BodyHtml = definition.Body, BodyPlain = System.Text.RegularExpressions.Regex.Replace(definition.Body, "<[^>]+>", " ").Trim(),
+                Language = "el", IsSystem = true, IsActive = true, PolicyTrigger = definition.Trigger, SmsBody = definition.Sms,
+                CreatedAt = DateTime.UtcNow
+            });
+            added++;
+        }
+
+        if (added > 0)
+        {
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("CRM template bootstrap: added {Count} office template(s).", added);
+        }
+    }
+
+    private static async Task SeedOfficeAiPromptTemplatesAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        var offices = await db.AgencyOffices.IgnoreQueryFilters()
+            .Where(x => x.DeletedAt == null && x.IsActive)
+            .Select(x => new { x.Id, x.TenantId })
+            .ToListAsync(ct);
+        if (offices.Count == 0) return;
+
+        var tenantIds = offices.Select(x => x.TenantId).Distinct().ToArray();
+        var existing = await db.AiPromptTemplates.IgnoreQueryFilters()
+            .Where(x => tenantIds.Contains(x.TenantId) && x.DeletedAt == null && x.AgencyOfficeScopeId != null)
+            .Select(x => new { x.TenantId, x.AgencyOfficeScopeId, x.Name })
+            .ToListAsync(ct);
+        var existingKeys = existing
+            .Select(x => $"{x.TenantId:N}:{x.AgencyOfficeScopeId:N}:{x.Name}")
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var definitions = new[]
+        {
+            (Name: "Περίληψη πελάτη", Purpose: "Σύντομη, επαγγελματική εικόνα πελάτη και επόμενες ενέργειες.", Scope: "Customer",
+                Template: "Δώσε στα ελληνικά σύντομη περίληψη του πελάτη από το {{context}}. Παρουσίασε: βασικά δεδομένα, ενεργά συμβόλαια, εκκρεμότητες, κίνδυνο απώλειας και 3 πρακτικές επόμενες ενέργειες. Μην δίνεις δεσμευτική ασφαλιστική ή νομική συμβουλή."),
+            (Name: "Έλεγχος συμβολαίου", Purpose: "Σημεία προσοχής και προτεινόμενο follow-up για συμβόλαιο.", Scope: "Policy",
+                Template: "Ανάλυσε το συμβόλαιο στο {{context}}. Επισήμανε ημερομηνίες, καλύψεις, ασφάλιστρα, πληρωμές, ανανεώσεις, κενά δεδομένων και πιθανά σημεία follow-up. Δώσε την απάντηση σε σύντομες ενότητες και χωρίς δεσμευτικές συμβουλές."),
+            (Name: "Επισκόπηση χαρτοφυλακίου", Purpose: "Προτεραιοποίηση ανανεώσεων, οφειλών και κινδύνων.", Scope: "Portfolio",
+                Template: "Με βάση το {{context}}, δημιούργησε διοικητική επισκόπηση χαρτοφυλακίου στα ελληνικά. Ταξινόμησε προτεραιότητες για ανανεώσεις, εκκρεμείς πληρωμές, ζημιές και πελάτες προς επικοινωνία. Χρησιμοποίησε μετρήσιμες προτάσεις και σαφή επόμενα βήματα."),
+            (Name: "Σύνταξη επικοινωνίας", Purpose: "Προσχέδιο email ή SMS με ασφαλή, ουδέτερη διατύπωση.", Scope: "General",
+                Template: "Σύνταξε επαγγελματικό μήνυμα στα ελληνικά με βάση το {{context}}. Επίστρεψε ΘΕΜΑ και ΚΕΙΜΕΝΟ, με ουδέτερο τόνο, χωρίς να επινοείς στοιχεία και χωρίς δεσμευτική ασφαλιστική συμβουλή. Άφησε placeholders όπου λείπουν δεδομένα.")
+        };
+
+        var added = 0;
+        foreach (var office in offices)
+        foreach (var definition in definitions)
+        {
+            var key = $"{office.TenantId:N}:{office.Id:N}:{definition.Name}";
+            if (existingKeys.Contains(key)) continue;
+            db.AiPromptTemplates.Add(new AiPromptTemplate
+            {
+                Id = Guid.NewGuid(), TenantId = office.TenantId, AgencyOfficeScopeId = office.Id,
+                Name = definition.Name, Purpose = definition.Purpose, ContextScope = definition.Scope,
+                Template = definition.Template, IsActive = true, CreatedAt = DateTime.UtcNow
+            });
+            added++;
+        }
+
+        if (added > 0)
+        {
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("AI prompt bootstrap: added {Count} office prompt(s).", added);
+        }
     }
 
     /// <summary>
@@ -415,10 +600,10 @@ public static class DataSeeder
         => value.Length <= 160 ? value : value[..160];
 
     /// <summary>
-    /// Phase 5 backfill — every tenant that exists when the package layer goes
-    /// live gets all five packages enabled by default. The superadmin can then
+    /// Package backfill — every tenant that exists when the package layer goes
+    /// live gets the complete package set enabled by default. The superadmin can then
     /// disable individual packages per tenant from <c>/app/tenants/{id}</c>.
-    /// New tenants created after this point also get all five via the tenant
+    /// New tenants created after this point also get the complete package set via the tenant
     /// creation flow (handled in <c>TenantsController.Create</c>).
     /// Idempotent — only inserts grants that are missing.
     /// </summary>
@@ -977,6 +1162,34 @@ public static class DataSeeder
 
             logger.LogWarning(
                 "Partial migration {Migration} was reset because all orphan tables were empty; EF will recreate it.",
+                migration.Id);
+        }
+
+        // Handle migrations whose DDL consists mostly of ALTER TABLE.  A
+        // previous safety-net or an interrupted boot may already have added
+        // the columns while the EF history row was never committed.  In that
+        // case running the migration again would fail with "duplicate column".
+        // We only write history when every required column exists; missing
+        // columns are intentionally left for EF's normal migration runner.
+        foreach (var migration in OrphanableColumnMigrations)
+        {
+            if (applied.Contains(migration.Id)) continue;
+            var allColumnsExist = true;
+            foreach (var column in migration.Columns)
+            {
+                if (!await ColumnExistsAsync(db, databaseName, column.Table, column.Column, ct))
+                {
+                    allColumnsExist = false;
+                    break;
+                }
+            }
+
+            if (!allColumnsExist) continue;
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"INSERT IGNORE INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`) VALUES ({migration.Id}, {"10.0.9"})",
+                ct);
+            logger.LogWarning(
+                "Reconciled orphaned EF migration history for {Migration}; all required columns already existed.",
                 migration.Id);
         }
     }

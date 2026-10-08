@@ -166,7 +166,7 @@ public class QuotesController : ControllerBase
 [ApiController]
 [Route("api/workflows")]
 [Authorize(Policy = "AgencyAdmin")]
-[RequiresPackage(PackageCode.Intelligence)]
+[RequiresPackage(PackageCode.Crm)]
 public class WorkflowsController : ControllerBase
 {
     private readonly AppDbContext _db;
@@ -208,6 +208,29 @@ public class WorkflowsController : ControllerBase
         await _db.SaveChangesAsync(ct);
         return Ok(new RuleDto(rule.Id, rule.Name, rule.TriggerEvent, rule.IsActive, rule.Priority, rule.ConditionsJson,
             rule.Actions.OrderBy(a => a.Order).Select(a => new RuleActionDto(a.Id, a.Action, a.Order, a.PayloadJson)).ToList()));
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<RuleDto>> Update(Guid id, [FromBody] UpsertRuleBody body, CancellationToken ct)
+    {
+        var rule = await _db.WorkflowRules.Include(r => r.Actions)
+            .FirstOrDefaultAsync(r => r.Id == id && r.DeletedAt == null, ct);
+        if (rule is null) return NotFound();
+        rule.Name = body.Name.Trim();
+        rule.TriggerEvent = body.TriggerEvent;
+        rule.IsActive = body.IsActive;
+        rule.Priority = body.Priority;
+        rule.ConditionsJson = body.ConditionsJson;
+        foreach (var action in rule.Actions) action.DeletedAt = DateTime.UtcNow;
+        foreach (var a in body.Actions)
+        {
+            rule.Actions.Add(new Domain.Entities.WorkflowRuleAction
+            { Id = Guid.NewGuid(), RuleId = rule.Id, Action = a.Action, Order = a.Order, PayloadJson = a.PayloadJson });
+        }
+        await _db.SaveChangesAsync(ct);
+        return Ok(new RuleDto(rule.Id, rule.Name, rule.TriggerEvent, rule.IsActive, rule.Priority, rule.ConditionsJson,
+            rule.Actions.Where(a => a.DeletedAt == null).OrderBy(a => a.Order)
+                .Select(a => new RuleActionDto(a.Id, a.Action, a.Order, a.PayloadJson)).ToList()));
     }
 
     [HttpDelete("{id:guid}")]

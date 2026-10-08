@@ -233,6 +233,7 @@ public class GenerateInvoicesCommandHandler
         PackageCode.Crm          => "Πακέτο CRM — πελατολόγιο, marketing, πύλη πελάτη",
         PackageCode.Intelligence => "Πακέτο Intelligence — αναφορές, αναλυτική, KPIs",
         PackageCode.Integrations => "Πακέτο Integrations — myDATA, γέφυρες εταιριών, B2B",
+        PackageCode.Ermes        => "Πακέτο ΕΡΜΗΣ — ασφαλής επικοινωνία γραφείου και συναντήσεις",
         _ => p.ToString()
     };
 }

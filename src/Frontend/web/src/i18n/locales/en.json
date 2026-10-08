@@ -1741,9 +1741,10 @@
       "FrontOffice": "FRONTOFFICE",
       "Crm": "CRM",
       "Intelligence": "INSIGHTS",
-      "Integrations": "INTEGRATIONS"
+      "Integrations": "INTEGRATIONS",
+      "Ermes": "ERMES"
     },
-    "tag": { "I": "I", "II": "II", "III": "III", "IV": "IV", "V": "V" },
+    "tag": { "I": "I", "II": "II", "III": "III", "IV": "IV", "V": "V", "VI": "VI" },
     "BackOffice": {
       "name": "BackOffice — Ledger",
       "body": "Cashier, payments, commissions, over-commissions, accounting exports. Manual or bridged data entry."
@@ -1763,6 +1764,10 @@
     "Integrations": {
       "name": "Integrations & Compliance",
       "body": "myDATA, online payments, telephony, branches, B2B portal, external bridges."
+    },
+    "Ermes": {
+      "name": "ERMES — Secure office messaging",
+      "body": "Internal messages, teams, attachments, encrypted communication and secure meetings."
     }
   },
   "economics": {

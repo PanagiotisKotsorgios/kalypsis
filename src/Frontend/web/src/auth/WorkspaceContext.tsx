@@ -15,7 +15,7 @@ interface WorkspaceCtx {
 const Ctx = createContext<WorkspaceCtx | null>(null);
 
 /**
- * Phase 8 — workspace switcher state. After login the user lands on a 5-card
+ * Phase 8 — workspace switcher state. After login the user lands on a package-card
  * hub; entering a card sets the workspace state and filters the sidebar +
  * top-bar chips.
  *

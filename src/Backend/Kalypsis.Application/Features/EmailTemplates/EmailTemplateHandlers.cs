@@ -9,10 +9,12 @@ namespace Kalypsis.Application.Features.EmailTemplates;
 
 public record EmailTemplateDto(
     Guid Id, string Code, string Name, string Subject,
-    string BodyHtml, string? BodyPlain, string Language, bool IsSystem, bool IsActive);
+    string BodyHtml, string? BodyPlain, string Language, bool IsSystem, bool IsActive,
+    string? PolicyTrigger, string? SmsBody);
 
 public record UpsertEmailTemplateBody(
-    string Code, string Name, string Subject, string BodyHtml, string? BodyPlain, string Language, bool IsActive);
+    string Code, string Name, string Subject, string BodyHtml, string? BodyPlain, string Language, bool IsActive,
+    string? PolicyTrigger = null, string? SmsBody = null);
 
 public class UpsertEmailTemplateBodyValidator : AbstractValidator<UpsertEmailTemplateBody>
 {
@@ -20,7 +22,7 @@ public class UpsertEmailTemplateBodyValidator : AbstractValidator<UpsertEmailTem
     {
         RuleFor(x => x.Code).NotEmpty().MaximumLength(80);
         RuleFor(x => x.Name).NotEmpty().MaximumLength(120);
-        RuleFor(x => x.Subject).NotEmpty().MaximumLength(300);
+        RuleFor(x => x.Subject).MaximumLength(300);
         RuleFor(x => x.BodyHtml).NotEmpty();
         RuleFor(x => x.Language).NotEmpty().MaximumLength(8);
     }
@@ -43,7 +45,7 @@ public class ListEmailTemplatesHandler : IRequestHandler<ListEmailTemplatesQuery
         return await _db.EmailTemplates
             .Where(t => t.TenantId == tenantId && t.DeletedAt == null)
             .OrderBy(t => t.Name)
-            .Select(t => new EmailTemplateDto(t.Id, t.Code, t.Name, t.Subject, t.BodyHtml, t.BodyPlain, t.Language, t.IsSystem, t.IsActive))
+            .Select(t => new EmailTemplateDto(t.Id, t.Code, t.Name, t.Subject, t.BodyHtml, t.BodyPlain, t.Language, t.IsSystem, t.IsActive, t.PolicyTrigger, t.SmsBody))
             .ToListAsync(ct);
     }
 }
@@ -67,11 +69,13 @@ public class CreateEmailTemplateHandler : IRequestHandler<CreateEmailTemplateCom
             BodyHtml = request.Body.BodyHtml,
             BodyPlain = request.Body.BodyPlain,
             Language = request.Body.Language.Trim().ToLowerInvariant(),
-            IsActive = request.Body.IsActive
+            IsActive = request.Body.IsActive,
+            PolicyTrigger = string.IsNullOrWhiteSpace(request.Body.PolicyTrigger) ? null : request.Body.PolicyTrigger.Trim(),
+            SmsBody = string.IsNullOrWhiteSpace(request.Body.SmsBody) ? null : request.Body.SmsBody.Trim()
         };
         _db.EmailTemplates.Add(t);
         await _db.SaveChangesAsync(ct);
-        return new EmailTemplateDto(t.Id, t.Code, t.Name, t.Subject, t.BodyHtml, t.BodyPlain, t.Language, t.IsSystem, t.IsActive);
+        return new EmailTemplateDto(t.Id, t.Code, t.Name, t.Subject, t.BodyHtml, t.BodyPlain, t.Language, t.IsSystem, t.IsActive, t.PolicyTrigger, t.SmsBody);
     }
 }
 
@@ -91,9 +95,11 @@ public class UpdateEmailTemplateHandler : IRequestHandler<UpdateEmailTemplateCom
         t.BodyHtml = request.Body.BodyHtml;
         t.BodyPlain = request.Body.BodyPlain;
         t.IsActive = request.Body.IsActive;
+        t.PolicyTrigger = string.IsNullOrWhiteSpace(request.Body.PolicyTrigger) ? null : request.Body.PolicyTrigger.Trim();
+        t.SmsBody = string.IsNullOrWhiteSpace(request.Body.SmsBody) ? null : request.Body.SmsBody.Trim();
         // Code + language are stable identifiers — don't allow changing here.
         await _db.SaveChangesAsync(ct);
-        return new EmailTemplateDto(t.Id, t.Code, t.Name, t.Subject, t.BodyHtml, t.BodyPlain, t.Language, t.IsSystem, t.IsActive);
+        return new EmailTemplateDto(t.Id, t.Code, t.Name, t.Subject, t.BodyHtml, t.BodyPlain, t.Language, t.IsSystem, t.IsActive, t.PolicyTrigger, t.SmsBody);
     }
 }
 

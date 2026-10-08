@@ -9,7 +9,8 @@ public enum MyDataInvoiceStatus { Draft = 1, Submitted = 2, Accepted = 3, Cancel
 public enum WorkflowEvent {
     CustomerCreated = 1, PolicyIssued = 2, PolicyAboutToExpire = 3, PolicyExpired = 4,
     PolicyCancelled = 5, InstallmentDue = 6, InstallmentOverdue = 7, ClaimReported = 8,
-    PaymentReceived = 9, RequestSubmitted = 10, RequestResolved = 11, ConsentRevoked = 12
+    PaymentReceived = 9, RequestSubmitted = 10, RequestResolved = 11, ConsentRevoked = 12,
+    CustomerBirthday = 13, CustomerNameDay = 14, CustomerInactive = 15, CooperationAnniversary = 16
 }
 public enum WorkflowAction {
     SendEmail = 1, SendSms = 2, CreateTask = 3, CreateNotification = 4, CreateRequest = 5,

@@ -290,10 +290,15 @@ public class MagneticImportsController : ControllerBase
     {
         if (file is null || file.Length == 0) return BadRequest(new { code = "validation", message = "Δεν επιλέξατε αρχείο." });
         await using var stream = file.OpenReadStream();
-        using var reader = new StreamReader(stream);
-        var rows = 0;
-        while (await reader.ReadLineAsync(ct) is not null) rows++;
-        var result = await _m.Send(new CreateMagneticImportCommand(file.FileName, source ?? "—", rows), ct);
+        using var reader = new StreamReader(stream, detectEncodingFromByteOrderMarks: true);
+        var content = await reader.ReadToEndAsync(ct);
+        var rows = content.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim()).Count(line => line.Length > 0);
+        var sourceName = string.IsNullOrWhiteSpace(source) ? "Άγνωστη πηγή" : source.Trim();
+        var notes = rows > 0
+            ? "Το αρχείο διαβάστηκε με επιτυχία και καταγράφηκε στο ιστορικό εισαγωγών."
+            : "Το αρχείο δεν περιέχει μη κενές γραμμές.";
+        var result = await _m.Send(new CreateMagneticImportCommand(file.FileName, sourceName, rows, rows, 0, notes), ct);
         return Ok(result);
     }
 }

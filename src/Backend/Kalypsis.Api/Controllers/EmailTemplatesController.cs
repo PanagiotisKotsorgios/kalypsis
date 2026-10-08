@@ -9,7 +9,7 @@ namespace Kalypsis.Api.Controllers;
 
 [ApiController]
 [Route("api/email-templates")]
-[Authorize(Policy = "AgencyAdmin")]
+[Authorize(Policy = "AgencyStaff")]
 [RequiresPackage(PackageCode.Crm)]
 public class EmailTemplatesController : ControllerBase
 {

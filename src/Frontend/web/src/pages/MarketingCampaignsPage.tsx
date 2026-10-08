@@ -20,7 +20,6 @@ import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import CalculateIcon from "@mui/icons-material/Calculate";
 import EmailIcon from "@mui/icons-material/Email";
 import SmsIcon from "@mui/icons-material/Sms";
-import ChatIcon from "@mui/icons-material/Chat";
 import BoltIcon from "@mui/icons-material/Bolt";
 import ReplayIcon from "@mui/icons-material/Replay";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -61,9 +60,11 @@ import { DataExportButton } from "../components/DataExportButton";
      5) Ιστορικό  — sent-log audit trail per recipient
      6) Ρυθμίσεις — email/SMS providers with quota bars + calculator
 
-   Templates, rules, segments, provider config and log entries are persisted
-   in localStorage keyed by the current user until backend endpoints ship;
-   the DTO shapes are stable so a drop-in is straightforward.
+   Campaigns, delivery history, office templates and automation rules are
+   backend-backed and tenant-scoped. Audience segments remain a lightweight
+   browser-side editor for compatibility; durable smart audiences are stored as
+   CRM groups and previewed through the server API. Legacy provider display
+   metadata is also kept tenant-keyed so offices never share browser state.
    ========================================================================= */
 
 // -----------------------------------------------------------------------------
@@ -89,6 +90,14 @@ interface CampaignForm {
   channels: Channel[]; segmentKey: Segment; occupationFilter: string; needKindFilter: string;
   onlyUninsuredNeeds: boolean; status: Status; scheduledFor: string;
 }
+interface CrmOverview {
+  customers: number; activeCustomers: number; producers: number; activePolicies: number;
+  policiesExpiring30Days: number; openClaims: number; openTasks: number; tasksDueToday: number;
+  openOpportunities: number; pipelineValue: number; campaignsLast30Days: number;
+  deliveriesLast30Days: number; failedDeliveriesLast30Days: number; emailOptOuts: number;
+  smsOptOuts: number; generatedAt: string;
+}
+
 const EMPTY_CAMPAIGN: CampaignForm = {
   name: "", subject: "", bodyHtml: "", smsBody: "", viberBody: "", channels: ["Email"],
   segmentKey: "all", occupationFilter: "", needKindFilter: "", onlyUninsuredNeeds: false,
@@ -98,11 +107,22 @@ const EMPTY_CAMPAIGN: CampaignForm = {
 // -----------------------------------------------------------------------------
 // Locally-persisted shapes.
 // -----------------------------------------------------------------------------
-type TemplateKind = "Email" | "SMS" | "Viber";
+type TemplateKind = "Email" | "SMS";
 interface MarketingTemplate {
   id: string; name: string; kind: TemplateKind;
   subject: string; body: string;
   tags: string[]; createdAt: string;
+}
+
+interface OfficeTemplateDto {
+  id: string; code: string; name: string; subject: string; bodyHtml: string;
+  bodyPlain?: string | null; language: string; isSystem: boolean; isActive: boolean;
+  policyTrigger?: string | null; smsBody?: string | null;
+}
+
+interface WorkflowRuleDto {
+  id: string; name: string; triggerEvent: string | number; isActive: boolean; priority: number;
+  conditionsJson?: string | null; actions: Array<{ id: string; action: string | number; order: number; payloadJson: string }>;
 }
 
 type RuleTrigger =
@@ -146,7 +166,7 @@ interface SendLogEntry {
   cost: number;
 }
 
-type ProviderKind = "Email" | "SMS" | "Viber";
+type ProviderKind = "Email" | "SMS";
 interface MarketingProvider {
   id: string; name: string; kind: ProviderKind;
   senderId: string; apiKey: string;
@@ -169,6 +189,10 @@ const useLocalStore = <T,>(key: string, initial: T[]) => {
   }, [key, value]);
   return [value, setValue] as const;
 };
+
+function marketingScope(user: { tenantId: string | null; userId: string } | null | undefined): string {
+  return user?.tenantId ?? user?.userId ?? "anon";
+}
 
 // -----------------------------------------------------------------------------
 // Root page — tabbed shell.
@@ -256,7 +280,6 @@ function ChannelIcon({ channel, size = "small" }: { channel: Channel | TemplateK
     case "Email": return <EmailIcon {...props} color="primary" />;
     case "Sms":
     case "SMS":   return <SmsIcon {...props} color="success" />;
-    case "Viber": return <ChatIcon {...props} sx={{ color: "#665CAC" }} />;
   }
 }
 
@@ -314,9 +337,20 @@ function DashboardTab() {
     queryKey: ["marketing-campaigns"],
     queryFn: async () => (await api.get<CampaignDto[]>("/marketing-campaigns")).data,
   });
+  const deliveryQ = useQuery({
+    queryKey: ["crm-dashboard-deliveries"],
+    queryFn: async () => (await api.get<DeliveryLogDto[]>("/marketing-campaigns/deliveries", { params: { from: new Date(Date.now() - 30 * 24 * 3600e3).toISOString() } })).data,
+    staleTime: 60_000,
+  });
+  const overviewQ = useQuery({
+    queryKey: ["crm-overview"],
+    queryFn: async () => (await api.get<CrmOverview>("/crm/overview")).data,
+    staleTime: 60_000,
+  });
   const { user } = useAuth();
-  const [rules] = useLocalStore<AutomationRule>(`kalypsis:marketing:rules:${user?.userId ?? "anon"}`, []);
-  const [log] = useLocalStore<SendLogEntry>(`kalypsis:marketing:log:${user?.userId ?? "anon"}`, []);
+  const scope = marketingScope(user);
+  const [rules] = useLocalStore<AutomationRule>(`kalypsis:marketing:rules:${scope}`, []);
+  const [legacyLog] = useLocalStore<SendLogEntry>(`kalypsis:marketing:log:${scope}`, []);
 
   const campaigns = q.data ?? [];
   const thirtyDaysAgo = Date.now() - 30 * 24 * 3600e3;
@@ -328,10 +362,11 @@ function DashboardTab() {
     .reduce((s, c) => s + c.failed, 0);
   const totalDelivered = sentThisMonth - failedThisMonth;
   const deliveryPct = sentThisMonth > 0 ? Math.round((totalDelivered / sentThisMonth) * 100) : 100;
-  const openCount = log.filter(l => l.status === "Opened" || l.status === "Clicked").length;
-  const clickCount = log.filter(l => l.status === "Clicked").length;
-  const openPct = log.length > 0 ? Math.round((openCount / log.length) * 100) : 0;
-  const clickPct = log.length > 0 ? Math.round((clickCount / log.length) * 100) : 0;
+  const deliveryRows = deliveryQ.data ?? [];
+  const openCount = deliveryRows.filter(l => l.openedAt || l.clickedAt || l.status === "Opened" || l.status === "Clicked").length;
+  const clickCount = deliveryRows.filter(l => l.clickedAt || l.status === "Clicked").length;
+  const openPct = deliveryRows.length > 0 ? Math.round((openCount / deliveryRows.length) * 100) : 0;
+  const clickPct = deliveryRows.length > 0 ? Math.round((clickCount / deliveryRows.length) * 100) : 0;
 
   const activeCampaigns = campaigns.filter(c => c.status !== "Sent").length;
   const scheduled = campaigns
@@ -349,6 +384,21 @@ function DashboardTab() {
         <Kpi label={t("marketing.kpi.activeCampaigns", "Ενεργές καμπάνιες")} value={activeCampaigns} icon={<CampaignIcon />} />
         <Kpi label={t("marketing.kpi.activeRules", "Ενεργοί αυτοματισμοί")}  value={activeRules}     color="#673ab7" icon={<AutoAwesomeMotionIcon />} />
       </Stack>
+
+      {overviewQ.data && <>
+        <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1 }}>Πραγματική εικόνα γραφείου</Typography>
+        <Stack direction="row" spacing={2} mb={3} flexWrap="wrap" useFlexGap>
+          <Kpi label="Πελάτες" value={`${overviewQ.data.activeCustomers}/${overviewQ.data.customers}`} color="#0b5cad" icon={<GroupsIcon />} />
+          <Kpi label="Ενεργά συμβόλαια" value={overviewQ.data.activePolicies} color="#1976d2" icon={<DescriptionIcon />} />
+          <Kpi label="Λήξεις 30 ημερών" value={overviewQ.data.policiesExpiring30Days} color="#ed6c02" icon={<HourglassBottomIcon />} />
+          <Kpi label="Εκκρεμείς εργασίες" value={`${overviewQ.data.openTasks} (${overviewQ.data.tasksDueToday} σήμερα)`} color="#9c27b0" icon={<AutoAwesomeMotionIcon />} />
+          <Kpi label="Ανοιχτές ζημιές" value={overviewQ.data.openClaims} color="#d32f2f" icon={<ErrorIcon />} />
+          <Kpi label="Ανοιχτές ευκαιρίες" value={overviewQ.data.openOpportunities} color="#2e7d32" icon={<TrendingUpIcon />} />
+        </Stack>
+        <Alert severity={overviewQ.data.failedDeliveriesLast30Days > 0 ? "warning" : "success"} sx={{ mb: 2 }}>
+          Αποστολές τελευταίων 30 ημερών: {overviewQ.data.deliveriesLast30Days} · αποτυχημένες/παραλειφθείσες: {overviewQ.data.failedDeliveriesLast30Days} · λήξεις προς ενέργεια: {overviewQ.data.policiesExpiring30Days}.
+        </Alert>
+      </>}
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr" }, gap: 2 }}>
         <Card variant="outlined">
@@ -388,24 +438,24 @@ function DashboardTab() {
             <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1 }}>
               {t("marketing.recentActivity", "Πρόσφατη δραστηριότητα")}
             </Typography>
-            {log.length === 0 ? (
+            {deliveryRows.length === 0 ? (
               <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: "center", fontStyle: "italic" }}>
-                {t("marketing.activityEmpty", "Δεν έχουν καταγραφεί αποστολές.")}
+                {deliveryQ.isLoading ? "Φόρτωση πραγματικού ιστορικού…" : (legacyLog.length > 0 ? "Οι παλαιές τοπικές εγγραφές δεν χρησιμοποιούνται πλέον· οι νέες αποστολές θα εμφανιστούν εδώ." : t("marketing.activityEmpty", "Δεν έχουν καταγραφεί αποστολές."))}
               </Typography>
             ) : (
               <Stack spacing={0.75}>
-                {log.slice(0, 8).map(l => (
+                {deliveryRows.slice(0, 8).map(l => (
                   <Stack key={l.id} direction="row" alignItems="center" spacing={1}>
-                    <ChannelIcon channel={l.channel} />
+                    <ChannelIcon channel={l.channel as Channel} />
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Typography variant="body2" sx={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {l.recipientName}
+                        {l.recipientName || l.customerName || l.recipient}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">{dateTime(l.sentAt)}</Typography>
                     </Box>
                     <Chip
                       size="small"
-                      color={l.status === "Failed" || l.status === "Bounced" ? "error" : l.status === "Delivered" ? "success" : "default"}
+                      color={l.status === "Failed" || l.status === "Bounced" ? "error" : ["Sent", "Delivered", "Opened", "Clicked"].includes(l.status) ? "success" : "default"}
                       label={l.status}
                     />
                   </Stack>
@@ -604,12 +654,17 @@ function CampaignsTab() {
 
 function CampaignFormDialog({ open, onClose, item, onSaved }: { open: boolean; onClose: () => void; item: CampaignDto | null; onSaved: () => void }) {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const editing = !!item;
   const [form, setForm] = useState<CampaignForm>({ ...EMPTY_CAMPAIGN });
   const [err, setErr] = useState<string | null>(null);
 
-  const [templates] = useLocalStore<MarketingTemplate>(`kalypsis:marketing:templates:${user?.userId ?? "anon"}`, DEFAULT_TEMPLATES);
+  const officeTemplates = useQuery({ queryKey: ["crm-office-templates"], queryFn: async () => (await api.get<OfficeTemplateDto[]>("/email-templates")).data, enabled: open });
+  const persistedTemplates: MarketingTemplate[] = (officeTemplates.data ?? []).map(tpl => {
+    const sms = tpl.code.toLowerCase().startsWith("sms:");
+    return { id: tpl.id, name: tpl.name, kind: sms ? "SMS" : "Email", subject: tpl.subject,
+      body: sms ? (tpl.smsBody || tpl.bodyHtml) : tpl.bodyHtml, tags: tpl.policyTrigger ? [tpl.policyTrigger] : [], createdAt: "" };
+  });
+  const templates = persistedTemplates.length > 0 ? persistedTemplates : DEFAULT_TEMPLATES;
   const groupsQ = useQuery({
     queryKey: ["crm-groups", "Customer"],
     queryFn: async () => (await api.get<Array<{ id: string; name: string; entityType: string; memberCount: number }>>("/crm/groups", { params: { entityType: "Customer" } })).data,
@@ -634,7 +689,6 @@ function CampaignFormDialog({ open, onClose, item, onSaved }: { open: boolean; o
       subject: tpl.kind === "Email" ? tpl.subject : prev.subject,
       bodyHtml: tpl.kind === "Email" ? tpl.body : prev.bodyHtml,
       smsBody:  tpl.kind === "SMS"   ? tpl.body : prev.smsBody,
-      viberBody: tpl.kind === "Viber" ? tpl.body : prev.viberBody,
     }));
   };
 
@@ -795,25 +849,37 @@ const DEFAULT_TEMPLATES: MarketingTemplate[] = [
 
 function TemplatesTab() {
   const { t } = useTranslation();
-  const { user } = useAuth();
-  const [templates, setTemplates] = useLocalStore<MarketingTemplate>(
-    `kalypsis:marketing:templates:${user?.userId ?? "anon"}`,
-    DEFAULT_TEMPLATES
-  );
-  useEffect(() => { setTemplates(prev => prev.filter(tpl => tpl.kind !== "Viber")); }, []);
+  const qc = useQueryClient();
+  const templatesQuery = useQuery({ queryKey: ["crm-office-templates"], queryFn: async () => (await api.get<OfficeTemplateDto[]>("/email-templates")).data });
+  const persistedTemplates: MarketingTemplate[] = (templatesQuery.data ?? []).map(tpl => {
+    const sms = tpl.code.toLowerCase().startsWith("sms:");
+    return { id: tpl.id, name: tpl.name, kind: sms ? "SMS" : "Email",
+      subject: tpl.subject, body: sms ? (tpl.smsBody || tpl.bodyHtml) : tpl.bodyHtml,
+      tags: tpl.policyTrigger ? [tpl.policyTrigger] : [], createdAt: new Date().toISOString() };
+  });
+  const templates = persistedTemplates.length > 0 ? persistedTemplates : DEFAULT_TEMPLATES;
+  // Remove the retired Viber option from templates created in older builds.
   const [editing, setEditing] = useState<MarketingTemplate | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const upsert = (tpl: MarketingTemplate) => setTemplates(prev => {
-    const idx = prev.findIndex(p => p.id === tpl.id);
-    if (idx < 0) return [tpl, ...prev];
-    const next = prev.slice(); next[idx] = tpl; return next;
-  });
-  const remove = (id: string) => setTemplates(prev => prev.filter(x => x.id !== id));
-  const duplicate = (tpl: MarketingTemplate) => setTemplates(prev => [
+  const upsert = async (tpl: MarketingTemplate) => {
+    const existing = templatesQuery.data?.find(x => x.id === tpl.id);
+    const body = { code: existing?.code ?? `${tpl.kind === "SMS" ? "sms" : "email"}:${Date.now()}`,
+      name: tpl.name, subject: tpl.subject || tpl.name, bodyHtml: tpl.body,
+      bodyPlain: tpl.body.replace(/<[^>]+>/g, ""), language: "el", isActive: true,
+      policyTrigger: tpl.tags[0] || null, smsBody: tpl.kind === "SMS" ? tpl.body : null };
+    if (existing) await api.put(`/email-templates/${tpl.id}`, body);
+    else await api.post("/email-templates", body);
+    await qc.invalidateQueries({ queryKey: ["crm-office-templates"] });
+  };
+  const remove = async (id: string) => { await api.delete(`/email-templates/${id}`); await qc.invalidateQueries({ queryKey: ["crm-office-templates"] }); };
+  const duplicate = async (tpl: MarketingTemplate) => upsert({ ...tpl, id: `tpl-${Date.now()}`, name: `${tpl.name} (αντίγραφο)` });
+  /* legacy local implementation intentionally removed */
+  /*
     { ...tpl, id: `tpl-${Date.now()}`, name: `${tpl.name} (αντίγραφο)`, createdAt: new Date().toISOString() },
     ...prev
   ]);
+  */
 
   return (
     <Box>
@@ -850,7 +916,7 @@ function TemplatesTab() {
         open={creating || !!editing}
         template={editing}
         onClose={() => { setCreating(false); setEditing(null); }}
-        onSave={(tpl) => { upsert(tpl); setCreating(false); setEditing(null); }}
+        onSave={async (tpl) => { await upsert(tpl); setCreating(false); setEditing(null); }}
       />
     </Box>
   );
@@ -1022,21 +1088,65 @@ const TRIGGER_LABELS: Record<RuleTrigger, { label: string; help: string; Icon: R
   policyIssued:           { label: "Νέο συμβόλαιο εκδόθηκε",         help: "Ευχαριστήριο μετά την έκδοση συμβολαίου.",           Icon: DescriptionIcon,      color: "#0288d1" },
 };
 
+const WORKFLOW_EVENTS: Record<RuleTrigger, string> = {
+  birthday: "CustomerBirthday", nameDay: "CustomerNameDay", policyExpiring: "PolicyAboutToExpire",
+  installmentDue: "InstallmentDue", welcome: "CustomerCreated", cooperationAnniversary: "CooperationAnniversary",
+  inactiveCustomer: "CustomerInactive", policyIssued: "PolicyIssued",
+};
+
+function workflowToMarketingRule(row: WorkflowRuleDto): AutomationRule {
+  let conditions: Record<string, unknown> = {};
+  try { conditions = row.conditionsJson ? JSON.parse(row.conditionsJson) as Record<string, unknown> : {}; } catch { /* legacy malformed condition */ }
+  const firstAction = row.actions?.slice().sort((a, b) => a.order - b.order)[0];
+  let payload: Record<string, unknown> = {};
+  try { payload = firstAction?.payloadJson ? JSON.parse(firstAction.payloadJson) as Record<string, unknown> : {}; } catch { /* ignore */ }
+  const eventName = String(row.triggerEvent);
+  const numericEvents: Record<string, RuleTrigger> = { "2": "policyIssued", "3": "policyExpiring", "6": "installmentDue", "13": "birthday", "14": "nameDay", "15": "inactiveCustomer", "16": "cooperationAnniversary" };
+  const trigger = (Object.entries(WORKFLOW_EVENTS).find(([, value]) => value === eventName)?.[0]
+    ?? numericEvents[eventName] ?? "welcome") as RuleTrigger;
+  const channels = (row.actions ?? []).map(a => String(a.action).toLowerCase().includes("sms") ? "Sms" as Channel : "Email" as Channel);
+  return { id: row.id, name: row.name, description: String(conditions.description ?? ""), trigger,
+    daysOffset: Number(conditions.daysOffset ?? 0), templateId: String(payload.templateId ?? "") || null,
+    channels: channels.length ? Array.from(new Set(channels)) : ["Email"], audienceSegmentId: String(conditions.audienceSegmentId ?? "") || null,
+    active: row.isActive, createdAt: new Date().toISOString(), lastRunAt: null, runsCount: 0 };
+}
+
+function marketingRuleBody(rule: AutomationRule) {
+  return { name: rule.name, triggerEvent: WORKFLOW_EVENTS[rule.trigger], isActive: rule.active, priority: 100,
+    conditionsJson: JSON.stringify({ description: rule.description, daysOffset: rule.daysOffset, audienceSegmentId: rule.audienceSegmentId }),
+    actions: rule.channels.map((channel, index) => ({ action: channel === "Sms" ? "SendSms" : "SendEmail", order: index,
+      payloadJson: JSON.stringify({ templateId: rule.templateId, audienceSegmentId: rule.audienceSegmentId }) })) };
+}
+
 function RulesTab() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [rules, setRules] = useLocalStore<AutomationRule>(`kalypsis:marketing:rules:${user?.userId ?? "anon"}`, []);
-  const [templates] = useLocalStore<MarketingTemplate>(`kalypsis:marketing:templates:${user?.userId ?? "anon"}`, DEFAULT_TEMPLATES);
+  const qc = useQueryClient();
+  const [legacyRules, setLegacyRules] = useLocalStore<AutomationRule>(`kalypsis:marketing:rules:${marketingScope(user)}`, []);
+  const workflowQ = useQuery({ queryKey: ["crm-workflow-rules"], queryFn: async () => (await api.get<WorkflowRuleDto[]>("/workflows")).data });
+  const templatesQ = useQuery({ queryKey: ["crm-office-templates"], queryFn: async () => (await api.get<OfficeTemplateDto[]>("/email-templates")).data });
+  const persistedTemplates: MarketingTemplate[] = (templatesQ.data ?? []).map(tpl => ({ id: tpl.id, name: tpl.name,
+    kind: tpl.code.toLowerCase().startsWith("sms:") ? "SMS" : "Email", subject: tpl.subject,
+    body: tpl.code.toLowerCase().startsWith("sms:") ? (tpl.smsBody || tpl.bodyHtml) : tpl.bodyHtml,
+    tags: tpl.policyTrigger ? [tpl.policyTrigger] : [], createdAt: "" }));
+  const templates = persistedTemplates.length > 0 ? persistedTemplates : DEFAULT_TEMPLATES;
+  const rules = workflowQ.data?.map(workflowToMarketingRule) ?? legacyRules;
   const [editing, setEditing] = useState<AutomationRule | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const upsert = (r: AutomationRule) => setRules(prev => {
-    const idx = prev.findIndex(x => x.id === r.id);
-    if (idx < 0) return [r, ...prev];
-    const next = prev.slice(); next[idx] = r; return next;
-  });
-  const remove = (id: string) => setRules(prev => prev.filter(x => x.id !== id));
-  const toggle = (r: AutomationRule) => upsert({ ...r, active: !r.active });
+  const upsert = async (r: AutomationRule) => {
+    const body = marketingRuleBody(r);
+    if (workflowQ.data?.some(x => x.id === r.id)) await api.put(`/workflows/${r.id}`, body);
+    else await api.post("/workflows", body);
+    await qc.invalidateQueries({ queryKey: ["crm-workflow-rules"] });
+    setLegacyRules(prev => prev.filter(x => x.id !== r.id));
+  };
+  const remove = async (id: string) => {
+    if (workflowQ.data?.some(x => x.id === id)) await api.delete(`/workflows/${id}`);
+    setLegacyRules(prev => prev.filter(x => x.id !== id));
+    await qc.invalidateQueries({ queryKey: ["crm-workflow-rules"] });
+  };
+  const toggle = (r: AutomationRule) => { void upsert({ ...r, active: !r.active }); };
 
   return (
     <Box>
@@ -1111,7 +1221,7 @@ function RulesTab() {
         rule={editing}
         templates={templates}
         onClose={() => { setCreating(false); setEditing(null); }}
-        onSave={(r) => { upsert(r); setCreating(false); setEditing(null); }}
+        onSave={async (r) => { await upsert(r); setCreating(false); setEditing(null); }}
       />
     </Box>
   );
@@ -1216,7 +1326,7 @@ function RuleEditor({
 function SegmentsTab() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [segments, setSegments] = useLocalStore<AudienceSegment>(`kalypsis:marketing:segments:${user?.userId ?? "anon"}`, DEFAULT_SEGMENTS);
+  const [segments, setSegments] = useLocalStore<AudienceSegment>(`kalypsis:marketing:segments:${marketingScope(user)}`, DEFAULT_SEGMENTS);
   const [editing, setEditing] = useState<AudienceSegment | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -1413,7 +1523,7 @@ function SegmentEditor({
 function HistoryTab() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [log] = useLocalStore<SendLogEntry>(`kalypsis:marketing:log:${user?.userId ?? "anon"}`, []);
+  const [log] = useLocalStore<SendLogEntry>(`kalypsis:marketing:log:${marketingScope(user)}`, []);
   const [filterChannel, setFilterChannel] = useState<string>("");
   const [filterStatus, setFilterStatus] = useState<string>("");
 
@@ -1558,8 +1668,8 @@ function HistoryTabBackend() {
     </Stack>
     <Stack direction={{ xs: "column", md: "row" }} spacing={1} mb={2} flexWrap="wrap" useFlexGap>
       <TextField size="small" label="Αναζήτηση καμπάνιας / παραλήπτη" value={search} onChange={e => setSearch(e.target.value)} sx={{ minWidth: 260 }} />
-      <TextField select size="small" label="Κανάλι" value={filterChannel} onChange={e => setFilterChannel(e.target.value)} sx={{ minWidth: 140 }}><MenuItem value="">Όλα</MenuItem><MenuItem value="Email">Email</MenuItem><MenuItem value="Sms">SMS</MenuItem><MenuItem value="Viber">Viber</MenuItem></TextField>
-      <TextField select size="small" label="Πάροχος" value={filterProvider} onChange={e => setFilterProvider(e.target.value)} sx={{ minWidth: 140 }}><MenuItem value="">Όλοι</MenuItem><MenuItem value="Brevo">Brevo</MenuItem><MenuItem value="Bulker">Bulker</MenuItem><MenuItem value="Viber">Viber</MenuItem></TextField>
+      <TextField select size="small" label="Κανάλι" value={filterChannel} onChange={e => setFilterChannel(e.target.value)} sx={{ minWidth: 140 }}><MenuItem value="">Όλα</MenuItem><MenuItem value="Email">Email</MenuItem><MenuItem value="Sms">SMS</MenuItem></TextField>
+      <TextField select size="small" label="Πάροχος" value={filterProvider} onChange={e => setFilterProvider(e.target.value)} sx={{ minWidth: 140 }}><MenuItem value="">Όλοι</MenuItem><MenuItem value="Brevo">Brevo</MenuItem><MenuItem value="Bulker">Bulker</MenuItem></TextField>
       <TextField select size="small" label="Κατάσταση" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} sx={{ minWidth: 180 }}><MenuItem value="">Όλες</MenuItem>{["Sent", "Failed", "SkippedConsent", "SkippedNoRecipient"].map(x => <MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField>
       <TextField type="date" size="small" label="Από" value={from} onChange={e => setFrom(e.target.value)} InputLabelProps={{ shrink: true }} />
       <TextField type="date" size="small" label="Έως" value={to} onChange={e => setTo(e.target.value)} InputLabelProps={{ shrink: true }} />
@@ -1611,13 +1721,12 @@ function ProvidersTab() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [providers, setProviders] = useLocalStore<MarketingProvider>(
-    `kalypsis:marketing:providers:${user?.userId ?? "anon"}`,
+    `kalypsis:marketing:providers:${marketingScope(user)}`,
     DEFAULT_MARKETING_PROVIDERS
   );
-  // Migrate the old local provider label and hide the retired Viber option.
+  // Migrate the old local provider label and hide retired legacy providers.
   useEffect(() => {
     setProviders(prev => prev
-      .filter(p => p.kind !== "Viber")
       .map(p => p.name.toLowerCase().includes("twilio") ? { ...p, id: "mprov-bulker", name: "Bulker (SMS)" } : p));
   }, []);
   const [editing, setEditing] = useState<MarketingProvider | null>(null);

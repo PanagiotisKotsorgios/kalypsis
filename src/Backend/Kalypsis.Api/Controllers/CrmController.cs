@@ -1,5 +1,6 @@
 using Kalypsis.Application.Features.Crm;
 using Kalypsis.Api.Authorization;
+using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +10,7 @@ namespace Kalypsis.Api.Controllers;
 [ApiController]
 [Route("api/crm")]
 [Authorize(Policy = "AgencyStaff")]
+[RequiresPackage(PackageCode.Crm)]
 public sealed class CrmController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -17,6 +19,16 @@ public sealed class CrmController : ControllerBase
     [HttpGet("groups")]
     public async Task<ActionResult<IReadOnlyList<CrmGroupDto>>> Groups([FromQuery] string? entityType, CancellationToken ct)
         => Ok(await _mediator.Send(new ListCrmGroupsQuery(entityType), ct));
+
+    [HttpGet("overview")]
+    [RequirePermission("marketing.read")]
+    public async Task<ActionResult<CrmOverviewDto>> Overview(CancellationToken ct)
+        => Ok(await _mediator.Send(new GetCrmOverviewQuery(), ct));
+
+    [HttpPost("groups/preview")]
+    [RequirePermission("marketing.read")]
+    public async Task<ActionResult<CrmGroupPreviewDto>> PreviewGroup([FromBody] PreviewCrmGroupBody body, CancellationToken ct)
+        => Ok(await _mediator.Send(new PreviewCrmGroupQuery(body.EntityType, body.FilterJson), ct));
 
     [HttpPost("groups")]
     [Authorize(Policy = "AgencyManager")]
@@ -51,6 +63,7 @@ public sealed class CrmController : ControllerBase
         => Ok(await _mediator.Send(new SetCrmGroupMembersCommand(id, body.MemberIds ?? Array.Empty<Guid>()), ct));
 
     public sealed record SetMembersBody(IReadOnlyList<Guid>? MemberIds);
+    public sealed record PreviewCrmGroupBody(string EntityType, string? FilterJson);
 
     [HttpGet("opportunities")]
     [RequirePermission("marketing.read")]

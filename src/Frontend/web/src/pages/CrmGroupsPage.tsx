@@ -93,6 +93,10 @@ function GroupDialog({ open, entityType, group, onClose, onSaved, onError }: {
   const [hasEmail, setHasEmail] = useState(false);
   const [hasPhone, setHasPhone] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [hasActivePolicy, setHasActivePolicy] = useState(false);
+  const [expiringWithinDays, setExpiringWithinDays] = useState("");
+  const [noContactDays, setNoContactDays] = useState("");
+  const [consentChannel, setConsentChannel] = useState("");
   const [isDynamic, setIsDynamic] = useState(false);
 
   const options = useQuery({
@@ -116,17 +120,32 @@ function GroupDialog({ open, entityType, group, onClose, onSaved, onError }: {
 
   useEffect(() => {
     if (!open) return;
-    let saved: { search?: string | null; hasEmail?: boolean; hasPhone?: boolean; status?: string | null } = {};
+    let saved: { search?: string | null; hasEmail?: boolean; hasPhone?: boolean; status?: string | null; hasActivePolicy?: boolean; expiringWithinDays?: number | null; noContactDays?: number | null; consentChannel?: string | null } = {};
     try { saved = group?.filterJson ? JSON.parse(group.filterJson) : {}; } catch { saved = {}; }
-    setName(group?.name ?? ""); setDescription(group?.description ?? ""); setSearch(saved.search ?? ""); setHasEmail(Boolean(saved.hasEmail)); setHasPhone(Boolean(saved.hasPhone)); setStatusFilter(saved.status ?? "all"); setIsDynamic(Boolean(group?.isDynamic));
+    setName(group?.name ?? ""); setDescription(group?.description ?? ""); setSearch(saved.search ?? ""); setHasEmail(Boolean(saved.hasEmail)); setHasPhone(Boolean(saved.hasPhone)); setStatusFilter(saved.status ?? "all");
+    setHasActivePolicy(Boolean(saved.hasActivePolicy)); setExpiringWithinDays(saved.expiringWithinDays ? String(saved.expiringWithinDays) : "");
+    setNoContactDays(saved.noContactDays ? String(saved.noContactDays) : ""); setConsentChannel(saved.consentChannel ?? ""); setIsDynamic(Boolean(group?.isDynamic));
     setMemberIds(existingMembers.data?.map(x => x.entityId) ?? []);
   }, [open, group?.id, group?.name, group?.description, existingMembers.data]);
+
+  const previewQ = useQuery({
+    queryKey: ["crm-group-preview", group?.entityType ?? entityType, search, hasEmail, hasPhone, statusFilter, hasActivePolicy, expiringWithinDays, noContactDays, consentChannel],
+    enabled: open && isDynamic,
+    queryFn: async () => (await api.post<{ ids: string[]; count: number }>("/crm/groups/preview", {
+      entityType: group?.entityType ?? entityType,
+      filterJson: JSON.stringify({ search: search.trim() || null, hasEmail, hasPhone, status: statusFilter === "all" ? null : statusFilter,
+        hasActivePolicy, expiringWithinDays: expiringWithinDays ? Number(expiringWithinDays) : null,
+        noContactDays: noContactDays ? Number(noContactDays) : null, consentChannel: consentChannel || null }),
+    })).data,
+  });
+  const advancedMatchedIds = new Set(previewQ.data?.ids ?? []);
 
   const filtered = (options.data ?? []).filter(x => {
     if (!`${x.label} ${x.email ?? ""} ${x.phone ?? ""}`.toLowerCase().includes(search.toLowerCase())) return false;
     if (hasEmail && !x.email) return false;
     if (hasPhone && !x.phone) return false;
     if (statusFilter !== "all" && x.status !== statusFilter) return false;
+    if (isDynamic && previewQ.data && !advancedMatchedIds.has(x.id)) return false;
     return true;
   });
   const allFilteredSelected = filtered.length > 0 && filtered.every(x => memberIds.includes(x.id));
@@ -138,7 +157,11 @@ function GroupDialog({ open, entityType, group, onClose, onSaved, onError }: {
     : Array.from(new Set([...prev, ...filtered.map(x => x.id)])));
   const save = useMutation({
     mutationFn: async () => {
-      const body = { name: name.trim(), entityType: group?.entityType ?? entityType, description: description.trim() || null, isDynamic, filterJson: isDynamic ? JSON.stringify({ search: search.trim() || null, hasEmail, hasPhone, status: statusFilter === "all" ? null : statusFilter }) : null, memberIds };
+      const body = { name: name.trim(), entityType: group?.entityType ?? entityType, description: description.trim() || null, isDynamic, filterJson: isDynamic ? JSON.stringify({
+        search: search.trim() || null, hasEmail, hasPhone, status: statusFilter === "all" ? null : statusFilter,
+        hasActivePolicy, expiringWithinDays: expiringWithinDays ? Number(expiringWithinDays) : null,
+        noContactDays: noContactDays ? Number(noContactDays) : null, consentChannel: consentChannel || null,
+      }) : null, memberIds };
       return editing ? api.put(`/crm/groups/${group!.id}`, body) : api.post("/crm/groups", body);
     },
     onSuccess: onSaved, onError: e => onError(extractErrorMessage(e)),
@@ -155,15 +178,27 @@ function GroupDialog({ open, entityType, group, onClose, onSaved, onError }: {
         <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} spacing={1} flexWrap="wrap">
           <FormControlLabel label="Μόνο με email" control={<Checkbox size="small" checked={hasEmail} onChange={e => setHasEmail(e.target.checked)} />} />
           <FormControlLabel label="Μόνο με τηλέφωνο" control={<Checkbox size="small" checked={hasPhone} onChange={e => setHasPhone(e.target.checked)} />} />
+          <FormControlLabel label="Με ενεργό συμβόλαιο" control={<Checkbox size="small" checked={hasActivePolicy} onChange={e => setHasActivePolicy(e.target.checked)} />} />
           <TextField select size="small" label="Κατάσταση" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} sx={{ minWidth: 150 }}>
             <MenuItem value="all">Όλες</MenuItem>
             {statusOptions.map(status => <MenuItem key={status} value={status}>{status}</MenuItem>)}
           </TextField>
+          <TextField size="small" type="number" label="Λήξη σε έως ημέρες" value={expiringWithinDays} onChange={e => setExpiringWithinDays(e.target.value)} inputProps={{ min: 1, max: 730 }} sx={{ width: 170 }} />
+          <TextField size="small" type="number" label="Χωρίς επαφή (ημέρες)" value={noContactDays} onChange={e => setNoContactDays(e.target.value)} inputProps={{ min: 1, max: 3650 }} sx={{ width: 170 }} />
+          <TextField select size="small" label="Συγκατάθεση" value={consentChannel} onChange={e => setConsentChannel(e.target.value)} sx={{ minWidth: 170 }}>
+            <MenuItem value="">Αδιάφορο</MenuItem>
+            <MenuItem value="EmailMarketing">Email marketing</MenuItem>
+            <MenuItem value="SmsMarketing">SMS marketing</MenuItem>
+            <MenuItem value="PhoneMarketing">Τηλεφωνική επικοινωνία</MenuItem>
+          </TextField>
           <Button size="small" variant={allFilteredSelected ? "outlined" : "contained"} onClick={toggleAllFiltered} disabled={!filtered.length}>
             {allFilteredSelected ? "Αποεπιλογή φίλτρων" : `Επιλογή όλων (${filtered.length})`}
           </Button>
-          <Button size="small" color="error" onClick={() => { setSearch(""); setHasEmail(false); setHasPhone(false); setStatusFilter("all"); }}>Καθαρισμός φίλτρων</Button>
+          <Button size="small" color="error" onClick={() => { setSearch(""); setHasEmail(false); setHasPhone(false); setHasActivePolicy(false); setExpiringWithinDays(""); setNoContactDays(""); setConsentChannel(""); setStatusFilter("all"); }}>Καθαρισμός φίλτρων</Button>
         </Stack>
+        {isDynamic && <Alert severity={previewQ.isError ? "error" : "info"} sx={{ py: 0.5 }}>
+          {previewQ.isError ? "Δεν ήταν δυνατή η προεπισκόπηση των σύνθετων φίλτρων." : `Η δυναμική ομάδα θα περιλαμβάνει ${previewQ.data?.count ?? "…"} εγγραφές με τα σύνθετα φίλτρα.`}
+        </Alert>}
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="subtitle2">Επιλογή {entityType === "Customer" ? "πελατών" : "συνεργατών"}</Typography>
           <Chip size="small" color="primary" label={`${memberIds.length} επιλεγμένοι`} />

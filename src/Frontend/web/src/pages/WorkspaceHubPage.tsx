@@ -7,6 +7,7 @@ import PeopleIcon from "@mui/icons-material/People";
 import InsightsIcon from "@mui/icons-material/Insights";
 import HubIcon from "@mui/icons-material/Hub";
 import LanguageIcon from "@mui/icons-material/Language";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { useNavigate } from "react-router-dom";
@@ -47,7 +48,8 @@ const PACKAGES: PackageMeta[] = [
   { code: "Crm",          icon: <PeopleIcon />,         image: "/images/workspace-crm.svg",       nameKey: "ws.Crm.name",          bodyKey: "ws.Crm.body" },
   { code: "Intelligence", icon: <InsightsIcon />,      image: "/images/workspace-intelligence.svg?v=20261002", nameKey: "ws.Intelligence.name", bodyKey: "ws.Intelligence.body" },
   { code: "FrontOffice", icon: <LanguageIcon />, image: "/images/workspace-crm.svg", nameKey: "ws.FrontOffice.name", bodyKey: "ws.FrontOffice.body" },
-  { code: "Integrations", icon: <HubIcon />, image: "/images/workspace-backoffice.svg", nameKey: "ws.Integrations.name", bodyKey: "ws.Integrations.body" }
+  { code: "Integrations", icon: <HubIcon />, image: "/images/workspace-backoffice.svg", nameKey: "ws.Integrations.name", bodyKey: "ws.Integrations.body" },
+  { code: "Ermes", icon: <MailOutlineIcon />, image: "/images/ermes-inbox.jpg", nameKey: "ws.Ermes.name", bodyKey: "ws.Ermes.body" }
 ];
 // Kept for type safety — this icon is used by the compact sidebar, not by a
 // workspace card.

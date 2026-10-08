@@ -19,18 +19,29 @@ public record UpdateCrmGroupCommand(Guid Id, CrmGroupBody Body) : IRequest<CrmGr
 public record DeleteCrmGroupCommand(Guid Id) : IRequest<Unit>;
 public record SetCrmGroupMembersCommand(Guid GroupId, IReadOnlyList<Guid> MemberIds) : IRequest<CrmGroupDto>;
 public record RefreshCrmGroupCommand(Guid GroupId) : IRequest<CrmGroupDto>;
+public record PreviewCrmGroupQuery(string EntityType, string? FilterJson) : IRequest<CrmGroupPreviewDto>;
+public record CrmGroupPreviewDto(IReadOnlyList<Guid> Ids, int Count);
 
-internal sealed record CrmGroupFilter(string? Search, bool HasEmail, bool HasPhone, string? Status);
+// Smart audience criteria are deliberately JSON-backed so existing groups do
+// not need a migration when a new criterion is introduced. Keep defaults
+// nullable/false for backwards compatibility with the first four filters.
+internal sealed record CrmGroupFilter(
+    string? Search,
+    bool HasEmail,
+    bool HasPhone,
+    string? Status,
+    bool HasActivePolicy = false,
+    int? ExpiringWithinDays = null,
+    int? NoContactDays = null,
+    string? ConsentChannel = null);
 
 internal static class CrmGroupDynamicMaterializer
 {
     public static async Task RefreshAsync(CrmGroup group, IAppDbContext db, CancellationToken ct)
     {
         if (!group.IsDynamic) return;
-        var filter = Parse(group.FilterJson);
-        var ids = group.EntityType == "Producer"
-            ? await ProducerIds(filter, db, ct)
-            : await CustomerIds(filter, db, ct);
+        var filter = ParseForPreview(group.FilterJson);
+        var ids = await ResolveIdsAsync(group.EntityType, filter, db, ct);
 
         var old = await db.CrmGroupMembers.Where(x => x.GroupId == group.Id && x.DeletedAt == null).ToListAsync(ct);
         db.CrmGroupMembers.RemoveRange(old);
@@ -44,12 +55,20 @@ internal static class CrmGroupDynamicMaterializer
         await db.SaveChangesAsync(ct);
     }
 
-    private static CrmGroupFilter Parse(string? json)
+    internal static CrmGroupFilter ParseForPreview(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return new CrmGroupFilter(null, false, false, null);
-        try { return System.Text.Json.JsonSerializer.Deserialize<CrmGroupFilter>(json) ?? new CrmGroupFilter(null, false, false, null); }
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<CrmGroupFilter>(json,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? new CrmGroupFilter(null, false, false, null);
+        }
         catch { return new CrmGroupFilter(null, false, false, null); }
     }
+
+    public static async Task<List<Guid>> ResolveIdsAsync(string entityType, CrmGroupFilter filter, IAppDbContext db, CancellationToken ct)
+        => entityType == "Producer" ? await ProducerIds(filter, db, ct) : await CustomerIds(filter, db, ct);
 
     private static async Task<List<Guid>> CustomerIds(CrmGroupFilter f, IAppDbContext db, CancellationToken ct)
     {
@@ -57,6 +76,25 @@ internal static class CrmGroupDynamicMaterializer
         if (f.HasEmail) q = q.Where(x => x.Email != null && x.Email != "");
         if (f.HasPhone) q = q.Where(x => (x.MobilePhone ?? x.Phone) != null && (x.MobilePhone ?? x.Phone) != "");
         if (Enum.TryParse<CustomerStatus>(f.Status, true, out var status)) q = q.Where(x => x.Status == status);
+        if (f.HasActivePolicy)
+            q = q.Where(x => db.Policies.Any(p => p.CustomerId == x.Id && p.DeletedAt == null
+                && (p.Status == PolicyStatus.Active || p.Status == PolicyStatus.PendingRenewal || p.Status == PolicyStatus.Undelivered)));
+        if (f.ExpiringWithinDays is > 0)
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var until = today.AddDays(Math.Clamp(f.ExpiringWithinDays.Value, 1, 730));
+            q = q.Where(x => db.Policies.Any(p => p.CustomerId == x.Id && p.DeletedAt == null
+                && p.EndDate >= today && p.EndDate <= until
+                && (p.Status == PolicyStatus.Active || p.Status == PolicyStatus.PendingRenewal || p.Status == PolicyStatus.Undelivered)));
+        }
+        if (f.NoContactDays is > 0)
+        {
+            var since = DateTime.UtcNow.AddDays(-Math.Clamp(f.NoContactDays.Value, 1, 3650));
+            q = q.Where(x => !db.CommunicationLogs.Any(c => c.CustomerId == x.Id && c.DeletedAt == null && c.OccurredAt >= since));
+        }
+        if (Enum.TryParse<ConsentType>(f.ConsentChannel, true, out var consentType))
+            q = q.Where(x => db.ConsentRecords.Any(c => c.CustomerId == x.Id && c.DeletedAt == null
+                && c.Type == consentType && c.Granted && c.RevokedAt == null));
         if (!string.IsNullOrWhiteSpace(f.Search))
         {
             var s = $"%{f.Search.Trim()}%";
@@ -73,12 +111,108 @@ internal static class CrmGroupDynamicMaterializer
         if (f.HasEmail) q = q.Where(x => x.Email != null && x.Email != "");
         if (f.HasPhone) q = q.Where(x => x.Phone != null && x.Phone != "");
         if (Enum.TryParse<ProducerStatus>(f.Status, true, out var status)) q = q.Where(x => x.Status == status);
+        if (f.HasActivePolicy)
+            q = q.Where(x => db.Policies.Any(p => p.ProducerId == x.Id && p.DeletedAt == null
+                && (p.Status == PolicyStatus.Active || p.Status == PolicyStatus.PendingRenewal || p.Status == PolicyStatus.Undelivered)));
+        if (f.ExpiringWithinDays is > 0)
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var until = today.AddDays(Math.Clamp(f.ExpiringWithinDays.Value, 1, 730));
+            q = q.Where(x => db.Policies.Any(p => p.ProducerId == x.Id && p.DeletedAt == null
+                && p.EndDate >= today && p.EndDate <= until
+                && (p.Status == PolicyStatus.Active || p.Status == PolicyStatus.PendingRenewal || p.Status == PolicyStatus.Undelivered)));
+        }
+        if (f.NoContactDays is > 0)
+        {
+            var since = DateTime.UtcNow.AddDays(-Math.Clamp(f.NoContactDays.Value, 1, 3650));
+            q = q.Where(x => !db.ProducerCommunicationLogs.Any(c => c.ProducerId == x.Id && c.DeletedAt == null && c.OccurredAt >= since));
+        }
         if (!string.IsNullOrWhiteSpace(f.Search))
         {
             var s = $"%{f.Search.Trim()}%";
             q = q.Where(x => EF.Functions.Like(x.Name, s) || EF.Functions.Like(x.Email ?? "", s) || EF.Functions.Like(x.Phone ?? "", s));
         }
         return await q.Select(x => x.Id).Take(10000).ToListAsync(ct);
+    }
+}
+
+public sealed class PreviewCrmGroupHandler : IRequestHandler<PreviewCrmGroupQuery, CrmGroupPreviewDto>
+{
+    private readonly IAppDbContext _db;
+    public PreviewCrmGroupHandler(IAppDbContext db) => _db = db;
+
+    public async Task<CrmGroupPreviewDto> Handle(PreviewCrmGroupQuery r, CancellationToken ct)
+    {
+        if (r.EntityType is not ("Customer" or "Producer"))
+            throw new AppException("crm_group_entity_invalid", "Η ομάδα πρέπει να αφορά πελάτες ή συνεργάτες.", 400);
+        var filter = CrmGroupDynamicMaterializer.ParseForPreview(r.FilterJson);
+        var ids = await CrmGroupDynamicMaterializer.ResolveIdsAsync(r.EntityType, filter, _db, ct);
+        return new CrmGroupPreviewDto(ids, ids.Count);
+    }
+}
+
+/// <summary>Tenant-scoped CRM cockpit metrics. All values are derived from
+/// operational tables so the dashboard cannot drift from the backoffice.</summary>
+public record CrmOverviewDto(
+    int Customers,
+    int ActiveCustomers,
+    int Producers,
+    int ActivePolicies,
+    int PoliciesExpiring30Days,
+    int OpenClaims,
+    int OpenTasks,
+    int TasksDueToday,
+    int OpenOpportunities,
+    decimal PipelineValue,
+    int CampaignsLast30Days,
+    int DeliveriesLast30Days,
+    int FailedDeliveriesLast30Days,
+    int EmailOptOuts,
+    int SmsOptOuts,
+    DateTime GeneratedAt);
+
+public record GetCrmOverviewQuery() : IRequest<CrmOverviewDto>;
+
+public sealed class GetCrmOverviewHandler : IRequestHandler<GetCrmOverviewQuery, CrmOverviewDto>
+{
+    private readonly IAppDbContext _db;
+    public GetCrmOverviewHandler(IAppDbContext db) => _db = db;
+
+    public async Task<CrmOverviewDto> Handle(GetCrmOverviewQuery _, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        var today = DateOnly.FromDateTime(now);
+        var in30 = today.AddDays(30);
+        var monthAgo = now.AddDays(-30);
+        var customers = _db.Customers.Where(x => x.DeletedAt == null);
+        var policies = _db.Policies.Where(x => x.DeletedAt == null);
+        var tasks = _db.AgencyTasks.Where(x => x.DeletedAt == null);
+
+        var customerCount = await customers.CountAsync(ct);
+        var activeCustomerCount = await customers.CountAsync(x => x.Status == CustomerStatus.Active, ct);
+        var producerCount = await _db.Producers.CountAsync(x => x.DeletedAt == null, ct);
+        var activePolicies = await policies.CountAsync(x => x.Status == PolicyStatus.Active, ct);
+        var expiring = await policies.CountAsync(x => x.EndDate >= today && x.EndDate <= in30
+            && (x.Status == PolicyStatus.Active || x.Status == PolicyStatus.PendingRenewal || x.Status == PolicyStatus.Undelivered), ct);
+        var openClaims = await _db.Claims.CountAsync(x => x.DeletedAt == null && x.Status != ClaimStatus.Closed && x.Status != ClaimStatus.Paid, ct);
+        var openTasks = await tasks.CountAsync(x => x.Status != AgencyTaskStatus.Completed && x.Status != AgencyTaskStatus.Cancelled, ct);
+        var tomorrow = today.AddDays(1).ToDateTime(TimeOnly.MinValue);
+        var dayStart = today.ToDateTime(TimeOnly.MinValue);
+        var dueToday = await tasks.CountAsync(x => x.Status != AgencyTaskStatus.Completed && x.Status != AgencyTaskStatus.Cancelled
+            && x.DueAt >= dayStart && x.DueAt < tomorrow, ct);
+        var openOpps = await _db.CrmOpportunities.Where(x => x.DeletedAt == null && x.Stage != "Won" && x.Stage != "Lost").ToListAsync(ct);
+        var campaignsLast30 = await _db.MarketingCampaigns.CountAsync(x => x.DeletedAt == null && x.CreatedAt >= monthAgo, ct);
+        var deliveryRows = await _db.MarketingDeliveryLogs.Where(x => x.DeletedAt == null && x.SentAt >= monthAgo)
+            .Select(x => x.Status).ToListAsync(ct);
+        var emailOptOuts = await _db.ConsentRecords.CountAsync(x => x.DeletedAt == null && x.Type == ConsentType.EmailMarketing
+            && (!x.Granted || x.RevokedAt != null), ct);
+        var smsOptOuts = await _db.ConsentRecords.CountAsync(x => x.DeletedAt == null && x.Type == ConsentType.SmsMarketing
+            && (!x.Granted || x.RevokedAt != null), ct);
+
+        return new CrmOverviewDto(customerCount, activeCustomerCount, producerCount, activePolicies, expiring,
+            openClaims, openTasks, dueToday, openOpps.Count, openOpps.Sum(x => x.EstimatedValue ?? 0m), campaignsLast30,
+            deliveryRows.Count, deliveryRows.Count(x => x is "Failed" or "SkippedConsent" or "SkippedNoRecipient"),
+            emailOptOuts, smsOptOuts, now);
     }
 }
 

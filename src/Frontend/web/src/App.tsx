@@ -298,12 +298,12 @@ export const navByRole: Record<Role, NavItem[]> = {
   AgencyAdmin: [
     // ===== Top home link, every workspace =====
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />,
-      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations","Ermes"] },
     // ΕΡΜΗΣ — Kalypsis-native messaging, pinned to every workspace so
     // operators reach their inbox regardless of which package they're
     // working in. Sits right under Πίνακας Ελέγχου for prominence.
-    { to: "/ermes-app", labelKey: "nav.ermes", icon: <MailOutlineIcon />, openInNewTab: true,
-      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+    { to: "/ermes-app", labelKey: "nav.ermes", icon: <MailOutlineIcon />, package: "Ermes", openInNewTab: true,
+      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations","Ermes"] },
     // Οδηγίες χρήσης and Μηχανογράφιση now live as tabs inside
     // /agency-and-profile (see the footer entry below). Removed the
     // standalone sidebar rows to save space — old /app/documentation
@@ -446,6 +446,7 @@ export const navByRole: Record<Role, NavItem[]> = {
 
     // ===== Integrations =====
     { to: "/integration-settings", labelKey: "nav.integrationSettings", icon: <VpnKeyIcon />, package: "Integrations" },
+    { to: "/carrier-bridges-hub", labelKey: "nav.carrierBridgesHub", icon: <CloudUploadIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/timologion", labelKey: "nav.timologion", icon: <ReceiptLongIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/mydata", labelKey: "nav.mydata", icon: <GavelOutlinedIcon />, package: "Integrations" },
     { to: "/usae", labelKey: "nav.usae", icon: <RuleIcon />, package: "Integrations", group: "integrationsGrp" },
@@ -468,9 +469,9 @@ export const navByRole: Record<Role, NavItem[]> = {
   ],
   AgencyUser: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />,
-      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
-    { to: "/ermes-app", labelKey: "nav.ermes", icon: <MailOutlineIcon />, openInNewTab: true,
-      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations","Ermes"] },
+    { to: "/ermes-app", labelKey: "nav.ermes", icon: <MailOutlineIcon />, package: "Ermes", openInNewTab: true,
+      workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations","Ermes"] },
     // Οδηγίες χρήσης — ενσωματωμένος οδηγός βήμα-προς-βήμα, εκτυπώσιμος
     // σε PDF από κάθε σελίδα.
     { to: "/agency-and-profile?tab=documentation", labelKey: "nav.documentation", icon: <MenuBookIcon />,
@@ -498,6 +499,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     // Integrations — shown when the office has enabled the package. The
     // workspace filter keeps these out of other package sidebars.
     { to: "/integration-settings", labelKey: "nav.integrationSettings", icon: <VpnKeyIcon />, package: "Integrations" },
+    { to: "/carrier-bridges-hub", labelKey: "nav.carrierBridgesHub", icon: <CloudUploadIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/timologion", labelKey: "nav.timologion", icon: <ReceiptLongIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/mydata", labelKey: "nav.mydata", icon: <GavelOutlinedIcon />, package: "Integrations" },
     { to: "/usae", labelKey: "nav.usae", icon: <RuleIcon />, package: "Integrations", group: "integrationsGrp" },
@@ -509,8 +511,8 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
   ],
   AgencyOfficeAdmin: [
-    { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
-    { to: "/ermes-app", labelKey: "nav.ermes", icon: <MailOutlineIcon />, openInNewTab: true, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+    { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations","Ermes"] },
+    { to: "/ermes-app", labelKey: "nav.ermes", icon: <MailOutlineIcon />, package: "Ermes", openInNewTab: true, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations","Ermes"] },
     { to: "/agency-and-profile?tab=documentation", labelKey: "nav.documentation", icon: <MenuBookIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
     { to: "/bookkeeping", labelKey: "nav.bookkeeping", icon: <FolderIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
@@ -540,6 +542,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/production-stats", labelKey: "nav.productionStats", icon: <LeaderboardIcon />, package: "Intelligence", group: "reports" },
     { to: "/users", labelKey: "nav.users", icon: <GroupIcon />, package: "BackOffice", group: "admin" },
     { to: "/integration-settings", labelKey: "nav.integrationSettings", icon: <VpnKeyIcon />, package: "Integrations" },
+    { to: "/carrier-bridges-hub", labelKey: "nav.carrierBridgesHub", icon: <CloudUploadIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/timologion", labelKey: "nav.timologion", icon: <ReceiptLongIcon />, package: "Integrations", group: "integrationsGrp" },
     { to: "/mydata", labelKey: "nav.mydata", icon: <GavelOutlinedIcon />, package: "Integrations" },
     { to: "/usae", labelKey: "nav.usae", icon: <RuleIcon />, package: "Integrations", group: "integrationsGrp" },
@@ -819,7 +822,7 @@ export default function App() {
             without the whole Kalypsis chrome. */}
         <Route path="/ermes-app" element={
           <ProtectedRoute>
-            <ErmesStandalonePage />
+            <PackageGate package="Ermes"><ErmesStandalonePage /></PackageGate>
           </ProtectedRoute>
         } />
         <Route path="/data-retention-schedule" element={<DataRetentionPage />} />
@@ -1128,8 +1131,8 @@ export default function App() {
                   <Route path="caller-id" element={<Navigate to="/app" replace />} />
                   <Route path="usae" element={<PackageGate package="Integrations"><UsaeSubmissionsPage /></PackageGate>} />
                   <Route path="all-tools" element={<AllToolsPage />} />
-                  <Route path="ermes" element={<ErmesPage />} />
-                  <Route path="ermes/meeting/:roomId" element={<ErmesMeetingPage />} />
+                  <Route path="ermes" element={<PackageGate package="Ermes"><ErmesPage /></PackageGate>} />
+                  <Route path="ermes/meeting/:roomId" element={<PackageGate package="Ermes"><ErmesMeetingPage /></PackageGate>} />
                   <Route path="documentation" element={<DocumentationPage />} />
                   <Route path="platform/documentation" element={<DocumentationEditorPage />} />
                   <Route path="platform/landing" element={<LandingEditorPage />} />

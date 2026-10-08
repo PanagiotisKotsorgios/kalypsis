@@ -15,7 +15,7 @@ interface Tool {
   labelKey: string;
   descKey: string;
   category: string;
-  pkg: "BackOffice" | "FrontOffice" | "Crm" | "Intelligence" | "Integrations";
+  pkg: "BackOffice" | "FrontOffice" | "Crm" | "Intelligence" | "Integrations" | "Ermes";
 }
 
 // "All Tools" only lists pages that are NOT already in the role sidebar —
@@ -44,11 +44,9 @@ const TOOLS: Tool[] = [
   { to: "/report-builder", labelKey: "nav.reportBuilder", descKey: "tools.reportBuilder", category: "intelligence", pkg: "Intelligence" },
   { to: "/goals",          labelKey: "nav.goals",          descKey: "tools.goals",          category: "intelligence", pkg: "Intelligence" },
 
-  // Kalypsis-native messaging plugin — announced as coming-soon so
-  // operators can start planning their workflows around it. Placeholder
-  // route (no page yet); the click always lands on the coming-soon
-  // dialog like every other WIP entry.
-  { to: "/ermes", labelKey: "nav.ermes", descKey: "tools.ermes", category: "integrations", pkg: "Integrations" },
+  // Kalypsis-native messaging workspace. It is a live package-gated route;
+  // the catalogue shortcut opens the same workspace used by the sidebar.
+  { to: "/ermes", labelKey: "nav.ermes", descKey: "tools.ermes", category: "integrations", pkg: "Ermes" },
 ];
 
 const CATEGORY_ORDER = ["claimsOps", "quotes", "intelligence", "integrations"];
@@ -57,10 +55,8 @@ export function AllToolsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [q, setQ] = useState("");
-  // The whole catalogue is still WIP — clicking any tool opens a shared
-  // «Coming soon» dialog instead of navigating. `pending` holds the tool
-  // the user clicked so the dialog can name it. Exceptions listed below
-  // navigate directly (ΕΡΜΗΣ shipped as a real workspace).
+  // Most catalogue entries are still WIP — clicking them opens a shared
+  // «Coming soon» dialog. Live routes are listed below and navigate directly.
   const [pending, setPending] = useState<Tool | null>(null);
   const LIVE_ROUTES: Record<string, string> = { "/ermes": "/app/ermes" };
   const openTool = (tool: Tool) => {
