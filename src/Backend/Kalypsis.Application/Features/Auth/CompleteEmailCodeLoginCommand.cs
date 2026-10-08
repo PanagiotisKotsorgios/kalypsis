@@ -28,14 +28,16 @@ public class CompleteEmailCodeLoginHandler : IRequestHandler<CompleteEmailCodeLo
     private readonly IPasswordHasher _hasher;
     private readonly IJwtTokenService _jwt;
     private readonly IDateTimeProvider _clock;
+    private readonly IPackageService _packages;
 
     public CompleteEmailCodeLoginHandler(IAppDbContext db, IPasswordHasher hasher,
-        IJwtTokenService jwt, IDateTimeProvider clock)
+        IJwtTokenService jwt, IDateTimeProvider clock, IPackageService packages)
     {
         _db = db;
         _hasher = hasher;
         _jwt = jwt;
         _clock = clock;
+        _packages = packages;
     }
 
     public async Task<LoginResponse> Handle(CompleteEmailCodeLoginCommand r, CancellationToken ct)
@@ -47,8 +49,8 @@ public class CompleteEmailCodeLoginHandler : IRequestHandler<CompleteEmailCodeLo
             .FirstOrDefaultAsync(u => u.Id == userId && u.DeletedAt == null, ct)
             ?? throw AppException.Unauthorized("Ο χρήστης δεν βρέθηκε.");
 
-        if (user.Role == Role.Customer)
-            throw new AppException("client_portal_disabled", "Το portal πελατών είναι προσωρινά μη διαθέσιμο.", 503);
+        if (user.Role == Role.Customer && !await _packages.HasAsync(user.TenantId, PackageCode.Crm, ct))
+            throw new AppException("package_not_licensed", "Απαιτείται ενεργό πακέτο CRM για την πύλη πελάτη.", 403);
 
         if (string.IsNullOrEmpty(user.PendingLoginCodeHash)
             || user.PendingLoginCodeExpiresAt is null

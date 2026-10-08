@@ -36,11 +36,12 @@ public class CompleteTwoFactorLoginHandler : IRequestHandler<CompleteTwoFactorLo
     private readonly IJwtTokenService _jwt;
     private readonly ITotpService _totp;
     private readonly IDateTimeProvider _clock;
+    private readonly IPackageService _packages;
 
     public CompleteTwoFactorLoginHandler(
-        IAppDbContext db, IJwtTokenService jwt, ITotpService totp, IDateTimeProvider clock)
+        IAppDbContext db, IJwtTokenService jwt, ITotpService totp, IDateTimeProvider clock, IPackageService packages)
     {
-        _db = db; _jwt = jwt; _totp = totp; _clock = clock;
+        _db = db; _jwt = jwt; _totp = totp; _clock = clock; _packages = packages;
     }
 
     public async Task<LoginResponse> Handle(CompleteTwoFactorLoginCommand request, CancellationToken ct)
@@ -56,8 +57,8 @@ public class CompleteTwoFactorLoginHandler : IRequestHandler<CompleteTwoFactorLo
         if (!user.IsActive)
             throw AppException.Unauthorized("Ο λογαριασμός δεν είναι ενεργός.");
 
-        if (user.Role == Role.Customer)
-            throw new AppException("client_portal_disabled", "Το portal πελατών είναι προσωρινά μη διαθέσιμο.", 503);
+        if (user.Role == Role.Customer && !await _packages.HasAsync(user.TenantId, PackageCode.Crm, ct))
+            throw new AppException("package_not_licensed", "Απαιτείται ενεργό πακέτο CRM για την πύλη πελάτη.", 403);
 
         if (user.LockedUntil is not null && user.LockedUntil > _clock.UtcNow)
             throw AppException.Unauthorized("Ο λογαριασμός είναι κλειδωμένος.");

@@ -32,15 +32,17 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
     private readonly IJwtTokenService _jwt;
     private readonly IDateTimeProvider _clock;
     private readonly IEmailSender _email;
+    private readonly IPackageService _packages;
 
     public LoginCommandHandler(IAppDbContext db, IPasswordHasher hasher, IJwtTokenService jwt,
-        IDateTimeProvider clock, IEmailSender email)
+        IDateTimeProvider clock, IEmailSender email, IPackageService packages)
     {
         _db = db;
         _hasher = hasher;
         _jwt = jwt;
         _clock = clock;
         _email = email;
+        _packages = packages;
     }
 
     // A pre-computed BCrypt hash of a constant value. We run Verify against it
@@ -90,12 +92,12 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
         user.FailedLoginAttempts = 0;
         user.LockedUntil = null;
 
-        if (user.Role == Role.Customer)
+        if (user.Role == Role.Customer && !await _packages.HasAsync(user.TenantId, PackageCode.Crm, cancellationToken))
         {
             await _db.SaveChangesAsync(cancellationToken);
-            throw new AppException("client_portal_disabled",
-                "Το portal πελατών είναι προσωρινά μη διαθέσιμο.", 503,
-                title: "Το portal πελατών είναι απενεργοποιημένο");
+            throw new AppException("package_not_licensed",
+                "Απαιτείται ενεργό πακέτο CRM για την πύλη πελάτη.", 403,
+                title: "Δεν έχει ενεργοποιηθεί το CRM");
         }
 
         // 2FA gate. If the user has TOTP enrolled, the password alone isn't enough:

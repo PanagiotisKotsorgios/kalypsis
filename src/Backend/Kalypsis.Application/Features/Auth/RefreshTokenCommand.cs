@@ -42,12 +42,14 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, L
     private readonly IAppDbContext _db;
     private readonly IJwtTokenService _jwt;
     private readonly IDateTimeProvider _clock;
+    private readonly IPackageService _packages;
 
-    public RefreshTokenCommandHandler(IAppDbContext db, IJwtTokenService jwt, IDateTimeProvider clock)
+    public RefreshTokenCommandHandler(IAppDbContext db, IJwtTokenService jwt, IDateTimeProvider clock, IPackageService packages)
     {
         _db = db;
         _jwt = jwt;
         _clock = clock;
+        _packages = packages;
     }
 
     public async Task<LoginResponse> Handle(RefreshTokenCommand request, CancellationToken ct)
@@ -83,8 +85,8 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, L
         if (user.LockedUntil is not null && user.LockedUntil > now)
             throw AppException.Unauthorized("Ο λογαριασμός είναι κλειδωμένος.");
 
-        if (user.Role == Role.Customer)
-            throw new AppException("client_portal_disabled", "Το portal πελατών είναι προσωρινά μη διαθέσιμο.", 503);
+        if (user.Role == Role.Customer && !await _packages.HasAsync(user.TenantId, PackageCode.Crm, ct))
+            throw new AppException("package_not_licensed", "Απαιτείται ενεργό πακέτο CRM για την πύλη πελάτη.", 403);
 
         // Issue the rotated pair.
         var tokens = _jwt.IssueTokens(user);

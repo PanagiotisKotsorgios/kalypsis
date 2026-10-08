@@ -383,7 +383,9 @@ app.UseMiddleware<Kalypsis.Infrastructure.Auth.AgencyOfficeScopeMiddleware>();
 // and office/producer functionality intact.
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path.StartsWithSegments("/api") && context.User.IsInRole("Customer"))
+    // Customer access is gated per tenant by ClientPortalController and the
+    // login handlers. Do not apply a global block here.
+    if (false && context.Request.Path.StartsWithSegments("/api") && context.User.IsInRole("Customer"))
     {
         context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
         await context.Response.WriteAsJsonAsync(new

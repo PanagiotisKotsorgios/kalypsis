@@ -44,6 +44,7 @@ public sealed class AgencyOfficeScopeMiddleware
         var officeAwareRole = role == Role.AgencyUser
             || role == Role.AgencyOfficeAdmin
             || role == Role.AgencyAdmin
+            || role == Role.Customer
             || platformImpersonating;
         if (!officeAwareRole)
         {
@@ -57,6 +58,53 @@ public sealed class AgencyOfficeScopeMiddleware
         var userRaw = context.User.FindFirst("sub")?.Value;
         if (!Guid.TryParse(tenantRaw, out var tenantId) || !Guid.TryParse(userRaw, out var userId))
         {
+            await _next(context);
+            return;
+        }
+
+        // Customer accounts are permanently bound to the office that created
+        // them. They cannot select an office with a header. Resolving this
+        // assignment before the normal query filters means every portal query
+        // is scoped to the customer's own office as well as their customer id.
+        if (role == Role.Customer)
+        {
+            var customerAssignment = await db.Users
+                .IgnoreQueryFilters()
+                .Where(x => x.Id == userId && x.TenantId == tenantId && x.DeletedAt == null)
+                .Select(x => new { x.CustomerId, x.AgencyOfficeScopeId })
+                .FirstOrDefaultAsync(context.RequestAborted);
+
+            var customerOfficeId = customerAssignment?.AgencyOfficeScopeId;
+            if (customerOfficeId is null && customerAssignment?.CustomerId is Guid customerId)
+            {
+                customerOfficeId = await db.Customers.IgnoreQueryFilters()
+                    .Where(x => x.Id == customerId && x.TenantId == tenantId && x.DeletedAt == null)
+                    .Select(x => x.AgencyOfficeScopeId)
+                    .FirstOrDefaultAsync(context.RequestAborted);
+            }
+
+            var customerOffice = customerOfficeId is Guid officeId
+                ? await db.AgencyOffices.IgnoreQueryFilters()
+                    .Where(x => x.Id == officeId && x.TenantId == tenantId && x.DeletedAt == null && x.IsActive)
+                    .Select(x => new { x.Id, x.IsHeadquarters })
+                    .FirstOrDefaultAsync(context.RequestAborted)
+                : null;
+
+            if (customerOffice is null)
+            {
+                customerOffice = await db.AgencyOffices.IgnoreQueryFilters()
+                    .Where(x => x.TenantId == tenantId && x.DeletedAt == null && x.IsActive)
+                    .OrderByDescending(x => x.IsHeadquarters)
+                    .Select(x => new { x.Id, x.IsHeadquarters })
+                    .FirstOrDefaultAsync(context.RequestAborted);
+            }
+
+            if (customerOffice is not null)
+            {
+                context.Items[OfficeIdItem] = customerOffice.Id;
+                context.Items[IsHeadquartersItem] = customerOffice.IsHeadquarters;
+            }
+
             await _next(context);
             return;
         }

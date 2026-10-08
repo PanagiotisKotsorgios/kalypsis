@@ -5,6 +5,7 @@ using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
 
 namespace Kalypsis.Application.Features.Customers;
 
@@ -14,9 +15,12 @@ public class CreateCustomerCommandValidator : AbstractValidator<CreateCustomerCo
 {
     public CreateCustomerCommandValidator()
     {
-        RuleFor(x => x.Request.CreatePortalAccount).Equal(false)
+        RuleFor(x => x.Request.CreatePortalAccount).Must(_ => true)
             .WithMessage("Η δημιουργία λογαριασμού πελάτη στο portal είναι προσωρινά απενεργοποιημένη.");
         When(x => !string.IsNullOrWhiteSpace(x.Request.Email), () => RuleFor(x => x.Request.Email).EmailAddress());
+        When(x => x.Request.CreatePortalAccount, () =>
+            RuleFor(x => x.Request.Email).NotEmpty().EmailAddress()
+                .WithMessage("Για λογαριασμό portal απαιτείται έγκυρο email πελάτη."));
         When(x => x.Request.Type == CustomerType.Individual, () =>
         {
             RuleFor(x => x.Request.FirstName).NotEmpty().MaximumLength(100);
@@ -35,10 +39,15 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
 {
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _currentUser;
-    public CreateCustomerCommandHandler(IAppDbContext db, ICurrentUser currentUser)
+    private readonly IPasswordHasher _hasher;
+    private readonly IPackageService _packages;
+    public CreateCustomerCommandHandler(IAppDbContext db, ICurrentUser currentUser,
+        IPasswordHasher hasher, IPackageService packages)
     {
         _db = db;
         _currentUser = currentUser;
+        _hasher = hasher;
+        _packages = packages;
     }
 
     public async Task<CreateCustomerResponse> Handle(CreateCustomerCommand request, CancellationToken cancellationToken)
@@ -48,6 +57,15 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
 
         var r = request.Request;
         var email = string.IsNullOrWhiteSpace(r.Email) ? null : r.Email.Trim().ToLowerInvariant();
+
+        if (r.CreatePortalAccount && !await _packages.HasAsync(tenantId, PackageCode.Crm, cancellationToken))
+            throw new AppException("package_not_licensed",
+                "Η πύλη πελάτη είναι διαθέσιμη μόνο όταν το γραφείο έχει ενεργό το πακέτο CRM.", 403);
+
+        if (r.CreatePortalAccount && await _db.Users.IgnoreQueryFilters()
+            .AnyAsync(u => u.TenantId == tenantId && u.Email == email && u.DeletedAt == null, cancellationToken))
+            throw new AppException("portal_email_exists",
+                "Υπάρχει ήδη λογαριασμός με αυτό το email στο γραφείο.", 409);
 
         var lastNumber = await _db.Customers
 
@@ -107,6 +125,27 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
 
         await _db.SaveChangesAsync(cancellationToken);
 
+        string? portalEmail = null;
+        string? temporaryPassword = null;
+        if (r.CreatePortalAccount)
+        {
+            temporaryPassword = GenerateTemporaryPassword();
+            _db.Users.Add(new User
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                Email = email!,
+                PasswordHash = _hasher.Hash(temporaryPassword),
+                FirstName = customer.FirstName ?? customer.CompanyName ?? "Πελάτης",
+                LastName = customer.LastName ?? string.Empty,
+                Role = Role.Customer,
+                CustomerId = customer.Id,
+                IsActive = true
+            });
+            portalEmail = email;
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
         var dto = new CustomerDto(
             customer.Id, customer.CustomerNumber, customer.Type, customer.Status,
             customer.FirstName, customer.LastName, customer.CompanyName,
@@ -119,6 +158,18 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             customer.DriverLicenseNumber, customer.DriverLicenseClass, customer.DriverLicenseIssueDate,
             customer.DriverLicenseExpiryDate, customer.Source, customer.TagsJson, customer.PhotoUrl);
 
-        return new CreateCustomerResponse(dto, null, null);
+        return new CreateCustomerResponse(dto, portalEmail, temporaryPassword);
+    }
+
+    private static string GenerateTemporaryPassword()
+    {
+        const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+        const string symbols = "!@#$%&*";
+        Span<char> buffer = stackalloc char[12];
+        for (var i = 0; i < 10; i++)
+            buffer[i] = alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
+        buffer[10] = symbols[RandomNumberGenerator.GetInt32(symbols.Length)];
+        buffer[11] = (char)('0' + RandomNumberGenerator.GetInt32(10));
+        return new string(buffer);
     }
 }

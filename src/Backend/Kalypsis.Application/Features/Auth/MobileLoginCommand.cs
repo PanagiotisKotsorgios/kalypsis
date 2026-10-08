@@ -30,13 +30,15 @@ public class MobileLoginCommandHandler : IRequestHandler<MobileLoginCommand, Log
     private readonly IPasswordHasher _hasher;
     private readonly IJwtTokenService _jwt;
     private readonly IDateTimeProvider _clock;
+    private readonly IPackageService _packages;
 
-    public MobileLoginCommandHandler(IAppDbContext db, IPasswordHasher hasher, IJwtTokenService jwt, IDateTimeProvider clock)
+    public MobileLoginCommandHandler(IAppDbContext db, IPasswordHasher hasher, IJwtTokenService jwt, IDateTimeProvider clock, IPackageService packages)
     {
         _db = db;
         _hasher = hasher;
         _jwt = jwt;
         _clock = clock;
+        _packages = packages;
     }
 
     public async Task<LoginResponse> Handle(MobileLoginCommand request, CancellationToken cancellationToken)
@@ -74,12 +76,12 @@ public class MobileLoginCommandHandler : IRequestHandler<MobileLoginCommand, Log
         user.FailedLoginAttempts = 0;
         user.LockedUntil = null;
 
-        if (user.Role == Role.Customer)
+        if (user.Role == Role.Customer && !await _packages.HasAsync(user.TenantId, PackageCode.Crm, cancellationToken))
         {
             await _db.SaveChangesAsync(cancellationToken);
-            throw new AppException("client_portal_disabled",
-                "Η εφαρμογή πελατών είναι προσωρινά μη διαθέσιμη.", 503,
-                title: "Το portal πελατών είναι απενεργοποιημένο");
+            throw new AppException("package_not_licensed",
+                "Απαιτείται ενεργό πακέτο CRM για την πύλη πελάτη.", 403,
+                title: "Δεν έχει ενεργοποιηθεί το CRM");
         }
 
         // Mobile app is client-portal only. Reject any non-Customer login here

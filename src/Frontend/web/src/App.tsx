@@ -280,18 +280,20 @@ import { OfficeWebsitePage } from "./pages/OfficeWebsitePage";
 import { OfficeWebsiteOverviewPage } from "./pages/OfficeWebsiteOverviewPage";
 import { OfficeWebsiteAnalyticsPage } from "./pages/OfficeWebsiteAnalyticsPage";
 import { OfficePublicSitePage } from "./pages/OfficePublicSitePage";
+import { CustomerPortalPage } from "./pages/CustomerPortalPage";
 
 // Exported so Platform Admin can render a read-only, faithful sidebar preview
 // for an office user without starting an impersonation session.
 export const navByRole: Record<Role, NavItem[]> = {
   Customer: [
-    { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon /> },
-    { to: "/policies", labelKey: "nav.contracts", icon: <DescriptionIcon /> },
-    { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon /> },
-    { to: "/notifications", labelKey: "nav.notifications", icon: <NotificationsIcon /> },
-    { to: "/requests", labelKey: "nav.requests", icon: <AssignmentIcon /> },
-    { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon /> },
-    { to: "/profile", labelKey: "nav.profile", icon: <AccountCircleIcon /> }
+    { to: "/customer-portal", labelKey: "nav.dashboard", icon: <DashboardIcon />, package: "Crm" },
+    { to: "/customer-portal?tab=policies", labelKey: "nav.contracts", icon: <DescriptionIcon />, package: "Crm" },
+    { to: "/customer-portal?tab=documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "Crm" },
+    { to: "/customer-portal?tab=green-cards", labelKey: "nav.greenCards", icon: <DescriptionIcon />, package: "Crm" },
+    { to: "/customer-portal?tab=notifications", labelKey: "nav.notifications", icon: <NotificationsIcon />, package: "Crm" },
+    { to: "/customer-portal?tab=requests", labelKey: "nav.requests", icon: <AssignmentIcon />, package: "Crm" },
+    { to: "/customer-portal?tab=claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "Crm" },
+    { to: "/customer-portal?tab=profile", labelKey: "nav.profile", icon: <AccountCircleIcon />, package: "Crm" }
   ],
   AgencyAdmin: [
     // ===== Top home link, every workspace =====
@@ -841,26 +843,28 @@ export default function App() {
                 <Routes>
                   {/* Agency users land on the Workspace Hub; other roles keep their dashboard. */}
                   <Route index element={
+                    effectiveRole === "Customer" ? <CustomerPortalPage /> :
                     (effectiveRole === "AgencyAdmin" || effectiveRole === "AgencyOfficeAdmin" || effectiveRole === "AgencyUser")
                       ? <WorkspaceHubPage />
                       : <DashboardPage />
                   } />
+                  <Route path="customer-portal" element={<CustomerPortalPage />} />
                   <Route path="dashboard" element={<DashboardPage />} />
                   <Route path="customers" element={<CustomersPage />} />
                   <Route path="customers/:id" element={<CustomerDetailPage />} />
                   <Route path="vehicles" element={<CustomerVehiclesPage />} />
                   <Route path="contracts/new" element={<NewContractWizardPage />} />
                   <Route path="contracts/:id" element={<CustomerContractDetailsPage />} />
-                  <Route path="policies" element={<PoliciesPage />} />
+                  <Route path="policies" element={effectiveRole === "Customer" ? <CustomerPortalPage /> : <PoliciesPage />} />
                   <Route path="green-cards" element={<GreenCardsPage />} />
                   <Route path="all-users" element={<AllUsersPage />} />
-                  <Route path="documents" element={<DocumentsPage />} />
-                  <Route path="notifications" element={<NotificationsPage />} />
+                  <Route path="documents" element={effectiveRole === "Customer" ? <CustomerPortalPage /> : <DocumentsPage />} />
+                  <Route path="notifications" element={effectiveRole === "Customer" ? <CustomerPortalPage /> : <NotificationsPage />} />
                   <Route path="users" element={<EmployeesPage />} />
                   <Route path="tenants" element={<TenantsPage />} />
                   <Route path="tenants/:id" element={<TenantDetailPage />} />
                   <Route path="settings" element={<AdminSettingsPage />} />
-                  <Route path="requests" element={<RequestsPage />} />
+                  <Route path="requests" element={effectiveRole === "Customer" ? <CustomerPortalPage /> : <RequestsPage />} />
                   <Route path="audit" element={<AuditLogsPage />} />
                   <Route path="recycle-bin" element={<PremiumGate code="recycle-bin"><RecycleBinPage /></PremiumGate>} />
                   <Route path="producer-reconciliation" element={<ProducerReconciliationPage />} />
@@ -874,7 +878,7 @@ export default function App() {
                   <Route path="tasks" element={<TasksPage />} />
                   <Route path="producers" element={<ProducersPage />} />
                   <Route path="partner-networks" element={<PartnerNetworksPage />} />
-                  <Route path="claims" element={<ClaimsPage />} />
+                  <Route path="claims" element={effectiveRole === "Customer" ? <CustomerPortalPage /> : <ClaimsPage />} />
                   <Route path="reports" element={<ReportsPage />} />
                   <Route path="intelligence-workbench" element={<PackageGate package="Intelligence"><IntelligenceWorkbenchPage /></PackageGate>} />
                   <Route path="intelligence-workbench/prompts" element={<PackageGate package="Intelligence"><IntelligencePromptsPage /></PackageGate>} />
@@ -1034,7 +1038,7 @@ export default function App() {
                       ]} />
                   } />
                   <Route path="federation/championships" element={<FederationChampionshipsPage />} />
-                  <Route path="profile" element={<ProfilePage />} />
+                  <Route path="profile" element={effectiveRole === "Customer" ? <CustomerPortalPage /> : <ProfilePage />} />
                   <Route path="agency-settings" element={<AgencySettingsPage />} />
                   <Route path="agency-settings-hub" element={<AgencySettingsHubPage />} />
                   {/* Merged surface for AgencyAdmin — one sidebar row
