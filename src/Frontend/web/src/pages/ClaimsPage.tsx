@@ -69,6 +69,15 @@ interface ClaimDto {
   approvedAmount: number | null;
   description: string | null;
   createdAt: string;
+  affectsBonusMalus?: boolean;
+  usaeCode?: string | null;
+  usaeKind?: string | null;
+  usaeStatus?: string | null;
+  liabilityPercent?: number | null;
+  isInternalDamage?: boolean;
+  usaeSentAt?: string | null;
+  usaeReceiptCode?: string | null;
+  isFriendlySettlement?: boolean;
 }
 
 interface PolicyLite {
@@ -611,7 +620,13 @@ export function ClaimsPage() {
           />
         </>
       )}
-      <ClaimDetailDrawer claim={detail as any} open={!!detail} onClose={() => setDetail(null)} />
+      <ClaimDetailDrawer
+        claim={detail as any}
+        open={!!detail}
+        canEdit={canEdit}
+        onSaved={() => { void qc.invalidateQueries({ queryKey: ["claims"] }); }}
+        onClose={() => setDetail(null)}
+      />
       {headerMenu.menu}
       {rowMenu.menu}
     </Box>

@@ -23,7 +23,18 @@ public record ClaimDto(
     Guid? InsuranceCompanyId = null,
     VehicleUseCategory? VehicleUseCategory = null,
     string? CoverCode = null,
-    string? PackageCode = null);
+    string? PackageCode = null,
+    // Greek insurance / ΥΣΑΕ fields. Kept optional for compatibility with
+    // legacy clients while exposing the complete claim profile to the UI.
+    bool AffectsBonusMalus = true,
+    string? UsaeCode = null,
+    string? UsaeKind = null,
+    string UsaeStatus = "NotSent",
+    decimal? LiabilityPercent = null,
+    bool IsInternalDamage = false,
+    DateTime? UsaeSentAt = null,
+    string? UsaeReceiptCode = null,
+    bool IsFriendlySettlement = false);
 
 public record CreateClaimBody(
     Guid PolicyId,

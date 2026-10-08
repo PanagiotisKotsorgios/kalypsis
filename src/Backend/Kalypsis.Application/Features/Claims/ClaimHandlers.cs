@@ -76,7 +76,16 @@ public class ListClaimsQueryHandler : IRequestHandler<ListClaimsQuery, IReadOnly
             c.Policy?.InsuranceCompanyId,
             c.Policy?.VehicleUseCategory,
             ExtractSpecsCode(c.Policy?.SpecsJson, "coverCode", "coverageCode", "coverage", "cover"),
-            ExtractSpecsCode(c.Policy?.SpecsJson, "packageCode", "package"));
+            ExtractSpecsCode(c.Policy?.SpecsJson, "packageCode", "package"),
+            c.AffectsBonusMalus,
+            c.UsaeCode,
+            c.UsaeKind,
+            c.UsaeStatus,
+            c.LiabilityPercent,
+            c.IsInternalDamage,
+            c.UsaeSentAt,
+            c.UsaeReceiptCode,
+            c.IsFriendlySettlement);
     }
 
     private static string? ExtractSpecsCode(string? specsJson, params string[] keys)
