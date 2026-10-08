@@ -467,7 +467,7 @@ export const navByRole: Record<Role, NavItem[]> = {
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
     // Οδηγίες χρήσης — ενσωματωμένος οδηγός βήμα-προς-βήμα, εκτυπώσιμος
     // σε PDF από κάθε σελίδα.
-    { to: "/documentation", labelKey: "nav.documentation", icon: <MenuBookIcon />,
+    { to: "/agency-and-profile?tab=documentation", labelKey: "nav.documentation", icon: <MenuBookIcon />,
       workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
     // Μηχανογράφιση (tenant surface) — opt in to the service or
     // browse the folder tree the platform team maintains for you.
@@ -493,7 +493,7 @@ export const navByRole: Record<Role, NavItem[]> = {
   AgencyOfficeAdmin: [
     { to: "/", labelKey: "nav.dashboard", icon: <DashboardIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
     { to: "/ermes-app", labelKey: "nav.ermes", icon: <MailOutlineIcon />, openInNewTab: true, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
-    { to: "/documentation", labelKey: "nav.documentation", icon: <MenuBookIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
+    { to: "/agency-and-profile?tab=documentation", labelKey: "nav.documentation", icon: <MenuBookIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
     { to: "/bookkeeping", labelKey: "nav.bookkeeping", icon: <FolderIcon />, workspaces: ["BackOffice","FrontOffice","Crm","Intelligence","Integrations"] },
     { to: "/customers", labelKey: "nav.customers", icon: <PeopleIcon />, package: "BackOffice" },
     { to: "/vehicles", labelKey: "nav.vehicleRegistry", icon: <DirectionsCarIcon />, package: "BackOffice" },
@@ -763,9 +763,10 @@ export default function App() {
         <Route path="/download/releases/guide/:assetId" element={<DesktopReleaseGuidePage />} />
         <Route path="/desktop-releases" element={<Navigate to="/download/releases" replace />} />
         <Route path="/faq" element={<FaqPage />} />
-        <Route path="/documentation" element={<DocumentationPage />} />
-        <Route path="/docs" element={<Navigate to="/documentation" replace />} />
-        <Route path="/help" element={<Navigate to="/documentation" replace />} />
+        {/* Documentation is available only inside the authenticated app. */}
+        <Route path="/documentation" element={<Navigate to={user ? "/app/agency-and-profile?tab=documentation" : "/login"} replace />} />
+        <Route path="/docs" element={<Navigate to={user ? "/app/agency-and-profile?tab=documentation" : "/login"} replace />} />
+        <Route path="/help" element={<Navigate to={user ? "/app/agency-and-profile?tab=documentation" : "/login"} replace />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />

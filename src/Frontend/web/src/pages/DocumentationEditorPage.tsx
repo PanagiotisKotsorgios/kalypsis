@@ -148,9 +148,8 @@ export function DocumentationEditorPage() {
             <Typography variant="h4" fontWeight={800}>Επεξεργασία Οδηγιών Χρήσης</Typography>
           </Stack>
           <Typography color="text.secondary">
-            Δημοσίευση / επεξεργασία των ενοτήτων που εμφανίζονται στο δημόσιο
-            <strong> mykalypsis.gr/documentation</strong> και μέσα στην εφαρμογή στο
-            <strong> /app/documentation</strong>.
+            Δημοσίευση / επεξεργασία των ενοτήτων που εμφανίζονται μέσα στην
+            εφαρμογή στη διαδρομή <strong>/app/agency-and-profile?tab=documentation</strong>.
           </Typography>
         </Box>
         <Stack direction="row" spacing={1}>

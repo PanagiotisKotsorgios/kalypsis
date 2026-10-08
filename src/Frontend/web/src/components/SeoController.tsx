@@ -16,10 +16,6 @@ const PUBLIC_META: Record<string, { title: string; description: string }> = {
     title: "Συχνές ερωτήσεις — Kalypsis",
     description: "Απαντήσεις για τη λειτουργία, την ασφάλεια και τα πακέτα της πλατφόρμας Kalypsis.",
   },
-  "/documentation": {
-    title: "Οδηγίες χρήσης Kalypsis — Ασφαλιστικό λογισμικό",
-    description: "Οδηγός για πελάτες, συμβόλαια, γέφυρες εταιρειών, παραγωγή, οικονομικά και επικοινωνία στο Kalypsis.",
-  },
   "/download": {
     title: "Λήψη Kalypsis — Web και Desktop",
     description: "Χρησιμοποιήστε το Kalypsis από τον browser ή κατεβάστε την desktop έκδοση για Windows.",
@@ -56,6 +52,7 @@ const PUBLIC_META: Record<string, { title: string; description: string }> = {
 
 const PRIVATE_PREFIXES = [
   "/app",
+  "/documentation",
   "/login",
   "/forgot-password",
   "/reset-password",

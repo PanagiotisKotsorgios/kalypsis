@@ -76,7 +76,6 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
     items: [
       { path: "/", label: "Πίνακας ελέγχου" },
       { path: "/ermes-app", label: "ΕΡΜΗΣ" },
-      { path: "/documentation", label: "Οδηγίες χρήσης" },
       { path: "/bookkeeping", label: "Μηχανογράφιση" },
       { path: "/agency-and-profile", label: "Ρυθμίσεις γραφείου & προφίλ" },
       { path: "/profile", label: "Προφίλ" },

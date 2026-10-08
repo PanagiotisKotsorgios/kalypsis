@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Kalypsis.Api.Controllers;
 
 /// <summary>
-/// Public documentation reader + PlatformAdmin editor. Serves the tree of
+/// Authenticated documentation reader + PlatformAdmin editor. Serves the tree of
 /// «Οδηγίες Χρήσης» sections stored in documentation_sections, plus the
 /// screenshots the PlatformAdmin uploads via documentation_assets. Nothing
 /// here is tenant-scoped — the documentation is shared across every γραφείο.
@@ -38,12 +38,11 @@ public class DocumentationController : ControllerBase
     public record AssetDto(Guid Id, string FileName, string ContentType, long SizeBytes, string Url);
 
     /// <summary>
-    /// Public read — returns the entire tree of PUBLISHED sections ordered
-    /// by DisplayOrder within each parent. No auth required so /documentation
-    /// (the public marketing page) can render without a login.
+    /// Authenticated read — returns the entire tree of PUBLISHED sections
+    /// ordered by DisplayOrder within each parent.
     /// </summary>
     [HttpGet("sections")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<ActionResult<IReadOnlyList<SectionDto>>> ListPublic(CancellationToken ct)
     {
         var rows = await _db.DocumentationSections
@@ -160,7 +159,7 @@ public class DocumentationController : ControllerBase
     }
 
     [HttpGet("assets/{id:guid}")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> Download(Guid id, CancellationToken ct)
     {
         var a = await _db.DocumentationAssets.FirstOrDefaultAsync(x => x.Id == id, ct)
