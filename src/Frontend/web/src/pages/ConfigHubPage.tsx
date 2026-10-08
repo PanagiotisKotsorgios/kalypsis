@@ -21,6 +21,15 @@ import { DocumentDesignerPage } from "./DocumentDesignerPage";
 export function ConfigHubPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState(0);
+
+  // The first four legacy panels are intentionally no longer exposed in the
+  // hub. Keep their implementations available for older deep links without
+  // rendering them in the current four-item configuration surface.
+  void MovementTypesPanel;
+  void BonusMalusPanel;
+  void RenewalRulesPanel;
+  void RegisterTemplatesPanel;
+
   return (
     <Box>
       <Stack direction="row" alignItems="center" spacing={2} mb={3}>
@@ -34,10 +43,6 @@ export function ConfigHubPage() {
         </Box>
       </Stack>
       <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" sx={{ mb: 3 }}>
-        <Tab label={t("configHub.movementTypes")} />
-        <Tab label={t("configHub.bonusMalus")} />
-        <Tab label={t("configHub.renewalRules")} />
-        <Tab label={t("configHub.registerTemplates")} />
         <Tab label={t("configHub.customFields")} />
         <Tab label={t("configHub.periodLocks")} />
         {/* Folded from separate sidebar entries — Λίστες αναφοράς
@@ -47,14 +52,10 @@ export function ConfigHubPage() {
         <Tab label={t("nav.lookups", "Λίστες αναφοράς")} />
         <Tab label={t("nav.docDesigner", "Σχεδιαστής εγγράφων")} />
       </Tabs>
-      {tab === 0 && <MovementTypesPanel />}
-      {tab === 1 && <BonusMalusPanel />}
-      {tab === 2 && <RenewalRulesPanel />}
-      {tab === 3 && <RegisterTemplatesPanel />}
-      {tab === 4 && <CustomFieldsPanel />}
-      {tab === 5 && <PeriodLocksPanel />}
-      {tab === 6 && <ReferenceCatalogsPage />}
-      {tab === 7 && <DocumentDesignerPage />}
+      {tab === 0 && <CustomFieldsPanel />}
+      {tab === 1 && <PeriodLocksPanel />}
+      {tab === 2 && <ReferenceCatalogsPage />}
+      {tab === 3 && <DocumentDesignerPage />}
     </Box>
   );
 }
