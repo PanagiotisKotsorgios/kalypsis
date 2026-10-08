@@ -781,10 +781,29 @@ export function ProductionListsPage() {
                     <TableRow key={g.key} hover>
                       <TableCell sx={{ fontWeight: 600 }}>{g.key}</TableCell>
                       <TableCell align="right">{g.count}</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700 }}>{money(g.gross)}</TableCell>
-                      <TableCell align="right">{money(g.net)}</TableCell>
-                      <TableCell align="right" sx={{ color: "warning.main" }}>{money(g.partnerCommission)}</TableCell>
-                      <TableCell align="right" sx={{ color: "success.main", fontWeight: 700 }}>{money(g.agencyCommission)}</TableCell>
+                      <TableCell align="right" sx={{
+                        fontWeight: 800,
+                        bgcolor: "rgba(31,123,179,0.09)",
+                        borderBottom: "1px solid rgba(31,123,179,0.18)",
+                      }}>{money(g.gross)}</TableCell>
+                      <TableCell align="right" sx={{
+                        fontWeight: 800,
+                        color: "success.dark",
+                        bgcolor: "rgba(46,125,50,0.12)",
+                        borderBottom: "1px solid rgba(46,125,50,0.22)",
+                      }}>{money(g.net)}</TableCell>
+                      <TableCell align="right" sx={{
+                        color: "warning.dark",
+                        fontWeight: 700,
+                        bgcolor: "rgba(237,108,2,0.10)",
+                        borderBottom: "1px solid rgba(237,108,2,0.20)",
+                      }}>{money(g.partnerCommission)}</TableCell>
+                      <TableCell align="right" sx={{
+                        color: "success.dark",
+                        fontWeight: 800,
+                        bgcolor: "rgba(46,125,50,0.12)",
+                        borderBottom: "1px solid rgba(46,125,50,0.22)",
+                      }}>{money(g.agencyCommission)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
