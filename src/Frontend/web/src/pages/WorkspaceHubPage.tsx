@@ -46,10 +46,12 @@ const PACKAGES: PackageMeta[] = [
   { code: "BackOffice",   icon: <AccountBalanceIcon />, image: "/images/workspace-backoffice.svg", nameKey: "ws.BackOffice.name",   bodyKey: "ws.BackOffice.body" },
   { code: "Crm",          icon: <PeopleIcon />,         image: "/images/workspace-crm.svg",       nameKey: "ws.Crm.name",          bodyKey: "ws.Crm.body" },
   { code: "Intelligence", icon: <InsightsIcon />,      image: "/images/workspace-intelligence.svg?v=20261002", nameKey: "ws.Intelligence.name", bodyKey: "ws.Intelligence.body" },
-  { code: "FrontOffice", icon: <LanguageIcon />, image: "/images/workspace-crm.svg", nameKey: "ws.FrontOffice.name", bodyKey: "ws.FrontOffice.body" }
+  { code: "FrontOffice", icon: <LanguageIcon />, image: "/images/workspace-crm.svg", nameKey: "ws.FrontOffice.name", bodyKey: "ws.FrontOffice.body" },
+  { code: "Integrations", icon: <HubIcon />, image: "/images/workspace-backoffice.svg", nameKey: "ws.Integrations.name", bodyKey: "ws.Integrations.body" }
 ];
-// Kept for type safety — re-enable these by moving them into PACKAGES above.
-void RequestQuoteIcon; void HubIcon;
+// Kept for type safety — this icon is used by the compact sidebar, not by a
+// workspace card.
+void RequestQuoteIcon;
 
 // Restrained palette — navy as primary, cyan as the single accent
 // (matches the redesigned landing page). No gold/brown.
@@ -178,16 +180,12 @@ export function WorkspaceHubPage() {
 
       <DashboardSummary />
 
-      {/* Grid — only rendered when the tenant actually has ≥ 2 packages
-          enabled. Tenants on a single package see the dashboard summary
-          above and nothing else: no workspace picker, no "locked" cards
-          for packages they haven't bought. PlatformAdmin/Employee always
-          get every card via the bypass flag so they can still preview
-          each workspace. */}
+      {/* Grid — rendered for every package the tenant actually owns. This is
+          important for a single-package office too: the operator must still
+          have a visible entry point for that package's workspace. */}
       {(() => {
         const enabledPackages = PACKAGES.filter(p => isPlatformBypass || has(p.code));
-        // Hide the grid entirely when only 0 or 1 package is enabled.
-        if (enabledPackages.length < 2) return null;
+        if (enabledPackages.length === 0) return null;
         return (
       <Box sx={{
         display: "grid",
