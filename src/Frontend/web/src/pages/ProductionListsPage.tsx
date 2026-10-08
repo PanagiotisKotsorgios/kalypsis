@@ -931,7 +931,12 @@ export function ProductionListsPage() {
                             if (c.key === "totals") return <TableCell key={c.key} align="right" sx={{ fontWeight: 700 }}>{totalsCell(totals)}</TableCell>;
                             return (
                               <TableCell key={c.key} align={c.align}
-                                sx={{ fontWeight: 800, color: "success.dark" }}>
+                                sx={{
+                                  fontWeight: 800,
+                                  color: "success.dark",
+                                  whiteSpace: "nowrap",
+                                  fontSize: 12,
+                                }}>
                                 {label}
                               </TableCell>
                             );
