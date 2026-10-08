@@ -11,11 +11,16 @@ import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import PaidIcon from "@mui/icons-material/Paid";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import GridOnIcon from "@mui/icons-material/GridOn";
+import BarChartIcon from "@mui/icons-material/BarChart";
 import { Link as RouterLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, extractErrorMessage } from "../api/client";
 import { OverCommissionGridEditor } from "../components/OverCommissionGridEditor";
 import { exportActionSx, printActionSx } from "../components/actionButtonStyles";
+import {
+  BarChart, Bar, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer,
+  Tooltip as RechartsTooltip, XAxis, YAxis,
+} from "recharts";
 
 /**
  * Οικονομικά → Υπερπρομήθειες (per-producer per-month actuals).
@@ -99,6 +104,9 @@ export function OverCommissionStatementsPage() {
   const [dateTo, setDateTo]   = useState<string>("");
   const [paidFilter, setPaidFilter] = useState<"" | "paid" | "unpaid">("");
   const [groupBy, setGroupBy] = useState<"producer" | "month" | "carrier" | "none">("producer");
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [statsDimension, setStatsDimension] = useState<"producer" | "month" | "carrier">("producer");
+  const [selectedStatsGroup, setSelectedStatsGroup] = useState<string | null>(null);
   // Deep-link ?openImport=ergo (from OverCommissionBridgesPage) auto-opens
   // the μαζική καταχώρηση grid + tells the grid to preselect ERGO layout.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -196,6 +204,36 @@ export function OverCommissionStatementsPage() {
     paidCount: rows.filter(r => r.paidOn).length,
     unpaidGross: rows.filter(r => !r.paidOn).reduce((s, r) => s + r.grossAmount, 0),
   }), [rows]);
+
+  const statsGroups = useMemo(() => {
+    const groups = new Map<string, StatementDto[]>();
+    for (const row of rows) {
+      const key = statsDimension === "producer"
+        ? `${row.producerName}${row.producerCode ? ` · ${row.producerCode}` : ""}`
+        : statsDimension === "carrier"
+          ? row.insuranceCompanyName
+          : `${row.month.toString().padStart(2, "0")}/${row.year}`;
+      const current = groups.get(key) ?? [];
+      current.push(row);
+      groups.set(key, current);
+    }
+    return Array.from(groups, ([key, groupedRows]) => ({
+      key,
+      summary: statementTotals(groupedRows),
+    })).sort((a, b) => a.key.localeCompare(b.key, "el"));
+  }, [rows, statsDimension]);
+  const statsChartData = statsGroups.map(group => ({
+    key: group.key,
+    name: group.key.length > 22 ? `${group.key.slice(0, 20)}…` : group.key,
+    gross: group.summary.gross,
+    net: group.summary.net,
+    producer: group.summary.producer,
+    office: group.summary.office,
+  }));
+  const selectedStats = statsGroups.find(group => group.key === selectedStatsGroup) ?? null;
+  const statsSplitTotal = Math.abs(totals.producer) + Math.abs(totals.office);
+  const statsProducerPercent = statsSplitTotal > 0 ? Math.abs(totals.producer) / statsSplitTotal * 100 : 0;
+  const statsOfficePercent = statsSplitTotal > 0 ? Math.abs(totals.office) / statsSplitTotal * 100 : 0;
 
   // Print-column picker — operators asked for the ability to pick which
   // columns to show on the printed πινάκιο (some just want carrier /
@@ -347,6 +385,17 @@ export function OverCommissionStatementsPage() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 
+      <Stack direction="row" justifyContent="flex-end" mb={1}>
+        <Button
+          variant="contained"
+          startIcon={<BarChartIcon />}
+          onClick={() => setStatsOpen(true)}
+          sx={{ fontWeight: 800, borderRadius: 2 }}
+        >
+          Στατιστικά
+        </Button>
+      </Stack>
+
       {/* ── Totals strip — mirrors the ERGO πινάκιο 1:1 ────────────
           Row 1: the four money columns straight off the carrier statement
                  (ΜΙΚΤΑ ασφάλιστρα · ΚΑΘΑΡΑ ασφάλιστρα · ΠΡΟΜ.ΣΥΝΕΡΓΑΤΗ ·
@@ -354,7 +403,7 @@ export function OverCommissionStatementsPage() {
                  shown here against the ERGO PDF footer without doing math.
           Row 2: how the over-commission bonus is split (producer vs office),
                  plus the paid/unpaid slice — the operational view. */}
-      {(() => {
+      <Box sx={{ display: "none" }}>{(() => {
         const denom = Math.abs(totals.overCommissionGross);
         const pct = (v: number) => denom > 0 ? `${((v / totals.overCommissionGross) * 100).toFixed(1)}%` : "—";
         const pctFmt = (v: number) => denom > 0 ? `${moneyFmt.format(v)}  ·  ${pct(v)}` : moneyFmt.format(v);
@@ -380,7 +429,7 @@ export function OverCommissionStatementsPage() {
             </Box>
           </>
         );
-      })()}
+      })()}</Box>
 
       {/* Filters — dense 4-col grid, ~2 lines on desktop (9 controls +
           clear + counter). Exports moved to their own row above so the
@@ -600,6 +649,89 @@ export function OverCommissionStatementsPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={statsOpen} onClose={() => setStatsOpen(false)} fullWidth maxWidth="lg">
+        <DialogTitle sx={{ fontWeight: 800 }}>Στατιστικά υπερπρομηθειών</DialogTitle>
+        <DialogContent dividers>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} mb={2}>
+            <Button variant={statsDimension === "producer" ? "contained" : "outlined"} onClick={() => { setStatsDimension("producer"); setSelectedStatsGroup(null); }}>Ανά συνεργάτη</Button>
+            <Button variant={statsDimension === "month" ? "contained" : "outlined"} onClick={() => { setStatsDimension("month"); setSelectedStatsGroup(null); }}>Ανά περίοδο</Button>
+            <Button variant={statsDimension === "carrier" ? "contained" : "outlined"} onClick={() => { setStatsDimension("carrier"); setSelectedStatsGroup(null); }}>Ανά ασφαλιστική</Button>
+          </Stack>
+
+          <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, mb: 2 }}>
+            <Kpi label="Μικτά ασφάλιστρα (βάση)" value={moneyFmt.format(totals.basePremiumsGross)} />
+            <Kpi label="Καθαρά ασφάλιστρα (βάση)" value={moneyFmt.format(totals.basePremiumsNet)} />
+            <Kpi label="Προμήθεια συνεργάτη (άμεση)" value={moneyFmt.format(totals.producerDirect)} />
+            <Kpi label="Υπερπρομήθεια (bonus)" value={moneyFmt.format(totals.overCommissionGross)} color="info.main" />
+            <Kpi label="Στον παραγωγό (€ · %)" value={`${moneyFmt.format(totals.producer)} · ${statsSplitTotal > 0 ? statsProducerPercent.toFixed(1) : "0.0"}%`} color="success.main" />
+            <Kpi label="Στην έδρα / υπερπρομήθεια (€ · %)" value={`${moneyFmt.format(totals.office)} · ${statsSplitTotal > 0 ? statsOfficePercent.toFixed(1) : "0.0"}%`} color="info.main" />
+            <Kpi label="Πληρωμένες γραμμές" value={`${totals.paidCount} / ${rows.length}`} />
+            <Kpi label="Απλήρωτο (bonus)" value={moneyFmt.format(totals.unpaidGross)} color="warning.main" />
+          </Box>
+
+          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 2fr) minmax(280px, 1fr)" } }}>
+            <Card variant="outlined" sx={{ p: 2, minHeight: 360 }}>
+              <Typography fontWeight={800} mb={1}>Ροή ποσών ανά {statsDimension === "producer" ? "συνεργάτη" : statsDimension === "month" ? "περίοδο" : "ασφαλιστική"}</Typography>
+              {statsChartData.length === 0 ? (
+                <Typography color="text.secondary" sx={{ py: 10, textAlign: "center" }}>Δεν υπάρχουν δεδομένα για τα επιλεγμένα φίλτρα.</Typography>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={statsChartData} margin={{ top: 8, right: 12, left: 8, bottom: 8 }} onClick={(state) => {
+                    const key = (state as { activePayload?: Array<{ payload?: { key?: string } }> } | undefined)?.activePayload?.[0]?.payload?.key;
+                    if (key) setSelectedStatsGroup(key);
+                  }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#d9e2ec" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-18} textAnchor="end" height={56} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(value: number) => moneyFmt.format(value)} width={82} />
+                    <RechartsTooltip formatter={(value) => moneyFmt.format(Number(value ?? 0))} />
+                    <Legend />
+                    <Bar dataKey="gross" name="Υπερπρομήθεια" fill="#1f7bb3" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="producer" name="Συνεργάτης" fill="#2e7d32" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="office" name="Έδρα" fill="#0b2545" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+              {selectedStats && (
+                <Box sx={{ mt: 1, p: 1.25, borderRadius: 1.5, bgcolor: "action.hover" }}>
+                  <Typography variant="caption" color="text.secondary">Επιλεγμένη ομάδα</Typography>
+                  <Typography fontWeight={800}>{selectedStats.key}</Typography>
+                  <Stack direction="row" spacing={2} flexWrap="wrap" mt={0.5}>
+                    <Typography variant="body2">Bonus: <b>{moneyFmt.format(selectedStats.summary.gross)}</b></Typography>
+                    <Typography variant="body2">Συνεργάτης: <b>{moneyFmt.format(selectedStats.summary.producer)}</b></Typography>
+                    <Typography variant="body2">Έδρα: <b>{moneyFmt.format(selectedStats.summary.office)}</b></Typography>
+                  </Stack>
+                </Box>
+              )}
+            </Card>
+
+            <Card variant="outlined" sx={{ p: 2, minHeight: 360 }}>
+              <Typography fontWeight={800} mb={1}>Καταμερισμός υπερπρομήθειας</Typography>
+              <ResponsiveContainer width="100%" height={230}>
+                <PieChart>
+                  <Pie data={[{ name: "Συνεργάτης", value: Math.abs(totals.producer) }, { name: "Έδρα", value: Math.abs(totals.office) }]} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={78} innerRadius={42} paddingAngle={3} label>
+                    <Cell fill="#2e7d32" />
+                    <Cell fill="#0b2545" />
+                  </Pie>
+                  <RechartsTooltip formatter={(value) => moneyFmt.format(Number(value ?? 0))} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+              <Box sx={{ height: 12, display: "flex", borderRadius: 99, overflow: "hidden", bgcolor: "action.hover" }}>
+                <Box sx={{ width: `${statsProducerPercent}%`, bgcolor: "success.main", transition: "width 250ms ease" }} />
+                <Box sx={{ width: `${statsOfficePercent}%`, bgcolor: "primary.dark", transition: "width 250ms ease" }} />
+              </Box>
+              <Stack direction="row" justifyContent="space-between" mt={1}>
+                <Typography variant="caption" color="success.dark">Συνεργάτης {statsProducerPercent.toFixed(1)}%</Typography>
+                <Typography variant="caption" color="primary.dark">Έδρα {statsOfficePercent.toFixed(1)}%</Typography>
+              </Stack>
+            </Card>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setStatsOpen(false)} color="error">Κλείσιμο</Button>
+        </DialogActions>
+      </Dialog>
 
       <EntryDialog
         open={!!dialog}
