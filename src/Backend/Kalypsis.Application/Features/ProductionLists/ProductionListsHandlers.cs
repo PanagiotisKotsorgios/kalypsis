@@ -3,6 +3,7 @@ using System.Text;
 using ClosedXML.Excel;
 using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common;
+using Kalypsis.Application.Common.Exports;
 using Kalypsis.Domain.Entities;
 using Kalypsis.Domain.Enums;
 using MediatR;
@@ -554,7 +555,7 @@ public static class ProductionListBuilder
 /* ============================================================================
    EXPORTS — CSV / XLSX / PDF
    ========================================================================= */
-public record ExportProductionListQuery(ProductionFilters Filters, string Format) : IRequest<ExportResult>;
+public record ExportProductionListQuery(ProductionFilters Filters, string Format, string? Columns = null) : IRequest<ExportResult>;
 public record ExportResult(byte[] Content, string MimeType, string FileName);
 
 public class ExportProductionListHandler : IRequestHandler<ExportProductionListQuery, ExportResult>
@@ -569,6 +570,21 @@ public class ExportProductionListHandler : IRequestHandler<ExportProductionListQ
         var rows = await ProductionListBuilder.BuildRowsAsync(_db, tenantId, q.Filters, ct);
         var ts = DateTime.UtcNow.ToString("yyyyMMdd-HHmm");
 
+        // When the table sends its active column list, use the shared
+        // formatter so CSV/XLSX/PDF contain exactly those columns (including
+        // the same office header and total-row styling as every other list).
+        if (!string.IsNullOrWhiteSpace(q.Columns))
+        {
+            var sheet = await BuildSelectedSheetAsync(rows, q.Columns!, ct);
+            return q.Format.ToLowerInvariant() switch
+            {
+                "csv"  => new ExportResult(ExportFormatter.BuildCsv(sheet), "text/csv", $"production-{ts}.csv"),
+                "xlsx" => new ExportResult(ExportFormatter.BuildXlsx(sheet), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"production-{ts}.xlsx"),
+                "pdf"  => new ExportResult(ExportFormatter.BuildPdf(sheet), "application/pdf", $"production-{ts}.pdf"),
+                _ => throw new AppException("export_format_unsupported", $"Μη υποστηριζόμενη μορφή: {q.Format}", 400)
+            };
+        }
+
         return q.Format.ToLowerInvariant() switch
         {
             "csv"   => new ExportResult(BuildCsv(rows), "text/csv", $"production-{ts}.csv"),
@@ -580,6 +596,90 @@ public class ExportProductionListHandler : IRequestHandler<ExportProductionListQ
                 why: "Δεκτά: csv, xlsx, pdf.",
                 fix: "Επιλέξτε ξανά από το dropdown εξαγωγής.")
         };
+    }
+
+    private async Task<Sheet> BuildSelectedSheetAsync(List<ProductionRowDto> rows, string columns, CancellationToken ct)
+    {
+        var all = new (string Key, string Label)[]
+        {
+            ("policyNumber", "Αρ. συμβολαίου"), ("startDate", "Έναρξη"), ("duration", "Διάρκεια"),
+            ("endDate", "Λήξη"), ("customerName", "Πελάτης"), ("carrier", "Εταιρεία"),
+            ("producer", "Συνεργάτης"), ("type", "Κλάδος"), ("use", "Χρήση"),
+            ("cover", "Καλύψεις"), ("status", "Κατάσταση"), ("gross", "Μικτά"),
+            ("net", "Καθαρά"), ("vat", "Φόρος ασφαλίστρων"), ("bridgeComm", "Προμ. έδρας πριν την κατανομή"),
+            ("partnerPct", "Ποσοστό συνεργάτη"), ("partner", "Προμ. συνεργάτη"),
+            ("agency", "Προμ. έδρας"), ("check", "Έλεγχος")
+        };
+        var requested = columns.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var selected = all.Where(x => requested.Contains(x.Key, StringComparer.OrdinalIgnoreCase)).ToArray();
+        if (selected.Length == 0) selected = all;
+
+        var groups = GroupForExport(rows);
+        var output = new List<IReadOnlyList<string>>();
+        foreach (var group in groups)
+        {
+            output.AddRange(group.Select(row => selected.Select(x => Value(x.Key, row)).ToArray()));
+            output.Add(selected.Select(x => SummaryValue(x.Key, group.Key, group.ToList())).ToArray());
+        }
+        output.Add(selected.Select(x => SummaryValue(x.Key, "", rows)).ToArray());
+
+        var office = _current.AgencyOfficeId.HasValue
+            ? await _db.AgencyOffices.AsNoTracking().Where(x => x.Id == _current.AgencyOfficeId.Value)
+                .Select(x => new { x.Name, x.Address, x.City, x.PostalCode, x.Email, x.Phone }).FirstOrDefaultAsync(ct)
+            : null;
+        var tenant = await _db.Tenants.AsNoTracking().Where(x => x.Id == _current.TenantId!.Value)
+            .Select(x => new { x.Name, x.AddressLine, x.ContactEmail, x.ContactPhone, x.VatNumber }).FirstOrDefaultAsync(ct);
+        var label = office?.Name ?? tenant?.Name;
+        var details = new[]
+        {
+            office is null ? tenant?.AddressLine : string.Join(", ", new[] { office.Address, office.City, office.PostalCode }.Where(x => !string.IsNullOrWhiteSpace(x))),
+            office?.Phone ?? tenant?.ContactPhone, office?.Email ?? tenant?.ContactEmail,
+            string.IsNullOrWhiteSpace(tenant?.VatNumber) ? null : $"ΑΦΜ: {tenant!.VatNumber}"
+        }.Where(x => !string.IsNullOrWhiteSpace(x));
+        return new Sheet("Λίστες παραγωγής", selected.Select(x => x.Label).ToArray(), output,
+            $"{rows.Count} συμβόλαια", label, string.Join(" · ", details));
+
+        static string Value(string key, ProductionRowDto r) => key switch
+        {
+            "policyNumber" => r.PolicyNumber,
+            "startDate" => r.StartDate.ToString("yyyy-MM-dd"),
+            "duration" => Duration(r.StartDate, r.EndDate),
+            "endDate" => r.EndDate.ToString("yyyy-MM-dd"),
+            "customerName" => r.CustomerName,
+            "carrier" => r.InsuranceCompany,
+            "producer" => r.Producer ?? "",
+            "type" => r.PolicyType,
+            "use" => r.VehicleUseCategory?.ToString() ?? "",
+            "cover" => string.Join(", ", r.CoverageCodes),
+            "status" => r.Status,
+            "gross" => F(r.Gross),
+            "net" => F(r.Net),
+            "vat" => F(r.Vat),
+            "bridgeComm" => $"{F(r.IncomingAgencyCommission)} ({r.IncomingAgencyCommissionPercent:F1}%)",
+            "partnerPct" => $"{r.PartnerCommissionPercent:F1}%",
+            "partner" => F(r.PartnerCommission),
+            "agency" => F(r.AgencyCommission),
+            "check" => r.CommissionWarning ?? "OK",
+            _ => ""
+        };
+        static string SummaryValue(string key, string group, IReadOnlyCollection<ProductionRowDto> source) => key switch
+        {
+            "policyNumber" => string.IsNullOrWhiteSpace(group) ? "ΣΥΝΟΛΑ" : $"ΥΠΟΣΥΝΟΛΟ {group}",
+            "status" => $"{source.Count} συμβόλαια",
+            "gross" => F(source.Sum(x => x.Gross)),
+            "net" => F(source.Sum(x => x.Net)),
+            "vat" => F(source.Sum(x => x.Vat)),
+            "partner" => F(source.Sum(x => x.PartnerCommission)),
+            "agency" => F(source.Sum(x => x.AgencyCommission)),
+            _ => ""
+        };
+        static string Duration(DateOnly start, DateOnly end)
+        {
+            var months = (end.Year - start.Year) * 12 + end.Month - start.Month;
+            if (end.Day < start.Day) months--;
+            return $"{Math.Max(0, months)} μήνες";
+        }
+        static string F(decimal value) => value.ToString("F2", CultureInfo.InvariantCulture);
     }
 
     // Rows are always written carrier-by-carrier (alphabetical), customer-alphabetical
@@ -690,7 +790,8 @@ public class ExportProductionListHandler : IRequestHandler<ExportProductionListQ
             ws.Cell(sub, 13).FormulaA1 = $"=SUM(M{groupStart}:M{sub - 1})";
             ws.Cell(sub, 15).FormulaA1 = $"=SUM(O{groupStart}:O{sub - 1})";
             ws.Range(sub, 1, sub, 15).Style.Font.Bold = true;
-            ws.Range(sub, 1, sub, 15).Style.Fill.BackgroundColor = XLColor.FromHtml("#f5f8fc");
+            ws.Range(sub, 1, sub, 15).Style.Fill.BackgroundColor = XLColor.FromHtml("#e8f5e9");
+            ws.Range(sub, 1, sub, 15).Style.Font.FontColor = XLColor.FromHtml("#1b5e20");
             ws.Range(sub, 1, sub, 15).Style.Border.TopBorder = XLBorderStyleValues.Thin;
             cur = sub + 1;
             // visual gap between groups
@@ -710,7 +811,7 @@ public class ExportProductionListHandler : IRequestHandler<ExportProductionListQ
         ws.Cell(tot, 13).Value = (double)rows.Sum(x => x.PartnerCommission);
         ws.Cell(tot, 15).Value = (double)rows.Sum(x => x.AgencyCommission);
         ws.Range(tot, 1, tot, 15).Style.Font.Bold = true;
-        ws.Range(tot, 1, tot, 15).Style.Fill.BackgroundColor = XLColor.FromHtml("#0b2545");
+        ws.Range(tot, 1, tot, 15).Style.Fill.BackgroundColor = XLColor.FromHtml("#2e7d32");
         ws.Range(tot, 1, tot, 15).Style.Font.FontColor = XLColor.White;
         ws.Range(tot, 1, tot, 15).Style.Border.TopBorder = XLBorderStyleValues.Double;
 
@@ -794,7 +895,7 @@ public class ExportProductionListHandler : IRequestHandler<ExportProductionListQ
                         }
 
                         // Per-carrier subtotal
-                        t.Cell().Background("#f5f8fc").Padding(4).Text($"ΣΥΝΟΛΟ {grp.Key}").Bold();
+                        t.Cell().Background("#e8f5e9").Padding(4).Text($"ΣΥΝΟΛΟ {grp.Key}").FontColor("#1b5e20").Bold();
                         t.Cell().Background("#f5f8fc").Padding(4).Text("");
                         t.Cell().Background("#f5f8fc").Padding(4).Text("");
                         t.Cell().Background("#f5f8fc").Padding(4).Text("");

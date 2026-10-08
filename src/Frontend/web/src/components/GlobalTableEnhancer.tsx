@@ -174,10 +174,15 @@ function exportTable(table: HTMLTableElement, kind: "csv" | "xlsx" | "print"): v
 
   const title = (document.title || "Kalypsis") + " — " + new Date().toLocaleString("el-GR");
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const officeName = document.querySelector<HTMLElement>("[data-export-office-name]")?.dataset.exportOfficeName || "";
+  const officeDetails = document.querySelector<HTMLElement>("[data-export-office-details]")?.dataset.exportOfficeDetails || "";
+  const brandedRowsData = officeName || officeDetails
+    ? [[officeName || "Kalypsis"], [officeDetails], [], ...rowsData]
+    : rowsData;
 
   if (kind === "csv") {
     const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
-    const csv = "﻿" + rowsData.map(r => r.map(esc).join(";")).join("\r\n");
+    const csv = "﻿" + brandedRowsData.map(r => r.map(esc).join(";")).join("\r\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -188,10 +193,27 @@ function exportTable(table: HTMLTableElement, kind: "csv" | "xlsx" | "print"): v
 
   if (kind === "xlsx") {
     void import("xlsx").then(XLSX => {
-      const ws = XLSX.utils.aoa_to_sheet(rowsData);
+      const ws = XLSX.utils.aoa_to_sheet(brandedRowsData);
+      const range = ws["!ref"] ? XLSX.utils.decode_range(ws["!ref"]) : null;
+      if (range) {
+        const headerRow = officeName || officeDetails ? 3 : 0;
+        for (let r = range.s.r; r <= range.e.r; r++) {
+          const first = ws[XLSX.utils.encode_cell({ r, c: 0 })] as any;
+          const isTotal = r > headerRow && /σύνολο|υποσύνολο|total|subtotal/i.test(String(first?.v ?? ""));
+          for (let c = range.s.c; c <= range.e.c; c++) {
+            const cell = ws[XLSX.utils.encode_cell({ r, c })] as any;
+            if (!cell) continue;
+            cell.s = r === headerRow
+              ? { fill: { fgColor: { rgb: "0B2545" } }, font: { bold: true, color: { rgb: "FFFFFF" } }, border: { right: { style: "thin", color: { rgb: "49627D" } } } }
+              : isTotal
+                ? { fill: { fgColor: { rgb: "E8F5E9" } }, font: { bold: true, color: { rgb: "1B5E20" } }, border: { right: { style: "thin", color: { rgb: "66BB6A" } } } }
+                : { fill: { fgColor: { rgb: r % 2 === 0 ? "FFFFFF" : "F4F6FA" } }, border: { right: { style: "thin", color: { rgb: "D9E2EC" } }, bottom: { style: "thin", color: { rgb: "E5E7EB" } } } };
+          }
+        }
+      }
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Data");
-      XLSX.writeFile(wb, `kalypsis-table_${stamp}.xlsx`);
+      XLSX.writeFile(wb, `kalypsis-table_${stamp}.xlsx`, { cellStyles: true });
     });
     return;
   }
@@ -201,17 +223,21 @@ function exportTable(table: HTMLTableElement, kind: "csv" | "xlsx" | "print"): v
     <style>
       body{font-family:Arial,sans-serif;padding:24px;color:#111}
       h1{font-size:16px;margin:0 0 12px;font-weight:600}
+      .office{margin:0 0 12px;padding:7px 10px;border-left:4px solid #1976d2;background:#f4f8fc;color:#18324f;font-size:11px}
       table{width:100%;border-collapse:collapse;font-size:11px}
-      th,td{border:1px solid #ccc;padding:5px 7px;text-align:left;vertical-align:top}
+      th,td{border:1px solid #d9e2ec;padding:5px 7px;text-align:left;vertical-align:top}
       th{background:#0b2545;color:#fff;font-weight:600}
       tr:nth-child(even) td{background:#fafbfc}
+      tr.total-row td{background:#e8f5e9!important;color:#1b5e20;font-weight:800;border-top:2px solid #66bb6a}
       @media print{ @page { size: A4 landscape; margin: 12mm } }
     </style></head><body>
     <h1>${escapeHtml(title)}</h1>
+    ${officeName || officeDetails ? `<div class="office"><strong>${escapeHtml(officeName)}</strong>${officeDetails ? `<br>${escapeHtml(officeDetails)}` : ""}</div>` : ""}
     <table>
       ${rowsData.map((r, i) => {
         const tag = i === 0 ? "th" : "td";
-        return `<tr>${r.map(c => `<${tag}>${escapeHtml(c)}</${tag}>`).join("")}</tr>`;
+        const total = i > 0 && /σύνολο|υποσύνολο|total|subtotal/i.test(r[0] || "");
+        return `<tr${total ? " class=\"total-row\"" : ""}>${r.map(c => `<${tag}>${escapeHtml(c)}</${tag}>`).join("")}</tr>`;
       }).join("")}
     </table>
     <script>window.onload=()=>setTimeout(()=>window.print(),120);</script>

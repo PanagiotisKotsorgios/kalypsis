@@ -15,7 +15,8 @@ public record Sheet(
     IReadOnlyList<string> Headers,
     IReadOnlyList<IReadOnlyList<string>> Rows,
     string? Subtitle = null,
-    string? TenantLabel = null);
+    string? TenantLabel = null,
+    string? OfficeDetails = null);
 
 public static class ExportFormatter
 {
@@ -30,6 +31,12 @@ public static class ExportFormatter
     public static byte[] BuildCsv(Sheet sheet)
     {
         var sb = new StringBuilder();
+        if (!string.IsNullOrWhiteSpace(sheet.TenantLabel))
+            sb.AppendLine(Quote(sheet.TenantLabel!));
+        if (!string.IsNullOrWhiteSpace(sheet.OfficeDetails))
+            sb.AppendLine(Quote(sheet.OfficeDetails!));
+        if (!string.IsNullOrWhiteSpace(sheet.TenantLabel) || !string.IsNullOrWhiteSpace(sheet.OfficeDetails))
+            sb.AppendLine();
         sb.AppendLine(string.Join(",", sheet.Headers.Select(Quote)));
         foreach (var r in sheet.Rows)
             sb.AppendLine(string.Join(",", r.Select(Quote)));
@@ -67,6 +74,7 @@ public static class ExportFormatter
 
         var subtitleParts = new List<string> { $"Εξαγωγή: {DateTime.UtcNow:dd/MM/yyyy HH:mm} UTC", $"{sheet.Rows.Count} γραμμές" };
         if (!string.IsNullOrWhiteSpace(sheet.TenantLabel)) subtitleParts.Insert(0, sheet.TenantLabel!);
+        if (!string.IsNullOrWhiteSpace(sheet.OfficeDetails)) subtitleParts.Insert(1, sheet.OfficeDetails!);
         if (!string.IsNullOrWhiteSpace(sheet.Subtitle)) subtitleParts.Add(sheet.Subtitle!);
         ws.Cell(2, 1).Value = string.Join(" · ", subtitleParts);
         ws.Cell(2, 1).Style.Font.Italic = true;
@@ -80,6 +88,8 @@ public static class ExportFormatter
             c.Style.Fill.BackgroundColor = XLColor.FromHtml("#0b2545");
             c.Style.Font.FontColor = XLColor.White;
             c.Style.Alignment.WrapText = true;
+            c.Style.Border.RightBorder = XLBorderStyleValues.Thin;
+            c.Style.Border.RightBorderColor = XLColor.FromHtml("#49627d");
         }
 
         for (int rIdx = 0; rIdx < sheet.Rows.Count; rIdx++)
@@ -90,6 +100,24 @@ public static class ExportFormatter
             {
                 ws.Range(5 + rIdx, 1, 5 + rIdx, lastCol).Style
                     .Fill.SetBackgroundColor(XLColor.FromHtml("#f4f6fa"));
+            }
+
+            for (int cIdx = 0; cIdx < sheet.Rows[rIdx].Count; cIdx++)
+            {
+                var cell = ws.Cell(5 + rIdx, cIdx + 1);
+                cell.Style.Border.RightBorder = XLBorderStyleValues.Thin;
+                cell.Style.Border.RightBorderColor = XLColor.FromHtml("#d9e2ec");
+                cell.Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+                cell.Style.Border.BottomBorderColor = XLColor.FromHtml("#e5e7eb");
+            }
+            if (IsTotalRow(sheet.Rows[rIdx]))
+            {
+                var totalRange = ws.Range(5 + rIdx, 1, 5 + rIdx, lastCol);
+                totalRange.Style.Font.Bold = true;
+                totalRange.Style.Font.FontColor = XLColor.FromHtml("#1b5e20");
+                totalRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#e8f5e9");
+                totalRange.Style.Border.TopBorder = XLBorderStyleValues.Thin;
+                totalRange.Style.Border.TopBorderColor = XLColor.FromHtml("#66bb6a");
             }
         }
 
@@ -140,6 +168,7 @@ public static class ExportFormatter
                     col.Item().Text($"Kalypsis — {sheet.Title}").FontSize(16).Bold();
                     var subtitleParts = new List<string> { $"Εξαγωγή: {DateTime.UtcNow:dd/MM/yyyy HH:mm} UTC", $"{sheet.Rows.Count} γραμμές" };
                     if (!string.IsNullOrWhiteSpace(sheet.TenantLabel)) subtitleParts.Insert(0, sheet.TenantLabel!);
+                    if (!string.IsNullOrWhiteSpace(sheet.OfficeDetails)) subtitleParts.Insert(1, sheet.OfficeDetails!);
                     if (!string.IsNullOrWhiteSpace(sheet.Subtitle)) subtitleParts.Add(sheet.Subtitle!);
                     col.Item().Text(string.Join(" · ", subtitleParts)).FontSize(9).Italic();
                 });
@@ -160,9 +189,14 @@ public static class ExportFormatter
                     var rowIndex = 0;
                     foreach (var row in sheet.Rows)
                     {
-                        var bg = rowIndex++ % 2 == 1 ? "#f4f6fa" : "#ffffff";
+                        var isTotal = IsTotalRow(row);
+                        var bg = isTotal ? "#e8f5e9" : (rowIndex++ % 2 == 1 ? "#f4f6fa" : "#ffffff");
                         foreach (var cell in row)
-                            t.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#dadada").Padding(3).Text(cell ?? "");
+                            t.Cell().Background(bg).Border(0.5f).BorderColor(isTotal ? "#66bb6a" : "#d9e2ec").Padding(3).Text(text =>
+                            {
+                                if (isTotal) text.Span(cell ?? "").FontColor("#1b5e20").Bold();
+                                else text.Span(cell ?? "");
+                            });
                     }
                 });
 
@@ -203,6 +237,16 @@ public static class ExportFormatter
     public static string FormatDate(DateOnly? value) => value?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "";
     public static string FormatDate(DateOnly value) => value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     public static string FormatDateTime(DateTime? value) => value?.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) ?? "";
+
+    private static bool IsTotalRow(IReadOnlyList<string> row)
+    {
+        if (row.Count == 0) return false;
+        var first = row[0] ?? "";
+        return first.Contains("ΣΥΝΟΛ", StringComparison.OrdinalIgnoreCase)
+            || first.Contains("ΥΠΟΣΥΝΟΛ", StringComparison.OrdinalIgnoreCase)
+            || first.Contains("TOTAL", StringComparison.OrdinalIgnoreCase)
+            || first.Contains("SUBTOTAL", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static string SafeSheetName(string raw)
     {

@@ -136,6 +136,14 @@ export function OverCommissionStatementsPage() {
     queryKey: ["producers-min"],
     queryFn: async () => (await api.get<Producer[]>("/producers")).data
   });
+  const officeQ = useQuery({
+    queryKey: ["agency-profile", "export"],
+    queryFn: async () => (await api.get<{
+      name?: string | null; code?: string | null; contactEmail?: string | null;
+      contactPhone?: string | null; addressLine?: string | null; vatNumber?: string | null;
+    }>("/agency-profile")).data,
+    staleTime: 5 * 60 * 1000,
+  });
   const listQ = useQuery({
     queryKey: ["over-commission-statements", year, month, carrierFilter, producerFilter, search],
     queryFn: async () => (await api.get<StatementDto[]>("/over-commission-statements", { params: {
@@ -280,21 +288,35 @@ export function OverCommissionStatementsPage() {
   /** Export the currently-filtered rows in CSV / XLSX / print. */
   const exportRows = (kind: "csv" | "xlsx" | "print") => {
     if (rows.length === 0) { setError("Δεν υπάρχουν γραμμές για εξαγωγή."); return; }
-    // Print uses whatever the operator ticked; CSV/XLSX keep the full 13-col
-    // set — you'd never want a partial export of a bookkeeping sheet.
-    const activeCols = kind === "print"
-      ? PRINT_COLS.filter(c => selectedPrintCols.has(c.key))
-      : PRINT_COLS;
-    if (kind === "print" && activeCols.length === 0) {
+    // Every format uses the same columns selected for the visible statement
+    // table, so print, CSV and Excel never drift apart.
+    const activeCols = PRINT_COLS.filter(c => selectedPrintCols.has(c.key));
+    if (activeCols.length === 0) {
       setError("Επιλέξτε τουλάχιστον μία στήλη για εκτύπωση.");
       return;
     }
     const headers = activeCols.map(c => c.label);
     const data = rows.map(r => activeCols.map(c => c.get(r)));
     const numericFlags = activeCols.map(c => !!c.numeric);
+    const office = officeQ.data;
+    const officeDetails = [office?.addressLine, office?.contactPhone, office?.contactEmail,
+      office?.vatNumber ? `ΑΦΜ: ${office.vatNumber}` : null,
+      office?.code ? `Κωδικός: ${office.code}` : null]
+      .filter(Boolean).join(" · ");
+    const totalValues: Record<string, string | number> = {
+      year: "Σύνολα", gross: totals.basePremiumsGross, net: totals.basePremiumsNet,
+      producerAmount: totals.producer, officeAmount: totals.office,
+      paidOn: `${totals.paidCount}/${rows.length}`
+    };
+    const totalData = activeCols.map(c => totalValues[c.key] ?? "");
     if (kind === "csv") {
       const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-      const lines = [headers.join(";"), ...data.map(row => row.map(esc).join(";"))];
+      const lines = [
+        esc(office?.name ?? "Kalypsis"), esc(officeDetails),
+        esc(`Υπερπρομήθειες ${year}${month ? `/${String(month).padStart(2, "0")}` : ""}`), "",
+        headers.map(esc).join(";"), ...data.map(row => row.map(esc).join(";")),
+        totalData.map(esc).join(";"), "© Kalypsis · https://mykalypsis.gr"
+      ];
       const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -307,7 +329,16 @@ export function OverCommissionStatementsPage() {
     if (kind === "xlsx") {
       // Load SheetJS lazily so this page doesn't pull it on first paint.
       import("xlsx").then(XLSX => {
-        const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+        const ws = XLSX.utils.aoa_to_sheet([
+          [office?.name ?? "Kalypsis"], [officeDetails],
+          [`Υπερπρομήθειες ${year}${month ? `/${String(month).padStart(2, "0")}` : ""}`], [],
+          headers, ...data, totalData
+        ]);
+        const totalRow = 5 + data.length;
+        for (let c = 0; c < headers.length; c++) {
+          const cell = ws[XLSX.utils.encode_cell({ r: totalRow - 1, c })];
+          if (cell) cell.s = { fill: { fgColor: { rgb: "E8F5E9" } }, font: { bold: true, color: { rgb: "1B5E20" } } };
+        }
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Υπερπρομήθειες");
         XLSX.writeFile(wb, `overcommissions_${year}${month ? "-" + String(month).padStart(2,"0") : ""}.xlsx`);
@@ -321,17 +352,20 @@ export function OverCommissionStatementsPage() {
         h1{font-size:18px;margin:0 0 10px}
         table{width:100%;border-collapse:collapse;font-size:11px}
         th,td{border:1px solid #ccc;padding:5px 7px;text-align:left}
-        th{background:#0b2545;color:#fff;font-weight:600}
+        th{background:#0b2545;color:#fff;font-weight:600;border-right:1px solid #49627d}
+        td+td,th+th{border-left:1px solid #d9e2ec}
         td.num{text-align:right;font-family:Consolas,monospace}
-        tfoot td{background:#f5f5f5;font-weight:700}
+        tfoot td{background:#e8f5e9;color:#1b5e20;font-weight:700;border-top:2px solid #66bb6a}
         @media print{ @page { size: A4 landscape; margin: 12mm } }
       </style></head><body>
       <h1>Υπερπρομήθειες παραγωγών · ${year}${month ? "/" + String(month).padStart(2,"0") : ""}
           · ${rows.length} γραμμές · Έδρα: ${moneyFmt.format(totals.office)}</h1>
+      <div class="office">${office?.name ?? "Kalypsis"}${officeDetails ? ` · ${officeDetails}` : ""}</div>
       <table>
         <thead><tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr></thead>
         <tbody>${data.map(r => `<tr>${r.map((v,i)=>
           `<td class="${numericFlags[i]?"num":""}">${v ?? ""}</td>`).join("")}</tr>`).join("")}</tbody>
+        <tfoot><tr>${totalData.map((v,i)=>`<td class="${numericFlags[i]?"num":""}">${v ?? ""}</td>`).join("")}</tr></tfoot>
       </table>
       <script>window.onload=()=>setTimeout(()=>window.print(),100);</script>
       </body></html>`;
@@ -449,8 +483,8 @@ export function OverCommissionStatementsPage() {
         <DialogTitle>Στήλες προς εκτύπωση</DialogTitle>
         <DialogContent>
           <Typography variant="caption" color="text.secondary" mb={1} display="block">
-            Επιλέξτε ποιές στήλες θέλετε να τυπωθούν στο πινάκιο. Οι εξαγωγές CSV/XLSX
-            περιέχουν πάντα όλες τις στήλες. Η επιλογή αποθηκεύεται τοπικά.
+            Επιλέξτε ποιες στήλες θέλετε να εμφανίζονται στο πινάκιο και στις εξαγωγές CSV/XLSX.
+            Η επιλογή αποθηκεύεται τοπικά.
           </Typography>
           <Stack>
             {PRINT_COLS.map(c => (

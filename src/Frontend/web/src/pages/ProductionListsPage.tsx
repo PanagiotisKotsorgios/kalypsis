@@ -192,6 +192,14 @@ export function ProductionListsPage() {
     queryKey: ["production-list", params],
     queryFn: async () => (await api.get<Result>("/production-lists", { params })).data
   });
+  const officeProfile = useQuery({
+    queryKey: ["agency-profile"],
+    queryFn: async () => (await api.get<{
+      name?: string | null; code?: string | null; contactEmail?: string | null;
+      contactPhone?: string | null; addressLine?: string | null; vatNumber?: string | null;
+    }>("/agency-profile")).data,
+    staleTime: 5 * 60 * 1000,
+  });
 
   // Single source of truth for the production-lists table columns. Every
   // column carries a display renderer, a plain-text extractor (for Print &
@@ -453,6 +461,15 @@ export function ProductionListsPage() {
                      : f.groupBy === "type"     ? "Κλάδος"
                      : "Μήνας";
       const lines: string[] = [];
+      const office = (await api.get<{
+        name?: string | null; addressLine?: string | null; contactPhone?: string | null;
+        contactEmail?: string | null; vatNumber?: string | null;
+      }>("/agency-profile")).data;
+      const officeDetails = [office.addressLine, office.contactPhone, office.contactEmail,
+        office.vatNumber ? `ΑΦΜ: ${office.vatNumber}` : null].filter(Boolean).join(" · ");
+      lines.push(esc(office.name ?? "Kalypsis"));
+      if (officeDetails) lines.push(esc(officeDetails));
+      lines.push("");
       for (const s of sections) {
         const totals = groupSummary(s.rows);
         lines.push("");
@@ -484,11 +501,8 @@ export function ProductionListsPage() {
     // older server exporters do not know that synthetic key. Never send it
     // to the API, while keeping it in the on-screen and grouped CSV view.
     const activeKeys = selection.activeKeys;
-    const exportableColumns = columns.filter(c => c.key !== "totals");
     const exportableKeys = activeKeys.filter(key => key !== "totals");
-    const columnsParam = exportableKeys.length > 0 && exportableKeys.length < exportableColumns.length
-      ? exportableKeys.join(",")
-      : undefined;
+    const columnsParam = exportableKeys.length > 0 ? exportableKeys.join(",") : undefined;
     const res = await api.get("/production-lists/export", {
       params: { ...params, format: fmt, columns: columnsParam },
       responseType: "blob"
@@ -533,6 +547,14 @@ export function ProductionListsPage() {
       subtitle: filterBits.join(" · "),
       columns: printCols,
       rows,
+      office: officeProfile.data ? {
+        name: officeProfile.data.name,
+        code: officeProfile.data.code,
+        email: officeProfile.data.contactEmail,
+        phone: officeProfile.data.contactPhone,
+        address: officeProfile.data.addressLine,
+        vatNumber: officeProfile.data.vatNumber,
+      } : null,
       orientation: "landscape",
       groups: sections.length > 0
         ? sections.map(s => {

@@ -98,6 +98,29 @@ public class ExportProducerSelfCommissionsQueryHandler
             rows,
             request.Year.HasValue ? $"Έτος {request.Year}" : "Όλες οι διαθέσιμες εκκαθαρίσεις");
 
+        var office = _current.AgencyOfficeId.HasValue
+            ? await _db.AgencyOffices.AsNoTracking().Where(x => x.Id == _current.AgencyOfficeId.Value)
+                .Select(x => new { x.Name, x.Address, x.City, x.PostalCode, x.Email, x.Phone })
+                .FirstOrDefaultAsync(ct)
+            : null;
+        var tenant = _current.TenantId.HasValue
+            ? await _db.Tenants.AsNoTracking().Where(x => x.Id == _current.TenantId.Value)
+                .Select(x => new { x.Name, x.AddressLine, x.ContactEmail, x.ContactPhone, x.VatNumber })
+                .FirstOrDefaultAsync(ct)
+            : null;
+        var officeLabel = office?.Name ?? tenant?.Name;
+        if (!string.IsNullOrWhiteSpace(officeLabel))
+        {
+            var officeDetails = new[]
+            {
+                office is null ? tenant?.AddressLine : string.Join(", ", new[] { office.Address, office.City, office.PostalCode }.Where(x => !string.IsNullOrWhiteSpace(x))),
+                office?.Phone ?? tenant?.ContactPhone,
+                office?.Email ?? tenant?.ContactEmail,
+                string.IsNullOrWhiteSpace(tenant?.VatNumber) ? null : $"ΑΦΜ: {tenant!.VatNumber}"
+            }.Where(x => !string.IsNullOrWhiteSpace(x));
+            sheet = sheet with { TenantLabel = officeLabel, OfficeDetails = string.Join(" · ", officeDetails) };
+        }
+
         var format = (request.Format ?? "xlsx").Trim().ToLowerInvariant();
         var suffix = DateTime.UtcNow.ToString("yyyyMMdd-HHmm");
         return format switch

@@ -35,7 +35,8 @@ public record UniversalExportQuery(
     string? Provider = null,
     string? Status = null,
     DateTime? From = null,
-    DateTime? To = null) : IRequest<ExportResult>;
+    DateTime? To = null,
+    string? Columns = null) : IRequest<ExportResult>;
 
 public class UniversalExportHandler : IRequestHandler<UniversalExportQuery, ExportResult>
 {
@@ -54,6 +55,8 @@ public class UniversalExportHandler : IRequestHandler<UniversalExportQuery, Expo
     {
         var entityKey = (q.Entity ?? "").Trim().ToLowerInvariant();
         var sheet = await Dispatch(entityKey, q.Search, q.Channel, q.Provider, q.Status, q.From, q.To, ct);
+        sheet = ApplyColumnSelection(sheet, entityKey, q.Columns);
+        sheet = await AddOfficeBrandingAsync(sheet, ct);
         var ts = DateTime.UtcNow.ToString("yyyyMMdd-HHmm");
         var name = $"{entityKey}-{ts}";
         var fmt = (q.Format ?? "xlsx").Trim().ToLowerInvariant();
@@ -99,6 +102,84 @@ public class UniversalExportHandler : IRequestHandler<UniversalExportQuery, Expo
                 x.Recipient, x.Channel, x.Provider, x.Status, x.Subject ?? "", x.BodyText ?? "", x.ErrorMessage ?? ""
             }).ToList());
     }
+
+    private async Task<Sheet> AddOfficeBrandingAsync(Sheet sheet, CancellationToken ct)
+    {
+        var tenant = _current.TenantId.HasValue
+            ? await _db.Tenants.AsNoTracking()
+                .Where(x => x.Id == _current.TenantId.Value)
+                .Select(x => new { x.Name, x.Code, x.ContactEmail, x.ContactPhone, x.AddressLine, x.VatNumber })
+                .FirstOrDefaultAsync(ct)
+            : null;
+        var office = _current.AgencyOfficeId.HasValue
+            ? await _db.AgencyOffices.AsNoTracking()
+                .Where(x => x.Id == _current.AgencyOfficeId.Value)
+                .Select(x => new { x.Name, x.Code, x.Email, x.Phone, x.Address, x.City, x.PostalCode })
+                .FirstOrDefaultAsync(ct)
+            : null;
+
+        var label = office?.Name ?? tenant?.Name;
+        if (string.IsNullOrWhiteSpace(label)) return sheet;
+
+        var details = new[]
+        {
+            office is null ? tenant?.AddressLine : string.Join(", ", new[] { office.Address, office.City, office.PostalCode }.Where(x => !string.IsNullOrWhiteSpace(x))),
+            office?.Phone ?? tenant?.ContactPhone,
+            office?.Email ?? tenant?.ContactEmail,
+            tenant?.VatNumber is { Length: > 0 } vat ? $"ΑΦΜ: {vat}" : null
+        }.Where(x => !string.IsNullOrWhiteSpace(x));
+
+        return sheet with
+        {
+            TenantLabel = string.IsNullOrWhiteSpace(label) ? tenant?.Name : label,
+            OfficeDetails = string.Join(" · ", details)
+        };
+    }
+
+    private static Sheet ApplyColumnSelection(Sheet sheet, string entity, string? requestedColumns)
+    {
+        if (string.IsNullOrWhiteSpace(requestedColumns) || !ExportColumnKeys.TryGetValue(entity, out var keys))
+            return sheet;
+
+        var requested = requestedColumns.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var indexes = requested
+            .Select(k => Array.IndexOf(keys, k))
+            .Where(i => i >= 0 && i < sheet.Headers.Count)
+            .Distinct()
+            .ToArray();
+        if (indexes.Length == 0) return sheet;
+
+        return sheet with
+        {
+            Headers = indexes.Select(i => sheet.Headers[i]).ToArray(),
+            Rows = sheet.Rows.Select(row => (IReadOnlyList<string>)indexes
+                .Select(i => i < row.Count ? row[i] : "")
+                .ToArray()).ToList()
+        };
+    }
+
+    // Stable keys mirror the columns used by TableToolbar and keep server
+    // exports in exactly the same order as the selected table columns.
+    private static readonly IReadOnlyDictionary<string, string[]> ExportColumnKeys =
+        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["customers"] = new[] { "customerNumber", "type", "name", "vatNumber", "email", "phone", "city", "createdAt", "portal" },
+            ["policies"] = new[] { "policyNumber", "customerDisplay", "insuranceCompanyName", "producerName", "policyType", "status", "startDate", "endDate", "premium", "currency", "createdAt" },
+            ["claims"] = new[] { "claimNumber", "policyNumber", "customerDisplay", "insuranceCompanyName", "policyType", "status", "incidentDate", "reportedDate", "claimedAmount", "approvedAmount" },
+            ["producers"] = new[] { "code", "name", "email", "phone", "status", "tier", "policyCount", "createdAt" },
+            ["insurance-companies"] = new[] { "code", "name", "country", "website", "isActive", "agentCode", "vatNumber", "contactName", "contactEmail", "contactPhone", "notes" },
+            ["commission-rules"] = new[] { "producerName", "producerTier", "insuranceCompanyName", "policyType", "coverCode", "vehicleUseCategory", "agencyPercent", "producerPercent", "effectiveFrom", "effectiveTo" },
+            ["branches"] = new[] { "code", "name", "description", "isActive" },
+            ["tariffs"] = new[] { "name", "policyType", "insuranceCompanyName", "basePremium", "currency", "commissionPercent", "notes", "isActive", "effectiveFrom", "effectiveTo" },
+            ["tasks"] = new[] { "title", "status", "priority", "assignedToUserName", "customerDisplay", "producerName", "policyNumber", "dueAt" },
+            ["receipts"] = new[] { "number", "receivedOn", "customerName", "policyNumber", "method", "amount", "currency", "notes" },
+            ["payments"] = new[] { "number", "paidOn", "beneficiaryType", "beneficiaryName", "method", "amount", "currency", "commissionsNetted", "notes" },
+            ["appointments"] = new[] { "title", "status", "startsAt", "endsAt", "customerName", "location", "description" },
+            ["cover-notes"] = new[] { "number", "customerName", "insuranceCompanyName", "policyType", "status", "validFrom", "validUntil" },
+            ["email-templates"] = new[] { "code", "name", "subject", "isActive" },
+            ["notifications"] = new[] { "createdAt", "category", "title", "body", "isRead" },
+            ["crm-delivery-history"] = new[] { "sentAt", "campaignName", "customerName", "recipient", "channel", "provider", "status", "subject", "bodyText", "errorMessage" }
+        };
 
     private static bool Match(string? haystack, string needle) =>
         !string.IsNullOrEmpty(haystack) && haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
@@ -341,7 +422,7 @@ public class UniversalExportHandler : IRequestHandler<UniversalExportQuery, Expo
         }
         return new Sheet(
             "Εργασίες",
-            new[] { "Τίτλος", "Κατάσταση", "Προτεραιότητα", "Ανατέθηκε σε", "Πελάτης", "Συμβόλαιο", "Λήξη" },
+            new[] { "Τίτλος", "Κατάσταση", "Προτεραιότητα", "Ανατέθηκε σε", "Πελάτης", "Συνεργάτης", "Συμβόλαιο", "Προθεσμία" },
             rows.Select(t => (IReadOnlyList<string>)new[]
             {
                 t.Title,
@@ -349,6 +430,7 @@ public class UniversalExportHandler : IRequestHandler<UniversalExportQuery, Expo
                 t.Priority.ToString(),
                 t.AssignedToUserName ?? "",
                 t.CustomerDisplay ?? "",
+                t.ProducerName ?? "",
                 t.PolicyNumber ?? "",
                 ExportFormatter.FormatDateTime(t.DueAt)
             }).ToList());

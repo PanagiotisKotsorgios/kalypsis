@@ -15,6 +15,16 @@ export interface PrintColumn<T> {
   map?: (row: T) => unknown;
 }
 
+/** Office identity shown on every generated print/export-style document. */
+export interface ExportOfficeInfo {
+  name?: string | null;
+  code?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  vatNumber?: string | null;
+}
+
 export interface PrintOptions<T> {
   title: string;
   columns: PrintColumn<T>[];
@@ -25,6 +35,8 @@ export interface PrintOptions<T> {
   locale?: string;
   /** Page orientation hint for @page CSS. Defaults to portrait. */
   orientation?: "portrait" | "landscape";
+  /** Current office details displayed below the document title. */
+  office?: ExportOfficeInfo | null;
   /**
    * Optional grouping. When provided, the flat table is replaced by one
    * subsection per group — each with a section header (title + optional
@@ -71,6 +83,18 @@ export function printTable<T>(opts: PrintOptions<T>): void {
     (opts.columns.length > 5 ? "landscape" : "portrait");
   const now = new Date().toLocaleString(locale);
 
+  const officeDetails = opts.office
+    ? [
+        opts.office.address,
+        opts.office.phone,
+        opts.office.email,
+        opts.office.vatNumber ? `ΑΦΜ: ${opts.office.vatNumber}` : null,
+      ].filter(Boolean).join(" · ")
+    : "";
+  const officeBlock = opts.office && (opts.office.name || officeDetails)
+    ? `<div class="office-brand"><strong>${escapeHtml(opts.office.name || "")}</strong>${opts.office.code ? ` <span class="office-code">(${escapeHtml(opts.office.code)})</span>` : ""}${officeDetails ? `<span class="office-details">${escapeHtml(officeDetails)}</span>` : ""}</div>`
+    : "";
+
   const head = opts.columns.map(c => `<th>${escapeHtml(c.label)}</th>`).join("");
   const renderRow = (r: T) => {
     const cells = opts.columns
@@ -79,7 +103,11 @@ export function printTable<T>(opts: PrintOptions<T>): void {
         return `<td>${escapeHtml(formatCell(raw, locale))}</td>`;
       })
       .join("");
-    return `<tr>${cells}</tr>`;
+    const isTotal = opts.columns.some(c => {
+      const raw = c.map ? c.map(r) : (r as Record<string, unknown>)[c.key];
+      return /σύνολο|υποσύνολο|total|subtotal/i.test(formatCell(raw, locale));
+    });
+    return `<tr${isTotal ? ` class="total-row"` : ""}>${cells}</tr>`;
   };
   const renderBody = (rows: T[]) => rows.map(renderRow).join("");
   const body = renderBody(opts.rows);
@@ -114,10 +142,15 @@ export function printTable<T>(opts: PrintOptions<T>): void {
   header h1 { margin: 0 0 4px; font-size: 20px; color: #0d47a1; letter-spacing: 0.2px; }
   header .subtitle { color: #444; font-size: 12px; }
   header .meta { color: #888; font-size: 11px; margin-top: 4px; }
+  .office-brand { margin-top: 8px; padding: 7px 10px; border-left: 4px solid #1976d2; background: #f4f8fc; color: #18324f; font-size: 11px; }
+  .office-brand .office-code { color: #526476; font-weight: 600; }
+  .office-brand .office-details { display: block; margin-top: 2px; color: #526476; font-size: 10px; }
   table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
   thead th { background: #f0f4fa; color: #0d47a1; text-align: left; padding: 6px 8px; border-bottom: 1.5px solid #b6c8e0; font-weight: 700; white-space: nowrap; }
   tbody td { padding: 5px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  thead th + th, tbody td + td { border-left: 1px solid #d9e2ec; }
   tbody tr:nth-child(even) td { background: #fafbfd; }
+  tbody tr.total-row td { background: #e8f5e9 !important; color: #1b5e20; font-weight: 800; border-top: 2px solid #66bb6a; }
   footer { margin-top: 18px; font-size: 10px; color: #888; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e5e7eb; padding-top: 6px; }
   footer .brand { display: flex; align-items: center; gap: 6px; font-weight: 600; color: #0d47a1; }
   footer .brand a { color: inherit; text-decoration: none; }
@@ -127,13 +160,13 @@ export function printTable<T>(opts: PrintOptions<T>): void {
      the browser auto-sizes every column consistently across sections
      and repeats the <thead> on every printed page. */
   tr.group-header-row td {
-    background: #eef2f7 !important;
+    background: #e8f5e9 !important;
     padding: 8px 10px !important;
-    border-top: 2px solid #0d47a1;
-    border-bottom: 1px solid #b6c8e0;
+    border-top: 2px solid #66bb6a;
+    border-bottom: 1px solid #a5d6a7;
   }
   tr.group-header-row .group-title {
-    font-size: 12.5px; font-weight: 800; color: #0d47a1; letter-spacing: 0.2px;
+    font-size: 12.5px; font-weight: 800; color: #1b5e20; letter-spacing: 0.2px;
   }
   tr.group-header-row .group-count {
     font-size: 10.5px; color: #444; font-variant-numeric: tabular-nums;
@@ -155,6 +188,7 @@ export function printTable<T>(opts: PrintOptions<T>): void {
   <header>
     <h1>${escapeHtml(opts.title)}</h1>
     ${opts.subtitle ? `<div class="subtitle">${escapeHtml(opts.subtitle)}</div>` : ""}
+    ${officeBlock}
     <div class="meta">Εκτυπώθηκε: ${escapeHtml(now)} — Σύνολο εγγραφών: ${opts.rows.length.toLocaleString(locale)}</div>
   </header>
   ${opts.rows.length === 0

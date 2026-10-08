@@ -860,7 +860,6 @@ export function PoliciesPage() {
                 { key: "startDate", label: "Έναρξη" },
                 { key: "endDate", label: "Λήξη" },
                 { key: "premium", label: "Ασφάλιστρο" },
-                { key: "currency", label: "Νόμισμα" },
                 { key: "status", label: "Κατάσταση" }
               ]}
             />

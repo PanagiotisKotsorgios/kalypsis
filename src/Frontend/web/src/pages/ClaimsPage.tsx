@@ -486,14 +486,11 @@ export function ClaimsPage() {
           exportColumns={[
             { key: "claimNumber", label: "Αρ. Ζημιάς" },
             { key: "policyNumber", label: "Αρ. Συμβ." },
-            { key: "customerDisplay", label: "Πελάτης" },
-            { key: "insuranceCompanyName", label: "Εταιρία" },
-            { key: "policyType", label: "Κλάδος" },
+            ...(!isCustomer ? [{ key: "customerDisplay", label: "Πελάτης" }] : []),
             { key: "incidentDate", label: "Ημ. ατυχήματος" },
-            { key: "reportedDate", label: "Δηλώθηκε" },
-            { key: "status", label: "Κατάσταση" },
             { key: "claimedAmount", label: "Αιτηθέν" },
-            { key: "approvedAmount", label: "Εγκριθέν" }
+            { key: "approvedAmount", label: "Εγκριθέν" },
+            { key: "status", label: "Κατάσταση" }
           ]}
         />
       </Box>

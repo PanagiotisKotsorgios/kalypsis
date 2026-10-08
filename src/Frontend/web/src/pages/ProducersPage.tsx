@@ -417,10 +417,11 @@ export function ProducersPage() {
           exportColumns={[
             { key: "code", label: "Κωδικός" },
             { key: "name", label: "Όνομα" },
+            { key: "tier", label: "Κατηγορία" },
             { key: "email", label: "Email" },
             { key: "phone", label: "Τηλέφωνο" },
-            { key: "status", label: "Κατάσταση" },
-            { key: "policyCount", label: "Συμβόλαια" }
+            { key: "policyCount", label: "Συμβόλαια" },
+            { key: "status", label: "Κατάσταση" }
           ]}
         />
       </Box>

@@ -4,12 +4,22 @@
  * LibreOffice on Windows. Rows and columns mirror the on-screen table so the
  * exported sheet matches what the operator was looking at.
  */
+import { api } from "../api/client";
 
 export interface CsvColumn<T> {
   key: string;
   label: string;
   /** Extract the raw value for CSV. Defaults to `row[key]`. */
   map?: (row: T) => unknown;
+}
+
+interface ExportOfficeInfo {
+  name?: string | null;
+  code?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  addressLine?: string | null;
+  vatNumber?: string | null;
 }
 
 const escapeCell = (v: unknown): string => {
@@ -21,11 +31,12 @@ const escapeCell = (v: unknown): string => {
   return s;
 };
 
-export function exportRowsCsv<T>(opts: {
+export async function exportRowsCsv<T>(opts: {
   fileName: string;
   columns: CsvColumn<T>[];
   rows: T[];
 }) {
+  const office = await resolveOfficeInfo();
   const header = opts.columns.map(c => escapeCell(c.label)).join(",");
   const body = opts.rows.map(r =>
     opts.columns.map(c => {
@@ -34,8 +45,15 @@ export function exportRowsCsv<T>(opts: {
     }).join(",")
   ).join("\r\n");
 
-  // Leading BOM (﻿) so Excel autodetects UTF-8 instead of showing mojibake.
-  const csv = `﻿${header}\r\n${body}\r\n`;
+  const officeDetails = [office.addressLine, office.contactPhone, office.contactEmail,
+    office.vatNumber ? `ΑΦΜ: ${office.vatNumber}` : null,
+    office.code ? `Κωδικός: ${office.code}` : null]
+    .filter(Boolean).join(" · ");
+  // CSV has no colours/borders, so keep the same branded preamble as the
+  // XLSX/PDF/print exports while preserving the exact table columns below.
+  const prefix = [office.name || "Kalypsis", officeDetails, opts.fileName, ""];
+  // Leading BOM so Excel autodetects UTF-8 instead of showing mojibake.
+  const csv = `\ufeff${[...prefix, header, body, "", `© ${new Date().getFullYear()} Kalypsis · https://mykalypsis.gr`].join("\r\n")}\r\n`;
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
@@ -47,4 +65,17 @@ export function exportRowsCsv<T>(opts: {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+
+async function resolveOfficeInfo(): Promise<ExportOfficeInfo> {
+  const root = typeof document !== "undefined" ? document.documentElement : null;
+  const name = root?.querySelector<HTMLElement>("[data-export-office-name]")?.dataset.exportOfficeName;
+  const details = root?.querySelector<HTMLElement>("[data-export-office-details]")?.dataset.exportOfficeDetails;
+  if (name) return { name, addressLine: details };
+  try {
+    const { data } = await api.get<ExportOfficeInfo>("/agency-profile");
+    return data ?? {};
+  } catch {
+    return {};
+  }
 }

@@ -989,9 +989,11 @@ function TableView({
           { key: "producerName", label: "Συνεργάτης" },
           { key: "policyNumber", label: "Συμβόλαιο" },
           { key: "dueAt", label: "Προθεσμία", map: (t) => t.dueAt ? dateTime(t.dueAt) : "" },
-          { key: "completedAt", label: "Ολοκληρώθηκε", map: (t) => t.completedAt ? dateTime(t.completedAt) : "" },
-          { key: "createdAt", label: "Δημιουργήθηκε", map: (t) => t.createdAt ? dateTime(t.createdAt) : "" },
         ]}
+        visibleColumnKeys={[
+          "title", "status", "priority", "assignedToUserName", "customerDisplay",
+          "producerName", "policyNumber", "dueAt"
+        ].filter(k => !hiddenCols.has(k))}
       />
 
       {hiddenCols.size > 0 && (

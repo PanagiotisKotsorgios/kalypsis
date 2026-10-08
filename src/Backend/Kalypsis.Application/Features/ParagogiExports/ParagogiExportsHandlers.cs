@@ -1,4 +1,5 @@
 using System.Globalization;
+using Kalypsis.Application.Abstractions;
 using Kalypsis.Application.Common.Exports;
 using Kalypsis.Application.Features.Claims;
 using Kalypsis.Application.Features.Customers;
@@ -7,6 +8,7 @@ using Kalypsis.Application.Features.Producers;
 using Kalypsis.Application.Features.ProductionLists;
 using Kalypsis.Domain.Enums;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kalypsis.Application.Features.ParagogiExports;
 
@@ -30,7 +32,14 @@ public record ExportParagogiQuery(
 public class ExportParagogiHandler : IRequestHandler<ExportParagogiQuery, ExportResult>
 {
     private readonly IMediator _mediator;
-    public ExportParagogiHandler(IMediator mediator) { _mediator = mediator; }
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _current;
+    public ExportParagogiHandler(IMediator mediator, IAppDbContext db, ICurrentUser current)
+    {
+        _mediator = mediator;
+        _db = db;
+        _current = current;
+    }
 
     public async Task<ExportResult> Handle(ExportParagogiQuery q, CancellationToken ct)
     {
@@ -47,6 +56,7 @@ public class ExportParagogiHandler : IRequestHandler<ExportParagogiQuery, Export
             ParagogiEntity.Producers => await BuildProducersAsync(q, ct),
             _ => throw new ArgumentOutOfRangeException()
         };
+        sheet = await AddOfficeBrandingAsync(sheet, ct);
 
         return fmt switch
         {
@@ -55,6 +65,30 @@ public class ExportParagogiHandler : IRequestHandler<ExportParagogiQuery, Export
             "pdf"  => new ExportResult(ExportFormatter.BuildPdf(sheet), "application/pdf", $"{name}.pdf"),
             _ => throw new ArgumentException("Unsupported format: " + q.Format)
         };
+    }
+
+    private async Task<Sheet> AddOfficeBrandingAsync(Sheet sheet, CancellationToken ct)
+    {
+        var tenant = _current.TenantId.HasValue
+            ? await _db.Tenants.AsNoTracking().Where(x => x.Id == _current.TenantId.Value)
+                .Select(x => new { x.Name, x.ContactEmail, x.ContactPhone, x.AddressLine, x.VatNumber })
+                .FirstOrDefaultAsync(ct)
+            : null;
+        var office = _current.AgencyOfficeId.HasValue
+            ? await _db.AgencyOffices.AsNoTracking().Where(x => x.Id == _current.AgencyOfficeId.Value)
+                .Select(x => new { x.Name, x.Address, x.City, x.PostalCode, x.Email, x.Phone })
+                .FirstOrDefaultAsync(ct)
+            : null;
+        var label = office?.Name ?? tenant?.Name;
+        if (string.IsNullOrWhiteSpace(label)) return sheet;
+        var details = new[]
+        {
+            office is null ? tenant?.AddressLine : string.Join(", ", new[] { office.Address, office.City, office.PostalCode }.Where(x => !string.IsNullOrWhiteSpace(x))),
+            office?.Phone ?? tenant?.ContactPhone,
+            office?.Email ?? tenant?.ContactEmail,
+            string.IsNullOrWhiteSpace(tenant?.VatNumber) ? null : $"ΑΦΜ: {tenant!.VatNumber}"
+        }.Where(x => !string.IsNullOrWhiteSpace(x));
+        return sheet with { TenantLabel = label, OfficeDetails = string.Join(" · ", details) };
     }
 
     // ---- per-entity row builders ------------------------------------------------

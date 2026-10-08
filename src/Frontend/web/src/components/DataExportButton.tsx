@@ -18,8 +18,10 @@ import DownloadIcon from "@mui/icons-material/Download";
 import PrintIcon from "@mui/icons-material/Print";
 import { useTranslation } from "react-i18next";
 import { api, API_BASE_URL } from "../api/client";
-import { printTable, type PrintColumn } from "../utils/printableTable";
+import { printTable, type ExportOfficeInfo, type PrintColumn } from "../utils/printableTable";
 import { exportActionSx } from "./actionButtonStyles";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "../auth/AuthContext";
 
 type ExportFormat = "xlsx" | "csv" | "pdf";
 type AnyAction = ExportFormat | "print";
@@ -85,6 +87,24 @@ export function DataExportButton<T = unknown>({
   printSubtitle,
 }: DataExportButtonProps<T>) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const officeQuery = useQuery({
+    queryKey: ["agency-profile"],
+    queryFn: async () => (await api.get<{
+      name?: string | null; code?: string | null; contactEmail?: string | null;
+      contactPhone?: string | null; addressLine?: string | null; vatNumber?: string | null;
+    }>("/agency-profile")).data,
+    enabled: Boolean(user),
+    staleTime: 5 * 60 * 1000,
+  });
+  const officeInfo: ExportOfficeInfo = {
+    name: officeQuery.data?.name ?? user?.tenantName ?? "Kalypsis",
+    code: officeQuery.data?.code,
+    email: officeQuery.data?.contactEmail,
+    phone: officeQuery.data?.contactPhone,
+    address: officeQuery.data?.addressLine,
+    vatNumber: officeQuery.data?.vatNumber,
+  };
   const anchorRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<AnyAction | null>(null);
@@ -132,6 +152,7 @@ export function DataExportButton<T = unknown>({
           subtitle: printSubtitle,
           columns: cols,
           rows: printRows,
+          office: officeInfo,
         });
       } else {
         // Fallback — just fire the browser's own print dialog against whatever

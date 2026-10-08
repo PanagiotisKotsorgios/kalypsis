@@ -32,9 +32,10 @@ public class DataExportsController : ControllerBase
         [FromQuery] string? status = null,
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null,
+        [FromQuery] string? columns = null,
         CancellationToken ct = default)
     {
-        var result = await _mediator.Send(new UniversalExportQuery(entity, format, search, channel, provider, status, from, to), ct);
+        var result = await _mediator.Send(new UniversalExportQuery(entity, format, search, channel, provider, status, from, to, columns), ct);
         return File(result.Content, result.MimeType, result.FileName);
     }
 }

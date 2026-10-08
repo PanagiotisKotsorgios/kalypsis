@@ -11,9 +11,11 @@ import { printActionSx } from "./actionButtonStyles";
 import { useTranslation } from "react-i18next";
 import * as XLSX from "xlsx";
 import { api } from "../api/client";
-import { printTable } from "../utils/printableTable";
+import { printTable, type ExportOfficeInfo } from "../utils/printableTable";
 import { ExportColumnPicker, useExportColumnSelection, type ExportColumnDescriptor } from "./ExportColumnPicker";
 import { ExportFormatMenu, type ExportFormat } from "./ExportFormatMenu";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "../auth/AuthContext";
 
 /* ============================================================================
    Numbered pager — renders 1, 2, … current ±2, … last, with prev/next/jumpers.
@@ -147,6 +149,24 @@ export function TableToolbar<T>({
   rightSlot?: React.ReactNode;
 }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const officeQuery = useQuery({
+    queryKey: ["agency-profile"],
+    queryFn: async () => (await api.get<{
+      name?: string | null; code?: string | null; contactEmail?: string | null;
+      contactPhone?: string | null; addressLine?: string | null; vatNumber?: string | null;
+    }>("/agency-profile")).data,
+    enabled: Boolean(user),
+    staleTime: 5 * 60 * 1000,
+  });
+  const officeInfo: ExportOfficeInfo = {
+    name: officeQuery.data?.name ?? user?.tenantName ?? "Kalypsis",
+    code: officeQuery.data?.code,
+    email: officeQuery.data?.contactEmail,
+    phone: officeQuery.data?.contactPhone,
+    address: officeQuery.data?.addressLine,
+    vatNumber: officeQuery.data?.vatNumber,
+  };
 
   // Merge the base + extra columns into the export universe. Extras are
   // marked `defaultOff` so the export behaves identically to before unless
@@ -184,13 +204,22 @@ export function TableToolbar<T>({
     return true;
   });
 
-  const buildSheetRows = () => exportRows.map(r => {
-    const o: Record<string, any> = {};
-    for (const c of effectiveColumns) {
-      o[c.label] = c.map ? c.map(r) : (r as any)[c.key];
-    }
-    return o;
-  });
+  const buildClientMatrix = (): any[][] => {
+    const officeDetails = [officeInfo.address, officeInfo.phone, officeInfo.email,
+      officeInfo.vatNumber ? `ΑΦΜ: ${officeInfo.vatNumber}` : null]
+      .filter(Boolean).join(" · ");
+    const rows = exportRows.map(r => effectiveColumns.map(c =>
+      c.map ? c.map(r) : (r as any)[c.key]
+    ));
+    return [
+      [officeInfo.name || "Kalypsis"],
+      [officeDetails],
+      [printTitle ?? exportFileName],
+      [],
+      effectiveColumns.map(c => c.label),
+      ...rows,
+    ];
+  };
 
   // Trailer rows appended to every client-side CSV / Excel export so the
   // reader can always trace the file back to Kalypsis. Two empty rows
@@ -207,7 +236,7 @@ export function TableToolbar<T>({
 
   const downloadCsv = () => {
     if (serverEntity) return void downloadFromServer("csv");
-    const ws = XLSX.utils.json_to_sheet(buildSheetRows());
+    const ws = XLSX.utils.aoa_to_sheet(buildClientMatrix());
     XLSX.utils.sheet_add_aoa(ws, buildBrandingTrailer(), { origin: -1 });
     const csv = XLSX.utils.sheet_to_csv(ws);
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
@@ -215,7 +244,7 @@ export function TableToolbar<T>({
   };
   const downloadXlsx = () => {
     if (serverEntity) return void downloadFromServer("xlsx");
-    const ws = XLSX.utils.json_to_sheet(buildSheetRows());
+    const ws = XLSX.utils.aoa_to_sheet(buildClientMatrix());
     XLSX.utils.sheet_add_aoa(ws, buildBrandingTrailer(), { origin: -1 });
     const wb = XLSX.utils.book_new();
     // Custom document properties surface Kalypsis in the file's Info pane
@@ -227,8 +256,26 @@ export function TableToolbar<T>({
       Company:  "Kalypsis · https://mykalypsis.gr",
       CreatedDate: new Date(),
     };
+    const range = ws["!ref"] ? XLSX.utils.decode_range(ws["!ref"]) : null;
+    if (range) {
+      const headerRow = 4; // office, details, title, blank, then table header
+      for (let r = range.s.r; r <= range.e.r; r++) {
+        const first = ws[XLSX.utils.encode_cell({ r, c: 0 })] as any;
+        const isTotal = r > headerRow && /σύνολο|υποσύνολο|total|subtotal/i.test(String(first?.v ?? ""));
+        for (let c = range.s.c; c <= range.e.c; c++) {
+          const ref = XLSX.utils.encode_cell({ r, c });
+          const cell = ws[ref] as any;
+          if (!cell) continue;
+          cell.s = r === headerRow
+            ? { fill: { fgColor: { rgb: "0B2545" } }, font: { bold: true, color: { rgb: "FFFFFF" } }, border: { right: { style: "thin", color: { rgb: "49627D" } } } }
+            : isTotal
+              ? { fill: { fgColor: { rgb: "E8F5E9" } }, font: { bold: true, color: { rgb: "1B5E20" } }, border: { right: { style: "thin", color: { rgb: "66BB6A" } } } }
+              : { fill: { fgColor: { rgb: r % 2 === 0 ? "FFFFFF" : "F4F6FA" } }, border: { right: { style: "thin", color: { rgb: "D9E2EC" } }, bottom: { style: "thin", color: { rgb: "E5E7EB" } } } };
+        }
+      }
+    }
     XLSX.utils.book_append_sheet(wb, ws, "Data");
-    const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+    const buf = XLSX.write(wb, { type: "array", bookType: "xlsx", cellStyles: true });
     triggerDownload(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${exportFileName}.xlsx`);
   };
   const downloadPdf = () => { if (serverEntity) void downloadFromServer("pdf"); };
@@ -246,6 +293,7 @@ export function TableToolbar<T>({
         map: c.map ? (r: T) => c.map!(r) : undefined,
       })),
       rows: exportRows,
+      office: officeInfo,
     });
   };
 
@@ -260,7 +308,7 @@ export function TableToolbar<T>({
     // they'll just emit every column and the on-screen ones will be a
     // superset of what the user selected.
     const effectiveKeys = effectiveColumns.map(c => String(c.key));
-    if (effectiveKeys.length > 0 && effectiveKeys.length < allExportColumns.length) {
+    if (effectiveKeys.length > 0) {
       params.columns = effectiveKeys.join(",");
     }
     const res = await api.get(`/data-exports/${serverEntity}`, { params, responseType: "blob" });
@@ -270,8 +318,14 @@ export function TableToolbar<T>({
     triggerDownload(new Blob([res.data], { type: mime }), `${exportFileName}.${format}`);
   }
 
+  const officeExportDetails = [officeInfo.address, officeInfo.phone, officeInfo.email,
+    officeInfo.vatNumber ? `ΑΦΜ: ${officeInfo.vatNumber}` : null]
+    .filter(Boolean).join(" · ");
+
   return (
-    <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }} sx={{ mb: 2 }}>
+    <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }} sx={{ mb: 2 }}
+      data-export-office-name={officeInfo.name || undefined}
+      data-export-office-details={officeExportDetails || undefined}>
       {!hideSearch && <TextField
           size="small" fullWidth placeholder={t("table.searchPlaceholder")} value={query}
           onChange={(e) => onQuery(e.target.value)}

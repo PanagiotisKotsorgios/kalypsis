@@ -585,21 +585,18 @@ export function CustomersPage() {
           exportRows={table.filtered}
           exportFileName={`customers-${new Date().toISOString().slice(0, 10)}`}
           exportColumns={[
-            { key: "customerNumber", label: "Αρ. Πελάτη" },
+            { key: "number", label: "Αρ. Πελάτη", map: (r) => r.customerNumber },
             { key: "type", label: "Τύπος" },
-            { key: "firstName", label: "Όνομα" },
-            { key: "lastName", label: "Επώνυμο" },
-            { key: "companyName", label: "Επωνυμία" },
-            { key: "vatNumber", label: "ΑΦΜ" },
+            { key: "name", label: "Ονοματεπώνυμο / Επωνυμία", map: (r) => r.type === "Company" ? r.companyName : `${r.firstName ?? ""} ${r.lastName ?? ""}`.trim() },
             { key: "email", label: "Email" },
             { key: "phone", label: "Τηλέφωνο" },
-            { key: "city", label: "Πόλη" },
-            { key: "balance", label: "Υπόλοιπο", map: (r) => r.account?.balance ?? null },
+            { key: "notes", label: "Σημειώσεις" },
+            { key: "balance", label: "Υπόλοιπο / πληρωμές", map: (r) => r.account?.balance ?? null },
+            { key: "paymentDueDate", label: "Ημ. εξόφλησης", map: (r) => r.account?.paymentDueDate ?? null },
             { key: "paymentStatus", label: "Συμπεριφορά πληρωμών", map: (r) => paymentStatus(r.account) },
-            { key: "overdueAmount", label: "Ληξιπρόθεσμα", map: (r) => r.account?.overdueAmount ?? null },
-            { key: "onTimeRatePercent", label: "Έγκαιρες πληρωμές %", map: (r) => r.account?.onTimeRatePercent ?? null },
-            { key: "lastPaymentDate", label: "Τελευταία πληρωμή", map: (r) => r.account?.lastPaymentDate ?? null }
+            { key: "city", label: "Πόλη" }
           ]}
+          visibleColumnKeys={customerCols.visibleColumns.map(c => c.key)}
           rightSlot={
             <Button
               size="small"

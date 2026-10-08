@@ -40,6 +40,7 @@ public class ProductionListsController : ControllerBase
         [FromQuery] string? vehicleUseCategory, [FromQuery] string? coverCode,
         [FromQuery] string? packageCode,
         [FromQuery] string? groupBy, [FromQuery] string? dateField,
+        [FromQuery] string? columns,
         [FromQuery] string format = "csv",
         CancellationToken ct = default)
     {
@@ -50,7 +51,7 @@ public class ProductionListsController : ControllerBase
                 ProductionFilters.RawUseFallback(vehicleUseCategory),
                 ProductionFilters.RawBranchFallback(policyType),
                 DateField: dateField),
-            format), ct);
+            format, columns), ct);
         return File(result.Content, result.MimeType, result.FileName);
     }
 }
