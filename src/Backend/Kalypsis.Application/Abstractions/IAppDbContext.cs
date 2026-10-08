@@ -12,6 +12,9 @@ public interface IAppDbContext
     DbSet<CustomerRelationship> CustomerRelationships { get; }
     DbSet<CustomerInsuranceNeed> CustomerInsuranceNeeds { get; }
     DbSet<Producer> Producers { get; }
+    DbSet<PartnerNetwork> PartnerNetworks { get; }
+    DbSet<PartnerNetworkMember> PartnerNetworkMembers { get; }
+    DbSet<PartnerNetworkDocument> PartnerNetworkDocuments { get; }
     DbSet<InsuranceCompany> InsuranceCompanies { get; }
     DbSet<InsuranceCompanyFolder> InsuranceCompanyFolders { get; }
     DbSet<InsuranceCompanyDocument> InsuranceCompanyDocuments { get; }

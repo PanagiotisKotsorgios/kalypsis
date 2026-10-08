@@ -105,6 +105,7 @@ export const SIDEBAR_VISIBILITY_SECTIONS: SidebarVisibilitySection[] = [
       { path: "/green-cards", label: "\u03a0\u03c1\u03ac\u03c3\u03b9\u03bd\u03b5\u03c2 \u03ba\u03ac\u03c1\u03c4\u03b5\u03c2" },
       { path: "/claims", label: "Ζημιές" },
       { path: "/producers", label: "Συνεργάτες" },
+      { path: "/partner-networks", label: "Δίκτυα συνεργατών" },
       { path: "/over-commission-statements", label: "Υπερπρομήθειες" }
     ]
   },

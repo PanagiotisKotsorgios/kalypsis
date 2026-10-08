@@ -123,6 +123,7 @@ import { DocumentsPage } from "./pages/DocumentsPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { TasksPage } from "./pages/TasksPage";
 import { ProducersPage } from "./pages/ProducersPage";
+import PartnerNetworksPage from "./pages/PartnerNetworksPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { IntelligenceWorkbenchPage } from "./pages/IntelligenceWorkbenchPage";
 import { IntelligencePromptsPage } from "./pages/IntelligencePromptsPage";
@@ -323,6 +324,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     // with the URL bookmarked keeps working.
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice", group: "production" },
     { to: "/producers", labelKey: "nav.producers", icon: <HandshakeIcon />, package: "BackOffice", group: "production" },
+    { to: "/partner-networks", labelKey: "nav.partnerNetworks", icon: <HubIcon />, package: "BackOffice", group: "production" },
     // «Πρόσθετες πράξεις» + «Ακυρώσεις» are reachable as buttons inside
     // /app/policies. Legacy routes still resolve so old bookmarks keep
     // working — see route registrations further down.
@@ -480,6 +482,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/green-cards", labelKey: "nav.greenCards", icon: <CardMembershipIcon />, package: "BackOffice" },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
+    { to: "/partner-networks", labelKey: "nav.partnerNetworks", icon: <HubIcon />, package: "BackOffice" },
     { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
     { to: "/office-website/overview", labelKey: "nav.officeWebsiteOverview", icon: <DashboardIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
@@ -501,6 +504,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: "/green-cards", labelKey: "nav.greenCards", icon: <CardMembershipIcon />, package: "BackOffice" },
     { to: "/documents", labelKey: "nav.documents", icon: <FolderIcon />, package: "BackOffice" },
     { to: "/claims", labelKey: "nav.claims", icon: <ReportIcon />, package: "BackOffice" },
+    { to: "/partner-networks", labelKey: "nav.partnerNetworks", icon: <HubIcon />, package: "BackOffice" },
     { to: "/over-commission-bridges", labelKey: "nav.overCommissionBridges", icon: <StackedLineChartIcon />, package: "BackOffice" },
     { to: "/office-website/overview", labelKey: "nav.officeWebsiteOverview", icon: <DashboardIcon />, package: "FrontOffice", group: "website" },
     { to: "/office-website", labelKey: "nav.officeWebsite", icon: <LanguageIcon />, package: "FrontOffice", group: "website" },
@@ -847,6 +851,7 @@ export default function App() {
                   <Route path="reconciliation-hub" element={<ReconciliationHubPage />} />
                   <Route path="tasks" element={<TasksPage />} />
                   <Route path="producers" element={<ProducersPage />} />
+                  <Route path="partner-networks" element={<PartnerNetworksPage />} />
                   <Route path="claims" element={<ClaimsPage />} />
                   <Route path="reports" element={<ReportsPage />} />
                   <Route path="intelligence-workbench" element={<PackageGate package="Intelligence"><IntelligenceWorkbenchPage /></PackageGate>} />
