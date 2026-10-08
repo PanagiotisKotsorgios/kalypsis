@@ -896,7 +896,12 @@ export function ProductionListsPage() {
                           </TableRow>
                         )),
                         <TableRow key={`sub-${sec.key}`}
-                          sx={{ bgcolor: "rgba(11,37,69,0.04)" }}>
+                          sx={{
+                            bgcolor: "rgba(46,125,50,0.10)",
+                            borderTop: "2px solid",
+                            borderColor: "rgba(46,125,50,0.28)",
+                            "& .MuiTableCell-root": { py: 1 },
+                          }}>
                           {visibleColumns.map(c => {
                             const label = c.key === "policyNumber"
                               ? `Υποσύνολο · ${sec.key}` : "";
@@ -907,7 +912,7 @@ export function ProductionListsPage() {
                             if (c.key === "totals") return <TableCell key={c.key} align="right" sx={{ fontWeight: 700 }}>{totalsCell(totals)}</TableCell>;
                             return (
                               <TableCell key={c.key} align={c.align}
-                                sx={{ fontWeight: 800, color: "text.primary" }}>
+                                sx={{ fontWeight: 800, color: "success.dark" }}>
                                 {label}
                               </TableCell>
                             );
