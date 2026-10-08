@@ -3,10 +3,11 @@ import {
   Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, Stack, Switch, Tab, Tabs, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
 } from "@mui/material";
-import TuneIcon from "@mui/icons-material/Tune";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCircleCheck, faFilePen, faListCheck, faLock, faSliders, faWandMagicSparkles } from "@fortawesome/free-solid-svg-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, extractErrorMessage } from "../api/client";
@@ -30,32 +31,77 @@ export function ConfigHubPage() {
   void RenewalRulesPanel;
   void RegisterTemplatesPanel;
 
+  const sections = [
+    { icon: faSliders, label: t("configHub.customFields"), description: "Προσαρμόστε τα πεδία που χρειάζεται κάθε καρτέλα." },
+    { icon: faLock, label: t("configHub.periodLocks"), description: "Κλειδώστε με ασφάλεια περιόδους και οικονομικές κινήσεις." },
+    { icon: faListCheck, label: t("nav.lookups", "Λίστες αναφοράς"), description: "Διαχειριστείτε τις κοινές λίστες επιλογών του γραφείου." },
+    { icon: faFilePen, label: t("nav.docDesigner", "Σχεδιαστής εγγράφων"), description: "Σχεδιάστε πρότυπα εγγράφων με τα δυναμικά πεδία σας." },
+  ];
+  const activeSection = sections[tab] ?? sections[0];
+
   return (
-    <Box>
-      <Stack direction="row" alignItems="center" spacing={2} mb={3}>
-        <TuneIcon sx={{ fontSize: 36 }} color="primary" />
-        <Box>
-          <Stack direction="row" alignItems="center" spacing={0.5}>
-            <Typography variant="h4" sx={{ fontWeight: 800 }}>{t("configHub.title")}</Typography>
-            <HelpHint id="page.configHub" />
+    <Box sx={{ pb: 3 }}>
+      <Box sx={{
+        position: "relative", overflow: "hidden", borderRadius: 4, px: { xs: 2.5, md: 4 }, py: { xs: 2.5, md: 3.5 }, mb: 3,
+        color: "#fff", background: "linear-gradient(135deg, #061a33 0%, #0b477f 52%, #1474c4 100%)",
+        boxShadow: "0 18px 40px rgba(6, 47, 99, .24)", animation: "configHubHeroIn 560ms cubic-bezier(.16,1,.3,1) both",
+        "&::after": { content: "\"\"", position: "absolute", width: 260, height: 260, borderRadius: "50%", right: -90, top: -130, background: "rgba(255,255,255,.09)", pointerEvents: "none" },
+        "@keyframes configHubHeroIn": { from: { opacity: 0, transform: "translateY(12px)" }, to: { opacity: 1, transform: "translateY(0)" } },
+      }}>
+        <Stack direction={{ xs: "column", md: "row" }} alignItems={{ xs: "flex-start", md: "center" }} justifyContent="space-between" spacing={2}>
+          <Stack direction="row" alignItems="center" spacing={2} sx={{ position: "relative", zIndex: 1 }}>
+            <Box sx={{ width: 66, height: 66, display: "grid", placeItems: "center", borderRadius: 3, bgcolor: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.3)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.24)" }}>
+              <FontAwesomeIcon icon={faWandMagicSparkles} size="2x" />
+            </Box>
+            <Box>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Typography component="h1" sx={{ fontWeight: 900, letterSpacing: "-.02em", fontSize: { xs: "1.7rem", md: "2.35rem" }, lineHeight: 1.1 }}>{t("configHub.title")}</Typography>
+                <HelpHint id="page.configHub" />
+              </Stack>
+              <Typography sx={{ mt: .8, maxWidth: 760, color: "rgba(255,255,255,.86)", fontSize: { xs: ".95rem", md: "1.08rem" }, lineHeight: 1.5 }}>{t("configHub.subtitle")}</Typography>
+            </Box>
           </Stack>
-          <Typography color="text.secondary">{t("configHub.subtitle")}</Typography>
+          <Chip icon={<FontAwesomeIcon icon={faCircleCheck} />} label="4 εργαλεία διαθέσιμα" sx={{ position: "relative", zIndex: 1, color: "#fff", bgcolor: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.3)", fontWeight: 800, fontSize: ".92rem", height: 38, "& .MuiChip-icon": { color: "#9af0c0" } }} />
+        </Stack>
+      </Box>
+
+      <Box sx={{ p: { xs: .65, md: 1 }, mb: 3, borderRadius: 3, bgcolor: "#e8edf3", border: "1px solid #b8c4d2", boxShadow: "0 8px 22px rgba(15, 23, 42, .11)" }}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" allowScrollButtonsMobile sx={{
+          minHeight: 62, "& .MuiTabs-scroller": { overflow: "auto !important" }, "& .MuiTabs-flexContainer": { gap: .85 }, "& .MuiTabs-indicator": { display: "none" },
+          "& .MuiTab-root": {
+            flex: "1 0 auto", minHeight: 62, minWidth: { xs: 190, md: 230 }, px: { xs: 1.5, md: 2.2 }, py: 1, borderRadius: 2.25, border: "1px solid #a9b6c5",
+            bgcolor: "#d7dee7", color: "#162235", opacity: 1, textTransform: "none", fontWeight: 850, fontSize: { xs: ".92rem", md: "1.03rem" },
+            transition: "background-color .2s ease, border-color .2s ease, color .2s ease, box-shadow .2s ease",
+            "&:hover": { bgcolor: "#c4d0de", borderColor: "#73869b", color: "#0b477f" },
+            "&.Mui-selected": { color: "#fff", bgcolor: "#0b5cad", borderColor: "#063b73", boxShadow: "0 6px 14px rgba(6, 59, 115, .32)" },
+          },
+        }}>
+          {sections.map((section) => <Tab key={section.label} label={<Stack direction="row" alignItems="center" justifyContent="center" spacing={1}><FontAwesomeIcon icon={section.icon} /><span>{section.label}</span></Stack>} />)}
+        </Tabs>
+      </Box>
+
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: { xs: 1.5, md: 2 }, py: 1.35, mb: 2.5, borderRadius: 2.5, bgcolor: "#f5f8fb", border: "1px solid #d4dee9", animation: "configHubContextIn 240ms ease both", "@keyframes configHubContextIn": { from: { opacity: 0 }, to: { opacity: 1 } } }}>
+        <Box sx={{ width: 38, height: 38, display: "grid", placeItems: "center", flexShrink: 0, borderRadius: 1.75, color: "#0b5cad", bgcolor: "#dcecff" }}><FontAwesomeIcon icon={activeSection.icon} /></Box>
+        <Box>
+          <Typography sx={{ fontWeight: 850, color: "#162235", fontSize: { xs: ".98rem", md: "1.06rem" } }}>{activeSection.label}</Typography>
+          <Typography sx={{ color: "#526377", fontSize: { xs: ".84rem", md: ".92rem" } }}>{activeSection.description}</Typography>
         </Box>
-      </Stack>
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" sx={{ mb: 3 }}>
-        <Tab label={t("configHub.customFields")} />
-        <Tab label={t("configHub.periodLocks")} />
-        {/* Folded from separate sidebar entries — Λίστες αναφοράς
-            (lookups) and Σχεδιαστής εγγράφων. Old /app/lookups and
-            /app/document-designer routes still resolve for old
-            bookmarks; the sidebar just has one entry now. */}
-        <Tab label={t("nav.lookups", "Λίστες αναφοράς")} />
-        <Tab label={t("nav.docDesigner", "Σχεδιαστής εγγράφων")} />
-      </Tabs>
-      {tab === 0 && <CustomFieldsPanel />}
-      {tab === 1 && <PeriodLocksPanel />}
-      {tab === 2 && <ReferenceCatalogsPage />}
-      {tab === 3 && <DocumentDesignerPage />}
+      </Box>
+
+      <Box key={tab} sx={{
+        animation: "configHubPanelIn 300ms cubic-bezier(.16,1,.3,1) both",
+        "@keyframes configHubPanelIn": { from: { opacity: 0, transform: "translateY(8px)" }, to: { opacity: 1, transform: "translateY(0)" } },
+        "& .MuiCard-root": { borderRadius: 3, borderColor: "#c4d0de", boxShadow: "0 8px 24px rgba(15, 23, 42, .08)" },
+        "& .MuiTableHead-root .MuiTableCell-root": { bgcolor: "#e8edf3", color: "#162235", fontWeight: 850, fontSize: { xs: ".86rem", md: ".96rem" }, borderBottom: "2px solid #9aaabd" },
+        "& .MuiTableBody-root .MuiTableCell-root": { fontSize: { xs: ".86rem", md: ".95rem" }, py: 1.35 },
+        "& .MuiButton-root": { minHeight: 44, px: 2, borderRadius: 2, textTransform: "none", fontWeight: 800, fontSize: { xs: ".9rem", md: ".98rem" }, transition: "box-shadow .2s ease, background-color .2s ease" },
+        "& .MuiButton-contained:hover": { boxShadow: "0 7px 16px rgba(11, 92, 173, .25)" },
+      }}>
+        {tab === 0 && <CustomFieldsPanel />}
+        {tab === 1 && <PeriodLocksPanel />}
+        {tab === 2 && <ReferenceCatalogsPage />}
+        {tab === 3 && <DocumentDesignerPage />}
+      </Box>
     </Box>
   );
 }
