@@ -72,6 +72,17 @@ function isoOfPeriod(year: number, month: number, day: number): string {
   return `${year.toString().padStart(4, "0")}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
 }
 
+function statementTotals(items: StatementDto[]) {
+  return {
+    count: items.length,
+    gross: items.reduce((sum, row) => sum + row.grossAmount, 0),
+    net: items.reduce((sum, row) => sum + row.netAmount, 0),
+    producer: items.reduce((sum, row) => sum + (row.producerAmount ?? row.grossAmount), 0),
+    office: items.reduce((sum, row) => sum + (row.officeAmount ?? 0), 0),
+    paid: items.filter(row => !!row.paidOn).length,
+  };
+}
+
 export function OverCommissionStatementsPage() {
   const qc = useQueryClient();
   const now = new Date();
@@ -87,6 +98,7 @@ export function OverCommissionStatementsPage() {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo]   = useState<string>("");
   const [paidFilter, setPaidFilter] = useState<"" | "paid" | "unpaid">("");
+  const [groupBy, setGroupBy] = useState<"producer" | "month" | "carrier" | "none">("producer");
   // Deep-link ?openImport=ergo (from OverCommissionBridgesPage) auto-opens
   // the μαζική καταχώρηση grid + tells the grid to preselect ERGO layout.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -152,6 +164,22 @@ export function OverCommissionStatementsPage() {
     if (paidFilter === "unpaid") r = r.filter(x => !x.paidOn);
     return r;
   }, [rawRows, dateFrom, dateTo, paidFilter]);
+  const groupedSections = useMemo(() => {
+    if (groupBy === "none") return [] as Array<{ key: string; rows: StatementDto[] }>;
+    const groups = new Map<string, StatementDto[]>();
+    for (const row of rows) {
+      const key = groupBy === "producer"
+        ? `${row.producerName}${row.producerCode ? ` · ${row.producerCode}` : ""}`
+        : groupBy === "carrier"
+          ? row.insuranceCompanyName
+          : `${row.month.toString().padStart(2, "0")}/${row.year}`;
+      const current = groups.get(key) ?? [];
+      current.push(row);
+      groups.set(key, current);
+    }
+    return Array.from(groups, ([key, groupedRows]) => ({ key, rows: groupedRows }))
+      .sort((a, b) => a.key.localeCompare(b.key, "el"));
+  }, [rows, groupBy]);
   const totals = useMemo(() => ({
     // These four columns come straight from carrier πινάκια (ERGO ships
     // all four; other carriers may leave the base-premium ones null).
@@ -433,17 +461,63 @@ export function OverCommissionStatementsPage() {
             <MenuItem value="paid">Πληρωμένα</MenuItem>
             <MenuItem value="unpaid">Απλήρωτα</MenuItem>
           </TextField>
+          <TextField select size="small" label="Ομαδοποίηση" fullWidth value={groupBy}
+            onChange={(e) => setGroupBy(e.target.value as "producer" | "month" | "carrier" | "none")}>
+            <MenuItem value="producer">Ανά συνεργάτη</MenuItem>
+            <MenuItem value="month">Ανά περίοδο</MenuItem>
+            <MenuItem value="carrier">Ανά ασφαλιστική</MenuItem>
+            <MenuItem value="none">Χωρίς υποομάδες</MenuItem>
+          </TextField>
           <Chip label={`${rows.length} γραμμές · ${moneyFmt.format(totals.office)} στην έδρα`}
             sx={{ gridColumn: { md: "span 2" }, justifySelf: "start" }} />
           <Button size="small" fullWidth color="error" variant="contained"
             onClick={() => {
               setCarrierFilter(""); setProducerFilter(""); setSearch("");
-              setDateFrom(""); setDateTo(""); setPaidFilter(""); setMonth("");
+              setDateFrom(""); setDateTo(""); setPaidFilter(""); setMonth(""); setGroupBy("producer");
             }}>
             Καθαρισμός φίλτρων
           </Button>
         </Box>
       </Card>
+
+      {groupBy !== "none" && groupedSections.length > 0 && (
+        <Card variant="outlined" sx={{ mb: 2 }}>
+          <CardContent sx={{ p: 1.5 }}>
+            <Typography fontWeight={800} mb={1}>
+              Σύνολα ανά {groupBy === "producer" ? "συνεργάτη" : groupBy === "month" ? "περίοδο" : "ασφαλιστική"}
+            </Typography>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: "rgba(11,37,69,0.06)" }}>
+                  <TableCell>Ομάδα</TableCell>
+                  <TableCell align="right">Πλήθος</TableCell>
+                  <TableCell align="right">Μεικτά</TableCell>
+                  <TableCell align="right">Καθαρά</TableCell>
+                  <TableCell align="right">Συνεργάτης</TableCell>
+                  <TableCell align="right">Έδρα</TableCell>
+                  <TableCell align="right">Πληρωμένα</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {groupedSections.map(section => {
+                  const summary = statementTotals(section.rows);
+                  return (
+                    <TableRow key={section.key} hover>
+                      <TableCell sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>{section.key}</TableCell>
+                      <TableCell align="right">{summary.count}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: "rgba(31,123,179,0.09)" }}>{moneyFmt.format(summary.gross)}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: "rgba(46,125,50,0.12)", color: "success.dark" }}>{moneyFmt.format(summary.net)}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: "rgba(46,125,50,0.12)", color: "success.dark" }}>{moneyFmt.format(summary.producer)}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: "rgba(31,123,179,0.09)", color: "info.dark" }}>{moneyFmt.format(summary.office)}</TableCell>
+                      <TableCell align="right">{summary.paid} / {summary.count}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Table */}
       <Card variant="outlined">
@@ -473,59 +547,55 @@ export function OverCommissionStatementsPage() {
                 <TableRow><TableCell colSpan={11} sx={{ py: 4, textAlign: "center", color: "text.secondary" }}>
                   Καμία εγγραφή για αυτή την περίοδο. Πάτα «Νέα εγγραφή» για να ξεκινήσεις.
                 </TableCell></TableRow>
-              ) : rows.map(r => (
-                <TableRow key={r.id} hover>
-                  <TableCell>
-                    <Chip size="small" label={`${r.month.toString().padStart(2, "0")}/${r.year}`} />
-                  </TableCell>
-                  <TableCell>{r.insuranceCompanyName}</TableCell>
-                  <TableCell>
-                    <Typography fontWeight={600}>{r.producerName}</Typography>
-                    {r.producerCode && (
-                      <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.secondary" }}>
-                        {r.producerCode}
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontFamily: "monospace", fontWeight: 700 }}>
-                    {moneyFmt.format(r.grossAmount)}
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontFamily: "monospace" }}>
-                    {moneyFmt.format(r.netAmount)}
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontFamily: "monospace", fontSize: 12 }}>
-                    {(r.producerSharePercent ?? 100).toFixed(1)}%
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontFamily: "monospace", color: "success.main" }}>
-                    {moneyFmt.format(r.producerAmount ?? r.grossAmount)}
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontFamily: "monospace", color: "info.main" }}>
-                    {moneyFmt.format(r.officeAmount ?? 0)}
-                  </TableCell>
-                  <TableCell sx={{ fontSize: 12, color: "text.secondary" }}>{r.reference ?? "—"}</TableCell>
-                  <TableCell>
-                    {r.paidOn ? (
-                      <Chip size="small" color="success" icon={<PaidIcon />}
-                        label={new Date(r.paidOn).toLocaleDateString("el-GR")} />
-                    ) : (
-                      <Chip size="small" color="warning" variant="outlined" label="Απλήρωτη" />
-                    )}
-                  </TableCell>
-                  <TableCell align="right">
-                    <Tooltip title="Επεξεργασία">
-                      <IconButton size="small" onClick={() => setDialog(r)}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Διαγραφή">
-                      <IconButton size="small" color="error"
-                        onClick={() => { if (confirm("Διαγραφή εγγραφής;")) del.mutate(r.id); }}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
+              ) : groupBy === "none" ? (
+                rows.map(r => (
+                  <StatementTableRow
+                    key={r.id}
+                    row={r}
+                    onEdit={() => setDialog(r)}
+                    onDelete={() => { if (confirm("Διαγραφή εγγραφής;")) del.mutate(r.id); }}
+                  />
+                ))
+              ) : (
+                groupedSections.flatMap(section => {
+                  const summary = statementTotals(section.rows);
+                  return [
+                    <TableRow key={`group-${section.key}`} sx={{ bgcolor: "action.hover" }}>
+                      <TableCell colSpan={11} sx={{ fontWeight: 800, color: "primary.main", py: 1 }}>
+                        {section.key}
+                        <Typography component="span" sx={{ ml: 1, color: "text.secondary", fontSize: 12, fontWeight: 500 }}>
+                          · {summary.count} εγγραφές · {moneyFmt.format(summary.gross)} μεικτά · {moneyFmt.format(summary.office)} έδρα
+                        </Typography>
+                      </TableCell>
+                    </TableRow>,
+                    ...section.rows.map(r => (
+                      <StatementTableRow
+                        key={r.id}
+                        row={r}
+                        onEdit={() => setDialog(r)}
+                        onDelete={() => { if (confirm("Διαγραφή εγγραφής;")) del.mutate(r.id); }}
+                      />
+                    )),
+                    <TableRow key={`subtotal-${section.key}`} sx={{
+                      bgcolor: "rgba(46,125,50,0.10)",
+                      borderTop: "2px solid",
+                      borderColor: "rgba(46,125,50,0.28)",
+                      "& .MuiTableCell-root": { py: 0.85 },
+                    }}>
+                      <TableCell colSpan={3} sx={{ fontWeight: 800, color: "success.dark", whiteSpace: "nowrap" }}>
+                        Υποσύνολο · {section.key}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800 }}>{moneyFmt.format(summary.gross)}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, color: "success.dark" }}>{moneyFmt.format(summary.net)}</TableCell>
+                      <TableCell align="right">—</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, color: "success.dark" }}>{moneyFmt.format(summary.producer)}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, color: "info.dark" }}>{moneyFmt.format(summary.office)}</TableCell>
+                      <TableCell colSpan={2} />
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>{summary.paid}/{summary.count}</TableCell>
+                    </TableRow>,
+                  ];
+                })
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -556,6 +626,65 @@ function Kpi({ label, value, color }: { label: string; value: string; color?: st
       </Typography>
       <Typography sx={{ fontSize: 22, fontWeight: 800, mt: 0.5, color }}>{value}</Typography>
     </Card>
+  );
+}
+
+function StatementTableRow({ row, onEdit, onDelete }: {
+  row: StatementDto;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <TableRow hover>
+      <TableCell>
+        <Chip size="small" label={`${row.month.toString().padStart(2, "0")}/${row.year}`} />
+      </TableCell>
+      <TableCell>{row.insuranceCompanyName}</TableCell>
+      <TableCell>
+        <Typography fontWeight={600}>{row.producerName}</Typography>
+        {row.producerCode && (
+          <Typography variant="caption" sx={{ fontFamily: "monospace", color: "text.secondary" }}>
+            {row.producerCode}
+          </Typography>
+        )}
+      </TableCell>
+      <TableCell align="right" sx={{ fontFamily: "monospace", fontWeight: 700 }}>
+        {moneyFmt.format(row.grossAmount)}
+      </TableCell>
+      <TableCell align="right" sx={{ fontFamily: "monospace" }}>
+        {moneyFmt.format(row.netAmount)}
+      </TableCell>
+      <TableCell align="right" sx={{ fontFamily: "monospace", fontSize: 12 }}>
+        {(row.producerSharePercent ?? 100).toFixed(1)}%
+      </TableCell>
+      <TableCell align="right" sx={{ fontFamily: "monospace", color: "success.main" }}>
+        {moneyFmt.format(row.producerAmount ?? row.grossAmount)}
+      </TableCell>
+      <TableCell align="right" sx={{ fontFamily: "monospace", color: "info.main" }}>
+        {moneyFmt.format(row.officeAmount ?? 0)}
+      </TableCell>
+      <TableCell sx={{ fontSize: 12, color: "text.secondary" }}>{row.reference ?? "—"}</TableCell>
+      <TableCell>
+        {row.paidOn ? (
+          <Chip size="small" color="success" icon={<PaidIcon />}
+            label={new Date(row.paidOn).toLocaleDateString("el-GR")} />
+        ) : (
+          <Chip size="small" color="warning" variant="outlined" label="Απλήρωτη" />
+        )}
+      </TableCell>
+      <TableCell align="right">
+        <Tooltip title="Επεξεργασία">
+          <IconButton size="small" onClick={onEdit}>
+            <EditIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Διαγραφή">
+          <IconButton size="small" color="error" onClick={onDelete}>
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </TableCell>
+    </TableRow>
   );
 }
 
