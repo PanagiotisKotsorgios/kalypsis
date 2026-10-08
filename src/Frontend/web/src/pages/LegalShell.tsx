@@ -38,7 +38,7 @@ export function LegalShell({ eyebrow, title, lastUpdated, sections, intro }: Leg
       fontFamily: '"Inter", "Segoe UI", system-ui, -apple-system, sans-serif',
       display: "flex", flexDirection: "column"
     }}>
-      <Container maxWidth="sm" sx={{ flex: 1, px: { xs: 2.5, md: 3 }, py: { xs: 3, md: 5 } }}>
+      <Container maxWidth="md" sx={{ flex: 1, px: { xs: 2.5, md: 4 }, py: { xs: 3, md: 5 } }}>
         {/* Header bar — back link, print, language toggle. Hidden when printing. */}
         <Stack direction="row" alignItems="center" justifyContent="space-between"
           mb={4} data-print="hide">
@@ -68,7 +68,8 @@ export function LegalShell({ eyebrow, title, lastUpdated, sections, intro }: Leg
           </Typography>
           <Typography component="h1" sx={{
             fontSize: { xs: 22, md: 26 }, fontWeight: 700,
-            lineHeight: 1.25, color: "#000", mb: 1
+            lineHeight: 1.25, color: "#000", mb: 1,
+            whiteSpace: { xs: "normal", sm: "nowrap" }
           }}>
             {title}
           </Typography>
@@ -94,7 +95,8 @@ export function LegalShell({ eyebrow, title, lastUpdated, sections, intro }: Leg
             <Box id={s.id} key={s.id} sx={{ scrollMarginTop: 16 }}>
               <Typography component="h2" sx={{
                 fontSize: 15, fontWeight: 700, lineHeight: 1.35,
-                color: "#000", mb: 1
+                color: "#000", mb: 1,
+                whiteSpace: { xs: "normal", sm: "nowrap" }
               }}>
                 {s.heading}
               </Typography>
