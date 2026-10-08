@@ -13,7 +13,10 @@ export interface ExportColumnDescriptor {
   /** Uncheck by default — useful for columns "not displayed" that the user
    *  can opt into (e.g. an internal ID or a rarely-needed audit field). */
   defaultOff?: boolean;
-  /** Cannot be unchecked. Reserved for critical id columns. */
+  /**
+   * Legacy metadata retained for descriptor compatibility. Every export column
+   * is now user-selectable, including identifiers and summary columns.
+   */
   alwaysOn?: boolean;
 }
 
@@ -33,7 +36,7 @@ export function useExportColumnSelection(
 
   const initial = useMemo(() => {
     const off = new Set<string>();
-    for (const c of columns) if (c.defaultOff && !c.alwaysOn) off.add(c.key);
+    for (const c of columns) if (c.defaultOff) off.add(c.key);
     return off;
   }, [columns]);
 
@@ -62,23 +65,21 @@ export function useExportColumnSelection(
   }, [storageKey]);
 
   const toggle = useCallback((key: string) => {
-    const col = columns.find(c => c.key === key);
-    if (col?.alwaysOn) return;
     const next = new Set(off);
     if (next.has(key)) next.delete(key); else next.add(key);
     persist(next);
   }, [columns, off, persist]);
 
   const setAll = useCallback((on: boolean) => {
-    // "all on" = empty "off" set. "all off" = every non-locked column in the off set.
+    // "all on" = empty "off" set. "all off" = every column in the off set.
     if (on) persist(new Set<string>());
-    else    persist(new Set(columns.filter(c => !c.alwaysOn).map(c => c.key)));
+    else    persist(new Set(columns.map(c => c.key)));
   }, [columns, persist]);
 
   const reset = useCallback(() => persist(new Set(initial)), [initial, persist]);
 
   const activeKeys = useMemo(
-    () => columns.filter(c => c.alwaysOn || !off.has(c.key)).map(c => c.key),
+    () => columns.filter(c => !off.has(c.key)).map(c => c.key),
     [columns, off]
   );
 
@@ -145,7 +146,7 @@ export function ExportColumnPicker({
         </Typography>
         <Stack sx={{ gap: 0.25, overflowY: "auto", maxHeight: 300, pr: 0.5 }}>
           {columns.map(c => {
-            const on = c.alwaysOn || !off.has(c.key);
+            const on = !off.has(c.key);
             return (
               <FormControlLabel
                 key={c.key}
@@ -154,7 +155,6 @@ export function ExportColumnPicker({
                   <Checkbox
                     size="small"
                     checked={on}
-                    disabled={c.alwaysOn}
                     onChange={() => toggle(c.key)}
                   />
                 }
