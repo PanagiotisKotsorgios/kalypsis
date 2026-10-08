@@ -142,9 +142,24 @@ class GuideDoc(BaseDocTemplate):
 
 def draw_background(canvas, doc):
     canvas.saveState()
-    # The guide is intentionally text-only: use vector branding instead of
-    # embedding the supplied raster letterhead or any screenshots. This keeps
-    # the PDF crisp, searchable and lightweight on every device.
+    # The content remains text-only (no screenshots), while the supplied
+    # KALYPSIS letterhead is used as the background on every page.
+    if LETTERHEAD.exists():
+        canvas.drawImage(
+            ImageReader(str(LETTERHEAD)),
+            0,
+            0,
+            width=PAGE_W,
+            height=PAGE_H,
+            preserveAspectRatio=False,
+            mask="auto",
+        )
+    # Hide the legacy vector header below; the supplied stationery already
+    # contains the logo and branding at the top of the page.
+    try:
+        canvas.setFillAlpha(0)
+    except AttributeError:
+        pass
     canvas.setFillColor(NAVY)
     canvas.rect(0, PAGE_H - 96, PAGE_W, 96, stroke=0, fill=1)
     canvas.setFillColor(CYAN)
@@ -168,7 +183,7 @@ def draw_background(canvas, doc):
     canvas.setLineWidth(1.2)
     canvas.line(42, PAGE_H - 130, PAGE_W - 42, PAGE_H - 130)
     canvas.setFont("GuideSans", 7.5)
-    canvas.setFillColor(MUTED)
+    canvas.setFillColor(colors.white)
     canvas.drawString(42, 25, "KALYPSIS · \u039f\u03b4\u03b7\u03b3\u03cc\u03c2 BackOffice · \u0388\u03ba\u03b4\u03bf\u03c3\u03b7 2026")
     canvas.drawRightString(PAGE_W - 42, 25, f"\u03a3\u03b5\u03bb\u03af\u03b4\u03b1 {doc.page}")
     canvas.restoreState()

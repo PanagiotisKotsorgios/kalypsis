@@ -67,6 +67,7 @@ export function DocumentationPage() {
   const [query, setQuery] = useState("");
   const [activeSlug, setActiveSlug] = useState<string>("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [showGuidePdf, setShowGuidePdf] = useState(false);
 
   const q = useQuery({
     queryKey: ["documentation-sections", "public"],
@@ -340,6 +341,36 @@ export function DocumentationPage() {
             )}
           </Stack>
         </Box>
+
+        {!isPublic && (
+          <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={showGuidePdf ? <ExpandLessIcon /> : <PictureAsPdfIcon />}
+              onClick={() => setShowGuidePdf(value => !value)}
+              sx={{ whiteSpace: "nowrap" }}
+            >
+              {showGuidePdf ? "Απόκρυψη οδηγού" : "Προβολή οδηγού"}
+            </Button>
+          </Box>
+        )}
+
+        {!isPublic && (
+          <Collapse in={showGuidePdf} unmountOnExit sx={{ mb: 3 }}>
+            <Box sx={{
+              border: "1px solid", borderColor: "divider", borderRadius: 2,
+              overflow: "hidden", bgcolor: "background.paper",
+              boxShadow: "0 10px 30px -20px rgba(11,37,69,0.45)",
+            }}>
+              <iframe
+                src="/docs/kalypsis-backoffice-guide.pdf#view=FitH"
+                title="Πλήρης οδηγός χρήσης Kalypsis"
+                style={{ display: "block", width: "100%", height: "min(78vh, 900px)", border: 0 }}
+              />
+            </Box>
+          </Collapse>
+        )}
 
         {q.isLoading && (
           <Box sx={{ py: 8, textAlign: "center" }}><CircularProgress /></Box>

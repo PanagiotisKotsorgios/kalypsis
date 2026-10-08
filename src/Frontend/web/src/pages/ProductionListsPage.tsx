@@ -752,11 +752,11 @@ export function ProductionListsPage() {
           <Card sx={{ p: 2.5, mb: 2, bgcolor: "rgba(11,37,69,0.04)" }}>
             <Stack direction="row" spacing={3} flexWrap="wrap">
               <Kpi label={t("productionList.kpi.policies")} value={q.data.grand.count} />
-              <Kpi label={t("productionList.kpi.gross")} value={money(q.data.grand.gross)} />
-              <Kpi label={t("productionList.kpi.net")} value={money(q.data.grand.net)} />
-              <Kpi label="Φόρος ασφαλίστρων" value={money(q.data.grand.vat)} />
-              <Kpi label={t("productionList.kpi.partnerComm")} value={money(q.data.grand.partnerCommission)} color="warning.main" />
-              <Kpi label={t("productionList.kpi.agencyComm")} value={money(q.data.grand.agencyCommission)} color="success.main" />
+              <Kpi label={t("productionList.kpi.gross")} value={money(q.data.grand.gross)} tone="info" />
+              <Kpi label={t("productionList.kpi.net")} value={money(q.data.grand.net)} tone="success" />
+              <Kpi label="Φόρος ασφαλίστρων" value={money(q.data.grand.vat)} tone="warning" />
+              <Kpi label={t("productionList.kpi.partnerComm")} value={money(q.data.grand.partnerCommission)} color="warning.main" tone="warning" />
+              <Kpi label={t("productionList.kpi.agencyComm")} value={money(q.data.grand.agencyCommission)} color="success.main" tone="success" />
             </Stack>
           </Card>
 
@@ -1032,9 +1032,26 @@ export function ProductionListsPage() {
   );
 }
 
-function Kpi({ label, value, color }: { label: string; value: React.ReactNode; color?: string }) {
+function Kpi({ label, value, color, tone = "neutral" }: {
+  label: string;
+  value: React.ReactNode;
+  color?: string;
+  tone?: "neutral" | "info" | "success" | "warning";
+}) {
+  const backgrounds = {
+    neutral: "rgba(11,37,69,0.035)",
+    info: "rgba(31,123,179,0.09)",
+    success: "rgba(46,125,50,0.12)",
+    warning: "rgba(237,108,2,0.10)",
+  } as const;
+  const borders = {
+    neutral: "rgba(11,37,69,0.10)",
+    info: "rgba(31,123,179,0.24)",
+    success: "rgba(46,125,50,0.28)",
+    warning: "rgba(237,108,2,0.25)",
+  } as const;
   return (
-    <Box>
+    <Box sx={{ minWidth: 112, px: 1.25, py: 0.8, borderRadius: 1.5, bgcolor: backgrounds[tone], border: "1px solid", borderColor: borders[tone] }}>
       <Typography variant="caption" color="text.secondary">{label}</Typography>
       <Typography variant="h6" fontWeight={800} sx={{ color: color ?? "text.primary" }}>{value}</Typography>
     </Box>
