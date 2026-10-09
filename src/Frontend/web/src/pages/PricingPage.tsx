@@ -148,6 +148,27 @@ export function PricingPage() {
             <Typography sx={{ color: "#284c89", fontSize: { xs: 15, md: 18 }, maxWidth: 900, mt: .75 }}>{settings.publicSubtitle}</Typography>
           </Stack>
 
+          <Card sx={{
+            mb: { xs: 2.5, md: 3.5 }, p: { xs: 2, sm: 2.5, md: 3 }, borderRadius: 3,
+            color: "#fff", overflow: "hidden", position: "relative",
+            background: "linear-gradient(112deg, #08265f 0%, #1265d8 58%, #1ea7e1 100%)",
+            boxShadow: "0 18px 42px rgba(18,101,216,.24)",
+            border: "1px solid rgba(255,255,255,.3)",
+            "&::after": { content: '""', position: "absolute", width: 260, height: 260, right: -90, top: -130, borderRadius: "50%", bgcolor: "rgba(255,255,255,.12)" }
+          }}>
+            <Stack direction={{ xs: "column", md: "row" }} alignItems={{ md: "center" }} justifyContent="space-between" gap={2} sx={{ position: "relative", zIndex: 1 }}>
+              <Stack direction="row" alignItems="flex-start" gap={1.5}>
+                <WorkspacePremiumIcon sx={{ fontSize: { xs: 34, md: 42 }, color: "#ffe08a", mt: .2 }} />
+                <Box>
+                  <Typography sx={{ color: "#ffe08a", fontWeight: 1000, letterSpacing: ".045em", fontSize: { xs: 18, md: 24 }, lineHeight: 1.1 }}>ΔΩΡΕΑΝ ΠΛΗΡΗΣ ΠΑΡΟΥΣΙΑΣΗ</Typography>
+                  <Typography sx={{ mt: .65, fontWeight: 800, fontSize: { xs: 15, md: 18 } }}>Δωρεάν οι 2 πρώτοι μήνες χρήσης, ανεξαρτήτως πακέτου και πρόσθετων.</Typography>
+                  <Typography sx={{ mt: .3, color: "rgba(255,255,255,.9)", fontSize: { xs: 14, md: 16 } }}>Δωρεάν προσαρμογή του προγράμματος για το γραφείο σας.</Typography>
+                </Box>
+              </Stack>
+              <Button component={RouterLink} to="/contact" variant="contained" endIcon={<ArrowForwardIcon />} sx={{ flexShrink: 0, bgcolor: "#fff", color: NAVY, fontWeight: 950, borderRadius: 2, px: 2.5, py: 1.2, "&:hover": { bgcolor: "#fff4c7" } }}>Κλείστε παρουσίαση</Button>
+            </Stack>
+          </Card>
+
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2,1fr)", lg: "repeat(4,1fr)" }, gap: { xs: 2, lg: 2.5 }, alignItems: "stretch" }}>
             {activePlans.map(plan => <PlanCard key={plan.code} plan={plan} features={activeFeatures} />)}
           </Box>
