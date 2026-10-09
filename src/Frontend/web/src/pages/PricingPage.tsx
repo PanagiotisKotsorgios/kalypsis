@@ -23,6 +23,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { api } from "../api/client";
 import { KalypsisLogo } from "../components/KalypsisLogo";
 import { PublicShell } from "../components/PublicShell";
+import { PresentationRequestDialog } from "../components/PresentationRequestDialog";
 
 interface PricingFeature { key: string; label: string; description?: string; sortOrder: number; isActive: boolean; iconKey?: string | null }
 interface Plan { code: string; name: string; tagline: string; description: string; pricePerYear: number; includedOffices: number; includedUsers: number; extraOfficePerYear: number; extraUserPerYear: number; includedPackages: number; packages: string[]; featureKeys?: string[]; isFeatured: boolean; isActive: boolean; sortOrder: number; buttonText: string; buttonUrl: string; badge?: string | null; iconKey?: string | null }
@@ -117,6 +118,7 @@ export function PricingPage() {
   const [extraUsers, setExtraUsers] = useState(0);
   const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
   const [selectedServices, setSelectedServices] = useState<Record<string, boolean>>({});
+  const [presentationOpen, setPresentationOpen] = useState(false);
   useEffect(() => {
     if (catalog && !catalog.plans.some(p => p.code === planCode)) setPlanCode(catalog.plans.find(p => p.isActive)?.code ?? "");
   }, [catalog, planCode]);
@@ -165,9 +167,28 @@ export function PricingPage() {
                   <Typography sx={{ mt: .3, color: "rgba(255,255,255,.9)", fontSize: { xs: 14, md: 16 } }}>Δωρεάν προσαρμογή του προγράμματος για το γραφείο σας.</Typography>
                 </Box>
               </Stack>
-              <Button component={RouterLink} to="/contact" variant="contained" endIcon={<ArrowForwardIcon />} sx={{ flexShrink: 0, bgcolor: "#fff", color: NAVY, fontWeight: 950, borderRadius: 2, px: 2.5, py: 1.2, "&:hover": { bgcolor: "#fff4c7" } }}>Κλείστε παρουσίαση</Button>
+              <Button onClick={() => setPresentationOpen(true)} variant="contained" endIcon={<ArrowForwardIcon />} sx={{ flexShrink: 0, bgcolor: "#fff", color: NAVY, fontWeight: 950, borderRadius: 2, px: 2.5, py: 1.2, "&:hover": { bgcolor: "#fff4c7" } }}>Κλείστε παρουσίαση</Button>
             </Stack>
           </Card>
+
+          <Alert
+            severity="info"
+            sx={{
+              mb: { xs: 2.5, md: 3.5 },
+              border: `1px solid ${BLUE}38`,
+              borderRadius: 2.5,
+              bgcolor: "rgba(239,248,255,.94)",
+              color: NAVY,
+              alignItems: "flex-start",
+              boxShadow: "0 8px 22px rgba(19,84,146,.06)",
+              "& .MuiAlert-icon": { color: BLUE, mt: ".1rem" }
+            }}
+          >
+            <Typography component="span" sx={{ fontWeight: 950 }}>
+              Η τελική τιμή προσαρμόζεται στις ανάγκες του γραφείου σας.
+            </Typography>{" "}
+            Οι τιμές είναι ενδεικτικές και μπορούν να μειωθούν αν δεν χρειάζεστε συγκεκριμένες λειτουργίες ή να αυξηθούν αν επιλέξετε επιπλέον δυνατότητες, γραφεία, χρήστες ή διασυνδέσεις. Επικοινωνήστε μαζί μας για μια εξατομικευμένη πρόταση.
+          </Alert>
 
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2,1fr)", lg: "repeat(4,1fr)" }, gap: { xs: 2, lg: 2.5 }, alignItems: "stretch" }}>
             {activePlans.map(plan => <PlanCard key={plan.code} plan={plan} features={activeFeatures} />)}
@@ -216,6 +237,7 @@ export function PricingPage() {
 
           <Stack alignItems="center" textAlign="center" sx={{ mt: 4 }}><Typography variant="h5" fontWeight={950} color={NAVY}>Θέλεις να το προσαρμόσουμε στο γραφείο σου;</Typography><Typography color="text.secondary" sx={{ mt: .5 }}>Επικοινώνησε μαζί μας για ενεργοποίηση πακέτων ή ειδική τιμολόγηση.</Typography><Button component={RouterLink} to="/contact" variant="contained" endIcon={<ArrowForwardIcon />} sx={{ mt: 1.5, bgcolor: NAVY, fontWeight: 900 }}>Ζήτησε διαμόρφωση</Button></Stack>
         </Container>
+        <PresentationRequestDialog open={presentationOpen} onClose={() => setPresentationOpen(false)} />
       </Box>
     </PublicShell>
   );
